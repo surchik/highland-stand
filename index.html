@@ -18105,7 +18105,7 @@ function drawFallen(c, x, y, k, a) {
   ctx.beginPath(); ctx.ellipse(0.5, 3.4, 19, 5.4, 0, 0, Math.PI * 2); ctx.fill();
 
   // the weapon lies where it was dropped, beyond the body
-  if (era === 3) {
+  if (era >= 3) {
     limb(C.steel, 1, [[-3, -8.4], [15.6, -7]]);
     limb(C.woodLit, 2.2, [[-12.6, -8.4], [-2.6, -8.2]]);
   } else if (era === 2) {
@@ -18123,7 +18123,8 @@ function drawFallen(c, x, y, k, a) {
     inked(C.steelLit);
   }
 
-  // round shield fallen face-up by the knees
+  // round shield fallen face-up by the knees (the musket and rifle armies of eras 4 and 5 carried none)
+  if (era < 4) {
   const rimFill = [C.bronze, C.wicker, C.leather, C.crimson][era], rimDark = [C.bronzeShade, C.wickerShade, C.leatherShade, C.crimsonShade][era];
   blob(rimFill, 10.4, 7.6, 6.6, 3.5, -0.06);
   ctx.fillStyle = rimDark;
@@ -18134,6 +18135,7 @@ function drawFallen(c, x, y, k, a) {
   ctx.strokeStyle = rimDark; ctx.lineWidth = 0.7;
   ctx.beginPath(); ctx.ellipse(10.4, 7.6, 4.5, 2.3, -0.06, 0, Math.PI * 2); ctx.stroke();
   blob(era === 2 ? C.steelLit : C.gold, 10.4, 7.3, 1.8, 1.1, 0);
+  }
 
   // legs sprawled: the far one drawn up at the knee, the near one flung straight
   limb(deep, 3.2, [[5.4, -1], [11, -5.6], [14.6, -1.6]]);
@@ -18194,6 +18196,8 @@ function drawFallen(c, x, y, k, a) {
     flat(C.linenShade, [-14.6, 1.6, -11.4, 1.4, -11.2, 3.2, -14.2, 3.8]);
     ctx.strokeStyle = "rgba(112, 92, 60, .6)"; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(-15.4, -4.4); ctx.quadraticCurveTo(-11.6, -0.8, -15.2, 3.2); ctx.moveTo(-13, -4.8); ctx.quadraticCurveTo(-16.2, -0.4, -12.6, 3.4); ctx.stroke();
+  } else if (UNIT_FALLEN_CAP[era]) {
+    UNIT_FALLEN_CAP[era](inked, flat);
   } else {
     path([-11.8, -4.2, -20, -3.4, -20.6, 1.4, -11.8, 2.8]);
     ctx.closePath();
@@ -29320,6 +29324,8 @@ function drawOutflanker(e, p, k, d, dir) {
   unitFace(dir);
   if (era === 3) {
     outflankHorseman(pal);
+  } else if (UNIT_FLANK_ART[era]) {
+    UNIT_FLANK_ART[era](kit, pal, d);
   } else if (wet === "|swim") {
     outflankSwimmer(kit, pal);
   } else if (era === 1) {
@@ -29564,12 +29570,12 @@ const UNIT_BOSS_LOOKS = [UNIT_LOOKS.chariot, UNIT_LOOKS.shah, UNIT_LOOKS.general
 // or leave the eye where the road runs up or down the screen
 function unitLook(e, d, p) {
   const era = unitEra(e, d);
-  if (e.fly) return OUTFLANK_LOOKS[era] || UNIT_LOOKS.foot;
+  if (e.fly) return (UNIT_FLANK_LOOK[era] && UNIT_FLANK_LOOK[era](d)) || OUTFLANK_LOOKS[era] || UNIT_LOOKS.foot;
   if (d.variant === "ladder") return unitView(p) !== "side" ? LADDER_LOOKS.end : LADDER_LOOKS.side;
   if (e.type === "boss") return UNIT_BOSS_LOOKS[era] || UNIT_LOOKS.champion;
   const end = unitView(p) !== "side";
   if (d.variant === "elephant") return end ? UNIT_LOOKS.elephantEnd : UNIT_LOOKS.elephant;
-  if (d.variant === "cannon") return end ? UNIT_LOOKS.cannonEnd : UNIT_LOOKS.cannon;
+  if (d.variant === "cannon") return (UNIT_GUN_LOOK[era] && UNIT_GUN_LOOK[era](d, end)) || (end ? UNIT_LOOKS.cannonEnd : UNIT_LOOKS.cannon);
   if (e.type === "ram") {
     if (era >= 2) return end ? UNIT_LOOKS.gableEnd : UNIT_LOOKS.gable;
     return end ? UNIT_LOOKS.towerEnd : UNIT_LOOKS.tower;
@@ -29851,6 +29857,8 @@ function unitPaintHead(kit, pal) {
     uFlatPoly([L * 1.8, -1.6, L * 4.4, -1.6, L * 3.3, -7.1, L * 1.4, -7.1], C.crimsonShade);
     uPoly([-4.6, -2.9, 5, -2.9, 5, -1, -4.6, -1], C.linen);
     uFlatLine([0.2, -7.4, -3, -6.8, -4.2, -3.6], C.hair, 0.8);
+  } else if (UNIT_HELM_ART[helm]) {
+    UNIT_HELM_ART[helm](kit, pal, 0);
   }
   uc.restore();
 }
@@ -30050,6 +30058,8 @@ function unitPaintHeadEnd(kit, pal, front) {
     uPoly([-4.7, -2.9, 4.7, -2.9, 4.7, -1, -4.7, -1], C.linen);
     if (front) uFlatLine([0, -7.4, 3.2, -6.6, 4.4, -3.6], C.hair, 0.8);
     else uFlatLine([0, -7.4, 0.5, -2.6], C.hair, 0.8);
+  } else if (UNIT_HELM_ART[helm]) {
+    UNIT_HELM_ART[helm](kit, pal, front ? 1 : -1);
   }
   uc.restore();
 }
@@ -30238,6 +30248,8 @@ function unitPaintShieldFace(kind, pal, inside) {
     }
     uDisc(0, 0, r * 0.3, C.gold);
     uGlint(-L * r * 0.1, -r * 0.1, kind === "roundBig" ? 1.6 : 1.2);
+  } else if (UNIT_SHIELD_ART[kind]) {
+    UNIT_SHIELD_ART[kind](pal, inside);
   }
 }
 
@@ -30334,6 +30346,8 @@ function unitPaintWeapon(kit) {
     uFlatSeg(5.2, -13.6, 14.6, -13.6, 0.6, C.woodShade);
     uFlatPoly([14.4, -14.4, 16.2, -13.6, 14.4, -12.8], C.steelLit);
     uGlint(15, -13.7, 1);
+  } else if (UNIT_WEAPON_ART[w]) {
+    UNIT_WEAPON_ART[w](kit);
   }
   uc.restore();
   return grip;
@@ -30402,6 +30416,7 @@ function unitPaintTunic(kit, pal, sway, mid, rear) {
     uc.lineWidth = 0.45; uc.strokeStyle = pal.deep;
     for (let x = -4; x <= 4; x += 1.6) { uc.beginPath(); uc.moveTo(x + sway * 0.4, hem - 1.2); uc.lineTo(x + sway * 0.4, hem + 0.5); uc.stroke(); }
   }
+  if (kit.over) kit.over(kit, pal, sway, mid, rear);
   // trim collar, then the shadow the head throws on the chest
   uFlatLine([-3.6 * slim, -16.6, 0, -17.5, 3.6 * slim, -16.6], pal.trim, 1.1);
   if (!rear) uFlatOval(mid + 0.8 + L * 0.8, -16, 3.5 * slim, 1.2, 0, "rgba(46, 24, 10, .3)");
@@ -30430,6 +30445,8 @@ function unitPaintInfantry(kit, pal, walk) {
     uc.closePath();
     uInk(kit.cloak);
     uFlatLine([-4.6, -14, -7 - sway, -9, -6.2 - sway * 1.6, -4.6], "rgba(30, 16, 8, .4)", 0.5);
+  } else if (UNIT_BACK_ART[kit.back]) {
+    UNIT_BACK_ART[kit.back](kit, pal, sway, 0);
   }
   uc.restore();
 
@@ -30457,7 +30474,7 @@ function unitPaintInfantry(kit, pal, walk) {
   if (kit.shield) {
     uLine([-3.2, -15, -2.8, -11.2, 3, -10.8], pal.lit, 2.5);
     unitPaintShield(kit.shield, pal);
-  } else if (kit.weapon === "musket") {
+  } else if (kit.weapon === "musket" || kit.steady) {
     uLine([-3.2, -15, -1.6, -10.8, 6.4, -10.6], pal.lit, 2.5);
     uDisc(6.6, -10.6, 1.5, skin);
   } else if (kit.weapon === "bow") {
@@ -30559,6 +30576,8 @@ function unitPaintInfantryEnd(kit, pal, walk, front) {
       uFlatPoly([1, -11.6, 2.2, -10.6, 4.6, -18.2, 3.5, -18.8], C.leatherShade);
       uFlatSeg(2.8, -19.2, 3.6, -22.4, 0.7, C.linen);
       uFlatSeg(3.9, -18.7, 5.2, -21.8, 0.7, C.linen);
+    } else if (UNIT_BACK_ART[kit.back]) {
+      UNIT_BACK_ART[kit.back](kit, pal, sway, -1);
     } else {
       // a plain back: the seam down the spine
       uFlatLine([0, -16.4, sway * 0.3, -10.8], "rgba(30, 16, 22, .3)", 0.55);
@@ -32389,6 +32408,1137 @@ function unitPaintHeroSwordArm() {
   uDisc(5.4, 0, 1.6, C.skin);
 }
 
+// ======================================================================================
+// UNIT SECTION: era4-5. the Ottoman armies of 1727 (Halidzor) and of 1915-1918 (Van, Musa Dagh, Sardarapat)
+// Everything this section needs lives between this banner and its END banner.
+// ======================================================================================
+// Eras 4 and 5 stop borrowing the 16th-century pictures. The shared painters call into the
+// registries below where an era, a headdress, a weapon, a shield or a pack is not one of their own;
+// every entry here is keyed by the art era or by a kit name used only by these two eras.
+//
+// 1727, Davit Bek's war in Syunik: janissary musketeers in the white bork with the kaftan skirts
+// tucked up into the sash, a cartridge box and a yatagan at the belt; turbaned tribal levies with
+// drawn sabres; sappers behind plank mantlets with mattocks; turbaned provincial sipahis with the
+// kilij; a bronze siege gun towed trail-first behind a yoke of oxen with a gunner beside it; the
+// besieging pasha on a black horse in a fur-edged kaftan and tall white kallavi, his horsetail
+// standard carried behind him by a retainer on foot; mountain scouts running with their muskets.
+//
+// 1915-1918: Ottoman infantry in khaki with the wound-cloth kabalak, webbing, pack and a Mauser
+// with fixed bayonet; gendarmes in the black lambskin kalpak; irregulars in headcloths or (the
+// Circassians) the tall papakha and cherkeska, with bandoliers; sap-trench troops behind steel
+// loophole plates; a machine-gun section carrying the MG 08 on the shoulder; regular cavalry and
+// mounted gendarmes in kalpaks, Kurdish irregular riders in headcloths; a field battery's gun and
+// limber behind a horse team, or a mountain gun manhandled on drag ropes by its crew; the commander
+// (Djevdet Bey, Ruestue Bey, or an unnamed column commander) as a plain mounted officer in a
+// greatcoat and kalpak with a staff officer on foot beside him. The level names choose among these.
+ERA_ART[4] = 4;
+ERA_ART[5] = 5;
+
+const UNIT_HELM_ART = {}, UNIT_WEAPON_ART = {}, UNIT_SHIELD_ART = {}, UNIT_BACK_ART = {};
+const UNIT_BOSS_ART = [], UNIT_HORSE_ART = [], UNIT_GUN_ART = [], UNIT_GUN_LOOK = [];
+const UNIT_FLANK_ART = [], UNIT_FLANK_LOOK = [], UNIT_FALLEN_CAP = [];
+
+const E45 = {
+  khaki: "#a39468", khakiShade: "#76694a", khakiLit: "#c2b48a",
+  kalpak: "#2c2622", kalpakShade: "#171310", papakha: "#3a2f28",
+  canvas: "#a69c76", canvasShade: "#7a7052", roll: "#6e5c46",
+  belt: "#6a4a2a", beltLit: "#8f6a3e",
+  field: "#5d6150", fieldLit: "#7f846e", fieldShade: "#3e4236",       // field-grey gun paint and steel plate
+  brass: "#c9a24a",
+};
+
+// ---- headdress (drawn in the head's frame, over the face; v is 0 in profile, 1 face-on, -1 from behind)
+
+// the kabalak: a long khaki cloth wound criss-cross over a light frame into a brimless dome
+UNIT_HELM_ART.kabalak = (kit, pal, v) => {
+  const L = v ? 1 : unitLit;
+  uc.beginPath();
+  uc.moveTo(-5.2, -0.6);
+  uc.quadraticCurveTo(-6, -8.6, 0.1, -9.3);
+  uc.quadraticCurveTo(6.1, -8.8, 5.4, -0.6);
+  uc.closePath();
+  uInk(kit.cap);
+  uFlatPoly([L * 2.2, -1, L * 5.2, -1, L * 5.3, -5.4, L * 2.8, -8.7], kit.capShade);
+  uFlatPoly([-L * 4.8, -2, -L * 4.6, -5.8, -L * 2.4, -8.2, -L * 3, -4.6], E45.khakiLit);
+  const ln = "rgba(64, 52, 26, .55)";
+  uFlatLine([-5, -2.6, -0.6, -8.8], ln, 0.5);
+  uFlatLine([-3, -1, 3.2, -8.6], ln, 0.5);
+  uFlatLine([0.4, -1, 5.2, -5.6], ln, 0.5);
+  uFlatLine([5.2, -2.6, 0.8, -8.8], ln, 0.5);
+  uFlatLine([3.2, -1, -2.8, -8.6], ln, 0.5);
+  uFlatLine([-0.4, -1, -5, -5.6], ln, 0.5);
+  uFlatSeg(-5.1, -1.5, 5.3, -1.5, 1.2, kit.capShade);
+};
+
+// the kalpak: a straight-sided cap of black lambskin, worn by gendarmes, cavalry and officers
+UNIT_HELM_ART.kalpak = (kit, pal, v) => {
+  const L = v ? 1 : unitLit;
+  uc.beginPath();
+  uc.moveTo(-5, -0.7);
+  uc.lineTo(-5.2, -6.2);
+  uc.quadraticCurveTo(0.2, -7.4, 5.6, -6.4);
+  uc.lineTo(5.4, -0.7);
+  uc.closePath();
+  uInk(E45.kalpak);
+  uFlatPoly([L * 2.2, -1.1, L * 5.1, -1.1, L * 5.2, -6.2, L * 2.2, -6.6], E45.kalpakShade);
+  if (kit.crown) uFlatPoly([-3.8, -6.6, 4.2, -6.7, 3.4, -7.2, -3, -7.1], kit.crown);   // the cloth top
+  // the curl of the fleece: small open loops, lighter on the sunny side
+  uc.lineWidth = 0.45;
+  for (const [y, o] of [[-2.2, 0], [-4.4, 0.8]]) {
+    for (let x = -4 + o; x < 4.6; x += 1.6) {
+      uc.strokeStyle = x * L < 0 ? "rgba(255, 240, 220, .2)" : "rgba(255, 240, 220, .08)";
+      uc.beginPath(); uc.arc(x, y, 0.6, Math.PI * 0.9, Math.PI * 2.2); uc.stroke();
+    }
+  }
+};
+
+// the Circassian papakha: taller, shaggier and wider at the crown
+UNIT_HELM_ART.papakha = (kit, pal, v) => {
+  const L = v ? 1 : unitLit;
+  uc.beginPath();
+  uc.moveTo(-4.9, -0.7);
+  uc.lineTo(-5.8, -8.4);
+  uc.quadraticCurveTo(0, -10.2, 6, -8.6);
+  uc.lineTo(5.3, -0.7);
+  uc.closePath();
+  uInk(E45.papakha);
+  uFlatPoly([L * 2.4, -1.1, L * 5.1, -1.1, L * 5.7, -8.4, L * 2.6, -9.4], E45.kalpakShade);
+  uc.lineWidth = 0.5;
+  uc.strokeStyle = "rgba(255, 240, 220, .16)";
+  for (let x = -4.6; x < 5; x += 1.3) {
+    uc.beginPath(); uc.moveTo(x, -8.8 + Math.abs(x) * 0.1); uc.lineTo(x + 0.5, -6); uc.stroke();
+    uc.beginPath(); uc.moveTo(x + 0.6, -4.8); uc.lineTo(x + 0.9, -2.2); uc.stroke();
+  }
+};
+
+// a long headcloth wound over a skullcap, the tail down the back and a knotted fringe at the nape
+UNIT_HELM_ART.headcloth = (kit, pal, v) => {
+  const L = v ? 1 : unitLit;
+  if (v === 0) uPoly([-3.2, -2.4, -7, 5.2, -4.4, 5.8, -2, -0.6], kit.capShade);
+  else if (v < 0) uPoly([-1.6, -1.6, -2.6, 7.6, 0.6, 8, 1.2, -1.4], kit.capShade);
+  uc.beginPath();
+  uc.moveTo(-5.3, -0.6);
+  uc.quadraticCurveTo(-5.9, -6.8, -0.2, -7.8);
+  uc.quadraticCurveTo(5.6, -7.9, 5.6, -0.8);
+  uc.closePath();
+  uInk(kit.cap);
+  uc.beginPath();
+  uc.ellipse(0.2, -3.8, 5.6, 3.6, 0, L > 0 ? -0.9 : Math.PI - 0.9, L > 0 ? 0.9 : Math.PI + 0.9);
+  uc.closePath();
+  uc.fillStyle = kit.capShade; uc.fill();
+  uc.lineWidth = 0.7;
+  uc.strokeStyle = kit.band || "#c9a24a";
+  uc.beginPath(); uc.moveTo(-5.2, -3); uc.quadraticCurveTo(0, -6.8, 5.4, -3.6); uc.stroke();
+  uc.strokeStyle = "#e8d8b4";
+  uc.beginPath(); uc.moveTo(-5, -1.6); uc.quadraticCurveTo(0.6, -4.4, 5.6, -5); uc.stroke();
+  uc.lineWidth = 0.55;
+  uc.strokeStyle = "#2a1810";
+  const x0 = v ? 3.4 : -5, x1 = v ? 5.2 : -1.4;
+  for (const s of v ? [-1, 1] : [1]) {
+    for (let x = x0; x <= x1; x += 0.9) { uc.beginPath(); uc.moveTo(s * x, -1.2); uc.lineTo(s * x - 0.3, 1.4); uc.stroke(); }
+  }
+};
+
+// the pasha's kallavi: a tall cylinder of white muslin over a red cap, a gold band slanting across it
+function e45Kallavi(L) {
+  const C = UNIT_COLORS;
+  uc.beginPath();
+  uc.moveTo(-5.6, -1.4);
+  uc.lineTo(-5.2, -12.4);
+  uc.quadraticCurveTo(0.2, -14.6, 5.6, -12.4);
+  uc.lineTo(6, -1.4);
+  uc.quadraticCurveTo(0.2, 0.2, -5.6, -1.4);
+  uc.closePath();
+  uInk(C.linen);
+  uFlatPoly([L * 2.4, -1, L * 5.9, -1.6, L * 5.5, -12.2, L * 2.6, -13.6], C.linenShade);
+  uFlatOval(0.2, -12.8, 4.8, 1.3, 0, C.crimson);
+  uPoly([-5.4, -8.6, 5.7, -4.2, 5.8, -2.6, -5.5, -7], C.gold);
+  uc.lineWidth = 0.5;
+  uc.strokeStyle = "rgba(112, 92, 60, .55)";
+  for (const y of [-3.6, -6.2, -9.6]) { uc.beginPath(); uc.moveTo(-5.3, y); uc.quadraticCurveTo(0.2, y + 1.2, 5.7, y); uc.stroke(); }
+}
+
+// ---- weapons (drawn in the weapon's own carrying frame; UNIT_GRIPS gives the hand) ----------------
+Object.assign(UNIT_GRIPS, { rifle: [8.2, -16], carbine: [8.2, -16], mg08: [6.4, -15.6], pick: [7.9, -13.6], tugh: [8.2, -16] });
+
+// a Mauser at the shoulder: the wooden fore-end runs almost to the muzzle; the bayonet stands clear
+function e45Rifle(kit, bayonet) {
+  const C = UNIT_COLORS;
+  uSeg(8.3, -17, 9.25, -36.4, 0.85, C.iron);
+  uSeg(6.4, -6.4, 8.8, -31.4, 1.9, C.wood);
+  uFlatSeg(6.6, -7.6, 8.5, -29.6, 0.6, C.woodLit);
+  uFlatSeg(7.6, -18.6, 6, -18.2, 0.8, C.iron);             // the bolt handle
+  uFlatSeg(7.4, -9.6, 7.9, -12.6, 0.5, C.leatherShade);     // the sling
+  if (bayonet) {
+    uPoly([9, -36.2, 9.65, -46.4, 10.1, -36.2], C.steelLit);
+    uGlint(9.6, -42.6, 1);
+  }
+}
+UNIT_WEAPON_ART.rifle = kit => e45Rifle(kit, true);
+UNIT_WEAPON_ART.carbine = kit => e45Rifle(kit, false);
+
+// the MG 08 lifted off its sledge and carried on the shoulder: receiver and spade grips behind,
+// the ribbed water jacket out in front
+UNIT_WEAPON_ART.mg08 = () => {
+  const C = UNIT_COLORS;
+  uSeg(-4.6, -19.4, -4.4, -14.8, 0.9, C.woodShade);
+  uPoly([-3.8, -19.2, 3.6, -19.2, 3.6, -15, -3.8, -15], C.iron);
+  uFlatPoly([-3.6, -18.9, 3.4, -18.9, 3.4, -18, -3.6, -18], "#7a7c88");
+  uPoly([3.4, -19.4, 15, -19.4, 15, -14.8, 3.4, -14.8], E45.field);
+  uFlatPoly([3.6, -19.2, 14.8, -19.2, 14.8, -17.9, 3.6, -17.9], E45.fieldLit);
+  for (let x = 5.4; x < 14.6; x += 1.8) uFlatSeg(x, -19.2, x, -15, 0.45, E45.fieldShade);
+  uPoly([14.8, -18.2, 18, -17.8, 18, -16.4, 14.8, -16], C.iron);
+  uGlint(7.8, -18, 1);
+};
+
+// a sapper's mattock: pick and adze on an ash haft
+UNIT_WEAPON_ART.pick = () => {
+  const C = UNIT_COLORS;
+  uSeg(7.2, -10.4, 9.8, -27.2, 1.25, C.wood);
+  uc.beginPath();
+  uc.moveTo(3.6, -24.4);
+  uc.quadraticCurveTo(9.4, -29.6, 16.4, -27.4);
+  uc.lineTo(16.2, -26.4);
+  uc.quadraticCurveTo(9.8, -27.6, 4.4, -23.6);
+  uc.closePath();
+  uInk(C.steel);
+  uFlatLine([5.4, -25, 9.8, -28, 15.2, -27.4], C.steelLit, 0.5);
+  uGlint(12, -27.6, 1);
+};
+
+// the pasha's tugh: gilded finial, a collar and three horsetails, carried upright by a retainer
+UNIT_WEAPON_ART.tugh = () => {
+  const C = UNIT_COLORS, L = unitLit, wave = Math.sin(unitPhase);
+  uSeg(7.6, -4, 9.2, -44, 1.05, C.woodShade);
+  for (const [dx, len, fill] of [[-2, 12.6, "#2a2026"], [1.6, 10.2, "#ece4d0"], [-0.2, 8, C.crimson]]) {
+    uc.beginPath();
+    uc.moveTo(9.1 + dx * 0.3, -41.4);
+    uc.quadraticCurveTo(9.1 + dx * 2.4 - wave, -37.4, 9.1 + dx * 1.9 - wave * 1.6, -41.4 + len);
+    uc.quadraticCurveTo(9.1 + dx * 0.5 - wave, -41.4 + len * 0.55, 9.1 - dx * 0.3, -40.4);
+    uc.closePath();
+    uInk(fill);
+  }
+  uPoly([7.4, -43.2, 10.8, -43.2, 10.5, -40.6, 7.7, -40.6], C.gold);
+  uDisc(9.1, -45, 1.6, C.gold);
+  uCrescent(9.1, -45, 1.6, L, C.goldShade);
+  uGlint(9.1 - L * 0.6, -45.6, 1.1);
+};
+
+// ---- shields ----------------------------------------------------------------------------------
+Object.assign(UNIT_SHIELD_SPOTS, { mantlet: [6.6, -10.4], sapPlate: [6.4, -10.4] });
+Object.assign(UNIT_SHIELD_BIG, { mantlet: true, sapPlate: true });
+
+// a sapper's mantlet: planks on two iron bands, chamfered at the top, a slit to see through
+UNIT_SHIELD_ART.mantlet = (pal, inside) => {
+  const C = UNIT_COLORS, L = unitLit;
+  uc.beginPath();
+  uc.moveTo(-6.6, 10);
+  uc.lineTo(6.6, 10);
+  uc.lineTo(6.6, -8.4);
+  uc.lineTo(3.6, -11);
+  uc.lineTo(-3.6, -11);
+  uc.lineTo(-6.6, -8.4);
+  uc.closePath();
+  if (inside) {
+    uInk(C.woodShade);
+    uFlatLine([-5.4, 8.4, 5.2, -7.6], C.wood, 1.3);
+    uFlatSeg(-6.2, -5.4, 6.2, -5.4, 1.1, C.wood);
+    uFlatSeg(-6.2, 5.6, 6.2, 5.6, 1.1, C.wood);
+    return;
+  }
+  uInk(C.wood);
+  uFlatPoly([L * 3.2, 9.6, L * 6.2, 9.6, L * 6.2, -8.2, L * 3.4, -10.6], C.woodShade);
+  uFlatPoly([-L * 6.2, 9.6, -L * 4.8, 9.6, -L * 4.8, -9.4, -L * 6.2, -8.2], C.woodLit);
+  for (const x of [-3.2, 0, 3.2]) uFlatSeg(x, 9.6, x, -10.6, 0.5, "rgba(60, 36, 16, .6)");
+  for (const y of [-5.4, 5.6]) {
+    uFlatSeg(-6.4, y, 6.4, y, 1.2, C.iron);
+    for (const x of [-4.8, -1.6, 1.6, 4.8]) uFlatDisc(x, y, 0.45, "#9a9ca8");
+  }
+  uFlatPoly([-1.6, -8.8, 1.6, -8.8, 1.6, -7.4, -1.6, -7.4], "#1c120a");
+};
+
+// a steel loophole plate of the trench war, painted field grey, the loophole shuttered
+UNIT_SHIELD_ART.sapPlate = (pal, inside) => {
+  const L = unitLit;
+  uc.beginPath();
+  uc.moveTo(-6.2, 8.8);
+  uc.lineTo(6.2, 8.8);
+  uc.lineTo(6.2, -7.6);
+  uc.quadraticCurveTo(6.2, -9.6, 4.2, -9.6);
+  uc.lineTo(-4.2, -9.6);
+  uc.quadraticCurveTo(-6.2, -9.6, -6.2, -7.6);
+  uc.closePath();
+  if (inside) {
+    uInk(E45.fieldShade);
+    uFlatSeg(-3.4, 8.4, -3.4, -9, 1, E45.field);
+    uFlatSeg(3.4, 8.4, 3.4, -9, 1, E45.field);
+    uFlatPoly([-1.2, -6.6, 1.2, -6.6, 1.2, -4.4, -1.2, -4.4], "#1c120a");
+    return;
+  }
+  uInk(E45.field);
+  uFlatPoly([L * 3, 8.4, L * 5.8, 8.4, L * 5.8, -7.6, L * 4.2, -9.2, L * 3, -9.2], E45.fieldShade);
+  uFlatPoly([-L * 5.8, 8.4, -L * 4.6, 8.4, -L * 4.6, -8.6, -L * 5.8, -7.6], E45.fieldLit);
+  uFlatPoly([-1.3, -6.8, 1.3, -6.8, 1.3, -4.2, -1.3, -4.2], "#15120e");
+  uPoly([0.4 + L * 0.2, -7.2, 2.6 + L * 0.2, -7.2, 2.6 + L * 0.2, -3.8, 0.4 + L * 0.2, -3.8], E45.fieldShade);   // the shutter swung aside
+  for (const [x, y] of [[-4.8, -7.8], [4.8, -7.8], [-4.8, 7], [4.8, 7]]) uFlatDisc(x, y, 0.5, E45.fieldLit);
+  uFlatLine([-L * 5, -8, -L * 5, 7.6], "rgba(255, 255, 255, .25)", 0.6);
+  uGlint(-L * 3.4, -6, 1.2);
+};
+
+// ---- the pack: a canvas knapsack with the blanket rolled over it (v 0 in profile, -1 from behind)
+UNIT_BACK_ART.pack = (kit, pal, sway, v) => {
+  if (v === 0) {
+    uPoly([-8, -17.4, -3.6, -17.8, -3.4, -10.8, -7.6, -10.4], E45.canvas);
+    uFlatPoly([-7.8, -17.2, -3.8, -17.6, -3.8, -14.8, -7.6, -14.4], E45.canvasShade);
+    uOval(-5.6, -18.6, 3.4, 1.7, -0.05, E45.roll);
+    uFlatSeg(-8.4, -18.4, -2.8, -18.8, 0.45, "rgba(30, 20, 10, .5)");
+  } else {
+    uPoly([-4.4, -17.4, 4.4, -17.4, 4.2, -10.6, -4.2, -10.6], E45.canvas);
+    uFlatPoly([-4.2, -17.2, 4.2, -17.2, 4.2, -14.4, -4.2, -14.4], E45.canvasShade);
+    uFlatPoly([1.6, -14.4, 4.2, -14.4, 4, -10.8, 1.6, -10.8], "rgba(30, 20, 40, .18)");
+    for (const x of [-2.6, 2.6]) uFlatSeg(x, -16.8, x, -12.4, 0.8, E45.belt);
+    uOval(0, -18.4, 6, 1.8, 0, E45.roll);
+    uFlatSeg(-1.6, -19.8, -1.6, -17, 0.6, E45.belt);
+    uFlatSeg(2.2, -19.8, 2.2, -17, 0.6, E45.belt);
+  }
+};
+
+// ---- what is worn over the coat (kit.over: called by unitPaintTunic; mid > 0 only in profile) ----
+
+// the janissary's cartridge box at the belt and the yatagan's ivory hilt through the sash
+function e45JanissaryKit(kit, pal, sway, mid, rear) {
+  const C = UNIT_COLORS;
+  if (rear) return;
+  const x = mid > 0 ? 1.2 : 0.6;
+  uPoly([x, -10.9, x + 3.4, -10.9, x + 3.6, -7.9, x + 0.2, -7.9], "#3a2418");
+  uFlatSeg(x + 0.3, -10.2, x + 3.3, -10.2, 0.5, C.gold);
+  uFlatDisc(x + 1.8, -9, 0.5, C.gold);
+  uSeg(-2.4, -12, -0.6, -8.4, 0.95, C.ivory);
+  uFlatDisc(-2.5, -12.2, 0.75, C.gold);
+}
+// the levy's powder horn on its cord
+function e45LevyKit(kit, pal, sway, mid, rear) {
+  const C = UNIT_COLORS;
+  uFlatLine([-3.8, -16, -1.4, -12.4, 1.6, -9.8], C.leatherShade, 0.6);
+  if (rear && mid === 0) return;
+  uc.beginPath();
+  uc.moveTo(-1.6 + sway * 0.3, -10.2);
+  uc.quadraticCurveTo(2.6 + sway * 0.4, -10.8, 3.6 + sway * 0.4, -7.2);
+  uc.lineTo(2.6 + sway * 0.4, -7.4);
+  uc.quadraticCurveTo(1.6, -9.2, -1.4 + sway * 0.3, -8.8);
+  uc.closePath();
+  uInk(C.ivory);
+  uFlatDisc(3.3 + sway * 0.4, -7, 0.55, C.gold);
+}
+// the Ottoman infantryman's webbing: waist belt, cartridge pouches either side of the buckle, braces
+function e45Webbing(kit, pal, sway, mid, rear) {
+  const C = UNIT_COLORS, sh = 5.2 * (kit.slim || 1);
+  uFlatPoly([-sh - 0.3, -10.6, sh + 0.3, -10.6, sh + 0.4, -9, -sh - 0.4, -9], E45.belt);
+  if (rear) {
+    uFlatLine([-2.8, -16.6, 0, -13.2, 2.8, -16.6], E45.belt, 0.8);
+    uFlatSeg(0, -13.2, 0, -10.6, 0.8, E45.belt);
+    return;
+  }
+  const pouches = mid > 0 ? [1.6] : [-4.2, 1.4];
+  for (const x of pouches) {
+    uPoly([x, -11.3, x + 2.8, -11.3, x + 2.8, -8.4, x, -8.4], E45.belt);
+    uFlatSeg(x + 0.2, -10.6, x + 2.6, -10.6, 0.5, E45.beltLit);
+  }
+  if (mid === 0) uFlatDisc(0, -9.8, 0.6, C.steelLit);
+  uFlatSeg(mid > 0 ? 2.6 : -2.8, -11.2, mid > 0 ? 1.8 : -2.2, -16.6, 0.8, E45.belt);
+  if (mid === 0) uFlatSeg(2.8, -11.2, 2.2, -16.6, 0.8, E45.belt);
+  if (kit.tabs && mid === 0) for (const s of [-1, 1]) uFlatPoly([s * 1.2, -17.2, s * 2.8, -17, s * 2.6, -15.8, s * 1.2, -16.2], kit.tabs);
+}
+// two bandoliers crossed over the chest, the brass of the cartridges showing along them
+function e45Bandoliers(kit, pal, sway, mid, rear) {
+  for (const s of [-1, 1]) {
+    uFlatSeg(-s * 4.4, -16.2, s * 4.6, -9.6, 1.7, E45.belt);
+    if (rear) continue;
+    for (let t = 0.12; t < 0.95; t += 0.14) uFlatDisc(-s * 4.4 + s * 9 * t, -16.2 + 6.6 * t - 0.6, 0.42, E45.brass);
+  }
+}
+// the cherkeska's rows of cartridge tubes (gazyri) across the breast, and the kinjal at the belt
+function e45Cherkeska(kit, pal, sway, mid, rear) {
+  const C = UNIT_COLORS;
+  if (rear) return;
+  for (const s of mid > 0 ? [1] : [-1, 1]) {
+    const x0 = mid > 0 ? 1 : s * 1.2;
+    for (let i = 0; i < 5; i++) {
+      const x = x0 + s * i * 0.75;
+      uFlatSeg(x, -16, x, -13.6, 0.5, C.ivory);
+      uFlatDisc(x, -16.1, 0.32, C.gold);
+    }
+  }
+  uFlatPoly([-5.4, -10.4, 5.4, -10.4, 5.4, -9.2, -5.4, -9.2], "#2a1a12");
+  uSeg(mid > 0 ? 2.4 : 0.6, -9.6, mid > 0 ? 3.4 : 0.8, -5.6, 1, C.steelLit);
+  uFlatDisc(mid > 0 ? 2.4 : 0.6, -10, 0.7, C.gold);
+}
+// the machine gunner's ammunition box, in the hand that swings at his side
+function e45AmmoBox(kit, pal, sway, mid, rear) {
+  if (mid === 0) return;
+  const hx = -3.8 * (kit.slim || 1) - sway / 0.7 * 1.6;
+  uPoly([hx - 2.2, -8.8, hx + 2, -8.8, hx + 2, -5.2, hx - 2.2, -5.2], E45.field);
+  uFlatPoly([hx - 2, -8.6, hx + 1.8, -8.6, hx + 1.8, -7.8, hx - 2, -7.8], E45.fieldLit);
+  uFlatSeg(hx - 0.6, -9.4, hx - 0.6, -8.6, 0.6, "#2a2a26");
+}
+
+// ---- the foot soldiers ------------------------------------------------------------------------
+// The level names pick the variant: kit.byName hands drawSoldier the kit for one name.
+function e45ByName(base, rules) {
+  const memo = {};
+  return name => {
+    if (!memo[name]) {
+      let k = base;
+      for (const [re, over] of rules) if (re.test(name)) { k = Object.assign({}, k, over); break; }
+      memo[name] = k;
+    }
+    return memo[name];
+  };
+}
+
+const E45_KITS = {};
+E45_KITS.levy = { helm: "turban", cap: "#7a3a2a", beard: "full", skin: "#d4a276", hem: -6.6, hemW: 5.8, slim: 0.84, baggy: true,
+  lean: 0.2, hunch: true, leg: "#cfc2a2", boot: "#6a3a22", weapon: "scimitar", tilt: 0.06, hold: [0.6, -8.2], sash: "#b5523a",
+  over: e45LevyKit, top: 30 };
+E45_KITS.janissary = { helm: "bork", beard: "moustache", skin: "#e4ba92", hem: -8.6, hemW: 6, kaftan: true,
+  leg: "#7e2a26", boot: "#2e1e14", weapon: "musket", tilt: 0.06, sash: "#efe8dc", over: e45JanissaryKit, top: 35 };
+E45_KITS.sapper = { helm: "felt", cap: "#6a4a32", capShade: "#4a3220", beard: "full", brow: true, skin: "#c99a6e",
+  hem: -6.8, hemW: 6, leg: "#6e5a40", boot: "#3a2618", weapon: "pick", tilt: 0.32, hold: [1.4, -6.6], shield: "mantlet",
+  sash: "#9a6a3a", top: 34 };
+E45_KITS.topcu = { helm: "turban", cap: "#8a2a24", beard: "moustache", skin: "#d8aa80", hem: -8.4, hemW: 5.8, slim: 0.92,
+  leg: "#3e4c6e", boot: "#2e1e14", weapon: null, steady: true, lean: 0.2, sash: "#c9a24a", top: 30 };
+E45_KITS.infantry = { helm: "kabalak", cap: E45.khaki, capShade: E45.khakiShade, beard: "moustache", skin: "#d8aa80",
+  hem: -8, hemW: 5.6, slim: 0.94, leg: "#7e7252", boot: "#3a2a1c", weapon: "rifle", tilt: 0.04, steady: true,
+  back: "pack", over: e45Webbing, top: 35 };
+E45_KITS.gendarme = Object.assign({}, E45_KITS.infantry, { helm: "kalpak", tabs: "#8a2a24", skin: "#dcae84", leg: "#5e5a48" });
+E45_KITS.irregular = { helm: "headcloth", cap: "#6a3a2a", capShade: "#4a2618", beard: "full", skin: "#cf9c70", hem: -7.2, hemW: 5.8,
+  slim: 0.86, baggy: true, lean: 0.2, hunch: true, leg: "#4e4038", boot: "#3a2618", weapon: "carbine", tilt: 0.72, hold: [0.6, -5.6],
+  sash: "#8a5a3a", over: e45Bandoliers, top: 30 };
+E45_KITS.circassian = Object.assign({}, E45_KITS.irregular, { helm: "papakha", beard: "pointed", hem: -5, hemW: 6.2, baggy: false,
+  sash: null, over: e45Cherkeska, leg: "#2e2620", boot: "#1e1612" });
+E45_KITS.sap = Object.assign({}, E45_KITS.infantry, { weapon: "rifle", shield: "sapPlate", back: "pack", brow: true, top: 35 });
+E45_KITS.mg = Object.assign({}, E45_KITS.infantry, { weapon: "mg08", shield: null, steady: false, back: null, brow: true,
+  over: (kit, pal, sway, mid, rear) => { e45Webbing(kit, pal, sway, mid, rear); e45AmmoBox(kit, pal, sway, mid, rear); }, top: 33 });
+E45_KITS.crew = Object.assign({}, E45_KITS.infantry, { weapon: null, steady: true, lean: 0.3, back: null });
+
+UNIT_KITS[4] = {
+  raider: E45_KITS.levy,
+  spearman: E45_KITS.janissary,
+  shield: E45_KITS.sapper,
+};
+UNIT_KITS[5] = {
+  raider: Object.assign({ byName: e45ByName(E45_KITS.irregular, [[/Circassian/, E45_KITS.circassian]]) }, E45_KITS.irregular),
+  spearman: Object.assign({ byName: e45ByName(E45_KITS.infantry, [[/Gendarm/, E45_KITS.gendarme]]) }, E45_KITS.infantry),
+  shield: Object.assign({ byName: e45ByName(E45_KITS.sap, [[/Machine/, E45_KITS.mg],
+    [/Gendarm/, Object.assign({}, E45_KITS.sap, { helm: "kalpak", tabs: "#8a2a24" })]]) }, E45_KITS.sap),
+};
+
+// ---- the fallen of 1915: the kabalak on the head (drawFallen draws the rest; no shield)
+UNIT_FALLEN_CAP[5] = (inked, flat) => {
+  ctx.beginPath();
+  ctx.moveTo(-11.8, -4.8);
+  ctx.quadraticCurveTo(-18.6, -5, -18.6, -0.7);
+  ctx.quadraticCurveTo(-18.6, 3.6, -11.8, 3.4);
+  ctx.closePath();
+  inked(E45.khaki);
+  flat(E45.khakiShade, [-12, 1.4, -18.2, 0.6, -17.8, 2.6, -12, 3.2]);
+  ctx.strokeStyle = "rgba(64, 52, 26, .55)"; ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-13, -4.4); ctx.lineTo(-17.6, 1.6);
+  ctx.moveTo(-15.4, -4.2); ctx.lineTo(-18, -1.6);
+  ctx.moveTo(-13, 3); ctx.lineTo(-17.8, -2.6);
+  ctx.stroke();
+  ctx.lineWidth = 1.1; ctx.strokeStyle = E45.khakiShade;
+  ctx.beginPath(); ctx.moveTo(-12.4, -4.4); ctx.lineTo(-12.4, 3.2); ctx.stroke();
+};
+
+// ---- horse and rider ---------------------------------------------------------------------------
+const E45_RIDERS = {
+  sipahi:    { helm: "turban", cap: "#a3352a", beard: "full", skin: "#d8aa80", leg: "#e9dcc0", boot: "#d9b23c", sash: "#c9a24a" },
+  trooper:   { helm: "kalpak", beard: "moustache", skin: "#d8aa80", leg: "#7e7252", boot: "#2e1e14", sash: E45.belt },
+  gendarme:  { helm: "kalpak", beard: "moustache", skin: "#dcae84", leg: "#5e5a4a", boot: "#1e1612", sash: E45.belt },
+  irregular: { helm: "headcloth", cap: "#7a4636", capShade: "#54301f", beard: "full", skin: "#cf9c70", leg: "#4e4038", boot: "#3a2618", sash: "#b5523a" },
+};
+const E45_MOUNTS = {
+  sipahi: { horse: UNIT_HORSES.dark, tack: pal => ({ cloth: pal.base, clothTrim: pal.trim }) },
+  trooper: { horse: UNIT_HORSES.bay, tack: () => ({ cloth: "#4e4a3a", clothTrim: "#7e7252" }) },
+  gendarme: { horse: UNIT_HORSES.dark, tack: () => ({ cloth: "#3e3a30", clothTrim: "#8a2a24" }) },
+  irregular: { horse: OUTFLANK_HORSE, tack: pal => ({ cloth: "#8a3a2a", clothTrim: "#d8b46a" }) },
+};
+function e45RiderStyle(era, name) {
+  if (era === 4) return "sipahi";
+  if (/Kurdish|Irregular/.test(name)) return "irregular";
+  if (/Gendarm/.test(name)) return "gendarme";
+  return "trooper";
+}
+
+// the kilij raised, the curve of the blade sweeping back over the head
+function e45Kilij(hx, hy) {
+  const C = UNIT_COLORS;
+  uc.beginPath();
+  uc.moveTo(hx + 0.4, hy - 0.8);
+  uc.quadraticCurveTo(hx + 1.4, hy - 8.6, hx + 6.4, hy - 12.4);
+  uc.quadraticCurveTo(hx + 3.2, hy - 6.6, hx + 1.8, hy - 0.4);
+  uc.closePath();
+  uInk(C.steelLit);
+  uFlatLine([hx + 1, hy - 2, hx + 2, hy - 7.6, hx + 5.4, hy - 11.2], C.steel, 0.5);
+  uGlint(hx + 2.4, hy - 7.4, 1.2);
+  uSeg(hx - 1.2, hy - 0.2, hx + 2.4, hy - 1.2, 1, C.gold);
+}
+
+function e45PaintCavalry(style, pal) {
+  const C = UNIT_COLORS, kit = E45_RIDERS[style], m = E45_MOUNTS[style];
+  const g = Math.sin(unitPhase);
+  if (style === "trooper" || style === "gendarme") {
+    // the carbine slung across the back, muzzle up behind the shoulder
+    uSeg(-7.6, -15.6, -1.2, -32.4, 0.9, C.iron);
+    uSeg(-7.4, -15.2, -3.8, -25.6, 1.8, C.wood);
+  }
+  unitPaintHorse(m.horse, m.tack(pal));
+  if (style === "trooper" || style === "gendarme") {
+    // the sabre's scabbard hangs along the flank
+    uFlatLine([-1.6, -15, -7.4, -9.6, -11.2, -8.4], C.iron, 1.1);
+  }
+  unitPaintRiderBody(pal, kit);
+  if (style === "irregular") e45RiderBandoliers();
+  else if (style !== "sipahi") uFlatSeg(-3.4, -23, 3.8, -16.4, 1.1, E45.belt);
+  unitPaintRiderHead(kit, pal);
+  if (style === "sipahi") {
+    // the kilij raised in the sword hand, the bridle in the other
+    uLine([2.8, -21.2, 5, -24.4, 6.6, -26.6], pal.base, 2.5);
+    e45Kilij(6.8, -26.8);
+    uDisc(6.8, -26.8, 1.45, kit.skin);
+  } else if (style === "trooper") {
+    // the sabre at the carry, its back against the shoulder
+    uc.beginPath();
+    uc.moveTo(5.4, -20.4);
+    uc.quadraticCurveTo(5.2, -28, 2.6, -35.4);
+    uc.lineTo(3.4, -35.4);
+    uc.quadraticCurveTo(6.6, -28, 6.6, -20.4);
+    uc.closePath();
+    uInk(C.steelLit);
+    uGlint(4.8, -29.6, 1);
+    uSeg(4, -20.2, 7.4, -20.6, 1, C.brass || "#c9a24a");
+    uSeg(2.8, -21.2, 5.6, -19.6, 2.5, pal.base);
+    uDisc(5.8, -19.8, 1.45, kit.skin);
+  } else {
+    // a rifle held upright, the butt on the thigh
+    uSeg(5.8, -16, 7.4, -36.4, 0.9, C.iron);
+    uSeg(5.2, -14.2, 6.8, -30.4, 1.8, C.wood);
+    uFlatSeg(5.4, -15, 6.6, -29, 0.55, C.woodLit);
+    uSeg(2.8, -21.2, 6, -20.4, 2.5, pal.base);
+    uDisc(6.2, -20.4, 1.45, kit.skin);
+  }
+  uLine([-2.6, -21.4, -0.4, -18.6, 3.6, -17.4 + g * 0.2], pal.lit, 2.4);
+  uDisc(3.8, -17.4 + g * 0.2, 1.4, kit.skin);
+}
+function e45RiderBandoliers() {
+  for (const s of [-1, 1]) {
+    uFlatSeg(-s * 3.6, -23, s * 3.8, -16.4, 1.4, E45.belt);
+    for (let t = 0.15; t < 0.95; t += 0.18) uFlatDisc(-s * 3.6 + s * 7.4 * t, -23 + 6.6 * t - 0.5, 0.4, E45.brass);
+  }
+}
+
+function e45PaintCavalryEnd(style, pal, front) {
+  const C = UNIT_COLORS, kit = E45_RIDERS[style], m = E45_MOUNTS[style], tack = m.tack(pal);
+  const rise = 4.5, side = front ? -1 : 1;
+  unitPaintHorseEnd(m.horse, tack, front);
+  unitPaintRiderLegsEnd(kit, 0);
+  uc.save();
+  uc.translate(0, -rise);
+  if (!front && (style === "trooper" || style === "gendarme")) {
+    // the carbine slung across the back
+    uSeg(-5.6, -15.2, 4.6, -30.6, 0.9, C.iron);
+    uSeg(-5.4, -15, -0.2, -23, 1.8, C.wood);
+  }
+  unitPaintRiderEnd(pal, kit, front, style === "sipahi" ? pal.dark : null);
+  if (!front && (style === "trooper" || style === "gendarme")) uSeg(-5.6, -15.2, 4.6, -30.6, 0.9, C.iron);
+  if (style === "irregular") e45RiderBandoliers();
+  else if (style !== "sipahi" && front) uFlatSeg(-3.4, -23, 3.8, -16.4, 1.1, E45.belt);
+  // the weapon hand
+  if (style === "sipahi") {
+    uLine([side * 3.6, -21.6, side * 6.4, -24.4, side * 7, -27.4], side < 0 ? pal.lit : pal.base, 2.5);
+    uc.save();
+    uc.translate(side * 7, -27.6);
+    uc.scale(side < 0 ? -0.9 : 0.9, 1);
+    e45Kilij(0, 0);
+    uc.restore();
+    uDisc(side * 7, -27.6, 1.45, kit.skin);
+  } else if (style === "trooper") {
+    uSeg(side * 8.6, -18.6, side * 8.2, -34.6, 1.3, C.steelLit);
+    uLine([side * 3.6, -21.6, side * 6.8, -18.6, side * 8.6, -18.2], side < 0 ? pal.lit : pal.base, 2.5);
+    uDisc(side * 8.6, -18.2, 1.45, kit.skin);
+  } else {
+    uSeg(side * 8.8, -14, side * 9.4, -36.2, 0.9, C.iron);
+    uSeg(side * 8.6, -12.6, side * 9.2, -30.2, 1.8, C.wood);
+    uLine([side * 3.6, -21.6, side * 6.8, -20.4, side * 9, -20.2], side < 0 ? pal.lit : pal.base, 2.5);
+    uDisc(side * 9, -20.2, 1.45, kit.skin);
+  }
+  uLine([-side * 3.6, -21.6, -side * 5.6, -18.4, -side * 3.2, -15.6], side < 0 ? pal.base : pal.lit, 2.4);
+  uDisc(-side * 3.2, -15.6, 1.4, kit.skin);
+  uc.restore();
+  if (front) unitPaintHorseFace(m.horse, tack);
+}
+
+function e45DrawHorse(era) {
+  return (p, k, dir, d) => {
+    const view = unitView(p), style = e45RiderStyle(era, d.name), pal = unitPalette(d.color, d.trim);
+    uc.save();
+    uc.scale(k, k);
+    if (view === "side") { unitFace(dir); e45PaintCavalry(style, pal); }
+    else { unitLit = 1; e45PaintCavalryEnd(style, pal, view === "front"); }
+    uc.restore();
+  };
+}
+UNIT_HORSE_ART[4] = e45DrawHorse(4);
+UNIT_HORSE_ART[5] = e45DrawHorse(5);
+
+// ---- the guns ---------------------------------------------------------------------------------
+// Guns travel trail first: the trail is hooked to the team and the muzzle points back down the road.
+const E45_OX = { coat: "#93806a", shade: "#64543f", deep: "#3a2e24", horn: "#efe4c8" };
+const E45_GUN_LOOKS = {
+  oxSide:    { f: 1.08, back: 32,   front: 40,   up: 30, down: 3, top: 25, barW: 28, shadow: 24, feet: 22, rate: 0.45 },
+  oxEnd:     { f: 1.08, back: 18,   front: 18,   up: 34, down: 3, top: 28, barW: 28, shadow: 15, feet: 13, rate: 0.45, end: true },
+  teamSide:  { f: 1.08, back: 33,   front: 40,   up: 33, down: 3, top: 28, barW: 28, shadow: 24, feet: 22, rate: 0.6 },
+  teamEnd:   { f: 1.08, back: 17,   front: 17,   up: 38, down: 3, top: 32, barW: 28, shadow: 15, feet: 13, rate: 0.6, end: true },
+  haulSide:  { f: 1.08, back: 27,   front: 29,   up: 33, down: 3, top: 27, barW: 28, shadow: 20, feet: 18, rate: 0.5 },
+  haulEnd:   { f: 1.08, back: 15,   front: 15,   up: 36, down: 3, top: 30, barW: 28, shadow: 13, feet: 11, rate: 0.5, end: true },
+};
+UNIT_GUN_LOOK[4] = (d, end) => end ? E45_GUN_LOOKS.oxEnd : E45_GUN_LOOKS.oxSide;
+UNIT_GUN_LOOK[5] = (d, end) => /Mountain/.test(d.name) ? (end ? E45_GUN_LOOKS.haulEnd : E45_GUN_LOOKS.haulSide)
+  : (end ? E45_GUN_LOOKS.teamEnd : E45_GUN_LOOKS.teamSide);
+
+function e45OxLeg(x, swing, fill) {
+  const kneeX = x + swing * 0.7, footX = x + swing * 1.8;
+  uLine([x, -7.4, kneeX, -3.8, footX, -0.9], fill, 3);
+  uPoly([footX - 1.5, -1.6, footX + 1.4, -1.6, footX + 1.8, 0.5, footX - 1.6, 0.5], UNIT_COLORS.hoof);
+}
+// one ox in profile, facing +x, hooves on y = 0, under the yoke; far is the darker beast beyond
+function e45Ox(far) {
+  const C = UNIT_COLORS, L = unitLit, o = E45_OX;
+  const g = Math.sin(unitPhase), g2 = Math.sin(unitPhase + Math.PI * 0.5);
+  const coat = far ? o.shade : o.coat, dark = far ? o.deep : o.shade;
+  e45OxLeg(-8.6, -g * 0.7, dark);
+  e45OxLeg(7.4, -g2 * 0.7, dark);
+  uLine([-12.8, -13.4, -14.2, -8.6, -13.6, -5], coat, 1);
+  uDisc(-13.6, -4.4, 1.1, o.deep);
+  e45OxLeg(-10.6, g * 0.7, coat);
+  e45OxLeg(9.2, g2 * 0.7, coat);
+  uc.beginPath();
+  uc.moveTo(-13.2, -11);
+  uc.quadraticCurveTo(-13.6, -16.6, -7, -16);
+  uc.lineTo(3, -17.2);
+  uc.quadraticCurveTo(7.6, -19.6, 10.8, -16.6);
+  uc.quadraticCurveTo(12.6, -12, 10.6, -7.4);
+  uc.quadraticCurveTo(0, -5.2, -7, -6.2);
+  uc.quadraticCurveTo(-13, -6.8, -13.2, -11);
+  uc.closePath();
+  uInk(coat);
+  uFlatOval(L * 1, -7.8, 9.4, 1.8, 0, dark);
+  uFlatOval(L * 9, -11.4, 2.8, 4.2, 0, "rgba(30, 20, 40, .2)");
+  uPoly([9.4, -9.6, 11.2, -5.4, 13, -9.2], coat);                              // dewlap
+  // the far horn, then the broad head carried low, then the near horn sweeping out and up
+  const horn = far ? shade(o.horn, -34) : o.horn;
+  uLine([14.6, -17, 16.4, -19.6, 18.8, -20.2], shade(horn, -26), 1.3);
+  uc.beginPath();
+  uc.moveTo(9.8, -17.6);
+  uc.quadraticCurveTo(13, -18.6, 15.8, -17);
+  uc.quadraticCurveTo(19.4, -13, 19.4, -9.2);
+  uc.quadraticCurveTo(18.4, -7.2, 15.6, -7.8);
+  uc.quadraticCurveTo(13, -9.4, 10.4, -11.8);
+  uc.closePath();
+  uInk(coat);
+  uFlatPoly([L > 0 ? 15.4 : 11.6, -16.6, L > 0 ? 18.8 : 14, -11, 17, -8.6, L > 0 ? 15.2 : 12.4, -12], "rgba(30, 20, 40, .16)");
+  uFlatOval(18, -8.8, 1.8, 1.3, 0.3, o.deep);
+  uFlatDisc(15.4, -14, 0.65, C.eye);
+  uPoly([12.6, -16.2, 9, -15.6, 11.4, -14.2], dark);                            // ear
+  uLine([13.2, -17.4, 11.6, -20.2, 13.6, -22.6, 16, -22.8], horn, 1.6);
+  uFlatLine([13.6, -16.4, 16.8, -10.6, 18.2, -9.4], "#3a2616", 0.55);           // headstall rope
+  // the yoke beam across the neck, the bow under the throat
+  uPoly([7.4, -19.6, 11.2, -19.6, 11, -16.6, 7.6, -16.6], far ? C.woodShade : C.wood);
+  uFlatLine([8, -16.6, 8.6, -11.6, 10.8, -11.2], C.woodShade, 0.8);
+}
+
+// the bronze siege gun on its carriage, axle at x0, muzzle pointing back (-x)
+function e45SiegeGun(x0) {
+  const C = UNIT_COLORS;
+  unitPaintWheel(x0 + 1.4, -8.6, 7.4, true);
+  uPoly([x0 - 6, -12.6, x0 + 16, -3.6, x0 + 16.6, -1, x0 + 14.4, -0.2, x0 - 6, -9.4], C.wood);   // the trail to the pole
+  uFlatPoly([x0 - 5.6, -12, x0 + 15.8, -3.4, x0 + 15.8, -2.6, x0 - 5.6, -11], C.woodLit);
+  uc.save();
+  uc.translate(x0, -16.4);
+  uPoly([7.6, -3.8, -18.6, -3, -18.6, 3, 7.6, 3.8], C.bronze);
+  uFlatPoly([7.4, -3.5, -18.4, -2.7, -18.4, -1.3, 7.4, -1.6], C.bronzeLit);
+  uFlatPoly([7.4, 1.8, -18.4, 1.4, -18.4, 2.7, 7.4, 3.5], C.bronzeShade);
+  for (const x of [4.6, -1.6, -9.4]) uPoly([x - 0.8, -4.2, x + 0.8, -4.2, x + 0.8, 4.2, x - 0.8, 4.2], C.bronzeShade);
+  uPoly([-21.6, -3.8, -18.2, -3.6, -18.2, 3.6, -21.6, 3.8], C.bronze);             // the muzzle swell
+  uFlatOval(-21.8, 0, 0.9, 2.6, 0, "#1c120a");
+  uDisc(9.4, 0, 1.8, C.bronzeShade);                                                // the cascabel
+  uFlatLine([5.8, -2.6, -16.6, -2], "rgba(255, 252, 232, .7)", 0.6);
+  uGlint(-5, -2.2, 1.5);
+  uc.restore();
+  uPoly([x0 - 3.4, -14, x0 + 3.4, -14, x0 + 3.4, -11.4, x0 - 3.4, -11.4], C.woodShade);     // cheek and trunnion cap
+  uFlatDisc(x0, -13.6, 0.8, C.iron);
+  unitPaintWheel(x0, -7.4, 7.4, false);
+}
+
+function e45PaintOxGun(pal) {
+  const C = UNIT_COLORS;
+  const crew = unitPalette("#7a2c30", "#efe8dc");
+  uc.save(); uc.translate(23.4, -1.6); e45Ox(true); uc.restore();
+  uSeg(6.6, -2.4, 30.4, -15.2, 1.4, C.woodShade);                                    // the pole to the yoke
+  uc.save(); uc.translate(20.6, 0); e45Ox(false); uc.restore();
+  // a gunner walks beside the trail on the far side, rammer on his shoulder
+  uFlatLine([-1.2, -2, 6.4, -24.6], C.woodShade, 0.9);
+  uFlatOval(6.8, -25.4, 1.4, 1, -1.2, "#5a4a3a");
+  unitPaintCrew(-0.6, 1, crew, false, true);
+  e45SiegeGun(-10);
+}
+
+function e45OxEnd(x, far, rear) {
+  const C = UNIT_COLORS, o = E45_OX, g = Math.sin(unitPhase) * (x < 0 ? 1 : -1);
+  const coat = far ? o.shade : o.coat;
+  for (const s of [-1, 1]) {
+    const lift = Math.max(0, g * s) * 1.6;
+    uLine([x + s * 3, -8.4, x + s * 3.3, -4.6 - lift * 0.4, x + s * 3, -0.9 - lift], s > 0 ? o.shade : coat, 3);
+    uPoly([x + s * 3 - 1.5, -1.8 - lift, x + s * 3 + 1.5, -1.8 - lift, x + s * 3 + 1.8, 0.5 - lift, x + s * 3 - 1.8, 0.5 - lift], C.hoof);
+  }
+  uOval(x, -12, 6.6, 6.4, 0, coat);
+  uCrescent(x, -12, 6, 1, o.shade);
+  if (rear) {
+    uFlatLine([x, -17.4, x, -9], "rgba(30, 20, 40, .26)", 0.7);
+    uLine([x - 0.4, -17, x - 0.8 + g, -10, x - 0.4 + g * 1.4, -5.6], coat, 1);
+    uDisc(x - 0.4 + g * 1.4, -5, 1.1, o.deep);
+    return;
+  }
+  // the head lowered toward the eye under the yoke, horns spread
+  uLine([x - 2.8, -17.6, x - 5.8, -18.8, x - 6.8, -22], o.horn, 1.2);
+  uLine([x + 2.8, -17.6, x + 5.8, -18.8, x + 6.8, -22], shade(o.horn, -24), 1.2);
+  uPoly([x - 3.6, -17, x - 6.4, -15.4, x - 3.4, -14.6], coat);
+  uPoly([x + 3.6, -17, x + 6.4, -15.4, x + 3.4, -14.6], o.shade);
+  uc.beginPath();
+  uc.moveTo(x - 3.4, -18);
+  uc.quadraticCurveTo(x, -19.2, x + 3.4, -18);
+  uc.lineTo(x + 2.6, -10.6);
+  uc.quadraticCurveTo(x, -8.4, x - 2.6, -10.6);
+  uc.closePath();
+  uInk(coat);
+  uFlatPoly([x + 1, -18.6, x + 3.3, -18, x + 2.6, -10.8, x + 1, -9.4], o.shade);
+  uFlatOval(x, -10.4, 2.2, 1.3, 0, o.deep);
+  uFlatDisc(x - 2, -15.4, 0.6, C.eye);
+  uFlatDisc(x + 2, -15.4, 0.6, C.eye);
+}
+
+function e45PaintOxGunEnd(front) {
+  const C = UNIT_COLORS;
+  const crew = unitPalette("#7a2c30", "#efe8dc");
+  if (front) {
+    // the gun far behind its team: wheel rims and the cascabel over the oxen's backs
+    uc.save();
+    uc.translate(0, -9);
+    unitPaintWheelEdge(-13.4, 7.4, 2.1);
+    unitPaintWheelEdge(13.4, 7.4, 2.1);
+    uDisc(0, -14.4, 3.8, C.bronze);
+    uCrescent(0, -14.4, 3.8, 1, C.bronzeShade);
+    uDisc(0, -14.4, 1.6, C.bronzeShade);
+    uc.restore();
+    e45OxEnd(-6.8, false, false);
+    e45OxEnd(6.8, true, false);
+    uPoly([-14, -20.4, 14, -20.4, 14, -18.2, -14, -18.2], C.wood);                    // the yoke
+    uFlatPoly([-14, -20.2, 14, -20.2, 14, -19.6, -14, -19.6], C.woodLit);
+    unitPaintCrew(13.6, 0, crew, false, true);
+  } else {
+    // going away: the oxen beyond, then the carriage and the muzzle toward the eye
+    uc.save();
+    uc.translate(0, -8.6);
+    e45OxEnd(-6.8, false, true);
+    e45OxEnd(6.8, true, true);
+    uPoly([-14, -20.2, 14, -20.2, 14, -18.2, -14, -18.2], C.woodShade);
+    uc.restore();
+    unitPaintCrew(-14.6, 0.6, crew, true, true);
+    unitPaintWheelEdge(-9.4, 7.4, 2.1);
+    unitPaintWheelEdge(9.4, 7.4, 2.1);
+    uPoly([-9.2, -9.4, 9.2, -9.4, 9.2, -6.4, -9.2, -6.4], C.woodShade);
+    uPoly([-4.4, -12.6, 4.4, -12.6, 5.4, -6.8, -5.4, -6.8], C.wood);
+    uDisc(0, -16.2, 4.6, C.bronze);
+    uCrescent(0, -16.2, 4.6, -1, C.bronzeLit);
+    uCrescent(0, -16.2, 4.6, 1, C.bronzeShade);
+    uDisc(0, -16.2, 3.2, C.bronze);
+    uFlatDisc(0, -16.2, 2.1, "#1c120a");
+    uGlint(-2.8, -18.8, 1.3);
+  }
+}
+
+// the quick-firing field gun of 1915: steel barrel over its recoil cylinder, a shield, spoked wheels;
+// axle at x0, muzzle back (-x), trail forward to the limber at x0 + 12
+function e45FieldGun(x0, r, len, shieldH) {
+  const C = UNIT_COLORS, L = unitLit;
+  unitPaintWheel(x0 + 1.2, -r - 0.6, r, true);
+  uPoly([x0 - 2, -r - 2.4, x0 + 12.8, -3.6, x0 + 13.4, -1.4, x0 - 2, -r + 0.6], E45.field);     // the box trail
+  uFlatPoly([x0 - 1.6, -r - 2, x0 + 12.6, -3.4, x0 + 12.6, -2.8, x0 - 1.6, -r - 1.2], E45.fieldLit);
+  const y = -r - 3.2;
+  uPoly([x0 + 5, y - 1.6, x0 - len, y - 1.2, x0 - len, y + 1.2, x0 + 5, y + 1.6], E45.fieldShade);  // recoil cylinder
+  uPoly([x0 + 6, y - 3.2, x0 - len - 2, y - 2.6, x0 - len - 2, y - 0.8, x0 + 6, y - 0.6], E45.field);
+  uFlatLine([x0 + 5.6, y - 2.8, x0 - len - 1.6, y - 2.4], E45.fieldLit, 0.5);
+  uFlatOval(x0 - len - 2.2, y - 1.7, 0.5, 0.9, 0, "#15120e");
+  uPoly([x0 + 6, y - 3.6, x0 + 9.2, y - 3.4, x0 + 9.2, y + 0.4, x0 + 6, y + 0.4], E45.fieldShade);   // the breech
+  if (shieldH) {
+    // the shield edge-on, leaning back a little, just ahead of the axle
+    uPoly([x0 + 0.4, -3.4, x0 + 4.2, -3.4, x0 + 2.6, -r - shieldH, x0 - 1.4, -r - shieldH + 0.6], E45.field);
+    uFlatPoly([x0 + 2.6, -3.8, x0 + 3.9, -3.8, x0 + 2.3, -r - shieldH + 0.4, x0 + 1, -r - shieldH + 0.5], E45.fieldShade);
+    uFlatSeg(x0 + 0.6, -4, x0 - 1, -r - shieldH + 0.9, 0.5, E45.fieldLit);
+  }
+  unitPaintWheel(x0, -r, r, false);
+}
+
+// a horse in harness at the scale of the gun team: a breast collar and the trace running back
+function e45TeamHorse(x, y, h, s, collar) {
+  uc.save();
+  uc.translate(x, y);
+  uc.scale(s, s);
+  unitPaintHorse(h, { cloth: "#3e3a30", clothTrim: "#5e5a4a" });
+  uPoly([8.6, -15.6, 11.6, -16.4, 13.2, -9.4, 10.2, -8.6], collar);
+  uFlatLine([9.4, -11.4, -9.4, -11.2, -14, -9.6], "#2a1c12", 0.9);
+  uc.restore();
+}
+
+function e45PaintTeamGun(pal) {
+  const C = UNIT_COLORS;
+  const s = 0.82;
+  e45TeamHorse(24.4, -1.6, UNIT_HORSES.dark, s, "#3a2616");
+  e45TeamHorse(21.6, 0, UNIT_HORSES.bay, s, "#4a3020");
+  // the driver rides the near horse
+  uc.save();
+  uc.translate(21.6, 0);
+  uc.scale(s, s);
+  const kit = E45_RIDERS.trooper;
+  unitPaintRiderBody(pal, kit);
+  uFlatSeg(-3.4, -23, 3.8, -16.4, 1.1, E45.belt);
+  unitPaintRiderHead(kit, pal);
+  uFlatLine([5.8, -20.6, 9.4, -27.4, 13, -28.6], "#2a1c12", 0.6);                   // the whip
+  uSeg(2.8, -21, 5.6, -19.8, 2.5, pal.base);
+  uDisc(5.8, -20, 1.45, kit.skin);
+  uc.restore();
+  // the limber and its ammunition chest
+  unitPaintWheel(2.8, -6.6, 6.2, true);
+  uPoly([-3.6, -14.4, 8.6, -14.4, 8.6, -8.8, -3.6, -8.8], E45.field);
+  uFlatPoly([-3.4, -14.2, 8.4, -14.2, 8.4, -13.2, -3.4, -13.2], E45.fieldLit);
+  uFlatSeg(2.6, -13.8, 2.6, -9.2, 0.5, E45.fieldShade);
+  uSeg(8.4, -6.4, 14.6, -9.2, 1.2, C.woodShade);                                     // the pole
+  unitPaintWheel(1.6, -6.2, 6.2, false);
+  e45FieldGun(-15, 6.6, 15, 10.4);
+}
+
+function e45PaintTeamGunEnd(pal, front) {
+  const C = UNIT_COLORS;
+  const kit = E45_RIDERS.trooper;
+  const team = () => {
+    for (const [x, h] of [[6.8, UNIT_HORSES.dark], [-6.8, UNIT_HORSES.bay]]) {
+      uc.save();
+      uc.translate(x, 0);
+      uc.scale(0.82, 0.82);
+      unitPaintHorseEnd(h, { cloth: "#3e3a30", clothTrim: "#5e5a4a" }, front);
+      if (x < 0) {
+        unitPaintRiderLegsEnd(kit, 0);
+        uc.save();
+        uc.translate(0, -4.5);
+        unitPaintRiderEnd(pal, kit, front, null);
+        uc.restore();
+      }
+      if (front) unitPaintHorseFace(h, {});
+      uc.restore();
+    }
+  };
+  if (front) {
+    // the gun shield shows over the team's backs
+    uc.save();
+    uc.translate(0, -10);
+    uPoly([-7.4, -8.8, 7.4, -8.8, 7, -20.6, -7, -20.6], E45.field);
+    uFlatPoly([2.6, -9, 7.2, -9, 6.8, -20.4, 2.6, -20.4], E45.fieldShade);
+    uFlatOval(0, -12.4, 1.8, 1.8, 0, E45.fieldShade);
+    uc.restore();
+    team();
+  } else {
+    uc.save();
+    uc.translate(0, -9);
+    team();
+    uc.restore();
+    // the gun going away: wheels, the shield's back and the muzzle at the eye
+    unitPaintWheelEdge(-9.4, 6.6, 2);
+    unitPaintWheelEdge(9.4, 6.6, 2);
+    uPoly([-1.8, -7, 1.8, -7, 2.4, 0.4, -2.4, 0.4], E45.fieldShade);
+    uPoly([-7.6, -5.4, 7.6, -5.4, 7.2, -19.6, -7.2, -19.6], E45.fieldShade);
+    uFlatPoly([-7.2, -5.6, -4.6, -5.6, -4.6, -19.4, -6.8, -19.4], E45.field);
+    uPoly([-3.2, -13.4, 3.2, -13.4, 3.2, -7.6, -3.2, -7.6], E45.field);
+    uDisc(0, -11.4, 2.2, E45.field);
+    uFlatDisc(0, -11.4, 1.2, "#15120e");
+    uGlint(-1.4, -12.6, 1);
+  }
+}
+
+// a crewman at gun-team scale, leaning into his drag rope
+function e45Hauler(x, pal, walk, s) {
+  uc.save();
+  uc.translate(x, 0);
+  uc.scale(s, s);
+  unitPaintInfantry(E45_KITS.crew, pal, walk);
+  uc.restore();
+}
+
+function e45PaintHaulGun(pal) {
+  const C = UNIT_COLORS, s = 0.8, w = Math.sin(unitPhase);
+  // a third man shoulders the far wheel round
+  uc.save();
+  const ph = unitPhase;
+  unitPhase = ph + 1.7;
+  e45Hauler(-6.4, pal, Math.sin(unitPhase), s);
+  unitPhase = ph;
+  uc.restore();
+  e45FieldGun(-11, 5.2, 9.4, 0);
+  // the drag rope from the trail eye to each man's shoulder
+  uFlatLine([2.4, -1.8, 9.6, -11.6, 19.4, -11.8], "#cdb27a", 0.9);
+  uc.save();
+  unitPhase = ph + Math.PI;
+  e45Hauler(7.8, pal, Math.sin(unitPhase), s);
+  unitPhase = ph;
+  e45Hauler(18.6, pal, w, s);
+  uc.restore();
+}
+
+function e45PaintHaulGunEnd(pal, front) {
+  const s = 0.8, ph = unitPhase;
+  const pair = view => {
+    unitPhase = ph + Math.PI;
+    uc.save(); uc.translate(-5.2, 0); uc.scale(s, s); unitPaintInfantryEnd(E45_KITS.crew, pal, Math.sin(unitPhase), view); uc.restore();
+    unitPhase = ph;
+    uc.save(); uc.translate(5.2, 0); uc.scale(s, s); unitPaintInfantryEnd(E45_KITS.crew, pal, Math.sin(unitPhase), view); uc.restore();
+  };
+  if (front) {
+    uc.save();
+    uc.translate(0, -9.6);
+    unitPaintWheelEdge(-8.6, 5.2, 1.8);
+    unitPaintWheelEdge(8.6, 5.2, 1.8);
+    uPoly([-8.4, -6.4, 8.4, -6.4, 8.4, -4.2, -8.4, -4.2], E45.fieldShade);
+    uPoly([-2.6, -10.8, 2.6, -10.8, 2.6, -5.4, -2.6, -5.4], E45.field);
+    uc.restore();
+    pair(true);
+    uFlatLine([-5.2 + 3.4, -10.4, 0, -6, 5.2 - 3.4, -10.4], "#cdb27a", 0.9);
+  } else {
+    uc.save();
+    uc.translate(0, -9);
+    pair(false);
+    uc.restore();
+    unitPaintWheelEdge(-8.4, 5.2, 1.8);
+    unitPaintWheelEdge(8.4, 5.2, 1.8);
+    uPoly([-8.2, -6.6, 8.2, -6.6, 8.2, -4.4, -8.2, -4.4], E45.fieldShade);
+    uPoly([-1.8, -6, 1.8, -6, 2.2, 0.4, -2.2, 0.4], E45.field);
+    uDisc(0, -9.4, 2.4, E45.field);
+    uCrescent(0, -9.4, 2.4, 1, E45.fieldShade);
+    uFlatDisc(0, -9.4, 1.2, "#15120e");
+    uGlint(-1.4, -10.6, 0.9);
+  }
+}
+
+function e45DrawGun(era) {
+  return (p, k, d, view) => {
+    const pal = unitPalette(d.color, d.trim);
+    const crew = era === 5 ? unitPalette(E45.khaki, "#d8c49a") : pal;
+    const kind = era === 4 ? "ox" : /Mountain/.test(d.name) ? "haul" : "team";
+    uc.save();
+    uc.scale(k, k);
+    if (view === "side") {
+      unitFace(Math.cos(p.ang) >= -0.01 ? 1 : -1);
+      if (kind === "ox") e45PaintOxGun(pal);
+      else if (kind === "team") e45PaintTeamGun(crew);
+      else e45PaintHaulGun(crew);
+    } else {
+      unitLit = 1;
+      if (kind === "ox") e45PaintOxGunEnd(view === "front");
+      else if (kind === "team") e45PaintTeamGunEnd(crew, view === "front");
+      else e45PaintHaulGunEnd(crew, view === "front");
+    }
+    uc.restore();
+  };
+}
+UNIT_GUN_ART[4] = e45DrawGun(4);
+UNIT_GUN_ART[5] = e45DrawGun(5);
+
+// ---- the commanders ---------------------------------------------------------------------------
+const E45_BOSS_LOOKS = [
+  { f: 1.12, back: 27, front: 18, up: 42, down: 3, top: 36, barW: 44, shadow: 20, feet: 17, rate: 1 },
+  { f: 1.12, back: 27, front: 19, up: 37, down: 3, top: 33, barW: 44, shadow: 20, feet: 17, rate: 1 },
+];
+UNIT_BOSS_LOOKS[4] = E45_BOSS_LOOKS[0];
+UNIT_BOSS_LOOKS[5] = E45_BOSS_LOOKS[1];
+
+// The besieging pasha of 1727: a black horse under a gold-fringed cloth, a fur-edged kaftan, the
+// tall kallavi; a retainer on foot carries his horsetail standard behind him.
+UNIT_BOSS_ART[4] = (pal, walk) => {
+  const C = UNIT_COLORS, L = unitLit, wave = walk;
+  const fur = "#8a6a48", furShade = "#5e4630";
+  const kit = { beard: "full", brow: true, skin: "#d6a67a", leg: "#efe6d0", boot: "#d9b23c", sash: C.gold };
+  uc.save();
+  uc.translate(1.5, 0);
+  uc.scale(0.84, 0.84);
+  // the standard-bearer walks on the far side, a pace behind
+  uc.save();
+  uc.translate(-18.6, -1.4);
+  uc.scale(0.9, 0.9);
+  unitPaintInfantry({ helm: "bork", beard: "moustache", skin: "#e0b48c", hem: -6.4, hemW: 6, kaftan: true, leg: "#7e2a26",
+    boot: "#2e1e14", weapon: "tugh", tilt: 0, steady: true, sash: "#efe8dc" }, unitPalette("#7a2c30", "#efe8dc"), walk);
+  uc.restore();
+  // the kaftan's skirt over the cantle, edged with fur
+  uc.beginPath();
+  uc.moveTo(-3.4, -22.6);
+  uc.quadraticCurveTo(-10, -20.4 + wave * 0.6, -12.4, -12.2 + wave);
+  uc.quadraticCurveTo(-8, -13.6 + wave * 0.5, -3.8, -14);
+  uc.closePath();
+  uInk(pal.dark);
+  uFlatLine([-11.8, -12.4 + wave, -8, -13.6 + wave * 0.5, -4, -14.2], fur, 1.6);
+  unitPaintHorse(UNIT_HORSES.black, { cloth: pal.base, clothTrim: C.gold, crest: pal.trim });
+  unitPaintRiderBody(pal, kit);
+  // the fur facings down the front of the kaftan and the broad fur collar
+  uPoly([2.2, -23.4, 4.6, -22.2, 4.6, -15.4, 2.4, -15.4], fur);
+  uFlatPoly([3.4, -23, 4.6, -22.2, 4.6, -15.6, 3.4, -15.6], furShade);
+  uc.beginPath();
+  uc.moveTo(-4.4, -22.2);
+  uc.quadraticCurveTo(0.2, -25.6, 4.8, -22.6);
+  uc.quadraticCurveTo(0.2, -22.4, -4.4, -20.4);
+  uc.closePath();
+  uInk(fur);
+  uPoly([-4.3, -17.4, 4.7, -17.4, 4.8, -15.2, -4.4, -15.2], C.gold);
+  uc.save();
+  uc.translate(0.7, -26.5);
+  uc.scale(0.92, 0.92);
+  unitPaintHead(kit, pal);
+  uFlatLine([1.4, 2.9, 4.4, 2.4, 5.8, 3.4], "#1a100a", 1);
+  uc.translate(0, -1.6);
+  e45Kallavi(L);
+  uc.restore();
+  // the right hand raised, directing the siege with a short baton
+  uLine([2.6, -21.6, 6.2, -23.4, 9, -27], pal.base, 2.6);
+  uFlatSeg(7.2, -26.2, 9.8, -31.4, 1.5, UNIT_INK);
+  uFlatSeg(7.2, -26.2, 9.8, -31.4, 0.9, C.gold);
+  uDisc(9, -27.2, 1.5, kit.skin);
+  uc.restore();
+};
+
+// A commander of 1915-1918 (Djevdet Bey at Van, Ruestue Bey at Sardarapat, an unnamed column commander
+// at Musa Dagh): a plain mounted officer in a long greatcoat and kalpak, field glasses at his chest,
+// and a staff officer on foot at his stirrup with the map case. No likeness is attempted.
+UNIT_BOSS_ART[5] = (pal, walk) => {
+  const C = UNIT_COLORS, L = unitLit, wave = walk;
+  const coat = unitPalette("#6e6650", "#c9a24a");
+  const kit = { helm: "kalpak", crown: "#8a2a24", beard: "moustache", brow: true, skin: "#d8aa80", leg: "#5e5a48", boot: "#1e1612", sash: E45.belt };
+  uc.save();
+  uc.translate(1.6, 0);
+  uc.scale(0.86, 0.86);
+  // the staff officer walks a pace behind on the far side, map case at his hip
+  uc.save();
+  uc.translate(-18.6, -1.4);
+  uc.scale(0.9, 0.9);
+  unitPaintInfantry({ helm: "kalpak", crown: "#8a2a24", beard: "moustache", skin: "#dcae84", hem: -6.4, hemW: 5.8, slim: 0.94,
+    leg: "#5e5a48", boot: "#1e1612", weapon: null, steady: true, tabs: "#8a2a24", over: e45StaffKit }, coat, walk);
+  uc.restore();
+  // the greatcoat's skirt over the horse's quarters
+  uc.beginPath();
+  uc.moveTo(-3.4, -22.4);
+  uc.quadraticCurveTo(-9.4, -19.8 + wave * 0.5, -10.6, -11.6 + wave * 0.8);
+  uc.quadraticCurveTo(-7, -12.8 + wave * 0.4, -3.8, -13.6);
+  uc.closePath();
+  uInk(coat.dark);
+  uFlatLine([-4.8, -20.8, -8.4, -16.4 + wave * 0.4, -9.6, -12.6 + wave * 0.7], coat.deep, 0.5);
+  unitPaintHorse(UNIT_HORSES.grey, { cloth: "#3e3a30", clothTrim: pal.trim });
+  uFlatLine([-1.6, -15, -7.6, -9.4, -11.6, -8.2], C.iron, 1.1);                     // the sword in its scabbard
+  unitPaintRiderBody(coat, kit);
+  // two rows of buttons, the cross belt, the collar patches, the field glasses on their strap
+  for (const y of [-21.6, -19.6, -17.6]) { uFlatDisc(0.8, y, 0.42, pal.trim); uFlatDisc(3, y, 0.42, pal.trim); }
+  uFlatSeg(-3.4, -23, 3.8, -16.4, 1, E45.belt);
+  uFlatPoly([1.4, -23.8, 3.8, -23.2, 3.6, -22, 1.4, -22.4], "#8a2a24");
+  uPoly([2.4, -21, 5, -21, 5, -18.8, 2.4, -18.8], "#2a2a2c");
+  uFlatSeg(3.7, -21, 3.7, -18.8, 0.4, "#6a6a70");
+  unitPaintRiderHead(kit, coat);
+  // the right arm out, pointing the way forward
+  uLine([2.6, -21.6, 7, -22.6, 11.6, -23.2], coat.base, 2.5);
+  uDisc(12, -23.2, 1.45, kit.skin);
+  uFlatSeg(12.6, -23.4, 14.2, -23.6, 0.9, kit.skin);
+  uc.restore();
+};
+function e45StaffKit(kit, pal, sway, mid, rear) {
+  e45Webbing(Object.assign({}, kit, { tabs: null }), pal, sway, mid, rear);
+  if (rear) return;
+  uPoly([-5.4, -9.6, -1.4, -9.6, -1.4, -5.2, -5.4, -5.2], UNIT_COLORS.leather);
+  uFlatPoly([-5.2, -9.4, -1.6, -9.4, -1.6, -8.4, -5.2, -8.4], UNIT_COLORS.leatherLit);
+  uFlatPoly([-4.8, -8.2, -2, -8.2, -2, -6, -4.8, -6], "#e8e0c8");
+  uFlatSeg(-3.6, -9.6, 2.6, -16.6, 0.6, UNIT_COLORS.leatherShade);
+}
+
+// ---- the outflankers --------------------------------------------------------------------------
+OUTFLANK_KITS[4] = { helm: "headcloth", cap: "#5a3a2a", capShade: "#3e2618", band: "#b5523a", beard: "full", skin: "#d4a276",
+  hem: -6.8, hemW: 5.4, slim: 0.86, baggy: true, leg: "#7a6448", boot: "#3a2618", sash: "#b5523a" };
+OUTFLANK_KITS[5] = { helm: "headcloth", cap: "#4e4a3a", capShade: "#34301f", band: "#8a2a24", beard: "full", skin: "#cf9c70",
+  hem: -7.2, hemW: 5.4, slim: 0.86, baggy: true, leg: "#4e4038", boot: "#3a2618", sash: "#8a5a3a" };
+const E45_SKIRMISHER = Object.assign({}, OUTFLANK_KITS[5], { helm: "kabalak", cap: E45.khaki, capShade: E45.khakiShade, beard: "moustache",
+  baggy: false, leg: "#7e7252", boot: "#3a2a1c", sash: null, over: e45Webbing });
+OUTFLANK_LOOKS[4] = { f: 1.38, back: 18, front: 25, up: 46, down: 4, top: 29, barW: 16, shadow: 9, feet: 6, rate: 1.3, bob: 1.4, foot: true };
+OUTFLANK_LOOKS[5] = OUTFLANK_LOOKS[4];
+const E45_SCOUT_LOOK = { f: 1.25, back: 21, front: 26, up: 44, down: 3, top: 36, barW: 22, shadow: 14, feet: 12, rate: 1.25, bob: 1 };
+UNIT_FLANK_LOOK[5] = d => /Mounted|Cavalry/.test(d.name) ? E45_SCOUT_LOOK : null;
+
+// a musket or rifle carried at the trail in both hands, muzzle forward and low, as a man runs bent
+function e45FlankArms(skin, sleeve, sleeveLit, rifle) {
+  return swing => {
+    const C = UNIT_COLORS;
+    const b = outflankLocal(-1.6, -15.4), bx = b[0], by = b[1];
+    const m = outflankLocal(20 + swing * 0.4, -13.2 + swing * 0.3), mx = m[0], my = m[1];
+    const f = outflankLocal(11.6 + swing * 0.4, -11.6), fx = f[0], fy = f[1];
+    const r = outflankLocal(4.6, -12.8), rx = r[0], ry = r[1];
+    uLine([-2.8, -15.2, -0.6, -12, rx, ry], sleeve, 2.4);
+    uSeg(bx, by, mx, my, 0.9, C.iron);
+    uSeg(bx, by, (bx + mx * 2) / 3, (by + my * 2) / 3, 1.9, C.wood);
+    if (rifle) uPoly([mx - 0.2, my - 0.6, mx + 6, my - 0.9, mx - 0.2, my + 0.4], C.steelLit);
+    uDisc(rx, ry, 1.45, skin);
+    uLine([3, -15, 5.6, -12.6, fx, fy], sleeveLit, 2.4);
+    uDisc(fx, fy, 1.45, skin);
+  };
+}
+// the powder horn and bag bouncing on the runner's back
+function e45FlankHorn(swing) {
+  const C = UNIT_COLORS;
+  uFlatSeg(-3.6, -16.4, 3.8, -10.2, 0.8, C.leatherShade);
+  uPoly([-7.6, -13.4 + swing * 0.3, -4, -14.2, -3.6, -10, -7, -9.4 + swing * 0.3], C.leather);
+}
+
+UNIT_FLANK_ART[4] = (kit, pal) => {
+  outflankRunner(kit, pal, { drop: 1.6, lean: 0.5, stride: 6.2, back: e45FlankHorn,
+    front: e45FlankArms(kit.skin, pal.base, pal.lit, false) });
+};
+UNIT_FLANK_ART[5] = (kit, pal, d) => {
+  if (/Mounted|Cavalry/.test(d.name)) { e45ScoutRider(pal); return; }
+  const k = /Skirmish/.test(d.name) ? E45_SKIRMISHER : kit;
+  outflankRunner(k, pal, { drop: 1.8, lean: 0.52, stride: 6.4, back: k === E45_SKIRMISHER ? null : e45FlankHorn,
+    mid: k === E45_SKIRMISHER ? null : swing => e45Bandoliers(k, pal, swing, 0.4, false),
+    front: e45FlankArms(k.skin, pal.base, pal.lit, true) });
+};
+// a mounted scout at the gallop, bent low over the neck, carbine across his back
+function e45ScoutRider(pal) {
+  const C = UNIT_COLORS, kit = E45_RIDERS.trooper;
+  uSeg(-8.6, -16.4, 0.4, -31.4, 0.9, C.iron);
+  uSeg(-8.4, -16, -3.4, -24.6, 1.8, C.wood);
+  unitPaintHorse(UNIT_HORSES.bay, { cloth: "#4e4a3a", clothTrim: pal.dark });
+  uc.save();
+  uc.translate(0, -14.4);
+  uc.rotate(0.3);
+  uc.translate(0, 14.4);
+  unitPaintRiderBody(pal, kit);
+  uFlatSeg(-3.4, -23, 3.8, -16.4, 1.1, E45.belt);
+  unitPaintRiderHead(kit, pal);
+  uLine([2.6, -21.4, 6.4, -18.6, 9.6, -17.4], pal.base, 2.4);
+  uDisc(9.8, -17.4, 1.45, kit.skin);
+  uc.restore();
+}
+// ====================================== END UNIT SECTION: era4-5 ======================================
+
 function drawSoldier(e, k, d, walk, view) {
   const era = unitEra(e, d);
   const pal = unitPalette(d.color, d.trim);
@@ -32399,9 +33549,11 @@ function drawSoldier(e, k, d, walk, view) {
     if (era === 0) unitPaintBossSargon(pal);
     else if (era === 1) unitPaintBossShah(pal);
     else if (era === 2) unitPaintBossGeneral(pal);
+    else if (UNIT_BOSS_ART[era]) UNIT_BOSS_ART[era](pal, walk, d);
     else unitPaintBossChampion(pal, walk);
   } else {
-    const kit = UNIT_KITS[era][e.type] || UNIT_KITS[era].spearman;
+    let kit = UNIT_KITS[era][e.type] || UNIT_KITS[era].spearman;
+    if (kit.byName) kit = kit.byName(d.name);
     if (view === "front" || view === "rear") unitPaintInfantryEnd(kit, pal, walk, view === "front");
     else unitPaintInfantry(kit, pal, walk);
   }
@@ -32425,6 +33577,7 @@ function drawRam(e, p, k, dir) {
 
 function drawHorse(e, p, k, dir, d) {
   const era = unitEra(e, d);
+  if (UNIT_HORSE_ART[era]) { UNIT_HORSE_ART[era](p, k, dir, d); return; }
   const view = unitView(p);
   const style = d.variant === "cataphract" ? "cataphract" : era === 3 ? "sipahi" : "archer";
   uc.save();
@@ -32470,6 +33623,7 @@ function drawElephant(e, p, k, d) {
 
 function drawCannon(e, p, k, d) {
   const view = unitView(p);
+  if (UNIT_GUN_ART[unitEra(e, d)]) { UNIT_GUN_ART[unitEra(e, d)](p, k, d, view); return; }
   uc.save();
   uc.scale(k, k);
   if (view === "side") {
