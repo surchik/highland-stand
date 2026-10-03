@@ -1042,17 +1042,17 @@
   <div class="row">
     <label>Music</label>
     <div class="tgl" id="setMusicTgl">On</div>
-    <input type="range" id="musicVol" min="0" max="100" value="82">
+    <input type="range" id="musicVol" min="0" max="100" value="75">
   </div>
   <div class="row">
     <label>Sound</label>
     <div class="tgl" id="setSfxTgl">On</div>
-    <input type="range" id="sfxVol" min="0" max="100" value="90">
+    <input type="range" id="sfxVol" min="0" max="100" value="86">
   </div>
   <div class="row">
     <label>Ambient</label>
     <div class="tgl" id="setAmbTgl">On</div>
-    <input type="range" id="ambVol" min="0" max="100" value="88">
+    <input type="range" id="ambVol" min="0" max="100" value="83">
   </div>
   <button class="btn menuBtn" id="pauseBtn">Pause</button>
   <button class="btn menuBtn" id="menuBtn"><svg class="ic"><use href="#i-flag"/></svg>Abandon &amp; Level Select</button>
@@ -1499,9 +1499,9 @@ function posAt(dist) { return routeAt(0, dist); }
 const Snd = {
   ctx: null, bufs: null, sfxIn: null, sfxGain: null, musGain: null, duckGain: null, ambIn: null, ambGain: null,
   revIn: null, echoIn: null,
-  // volumes are slider positions 0..1 on a 50 dB log taper (see gainOf); the defaults sit where the
+  // volumes are slider positions 0..1 on a 36 dB log taper (see gainOf); the defaults sit where the
   // old linear defaults did (0.55, 0.35, 0.5 gain)
-  sfxOn: true, musicOn: true, ambOn: true, sfxVol: 0.9, musVol: 0.82, ambVol: 0.88,
+  sfxOn: true, musicOn: true, ambOn: true, sfxVol: 0.86, musVol: 0.75, ambVol: 0.83,
   musEra: -1, droneNodes: null, pulseWave: null,
   lastPlay: {}, voices: [], dens: {}, rrN: {}, amb: null, duckSt: null, timer: null,
   sceneOf: null, sceneOverride: null, curves: {},
@@ -1537,7 +1537,7 @@ const Snd = {
     const glue = c.createDynamicsCompressor();
     glue.threshold.value = -20; glue.knee.value = 12; glue.ratio.value = 2.5; glue.attack.value = 0.008; glue.release.value = 0.28;
     const lim = c.createDynamicsCompressor();
-    lim.threshold.value = -6; lim.knee.value = 2; lim.ratio.value = 16; lim.attack.value = 0.001; lim.release.value = 0.12;
+    lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 16; lim.attack.value = 0.001; lim.release.value = 0.12;
     const trim1 = G(0.78), trim2 = G(0.8);   // part of the compressors' automatic make-up gain handed back
     const ceil = c.createWaveShaper(); ceil.curve = this.ceilCurve(); ceil.oversample = "4x";
     glue.connect(trim1); trim1.connect(lim); lim.connect(trim2); trim2.connect(ceil); ceil.connect(c.destination);
@@ -1556,9 +1556,12 @@ const Snd = {
     for (let n = 1; n < N; n++) re[n] = 2 / (n * Math.PI) * Math.sin(n * Math.PI * 0.28);
     this.pulseWave = c.createPeriodicWave(re, im);
     this.musGain = G(0); this.duckGain = G(1);
-    this.musGain.connect(this.duckGain); this.duckGain.connect(glue);
+    // music and ambience skip the glue compressor (so a single arrow never pumps them) and join the
+    // sfx after it, with the level the compressor's make-up would have given them
+    const beds = G(1.79); beds.connect(lim);
+    this.musGain.connect(this.duckGain); this.duckGain.connect(beds);
     this.ambIn = G(1); this.ambGain = G(0);
-    this.ambIn.connect(this.ambGain); this.ambGain.connect(glue);
+    this.ambIn.connect(this.ambGain); this.ambGain.connect(beds);
   },
   applyVolumes(now) {
     if (!this.ctx) return;
@@ -1568,8 +1571,8 @@ const Snd = {
     set(this.musGain.gain, this.musicOn ? this.gainOf(this.musVol) : 0);
     set(this.ambGain.gain, this.ambOn ? this.gainOf(this.ambVol) : 0);
   },
-  // slider position -> gain: a log taper, -50 dB at the bottom of the travel, unity at the top, off at 0
-  gainOf(x) { return x <= 0.005 ? 0 : Math.pow(10, -50 * (1 - Math.min(1, x)) / 20); },
+  // slider position -> gain: a log taper, -18 dB at mid-travel, -36 dB near the bottom, off at 0
+  gainOf(x) { return x <= 0.005 ? 0 : Math.pow(10, -36 * (1 - Math.min(1, x)) / 20); },
   ceilCurve() {
     const n = 4096, k = 0.7, L = 0.86, cv = new Float32Array(n);
     for (let i = 0; i < n; i++) {
@@ -1660,7 +1663,7 @@ const Snd = {
     return v;
   },
   start(v, s, t0, t1, off) {
-    v.nodes.push(s); v.live++;
+    v.nodes.push(s); v.live++; (v.srcs || (v.srcs = [])).push(s);
     s.onended = () => { if (--v.live <= 0) this.free(v); };
     s.start(t0, off || 0); s.stop(t1);
     if (t1 > v.end) v.end = t1;
@@ -1899,11 +1902,11 @@ const Snd = {
   //      of it (the oldest is faded out to make room), g: level, cat: thinned together,
   //      rev / echo: sends, duck: [dB, hold s, release tc] on the music, pri: never dropped ----
   SPEC: {
-    arrow:      { thr: 60, max: 6, g: 1.405, cat: "shot", rev: 0.12 },
+    arrow:      { thr: 60, max: 6, g: 1.523, cat: "shot", rev: 0.12 },
     bolt:       { thr: 90, max: 4, g: 1.13, cat: "shot", rev: 0.15 },
-    javelin:    { thr: 80, max: 4, g: 1.786, cat: "shot", rev: 0.12 },
-    musket:     { thr: 110, max: 4, g: 0.705, cat: "shot", rev: 0.2, echo: 0.14 },
-    hurl:       { thr: 90, max: 4, g: 2.588, cat: "shot", rev: 0.12 },
+    javelin:    { thr: 80, max: 4, g: 1.538, cat: "shot", rev: 0.12 },
+    musket:     { thr: 110, max: 4, g: 1.731, cat: "shot", rev: 0.2, echo: 0.14 },
+    hurl:       { thr: 90, max: 4, g: 3.221, cat: "shot", rev: 0.12 },
     catapult:   { thr: 140, max: 3, g: 0.604, cat: "shot", rev: 0.18 },
     trebuchet:  { thr: 160, max: 3, g: 0.546, cat: "shot", rev: 0.18 },
     stoneHit:   { thr: 90, max: 4, g: 2.309, cat: "blast", rev: 0.2 },
@@ -1926,7 +1929,7 @@ const Snd = {
     nova:       { thr: 300, max: 2, g: 0.534, pri: true, rev: 0.3, duck: [4, 0.8, 0.4] },
     burn:       { thr: 700, thrMax: 1200, max: 2, g: 0.541, cat: "burn", rev: 0.05 },
     spellArrows:{ thr: 300, max: 1, g: 1.51, pri: true, rev: 0.2, duck: [5, 0.9, 0.4] },
-    arrowRain:  { thr: 80, max: 4, g: 1.201, cat: "hit", rev: 0.12 },
+    arrowRain:  { thr: 80, max: 4, g: 1.583, cat: "hit", rev: 0.12 },
     spellFrost: { thr: 300, max: 1, g: 1.0, pri: true, rev: 0.35, duck: [5, 1.2, 0.4] },
     spellWrath: { thr: 300, max: 1, g: 0.52, pri: true, rev: 0.35, echo: 0.2, duck: [9, 1.8, 0.6] },
     win:        { thr: 1000, max: 1, g: 0.57, pri: true, rev: 0.35, echo: 0.1 },
@@ -1955,6 +1958,7 @@ const Snd = {
     if (oldest && same >= (S.max || 4)) {
       const g = oldest.v.out.gain;
       g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + 0.015);
+      for (const src of oldest.v.srcs || []) { try { src.stop(t + 0.035); } catch (e) {} }   // and release its sources
       vs.splice(vs.indexOf(oldest), 1);
       this.stats.stolen = (this.stats.stolen || 0) + 1;
     }
@@ -1988,17 +1992,17 @@ const Snd = {
   },
 
   SFX: {
-    // bow: string slap, a bright twang settling in pitch, then the shaft hissing away (four voicings)
+    // bow: the woody twang and the nock's knock carry the shot; the shaft's swish sits at 1.5-3 kHz
     arrow(v, t, o) {
-      const n = this.rrIdx("arrow", 4), k = [1, 0.82, 1.22, 0.92][n] * this.rr(0.95, 1.05) * (o.spec === "a" ? 0.85 : 1);
-      const w = [1, 1.25, 0.85, 1.12][n] * this.rr(0.9, 1.12), td = this.rr(0.005, 0.06);
-      this.nz(v, { t, ft: "highpass", f: this.rr(2500, 4200), q: 0.6, a: 0.0004, p: this.rr(0.35, 0.55), d: 0.012 });
-      this.tn(v, { t, type: "sawtooth", f: 210 * k, f2: 170 * k * this.rr(0.92, 1.06), gl: 0.05, lp: this.rr(2600, 4200), lp2: 500, lpt: 0.1, a: 0.0015, p: 0.3, d: this.rr(0.08, 0.16) });
-      if (this.rnd() < 0.6) this.tn(v, { t, type: "triangle", f: 420 * k, f2: 380 * k, a: 0.001, p: 0.08, d: 0.06 });   // the nock's 'tick'
-      this.nz(v, { t: t + td, f: 2600 * w, path: [[this.rr(0.04, 0.09), 5200 * w], [this.rr(0.15, 0.24), 3000 * w]], q: this.rr(1.2, 2.2), a: 0.03, p: 0.5, d: this.rr(0.09, 0.2) });
+      const n = this.rrIdx("arrow", 4), k = [1, 0.84, 1.18, 0.93][n] * this.rr(0.95, 1.05) * (o.spec === "a" ? 0.85 : 1);
+      const w = [1, 1.1, 0.88, 1.05][n] * this.rr(0.93, 1.07), td = this.rr(0.005, 0.05);
+      this.nz(v, { t, f: this.rr(1500, 2200), q: 0.8, a: 0.0004, p: this.rr(0.25, 0.35), d: 0.012 });   // string slap
+      this.tn(v, { t, type: "sawtooth", f: 245 * k, f2: 210 * k * this.rr(0.94, 1.04), gl: 0.06, lp: this.rr(1800, 2600), lp2: 500, lpt: 0.1, a: 0.0015, p: 0.26, d: this.rr(0.1, 0.16) });
+      this.modal(v, { t, f: 340 * k, p: 0.22, parts: [[1, 1, 0.04], [2.7, 0.5, 0.025]] });   // the nock's knock in the limbs
+      this.nz(v, { t: t + td, f: 1350 * w, path: [[this.rr(0.04, 0.08), 1800 * w], [this.rr(0.15, 0.24), 1450 * w]], q: this.rr(2.8, 3.4), a: 0.03, p: 1, d: this.rr(0.12, 0.2) });
       if (n === 1 || this.rnd() < 0.25) {   // a fletching flutter on some shafts
-        const g = this.nz(v, { t: t + td + 0.02, k: "pink", f: 3800 * w, q: 2, a: 0.02, p: 0.18, d: 0.12 });
-        this.lfo(v, g.gain, t + td, t + td + 0.2, this.rr(35, 60), 0.15);
+        const g = this.nz(v, { t: t + td + 0.02, k: "pink", f: 1900 * w, q: 2, a: 0.02, p: 0.16, d: 0.12 });
+        this.lfo(v, g.gain, t + td, t + td + 0.2, this.rr(35, 60), 0.13);
       }
     },
     // field ballista: trigger clack, the heavy sinew cord's thrum, the bolt ripping off, the crew's ratchet
@@ -2026,27 +2030,28 @@ const Snd = {
       const s = this.tn(v, { t: t + td + 0.03, type: "triangle", f: 230 * k, f2: 190 * k, a: 0.04, p: this.rr(0.05, 0.11), d: this.rr(0.18, 0.32) });
       this.lfo(v, s.detune, t + td, t + td + 0.4, this.rr(12, 22), 60);
     },
-    // matchlock: the pan flashes, a beat, then a sharp crack with a 2-4 kHz bite, the blast body,
-    // a saturated (not sub) boom, and the report coming back off the hills
+    // matchlock: the pan flashes, a beat, then the crack, a full 250 Hz-1 kHz blast body, a saturated
+    // (not sub) boom, and the report coming back off the hills
     musket(v, t) {
       const k = this.rr(0.9, 1.1), n = this.rrIdx("musket", 3), T = t + this.rr(0.03, 0.06);
-      this.nz(v, { t, ft: "highpass", f: 3500, q: 0.7, a: 0.002, p: 0.2, d: 0.03 });
-      this.nz(v, { t, k: "crackle", ft: "highpass", f: 4000, a: 0.002, p: 0.35, d: 0.04 });
-      this.nz(v, { t: T, ft: "highpass", f: [2000, 2400, 1800][n], q: 0.5, a: 0.0002, p: 1.2, d: 0.03 });
-      this.nz(v, { t: T, f: 3000 * k, q: 0.9, a: 0.0004, p: 0.9, d: 0.07 });
-      this.nz(v, { t: T, k: "pink", f: 1100 * k, q: 0.7, a: 0.001, p: 0.75, d: 0.14 });
-      this.nz(v, { t: T, k: "pink", f: 300, q: 0.8, a: 0.002, p: 0.25, d: 0.25 });
-      this.thump(v, T, 115 * k, 70, 0.1, 0.25, 4);
-      this.nz(v, { t: T + 0.02, k: "pink", ft: "lowpass", f: 3000, path: [[0.6, 900]], a: 0.04, p: 0.12, d: 0.6 });
+      this.nz(v, { t, f: 2600, q: 0.8, a: 0.002, p: 0.15, d: 0.03 });
+      this.nz(v, { t, k: "crackle", f: 2800, q: 1, a: 0.002, p: 0.12, d: 0.04 });
+      this.nz(v, { t: T, f: [1800, 2100, 1600][n], q: 0.8, a: 0.0002, p: 0.55, d: 0.03 });
+      this.nz(v, { t: T, f: 2800 * k, q: 1.2, a: 0.0004, p: 0.18, d: 0.05 });
+      this.nz(v, { t: T, k: "pink", f: 480 * k, q: 0.8, a: 0.001, p: 1.4, d: 0.2 });
+      this.nz(v, { t: T, k: "pink", f: 900 * k, q: 0.9, a: 0.001, p: 1.3, d: 0.16 });
+      this.nz(v, { t: T, k: "pink", f: 300, q: 0.9, a: 0.002, p: 0.35, d: 0.25 });
+      this.thump(v, T, 115 * k, 70, 0.045, 0.22, 4);
+      this.nz(v, { t: T + 0.02, k: "pink", ft: "lowpass", f: 2200, path: [[0.6, 700]], a: 0.04, p: 0.15, d: 0.6 });
     },
-    // the sling: one to three whirls round the head, the pouch snaps open, the stone whirrs away
+    // the sling: one to three whirls round the head, the pouch snaps open, the stone whirrs away low
     hurl(v, t) {
       const k = this.rr(0.88, 1.15), whirls = 1 + Math.floor(this.rnd() * 3), gap = this.rr(0.04, 0.07);
-      for (let i = 0; i < whirls; i++) this.nz(v, { t: t + i * gap, k: "pink", f: (480 + i * 200) * k, q: 2.6, a: gap * 0.6, p: 0.3 + i * 0.12, d: gap * 0.8 });
+      for (let i = 0; i < whirls; i++) this.nz(v, { t: t + i * gap, k: "pink", f: (450 + i * 180) * k, q: 2.6, a: gap * 0.6, p: 0.3 + i * 0.12, d: gap * 0.8 });
       const T = t + whirls * gap + 0.01;
-      this.nz(v, { t: T, ft: "highpass", f: 2000, q: 0.6, a: 0.0005, p: 0.45, d: 0.014 });   // leather snaps
-      const g = this.nz(v, { t: T, k: "pink", f: 1100 * k, path: [[0.1, 1600 * k], [0.25, 700 * k]], q: 3, a: 0.02, p: 0.45, d: 0.2 });
-      this.lfo(v, g.gain, T, T + 0.25, this.rr(22, 34), 0.25);   // the stone tumbling: a rough whirr
+      this.nz(v, { t: T, f: 1600, q: 0.8, a: 0.0005, p: 0.4, d: 0.014 });   // leather snaps
+      const g = this.nz(v, { t: T, k: "pink", f: 700 * k, path: [[0.1, 1200 * k], [0.25, 550 * k]], q: 2.5, a: 0.02, p: 0.55, d: 0.2 });
+      this.lfo(v, g.gain, T, T + 0.25, this.rr(22, 34), 0.3);   // the stone tumbling: a rough whirr
     },
     // onager: the skein's last creak, the arm's whoosh, and the 'kick' as it slams the padded beam
     catapult(v, t) {
@@ -2072,16 +2077,17 @@ const Snd = {
       this.modal(v, { t: T, f: 240 * k, p: 0.5, parts: [[1, 1, 0.2], [2.76, 0.55, 0.1], [5.4, 0.3, 0.05]] });
       this.nz(v, { t: T, k: "crackle", f: 2200, q: 0.8, a: 0.004, p: 0.4, d: 0.22 });
     },
-    // a lobbed stone lands: ground thump, the crack of rock, its short ring, grit and dust
+    // a lobbed stone lands: ground thump, a solid 300-900 Hz rock body and ring, the crack, grit and dust
     stoneHit(v, t, o) {
       const n = this.rrIdx("stoneHit", 3), k = [1, 0.88, 1.12][n] * this.rr(0.94, 1.06), big = o.big ? 1.3 : 1;
       this.thump(v, t, 105 * k / big, 60, 0.05, 0.24 * big, 4);
-      this.nz(v, { t, k: "pink", f: 460 * k, q: 1, a: 0.001, p: 0.55, d: 0.25 * big });
-      this.nz(v, { t, f: 2200 * k, q: 1, a: 0.0004, p: 0.9, d: 0.04 });
-      this.modal(v, { t, f: 720 * k, p: 0.3, jit: 0.04, parts: [[1, 1, 0.05], [1.73, 0.7, 0.04], [2.9, 0.5, 0.03]] });
-      this.nz(v, { t: t + this.rr(0.005, 0.06), k: "crackle", rate: this.rr(0.6, 1.1) * k, f: this.rr(1800, 3400), q: 0.6, a: 0.015, p: 0.8, d: this.rr(0.25, 0.6) * big });
-      if (this.rnd() < 0.5) this.nz(v, { t: t + this.rr(0.15, 0.35), k: "crackle", rate: 0.9, f: 3000, q: 0.8, a: 0.01, p: 0.35, d: 0.2 });   // a late bounce of chips
-      this.nz(v, { t: t + 0.03, k: "pink", ft: "highpass", f: 2800, a: 0.06, p: 0.1, d: 0.45 });
+      this.nz(v, { t, k: "pink", f: 460 * k / big, q: 1, a: 0.001, p: 0.55, d: 0.25 * big });
+      this.nz(v, { t, k: "pink", f: 620 * k / big, q: 1.2, a: 0.001, p: 1.3, d: 0.16 * big });
+      this.modal(v, { t, f: 520 * k / big, p: 0.5, jit: 0.04, parts: [[1, 1, 0.07], [1.73, 0.7, 0.05], [2.9, 0.4, 0.03]] });
+      this.nz(v, { t, f: 1800 * k, q: 1.1, a: 0.0004, p: 0.6, d: 0.035 });
+      this.nz(v, { t: t + this.rr(0.005, 0.06), k: "crackle", rate: this.rr(0.5, 0.9) * k, f: this.rr(1400, 2400), q: 0.6, a: 0.015, p: 0.45, d: this.rr(0.25, 0.6) * big });
+      if (this.rnd() < 0.5) this.nz(v, { t: t + this.rr(0.15, 0.35), k: "crackle", rate: 0.8, f: 2000, q: 0.8, a: 0.01, p: 0.2, d: 0.2 });   // a late bounce of chips
+      this.nz(v, { t: t + 0.03, k: "pink", ft: "highpass", f: 2800, a: 0.06, p: 0.05, d: 0.4 });
     },
     // a firepot bursts: clay shatters, the pitch catches with a soft whoomph, then spits and burns
     firepot(v, t) {
@@ -2136,14 +2142,18 @@ const Snd = {
     death(v, t, o) {
       const kind = o.kind, varn = o.variant;
       this.lvl(v, kind === "ram" ? ({ elephant: -17.3, cannon: -18 }[varn] || -14.4) : kind === "boss" ? -14.6 :
-        (kind === "cavalry" || (kind === "flyer" && o.era === 3)) ? -12 : 0);
+        (kind === "cavalry" || (kind === "flyer" && o.era === 3)) ? -6 : 0);
       if (kind === "ram" && varn === "elephant") {
         // a bellow sinking to a groan (with a subharmonic growl under it), then the earth takes the
         // weight and the howdah splinters
-        const s = this.formant(v, { t, f: 250, path: [[0.15, 310], [0.7, 120]], forms: [[900, 3, 1, 1100, 700], [1800, 4, 0.5, 2100, 1500], [480, 3, 0.6]], a: 0.04, hold: 0.25, d: 0.45, p: 0.45, drive: 3, jit: 35, breath: 0.3 });
-        this.lfo(v, s.frequency, t, t + 0.8, 29, 14);   // the rasp in the throat
-        this.formant(v, { t, f: 125, path: [[0.15, 155], [0.7, 60]], forms: [[500, 2, 1], [1000, 3, 0.4]], a: 0.06, hold: 0.2, d: 0.45, p: 0.18, breath: 0 });
-        const T = t + 0.55;
+        // three bellows: a long sinking groan, a short broken roar, a high squeal that collapses
+        const n = this.rrIdx("elephant", 3), f0 = [250, 215, 300][n] * this.rr(0.93, 1.07);
+        const path = [[[0.15, f0 * 1.24], [0.7, f0 * 0.48]], [[0.08, f0 * 1.1], [0.3, f0 * 0.9], [0.55, f0 * 0.55]], [[0.1, f0 * 1.5], [0.35, f0 * 1.2], [0.65, f0 * 0.45]]][n];
+        const fm = [[900, 1100, 700], [750, 950, 600], [1100, 1400, 800]][n];
+        const s = this.formant(v, { t, f: f0, path, forms: [[fm[0], 3, 1, fm[1], fm[2]], [fm[0] * 2, 4, 0.5, fm[1] * 1.9, fm[2] * 2.1], [480, 3, 0.6]], a: 0.04, hold: [0.25, 0.12, 0.2][n], d: [0.45, 0.35, 0.4][n], p: 0.45, drive: 3, jit: 35, breath: 0.3 });
+        this.lfo(v, s.frequency, t, t + 0.8, this.rr(22, 36), this.rr(10, 18));   // the rasp in the throat
+        this.formant(v, { t, f: f0 / 2, path: path.map(([d, f]) => [d, f / 2]), forms: [[500, 2, 1], [1000, 3, 0.4]], a: 0.06, hold: 0.2, d: 0.45, p: 0.18, breath: 0 });
+        const T = t + [0.55, 0.42, 0.7][n] + this.rr(-0.05, 0.08);
         this.thump(v, T, 90, 55, 0.07, 0.35, 4);
         this.nz(v, { t: T, k: "pink", f: 280, q: 0.7, p: 0.5, d: 0.5 });
         this.nz(v, { t: T + 0.02, k: "crackle", rate: 0.7, f: 1800, q: 0.6, p: 0.6, d: 0.5 });
@@ -2165,10 +2175,11 @@ const Snd = {
         const g = this.nz(v, { t, k: "pink", f: 900, q: 1, a: 0.02, p: 0.3, d: 0.2 });
         this.lfo(v, g.gain, t, t + 0.25, 27, 0.18);
         const T = t + 0.16;
-        this.thump(v, T, 100, 62, 0.05, 0.24, 4);
-        this.nz(v, { t: T, k: "pink", f: 420, q: 1, p: 0.6, d: 0.3 });
-        for (let i = 0; i < 5; i++) this.modal(v, { t: T + this.rr(0, 0.2), f: this.rr(2600, 3600), p: 0.14, parts: [[1, 1, 0.12], [2.4, 0.4, 0.06]] });
-        this.nz(v, { t: T, k: "crackle", f: 2400, q: 0.7, p: 0.4, d: 0.2 });
+        this.thump(v, T, 100, 62, 0.04, 0.22, 4);
+        this.nz(v, { t: T, k: "pink", f: 480, q: 1, p: 0.8, d: 0.3 });
+        this.nz(v, { t: T, k: "pink", f: 800, q: 1.1, p: 0.7, d: 0.2 });
+        for (let i = 0; i < 5; i++) this.modal(v, { t: T + this.rr(0, 0.2), f: this.rr(2600, 3600), p: 0.05, parts: [[1, 1, 0.12], [2.4, 0.4, 0.06]] });
+        this.nz(v, { t: T, k: "crackle", f: 2400, q: 0.7, p: 0.16, d: 0.2 });
       } else {
         const boss = kind === "boss";
         this.manFall(v, t, boss ? 1.6 : 1, boss);
@@ -2298,7 +2309,8 @@ const Snd = {
       this.gong(v, t + 0.02, 146.83, 0.4, 2.2);
       this.nz(v, { t: t + 0.05, k: "crackle", f: 2800, q: 0.7, a: 0.05, p: 0.55, d: 0.8 });
     },
-    // the fire slot at work: an open beacon roars and crackles, a pitch cauldron seethes and pops
+    // the fire slot at work: an open beacon roars and crackles (never the same burst twice), a pitch
+    // cauldron seethes and pops
     burn(v, t, o) {
       if (o.skin === "cauldron") {
         this.lvl(v, -10.8);
@@ -2306,8 +2318,12 @@ const Snd = {
         this.nz(v, { t, ft: "highpass", f: 4500, a: 0.15, hold: 0.2, p: 0.12, d: 0.35 });
         this.nz(v, { t, k: "pink", f: 320, q: 0.8, a: 0.15, hold: 0.2, p: 0.25, d: 0.35 });
       } else {
-        this.nz(v, { t, k: "pink", f: 600, q: 0.6, a: 0.15, hold: 0.25, p: 0.3, d: 0.4 });
-        this.nz(v, { t, k: "crackle", f: 2600, q: 0.6, a: 0.05, hold: 0.3, p: 0.55, d: 0.35 });
+        const n = this.rrIdx("burn", 3), d0 = this.rr(0, 0.12);
+        this.nz(v, { t: t + d0, k: "pink", f: [600, 450, 800][n] * this.rr(0.85, 1.15), q: this.rr(0.5, 0.9), a: this.rr(0.08, 0.2), hold: this.rr(0.1, 0.35), p: 0.3, d: this.rr(0.3, 0.5) });
+        this.nz(v, { t: t + this.rr(0, 0.15), k: "crackle", rate: this.rr(0.7, 1.4), f: [2600, 2000, 3200][n], q: 0.6, a: 0.05, hold: this.rr(0.15, 0.4), p: 0.55, d: this.rr(0.25, 0.45) });
+        const pops = Math.floor(this.rnd() * 3);
+        for (let i = 0; i < pops; i++) this.nz(v, { t: t + this.rr(0.05, 0.6), f: this.rr(900, 1800), q: 1, a: 0.0005, p: this.rr(0.4, 0.8), d: 0.025 });   // a knot bursting
+        if (n === 2) this.nz(v, { t: t + 0.1, k: "pink", f: 3600, q: 3, a: 0.1, hold: 0.15, p: 0.06, d: 0.2 });   // sap hissing out
       }
     },
     // Rain of Arrows: a company looses together, the flight passes overhead whistling
@@ -2395,19 +2411,19 @@ const Snd = {
   //      own, and sparse events that stand 6-10 dB proud of the bed ----
   AMB: {
     // Erebuni: open plateau, vineyards below the fortress: wind, cicadas by day, crickets at night
-    erebuni: { trim: -11.2, wind: 0.9, wf: 380, crickets: 1, sig: "cicadas", birds: ["lark", "lark", "sparrow"], gap: [2.5, 6], nightEv: ["owl"], rare: ["sheep"] },
+    erebuni: { trim: -13.3, ntrim: -11.7, wind: 0.9, wf: 380, crickets: 1, sig: "cicadas", birds: ["lark", "lark", "sparrow"], gap: [2.5, 6], nightEv: ["owl"], rare: ["sheep"] },
     // Tushpa on Lake Van: reeds along the shore, coots and gulls, frogs at night
-    urartu:  { trim: -11.5, wind: 0.7, wf: 340, water: 1, crickets: 0.8, sig: "reeds", birds: ["coot", "gull", "lark", "coot"], gap: [2.5, 6], nightEv: ["frog"] },
+    urartu:  { trim: -13.5, ntrim: -12.7, wind: 0.7, wf: 340, water: 1, crickets: 0.8, sig: "reeds", birds: ["coot", "gull", "lark", "coot"], gap: [2.5, 6], nightEv: ["frog"] },
     // Avarayr: the river Tghmut running across the plain
-    ararat:  { trim: -8.1, wind: 0.6, wf: 360, crickets: 1, sig: "river", birds: ["lark", "sparrow", "coot"], gap: [2.5, 6], nightEv: ["frog"], rare: ["sheep"] },
+    ararat:  { trim: -13.8, ntrim: -13.9, wind: 0.6, wf: 360, crickets: 1, sig: "river", birds: ["lark", "sparrow", "coot"], gap: [2.5, 6], nightEv: ["frog"], rare: ["sheep"] },
     // Dvin: the capital's life carried on the wind: market murmur by day, the cathedral bell
-    dvin:    { trim: -10.4, wind: 0.8, wf: 420, crickets: 1, sig: "town", birds: ["sparrow", "lark"], gap: [2.5, 6], nightEv: ["owl"], rare: ["churchBell", "sheep"] },
+    dvin:    { trim: -14.9, ntrim: -10.5, wind: 0.8, wf: 420, crickets: 1, sig: "town", birds: ["sparrow", "lark"], gap: [2.5, 6], nightEv: ["owl"], rare: ["churchBell", "smith", "cart", "cart", "sheep"], rareGap: [4, 10] },
     // Tashir: a beech gorge with a stream running through it
-    lori:    { trim: -9.5, wind: 0.45, wf: 300, rustle: 1, crickets: 0.9, sig: "stream", birds: ["song", "song", "sparrow"], gap: [1.6, 4.5], nightEv: ["owl"], rare: ["twig"] },
+    lori:    { trim: -15, ntrim: -13.7, wind: 0.45, wf: 300, rustle: 1, crickets: 0.9, sig: "stream", birds: ["song", "song", "sparrow"], gap: [1.6, 4.5], nightEv: ["owl"], rare: ["twig"] },
     // Sevan: open water: slow swells and lapping, gulls wheeling
-    sevan:   { trim: -12.8, wind: 0.9, wf: 440, water: 1.2, crickets: 0.8, sig: "swell", birds: ["gull", "gull", "lark"], gap: [2, 5], nightEv: ["frog"] },
+    sevan:   { trim: -18.6, ntrim: -18.2, wind: 0.9, wf: 440, water: 1.2, crickets: 0.8, sig: "swell", birds: ["gull", "gull", "lark"], gap: [2, 5], nightEv: ["frog"] },
     // Gyumri in winter: whistling snow wind, crows, boots crunching, timbers creaking in the cold
-    gyumri:  { trim: -13.9, wind: 1.3, wf: 520, whistle: 1, sig: "snow", birds: ["crow"], gap: [5, 11], nightEv: ["wolf", "timber"], rare: ["crunch", "timber"] },
+    gyumri:  { trim: -16.2, ntrim: -13.6, wind: 1.3, wf: 520, whistle: 1, sig: "snow", birds: ["crow"], gap: [5, 11], nightEv: ["timber", "timber", "wolf"], rare: ["crunch", "timber"] },
   },
   scene() {
     if (this.sceneOverride) return this.sceneOverride;
@@ -2484,24 +2500,28 @@ const Snd = {
       case "river": case "stream": {   // running water: several wandering resonant bands over a wash
         const hi = P.sig === "stream", m = this.node(v, c.createGain());
         chain(m, F("lowpass", hi ? 6000 : 3500, 0.5), out);
+        const up = hi ? 2.6 : 3.4;
         for (const [f, q, lvl] of hi ? [[1300, 3, 0.05], [2400, 3.5, 0.04], [3600, 4, 0.03]] : [[650, 2.5, 0.06], [1100, 3, 0.05], [1900, 3.5, 0.035]]) {
-          babble(mono("white", 1), f * this.rr(0.95, 1.05), q, 0.35, this.rr(5, 9), lvl, m);
+          babble(mono("white", 1), f * this.rr(0.95, 1.05), q, 0.35, this.rr(5, 9), lvl * up, m);
         }
-        chain(loop("pink", 1), F("bandpass", hi ? 2200 : 900, 0.6), Gn(0.025), m);
+        chain(loop("pink", 1), F("bandpass", hi ? 2200 : 900, 0.6), Gn(0.025 * up), m);
         b.babbleEv = hi ? 0.35 : 0.6;   // plus frequent little bubble chirps
         break;
       }
-      case "town": {      // distant market murmur: voice-like bands wandering at syllable rate
+      case "town": {      // distant market murmur: voice-like formant bands, each gated at a talker's
+        // 3-6 syllables a second, so it chatters rather than hisses; carts, a smith and the bell come
+        // through it as events
         b.sigG = Gn(1); const m = this.node(v, c.createGain());
-        chain(m, F("lowpass", 2200, 0.5), b.sigG, b.dayG);
-        for (const [f, q, lvl] of [[480, 5, 0.035], [1050, 6, 0.03], [2300, 7, 0.02], [620, 5, 0.03]]) {
-          const g = babble(mono("pink", 1), f, q, 0.18, this.rr(7, 11), lvl, m);
-          chain(mono("brown", this.rr(10, 14)), Gn(lvl * 1.6)).connect(g.gain);   // syllabic swells
+        chain(m, F("lowpass", 2400, 0.5), b.sigG, b.dayG);
+        for (const [f, q, lvl] of [[480, 5, 0.85], [1050, 6, 0.75], [2300, 7, 0.46], [620, 5, 0.78], [820, 5, 0.64]]) {
+          const lg = Gn(lvl); lg.connect(m);
+          const g = babble(mono("pink", 1), f * this.rr(0.95, 1.05), q, 0.2, this.rr(7, 11), 0, lg);
+          gate(g, this.rr(3, 6), 16);
         }
         break;
       }
       case "swell": {     // slow swells rolling in across open water
-        b.sigG = Gn(0); chain(loop("pink", 0.7), F("lowpass", 1300, 0.5), F("highpass", 120, 0.5), b.sigG, out);
+        b.sigG = Gn(0); chain(loop("pink", 0.8), F("lowpass", 3000, 0.5), F("highpass", 280, 0.5), b.sigG, out);
         break;
       }
       case "snow": break;   // gyumri's signature is its events: crunching boots and creaking timbers
@@ -2543,9 +2563,12 @@ const Snd = {
     // night: the wind drops about 3 dB, the insects come up, the day layers fade
     const P = b.P, night = Math.max(0, Math.min(1, sc.night || 0)), nb = 1 - 0.3 * night;
     if (Math.abs(night - b.night) > 0.01) {
+      const first = b.night < 0;
       b.night = night;
       b.nightG.gain.setTargetAtTime(night * 1.45, t, 2);
       b.dayG.gain.setTargetAtTime(1 - 0.9 * night, t, 2);
+      // each bed is levelled separately for day and night, so both sit near -42 LUFS
+      b.out.gain.setTargetAtTime(Math.pow(10, ((P.trim || 0) * (1 - night) + (P.ntrim == null ? P.trim || 0 : P.ntrim) * night) / 20), t, first ? 0.9 : 2);
     }
     for (; b.nGust < horizon; b.nGust += this.rr(2, 5)) {
       const tg = b.nGust, s = this.gust(b), tc = this.rr(0.6, 1.6);
@@ -2569,7 +2592,7 @@ const Snd = {
         b.sigG.gain.setTargetAtTime(this.rr(0.6, 1), ts, 0.4); b.sigG.gain.setTargetAtTime(0, ts + hold, 0.5);
         b.nSig += hold + this.rr(1.5, 4);
       } else if (P.sig === "swell") {     // a long wave rolls in and draws back
-        b.sigG.gain.setTargetAtTime(this.rr(0.05, 0.09), ts, 0.7); b.sigG.gain.setTargetAtTime(0.008, ts + this.rr(1.4, 2), 1.1);
+        b.sigG.gain.setTargetAtTime(this.rr(0.45, 0.7), ts, 0.7); b.sigG.gain.setTargetAtTime(0.07, ts + this.rr(1.4, 2), 1.1);
         b.nSig += this.rr(4.5, 8);
       } else if (b.babbleEv) {            // water chuckling over stones
         this.ambEv(b, "bubbles", ts, 0.5);
@@ -2585,12 +2608,14 @@ const Snd = {
         if (k !== "wolf" || this.rnd() < 0.3) this.ambEv(b, k, b.nNight);
       }
     }
-    for (; b.nRare < horizon; b.nRare += this.rr(8, 20)) {
+    for (; b.nRare < horizon; b.nRare += P.rareGap ? this.rr(P.rareGap[0], P.rareGap[1]) : this.rr(8, 20)) {
       if (P.rare) { const k = this.pick(P.rare); if (k === "churchBell" || k === "timber" || this.rnd() > night) this.ambEv(b, k, b.nRare); }
     }
   },
   ambEv(b, kind, t, g) {
-    const v = this.voice(t, { gain: 6.5 * (g || 1), pan: this.rr(-0.7, 0.7), bus: b.out });
+    // events skip the bed's own trim: every bed sits at the same loudness, so one event level keeps
+    // birds, animals and town sounds 6-10 dB proud of whichever bed they land on
+    const v = this.voice(t, { gain: 2.6 * (g || 1), pan: this.rr(-0.7, 0.7), bus: this.ambIn });
     this.AMBEV[kind].call(this, v, t);
   },
   AMBEV: {
@@ -2688,7 +2713,7 @@ const Snd = {
     },
     // a wolf far off across the snow
     wolf(v, t) {
-      const s = this.tn(v, { t, f: 380, f2: 560, gl: 0.6, a: 0.4, hold: 1.2, p: 0.025, d: 1 });
+      const s = this.tn(v, { t, f: 380, f2: 560, gl: 0.6, a: 0.4, hold: 1.2, p: 0.008, d: 1 });
       s.frequency.exponentialRampToValueAtTime(430, t + 2.4);
       this.lfo(v, s.detune, t, t + 2.7, 5, 18);
     },
@@ -2708,6 +2733,20 @@ const Snd = {
       const n = 2 + Math.floor(this.rnd() * 3);
       for (let i = 0; i < n; i++) this.bell(v, t + i * 2.2, 196, 0.012, 3);
     },
+    // a smith at work somewhere in the town: a few ringing hammer blows
+    smith(v, t) {
+      const n = 2 + Math.floor(this.rnd() * 4), f = this.rr(1050, 1400), gap = this.rr(0.32, 0.45);
+      for (let i = 0; i < n; i++) this.anvil(v, t + i * gap, f * this.rr(0.98, 1.02), 0.012);
+    },
+    // an ox cart passing: the axle creaking and hooves on packed earth
+    cart(v, t) {
+      this.creak(v, t, this.rr(0.5, 0.9), this.rr(450, 700), 0.025);
+      const n = 6 + Math.floor(this.rnd() * 5), gap = this.rr(0.22, 0.3);
+      for (let i = 0; i < n; i++) {
+        this.modal(v, { t: t + 0.1 + i * gap, f: this.rr(600, 800), p: 0.012, parts: [[1, 1, 0.03], [2.3, 0.5, 0.02]] });
+        this.nz(v, { t: t + 0.1 + i * gap, k: "pink", f: 500, q: 1, a: 0.002, p: 0.012, d: 0.05 });
+      }
+    },
     // boots crunching through packed snow
     crunch(v, t) {
       const n = 3 + Math.floor(this.rnd() * 4), gap = this.rr(0.45, 0.6);
@@ -2719,21 +2758,22 @@ const Snd = {
     },
     // a frozen timber creaking in the cold
     timber(v, t) {
-      this.creak(v, t, this.rr(0.25, 0.5), this.rr(380, 620), 0.05);
+      this.creak(v, t, this.rr(0.25, 0.5), this.rr(380, 620), 0.1);
     },
   },
 
   // ---- procedural soundtrack: drone + duduk-like melody + dhol pulse, voiced per era ----
   nextBeat: 0, beatN: 0, melNote: 0, melRest: 0,
   SCALE: [146.83, 155.56, 185.0, 196.0, 220.0, 233.08, 277.18, 293.66], // D hijaz-ish
-  // per era: lead register (octave multiplier), lead brightness, chance of a rest, dhol density,
-  // drone levels (D2, A2, D3) and drone brightness. Urartu is low, dark and sparse; each later age
-  // brighter and busier, up to the 1579 stand
+  // per era: the lead instrument and its register, brightness, chance of a rest, dhol density, and
+  // the drone's levels (D2, A2, D3) and brightness. Urartu: a shepherd's end-blown blul over a thin
+  // drone, sparse; Avarayr: the duduk; the Bagratid age: a bowed kamancha; 1579: a reedy zurna over
+  // a busy dhol
   MUS_ERA: [
-    { lead: 1, lp: 950, rest: 0.4, dhol: 0, drone: [0.065, 0.05, 0], dlp: 240 },
-    { lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320 },
-    { lead: 2, lp: 1800, rest: 0.17, dhol: 2, drone: [0.055, 0.045, 0.035], dlp: 380 },
-    { lead: 2, lp: 2300, rest: 0.1, dhol: 3, drone: [0.05, 0.05, 0.04], dlp: 460 },
+    { voice: "blul", lead: 2, lp: 2600, lvl: 0.075, rest: 0.4, dhol: 0, drone: [0.03, 0.028, 0.022], dlp: 320 },
+    { voice: "duduk", lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320 },
+    { voice: "kamancha", lead: 2, lp: 2400, lvl: 0.06, rest: 0.17, dhol: 2, drone: [0.055, 0.045, 0.035], dlp: 380 },
+    { voice: "zurna", lead: 2, lp: 3000, lvl: 0.045, rest: 0.1, dhol: 3, drone: [0.05, 0.05, 0.04], dlp: 460 },
   ],
   startMusic() {
     if (!this.ctx || this.timer) return;
@@ -2801,11 +2841,46 @@ const Snd = {
         if (this.rnd() < 0.22) this.melNote = 0;
         const f = this.SCALE[this.melNote] * E.lead;
         const dur = BEAT * (this.rnd() < 0.3 ? 2.6 : 1.4);
-        if (on) this.mDuduk(f, dur, t, E.lp);
+        if (on) this.mLead(f, dur, t, E);
         if (this.rnd() < E.rest) this.melRest = 2 + Math.floor(this.rnd() * 3);
       }
       this.nextBeat += BEAT;
       this.beatN++;
+    }
+  },
+  // the era's lead voice (the duduk is the original soundtrack voice, kept as it was)
+  mLead(f, dur, t0, E) {
+    if (E.voice === "duduk") return this.mDuduk(f, dur, t0, E.lp);
+    const c = this.ctx, g = c.createGain(), fl = c.createBiquadFilter(), end = t0 + dur + 0.05;
+    fl.type = "lowpass"; fl.frequency.value = E.lp; fl.Q.value = 0.8;
+    const pk = E.lvl, att = E.voice === "kamancha" ? dur * 0.3 : E.voice === "zurna" ? 0.03 : dur * 0.15;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(pk, t0 + att);
+    g.gain.setValueAtTime(pk, t0 + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    fl.connect(g); g.connect(this.musGain);
+    // the body each instrument speaks through
+    let body = fl;
+    if (E.voice !== "blul") {
+      body = c.createBiquadFilter(); body.type = "peaking"; body.frequency.value = E.voice === "zurna" ? 1500 : 950;
+      body.Q.value = 1; body.gain.value = 8; body.connect(fl);
+    }
+    const lfo = c.createOscillator(), lg = c.createGain();
+    lfo.frequency.value = E.voice === "kamancha" ? 6.2 : E.voice === "zurna" ? 6.8 : 4.6;
+    lg.gain.value = E.voice === "kamancha" ? 14 : E.voice === "zurna" ? 9 : 5;
+    lfo.connect(lg); lfo.start(t0); lfo.stop(end);
+    const parts = E.voice === "blul" ? [["sine", 0, 1], ["sine", 1200, 0.18], ["triangle", 1902, 0.05]]
+      : E.voice === "kamancha" ? [["sawtooth", 0, 0.7], ["sawtooth", 6, 0.5]] : [["sawtooth", 0, 0.6], ["sawtooth", 9, 0.6]];
+    for (const [type, det, lv] of parts) {
+      const o = c.createOscillator(), og = c.createGain();
+      o.type = type; o.frequency.value = f; o.detune.value = det; og.gain.value = lv;
+      lg.connect(o.detune); o.connect(og); og.connect(body);
+      o.start(t0); o.stop(end);
+    }
+    if (E.voice !== "zurna") {   // breath over the blul's edge, bow hair on the kamancha's string
+      const n = c.createBufferSource(), nb = c.createBiquadFilter(), ng = c.createGain();
+      n.buffer = this.bufs.white; n.loop = true;
+      nb.type = "bandpass"; nb.frequency.value = E.voice === "blul" ? f * 2 : 2200; nb.Q.value = E.voice === "blul" ? 2.5 : 1.2;
+      ng.gain.value = E.voice === "blul" ? 0.22 : 0.08;
+      n.connect(nb); nb.connect(ng); ng.connect(fl); n.start(t0, this.rnd() * 1.5); n.stop(end);
     }
   },
   mTone(f, dur, type, vol, slide, t0) {
@@ -30021,7 +30096,7 @@ autoBtn.addEventListener("click", () => {
 function saveSettings() {
   localStorage.setItem("hs_settings", JSON.stringify({
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
-    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 1,
+    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2,
   }));
 }
 function loadSettings() {
@@ -30034,8 +30109,11 @@ function loadSettings() {
     if (typeof s.ambOn === "boolean") Snd.ambOn = s.ambOn;
     if (typeof s.ambVol === "number") Snd.ambVol = s.ambVol;
     // settings saved before the log taper held linear gains: carry them over to slider positions
+    // (taper 1 was a 50 dB curve: keep the same gain on the 36 dB one)
     if (!s.taper) for (const k of ["sfxVol", "musVol", "ambVol"]) {
-      if (typeof s[k] === "number") Snd[k] = s[k] <= 0 ? 0 : Math.max(0, Math.min(1, 1 + 20 * Math.log10(s[k]) / 50));
+      if (typeof s[k] === "number") Snd[k] = s[k] <= 0 ? 0 : Math.max(0, Math.min(1, 1 + 20 * Math.log10(s[k]) / 36));
+    } else if (s.taper === 1) for (const k of ["sfxVol", "musVol", "ambVol"]) {
+      if (typeof s[k] === "number") Snd[k] = s[k] <= 0 ? 0 : Math.max(0, Math.min(1, 1 - 50 * (1 - s[k]) / 36));
     }
   } catch (e) {}
   $("sfxVol").value = Math.round(Snd.sfxVol * 100);
