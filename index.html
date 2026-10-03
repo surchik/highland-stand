@@ -19703,7 +19703,7 @@ function drawVardanDance(x, y, s, beat, cb, cycle, arrived, t) {
       uc.save();
       lean();
       unitPaintHeroCape(1.5 + pump * 0.5, KOCHARI_NIGHT);
-      uLine([-3.2, -15.2, -5.4 - pump * 1.6, -11.6, -7.2 - pump * 3, -10.4 + pump], C.steelShade, 2.7);
+      uLine([-3.2, -15.2, -5.4 - pump * 1.6, -11.6, -7.2 - pump * 3, -10.4 + pump], heroSleeve(true), 2.7);
       uDisc(-7.4 - pump * 3, -10.2 + pump, 1.5, C.skin);
       uc.restore();
       unitPaintHeroLegs(pump, Math.cos(run), 6);
@@ -19758,7 +19758,7 @@ function drawVardanDance(x, y, s, beat, cb, cycle, arrived, t) {
     const handX = 15 / k, handY = -24 / k, shoulderY = -15 - lift;
     const elbow = kochariJoint(3.2, shoulderY, handX, handY, 6.2, 6.2, 1);
     const arm = [3.2, shoulderY, elbow[0], elbow[1], handX - 1.6, handY + (elbow[1] - handY) * 0.16];
-    uLine(arm, C.steel, 2.7);
+    uLine(arm, heroSleeve(false), 2.7);
     uFlatLine([arm[0], arm[1] + 0.75, arm[2], arm[3] + 0.75, arm[4], arm[5] + 0.75], KOCHARI_AMBER, 1);
     uDisc(handX - 0.8, handY + (elbow[1] - handY) * 0.08, 1.55, C.skin);
     uDisc(handX, handY, 0.9, C.skin);
@@ -20259,6 +20259,7 @@ function drawFort(time) {
     ctx.fillStyle = "#ffd27a";
     ctx.beginPath(); ctx.arc(bx + 15 * fs, by + 9 * fs + wv * 0.6, 3.5 * fs, 0, Math.PI * 2); ctx.fill();
   }
+  hfFortFlags(ctx, sp, fx, fp.y, fs, time);
   ctx.lineJoin = join;
 }
 
@@ -32794,6 +32795,8 @@ const FORT_BOX = [-98, -160, 108, 32];
 // the citadel is drawn a little over life size so it still commands a field of taller towers
 const FORT_K = 1.1;
 function fortStyle() {
+  const site = hfFortSite();
+  if (site) return "hf_" + site;
   if (THEME.backdrop === "gyumri") return "black";
   return LEVELS[curLevel] && LEVELS[curLevel].era === 0 ? "urartu" : "tuff";
 }
@@ -33372,9 +33375,604 @@ function paintFortTuff(black) {
   c.restore();
 }
 function paintFort(style) {
-  if (style === "urartu") paintFortUrartu();
+  if (style.startsWith("hf_")) hfPaintFort(style.slice(3));
+  else if (style === "urartu") paintFortUrartu();
   else paintFortTuff(style === "black");
 }
+
+// ======================================================================================
+// FORT SECTION: herofort. the defended position on the seven battlefields of 1727-2023
+// Everything this section needs lives between this banner and its END banner.
+// ======================================================================================
+// The medieval citadel stays with the old wars. From 1727 on, what the player holds at the end of
+// the road is the period's own position, painted in the same footprint (FORT_BOX) and baked the
+// same way (fortStyle() names it, paintFort() hands over here):
+//  halidzor: Davit Bek's hill fortress in Syunik: a quadrangle of grey rubble walls, part dry-laid,
+//    part mortared, with round corner towers and a plain arched gate; one plain red pennant.
+//  van: Aygestan, the Garden City quarter held in April-May 1915: flat-roofed mud-brick houses on
+//    stone footings, windows boarded to loopholes, roofs banked with sandbags, a domed stone church,
+//    the street barricaded with sandbags, beams and a cart.
+//  musadagh: the mountain camp's redoubt: dry-stone breastworks among the limestone crags, shelters
+//    of boughs, and the two banners hung out for passing ships (a red cross on white, a white sheet).
+//  sardarapat: the railway station used as a field headquarters: a long stone station house under
+//    an iron roof, its platform and track, sandbagged rifle pits and a field telephone pole.
+//  stepanakert92: a five-storey Soviet panel apartment block under winter siege: windows boarded or
+//    blown out, the entrance and ground floor sandbagged, concrete blocks; a plain tricolour.
+//  shushi: the old fortress wall of Shushi by its town gate: limestone rubble curtain, half-round
+//    towers, the arched gate; sandbags along the wall-walk, a camouflage net.
+//  stepanakert23: the city's administrative building of pink tuff with a civil defence shelter
+//    entrance, ground floor windows sandbagged, concrete blocks; no flag, nothing triumphal.
+// Flags here are plain bands only (no emblems); they wave live from structFit.flags (drawFort).
+const HF_FORT_SITES = ["halidzor", "van", "musadagh", "sardarapat", "stepanakert92", "shushi", "stepanakert23"];
+function hfFortSite() {
+  const id = THEME && THEME.id;
+  return HF_FORT_SITES.indexOf(id) >= 0 ? id : null;
+}
+function hfPaintFort(site) {
+  if (site === "halidzor") hfHalidzor();
+  else if (site === "van") hfVan();
+  else if (site === "musadagh") hfMusa();
+  else if (site === "sardarapat") hfSard();
+  else if (site === "stepanakert92") hfStep92();
+  else if (site === "shushi") hfShushi();
+  else hfStep23();
+}
+
+// ---- shared ground and fittings ----
+// a low, broad bank of the site's earth for the positions on level ground: lit top, shaded front
+function hfYard(earth, seed) {
+  const c = sctx, rnd = mulberry32(seed || 5);
+  const sh = c.createRadialGradient(0, 0, 20, 0, 0, 96);
+  sh.addColorStop(0, "rgba(24, 14, 4, .34)");
+  sh.addColorStop(1, "rgba(24, 14, 4, 0)");
+  c.save();
+  c.translate(8, 14);
+  c.scale(1, 0.2);
+  c.fillStyle = sh;
+  c.beginPath(); c.arc(0, 0, 96, 0, Math.PI * 2); c.fill();
+  c.restore();
+  const top = [-86, 4, -82, -6, -70, -14, -40, -17, 50, -17, 70, -22, 86, -19, 94, -8, 92, 4, 80, 11, 50, 15, 0, 16, -50, 14, -76, 10];
+  const lip = top.map((v, i) => (i % 2 && v > -10 ? v + 7 : v));
+  polyPath(lip);
+  c.fillStyle = toneHex(earth, -40);
+  c.fill();
+  inkStroke(1.3);
+  polyPath(top);
+  const g = c.createLinearGradient(-80, -16, 90, 14);
+  g.addColorStop(0, toneHex(earth, 22));
+  g.addColorStop(1, toneHex(earth, -8));
+  c.fillStyle = g;
+  c.fill();
+  inkStroke(1.1);
+  // trodden ground, pebbles, tufts or snow
+  const pebbles = [];
+  for (let i = 0; i < 26; i++) pebbles.push([-78 + rnd() * 166, -12 + rnd() * 24, 0.8 + rnd() * 1.4, 0.5 + rnd() * 0.6]);
+  fillBlobs(toneHex(earth, -24), pebbles);
+  fillBlobs("rgba(30, 18, 8, .12)", [[-10, 6, 26, 5], [30, -4, 30, 5]]);
+  // the paved way down to the road's forecourt, as the crag's ramp comes down on the old maps
+  const B = terrBiome();
+  const FLAG = structSnow ? "#bdbfc4" : mixHex(toneHex(earth, 30), "#" + ((1 << 24) | (Math.round(B.bed[0]) << 16) | (Math.round(B.bed[1]) << 8) | Math.round(B.bed[2])).toString(16).slice(1), 0.45);
+  const ramp = [-11, 8, 11, 8, 22, 25, -20, 26];
+  polyPath(ramp);
+  c.fillStyle = toneHex(FLAG, -40);
+  c.fill();
+  c.save();
+  c.clip();
+  const courses = [8, 11.4, 15.4, 20, 25.4];
+  for (let i = 0; i < courses.length - 1; i++) {
+    const ya = courses[i], yb = courses[i + 1], n = 3 + (i > 1 ? 1 : 0);
+    const la = -11 - (ya - 8) * 0.53, ra = 11 + (ya - 8) * 0.65, lb = -11 - (yb - 8) * 0.53, rb = 11 + (yb - 8) * 0.65;
+    for (let k = 0; k < n; k++) {
+      const off = i % 2 ? 0.5 / n : 0, t0 = Math.max(0, k / n - off), t1 = k === n - 1 ? 1 : (k + 1) / n - off;
+      polyPath([la + (ra - la) * t0 + 0.3, ya + 0.3, la + (ra - la) * t1 - 0.3, ya + 0.3, lb + (rb - lb) * t1 - 0.3, yb - 0.3, lb + (rb - lb) * t0 + 0.3, yb - 0.3]);
+      c.fillStyle = stoneTint(FLAG, Math.round(rnd() * 22 - 13), rnd() < 0.5 ? 1 : -1);
+      c.fill();
+    }
+  }
+  const rg = c.createLinearGradient(-18, 0, 20, 0);
+  rg.addColorStop(0, "rgba(255, 246, 222, .18)");
+  rg.addColorStop(1, "rgba(34, 22, 10, .22)");
+  c.fillStyle = rg;
+  c.fillRect(-22, 8, 46, 20);
+  c.restore();
+  polyPath(ramp);
+  inkStroke(1);
+  if (structSnow) {
+    fillBlobs("#eef2f6", [[-60, 2, 22, 5.5], [56, 4, 26, 6], [-34, 11, 12, 3.5], [74, -14, 12, 3], [-74, -6, 10, 3]]);
+    fillBlobs("rgba(120, 150, 196, .3)", [[-4, 12, 30, 2.4]]);
+  } else {
+    sykTufts([[-80, 6, 3], [-64, 11, 3.2], [-30, 14, 2.6], [36, 13.6, 2.8], [66, 10.6, 3.2], [88, 2, 2.6]], seed || 5);
+  }
+}
+// a flagpole whose flag waves live: kind is "cross" or "words" (the Musa Dagh banners) or "tri"
+function hfFlagPole(x, y, h, kind, len, hgt) {
+  beam(x, y, x, y - h, 1.2, "#7a5a3a");
+  inkDisc(x, y - h - 0.6, 0.9, 0.9, "#c8c2b4", 0.5);
+  (structFit.flags || (structFit.flags = [])).push({ p: structPoint(x + 0.5, y - h + 0.8), len, hgt, kind });
+  structCrown(y - h - 1.5);
+}
+// the flags, drawn live over the baked fort
+function hfFortFlags(c, sp, fx, fy, fs, time) {
+  const flags = sp.fit.flags;
+  if (!flags) return;
+  for (let i = 0; i < flags.length; i++) {
+    const fl = flags[i], x = fx + fl.p[0] * fs, y = fy + fl.p[1] * fs, ph = time * 0.004 + i * 1.3;
+    if (fl.kind === "tri") hfTricolour(c, x, y, fl.len, fl.hgt, ph, fs);
+    else bellBanner(c, x, y, fl.len, fl.hgt, fl.kind, ph, fs);
+  }
+}
+// three plain horizontal bands, red, blue and apricot, rippling like the banners
+function hfTricolour(c, x, y, len, hgt, ph, k) {
+  const L = len * k, H = hgt * k;
+  const at = (u, v) => [x + L * u, y + H * v + Math.sin(ph + u * 3.2) * H * 0.12 * u + H * 0.1 * u * u];
+  const band = (v0, v1, hex) => {
+    c.beginPath();
+    for (let i = 0; i <= 8; i++) { const p = at(i / 8, v0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
+    for (let i = 8; i >= 0; i--) { const p = at(i / 8, v1); c.lineTo(p[0], p[1]); }
+    c.closePath();
+    c.fillStyle = hex;
+    c.fill();
+  };
+  band(0, 1 / 3, "#c8322a");
+  band(1 / 3, 2 / 3, "#2f4f9a");
+  band(2 / 3, 1, "#e8a23a");
+  c.beginPath();
+  for (let i = 0; i <= 8; i++) { const p = at(i / 8, 0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
+  for (let i = 8; i >= 0; i--) { const p = at(i / 8, 1); c.lineTo(p[0], p[1]); }
+  c.closePath();
+  c.strokeStyle = INK;
+  c.lineWidth = 0.8 * k;
+  c.stroke();
+  c.fillStyle = "rgba(40, 30, 30, .14)";
+  c.beginPath();
+  const f0 = at(0.5, 0), f1 = at(0.62, 0), f2 = at(0.62, 1), f3 = at(0.5, 1);
+  c.moveTo(f0[0], f0[1]); c.lineTo(f1[0], f1[1]); c.lineTo(f2[0], f2[1]); c.lineTo(f3[0], f3[1]); c.closePath();
+  c.fill();
+}
+// a grid of windows on a front face: cols x rows between x0..x1 and the floor lines; style per
+// window from `pick(col, row)`: "glass", "board", "dark" or "bags" (the lowest, sandbagged to a slit)
+function hfWindows(x0, x1, y0, floorH, rows, cols, ww, wh, frame, pick) {
+  const step = (x1 - x0) / cols;
+  for (let r = 0; r < rows; r++) {
+    for (let i = 0; i < cols; i++) {
+      const x = x0 + step * (i + 0.5) - ww / 2, y = y0 - floorH * r - floorH * 0.5 - wh / 2 - 1;
+      const kind = pick(i, r);
+      if (kind === "board") e5Boarded(x + ww / 2, y + wh, ww, wh, false);
+      else if (kind === "bags") {
+        a6Window(x, y, ww, wh, frame);
+        a6BagWall(x - 0.6, x + ww + 0.6, y + wh + 0.4, 2, 61 + i * 7 + r, ww / 2 + 0.6);
+      } else if (kind === "dark") {
+        inkRect(x - 0.5, y - 0.5, ww + 1, wh + 1, frame, 0.5);
+        sctx.fillStyle = "#1c1a18";
+        sctx.fillRect(x, y, ww, wh);
+      } else a6Window(x, y, ww, wh, frame);
+    }
+  }
+}
+// a pitched roof over a box of width w and depth d: the front slope rises to a ridge set back d/2
+function hfRoof(w, d, rise, hex, over) {
+  const c = sctx, o = over || 1.6, hx = d / 2 * OBQ.dx, hy = d / 2 * OBQ.dy, ox = d * OBQ.dx, oy = d * OBQ.dy;
+  // the right gable end
+  inkPoly([w / 2 + o * 0.4, 0.6, w / 2 + hx, hy - rise, w / 2 + ox + o * 0.4, oy + 0.6], toneHex(hex, -46), 1);
+  // the front slope
+  const front = [-w / 2 - o, 1.2, w / 2 + o, 1.2, w / 2 + hx + o * 0.4, hy - rise, -w / 2 + hx - o * 0.4, hy - rise];
+  polyPath(front);
+  const g = sctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  g.addColorStop(0, toneHex(hex, 18));
+  g.addColorStop(1, toneHex(hex, -14));
+  c.fillStyle = g;
+  c.fill();
+  // seams of the iron sheets, or rows of tiles
+  c.strokeStyle = "rgba(30, 20, 10, .3)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (let x = -w / 2 + 2; x < w / 2; x += 3.4) { c.moveTo(x, 1); c.lineTo(x + hx - o * 0.4, hy - rise + 0.2); }
+  c.stroke();
+  polyPath(front);
+  inkStroke(1.1);
+  if (structSnow) inkPoly([-w / 2 - o, 1.2 - 2, w / 2 + o, 1.2 - 2, w / 2 + hx + o * 0.4, hy - rise, -w / 2 + hx - o * 0.4, hy - rise], "rgba(246, 249, 252, .85)", 0);
+  structCrown(hy - rise - 1);
+}
+
+// ---- Halidzor 1727 ----
+function hfSykTower(x, rx, h, seed, flag) {
+  const c = sctx, T = SYK_STONE, ry = rx * SYK_Q;
+  c.save();
+  c.translate(x, ry * 0.6);
+  sykCyl(rx, h, { T, seed });
+  sykCylCourse(rx, -h * 0.5);
+  musketLoop(-rx * 0.3, -h * 0.66 + ry * 0.9, 0.85);
+  musketLoop(rx * 0.45, -h * 0.34 + ry * 0.85, 0.85);
+  sykRingBack(rx, h, 5, T, { merlons: true });
+  if (flag) pennantPole(rx * 0.3, -h - ry * 0.5, 22, 13, 5.4, "#a8322a");
+  else bekMan(1, -h + 3.4, -1, { coat: MUSKET_DRESS.coats[0], fur: true });
+  sykRingFront(rx, h, 5, T, { seed: seed + 3 });
+  c.restore();
+}
+function hfHalidzor() {
+  const c = sctx, T = SYK_STONE, D = SYK_DRY;
+  paintFortPlinth("#857d70");
+  c.save();
+  c.translate(0, -11);
+  // the curtain: dry-laid rubble below, mortared courses above
+  const wall = towerWall(T, 711, { course: 4.2, block: 7.4, rough: true, band: 0 });
+  box3(108, 30, 26, T.mid, Object.assign({ basalt: 10, basaltColor: D.mid }, wall));
+  parapetBack(108, 30, 26, T.mid);
+  // the keep inside the walls: a stone house under a flat roof of beaten earth
+  c.save();
+  c.translate(8 * OBQ.dx - 4, -30 + 8 * OBQ.dy);
+  box3(42, 18, 14, D.mid, towerWall(D, 721, { course: 3.6, block: 6.4, rough: true, band: 0 }));
+  musketLoop(-12, -9, 0.8);
+  musketLoop(8, -9, 0.8);
+  c.translate(0, -18);
+  e5Roof(42, 14, 2.4);
+  c.restore();
+  bekMan(-26, -33.6, 1, { coat: MUSKET_DRESS.coats[1], fur: true });
+  bekMan(30, -33.4, -1, { coat: MUSKET_DRESS.coats[2], fur: false });
+  parapetFront(108, 30, 26, T.mid);
+  weatherStreaks(-50, -24, 100, 12, 713);
+  // round towers on the corners
+  hfSykTower(-52, 15, 46, 731, false);
+  hfSykTower(54, 16, 54, 741, true);
+  // the gate: a plain arch through a squat gate tower, its leaves standing open
+  box3(28, 42, 8, toneHex(T.mid, 4), Object.assign({ basalt: 10, seed: 751, basaltColor: D.mid }, towerWall(T, 751, { course: 4.2, block: 7.4, rough: true, band: 0 })));
+  fortGate(14, 21, { surround: T.trim, portcullis: false });
+  parapetBack(28, 42, 8, toneHex(T.mid, 4));
+  parapetFront(28, 42, 8, toneHex(T.mid, 4));
+  cresset(-12.5, 3, 11);
+  cresset(13, 3, 11);
+  sykTufts([[-48, 10, 3], [40, 10, 3.2], [-20, 2, 2.4]], 717);
+  c.restore();
+}
+
+// ---- Van 1915: Aygestan ----
+function hfVanHouse(W, H1, H2, Dp, seed, men) {
+  const c = sctx, T = e5Stone();
+  if (H1) {
+    box3(W, H1, Dp, T.mid, towerWall(T, seed, { course: 4.2, block: 7.6, rough: true, band: 0 }));
+    for (let i = 0; i < 3; i++) e5Loop(-W / 2 + W * (i + 0.5) / 3, -H1 * 0.55, 1, false);
+  }
+  c.save();
+  c.translate(0, -H1);
+  e5Adobe(W, H2, Dp, seed + 3);
+  const n = Math.max(2, Math.round(W / 14));
+  for (let i = 0; i < n; i++) e5Boarded(-W / 2 + W * (i + 0.5) / n, -3.4, 5, 6.6, false);
+  c.translate(0, -H2);
+  e5Roof(W, Dp, 2.4);
+  c.translate(1 * OBQ.dx, -2.4 + 1 * OBQ.dy);
+  const Wb = W - 3, Db = Dp - 2, bh = 4.2;
+  e5BreastBack("bags", Wb, 0, Db, bh, seed + 9);
+  for (let i = 0; i < men; i++) {
+    const x = -Wb / 2 + Wb * (i + 0.5) / men;
+    e5Figure(x + Db * OBQ.dx * 0.4, Db * OBQ.dy * 0.4 + 1, 0.95, e5Dress(i + seed), { face: i % 2 ? -1 : 1, hands: [[4.4, -12], [1.6, -11]] });
+  }
+  e5BreastFront("bags", Wb, 0, Db, bh, seed + 9);
+  c.restore();
+}
+function hfVan() {
+  const c = sctx, T = e5Stone();
+  hfYard("#a08c68", 801);
+  c.save();
+  c.translate(0, -8);
+  // the church of the quarter, behind the houses
+  c.save();
+  c.translate(-34 + 16 * OBQ.dx, 16 * OBQ.dy);
+  paintFortChurch("#bba68a", "#87735c", "#8a6a50", false);
+  c.restore();
+  // a tall house on the right, a long low one on the left, the street between them
+  c.save();
+  c.translate(44, 0);
+  hfVanHouse(40, 18, 18, 22, 811, 2);
+  c.restore();
+  c.save();
+  c.translate(-50, 6);
+  hfVanHouse(36, 0, 20, 18, 821, 1);
+  c.restore();
+  // the barricade across the street: beams and sandbags, the defenders behind it
+  beam(-28, 6, -6, -1, 1.6, TIMBER);
+  beam(8, 0, 30, 6, 1.6, TIMBER_DARK);
+  e5Figure(-16, 2, 0.95, e5Dress(1), { face: 1, hands: [[4.4, -12], [1.6, -11]] });
+  e5Figure(20, 3, 0.95, e5Dress(2), { face: -1, hands: [[4.4, -12], [1.6, -11]] });
+  c.save();
+  c.translate(-15, 14);
+  e5Bags(24, 10, 4, null, 841);
+  c.restore();
+  c.save();
+  c.translate(19, 15);
+  e5Bags(20, 9.4, 4, null, 843);
+  c.restore();
+  e5Crate(-34, 14, 6, 3.4, 3.6);
+  wallTorch(30, -10);
+  c.restore();
+}
+
+// ---- Musa Dagh 1915 ----
+// a shelter of cut boughs over a ridge pole, its open end to the front
+function hfHut(x, y, w, h, d) {
+  const c = sctx, rnd = mulberry32(Math.round(x * 13 + y)), ox = d * OBQ.dx, oy = d * OBQ.dy;
+  const G = "#6a7444", B = "#7a5a3a";
+  inkPoly([w / 2 + x, y, x + ox * 0 + w / 2 + ox, y + oy, x + ox, y - h + oy, x, y - h], toneHex(G, -24), 1);
+  inkPoly([x - w / 2, y, x + w / 2, y, x, y - h], "#2a2016", 1);
+  inkPoly([x - w / 2 - 0.6, y + 0.4, x, y - h, x + ox, y - h + oy, x - w / 2 + ox - 0.6, y + oy + 0.4], G, 1);
+  c.strokeStyle = toneHex(G, -30);
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (let i = 0; i < 9; i++) {
+    const u = rnd(), v = rnd();
+    const px = x - w / 2 + (w / 2) * u + ox * v, py = y - h * u + oy * v;
+    c.moveTo(px, py); c.lineTo(px - 1.6, py + 1.4);
+  }
+  c.stroke();
+  beam(x, y - h - 1, x + ox, y - h + oy - 1, 1, B);
+  if (structSnow) snowCap(x - w / 4, y - h * 0.8, w / 2, 1);
+}
+function hfMusa() {
+  const c = sctx;
+  paintFortPlinth("#9b937f");
+  c.save();
+  c.translate(0, -11);
+  // the crags at the back of the position
+  c.save();
+  c.translate(36, -6);
+  e5Rock(56, 40, 24, 901);
+  c.restore();
+  c.save();
+  c.translate(-48, -4);
+  e5Rock(34, 26, 18, 903);
+  c.restore();
+  // shelters of boughs, the camp behind the line
+  hfHut(-6, -14, 20, 14, 14);
+  hfHut(12, -10, 16, 11, 12);
+  // the banners to the sea on the highest rocks
+  hfFlagPole(30, -46, 34, "cross", 18, 12);
+  hfFlagPole(-50, -30, 28, "words", 17, 10);
+  // the dry-stone breastwork across the front, open in the middle where the path comes up
+  for (const [x, w] of [[-44, 56], [44, 54]]) {
+    c.save();
+    c.translate(x, 0);
+    e5DryStone(w, 9, 9, 911 + x);
+    c.restore();
+  }
+  e5Figure(-30, -2, 0.95, e5Dress(0), { face: 1, hands: [[4.4, -12], [1.6, -11]] });
+  e5Figure(-56, -1, 0.95, e5Dress(1), { face: 1, hands: [[4.4, -12], [1.6, -11]] });
+  e5Figure(36, -2, 0.95, e5Dress(2), { face: -1, hands: [[4.4, -12], [1.6, -11]] });
+  for (const [x, w] of [[-44, 56], [44, 54]]) {
+    c.save();
+    c.translate(x + 0.6, 6);
+    e5DryStone(w - 2, 5, 3, 931 + x);
+    c.restore();
+  }
+  hurlPile(-14, 10, 3, 2, "#a39a86", 941);
+  c.restore();
+}
+
+// ---- Sardarapat 1918 ----
+function hfSard() {
+  const c = sctx, ST = "#c8aa88", SIDE = "#94785e";
+  hfYard("#b09a72", 1001);
+  c.save();
+  c.translate(0, -10);
+  // the track along the back of the platform
+  c.save();
+  c.translate(-6, -8);
+  c.strokeStyle = "#5a4a3a";
+  c.lineWidth = 1.2;
+  for (let x = -76; x < 84; x += 5) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + 6 * OBQ.dx, 6 * OBQ.dy); c.stroke(); }
+  c.strokeStyle = "#4a4a4e";
+  c.lineWidth = 1;
+  for (const o of [1.4, 4.6]) { c.beginPath(); c.moveTo(-78 + o * OBQ.dx, o * OBQ.dy); c.lineTo(84 + o * OBQ.dx, o * OBQ.dy); c.stroke(); }
+  c.restore();
+  // the railway water tower at the end of the platform: a round brick drum, an iron tank, a cone
+  c.save();
+  c.translate(-62, -14);
+  sykCyl(9, 34, { T: { mid: "#b06a4a", side: "#7a4430", trim: "#d8a080" }, seed: 1005 });
+  c.translate(0, -34);
+  sykCyl(10.6, 8, { T: { mid: "#6a6e70", side: "#45484a", trim: "#8a8e90" }, seed: 1007 });
+  coneCap(0, -8, 11.4, 7, "#5e6662");
+  c.restore();
+  // the station house: dressed tuff, tall arched windows, an iron roof
+  c.save();
+  c.translate(4, -12);
+  box3(84, 26, 22, ST, { masonry: true, side: SIDE, course: 4.4, block: 9, seed: 1011, band: 0 });
+  for (let i = 0; i < 7; i++) {
+    const x = -36 + i * 12;
+    if (i === 3) {
+      // the door, the telegraph office's
+      archPath(x, 7, 15);
+      c.fillStyle = "#2a1c12"; c.fill(); inkStroke(0.8);
+      plankRect(x - 3.2, -12, 6.4, 12, "#5a4026", true, 1019);
+      const a = structPoint(x - 3.5, -15), b = structPoint(x + 3.5, 0);
+      structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+      continue;
+    }
+    archPath(x, 5.4, 12);
+    c.fillStyle = "#e8d8bc"; c.fill(); inkStroke(0.6);
+    c.save();
+    c.translate(0, -4);
+    a6Window(x - 2.1, -6.6, 4.2, 8.6, "#e8d8bc");
+    c.restore();
+  }
+  stringCourse(84, 22, -22);
+  c.translate(0, -26);
+  hfRoof(84, 22, 12, "#6f7a72", 2.4);
+  c.restore();
+  // the telephone pole and its wire to the station
+  beam(64, 14, 64, -26, 1.3, "#7a5a3a");
+  beam(60, -22, 68, -22, 0.9, "#7a5a3a");
+  c.strokeStyle = "#2a2622"; c.lineWidth = 0.4;
+  c.beginPath(); c.moveTo(61, -22); c.quadraticCurveTo(48, -18, 36, -30); c.stroke();
+  // sandbagged rifle pits on either side of the approach, log-revetted
+  e5Figure(-50, 2, 0.95, e5Dress(0), { face: 1, hands: [[4.4, -12], [1.6, -11]] });
+  e5Figure(-38, 2.6, 0.95, e5Dress(1), { face: 1, hands: [[4.4, -12], [1.6, -11]] });
+  e5Figure(42, 2.4, 0.95, e5Dress(2), { face: -1, hands: [[2.4, -17], [-1, -16.6]] });
+  for (const [x, w, sd] of [[-44, 30, 1031], [44, 28, 1041]]) {
+    c.save();
+    c.translate(x, 14);
+    e5Logs(w, 3.4, 4, sd);
+    c.translate(0, -3.4);
+    e5Bags(w, 6, 4, null, sd + 2);
+    c.restore();
+  }
+  e5Crate(24, 4, 6, 3.4, 3.6);
+  e5Crate(-22, 5, 5, 3, 3.2);
+  c.restore();
+}
+
+// ---- Stepanakert 1991-92 ----
+// a five-storey panel block: grey-white panels and their seams, windows in rows
+function hfPanelBlock(w, h, d, floors, cols, seed) {
+  const c = sctx, rnd = mulberry32(seed);
+  box3(w, h, d, CP_PANEL, { side: CP_PANEL_SIDE, top: "#ddd8cc" });
+  const fh = h / floors;
+  c.strokeStyle = "rgba(80, 74, 64, .4)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (let i = 1; i < floors; i++) { c.moveTo(-w / 2, -i * fh); c.lineTo(w / 2, -i * fh); }
+  for (let x = -w / 2 + w / cols; x < w / 2 - 1; x += w / cols) { c.moveTo(x, -h); c.lineTo(x, 0); }
+  c.stroke();
+  // the side wall: panels, no windows
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, w / 2, 0);
+  c.beginPath();
+  for (let i = 1; i < floors; i++) { c.moveTo(0, -i * fh); c.lineTo(d, -i * fh); }
+  c.stroke();
+  c.restore();
+  hfWindows(-w / 2, w / 2, 0, fh, floors, cols, 4.6, fh * 0.48, "#e2ddd2", (i, r) => {
+    if (r === 0) return "bags";
+    const u = rnd();
+    return u < 0.3 ? "board" : u < 0.45 ? "dark" : "glass";
+  });
+  // shell scars on the facing
+  fillBlobs("#8c867a", [[w * 0.22, -h * 0.74, 3.4, 2.4, 0.3], [-w * 0.3, -h * 0.5, 2.6, 1.8, -0.2]]);
+  fillBlobs("#5e5a52", [[w * 0.22, -h * 0.74, 1.8, 1.3, 0.3], [-w * 0.3, -h * 0.5, 1.3, 0.9, -0.2]]);
+  if (structSnow) snowCap(-w / 2 + 0.3, -h + 0.3, w - 0.6, 1.6);
+}
+function hfStep92() {
+  const c = sctx;
+  hfYard("#7a6c5c", 1101);
+  c.save();
+  c.translate(0, -12);
+  c.save();
+  c.translate(2 + 6 * OBQ.dx, 6 * OBQ.dy);
+  hfPanelBlock(112, 72, 24, 5, 8, 1111);
+  // the roof: a low parapet, a lift housing, a plain tricolour on a pole
+  c.translate(0, -72);
+  c.save();
+  c.translate(24 + 10 * OBQ.dx, 10 * OBQ.dy);
+  box3(14, 7, 8, CP_PANEL, { side: CP_PANEL_SIDE, top: "#ddd8cc" });
+  if (structSnow) snowCap(-7, -7.4, 14, 1.2);
+  c.restore();
+  hfFlagPole(-34 + 12 * OBQ.dx, 12 * OBQ.dy, 24, "tri", 16, 10);
+  c.restore();
+  // the stairwell entrance in the middle, sandbagged up to the door
+  c.save();
+  c.translate(2, 0);
+  inkRect(-6, -13, 12, 13, "#5a564e", 0.8);
+  c.fillStyle = "#1c1a18";
+  c.fillRect(-4.4, -11, 8.8, 11);
+  const a = structPoint(-4.4, -11), b = structPoint(4.4, 0);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  inkRect(-8, -15, 16, 2.4, CP_PANEL, 0.7);
+  if (structSnow) snowCap(-8, -15.4, 16, 1);
+  c.restore();
+  // sandbag walls and concrete blocks across the front, a gap at the door
+  a6BagWall(-58, -10, 14, 3, 1121);
+  a6BagWall(14, 62, 14, 3, 1131);
+  a6Block(-70, 16, 10, 6, 6);
+  a6Block(72, 16, 10, 6, 6);
+  a6Man(-30, 7, A6_Z, a6Dress(0), "rifle", 1);
+  a6Man(34, 7, A6_Z, a6Dress(1), "rifle", -1);
+  a6BagWall(-58, -10, 17, 1, 1141);
+  a6BagWall(14, 62, 17, 1, 1151);
+  a6Crate(-70, 6, 7, 3.6, 4);
+  c.restore();
+}
+
+// ---- Shushi 2020 ----
+const HF_LIME = { mid: "#cbc2ac", side: "#8f8775", trim: "#e2dbc8", mortar: "rgba(240, 236, 224, .3)", band: 0, urartu: false };
+function hfShushiTower(x, rx, h, seed, net) {
+  const c = sctx, T = HF_LIME, ry = rx * SYK_Q;
+  c.save();
+  c.translate(x, ry * 0.6);
+  sykCyl(rx, h, { T, seed, rough: true });
+  sykRingBack(rx, h, 5, T, { merlons: true, rough: true });
+  sykRingFront(rx, h, 5, T, { seed: seed + 3, rough: true });
+  if (net) a6Net([-rx + 2, -h - 3, -rx * 0.2, -h - 10, rx * 0.6, -h - 9, rx + 1, -h - 2, rx * 0.4, -h + 3, -rx * 0.4, -h + 3], A6.net, seed);
+  c.restore();
+}
+function hfShushi() {
+  const c = sctx, T = HF_LIME;
+  paintFortPlinth("#a49e8e");
+  c.save();
+  c.translate(0, -11);
+  const wall = towerWall(T, 1211, { course: 4, block: 7, rough: true, band: 0 });
+  box3(110, 32, 22, T.mid, wall);
+  parapetBack(110, 32, 22, T.mid);
+  // the wall-walk sandbagged, two defenders behind it
+  c.save();
+  c.translate(0, -32);
+  a6BagWall(-44, -16, 22 * OBQ.dy * 0.5 + 1, 2, 1221, 5);
+  a6BagWall(18, 46, 22 * OBQ.dy * 0.5 + 1, 2, 1223, 5);
+  a6Man(-30, 22 * OBQ.dy * 0.5 - 1, A6_Z * 0.9, a6Dress(0), "rifle", 1);
+  a6Man(32, 22 * OBQ.dy * 0.5 - 1, A6_Z * 0.9, a6Dress(1), "binoc", -1);
+  c.restore();
+  parapetFront(110, 32, 22, T.mid);
+  weatherStreaks(-50, -26, 100, 12, 1213);
+  hfShushiTower(-54, 14, 42, 1231, false);
+  hfShushiTower(56, 15, 46, 1241, true);
+  // the town gate: a tall pointed arch in a square gate tower
+  box3(30, 46, 9, toneHex(T.mid, 4), Object.assign({ seed: 1251 }, wall));
+  fortGate(15, 24, { surround: T.trim, portcullis: false });
+  parapetBack(30, 46, 9, toneHex(T.mid, 4));
+  parapetFront(30, 46, 9, toneHex(T.mid, 4));
+  // concrete blocks and sandbags narrowing the way through the gate
+  a6Block(-17, 10, 9, 5.6, 5);
+  a6Block(18, 10, 9, 5.6, 5);
+  a6BagWall(-30, -22, 12, 2, 1261, 4);
+  a6BagWall(23, 31, 12, 2, 1263, 4);
+  c.restore();
+}
+
+// ---- Stepanakert 2023 ----
+function hfStep23() {
+  const c = sctx, TUF = "#c9a48a", SIDE = "#946f58";
+  hfYard("#9c8761", 1301);
+  c.save();
+  c.translate(0, -12);
+  c.save();
+  c.translate(2 + 6 * OBQ.dx, 6 * OBQ.dy);
+  box3(116, 52, 26, TUF, { masonry: true, side: SIDE, course: 5.2, block: 12, seed: 1311, band: 0 });
+  stringCourse(116, 26, -17.6);
+  hfWindows(-58, 58, 0, 17.4, 3, 9, 5.2, 9, "#e8d4be", (i, r) => (r === 0 ? (i === 4 ? "dark" : "bags") : "glass"));
+  // a plain cornice along the roof
+  c.translate(0, -52);
+  box3(118, 2.4, 27, toneHex(TUF, 14), { side: toneHex(SIDE, 6) });
+  c.restore();
+  // the entrance: a shallow portico of four square piers, sandbagged
+  c.save();
+  c.translate(2, 0);
+  for (const px of [-12, -4, 4, 12]) {
+    c.save();
+    c.translate(px, 0);
+    box3(3, 22, 3, toneHex(TUF, 10), { side: SIDE });
+    c.restore();
+  }
+  box3(30, 3, 4, toneHex(TUF, 16), { side: SIDE });
+  c.translate(0, -22);
+  box3(30, 3.6, 4, toneHex(TUF, 16), { side: SIDE });
+  c.restore();
+  // the civil defence shelter's stair at the side
+  cpStair(-46, 12);
+  a6Man(-28, 8, A6_Z, a6Dress(0, true), "wait", 1);
+  a6BagWall(-38, -14, 13, 2, 1321);
+  a6Block(-20, 18, 9, 5.6, 5);
+  a6Block(23, 18, 9, 5.6, 5);
+  a6BagWall(40, 64, 13, 3, 1331);
+  a6Man(52, 7, A6_Z, a6Dress(2), "rifle", -1);
+  a6BagWall(40, 64, 16, 1, 1341);
+  c.restore();
+}
+// ====================================== END FORT SECTION: herofort ======================================
 
 // ---- ground works: tower pads and purchasable plots ----
 const PAD_BOX = [-58, -30, 62, 36];
@@ -38243,6 +38841,8 @@ const UNIT_HERO_LOOK = { back: 17, front: 15, up: 38, down: 3, top: 35, shadow: 
 
 // tint, when given, is laid over the whole cape afterwards (the victory dance uses it for night shade)
 function unitPaintHeroCape(sway, tint) {
+  const hl = heroLook();
+  if (hl) { hfBack(hl, sway, tint); return; }
   const C = UNIT_COLORS, L = unitLit;
   const outline = () => {
     uc.beginPath();
@@ -38267,6 +38867,8 @@ function unitPaintHeroCape(sway, tint) {
 
 // one armoured leg through hip, knee and ankle; the boot points the way he faces
 function unitPaintHeroLeg(hipX, hipY, kneeX, kneeY, footX, footY, far) {
+  const hl = heroLook();
+  if (hl) { hfLeg(hl, hipX, hipY, kneeX, kneeY, footX, footY, far); return; }
   const C = UNIT_COLORS;
   uLine([hipX, hipY, kneeX, kneeY, footX, footY - 2], far ? C.steelShade : C.steel, 3.3);
   if (!far) uFlatLine([kneeX - 0.9, kneeY + 0.6, footX - 0.8, footY - 2.8], C.steelLit, 0.8);
@@ -38295,6 +38897,8 @@ function unitPaintHeroLegs(walk, lift, reach) {
 
 // strip skirt, lamellar cuirass with gold trim, bearded face under the crested helm
 function unitPaintHeroTorso(sway) {
+  const hl = heroLook();
+  if (hl) { hfTorso(hl, sway); return; }
   const C = UNIT_COLORS, L = unitLit;
   uPoly([-6.2, -10.2, 6.2, -10.2, 6.7, -5.4, -6.7, -5.4], C.leather);
   uFlatPoly([L * 2.6, -10, L * 6.1, -10, L * 6.6, -5.6, L * 3, -5.6], C.leatherShade);
@@ -38359,6 +38963,8 @@ function unitPaintHeroShield() {
 // everything but the sword arm, which swings every frame and is drawn live on top.
 // walk and lift are the sine and cosine of his gait; both are 0 while he stands his ground.
 function unitPaintHeroBody(walk, sway, lift) {
+  const hl = heroLook();
+  if (hl) { hfBody(hl, walk, sway, lift); return; }
   const striding = walk !== 0 || (lift || 0) !== 0;
   const lean = () => { if (striding) { uc.translate(0, -9); uc.rotate(UNIT_HERO_LEAN); uc.translate(0, 9); } };
   uc.save();
@@ -38375,6 +38981,8 @@ function unitPaintHeroBody(walk, sway, lift) {
 const UNIT_HERO_LEAN = 0.07;
 
 function unitPaintHeroSwordArm() {
+  const hl = heroLook();
+  if (hl) { hfArm(hl, 0); return; }
   const C = UNIT_COLORS;
   uPoly([7.2, -1.3, 17.8, -1.05, 20.2, 0, 17.8, 1.05, 7.2, 1.3], C.steelLit);
   uFlatLine([7.6, -0.5, 18.4, -0.35], "#ffffff", 0.7);
@@ -38384,6 +38992,7 @@ function unitPaintHeroSwordArm() {
   uSeg(0, 0, 5, 0, 2.7, C.steel);
   uDisc(5.4, 0, 1.6, C.skin);
 }
+
 
 // ======================================================================================
 // UNIT SECTION: era4-5. the Ottoman armies of 1727 (Halidzor) and of 1915-1918 (Van, Musa Dagh, Sardarapat)
@@ -39515,6 +40124,332 @@ function e45ScoutRider(pal) {
   uc.restore();
 }
 // ====================================== END UNIT SECTION: era4-5 ======================================
+
+// ======================================================================================
+// HERO SECTION: herofort. the commander on the battlefields of 1727-2023
+// Everything this section needs lives between this banner and its END banner.
+// ======================================================================================
+// Vardan's armour, cape and round shield belong to the old wars. From 1727 on the hero is drawn
+// as the man (or, for 2020 and 2023, the role) the battlefield names in LEVELS[i].hero, in plain
+// period dress and with no attempt at any real face:
+//  Halidzor 1727, Davit Bek: a highland commander in a long dark coat girt with a sash, a pistol
+//    stuck in the sash, a fur-banded cap, tall boots; he fights with a curved sabre.
+//  Van 1915, Aram Manukian: a civilian organiser in a dark jacket and cloth cap, two bandoliers
+//    crossed, a rifle with its bayonet fixed (the melee is a bayonet thrust).
+//  Musa Dagh 1915, Movses Ter-Kalustian: homespun coat, sheepskin cap, leg wraps, a bandolier and
+//    an old rifle without a bayonet (he fires it point-blank).
+//  Sardarapat 1918, Movses Silikyan: a general in the Russian-pattern greatcoat and papakha, plain
+//    shoulder boards, field glasses on the chest; he fights with the guardless shashka.
+//  Stepanakert 1991-92, Arkady Ter-Tadevosyan: an officer in the Soviet "afghanka" field uniform,
+//    beret and chest rig, an AK.
+//  Shushi 2020: a Defense Army volunteer in green camouflage, helmet and plate carrier, an AK.
+//  Stepanakert 2023: a civil defence volunteer in a civilian jacket under a helmet, an AK.
+// The shared hero painters (unitPaintHeroCape, ...Leg, ...Torso, ...SwordArm, ...Body) hand over to
+// this section whenever heroLook() names a look, so the battle sprite and the victory dance both follow.
+const HF_HEROES = {
+  halidzor: { id: "bek", coat: "#38466a", coatShade: "#232c46", hem: -3.8, sash: "#a8322a", trou: "#3a2c24", boot: "#5e2e20", tall: true,
+    head: { helm: "hfFurcap", beard: "full", fur: "#4a3426", crown: "#9e2b26" }, arm: "sabre", pistol: true, scabbard: "#3a2418" },
+  van: { id: "aram", coat: "#33302f", coatShade: "#1f1d1c", hem: -6.4, belt: "#4a3220", trou: "#2b2927", boot: "#1f1a17", tall: true,
+    head: { helm: "hfCap", beard: "none", tache: true, cap: "#3d3a37" }, arm: "bayonet", bando: 2 },
+  musadagh: { id: "musa", coat: "#7a6248", coatShade: "#54422f", hem: -5.2, sash: "#5c4a36", trou: "#4a4038", boot: "#4a3020", wraps: "#9a8a6e",
+    head: { helm: "papakha", beard: "full" }, arm: "fire", bando: 1 },
+  sardarapat: { id: "silik", coat: "#77705f", coatShade: "#544e41", hem: -2.4, belt: "#5a3a22", trou: "#3e3e34", boot: "#1d1916", tall: true,
+    head: { helm: "kalpak", beard: "none", tache: true, crown: "#7c6d4a" }, arm: "shashka", glasses: true, boards: "#c9a24a", scabbard: "#2c2620", strap: true },
+  stepanakert92: { id: "komandos", coat: "#7f7852", coatShade: "#5a5438", hem: -7.4, belt: "#3a3020", trou: "#77714c", boot: "#1d1a17", tall: true,
+    head: { helm: "hfBeret", beard: "none", tache: true, beret: "#3d4230" }, arm: "ak", rig: "#5b6440", wood: "#7c4a26" },
+  shushi: { id: "vol20", coat: "#666c44", coatShade: "#474c2e", hem: -7.4, belt: "#3a3a2a", trou: "#5f6540", boot: "#2a2420", camo: ["#4a5030", "#878a58", "#3a3a28"],
+    head: { helm: "hfHelmet", beard: "none", shell: "#525b3a" }, arm: "ak", vest: "#4f5638", wood: "#3a2c26" },
+  stepanakert23: { id: "civdef", coat: "#3d475a", coatShade: "#283041", hem: -7, belt: "#2a2622", trou: "#46536a", boot: "#2a2420",
+    head: { helm: "hfHelmet", beard: "none", tache: true, shell: "#59613f" }, arm: "ak", wood: "#3a2c26", zip: true },
+};
+// the look of the battlefield being fought, or null for Vardan's
+function heroLook() {
+  const id = THEME && THEME.id;
+  return (id && HF_HEROES[id]) || null;
+}
+function hfArmHex(lk, far) { return far ? lk.coatShade : lk.coat; }
+// the hero's sleeve wherever another painter draws his arm (the dance links it with the line)
+function heroSleeve(far) {
+  const lk = heroLook();
+  return lk ? hfArmHex(lk, far) : far ? UNIT_COLORS.steelShade : UNIT_COLORS.steel;
+}
+
+// ---- headgear (in the head's frame, as UNIT_HELM_ART entries) ----
+// a cap of brown fur round a crown of red cloth, as the highland meliks wore it
+UNIT_HELM_ART.hfFurcap = (kit) => {
+  const L = unitLit;
+  uc.beginPath();
+  uc.moveTo(-4.2, -4.2);
+  uc.quadraticCurveTo(-2.6, -10.6, 3, -10);
+  uc.quadraticCurveTo(5.8, -8.6, 4.8, -4.4);
+  uc.closePath();
+  uInk(kit.crown);
+  uFlatPoly([L * 1.8, -4.6, L * 4.6, -4.6, L * 4.6, -8.2, L * 2.4, -9.6], shade(kit.crown, -40));
+  uc.beginPath();
+  uc.moveTo(-5.2, -0.6);
+  uc.lineTo(-5.5, -5.2);
+  uc.quadraticCurveTo(0.2, -6.6, 5.9, -5.4);
+  uc.lineTo(5.6, -0.6);
+  uc.closePath();
+  uInk(kit.fur);
+  uFlatPoly([L * 2.4, -1, L * 5.4, -1, L * 5.6, -5.2, L * 2.4, -5.8], shade(kit.fur, -30));
+  uc.lineWidth = 0.45;
+  for (const [y, o] of [[-2, 0], [-4, 0.8]]) {
+    for (let x = -4.4 + o; x < 5; x += 1.6) {
+      uc.strokeStyle = x * L < 0 ? "rgba(255, 236, 210, .24)" : "rgba(255, 236, 210, .1)";
+      uc.beginPath(); uc.arc(x, y, 0.6, Math.PI * 0.9, Math.PI * 2.2); uc.stroke();
+    }
+  }
+};
+// a peaked cloth cap
+UNIT_HELM_ART.hfCap = (kit) => {
+  const L = unitLit;
+  uPoly([3.6, -1.8, 8.6, -0.9, 8.2, 0.2, 3.6, -0.4], shade(kit.cap, -34));
+  uc.beginPath();
+  uc.moveTo(-5.1, -0.8);
+  uc.quadraticCurveTo(-6, -6.4, 0.4, -7);
+  uc.quadraticCurveTo(6.8, -7, 6.2, -1.2);
+  uc.closePath();
+  uInk(kit.cap);
+  uFlatPoly([L * 2.4, -1.2, L * 5.8, -1.4, L * 5.4, -5.6, L * 2.2, -6.6], shade(kit.cap, -26));
+  uFlatLine([-4.8, -2, 6, -2.2], "rgba(20, 16, 12, .5)", 0.5);
+  uFlatOval(-L * 2.2, -5, 1.6, 0.7, 0, "rgba(255, 246, 230, .18)");
+};
+// a soft beret pulled down to the right
+UNIT_HELM_ART.hfBeret = (kit) => {
+  const L = unitLit;
+  uc.beginPath();
+  uc.moveTo(-5.1, -0.9);
+  uc.quadraticCurveTo(-6.2, -6.2, -0.4, -6.8);
+  uc.quadraticCurveTo(6.8, -7, 7.6, -3.2);
+  uc.quadraticCurveTo(6.6, -1.6, 5.2, -2.2);
+  uc.lineTo(5.2, -0.9);
+  uc.closePath();
+  uInk(kit.beret);
+  uFlatPoly([L * 2.4, -1.4, L * 5, -1.4, L * 6.8, -3.6, L * 3, -6.2], shade(kit.beret, -24));
+  uFlatSeg(-4.9, -1.5, 5.1, -1.5, 1.1, "#2a2a22");
+};
+// the Soviet-pattern steel helmet: a round dome with a flared rim
+UNIT_HELM_ART.hfHelmet = (kit) => {
+  const L = unitLit, S = kit.shell;
+  uc.beginPath();
+  uc.moveTo(-6, 0.4);
+  uc.lineTo(-5.6, -1.8);
+  uc.quadraticCurveTo(-5.6, -9, 0.4, -9.2);
+  uc.quadraticCurveTo(6.4, -9, 6.4, -1.8);
+  uc.lineTo(6.8, 0.2);
+  uc.closePath();
+  uInk(S);
+  uFlatPoly([L * 2, -1.2, L * 6.2, -1.2, L * 5.6, -6.6, L * 2.2, -8.6], shade(S, -30));
+  uFlatOval(-L * 2.6, -5.4, 1.8, 1, -L * 0.6, shade(S, 34));
+  uFlatLine([-5.6, -1.6, 6.4, -1.6], shade(S, -46), 0.6);
+  uFlatLine([1.2, -0.6, 2.6, 4.4], "#2a2620", 0.5);      // the chin strap
+};
+
+// ---- body ----
+// behind the legs: the back of a long coat swinging, and a scabbard hung from the belt
+function hfBack(lk, sway, tint) {
+  if (lk.scabbard) {
+    uLine([-1.6, -10, -6.4 - sway, -4.6, -8.6 - sway * 1.4, -0.8], lk.scabbard, 1.6);
+    uFlatSeg(-8.2 - sway * 1.4, -1.4, -8.8 - sway * 1.4, -0.4, 1.4, UNIT_COLORS.steel);
+  }
+  if (lk.hem > -6) {
+    const outline = () => {
+      uc.beginPath();
+      uc.moveTo(-5.4, -10.4);
+      uc.quadraticCurveTo(-6.8 - sway, -6, -8.2 - sway * 1.8, lk.hem + 0.2);
+      uc.lineTo(-2, lk.hem + 0.6);
+      uc.lineTo(-1, -10.4);
+      uc.closePath();
+    };
+    outline();
+    uInk(lk.coatShade);
+    uFlatLine([-4.4, -9.4, -5.6 - sway * 1.2, lk.hem + 0.6], "rgba(0, 0, 0, .25)", 0.5);
+    if (tint) { outline(); uc.fillStyle = tint; uc.fill(); }
+  }
+}
+// one leg: trousers, then tall boots, leg wraps or short boots
+function hfLeg(lk, hipX, hipY, kneeX, kneeY, footX, footY, far) {
+  const tr = far ? shade(lk.trou, -22) : lk.trou, bt = far ? shade(lk.boot, -16) : lk.boot;
+  uLine([hipX, hipY, kneeX, kneeY, footX, footY - 2], tr, 3.3);
+  if (lk.tall || lk.wraps) {
+    const kx = kneeX + (footX - kneeX) * 0.12, ky = kneeY + (footY - 2 - kneeY) * 0.12;
+    uLine([kx, ky, footX, footY - 2], lk.wraps ? (far ? shade(lk.wraps, -24) : lk.wraps) : bt, 3.4);
+    if (lk.wraps) {
+      for (let u = 0.25; u < 0.95; u += 0.25) {
+        const x = kx + (footX - kx) * u, y = ky + (footY - 2 - ky) * u;
+        uFlatSeg(x - 1.4, y - 0.6, x + 1.4, y + 0.6, 0.4, "rgba(60, 40, 20, .5)");
+      }
+    } else if (!far) uFlatLine([kx - 0.9, ky + 0.4, footX - 0.9, footY - 2.6], "rgba(255, 246, 230, .28)", 0.6);
+  }
+  uc.beginPath();
+  uc.moveTo(footX - 2, footY - 3.1);
+  uc.lineTo(footX + 1.6, footY - 3.1);
+  uc.quadraticCurveTo(footX + 4.2, footY - 1.5, footX + 3.8, footY + 0.3);
+  uc.lineTo(footX - 2.2, footY + 0.3);
+  uc.closePath();
+  uInk(bt);
+}
+// coat, belt or sash, the gear across the chest, the head
+function hfTorso(lk, sway) {
+  const C = UNIT_COLORS, L = unitLit, k = lk.coat, ks = lk.coatShade;
+  // the skirt of the coat over the thighs
+  uPoly([-5.9, -10.6, 5.9, -10.6, 6.4, lk.hem, -6.6 - sway * 0.6, lk.hem + 0.3], k);
+  uFlatPoly([L * 2.8, -10.4, L * 5.9, -10.4, L * 6.3, lk.hem + 0.2, L * 3.2, lk.hem + 0.2], ks);
+  if (lk.hem > -6) uFlatLine([4.2, -10.2, 4.8, lk.hem + 0.2], "rgba(0, 0, 0, .3)", 0.55);
+  // the body of the coat
+  uc.beginPath();
+  uc.moveTo(-5.9, -15.8);
+  uc.quadraticCurveTo(0, -18.6, 6, -15.8);
+  uc.lineTo(6.3, -9.6);
+  uc.lineTo(-6.3, -9.6);
+  uc.closePath();
+  uInk(k);
+  uFlatPoly([L * 2.4, -17, L * 6, -15.8, L * 6.3, -9.8, L * 2.8, -9.8], ks);
+  uFlatPoly([-L * 5.9, -15.6, -L * 4, -16.6, -L * 4.4, -9.8, -L * 6.2, -9.8], "rgba(255, 246, 230, .14)");
+  if (lk.camo) {
+    // green flora camouflage: a few soft blotches
+    const blot = [[-3.6, -14.2, 1.8, 1, 0.3, 0], [1.6, -12, 2, 1.1, -0.4, 1], [-1, -16, 1.6, 0.8, 0.2, 2], [3.8, -15, 1.4, 0.8, 0.5, 0],
+      [-4.4, -8, 1.6, 0.9, 0, 1], [2.2, -7.6, 1.8, 0.8, 0.3, 2], [0, -11.2, 1.1, 0.7, 0, 0]];
+    for (const b of blot) uFlatOval(b[0], b[1], b[2], b[3], b[4], lk.camo[b[5]]);
+  }
+  if (lk.zip) uFlatLine([4.6, -16.6, 5.2, -7.6], "#20242c", 0.6);
+  else uFlatLine([3.8, -16.8, 4.4, -10.4], "rgba(0, 0, 0, .3)", 0.5);
+  if (lk.boards) {
+    // plain shoulder boards, no device on them
+    uPoly([-3.2, -17.4, 1.4, -17.9, 1.4, -16.7, -3.2, -16.4], lk.boards);
+  }
+  if (lk.strap) uFlatLine([-4.6, -16.6, 0.6, -12.6, 5.6, -10.2], "#4a2e18", 0.9);    // the sword belt's shoulder strap
+  for (let i = 0; i < (lk.bando || 0); i++) {
+    // a bandolier of cartridge loops over the shoulder
+    const a = i ? [4.8, -16.6, -0.4, -12.8, -5.4, -9.6] : [-4.8, -16.6, 0.4, -12.8, 5.6, -9.8];
+    uLine(a, "#6a4a28", 1.5);
+    for (let u = 0.12; u < 0.95; u += 0.14) {
+      const s = u < 0.5 ? u * 2 : (u - 0.5) * 2, p = u < 0.5 ? 0 : 2;
+      uFlatDisc(a[p] + (a[p + 2] - a[p]) * s, a[p + 1] + (a[p + 3] - a[p + 1]) * s, 0.42, "#c9a24a");
+    }
+  }
+  if (lk.rig || lk.vest) {
+    // the chest rig's magazine pouches, or the plate carrier over the jacket
+    const V = lk.rig || lk.vest;
+    uPoly([-5.2, -16.2, 5.6, -16.2, 5.8, -10.6, -5.4, -10.6], V);
+    uFlatPoly([L * 2.4, -16, L * 5.6, -16, L * 5.8, -10.8, L * 2.6, -10.8], shade(V, -22));
+    for (const px of [-3.4, 0, 3.4]) {
+      uPoly([px - 1.4, -13.6, px + 1.4, -13.6, px + 1.4, -10.4, px - 1.4, -10.4], shade(V, 10));
+      uFlatSeg(px - 1.2, -13, px + 1.2, -13, 0.4, "rgba(0, 0, 0, .3)");
+    }
+  }
+  // the waist: a sash wound twice with its ends hanging, or a leather belt and buckle
+  if (lk.sash) {
+    uPoly([-6.5, -11.6, 6.5, -11.6, 6.6, -9, -6.6, -9], lk.sash);
+    uFlatSeg(-6.2, -10.3, 6.3, -10.3, 0.45, "rgba(0, 0, 0, .3)");
+    uPoly([-5.2, -9.4, -4, -9.4, -4.8 - sway * 0.6, -5.6, -6 - sway * 0.6, -5.8], shade(lk.sash, -18));
+  } else {
+    uPoly([-6.4, -10.8, 6.4, -10.8, 6.5, -9.2, -6.5, -9.2], lk.belt);
+    uFlatPoly([2.2, -10.9, 3.8, -10.9, 3.8, -9.1, 2.2, -9.1], "#b8a070");
+  }
+  if (lk.pistol) {
+    // a flintlock pistol thrust through the sash, its butt cap of brass
+    uSeg(-0.6, -9.8, 3, -12.8, 1.5, "#6e4524");
+    uDisc(3.2, -13, 1, "#c9a24a");
+    uFlatSeg(-0.4, -10.2, -2.2, -8.4, 0.9, "#3c3e45");
+  }
+  if (lk.glasses) {
+    // field glasses on their strap
+    uFlatLine([-4.2, -16.8, 0.6, -13.4, 3.4, -16.8], "#3a2416", 0.5);
+    uPoly([-0.8, -14.4, 2.2, -14.4, 2.2, -11.6, -0.8, -11.6], "#2a2622");
+    uFlatSeg(0.7, -14.2, 0.7, -11.8, 0.4, "#6a6460");
+  }
+  // collar and head
+  uPoly([-3.4, -17.8, 3.6, -17.8, 3.2, -16.6, -3, -16.6], lk.coatShade);
+  uc.save();
+  uc.translate(0.8, -20.8);
+  const H = lk.head;
+  unitPaintHead({ helm: H.helm, beard: H.beard, brow: true, cap: H.cap, fur: H.fur, crown: H.crown, beret: H.beret, shell: H.shell },
+    unitPalette(lk.coat, lk.belt || lk.sash));
+  if (H.tache) uFlatLine([1.2, 2.7, 3.2, 2.1, 5.2, 2.6], "#2a1a10", 1);
+  uc.restore();
+}
+// the far arm crosses the body to the belt, the hand on the sash, the pistol or the field glasses
+function hfFarArm(lk) {
+  uLine([-3.2, -15.6, -3.4, -12, 0.8, -10.8], hfArmHex(lk, true), 2.6);
+  uDisc(1.2, -10.8, 1.4, UNIT_COLORS.skin);
+}
+function hfBody(lk, walk, sway, lift) {
+  const striding = walk !== 0 || (lift || 0) !== 0;
+  const lean = () => { if (striding) { uc.translate(0, -9); uc.rotate(UNIT_HERO_LEAN); uc.translate(0, 9); } };
+  uc.save();
+  lean();
+  hfBack(lk, sway);
+  uc.restore();
+  unitPaintHeroLegs(walk, lift || 0, 4.4);
+  uc.save();
+  lean();
+  hfTorso(lk, sway);
+  hfFarArm(lk);
+  uc.restore();
+}
+
+// ---- the weapon arm, drawn live from the shoulder along +x ----
+// flash (0..1) puts a muzzle flash on a firearm
+function hfArm(lk, flash) {
+  const C = UNIT_COLORS, A = lk.arm;
+  if (A === "sabre" || A === "shashka") {
+    // a curved blade: the 1727 sabre has a brass cross-guard; the shashka has none
+    uc.beginPath();
+    uc.moveTo(6.4, -0.9);
+    uc.quadraticCurveTo(14, -0.9, 20.4, -3.6);
+    uc.quadraticCurveTo(14.2, 1.2, 6.4, 0.9);
+    uc.closePath();
+    uInk(C.steelLit);
+    uFlatLine([7, -0.2, 14, -0.4, 19.4, -2.8], C.steel, 0.5);
+    uGlint(14, -0.9, 1.4);
+    if (A === "sabre") uSeg(6.4, -2.4, 6.4, 2.4, 1.1, "#c9a24a");
+    else { uSeg(4, 0, 6.6, 0, 1.7, "#3a2a1a"); uDisc(3.6, -0.4, 0.9, "#c9a24a"); }
+  } else if (A === "ak") {
+    const W = lk.wood;
+    uPoly([-2.8, -0.4, -2.6, 2.6, 0.2, 1.2, 3.6, 1, 3.6, -0.8], W);                  // the stock
+    uPoly([3, -1.2, 9.6, -1.2, 9.6, 1, 3, 1], "#3a3b3e");                             // the receiver
+    uc.beginPath();                                                                    // the curved magazine
+    uc.moveTo(6.6, 0.8);
+    uc.quadraticCurveTo(7.2, 3.4, 9.2, 5.4);
+    uc.lineTo(10.8, 4.6);
+    uc.quadraticCurveTo(9, 3, 8.8, 0.8);
+    uc.closePath();
+    uInk(lk.id === "komandos" ? "#4a3e30" : "#2e2c2a");
+    uPoly([9.6, -0.9, 12.8, -0.9, 12.8, 0.9, 9.6, 0.9], W);                           // the handguard
+    uSeg(12.8, -0.5, 16, -0.5, 0.8, "#2a2b2e");                                       // the barrel
+    uFlatSeg(15, -0.6, 15, -1.6, 0.5, "#2a2b2e");
+    uFlatSeg(3.4, -1, 9.4, -1, 0.35, "rgba(255, 255, 255, .3)");
+  } else {
+    // a Mauser or an old Berdan: a long wooden stock, the bayonet fixed or not
+    if (A === "bayonet") { uPoly([18.4, -1.3, 24.6, -0.9, 18.4, -0.4], C.steelLit); uGlint(22, -1, 1); }
+    uSeg(5, -0.9, 18.6, -0.9, 0.8, "#3c3e45");
+    uPoly([-3.4, -0.6, -3.2, 2.8, 0.6, 1.4, 4.4, 1, 15.6, 0.6, 15.6, -0.6, 4.4, -0.8], lk.id === "musa" ? "#7a4e2a" : "#6e4524");
+    uFlatSeg(4.6, -0.4, 15, -0.2, 0.4, "rgba(255, 236, 200, .35)");
+    uFlatSeg(5.6, -0.9, 5, -2.4, 0.6, "#3c3e45");                                    // the bolt handle
+  }
+  if (flash > 0) {
+    const mx = A === "ak" ? 16.4 : 19;
+    uc.save();
+    uc.globalAlpha = Math.min(1, flash * 1.6);
+    uFlatPoly([mx, -0.5, mx + 4.6 * flash + 1.6, -2.4, mx + 2.4, -0.5, mx + 6 * flash + 2, 0.2, mx + 2.2, 0.5, mx + 4 * flash + 1.4, 2.4, mx, 0.6], "#ffc24a");
+    uFlatOval(mx + 1.6, 0, 1.6, 0.9, 0, "#fff3c0");
+    uc.restore();
+  }
+  uSeg(0, 0, 5, 0, 2.7, hfArmHex(lk, false));
+  uDisc(5.4, 0, 1.6, C.skin);
+}
+// the arm's pose for a strike: the swordsmen cut overhead as Vardan did, in the same quarter-second;
+// riflemen hold the gun at the port and lunge it forward (a bayonet thrust, or a shot at arm's length)
+function hfArmPose(lk, swing) {
+  if (lk.arm === "sabre" || lk.arm === "shashka") return { rot: swing > 0 ? -2.3 + (0.25 - swing) * 10.4 : -0.82, dx: 0, flash: 0 };
+  if (!(swing > 0)) return { rot: -0.6, dx: 0, flash: 0 };
+  const u = (0.25 - swing) / 0.25, ext = Math.sin(Math.min(1, u * 1.4) * Math.PI);
+  const fires = lk.arm !== "bayonet";
+  return { rot: -0.6 + 0.52 * Math.min(1, u * 3), dx: (fires ? 1.6 : 4.4) * ext, flash: fires && u > 0.25 && u < 0.6 ? 1 - Math.abs(u - 0.42) / 0.18 : 0 };
+}
+// ====================================== END HERO SECTION: herofort ======================================
 
 function drawSoldier(e, k, d, walk, view) {
   const era = unitEra(e, d);
@@ -40814,7 +41749,8 @@ function drawHero(time) {
   const phase = walking ? hero.walk : time / 900;
   const frame = Math.floor(((phase % turn + turn) % turn) / turn * UNIT_FRAMES) % UNIT_FRAMES;
   const face = hero.face >= 0 ? 1 : -1;
-  const key = "hero|" + (walking ? "w" : "i") + face + "|" + frame + "|" + step;
+  const look = heroLook();
+  const key = "hero|" + (look ? look.id : "") + (walking ? "w" : "i") + face + "|" + frame + "|" + step;
   let sprite = UNIT_SPRITES.get(key);
   if (!sprite) {
     sprite = unitSprite(key, q, UNIT_HERO_LOOK, face < 0, () => {
@@ -40835,8 +41771,15 @@ function drawHero(time) {
   unitInkW = Math.max(1.9, Math.min(3.2, 2.5 / q));
   if (walking) { ctx.translate(0, -9); ctx.rotate(UNIT_HERO_LEAN); ctx.translate(0, 9); }   // the shoulder leans with the body
   ctx.translate(3.2, -14.6);
-  ctx.rotate(swing > 0 ? -2.3 + (0.25 - swing) * 10.4 : -0.82);
-  unitPaintHeroSwordArm();
+  if (look) {
+    const pose = hfArmPose(look, swing);
+    ctx.rotate(pose.rot);
+    ctx.translate(pose.dx, 0);
+    hfArm(look, pose.flash);
+  } else {
+    ctx.rotate(swing > 0 ? -2.3 + (0.25 - swing) * 10.4 : -0.82);
+    unitPaintHeroSwordArm();
+  }
   ctx.restore();
 
   // like a foe's, the hero's health bar is painted after the night light-map
