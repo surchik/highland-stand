@@ -236,6 +236,7 @@
     width: 196px; padding: 14px 12px 15px; font-size: 12.5px; line-height: 1.4; text-align: center; z-index: 12; pointer-events: none;
   }
   .card .ds b { display: block; font-size: 14px; color: var(--bronze-hi); margin-bottom: 2px; }
+  .card .ds i.dep { display: block; margin-bottom: 4px; opacity: .85; }
   .card:hover .ds { display: block; }
 
   #panel { position: fixed; z-index: 20; width: 250px; padding: 16px 12px 18px; display: none; }
@@ -415,6 +416,13 @@
   /* the leaf's page turner: arrows either side of a row of beads, the current page's bead in crimson */
   .ovPager { display: none; }
   #overlay.brief .ovPager.on { display: flex; grid-column: 2; grid-row: 7; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+  /* one "did you know" from the battlefield's facts, set small under the page turner */
+  .ovFact { display: none; }
+  #overlay.brief .ovFact.on {
+    display: block; grid-column: 2; grid-row: 8; max-width: 92%; margin-top: 10px; text-align: center;
+    font-size: 14.5px; line-height: 1.4; font-style: italic; color: #5a4222;
+  }
+  #overlay.brief .ovFact b { font-style: normal; font-variant: small-caps; letter-spacing: .5px; color: var(--crimson); margin-right: 6px; }
   #overlay.brief .pgBtn { width: 28px; height: 28px; font-size: 20px; }
   .pgDots { display: inline-flex; gap: 8px; }
   .pgDots i {
@@ -473,7 +481,7 @@
   /* the chronicle: the same content block opens as an illuminated spread, a framed miniature of the
      battlefield and the invader's host on the left, the history on the right */
   #overlay.brief #ovPage {
-    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto auto 1fr;
+    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto auto auto 1fr;
     column-gap: 30px; row-gap: 0; align-items: start; justify-items: center;
     width: min(94vw, 1080px); padding: 30px 30px 30px 32px; margin-bottom: 8px; color: var(--ink); border-radius: 3px;
     background:
@@ -582,6 +590,7 @@
     #overlay.brief #ovPage .headpiece { margin-bottom: 8px; }
     #overlay.brief .ovRule { margin-top: 10px; }
     #overlay.brief .ovPager.on { margin-top: 4px; }
+    #overlay.brief .ovFact.on { font-size: 13px; margin-top: 6px; }
     #overlay.brief .big { padding: 9px 38px; font-size: 17.5px; }
   }
   /* a narrow window stacks the spread: miniature and host first, then the text */
@@ -591,6 +600,7 @@
     #overlay.brief #ovPage .sideband, #overlay.brief .crest { display: none; }
     #overlay.brief .ovRule { order: 9; }
     #overlay.brief .ovPager.on { order: 10; }
+    #overlay.brief .ovFact.on { order: 11; }
     .briefHost { padding-left: 0; }
   }
 
@@ -1178,6 +1188,7 @@
       <span class="pgDots" id="pgDots"></span>
       <button class="pgBtn" id="pgNext" aria-label="Next page" title="Next page (Right arrow)">&#8250;</button>
     </div>
+    <div class="ovFact" id="ovFact"></div>
   </div>
   <div class="chapterBar" id="chapterBar">
     <button class="chArrow" id="chPrev" aria-label="Previous chapter" title="Previous chapter (Left arrow)">&#8249;</button>
@@ -1516,27 +1527,50 @@ const LEVELS = [
     seed: 47,
   },
   // ======================================================================================
-  // Chapters III and IV (levels 7-13). PLACEHOLDER content: names, tags, heroes, units, chronicle, victory
-  // and defeat texts are drafts for the text pass; layouts are final-candidate and screenshot-checked.
+  // Chapters III and IV (levels 7-13). Their text (names, tags, dates, heroes, foes, towers, chronicles,
+  // victory and defeat, facts) is the fact-checked chapter text, set verbatim; layouts are screenshot-checked.
   // Each theme.backdrop names the battlefield's own painter; until it exists BACKDROP_STANDIN paints it
   // with the nearest existing one (see levelTheme).
   // ======================================================================================
   {
-    name: "Halidzor Fortress",
-    tag: "Davit Bek's stronghold above the gorges of Syunik.",
-    era: 4, date: "1727 AD", year: 1727, placeholder: true,
-    hero: { name: "Davit Bek", title: "Sparapet of Syunik" },
+    name: "Halidzor",
+    tag: "Davit Bek's fortress in the gorges of Syunik.",
+    era: 4, date: "Spring 1727", year: 1727,
+    hero: { name: "Davit Bek", title: "Liberator of Syunik" },
     foe: "Ottoman",
     units: {
-      flyer: { name: "Gorge Raiders" },
+      raider:   { name: "Irregular Levies" },
+      spearman: { name: "Janissary Musketeer" },
+      shield:   { name: "Sapper Mantlet Team" },
+      cavalry:  { name: "Sipahi Horsemen" },
+      ram:      { name: "Ottoman Siege Gun" },
+      flyer:    { name: "Mountain Scouts" },
+      boss:     { name: "The Besieging Pasha" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Syunik Musketeers", depicts: "Highland fighters with matchlock muskets on the walls" },
+      ballista: { name: "Long Wall Musket", depicts: "A heavy, long-barrelled musket braced on the parapet for distant shots" },
+      catapult: { name: "Rolling Stones", depicts: "Defenders rolling boulders down the steep ridge onto attackers" },
+      fire:     { name: "Burning Brushwood", depicts: "Bundles of burning brush thrown onto the approach path" },
+      drums:    { name: "Ter Avetis' Blessing", depicts: "The fighting priest Ter Avetis blessing the defenders" },
     },
     chronicle: [
-      "When the Safavid state collapsed in 1722, the meliks of Syunik would bow neither to the Ottoman sultan nor to the new masters of Persia. Davit Bek, a Syunik noble who had served in Georgia, came home and gathered the mountaineers into sghnakhs, fortified refuges strung along the gorges. Within a few years his men held the valleys from the Vorotan to the Araxes, and the fortress of Halidzor above Kapan became his seat.",
-      "In 1727 an Ottoman army came up the gorge to finish the revolt. The chroniclers of the war tell how the defenders of Halidzor, far fewer than the besiegers, held the walls for days, then broke out by night and fell on the camp below. The siege collapsed, the guns were left behind, and Syunik stayed free a while longer. Davit Bek died the next year, and Mkhitar Sparapet carried on the fight. Hold the gorge road to Halidzor.",
+      "When the Safavid state fell apart in 1722, the Ottoman Empire sent its armies east to seize Persia's Caucasian lands. In Syunik the Armenian meliks and villagers rose under Davit Bek, a soldier who had come from Georgia to lead them. With his lieutenant Mkhitar Sparapet and the fighting priest Ter Avetis he made the fortress of Halidzor, on a ridge above the Voghji River near modern Kapan, his headquarters. From there the mountaineers struck at invaders for five years in a land of cliffs and narrow gorges.",
+      "In the late winter of 1727 a large Ottoman army closed around Halidzor. Armenian tradition says some 300 fighters, with bishops and priests among them, held the walls against a host said to number 70,000. Those numbers come from the chronicle tradition and cannot be checked; what is clear is that the defenders were badly outnumbered. Armenian accounts date the siege from 26 February to early March 1727. A secret tunnel, about half a kilometre long, ran from the fortress down to the river, and it is said to have kept the garrison in water.",
+      "As food ran low, Davit Bek did not wait to be starved out. He led the garrison down the hill in a sudden sortie, and the besieging army broke and fled. The chronicle tradition claims 12,000 Ottoman dead; that figure is a claim, not a count. The victory was real. Davit Bek's men drove the Ottomans from Ghapan and went on to take Meghri, and Shah Tahmasp II recognized him as ruler of the district. He died of illness at Halidzor in 1728, and Mkhitar Sparapet carried on the fight until his own death in 1730.",
+      "Halidzor's grey walls still stand above Kapan, a quadrangle of stone with towers and a vaulted basalt church, and by repute Davit Bek lies buried just outside the castle. The novelist Raffi made Davit Bek a hero of the Armenian imagination in his novel of 1882, and Armen Tigranian's opera 'David Bek' was first staged in Yerevan in 1950. His memory runs through every chapter that follows. Now the drums of the Ottoman camp echo through the gorge. Man the walls, watch the tunnel, and when the moment comes, charge with Davit Bek. Syunik is yours to keep.",
     ],
-    victory: "Halidzor holds. The besiegers' camp breaks in the night and their guns lie abandoned in the gorge; the sghnakhs of Syunik stand free for another year.",
-    defeat: "The gorge falls silent and the gates of Halidzor are breached. The meliks will gather again in the high villages.",
-    history: "In 1727 an Ottoman army besieged Halidzor, the stronghold of Davit Bek above the gorges of Syunik. The defenders held, broke out by night and routed the besiegers. Hold the gorge road.",
+    victory: "As at Halidzor in 1727, the besiegers break before the sortie and flee down the gorge. Davit Bek clears the Ottomans from Ghapan and wins recognition as its ruler.",
+    defeat: "Halidzor falls and the road to Kapan lies open. History was kinder than this: in 1727 the defenders held, and their charge drove the Ottomans from Ghapan.",
+    history: "When the Safavid state fell apart in 1722, the Ottoman Empire sent its armies east to seize Persia's Caucasian lands. In Syunik the Armenian meliks and villagers rose under Davit Bek, a soldier who had come from Georgia to lead them. With his lieutenant Mkhitar Sparapet and the fighting priest Ter Avetis he made the fortress of Halidzor, on a ridge above the Voghji River near modern Kapan, his headquarters. From there the mountaineers struck at invaders for five years in a land of cliffs and narrow gorges.",
+    facts: [
+      "Halidzor is said to have been built by local meliks in the 17th century as a nunnery before it became a fortress.",
+      "A secret tunnel about 500 metres long runs from Halidzor down to the river.",
+      "Davit Bek died of illness at Halidzor in 1728 and is by repute buried outside the castle.",
+      "Mkhitar Sparapet, Davit Bek's successor, was killed in 1730 by villagers of Khndzoresk and is buried in a gorge near the village.",
+      "Raffi's novel 'Davit Bek' (1882) made the commander a national hero.",
+    ],
     path: [[1720, 200], [980, 200], [980, 420], [620, 420], [620, 200], [260, 200], [260, 600], [900, 600]],
     fort: { x: 900, y: 570 },
     pads: [[1150, 290], [1350, 290], [1080, 520], [800, 300], [800, 510], [520, 510], [440, 310], [440, 110], [800, 110], [160, 330], [160, 520], [380, 690], [640, 690], [1000, 670]],
@@ -1549,23 +1583,45 @@ const LEVELS = [
     seed: 151,
   },
   {
-    name: "Walls of Van",
-    tag: "The Armenian quarters of Van barricade their streets.",
-    era: 5, date: "1915 AD", year: 1915, placeholder: true,
-    hero: { name: "Aram Manukian", title: "Leader of the Defense of Van" },
+    name: "Van",
+    tag: "The self-defence of Van during the Genocide.",
+    era: 5, date: "20 April to mid-May 1915", year: 1915,
+    hero: { name: "Aram Manukian", title: "Organizer of Van's Self-Defence" },
     foe: "Ottoman",
     units: {
-      raider: { name: "Hamidiye Irregulars" },
-      boss:   { name: "Gendarmerie Commander" },
+      raider:   { name: "Circassian Irregular" },
+      spearman: { name: "Ottoman Gendarme" },
+      shield:   { name: "Sap-Trench Infantry" },
+      cavalry:  { name: "Kurdish Irregular Riders" },
+      ram:      { name: "Ottoman Field Battery" },
+      flyer:    { name: "Village Raiding Band" },
+      boss:     { name: "Djevdet Bey" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Defence Riflemen", depicts: "Armenian men with old rifles and pistols at loopholes" },
+      ballista: { name: "Modern Rifle Marksmen", depicts: "Picked shots with the few modern rifles" },
+      catapult: { name: "Homemade Bombs", depicts: "Hand-made explosive charges thrown over barricades" },
+      fire:     { name: "Barricade and Trench", depicts: "Dug trenches and barricaded lanes slowing attackers" },
+      drums:    { name: "Cartridge Workshop", depicts: "Craftsmen refilling cartridges and supplying the line" },
     },
     chronicle: [
-      "In April 1915, as deportations and massacres began across the Ottoman east, the governor of Van moved against the city's Armenians. The Armenian quarters, the walled Old City under the Rock of Van and the garden suburb of Aygestan, barricaded their streets and dug in. Tens of thousands of people, many of them refugees from the villages around the lake, sheltered behind the defenders' improvised walls.",
-      "For about four weeks the defenders, with a few hundred rifles and gunpowder made in their own workshops, held off regular troops, irregular horsemen and artillery. A defense committee led by Aram Manukian organised food, workshops and a field hospital, and volunteers rebuilt every breach by night. In mid-May the besiegers withdrew before an advancing Russian army and the Armenian volunteer battalions.",
-      "The relief did not last: that summer the front moved back, and much of the population of Van had to flee north to the Caucasus with the retreating army. Hold the barricades of Van.",
+      "Early in 1915 Djevdet (Cevdet) Bey, brother-in-law of the war minister Enver Pasha, ruled Van as governor. He brought Circassian irregulars and added Kurdish bands, and he demanded 4,000 Armenian men for the army's labor battalions. When trouble flared at Shatakh to the south, Ishkhan, a leader of the Armenian Revolutionary Federation, rode out with the governor's consent to calm it. On the night of 16 April 1915 he was murdered at the village of Hirj. The next morning the deputy Arshak Vramian was arrested and sent away, never to return.",
+      "Van's Armenians understood what was coming. Two self-defence committees formed, one in Aygestan, the garden suburb of orchards and mud-brick walls, and one in the old walled city beneath Van Rock and its citadel. Aram Manukian of the ARF and Armenak Yekarian of the Armenakan tradition stood among the leaders, with Hunchaks and town notables beside them. About 1,500 fighters had only some 300 modern rifles; the rest carried pistols and old guns. Workshops made about 2,000 cartridges a day. From 20 April the Ottoman guns opened on both quarters.",
+      "For four weeks shells fell on homes, on the American mission and on Dr Clarence Ussher's hospital inside the Armenian lines. The whole community worked for the defence, and the fighters dug trenches and raised barricades. Around Van, Djevdet's forces were killing Armenian villagers by the thousands. In mid-May the besiegers began to pull back. On 18 May, by Ussher's account, Armenian volunteers riding as the vanguard of the Russian army reached the city. Van was relieved, and Aram Manukian was named its governor.",
+      "The freedom lasted about seventy days. In July the Russian army retreated, and the Armenians of Van fled with it toward the Caucasus, many dying of hunger and disease on the road. Witnesses Ussher and Grace Knapp recorded both the siege and the slaughter around it. Van held because its people would not open their gates to the men who had murdered their villages. The guns are firing on Aygestan. Hold every wall and every garden until the riders come.",
     ],
-    victory: "The barricades of Van hold. The guns fall silent, the besiegers draw off, and relief comes over the hills from the north.",
-    defeat: "The barricades are overrun and the quarters of Van burn. The city will be remembered in every telling of that spring.",
-    history: "In April 1915 the Armenian quarters of Van barricaded their streets and held out for a month against the governor's troops until a Russian army and Armenian volunteers relieved them. Hold the barricades.",
+    victory: "Aygestan and the walled city hold, and in mid-May 1915 Armenian volunteers and the Russian army ride in. The defenders saved the city's Armenians from the massacres that destroyed the villages around them.",
+    defeat: "The barricades fall and Van shares the fate of the villages Djevdet's forces destroyed. In 1915 it did not happen here: Van's defenders held for a month until relief arrived.",
+    history: "Early in 1915 Djevdet (Cevdet) Bey, brother-in-law of the war minister Enver Pasha, ruled Van as governor. He brought Circassian irregulars and added Kurdish bands, and he demanded 4,000 Armenian men for the army's labor battalions. When trouble flared at Shatakh to the south, Ishkhan, a leader of the Armenian Revolutionary Federation, rode out with the governor's consent to calm it. On the night of 16 April 1915 he was murdered at the village of Hirj. The next morning the deputy Arshak Vramian was arrested and sent away, never to return.",
+    facts: [
+      "Aygestan, the name of Van's garden quarter, means 'place of vineyards' or 'gardens'.",
+      "Van's defenders were split into two committees: one in Aygestan and one in the walled city.",
+      "Metalworkers inside the lines made about 2,000 cartridges a day.",
+      "Dr Clarence Ussher's American hospital lay inside the Armenian lines and was shelled during the siege.",
+      "After relief, Aram Manukian governed Van for about 70 days before the Russian retreat of July 1915.",
+      "Grace Knapp, an American missionary at Van, wrote 'The Mission at Van' about the siege.",
+    ],
     paths: [
       [[-420, 200], [300, 200], [300, 380], [620, 380], [620, 220], [920, 220], [920, 420], [1110, 420]],
       [[-420, 630], [400, 630], [400, 560], [780, 560], [780, 660], [1040, 660], [1040, 420], [1110, 420]],
@@ -1582,20 +1638,44 @@ const LEVELS = [
   },
   {
     name: "Musa Dagh",
-    tag: "Forty days on the Mountain of Moses above the sea.",
-    era: 5, date: "1915 AD", year: 1915, placeholder: true,
-    hero: { name: "Captain of Musa Dagh", title: "Defender of the mountain" },
+    tag: "Fifty-three days on the mountain of Moses.",
+    era: 5, date: "21 July to 12 September 1915", year: 1915,
+    hero: { name: "Movses Ter-Kalustian", title: "Commander on Musa Dagh" },
     foe: "Ottoman",
     units: {
-      flyer: { name: "Ridge Riflemen" },
+      raider:   { name: "Irregular Fighter" },
+      spearman: { name: "Ottoman Infantryman" },
+      shield:   { name: "Gendarmerie Column" },
+      cavalry:  { name: "Mounted Gendarme" },
+      ram:      { name: "Ottoman Mountain Gun" },
+      flyer:    { name: "Hillside Skirmisher" },
+      boss:     { name: "Ottoman Column Commander" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Village Hunters", depicts: "Villagers with old hunting guns and shotguns" },
+      ballista: { name: "Rifle Marksmen", depicts: "The few men with modern rifles, posted at key passes" },
+      catapult: { name: "Rock Fall", depicts: "Boulders rolled down ravines onto climbing troops" },
+      fire:     { name: "Barricaded Pass", depicts: "Stone breastworks closing a mountain path" },
+      drums:    { name: "Rescue Banners", depicts: "The red cross banner and the 'Christians in distress' banner" },
     },
     chronicle: [
-      "In July 1915 the six Armenian villages at the foot of Musa Dagh, the Mountain of Moses on the Mediterranean coast near Antioch, were ordered to leave for the Syrian desert. Instead some four thousand villagers climbed the mountain with their flocks, old rifles and hunting guns, dug trenches across the paths and fortified its slopes above the sea.",
-      "For some forty days they beat back assault after assault from the ridges. As food ran out they hung two great banners toward the sea, one with a red cross and one calling for help. In September the French cruiser Guichen saw the signal, and Allied ships carried more than four thousand people to safety in Port Said. Franz Werfel told their story in The Forty Days of Musa Dagh. Hold the mountain until the ships come.",
+      "Musa Dagh, the Mountain of Moses, rises from the Mediterranean coast north of the bay of Antioch. Below it lay six Armenian villages, among them Yoghunoluk, Bitias, Kabusiye and Vakef. In the summer of 1915 they received the order for deportation. They knew what deportation meant: the convoys of Cilicia were already moving south toward the desert, the men killed, the women and children dying on the roads. Most villagers refused to go. More than 4,000 people drove their flocks up the mountain and dug in.",
+      "A defence committee formed, with the pastor Dikran Andreasian, Yesayi Yaghubian and Movses Ter-Kalustian among its leaders. Some 600 fighters had a small number of modern rifles and many old hunting guns. Against them came Ottoman regular troops and many irregulars; one count gives about 4,000 regulars and 15,000 irregulars, though others are lower. The defenders blocked the paths, fought from rocks and ravines and threw the attackers back again and again. Food ran short and autumn rains came.",
+      "The villagers sewed two great banners from bedsheets. One bore a red cross, the other the words 'Christians in distress: rescue' in English. On 5 September the French cruiser Guichen saw the signals. Vice Admiral Louis Dartige du Fournet chose to act, and from 12 September five French ships, Guichen, Desaix, Foudre, Amiral Charner and D'Estrées, carried about 4,000 Armenians to Port Said in Egypt. By the accounts, only 18 fighters had died in 53 days of resistance, and the mountain had never been taken.",
+      "The exiles lived in a refugee camp at Port Said until the war ended, and some of their young men served in the French Armenian Legion. In 1919 they went home, but in 1939, when the district passed to Turkey, they left again, and many settled at Anjar in Lebanon, where the stand is still remembered every September. In 1933 Franz Werfel told their story in 'The Forty Days of Musa Dagh', a novel the Nazis soon banned. The paths are steep, the sea is at your back, and the banners are flying. Hold Musa Dagh until the ships come.",
     ],
-    victory: "The mountain holds. Smoke rises from a warship's funnels on the horizon, and the boats are coming in to the shore below Musa Dagh.",
-    defeat: "The trenches on the ridge are overrun. Somewhere below, the banners still face the empty sea.",
-    history: "In 1915 four thousand villagers climbed Musa Dagh above the Mediterranean and held it for some forty days until French warships carried them to safety. Hold the mountain.",
+    victory: "The mountain holds and the French squadron answers the banners. As in September 1915, about 4,000 villagers sail to Port Said alive.",
+    defeat: "The mountain paths fall and the villagers are driven onto the deportation roads. In 1915 that fate was escaped: Musa Dagh held for 53 days until French ships carried its people away.",
+    history: "Musa Dagh, the Mountain of Moses, rises from the Mediterranean coast north of the bay of Antioch. Below it lay six Armenian villages, among them Yoghunoluk, Bitias, Kabusiye and Vakef. In the summer of 1915 they received the order for deportation. They knew what deportation meant: the convoys of Cilicia were already moving south toward the desert, the men killed, the women and children dying on the roads. Most villagers refused to go. More than 4,000 people drove their flocks up the mountain and dug in.",
+    facts: [
+      "The resistance on Musa Dagh lasted 53 days, from 21 July to 12 September 1915.",
+      "The French cruiser Guichen first saw the villagers' banners on 5 September 1915.",
+      "About 4,000 people were evacuated to Port Said in Egypt.",
+      "By the accounts, only 18 fighters died during the defence.",
+      "Franz Werfel's 1933 novel 'The Forty Days of Musa Dagh' was banned in Nazi Germany.",
+      "The villagers returned home in 1919; after the district passed to Turkey in 1939 many resettled at Anjar, Lebanon.",
+    ],
     paths: [
       [[1720, 200], [1040, 200], [1040, 360], [700, 360], [700, 190], [420, 190], [420, 440], [300, 440]],
       [[1720, 610], [880, 610], [880, 540], [560, 540], [560, 640], [300, 640], [300, 440]],
@@ -1611,21 +1691,45 @@ const LEVELS = [
     seed: 177,
   },
   {
-    name: "Sardarapat Field",
-    tag: "On the plain beneath Ararat, Armenia stands.",
-    era: 5, date: "1918 AD", year: 1918, placeholder: true,
+    name: "Sardarapat",
+    tag: "The stand that saved Armenia, May 1918.",
+    era: 5, date: "21 to 29 May 1918", year: 1918,
     hero: { name: "Movses Silikyan", title: "Commander at Sardarapat" },
     foe: "Ottoman",
     units: {
-      boss: { name: "Ottoman Army Commander" },
+      raider:   { name: "Kurdish Irregulars" },
+      spearman: { name: "Caucasian Div. Infantry" },
+      shield:   { name: "Assault Detachment" },
+      cavalry:  { name: "Ottoman Cavalry" },
+      ram:      { name: "Ottoman Mountain Battery" },
+      flyer:    { name: "Mounted Scouts" },
+      boss:     { name: "Rüştü Bey" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Armenian Riflemen", depicts: "Soldiers of the Armenian regiments with Mosin rifles" },
+      ballista: { name: "Maxim Gun Team", depicts: "A Russian Maxim machine gun on a wheeled mount" },
+      catapult: { name: "3-inch Field Gun", depicts: "Russian 76 mm field gun firing shrapnel" },
+      fire:     { name: "Trench and Wire", depicts: "Dug-in trench lines with barbed wire across the plain" },
+      drums:    { name: "Etchmiadzin Bells", depicts: "The bells of the Mother See ringing to call defenders" },
     },
     chronicle: [
-      "In May 1918, with the Russian army gone from the Caucasus front, the Ottoman army crossed the Araxes and advanced into the Ararat plain, aiming at Yerevan and beyond it at Baku. At Sardarapat, on the western edge of the plain, Armenian regiments and volunteers gathered under General Movses Silikyan, with Colonel Daniel Bek-Pirumyan holding the centre.",
-      "Church bells rang across the plain to call every man who could carry a rifle; villagers brought carts, bread and water to the lines. From 22 to 29 May the Armenians fought the advancing divisions to a standstill and drove them back to the west, while further battles raged at Bash Abaran and Karakilisa. On 28 May the Republic of Armenia was proclaimed. Hold the plain beneath Ararat.",
+      "In spring 1918 the Russian army had dissolved and the Ottoman army marched east. Kars fell in April and Alexandropol in May. Three columns now pushed toward Yerevan: one along the railway past Sardarapat on the Ararat plain, one through the pass at Bash Abaran, and one toward Karakilisa. Behind the thin Armenian front were the last Armenian lands of the Caucasus and hundreds of thousands of refugees from the Genocide. If the front broke, there would be nothing left to defend.",
+      "On 21 May the Ottoman force took the Sardarapat railway station. General Movses Silikyan, commanding the Yerevan detachment, gathered what he had: Armenian regiments, Colonel Daniel Bek-Pirumyan's troops, volunteers, refugees and villagers, and the Yazidi horsemen of Jangir Agha. Tradition holds that Catholicos Gevorg V refused to leave Etchmiadzin and ordered the church bells rung to call the people to battle. Aram Manukian organized the rear in Yerevan.",
+      "On 22 May the Armenians counterattacked across the plain beneath Ararat. Over the next days they drove the Ottoman troops back westward, by most accounts some 15 to 20 kilometres. In the north, Drastamat Kanayan, called Dro, held the pass at Bash Abaran and threw back the column sent through it. At Karakilisa, from 25 to 28 May, General Tovmas Nazarbekian's corps fought a costly battle that slowed the advance though the town was lost. Taken together, the May battles stopped the Ottoman drive on Yerevan.",
+      "On 28 May 1918 the Armenian National Council took power over the Armenian provinces, and the First Republic of Armenia was born. It was poor, crowded with refugees, besieged and short-lived, lasting until 1920, but it was an Armenian state again after centuries. Its tricolor of red, blue and orange is the flag of Armenia today, and the Sardarapat memorial of red tufa now stands near the battlefield. After the long night, the dawn came here. Ararat watches over the plain and the bells of Etchmiadzin are ringing. Stand with Silikyan, Pirumyan and Dro. Not one step back.",
     ],
-    victory: "The line at Sardarapat holds and the enemy columns fall back to the west. The bells ring again across the Ararat plain: the Republic will live.",
-    defeat: "The line breaks on the plain and the road to Yerevan lies open. The bells fall silent beneath Ararat.",
-    history: "In May 1918 Armenian troops and volunteers stopped the Ottoman advance at Sardarapat, on the plain beneath Ararat, and saved Yerevan; the Republic of Armenia was proclaimed on 28 May. Hold the plain.",
+    victory: "The line holds on the Ararat plain and the Ottoman columns fall back, as they did in May 1918. On 28 May, the birthday of the First Republic of Armenia, the dawn comes.",
+    defeat: "The front breaks and the road to Yerevan and Etchmiadzin opens. In 1918 it held: Sardarapat, Bash Abaran and Karakilisa together stopped the advance.",
+    history: "In spring 1918 the Russian army had dissolved and the Ottoman army marched east. Kars fell in April and Alexandropol in May. Three columns now pushed toward Yerevan: one along the railway past Sardarapat on the Ararat plain, one through the pass at Bash Abaran, and one toward Karakilisa. Behind the thin Armenian front were the last Armenian lands of the Caucasus and hundreds of thousands of refugees from the Genocide. If the front broke, there would be nothing left to defend.",
+    facts: [
+      "Three battles were fought at once in May 1918: Sardarapat, Bash Abaran and Karakilisa.",
+      "The Ottoman army took Sardarapat station on 21 May; the Armenian counterattack began on 22 May.",
+      "Yazidi leader Jangir Agha is said to have led about 1,500 horsemen at Sardarapat and Bash Abaran.",
+      "Tradition says Catholicos Gevorg V refused to leave Etchmiadzin as the Ottomans approached.",
+      "The First Republic of Armenia was declared on 28 May 1918.",
+      "The Sardarapat memorial, near Armavir, opened in 1968.",
+    ],
     paths: [
       [[-420, 200], [420, 200], [420, 330], [880, 330], [880, 200], [1180, 200], [1180, 420]],
       [[-420, 560], [300, 560], [300, 660], [760, 660], [760, 520], [1040, 520], [1040, 420], [1180, 420]],
@@ -1641,21 +1745,44 @@ const LEVELS = [
     seed: 191,
   },
   {
-    name: "Stepanakert Siege",
-    tag: "A winter of shelling on the capital in the valley.",
-    era: 6, date: "1992 AD", year: 1992, placeholder: true,
-    hero: { name: "Self-Defense Commander", title: "Defender of Stepanakert" },
+    name: "Stepanakert",
+    tag: "The city under the Grad rockets, 1991-1992.",
+    era: 6, date: "November 1991 to 9 May 1992", year: 1992,
+    hero: { name: "Arkady Ter-Tadevosyan", title: "Komandos, commander of the Shushi operation" },
     foe: "Azerbaijani",
     units: {
-      ram: { name: "Grad Rocket Launcher" },
+      raider:   { name: "OMON police squad" },
+      spearman: { name: "Motor rifle infantry" },
+      shield:   { name: "BMP-2 section" },
+      cavalry:  { name: "BRDM scout car" },
+      ram:      { name: "T-72 tank column" },
+      flyer:    { name: "Su-25 attack jet" },
+      boss:     { name: "BM-21 Grad battery" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Self-defense riflemen", depicts: "Stepanakert volunteers with Kalashnikov rifles" },
+      ballista: { name: "ZU-23-2 AA gun", depicts: "Twin 23 mm anti-aircraft gun on a towed mount" },
+      catapult: { name: "82 mm mortar crew", depicts: "Mortar team firing from a courtyard" },
+      fire:     { name: "Minefield", depicts: "Anti-tank mines laid across the valley road" },
+      drums:    { name: "Basement radio post", depicts: "Field radio in a shelter beneath an apartment block" },
     },
     chronicle: [
-      "As the Soviet Union came apart, the Armenians of Nagorno-Karabakh voted for independence, and war came in the winter of 1991 to 1992. Stepanakert, the capital in the valley of the Karkar, lay beneath the heights of Shushi, and from there and from the villages around it Grad rockets and artillery fell on the city day after day.",
-      "Without electricity or gas, its people lived in cellars through the cold while self-defense units held the approaches. In May 1992 Armenian forces took Shushi, the shelling of the capital eased, and the Lachin corridor opened a road to Armenia. A ceasefire came only in 1994. Hold the city in the valley.",
+      "From late 1991 Stepanakert lay under siege. Azerbaijani forces held the town of Shushi on the heights above and Khojaly on the valley road, and from these positions they fired on the city below. The chief weapon was the BM-21 Grad, a truck-mounted launcher that throws a ripple of forty rockets at once. Rockets struck houses, schools, the silk factory and the maternity hospital. Families moved into basements, and the city lived by candle and radio while the shelling came day after day.",
+      "The war had grown from the Karabakh movement of 1988, the pogroms in Sumgait and Baku, and Operation Ring in 1991, when Soviet troops and Azerbaijani OMON police deported Armenian villagers. Every side lost civilians. On 25-26 February 1992 Karabakh Armenian forces took Khojaly, and hundreds of fleeing Azerbaijani civilians were killed; Human Rights Watch called it the largest massacre of the conflict to that date. Remembering all the dead is part of telling this war truthfully.",
+      "Above the city stood Ghazanchetsots, the Cathedral of Christ the Holy Savior in Shushi, which Azerbaijani forces used during the siege as a store for Grad rockets. On the night of 8 May 1992 Armenian units under Arkady Ter-Tadevosyan, known as Komandos, attacked the fortress town from several directions up the cliffs and roads. By 9 May Shushi was taken and the bombardment of Stepanakert ended. Days later, on 18 May, Lachin fell and a land link with Armenia opened.",
+      "The war went on for two more years, through Kelbajar and Aghdam and the districts beyond, until a ceasefire took hold on 12 May 1994. Armenian forces held Karabakh and all or part of seven surrounding districts, whose Azerbaijani inhabitants had fled. For the people of Stepanakert, May 1992 remained the moment the rockets stopped. The plateau that had threatened them for months was in Armenian hands, and the cathedral would be restored and reconsecrated in 1998. Stand in the valley, defender. Keep the basements safe until the heights are won.",
     ],
-    victory: "Stepanakert holds through the winter. The rockets fall silent at last, and people climb up from the cellars into the cold light.",
-    defeat: "The defenses around the city give way. Stepanakert endures another night beneath the guns.",
-    history: "In the winter of 1991 to 1992 Stepanakert, the capital of Nagorno-Karabakh, lay under months of shelling from the heights around it until Shushi was taken in May 1992. Hold the city.",
+    victory: "Shushi fell to Armenian forces on 9 May 1992 and the Grad fire on Stepanakert ended. The city survived its siege, and the road through Lachin opened days later.",
+    defeat: "The rockets keep falling and the basements fill with the wounded. Stepanakert cannot hold forever under the guns of the plateau.",
+    history: "From late 1991 Stepanakert lay under siege. Azerbaijani forces held the town of Shushi on the heights above and Khojaly on the valley road, and from these positions they fired on the city below. The chief weapon was the BM-21 Grad, a truck-mounted launcher that throws a ripple of forty rockets at once. Rockets struck houses, schools, the silk factory and the maternity hospital. Families moved into basements, and the city lived by candle and radio while the shelling came day after day.",
+    facts: [
+      "On 20 February 1988 the regional soviet of Nagorno-Karabakh voted to ask for transfer from Soviet Azerbaijan to Soviet Armenia.",
+      "The official Soviet death toll for the Sumgait pogrom of February 1988 was 32: 26 Armenians and 6 Azerbaijanis.",
+      "The We Are Our Mountains monument north of Stepanakert, completed in 1967 by sculptor Sargis Baghdasaryan, is known locally as Tatik-Papik, Grandmother and Grandfather.",
+      "During the siege, Azerbaijani forces used Ghazanchetsots Cathedral in Shushi to store Grad rockets; it was restored and reconsecrated in 1998.",
+      "The ceasefire that ended the first war took effect on 12 May 1994. It was mediated by Russia's envoy and followed the Bishkek Protocol of 5 May.",
+    ],
     path: [[-420, 190], [1100, 190], [1100, 680], [180, 680], [180, 360], [900, 360], [900, 530], [480, 530]],
     fort: { x: 480, y: 500 },
     pads: [[600, 275], [300, 275], [900, 275], [1000, 450], [1210, 420], [700, 445], [330, 445], [80, 500], [700, 605], [300, 605], [1000, 605], [600, 100], [1000, 100], [200, 100]],
@@ -1668,21 +1795,44 @@ const LEVELS = [
     seed: 203,
   },
   {
-    name: "Shushi Heights",
-    tag: "The cliff-top town that guards the road to Armenia.",
-    era: 6, date: "2020 AD", year: 2020, placeholder: true,
-    hero: { name: "Garrison Commander", title: "Defender of Shushi" },
+    name: "Shushi",
+    tag: "The 44-day war and the fall of the fortress, 2020.",
+    era: 6, date: "27 September to 10 November 2020", year: 2020,
+    hero: { name: "Defense Army volunteer", title: "Artsakh Defense Army volunteer" },
     foe: "Azerbaijani",
     units: {
-      flyer: { name: "Loitering Drones" },
+      raider:   { name: "Special forces team" },
+      spearman: { name: "Motor rifle infantry" },
+      shield:   { name: "BMP-3 section" },
+      cavalry:  { name: "Light armored car" },
+      ram:      { name: "T-72 tank column" },
+      flyer:    { name: "Bayraktar TB2" },
+      boss:     { name: "Harop strike wave" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "AK-74 riflemen", depicts: "Defense Army squad in a hillside trench" },
+      ballista: { name: "Osa SAM launcher", depicts: "9K33 Osa short-range air defense vehicle" },
+      catapult: { name: "BM-21 Grad battery", depicts: "Truck-mounted rocket launcher firing a salvo" },
+      fire:     { name: "Anti-tank ditch", depicts: "Ditch, wire and mines across the mountain road" },
+      drums:    { name: "Cathedral bells", depicts: "Bells of Ghazanchetsots Cathedral rallying the town" },
     },
     chronicle: [
-      "On 27 September 2020 Azerbaijan, backed by Turkey, launched a large offensive against Artsakh. For six weeks drones, artillery and armour struck the defenders along the whole front, and the war moved steadily north from the Araxes valley toward the heart of the mountains.",
-      "By early November light infantry had climbed through the forests and gorges below Shushi, the old fortress town on its plateau above Stepanakert and the Lachin road. After days of fighting at the cliffs and in the streets the town was lost, and on 10 November a ceasefire ended the war. Hold the heights of Shushi.",
+      "On 27 September 2020 Azerbaijan launched an offensive along the whole line of contact, and war returned to Artsakh after a quarter century. This war was fought from the sky. Turkish-made Bayraktar TB2 drones and Israeli-made loitering munitions such as the Harop hunted air defense radars, tanks and artillery, and filmed their strikes for broadcast. Armenian Osa and other Soviet-era air defenses, built for a different age, were destroyed in large numbers in the first weeks.",
+      "Civilians were struck on both sides. Stepanakert was shelled, and Amnesty International and Human Rights Watch documented Azerbaijani cluster munitions fired into the city. On 8 October Ghazanchetsots Cathedral in Shushi was struck twice, hours apart; HRW found the attacks appeared deliberate. HRW also documented unlawful Armenian strikes on Azerbaijani cities: missiles on Ganja killed 32 civilians, 21 of them in a Scud strike on 17 October, and cluster rockets on Barda killed at least 21.",
+      "Both organizations documented abuses. HRW found Armenian prisoners of war badly mistreated in Azerbaijani custody, and later Azerbaijani prisoners abused in Armenian custody. Amnesty verified videos of Azerbaijani soldiers beheading two Armenian captives and of an Azerbaijani border guard's throat being cut. In early November Azerbaijani special forces climbed through the forests to the Shushi plateau, and after days of fighting the town fell around 8 November.",
+      "On 9 November the leaders of Armenia, Azerbaijan and Russia signed a statement ending the fighting from midnight Moscow time on 10 November. Shushi and most surrounding districts passed to Azerbaijan, and 1,960 Russian peacekeepers deployed along the line of contact and the Lachin corridor. Armenia counted 3,825 dead, soldiers and civilians, and Azerbaijan 2,906 servicemen. The war was lost, but young conscripts and volunteers had held the line for 44 days. Hold the heights, defender, for as long as they can be held.",
     ],
-    victory: "The cliffs of Shushi hold and the road below stays open. History ended otherwise; here, for one stand, the heights are kept.",
-    defeat: "The cliffs are climbed and Shushi falls, as it fell in November 2020.",
-    history: "In November 2020 Shushi, the fortress town on its plateau above Stepanakert, fell after days of fighting at its cliffs, and a ceasefire ended the war. Hold the heights.",
+    victory: "Here you hold the line where history wavered. In truth Shushi fell around 8 November 2020, and the ceasefire of 10 November handed it to Azerbaijan after 44 days of war. Your stand honors the conscripts and volunteers who defended the plateau to the end.",
+    defeat: "The drones find the last guns and the special forces reach the cliffs. As in November 2020, Shushi falls, and the road to Stepanakert lies open.",
+    history: "On 27 September 2020 Azerbaijan launched an offensive along the whole line of contact, and war returned to Artsakh after a quarter century. This war was fought from the sky. Turkish-made Bayraktar TB2 drones and Israeli-made loitering munitions such as the Harop hunted air defense radars, tanks and artillery, and filmed their strikes for broadcast. Armenian Osa and other Soviet-era air defenses, built for a different age, were destroyed in large numbers in the first weeks.",
+    facts: [
+      "The 2020 war lasted 44 days, from 27 September to the ceasefire at midnight Moscow time on 10 November.",
+      "Ghazanchetsots Cathedral was struck twice on 8 October 2020; Human Rights Watch said the strikes appeared deliberate and a possible war crime.",
+      "The Harop loitering munition is designed to home in on radar emissions and was used against air defenses.",
+      "The trilateral statement deployed 1,960 Russian peacekeepers along the line of contact and the Lachin corridor.",
+      "Both Armenia and Azerbaijan used cluster munitions in populated areas in 2020, according to Human Rights Watch and Amnesty International.",
+    ],
     paths: [
       [[-420, 660], [300, 660], [300, 500], [80, 500], [80, 330], [420, 330], [420, 260], [640, 260]],
       [[1700, 660], [980, 660], [980, 500], [1200, 500], [1200, 330], [860, 330], [860, 260], [640, 260]],
@@ -1698,19 +1848,45 @@ const LEVELS = [
     seed: 211,
   },
   {
-    name: "Stepanakert Blockade",
-    tag: "The last road closes on the capital of Artsakh.",
-    era: 6, date: "2023 AD", year: 2023, placeholder: true,
-    hero: { name: "Volunteer Commander", title: "Defender of Artsakh" },
+    name: "Stepanakert 2023",
+    tag: "Blockade, offensive and exodus, 2022-2023.",
+    era: 6, date: "12 December 2022 to October 2023", year: 2023,
+    hero: { name: "Civil defense volunteer", title: "Stepanakert civil defense volunteer" },
     foe: "Azerbaijani",
-    units: {},
+    units: {
+      raider:   { name: "Assault infantry" },
+      spearman: { name: "Motor rifle infantry" },
+      shield:   { name: "BMP-3 section" },
+      cavalry:  { name: "Checkpoint patrol" },
+      ram:      { name: "Artillery battery" },
+      flyer:    { name: "Strike drone" },
+      boss:     { name: "Blockade column" },
+    },
+    // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
+    towers: {
+      archer:   { name: "Defense Army riflemen", depicts: "Artsakh Defense Army soldiers with AK-74s" },
+      ballista: { name: "ATGM team", depicts: "Anti-tank guided missile crew on a ridge" },
+      catapult: { name: "82 mm mortar crew", depicts: "Mortar team behind a stone wall" },
+      fire:     { name: "Barricade and mines", depicts: "Concrete blocks and mines across the approach" },
+      drums:    { name: "Bread queue shelter", depicts: "Bakery and civil defense post that keeps the city going" },
+    },
     chronicle: [
-      "From December 2022 the Lachin corridor, the only road between Artsakh and Armenia, was blockaded. For nine months food, fuel and medicine ran short, and some 120,000 people lived under siege in their own land.",
-      "On 19 September 2023 Azerbaijan launched a final offensive. Within a day the outnumbered defenders were forced to lay down their arms, and in the following week almost the entire Armenian population of Artsakh left for Armenia along the corridor. Their churches, khachkars and graves remain in the mountains. Hold the last road.",
+      "On 12 December 2022 Azerbaijani protesters, widely seen as backed by their government, blocked the Lachin corridor, the only road from Artsakh to Armenia. Some 120,000 people were cut off. Gas from Armenia was cut again and again, and power was rationed in rolling blackouts. From mid-June even Red Cross deliveries were stopped. Food, medicine and fuel ran short, families queued for bread, and in August the local rights office reported a man dead of chronic malnutrition. Amnesty International warned that thousands of lives were in peril.",
+      "On 22 February 2023 the International Court of Justice ordered Azerbaijan to ensure unimpeded movement of persons, vehicles and cargo along the corridor in both directions. The road stayed closed, and on 23 April Azerbaijan set up a checkpoint on it. In August former International Criminal Court prosecutor Luis Moreno Ocampo wrote that there was a reasonable basis to believe genocide was being committed, with starvation as its weapon. On 19 September Azerbaijan opened an offensive with artillery and drones, and a ceasefire on 20 September ended Artsakh's defense.",
+      "Armenian investigators later counted 223 Armenian dead, 25 of them civilians including five children; Azerbaijan reported 192 of its troops killed. The Artsakh forces disarmed, and from 24 September almost the whole population took the open corridor to Armenia, in cars, trucks and buses. On 25 September a fuel depot near Stepanakert exploded among people gathering fuel to leave; investigators counted 218 dead. On 28 September Artsakh's president signed a decree dissolving the republic by 1 January 2024.",
+      "By 3 October the Armenian government counted 100,617 people who had crossed. A UN mission arriving on 1 October, after nearly all had gone, heard that 50 to 1,000 Armenians remained. Former leaders, including three former presidents, were arrested and taken to Baku. Armenia and the European Parliament, in its 5 October resolution, called it ethnic cleansing; the Lemkin Institute and Genocide Watch called it genocide. Azerbaijan denies this and says residents were free to stay. Endure, defender. Carry the people and their memory out of the valley.",
     ],
-    victory: "Stepanakert holds and the road stays open. History ended otherwise; here, for one stand, the lights of the city burn on.",
-    defeat: "The last road closes. The people of Artsakh carry its memory with them over the mountains.",
-    history: "In 2023, after nine months of blockade, Azerbaijan's final offensive ended the Republic of Artsakh, and almost its entire Armenian population left for Armenia. Hold the last road.",
+    victory: "Here you hold the line where history wavered. In truth Artsakh fell after one day of fighting in September 2023, and some 100,600 of its people fled to Armenia within about a week. Your stand honors those who endured nine months of blockade and carried their families and their memory to safety.",
+    defeat: "The road closes, the shelves empty and the guns open on the city. As in September 2023, the people of Artsakh must leave their homes.",
+    history: "On 12 December 2022 Azerbaijani protesters, widely seen as backed by their government, blocked the Lachin corridor, the only road from Artsakh to Armenia. Some 120,000 people were cut off. Gas from Armenia was cut again and again, and power was rationed in rolling blackouts. From mid-June even Red Cross deliveries were stopped. Food, medicine and fuel ran short, families queued for bread, and in August the local rights office reported a man dead of chronic malnutrition. Amnesty International warned that thousands of lives were in peril.",
+    facts: [
+      "The Lachin corridor was blocked from 12 December 2022, cutting some 120,000 people off from Armenia.",
+      "On 22 February 2023 the ICJ ordered Azerbaijan to ensure unimpeded movement along the Lachin corridor in both directions.",
+      "The fuel depot explosion near Stepanakert on 25 September 2023 killed 218 people, according to Armenian investigators.",
+      "The Armenian government counted 100,617 people who had arrived from Nagorno-Karabakh by midday on 3 October 2023.",
+      "A UN mission on 1 October 2023, the first UN access in about 30 years, heard that between 50 and 1,000 Armenians remained, and received no reports of violence against civilians after the ceasefire.",
+      "On 5 October 2023 the European Parliament voted 491 to 9, with 36 abstentions, for a resolution stating that the situation amounted to ethnic cleansing.",
+    ],
     paths: [
       [[-420, 220], [360, 220], [360, 390], [120, 390], [120, 560], [480, 560], [480, 470], [640, 470]],
       [[1700, 220], [920, 220], [920, 390], [1160, 390], [1160, 560], [800, 560], [800, 470], [640, 470]],
@@ -1731,7 +1907,8 @@ const LEVELS = [
 // The campaign map shows one chapter per page (see renderWorldMap). levels lists the battlefields of a chapter
 // in order (contiguous: unlocking stays sequential across chapters, so winning Gyumri opens Halidzor); chart
 // names the map it is drawn on (MAP_CHARTS); intro holds the pages of the chapter's story, shown the first time
-// the chapter is opened and from the map's "Chapter story" button. PLACEHOLDER intro text for the text pass.
+// the chapter is opened and from the map's "Chapter story" button.
+// span, when given, replaces "first date to last date" (chapters whose dates are full day ranges).
 const CHAPTERS = [
   {
     num: "I", name: "Kingdoms of the Highlands", levels: [0, 1, 2], chart: "highlands",
@@ -1748,17 +1925,22 @@ const CHAPTERS = [
     ],
   },
   {
-    num: "III", name: "The Long Night", levels: [7, 8, 9, 10], chart: "anatolia",
+    num: "III", name: "The Long Night", levels: [7, 8, 9, 10], span: "1727 to 1918", chart: "anatolia",
     intro: [
-      "In the eighteenth century the Armenian meliks of Syunik and Artsakh rose against the empires around them, and for a few years Davit Bek held the gorges free. In the century that followed, the Armenians of the Ottoman Empire lived as a subject people, while the Russian Empire pushed south over the Caucasus.",
-      "In 1915, during the First World War, the Ottoman government deported and massacred its Armenian subjects; some one and a half million people perished in the Armenian Genocide. Where they could, Armenians fought back, at Van and on Musa Dagh. In 1918, on the plain of Sardarapat, the survivors stood their ground, and an Armenian republic was born.",
+      "In 1722 the Safavid state of Persia collapsed, and the Ottoman and Russian empires moved to divide the Caucasus between them. In the gorges of Syunik the Armenian mountaineers would not wait to be divided. Under Davit Bek, Mkhitar Sparapet and the priest Ter Avetis they held their fortresses for years against Ottoman armies. The rising faded after Davit Bek died in 1728, but its memory never did. For almost two centuries afterward the Armenians of the highlands lived divided between rival empires, Ottoman to the west and Persian, then Russian, to the east.",
+      "In the nineteenth century Eastern Armenia passed to Russia, while most Armenians remained in the Ottoman provinces. Massacres in 1894 to 1896 and at Adana in 1909 foreshadowed worse. When the Ottoman Empire entered the First World War in 1914, the ruling Committee of Union and Progress turned against its Armenian subjects. On the night of 24 April 1915 the police of Constantinople arrested Armenian writers, clergy, doctors and deputies, more than two hundred in the first sweep and hundreds more soon after. Most never came home. Armenians mark 24 April as the day of remembrance.",
+      "Across Anatolia the method repeated itself. Armenian soldiers were disarmed and put into labor battalions, and many were then killed. In town after town the men were taken out and shot or cut down. Women, children and the old were driven in deportation convoys south toward the Syrian desert and the camps around Deir ez-Zor. Along the way they were robbed, starved and denied water. Many were massacred by gendarmes and irregular bands. Women and girls were raped, and thousands were abducted into Muslim households. US consul Leslie Davis at Harput called his province 'the slaughterhouse province'.",
+      "Scholars estimate that between about 600,000 and 1.5 million Armenians died, and most place the toll at around one million or more. In 1997 the Association of Genocide Scholars unanimously reaffirmed that the mass murder of over a million Armenians was genocide. Raphael Lemkin, who coined the word, named the Armenian case among those that shaped it. US ambassador Henry Morgenthau cabled on 16 July 1915 that 'a campaign of race extermination is in progress'. France recognized the Genocide in 2001, Germany in 2016, the US Congress in 2019 and President Biden in 2021.",
+      "Yet the night was not only slaughter. At Van the Armenians held their quarters for a month until relief came. On Musa Dagh more than four thousand villagers climbed their mountain, held it for 53 days and were carried to safety by French warships. And in May 1918, when the Ottoman army marched on what remained of Armenia, soldiers, refugees, peasants and priests met it at Sardarapat, Bash Abaran and Karakilisa. The advance was checked, and on 28 May 1918 an Armenian republic was born. This chapter is their stand. Hold the line they held.",
     ],
   },
   {
-    num: "IV", name: "Artsakh", levels: [11, 12, 13], chart: "artsakh",
+    num: "IV", name: "Artsakh", levels: [11, 12, 13], span: "1991 to 2023", chart: "artsakh",
     intro: [
-      "Artsakh, the mountain land east of Syunik, was for centuries a country of Armenian princes, monasteries and villages. Placed inside Soviet Azerbaijan in the 1920s, the Armenians of Nagorno-Karabakh voted for independence in 1991, and a war followed that ended in a ceasefire in 1994, with the Lachin corridor linking Artsakh to Armenia.",
-      "In 2020 a new war took Shushi and much of the land, and in 2023, after a nine-month blockade of the corridor, a final offensive ended the Republic of Artsakh, and its people left for Armenia. This chapter remembers those who held its heights.",
+      "In February 1988, as Gorbachev's glasnost loosened the old silence, the regional soviet of the Nagorno-Karabakh Autonomous Oblast voted on 20 February to ask that the mostly Armenian region be transferred from Soviet Azerbaijan to Soviet Armenia. Crowds filled the squares of Stepanakert and Yerevan. Within days the movement met violence: in the town of Sumgait, near Baku, a pogrom against Armenians left 32 dead by the official Soviet count, 26 of them Armenians. A long struggle had begun.",
+      "In January 1990 a second pogrom struck the Armenians of Baku; Thomas de Waal counts about 90 Armenian victims, and most of the city's remaining Armenians fled. In 1991 Soviet troops and Azerbaijani OMON police carried out Operation Ring, deporting Armenian villagers from Getashen, Martunashen and other villages. When the Soviet Union collapsed, the quarrel became open war. Stepanakert, the regional capital, lay in a valley under the guns of the Shushi plateau.",
+      "The first war ended with a ceasefire in May 1994. It had killed roughly 20,000 to 30,000 people and uprooted far more. About 724,000 Azerbaijanis were displaced from Armenia, Karabakh and the seven surrounding districts that Armenian forces took, while some 300,000 to 500,000 Armenians were displaced from Azerbaijan and border areas. Both peoples carried their dead and their lost homes into the next generation, and the line of separation never became a peace.",
+      "In autumn 2020 war returned for 44 days, fought with drones above the ridgelines, and ended with Shushi lost and most of the surrounding districts returned to Azerbaijan. In December 2022 the only road to Armenia, the Lachin corridor, was closed. In September 2023 a final offensive forced the surrender of Artsakh, and within about a week more than 100,000 people, nearly its entire Armenian population, had fled to Armenia. This chapter honors those who stood, endured and remembered.",
     ],
   },
 ];
@@ -1768,6 +1950,7 @@ function chapterOf(i) {
 }
 // "782 BC to 451 AD": the span of a chapter's battlefields
 function chapterSpan(c) {
+  if (CHAPTERS[c].span) return CHAPTERS[c].span;
   const lv = CHAPTERS[c].levels, a = LEVELS[lv[0]], b = LEVELS[lv[lv.length - 1]];
   return a.date === b.date ? a.date : a.date + " to " + b.date;
 }
@@ -4161,23 +4344,24 @@ const ERAS = [
       flyer:    { name: "Kurdish Horsemen",     color: "#7d3a3a", trim: "#f0d0a0", variant: "flyer" },
     },
   },
-  // ---- eras 4-6: PLACEHOLDER rosters and text (names, periods, stories to be finalised by the text pass).
+  // ---- eras 4-6: names and periods from the fact-checked chapter text; every battlefield of these eras names
+  // all seven of its foes itself (LEVELS[i].units), so these rosters are the era's defaults.
   // Until their own art lands they draw with the art of the era named in ERA_ART below.
   {
-    name: "Ottoman Advance", period: "1720s, Syunik", icon: "🗡", hpMult: 1.7, bounty: 1.4, foe: "Ottoman",
+    name: "The Syunik Rising", period: "1722 to 1730, after the fall of the Safavids", icon: "🗡", hpMult: 1.7, bounty: 1.4, foe: "Ottoman",
     story: "1722 to 1728. As Safavid Persia collapses, Ottoman armies march into the Caucasus. In the gorges of Syunik the Armenian meliks and their sghnakh strongholds rise under Davit Bek. Hold the mountain forts.",
     units: {
-      raider:   { name: "Ottoman Irregulars",   color: "#8a4a32", trim: "#e8c9a0" },
-      spearman: { name: "Musket Infantry",      color: "#7a2c30", trim: "#efe8dc", variant: "janissary" },
-      shield:   { name: "Janissary Veterans",   color: "#5a3636", trim: "#efe8dc", variant: "janissary" },
-      cavalry:  { name: "Timariot Horsemen",    color: "#8a662c", trim: "#f2cc78" },
-      ram:      { name: "Field Cannon",         color: "#4a4a50", trim: "#c4a468", variant: "cannon", spdMult: 0.9 },
-      boss:     { name: "The Pasha's Serasker",  color: "#7a1e2c", trim: "#f2cc78" },
-      flyer:    { name: "Mounted Raiders",      color: "#7a3c34", trim: "#ecd09e", variant: "flyer" },
+      raider:   { name: "Irregular Levies",   color: "#8a4a32", trim: "#e8c9a0" },
+      spearman: { name: "Janissary Musketeer",      color: "#7a2c30", trim: "#efe8dc", variant: "janissary" },
+      shield:   { name: "Sapper Mantlet Team",   color: "#5a3636", trim: "#efe8dc", variant: "janissary" },
+      cavalry:  { name: "Sipahi Horsemen",    color: "#8a662c", trim: "#f2cc78" },
+      ram:      { name: "Ottoman Siege Gun",         color: "#4a4a50", trim: "#c4a468", variant: "cannon", spdMult: 0.9 },
+      boss:     { name: "The Besieging Pasha",  color: "#7a1e2c", trim: "#f2cc78" },
+      flyer:    { name: "Mountain Scouts",      color: "#7a3c34", trim: "#ecd09e", variant: "flyer" },
     },
   },
   {
-    name: "Great War Offensive", period: "1915 to 1918", icon: "🪖", hpMult: 1.85, bounty: 1.48, foe: "Ottoman",
+    name: "Genocide and Rebirth", period: "1915 to 1918, the First World War and the First Republic", icon: "🪖", hpMult: 1.85, bounty: 1.48, foe: "Ottoman",
     story: "1915 to 1918. In the First World War the Ottoman army brings rifles, machine guns, field and mountain guns against the Armenians of Van, Musa Dagh and the Ararat plain. Hold until relief comes.",
     units: {
       raider:   { name: "Irregular Riflemen",   color: "#7d6448", trim: "#d8c49a" },
@@ -4190,7 +4374,7 @@ const ERAS = [
     },
   },
   {
-    name: "Azerbaijani Offensive", period: "1991 to 2023, Artsakh", icon: "🛩", hpMult: 2.0, bounty: 1.56, foe: "Azerbaijani",
+    name: "The Artsakh Wars", period: "1991-2023", icon: "🛩", hpMult: 2.0, bounty: 1.56, foe: "Azerbaijani",
     story: "1991 to 2023. Three wars over the mountains of Artsakh: rifles and Grad rockets in the 1990s, armour and drones in 2020, a blockade and a final assault in 2023. Hold the high ground.",
     units: {
       raider:   { name: "Rifle Infantry",       color: "#5e6248", trim: "#c8c6a4" },
@@ -4255,13 +4439,15 @@ function skinArt(type) { return SKIN_ART[towerSkin(type)] || null; }
 // what each slot is called in each age. Urartu: no mechanical artillery before c. 400 BC, and
 // hill-top fire beacons are attested; Haldi was the god of war and state, Teisheba of storm.
 // 451: no fire altar on the Christian side. 1579: gunpowder, and the defenders' guns are few.
-// eras 4-6: PLACEHOLDER names for the coming skins (the art still shows the era-3 engines)
+// eras 4-6: the fact-checked names of the era's first battlefield (Halidzor, Van, Stepanakert 1992); every
+// battlefield of these eras names its own five in L.towers, which towerName prefers (the art still shows the
+// era-3 engines until their own skins are painted)
 const SLOT_NAMES = {
-  archer:   ["Biainili Bowmen", "Nakharar Bowmen", "Nakharar Bowmen", "Highland Bowmen", "Sghnakh Marksmen", "Volunteer Riflemen", "Rifle Squad"],
-  ballista: ["Javelin Bastion", "Field Ballista", "Bolt-Thrower", "Musket Nest", "Musket Nest", "Machine-Gun Nest", "Machine-Gun Post"],
-  catapult: ["Stone-Hurlers", "Onager", "Traction Trebuchet", "Stone-Hurlers", "Stone-Hurlers", "Mountain Gun", "Mortar Pit"],
-  fire:     ["Beacon Fire", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron", "Fire Barricade", "Fire Barricade"],
-  drums:    ["Standard of Haldi", "Ghevond's Exhortation", "Prince's Banner", "Village Drums", "Melik's Banner", "Volunteer Bugle", "Field Radio"],
+  archer:   ["Biainili Bowmen", "Nakharar Bowmen", "Nakharar Bowmen", "Highland Bowmen", "Syunik Musketeers", "Defence Riflemen", "Self-defense riflemen"],
+  ballista: ["Javelin Bastion", "Field Ballista", "Bolt-Thrower", "Musket Nest", "Long Wall Musket", "Modern Rifle Marksmen", "ZU-23-2 AA gun"],
+  catapult: ["Stone-Hurlers", "Onager", "Traction Trebuchet", "Stone-Hurlers", "Rolling Stones", "Homemade Bombs", "82 mm mortar crew"],
+  fire:     ["Beacon Fire", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron", "Burning Brushwood", "Barricade and Trench", "Minefield"],
+  drums:    ["Standard of Haldi", "Ghevond's Exhortation", "Prince's Banner", "Village Drums", "Ter Avetis' Blessing", "Cartridge Workshop", "Basement radio post"],
 };
 const SKIN_BLURB = {
   archer: "Fast arrows, single target. Reliable.",
@@ -4292,7 +4478,19 @@ const SKIN_SPECS = {
   drums:    { b: ["Battle Standards"] },
 };
 const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
+// a battlefield may call its towers by its own names (L.towers[slot].name) where its era's row does not fit it
+function levelTower(type) {
+  const L = LEVELS[curLevel];
+  return (L && L.era === curEra && L.towers && L.towers[type]) || null;
+}
+// what the tower shows, for the card's tooltip: "" where the battlefield does not say
+function towerDepicts(type) {
+  const own = levelTower(type);
+  return (own && own.depicts) || "";
+}
 function towerName(type) {
+  const own = levelTower(type);
+  if (own && own.name) return own.name;
   const row = SLOT_NAMES[type];
   return (row && row[Math.max(0, Math.min(row.length - 1, curEra | 0))]) || TOWER_DEFS[type].name;
 }
@@ -4313,6 +4511,13 @@ function applyEraLabels() {
       const b = document.createElement("b");
       b.textContent = towerName(type);
       ds.appendChild(b);
+      const dep = towerDepicts(type);
+      if (dep) {
+        const i = document.createElement("i");
+        i.className = "dep";
+        i.textContent = dep;
+        ds.appendChild(i);
+      }
       ds.appendChild(document.createTextNode(SKIN_BLURB[towerSkin(type)] || ""));
     }
   });
@@ -33833,7 +34038,17 @@ function turnLeaf(dir) {
   Snd.play("uiTick");
   showLeafPage(k);
 }
+// a battlefield with facts (L.facts) shows one of them, chosen at random, under its chronicle; &fact=K pins one
+function showLeafFact(L) {
+  const el = $("ovFact"), facts = (L && L.facts) || [];
+  el.classList.toggle("on", facts.length > 0);
+  if (!facts.length) { el.innerHTML = ""; return; }
+  const k = HARNESS.has("fact") ? Math.max(0, Math.min(facts.length - 1, Number(HARNESS.get("fact")) | 0))
+    : Math.floor(Math.random() * facts.length);
+  el.innerHTML = "<b>Did you know?</b>" + escapeHtml(facts[k]);
+}
 function clearLeaf() {
+  showLeafFact(null);
   leafPages = [""]; leafPage = 0;
   $("ovSub").style.minHeight = "";
   $("ovPager").classList.remove("on");
@@ -33873,6 +34088,7 @@ function showChapterIntro(c) {
   $("ovTitle").textContent = C.name;
   $("ovRubric").textContent = "Chapter " + C.num + " · " + chapterSpan(c);
   setLeafPages(C.intro);
+  showLeafFact(null);
   $("briefHost").innerHTML = C.levels.map(i => {
     const L = LEVELS[i];
     return '<div class="foe field" title="' + escapeHtml(L.name + ", " + L.date) + '"><span class="disc">' + icon("era" + L.era) +
@@ -33921,6 +34137,7 @@ function showBrief() {
   $("ovTitle").textContent = L.name;
   $("ovRubric").textContent = L.date + " · " + E.name;
   setLeafPages(levelPages(L));
+  showLeafFact(L);
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
     const name = Object.assign({}, ENEMY_DEFS[role], E.units[role], levelUnits(L)[role]).name;
     return '<div class="foe' + (role === "boss" ? " boss" : "") + '" title="' + escapeHtml(name) + '"><span class="disc">' +
