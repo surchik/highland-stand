@@ -4392,6 +4392,8 @@ const ERAS = [
 // Eras 4-6 reuse the 16th-century (era 3) art until their own lands; set an entry to its own index then.
 // Gameplay (stats, names, era powers) always follows the real era; only the pictures read this table.
 const ERA_ART = [0, 1, 2, 3, 3, 3, 3];
+// an era with painted units of its own registers its look, painter and fallen here (UNIT SECTION banners)
+const UNIT_ERA_ART = {};
 function artEra(era) {
   const e = Math.max(0, Math.min(ERAS.length - 1, era | 0));
   return ERA_ART[e] === undefined ? Math.min(3, e) : ERA_ART[e];
@@ -5579,7 +5581,7 @@ function update(dt) {
       gold += bounty;
       Snd.play("death", { x: p.x, kind: e.type, variant: e.def.variant, era: curEra });
       Snd.play("coin", { x: p.x });
-      corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8 });
+      corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8, type: e.type, name: e.def.name, fly: !!e.fly });
       particles.push({ x: p.x, y: p.y - 22, vx: 0, vy: -26, life: 0.9, color: "#ffd27a", size: 0, text: "+" + bounty });
       for (let i = 0; i < 8; i++) {
         const a = Math.random() * Math.PI * 2, s = 20 + Math.random() * 55;
@@ -15472,7 +15474,8 @@ function draw(time) {
       objs.push({ y: unprojGround(spot[0], spot[1]).y, fn: () => drawPlotSign(plot) });
     }
   }
-  for (const e of enemies) { const p = enemyPos(e); objs.push({ y: p.y, fn: () => drawEnemy(e, p) }); }
+  // whatever flies is drawn over everything that stands on the ground
+  for (const e of enemies) { const p = enemyPos(e); objs.push({ y: p.y + (unitAirborne(e, p) ? 1e6 : 0), fn: () => drawEnemy(e, p) }); }
   objs.sort((a, b) => a.y - b.y);
   for (const o of objs) o.fn();
 
@@ -17147,6 +17150,7 @@ function drawFallen(c, x, y, k, a) {
   const C = UNIT_COLORS;
   const flip = Math.floor(c.x) % 2 ? 1 : -1;
   const era = artEra((LEVELS[curLevel] && LEVELS[curLevel].era) || 0);
+  if (UNIT_ERA_ART[era] && UNIT_ERA_ART[era].fallen) { UNIT_ERA_ART[era].fallen(c, x, y, k, a); return; }
   const cloth = c.color, lit = shade(c.color, 34), dim = shade(c.color, -34), deep = shade(c.color, -62);
   const m = ctx.getTransform();
   const ink = Math.max(1.5, Math.min(3.2, 2.5 / Math.max(0.05, k * Math.hypot(m.a, m.b))));
@@ -28638,6 +28642,8 @@ const UNIT_BOSS_LOOKS = [UNIT_LOOKS.chariot, UNIT_LOOKS.shah, UNIT_LOOKS.general
 // or leave the eye where the road runs up or down the screen
 function unitLook(e, d, p) {
   const era = unitEra(e, d);
+  const own = UNIT_ERA_ART[era] && UNIT_ERA_ART[era].look(e, d, p);
+  if (own) return own;
   if (e.fly) return OUTFLANK_LOOKS[era] || UNIT_LOOKS.foot;
   if (d.variant === "ladder") return unitView(p) !== "side" ? LADDER_LOOKS.end : LADDER_LOOKS.side;
   if (e.type === "boss") return UNIT_BOSS_LOOKS[era] || UNIT_LOOKS.champion;
@@ -28653,7 +28659,14 @@ function unitLook(e, d, p) {
   return end ? UNIT_LOOKS.footEnd : UNIT_LOOKS.foot;
 }
 
+// an air look (an aircraft) flies over the scene: it is drawn after everything on the ground
+function unitAirborne(e, p) {
+  return !!unitLook(e, e.def || eraUnit(e.type), p).air;
+}
+
 function unitPaintPose(e, p, d, dir) {
+  const art = UNIT_ERA_ART[unitEra(e, d)];
+  if (art && art.paint(e, p, d, dir)) return;
   if (e.fly) {
     drawOutflanker(e, p, 1, d, dir);
   } else if (d.variant === "ladder") {
@@ -31555,6 +31568,1147 @@ function drawCannon(e, p, k, d) {
   }
   uc.restore();
 }
+
+// ======================================================================================
+// UNIT SECTION: era6. The Artsakh Wars, 1991 to 2023: the foe's soldiers, armour and aircraft
+// Everything this section needs lives between this banner and its END banner. The shared unit
+// code reaches it through UNIT_ERA_ART[6] (look, paint, fallen) and the era-indexed rows set here.
+// ======================================================================================
+// Forces and weapon systems only, as each battlefield names them (LEVELS[11..13].units); plain
+// paint, no markings, flags or insignia.
+//   foot     steel SSh-68 or modern helmets, body armour with magazine pouches, AK-74 rifles with
+//            the orange-brown magazine; AKS-74U carbines for the 1991-92 OMON police; RPG-7 for the
+//            assault squads of the era roster
+//   shield   BMP-2 (1992: 30 mm 2A42 gun, Konkurs launcher on the turret roof, ribbed nose) or
+//            BMP-3 (2020-23: 100 mm and 30 mm guns side by side, high rear deck)
+//   cavalry  BRDM-2 scout car (1992), a light 4x4 armoured car (2020), the same car crewed as a
+//            checkpoint patrol with a gunner in the roof ring (2023)
+//   ram      T-72 (rubber side skirts, the two fuel drums on the rear plate) or, for the 2023
+//            artillery battery, a 2S1 self-propelled howitzer
+//   boss     a BM-21 Grad battery (two Ural trucks with 40-tube packs, 1992), a Harop strike wave
+//            (three loitering munitions in the air, 2020), a blockade column (canvas-backed Ural and
+//            an armoured car, 2023)
+//   flyer    Su-25 attack jet (1992), Bayraktar TB2 (2020), Harop loitering munition (2023). They
+//            are real aircraft and fly: their looks are air looks, so drawEnemy throws their blot on
+//            the ground below and the scene draws them over everything standing on it.
+// Aircraft are drawn as the bird flyers were, from above and to the side: the far wing up the
+// screen, the near wing down it, the fuselage along the line of flight, about 36 units up.
+
+ERA_ART[6] = 6;
+
+const E6 = {
+  track: "#36322d", trackLit: "#5f5850", rubber: "#24211e", dark: "#1d1b19",
+  gun: "#3c4040", gunLit: "#7a8282", glass: "#7f9fae", glassLit: "#e2f2f6",
+  stock: "#5e3626", mag: "#a8582a", magShade: "#6e3618", wood: "#8a5a34",
+  canvas: "#7b7a52", smoke: "rgba(70, 66, 60, .5)", lamp: "#f2e7b8",
+};
+// vehicle paint: the hull colour with its sunlit top, shaded flank and deep underside
+const E6_PAINTS = {};
+function e6Paint(hex) {
+  return E6_PAINTS[hex] || (E6_PAINTS[hex] = { base: hex, lit: shade(hex, 34), shade: shade(hex, -30), deep: shade(hex, -58), line: shade(hex, -70) });
+}
+const E6_OLIVE = "#5d693b", E6_OLIVE20 = "#56633a", E6_SAND = "#857c55", E6_PATROL = "#6b7048";
+
+// which machine or man a unit is, read off the name its battlefield gives it
+function e6KindOf(type, name, fly) {
+  const n = name || "";
+  if (fly || type === "flyer") return /Su-25/.test(n) ? "su25" : /Harop|Strike drone$/.test(n) ? "harop" : "tb2";
+  if (type === "boss") return /Harop/.test(n) ? "haropWave" : /Blockade/.test(n) ? "blockade" : "gradBattery";
+  if (type === "ram") return /Artillery/.test(n) ? "sph" : "t72";
+  if (type === "cavalry") return /BRDM/.test(n) ? "brdm" : /Checkpoint/.test(n) ? "patrol" : /BMP/.test(n) ? "bmp2" : "armcar";
+  if (type === "shield") return /BMP-2/.test(n) ? "bmp2" : /BMP/.test(n) ? "bmp3" : "rpg";
+  if (type === "raider") return /OMON/.test(n) ? "omon" : /Special/.test(n) ? "spetsnaz" : "assault";
+  return "rifle";
+}
+function e6Kind(e, d) {
+  if (e.e6Name !== d.name) { e.e6Name = d.name; e.e6Kind = e6KindOf(e.type, d.name, e.fly); }
+  return e.e6Kind;
+}
+const E6_FOOT = { omon: 1, spetsnaz: 1, assault: 1, rifle: 1, rpg: 1 };
+const E6_AIR = { su25: 1, tb2: 1, harop: 1, haropWave: 1 };
+
+// sprite boxes in unit space; barW keeps the classes: foot 16, light vehicles 22, heavy 28, commanders 44
+const E6_LOOKS = {
+  t72:       { f: 0.9,  back: 29,   front: 42,   up: 31, down: 3, top: 28, barW: 28, shadow: 22, feet: 20, rate: 0.6, bob: 0.2 },
+  t72End:    { f: 0.9,  back: 18.5, front: 18.5, up: 31, down: 3, top: 28, barW: 28, shadow: 15, feet: 13, rate: 0.6, bob: 0.2, end: true },
+  sph:       { f: 0.9,  back: 27,   front: 41,   up: 29, down: 3, top: 26, barW: 28, shadow: 21, feet: 19, rate: 0.6, bob: 0.2 },
+  sphEnd:    { f: 0.9,  back: 17.5, front: 17.5, up: 29, down: 3, top: 26, barW: 28, shadow: 15, feet: 13, rate: 0.6, bob: 0.2, end: true },
+  bmp2:      { f: 1.02, back: 24,   front: 35,   up: 26, down: 3, top: 23, barW: 22, shadow: 19, feet: 17, rate: 0.7, bob: 0.25 },
+  bmp2End:   { f: 1.02, back: 16.5, front: 16.5, up: 26, down: 3, top: 23, barW: 22, shadow: 13, feet: 11, rate: 0.7, bob: 0.25, end: true },
+  bmp3:      { f: 1.02, back: 25,   front: 33,   up: 26, down: 3, top: 24, barW: 22, shadow: 19, feet: 17, rate: 0.7, bob: 0.25 },
+  bmp3End:   { f: 1.02, back: 17,   front: 17,   up: 26, down: 3, top: 24, barW: 22, shadow: 13, feet: 11, rate: 0.7, bob: 0.25, end: true },
+  brdm:      { f: 1.1,  back: 22,   front: 23,   up: 25, down: 3, top: 23, barW: 22, shadow: 17, feet: 14, rate: 0.9, bob: 0.4 },
+  brdmEnd:   { f: 1.1,  back: 13,   front: 13,   up: 25, down: 3, top: 23, barW: 22, shadow: 11, feet: 9,  rate: 0.9, bob: 0.4, end: true },
+  armcar:    { f: 1.08, back: 22,   front: 23,   up: 27, down: 3, top: 25, barW: 22, shadow: 17, feet: 14, rate: 0.9, bob: 0.4 },
+  armcarEnd: { f: 1.08, back: 13.5, front: 13.5, up: 27, down: 3, top: 25, barW: 22, shadow: 11, feet: 9,  rate: 0.9, bob: 0.4, end: true },
+  patrol:    { f: 1.08, back: 22,   front: 23,   up: 33, down: 3, top: 30, barW: 22, shadow: 17, feet: 14, rate: 0.9, bob: 0.4 },
+  patrolEnd: { f: 1.08, back: 13.5, front: 13.5, up: 33, down: 3, top: 30, barW: 22, shadow: 11, feet: 9,  rate: 0.9, bob: 0.4, end: true },
+  gradBattery: { f: 0.8, back: 44,  front: 34,   up: 34, down: 3, top: 31, barW: 44, shadow: 30, feet: 26, rate: 0.7, bob: 0.25 },
+  blockade:  { f: 0.8,  back: 45,   front: 32,   up: 33, down: 3, top: 30, barW: 44, shadow: 30, feet: 26, rate: 0.7, bob: 0.25 },
+  // air: span is the wingspan that sizes the blot on the ground (drawEnemy), the machine flies about 36 up
+  su25:      { f: 1.45, back: 19,   front: 21,   up: 50, down: 2, top: 47, barW: 16, shadow: 12, feet: 0, rate: 2.2, bob: 0.8, air: true, span: 34 },
+  tb2:       { f: 1.45, back: 17,   front: 17,   up: 52, down: 2, top: 49, barW: 16, shadow: 12, feet: 0, rate: 2.6, bob: 1.1, air: true, span: 46 },
+  harop:     { f: 2.0,  back: 13,   front: 13,   up: 47, down: 2, top: 44, barW: 16, shadow: 10, feet: 0, rate: 2.6, bob: 1.1, air: true, span: 22 },
+  haropWave: { f: 0.78, back: 32,   front: 30,   up: 62, down: 2, top: 58, barW: 44, shadow: 18, feet: 0, rate: 2.6, bob: 1,   air: true, span: 64 },
+};
+
+// the era-indexed rows the shared code reads: foot kits (their top places the health bar),
+// the outflanker (an aircraft: air treatment) and the commander (a weapon system or formation)
+UNIT_KITS[6] = {
+  raider:   { helm: "e6", hat: "ops", helmCol: "#4e5638", beard: "none", skin: "#d8a983", hem: -7.6, hemW: 5.4, slim: 0.9,
+              lean: 0.26, hunch: true, leg: "#4b513a", boot: "#2a2420", weapon: "level", vest: "#454c32", back: "pack", top: 30 },
+  spearman: { helm: "e6", hat: "ssh", helmCol: "#56603c", beard: "none", skin: "#e0b48c", hem: -7.4, hemW: 5.6, slim: 0.92,
+              leg: "#4a5238", boot: "#26201c", weapon: "port", vest: "#434b33", back: "pack", top: 32 },
+  shield:   { helm: "e6", hat: "ssh", helmCol: "#4a5436", beard: "moustache", brow: true, skin: "#cfa07a", hem: -7.4, hemW: 5.8,
+              leg: "#41483a", boot: "#26201c", weapon: "rpg", vest: "#3c4430", back: "rockets", top: 32 },
+};
+// per-name variations of the raider: the 1991-92 OMON police and the 2020 special forces
+const E6_KIT_MODS = {
+  omon:     { hat: "ssh", helmCol: "#4b525c", leg: "#454c58", vest: "#3c424c", weapon: "aksu", back: null, uniform: "#56606c", trim: "#b8c0c8" },
+  spetsnaz: { hat: "ops", helmCol: "#8a7c56", leg: "#6e6648", vest: "#5e5840", beard: "short", weapon: "level", optic: true, uniform: "#7f7656", trim: "#cfc6a0" },
+  assault:  {},
+};
+const E6_KITS = {};
+function e6KitFor(kind, type) {
+  if (!E6_KITS[kind]) E6_KITS[kind] = Object.assign({}, UNIT_KITS[6][type] || UNIT_KITS[6].spearman, E6_KIT_MODS[kind] || {});
+  return E6_KITS[kind];
+}
+OUTFLANK_LOOKS[6] = E6_LOOKS.tb2;
+OUTFLANK_KITS[6] = UNIT_KITS[6].raider;
+UNIT_BOSS_LOOKS[6] = E6_LOOKS.gradBattery;
+
+// ---- shared hardware -------------------------------------------------------------------------
+
+// a road wheel or tyre: rubber rim, painted hub, bolts that turn with the stride
+function e6Wheel(x, y, r, P, tyre) {
+  uDisc(x, y, r, tyre ? E6.rubber : P.shade);
+  if (tyre) {
+    uc.beginPath(); uc.arc(x, y, r * 0.86, Math.PI + 0.5, -0.4);
+    uc.lineWidth = 0.5; uc.strokeStyle = "rgba(255, 255, 255, .16)"; uc.stroke();
+  }
+  uDisc(x, y, r * (tyre ? 0.56 : 0.72), P.base);
+  uCrescent(x, y, r * (tyre ? 0.56 : 0.72), unitLit, P.shade);
+  uFlatDisc(x - unitLit * r * 0.16, y - r * 0.16, r * 0.22, P.lit);
+  const a0 = unitPhase * 1.6;
+  for (let i = 0; i < 5; i++) {
+    const a = a0 + i * Math.PI * 0.4;
+    uFlatDisc(x + Math.cos(a) * r * 0.36, y + Math.sin(a) * r * 0.36, Math.max(0.3, r * 0.08), P.deep);
+  }
+  uFlatDisc(x, y, r * 0.14, P.deep);
+}
+// a toothed drive sprocket or a plain idler at the end of a track run
+function e6Sprocket(x, y, r, P) {
+  uDisc(x, y, r, P.deep);
+  const a0 = unitPhase * 1.6;
+  uc.lineWidth = 0.6; uc.strokeStyle = P.shade;
+  for (let i = 0; i < 8; i++) {
+    const a = a0 + i * Math.PI / 4;
+    uc.beginPath(); uc.moveTo(x + Math.cos(a) * r * 0.45, y + Math.sin(a) * r * 0.45); uc.lineTo(x + Math.cos(a) * r * 0.92, y + Math.sin(a) * r * 0.92); uc.stroke();
+  }
+  uFlatDisc(x, y, r * 0.3, P.deep);
+}
+// a closed track run from x0 to x1, top at `top`, on the ground at 0; links creep with the stride
+function e6Track(x0, x1, top, P) {
+  const h = -top, r = h * 0.5;
+  uc.beginPath();
+  uc.moveTo(x0 + r, top);
+  uc.lineTo(x1 - r * 0.8, top);
+  uc.quadraticCurveTo(x1 + r * 0.4, top, x1 + r * 0.2, top + h * 0.5);
+  uc.quadraticCurveTo(x1 - r * 0.2, 0.4, x1 - r * 1.4, 0.4);
+  uc.lineTo(x0 + r * 1.4, 0.4);
+  uc.quadraticCurveTo(x0 + r * 0.2, 0.4, x0 - r * 0.2, top + h * 0.5);
+  uc.quadraticCurveTo(x0 - r * 0.4, top, x0 + r, top);
+  uc.closePath();
+  uInk(E6.track);
+  const pitch = 2.2, off = (unitPhase / (Math.PI * 2)) * pitch;
+  uc.lineWidth = 0.55;
+  uc.strokeStyle = E6.trackLit;
+  for (let x = x0 + r + off; x < x1 - r; x += pitch) { uc.beginPath(); uc.moveTo(x, top + 0.2); uc.lineTo(x - 0.4, top + 1.2); uc.stroke(); }
+  for (let x = x1 - r * 1.4 - off; x > x0 + r * 1.4; x -= pitch) { uc.beginPath(); uc.moveTo(x, 0.2); uc.lineTo(x + 0.3, -0.9); uc.stroke(); }
+}
+// the end of a track seen from ahead or behind: a dark belt with its cleats
+function e6TrackEnd(x, w, top) {
+  uPoly([x - w / 2, top, x + w / 2, top, x + w / 2, 0.4, x - w / 2, 0.4], E6.track);
+  uc.lineWidth = 0.5; uc.strokeStyle = E6.trackLit;
+  const off = (unitPhase / (Math.PI * 2)) * 2;
+  for (let y = top + 1 + off; y < 0; y += 2) { uc.beginPath(); uc.moveTo(x - w / 2 + 0.5, y); uc.lineTo(x + w / 2 - 0.5, y); uc.stroke(); }
+}
+// a tyre seen edge-on
+function e6TyreEnd(x, r, w) {
+  uc.beginPath();
+  uc.ellipse(x, -r, w / 2, r, 0, 0, Math.PI * 2);
+  uInk(E6.rubber);
+  uc.lineWidth = 0.45; uc.strokeStyle = "rgba(255, 255, 255, .14)";
+  const off = (unitPhase / (Math.PI * 2)) * 1.8;
+  for (let y = -r * 1.8 + off; y < -0.4; y += 1.8) { uc.beginPath(); uc.moveTo(x - w * 0.42, y); uc.lineTo(x + w * 0.42, y); uc.stroke(); }
+}
+// thin grey exhaust breathing out behind an engine deck
+function e6Exhaust(x, y) {
+  const t = (unitPhase / (Math.PI * 2)) % 1;
+  for (let i = 0; i < 3; i++) {
+    const u = (t + i / 3) % 1;
+    uFlatDisc(x - u * 7, y - u * 4.5, 1 + u * 2.2, "rgba(86, 82, 76, " + (0.42 * (1 - u)).toFixed(3) + ")");
+  }
+}
+// a gun barrel along +x from (x0, y) to x1, with optional bands and a muzzle brake
+function e6Barrel(x0, y, x1, w, P, bands, brake) {
+  uPoly([x0, y - w / 2, x1, y - w * 0.42, x1, y + w * 0.42, x0, y + w / 2], P.base);
+  uFlatSeg(x0 + 0.5, y - w * 0.22, x1 - 0.4, y - w * 0.2, Math.max(0.35, w * 0.22), P.lit);
+  for (const b of bands || []) uPoly([b[0], y - w * 0.66, b[1], y - w * 0.62, b[1], y + w * 0.62, b[0], y + w * 0.66], P.shade);
+  if (brake) uPoly([x1 - brake, y - w * 0.72, x1 + 0.6, y - w * 0.72, x1 + 0.6, y + w * 0.72, x1 - brake, y + w * 0.72], E6.gun);
+}
+// a vision block or windscreen pane with its glint
+function e6Glass(pts, lit) {
+  uPoly(pts, E6.glass);
+  uFlatLine([pts[0] + 0.5, pts[1] + 0.6, pts[2] - 0.5, pts[3] + 0.6], E6.glassLit, 0.5);
+  if (lit) uFlatDisc(pts[0] + 1, pts[1] + 1.1, 0.45, "#ffffff");
+}
+
+// ---- the infantry ----------------------------------------------------------------------------
+
+// helmets, drawn in the head's own frame like unitPaintHead's headgear (radius 4.5 head, facing +x)
+function e6Helmet(kit) {
+  const L = unitLit, c = kit.helmCol, lit = shade(c, 30), dk = shade(c, -34);
+  uc.save();
+  uc.translate(-0.2, -0.6);
+  uc.scale(0.9, 0.9);
+  if (kit.hat === "ops") {
+    // a modern high-cut helmet: ears clear, a mount on the brow, a rail along the side
+    uc.beginPath();
+    uc.moveTo(-5.2, -0.2);
+    uc.quadraticCurveTo(-5.8, -7.8, 0.2, -8.2);
+    uc.quadraticCurveTo(5.6, -8, 5.3, -2.4);
+    uc.lineTo(2.6, -2.2);
+    uc.quadraticCurveTo(1.2, -1.4, 0.6, 0.2);
+    uc.closePath();
+    uInk(c);
+    uFlatPoly([-L * 4.4, -1, -L * 4.6, -5.4, -L * 1.2, -7.6, -L * 2.6, -4.4], lit);
+    uFlatPoly([L * 1.6, -7.6, L * 4.8, -5.2, L * 5, -2.6, L * 2.6, -2.8], dk);
+    uFlatSeg(-3.6, -3.4, 1.8, -3.6, 0.9, dk);                           // the side rail
+    uPoly([3.6, -7.6, 5.8, -6.6, 5.6, -4.6, 3.6, -5.2], E6.dark);          // brow mount
+    uFlatLine([-2.6, -1, -1.2, 4.4], "#2a2418", 0.6);                    // chin strap
+  } else {
+    // the Soviet SSh-68 steel helmet: a deep dome, the rim flared low over the nape
+    uc.beginPath();
+    uc.moveTo(-6, 1.4);
+    uc.quadraticCurveTo(-6.2, -8.6, 0, -8.8);
+    uc.quadraticCurveTo(5.8, -8.6, 5.6, -2.4);
+    uc.lineTo(6.2, -1.6);
+    uc.lineTo(-6.6, 1.8);
+    uc.closePath();
+    uInk(c);
+    uFlatPoly([-L * 4.6, -0.6, -L * 4.8, -5.6, -L * 1, -8, -L * 2.6, -4.6], lit);
+    uFlatPoly([L * 1.4, -8, L * 5, -5.6, L * 5.4, -2.2, L * 2.4, -2.6], dk);
+    uFlatLine([-6.4, 1.6, 6, -1.6], dk, 0.9);                              // the rim
+    uFlatLine([-2.4, 0.4, -1.2, 4.4], "#2a2418", 0.6);
+  }
+  uc.restore();
+}
+function e6HelmetEnd(kit, front) {
+  const c = kit.helmCol, lit = shade(c, 30), dk = shade(c, -34);
+  uc.save();
+  uc.translate(0, -0.6);
+  uc.scale(0.9, 0.9);
+  const ops = kit.hat === "ops";
+  uc.beginPath();
+  uc.moveTo(-5.9, ops ? -1.4 : 0.6);
+  uc.quadraticCurveTo(-6.2, -8.6, 0, -8.8);
+  uc.quadraticCurveTo(6.2, -8.6, 5.9, ops ? -1.4 : 0.6);
+  uc.lineTo(ops ? 4.2 : 6.4, ops ? -1.4 : 1);
+  uc.lineTo(ops ? -4.2 : -6.4, ops ? -1.4 : 1);
+  uc.closePath();
+  uInk(c);
+  uFlatPoly([-5, -1, -5, -5.6, -1.6, -8, -2.8, -4.4], lit);
+  uFlatPoly([2, -8, 5.2, -5.6, 5.4, -1, 2.8, -2.6], dk);
+  if (ops && front) uPoly([-1.4, -8, 1.4, -8, 1.2, -5.6, -1.2, -5.6], E6.dark);
+  if (!ops) uFlatLine([-6.2, 0.8, 6.2, 0.8], dk, 0.9);
+  uc.restore();
+}
+// plate carrier over the jacket: plates front and back, magazine pouches across the belly
+function e6Vest(kit, front, rear) {
+  const v = kit.vest, lit = shade(v, 26), dk = shade(v, -30);
+  if (front === undefined) {
+    // profile: the carrier sits proud of the chest, the pouches stand out in front
+    uPoly([-5.4, -15.8, 4.6, -16.2, 6, -9.4, -5.6, -8.8], v);
+    uFlatPoly([-unitLit * 5, -15.4, -unitLit * 1.6, -15.8, -unitLit * 1.8, -9.2, -unitLit * 5.2, -9], lit);
+    uPoly([4.4, -12.8, 7.4, -12.6, 7.6, -9.2, 4.6, -9.2], dk);
+    uFlatSeg(4.8, -11.2, 7.2, -11.1, 0.45, v);
+    uFlatSeg(-4.8, -15.4, 3.6, -15.6, 0.7, dk);                         // shoulder strap edge
+    return;
+  }
+  uPoly([-5.4, -16, 5.4, -16, 5.8, -8.8, -5.8, -8.8], v);
+  uFlatPoly([-5.2, -15.6, -2.4, -15.8, -2.6, -9.2, -5.4, -9.2], lit);
+  uFlatPoly([2.6, -15.8, 5.2, -15.6, 5.4, -9.2, 2.8, -9.2], dk);
+  if (!rear) for (const x of [-4.6, -1.5, 1.6]) {
+    uPoly([x, -12.4, x + 2.8, -12.4, x + 2.8, -9.2, x, -9.2], dk);
+    uFlatSeg(x + 0.3, -11.4, x + 2.5, -11.4, 0.4, v);
+  }
+}
+// the AK-74 family in its own frame: pistol grip at the origin, muzzle along +x. aksu is the
+// folding-stock carbine of the police; optic adds a sight on the receiver
+function e6Rifle(kind, optic) {
+  const C = UNIT_COLORS;
+  const su = kind === "aksu";
+  // stock: wood-laminate plum on the AK-74, a bare skeleton frame on the carbine
+  if (su) uLine([-0.4, -0.6, -6.6, -0.2, -6.4, 2.4, -1.2, 1], E6.gun, 0.7);
+  else uPoly([-1, -1.5, -8.4, -0.4, -8.6, 2.8, -1.4, 1.2], E6.stock);
+  // receiver and dust cover
+  uPoly([-1.2, -1.9, su ? 4.2 : 5.2, -1.9, su ? 4.2 : 5.2, 0.9, -1.2, 0.9], E6.gun);
+  uFlatSeg(-0.8, -1.5, su ? 3.8 : 4.8, -1.5, 0.5, E6.gunLit);
+  // the curved magazine, the AK-74's orange-brown
+  uPoly([2, 0.7, 4.2, 0.7, 5.6, 4.6, 3.4, 5.4], E6.mag);
+  uFlatLine([2.6, 1, 4, 5], E6.magShade, 0.5);
+  uPoly([-0.2, 0.7, 1.2, 0.7, 0.6, 3.6, -0.8, 3.3], E6.dark);           // pistol grip
+  // handguard, gas tube, barrel, muzzle brake
+  const hg = su ? 7.4 : 10;
+  uPoly([su ? 4.2 : 5.2, -1.6, hg, -1.4, hg, 0.7, su ? 4.2 : 5.2, 0.9], su ? E6.gun : E6.wood);
+  uFlatSeg(su ? 4.4 : 5.4, -1.1, hg - 0.4, -1, 0.45, su ? E6.gunLit : "#b3804c");
+  uSeg(hg, -0.4, su ? 10 : 15, -0.4, 0.75, E6.gun);
+  uPoly([su ? 9.8 : 14.8, -1.1, su ? 11.8 : 16.6, -1, su ? 11.8 : 16.6, 0.3, su ? 9.8 : 14.8, 0.4], E6.gun);
+  if (!su) uFlatSeg(13.6, -0.6, 13.6, -2, 0.55, E6.gun);                  // front sight post
+  if (optic) {
+    uPoly([0.2, -3.6, 4.6, -3.6, 4.6, -1.9, 0.2, -1.9], E6.dark);
+    uFlatDisc(4.6, -2.8, 0.6, E6.glass);
+  }
+  uGlint(su ? 1 : 2, -1.3, 0.8);
+}
+// a point given in a weapon's frame carried into the body's frame
+const E6_AT = [0, 0];
+function e6At(gx, gy, ang, x, y) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  E6_AT[0] = gx + x * c - y * s;
+  E6_AT[1] = gy + x * s + y * c;
+  return E6_AT;
+}
+function e6Hand(x, y, skin) { uDisc(x, y, 1.45, skin); }
+
+// the RPG-7 along +x from the venturi flare at -11 to the warhead's tip at 15.5
+function e6Rpg() {
+  uPoly([-11.4, -1.9, -8.6, -1, -8.6, 1, -11.4, 1.9], E6.gun);          // flared venturi
+  uPoly([-8.8, -1, 7.2, -1, 7.2, 1, -8.8, 1], "#5d4a2e");
+  uFlatSeg(-8.4, -0.5, 6.8, -0.5, 0.45, "#8a7048");
+  uPoly([-2.8, -1.3, 1.6, -1.3, 1.6, 1.3, -2.8, 1.3], E6.wood);           // the wooden heat guard
+  uPoly([0.8, 0.9, 2, 0.9, 1.6, 3.4, 0.4, 3.2], E6.dark);                 // pistol grip
+  uPoly([2.4, -1.6, 3.6, -1.6, 3.6, -3, 2.4, -3], E6.dark);               // sight
+  // the warhead: a cone on a bulb
+  uc.beginPath();
+  uc.moveTo(7.2, -1);
+  uc.lineTo(9, -2.4);
+  uc.quadraticCurveTo(12, -2.6, 12.4, -1.4);
+  uc.lineTo(15.6, 0);
+  uc.lineTo(12.4, 1.4);
+  uc.quadraticCurveTo(12, 2.6, 9, 2.4);
+  uc.lineTo(7.2, 1);
+  uc.closePath();
+  uInk("#55603e");
+  uFlatLine([9.2, -1.8, 12, -1.6], "#8a9466", 0.6);
+}
+
+// what hangs on the back: an assault pack, or a carrier of two spare rockets
+function e6Back(kit) {
+  if (kit.back === "pack") {
+    uPoly([-8.2, -16.4, -4.4, -17, -4.2, -9.4, -7.8, -9.8], "#5a5638");
+    uFlatPoly([-7.8, -15.8, -5.4, -16.2, -5.4, -13.6, -7.6, -13.4], "#6e6a48");
+    uFlatSeg(-8, -12.4, -4.6, -12.6, 0.5, "#3a3824");
+  } else if (kit.back === "rockets") {
+    for (const dx of [0, 1.8]) {
+      uc.save();
+      uc.translate(-6.2 + dx, -13 - dx * 0.4);
+      uc.rotate(-1.35);
+      uc.scale(0.55, 0.55);
+      e6Rpg();
+      uc.restore();
+    }
+  }
+}
+
+// the soldier in profile, facing +x
+function e6Soldier(kit, pal, walk) {
+  const skin = kit.skin;
+  const sway = walk * 0.7;
+  const tip = kit.lean || 0.085;
+  const lean = () => { uc.translate(0, -9); uc.rotate(tip); uc.translate(0, 9); };
+  uc.save(); lean(); e6Back(kit); uc.restore();
+  unitPaintLeg(0.5, unitPhase + Math.PI, kit, true);
+  unitPaintLeg(-0.5, unitPhase, kit, false);
+  uc.save();
+  lean();
+  unitPaintTunic(kit, pal, sway, 0.4, false);
+  e6Vest(kit);
+  const w = kit.weapon;
+  const hx = kit.hunch ? 1.9 : 0.8, hy = kit.hunch ? -19.6 : -20.8;
+  if (w === "rpg") {
+    // carried on the near shoulder, the warhead forward and up, the tube under the jaw
+    const ang = -0.42, sx = -1.2, sy = -16.6;
+    const g0 = e6At(sx, sy, ang, 4, 3.2), gx0 = g0[0], gy0 = g0[1];
+    const g1 = e6At(sx, sy, ang, 8.4, 1.6), gx1 = g1[0], gy1 = g1[1];
+    uLine([3, -15, 4.6, -14.2, gx1, gy1], pal.base, 2.5);
+    uc.save(); uc.translate(sx, sy); uc.rotate(ang); e6Rpg(); uc.restore();
+    e6Hand(gx1, gy1, skin);
+    uc.save(); uc.translate(hx, hy); unitPaintHead(kit, pal); e6Helmet(kit); uc.restore();
+    uLine([-3.2, -15, -0.6, -12.6, gx0, gy0], pal.lit, 2.5);
+    e6Hand(gx0, gy0, skin);
+  } else {
+    uc.save(); uc.translate(hx, hy); unitPaintHead(kit, pal); e6Helmet(kit); uc.restore();
+    // levelled at the shoulder on the run, or held across the chest at the port on the march
+    const port = w === "port";
+    const gx = port ? 3.4 : 6.6, gy = port ? -11.4 : -14.2, ang = port ? -1.0 : -0.1 - walk * 0.03;
+    const fore = e6At(gx, gy, ang, w === "aksu" ? 5.6 : 7.6, 0.9), fx = fore[0], fy = fore[1];
+    uLine(port ? [3, -15, 4.4, -13.4, fx, fy] : [3, -15, 8.6, -12.4, fx, fy], pal.base, 2.5);
+    e6Hand(fx, fy, skin);
+    uc.save(); uc.translate(gx, gy); uc.rotate(ang); e6Rifle(w, kit.optic); uc.restore();
+    const grip = e6At(gx, gy, ang, 0.5, 1.8), tx = grip[0], ty = grip[1];
+    uLine([-3.2, -15, port ? -0.6 : 0.6, -10.6, tx, ty], pal.lit, 2.5);
+    e6Hand(tx, ty, skin);
+  }
+  uc.restore();
+}
+
+// the same soldier marching straight at the eye or away from it; sun on the left
+function e6SoldierEnd(kit, pal, walk, front) {
+  const skin = kit.skin, sway = walk * 0.5;
+  const headY = kit.hunch ? -19.4 : -20.8;
+  const lead = Math.sin(unitPhase) > 0;
+  if (lead === front) { unitPaintLegEnd(1, unitPhase + Math.PI, kit, front); unitPaintLegEnd(-1, unitPhase, kit, front); }
+  else { unitPaintLegEnd(-1, unitPhase, kit, front); unitPaintLegEnd(1, unitPhase + Math.PI, kit, front); }
+  unitPaintTunic(kit, pal, sway, 0, !front);
+  e6Vest(kit, front, !front);
+  if (!front) {
+    if (kit.back === "pack") {
+      uPoly([-4, -17.4, 4, -17.4, 4.4, -9.4, -4.4, -9.4], "#5a5638");
+      uFlatPoly([-3.6, -17, 3.6, -17, 3.8, -14.4, -3.8, -14.4], "#6e6a48");
+      uFlatSeg(-3.8, -12.2, 3.8, -12.2, 0.5, "#3a3824");
+    } else if (kit.back === "rockets") {
+      for (const x of [-2.2, 2.2]) {
+        uPoly([x - 1.5, -19.6, x + 1.5, -19.6, x + 1.5, -9.6, x - 1.5, -9.6], "#5d4a2e");
+        uDisc(x, -20.4, 1.9, "#55603e");
+      }
+    }
+  }
+  uc.save(); uc.translate(0, headY); unitPaintHeadEnd(kit, pal, front); e6HelmetEnd(kit, front); uc.restore();
+  const w = kit.weapon;
+  if (w === "rpg") {
+    // on the shoulder, seen end-on: the warhead toward the eye, or the flared venturi going away
+    const sx = front ? -5.4 : 5.4;
+    uLine([front ? -5 : 5, -15, sx * 1.15, -13.2, sx * 0.7, -16.2], pal.lit, 2.5);
+    if (front) {
+      uDisc(sx, -18.2, 3, "#55603e");
+      uFlatDisc(sx - 0.8, -19, 1, "#8a9466");
+      uFlatDisc(sx, -18.2, 0.8, E6.dark);
+    } else {
+      uDisc(sx, -18.2, 2.6, E6.gun);
+      uFlatDisc(sx, -18.2, 1.6, E6.dark);
+    }
+    e6Hand(sx * 0.7, -16.2, skin);
+    uLine([front ? 5 : -5, -15, front ? 6.2 : -6.2, -11.6, front ? 5.6 : -5.6, -9 - walk], pal.base, 2.5);
+    e6Hand(front ? 5.6 : -5.6, -8.8 - walk, skin);
+    return;
+  }
+  if (front) {
+    // at the port across the chest, muzzle up to the left
+    const gx = 2.4, gy = -10.8, ang = -2.2;
+    uc.save(); uc.translate(gx, gy); uc.rotate(ang); uc.scale(1, -1); e6Rifle(w, kit.optic); uc.restore();
+    const g = e6At(gx, gy, ang, 0.5, -1.8), tx = g[0], ty = g[1];
+    uLine([5, -15, 6.2, -12, tx, ty], pal.base, 2.5);
+    e6Hand(tx, ty, skin);
+    const f = e6At(gx, gy, ang, 7.4, -0.9), fx = f[0], fy = f[1];
+    uLine([-5, -15, -5.8, -12.6, fx, fy], pal.lit, 2.5);
+    e6Hand(fx, fy, skin);
+  } else {
+    // slung across the back, muzzle over the right shoulder
+    uc.save(); uc.translate(-1.6, -9.6); uc.rotate(-0.95); e6Rifle(w, false); uc.restore();
+    for (const s of [-1, 1]) {
+      const hy = -9 + s * walk * 1.2;
+      uLine([s * 5, -15, s * 6.3, -11.6, s * 6, hy], s < 0 ? pal.lit : pal.base, 2.5);
+      e6Hand(s * 6, hy + 0.2, skin);
+    }
+  }
+}
+
+// ---- tracked armour --------------------------------------------------------------------------
+
+// T-72: six big road wheels under rubber skirts, the cast dome turret, the long 125 mm gun with
+// its thermal sleeve and fume extractor, the IR lamp beside it, the fuel drums on the rear plate
+function e6T72(P) {
+  e6Exhaust(-26, -12);
+  e6Track(-24, 22, -9.6, P);
+  for (let i = 0; i < 6; i++) e6Wheel(-17.6 + i * 6.6, -4.3, 3.3, P);
+  e6Sprocket(-21.6, -6.6, 2.5, P);
+  e6Sprocket(19.8, -6.8, 2.3, P);
+  // hull: low rear plate, a long deck, the steep glacis
+  uPoly([-25.4, -8.6, -25.4, -16, 10.6, -16.4, 25.6, -11, 24, -8.4], P.base);
+  uFlatPoly([-25, -15.8, 10.6, -16.1, 11.4, -15, -25, -14.6], P.lit);
+  uFlatPoly([11, -16.2, 25.2, -11, 24.6, -10.2, 11.6, -15], shade(P.base, 18));
+  uFlatLine([14, -15, 22, -11.6], P.line, 0.5);                           // the splash board
+  // the rubber skirts over the top of the wheels
+  uPoly([-24.4, -10.6, 22.4, -10.6, 22, -7.4, -24, -7.4], P.shade);
+  uc.lineWidth = 0.5; uc.strokeStyle = P.deep;
+  for (let x = -17; x < 22; x += 7.4) { uc.beginPath(); uc.moveTo(x, -10.4); uc.lineTo(x, -7.6); uc.stroke(); }
+  // fuel drums on the rear plate, seen end-on
+  uDisc(-25.4, -17, 2.7, P.shade);
+  uc.beginPath(); uc.arc(-25.4, -17, 1.8, 0, Math.PI * 2); uc.lineWidth = 0.5; uc.strokeStyle = P.deep; uc.stroke();
+  uFlatDisc(-26.2, -17.8, 0.7, P.lit);
+  // stowage box and snorkel tube on the turret rear
+  uPoly([-14.6, -20.6, -9.6, -21.2, -9.6, -16.4, -14.6, -16.2], P.shade);
+  // the turret: a low cast dome
+  uc.beginPath();
+  uc.moveTo(-11.6, -16.2);
+  uc.quadraticCurveTo(-11.8, -22.8, -3.6, -23.8);
+  uc.quadraticCurveTo(6.6, -24.4, 11, -18.8);
+  uc.lineTo(11.2, -16.2);
+  uc.closePath();
+  uInk(P.base);
+  uFlatPoly([-10.4, -17.4, -10.2, -21.6, -3.6, -23, 2, -23, -3.4, -21.4, -8.6, -17.6], P.lit);
+  uFlatPoly([-11, -17.2, 11, -17.2, 11.1, -16.4, -11.4, -16.4], P.shade);
+  // cupola with the AA machine gun, the IR lamp by the gun
+  uPoly([-6.6, -23.4, -6, -25.8, -1.2, -25.8, -0.6, -23.6], P.shade);
+  uSeg(-3.4, -27.4, 6.2, -27.8, 0.6, E6.gun);
+  uFlatSeg(-3, -25.8, -3, -27.4, 0.7, E6.gun);
+  uPoly([4.4, -25.2, 8.4, -25.2, 8.4, -22.4, 4.4, -22.4], P.shade);
+  uFlatPoly([8, -24.8, 8.8, -24.8, 8.8, -22.8, 8, -22.8], E6.glass);
+  // the gun
+  uDisc(10.6, -19.8, 2.2, P.shade);
+  e6Barrel(11, -20, 41, 1.9, P, [[16.6, 17.6], [22.4, 26.2], [31, 32]], 1.2);
+}
+function e6T72End(P, front) {
+  e6TrackEnd(-13.4, 5.6, -9.8);
+  e6TrackEnd(13.4, 5.6, -9.8);
+  if (!front) e6Exhaust(-12, -14);
+  // the hull face between the tracks, its deck and fenders
+  uPoly([-10.6, -1.2, 10.6, -1.2, 11.8, -12, -11.8, -12], P.base);
+  uFlatPoly([-10.4, -1.6, -3.4, -1.6, -3.8, -11.6, -11.4, -11.6], P.lit);
+  uPoly([-16.6, -10.4, 16.6, -10.4, 16.6, -13.4, -16.6, -13.4], P.shade);
+  uFlatSeg(-16.2, -13, 16.2, -13, 0.6, P.lit);
+  if (front) {
+    uFlatLine([-9, -10.6, 0, -5, 9, -10.6], P.line, 0.6);                  // V of the splash board
+    uFlatDisc(-12.6, -14.6, 0.9, E6.lamp); uFlatDisc(12.6, -14.6, 0.9, E6.lamp);
+  } else {
+    // the two fuel drums lying across the rear plate
+    for (const x of [-6.2, 6.2]) {
+      uPoly([x - 5.4, -14, x + 5.4, -14, x + 5.4, -9, x - 5.4, -9], P.shade);
+      uFlatSeg(x - 5, -13.2, x + 5, -13.2, 0.6, P.lit);
+      uFlatSeg(x - 2, -14, x - 2, -9, 0.45, P.deep);
+      uFlatSeg(x + 2, -14, x + 2, -9, 0.45, P.deep);
+    }
+  }
+  // the turret dome
+  uc.beginPath();
+  uc.moveTo(-11, -13.2);
+  uc.quadraticCurveTo(-11.4, -23.2, 0, -23.6);
+  uc.quadraticCurveTo(11.4, -23.2, 11, -13.2);
+  uc.closePath();
+  uInk(P.base);
+  uFlatPoly([-10, -14, -9.6, -20.4, -3.4, -22.8, -5.6, -18.6, -6.6, -14], P.lit);
+  uFlatPoly([5.6, -14, 6.4, -19.4, 10.4, -18, 10.4, -14], P.shade);
+  uPoly([-6.4, -22.6, -5.8, -25.8, -1.6, -25.8, -1, -22.6], P.shade);
+  uSeg(-3.6, -26.4, -3.6, -28, 0.6, E6.gun);
+  if (front) {
+    uPoly([4.4, -22.2, 8.4, -22.2, 8.4, -19, 4.4, -19], P.shade);
+    uFlatDisc(6.4, -20.6, 1.2, E6.glass);
+    uDisc(0, -18.4, 2.8, P.shade);
+    uDisc(0, -18.4, 1.9, P.base);
+    uFlatDisc(0, -18.4, 1.2, E6.dark);
+  } else {
+    uPoly([-6, -17.6, 6, -17.6, 6, -14, -6, -14], P.shade);                // stowage bin
+  }
+}
+
+// 2S1: seven open road wheels, a boxy turret set back, the 122 mm howitzer with its double brake
+function e6Sph(P) {
+  e6Exhaust(-24, -12);
+  e6Track(-22.6, 21, -9, P);
+  for (let i = 0; i < 7; i++) e6Wheel(-17.4 + i * 5.6, -3.9, 3, P);
+  e6Sprocket(19.2, -6.4, 2.3, P);
+  uPoly([-23.8, -8.2, -23.8, -14.6, 9.6, -14.8, 23, -11, 22.6, -8.2], P.base);
+  uFlatPoly([-23.4, -14.4, 9.6, -14.5, 10.6, -13.4, -23.4, -13.2], P.lit);
+  uFlatPoly([10, -14.6, 22.8, -11, 22.2, -10.2, 10.6, -13.4], shade(P.base, 18));
+  uPoly([-21, -12.4, -14.6, -12.4, -14.6, -9.6, -21, -9.6], P.shade);        // stowage bins on the fender
+  uPoly([0, -12.4, 6, -12.4, 6, -9.6, 0, -9.6], P.shade);
+  uFlatLine([-24, -8.4, 22.6, -8.4], P.deep, 0.8);
+  // turret
+  uPoly([-17, -14.6, -16.2, -22.4, -2.4, -23.2, 4.4, -19.4, 5.2, -14.6], P.base);
+  uFlatPoly([-16, -15.6, -15.4, -21.6, -2.6, -22.4, -3.6, -21.2, -14, -20.6, -14.4, -15.6], P.lit);
+  uFlatPoly([-16.6, -15.6, 5, -15.6, 5.1, -14.8, -16.8, -14.8], P.shade);
+  uPoly([-11.6, -23, -11, -25, -6.4, -25, -5.8, -23.2], P.shade);
+  uSeg(-12.4, -23, -14.4, -30.4, 0.35, E6.gun);                               // whip antenna
+  // the howitzer: bore evacuator, double-baffle brake
+  uDisc(4.2, -18.6, 2.3, P.shade);
+  e6Barrel(4.6, -18.8, 37.6, 1.7, P, [[18.6, 22.4]], 0);
+  uPoly([34.4, -20.4, 38.6, -20.4, 38.6, -17.2, 34.4, -17.2], E6.gun);
+  uFlatSeg(36.5, -20.2, 36.5, -17.4, 0.6, P.deep);
+}
+function e6SphEnd(P, front) {
+  e6TrackEnd(-12.8, 5.2, -9.2);
+  e6TrackEnd(12.8, 5.2, -9.2);
+  if (!front) e6Exhaust(-11, -14);
+  uPoly([-10.2, -1.2, 10.2, -1.2, 11.4, -11.4, -11.4, -11.4], P.base);
+  uFlatPoly([-10, -1.6, -3.2, -1.6, -3.6, -11, -11, -11], P.lit);
+  uPoly([-15.8, -10, 15.8, -10, 15.8, -12.6, -15.8, -12.6], P.shade);
+  uFlatSeg(-15.4, -12.2, 15.4, -12.2, 0.6, P.lit);
+  uPoly([-10.4, -12.6, -9.8, -21.6, 9.8, -21.6, 10.4, -12.6], P.base);
+  uFlatPoly([-10, -13, -9.4, -21, -4, -21, -4.4, -13], P.lit);
+  uFlatPoly([5, -13, 5.4, -21, 9.6, -21, 10, -13], P.shade);
+  uPoly([-6.6, -21.6, -6, -23.6, -2, -23.6, -1.4, -21.6], P.shade);
+  if (front) {
+    uFlatDisc(-12.4, -13.8, 0.9, E6.lamp); uFlatDisc(12.4, -13.8, 0.9, E6.lamp);
+    uPoly([-2.6, -19.6, 2.6, -19.6, 2.6, -15.4, -2.6, -15.4], E6.gun);       // the muzzle brake face
+    uFlatDisc(0, -17.5, 1.1, E6.dark);
+  } else {
+    uPoly([-3, -11.6, 3, -11.6, 3, -2.4, -3, -2.4], P.shade);                  // the rear door
+    uFlatDisc(1.6, -7, 0.5, P.deep);
+  }
+}
+
+// BMP-2: the ribbed knife nose, six small wheels, a little turret with the long 30 mm gun and the
+// Konkurs launcher on its roof
+function e6Bmp2(P) {
+  e6Exhaust(-22, -11);
+  e6Track(-20.6, 19, -8.4, P);
+  for (let i = 0; i < 6; i++) e6Wheel(-15.8 + i * 6.3, -3.6, 2.9, P);
+  e6Sprocket(17.6, -5.8, 2.1, P);
+  uPoly([-22, -7.6, -22, -14.4, 4.4, -14.8, 24.2, -9.2, 20.6, -6.4], P.base);
+  uFlatPoly([-21.6, -14.1, 4.4, -14.4, 5.6, -13.2, -21.6, -13], P.lit);
+  uFlatPoly([4.6, -14.6, 23.6, -9.4, 22.8, -8.6, 5.6, -13.2], shade(P.base, 20));
+  uc.lineWidth = 0.5; uc.strokeStyle = P.line;
+  for (const t of [0.25, 0.42, 0.59, 0.76]) {                                // the ribbed glacis
+    const x = 4.6 + 19 * t, y = -14.6 + 5.2 * t;
+    uc.beginPath(); uc.moveTo(x - 0.4, y - 0.1); uc.lineTo(x + 0.8, y + 1.8); uc.stroke();
+  }
+  uFlatLine([-22, -8.6, 20.8, -8.6], P.deep, 0.8);                            // fender edge
+  for (const x of [-15, -10.6, -6.2]) uFlatDisc(x, -11.4, 0.6, P.deep);       // firing ports
+  // turret
+  uPoly([-7.4, -14.6, -6.2, -19.2, 1.6, -20, 5.4, -17.4, 5.8, -14.6], P.base);
+  uFlatPoly([-6.4, -15.4, -5.6, -18.6, 1.4, -19.2, 0.6, -18, -4.6, -17.6, -5.2, -15.4], P.lit);
+  for (const x of [-4.6, -3.2, -1.8]) uFlatDisc(x, -16, 0.55, P.deep);       // smoke dischargers
+  uSeg(-3.4, -21.8, 6.2, -22.6, 1.6, P.shade);                                // the launch tube
+  uFlatSeg(-3.2, -22.2, 6, -23, 0.5, P.lit);
+  uFlatSeg(1.2, -20, 1.2, -21.6, 0.8, E6.gun);
+  // the 30 mm gun, a little raised
+  uDisc(5.4, -17.6, 1.5, P.shade);
+  e6Barrel(5.6, -17.8, 31, 0.95, { base: E6.gun, lit: E6.gunLit, shade: E6.dark }, [[17, 19.6]], 1.6);
+}
+function e6Bmp2End(P, front) {
+  e6TrackEnd(-12, 5, -8.6);
+  e6TrackEnd(12, 5, -8.6);
+  if (!front) e6Exhaust(-10, -13);
+  uPoly([-15.4, -8.6, 15.4, -8.6, 15.4, -11, -15.4, -11], P.shade);
+  if (front) {
+    // the knife nose comes at the eye: a wedge narrowing to the waterline
+    uPoly([-10.2, -12.6, 10.2, -12.6, 9.6, -6, 0, -2.4, -9.6, -6], P.base);
+    uFlatPoly([-9.8, -12.2, -1, -12.2, -0.8, -3, -9.2, -6.2], P.lit);
+    uFlatDisc(-9, -12.8, 0.8, E6.lamp); uFlatDisc(9, -12.8, 0.8, E6.lamp);
+  } else {
+    uPoly([-10.4, -13, 10.4, -13, 10.4, -1.6, -10.4, -1.6], P.base);
+    for (const x of [-5.2, 5.2]) {                                          // the two rear doors
+      uPoly([x - 4, -12, x + 4, -12, x + 4, -2.6, x - 4, -2.6], x < 0 ? P.lit : P.shade);
+      uFlatDisc(x + (x < 0 ? 2.6 : -2.6), -7, 0.5, P.deep);
+    }
+  }
+  uFlatSeg(-15, -10.8, 15, -10.8, 0.6, P.lit);
+  uPoly([-6.6, -12.8, -5.6, -18.6, 5.6, -18.6, 6.6, -12.8], P.base);
+  uFlatPoly([-6.2, -13.2, -5.2, -18.2, -1.6, -18.2, -2, -13.2], P.lit);
+  uPoly([-5.4, -20, 5.4, -20, 5.4, -18.6, -5.4, -18.6], P.shade);            // launch tube across
+  if (front) { uFlatDisc(3.6, -19.3, 0.7, E6.dark); uDisc(1.4, -15.8, 1.1, E6.gun); uFlatDisc(1.4, -15.8, 0.5, E6.dark); }
+}
+
+// BMP-3: a high engine deck at the back, the turret near the middle with the 100 mm gun and the
+// 30 mm gun beside it, side skirts, a trim vane folded on the low nose
+function e6Bmp3(P) {
+  e6Exhaust(-23, -14);
+  e6Track(-21.4, 19.6, -8.8, P);
+  for (let i = 0; i < 6; i++) e6Wheel(-16.2 + i * 6.4, -3.8, 3, P);
+  e6Sprocket(18.2, -6, 2.2, P);
+  uPoly([-23, -8, -23, -17.4, -5, -17.8, 3, -16.2, 22.4, -12.6, 24.6, -9.6, 21.4, -7], P.base);
+  uFlatPoly([-22.6, -17.1, -5.2, -17.5, -4.4, -16.3, -22.6, -16], P.lit);
+  uFlatPoly([3, -16.2, 22.2, -12.6, 22, -11.6, 3.6, -15], shade(P.base, 20));
+  uPoly([13, -13.6, 21.2, -12.2, 21.6, -10.8, 13.2, -12.2], P.shade);          // the trim vane
+  uPoly([-22.2, -10.2, 20.6, -10.2, 20.2, -7.4, -22, -7.4], P.shade);          // skirts
+  uc.lineWidth = 0.5; uc.strokeStyle = P.deep;
+  for (let x = -15; x < 20; x += 7) { uc.beginPath(); uc.moveTo(x, -10); uc.lineTo(x, -7.6); uc.stroke(); }
+  // turret
+  uPoly([-3.6, -16.8, -2.6, -21.4, 7.4, -22.2, 11.4, -19, 12, -16.4], P.base);
+  uFlatPoly([-2.8, -17.6, -2, -20.8, 7, -21.4, 5.6, -20, -0.8, -19.6, -1.2, -17.6], P.lit);
+  uPoly([-1.6, -22, -1, -23.8, 3, -23.8, 3.6, -22], P.shade);
+  uSeg(-2.6, -21.8, -4.2, -29.4, 0.35, E6.gun);
+  // the 30 mm gun beside and above the 100 mm
+  e6Barrel(10.6, -21, 31, 0.8, { base: E6.gun, lit: E6.gunLit, shade: E6.dark }, [], 1.2);
+  uDisc(11.2, -19, 2.1, P.shade);
+  e6Barrel(11.6, -19, 27.2, 2.3, P, [[16, 17]], 0);
+  uFlatDisc(27.2, -19, 0.8, E6.dark);
+}
+function e6Bmp3End(P, front) {
+  e6TrackEnd(-12.4, 5, -9);
+  e6TrackEnd(12.4, 5, -9);
+  if (!front) e6Exhaust(-10, -16);
+  uPoly([-15.8, -8.2, 15.8, -8.2, 15.8, -11, -15.8, -11], P.shade);
+  if (front) {
+    uPoly([-10.6, -12.6, 10.6, -12.6, 10.6, -3, -10.6, -3], P.base);
+    uFlatPoly([-10.2, -12.2, -3, -12.2, -3, -3.4, -10.2, -3.4], P.lit);
+    uPoly([-9.6, -9.6, 9.6, -9.6, 9.6, -7, -9.6, -7], P.shade);                 // the vane folded on the nose
+    uFlatDisc(-9, -11.4, 0.8, E6.lamp); uFlatDisc(9, -11.4, 0.8, E6.lamp);
+  } else {
+    uPoly([-10.6, -16.6, 10.6, -16.6, 10.6, -1.8, -10.6, -1.8], P.base);
+    uFlatPoly([-10.2, -16.2, -3, -16.2, -3, -2.2, -10.2, -2.2], P.lit);
+    for (const x of [-4.8, 4.8]) uPoly([x - 3.6, -10.6, x + 3.6, -10.6, x + 3.6, -2.6, x - 3.6, -2.6], P.shade);
+  }
+  uFlatSeg(-15.4, -10.8, 15.4, -10.8, 0.6, P.lit);
+  uPoly([-7.6, front ? -12.6 : -16.6, -6.6, -21.2, 6.6, -21.2, 7.6, front ? -12.6 : -16.6], P.base);
+  uFlatPoly([-7.2, -13, -6.2, -20.8, -2.4, -20.8, -2.8, -13], P.lit);
+  if (front) {
+    uDisc(0, -16.6, 2.5, P.shade); uFlatDisc(0, -16.6, 1.4, E6.dark);
+    uDisc(4.2, -19, 1, E6.gun); uFlatDisc(4.2, -19, 0.45, E6.dark);
+  }
+}
+
+// ---- wheeled vehicles ------------------------------------------------------------------------
+
+// BRDM-2: a boat-shaped four-wheeler, armoured hatches over the windscreen, the little cone
+// turret with its heavy machine gun
+function e6Brdm(P) {
+  e6Exhaust(-20, -10);
+  uPoly([-19.4, -7.2, -20, -13.6, -11, -16.6, 3.6, -17, 12.4, -15.4, 20, -10.8, 18.4, -6.8], P.base);
+  uFlatPoly([-19.4, -13.4, -11, -16.2, 3.6, -16.6, 3.2, -15.2, -11, -14.8, -19, -12], P.lit);
+  uFlatLine([-19.6, -9.6, 19.2, -9.4], P.shade, 1);
+  // wheel arches, then the wheels
+  for (const x of [-10.6, 10.4]) {
+    uc.beginPath(); uc.ellipse(x, -5.2, 5.8, 5.2, 0, Math.PI, 0); uc.closePath(); uc.fillStyle = P.deep; uc.fill();
+  }
+  e6Wheel(-10.6, -4.6, 4.6, P, true);
+  e6Wheel(10.4, -4.6, 4.6, P, true);
+  // the windscreen with its armoured flaps raised
+  e6Glass([8.4, -16.2, 12, -15.2, 14.8, -12.2, 10.2, -12.6], true);
+  uPoly([7.6, -16.6, 12.8, -15.4, 13.2, -17.2, 8.4, -18.4], P.shade);
+  uFlatDisc(17.4, -11.4, 0.9, E6.lamp);
+  uFlatLine([-6, -14.8, -6, -10.6], P.line, 0.5);                            // side hatch
+  // the turret
+  uPoly([-7, -16.6, -5.8, -21.2, 1, -21.6, 3, -16.8], P.base);
+  uFlatPoly([-6.2, -17.2, -5.2, -20.6, -2, -20.8, -3, -17.2], P.lit);
+  e6Barrel(2.6, -19.4, 17.2, 0.9, { base: E6.gun, lit: E6.gunLit, shade: E6.dark }, [], 1);
+}
+function e6BrdmEnd(P, front) {
+  e6TyreEnd(-10.4, 4.6, 3.2);
+  e6TyreEnd(10.4, 4.6, 3.2);
+  if (!front) e6Exhaust(-8, -12);
+  uPoly([-11.4, -4.4, 11.4, -4.4, 12, -12, 8.4, -16.4, -8.4, -16.4, -12, -12], P.base);
+  uFlatPoly([-11, -4.8, -3.4, -4.8, -3.6, -16, -8, -16, -11.6, -12], P.lit);
+  uFlatPoly([4.4, -16, 8, -16, 11.6, -12, 11, -4.8, 4.4, -4.8], P.shade);
+  if (front) {
+    for (const x of [-4, 4]) e6Glass([x - 3.2, -15.4, x + 3.2, -15.4, x + 3.2, -12.4, x - 3.2, -12.4], x < 0);
+    uPoly([-7.6, -17.6, 7.6, -17.6, 7.2, -16, -7.2, -16], P.shade);
+    uFlatDisc(-9.4, -9, 0.9, E6.lamp); uFlatDisc(9.4, -9, 0.9, E6.lamp);
+  } else {
+    uFlatLine([-8, -12, 8, -12], P.line, 0.6);
+  }
+  uPoly([-4.6, -16.4, -3.6, -21.2, 3.6, -21.2, 4.6, -16.4], P.base);
+  uFlatPoly([-4.2, -16.8, -3.2, -20.8, -0.6, -20.8, -1, -16.8], P.lit);
+  if (front) { uDisc(0.6, -19, 1, E6.gun); uFlatDisc(0.6, -19, 0.45, E6.dark); }
+}
+
+// a light 4x4 armoured car: deep V hull, thick little windows, a gun ring on the roof. The
+// checkpoint patrol of 2023 has its gunner up in the ring and a whip aerial
+function e6ArmorCar(P, crewed) {
+  e6Exhaust(-21, -9);
+  uPoly([-19.6, -7.4, -20.2, -20.2, 5.6, -20.6, 12.4, -15.2, 20.8, -13.8, 21, -7.4], P.base);
+  uFlatPoly([-19.8, -19.8, 5.6, -20.2, 6.4, -19, -19.8, -18.6], P.lit);
+  uFlatPoly([12.4, -15.2, 20.6, -13.8, 20.6, -12.8, 12.6, -14.2], P.lit);
+  uFlatLine([-20, -10.2, 20.8, -10.2], P.shade, 1);
+  for (const x of [-11.4, 11.2]) {
+    uc.beginPath(); uc.ellipse(x, -5.8, 6.4, 5.8, 0, Math.PI, 0); uc.closePath(); uc.fillStyle = P.deep; uc.fill();
+  }
+  e6Wheel(-11.4, -5.2, 5.2, P, true);
+  e6Wheel(11.2, -5.2, 5.2, P, true);
+  e6Glass([6, -20, 11.6, -15.4, 9, -15.2, 5, -18.4], true);                   // windscreen
+  e6Glass([-6.4, -18.6, -1, -18.6, -1, -15, -6.4, -15], false);                // side windows
+  e6Glass([0.8, -18.6, 4.8, -18.6, 4.8, -15, 0.8, -15], false);
+  uFlatLine([-8, -19.6, -8, -10.8], P.line, 0.5);                            // door seams
+  uFlatLine([5.6, -15, 5.6, -10.8], P.line, 0.5);
+  uFlatDisc(19.6, -12.2, 0.9, E6.lamp);
+  // the gun ring and its machine gun
+  uPoly([-8.4, -20.4, -7.8, -23, -1.4, -23, -0.8, -20.4], P.shade);
+  if (crewed) {
+    // the patrol's gunner, helmeted, up to the chest in the ring; and a whip aerial
+    uSeg(-17.6, -20.2, -19.6, -33.2, 0.35, E6.gun);
+    const kit = E6_PATROL_KIT, pal = unitPalette("#56603c", "#c8c6a4");
+    uPoly([-7.4, -23, -6.8, -27.4, -1.6, -27.6, -1.2, -23], pal.base);
+    uFlatPoly([-7, -23.4, -6.6, -27, -5, -27.2, -5.2, -23.4], pal.lit);
+    uc.save(); uc.translate(-4.2, -30.8); uc.scale(0.82, 0.82); unitPaintHead(kit, pal); e6Helmet(kit); uc.restore();
+    uLine([-2.6, -26.4, 0.4, -24.6, 2.2, -24.4], pal.base, 2);
+    e6Hand(2.4, -24.4, kit.skin);
+  }
+  uPoly([-1.6, -25.6, 0.4, -25.6, 0.4, -22.6, -1.6, -22.6], E6.gun);
+  e6Barrel(0.2, -24.4, 11.4, 0.75, { base: E6.gun, lit: E6.gunLit, shade: E6.dark }, [], 0.8);
+}
+const E6_PATROL_KIT = { helm: "e6", hat: "ops", helmCol: "#4e5638", beard: "none", skin: "#d8a983" };
+function e6ArmorCarEnd(P, front, crewed) {
+  e6TyreEnd(-10.6, 5.2, 3.6);
+  e6TyreEnd(10.6, 5.2, 3.6);
+  if (!front) e6Exhaust(-8, -10);
+  uPoly([-11.8, -4.6, 11.8, -4.6, 12, -16, 10.4, -20.6, -10.4, -20.6, -12, -16], P.base);
+  uFlatPoly([-11.4, -5, -4, -5, -4, -20.2, -10.2, -20.2, -11.6, -16], P.lit);
+  uFlatPoly([5, -20.2, 10.2, -20.2, 11.6, -16, 11.4, -5, 5, -5], P.shade);
+  if (front) {
+    for (const x of [-4.6, 4.6]) e6Glass([x - 4, -19, x + 4, -19, x + 4.2, -14.6, x - 4.2, -14.6], x < 0);
+    uPoly([-11.6, -6.6, 11.6, -6.6, 11.6, -4.6, -11.6, -4.6], P.deep);         // bumper
+    uFlatDisc(-9.6, -10.4, 1, E6.lamp); uFlatDisc(9.6, -10.4, 1, E6.lamp);
+    uFlatLine([-6, -12.6, 6, -12.6], P.line, 0.5);
+  } else {
+    uPoly([-5, -18.6, 5, -18.6, 5, -6.4, -5, -6.4], P.shade);                  // the rear door
+    e6Glass([-2.6, -17.4, 2.6, -17.4, 2.6, -14.4, -2.6, -14.4], false);
+  }
+  uPoly([-4.6, -20.6, -4, -23, 4, -23, 4.6, -20.6], P.shade);
+  if (crewed) {
+    uSeg(-9, -20.6, -10.6, -33, 0.35, E6.gun);
+    const kit = E6_PATROL_KIT, pal = unitPalette("#56603c", "#c8c6a4");
+    uPoly([-3.6, -23, -3.2, -27.4, 3.2, -27.4, 3.6, -23], pal.base);
+    uc.save(); uc.translate(0, -30.6); uc.scale(0.82, 0.82); unitPaintHeadEnd(kit, pal, front); e6HelmetEnd(kit, front); uc.restore();
+  }
+  uPoly([1.6, -26, 4, -26, 4, -22.6, 1.6, -22.6], E6.gun);
+  if (front) uFlatDisc(2.8, -24.2, 0.5, E6.dark);
+}
+
+// ---- the commanders: formations and weapon systems -------------------------------------------
+
+// an Ural-375 truck: bonnet, cab, three axles. top() paints the load on the back: the Grad's
+// 40-tube pack stowed forward over the cab, or a canvas tilt
+function e6Ural(P, load) {
+  e6Exhaust(-24, -11);
+  uPoly([-25, -9.4, 22, -9.4, 22, -7, -25, -7], P.deep);                       // chassis
+  // the cab behind its long bonnet
+  uPoly([4, -8.6, 4, -21.4, 11.8, -21.4, 13.6, -15, 23.6, -14.2, 24.6, -8.6], P.base);
+  uFlatPoly([4.4, -21, 11.6, -21, 11.8, -20, 4.4, -20], P.lit);
+  uFlatPoly([13.6, -15, 23.4, -14.2, 23.4, -13.2, 13.8, -14], P.lit);
+  e6Glass([5.6, -20.2, 11, -20.2, 12.4, -15.6, 5.6, -15.6], true);
+  uFlatLine([4.4, -14.6, 12.6, -14.6], P.line, 0.5);
+  uc.lineWidth = 0.5; uc.strokeStyle = P.deep;
+  for (const x of [22.6, 23.4]) { uc.beginPath(); uc.moveTo(x, -13.4); uc.lineTo(x, -9.4); uc.stroke(); }  // grille
+  uFlatDisc(23.4, -12.4, 0.9, E6.lamp);
+  // fenders over the wheels
+  for (const x of [-17.2, -9.4, 15.6]) {
+    uc.beginPath(); uc.ellipse(x, -6.6, 5.2, 4.4, 0, Math.PI, 0); uc.closePath(); uc.fillStyle = P.deep; uc.fill();
+  }
+  uPoly([10.6, -11.6, 20.6, -11.6, 21.4, -9, 10, -9], P.shade);
+  e6Wheel(-17.2, -4.6, 4.6, P, true);
+  e6Wheel(-9.4, -4.6, 4.6, P, true);
+  e6Wheel(15.6, -4.6, 4.6, P, true);
+  if (load === "grad") {
+    // the turntable and cradle, then the pack of 40 tubes, four rows of ten
+    uPoly([-24, -9.4, 2.4, -9.4, 2.4, -12.4, -24, -12.4], P.shade);
+    uPoly([-15, -12.4, -6, -12.4, -7, -15.6, -14, -15.6], P.base);
+    uPoly([-25.6, -14.4, 6.4, -14.8, 6.4, -22.6, -25.6, -22.2], P.base);
+    uFlatPoly([-25.2, -21.8, 6, -22.2, 6, -21, -25.2, -20.6], P.lit);
+    uc.lineWidth = 0.55; uc.strokeStyle = P.line;
+    for (const y of [-20.4, -18.5, -16.6]) { uc.beginPath(); uc.moveTo(-25.2, y); uc.lineTo(6, y - 0.1); uc.stroke(); }
+    for (const x of [-18, -8, 2]) uPoly([x - 0.6, -22.8, x + 0.6, -22.8, x + 0.6, -14.2, x - 0.6, -14.2], P.shade);  // clamping bands
+    // the muzzles, a sliver of the pack's face
+    uPoly([6.4, -14.8, 8.2, -15.4, 8.2, -23.2, 6.4, -22.6], P.shade);
+    for (let r = 0; r < 4; r++) uFlatDisc(7.3, -21.8 + r * 1.9, 0.62, E6.dark);
+  } else {
+    // a canvas tilt over the load bed
+    uPoly([-24.6, -9.4, 2.6, -9.4, 2.6, -12.4, -24.6, -12.4], P.shade);
+    uc.beginPath();
+    uc.moveTo(-25, -12.2);
+    uc.lineTo(-25, -21.2);
+    uc.quadraticCurveTo(-24.6, -23.4, -21.6, -23.4);
+    uc.lineTo(0, -23.4);
+    uc.quadraticCurveTo(2.8, -23.4, 2.8, -21);
+    uc.lineTo(2.8, -12.2);
+    uc.closePath();
+    uInk(E6.canvas);
+    uFlatPoly([-24.4, -21.2, -21.6, -22.8, 0, -22.8, 1.4, -21.6, -24, -20.2], shade(E6.canvas, 26));
+    uc.lineWidth = 0.55; uc.strokeStyle = shade(E6.canvas, -36);
+    for (const x of [-18.6, -11.6, -4.6]) { uc.beginPath(); uc.moveTo(x, -22.6); uc.lineTo(x + 0.2, -12.8); uc.stroke(); }
+    for (let x = -23; x < 2; x += 3.2) uFlatDisc(x, -13.2, 0.4, shade(E6.canvas, -40));
+  }
+}
+// a second machine behind the first: further off, a little higher on the screen and hazed
+function e6Behind(x, y, s, paint) {
+  uc.save();
+  uc.translate(x, y);
+  uc.scale(s, s);
+  paint();
+  uc.restore();
+  uc.save();
+  uc.globalCompositeOperation = "source-atop";
+  uc.fillStyle = "rgba(170, 176, 170, .2)";
+  uc.fillRect(-80, -60, 160, 70);
+  uc.restore();
+}
+function e6GradBattery(P) {
+  e6Behind(-15.6, -6.6, 0.86, () => e6Ural(P, "grad"));
+  uc.save(); uc.translate(8, 0); e6Ural(P, "grad"); uc.restore();
+}
+function e6Blockade(Ptruck, Pcar) {
+  e6Behind(-18, -6.2, 0.88, () => e6ArmorCar(Pcar, false));
+  uc.save(); uc.translate(8, 0); e6Ural(Ptruck, "canvas"); uc.restore();
+}
+
+// ---- aircraft, from above and to the side ------------------------------------------------------
+
+// a spinning pusher propeller: a pale blurred disc seen edge-on with a blade showing through
+function e6Prop(x, y, r) {
+  uFlatOval(x, y, 0.9, r, 0, "rgba(220, 224, 226, .45)");
+  const a = unitPhase * 3;
+  uFlatSeg(x, y - Math.cos(a) * r, x, y + Math.cos(a) * r * 0.9, 0.7, "rgba(40, 40, 40, .7)");
+  uFlatDisc(x, y, 0.7, E6.dark);
+}
+// a wing seen from above: root edge from (lx, ly) to (tx, ty) at the leading edge, chord rc at the root, tc at the tip
+function e6Wing(lx, ly, tx, ty, rc, tc, fill, edge) {
+  uPoly([lx, ly, tx, ty, tx - tc, ty, lx - rc, ly], fill);
+  uFlatLine([lx, ly, tx, ty], edge, 0.8);
+}
+
+// Bayraktar TB2: long straight wings, slender body with a bulbous nose and the sensor ball under
+// it, twin booms back to an inverted V tail, a pusher propeller
+function e6TB2() {
+  const g = "#b7bdc2", lit = "#e4e8ea", dk = "#868d94", deep = "#5e656c";
+  const y0 = -36;
+  uc.save();
+  uc.translate(0, y0 + Math.sin(unitPhase) * 0.4);
+  // far wing and far boom
+  e6Wing(3.6, -1, 1.6, -12.6, 4.2, 2.4, dk, g);
+  uSeg(2, -2.6, -12.4, -2.4, 0.8, dk);
+  uPoly([-12.2, -2.4, -15, -3.4, -15.6, -2.8, -12.6, -1.6], dk);
+  // fuselage
+  uc.beginPath();
+  uc.moveTo(-8.6, -0.6);
+  uc.lineTo(7.4, -1.4);
+  uc.quadraticCurveTo(13.6, -1.4, 13.8, 0.4);
+  uc.quadraticCurveTo(13.4, 2, 7.4, 2);
+  uc.lineTo(-8.6, 1);
+  uc.closePath();
+  uInk(g);
+  uFlatPoly([-8, -0.4, 7.4, -1, 12.4, -0.8, 7.4, 0.2, -8, 0.2], lit);
+  uFlatPoly([-8, 0.8, 7.4, 1.7, 12.6, 1.4, 7.4, 1.2, -8, 0.4], dk);
+  uDisc(10.8, 2.8, 1.2, deep);                                                  // sensor ball
+  uFlatDisc(11.2, 2.9, 0.45, E6.glass);
+  e6Prop(-9.4, 0.2, 3.4);
+  // near boom and near wing, the near tail fin canted down and out
+  uSeg(2.4, 3.2, -12.4, 3.4, 0.9, g);
+  uPoly([-12.2, 3.4, -15.4, 5.6, -16, 5, -12.8, 2.6], g);
+  e6Wing(4.2, 1.4, 2.4, 14.6, 4.4, 2.4, g, lit);
+  uFlatLine([2, 2.6, 0.4, 14], dk, 0.5);
+  uc.restore();
+}
+
+// Harop: canards at the nose, a cranked delta wing at the tail with fins at its tips, a pusher
+// propeller; drawn with its centre at (x, y), facing +x, at scale s
+function e6Harop(x, y, s, dive) {
+  const g = "#6d7276", lit = "#9aa0a4", dk = "#4a4f53";
+  uc.save();
+  uc.translate(x, y);
+  uc.rotate(dive || 0);
+  uc.scale(s, s);
+  // far half: wing and canard
+  uPoly([-1.4, -0.8, -6.6, -6, -8.6, -6, -8.4, -0.8], dk);
+  uPoly([-6.8, -6, -7.8, -8.6, -8.6, -6], dk);                                  // tip fin, up
+  uPoly([5.6, -0.8, 4.2, -3.6, 3.4, -3.6, 3.6, -0.8], dk);
+  // body
+  uc.beginPath();
+  uc.moveTo(-8.8, -0.6);
+  uc.lineTo(5.6, -1);
+  uc.quadraticCurveTo(9.8, -0.6, 10, 0.4);
+  uc.quadraticCurveTo(9.8, 1.4, 5.6, 1.6);
+  uc.lineTo(-8.8, 1);
+  uc.closePath();
+  uInk(g);
+  uFlatPoly([-8.4, -0.4, 5.6, -0.7, 8.8, -0.2, 5.6, 0.2, -8.4, 0.2], lit);
+  uFlatDisc(8.4, 0.9, 0.6, E6.glass);
+  e6Prop(-9.6, 0.2, 2.6);
+  // near half
+  uPoly([5.8, 1.2, 4.2, 4.8, 3.2, 4.8, 3.6, 1.2], g);
+  uPoly([-1, 1, -6.6, 7, -8.8, 7, -8.6, 1], g);
+  uFlatLine([-1, 1, -6.6, 7], lit, 0.7);
+  uPoly([-6.8, 7, -7.8, 4.6, -8.8, 7], dk);                                     // tip fin, up from the near tip
+  uc.restore();
+}
+
+// Su-25: long pointed nose, the twin engines along the body, straight tapered wings with stores,
+// a tall fin; brown and green over pale blue
+function e6Su25() {
+  const brown = "#8a7650", green = "#5f6a40", blue = "#a6b6c2", dk = "#4e4430", lit = "#b8a576";
+  uc.save();
+  uc.translate(0, -36 + Math.sin(unitPhase) * 0.3);
+  // far wing and stabiliser
+  e6Wing(4.4, -2, -2.6, -9.4, 9.6, 3.6, shade(brown, -26), brown);
+  uPoly([-11, -1.6, -15.2, -4.6, -17, -4.4, -15.6, -1.4], shade(brown, -26));
+  // rocket pods hanging under the near wing, peeking out below it
+  for (const [x, y] of [[-0.4, 7.4], [1, 4.6]]) {
+    uPoly([x - 4.2, y - 0.9, x + 2.4, y - 0.9, x + 3.2, y, x + 2.4, y + 0.9, x - 4.2, y + 0.9], "#6c7268");
+    uFlatDisc(x + 3, y, 0.4, E6.dark);
+  }
+  // fuselage with the engine nacelles
+  uc.beginPath();
+  uc.moveTo(-16, -0.6);
+  uc.lineTo(-4, -2.4);
+  uc.lineTo(8, -1.8);
+  uc.quadraticCurveTo(15, -1.4, 19.6, 0.4);
+  uc.quadraticCurveTo(15, 2.4, 8, 2.6);
+  uc.lineTo(-4, 3);
+  uc.lineTo(-16, 1.4);
+  uc.closePath();
+  uInk(brown);
+  uFlatPoly([-15.4, 1, -4, 2.6, 8, 2.2, 14, 1.4, 8, 3, -4, 3.4, -15.4, 1.6], blue);   // pale belly
+  uFlatPoly([-9, -1.4, -2, -2.2, 2, -1.4, -3, -0.6], green);                    // camouflage patches
+  uFlatPoly([5, -1.4, 9.6, -1.4, 8.4, -0.4, 4.6, -0.6], green);
+  uFlatLine([-10, -1.2, 10, -1.6], lit, 0.6);
+  uPoly([7.4, -1.8, 9.2, -3.4, 12.6, -2.6, 13.4, -1.2], E6.glass);              // canopy
+  uFlatSeg(8.6, -2.6, 11.6, -2.4, 0.5, E6.glassLit);
+  uFlatSeg(19.4, 0.4, 22.2, 0.4, 0.4, E6.gun);                                    // pitot
+  uFlatDisc(-16.4, 0.4, 1.1, E6.dark);                                            // nozzle
+  // the tall fin, standing up off the tail
+  uPoly([-9.2, -1.6, -13.4, -9.8, -16.2, -9.6, -15.6, -1], brown);
+  uFlatLine([-9.4, -1.8, -13.6, -9.6], lit, 0.6);
+  // near stabiliser and wing
+  uPoly([-11, 1.4, -15, 5.2, -16.8, 5, -15.4, 1.4], brown);
+  e6Wing(5, 2.4, -2, 10.6, 9.8, 3.6, brown, lit);
+  uFlatPoly([0, 4.2, -2.4, 7.6, -5.6, 7.6, -3.2, 4], green);
+  uPoly([-2.4, 10.2, -1.2, 11.2, -5.8, 11.2, -6.4, 10.2], dk);                   // wingtip airbrake pod
+  uc.restore();
+}
+
+function e6HaropWave() {
+  const s = Math.sin(unitPhase) * 0.5;
+  e6Harop(-15, -46 + s, 0.95);
+  e6Harop(-12, -27 - s, 0.95);
+  e6Harop(9, -37 + s * 0.6, 1.1);
+}
+
+// ---- the painter and the look ------------------------------------------------------------------
+
+function e6Look(e, d, p) {
+  const kind = e6Kind(e, d);
+  if (E6_AIR[kind]) return E6_LOOKS[kind];
+  if (e.type === "boss") return E6_LOOKS[kind] || E6_LOOKS.gradBattery;
+  const end = unitView(p) !== "side";
+  if (E6_FOOT[kind]) return end ? UNIT_LOOKS.footEnd : UNIT_LOOKS.foot;
+  return end ? E6_LOOKS[kind + "End"] : E6_LOOKS[kind];
+}
+
+function e6PaintPose(e, p, d, dir) {
+  const kind = e6Kind(e, d);
+  const air = E6_AIR[kind], boss = e.type === "boss";
+  const view = air || boss ? "side" : unitView(p);
+  const side = view === "side";
+  uc.save();
+  if (side) unitFace(dir); else unitLit = 1;
+  if (E6_FOOT[kind]) {
+    const kit = e6KitFor(kind, e.type);
+    const pal = kit.uniform ? unitPalette(kit.uniform, kit.trim) : unitPalette(d.color, d.trim);
+    if (side) e6Soldier(kit, pal, Math.sin(unitPhase)); else e6SoldierEnd(kit, pal, Math.sin(unitPhase), view === "front");
+  } else if (kind === "t72") {
+    const P = e6Paint(E6_OLIVE);
+    if (side) e6T72(P); else e6T72End(P, view === "front");
+  } else if (kind === "sph") {
+    if (side) e6Sph(e6Paint(E6_OLIVE20)); else e6SphEnd(e6Paint(E6_OLIVE20), view === "front");
+  } else if (kind === "bmp2") {
+    if (side) e6Bmp2(e6Paint(E6_OLIVE)); else e6Bmp2End(e6Paint(E6_OLIVE), view === "front");
+  } else if (kind === "bmp3") {
+    if (side) e6Bmp3(e6Paint(E6_OLIVE20)); else e6Bmp3End(e6Paint(E6_OLIVE20), view === "front");
+  } else if (kind === "brdm") {
+    if (side) e6Brdm(e6Paint(E6_OLIVE)); else e6BrdmEnd(e6Paint(E6_OLIVE), view === "front");
+  } else if (kind === "armcar" || kind === "patrol") {
+    const P = e6Paint(kind === "patrol" ? E6_PATROL : E6_SAND);
+    if (side) e6ArmorCar(P, kind === "patrol"); else e6ArmorCarEnd(P, view === "front", kind === "patrol");
+  } else if (kind === "gradBattery") {
+    e6GradBattery(e6Paint(E6_OLIVE));
+  } else if (kind === "blockade") {
+    e6Blockade(e6Paint(E6_OLIVE20), e6Paint(E6_PATROL));
+  } else if (kind === "haropWave") {
+    e6HaropWave();
+  } else if (kind === "harop") {
+    e6Harop(0, -36 + Math.sin(unitPhase) * 0.4, 1);
+  } else if (kind === "su25") {
+    e6Su25();
+  } else {
+    e6TB2();
+  }
+  uc.restore();
+  return true;
+}
+
+// The fallen. A soldier lies on his back with his rifle beside him, at the live soldier's scale;
+// a knocked-out machine leaves only a scorch and a column of dark smoke, and a downed aircraft a
+// smaller one. Nothing more: no wreckage of bodies, no blood.
+function e6Fallen(c, x, y, k, a) {
+  const kind = e6KindOf(c.type, c.name, c.fly);
+  ctx.save();
+  ctx.translate(x, y + (1 - a) * 3 * k);
+  if (!E6_FOOT[kind]) {
+    const big = E6_AIR[kind] ? 0.6 : c.type === "boss" ? 1.6 : c.type === "ram" ? 1.3 : 1;
+    const rise = 1 - a;
+    ctx.scale(k * big, k * big);
+    ctx.globalAlpha = Math.pow(a, 0.7);
+    ctx.fillStyle = "rgba(30, 24, 18, .42)";
+    ctx.beginPath(); ctx.ellipse(0, 1, 15, 4.4, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const u = i / 4;
+      ctx.fillStyle = "rgba(" + (60 - i * 6) + ", " + (56 - i * 6) + ", " + (52 - i * 6) + ", " + (0.55 - u * 0.25).toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc((i % 2 ? 3 : -2) + rise * 4 * u, -4 - i * 6 - rise * 8, 4 + i * 1.6 + rise * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+  const kit = e6KitFor(kind, c.type);
+  const flip = Math.floor(c.x) % 2 ? 1 : -1;
+  const cloth = kit.uniform || c.color, lit = shade(cloth, 30), dim = shade(cloth, -30);
+  const m = ctx.getTransform();
+  const ink = Math.max(1.5, Math.min(3.2, 2.5 / Math.max(0.05, k * Math.hypot(m.a, m.b))));
+  ctx.scale(k * flip, k * (0.6 + 0.4 * a));
+  ctx.globalAlpha = Math.pow(a, 0.7);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const inked = fill => { ctx.lineWidth = ink; ctx.strokeStyle = UNIT_INK; ctx.stroke(); ctx.fillStyle = fill; ctx.fill(); };
+  const poly = (fill, pts) => {
+    ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+    ctx.closePath(); inked(fill);
+  };
+  const limb = (color, width, pts) => {
+    ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+    ctx.strokeStyle = UNIT_INK; ctx.lineWidth = width + ink; ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+  };
+  ctx.fillStyle = "rgba(22, 12, 4, .3)";
+  ctx.beginPath(); ctx.ellipse(0.5, 3.4, 19, 5.4, 0, 0, Math.PI * 2); ctx.fill();
+  // the rifle dropped beyond the body
+  limb(E6.stock, 2, [-12, -8.6, -5, -8.4]);
+  limb(E6.gun, 1.4, [-5, -8.4, 12, -7.6]);
+  poly(E6.mag, [-1.6, -7.8, 0.6, -7.8, 1.6, -4.6, -0.4, -4.2]);
+  // legs, the far one drawn up, boots
+  limb(dim, 3.2, [5.4, -1, 11, -5.6, 14.6, -1.6]);
+  limb("#26201c", 3.4, [14.8, -1.4, 16.6, 0]);
+  limb(kit.leg, 3.2, [5.6, 1.4, 12, 2.8, 17.2, 1.6]);
+  limb("#26201c", 3.4, [17.4, 1.6, 19.4, 0.6]);
+  limb(dim, 2.6, [-5.6, -3, -10.4, -7, -15, -6]);
+  ctx.beginPath(); ctx.arc(-15.6, -5.8, 1.4, 0, Math.PI * 2); inked(kit.skin);
+  // jacket under the plate carrier
+  poly(cloth, [-7.2, -4.2, 6.4, -4.8, 8, 3.8, -6.8, 3.6]);
+  poly(kit.vest, [-6, -4, 4, -4.4, 4.6, 3.2, -5.6, 3.2]);
+  ctx.fillStyle = shade(kit.vest, 24);
+  ctx.fillRect(-5.6, -3.8, 9.6, 1.6);
+  limb(lit, 2.6, [-4.8, 3, -1.8, 7, 3.2, 6.6]);
+  ctx.beginPath(); ctx.arc(4, 6.6, 1.4, 0, Math.PI * 2); inked(kit.skin);
+  // head on its side, eyes shut, the helmet still on
+  ctx.beginPath(); ctx.arc(-11, -0.6, 3.6, 0, Math.PI * 2); inked(kit.skin);
+  ctx.strokeStyle = UNIT_COLORS.eye; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.moveTo(-12.4, -1.6); ctx.lineTo(-11.2, -1.2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-11.6, -4.8);
+  ctx.quadraticCurveTo(-18.8, -4.6, -19, -0.6);
+  ctx.quadraticCurveTo(-18.8, 3.4, -11.6, 3.4);
+  ctx.closePath();
+  inked(kit.helmCol);
+  ctx.fillStyle = shade(kit.helmCol, 30);
+  ctx.beginPath(); ctx.ellipse(-16.2, -2, 2, 1.2, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+UNIT_ERA_ART[6] = { look: e6Look, paint: e6PaintPose, fallen: e6Fallen };
+// ====================================== END UNIT SECTION: era6 ======================================
+
 
 function drawHero(time) {
   const sp = proj(hero.x, hero.y);
