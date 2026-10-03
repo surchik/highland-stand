@@ -18351,12 +18351,494 @@ PROJ_ART.ball = (pr) => {
 // SKIN SECTION: hurlers. Urartu and 1579, catapult slot: a parapet of stone-hurlers
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Defenders heave boulders and sling stones down from a breastwork, as the Assyrian siege reliefs
+// show them doing from their walls. Urartu: a dressed-stone socle under mudbrick, bronze helmets and
+// the broad bronze belt; 1579: a wall of black tuff, villagers in dark coats and fur caps.
+// Variant 0: the stone is raised overhead, ready; variant 1: it has just been thrown.
+const HURL_DIM = {
+  // wall width, wall depth, wall-walk height, breastwork height
+  l: [{ w: 32, d: 11, h: 10, b: 5.5 }, { w: 36, d: 12.5, h: 15, b: 6.5 }, { w: 40, d: 14, h: 21, b: 0 }],
+  s: { w: 42, d: 14.5, h: 21, b: 0 },
+};
+function hurlDim(lvl, spec) { return spec ? HURL_DIM.s : HURL_DIM.l[lvl]; }
+
+// the stone each age has to hand: buff limestone and basalt under Urartu, black tuff in 1579
+function hurlStoneHex(late) { return late ? "#5f5a5d" : "#a59a86"; }
+function hurlStone(x, y, r, hex) {
+  const c = sctx;
+  inkDisc(x, y, r, r * 0.9, hex, Math.min(1, 0.5 + r * 0.14));
+  c.fillStyle = "rgba(255, 250, 235, .4)";
+  c.beginPath();
+  c.ellipse(x - r * 0.3, y - r * 0.34, r * 0.42, r * 0.28, -0.5, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = "rgba(30, 24, 18, .32)";
+  c.beginPath();
+  c.ellipse(x + r * 0.26, y + r * 0.34, r * 0.5, r * 0.28, -0.4, 0, Math.PI * 2);
+  c.fill();
+}
+// a great field boulder: lumpy, with a lit crown and a shaded underside
+function hurlBoulder(x, y, r, hex, seed) {
+  const c = sctx, rnd = mulberry32(seed || 5), pts = [];
+  for (let i = 0; i < 9; i++) {
+    const a = i / 9 * Math.PI * 2, rr = r * (0.84 + rnd() * 0.24);
+    pts.push(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.82);
+  }
+  polyPath(pts);
+  c.fillStyle = hex;
+  c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = "rgba(255, 248, 228, .3)";
+  c.beginPath();
+  c.ellipse(x - r * 0.3, y - r * 0.38, r * 0.6, r * 0.36, -0.4, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = "rgba(28, 20, 14, .36)";
+  c.beginPath();
+  c.ellipse(x + r * 0.34, y + r * 0.5, r * 0.85, r * 0.44, -0.3, 0, Math.PI * 2);
+  c.fill();
+  // a crack and a pit or two
+  c.strokeStyle = "rgba(40, 26, 14, .45)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.moveTo(x - r * 0.1, y - r * 0.7); c.lineTo(x + r * 0.08, y - r * 0.2); c.lineTo(x - r * 0.12, y + r * 0.2);
+  c.stroke();
+  c.restore();
+  polyPath(pts);
+  inkStroke(1.2);
+  if (structSnow) snowCap(x - r * 0.7, y - r * 0.66, r * 1.2, Math.max(0.9, r * 0.2));
+}
+// a heap of stones: rows of round stones, each row resting in the hollows of the one below
+function hurlPile(cx, gy, rows, r, hex, seed) {
+  const rnd = mulberry32(seed || 3);
+  fillBlobs("rgba(24, 14, 4, .3)", [[cx + 1.5, gy + 0.5, rows * r * 1.05, 1.7]]);
+  for (let i = 0; i < rows; i++) {
+    const n = rows - i;
+    for (let j = 0; j < n; j++) {
+      const rr = r * (0.86 + rnd() * 0.22);
+      hurlStone(cx + (j - (n - 1) / 2) * r * 1.84 + (rnd() - 0.5) * 0.6, gy - rr * 0.92 - i * r * 1.5, rr, hex);
+    }
+  }
+  if (structSnow) {
+    snowCap(cx - r * 0.8, gy - r * 1.7 - (rows - 1) * r * 1.5, r * 1.6, 1.1);
+    if (rows > 1) snowCap(cx - rows * r * 0.9, gy - r * 1.6, r * 1.4, 0.9);
+  }
+}
+// a wicker basket of sling stones
+function hurlBasket(x, y, w, h, hex) {
+  const c = sctx, tw = w * 1.12;
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1, y + 0.3, w * 0.62, 1.2]]);
+  inkPoly([x - w / 2, y, x + w / 2, y, x + tw / 2, y - h, x - tw / 2, y - h], "#a57c44", 0.9);
+  c.strokeStyle = "rgba(70, 44, 18, .7)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let i = 1; i < 4; i++) {
+    const yy = y - h * i / 4, half = (w + (tw - w) * i / 4) / 2;
+    c.moveTo(x - half, yy); c.lineTo(x + half, yy);
+  }
+  for (let sx = -2; sx <= 2; sx++) { c.moveTo(x + sx * w * 0.19, y); c.lineTo(x + sx * tw * 0.19, y - h); }
+  c.stroke();
+  c.fillStyle = "rgba(255, 236, 190, .25)";
+  c.fillRect(x - w / 2 + 0.4, y - h + 0.4, w * 0.24, h - 0.8);
+  // a heap of small stones shows over the rim
+  for (const s of [[-tw * 0.22, -0.3], [tw * 0.16, -0.2], [-0.2, -1.5]]) hurlStone(x + s[0], y - h + s[1], 1.4, hex);
+  inkDisc(x, y - h, tw / 2, 0.9, "#c79a5a", 0.7);
+}
+
+// one defender behind the breastwork: the inked, big-headed build of the garrison men.
+// Urartian: a short tunic, the broad bronze belt and a peaked bronze helmet; 1579: a long dark
+// coat and a fur cap. Poses: raise (a stone over the head), throw, sling, slung, carry, lever, pot
+function hurlMan(x, y, k, o) {
+  const c = sctx, T = o.coat, late = o.late, face = o.face || 1;
+  c.save();
+  c.translate(x, y);
+  c.scale(k * face, k);
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  for (const lx of [-1.8, 1.9]) {
+    c.beginPath();
+    c.moveTo(lx, -5); c.lineTo(lx * 1.1, -1.2);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = late ? "#2c2420" : "#5a3c22"; c.lineWidth = 2.1; c.stroke();
+  }
+  c.beginPath();
+  c.moveTo(-4.1, -11.6);
+  c.quadraticCurveTo(0, -13.4, 4.1, -11.6);
+  if (late) { c.lineTo(4.6, -2.8); c.lineTo(-4.4, -2.8); }   // the coat reaches the knee
+  else { c.lineTo(3.6, -4.4); c.lineTo(-3.6, -4.4); }
+  c.closePath();
+  c.fillStyle = T;
+  c.fill();
+  inkStroke(1.1);
+  c.fillStyle = "rgba(255, 240, 210, .26)";
+  c.fillRect(-3.1, -11.4, 2.1, late ? 7.8 : 6.2);
+  if (late) {
+    // the coat's front edge and a plain leather belt
+    c.strokeStyle = "rgba(14, 10, 8, .55)";
+    c.lineWidth = 0.6;
+    c.beginPath(); c.moveTo(1.4, -11.8); c.lineTo(1.8, -3); c.stroke();
+    c.fillStyle = "#5a3a22";
+    c.fillRect(-3.8, -7.2, 7.6, 1.2);
+  } else {
+    // the broad bronze belt the Urartian smiths were known for
+    inkRect(-3.7, -7.6, 7.4, 2, BRONZE, 0.5);
+    c.fillStyle = "rgba(255, 236, 170, .7)";
+    c.fillRect(-3.1, -7.3, 6.2, 0.45);
+  }
+  inkDisc(0.4, -15.2, 3, 3, "#e2b78c", 1);
+  // the Urartian's full beard; the villager's short beard and moustache
+  c.beginPath();
+  if (late) c.arc(0.6, -15, 2.3, 0.45, Math.PI - 0.35);
+  else c.arc(0.4, -15.2, 2.5, 0.2, Math.PI - 0.05);
+  c.closePath();
+  c.fillStyle = late ? "#4a3020" : "#3b2616";
+  c.fill();
+  if (late) {
+    c.fillStyle = "#3a2618";
+    c.fillRect(0.6, -14.4, 2.6, 0.8);
+  }
+  c.fillStyle = "#24170d";
+  c.fillRect(1.6, -16.5, 1, 1.2);
+  if (late) {
+    // a fur cap: a soft drum of sheepskin, its curls catching the light
+    c.beginPath();
+    c.moveTo(-2.9, -16);
+    c.lineTo(-3.1, -20.4);
+    c.quadraticCurveTo(0.4, -22.2, 3.9, -20.4);
+    c.lineTo(3.7, -16);
+    c.quadraticCurveTo(0.4, -16.9, -2.9, -16);
+    c.closePath();
+    c.fillStyle = o.cap || "#2c231e";
+    c.fill();
+    inkStroke(0.9);
+    c.fillStyle = "rgba(220, 200, 170, .28)";
+    for (const p of [[-1.8, -19.4], [0, -20.2], [1.8, -18.6], [-0.6, -17.6], [2.6, -20]]) c.fillRect(p[0], p[1], 0.8, 0.7);
+  } else {
+    // a peaked bronze helmet
+    c.beginPath();
+    c.moveTo(-2.9, -16.2);
+    c.quadraticCurveTo(-2.4, -19.2, 0.1, -22.6);
+    c.quadraticCurveTo(3.1, -19.4, 3.7, -16.2);
+    c.closePath();
+    c.fillStyle = o.cap || BRONZE;
+    c.fill();
+    inkStroke(0.9);
+    c.fillStyle = "rgba(255, 244, 214, .5)";
+    c.fillRect(-1.5, -19, 1, 2.4);
+    c.strokeStyle = "rgba(90, 58, 18, .8)";
+    c.lineWidth = 0.6;
+    c.beginPath(); c.moveTo(-2.8, -16.9); c.lineTo(3.6, -16.9); c.stroke();
+  }
+  const skin = "#e2b78c", sleeve = toneHex(T, 14);
+  // the Urartian tunic is short-sleeved: bare forearms; the villager's coat covers the arm to the wrist
+  const arm = pts => {
+    c.beginPath();
+    c.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+    c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = late ? sleeve : "#d9a57a"; c.lineWidth = 1.9; c.stroke();
+    if (!late) {
+      c.beginPath();
+      c.moveTo(pts[0], pts[1]);
+      c.lineTo(pts[0] + (pts[2] - pts[0]) * 0.6, pts[1] + (pts[3] - pts[1]) * 0.6);
+      c.strokeStyle = sleeve; c.lineWidth = 2.1; c.stroke();
+    }
+    inkDisc(pts[pts.length - 2], pts[pts.length - 1], 1.1, 1.1, skin, 0.6);
+  };
+  const r = o.r || 3.2, hex = o.stone || hurlStoneHex(late);
+  if (o.pose === "raise" || o.pose === "pot") {
+    // both arms straight up, the load held between the hands over the head
+    const ly = -23.4 - r * 0.7;
+    if (o.pose === "pot") {
+      catapultPayload(0.5, ly, r, "pot");
+      // the pitch in its mouth is already alight
+      inkPoly([-1.6, ly - r * 1.3, -2.2, ly - r * 2.1, -0.4, ly - r * 1.85, 0.6, ly - r * 2.9,
+        1.5, ly - r * 1.9, 2.9, ly - r * 2.2, 2.4, ly - r * 1.3], "#ff9438", 0.7);
+      inkPoly([-0.6, ly - r * 1.3, 0.6, ly - r * 2.2, 1.5, ly - r * 1.3], "#ffe7a0", 0);
+      structFit.torches.push(structPoint(0.5, ly - r * 1.3));
+    } else hurlStone(0.5, ly, r, hex);
+    arm([-2.8, -11, -3.8, -16.4, -0.3 - r * 0.85, ly + r * 0.2]);
+    arm([2.8, -11, 4.4, -16.4, 1.3 + r * 0.85, ly + r * 0.2]);
+    if (o.crown !== false) structCrown(y - (-ly + r * (o.pose === "pot" ? 3 : 1) + 1) * k);
+  } else if (o.pose === "throw") {
+    // just let go: both arms flung out over the breastwork
+    arm([-2.6, -10.8, 2.4, -13.6, 7, -15.2]);
+    arm([2.6, -11, 6.6, -13.2, 9.2, -14.2]);
+  } else if (o.pose === "sling" || o.pose === "slung") {
+    // left hand forward to aim; the right swings the sling over the head, or has just let it fly
+    arm([-2.6, -10.8, 2.2, -12.4, 6, -12.6]);
+    if (o.pose === "sling") arm([2.6, -11, 4.8, -16.6, 4.6, -22.4]);
+    else {
+      arm([2.6, -11, 7, -13.8, 10.2, -15.6]);
+      // the emptied sling trails from the fingers
+      c.strokeStyle = "#3a2716"; c.lineWidth = 1.1;
+      c.beginPath(); c.moveTo(10.2, -15.6); c.quadraticCurveTo(12.8, -14.6, 13.4, -11.4); c.stroke();
+      c.strokeStyle = "#cdb48a"; c.lineWidth = 0.5; c.stroke();
+      inkDisc(13.4, -11.2, 1, 0.8, "#7a5634", 0.5);
+    }
+  } else if (o.pose === "carry") {
+    // a stone hugged to the chest, brought up from the heap
+    hurlStone(5.2, -9.8, r, hex);
+    arm([-2.6, -10.8, 1.2, -8.4, 3.2, -8.2]);
+    arm([2.6, -11, 5, -11.6, 7.4, -10.6]);
+  } else if (o.pose === "lever") {
+    // both hands high on the pole, bearing down with the whole weight
+    arm([-2.6, -10.8, 0.6, -15.6, 4.4, -18.4]);
+    arm([2.6, -11, 4.8, -13.4, 6.6, -15.7]);
+  } else {
+    arm([-3.4, -11, -4.4, -6.6]);
+    arm([3.4, -11, 4.6, -6.8]);
+  }
+  c.restore();
+}
+
+// the wall the men stand on. Urartu: two courses of dressed stone under mudbrick laid in courses;
+// 1579: rough-coursed black tuff with pale mortar
+function hurlWall(W, H, D, late, S, T, seed) {
+  const c = sctx;
+  if (late) {
+    box3(W, H, D, T.mid, towerWall(T, seed, { course: 5.8, block: 9.5, rough: true }));
+    weatherStreaks(-W / 2 + 1, -H + 1, W - 2, Math.min(9, H - 2), seed + 3);
+    return;
+  }
+  const sh = Math.min(H - 3.5, Math.max(4.5, H * 0.44)), socle = mixHex(S[0], "#aaa394", 0.5);
+  box3(W, sh, D, socle, { masonry: true, side: toneHex(mixHex(S[1], "#77726a", 0.5), -6), top: toneHex(socle, 14),
+    course: sh > 9 ? sh / 2 : sh, block: 13, seed });
+  c.save();
+  c.translate(0.6 * OBQ.dx, -sh + 0.6 * OBQ.dy);
+  const bw = W - 1, bh = H - sh;
+  box3(bw, bh, D - 0.6, T.mid, towerWall(T, seed + 7, { course: 5.6, block: 9, contact: false }));
+  // the mudbrick shows its own small courses through the wash
+  c.strokeStyle = "rgba(90, 60, 30, .16)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (let yy = -1.9; yy > -bh + 1; yy -= 1.9) { c.moveTo(-bw / 2 + 0.6, yy); c.lineTo(bw / 2 - 0.6, yy); }
+  c.stroke();
+  c.fillStyle = "rgba(30, 16, 6, .22)";
+  c.fillRect(-bw / 2, -0.2, bw, 1.4);
+  c.restore();
+}
+
+// a plain breastwork along the outer edge of the walk, returned along its right-hand end
+function hurlBreast(W, H, D, bh, hex, T, late, seed) {
+  const c = sctx, t = 2.6;
+  const o = towerWall(T, seed, { course: bh, block: late ? 8 : 9.5, rough: late, contact: false, band: 0 });
+  c.save();
+  c.translate(W / 2 - t / 2 + 0.4, -H);
+  box3(t, bh, D, toneHex(hex, -6), Object.assign({}, o, { seed: seed + 5 }));
+  c.restore();
+  c.save();
+  c.translate(0, -H);
+  box3(W + 0.8, bh, t, hex, o);
+  // a coping of flat stones sheds the rain
+  inkRect(-W / 2 - 1, -bh - 1.2, W + 2, 1.5, T.trim, 0.8);
+  c.fillStyle = "rgba(30, 16, 6, .25)";
+  c.fillRect(-W / 2 - 0.6, -bh + 0.3, W + 1.2, 1.1);
+  if (structSnow) {
+    snowCap(-W / 2 - 0.8, -bh - 1.2, W * 0.46, 1.4);
+    snowCap(W * 0.04, -bh - 1.2, W * 0.44, 1.2);
+  }
+  c.restore();
+}
+
+// a small brazier on legs: bronze under Urartu, iron in 1579. Its flame is drawn live
+function hurlBrazier(x, y, late) {
+  // tall enough on its legs for the bowl to stand clear of the merlons
+  const c = sctx, metal = late ? IRON : BRONZE, rimY = y - 13.5, r = 4.4;
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1, y + 0.3, 5.4, 1.3]]);
+  beam(x + 1.2, y - 1.4, x + 0.8, rimY + 2, 0.9, toneHex(metal, -30));
+  beam(x - 3.8, y, x - 2.2, rimY + 2.4, 1, metal);
+  beam(x + 3.8, y, x + 2.2, rimY + 2.4, 1, metal);
+  c.beginPath();
+  c.ellipse(x, rimY, r, r * 0.72, 0, 0, Math.PI);
+  c.closePath();
+  const g = c.createLinearGradient(x - r, 0, x + r, 0);
+  g.addColorStop(0, late ? "#6a6870" : "#f0c676");
+  g.addColorStop(0.45, metal);
+  g.addColorStop(1, late ? "#1c1b1e" : "#6a4718");
+  c.fillStyle = g;
+  c.fill();
+  inkStroke(1.1);
+  inkDisc(x, rimY, r, r * 0.3, "#2a180c", 1.1);
+  inkDisc(x, rimY + 0.1, r * 0.66, r * 0.18, "#ff8a2c", 0);
+  inkDisc(x - 0.4, rimY + 0.1, r * 0.34, r * 0.09, "#ffe08a", 0);
+  structFit.brazier = structPoint(x, rimY);
+  structGlow(x, rimY + 3, 12, "warm", 0.55);
+}
+
+function paintHurlers(lvl, spec, variant) {
+  const c = sctx, S = footStone(), T = towerStone(), late = curEra >= 3, A = TOWER_ACCENT.catapult;
+  const great = spec === "a", fire = spec === "b", platform = !!spec || lvl === 2;
+  const thrown = variant === 1, D0 = hurlDim(lvl, spec);
+  const W = D0.w, D = D0.d, H = D0.h;
+  const ox = D * OBQ.dx, oy = D * OBQ.dy, FIG = 1.12;
+  const stone = hurlStoneHex(late), seed = 70 + lvl * 9 + (spec === "a" ? 31 : spec === "b" ? 47 : 0);
+  // villagers' coats in 1579; Urartian tunics in the crew's ochre, red and brown
+  const coats = late ? ["#4a3f45", "#36454f", "#5a4634"] : ["#a8432c", A, "#6e4a2c"];
+  const caps = late ? ["#4a3a2e", "#6a5644", "#3a2e26"] : [BRONZE, BRONZE, toneHex(BRONZE, -14)];
+  const breast = late ? toneHex(T.mid, 4) : T.mid;
+  footPlinth(W + 5, D + 3, 3, S, seed, platform);
+  c.save();
+  c.translate(-ox / 2, -3 - oy / 2);
+  hurlWall(W, H, D, late, S, T, seed);
+  rankMarks(0, -2.6, lvl, spec, T.urartu);
+  if (lvl > 0 || spec) wallTorch(W / 2 - 3.4, -H + (late ? 7.5 : 6.5));
+  if (fire) {
+    // soot from the pitch blackens the wall under the brazier
+    c.save();
+    c.globalCompositeOperation = "source-atop";
+    const sg = c.createLinearGradient(0, -H - 4, 0, -H + 12);
+    sg.addColorStop(0, "rgba(18, 12, 8, .5)");
+    sg.addColorStop(1, "rgba(18, 12, 8, 0)");
+    c.fillStyle = sg;
+    c.fillRect(-W / 2, -H - 4, W * 0.5, 16);
+    c.restore();
+  }
+  const walkX = ox * 0.5, walkY = -H + oy * 0.5 + 0.6;
+  const man = (dx, o) => hurlMan(walkX + dx, walkY, FIG, Object.assign({ late }, o));
+  const hurler = (dx, i, face) => man(dx, { coat: coats[i], cap: caps[i], face, pose: thrown ? "throw" : "raise", stone });
+  const slinger = (dx, i, face) => {
+    man(dx, { coat: coats[i], cap: caps[i], face, pose: thrown ? "slung" : "sling", stone });
+    // the whirling sling is drawn live from this hand
+    if (!thrown) structFit.sling = structPoint(walkX + dx + face * 4.6 * FIG, walkY - 22.4 * FIG);
+  };
+  // the rear run of the fighting platform's parapet
+  const stepped = !late;
+  if (platform) parapetBack(W, H, D, toneHex(breast, -4), stepped);
+
+  if (great) {
+    // huge boulders heaped at the back of the walk, and one on the coping waiting for the lever
+    hurlBoulder(walkX + 13.4, walkY - 5, 6.2, stone, seed);
+    hurlBoulder(walkX + 19, walkY - 3.6, 5, toneHex(stone, -8), seed + 1);
+    hurlBoulder(walkX + 16, walkY - 12.4, 5.4, toneHex(stone, 6), seed + 2);
+    man(7, { coat: coats[0], cap: caps[0], face: -1, pose: thrown ? "throw" : "lever" });
+    man(-17.5, { coat: coats[2], cap: caps[2], face: 1, pose: thrown ? "throw" : "raise", stone, r: 3.8 });
+  } else if (fire) {
+    hurlBrazier(walkX - 15.5, walkY + 1.4, late);
+    // pots of pitch stacked by the fire
+    for (const p of [[-8.6, 0], [-4.8, 0.3], [-6.7, -4.4]]) catapultPayload(walkX + p[0], walkY - 2.8 + p[1], 2.6, "pot");
+    man(2, { coat: coats[0], cap: caps[0], face: 1, pose: thrown ? "throw" : "pot", r: 2.9 });
+    man(13, { coat: coats[1], cap: caps[1], face: -1, pose: "carry", stone, r: 2.6 });
+  } else if (lvl === 2) {
+    hurlPile(walkX + 15.5, walkY + 0.4, 3, 2.3, stone, seed);
+    hurler(-10, 0, 1);
+    slinger(1.5, 1, 1);
+    man(11, { coat: coats[2], cap: caps[2], face: -1, pose: "carry", stone, r: 2.5 });
+  } else if (lvl === 1) {
+    hurlPile(walkX + 11.5, walkY + 0.2, 2, 2.2, stone, seed);
+    hurler(-6.5, 0, 1);
+    slinger(5, 1, -1);
+  } else {
+    hurler(-2, 0, 1);
+  }
+
+  // the breastwork in front of the men: a plain coped wall, crenellated on the fighting platform
+  if (platform) {
+    parapetFront(W, H, D, breast, stepped);
+  } else {
+    hurlBreast(W, H, D, D0.b, breast, T, late, seed + 11);
+  }
+  if (!thrown && !fire) {
+    // stones laid ready along the coping
+    const topY = platform ? -H - 3.2 : -H - D0.b - 1.2;
+    const at = lvl === 0 && !spec ? [-12, 8] : [-W / 2 + 3, W / 2 - 6];
+    for (const sx of at) hurlStone(sx, topY - 1.6, 1.7, stone);
+  }
+  if (great) {
+    // the lever: its foot jammed under the boulder on the parapet, its head in the man's hands
+    const by = -H - 8.6, bx = -3.5, br = 6.8, mx = walkX + 7;
+    // the man's two hands on the pole, as his pose places them
+    const hand = (lx, ly) => [mx - lx * FIG, walkY + ly * FIG];
+    const a = thrown ? hand(7, -15.2) : hand(4.4, -18.4), b = thrown ? hand(9.2, -14.2) : hand(6.6, -15.7);
+    if (!thrown) {
+      // a boulder as broad as a man, rocked up onto the merlons, the pole's foot wedged under it
+      const tx = bx + 2, ty = b[1] + (tx - b[0]) * (b[1] - a[1]) / (b[0] - a[0]);
+      const ux = a[0] - b[0], uy = a[1] - b[1], ul = Math.hypot(ux, uy);
+      beam(tx, ty, a[0] + ux / ul * 3, a[1] + uy / ul * 3, 2.8, TIMBER);
+      hurlBoulder(bx, by - br * 0.7, br, toneHex(stone, 4), seed + 3);
+      structCrown(by - br * 1.6);
+    } else {
+      // the boulder has gone over; the pole, shoved after it, lies out across the merlons
+      beam(bx - 5, by + 0.8, a[0] + 1.6, a[1] - 1.2, 2.8, TIMBER);
+      endGrain(bx - 5, by + 0.8, 1.3);
+    }
+    inkDisc(a[0], a[1], 1.1, 1.1, "#e2b78c", 0.6);
+    inkDisc(b[0], b[1], 1.1, 1.1, "#e2b78c", 0.6);
+  }
+  c.restore();
+
+  // stores on the ground before the wall
+  const gy = 6.2;
+  if (great) {
+    for (const b of [[-W / 2 - 2, 0, 5.2], [-W / 2 + 7.5, 1, 4.6], [-W / 2 + 2.6, -7, 4.4]]) hurlBoulder(b[0], gy - b[2] * 0.8 + b[1], b[2], stone, seed + b[2] * 7);
+  } else if (fire) {
+    fillBlobs("rgba(24, 14, 4, .3)", [[W / 2 - 4, gy + 0.6, 9, 1.6]]);
+    for (const p of [[-5.4, 0], [0, 0.3], [5.4, 0], [-2.7, -4.6], [2.7, -4.4]]) catapultPayload(W / 2 - 4 + p[0], gy - 2.8 + p[1], 2.7, "pot");
+    if (structSnow) snowCap(W / 2 - 8, gy - 9.6, 8, 1);
+  } else if (lvl === 2) {
+    hurlPile(W / 2 - 2, gy, 3, 2.5, stone, seed + 4);
+    hurlBasket(-W / 2 + 1, gy, 6, 4.8, stone);
+  } else if (lvl === 1) {
+    hurlPile(W / 2 - 3, gy, 2, 2.4, stone, seed + 4);
+  } else {
+    hurlPile(W / 2 - 4, gy - 0.4, 2, 2.1, stone, seed + 4);
+    hurlBasket(-W / 2 + 2, gy - 0.6, 5.6, 4.6, stone);
+  }
+}
+
 SKIN_ART.hurlers = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.catapult,
-  scale: TOWER_SCALE.catapult,
-  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  // a low wall rather than a tall engine: drawn a little larger than the onager, and still well
+  // under the slot's height budget (78 * 0.88 against the onager's 112 * 0.77)
+  box: [-48, -78, 52, 22],
+  scale: 0.88,
+  paint(lvl, spec, variant) { paintHurlers(lvl, spec, variant); },
+  // just thrown (1) for the first stretch after a stone leaves; otherwise a stone is held overhead
   variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  footing(lvl, spec) {
+    const d = hurlDim(lvl, spec), k = STRUCT_K * SKIN_ART.hurlers.scale, step = spec || lvl === 2 ? 3 : 0;
+    return { w: (d.w + 5 + step) * k, d: (d.d + 3 + (step ? 2 : 0)) * k, cy: 0 };
+  },
+  live(t, c) {
+    const f = c.fit, k = c.k;
+    if (f.sling) {
+      // the sling goes round over the slinger's head: cord, pouch and a faint trace of its circle
+      const hx = c.x + f.sling[0] * k, hy = c.y + f.sling[1] * k;
+      const cy = hy - 2.2 * k, rx = 6 * k, ry = 2.2 * k, a = c.time * 0.016 + t.x;
+      const px = hx + Math.cos(a) * rx, py = cy + Math.sin(a) * ry;
+      ctx.globalAlpha = c.fade * 0.35;
+      ctx.strokeStyle = "#f3e4bf";
+      ctx.lineWidth = 0.8 * k;
+      ctx.beginPath();
+      ctx.ellipse(hx, cy, rx, ry, 0, a - 1.5, a);
+      ctx.stroke();
+      ctx.globalAlpha = c.fade;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(px, py);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.2 * k; ctx.stroke();
+      ctx.strokeStyle = "#cdb48a"; ctx.lineWidth = 0.55 * k; ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(px, py, 1.3 * k, 1 * k, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#7a5634"; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.5 * k; ctx.stroke();
+    }
+    if (f.brazier) {
+      // the firepots' brazier burns day and night, as the onager crew's does
+      const ph = c.time * 0.012 + t.x;
+      const bx = c.x + f.brazier[0] * k, by = c.y + f.brazier[1] * k;
+      ctx.globalAlpha = c.fade;
+      ctx.fillStyle = "rgba(70, 60, 54, .34)";
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const rise = (c.time * 0.0006 + i / 3 + t.x * 0.01) % 1;
+        const px = bx + Math.sin(rise * 5 + i) * 1.8 * k, py = by - (7 + rise * 15) * k, pr = (1.5 + rise * 2.4) * (1 - rise * 0.5) * k;
+        ctx.moveTo(px + pr, py);
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      structFlame(bx, by, 3.6 * k, structClamp(8.5 + Math.sin(ph) * 1.2, 5, 11) * k, ph, false, c.fade);
+    }
+    ctx.globalAlpha = 1;
+  },
   sound: "hurl",
 };
 // ====================================== END SKIN SECTION: hurlers ======================================
