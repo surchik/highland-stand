@@ -302,7 +302,7 @@
   #settings h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin-bottom: 11px; letter-spacing: .5px; color: #fff3d6; padding-bottom: 8px; border-bottom: 1px solid rgba(240,207,133,.25); }
   #settings h3 .ic { width: 18px; height: 18px; color: var(--bronze-hi); vertical-align: 0; }
   #settings .row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; font-size: 14px; }
-  #settings .row label { width: 54px; font-weight: 700; }
+  #settings .row label { width: 62px; font-weight: 700; }
   #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--bronze); }
   #settings .tgl {
     width: 42px; text-align: center; padding: 4px 0; border-radius: 5px; cursor: pointer; font-weight: 700; font-size: 12px;
@@ -1049,6 +1049,11 @@
     <div class="tgl" id="setSfxTgl">On</div>
     <input type="range" id="sfxVol" min="0" max="100" value="55">
   </div>
+  <div class="row">
+    <label>Ambient</label>
+    <div class="tgl" id="setAmbTgl">On</div>
+    <input type="range" id="ambVol" min="0" max="100" value="50">
+  </div>
   <button class="btn menuBtn" id="pauseBtn">Pause</button>
   <button class="btn menuBtn" id="menuBtn"><svg class="ic"><use href="#i-flag"/></svg>Abandon &amp; Level Select</button>
   <div class="hint">Hotkeys: 1–5 towers · Space send wave · P pause · F speed · A auto · M music · S sound · Esc close</div>
@@ -1481,123 +1486,1052 @@ function routeAt(ri, dist) {
 function posAt(dist) { return routeAt(0, dist); }
 
 // ---------- audio ----------
+// Nothing is loaded: every sound is synthesised when it plays, from a few buffers made once per
+// context (noise in three colours, a crackle grain bed, a generated room impulse). build(ctx) wires
+// the whole mixer on any BaseAudioContext, so the audio harness renders this very graph offline:
+//   one-shot voices -> sfxIn -+-> room reverb --+-> sfxGain (Sound volume) --\
+//                             +-> highland echo-+                             +-> glue comp -> limiter -> ceiling -> out
+//   music -> musGain (Music volume) -> duckGain (dips under big events) -----+
+//   ambience bed + its events -> ambIn -> ambGain (Ambient volume) ----------/
+// Voices are throttled, capped per sound and overall, thinned when a category piles up, and every
+// node of a voice is disconnected when its last source ends. Until the first gesture calls init()
+// there is no context at all and play() returns at once, so the self-test never touches audio.
 const Snd = {
-  ctx: null, sfxGain: null, musGain: null,
-  sfxOn: true, musicOn: true, sfxVol: 0.55, musVol: 0.35,
-  lastPlay: {},
+  ctx: null, bufs: null, sfxIn: null, sfxGain: null, musGain: null, duckGain: null, ambIn: null, ambGain: null,
+  revIn: null, echoIn: null,
+  sfxOn: true, musicOn: true, ambOn: true, sfxVol: 0.55, musVol: 0.35, ambVol: 0.5,
+  lastPlay: {}, voices: [], dens: {}, rrN: {}, amb: null, duckSt: null, timer: null,
+  sceneOf: null, sceneOverride: null, curves: {},
+  stats: { voices: 0, freed: 0, dropped: 0 },
+  MAX_VOICES: 40,
+  seed: 0x6d2b79f5,
+  // the audio's own dice, so sound never shifts the game's Math.random sequence
+  rnd() { let x = this.seed | 0; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.seed = x; return (x >>> 0) / 4294967296; },
+  rr(a, b) { return a + (b - a) * this.rnd(); },
+  pick(a) { return a[Math.floor(this.rnd() * a.length)]; },
+  rrIdx(name, n) { const i = ((this.rrN[name] || 0) + 1 + (this.rnd() < 0.3 ? 1 : 0)) % n; this.rrN[name] = i; return i; },
+
   init() {
-    if (this.ctx) return;
+    if (this.ctx) { if (this.ctx.state === "suspended" && this.ctx.resume) this.ctx.resume().catch(() => {}); return; }
+    const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+    if (!AC) return;
     try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.sfxGain = this.ctx.createGain();
-      this.musGain = this.ctx.createGain();
-      this.sfxGain.connect(this.ctx.destination);
-      this.musGain.connect(this.ctx.destination);
-      this.applyVolumes();
+      this.build(new AC({ latencyHint: "interactive" }));
+      this.applyVolumes(true);
       this.startMusic();
-    } catch (e) { /* audio unavailable */ }
+      document.addEventListener("visibilitychange", () => {
+        const c = this.ctx;
+        if (!c || c.state === "closed") return;
+        (document.hidden ? c.suspend() : c.resume()).catch(() => {});
+      });
+    } catch (e) { this.ctx = null; /* audio unavailable */ }
   },
-  applyVolumes() {
+  build(c) {
+    this.ctx = c;
+    this.bufs = this.makeBuffers(c);
+    const G = v => { const g = c.createGain(); g.gain.value = v; return g; };
+    // master: a gentle glue compressor, a fast limiter, then a soft ceiling that can never pass -1 dBFS
+    const glue = c.createDynamicsCompressor();
+    glue.threshold.value = -20; glue.knee.value = 12; glue.ratio.value = 2.5; glue.attack.value = 0.008; glue.release.value = 0.28;
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -6; lim.knee.value = 2; lim.ratio.value = 16; lim.attack.value = 0.001; lim.release.value = 0.12;
+    const trim1 = G(0.44), trim2 = G(0.8);   // hand back the compressors' automatic make-up gain
+    const ceil = c.createWaveShaper(); ceil.curve = this.ceilCurve();
+    glue.connect(trim1); trim1.connect(lim); lim.connect(trim2); trim2.connect(ceil); ceil.connect(c.destination);
+    this.sfxGain = G(0); this.sfxGain.connect(glue);
+    // the sfx bus loses its sub-rumble, so thirty engines' thumps never pile into mud
+    const sub = c.createBiquadFilter(); sub.type = "highpass"; sub.frequency.value = 32; sub.Q.value = 0.6;
+    this.sfxIn = G(1); this.sfxIn.connect(sub); sub.connect(this.sfxGain);
+    // a stone courtyard's short room
+    const conv = c.createConvolver(); conv.buffer = this.bufs.ir;
+    this.revIn = G(1); this.revIn.connect(conv);
+    const revOut = G(0.7); conv.connect(revOut); revOut.connect(this.sfxGain);
+    // the highland echo: big reports come back off the far slopes, darker each time
+    this.echoIn = G(1);
+    const dl = c.createDelay(1.5); dl.delayTime.value = 0.43;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1300;
+    const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 160;
+    const fb = G(0.22), echoOut = G(0.4), echoRev = G(0.4);
+    this.echoIn.connect(dl); dl.connect(lp); lp.connect(hp); hp.connect(fb); fb.connect(dl);
+    hp.connect(echoOut); echoOut.connect(this.sfxGain); hp.connect(echoRev); echoRev.connect(this.revIn);
+    this.musGain = G(0); this.duckGain = G(1);
+    this.musGain.connect(this.duckGain); this.duckGain.connect(glue);
+    this.ambIn = G(1); this.ambGain = G(0);
+    this.ambIn.connect(this.ambGain); this.ambGain.connect(glue);
+  },
+  applyVolumes(now) {
     if (!this.ctx) return;
-    this.sfxGain.gain.value = this.sfxOn ? this.sfxVol : 0;
-    this.musGain.gain.value = this.musicOn ? this.musVol : 0;
+    const t = this.ctx.currentTime;
+    const set = (p, v) => { if (now) p.value = v; else { p.cancelScheduledValues(t); p.setTargetAtTime(v, t, 0.03); } };
+    set(this.sfxGain.gain, this.sfxOn ? this.sfxVol : 0);
+    set(this.musGain.gain, this.musicOn ? this.musVol : 0);
+    set(this.ambGain.gain, this.ambOn ? this.ambVol : 0);
   },
-  tone(freq, dur, type, vol, slideTo, when) {
-    if (!this.ctx || !this.sfxOn) return;
-    const t0 = when || this.ctx.currentTime;
-    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-    o.type = type || "sine";
-    o.frequency.setValueAtTime(freq, t0);
-    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
-    g.gain.setValueAtTime(vol, t0);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g); g.connect(this.sfxGain);
-    o.start(t0); o.stop(t0 + dur + 0.02);
-  },
-  noise(dur, filterFreq, vol, ftype) {
-    if (!this.ctx || !this.sfxOn) return;
-    const t0 = this.ctx.currentTime;
-    const len = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
-    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-    const ch = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const f = this.ctx.createBiquadFilter();
-    f.type = ftype || "lowpass";
-    f.frequency.value = filterFreq;
-    const g = this.ctx.createGain();
-    g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(this.sfxGain);
-    src.start(t0);
-  },
-  play(name) {
-    if (!this.ctx || !this.sfxOn) return;
-    const now = performance.now();
-    const throttle = { arrow: 70, bolt: 90, javelin: 80, musket: 110, hurl: 90, coin: 90, impact: 60, uiTick: 70 }[name] || 0;
-    if (throttle && now - (this.lastPlay[name] || 0) < throttle) return;
-    this.lastPlay[name] = now;
-    switch (name) {
-      case "arrow": this.noise(0.08, 3200, 0.25, "highpass"); this.tone(900, 0.07, "triangle", 0.08, 300); break;
-      case "bolt": this.noise(0.1, 1600, 0.3, "highpass"); this.tone(320, 0.12, "square", 0.1, 90); break;
-      case "catapult": this.tone(70, 0.25, "sawtooth", 0.18, 45); this.noise(0.2, 700, 0.2); break;
-      case "javelin": this.noise(0.12, 1800, 0.24, "bandpass"); this.tone(420, 0.11, "triangle", 0.07, 170); break;
-      case "musket": this.noise(0.16, 2600, 0.5); this.noise(0.45, 480, 0.32); this.tone(105, 0.22, "square", 0.12, 48); break;
-      case "hurl": this.noise(0.1, 900, 0.22); this.tone(170, 0.12, "triangle", 0.08, 90); break;
-      case "explosion": this.noise(0.4, 420, 0.55); this.tone(90, 0.3, "sine", 0.3, 40); break;
-      case "impact": this.noise(0.06, 900, 0.22); break;
-      case "coin": this.tone(1180, 0.07, "sine", 0.16); this.tone(1660, 0.1, "sine", 0.14, null, this.ctx.currentTime + 0.06); break;
-      case "horn": this.tone(146.8, 0.7, "sawtooth", 0.16, 220); this.tone(220, 0.85, "sawtooth", 0.12, 293.7, this.ctx.currentTime + 0.12); break;
-      case "place": this.noise(0.12, 500, 0.35); this.tone(140, 0.1, "sine", 0.2, 70); break;
-      case "upgrade": this.tone(520, 0.08, "square", 0.1); this.tone(780, 0.12, "square", 0.1, null, this.ctx.currentTime + 0.09); break;
-      case "leak": this.tone(180, 0.35, "sawtooth", 0.25, 80); break;
-      case "nova": this.tone(300, 0.5, "sine", 0.25, 900); this.noise(0.3, 2500, 0.18, "bandpass"); break;
-      case "win":
-        [293.7, 370, 440, 587.3].forEach((f, i) => this.tone(f, 0.5, "triangle", 0.18, null, this.ctx.currentTime + i * 0.16));
-        break;
-      case "lose":
-        [329.6, 293.7, 246.9, 196].forEach((f, i) => this.tone(f, 0.6, "sawtooth", 0.14, null, this.ctx.currentTime + i * 0.22));
-        break;
-      case "uiTick": this.tone(1250, 0.035, "sine", 0.05); break;
-      case "mapSelect":
-        this.tone(620, 0.07, "triangle", 0.12);
-        this.tone(930, 0.1, "triangle", 0.1, null, this.ctx.currentTime + 0.06);
-        this.noise(0.05, 3800, 0.06, "highpass");
-        break;
-      case "mapLocked":
-        this.tone(140, 0.12, "square", 0.12, 90);
-        this.tone(118, 0.11, "square", 0.1, 78, this.ctx.currentTime + 0.13);
-        this.noise(0.05, 5200, 0.05, "bandpass");
-        break;
-      case "unlock":
-        [293.66, 370, 440, 587.33].forEach((f, i) =>
-          this.tone(f, 0.38, "triangle", 0.15, null, this.ctx.currentTime + i * 0.09));
-        this.tone(587.33, 0.7, "sine", 0.08, null, this.ctx.currentTime + 0.4);
-        this.noise(0.5, 6000, 0.06, "highpass");
-        break;
-      case "spellArrows": this.noise(0.35, 2600, 0.3, "highpass"); this.tone(700, 0.3, "sawtooth", 0.08, 200); break;
-      case "spellFrost": this.tone(1400, 0.5, "sine", 0.16, 480); this.noise(0.4, 5200, 0.12, "highpass"); break;
-      case "spellWrath": this.noise(0.08, 4200, 0.32, "highpass"); this.noise(0.5, 300, 0.55); this.tone(60, 0.55, "sawtooth", 0.28, 30); break;
+  ceilCurve() {
+    const n = 4096, k = 0.75, L = 0.891, cv = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = i / (n - 1) * 2 - 1, ax = Math.abs(x);
+      cv[i] = Math.sign(x) * (ax <= k ? ax : k + (L - k) * Math.tanh((ax - k) / (L - k)));
     }
+    return cv;
+  },
+  driveCurve(k) {
+    if (this.curves[k]) return this.curves[k];
+    const n = 1024, cv = new Float32Array(n), d = Math.tanh(k);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cv[i] = Math.tanh(k * x) / d; }
+    return (this.curves[k] = cv);
+  },
+  makeBuffers(c) {
+    const sr = c.sampleRate, n = Math.floor(sr * 2);
+    const mk = ch => c.createBuffer(ch || 1, n, sr);
+    const white = mk(), pink = mk(), brown = mk(), crackle = mk();
+    const w = white.getChannelData(0), p = pink.getChannelData(0), b = brown.getChannelData(0), k = crackle.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, br = 0;
+    for (let i = 0; i < n; i++) {
+      const x = this.rnd() * 2 - 1;
+      w[i] = x;
+      b0 = 0.99886 * b0 + x * 0.0555179; b1 = 0.99332 * b1 + x * 0.0750759; b2 = 0.969 * b2 + x * 0.153852;
+      b3 = 0.8665 * b3 + x * 0.3104856; b4 = 0.55 * b4 + x * 0.5329522; b5 = -0.7616 * b5 - x * 0.016898;
+      p[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + x * 0.5362) * 0.11; b6 = x * 0.115926;
+      br = (br + 0.02 * x) / 1.02; b[i] = br;
+    }
+    // brown noise: take out the drift so the loop point meets itself, then level it
+    let mean = 0, pk = 0;
+    const d0 = b[0], d1 = b[n - 1];
+    for (let i = 0; i < n; i++) { b[i] -= d0 + (d1 - d0) * i / (n - 1); mean += b[i]; }
+    mean /= n;
+    for (let i = 0; i < n; i++) { b[i] -= mean; pk = Math.max(pk, Math.abs(b[i])); }
+    for (let i = 0; i < n; i++) b[i] *= 0.95 / pk;
+    // crackle: sparse, uneven snaps, each a tiny decaying burst
+    for (let i = 0; i < n;) {
+      i += Math.floor(sr * (0.003 + 0.028 * this.rnd() * this.rnd()));
+      const amp = 0.15 + 0.85 * Math.pow(this.rnd(), 3), len = Math.floor(sr * (0.0003 + 0.0022 * this.rnd()));
+      for (let j = 0; j < len && i + j < n; j++) k[i + j] += (this.rnd() * 2 - 1) * amp * (1 - j / len) * (1 - j / len);
+    }
+    // room impulse: a few early reflections off stone, then a tail that darkens as it dies
+    const irLen = Math.floor(sr * 1.7), ir = c.createBuffer(2, irLen, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      let lpv = 0;
+      for (let i = 0; i < irLen; i++) {
+        const t = i / sr;
+        const env = t < 0.014 ? 0 : Math.exp(-t * 6.9 / 1.35) * Math.min(1, (t - 0.014) / 0.01);
+        const g = 0.85 - 0.72 * Math.min(1, t / 1.2);
+        lpv += ((this.rnd() * 2 - 1) - lpv) * g;
+        d[i] = lpv * env / Math.sqrt(g);
+      }
+      for (const [dt, a] of [[0.011, 0.6], [0.019, -0.45], [0.029, 0.38], [0.043, -0.3], [0.061, 0.22], [0.083, -0.16]]) {
+        const i = Math.floor(sr * dt * (ch ? 1.09 : 1));
+        if (i < irLen) d[i] += a;
+      }
+    }
+    return { white, pink, brown, crackle, ir };
+  },
+
+  // ---- voices: one gain per one-shot, a panner, and sends; torn down when its last source ends ----
+  voice(t, o) {
+    const c = this.ctx, out = c.createGain();
+    out.gain.value = o.gain == null ? 1 : o.gain;
+    const v = { t, out, nodes: [out], live: 0, end: t };
+    let tail = out;
+    if (o.pan && c.createStereoPanner) {
+      const p = c.createStereoPanner();
+      p.pan.value = Math.max(-0.75, Math.min(0.75, o.pan));
+      out.connect(p); tail = p; v.nodes.push(p);
+    }
+    tail.connect(o.bus || this.sfxIn);
+    if (o.rev) { const s = c.createGain(); s.gain.value = o.rev; tail.connect(s); s.connect(this.revIn); v.nodes.push(s); }
+    if (o.echo) { const s = c.createGain(); s.gain.value = o.echo; tail.connect(s); s.connect(this.echoIn); v.nodes.push(s); }
+    this.stats.voices++;
+    return v;
+  },
+  start(v, s, t0, t1, off) {
+    v.nodes.push(s); v.live++;
+    s.onended = () => { if (--v.live <= 0) this.free(v); };
+    s.start(t0, off || 0); s.stop(t1);
+    if (t1 > v.end) v.end = t1;
+  },
+  free(v) {
+    if (!v.nodes.length) return;
+    for (const n of v.nodes) { try { n.disconnect(); } catch (e) {} }
+    v.nodes.length = 0;
+    this.stats.freed++;
+  },
+  node(v, n) { v.nodes.push(n); return n; },
+  lvl(v, db) { v.out.gain.value *= Math.pow(10, db / 20); },   // per-variant balance inside one sound
+  filt(v, type, f, q, t) {
+    const b = this.ctx.createBiquadFilter();
+    b.type = type; b.frequency.setValueAtTime(f, t);
+    if (q != null) b.Q.value = q;
+    return this.node(v, b);
+  },
+  // attack, hold, then an exponential fall to -60 dB; returns when it is done
+  env(p, t, a, pk, hold, d) {
+    p.setValueAtTime(0, t);
+    p.linearRampToValueAtTime(pk, t + a);
+    if (hold) p.setValueAtTime(pk, t + a + hold);
+    p.exponentialRampToValueAtTime(Math.max(1e-6, pk * 1e-3), t + a + hold + d);
+    return t + a + hold + d;
+  },
+  // filtered noise burst: o = { t, k: buffer, rate, ft: filter type, f, q, path: [[dt, f]], a, hold, d, p, to }
+  nz(v, o) {
+    const c = this.ctx, t = o.t, buf = this.bufs[o.k || "white"], s = c.createBufferSource();
+    s.buffer = buf; s.loop = true;
+    if (o.rate) s.playbackRate.value = o.rate;
+    const f = this.filt(v, o.ft || "bandpass", o.f, o.q == null ? 0.9 : o.q, t);
+    if (o.path) for (const [dt, fq] of o.path) f.frequency.exponentialRampToValueAtTime(fq, t + dt);
+    const g = this.node(v, c.createGain());
+    const end = this.env(g.gain, t, o.a == null ? 0.002 : o.a, o.p, o.hold || 0, o.d);
+    s.connect(f); f.connect(g); g.connect(o.to || v.out);
+    this.start(v, s, t, end + 0.02, this.rnd() * (buf.duration - 0.05));
+    return g;
+  },
+  // oscillator: o = { t, type, f, f2, gl (glide), det, lp, lp2, lpt, q, a, hold, d, p, to }
+  tn(v, o) {
+    const c = this.ctx, t = o.t, a = o.a == null ? 0.002 : o.a, s = c.createOscillator();
+    s.type = o.type || "sine";
+    s.frequency.setValueAtTime(o.f, t);
+    if (o.f2) s.frequency.exponentialRampToValueAtTime(o.f2, t + (o.gl || a + (o.hold || 0) + o.d));
+    if (o.det) s.detune.value = o.det;
+    let last = s;
+    if (o.lp) {
+      const f = this.filt(v, "lowpass", o.lp, o.q == null ? 0.7 : o.q, t);
+      if (o.lp2) f.frequency.exponentialRampToValueAtTime(o.lp2, t + (o.lpt || o.d));
+      s.connect(f); last = f;
+    }
+    const g = this.node(v, c.createGain());
+    const end = this.env(g.gain, t, a, o.p, o.hold || 0, o.d);
+    last.connect(g); g.connect(o.to || v.out);
+    this.start(v, s, t, end + 0.02);
+    return s;
+  },
+  // a struck body: sine partials [ratio, level, decay], each slightly mistuned per strike
+  modal(v, o) {
+    for (const [r, amp, d] of o.parts) {
+      this.tn(v, { t: o.t, f: o.f * r * (1 + (this.rnd() - 0.5) * (o.jit || 0.012)), a: o.a || 0.0012, p: o.p * amp, d, to: o.to });
+    }
+  },
+  // a buzzing source through resonances: voices, horns, creaks, animals
+  formant(v, o) {
+    const c = this.ctx, t = o.t, s = c.createOscillator();
+    s.type = o.type || "sawtooth";
+    s.frequency.setValueAtTime(o.f, t);
+    if (o.path) for (const [dt, fq] of o.path) s.frequency.exponentialRampToValueAtTime(fq, t + dt);
+    const g = this.node(v, c.createGain());
+    const end = this.env(g.gain, t, o.a == null ? 0.01 : o.a, o.p, o.hold || 0, o.d);
+    let src = s;
+    if (o.drive) { const ws = this.node(v, c.createWaveShaper()); ws.curve = this.driveCurve(o.drive); s.connect(ws); src = ws; }
+    for (const [ff, q, fg] of o.forms) {
+      const b = this.filt(v, "bandpass", ff, q, t), bg = this.node(v, c.createGain());
+      bg.gain.value = fg; src.connect(b); b.connect(bg); bg.connect(g);
+    }
+    g.connect(o.to || v.out);
+    this.start(v, s, t, end + 0.02);
+    return s;
+  },
+  lfo(v, param, t, t1, rate, depth, type) {
+    const c = this.ctx, o = c.createOscillator(), g = this.node(v, c.createGain());
+    o.type = type || "sine"; o.frequency.value = rate; g.gain.value = depth;
+    o.connect(g); g.connect(param);
+    this.start(v, o, t, t1);
+  },
+
+  // ---- shared gestures the recipes are built from ----
+  creak(v, t, dur, f, p) {   // stick-slip: a slow impulse train through a woody resonance
+    this.formant(v, { t, f: this.rr(30, 40), path: [[dur, this.rr(48, 66)]], forms: [[f, 7, 1], [f * 2.15, 9, 0.5]], a: 0.012, hold: dur * 0.4, d: dur * 0.6, p });
+  },
+  mallet(v, t, f, p) {       // a wooden mallet driving a peg
+    this.modal(v, { t, f, p, parts: [[1, 1, 0.07], [2.76, 0.45, 0.035], [5.4, 0.25, 0.018]] });
+    this.nz(v, { t, f: f * 2.4, q: 1, a: 0.0004, p: p * 0.8, d: 0.012 });
+  },
+  anvil(v, t, f, p) {        // hammer on iron
+    this.modal(v, { t, f, p, jit: 0.02, parts: [[1, 1, 0.42], [2.08, 0.55, 0.3], [3.52, 0.4, 0.2], [5.3, 0.25, 0.1], [7.1, 0.12, 0.06]] });
+    this.nz(v, { t, ft: "highpass", f: 3000, a: 0.0003, p: p * 0.9, d: 0.015 });
+    this.nz(v, { t, k: "brown", ft: "lowpass", f: 400, a: 0.001, p: p * 0.8, d: 0.05 });
+  },
+  bell(v, t, f, p, d) {      // small bronze bell: hum, prime and its inharmonic upper partials
+    this.modal(v, { t, f, p, jit: 0.004, parts: [[0.5, 0.25, d * 1.1], [1, 1, d], [2, 0.32, d * 0.6], [2.76, 0.28, d * 0.42], [4.07, 0.12, d * 0.28], [5.4, 0.08, d * 0.2]] });
+    this.nz(v, { t, ft: "highpass", f: 4000, a: 0.0003, p: p * 0.35, d: 0.01 });
+  },
+  gong(v, t, f, p, d) {      // a broad bronze disc: dense partials, the pitch sagging as it rings
+    for (const [r, amp, dd] of [[1, 1, 1], [1.47, 0.6, 0.8], [2.09, 0.5, 0.6], [2.56, 0.4, 0.5], [3.37, 0.3, 0.35], [4.2, 0.2, 0.25], [5.9, 0.12, 0.15]]) {
+      this.tn(v, { t, f: f * r, f2: f * r * 0.985, gl: d, a: 0.004, p: p * amp, d: d * dd });
+    }
+    this.nz(v, { t, k: "pink", f: 900, q: 0.6, a: 0.002, p: p * 0.4, d: 0.12 });
+  },
+  drum(v, t, boom, p) {      // dhol: the bass head's DUM, the thin stick's tek
+    if (boom) {
+      this.tn(v, { t, f: 88, f2: 47, gl: 0.2, a: 0.001, p, d: 0.32 });
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 240, a: 0.001, p: p * 0.6, d: 0.14 });
+      this.nz(v, { t, f: 900, q: 1, a: 0.0005, p: p * 0.25, d: 0.025 });
+    } else {
+      this.nz(v, { t, f: 2700, q: 1.1, a: 0.0005, p: p * 0.55, d: 0.05 });
+      this.modal(v, { t, f: 460, p: p * 0.25, parts: [[1, 1, 0.05], [1.6, 0.5, 0.03]] });
+    }
+  },
+  flap(v, t, p, d) {         // cloth snapping in the wind
+    const g = this.nz(v, { t, k: "pink", f: 700, q: 0.7, a: 0.03, p, d: d || 0.35 });
+    this.lfo(v, g.gain, t, t + (d || 0.35) + 0.05, this.rr(8, 11), p * 0.8);
+  },
+  ignite(v, t, p, pitch) {   // fire catching: a rising whoomph, then crackle (or the seethe of pitch)
+    this.nz(v, { t, k: "brown", ft: "lowpass", f: 140, path: [[0.2, 1500], [0.8, 380]], q: 1.1, a: 0.14, p, d: 0.6 });
+    this.nz(v, { t: t + 0.12, k: "crackle", f: pitch ? 1800 : 2800, q: 0.7, a: 0.08, hold: 0.25, p: p * 0.55, d: 0.6 });
+    if (pitch) for (let i = 0; i < 5; i++) this.bubble(v, t + 0.2 + this.rr(0, 0.6), p * 0.5);
+  },
+  bubble(v, t, p) {
+    const f = this.rr(150, 320);
+    this.tn(v, { t, f, f2: f * this.rr(1.8, 2.6), gl: 0.03, a: 0.002, p, d: 0.045 });
+  },
+  blast(v, t, s) {           // black powder bursting on masonry
+    this.nz(v, { t, ft: "highpass", f: 700, q: 0.5, a: 0.0002, p: s, d: 0.04 });
+    this.nz(v, { t, k: "pink", f: 420, q: 0.6, a: 0.001, p: 0.9 * s, d: 0.22 });
+    this.tn(v, { t, f: 64, f2: 28, gl: 0.35, a: 0.001, p: s, d: 0.55 });
+    this.nz(v, { t, k: "brown", ft: "lowpass", f: 320, path: [[0.8, 110]], a: 0.004, p: s, d: 0.9 });
+    this.nz(v, { t: t + 0.02, k: "crackle", rate: 0.8, f: 2200, q: 0.6, a: 0.01, p: 0.6 * s, d: 0.7 });
+    this.modal(v, { t: t + 0.01, f: 240, p: 0.3 * s, jit: 0.05, parts: [[1, 1, 0.12], [2.76, 0.6, 0.06], [5.4, 0.4, 0.03]] });
+  },
+  // a ram's horn or war horn: a lip-buzzed sawtooth that scoops up into pitch, brightens with the
+  // breath (the 'blat' of the attack), sits in two horn formants, and sags as the breath gives out
+  hornNote(v, t, f, d, p, raw) {
+    const c = this.ctx, s = c.createOscillator(), s2 = c.createOscillator();
+    s.type = "sawtooth"; s2.type = "sawtooth"; s2.detune.value = 7;
+    for (const o of [s, s2]) {
+      o.frequency.setValueAtTime(f * 0.84, t);
+      o.frequency.exponentialRampToValueAtTime(f * 1.012, t + 0.07);
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.14);
+      o.frequency.setValueAtTime(f, t + d * 0.85);
+      o.frequency.exponentialRampToValueAtTime(f * 0.93, t + d + 0.12);
+    }
+    const ws = this.node(v, c.createWaveShaper()); ws.curve = this.driveCurve(1.5 + raw * 2.5);
+    const br = this.filt(v, "lowpass", f * 2, 1.2, t);
+    br.frequency.exponentialRampToValueAtTime(f * (7 + raw * 5), t + 0.07);
+    br.frequency.exponentialRampToValueAtTime(f * 4.5, t + 0.3);
+    br.frequency.setValueAtTime(f * 4.5, t + d * 0.8);
+    br.frequency.exponentialRampToValueAtTime(f * 1.6, t + d + 0.12);
+    const g = this.node(v, c.createGain());
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(p, t + 0.05);
+    g.gain.linearRampToValueAtTime(p * 0.8, t + 0.18);
+    g.gain.setValueAtTime(p * 0.8, t + d * 0.8);
+    g.gain.exponentialRampToValueAtTime(p * 0.001, t + d + 0.15);
+    s.connect(ws); s2.connect(ws); ws.connect(br);
+    const dry = this.node(v, c.createGain()); dry.gain.value = 0.5; br.connect(dry); dry.connect(g);
+    for (const [ff, q, fg] of [[520, 1.4, 1], [1250, 2.2, 0.35 + raw * 0.4]]) {
+      const b = this.filt(v, "bandpass", ff, q, t), bg = this.node(v, c.createGain());
+      bg.gain.value = fg; br.connect(b); b.connect(bg); bg.connect(g);
+    }
+    g.connect(v.out);
+    this.lfo(v, s.detune, t + 0.25, t + d + 0.2, 5.3, 7);
+    this.start(v, s, t, t + d + 0.2); this.start(v, s2, t, t + d + 0.2);
+    this.nz(v, { t, k: "pink", f: 1500, q: 0.8, a: 0.05, hold: d * 0.6, p: p * 0.12, d: 0.25 });   // breath
+  },
+  // the duduk voice of the soundtrack, for the stingers: two detuned triangles, vibrato, soft lowpass
+  duduk(v, t, f, d, p) {
+    for (const det of [0, 7]) {
+      const s = this.tn(v, { t, type: "triangle", f, det, lp: 1500, q: 2, a: Math.min(0.25, d * 0.25), hold: d * 0.45, d: d * 0.4, p });
+      this.lfo(v, s.detune, t, t + d + 0.1, 5.2, 6);
+    }
+    this.nz(v, { t, k: "pink", f: f * 3, q: 2, a: d * 0.2, hold: d * 0.4, p: p * 0.15, d: d * 0.4 });
+  },
+  manFall(v, t, s, boss) {   // a cry, the body going down, kit clattering
+    const vow = this.pick([[650, 1100], [520, 900], [430, 1700], [700, 1250]]), f0 = this.rr(115, 170) * (boss ? 0.72 : 1);
+    this.formant(v, { t, f: f0, path: [[0.08, f0 * 1.08], [0.2, f0 * 0.7]], forms: [[vow[0], 5, 1], [vow[1], 7, 0.45], [2600, 6, 0.12]], a: 0.015, d: 0.2 * s, p: 0.22, drive: 2 });
+    this.nz(v, { t, k: "pink", f: vow[0], q: 2.5, a: 0.01, p: 0.1, d: 0.15 });
+    const T = t + this.rr(0.13, 0.2);
+    this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 260, a: 0.004, p: 0.8 * s, d: 0.22 * s });
+    this.tn(v, { t: T, f: 92, f2: 52, gl: 0.08, p: 0.4 * s, d: 0.1 * s });
+    this.nz(v, { t: T, k: "crackle", f: 2600, q: 0.7, a: 0.003, p: 0.3 * s, d: 0.12 * s });
+  },
+
+  // ---- the sounds. thr: ms between plays, max: live voices of it, g: level, cat: thinned together,
+  //      rev / echo: sends, duck: [dB, hold s, release tc] on the music, pri: never dropped ----
+  SPEC: {
+    arrow:      { thr: 60, max: 6, g: 1.67, cat: "shot", rev: 0.12 },
+    bolt:       { thr: 90, max: 4, g: 0.8, cat: "shot", rev: 0.15 },
+    javelin:    { thr: 80, max: 4, g: 1.25, cat: "shot", rev: 0.12 },
+    musket:     { thr: 110, max: 4, g: 0.45, cat: "shot", rev: 0.25, echo: 0.18 },
+    hurl:       { thr: 90, max: 4, g: 1.77, cat: "shot", rev: 0.12 },
+    catapult:   { thr: 140, max: 3, g: 0.48, cat: "shot", rev: 0.18 },
+    trebuchet:  { thr: 160, max: 3, g: 0.51, cat: "shot", rev: 0.18 },
+    stoneHit:   { thr: 90, max: 4, g: 0.81, cat: "blast", rev: 0.2 },
+    firepot:    { thr: 110, max: 3, g: 0.7, cat: "blast", rev: 0.2 },
+    explosion:  { thr: 120, max: 3, g: 0.49, cat: "blast", rev: 0.25, echo: 0.25, duck: [4, 0.4, 0.3] },
+    cannon:     { thr: 300, max: 2, g: 0.6, cat: "blast", rev: 0.3, echo: 0.35, pri: true, duck: [6, 0.6, 0.4] },
+    impact:     { thr: 45, max: 6, g: 1.04, cat: "hit", rev: 0.05 },
+    heroHit:    { thr: 120, max: 2, g: 0.37, cat: "hit", rev: 0.1 },
+    death:      { thr: 70, max: 5, g: 0.95, cat: "death", rev: 0.12 },
+    coin:       { thr: 80, max: 4, g: 0.42, cat: "coin", rev: 0.06 },
+    horn:       { thr: 500, max: 1, g: 0.22, pri: true, rev: 0.3, echo: 0.3, duck: [7, 1.4, 0.5] },
+    build:      { thr: 100, max: 2, g: 0.94, pri: true, rev: 0.15 },
+    plot:       { thr: 100, max: 2, g: 1.15, pri: true, rev: 0.12 },
+    rally:      { thr: 100, max: 2, g: 1.16, pri: true, rev: 0.1 },
+    upgrade:    { thr: 100, max: 2, g: 0.46, pri: true, rev: 0.2 },
+    leak:       { thr: 250, max: 2, g: 0.9, pri: true, rev: 0.25, echo: 0.15, duck: [3, 0.4, 0.3] },
+    heroDown:   { thr: 500, max: 1, g: 0.52, pri: true, rev: 0.3, duck: [6, 1.6, 0.5] },
+    trumpet:    { thr: 400, max: 2, g: 0.36, pri: true, rev: 0.25, echo: 0.3, duck: [5, 0.9, 0.4] },
+    smoke:      { thr: 300, max: 2, g: 1.27, pri: true, rev: 0.12 },
+    nova:       { thr: 300, max: 2, g: 0.41, pri: true, rev: 0.3, duck: [4, 0.8, 0.4] },
+    burn:       { thr: 900, max: 2, g: 0.37, cat: "burn", rev: 0.05 },
+    spellArrows:{ thr: 300, max: 1, g: 1.51, pri: true, rev: 0.2, duck: [5, 0.9, 0.4] },
+    arrowRain:  { thr: 80, max: 4, g: 1.53, cat: "hit", rev: 0.12 },
+    spellFrost: { thr: 300, max: 1, g: 1.0, pri: true, rev: 0.35, duck: [5, 1.2, 0.4] },
+    spellWrath: { thr: 300, max: 1, g: 0.52, pri: true, rev: 0.35, echo: 0.4, duck: [9, 1.8, 0.6] },
+    win:        { thr: 1000, max: 1, g: 0.57, pri: true, rev: 0.35, echo: 0.2 },
+    lose:       { thr: 1000, max: 1, g: 0.4, pri: true, rev: 0.35, duck: [12, 4.5, 0.8] },
+    uiTick:     { thr: 35, max: 3, g: 1.34, pri: true, rev: 0.03 },
+    mapSelect:  { thr: 80, max: 2, g: 0.53, pri: true, rev: 0.12 },
+    mapLocked:  { thr: 120, max: 2, g: 0.63, pri: true, rev: 0.08 },
+    unlock:     { thr: 300, max: 1, g: 0.26, pri: true, rev: 0.25, duck: [4, 1, 0.4] },
+  },
+  play(name, o) {
+    if (!this.ctx || !this.sfxOn) return;   // silent, and allocation-free, until the first gesture and while muted
+    const fn = this.SFX[name];
+    if (!fn) return;
+    try { this.fire(name, fn, o || {}); } catch (e) { /* a sound must never break the game */ }
+  },
+  fire(name, fn, o) {
+    const S = this.SPEC[name] || {}, t = o.at != null ? o.at : this.ctx.currentTime + 0.004;
+    const last = this.lastPlay[name];
+    if (S.thr && last != null && (t - last) * 1000 < S.thr) { this.stats.dropped++; return; }
+    const vs = this.voices;
+    for (let i = vs.length - 1; i >= 0; i--) if (vs[i].end <= t) { vs[i] = vs[vs.length - 1]; vs.pop(); }
+    let same = 0;
+    for (const x of vs) if (x.name === name) same++;
+    if (same >= (S.max || 4) || (!S.pri && vs.length >= this.MAX_VOICES)) { this.stats.dropped++; return; }
+    this.lastPlay[name] = t;
+    // when a category piles up (thirty bows loosing at once) each new voice comes in softer
+    const cat = S.cat || name, d = this.dens[cat] || (this.dens[cat] = { n: 0, t });
+    d.n = d.n * Math.exp(-Math.max(0, t - d.t) / 0.35) + 1; d.t = t;
+    const att = S.pri ? 1 : 1 / Math.sqrt(1 + 0.3 * (d.n - 1));
+    const pan = o.x != null ? (o.x / VW - 0.5) * 1.3 : 0;
+    const v = this.voice(t, { gain: (S.g || 0.5) * att * (o.vol || 1), pan, rev: S.rev, echo: S.echo });
+    fn.call(this, v, t, o);
+    vs.push({ name, end: v.end });
+    if (S.duck) this.duck(t, S.duck[0], S.duck[1], S.duck[2]);
+  },
+  // sidechain-style dip of the music bus under a big event; overlapping dips keep the deeper one
+  duck(t, db, hold, rel) {
+    if (!this.duckGain) return;
+    const p = this.duckGain.gain, g = Math.pow(10, -db / 20);
+    const live = this.duckSt && t < this.duckSt.until ? this.duckSt : null;
+    const gg = live ? Math.min(live.g, g) : g, until = Math.max(live ? live.until : 0, t + hold);
+    this.duckSt = { g: gg, until };
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+    else { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); }
+    p.setTargetAtTime(gg, t, 0.035);
+    p.setTargetAtTime(1, until, rel);
+  },
+
+  SFX: {
+    // bowstring slap, the twang settling in pitch, the limb thump, then the shaft tearing away
+    arrow(v, t, o) {
+      const n = this.rrIdx("arrow", 4), k = [1, 0.93, 1.07, 0.97][n] * this.rr(0.96, 1.04) * (o.spec === "a" ? 0.84 : 1);
+      const w = this.rr(0.85, 1.18);
+      this.nz(v, { t, ft: "highpass", f: this.rr(1800, 2800), q: 0.6, a: 0.0004, p: this.rr(0.3, 0.45), d: 0.014 });
+      this.tn(v, { t, type: "sawtooth", f: 165 * k, f2: 128 * k * this.rr(0.95, 1.05), gl: 0.05, lp: this.rr(2200, 3000), lp2: 260, lpt: 0.12, a: 0.0015, p: 0.42, d: this.rr(0.11, 0.18) });
+      this.tn(v, { t, f: 105 * k, f2: 62 * k, gl: 0.07, p: this.rr(0.2, 0.34), d: 0.07 });
+      this.nz(v, { t: t + this.rr(0.008, 0.03), k: "pink", f: 1500 * w, path: [[this.rr(0.05, 0.09), 3600 * w], [0.2, 2200 * w]], q: this.rr(1.1, 1.8), a: 0.035, p: 0.55, d: this.rr(0.12, 0.18) });
+    },
+    // field ballista: trigger clack, the heavy sinew cord's thrum, the bolt ripping off, the crew's ratchet
+    bolt(v, t) {
+      const n = this.rrIdx("bolt", 3), k = [1, 0.9, 1.1][n] * this.rr(0.95, 1.05);
+      this.modal(v, { t, f: 430 * k, p: 0.5, parts: [[1, 1, 0.06], [2.71, 0.6, 0.035], [5.2, 0.35, 0.02]] });
+      this.nz(v, { t, f: 1800, q: 0.8, a: 0.0005, p: 0.5, d: 0.02 });
+      this.tn(v, { t, type: "sawtooth", f: 82 * k, f2: 64 * k, gl: 0.12, lp: 1300, lp2: 180, lpt: 0.2, p: 0.55, d: 0.26 });
+      this.tn(v, { t, f: 62 * k, f2: 40, gl: 0.12, p: 0.6, d: 0.16 });
+      this.nz(v, { t: t + 0.015, k: "pink", f: 700, path: [[0.08, 1900], [0.24, 1100]], q: 1.8, a: 0.04, p: 0.55, d: 0.2 });
+      const clicks = 2 + Math.floor(this.rnd() * 3), t0 = t + this.rr(0.2, 0.28);
+      for (let i = 0; i < clicks; i++) {
+        this.modal(v, { t: t0 + i * this.rr(0.045, 0.07), f: 900 * k * this.rr(0.92, 1.08), p: 0.1, parts: [[1, 1, 0.02], [2.4, 0.5, 0.012]] });
+      }
+    },
+    // the thrower's breath, then a long shaft scything through the air, deeper and slower than an arrow
+    javelin(v, t, o) {
+      const k = this.rr(0.9, 1.1), heavy = o.spec === "a" ? 1.25 : 1;
+      this.nz(v, { t, k: "pink", f: 850 * k, q: 1.4, a: 0.025, p: 0.16, d: 0.1 });
+      this.nz(v, { t: t + 0.02, k: "pink", f: 360 * k / heavy, path: [[0.12, 1100 * k / heavy], [0.36, 480 * k]], q: 1.3, a: 0.09, p: 0.8, d: 0.26 });
+      this.nz(v, { t: t + 0.04, k: "brown", ft: "lowpass", f: 320, a: 0.08, p: 0.45 * heavy, d: 0.2 });
+      const s = this.tn(v, { t: t + 0.05, type: "triangle", f: 190 * k, f2: 168 * k, a: 0.04, p: 0.07, d: 0.24 });
+      this.lfo(v, s.detune, t + 0.05, t + 0.35, 17, 45);
+    },
+    // matchlock: the pan flashes, a beat, then the crack, the blast and the boom rolling off the hills
+    musket(v, t) {
+      const k = this.rr(0.9, 1.1), n = this.rrIdx("musket", 3), T = t + this.rr(0.03, 0.06);
+      this.nz(v, { t, ft: "highpass", f: 3500, q: 0.7, a: 0.002, p: 0.16, d: 0.03 });
+      this.nz(v, { t, k: "crackle", ft: "highpass", f: 4000, a: 0.002, p: 0.3, d: 0.04 });
+      this.nz(v, { t: T, ft: "highpass", f: [900, 1100, 800][n], q: 0.5, a: 0.0002, p: 1, d: 0.03 });
+      this.nz(v, { t: T, k: "pink", f: 550 * k, q: 0.6, a: 0.001, p: 0.9, d: 0.14 });
+      this.tn(v, { t: T, f: 75 * k, f2: 36, gl: 0.18, a: 0.001, p: 0.95, d: 0.3 });
+      this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 260, a: 0.002, p: 0.9, d: 0.5 });
+      this.nz(v, { t: T + 0.02, k: "pink", ft: "lowpass", f: 1800, path: [[0.6, 500]], a: 0.04, p: 0.12, d: 0.6 });
+    },
+    // the sling whirls round, faster each pass, the pouch snaps open, the stone hums away
+    hurl(v, t) {
+      const k = this.rr(0.9, 1.12);
+      [0, 0.055].forEach((dt, i) => this.nz(v, { t: t + dt, k: "pink", f: (560 + i * 220) * k, q: 2.2, a: 0.03, p: 0.25 + i * 0.15, d: 0.05 }));
+      this.nz(v, { t: t + 0.1, ft: "highpass", f: 2500, q: 0.6, a: 0.0005, p: 0.45, d: 0.012 });
+      this.nz(v, { t: t + 0.1, k: "pink", f: 1000 * k, path: [[0.1, 1500 * k], [0.22, 800 * k]], q: 1.5, a: 0.02, p: 0.4, d: 0.16 });
+      this.tn(v, { t: t + 0.1, f: 92 * k, f2: 60, gl: 0.06, p: 0.25, d: 0.06 });
+    },
+    // onager: the skein's last creak, the arm's whoosh, and the 'kick' as it slams the padded beam
+    catapult(v, t) {
+      const k = this.rr(0.9, 1.1), T = t + 0.06;
+      this.creak(v, t, 0.07, 640 * k, 0.25);
+      this.nz(v, { t: t + 0.01, k: "pink", f: 320, path: [[0.08, 700]], q: 1.2, a: 0.04, p: 0.3, d: 0.12 });
+      this.tn(v, { t: T, f: 70 * k, f2: 38, gl: 0.2, a: 0.002, p: 1, d: 0.32 });
+      this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 380, a: 0.002, p: 0.9, d: 0.28 });
+      this.modal(v, { t: T, f: 150 * k, p: 0.5, parts: [[1, 1, 0.16], [2.76, 0.55, 0.08], [5.4, 0.3, 0.04]] });
+      this.nz(v, { t: T, f: 1400, q: 0.7, a: 0.0005, p: 0.4, d: 0.03 });
+      this.nz(v, { t: T + 0.01, k: "crackle", f: 1800, q: 0.8, a: 0.005, p: 0.35, d: 0.16 });
+    },
+    // traction trebuchet: the crew hauls, ropes creak, the long beam sweeps over, the sling whips
+    // open, and the beam fetches up against its stop
+    trebuchet(v, t) {
+      const k = this.rr(0.9, 1.08), T = t + 0.32;
+      this.creak(v, t, 0.12, 520 * k, 0.22);
+      this.creak(v, t + 0.1, 0.1, 760 * k, 0.16);
+      this.nz(v, { t: t + 0.04, k: "pink", f: 200, path: [[0.22, 620], [0.5, 300]], q: 1.1, a: 0.16, p: 0.7, d: 0.32 });
+      this.nz(v, { t: t + 0.06, k: "brown", ft: "lowpass", f: 240, a: 0.14, p: 0.45, d: 0.3 });
+      this.nz(v, { t: t + 0.24, ft: "highpass", f: 2400, a: 0.0005, p: 0.4, d: 0.015 });
+      this.tn(v, { t: T, f: 58, f2: 36, gl: 0.2, p: 0.8, d: 0.3 });
+      this.modal(v, { t: T, f: 110 * k, p: 0.45, parts: [[1, 1, 0.2], [2.76, 0.5, 0.1], [5.4, 0.25, 0.05]] });
+      this.nz(v, { t: T, k: "crackle", f: 1500, q: 0.8, a: 0.004, p: 0.25, d: 0.2 });
+    },
+    // a lobbed stone lands: ground thump, the crack of rock, its short ring, grit and dust
+    stoneHit(v, t, o) {
+      const n = this.rrIdx("stoneHit", 3), k = [1, 0.88, 1.12][n] * this.rr(0.94, 1.06), big = o.big ? 1.3 : 1;
+      this.tn(v, { t, f: 80 * k / big, f2: 34, gl: 0.2, a: 0.001, p: 0.9, d: 0.28 * big });
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 450, a: 0.001, p: 0.85, d: 0.3 * big });
+      this.nz(v, { t, f: 1700 * k, q: 1.1, a: 0.0004, p: 0.7, d: 0.035 });
+      this.modal(v, { t, f: 620 * k, p: 0.2, jit: 0.04, parts: [[1, 1, 0.05], [1.73, 0.7, 0.04], [2.9, 0.5, 0.03]] });
+      this.nz(v, { t: t + 0.01, k: "crackle", rate: 0.7 * k, f: 2400, q: 0.6, a: 0.015, p: 0.6, d: 0.45 * big });
+      this.nz(v, { t: t + 0.03, k: "pink", ft: "highpass", f: 2800, a: 0.06, p: 0.08, d: 0.45 });
+    },
+    // a firepot bursts: clay shatters, the pitch catches with a soft whoomph, then spits and burns
+    firepot(v, t) {
+      this.nz(v, { t, f: 2600, q: 1.4, a: 0.0004, p: 0.6, d: 0.05 });
+      this.nz(v, { t, k: "crackle", rate: 1.2, ft: "highpass", f: 2500, a: 0.002, p: 0.5, d: 0.12 });
+      this.tn(v, { t, f: 70, f2: 38, gl: 0.15, p: 0.55, d: 0.22 });
+      this.nz(v, { t: t + 0.02, k: "brown", ft: "lowpass", f: 150, path: [[0.18, 1600], [0.7, 400]], q: 1.2, a: 0.12, p: 1, d: 0.55 });
+      this.nz(v, { t: t + 0.1, k: "crackle", f: 3000, q: 0.7, a: 0.08, hold: 0.25, p: 0.45, d: 0.6 });
+    },
+    explosion(v, t) { this.blast(v, t, 1); },
+    // the siege gun's ball bursts on the tower; the report from the road arrives after it
+    cannon(v, t) {
+      this.blast(v, t, 0.9);
+      const T = t + this.rr(0.32, 0.45);
+      this.nz(v, { t: T, k: "pink", ft: "lowpass", f: 900, a: 0.002, p: 0.35, d: 0.12 });
+      this.tn(v, { t: T, f: 46, f2: 30, gl: 0.4, a: 0.004, p: 0.6, d: 0.6 });
+      this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 180, a: 0.01, p: 0.7, d: 1 });
+    },
+    // a shaft or stone striking home: flesh and cloth thud, a hide shield knocks, iron and mail ring
+    impact(v, t, o) {
+      const a = o.armor || 0, k = this.rr(0.85, 1.15), n = this.rrIdx("impact", 3);
+      this.lvl(v, a >= 10 ? 0 : a >= 5 ? 2 : 6.7);
+      if (a >= 10) {
+        this.modal(v, { t, f: [610, 720, 540][n] * k, p: 0.32, jit: 0.03, parts: [[1, 1, 0.09], [2.32, 0.6, 0.06], [3.87, 0.4, 0.04], [5.1, 0.25, 0.025]] });
+        this.nz(v, { t, k: "brown", ft: "lowpass", f: 400, a: 0.001, p: 0.6, d: 0.08 });
+        this.nz(v, { t, ft: "highpass", f: 2500, a: 0.0003, p: 0.3, d: 0.01 });
+      } else if (a >= 5) {
+        this.modal(v, { t, f: [330, 380, 300][n] * k, p: 0.42, parts: [[1, 1, 0.06], [2.6, 0.5, 0.035], [4.3, 0.3, 0.02]] });
+        this.nz(v, { t, f: 1200 * k, q: 0.9, a: 0.0005, p: 0.45, d: 0.02 });
+      } else {
+        this.nz(v, { t, k: "brown", ft: "lowpass", f: [420, 360, 500][n] * k, a: 0.001, p: 1, d: 0.07 });
+        this.nz(v, { t, f: [1500, 1900, 1300][n] * k, q: 1, a: 0.0005, p: 0.32, d: 0.012 });
+      }
+      if (o.kind === "ball") this.nz(v, { t, ft: "highpass", f: 3000, a: 0.0003, p: 0.25, d: 0.01 });
+    },
+    // the hero's blade: the swing, then steel ringing off steel
+    heroHit(v, t) {
+      const k = this.rr(0.92, 1.1), T = t + 0.05;
+      this.nz(v, { t, k: "pink", f: 1700, path: [[0.06, 3200]], q: 1.4, a: 0.03, p: 0.25, d: 0.04 });
+      this.modal(v, { t: T, f: 1250 * k, p: 0.3, jit: 0.02, parts: [[1, 1, 0.22], [1.52, 0.6, 0.18], [2.71, 0.5, 0.1], [3.9, 0.3, 0.06], [5.3, 0.2, 0.04]] });
+      this.nz(v, { t: T, ft: "highpass", f: 2500, a: 0.0003, p: 0.5, d: 0.02 });
+      this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 300, p: 0.6, d: 0.1 });
+    },
+    // a foe falls; what falls depends on what he was
+    death(v, t, o) {
+      const kind = o.kind, varn = o.variant;
+      this.lvl(v, kind === "ram" ? ({ elephant: -8.2, cannon: -9.5 }[varn] || -8.9) : kind === "boss" ? -8.3 :
+        (kind === "cavalry" || (kind === "flyer" && o.era === 3)) ? -7.4 : 0);
+      if (kind === "ram" && varn === "elephant") {
+        // a bellow sinking to a groan, then the earth takes the weight and the howdah splinters
+        const s = this.formant(v, { t, f: 250, path: [[0.15, 300], [0.7, 115]], forms: [[900, 3, 1], [1800, 4, 0.5], [420, 3, 0.6]], a: 0.04, hold: 0.25, d: 0.45, p: 0.4, drive: 3 });
+        this.lfo(v, s.frequency, t, t + 0.8, 29, 14);   // the rasp in the throat
+        this.nz(v, { t, k: "pink", f: 1100, q: 0.9, a: 0.05, hold: 0.2, p: 0.16, d: 0.45 });
+        const T = t + 0.55;
+        this.tn(v, { t: T, f: 45, f2: 26, gl: 0.4, p: 1, d: 0.6 });
+        this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 200, p: 1, d: 0.7 });
+        this.nz(v, { t: T + 0.02, k: "crackle", rate: 0.6, f: 1500, q: 0.6, p: 0.4, d: 0.5 });
+      } else if (kind === "ram" && varn === "cannon") {
+        // the gun's crew scatter; the bronze barrel rolls off its carriage and rings on stone
+        this.modal(v, { t: t + 0.08, f: 260, p: 0.35, jit: 0.01, parts: [[1, 1, 0.7], [2.02, 0.5, 0.5], [2.76, 0.4, 0.35], [5.4, 0.2, 0.15]] });
+        this.nz(v, { t, k: "crackle", rate: 0.7, f: 1400, q: 0.6, p: 0.5, d: 0.4 });
+        this.tn(v, { t: t + 0.08, f: 60, f2: 34, gl: 0.3, p: 0.8, d: 0.35 });
+        this.nz(v, { t: t + 0.08, k: "brown", ft: "lowpass", f: 260, p: 0.7, d: 0.35 });
+      } else if (kind === "ram") {
+        // timbers give way: knocks, splinters and the long beam hitting the ground
+        for (let i = 0; i < 3; i++) this.modal(v, { t: t + i * this.rr(0.05, 0.1), f: this.rr(130, 280), p: 0.35, parts: [[1, 1, 0.14], [2.76, 0.5, 0.07], [5.4, 0.3, 0.035]] });
+        this.nz(v, { t, k: "crackle", rate: 0.6, f: 1600, q: 0.6, p: 0.6, d: 0.45 });
+        this.tn(v, { t: t + 0.2, f: 55, f2: 32, gl: 0.3, p: 0.9, d: 0.4 });
+        this.nz(v, { t: t + 0.2, k: "brown", ft: "lowpass", f: 300, p: 0.8, d: 0.4 });
+      } else if (kind === "cavalry" || (kind === "flyer" && o.era === 3)) {
+        // the horse goes down: a snort, a heavy fall, the tack jingling
+        const g = this.nz(v, { t, k: "pink", f: 480, q: 1.2, a: 0.02, p: 0.35, d: 0.2 });
+        this.lfo(v, g.gain, t, t + 0.25, 27, 0.18);
+        const T = t + 0.16;
+        this.tn(v, { t: T, f: 68, f2: 40, gl: 0.2, p: 0.85, d: 0.28 });
+        this.nz(v, { t: T, k: "brown", ft: "lowpass", f: 220, p: 0.9, d: 0.35 });
+        for (let i = 0; i < 4; i++) this.modal(v, { t: T + this.rr(0, 0.18), f: this.rr(2600, 3600), p: 0.08, parts: [[1, 1, 0.12], [2.4, 0.4, 0.06]] });
+      } else {
+        const boss = kind === "boss";
+        this.manFall(v, t, boss ? 1.6 : 1, boss);
+        if (boss) {
+          // a lord in scale armour: the crash of iron and a shield rolling to rest
+          this.nz(v, { t: t + 0.18, k: "crackle", f: 3000, q: 0.7, p: 0.5, d: 0.5 });
+          this.modal(v, { t: t + 0.2, f: 820, p: 0.25, parts: [[1, 1, 0.4], [2.32, 0.5, 0.25], [3.87, 0.3, 0.15]] });
+          this.tn(v, { t: t + 0.2, f: 50, f2: 30, gl: 0.3, p: 0.8, d: 0.5 });
+        }
+      }
+    },
+    // coins: two or three small bright clinks, never the same twice
+    coin(v, t) {
+      let tt = t;
+      const n = this.rnd() < 0.5 ? 2 : 3;
+      for (let i = 0; i < n; i++) {
+        this.modal(v, { t: tt, f: this.rr(2300, 3300), p: 0.35 * (i ? 0.7 : 1), jit: 0.02, parts: [[1, 1, 0.16], [2.32, 0.55, 0.09], [3.86, 0.4, 0.05], [5.6, 0.25, 0.03]] });
+        this.nz(v, { t: tt, ft: "highpass", f: 5000, a: 0.0003, p: 0.2, d: 0.006 });
+        tt += this.rr(0.045, 0.08);
+      }
+    },
+    // the wave call: each age blows its own horn on D and A, the soundtrack's tonic and fifth
+    horn(v, t, o) {
+      const era = Math.max(0, Math.min(3, o.era | 0));
+      const D3 = 146.83, A3 = 220, D4 = 293.66, A4 = 440, A2 = 110;
+      const calls = [
+        [[D4, 0.38], [A4, 0.95]],               // Urartu: a raw ram's horn, high and blatting
+        [[A2, 0.32], [D3, 0.42], [A3, 1.05]],   // Avarayr: the long war horn's three rising calls
+        [[D3, 0.4], [A3, 1.05]],                // the Bagratid princes' horn, with the dhol under it
+        [[D3, 0.3], [D3, 0.3], [A3, 1.05]],     // 1579: the horn over a dhol roll
+      ];
+      const raw = [1, 0.45, 0.6, 0.6][era];
+      this.lvl(v, [-1.9, 0, -0.3, -0.3][era]);
+      let tt = t;
+      for (const [f, d] of calls[era]) { this.hornNote(v, tt, f, d, 0.55, raw); tt += d + 0.07; }
+      if (era === 2) { this.drum(v, t, true, 0.7); this.drum(v, t + 0.47, true, 0.7); }
+      if (era === 3) for (let i = 0; i < 8; i++) this.drum(v, t + i * 0.11, i % 4 === 0, 0.3 + i * 0.06);
+    },
+    // a tower raised: the frame set down, pinned with a mallet, and each age's own flourish
+    build(v, t, o) {
+      const k = this.rr(0.9, 1.1);
+      this.tn(v, { t, f: 92 * k, f2: 52, gl: 0.1, p: 0.7, d: 0.16 });
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 380, p: 0.7, d: 0.18 });
+      this.modal(v, { t, f: 210 * k, p: 0.35, parts: [[1, 1, 0.1], [2.76, 0.5, 0.05], [5.4, 0.3, 0.025]] });
+      this.nz(v, { t: t + 0.02, k: "pink", ft: "highpass", f: 2000, a: 0.03, p: 0.06, d: 0.3 });
+      this.mallet(v, t + 0.16, 560 * k, 0.28);
+      this.mallet(v, t + 0.29, 600 * k, 0.24);
+      const T = t + 0.42;
+      this.lvl(v, { standard: -5.3, banner: -10.4, drums: -6.6, beacon: -1 }[o.skin] || 0);
+      switch (o.skin) {
+        case "beacon": this.ignite(v, T, 0.6, false); break;
+        case "cauldron": this.ignite(v, T, 0.5, true); break;
+        case "standard":   // Haldi's bronze standard: a clang, and the cloth catching the wind
+          this.bell(v, T, 587.33, 0.25, 1.4); this.flap(v, T + 0.1, 0.2, 0.4); break;
+        case "exhort":     // the semantron: the church's wooden board struck faster and faster
+          [0, 0.2, 0.36, 0.48, 0.57].forEach(dt => this.mallet(v, T + dt, 760, 0.32)); break;
+        case "banner": this.flap(v, T, 0.25, 0.45); this.hornNote(v, T + 0.1, 293.66, 0.35, 0.3, 0.5); break;
+        case "drums": this.drum(v, T, true, 0.8); this.drum(v, T + 0.27, false, 0.8); this.drum(v, T + 0.4, true, 0.7); break;
+        case "musket":     // the ramrod rattles home
+          this.anvil(v, T, 1650, 0.12); this.anvil(v, T + 0.12, 1820, 0.1); break;
+        case "archer":     // a sheaf of arrows dropped into the quiver
+          this.nz(v, { t: T, k: "crackle", f: 3200, q: 0.8, a: 0.01, p: 0.35, d: 0.18 }); break;
+        default:           // engines: ropes drawn tight
+          this.creak(v, T, 0.14, 600 * k, 0.22);
+      }
+    },
+    // ground claimed: two spade bites into the earth and a stake driven home
+    plot(v, t) {
+      [0, 0.22].forEach(dt => {
+        this.nz(v, { t: t + dt, k: "crackle", rate: 0.6, f: 900, q: 0.7, a: 0.01, p: 0.6, d: 0.12 });
+        this.nz(v, { t: t + dt, k: "brown", ft: "lowpass", f: 300, a: 0.005, p: 0.6, d: 0.1 });
+      });
+      this.mallet(v, t + 0.45, 480, 0.35);
+      this.mallet(v, t + 0.6, 520, 0.3);
+    },
+    // the hero sent to a new spot: a blade drawn, mail shrugged on, two quick steps
+    rally(v, t) {
+      this.nz(v, { t, f: 2600, path: [[0.2, 5200]], q: 4, a: 0.05, p: 0.25, d: 0.18 });
+      this.nz(v, { t: t + 0.02, k: "crackle", ft: "highpass", f: 5000, a: 0.02, p: 0.3, d: 0.2 });
+      [0.22, 0.38].forEach(dt => this.nz(v, { t: t + dt, k: "brown", ft: "lowpass", f: 350, a: 0.004, p: 0.5, d: 0.07 }));
+    },
+    // hammer on iron twice, then a bronze chime climbing D, F sharp, A
+    upgrade(v, t) {
+      this.anvil(v, t, 1150, 0.38);
+      this.anvil(v, t + 0.13, 1190, 0.3);
+      [587.33, 739.99, 880].forEach((f, i) => this.bell(v, t + 0.3 + i * 0.075, f, 0.14, 0.7));
+    },
+    // the gate takes a blow: deep timber boom, iron bands rattling
+    leak(v, t) {
+      this.tn(v, { t, f: 55, f2: 33, gl: 0.3, p: 1, d: 0.45 });
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 280, p: 1, d: 0.5 });
+      this.modal(v, { t, f: 96, p: 0.5, parts: [[1, 1, 0.3], [2.76, 0.5, 0.15], [5.4, 0.3, 0.07]] });
+      this.nz(v, { t: t + 0.01, k: "crackle", f: 3200, q: 0.7, p: 0.4, d: 0.35 });
+    },
+    // the hero falls: armour crashing down, then the duduk's half-step sigh from E flat to D
+    heroDown(v, t) {
+      this.nz(v, { t, k: "crackle", f: 2800, q: 0.7, p: 0.5, d: 0.45 });
+      this.modal(v, { t, f: 900, p: 0.22, parts: [[1, 1, 0.35], [2.32, 0.5, 0.2], [3.87, 0.3, 0.12]] });
+      this.tn(v, { t: t + 0.05, f: 70, f2: 38, gl: 0.2, p: 0.8, d: 0.3 });
+      this.nz(v, { t: t + 0.05, k: "brown", ft: "lowpass", f: 240, p: 0.8, d: 0.35 });
+      this.duduk(v, t + 0.35, 311.13, 0.5, 0.22);
+      this.duduk(v, t + 0.85, 293.66, 1.1, 0.24);
+    },
+    // a war elephant trumpets: a rough, growling blare through the trunk's resonances
+    trumpet(v, t) {
+      const f = this.rr(390, 520);
+      const s = this.formant(v, { t, f: f * 0.7, path: [[0.12, f * 1.12], [0.55, f * 1.05], [0.95, f * 0.72]], forms: [[1150, 2, 1], [2500, 3, 0.7], [600, 2, 0.4]], a: 0.05, hold: 0.55, d: 0.4, p: 0.55, drive: 4 });
+      this.lfo(v, s.frequency, t, t + 1.05, 33, f * 0.05);
+      this.lfo(v, s.detune, t, t + 1.05, 6.5, 25);
+      this.nz(v, { t, k: "pink", f: 1500, q: 0.8, a: 0.05, hold: 0.5, p: 0.2, d: 0.4 });
+      this.tn(v, { t, type: "sawtooth", f: 72, f2: 55, lp: 320, a: 0.08, p: 0.25, d: 0.55 });
+    },
+    // a ladder party lights its smoke pot: flint scratch, a damp whoomph, then a long hiss
+    smoke(v, t) {
+      this.nz(v, { t, ft: "highpass", f: 3000, a: 0.004, p: 0.35, d: 0.06 });
+      this.nz(v, { t, k: "crackle", ft: "highpass", f: 3500, a: 0.002, p: 0.4, d: 0.08 });
+      this.nz(v, { t: t + 0.08, k: "brown", ft: "lowpass", f: 180, path: [[0.2, 1100], [0.6, 500]], a: 0.12, p: 0.8, d: 0.45 });
+      this.nz(v, { t: t + 0.15, k: "pink", ft: "highpass", f: 2600, path: [[1.6, 1800]], a: 0.25, hold: 0.5, p: 0.3, d: 1.2 });
+      this.nz(v, { t: t + 0.2, k: "crackle", f: 4200, q: 0.8, a: 0.2, hold: 0.4, p: 0.25, d: 1.2 });
+    },
+    // Wrath of Haldi at the altar: the fire flares and the god's bronze sounds on D
+    nova(v, t) {
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 120, path: [[0.12, 2400], [0.8, 300]], q: 1, a: 0.06, p: 1, d: 0.75 });
+      this.gong(v, t + 0.02, 146.83, 0.4, 2.2);
+      this.nz(v, { t: t + 0.05, k: "crackle", f: 2800, q: 0.7, a: 0.05, p: 0.45, d: 0.8 });
+    },
+    // the fire slot at work: an open beacon roars and crackles, a pitch cauldron seethes and pops
+    burn(v, t, o) {
+      if (o.skin === "cauldron") {
+        this.lvl(v, -5.6);
+        for (let i = 0; i < 5; i++) this.bubble(v, t + this.rr(0, 0.5), 0.3);
+        this.nz(v, { t, ft: "highpass", f: 4500, a: 0.15, hold: 0.2, p: 0.12, d: 0.35 });
+        this.nz(v, { t, k: "brown", ft: "lowpass", f: 300, a: 0.15, hold: 0.2, p: 0.25, d: 0.35 });
+      } else {
+        this.nz(v, { t, k: "brown", ft: "lowpass", f: 500, a: 0.15, hold: 0.25, p: 0.35, d: 0.4 });
+        this.nz(v, { t, k: "crackle", f: 2600, q: 0.6, a: 0.05, hold: 0.3, p: 0.5, d: 0.35 });
+      }
+    },
+    // Rain of Arrows: a company looses together, the flight passes overhead whistling
+    spellArrows(v, t) {
+      for (let i = 0; i < 9; i++) {
+        const f = this.rr(130, 190);
+        this.tn(v, { t: t + this.rr(0, 0.16), type: "sawtooth", f, f2: f * 0.8, gl: 0.05, lp: 2200, lp2: 250, lpt: 0.1, p: 0.12, d: 0.12 });
+      }
+      this.nz(v, { t: t + 0.05, k: "pink", f: 1100, path: [[0.35, 3400], [0.8, 1400]], q: 1.1, a: 0.3, hold: 0.1, p: 0.8, d: 0.4 });
+      this.nz(v, { t: t + 0.1, f: 2800, path: [[0.6, 2100]], q: 7, a: 0.25, p: 0.12, d: 0.35 });
+    },
+    // the arrows come down: shafts thudding into earth and shields
+    arrowRain(v, t) {
+      this.nz(v, { t, k: "crackle", rate: 0.5, f: 1100, q: 0.7, a: 0.008, p: 0.9, d: 0.28 });
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 300, a: 0.01, p: 0.4, d: 0.16 });
+      for (let i = 0; i < 3; i++) this.modal(v, { t: t + this.rr(0, 0.15), f: this.rr(300, 450), p: 0.12, parts: [[1, 1, 0.05], [2.6, 0.5, 0.03]] });
+    },
+    // Frost of Aragats: the cold drops like a weight, an icy gust, ice crackling outward, glass on D
+    spellFrost(v, t) {
+      this.tn(v, { t, f: 95, f2: 50, gl: 0.4, a: 0.01, p: 0.2, d: 0.4 });
+      this.nz(v, { t, k: "pink", f: 5200, path: [[0.6, 1800]], q: 0.8, a: 0.06, p: 0.5, d: 0.7 });
+      this.nz(v, { t: t + 0.05, k: "crackle", rate: 1.7, ft: "highpass", f: 3500, a: 0.25, hold: 0.2, p: 1, d: 0.6 });
+      this.nz(v, { t: t + 0.1, k: "crackle", rate: 1.1, f: 2200, q: 1.2, a: 0.15, p: 0.45, d: 0.6 });
+      [2349.3, 3520, 4698.6, 2637].forEach((f, i) => this.tn(v, { t: t + 0.08 + i * 0.06, f: f * this.rr(0.998, 1.002), f2: f * 0.99, a: 0.005, p: 0.09, d: 1.1 - i * 0.15 }));
+    },
+    // Wrath of Haldi: a tearing multi-stroke crack, then thunder rolling off Aragats
+    spellWrath(v, t) {
+      [[0, 1], [0.022, 0.6], [0.05, 0.85], [0.085, 0.5]].forEach(([dt, p]) => this.nz(v, { t: t + dt, ft: "highpass", f: 1200, q: 0.5, a: 0.0002, p, d: this.rr(0.02, 0.05) }));
+      this.nz(v, { t, k: "crackle", rate: 1.3, ft: "highpass", f: 2500, a: 0.002, p: 0.6, d: 0.3 });
+      this.tn(v, { t, f: 70, f2: 30, gl: 0.3, p: 0.9, d: 0.45 });
+      this.nz(v, { t: t + 0.12, k: "brown", ft: "lowpass", f: 420, path: [[2.4, 110]], a: 0.25, hold: 0.25, p: 1, d: 2.2 });
+      for (let i = 0; i < 4; i++) {
+        this.nz(v, { t: t + 0.25 + this.rr(0, 1.3), k: "brown", ft: "lowpass", f: this.rr(160, 380), a: this.rr(0.08, 0.2), p: this.rr(0.4, 0.8), d: this.rr(0.4, 0.9) });
+      }
+    },
+    // victory: a dhol accent and bronze struck on D, A, D, F sharp, ringing under the kochari
+    win(v, t) {
+      this.drum(v, t, true, 1); this.drum(v, t + 0.27, true, 0.8);
+      [[293.66, 0.5], [440, 0.38], [587.33, 0.3], [739.99, 0.22]].forEach(([f, p], i) => this.bell(v, t + i * 0.035, f, p * 0.5, 2.4));
+      this.nz(v, { t, ft: "highpass", f: 6500, a: 0.01, p: 0.12, d: 1.2 });
+    },
+    // defeat: a bell tolls, a drone settles on D, and the duduk walks down the hijaz mode,
+    // A G F# E flat, to rest on D
+    lose(v, t) {
+      this.bell(v, t, 146.83, 0.4, 3.5);
+      this.tn(v, { t, type: "sawtooth", f: 73.42, lp: 300, a: 0.8, hold: 2.6, p: 0.08, d: 1.6 });
+      this.tn(v, { t, type: "sawtooth", f: 110, lp: 300, a: 0.8, hold: 2.6, p: 0.05, d: 1.6 });
+      let tt = t + 0.4;
+      for (const [f, d] of [[440, 0.5], [392, 0.42], [369.99, 0.42], [311.13, 0.62], [293.66, 1.9]]) { this.duduk(v, tt, f, d, 0.3); tt += d * 0.92; }
+      this.bell(v, tt - 0.3, 146.83, 0.22, 2.5);
+    },
+    // a stone tessera set, or a map seal under the finger: a tiny, dry, slightly random tick
+    uiTick(v, t) {
+      const f = this.rr(1900, 2800);
+      this.nz(v, { t, f: f * 1.6, q: 1.5, a: 0.0003, p: 0.5, d: 0.01 });
+      this.modal(v, { t, f, p: 0.22, jit: 0.03, parts: [[1, 1, 0.022], [2.31, 0.45, 0.012]] });
+    },
+    // a wooden token set on the map, and a little bronze answer on D and A
+    mapSelect(v, t) {
+      this.tn(v, { t, f: 160, f2: 90, gl: 0.05, p: 0.4, d: 0.08 });
+      this.mallet(v, t, 720, 0.3);
+      this.bell(v, t + 0.04, 587.33, 0.1, 0.8);
+      this.bell(v, t + 0.1, 880, 0.08, 0.7);
+    },
+    // locked: a dull knock and the rattle of a shackle that will not give
+    mapLocked(v, t) {
+      this.tn(v, { t, f: 120, f2: 70, gl: 0.08, p: 0.5, d: 0.12 });
+      this.mallet(v, t, 260, 0.3);
+      [0.06, 0.12].forEach(dt => this.modal(v, { t: t + dt, f: this.rr(1900, 2300), p: 0.14, parts: [[1, 1, 0.06], [2.4, 0.5, 0.03], [3.9, 0.3, 0.02]] }));
+      this.nz(v, { t: t + 0.05, k: "crackle", f: 3500, q: 0.8, p: 0.2, d: 0.12 });
+    },
+    // unlocked: the key turns, and bells climb D F# A D
+    unlock(v, t) {
+      this.anvil(v, t, 1900, 0.15);
+      this.modal(v, { t: t + 0.07, f: 2100, p: 0.12, parts: [[1, 1, 0.05], [2.4, 0.5, 0.03]] });
+      [587.33, 739.99, 880, 1174.66].forEach((f, i) => this.bell(v, t + 0.18 + i * 0.1, f, 0.17, 1.2));
+      this.nz(v, { t: t + 0.5, ft: "highpass", f: 7000, a: 0.2, p: 0.04, d: 0.6 });
+    },
+  },
+
+  // ---- ambience: a quiet bed per map (wind, water, rustle, insects) plus sparse events ----
+  AMB: {
+    erebuni: { trim: -5.7, wind: 0.9, wf: 380, crickets: 1, birds: ["lark", "lark", "sparrow"], gap: [2.5, 7], rare: "sheep" },
+    urartu:  { trim: -5.7, wind: 0.7, wf: 340, water: 1, crickets: 0.8, birds: ["lark", "gull"], gap: [3, 8], nightEv: ["frog"] },
+    ararat:  { trim: -4.7, wind: 0.75, wf: 360, water: 0.7, crickets: 1, birds: ["lark", "lark", "sparrow"], gap: [2.5, 7], nightEv: ["frog"], rare: "sheep" },
+    dvin:    { trim: -6, wind: 0.9, wf: 420, crickets: 1, birds: ["sparrow", "lark"], gap: [2.5, 7], rare: "sheep" },
+    lori:    { trim: -1.9, wind: 0.45, wf: 300, rustle: 1, crickets: 0.5, birds: ["song", "song", "sparrow"], gap: [1.8, 5], nightEv: ["owl"], rare: "twig" },
+    sevan:   { trim: -7, wind: 1, wf: 440, water: 1.2, crickets: 0.5, birds: ["gull", "gull", "lark"], gap: [3, 8], nightEv: ["frog"] },
+    gyumri:  { trim: -9.8, wind: 1.4, wf: 520, whistle: 1, birds: ["crow"], gap: [6, 14], nightEv: ["wolf"] },
+  },
+  scene() {
+    if (this.sceneOverride) return this.sceneOverride;
+    try { return this.sceneOf ? this.sceneOf() : null; } catch (e) { return null; }
+  },
+  makeBed(key, t) {
+    const c = this.ctx, P = this.AMB[key] || this.AMB.erebuni;
+    const v = { t, out: null, nodes: [], live: 0, end: t };
+    const out = this.node(v, c.createGain());
+    v.out = out;
+    out.gain.setValueAtTime(0, t); out.gain.setTargetAtTime(Math.pow(10, (P.trim || 0) / 20), t, 0.9);   // the crossfade in
+    out.connect(this.ambIn);
+    const b = { key, P, v, out, srcs: [], night: -1, nGust: t, nLap: t + 0.4, nBird: t + this.rr(0.5, 3), nNight: t + this.rr(1, 4), nRare: t + this.rr(6, 18) };
+    const run = s => { v.nodes.push(s); v.live++; s.onended = () => { if (--v.live <= 0) this.free(v); }; s.start(t, s.buffer ? this.rnd() * 1.8 : 0); b.srcs.push(s); return s; };
+    const F = (type, f, q) => { const x = this.node(v, c.createBiquadFilter()); x.type = type; x.frequency.value = f; x.Q.value = q; return x; };
+    const Gn = val => { const g = this.node(v, c.createGain()); g.gain.value = val; return g; };
+    const chain = (...ns) => { for (let i = 0; i < ns.length - 1; i++) ns[i].connect(ns[i + 1]); return ns[ns.length - 1]; };
+    const loop = (k, rate) => {   // a stereo pair of decorrelated loops of one noise colour
+      const m = this.node(v, c.createChannelMerger(2));
+      for (let ch = 0; ch < 2; ch++) {
+        const s = c.createBufferSource(); s.buffer = this.bufs[k]; s.loop = true;
+        s.playbackRate.value = rate * (ch ? 1.017 : 0.987);
+        s.connect(m, 0, ch); run(s);
+      }
+      return m;
+    };
+    this.stats.voices++;
+    // wind: a low body and an airy band, both riding the gusts
+    b.windG = Gn(0); b.airG = Gn(0); b.airF = F("bandpass", P.wf * 1.5, 0.7);
+    chain(loop("brown", 1), F("lowpass", P.wf, 0.5), b.windG, out);
+    chain(loop("pink", 0.5), b.airF, F("lowpass", 4200, 0.5), b.airG, out);
+    if (P.whistle) { b.whF = F("bandpass", 900, 9); b.whG = Gn(0); chain(loop("white", 1), b.whF, b.whG, out); }
+    if (P.rustle) { b.rusG = Gn(0); chain(loop("pink", 1), F("highpass", 1600, 0.5), F("lowpass", 7500, 0.5), b.rusG, out); }
+    if (P.water) {
+      b.lapG = Gn(P.water * 0.05);
+      chain(loop("pink", 0.8), F("bandpass", 520, 0.7), F("lowpass", 2600, 0.5), b.lapG, out);
+      chain(loop("brown", 0.7), F("lowpass", 240, 0.5), Gn(P.water * 0.05), out);
+    }
+    b.nightG = Gn(0); b.nightG.connect(out);
+    if (P.crickets) {
+      // each cricket: a high sine gated by a fast pulse and a slower chirp rhythm
+      const half = run(c.createConstantSource()); half.offset.value = 0.5;
+      for (const [f, pr, cr, pan, lvl] of [[4450, 31, 2.7, -0.55, 1], [4720, 35, 2.2, 0.5, 0.8], [4150, 27, 3.3, 0.1, 0.6]]) {
+        const o = run(c.createOscillator()); o.frequency.value = f * this.rr(0.98, 1.02);
+        const g1 = Gn(0), g2 = Gn(0), lv = Gn(0.0065 * lvl * P.crickets), pn = this.node(v, c.createStereoPanner());
+        pn.pan.value = pan;
+        const gate = (rate, cut, g) => {
+          const l = run(c.createOscillator()); l.type = "square"; l.frequency.value = rate * this.rr(0.95, 1.05);
+          chain(l, Gn(0.5), F("lowpass", cut, 0.5)).connect(g.gain);
+          half.connect(g.gain);
+        };
+        gate(pr, 140, g1); gate(cr, 22, g2);
+        chain(o, g1, g2, lv, pn, b.nightG);
+      }
+    }
+    return b;
+  },
+  dropBed(b, t) {
+    const g = b.out.gain;
+    g.cancelScheduledValues(t); g.setTargetAtTime(0, t, 0.7);   // the crossfade out
+    for (const s of b.srcs) { try { s.stop(t + 4.5); } catch (e) {} }
+  },
+  ambTick(t, horizon) {
+    const sc = this.scene(), want = this.ambOn && sc && sc.map ? sc.map : null;
+    if ((this.amb ? this.amb.key : null) !== want) {
+      if (this.amb) this.dropBed(this.amb, t);
+      this.amb = want ? this.makeBed(want, t) : null;
+    }
+    const b = this.amb;
+    if (!b) return;
+    const P = b.P, night = Math.max(0, Math.min(1, sc.night || 0)), nb = 1 + 0.2 * night;
+    if (Math.abs(night - b.night) > 0.01) { b.night = night; b.nightG.gain.setTargetAtTime(night, t, 2); }
+    for (; b.nGust < horizon; b.nGust += this.rr(2, 5.5)) {
+      const tg = b.nGust, s = this.rr(0.2, 1.3), tc = this.rr(0.6, 1.8);
+      b.windG.gain.setTargetAtTime(P.wind * 0.12 * s * s * nb, tg, tc);
+      b.airG.gain.setTargetAtTime(P.wind * 0.3 * s * s * nb, tg, tc);
+      b.airF.frequency.setTargetAtTime(P.wf * (0.9 + s), tg, tc);
+      if (b.whG) { b.whG.gain.setTargetAtTime(P.whistle * 0.05 * s * s * nb, tg, tc); b.whF.frequency.setTargetAtTime(this.rr(650, 1500), tg, tc * 1.5); }
+      if (b.rusG) b.rusG.gain.setTargetAtTime(P.rustle * 0.06 * s * s, tg, tc * 0.5);
+    }
+    for (; P.water && b.nLap < horizon; b.nLap += this.rr(0.9, 2.6)) {
+      const tl = b.nLap;
+      b.lapG.gain.setTargetAtTime(P.water * this.rr(0.25, 0.5), tl, this.rr(0.06, 0.14));
+      b.lapG.gain.setTargetAtTime(P.water * 0.03, tl + this.rr(0.2, 0.35), this.rr(0.25, 0.5));
+      if (this.rnd() < 0.35) this.ambEv(b, "splash", tl + 0.05);
+    }
+    for (; b.nBird < horizon; b.nBird += this.rr(P.gap[0], P.gap[1])) {
+      if (P.birds && this.rnd() > night * 1.2) this.ambEv(b, this.pick(P.birds), b.nBird);
+    }
+    for (; b.nNight < horizon; b.nNight += this.rr(3, 8)) {
+      if (P.nightEv && this.rnd() < night * (P.nightEv[0] === "wolf" ? 0.25 : 1)) this.ambEv(b, this.pick(P.nightEv), b.nNight);
+    }
+    for (; b.nRare < horizon; b.nRare += this.rr(12, 30)) {
+      if (P.rare && this.rnd() > night) this.ambEv(b, P.rare, b.nRare);
+    }
+  },
+  ambEv(b, kind, t) {
+    const v = this.voice(t, { gain: 2.2, pan: this.rr(-0.7, 0.7), bus: b.out });
+    this.AMBEV[kind].call(this, v, t);
+  },
+  AMBEV: {
+    // skylark: a rapid, wandering warble high overhead
+    lark(v, t) {
+      const c = this.ctx, s = c.createOscillator(), g = this.node(v, c.createGain()), n = 6 + Math.floor(this.rnd() * 10), base = this.rr(2800, 4200);
+      let tt = t;
+      g.gain.setValueAtTime(0, t); s.frequency.setValueAtTime(base, t);
+      for (let i = 0; i < n; i++) {
+        const d = this.rr(0.03, 0.075), f = base * this.rr(0.8, 1.35);
+        s.frequency.setValueAtTime(f, tt); s.frequency.linearRampToValueAtTime(f * this.rr(0.85, 1.2), tt + d);
+        g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(this.rr(0.006, 0.014), tt + 0.006); g.gain.linearRampToValueAtTime(0, tt + d);
+        tt += d + this.rr(0.005, 0.03);
+      }
+      s.connect(g); g.connect(v.out); this.start(v, s, t, tt + 0.05);
+    },
+    // sparrow: a few quick falling chirps
+    sparrow(v, t) {
+      const c = this.ctx, s = c.createOscillator(), g = this.node(v, c.createGain()), n = 2 + Math.floor(this.rnd() * 4);
+      let tt = t;
+      g.gain.setValueAtTime(0, t);
+      for (let i = 0; i < n; i++) {
+        const f = this.rr(4800, 6200);
+        s.frequency.setValueAtTime(f, tt); s.frequency.exponentialRampToValueAtTime(f * 0.55, tt + 0.055);
+        g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.01, tt + 0.008); g.gain.linearRampToValueAtTime(0, tt + 0.06);
+        tt += this.rr(0.09, 0.16);
+      }
+      s.connect(g); g.connect(v.out); this.start(v, s, t, tt + 0.05);
+    },
+    // a woodland songbird: slower fluted notes with glides
+    song(v, t) {
+      const c = this.ctx, s = c.createOscillator(), g = this.node(v, c.createGain()), n = 4 + Math.floor(this.rnd() * 4);
+      let tt = t, f = this.rr(1800, 2600);
+      g.gain.setValueAtTime(0, t); s.frequency.setValueAtTime(f, t);
+      for (let i = 0; i < n; i++) {
+        const d = this.rr(0.09, 0.2), f2 = Math.max(1500, Math.min(3600, f * this.rr(0.8, 1.3)));
+        s.frequency.setValueAtTime(f, tt); s.frequency.exponentialRampToValueAtTime(f2, tt + d);
+        g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.012, tt + 0.02); g.gain.linearRampToValueAtTime(0, tt + d);
+        tt += d + this.rr(0.02, 0.08); f = f2;
+      }
+      s.connect(g); g.connect(v.out); this.start(v, s, t, tt + 0.05);
+      this.lfo(v, s.detune, t, tt, 28, 30);
+    },
+    // gull over the lake: a harsh 'kee-ow', two or three times
+    gull(v, t) {
+      const n = 2 + Math.floor(this.rnd() * 2);
+      for (let i = 0; i < n; i++) {
+        const tt = t + i * this.rr(0.35, 0.5), f = this.rr(850, 1050);
+        this.formant(v, { t: tt, f, path: [[0.08, f * 1.45], [0.32, f * 0.85]], forms: [[1800, 4, 1], [3000, 5, 0.5]], a: 0.02, hold: 0.08, d: 0.22, p: 0.022, drive: 2 });
+      }
+    },
+    // a hooded crow over the snow
+    crow(v, t) {
+      const n = 2 + Math.floor(this.rnd() * 2);
+      for (let i = 0; i < n; i++) {
+        const tt = t + i * this.rr(0.32, 0.42), f = this.rr(380, 460);
+        this.formant(v, { t: tt, f, path: [[0.2, f * 0.85]], forms: [[1100, 3, 1], [1700, 4, 0.6]], a: 0.015, hold: 0.06, d: 0.15, p: 0.03, drive: 4 });
+      }
+    },
+    splash(v, t) { this.nz(v, { t, f: this.rr(1500, 3500), q: 1.5, a: 0.005, p: 0.03, d: 0.08 }); },
+    // marsh frog: a pulsed croak, 'rib-bit'
+    frog(v, t) {
+      const c = this.ctx, n = 2;
+      for (let j = 0; j < n; j++) {
+        const t0 = t + j * this.rr(0.25, 0.4), s = c.createOscillator(), b = this.filt(v, "bandpass", this.rr(600, 800), 4, t0), g = this.node(v, c.createGain());
+        s.type = "sawtooth"; s.frequency.value = this.rr(120, 170);
+        g.gain.setValueAtTime(0, t0);
+        const k = 5 + Math.floor(this.rnd() * 4);
+        for (let i = 0; i < k; i++) { const tk = t0 + i * 0.026; g.gain.setValueAtTime(0, tk); g.gain.linearRampToValueAtTime(0.05, tk + 0.006); g.gain.linearRampToValueAtTime(0, tk + 0.022); }
+        s.connect(b); b.connect(g); g.connect(v.out); this.start(v, s, t0, t0 + k * 0.026 + 0.05);
+      }
+    },
+    // tawny owl in the beeches: hoo ... hoo-hoo-hoooo
+    owl(v, t) {
+      [[0, 0.32], [0.65, 0.14], [0.85, 0.14], [1.05, 0.5]].forEach(([dt, d]) => {
+        const f = this.rr(370, 395);
+        this.tn(v, { t: t + dt, f, f2: f * 0.93, a: 0.05, hold: d * 0.4, p: 0.02, d: d * 0.6 });
+      });
+    },
+    // a wolf far off across the snow
+    wolf(v, t) {
+      const s = this.tn(v, { t, f: 380, f2: 560, gl: 0.6, a: 0.4, hold: 1.2, p: 0.012, d: 1 });
+      s.frequency.exponentialRampToValueAtTime(430, t + 2.4);
+      this.lfo(v, s.detune, t, t + 2.7, 5, 18);
+    },
+    // a sheep somewhere in the flock
+    sheep(v, t) {
+      const f = this.rr(270, 340);
+      const s = this.formant(v, { t, f, path: [[0.5, f * 0.9]], forms: [[800, 4, 1], [2100, 6, 0.5]], a: 0.06, hold: 0.3, d: 0.25, p: 0.025 });
+      this.lfo(v, s.detune, t, t + 0.65, 7, 40);
+    },
+    // a twig snapping somewhere in the wood
+    twig(v, t) {
+      this.modal(v, { t, f: this.rr(900, 1600), p: 0.02, parts: [[1, 1, 0.03], [2.4, 0.5, 0.02]] });
+      this.nz(v, { t, f: 3000, q: 1, a: 0.0005, p: 0.03, d: 0.01 });
+    },
   },
 
   // ---- procedural soundtrack: drone + duduk-like melody + dhol pulse ----
-  musTimer: null, nextBeat: 0, beatN: 0, melNote: 0, melRest: 0,
+  nextBeat: 0, beatN: 0, melNote: 0, melRest: 0,
   SCALE: [146.83, 155.56, 185.0, 196.0, 220.0, 233.08, 277.18, 293.66], // D hijaz-ish
   startMusic() {
-    if (!this.ctx || this.musTimer) return;
+    if (!this.ctx || this.timer) return;
     this.nextBeat = this.ctx.currentTime + 0.1;
     this.beatN = 0;
     this.melNote = 0;
     this.startDrone();
-    this.musTimer = setInterval(() => this.schedule(), 120);
+    this.timer = setInterval(() => this.tick(), 120);
+  },
+  // one timer drives the music scheduler and the ambience
+  tick() {
+    const c = this.ctx;
+    if (!c || c.state !== "running") return;
+    try {
+      const now = c.currentTime;
+      if (this.nextBeat < now - 0.25) this.nextBeat = now + 0.05;   // after a suspend, pick the pulse up rather than replay the gap
+      this.schedule(now + 0.5);
+      this.ambTick(now, now + 0.6);
+    } catch (e) { /* never let the scheduler throw into a timer */ }
   },
   startDrone() {
     const t0 = this.ctx.currentTime;
     for (const [f, v] of [[73.42, 0.06], [110, 0.045], [146.83, 0.028]]) {
       const o = this.ctx.createOscillator(), g = this.ctx.createGain(), fl = this.ctx.createBiquadFilter();
       o.type = "sawtooth"; o.frequency.value = f;
-      o.detune.value = (Math.random() - 0.5) * 8;
+      o.detune.value = (this.rnd() - 0.5) * 8;
       fl.type = "lowpass"; fl.frequency.value = 320;
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(v, t0 + 4);
@@ -1605,25 +2539,25 @@ const Snd = {
       o.start(t0);
     }
   },
-  schedule() {
+  schedule(until) {
     if (!this.ctx) return;
-    const BEAT = 0.72;
-    while (this.nextBeat < this.ctx.currentTime + 0.5) {
+    const BEAT = 0.72, on = this.musicOn;   // muted music keeps its place but builds no nodes
+    while (this.nextBeat < until) {
       const t = this.nextBeat, b = this.beatN;
       // dhol-like pulse
-      if (b % 4 === 0) this.mTone(65, 0.28, "sine", 0.16, 40, t);
-      if (b % 4 === 2) this.mNoise(0.05, 2200, 0.05, t);
-      if (b % 8 === 7) this.mNoise(0.04, 3200, 0.035, t);
+      if (on && b % 4 === 0) this.mTone(65, 0.28, "sine", 0.16, 40, t);
+      if (on && b % 4 === 2) this.mNoise(0.05, 2200, 0.05, t);
+      if (on && b % 8 === 7) this.mNoise(0.04, 3200, 0.035, t);
       // melody: phrase-based random walk
       if (this.melRest > 0) { this.melRest--; }
       else if (b % 2 === 0) {
-        const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)];
+        const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(this.rnd() * 7)];
         this.melNote = Math.max(0, Math.min(this.SCALE.length - 1, this.melNote + step));
-        if (Math.random() < 0.22) this.melNote = 0;
+        if (this.rnd() < 0.22) this.melNote = 0;
         const f = this.SCALE[this.melNote] * 2;
-        const dur = BEAT * (Math.random() < 0.3 ? 2.6 : 1.4);
-        this.mDuduk(f, dur, t);
-        if (Math.random() < 0.25) this.melRest = 2 + Math.floor(Math.random() * 3);
+        const dur = BEAT * (this.rnd() < 0.3 ? 2.6 : 1.4);
+        if (on) this.mDuduk(f, dur, t);
+        if (this.rnd() < 0.25) this.melRest = 2 + Math.floor(this.rnd() * 3);
       }
       this.nextBeat += BEAT;
       this.beatN++;
@@ -1638,18 +2572,16 @@ const Snd = {
     o.connect(g); g.connect(this.musGain);
     o.start(t0); o.stop(t0 + dur + 0.03);
   },
+  // linearly decaying white noise through a band, from the shared buffer (no per-hit allocation)
   mNoise(dur, ff, vol, t0) {
-    const len = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
-    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-    const ch = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
     const src = this.ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.bufs.white; src.loop = true;
     const f = this.ctx.createBiquadFilter();
     f.type = "bandpass"; f.frequency.value = ff;
-    const g = this.ctx.createGain(); g.gain.value = vol;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t0); g.gain.linearRampToValueAtTime(0, t0 + dur);
     src.connect(f); f.connect(g); g.connect(this.musGain);
-    src.start(t0);
+    src.start(t0, this.rnd() * 1.9); src.stop(t0 + dur + 0.01);
   },
   // kochari for the victory dance: bright zurna lead over driving dhol
   // (the traditional line-dance pairing), synced with the dancers at 112 BPM
@@ -1743,6 +2675,31 @@ const Snd = {
       o.start(t0); o.stop(t0 + dur + 0.05);
     }
     lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+  },
+
+  // ---- offline render hook for the audio harness (tools only; the game never calls it) ----
+  // builds the full mixer on an OfflineAudioContext, lets `setup` schedule into it, renders, and
+  // puts the live context and every piece of per-context state back exactly as it was
+  CTX_KEYS: ["ctx", "bufs", "sfxIn", "sfxGain", "musGain", "duckGain", "ambIn", "ambGain", "revIn", "echoIn",
+    "amb", "voices", "lastPlay", "dens", "duckSt", "nextBeat", "beatN", "melNote", "melRest", "sceneOverride", "stats"],
+  async renderOffline(seconds, setup, sr, channels) {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OAC) return null;
+    const keep = {};
+    for (const k of this.CTX_KEYS) keep[k] = this[k];
+    try {
+      const rate = sr || 48000, oc = new OAC(channels || 2, Math.ceil(rate * seconds), rate);
+      this.voices = []; this.lastPlay = {}; this.dens = {}; this.amb = null; this.duckSt = null; this.sceneOverride = null;
+      this.stats = { voices: 0, freed: 0, dropped: 0 };
+      this.build(oc);
+      this.applyVolumes(true);
+      setup(this, oc);
+      const buf = await oc.startRendering();
+      await new Promise(r => setTimeout(r, 30));   // let the sources' ended events land
+      return { buf, stats: this.stats };
+    } finally {
+      for (const k of this.CTX_KEYS) this[k] = keep[k];
+    }
   },
 };
 
@@ -2170,7 +3127,7 @@ function buyPlot(i) {
   PADS.push(plots[i]);
   plots.splice(i, 1);
   plotsBought++;
-  Snd.play("place");
+  Snd.play("plot");
   toast("New ground claimed! Build on it.");
   saveRun();
   syncHud();
@@ -2200,8 +3157,8 @@ function elephantTrumpet(e) {
     if (!TOWER_DEFS[t.type].proj) continue;
     if (inGroundRange(p.x, p.y, t.x, t.y, 140)) { t.stunnedT = 1.6; hit = true; }
   }
+  Snd.play("trumpet", { x: p.x });
   if (hit) {
-    Snd.play("leak");
     for (let i = 0; i < 8; i++) {
       const a = Math.random() * Math.PI * 2;
       particles.push({ x: p.x, y: p.y - 20, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30 - 20, life: 0.5, color: "#d8d8e8", size: 3 });
@@ -2223,7 +3180,7 @@ function bombardVolley(e) {
   if (!targets.length) return;
   const t = targets[Math.floor(Math.random() * targets.length)];
   t.stunnedT = 2;
-  Snd.play("explosion");
+  Snd.play("cannon", { x: t.x });
   for (let i = 0; i < 12; i++) {
     const a = Math.random() * Math.PI * 2, sp2 = 20 + Math.random() * 50;
     particles.push({ x: t.x, y: t.y - 14, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2 * 0.5 - 30, life: 0.6, color: "#8a8a90", size: 3.5 });
@@ -2292,7 +3249,7 @@ function castSpell(key, x, y) {
   updateSpellBar();
   if (key === "arrows") {
     spellFx.push({ type: "arrows", x, y, t: 0, ticks: 0 });
-    Snd.play("spellArrows");
+    Snd.play("spellArrows", { x });
   } else if (key === "frost") {
     spellFx.push({ type: "frostRing", x, y, t: 0 });
     smokeClouds = smokeClouds.filter(c => !inGroundRange(x, y, c.x, c.y, S.radius + c.r * 0.5));
@@ -2304,7 +3261,7 @@ function castSpell(key, x, y) {
       const a = Math.random() * Math.PI * 2, rr = Math.random() * S.radius;
       particles.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr * ELLIPSE - 10, vx: 0, vy: 14, life: 0.8, color: "#cfeaff", size: 2.5 });
     }
-    Snd.play("spellFrost");
+    Snd.play("spellFrost", { x });
   } else if (key === "wrath") {
     spellFx.push({ type: "bolt", x, y, t: 0 });
     for (const e of enemies) {
@@ -2315,7 +3272,7 @@ function castSpell(key, x, y) {
         e.burnT = Math.max(e.burnT, 2);
       }
     }
-    Snd.play("spellWrath");
+    Snd.play("spellWrath", { x });
   }
 }
 
@@ -2342,7 +3299,7 @@ function heroDie() {
     const a = Math.random() * Math.PI * 2, sp2 = 20 + Math.random() * 60;
     particles.push({ x: pp0.x, y: pp0.y - 10, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2 * 0.5 - 30, life: 0.7, color: "#c9552e", size: 3 });
   }
-  Snd.play("leak");
+  Snd.play("heroDown", { x: pp0.x });
   toast(heroName() + " has fallen: back in 20s!");
 }
 
@@ -2387,7 +3344,7 @@ function updateHero(dt) {
       foe.flash = 0.1;
       foe.lastHit = null;
       if (foe.hp <= 0) hero.kills++;
-      Snd.play("impact");
+      Snd.play("heroHit", { x: hero.x });
       const fp2 = enemyPos(foe);
       if (Math.abs(fp2.x - hero.x) > 2) hero.face = fp2.x > hero.x ? 1 : -1;
     }
@@ -2414,7 +3371,7 @@ function updateSpells(dt) {
         const a = Math.random() * Math.PI * 2, rr = Math.random() * SPELLS.arrows.radius;
         particles.push({ x: fx.x + Math.cos(a) * rr, y: fx.y + Math.sin(a) * rr * ELLIPSE - 46, vx: 0, vy: 230, life: 0.24, color: "#e5e0d2", size: 2.4 });
       }
-      Snd.play("arrow");
+      Snd.play("arrowRain", { x: fx.x });
     }
   }
   spellFx = spellFx.filter(fx => fx.t < 1.6);
@@ -2605,7 +3562,7 @@ function startWave() {
     }
     t += 1.6;
   }
-  Snd.play("horn");
+  Snd.play("horn", { era: curEra });
   syncHud();
   waveBannerT = 2.6;
   const bossWave = waveIdx % 10 === 0 && waveIdx >= 10;
@@ -2744,7 +3701,7 @@ function placeTower(type, padIdx) {
     buffHaste: 0, buffMight: 0,
     prio: "first", kills: 0, dmgDone: 0, placedAt: performance.now(),
   });
-  Snd.play("place");
+  Snd.play("build", { x, type, skin: towerSkin(type) });
   saveRun();
   syncHud();
 }
@@ -2756,7 +3713,7 @@ function upgradeTower(t) {
   if (gold < cost) { toast("Not enough gold"); return; }
   gold -= cost;
   t.level++;
-  Snd.play("upgrade");
+  Snd.play("upgrade", { x: t.x });
   saveRun();
   syncHud();
   showPanel(t);
@@ -2769,7 +3726,7 @@ function specializeTower(t, key) {
   if (gold < spec.cost) { toast("Not enough gold"); return; }
   gold -= spec.cost;
   t.spec = key;
-  Snd.play("upgrade");
+  Snd.play("upgrade", { x: t.x });
   toast(spec.name + "!");
   saveRun();
   syncHud();
@@ -2800,13 +3757,13 @@ function fireTowerShot(t, target, dmgMult) {
       burnHit: st.burnHit || 0, burnDur: st.burnDur || 0,
       fiery: t.spec === "b" && t.type === "catapult",
     });
-    Snd.play((art && art.sound) || "catapult");
+    Snd.play((art && art.sound) || "catapult", { x: t.x, spec: t.spec });
   } else {
     projectiles.push({
       kind, x: t.x, y: t.y - 28, target, src: t,
       speed: (art && art.projSpeed) || (kind === "bolt" ? 560 : 430), dmg, pierce: !!def.pierce,
     });
-    Snd.play((art && art.sound) || kind);
+    Snd.play((art && art.sound) || kind, { x: t.x, spec: t.spec });
   }
   if (art && art.onFire) art.onFire(t, target);
   // muzzle flash at the emplacement
@@ -2825,7 +3782,11 @@ function damageEnemy(e, dmg, pierce, src) {
   e.hp -= eff;
   if (src) { src.dmgDone = (src.dmgDone || 0) + eff; e.lastHit = src; }
   e.flash = 0.1;
-  Snd.play("impact");
+  // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
+  if (src && Snd.ctx) {
+    const art = skinArt(src.type), kind = (art && art.proj) || TOWER_DEFS[src.type].proj;
+    if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind });
+  }
 }
 
 // ---------- update ----------
@@ -2884,14 +3845,16 @@ function update(dt) {
           const p = enemyPos(e);
           if (inGroundRange(t.x, t.y, p.x, p.y, st.range + e.r)) { e.stunT = st.stun; hitAny = true; }
         }
-        if (hitAny) Snd.play("nova");
+        if (hitAny) Snd.play("nova", { x: t.x });
       }
     }
     if (t.novaFx > 0) t.novaFx -= dt * 1.6;
+    let burning = false;
     for (const e of enemies) {
       if (e.fly) continue;   // the fire guards the road; outflankers go round it
       const p = enemyPos(e);
       if (inGroundRange(t.x, t.y, p.x, p.y, st.range + e.r)) {
+        burning = true;
         e.slowTimer = 0.35;
         e.slowFactor = Math.min(e.slowFactor, 1 - st.slow);
         e.hp -= st.burn * dt;
@@ -2902,6 +3865,7 @@ function update(dt) {
         }
       }
     }
+    if (burning && Snd.ctx) Snd.play("burn", { x: t.x, skin: towerSkin("fire") });
   }
 
   // enemies
@@ -2937,6 +3901,7 @@ function update(dt) {
           const p = enemyPos(e);
           if (towers.some(t => inGroundRange(p.x, p.y, t.x, t.y, 150))) {
             smokeClouds.push({ x: p.x, y: p.y, r: 105, t: 0, dur: 9 });
+            Snd.play("smoke", { x: p.x });
             e.mechT = -12;
           }
         }
@@ -2958,7 +3923,7 @@ function update(dt) {
       e.dead = true;
       lives -= e.dmg;
       shakeFort = 1;
-      Snd.play("leak");
+      Snd.play("leak", { x: FORT.x });
       if (lives <= 0 && !gameOver) { lives = 0; defeat(); }
       syncHud();
     }
@@ -2975,7 +3940,8 @@ function update(dt) {
         }
       }
       gold += bounty;
-      Snd.play("coin");
+      Snd.play("death", { x: p.x, kind: e.type, variant: e.def.variant, era: curEra });
+      Snd.play("coin", { x: p.x });
       corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8 });
       particles.push({ x: p.x, y: p.y - 22, vx: 0, vy: -26, life: 0.9, color: "#ffd27a", size: 0, text: "+" + bounty });
       for (let i = 0; i < 8; i++) {
@@ -3019,7 +3985,7 @@ function update(dt) {
       pr.t += dt / pr.dur;
       if (pr.t >= 1) {
         pr.dead = true;
-        Snd.play("explosion");
+        Snd.play(pr.fiery ? "firepot" : "stoneHit", { x: pr.tx, big: !!(pr.src && pr.src.type === "catapult" && pr.src.spec === "a") });
         const col = pr.fiery ? "#ff8a3c" : "#b9a687";
         for (let i = 0; i < 12; i++) {
           const a = Math.random() * Math.PI * 2, s = 30 + Math.random() * 60;
@@ -19358,6 +20324,7 @@ SKIN_ART.trebuchet = {
     structFlame(bx, by, 4 * k, structClamp(9.5 + Math.sin(ph) * 1.4, 6, 12) * k, ph, false, c.fade);
   },
   kickDrop: 1.2,
+  sound: "trebuchet",
 };
 // ====================================== END SKIN SECTION: trebuchet ======================================
 
@@ -28687,7 +29654,7 @@ function showBrief() {
   renderBriefArt(curLevel);
   startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + "Begin the Stand";
-  Snd.play("horn");
+  Snd.play("horn", { era: LEVELS[curLevel].era });
 }
 
 // ---------- input ----------
@@ -28726,7 +29693,7 @@ canvas.addEventListener("pointerdown", (e) => {
     };
     heroSelected = false;
     updateSpellBar();
-    Snd.play("place");
+    Snd.play("rally", { x: hero.rally.x });
     return;
   }
   if (hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26 && !placing) {
@@ -28807,6 +29774,7 @@ autoBtn.addEventListener("click", () => {
 function saveSettings() {
   localStorage.setItem("hs_settings", JSON.stringify({
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
+    ambOn: Snd.ambOn, ambVol: Snd.ambVol,
   }));
 }
 function loadSettings() {
@@ -28816,8 +29784,11 @@ function loadSettings() {
     if (typeof s.musicOn === "boolean") Snd.musicOn = s.musicOn;
     if (typeof s.sfxVol === "number") Snd.sfxVol = s.sfxVol;
     if (typeof s.musVol === "number") Snd.musVol = s.musVol;
+    if (typeof s.ambOn === "boolean") Snd.ambOn = s.ambOn;
+    if (typeof s.ambVol === "number") Snd.ambVol = s.ambVol;
   } catch (e) {}
   $("sfxVol").value = Math.round(Snd.sfxVol * 100);
+  $("ambVol").value = Math.round(Snd.ambVol * 100);
   $("musicVol").value = Math.round(Snd.musVol * 100);
   syncSoundUi();
 }
@@ -28830,16 +29801,27 @@ function syncSoundUi() {
   $("setMusicTgl").classList.toggle("on", Snd.musicOn);
   $("setSfxTgl").textContent = Snd.sfxOn ? "On" : "Off";
   $("setSfxTgl").classList.toggle("on", Snd.sfxOn);
+  $("setAmbTgl").textContent = Snd.ambOn ? "On" : "Off";
+  $("setAmbTgl").classList.toggle("on", Snd.ambOn);
   Snd.applyVolumes();
   saveSettings();
 }
 function toggleMusic() { Snd.musicOn = !Snd.musicOn; syncSoundUi(); }
 function toggleSfx() { Snd.sfxOn = !Snd.sfxOn; syncSoundUi(); if (Snd.sfxOn) Snd.play("coin"); }
+function toggleAmb() { Snd.ambOn = !Snd.ambOn; syncSoundUi(); }
+// what the ambience bed should be: the chosen field's own air, darkening with the stand's sun
+Snd.sceneOf = () => {
+  const L = LEVELS[curLevel], inGame = overlayEl.classList.contains("hidden");
+  const p = inGame ? (dayFactor() || 0) : 0;
+  return { map: L && L.theme ? L.theme.backdrop : null, night: Math.max(0, Math.min(1, (p - 0.6) / 0.32)) };
+};
 
 $("musicBtn").addEventListener("click", toggleMusic);
 $("sfxBtn").addEventListener("click", toggleSfx);
 $("setMusicTgl").addEventListener("click", toggleMusic);
 $("setSfxTgl").addEventListener("click", toggleSfx);
+$("setAmbTgl").addEventListener("click", toggleAmb);
+$("ambVol").addEventListener("input", (e) => { Snd.ambVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("musicVol").addEventListener("input", (e) => { Snd.musVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("sfxVol").addEventListener("input", (e) => { Snd.sfxVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); Snd.play("coin"); });
 $("gearBtn").addEventListener("click", (e) => {
