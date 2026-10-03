@@ -17293,12 +17293,589 @@ SKIN_ART.javelin = {
 // SKIN SECTION: musket. 1579, ballista slot: a musketeers' loopholed nest
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// The highland villages held their passes with a few matchlocks behind loopholed walls of their own
+// black tuff: no uniforms and no colours, men in long dark coats, sashes and sheepskin or felt caps,
+// a powder flask on a cord and the match smouldering at the lock. The long guns lie on forked rests.
+const MUSKET_INK = "rgba(38, 24, 12, .9)";
+const MUSKET_DRESS = {
+  coats: ["#3a322c", "#2f3236", "#45372b"], sash: "#3d6a94", skin: "#e2b78c", beard: "#2a1c12",
+  fur: "#2a231e", furLit: "#5c4c3e", felt: "#8b7a62", stock: "#6e4524", barrel: "#46474e", rest: "#7a5632",
+  rod: "#d8c08a", flask: "#c8a46a", roof: "#76604a", earth: "#6f5a44",
+};
+
+// a gun loop: a dressed block with a small square hole, lit from within after dark; `muzzle` sets a
+// barrel in it, seen end-on, and reports where its flash should burst
+function musketLoop(x, y, s, muzzle) {
+  const c = sctx, T = towerStone(), z = s || 1;
+  c.fillStyle = "rgba(30, 16, 6, .3)";
+  c.fillRect(x - 2.2 * z, y + 2.1 * z, 5 * z, 1);
+  inkRect(x - 2.5 * z, y - 2.1 * z, 5 * z, 4.2 * z, T.trim, 0.6);
+  c.fillStyle = "rgba(255, 250, 236, .45)";
+  c.fillRect(x - 2.5 * z + 0.3, y - 2.1 * z + 0.3, 5 * z - 0.6, 0.6);
+  c.fillStyle = "#1c120a";
+  c.fillRect(x - 1.2 * z, y - 1 * z, 2.4 * z, 2 * z);
+  const a = structPoint(x - 1.2 * z, y - 1 * z), b = structPoint(x + 1.2 * z, y + 1 * z);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  weatherStreaks(x - 2.2 * z, y + 2.3 * z, 4.4 * z, 6, Math.round(x * 5 + y * 3 + 90));
+  if (muzzle) {
+    inkDisc(x + 0.2, y + 0.1, 1.15 * z, 1 * z, MUSKET_DRESS.barrel, 0.5);
+    inkDisc(x + 0.2, y + 0.1, 0.5 * z, 0.45 * z, "#0c0805", 0);
+    (structFit.loopGuns || (structFit.loopGuns = [])).push(structPoint(x + 0.2, y + 0.1));
+  }
+}
+// snow lying on a flat top that box3 does not snow over by itself (timber and earth)
+function musketSnowTop(w, h, d) {
+  if (!structSnow) return;
+  const ox = d * OBQ.dx, oy = d * OBQ.dy;
+  inkPoly([-w / 2 + ox * 0.12 + 0.5, -h + oy * 0.12, -w / 2 + ox - 0.2, -h + oy + 0.2, w / 2 + ox - 0.9, -h + oy + 0.2, w / 2 + ox * 0.12 - 0.7, -h + oy * 0.12],
+    "rgba(246, 249, 252, .93)", 0);
+  snowCap(-w / 2 + 0.4, -h + 0.2, w * 0.4, 1.3);
+  snowCap(w * 0.08, -h + 0.2, w * 0.36, 1.1);
+}
+// a low plank door with a heavy lintel, the kind a byre or a blockhouse has
+function musketDoor(x, w, h) {
+  const c = sctx, T = towerStone();
+  inkRect(x - w / 2 - 1.2, -h - 1.8, w + 2.4, 2, T.trim, 0.7);
+  c.fillStyle = "#24170d";
+  c.fillRect(x - w / 2, -h, w, h);
+  plankRect(x - w / 2 + 0.5, -h + 0.5, w - 1, h - 0.5, "#6b4526", true, Math.round(x * 3 + 7));
+  ironBand(x - w / 2 + 0.5, -h * 0.74, w - 1, 0.8);
+  ironBand(x - w / 2 + 0.5, -h * 0.28, w - 1, 0.8);
+  c.beginPath();
+  c.rect(x - w / 2, -h, w, h);
+  inkStroke(0.8);
+  inkDisc(x + w * 0.26, -h * 0.5, 0.5, 0.5, "#a8a49a", 0.3);
+}
+// a squat powder keg on the stone
+function musketKeg(x, y, r, h) {
+  const c = sctx, ry = r * 0.36;
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1.4, y + 0.4, r + 1.2, ry + 0.6]]);
+  c.beginPath();
+  c.moveTo(x - r, y - h);
+  c.quadraticCurveTo(x - r - 0.9, y - h / 2, x - r, y);
+  c.ellipse(x, y, r, ry, 0, Math.PI, 0, true);
+  c.quadraticCurveTo(x + r + 0.9, y - h / 2, x + r, y - h);
+  c.closePath();
+  c.fillStyle = "#7a5230";
+  c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = "rgba(255, 232, 190, .22)";
+  c.fillRect(x - r - 1, y - h - 1, r * 0.7, h + 3);
+  c.fillStyle = "rgba(30, 16, 6, .3)";
+  c.fillRect(x + r * 0.45, y - h - 1, r, h + 3);
+  ironBand(x - r - 1, y - h * 0.78, r * 2 + 2, 0.7);
+  ironBand(x - r - 1, y - h * 0.25, r * 2 + 2, 0.7);
+  c.restore();
+  inkStroke(0.9);
+  inkDisc(x, y - h, r, ry, "#9a7048", 0.8);
+  if (structSnow) inkDisc(x - 0.3, y - h - 0.2, r * 0.8, ry * 0.7, "#f6f9fc", 0);
+}
+// a long gun stood against a wall, butt down: walnut stock, dark barrel
+function musketLeaning(x, y, len, lean) {
+  const c = sctx, tx = x + lean, ty = y - len;
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(x, y); c.lineTo(x + lean * 0.36, y - len * 0.36);
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 2.9; c.stroke();
+  c.strokeStyle = MUSKET_DRESS.stock; c.lineWidth = 1.8; c.stroke();
+  c.beginPath();
+  c.moveTo(x + lean * 0.3, y - len * 0.3); c.lineTo(tx, ty);
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 1.8; c.stroke();
+  c.strokeStyle = MUSKET_DRESS.barrel; c.lineWidth = 0.9; c.stroke();
+  c.strokeStyle = "rgba(220, 226, 236, .5)";
+  c.lineWidth = 0.3;
+  c.beginPath();
+  c.moveTo(x + lean * 0.34 - 0.3, y - len * 0.34); c.lineTo(tx - 0.3, ty + 0.4);
+  c.stroke();
+}
+// a forked rest stood upright, for a gun waiting on the wall
+function musketRestStanding(x, y, len) {
+  beam(x, y, x, y - len, 0.9, MUSKET_DRESS.rest);
+  const c = sctx;
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(x, y - len); c.lineTo(x - 1.4, y - len - 2.2);
+  c.moveTo(x, y - len); c.lineTo(x + 1.4, y - len - 2.2);
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 1.7; c.stroke();
+  c.strokeStyle = MUSKET_DRESS.rest; c.lineWidth = 0.8; c.stroke();
+}
+
+// a solid breastwork of the map's stone round a fighting top: the far and left runs go behind
+// the men, the right and front runs in front of them. No merlons: the guns fire over the coping
+function musketBreastBack(W, H, Dp, bh, T, seed, rough) {
+  const c = sctx, t = 2.4;
+  const opt = (s, ex) => towerWall(T, seed + s, Object.assign({ course: bh, block: rough ? 6.5 : 9, rough, band: 0, contact: false, mortar: T.mortar }, ex));
+  c.save();
+  c.translate((Dp - t) * OBQ.dx, -H + (Dp - t) * OBQ.dy);
+  box3(W, bh * 0.92, t, toneHex(T.mid, -16), opt(1, { side: toneHex(T.side, -14) }));
+  c.restore();
+  c.save();
+  c.translate(-W / 2 + t / 2, -H);
+  box3(t, bh, Dp, toneHex(T.mid, -10), opt(2, { side: toneHex(T.side, -18) }));
+  c.restore();
+}
+function musketBreastFront(W, H, Dp, bh, T, seed, rough) {
+  const c = sctx, t = 2.4;
+  const opt = (s, ex) => towerWall(T, seed + s, Object.assign({ course: bh, block: rough ? 6.5 : 9, rough, band: 0, contact: false, mortar: T.mortar }, ex));
+  c.save();
+  c.translate(W / 2 - t / 2, -H);
+  box3(t, bh, Dp, T.mid, opt(3, {}));
+  c.restore();
+  c.save();
+  c.translate(0, -H);
+  box3(W, bh, t, rough ? toneHex(T.mid, -6) : T.mid, opt(4, {}));
+  if (!rough) {
+    // a lighter coping course along the top
+    inkRect(-W / 2 - 0.4, -bh - 0.2, W + 0.8, 1.3, toneHex(T.trim, -10), 0.6);
+    if (structSnow) snowCap(-W / 2 - 0.4, -bh - 0.2, W + 0.8, 1.5);
+  }
+  c.restore();
+}
+// a gunner stands at x behind the front run of a top whose front edge is y and depth Dp; his hips
+// sit on the coping, and everything above it is drawn live, turned to the aim
+function musketPost(x, y, Dp, o) {
+  const g = Object.assign({ p: structPoint(x + Dp * OBQ.dx * 0.3, y), s: 1, len: 17, coat: MUSKET_DRESS.coats[0], fur: true, face: 1 }, o);
+  g.sleeve = toneHex(g.coat, 14);
+  g.sleeveFar = toneHex(g.coat, 20);
+  (structFit.gunners || (structFit.gunners = [])).push(g);
+  structCrown(y - 17.5 * g.s - (g.load ? 6 : 0));
+}
+
+function paintMusketNest(lvl, spec) {
+  const c = sctx, A = TOWER_ACCENT.ballista, S = footStone(), T = towerStone(), D = MUSKET_DRESS;
+  const base = towerBase("ballista", lvl, spec), stepped = !!spec || lvl === 2;
+  const bw = base.w - 4, bd = base.d - 4, ox = bd * OBQ.dx, oy = bd * OBQ.dy;
+  footPlinth(base.w, base.d, base.h, S, 61 + lvl + (spec ? 7 : 0), stepped);
+  c.save();
+  c.translate(-ox / 2, -base.h - oy / 2);
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+
+  if (!spec && lvl === 0) {
+    // a low byre-house of rough black tuff under a flat earth roof, two loops beside a plank door;
+    // its one gunner stands on the roof behind a parapet of rubble
+    const H = 14.5, rh = 2.6;
+    box3(bw, H, bd, toneHex(T.mid, -8), towerWall(T, 71, { side: toneHex(T.side, -12), course: 4.9, block: 8, rough: true, band: 0 }));
+    musketDoor(-bw / 2 + 6.8, 5.8, 9.6);
+    musketLoop(2.6, -8.6, 0.9);
+    musketLoop(9.6, -8.6, 0.9);
+    wallTorch(-bw / 2 + 12.4, -6.6);
+    musketKeg(bw / 2 + ox * 0.5 + 3.4, oy * 0.5 + 0.6, 2.6, 4.6);
+    // the roof: a slab of earth on poles whose ends show under it
+    c.save();
+    c.translate(-0.7 * OBQ.dx, -H - 0.7 * OBQ.dy);
+    box3(bw + 2.2, rh, bd + 1.4, D.earth, { side: toneHex(D.earth, -30), top: toneHex(D.earth, 14) });
+    for (let jx = -bw / 2 + 1.4; jx < bw / 2 + 0.6; jx += 4.2) endGrain(jx, -rh * 0.5, 0.95);
+    musketSnowTop(bw + 2.2, rh, bd + 1.4);
+    icicles(-bw / 2, bw / 2, 0.3, 75);
+    c.restore();
+    // the smoke-hole of the hearth, a stone collar at the back of the roof
+    c.save();
+    c.translate(-bw / 2 + 5 + ox * 0.62, -H - rh + oy * 0.62);
+    box3(5, 2.2, 3.4, toneHex(T.mid, -18), { side: toneHex(T.side, -30) });
+    c.restore();
+    const top = H + rh, W = bw - 4, Dp = bd - 3;
+    c.save();
+    c.translate(1.5 * OBQ.dx, 1.5 * OBQ.dy);
+    musketBreastBack(W, top, Dp, 3.6, T, 140, true);
+    musketPost(-1.5, -top - 3.6, Dp, { coat: D.coats[2] });
+    musketBreastFront(W, top, Dp, 3.6, T, 140, true);
+    c.restore();
+  } else {
+    // a stone tower: plain on the second rank, carrying a timber gallery on the third and the
+    // Double Volley, a battered heavy keep with a stone bartizan for the Long Muskets
+    const tw = spec === "a" ? bw : spec === "b" ? bw - 2 : lvl === 1 ? bw - 5 : bw - 4;
+    const th = spec === "a" ? 33 : spec === "b" ? 33 : lvl === 1 ? 35 : 31;
+    const td = bd;
+    c.save();
+    c.translate((bw - tw) * 0, 0);
+    box3(tw, th, td, T.mid, towerWall(T, 81 + lvl * 5 + (spec ? 11 : 0), { course: 6.2 }));
+    if (spec === "a") {
+      // the battered foot of a keep built to take shot
+      const tb = 9.5, sp = 2.6;
+      inkPoly([tw / 2, 0, tw / 2 + sp, 0.4, tw / 2 + sp + td * OBQ.dx, td * OBQ.dy + 0.4, tw / 2 + td * OBQ.dx, -tb + td * OBQ.dy, tw / 2, -tb],
+        toneHex(T.side, -6), 0.9);
+      inkPoly([-tw / 2 - sp, 0.4, tw / 2 + sp, 0.4, tw / 2, -tb, -tw / 2, -tb], toneHex(T.mid, 14), 1);
+      c.strokeStyle = "rgba(46, 28, 12, .3)";
+      c.lineWidth = 0.6;
+      c.beginPath();
+      c.moveTo(-tw / 2 - sp * 0.5, -tb * 0.5); c.lineTo(tw / 2 + sp * 0.5, -tb * 0.5);
+      for (let jx = -tw / 2 + 4; jx < tw / 2; jx += 7.4) { c.moveTo(jx, -tb * 0.5); c.lineTo(jx + 0.6, 0); }
+      c.stroke();
+      c.fillStyle = "rgba(255, 248, 228, .5)";
+      c.fillRect(-tw / 2 + 0.6, -tb - 0.2, tw - 1.2, 0.7);
+      if (structSnow) snowCap(-tw / 2 - 0.4, -tb, tw + 0.8, 1.4);
+    }
+    const sy = spec === "a" ? -20 : -13.5;
+    stringCourse(tw, td, sy);
+    ledgeShade(-tw / 2, sy + 1.6, tw);
+    weatherStreaks(-tw / 2 + 1, sy + 2.6, tw - 2, 8, 41 + lvl);
+    if (structSnow) snowCap(-tw / 2 - 0.5, sy, tw + 1, 1.1);
+    archDoor(spec === "a" ? -4 : 0, 6.8, spec === "a" ? 9.4 : 10, T.trim);
+    wallTorch(spec === "a" ? 5.4 : 7.2, -6.2);
+    // gun loops: two on the second rank and the third; the Long Muskets' keep has a row of three
+    // low down; the Double Volley fires from two tiers of them, guns run out in the lower one
+    if (spec === "b") {
+      for (const lx of [-8.4, 0, 8.4]) musketLoop(lx, -19, 1, true);
+      for (const lx of [-8.2, 8.2]) musketLoop(lx, -th + 5.4, 1);
+    } else if (spec === "a") {
+      for (const lx of [-8.6, 0.8, 9.8]) musketLoop(lx, -th + 8.6, 1.05);
+      musketLoop(7.6, -13.5, 0.9);
+    } else {
+      musketLoop(-tw / 2 + 5.2, -th + 9, 1);
+      musketLoop(tw / 2 - 5.2, -th + 9, 1);
+    }
+    c.restore();
+
+    if (!spec && lvl === 1) {
+      // a plain stone breastwork corbelled a little out over the shaft, one gunner
+      const W = tw + 2.4, Dp = td + 1.2, bh = 5;
+      c.save();
+      c.translate((td - Dp) * OBQ.dx / 2, (td - Dp) * OBQ.dy / 2);
+      for (let jx = -W / 2 + 2.2; jx < W / 2 - 1; jx += 4.6) inkPoly([jx - 1.4, -th, jx + 1.4, -th, jx + 0.8, -th + 3.6, jx - 0.8, -th + 3.6], toneHex(T.side, -8), 0.7);
+      musketBreastBack(W, th, Dp, bh, T, 150, false);
+      pennantPole(W / 2 + Dp * OBQ.dx - 2.4, -th + Dp * OBQ.dy - bh + 0.4, 15, 11, 5, A);
+      musketRestStanding(-W / 2 + Dp * OBQ.dx - 1.6, -th + Dp * OBQ.dy - bh + 1.4, 7);
+      musketPost(-0.5, -th - bh, Dp, { coat: D.coats[0] });
+      musketBreastFront(W, th, Dp, bh, T, 150, false);
+      c.restore();
+    } else if (spec === "a") {
+      // a heavy stone top on a row of corbels, a bartizan on the far corner and a rack of spare guns
+      const W = tw + 4, Dp = td + 2.4, bh = 6;
+      c.save();
+      c.translate((td - Dp) * OBQ.dx / 2, (td - Dp) * OBQ.dy / 2);
+      for (let jx = -W / 2 + 2.4; jx < W / 2 - 1; jx += 4.4) {
+        inkPoly([jx - 1.6, -th, jx + 1.6, -th, jx + 1, -th + 4.8, jx - 1, -th + 4.8], toneHex(T.side, -6), 0.8);
+        c.fillStyle = "rgba(20, 12, 6, .55)";
+        c.fillRect(jx + 1.6, -th + 0.4, 1.2, 3.2);
+      }
+      icicles(-W / 2 + 1, W / 2 - 1, -th + 4.6, 93);
+      musketBreastBack(W, th, Dp, bh, T, 160, false);
+      bartizan(-W / 2 + Dp * OBQ.dx - 1, -th + Dp * OBQ.dy + 2, 4.6, 17, 9.5, T, 167);
+      musketPost(-6, -th - bh, Dp, { s: 1.06, len: 24, rest: true, coat: D.coats[1] });
+      musketPost(10, -th - bh, Dp, { load: true, face: -1, fur: false, coat: D.coats[2] });
+      musketBreastFront(W, th, Dp, bh, T, 160, false);
+      for (const lx of [-W / 2 + 4.4, W / 2 - 4.4]) musketLoop(lx, -th - bh * 0.5 + 0.2, 0.75);
+      c.restore();
+      // the rack: spare long guns and their rests stood in a frame by the door
+      const gx = tw / 2 + ox + 3.4, gy = oy / 2 + 3.2;
+      fillBlobs("rgba(24, 14, 4, .3)", [[gx + 3.4, gy + 0.4, 7.4, 1.6]]);
+      beam(gx - 1.6, gy, gx - 1.6, gy - 20, 1.5, TIMBER_DARK);
+      beam(gx + 8.4, gy - 1.2, gx + 8.4, gy - 19, 1.5, TIMBER_DARK);
+      for (const b of [[0.2, -2.4, 30], [2.8, -0.6, 31.5], [5.4, 1.4, 29.5]]) musketLeaning(gx + b[0], gy - 0.2 + b[0] * 0.1, b[2], b[1]);
+      musketRestStanding(gx + 7.4, gy - 0.6, 15);
+      beam(gx - 2.6, gy - 17.6, gx + 9.4, gy - 17, 1.4, TIMBER);
+      beam(gx - 2.6, gy - 3.4, gx + 9.4, gy - 2.8, 1.4, TIMBER);
+      snowOnBeam(gx - 2.6, gy - 17.6, gx + 9.4, gy - 17, 1.4);
+      musketKeg(-tw / 2 - 2.2 + ox * 0.2, oy * 0.2 + 2.6, 2.7, 4.8);
+    } else {
+      // a timber gallery jettied out on struts all round the head of the tower
+      const e = spec === "b" ? 5.5 : 4, W = tw + e * 2, Dp = td + 4, H = 7, bh = 6;
+      c.save();
+      c.translate((td - Dp) * OBQ.dx / 2, -th + (td - Dp) * OBQ.dy / 2);
+      for (const bx of [-tw / 2 + 1.6, -tw / 6, tw / 6, tw / 2 - 1.6]) beam(bx, 11, bx + Math.sign(bx) * (e - 0.6), 0.8, 1.7, TIMBER_DARK);
+      box3(W, H, Dp, TIMBER, { side: "#573a1e" });
+      plankRect(-W / 2 + 0.8, -H + 0.8, W - 1.6, H - 1.6, TIMBER, false, 43);
+      woodGrain(-W / 2 + 0.8, -H + 0.8, W - 1.6, H - 1.6, false, 45);
+      nailedBand(-W / 2 + 0.8, -H * 0.5 - 0.5, W - 1.6, 1.1);
+      icicles(-W / 2 + 1, W / 2 - 1, 0.2, 47 + lvl);
+      deckTop(W, H, Dp, TIMBER);
+      const dox = Dp * OBQ.dx, doy = Dp * OBQ.dy;
+      timberParapetBack(W, H, Dp, bh);
+      const roofed = !spec;
+      const eave = -H - bh - 19.5;
+      if (roofed) {
+        beam(-W / 2 + dox + 1.6, -H + doy - bh * 0.6, -W / 2 + dox + 1.6, eave + doy + 1, 1.5, TIMBER_DARK);
+        beam(W / 2 + dox - 1.6, -H + doy - bh * 0.6, W / 2 + dox - 1.6, eave + doy + 1, 1.5, TIMBER_DARK);
+      } else {
+        pennantPole(W / 2 + dox - 2.2, -H + doy - bh + 0.4, 18, 12, 5.5, A);
+        pennantPole(-W / 2 + dox + 2.2, -H + doy - bh + 0.4, 18, 12, 5.5, A);
+      }
+      if (spec === "b") {
+        musketPost(-9.4, -H - bh, Dp, { coat: D.coats[0] });
+        musketPost(8.6, -H - bh, Dp, { coat: D.coats[2], fur: false });
+      } else {
+        musketRestStanding(W / 2 + dox - 4.6, -H + doy - bh + 1, 10);
+        musketPost(-6.6, -H - bh, Dp, { coat: D.coats[0] });
+        musketPost(8, -H - bh, Dp, { load: true, face: -1, fur: false, coat: D.coats[2] });
+      }
+      timberParapetFront(W, H, Dp, bh, 1.2, 2.2);
+      if (roofed) {
+        beam(-W / 2 - 0.2, -H - bh, -W / 2 - 0.2, eave + 0.6, 1.6, TIMBER_DARK);
+        beam(W / 2 + 0.2, -H - bh, W / 2 + 0.2, eave + 0.6, 1.6, TIMBER_DARK);
+        hipRoof(W + 1, Dp, eave, 8.5, D.roof, 12);
+      }
+      c.restore();
+    }
+  }
+  c.restore();
+}
+
+// ---- live: the gunners turn to the aim, fire with a flash and leave a drifting puff ----
+const musketMuzzles = [];   // reused each frame: x, y, dx, dy of every gun that fired
+function musketLine(c, x1, y1, x2, y2, w, hex, f) {
+  c.beginPath();
+  c.moveTo(x1, y1); c.lineTo(x2, y2);
+  c.strokeStyle = MUSKET_INK; c.lineWidth = (w + 1.1) * f; c.stroke();
+  c.strokeStyle = hex; c.lineWidth = w * f; c.stroke();
+}
+function musketHand(c, x, y, f) {
+  c.beginPath();
+  c.arc(x, y, 1 * f, 0, Math.PI * 2);
+  c.fillStyle = MUSKET_DRESS.skin; c.fill();
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 0.55 * f; c.stroke();
+}
+function musketBody(c, px, py, f, face, g) {
+  const D = MUSKET_DRESS;
+  // the long coat from the hips up, a sash over it, a flask on its cord
+  c.beginPath();
+  c.moveTo(px - 3.9 * f, py + 0.6 * f);
+  c.lineTo(px - 4.1 * f, py - 5.2 * f);
+  c.quadraticCurveTo(px, py - 7.4 * f, px + 4.1 * f, py - 5.2 * f);
+  c.lineTo(px + 3.9 * f, py + 0.6 * f);
+  c.closePath();
+  c.fillStyle = g.coat; c.fill();
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 1.05 * f; c.stroke();
+  c.fillStyle = "rgba(255, 240, 210, .2)";
+  c.fillRect(px - 3.4 * f, py - 5.4 * f, 1.8 * f, 5.6 * f);
+  c.fillStyle = D.sash;
+  c.fillRect(px - 3.95 * f, py - 1.9 * f, 7.9 * f, 1.5 * f);
+  c.fillStyle = "rgba(255, 255, 255, .25)";
+  c.fillRect(px - 3.95 * f, py - 1.9 * f, 7.9 * f, 0.4 * f);
+  c.strokeStyle = "rgba(10, 6, 4, .55)";
+  c.lineWidth = 0.5 * f;
+  c.beginPath();
+  c.moveTo(px + face * 0.5 * f, py - 6.6 * f); c.lineTo(px + face * 0.9 * f, py - 1.9 * f);
+  c.moveTo(px - face * 2.6 * f, py - 6 * f); c.lineTo(px + face * 1.4 * f, py - 3.6 * f);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(px + face * 1.4 * f, py - 4.4 * f);
+  c.lineTo(px + face * 2.3 * f, py - 3.2 * f);
+  c.lineTo(px + face * 1.5 * f, py - 2.2 * f);
+  c.lineTo(px + face * 0.6 * f, py - 3.4 * f);
+  c.closePath();
+  c.fillStyle = D.flask; c.fill();
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 0.45 * f; c.stroke();
+  // the head: face, black moustache and beard, a tall sheepskin cap or a rounded felt one
+  const hx = px + face * 0.4 * f, hy = py - 9.6 * f;
+  c.beginPath();
+  c.arc(hx, hy, 2.9 * f, 0, Math.PI * 2);
+  c.fillStyle = D.skin; c.fill();
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 0.95 * f; c.stroke();
+  c.beginPath();
+  c.arc(hx + face * 0.3 * f, hy + 0.4 * f, 2.2 * f, 0.5, Math.PI - 0.5);
+  c.closePath();
+  c.fillStyle = D.beard; c.fill();
+  c.fillRect(hx + face * 0.9 * f - 1.3 * f, hy + 0.5 * f, 2.6 * f, 0.75 * f);
+  c.fillStyle = "#1a100a";
+  c.fillRect(hx + face * 1.2 * f - 0.45 * f, hy - 1.3 * f, 0.9 * f, 1 * f);
+  c.beginPath();
+  if (g.fur) {
+    c.moveTo(hx - 3.1 * f, hy - 1.6 * f);
+    c.lineTo(hx - 3.5 * f, hy - 6.2 * f);
+    c.quadraticCurveTo(hx, hy - 7.8 * f, hx + 3.5 * f, hy - 6.2 * f);
+    c.lineTo(hx + 3.1 * f, hy - 1.6 * f);
+    c.quadraticCurveTo(hx, hy - 2.6 * f, hx - 3.1 * f, hy - 1.6 * f);
+    c.fillStyle = D.fur;
+  } else {
+    // a round felt cap, its brim rolled up
+    c.moveTo(hx - 3.3 * f, hy - 1.6 * f);
+    c.quadraticCurveTo(hx - 3.5 * f, hy - 6.6 * f, hx, hy - 6.9 * f);
+    c.quadraticCurveTo(hx + 3.5 * f, hy - 6.6 * f, hx + 3.3 * f, hy - 1.6 * f);
+    c.quadraticCurveTo(hx, hy - 2.6 * f, hx - 3.3 * f, hy - 1.6 * f);
+    c.fillStyle = D.felt;
+  }
+  c.fill();
+  c.strokeStyle = MUSKET_INK; c.lineWidth = 0.9 * f; c.stroke();
+  c.strokeStyle = g.fur ? D.furLit : "rgba(255, 236, 200, .35)";
+  c.lineWidth = 0.6 * f;
+  c.beginPath();
+  if (g.fur) {
+    for (let i = 0; i < 4; i++) {
+      const tx = hx - 2.4 * f + i * 1.5 * f;
+      c.moveTo(tx, hy - 5.6 * f + (i % 2) * 0.8 * f); c.lineTo(tx + 0.5 * f, hy - 4.2 * f + (i % 2) * 0.8 * f);
+    }
+  } else {
+    c.moveTo(hx - 3 * f, hy - 2.3 * f); c.quadraticCurveTo(hx, hy - 3.2 * f, hx + 3 * f, hy - 2.3 * f);
+  }
+  c.stroke();
+  if (!g.fur) {
+    c.strokeStyle = "rgba(30, 18, 8, .45)";
+    c.lineWidth = 0.9 * f;
+    c.beginPath();
+    c.moveTo(hx - 3 * f, hy - 1.9 * f); c.quadraticCurveTo(hx, hy - 2.8 * f, hx + 3 * f, hy - 1.9 * f);
+    c.stroke();
+  }
+}
+// a gunner laid on the aim: (ca, sa) is the aim on screen. Records the muzzle when he has fired
+function musketAiming(c, px, py, f, g, ca, sa, kick, fired) {
+  const face = ca >= 0 ? 1 : -1, rec = kick * 1.5 * f;
+  const gx = px + face * 1 * f - ca * rec, gy = py - 7.1 * f - sa * rec, L = g.len * f;
+  // aimed away from us, the gun goes behind his head
+  const behind = sa < -0.2;
+  if (behind) musketGun(c, px, py, f, g, ca, sa, gx, gy, L, face, kick);
+  musketBody(c, px - ca * rec * 0.4, py, f, face, g);
+  if (!behind) musketGun(c, px, py, f, g, ca, sa, gx, gy, L, face, kick);
+  if (fired) musketMuzzles.push(gx + ca * (L + 0.6 * f), gy + sa * (L + 0.6 * f), ca, sa);
+}
+function musketGun(c, px, py, f, g, ca, sa, gx, gy, L, face, kick) {
+  const D = MUSKET_DRESS, mx = gx + ca * L, my = gy + sa * L;
+  if (g.rest) {
+    // the forked rest planted on the coping, the barrel lying in its fork
+    const rx = gx + ca * L * 0.68, ry = gy + sa * L * 0.68;
+    if (ry < py - 1.5 * f) {
+      musketLine(c, rx, py + 0.8 * f, rx, ry + 1 * f, 0.9, D.rest, f);
+      c.beginPath();
+      c.moveTo(rx, ry + 1 * f); c.lineTo(rx - 1.3 * f, ry - 0.8 * f);
+      c.moveTo(rx, ry + 1 * f); c.lineTo(rx + 1.3 * f, ry - 0.8 * f);
+      c.strokeStyle = MUSKET_INK; c.lineWidth = 1.6 * f; c.stroke();
+      c.strokeStyle = D.rest; c.lineWidth = 0.75 * f; c.stroke();
+    }
+  }
+  musketLine(c, gx + ca * 2.6 * f, gy + sa * 2.6 * f, mx, my, g.rest ? 1.15 : 0.95, D.barrel, f);
+  musketLine(c, gx - ca * 4 * f, gy - sa * 4 * f + 0.5 * f, gx + ca * 4.6 * f, gy + sa * 4.6 * f, 1.9, D.stock, f);
+  c.fillStyle = "rgba(255, 220, 170, .35)";
+  c.fillRect(gx - 0.4 * f, gy - 0.9 * f, 0.8 * f, 0.5 * f);
+  // the match glows in the serpentine
+  c.beginPath();
+  c.arc(gx + ca * 1.4 * f, gy + sa * 1.4 * f - 1.2 * f, 0.6 * f, 0, Math.PI * 2);
+  c.fillStyle = kick > 0.3 ? "#fff1b0" : "#ff7a2a"; c.fill();
+  // arms: the near one out along the fore-end, the far one to the wrist of the stock
+  const lx = gx + ca * L * 0.4, ly = gy + sa * L * 0.4 + 0.6 * f;
+  musketLine(c, px + face * 2.6 * f, py - 5.6 * f, lx, ly, 1.7, g.sleeve, f);
+  musketHand(c, lx, ly, f);
+  musketLine(c, px - face * 2.4 * f, py - 5.4 * f, gx + ca * 0.4 * f, gy + sa * 0.4 * f + 0.8 * f, 1.7, g.sleeveFar, f);
+  musketHand(c, gx + ca * 0.4 * f, gy + sa * 0.4 * f + 0.8 * f, f);
+}
+// a loader rams the next charge home, his gun stood upright before him
+function musketLoading(c, px, py, f, g, time, seed) {
+  const D = MUSKET_DRESS, face = g.face;
+  const pump = (Math.sin(time * 0.006 + seed) * 0.5 + 0.5) * 3.6 * f;
+  musketBody(c, px, py, f, face, g);
+  const bx = px + face * 3.4 * f, top = py - 17 * f;
+  musketLine(c, bx, py + 0.6 * f, bx + face * 0.4 * f, py - 4 * f, 1.9, D.stock, f);
+  musketLine(c, bx + face * 0.35 * f, py - 3.4 * f, bx + face * 0.7 * f, top, 0.95, D.barrel, f);
+  musketLine(c, bx + face * 0.75 * f, top - 4.8 * f + pump, bx + face * 0.8 * f, top + 2 * f + pump, 0.5, D.rod, f);
+  musketLine(c, px - face * 2.2 * f, py - 5.6 * f, bx + face * 0.3 * f, py - 5 * f, 1.7, g.sleeveFar, f);
+  musketHand(c, bx + face * 0.3 * f, py - 5 * f, f);
+  musketLine(c, px + face * 2.6 * f, py - 5.8 * f, bx + face * 0.8 * f, top - 4.2 * f + pump, 1.7, g.sleeve, f);
+  musketHand(c, bx + face * 0.8 * f, top - 4.2 * f + pump, f);
+}
+// the flash at a muzzle: a hot tongue along the bore with a white heart
+function musketFlash(c, x, y, dx, dy, r, a) {
+  const n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
+  c.globalAlpha = a;
+  c.fillStyle = "#ffb347";
+  c.beginPath();
+  c.moveTo(x + ux * r * 2.2, y + uy * r * 2.2);
+  c.lineTo(x - uy * r * 0.9 + ux * r * 0.5, y + ux * r * 0.9 + uy * r * 0.5);
+  c.lineTo(x - uy * r * 0.7 - ux * r * 0.3, y + ux * r * 0.7 - uy * r * 0.3);
+  c.lineTo(x - ux * r * 0.3, y - uy * r * 0.3);
+  c.lineTo(x + uy * r * 0.7 - ux * r * 0.3, y - ux * r * 0.7 - uy * r * 0.3);
+  c.lineTo(x + uy * r * 0.9 + ux * r * 0.5, y - ux * r * 0.9 + uy * r * 0.5);
+  c.closePath();
+  c.fill();
+  c.fillStyle = "#fff6cc";
+  c.beginPath();
+  c.moveTo(x + ux * r * 1.3, y + uy * r * 1.3);
+  c.lineTo(x - uy * r * 0.45, y + ux * r * 0.45);
+  c.lineTo(x - ux * r * 0.2, y - uy * r * 0.2);
+  c.lineTo(x + uy * r * 0.45, y - ux * r * 0.45);
+  c.closePath();
+  c.fill();
+}
+// the powder smoke: a white-grey bank that is blown out along the shot, rises, swells and thins
+function musketSmoke(c, x, y, dx, dy, f, p, a) {
+  const q = 1 - p, alpha = a * Math.min(1, q * 1.6) * Math.sqrt(q);
+  if (alpha < 0.02) return;
+  // one bank of four puffs: an inked rim, a cool shaded underside, a lit top
+  for (let pass = 0; pass < 3; pass++) {
+    c.globalAlpha = alpha * (pass === 0 ? 0.55 : pass === 1 ? 0.8 : 0.9);
+    c.fillStyle = pass === 0 ? "#5b6472" : pass === 1 ? "#b3b9c2" : "#f4f5f7";
+    const grow = pass === 0 ? 0.55 * f : 0, sx = pass === 2 ? -0.4 * f : 0, sy = pass === 2 ? -0.6 * f : 0, sr = pass === 2 ? 0.78 : 1;
+    c.beginPath();
+    for (let i = 0; i < 4; i++) {
+      // the first puff is the blast at the muzzle; the rest roll out along the shot and up
+      const s = i / 3, run = (1 + s * 4.5 + p * (4 + s * 10)) * f, side = (i % 2 ? 1.6 : -1.2) * (0.4 + p) * f;
+      const px = x + dx * run - dy * side + p * 2.4 * f + sx, py = y + dy * run + dx * side - (p * p * 9 + p * 3 + s * 1.6) * f + sy;
+      const r = (1.9 + p * (3.6 + s * 2.2)) * f * (1.1 - s * 0.25) * sr + grow;
+      c.moveTo(px + r, py);
+      c.arc(px, py, r, 0, Math.PI * 2);
+    }
+    c.fill();
+  }
+}
+
+function musketLive(t, cx) {
+  const fit = cx.fit, gs = fit.gunners;
+  if (!gs) return;
+  const c = ctx, k = cx.k, x = cx.x, y = cx.y, fade = cx.fade, kick = cx.kick;
+  const ca = Math.cos(cx.aim), sa = Math.sin(cx.aim) * ELLIPSE;
+  const st = getStats(t), rate = st.rate / (1 + (t.buffHaste || 0));
+  const since = t.cd > 0 ? rate - t.cd : 99;
+  musketMuzzles.length = 0;
+  c.globalAlpha = fade;
+  for (let i = 0; i < gs.length; i++) {
+    const g = gs[i], px = x + g.p[0] * k, py = y + g.p[1] * k, f = k * g.s;
+    if (g.load) musketLoading(c, px, py, f, g, cx.time, t.x * 0.37 + i);
+    else musketAiming(c, px, py, f, g, ca, sa, kick, since < 1.2);
+  }
+  const nGun = musketMuzzles.length;
+  // the guns run out of the lower loops fire with the volley
+  if (fit.loopGuns && since < 1.2) {
+    for (const lg of fit.loopGuns) musketMuzzles.push(x + lg[0] * k, y + lg[1] * k, -0.5, 0.25);
+  }
+  const p = since / 1.2;
+  for (let i = 0; i < musketMuzzles.length; i += 4) {
+    const mx = musketMuzzles[i], my = musketMuzzles[i + 1], loop = i >= nGun;
+    if (p < 1) musketSmoke(c, mx, my, musketMuzzles[i + 2], musketMuzzles[i + 3], loop ? k * 0.6 : k, p, fade * 0.85);
+    if (kick <= 0.45) continue;
+    const a = fade * Math.min(1, (kick - 0.45) * 3);
+    if (!loop) musketFlash(c, mx, my, musketMuzzles[i + 2], musketMuzzles[i + 3], (2.4 + kick * 2) * k, a);
+    else {
+      // a gun fired end-on out of a loop is a round burst
+      c.globalAlpha = a;
+      c.fillStyle = "#ffb347";
+      c.beginPath(); c.arc(mx, my, (1.6 + kick * 1.4) * k, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#fff6cc";
+      c.beginPath(); c.arc(mx, my, (0.8 + kick * 0.7) * k, 0, Math.PI * 2); c.fill();
+    }
+  }
+  c.globalAlpha = fade;
+}
+
 SKIN_ART.musket = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.ballista,
   scale: TOWER_SCALE.ballista,
-  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  paint(lvl, spec, variant) { paintMusketNest(lvl, spec); },
+  live: musketLive,
   proj: "ball", projSpeed: 900, sound: "musket",
+};
+
+// a lead ball, drawn over life size with a short bright streak behind it so it reads in one frame
+PROJ_ART.ball = (pr) => {
+  const pp = proj(pr.x, pr.y), big = pp.s * 1.5;
+  shadow(pp.x, pp.y + 14 * pp.s, 4.5 * pp.s, 1.8 * pp.s);
+  ctx.save();
+  ctx.translate(pp.x, pp.y);
+  ctx.rotate(pr.ang || 0);
+  ctx.scale(big, big);
+  ctx.fillStyle = "rgba(28, 17, 6, .22)";
+  ctx.beginPath(); ctx.moveTo(-1, -2.6); ctx.lineTo(-30, 0); ctx.lineTo(-1, 2.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255, 236, 190, .9)";
+  ctx.beginPath(); ctx.moveTo(-1, -1.5); ctx.lineTo(-26, 0); ctx.lineTo(-1, 1.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fffbe8";
+  ctx.beginPath(); ctx.moveTo(-1, -0.7); ctx.lineTo(-12, 0); ctx.lineTo(-1, 0.7); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.3, 0, Math.PI * 2);
+  ctx.fillStyle = "#3d3f46";
+  ctx.fill();
+  ctx.strokeStyle = "#1c1108";
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(226, 232, 242, .85)";
+  ctx.beginPath(); ctx.arc(-0.6, -0.8, 0.75, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 };
 // ====================================== END SKIN SECTION: musket ======================================
 
