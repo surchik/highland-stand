@@ -1285,6 +1285,7 @@ const LEVELS = [
     hero: { name: "Sarduri II", title: "King of Urartu" },
     units: {
       raider:  { name: "Itu'aean Archers" },
+      flyer:   { name: "Skin-Float Raiders" },
     },
     history: "Urartu, Biainili to its kings and Ararat in the Bible, ruled these highlands from Tushpa, its citadel on the Rock of Van. In 735 BC Tiglath-pileser III of Assyria shut king Sarduri II inside; his annals boast of slaughter before the gates, yet the citadel held. In 714 BC Sargon II routed Rusa and sacked Musasir, but never marched on Van: Tushpa never fell to Assyria. Hold the royal road, as the garrisons of Van once did.",
     path: [[-420, 250], [260, 250], [260, 460], [560, 460], [560, 250], [860, 250], [860, 520], [1110, 520], [1110, 330]],
@@ -1521,13 +1522,16 @@ const Snd = {
   play(name) {
     if (!this.ctx || !this.sfxOn) return;
     const now = performance.now();
-    const throttle = { arrow: 70, bolt: 90, coin: 90, impact: 60, uiTick: 70 }[name] || 0;
+    const throttle = { arrow: 70, bolt: 90, javelin: 80, musket: 110, hurl: 90, coin: 90, impact: 60, uiTick: 70 }[name] || 0;
     if (throttle && now - (this.lastPlay[name] || 0) < throttle) return;
     this.lastPlay[name] = now;
     switch (name) {
       case "arrow": this.noise(0.08, 3200, 0.25, "highpass"); this.tone(900, 0.07, "triangle", 0.08, 300); break;
       case "bolt": this.noise(0.1, 1600, 0.3, "highpass"); this.tone(320, 0.12, "square", 0.1, 90); break;
       case "catapult": this.tone(70, 0.25, "sawtooth", 0.18, 45); this.noise(0.2, 700, 0.2); break;
+      case "javelin": this.noise(0.12, 1800, 0.24, "bandpass"); this.tone(420, 0.11, "triangle", 0.07, 170); break;
+      case "musket": this.noise(0.16, 2600, 0.5); this.noise(0.45, 480, 0.32); this.tone(105, 0.22, "square", 0.12, 48); break;
+      case "hurl": this.noise(0.1, 900, 0.22); this.tone(170, 0.12, "triangle", 0.08, 90); break;
       case "explosion": this.noise(0.4, 420, 0.55); this.tone(90, 0.3, "sine", 0.3, 40); break;
       case "impact": this.noise(0.06, 900, 0.22); break;
       case "coin": this.tone(1180, 0.07, "sine", 0.16); this.tone(1660, 0.1, "sine", 0.14, null, this.ctx.currentTime + 0.06); break;
@@ -1827,7 +1831,7 @@ const ERAS = [
       cavalry:  { name: "Assyrian Horsemen",      color: "#8a5f8f", trim: "#d9b2de" },
       ram:      { name: "Siege Ram",              color: "#6b4a2e", trim: "#b78a5c", variant: "ram" },
       boss:     { name: "Tiglath-pileser III",    color: "#8f2f2a", trim: "#ffd27a" },
-      flyer:    { name: "Hunting Hawks",            color: "#8a6a42", trim: "#f0e0c0", variant: "flyer" },
+      flyer:    { name: "Assyrian Scouts",          color: "#8a6a42", trim: "#f0e0c0", variant: "flyer" },
     },
   },
   {
@@ -1840,7 +1844,7 @@ const ERAS = [
       cavalry:  { name: "Savaran Cataphracts",           color: "#6e6e80", trim: "#d8d8e8", variant: "cataphract", armorAdd: 4, spdMult: 0.85, hpMult: 1.25 },
       ram:      { name: "War Elephant",          color: "#8a8a92", trim: "#d4b26a", variant: "elephant", hpMult: 1.15, spdMult: 0.95 },
       boss:     { name: "Mushkan Niusalavurt",   color: "#5d3a8f", trim: "#ffd27a" },
-      flyer:    { name: "Royal Hawks",    color: "#7a5a8f", trim: "#ffd27a", variant: "flyer", hpMult: 1.1 },
+      flyer:    { name: "Tghmut Fording Party",  color: "#7a5a8f", trim: "#ffd27a", variant: "flyer", hpMult: 1.1 },
     },
   },
   {
@@ -1851,9 +1855,9 @@ const ERAS = [
       spearman: { name: "Caliphate Spearmen",  color: "#3f7a55", trim: "#ece8da", variant: "arab" },
       shield:   { name: "Mailed Swordsmen",    color: "#707a70", trim: "#cfd8cf", variant: "arab" },
       cavalry:  { name: "Caliphate Horsemen",  color: "#b89a5a", trim: "#3f7a55", spdMult: 0.92 },
-      ram:      { name: "Battering Ram",       color: "#7a5a35", trim: "#c9a86a", variant: "ram" },
+      ram:      { name: "Smoke-and-Ladder Party", color: "#7a5a35", trim: "#c9a86a", variant: "ladder", hpMult: 0.6, spdMult: 1.4, armorAdd: -6 },
       boss:     { name: "The Caliph's General",color: "#2f6b45", trim: "#f0ecdc" },
-      flyer:    { name: "Saker Falcons",       color: "#a08050", trim: "#f0ead0", variant: "flyer" },
+      flyer:    { name: "Ridge Climbers",      color: "#a08050", trim: "#f0ead0", variant: "flyer" },
     },
   },
   {
@@ -1866,7 +1870,7 @@ const ERAS = [
       cavalry:  { name: "Sipahi Cavalry",       color: "#8f6a2f", trim: "#ffd27a" },
       ram:      { name: "Siege Cannon",         color: "#4a4a52", trim: "#c9a86a", variant: "cannon", spdMult: 0.9 },
       boss:     { name: "Lala Mustafa Pasha",   color: "#7d1f2f", trim: "#ffd27a" },
-      flyer:    { name: "Imperial Falcons",     color: "#7d3a3a", trim: "#f0d0a0", variant: "flyer" },
+      flyer:    { name: "Kurdish Horsemen",     color: "#7d3a3a", trim: "#f0d0a0", variant: "flyer" },
     },
   },
 ];
@@ -1888,38 +1892,98 @@ function heroName() {
   return (L && L.hero && L.hero.name) || "Vardan Mamikonian";
 }
 
-// tower, mastery and spell names that fit each age; gameplay is identical in every era
-const ERA_LABELS = [
-  // Urartu: hill-top fire beacons are attested; Haldi was the god of war and state, Teisheba of storm
-  { fire: "Beacon Fire", fireA: "Sacred Inferno", fireB: "Wrath of Haldi", fireBDesc: "Every 5s the god stuns all foes near",
-    drumsB: "Standards of Haldi", wrath: "Teisheba's Storm" },
-  // Christian Armenia: defenders' incendiaries, and weather rather than a miracle no source records
-  { fire: "Burning Pitch", fireA: "Naphtha Fire", fireB: "Fire Burst", fireBDesc: "Every 5s a blast of fire stuns all foes near",
-    drumsB: "Battle Standards", wrath: "Highland Storm" },
-];
-function eraLabels() { return ERA_LABELS[curEra === 0 ? 0 : 1]; }
+// ---------- tower skins: each age mans the same five slots with its own engines ----------
+// Gameplay lives in TOWER_DEFS and never changes with the era; only what stands on the pad does.
+// A skin registers its painter (baked once per rank, like every structure), its live parts
+// (drawn each frame in screen space) and its projectile in SKIN_ART, in its own section below.
+const TOWER_SKINS = {
+  archer:   ["archer", "archer", "archer", "archer"],
+  ballista: ["javelin", "ballista", "ballista", "musket"],
+  catapult: ["hurlers", "catapult", "trebuchet", "hurlers"],
+  fire:     ["beacon", "cauldron", "cauldron", "cauldron"],
+  drums:    ["standard", "exhort", "banner", "drums"],
+};
+const SKIN_ART = {};      // skin id -> { box, scale, paint, variant, live, footing, proj, projSpeed, sound, onFire, kickDrop }
+const PROJ_ART = {};      // projectile kind -> painter, for kinds the first arsenal lacked
+function towerSkin(type, era) {
+  const row = TOWER_SKINS[type], e = era == null ? curEra : era;
+  return (row && row[Math.max(0, Math.min(3, e | 0))]) || type;
+}
+function skinArt(type) { return SKIN_ART[towerSkin(type)] || null; }
+
+// what each slot is called in each age. Urartu: no mechanical artillery before c. 400 BC, and
+// hill-top fire beacons are attested; Haldi was the god of war and state, Teisheba of storm.
+// 451: no fire altar on the Christian side. 1579: gunpowder, and the defenders' guns are few.
+const SLOT_NAMES = {
+  archer:   ["Biainili Bowmen", "Nakharar Bowmen", "Nakharar Bowmen", "Highland Bowmen"],
+  ballista: ["Javelin Bastion", "Field Ballista", "Bolt-Thrower", "Musket Nest"],
+  catapult: ["Stone-Hurlers", "Onager", "Traction Trebuchet", "Stone-Hurlers"],
+  fire:     ["Beacon Fire", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron"],
+  drums:    ["Standard of Haldi", "Ghevond's Exhortation", "Prince's Banner", "Village Drums"],
+};
+const SKIN_BLURB = {
+  archer: "Fast arrows, single target. Reliable.",
+  javelin: "Hurled javelins. Long reach, pierces armor.",
+  ballista: "Long range bolt. Pierces armor.",
+  musket: "Matchlock fire. Long reach, pierces armor.",
+  hurlers: "Hurled stones, splash damage.",
+  catapult: "Lobbed stone, splash damage.",
+  trebuchet: "Pull-crew engine: lobbed stone, splash damage.",
+  beacon: "Beacon flames slow and burn nearby foes.",
+  cauldron: "Boiling pitch slows and burns nearby foes.",
+  standard: "Inspire nearby towers: faster, harder strikes.",
+  exhort: "Inspire nearby towers: faster, harder strikes.",
+  banner: "Inspire nearby towers: faster, harder strikes.",
+  drums: "Inspire nearby towers: faster, harder strikes.",
+};
+// mastery names that fit the engine; their numbers always come from TOWER_DEFS
+const SKIN_SPECS = {
+  javelin:  { a: ["Heavy Javelins", "One great armor-splitting javelin"], b: ["Twin Throwers", "Two javelins, two targets"] },
+  musket:   { a: ["Long Muskets", "One heavy armor-splitting ball"], b: ["Double Volley", "Two volleys, two targets"] },
+  hurlers:  { a: ["Great Boulders", "Massive stones, huge blast"], b: ["Firepots", "Burning pitch clings to the enemy"] },
+  trebuchet: { a: ["Great Beam", "Massive stone, huge blast"] },
+  beacon:   { a: ["Sacred Inferno"], b: ["Wrath of Haldi", "Every 5s the god stuns all foes near"] },
+  cauldron: { a: ["Naphtha Fire"], b: ["Fire Burst", "Every 5s a blast of fire stuns all foes near"] },
+  standard: { b: ["Standards of Haldi"] },
+  exhort:   { b: ["Battle Standards"] },
+  banner:   { b: ["Battle Standards"] },
+  drums:    { b: ["Battle Standards"] },
+};
+const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
 function towerName(type) {
-  return type === "fire" ? eraLabels().fire : TOWER_DEFS[type].name;
+  const row = SLOT_NAMES[type];
+  return (row && row[Math.max(0, Math.min(3, curEra | 0))]) || TOWER_DEFS[type].name;
 }
 function specInfo(type, key) {
-  const sp = TOWER_DEFS[type].specs[key], E = eraLabels();
-  if (type === "fire" && key === "a") return Object.assign({}, sp, { name: E.fireA });
-  if (type === "fire" && key === "b") return Object.assign({}, sp, { name: E.fireB, desc: E.fireBDesc });
-  if (type === "drums" && key === "b") return Object.assign({}, sp, { name: E.drumsB });
-  return sp;
+  const sp = TOWER_DEFS[type].specs[key], own = (SKIN_SPECS[towerSkin(type)] || {})[key];
+  if (!own) return sp;
+  return Object.assign({}, sp, { name: own[0] }, own[1] ? { desc: own[1] } : null);
 }
 // rewrite every era-dependent label in the tray and spell bar for the battlefield now chosen
 function applyEraLabels() {
-  const card = document.querySelector('#shop .card[data-type="fire"]');
-  if (card) {
-    card.querySelector(".nm").textContent = towerName("fire");
-    card.querySelector(".ds b").textContent = towerName("fire");
-  }
+  document.querySelectorAll("#shop .card").forEach(card => {
+    const type = card.dataset.type;
+    if (!TOWER_DEFS[type]) return;
+    const nm = card.querySelector(".nm"), ds = card.querySelector(".ds");
+    if (nm) nm.textContent = towerName(type);
+    if (ds) {
+      ds.textContent = "";
+      const b = document.createElement("b");
+      b.textContent = towerName(type);
+      ds.appendChild(b);
+      ds.appendChild(document.createTextNode(SKIN_BLURB[towerSkin(type)] || ""));
+    }
+  });
   const wb = document.querySelector('#spellbar .spell[data-spell="wrath"]');
-  if (wb) wb.title = eraLabels().wrath + ": lightning strike (E)";
+  if (wb) wb.title = WRATH_NAMES[curEra] + ": lightning strike (E)";
   const hb = $("heroBtn");
   if (hb) hb.title = heroName() + ": select, then click the field to march to that spot (R)";
+  if (eraLabelsDrawn !== curEra && typeof renderShopPortraits === "function") {
+    eraLabelsDrawn = curEra;
+    try { renderShopPortraits(); } catch (err) { /* portraits are decoration */ }
+  }
 }
+let eraLabelsDrawn = -1;
 
 function waveGroups(w) {
   const g = [];
@@ -2110,7 +2174,8 @@ function nearestPlot(x, y, maxDist) {
 }
 
 let endless = false;
-let sandActive = false;
+let sandActive = false;   // retired: the Caliphate era's power is now the ladder parties' smoke
+let smokeClouds = [];     // { x, y, r, t, dur }: world-space smoke the ladder parties light
 
 // bonus for calling the next wave while the field is still contested
 function earlyBonus() { return Math.min(60, 10 + 4 * enemies.length); }
@@ -2131,6 +2196,15 @@ function elephantTrumpet(e) {
     }
   }
 }
+// a tower stands in smoke while any live cloud covers its pad; a thinning cloud still counts
+function towerInSmoke(t) {
+  for (const c of smokeClouds) {
+    if (c.t < c.dur && inGroundRange(c.x, c.y, t.x, t.y, c.r * smokeSwell(c))) return true;
+  }
+  return false;
+}
+// a cloud billows out over its first two seconds and keeps that reach until it lifts
+function smokeSwell(c) { return Math.min(1, 0.35 + c.t / 2); }
 function bombardVolley(e) {
   const p = enemyPos(e);
   const targets = towers.filter(t => TOWER_DEFS[t.type].proj && inGroundRange(p.x, p.y, t.x, t.y, 260));
@@ -2209,6 +2283,7 @@ function castSpell(key, x, y) {
     Snd.play("spellArrows");
   } else if (key === "frost") {
     spellFx.push({ type: "frostRing", x, y, t: 0 });
+    smokeClouds = smokeClouds.filter(c => !inGroundRange(x, y, c.x, c.y, S.radius + c.r * 0.5));
     for (const e of enemies) {
       const p = enemyPos(e);
       if (inGroundRange(x, y, p.x, p.y, S.radius + e.r)) { e.stunT = Math.max(e.stunT, 3); e.flash = 0.1; }
@@ -2417,6 +2492,7 @@ function resetGame() {
   paused = false;
   endless = false;
   sandActive = false;
+  smokeClouds = [];
   corpses = [];
   spawnSheep();
   waveBannerT = 0;
@@ -2527,7 +2603,7 @@ function startWave() {
   let msg = early > 0
     ? "Early call! +" + early + " gold — wave " + waveIdx + " joins the field!"
     : "Wave " + waveIdx + " — the horns sound in the valley!";
-  if (curEra === 2 && waveIdx % 4 === 0) msg += " Mountain fog rolls in with them!";
+  if (curEra === 2 && waveGroups(waveIdx).some(g => g.type === "ram")) msg += " Smoke parties carry ladders and fire pots!";
   toast(msg);
 }
 
@@ -2689,7 +2765,8 @@ function fireTowerShot(t, target, dmgMult) {
   const st = getStats(t);
   const def = TOWER_DEFS[t.type];
   const dmg = Math.round(st.dmg * dmgMult);
-  if (def.proj === "stone") {
+  const art = skinArt(t.type), kind = (art && art.proj) || def.proj;
+  if (kind === "stone") {
     const tp = routeAt(target.route || 0, target.dist + target.speed * target.slowFactor * 0.9);
     projectiles.push({
       kind: "stone", x: t.x, y: t.y - 26, sx: t.x, sy: t.y - 26, tx: tp.x, ty: tp.y,
@@ -2697,14 +2774,15 @@ function fireTowerShot(t, target, dmgMult) {
       burnHit: st.burnHit || 0, burnDur: st.burnDur || 0,
       fiery: t.spec === "b" && t.type === "catapult",
     });
-    Snd.play("catapult");
+    Snd.play((art && art.sound) || "catapult");
   } else {
     projectiles.push({
-      kind: def.proj, x: t.x, y: t.y - 28, target, src: t,
-      speed: def.proj === "bolt" ? 560 : 430, dmg, pierce: !!def.pierce,
+      kind, x: t.x, y: t.y - 28, target, src: t,
+      speed: (art && art.projSpeed) || (kind === "bolt" ? 560 : 430), dmg, pierce: !!def.pierce,
     });
-    Snd.play(def.proj);
+    Snd.play((art && art.sound) || kind);
   }
+  if (art && art.onFire) art.onFire(t, target);
   // muzzle flash at the emplacement
   for (let i = 0; i < 3; i++) {
     particles.push({
@@ -2739,7 +2817,9 @@ function update(dt) {
     if (autoT <= 0) startWave();
   }
 
-  sandActive = curEra === 2 && phase === "wave" && waveIdx % 4 === 0;
+  sandActive = false;
+  for (const c of smokeClouds) c.t += dt;
+  smokeClouds = smokeClouds.filter(c => c.t < c.dur);
   if (waveBannerT > 0) waveBannerT -= dt;
   updateSheep(dt);
   updateSpells(dt);
@@ -2783,7 +2863,7 @@ function update(dt) {
     }
     if (t.novaFx > 0) t.novaFx -= dt * 1.6;
     for (const e of enemies) {
-      if (e.fly) continue;   // sacred flames stay on the ground
+      if (e.fly) continue;   // the fire guards the road; outflankers go round it
       const p = enemyPos(e);
       if (inGroundRange(t.x, t.y, p.x, p.y, st.range + e.r)) {
         e.slowTimer = 0.35;
@@ -2824,6 +2904,16 @@ function update(dt) {
       } else if (curEra === 1) {
         e.mechT += dt;
         if (e.mechT >= 7) { e.mechT = 0; elephantTrumpet(e); }
+      } else if (curEra === 2) {
+        // the ladder party lights a smoke pot whenever it comes up under a tower
+        e.mechT += dt;
+        if (e.mechT >= 0) {
+          const p = enemyPos(e);
+          if (towers.some(t => inGroundRange(p.x, p.y, t.x, t.y, 150))) {
+            smokeClouds.push({ x: p.x, y: p.y, r: 105, t: 0, dur: 9 });
+            e.mechT = -12;
+          }
+        }
       } else if (curEra === 3) {
         e.mechT += dt;
         if (e.mechT >= 6) { e.mechT = 0; bombardVolley(e); }
@@ -2834,7 +2924,7 @@ function update(dt) {
     e.dist += e.speed * moveMult * dt;
     e.wobble += dt * (e.type === "cavalry" ? 13 : 9) * (moveMult > 0 ? 1 : 0.2);
     // walking dust
-    if (!e.fly && moveMult > 0 && Math.random() < dt * 2.2) {
+    if (moveMult > 0 && Math.random() < dt * 2.2) {
       const p = enemyPos(e);
       particles.push({ x: p.x - Math.cos(p.ang) * 8, y: p.y + 3, vx: -Math.cos(p.ang) * 8, vy: -4, life: 0.5, color: "rgba(150,130,95,.6)", size: 3 });
     }
@@ -2860,7 +2950,7 @@ function update(dt) {
       }
       gold += bounty;
       Snd.play("coin");
-      if (!e.fly) corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8 });
+      corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8 });
       particles.push({ x: p.x, y: p.y - 22, vx: 0, vy: -26, life: 0.9, color: "#ffd27a", size: 0, text: "+" + bounty });
       for (let i = 0; i < 8; i++) {
         const a = Math.random() * Math.PI * 2, s = 20 + Math.random() * 55;
@@ -2881,10 +2971,10 @@ function update(dt) {
     const st = getStats(t);
     const dmgMult = 1 + t.buffMight;
     const rate = st.rate / (1 + t.buffHaste);
-    const rangeMult = sandActive ? 0.8 : 1;   // mountain fog blinds the towers
+    const rangeMult = towerInSmoke(t) ? 0.7 : 1;   // smoke blinds the towers inside it
     const inR = [];
     for (const e of enemies) {
-      if (e.fly && !def.air) continue;        // catapults cannot reach the sky
+      if (e.fly && !def.air) continue;        // lobbed stones cannot find men in broken ground
       const p = enemyPos(e);
       if (inGroundRange(t.x, t.y, p.x, p.y, st.range * rangeMult + e.r)) inR.push(e);
     }
@@ -2910,7 +3000,7 @@ function update(dt) {
           particles.push({ x: pr.tx, y: pr.ty, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.5 - 25, life: 0.45, color: col, size: 3 });
         }
         for (const e of enemies) {
-          if (e.fly) continue;               // ground blasts miss the birds
+          if (e.fly) continue;               // the blast is on the road; outflankers are off it
           const p = enemyPos(e);
           if (inGroundRange(pr.tx, pr.ty, p.x, p.y, pr.splash + e.r)) {
             damageEnemy(e, pr.dmg, false, pr.src);
@@ -2927,7 +3017,7 @@ function update(dt) {
       const e = pr.target;
       if (!e || e.dead) { pr.dead = true; continue; }
       const p = enemyPos(e);
-      const dx = p.x - pr.x, dy = (p.y - (e.fly ? 34 : 12)) - pr.y;
+      const dx = p.x - pr.x, dy = (p.y - 12) - pr.y;
       const d = Math.hypot(dx, dy);
       const step = pr.speed * dt;
       if (d <= step + e.r) {
@@ -10514,7 +10604,7 @@ function draw(time) {
       objs.push({ y: unprojGround(spot[0], spot[1]).y, fn: () => drawPlotSign(plot) });
     }
   }
-  for (const e of enemies) { const p = enemyPos(e); objs.push({ y: p.y + (e.fly ? 900 : 0), fn: () => drawEnemy(e, p) }); }
+  for (const e of enemies) { const p = enemyPos(e); objs.push({ y: p.y, fn: () => drawEnemy(e, p) }); }
   objs.sort((a, b) => a.y - b.y);
   for (const o of objs) o.fn();
 
@@ -11035,7 +11125,6 @@ function drawWalkerFlameShadows() {
   };
   if (hero && hero.alive && !celebration) walker(hero.x, hero.y, 12);
   for (const e of enemies) {
-    if (e.fly) continue;
     const p = enemyPos(e);
     walker(p.x, p.y, e.r || 11);
   }
@@ -11790,7 +11879,7 @@ function drawFrostAir(fx, pp) {
     ctx.lineWidth = 0.8;
     ctx.beginPath();
     for (const e of enemies) {
-      if (e.fly || !e.iceVis) continue;
+      if (!e.iceVis) continue;
       const p = enemyPos(e);
       if (!inGroundRange(fx.x, fx.y, p.x, p.y, SPELLS.frost.radius + e.r)) continue;
       const ep = proj(p.x, p.y), k = (e.r || 11) / 11 * ep.s;
@@ -12361,9 +12450,36 @@ function snowSparkles() {
   snowSparkleCache = { seed: LVLSEED, pads: PADS, list };
   return list;
 }
+
+// ======================================================================================
+// SKIN SECTION: smoke. Caliphate era: the smoke clouds the ladder parties light
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// drawn over the field from the clouds in smokeClouds (world units); reach is c.r * smokeSwell(c)
+function drawSmokeClouds(time) {
+  // placeholder until the art lands: soft grey puffs
+  for (const c of smokeClouds) {
+    const fade = Math.min(1, (c.dur - c.t) / 2), pp = proj(c.x, c.y), R = c.r * smokeSwell(c) * pp.s;
+    ctx.save();
+    ctx.translate(pp.x, pp.y - 20 * pp.s);
+    ctx.scale(1, ELLIPSE);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, "rgba(96, 92, 88, " + (0.55 * fade).toFixed(3) + ")");
+    g.addColorStop(1, "rgba(96, 92, 88, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+// ====================================== END SKIN SECTION: smoke ======================================
+
+
 function drawAtmosphere(time) {
-  if (sandActive && overlayEl.classList.contains("hidden")) {
-    // mountain fog: a cool wash thickening toward the horizon, and slow banks of mist drifting across the field
+  if (smokeClouds.length) drawSmokeClouds(time);
+  if (false) {
+    // retired mountain fog: a cool wash thickening toward the horizon, and slow banks of mist drifting across the field
     const fogWash = ctx.createLinearGradient(0, HORIZON, 0, VH);
     fogWash.addColorStop(0, "rgba(214, 222, 228, .34)");
     fogWash.addColorStop(1, "rgba(214, 222, 228, .12)");
@@ -14222,7 +14338,8 @@ const TOWER_BOX = {
 // the solid part of a tower on screen, for whatever has to keep clear of it: the sprite box
 // less its spare margin, [left, top, right] from the pad centre in world units
 function towerReach(type) {
-  const b = TOWER_BOX[type] || TOWER_BOX.archer, k = STRUCT_K * (TOWER_SCALE[type] || 1);
+  const art = skinArt(type);
+  const b = (art && art.box) || TOWER_BOX[type] || TOWER_BOX.archer, k = STRUCT_K * ((art && art.scale) || TOWER_SCALE[type] || 1);
   return [(b[0] + 8) * k, b[1] * k, (b[2] - 8) * k];
 }
 // every map quarries its own stone for foundations: [top, side]
@@ -17158,6 +17275,129 @@ function ballistaEngineSprite(lvl, spec, pxu, dir8) {
   });
 }
 
+// ======================================================================================
+// SKIN SECTION: javelin. Urartu, ballista slot: a bastion of javelin-throwers
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.javelin = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  proj: "javelin", projSpeed: 520, sound: "javelin",
+};
+// ====================================== END SKIN SECTION: javelin ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: musket. 1579, ballista slot: a musketeers' loopholed nest
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.musket = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  proj: "ball", projSpeed: 900, sound: "musket",
+};
+// ====================================== END SKIN SECTION: musket ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: hurlers. Urartu and 1579, catapult slot: a parapet of stone-hurlers
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.hurlers = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.catapult,
+  scale: TOWER_SCALE.catapult,
+  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  sound: "hurl",
+};
+// ====================================== END SKIN SECTION: hurlers ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: trebuchet. Caliphate era, catapult slot: a pull-crew traction trebuchet
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.trebuchet = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.catapult,
+  scale: TOWER_SCALE.catapult,
+  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  kickDrop: 1.2,
+};
+// ====================================== END SKIN SECTION: trebuchet ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: beacon. Urartu, fire slot: a hill-top fire beacon
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.beacon = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.fire,
+  scale: TOWER_SCALE.fire,
+  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: beacon ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: cauldron. 451 to 1579, fire slot: a cauldron of boiling pitch
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.cauldron = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.fire,
+  scale: TOWER_SCALE.fire,
+  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: cauldron ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: standard. Urartu, drums slot: the standard of Haldi
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.standard = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: standard ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: banner. Caliphate era, drums slot: a prince's banner with horn-blowers
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.banner = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: banner ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: exhort. 451, drums slot: Ghevond the priest exhorts the army
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.exhort = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: exhort ======================================
+
+
 // ---- the fortress: its architecture follows the map's site and era ----
 const FORT_BOX = [-98, -160, 108, 32];
 // the citadel is drawn a little over life size so it still commands a field of taller towers
@@ -18436,7 +18676,7 @@ function towerVeil(t, x, y, rise, half) {
     if (under > 0 && across > 0) veil = Math.max(veil, Math.min(1, under) * Math.min(1, across));
   };
   for (const e of enemies) {
-    if (e.seenAt === drawStamp && !e.fly && e.seenY < y) test(e.markX, e.seenY, e.seenH, e.seenHalf);
+    if (e.seenAt === drawStamp && e.seenY < y) test(e.markX, e.seenY, e.seenH, e.seenHalf);
   }
   if (hero && hero.alive && !celebration && hero.y < t.y) {
     const hp = proj(hero.x, hero.y);
@@ -18450,9 +18690,11 @@ function drawTower(t, time) {
   const s = pp.s;
   const x = pp.x, y = pp.y;
   const type = TOWER_BOX[t.type] ? t.type : "archer";
+  // what stands on the pad follows the age; the slot's numbers do not
+  const skin = towerSkin(type), art = SKIN_ART[skin] || null;
   const lvl = structClamp(t.level | 0, 0, 2);
   const spec = t.spec ? (t.spec === "b" ? "b" : "a") : null;
-  const k = s * STRUCT_K * (TOWER_SCALE[type] || 1);
+  const k = s * STRUCT_K * ((art && art.scale) || TOWER_SCALE[type] || 1);
   const aim = isFinite(t.aim) ? t.aim : -0.5;
 
   // the static body, night lighting included, is a sprite baked for this type, rank, map and on-screen size
@@ -18460,11 +18702,13 @@ function drawTower(t, time) {
   const pxu = structPxu(m, k);
   const glow = structClamp((dayFactor() - 0.5) / 0.2, 0, 1);
   const rate = TOWER_DEFS[t.type] ? getStats(t).rate : 0;
-  const variant = type === "archer" ? (Math.cos(aim) < 0 ? 1 : 0)
-    : type === "catapult" ? (t.cd > rate * 0.6 ? 1 : 0) : 0;
+  const variant = art && art.variant ? art.variant(t, aim, rate)
+    : skin === "archer" ? (Math.cos(aim) < 0 ? 1 : 0)
+    : skin === "catapult" ? (t.cd > rate * 0.6 ? 1 : 0) : 0;
   const sited = t.pad >= 0;
-  const key = type + lvl + (spec || "-") + variant + THEME.backdrop + Math.round(glow * 4) + "|" + Math.round(pxu * 256);
-  const sp = structSprite(key, pxu, TOWER_BOX[type], () => paintTowerBody(type, lvl, spec, variant), glow);
+  const key = skin + lvl + (spec || "-") + variant + THEME.backdrop + Math.round(glow * 4) + "|" + Math.round(pxu * 256);
+  const sp = structSprite(key, pxu, (art && art.box) || TOWER_BOX[type],
+    art ? () => art.paint(lvl, spec, variant) : () => paintTowerBody(type, lvl, spec, variant), glow);
   const fit = sp.fit;
 
   // a tower that has only just loosed kicks back and raises dust; read straight off its cooldown
@@ -18474,16 +18718,17 @@ function drawTower(t, time) {
   // a tower never buries whoever stands behind it: while a foe or the hero is hidden by its body
   // the tower turns translucent, so the road and the fight on it stay readable
   if (fit.half == null) {
-    const foot = towerFooting(type, lvl, spec);
+    const foot = art && art.footing ? art.footing(lvl, spec) : towerFooting(type, lvl, spec);
     fit.half = foot.round ? foot.rx : foot.w / 2 + foot.d * OBQ.dx / 2;
   }
   const fade = sited ? 1 - 0.46 * towerVeil(t, x, y, fit.crown * k, fit.half * s) : 1;
   structCastShadow(sp, x, y, k, fit.half * s * 0.86);
   ctx.globalAlpha = fade;
-  const sy = y - (type === "catapult" ? kick * 1.2 * k : 0);
+  const drop = skin === "catapult" ? 1.2 : (art && art.kickDrop) || 0;
+  const sy = y - kick * drop * k;
   blitStructSprite(ctx, sp, x, sy, k, m);
   noteNightLit(sp, x, sy, k, glow * fade);
-  if (kick > 0 && type === "catapult") {
+  if (kick > 0 && drop > 0) {
     // the frame slams down on its platform: dust jumps from both ends
     const puff = 1 - kick;
     ctx.fillStyle = (THEME.backdrop === "gyumri" ? "rgba(250, 252, 255, " : "rgba(234, 220, 192, ") + (0.45 * kick).toFixed(3) + ")";
@@ -18502,7 +18747,10 @@ function drawTower(t, time) {
   const join = ctx.lineJoin, cap = ctx.lineCap;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  if (type === "ballista" && fit.pivot) {
+  if (art && art.live) {
+    // a skin draws its own moving parts: crews, flames, smoke, the engine at its aim
+    art.live(t, { x, y, k, s, fit, time, kick, fade, aim, lvl, spec, pxu, m, glow });
+  } else if (skin === "ballista" && fit.pivot) {
     // the bow engine swings to its aim in the ground plane
     // a full turn added to the heading keeps the snowbound engines in sprites of their own
     const engine = ballistaEngineSprite(lvl, spec, pxu, (Math.round(aim / (Math.PI / 4)) & 7) + (THEME.backdrop === "gyumri" ? 8 : 0));
@@ -18519,7 +18767,7 @@ function drawTower(t, time) {
       ctx.drawImage(engine.cv, engine.x, engine.y, engine.w, engine.h);
     }
     ctx.restore();
-  } else if (type === "catapult" && fit.brazier) {
+  } else if (skin === "catapult" && fit.brazier) {
     // firepots: the brazier burns day and night
     const ph = time * 0.012 + t.x;
     const bx = x + fit.brazier[0] * k, by = y + fit.brazier[1] * k;
@@ -18533,7 +18781,7 @@ function drawTower(t, time) {
     }
     ctx.fill();
     structFlame(bx, by, 4.6 * k, structClamp(10.5 + Math.sin(ph) * 1.4, 6, 13) * k, ph, false, fade);
-  } else if (type === "fire" && fit.flame) {
+  } else if (skin === "fire" && fit.flame) {
     const ph = isFinite(t.flame) ? t.flame : 0;
     const fx = x + fit.flame[0] * k, fy = y + fit.flame[1] * k;
     const fh = structClamp(fit.flameH + Math.sin(ph) * 1.6, 3, 30) * k;
@@ -18554,7 +18802,7 @@ function drawTower(t, time) {
       }
       ctx.fill();
     }
-  } else if (type === "drums") {
+  } else if (skin === "drums" && fit.drummers) {
     // each drummer's two mallets rise and fall on alternate beats
     const mb = structClamp(Math.abs(Math.sin(isFinite(t.beat) ? t.beat : 0)) * 5, 0, 5);
     for (const d of fit.drummers) {
@@ -18586,7 +18834,7 @@ function drawTower(t, time) {
   }
   // a flame leaves the canvas opaque again: the pennants go back under the veil with the body
   ctx.globalAlpha = fade;
-  for (const pn of fit.pennants) {
+  for (const pn of fit.pennants || []) {
     drawPennant(x + pn.p[0] * k, y + pn.p[1] * k, pn.len * k, pn.hgt * k, pn.hex, time * 0.005 + t.x + pn.p[0], 0.8 * k);
   }
   ctx.globalAlpha = 1;
@@ -19230,13 +19478,49 @@ const UNIT_LOOKS = {
   champion:    { f: 1.12, back: 18.5, front: 17,   up: 37,   down: 3, top: 33.5, barW: 44, shadow: 15, feet: 13, rate: 1 },
 };
 const UNIT_FLYER_LOOKS = [UNIT_LOOKS.bird, UNIT_LOOKS.simurgh, UNIT_LOOKS.vulture, UNIT_LOOKS.kite];
+
+// ======================================================================================
+// SKIN SECTION: outflank. the outflankers: light troops who leave the road and strike cross-country
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// No age had flying troops. The flyer role is men who leave the road and cut across broken
+// ground straight for the fortress; only direct fire (bows, bolts, javelins, muskets) can pick
+// them out, while lobbed stones and fire on the road miss them.
+const OUTFLANK_LOOKS = [UNIT_LOOKS.foot, UNIT_LOOKS.foot, UNIT_LOOKS.foot, UNIT_LOOKS.horse];
+function drawOutflanker(e, p, k, d, dir) {
+  // placeholder until the art lands
+  if (unitEra(e, d) === 3) { drawHorse(e, p, k, dir, d); return; }
+  unitFace(dir);
+  drawSoldier(e, k, d, Math.sin(unitPhase), "side");
+}
+// ====================================== END SKIN SECTION: outflank ======================================
+
+
+
+// ======================================================================================
+// SKIN SECTION: ladder. Caliphate era siege role: the smoke-and-ladder party
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// Sebeos: Dvin fell in 640 to smoke, arrows and ladders scaled over the wall. The party carries
+// a ladder and smoke pots; near a tower it lights one, and the smoke blinds the towers inside it.
+const LADDER_LOOKS = { side: UNIT_LOOKS.foot, end: UNIT_LOOKS.footEnd };
+function drawLadderParty(e, p, k, d, dir) {
+  // placeholder until the art lands
+  const view = unitView(p);
+  if (view === "side") unitFace(dir); else unitLit = 1;
+  drawSoldier(e, k, d, Math.sin(unitPhase), view);
+}
+// ====================================== END SKIN SECTION: ladder ======================================
+
+
 const UNIT_BOSS_LOOKS = [UNIT_LOOKS.chariot, UNIT_LOOKS.shah, UNIT_LOOKS.general, UNIT_LOOKS.champion];
 
 // commanders and flyers are always seen from the side; everything else on the road turns to face
 // or leave the eye where the road runs up or down the screen
 function unitLook(e, d, p) {
   const era = unitEra(e, d);
-  if (e.fly) return UNIT_FLYER_LOOKS[era] || UNIT_LOOKS.bird;
+  if (e.fly) return OUTFLANK_LOOKS[era] || UNIT_LOOKS.foot;
+  if (d.variant === "ladder") return unitView(p) !== "side" ? LADDER_LOOKS.end : LADDER_LOOKS.side;
   if (e.type === "boss") return UNIT_BOSS_LOOKS[era] || UNIT_LOOKS.champion;
   const end = unitView(p) !== "side";
   if (d.variant === "elephant") return end ? UNIT_LOOKS.elephantEnd : UNIT_LOOKS.elephant;
@@ -19252,7 +19536,9 @@ function unitLook(e, d, p) {
 
 function unitPaintPose(e, p, d, dir) {
   if (e.fly) {
-    drawFlyer(e, 1, d, dir);
+    drawOutflanker(e, p, 1, d, dir);
+  } else if (d.variant === "ladder") {
+    drawLadderParty(e, p, 1, d, dir);
   } else if (d.variant === "elephant") {
     drawElephant(e, p, 1, d);
   } else if (d.variant === "cannon") {
@@ -22277,6 +22563,8 @@ function drawFlyer(e, k, d, dir) {
 }
 
 function drawProjectile(pr) {
+  const own = PROJ_ART[pr.kind];
+  if (own) { own(pr); return; }
   if (pr.kind === "stone") {
     const bp = proj(pr.x, pr.gy || pr.sy);
     const sy2 = bp.y - (pr.arc || 0) * bp.s;
@@ -22463,7 +22751,7 @@ function statText(t) {
   if (def.pierce) s += statRow("spear", "", "Pierces armor");
   if (st.twin) s += statRow("target", "", "Two targets");
   if (st.burnHit) s += statRow("flame", st.burnHit + "/s", "for " + st.burnDur + "s");
-  s += statRow("wing", "", def.air ? "Strikes flyers" : "Ground only");
+  s += statRow("wing", "", def.air ? "Hits outflankers" : "Road only");
   return s;
 }
 
@@ -24573,7 +24861,8 @@ function photoStageBattle(lv, wave, o) {
 }
 
 function photoSheet(kind) {
-  curLevel = 1; curDiff = 1;
+  curLevel = HARNESS.has("lv") ? Math.max(0, Math.min(LEVELS.length - 1, Number(HARNESS.get("lv")) | 0)) : 1;
+  curDiff = 1;
   resetGame();
   overlayEl.classList.add("hidden");
   document.body.classList.add("photo-clean");
