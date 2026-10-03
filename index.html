@@ -555,7 +555,7 @@
     background: none; -webkit-text-fill-color: var(--ink); color: var(--ink); filter: none;
   }
   #overlay.brief #ovRubric {
-    display: block; grid-column: 2; grid-row: 4; margin-top: 6px;
+    display: block; grid-column: 2; grid-row: 4; margin-top: 6px; max-width: 100%; white-space: nowrap;
     font-size: 16.500px; font-weight: 700; font-variant: small-caps; letter-spacing: 1.600px; color: var(--crimson);
   }
   #ovRubric::before, #ovRubric::after {
@@ -4464,6 +4464,15 @@ const SKIN_BLURB = {
   banner: "Inspire nearby towers: faster, harder strikes.",
   drums: "Inspire nearby towers: faster, harder strikes.",
 };
+// what a slot does, in no age's words: the tile's tooltip line under a battlefield's own tower (L.towers),
+// whose engine the era-3 skin's blurb ("Matchlock fire") would misname
+const SLOT_BLURB = {
+  archer: "Fast shots, single target. Reliable.",
+  ballista: "Long reach, pierces armor.",
+  catapult: "Splash damage over an area.",
+  fire: "Slows and wears down nearby foes.",
+  drums: "Inspire nearby towers: faster, harder strikes.",
+};
 // mastery names that fit the engine; their numbers always come from TOWER_DEFS
 const SKIN_SPECS = {
   javelin:  { a: ["Heavy Javelins", "One great armor-splitting javelin"], b: ["Twin Throwers", "Two javelins, two targets"] },
@@ -4518,19 +4527,38 @@ function applyEraLabels() {
         i.textContent = dep;
         ds.appendChild(i);
       }
-      ds.appendChild(document.createTextNode(SKIN_BLURB[towerSkin(type)] || ""));
+      ds.appendChild(document.createTextNode((dep && SLOT_BLURB[type]) || SKIN_BLURB[towerSkin(type)] || ""));
     }
   });
   const wb = document.querySelector('#spellbar .spell[data-spell="wrath"]');
   if (wb) wb.title = (WRATH_NAMES[curEra] || WRATH_NAMES[0]) + ": lightning strike (E)";
   const hb = $("heroBtn");
   if (hb) hb.title = heroName() + ": select, then click the field to march to that spot (R)";
+  fitCardNames();
   if (eraLabelsDrawn !== curEra && typeof renderShopPortraits === "function") {
     eraLabelsDrawn = curEra;
     try { renderShopPortraits(); } catch (err) { /* portraits are decoration */ }
   }
 }
 let eraLabelsDrawn = -1;
+// a tile's name stays on its one line: a long one ("Modern Rifle Marksmen") is set smaller and tighter until
+// it fits the tile, which narrows with the window; re-fit whenever a tile changes size (or first shows)
+function fitCardNames() {
+  document.querySelectorAll("#shop .card .nm").forEach(nm => {
+    nm.style.fontSize = ""; nm.style.letterSpacing = "";
+    if (!nm.clientWidth || nm.scrollWidth <= nm.clientWidth) return;
+    const fs = parseFloat(getComputedStyle(nm).fontSize);
+    for (let k = 0.96; k > 0.6; k -= 0.04) {
+      nm.style.fontSize = (fs * k).toFixed(2) + "px";
+      nm.style.letterSpacing = "-.2px";
+      if (nm.scrollWidth <= nm.clientWidth) return;
+    }
+  });
+}
+if (typeof ResizeObserver === "function") {
+  const ro = new ResizeObserver(() => fitCardNames());
+  document.querySelectorAll("#shop .card").forEach(c => ro.observe(c));
+}
 
 function waveGroups(w) {
   const g = [];
@@ -34087,6 +34115,7 @@ function showChapterIntro(c) {
   $("ovCrest").title = "Chapter " + C.num;
   $("ovTitle").textContent = C.name;
   $("ovRubric").textContent = "Chapter " + C.num + " · " + chapterSpan(c);
+  fitRubric();
   setLeafPages(C.intro);
   showLeafFact(null);
   $("briefHost").innerHTML = C.levels.map(i => {
@@ -34120,6 +34149,20 @@ function closeChapterIntro() {
 // the chronicle: real history of the chosen battlefield, read before battle
 // ordered so that no two long names stand side by side under their medallions
 const BRIEF_ROLES = ["raider", "spearman", "shield", "cavalry", "ram", "flyer", "boss"];
+// the rubric is one line under the title: a long date and era name ("12 December 2022 to October 2023 · The
+// Artsakh Wars") are set smaller and tighter until they fit the column, rather than breaking over two lines
+function fitRubric() {
+  const el = $("ovRubric");
+  el.style.fontSize = ""; el.style.letterSpacing = "";
+  if (!overlayEl.classList.contains("brief") || !el.clientWidth || el.scrollWidth <= el.clientWidth) return;
+  const cs = getComputedStyle(el), fs = parseFloat(cs.fontSize), ls = parseFloat(cs.letterSpacing) || 0;
+  for (let k = 0.97; k > 0.6; k -= 0.03) {
+    el.style.fontSize = (fs * k).toFixed(2) + "px";
+    el.style.letterSpacing = (ls * k * k).toFixed(2) + "px";
+    if (el.scrollWidth <= el.clientWidth) return;
+  }
+}
+window.addEventListener("resize", fitRubric);
 function showBrief() {
   menuMode = "brief";
   const L = LEVELS[curLevel];
@@ -34136,6 +34179,7 @@ function showBrief() {
   $("ovCrest").title = E.name;
   $("ovTitle").textContent = L.name;
   $("ovRubric").textContent = L.date + " · " + E.name;
+  fitRubric();
   setLeafPages(levelPages(L));
   showLeafFact(L);
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
