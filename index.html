@@ -28467,6 +28467,105 @@ function briefScene(crop, w, h, seed) {
   return scene;
 }
 
+// ---- the miniature is laid as a mosaic each time the chronicle opens ----
+// The finished picture is sampled into tesserae, one flat stone per cell of a staggered grid
+// (opus tessellatum). They are set into pale bedding mortar from the foreground outward, each one
+// pressed into place; once the last is down the grout melts away and the painting stands whole.
+let briefMosaic = null;
+const MOSAIC_CELL = 16, MOSAIC_LAY = 2.1, MOSAIC_SET = 0.22, MOSAIC_MELT = 0.7;
+function startBriefMosaic() {
+  const cv = $("briefArt");
+  if (briefMosaic) { cancelAnimationFrame(briefMosaic.raf); briefMosaic = null; }
+  if (!cv || cv.style.display === "none" || HARNESS_ON) return;
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const W = cv.width, H = cv.height, F = BRIEF_FRAME;
+  const c = cv.getContext("2d");
+  // keep the finished leaf, then read the picture's colours out of it
+  const done = document.createElement("canvas");
+  done.width = W; done.height = H;
+  done.getContext("2d").drawImage(cv, 0, 0);
+  const x0 = F + 7, y0 = F + 14, x1 = W - F - 7, y1 = H - F;   // inset so the gilt moulding stays untouched
+  const px = c.getImageData(0, 0, W, H).data;
+  const tiles = [];
+  let seed = 9301 + curLevel * 77;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // tesserae are laid from the foot of the picture, middle first, spreading up and out
+  const ox = (x0 + x1) / 2, oy = y1;
+  let maxKey = 0;
+  for (let row = 0, y = y0; y < y1; row++, y += MOSAIC_CELL) {
+    const shift = (row % 2) * MOSAIC_CELL * 0.5 - MOSAIC_CELL * 0.5;
+    for (let x = x0 + shift; x < x1; x += MOSAIC_CELL) {
+      const cx = Math.min(W - 1, Math.max(0, Math.round(x + MOSAIC_CELL / 2)));
+      const cy = Math.min(H - 1, Math.round(y + MOSAIC_CELL / 2));
+      // the stone's colour: the mean of a few samples in its cell, with a little natural variation
+      let r = 0, g = 0, b = 0, n = 0;
+      for (const [dx, dy] of [[0, 0], [-4, -4], [4, -4], [-4, 4], [4, 4]]) {
+        const sx = Math.min(W - 1, Math.max(0, cx + dx)), sy = Math.min(H - 1, Math.max(0, cy + dy)), i = (sy * W + sx) * 4;
+        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+      }
+      const vary = (rnd() - 0.5) * 14;
+      const col = "rgb(" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v / n + vary)))).join(",") + ")";
+      const key = Math.hypot((cx - ox) * 0.8, cy - oy) + rnd() * 70;
+      maxKey = Math.max(maxKey, key);
+      // a cut stone is never quite square: each corner wanders a little
+      const j = () => (rnd() - 0.5) * 2.2;
+      tiles.push({ x, y, col, key, c: [j(), j(), j(), j(), j(), j(), j(), j()] });
+    }
+  }
+  tiles.sort((a, b) => a.key - b.key);
+  for (const t of tiles) t.at = t.key / maxKey * MOSAIC_LAY;
+  const m = { raf: 0, t0: performance.now(), tiles, done, x0, y0, x1, y1, clicks: 0 };
+  briefMosaic = m;
+  const frame = (now) => {
+    if (briefMosaic !== m) return;
+    const t = (now - m.t0) / 1000;
+    const finished = t >= MOSAIC_LAY + MOSAIC_SET + MOSAIC_MELT || menuMode !== "brief";
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(done, 0, 0);
+    if (finished) { briefMosaic = null; return; }
+    c.save();
+    briefArchPath(c, x0, y0, x1, y1);
+    c.clip();
+    const melt = Math.max(0, (t - MOSAIC_LAY - MOSAIC_SET) / MOSAIC_MELT);
+    c.globalAlpha = 1 - melt * melt * (3 - 2 * melt);
+    // the bedding: lime mortar with the setter's guide lines scored into it
+    c.fillStyle = "#e9dcc0";
+    c.fillRect(x0, y0, x1 - x0, y1 - y0);
+    const S = MOSAIC_CELL, gap = 1.6;
+    let laid = 0;
+    for (const tile of tiles) {
+      const age = t - tile.at;
+      if (age < 0) break;
+      laid++;
+      const k = Math.min(1, age / MOSAIC_SET);
+      const ease = 1 - Math.pow(1 - k, 3);
+      // each stone drops from just above its bed and settles, darkening the mortar round it
+      const lift = (1 - ease) * 6, grow = 1 + (1 - ease) * 0.35;
+      const cx = tile.x + S / 2, cy = tile.y + S / 2 - lift, h = (S - gap) / 2 * grow, q = tile.c;
+      c.globalAlpha = (1 - melt * melt * (3 - 2 * melt)) * Math.min(1, k * 2.5);
+      c.fillStyle = "rgba(60, 40, 20, .35)";
+      c.fillRect(cx - h + 1, cy - h + 1.5 + lift, h * 2, h * 2);
+      c.fillStyle = tile.col;
+      c.beginPath();
+      c.moveTo(cx - h + q[0], cy - h + q[1]);
+      c.lineTo(cx + h + q[2], cy - h + q[3]);
+      c.lineTo(cx + h + q[4], cy + h + q[5]);
+      c.lineTo(cx - h + q[6], cy + h + q[7]);
+      c.closePath();
+      c.fill();
+      // a lit upper edge on every stone: the glint of a fresh-cut face
+      c.fillStyle = "rgba(255, 250, 235, .22)";
+      c.fillRect(cx - h + 1, cy - h + 0.5, h * 2 - 2, 1.4);
+    }
+    c.restore();
+    // the faint click of stone on stone as the setter works
+    const want = Math.floor(laid / 40);
+    if (want > m.clicks && t < MOSAIC_LAY) { m.clicks = want; Snd.play("uiTick"); }
+    m.raf = requestAnimationFrame(frame);
+  };
+  m.raf = requestAnimationFrame(frame);
+}
+
 function renderBriefArt(levelIndex) {
   const cv = $("briefArt");
   if (!cv || levelIndex === briefArtLevel) return;
@@ -28586,6 +28685,7 @@ function showBrief() {
       icon(ROLE_ICON[role]) + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
   }).join("");
   renderBriefArt(curLevel);
+  startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + "Begin the Stand";
   Snd.play("horn");
 }
