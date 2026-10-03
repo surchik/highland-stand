@@ -830,6 +830,18 @@
     <circle cx="12" cy="9.200" r="2.400" fill="#f6dc9a" stroke="#1c140d" stroke-width="1.100"/>
     <path d="M10.900 9.800l1.100 3.200 1.100-3.200z" fill="#c33a2e" stroke="#1c140d" stroke-width=".700" stroke-linejoin="round"/>
   </symbol>
+  <symbol id="i-r-scout" viewBox="0 0 24 24">
+    <path d="M4.200 21.600C2.600 13.200 6.400 6.800 14.600 6.400" fill="none" stroke="#1c140d" stroke-width="4.400" stroke-linecap="round"/>
+    <path d="M4.200 21.600C2.600 13.200 6.400 6.800 14.600 6.400" fill="none" stroke="#f6dc9a" stroke-width="2.200" stroke-linecap="round"/>
+    <path d="M5.300 20.900C4.600 15.600 6.100 11.400 9.800 8.800" fill="none" stroke="#c9972f" stroke-width="1" stroke-linecap="round"/>
+    <path d="M22.400 6.200 14.200 1.900l.6 9.200z" fill="#f6dc9a"/>
+    <path d="M22.400 6.200l-7.600 4.900-.3-4.700z" fill="#c9972f"/>
+    <path d="M22.400 6.200 14.200 1.900l.6 9.200z" fill="none" stroke="#1c140d" stroke-width="1.100" stroke-linejoin="round"/>
+    <ellipse cx="11.600" cy="15.600" rx="1.900" ry="2.800" transform="rotate(36 11.600 15.600)" fill="#c9972f" stroke="#1c140d" stroke-width=".900"/>
+    <circle cx="9.700" cy="19.300" r="1.250" fill="#c9972f" stroke="#1c140d" stroke-width=".900"/>
+    <ellipse cx="18.100" cy="13.400" rx="1.900" ry="2.800" transform="rotate(36 18.100 13.400)" fill="#f6dc9a" stroke="#1c140d" stroke-width=".900"/>
+    <circle cx="16.200" cy="17.100" r="1.250" fill="#f6dc9a" stroke="#1c140d" stroke-width=".900"/>
+  </symbol>
   <symbol id="i-era0" viewBox="0 0 24 24"><path d="M5 2.400C15.600 1.400 22.600 8.400 21.600 19 20.200 10.400 13.600 3.800 5 2.400ZM5 2.400 21.600 19l-.7.7L4.300 3.100ZM2.700 20.500 16.500 6.700l.8.8L3.500 21.300ZM20.700 3.300l-5.600 1.600 4 4ZM1.800 22.200l.9-3.700 2.800 2.800Z"/></symbol>
   <symbol id="i-era1" viewBox="0 0 24 24"><path d="M8.400 5.800C11 4.200 17.200 4.100 19.800 6.400c2 1.800 2.200 4.500 2 6.600v6.800h-3.200v-4c-1.700.8-4.200.9-6 .2v3.800H9.400v-5c-1-.4-1.800-1.200-2.200-2.200-.9.300-1.500 1.200-1.700 2.600-.2 1.500-.7 2.800-1.900 3.400-.9.400-1.700-.3-1.300-1.100.8-.6.9-1.600 1-3 .2-2.900.6-6 2.500-7.600.8-.7 1.700-1.100 2.600-1.100ZM7 12l-2.600 2.400 3.300-.9Z"/></symbol>
   <symbol id="i-era2" viewBox="0 0 24 24"><path d="M6.300 5.200h1.700V23H6.300ZM7.150.600 9.300 5H5ZM4.300 5h5.700v1.300H4.300ZM8 6.900c3.800-1.200 6.900.9 10.500.4 1.500-.3 2.700-.8 3.900-1.600l-2.600 4.900 2.800 4.500c-1.500.9-3 1.400-4.700 1.300-3.400-.2-6-1.900-9.900-.9ZM10.300 12.800c2.400-.4 4.500.7 6.900.6l1-1.700c-2.800.2-5.200-1-7.900-.6Z"/></symbol>
@@ -22801,12 +22813,442 @@ const UNIT_FLYER_LOOKS = [UNIT_LOOKS.bird, UNIT_LOOKS.simurgh, UNIT_LOOKS.vultur
 // No age had flying troops. The flyer role is men who leave the road and cut across broken
 // ground straight for the fortress; only direct fire (bows, bolts, javelins, muskets) can pick
 // them out, while lobbed stones and fire on the road miss them.
-const OUTFLANK_LOOKS = [UNIT_LOOKS.foot, UNIT_LOOKS.foot, UNIT_LOOKS.foot, UNIT_LOOKS.horse];
+//
+// Each age sends its own kind of man across country, and each must read apart from the road
+// column at a glance: the road troops march upright, these run bent double with their gear on
+// their backs.
+//   0  Assyrian scouts: conical helmet, short fringed tunic, bow in hand, a goatskin float slung
+//      flat on the back. In the water (Tushpa) the skin is blown up and the man swims on it chest
+//      down, kicking, one leg of the skin at his mouth, as on Ashurnasirpal II's Nimrud reliefs.
+//   1  Sasanian fording party: soft leather caps, short tunics over trousers, a round wicker
+//      shield held up before the face, a short spear low in the other hand; waist-deep in a lake.
+//   2  Ridge climbers of the Caliphate and Sajid armies: coiled rope over the shoulder, an iron
+//      grapnel in the hand, scrambling on all fours up the slope.
+//   3  Kurdish tribal horse who rode with the Ottomans at Cildir: an unarmoured horse, a wrapped
+//      fringed headcloth, a long light lance couched for the charge and a small round shield.
+const OUTFLANK_LOOKS = [
+  { f: 1.38, back: 22,   front: 22,   up: 46, down: 4, top: 30, barW: 16, shadow: 9,  feet: 6,  rate: 1.3, bob: 1.5, foot: true },
+  { f: 1.38, back: 17,   front: 22,   up: 48, down: 4, top: 31, barW: 16, shadow: 9,  feet: 6,  rate: 1.15, bob: 1.2, foot: true },
+  { f: 1.38, back: 17,   front: 23,   up: 46, down: 4, top: 27, barW: 16, shadow: 9,  feet: 6,  rate: 1.3, bob: 1.3, foot: true },
+  { f: 1.25, back: 21,   front: 31,   up: 44, down: 3, top: 36, barW: 22, shadow: 14, feet: 12, rate: 1.25, bob: 1 },
+];
+
+// what each age's outflanker wears; colours not set here come from the unit's own palette
+const OUTFLANK_KITS = [
+  { helm: "cone", metal: "bronze", beard: "square", beardLen: 5, skin: "#d4a172",
+    hem: -7.6, hemW: 5.2, slim: 0.86, leg: "#d4a172", boot: "#a87644", sandal: true },
+  { helm: "tiara", cap: "#9a6a3e", capShade: "#6a4426", beard: "pointed", skin: "#dcaa7a",
+    hem: -6.8, hemW: 5.6, slim: 0.9, baggy: true, leg: "#bfa776", boot: "#5a3a22", sash: "#e8c15a" },
+  { helm: "turban", cap: "#7a4a2a", beard: "round", skin: "#c68e5d",
+    hem: -6.6, hemW: 5.6, slim: 0.86, leg: "#7f6236", boot: "#5a3a22", sash: "#b5523a" },
+  { beard: "pointed", skin: "#e0b286", leg: "#4e4038", boot: "#3a2618", sash: "#c9a24a" },
+];
+const OUTFLANK_HORSE = { coat: "#b08550", coatLit: "#d2aa72", coatShade: "#72532c", mane: "#2a1b10", tack: "#3a2616" };
+const OUTFLANK_ROPE = "#cdb27a", OUTFLANK_ROPE_SHADE = "#8f7442";
+const OUTFLANK_FOAM = "rgba(240, 250, 252, .85)";
+
+// Is this man in the lake? Asked once a frame by drawEnemy before it looks up the pose, so the
+// swimming and wading poses get their own sprites: "" on land, "|swim" or "|wade" in the water.
+function outflankWater(e, p) {
+  e.flankHooked = true;
+  if (!LAKE) return "";
+  const era = unitEra(e, e.def || eraUnit(e.type));
+  if (era > 1) return "";
+  if (!terrLakeShape().inside(p.x, p.y, 0.96)) return "";
+  return era === 0 ? "|swim" : "|wade";
+}
+
+// One running leg: a stride longer than a march, the knee folded forward, the trailing heel
+// flicked up as the foot leaves the ground. Thigh and shin are found from hip and foot.
+function outflankLeg(hipX, hipY, phase, kit, far, stride) {
+  const C = UNIT_COLORS;
+  const swing = Math.sin(phase), air = Math.max(0, Math.cos(phase));
+  const kick = Math.max(0, -swing) * air;
+  const footX = hipX + swing * stride - 0.4, footY = -air * 2.4 - kick * 2.8;
+  const vx = footX - hipX, vy = footY - hipY, dd = Math.hypot(vx, vy) || 1;
+  const bend = Math.sqrt(Math.max(0, 5.6 * 5.6 - dd * dd / 4));
+  const kneeX = (hipX + footX) / 2 + vy / dd * bend, kneeY = (hipY + footY) / 2 - vx / dd * bend;
+  const leg = far ? shade(kit.leg, -36) : kit.leg, boot = far ? shade(kit.boot, -28) : kit.boot;
+  uLine([hipX, hipY, kneeX, kneeY, footX, footY - 2.1], leg, kit.baggy ? 3.4 : 2.6);
+  if (!far && !kit.sandal) uFlatLine([hipX + 0.7, hipY + 1.2, kneeX + 0.6, kneeY, footX + 0.5, footY - 2.6], "rgba(30, 16, 22, .22)", 0.7);
+  uc.save();
+  uc.translate(footX, footY);
+  uc.rotate(air > 0 ? -0.5 * kick + 0.15 * air : 0.3 * Math.max(0, -swing));
+  uc.beginPath();
+  uc.moveTo(-1.6, -3.2);
+  uc.lineTo(1.5, -3.2);
+  uc.quadraticCurveTo(3.8, -1.6, 3.3, 0.3);
+  uc.lineTo(-1.7, 0.3);
+  uc.closePath();
+  uInk(boot);
+  if (kit.sandal) {
+    uFlatSeg(-1.5, 0.2, 3.1, 0.2, 0.9, C.leatherShade);
+    uFlatSeg(-0.5, -3, 1.6, -0.8, 0.7, C.leatherShade);
+  }
+  uc.restore();
+}
+
+// The crouched runner every foot outflanker is built on. The hips drop by `drop`, the trunk
+// tips forward by `lean` about them and the head is thrust out ahead. o.back paints what rides on
+// the back (behind the trunk), o.front the arms and what they carry; both work in the trunk's
+// tipped frame and are handed the arm swing. With o.wade the legs are left off: the water has them.
+const OUTFLANK_POSE = { lean: 0, drop: 0 };
+// a point given on the ground's own axes, carried into the tipped trunk's frame
+function outflankLocal(wx, wy) {
+  const c = Math.cos(OUTFLANK_POSE.lean), s = Math.sin(OUTFLANK_POSE.lean);
+  const rx = wx, ry = wy - OUTFLANK_POSE.drop + 9;
+  OUTFLANK_AT[0] = rx * c + ry * s;
+  OUTFLANK_AT[1] = -rx * s + ry * c - 9;
+  return OUTFLANK_AT;
+}
+const OUTFLANK_AT = [0, 0];
+function outflankRunner(kit, pal, o) {
+  const ph = unitPhase, swing = Math.sin(ph), sway = swing * 0.6;
+  OUTFLANK_POSE.lean = o.lean; OUTFLANK_POSE.drop = o.drop;
+  const hipY = -9.6 + o.drop;
+  const trunk = () => {
+    uc.translate(0, o.drop - 9);
+    uc.rotate(o.lean);
+    uc.translate(0, 9);
+  };
+  if (o.back) { uc.save(); trunk(); o.back(swing); uc.restore(); }
+  if (!o.wade) {
+    outflankLeg(0.6, hipY, ph + Math.PI, kit, true, o.stride);
+    outflankLeg(-0.6, hipY, ph, kit, false, o.stride);
+  }
+  uc.save();
+  trunk();
+  unitPaintTunic(kit, pal, sway, 0.4, false);
+  if (o.mid) o.mid(swing);
+  uc.save();
+  uc.translate(2.2, -19.4);
+  uc.rotate(-o.lean * 0.55);               // the head comes up to look where he is going
+  unitPaintHead(kit, pal);
+  uc.restore();
+  o.front(swing);
+  uc.restore();
+}
+
+// ---- the four ages' gear -------------------------------------------------------------------
+
+// a goatskin emptied of air and rolled loose: a limp hide with its leg stumps hanging, tied on
+// with a cord across the chest
+function outflankFlatSkin(swing) {
+  const C = UNIT_COLORS, L = unitLit;
+  const f = swing * 0.6;
+  uPoly([-8.6, -10.2, -9.8 - f, -6.2, -8.2 - f, -6.6, -7.2, -9.6], C.hideShade);       // leg stumps
+  uPoly([-5.6, -9.2, -6.2 - f, -5.6, -4.6 - f, -6, -4.4, -9], C.hideShade);
+  uc.beginPath();
+  uc.moveTo(-3.4, -17.6);
+  uc.quadraticCurveTo(-7.4, -18.8, -9.2, -15.6);
+  uc.quadraticCurveTo(-10.6, -12.6, -9.4, -9.8);
+  uc.quadraticCurveTo(-7, -8.2, -3.6, -9);
+  uc.closePath();
+  uInk(C.hide);
+  uFlatPoly([-L * 0 - 3.8, -17.2, -6.4, -17.6, -5.6, -13.4, -3.8, -12.6], C.hideLit);
+  uFlatLine([-8.6, -14.6, -6.2, -13, -4.2, -13.8], C.hideShade, 0.6);              // the slack folds
+  uFlatLine([-9, -11.6, -6.4, -10.4, -4.4, -11.2], C.hideShade, 0.6);
+  uFlatLine([-8.4, -16.4, -7, -15.2], C.hideShade, 0.5);
+}
+function outflankBow(x, y) {
+  const C = UNIT_COLORS;
+  // carried strung and upright in the leading fist, the belly of the bow forward
+  uc.save();
+  uc.translate(x, y);
+  uc.rotate(-OUTFLANK_POSE.lean + 0.12);
+  uFlatLine([-0.4, -5.8, -1, 0, -0.4, 5.4], C.linen, 0.5);
+  uc.beginPath();
+  uc.moveTo(-0.4, -5.8);
+  uc.quadraticCurveTo(1.2, -4.8, 1.5, -2.6);
+  uc.quadraticCurveTo(2, 0, 1.5, 2.2);
+  uc.quadraticCurveTo(1.2, 4.4, -0.4, 5.4);
+  uStroke(C.woodLit, 1.1);
+  uc.restore();
+}
+function outflankScoutArms(swing) {
+  const C = UNIT_COLORS;
+  // leading hand low and forward with the bow, the near arm pumping
+  const at = outflankLocal(11.8 + swing * 0.6, -8.2);
+  const gx = at[0], gy = at[1];
+  uLine([3, -15, 5, -13.2, gx, gy], "#9a7a52", 2.4);
+  outflankBow(gx + 0.4, gy);
+  uDisc(gx, gy, 1.45, OUTFLANK_KITS[0].skin);
+  const hx = -2.4 - swing * 4, hy = -10.6 + Math.abs(swing) * 0.8;
+  uLine([-2.8, -15.2, -1.2 - swing * 2.4, -12, hx, hy], "#c9a070", 2.4);
+  uDisc(hx, hy, 1.45, OUTFLANK_KITS[0].skin);
+  uFlatSeg(-3.4, -16.4, 4.2, -10.6, 0.9, C.leatherShade);                            // the skin's cord
+}
+
+// a round shield of osier withies woven over a hoop, held up to the eyes
+function outflankWicker(x, y, r) {
+  const C = UNIT_COLORS, L = unitLit;
+  uc.save();
+  uc.translate(x, y);
+  uc.scale(0.62, 1);                       // turned a little away: an upright oval in profile
+  uDisc(0, 0, r, C.wicker);
+  uCrescent(0, 0, r, L, C.wickerShade);
+  uc.lineWidth = 0.55;
+  uc.strokeStyle = "rgba(96, 66, 26, .7)";
+  for (let i = 1; i <= 2; i++) { uc.beginPath(); uc.arc(0, 0, r * i / 3, 0, Math.PI * 2); uc.stroke(); }
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3 + 0.3;
+    uc.beginPath(); uc.moveTo(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3); uc.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95); uc.stroke();
+  }
+  uc.beginPath(); uc.arc(0, 0, r - 0.5, 0, Math.PI * 2);
+  uc.lineWidth = 1; uc.strokeStyle = C.leather; uc.stroke();
+  uDisc(0, 0, 1.3, C.leatherLit);
+  uc.restore();
+}
+function outflankFordArms(pal) {
+  return swing => {
+    const C = UNIT_COLORS, kit = OUTFLANK_KITS[1];
+    // short spear low at the hip, point forward and a little up
+    const bob = swing * 0.5;
+    uSeg(-7.4, -6.6 + bob, 13.6, -14.2 + bob, 1.05, C.wood);
+    uPoly([17.8, -15.8, 13.2, -15.6, 14, -13], C.steelLit);
+    uGlint(15.2, -14.8, 1);
+    // the shield arm up, the wicker before the face
+    uLine([3, -15.2, 5.6, -18.2], pal.base, 2.5);
+    outflankWicker(7.4, -19.6, 6.4);
+    uLine([-3, -15, -0.6, -11.6, 2.6, -10.8 + bob], pal.lit, 2.5);
+    uDisc(2.8, -10.8 + bob, 1.5, kit.skin);
+  };
+}
+
+// a coil of rope worn bandolier-wise, and the iron hook it is made fast to
+function outflankCoil(swing) {
+  // three loose turns of rope, each one inked, hanging off the back from the shoulder
+  const cx = -5, cy = -12.4 + swing * 0.3;
+  for (let i = 0; i < 3; i++) {
+    uc.beginPath();
+    uc.ellipse(cx - i * 0.7, cy + i * 0.5, 4.4 - i * 0.3, 3.2, 0.5, 0, Math.PI * 2);
+    uStroke(i === 1 ? OUTFLANK_ROPE_SHADE : OUTFLANK_ROPE, 1.25);
+  }
+  uc.lineWidth = 0.45;
+  uc.strokeStyle = OUTFLANK_ROPE_SHADE;
+  for (let a = 0; a < 6.2; a += 0.7) {
+    const x = cx - 0.7 + Math.cos(a) * 4.1, y = cy + 0.5 + Math.sin(a) * 3;
+    uc.beginPath(); uc.moveTo(x - 0.4, y - 0.4); uc.lineTo(x + 0.4, y + 0.4); uc.stroke();
+  }
+}
+function outflankGrapnel(x, y) {
+  const C = UNIT_COLORS;
+  // a shank with a ring at its foot and three flukes curled back from the crown
+  uSeg(x, y, x + 2.6, y - 5.2, 1.15, C.iron);
+  uc.save();
+  uc.translate(x + 2.6, y - 5.2);
+  uc.rotate(0.46);
+  for (const s of [-1, 1]) {
+    uc.beginPath();
+    uc.moveTo(0, 0);
+    uc.quadraticCurveTo(s * 3.6, -0.2, s * 3.4, 3);
+    uStroke(C.iron, 1);
+  }
+  uc.beginPath();
+  uc.moveTo(0, 0);
+  uc.quadraticCurveTo(0.4, -2.4, -1.6, -3.2);
+  uStroke(C.iron, 1);
+  uFlatDisc(-0.5, -0.5, 0.5, C.steelLit);
+  uc.restore();
+}
+function outflankClimberArms(pal) {
+  return swing => {
+    const kit = OUTFLANK_KITS[2];
+    // rope across the chest down from the coil, then the hook raised in the leading hand
+    uFlatLine([-3.4, -16.4, 1.4, -13.2, 4.6, -9.8], OUTFLANK_ROPE_SHADE, 1.3);
+    uFlatLine([-3.4, -16.6, 1.4, -13.4, 4.6, -10], OUTFLANK_ROPE, 0.7);
+    const gx = 7.8, gy = -16.8 + swing * 0.6;
+    uc.beginPath();
+    uc.moveTo(gx, gy + 0.8);
+    uc.quadraticCurveTo(2.8, -4.6, -4.6, -9.2);
+    uc.lineWidth = 0.9; uc.strokeStyle = OUTFLANK_ROPE_SHADE; uc.stroke();
+    uLine([3, -15.2, 5.6, -15.4, gx, gy], pal.base, 2.4);
+    outflankGrapnel(gx + 0.4, gy - 0.2);
+    uDisc(gx, gy, 1.45, kit.skin);
+    // the near hand clawing at the slope ahead
+    const at = outflankLocal(10.6 - swing * 2, -1.6 - Math.max(0, swing) * 2);
+    const hx = at[0], hy = at[1];
+    const ex = (hx - 2.8) * 0.5 - 0.6, ey = (hy - 15) * 0.5 + 2.4;
+    uSeg(-2.8, -15, ex, ey, 2.4, pal.lit);
+    uSeg(ex, ey, hx, hy, 2.1, kit.skin);                                                // sleeve pushed up
+    uDisc(hx, hy, 1.45, kit.skin);
+  };
+}
+
+// ---- in the water --------------------------------------------------------------------------
+
+// rings of foam where a body breaks the surface, and the swell pushed ahead of it
+function outflankRipple(x, rx, wake) {
+  const ph = unitPhase;
+  uFlatOval(x, 0.4, rx + 1.4, 2.2, 0, "rgba(16, 40, 52, .22)");
+  uc.lineCap = "round";
+  uc.lineWidth = 0.9;
+  uc.strokeStyle = OUTFLANK_FOAM;
+  uc.beginPath(); uc.ellipse(x, 0, rx, 1.9, 0, 0.15, Math.PI - 0.15); uc.stroke();
+  uc.lineWidth = 0.6;
+  uc.strokeStyle = "rgba(240, 250, 252, .55)";
+  const s = 1 + 0.15 * Math.sin(ph);
+  uc.beginPath(); uc.ellipse(x - 0.6, 0.2, (rx + 3) * s, 2.8 * s, 0, 0.3, Math.PI - 0.5); uc.stroke();
+  for (let i = 0; i < wake; i++) {
+    const wx = x - rx - 2 - i * 3.4;
+    uFlatSeg(wx, -0.6 + i * 0.5, wx - 2.6, -0.2 + i * 0.6, 0.6, "rgba(240, 250, 252, .5)");
+    uFlatSeg(wx, 1 + i * 0.4, wx - 2.6, 1.6 + i * 0.6, 0.6, "rgba(240, 250, 252, .4)");
+  }
+}
+
+// the Nimrud swimmer: chest down on a goatskin blown up whole, legs and the leg-stumps of the
+// hide in the air, one leg of the skin held at his mouth to top it up, his free hand paddling
+function outflankSwimmer(kit, pal) {
+  const C = UNIT_COLORS, L = unitLit, ph = unitPhase;
+  const k1 = Math.sin(ph), k2 = Math.sin(ph + Math.PI);
+  const skin = kit.skin, skinShade = shade(skin, -40);
+  uc.save();
+  uc.beginPath();
+  uc.rect(-40, -60, 80, 60.2);
+  uc.clip();
+  // kicking legs behind, one heel breaking the surface while the other drives down
+  for (const [kk, far] of [[k2, true], [k1, false]]) {
+    const up = Math.max(0, kk);
+    uLine([-6.6, -2.2, -11.2, -1.2 - up * 1.6, -15 - up * 0.4, 0.8 - up * 3.4], far ? skinShade : skin, 2.5);
+  }
+  // the near arm down past the skin, pulling through the water
+  const reach = Math.cos(ph);
+  uLine([1.4, -6.4, 4 + reach * 1.6, -3, 6.4 + reach * 2.6, 0.6], skin, 2.3);
+  // the blown skin ahead of and under his chest: a whole goat hide tied at the neck, fat as a
+  // barrel, its leg stumps standing up
+  uc.beginPath();
+  uc.ellipse(7.2, -3.6, 9.4, 6.6, -0.06, 0, Math.PI * 2);
+  uInk("#dfbd86");
+  uc.beginPath();
+  uc.ellipse(7.2, -3.6, 9.4, 6.6, -0.06, 0.1, Math.PI - 0.1);
+  uc.closePath();
+  uc.fillStyle = C.hide; uc.fill();
+  uFlatOval(8.4 - L * 1.4, -8.4, 4.6, 1.3, -0.06, "#f2dcae");
+  uPoly([12.6, -8.6, 13.6, -12.6, 15.4, -12, 14.6, -7.6], C.hide);                      // forelegs
+  uPoly([15, -6.6, 17.8, -9.6, 18.8, -8, 16.4, -5], C.hideShade);
+  uFlatSeg(13.8, -11.8, 15.1, -11.5, 0.8, C.leatherShade);                               // tied off
+  uFlatSeg(17.2, -9.2, 18.2, -8.2, 0.8, C.leatherShade);
+  // the swimmer, chest down on the skin, hips at the water
+  uc.beginPath();
+  uc.moveTo(-8.4, -3);
+  uc.quadraticCurveTo(-3.6, -7.2, 2.2, -8.8);
+  uc.lineTo(4, -5.6);
+  uc.quadraticCurveTo(-1.4, -4.6, -7.6, -0.6);
+  uc.closePath();
+  uInk(pal.base);
+  uFlatPoly([-7.8, -1.2, -1.2, -4.6, 3.8, -5.8, 3.4, -5.2, -1.4, -3.8, -7.4, -0.4], pal.dark);
+  uFlatPoly([-8, -3.2, -3.4, -7, 1.8, -8.5, 2.2, -7.8, -3, -6.2, -7.6, -2.6], pal.lit);
+  uFlatLine([-7.8, -3.2, -7, -1], pal.trim, 1.1);                                      // the hem at the hip
+  // the far hand on the skin's back, holding it under him by a foreleg
+  uLine([2.6, -7.6, 8, -9.6, 12.4, -9.6], skinShade, 2.1);
+  uDisc(12.8, -9.6, 1.35, skin);
+  // the head raised
+  uc.save();
+  uc.translate(3.4, -11.6);
+  uc.rotate(0.06);
+  uc.scale(0.88, 0.88);
+  unitPaintHead(kit, pal);
+  uc.restore();
+  uc.restore();
+  outflankRipple(2, 10.8, 3);
+  // spray thrown up by the kick
+  const sx = -15.4, up = Math.max(0, k1, k2);
+  uFlatDisc(sx - 1, -1.6 - up * 2.4, 0.8, OUTFLANK_FOAM);
+  uFlatDisc(sx + 1.4, -2.4 - up * 1.6, 0.6, OUTFLANK_FOAM);
+  uFlatDisc(sx - 2.6, -0.8 - up, 0.55, OUTFLANK_FOAM);
+}
+
+// ---- the Kurdish horseman --------------------------------------------------------------------
+
+// a long fringed headcloth wound over a skullcap, its tail hanging down the back; drawn in the
+// head's own frame
+function outflankHeadcloth() {
+  const C = UNIT_COLORS, L = unitLit;
+  uPoly([-3.2, -2.4, -7.2, 5.4, -4.6, 6, -2, -0.6], "#5a3428");                       // the tail
+  uc.beginPath();
+  uc.moveTo(-5.2, -0.6);
+  uc.quadraticCurveTo(-5.8, -6.6, -0.4, -7.6);
+  uc.quadraticCurveTo(5.4, -7.8, 5.6, -0.8);
+  uc.closePath();
+  uInk("#7a4636");
+  uc.beginPath();
+  uc.ellipse(0.2, -3.8, 5.6, 3.6, 0, L > 0 ? -0.9 : Math.PI - 0.9, L > 0 ? 0.9 : Math.PI + 0.9);
+  uc.closePath();
+  uc.fillStyle = "#54301f"; uc.fill();
+  uc.lineWidth = 0.7;
+  uc.strokeStyle = "#c9a24a";
+  uc.beginPath(); uc.moveTo(-5.2, -3); uc.quadraticCurveTo(0, -6.8, 5.4, -3.6); uc.stroke();
+  uc.strokeStyle = "#e8d8b4";
+  uc.beginPath(); uc.moveTo(-5, -1.6); uc.quadraticCurveTo(0.6, -4.4, 5.6, -5); uc.stroke();
+  // the fringe of knotted threads over the brow
+  uc.lineWidth = 0.55;
+  uc.strokeStyle = "#2a1810";
+  for (let x = -5; x <= -1.4; x += 0.9) { uc.beginPath(); uc.moveTo(x, -1.2); uc.lineTo(x - 0.3, 1.4); uc.stroke(); }
+}
+function outflankHorseman(pal) {
+  const C = UNIT_COLORS, kit = OUTFLANK_KITS[3];
+  const g = Math.sin(unitPhase);
+  // a felt saddle cloth and nothing more on a lean, unarmoured horse
+  unitPaintHorse(OUTFLANK_HORSE, { cloth: pal.base, clothTrim: pal.trim });
+  // small round shield slung on the far shoulder
+  uc.save();
+  uc.translate(-6.2, -19.4);
+  uc.scale(0.74, 0.74);
+  unitPaintShieldFace("roundLeather", pal, false);
+  uc.restore();
+  unitPaintRiderBody(pal, kit);
+  uc.save();
+  uc.translate(1.4, -26.4);
+  uc.scale(0.86, 0.86);
+  unitPaintHead(kit, pal);
+  uc.translate(0, -0.8);
+  outflankHeadcloth();
+  uc.restore();
+  // the lance couched and levelled forward, a little raised; a plain shaft, no pennon
+  const lift = g * 0.4;
+  uSeg(-12.6, -14.4 + lift, 23.6, -24.6 + lift, 1.1, C.wood);
+  uPoly([28.4, -26.2, 23.2, -25.8, 23.8, -23.2], C.steelLit);
+  uGlint(25.2, -25, 1);
+  uLine([-2.6, -21.6, -1.4, -18.6, 2.2, -18.2 + lift * 0.5], pal.lit, 2.4);
+  uDisc(2.4, -18.4 + lift * 0.5, 1.45, kit.skin);
+  uSeg(2.8, -21, 6.4, -20 + lift, 2.4, pal.base);
+  uDisc(6.6, -20.2 + lift, 1.45, kit.skin);
+}
+
+// ---- the painter -----------------------------------------------------------------------------
 function drawOutflanker(e, p, k, d, dir) {
-  // placeholder until the art lands
-  if (unitEra(e, d) === 3) { drawHorse(e, p, k, dir, d); return; }
+  const era = unitEra(e, d);
+  const pal = unitPalette(d.color, d.trim);
+  const kit = OUTFLANK_KITS[era] || OUTFLANK_KITS[0];
+  const wet = e.flankHooked ? outflankWater(e, p) : "";
+  uc.save();
+  uc.scale(k, k);
   unitFace(dir);
-  drawSoldier(e, k, d, Math.sin(unitPhase), "side");
+  if (era === 3) {
+    outflankHorseman(pal);
+  } else if (wet === "|swim") {
+    outflankSwimmer(kit, pal);
+  } else if (era === 1) {
+    const o = { drop: 1.4, lean: 0.3, stride: 5.2, front: outflankFordArms(pal), wade: wet === "|wade" };
+    if (o.wade) {
+      // waist-deep: the man sinks to the belt, shield and spear held up clear of the water
+      uc.save();
+      uc.beginPath();
+      uc.rect(-40, -60, 80, 60);
+      uc.clip();
+      uc.translate(0, 7.2);
+      outflankRunner(kit, pal, o);
+      uc.restore();
+      outflankRipple(0.6, 6.6, 2);
+    } else {
+      outflankRunner(kit, pal, o);
+    }
+  } else if (era === 2) {
+    outflankRunner(kit, pal, { drop: 2.2, lean: 0.62, stride: 5.6, back: outflankCoil, front: outflankClimberArms(pal) });
+  } else {
+    outflankRunner(kit, pal, { drop: 1.6, lean: 0.46, stride: 6.4, back: outflankFlatSkin, front: outflankScoutArms });
+  }
+  uc.restore();
 }
 // ====================================== END SKIN SECTION: outflank ======================================
 
@@ -26079,7 +26521,7 @@ function serviceRecord(t) {
 // ---------- UI kit helpers ----------
 // One display face for DOM and canvas alike; it mirrors --face in the stylesheet.
 const UI_FONT = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
-const ROLE_ICON = { raider: "r-raider", spearman: "r-spear", shield: "r-shield", cavalry: "r-horse", ram: "r-ram", boss: "r-boss", flyer: "r-bird" };
+const ROLE_ICON = { raider: "r-raider", spearman: "r-spear", shield: "r-shield", cavalry: "r-horse", ram: "r-ram", boss: "r-boss", flyer: "r-scout" };
 const DIFF_SEAL = ["rshield", "swords", "flame"];
 const TEXT_ICONS = [["🪙", "coin"], ["⚔", "swords"], ["🔒", "lock"]];
 const hudCache = {};
