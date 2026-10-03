@@ -31510,7 +31510,9 @@ function levelBestAnyEra(i) {
   return best;
 }
 function levelConquered(i) { return levelBestAnyEra(i) >= 21; }
-function levelUnlocked(i) { return i === 0 || levelConquered(i - 1) || levelConquered(i); }
+// test mode (Shift+U on the menu): every battlefield opens for this visit only; nothing is saved as conquered
+let testUnlockAll = false;
+function levelUnlocked(i) { return testUnlockAll || i === 0 || levelConquered(i - 1) || levelConquered(i); }
 function highestUnlocked() {
   let h = 0;
   while (h + 1 < LEVELS.length && levelUnlocked(h + 1)) h++;
@@ -33191,6 +33193,14 @@ $("menuBtn").addEventListener("click", () => {
 });
 
 window.addEventListener("keydown", (e) => {
+  // quick testing: Shift+U opens every battlefield, Shift+G adds 5000 gold in battle
+  if (e.shiftKey && e.code === "KeyU") {
+    testUnlockAll = true;
+    toast("Test mode: every battlefield is open");
+    try { renderWorldMap(); } catch (err) { /* the map is not on screen */ }
+    return;
+  }
+  if (e.shiftKey && e.code === "KeyG" && !gameOver) { gold += 5000; syncHud(); toast("Test mode: +5000 gold"); return; }
   Snd.init();   // a key press is a gesture too: keyboard-only players get sound from the first key
   const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
   if (keys[e.code]) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
