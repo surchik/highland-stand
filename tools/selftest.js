@@ -8,7 +8,8 @@ const { chromium } = require(process.env.PW_PATH || "playwright");
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   const logs = [];
   page.on("pageerror", e => logs.push("pageerror: " + e.message));
-  await page.goto("file://" + file + "?selftest=1");
+  // the checks run synchronously while the page loads, so its load can take the whole run (14 battlefields)
+  await page.goto("file://" + file + "?selftest=1", { timeout: 180000 });
   await page.waitForSelector("#selftest-result", { timeout: 180000 });
   const txt = await page.textContent("#selftest-result");
   console.log(txt.slice(0, 4000));

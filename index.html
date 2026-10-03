@@ -19,6 +19,8 @@
     --mould: linear-gradient(180deg, #f6dc9a 0 1px, #a87c34 1px 2px, #140d07 2px 3px, #ecc978 3px 4px, #8a6226 4px 5px, #140d07 5px 6px, #c9972f 6px 7px);
     --rivet: radial-gradient(circle at 12px 3px, #fff3c6 0 .7px, #e6bd66 .9px 1.9px, #7a5622 2.1px 2.8px, rgba(10,6,3,.75) 2.9px 3.5px, transparent 3.8px);
     --era0: #a8322a; --era1: #5b3d8c; --era2: #2f6b45; --era3: #2f4a6b;
+    /* eras 4-6 (1727, 1915-1918, Artsakh): placeholder fields until their emblems are final */
+    --era4: #7a3b1e; --era5: #4f5a3a; --era6: #33465c;
   }
   html, body { height: 100%; overflow: hidden; background: #14100c; }
   body { font-family: var(--face); user-select: none; -webkit-user-select: none; }
@@ -371,6 +373,58 @@
     box-shadow: 0 0 0 1px var(--bronze-hi), 0 0 0 5px var(--walnut), 0 0 0 6px var(--bronze-sh), 0 14px 40px rgba(0,0,0,.7);
     margin: 8px 0 6px;
   }
+  /* the chapter tabs above the map: pills like the difficulty seals, a roman numeral in the seal */
+  .chapterBar { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; margin-top: 4px; flex-wrap: wrap; }
+  .chTabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .chTab, .chStory {
+    display: inline-flex; align-items: center; gap: 7px; padding: 3px 14px 3px 4px; border-radius: 999px; cursor: pointer;
+    font-family: var(--face); font-weight: 700; font-size: 13.5px; letter-spacing: .3px; color: var(--parch-dk);
+    border: 1px solid var(--bronze-sh); background: linear-gradient(180deg, #3d2e1f, #241a11);
+    box-shadow: inset 0 1px 0 rgba(240,207,133,.22), 0 2px 5px rgba(0,0,0,.45);
+  }
+  .chTab .seal {
+    min-width: 24px; height: 24px; padding: 0 3px; box-sizing: border-box; border-radius: 12px; display: grid; place-items: center; flex: none;
+    font-size: 11.5px; letter-spacing: 0; color: #b9a780;
+    background: radial-gradient(circle at 36% 30%, #6b5a45, #40331f 65%, #2b2118); border: 1px solid var(--bronze-sh);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.2);
+  }
+  .chTab .seal .ic { width: 12px; height: 12px; vertical-align: 0; }
+  .chTab:hover:not(.locked), .chStory:hover { filter: brightness(1.15); }
+  .chTab.selected {
+    color: #fff3d6; border-color: var(--bronze-hi); background: linear-gradient(180deg, #7a4f1e, #482c10);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.35), 0 0 0 1px var(--bronze-sh), 0 0 14px rgba(240,190,90,.4);
+  }
+  .chTab.selected .seal {
+    color: #f6dc9a; border-color: var(--bronze-hi); background: radial-gradient(circle at 36% 30%, #de5f51, var(--crimson) 60%, #74201a);
+  }
+  .chTab.locked { cursor: default; opacity: .5; font-style: italic; }
+  /* a chapter newly reached and not yet opened glows until its story has been read */
+  .chTab.fresh { border-color: var(--bronze-hi); box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 12px rgba(255,200,90,.65); animation: chFresh 1.6s ease-in-out infinite alternate; }
+  @keyframes chFresh { from { box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 4px rgba(255,200,90,.3); } to { box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 16px rgba(255,200,90,.8); } }
+  .chStory { padding: 4px 14px 4px 11px; font-size: 13px; margin-left: 6px; }
+  .chStory .ic { width: 14px; height: 14px; vertical-align: 0; color: var(--bronze-hi); }
+  .chArrow, .pgBtn {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex: none; display: grid; place-items: center; padding: 0 0 3px;
+    font-family: var(--face); font-size: 22px; font-weight: 700; line-height: 1; color: #f6dc9a;
+    border: 1px solid var(--bronze-hi); background: radial-gradient(circle at 36% 30%, #7a5a32, #4a3418 62%, #2b1d0e);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.3), 0 2px 5px rgba(0,0,0,.45);
+  }
+  .chArrow:disabled, .pgBtn:disabled { opacity: .35; cursor: default; }
+  .chArrow:hover:not(:disabled), .pgBtn:hover:not(:disabled) { filter: brightness(1.2); }
+  #overlay.brief .chapterBar { display: none; }
+  /* the leaf's page turner: arrows either side of a row of beads, the current page's bead in crimson */
+  .ovPager { display: none; }
+  #overlay.brief .ovPager.on { display: flex; grid-column: 2; grid-row: 7; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+  #overlay.brief .pgBtn { width: 28px; height: 28px; font-size: 20px; }
+  .pgDots { display: inline-flex; gap: 8px; }
+  .pgDots i {
+    width: 9px; height: 9px; transform: rotate(45deg); background: #dcc48e; box-shadow: 0 0 0 1px #8a6a36; cursor: pointer; display: block;
+  }
+  .pgDots i.on { background: var(--crimson); box-shadow: 0 0 0 1px #5e1813, 0 0 0 3px rgba(185,138,62,.45); }
+  /* on the chapter's story the host row lists its battlefields, each under its age's emblem */
+  .briefHost .foe.field .disc { color: #f6dc9a; }
+  .briefHost .foe.field .disc .ic { width: 24px; height: 24px; }
+  .briefHost .foe.field .nm i { display: block; font-weight: 600; font-style: italic; color: #7a5a2e; }
   .eraRow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
   .eraBtn {
     padding: 8px 14px; border-radius: 10px; cursor: pointer; text-align: left;
@@ -419,7 +473,7 @@
   /* the chronicle: the same content block opens as an illuminated spread, a framed miniature of the
      battlefield and the invader's host on the left, the history on the right */
   #overlay.brief #ovPage {
-    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto 1fr;
+    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto auto 1fr;
     column-gap: 30px; row-gap: 0; align-items: start; justify-items: center;
     width: min(94vw, 1080px); padding: 30px 30px 30px 32px; margin-bottom: 8px; color: var(--ink); border-radius: 3px;
     background:
@@ -474,6 +528,9 @@
   #overlay.brief .crest.era1, #overlay .sub .ic:has(use[href="#i-era1"]) { background-color: var(--era1); }
   #overlay.brief .crest.era2, #overlay .sub .ic:has(use[href="#i-era2"]) { background-color: var(--era2); }
   #overlay.brief .crest.era3, #overlay .sub .ic:has(use[href="#i-era3"]) { background-color: var(--era3); }
+  #overlay.brief .crest.era4, #overlay .sub .ic:has(use[href="#i-era4"]) { background-color: var(--era4); }
+  #overlay.brief .crest.era5, #overlay .sub .ic:has(use[href="#i-era5"]) { background-color: var(--era5); }
+  #overlay.brief .crest.era6, #overlay .sub .ic:has(use[href="#i-era6"]) { background-color: var(--era6); }
   #overlay.brief .crest .ic { width: 36px; height: 36px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.45)); }
   /* the Abbasid standard is black: on the leaf it flies edged in gold so it still reads on its green field */
   #overlay.brief .crest.era2 .ic {
@@ -512,12 +569,28 @@
   #overlay.brief { justify-content: flex-start; }
   #overlay.brief #ovPage { margin-top: auto; }
   #overlay.brief .ovFoot { margin-bottom: auto; }
+  /* a short window (720 px and the like) sets the leaf tighter, so a 650-character page and the button still fit */
+  @media (max-height: 800px) and (min-width: 861px) {
+    #overlay.brief { padding: 14px 0; gap: 6px; }
+    #overlay.brief #ovPage { width: min(94vw, 1030px); grid-template-columns: 42% minmax(0, 1fr) 22px; column-gap: 26px; padding: 22px 24px 20px 26px; margin-bottom: 4px; }
+    .briefHost { gap: 0; padding-left: 64px; }
+    .briefHost .nm { font-size: 8.700px; letter-spacing: -.25px; }
+    #overlay.brief h1 { font-size: 34px; }
+    #overlay.brief #ovRubric { font-size: 15px; margin-top: 3px; }
+    #overlay.brief .sub { font-size: 17px; line-height: 1.56; margin-top: 10px; }
+    #ovSub .versal { font-size: 68px; line-height: 50px; margin-top: 4px; }
+    #overlay.brief #ovPage .headpiece { margin-bottom: 8px; }
+    #overlay.brief .ovRule { margin-top: 10px; }
+    #overlay.brief .ovPager.on { margin-top: 4px; }
+    #overlay.brief .big { padding: 9px 38px; font-size: 17.5px; }
+  }
   /* a narrow window stacks the spread: miniature and host first, then the text */
   @media (max-width: 860px) {
     #overlay.brief #ovPage { display: flex; flex-direction: column; align-items: center; padding: 26px 26px 30px; }
     #overlay.brief #ovPage .briefLeft { max-width: 440px; margin-bottom: 14px; }
     #overlay.brief #ovPage .sideband, #overlay.brief .crest { display: none; }
     #overlay.brief .ovRule { order: 9; }
+    #overlay.brief .ovPager.on { order: 10; }
     .briefHost { padding-left: 0; }
   }
 
@@ -846,6 +919,10 @@
   <symbol id="i-era1" viewBox="0 0 24 24"><path d="M8.400 5.800C11 4.200 17.200 4.100 19.800 6.400c2 1.800 2.200 4.500 2 6.600v6.800h-3.200v-4c-1.700.8-4.200.9-6 .2v3.800H9.400v-5c-1-.4-1.800-1.200-2.200-2.200-.9.300-1.500 1.200-1.700 2.600-.2 1.500-.7 2.800-1.900 3.400-.9.400-1.700-.3-1.300-1.100.8-.6.9-1.600 1-3 .2-2.900.6-6 2.500-7.600.8-.7 1.700-1.100 2.600-1.100ZM7 12l-2.600 2.400 3.300-.9Z"/></symbol>
   <symbol id="i-era2" viewBox="0 0 24 24"><path d="M6.300 5.200h1.700V23H6.300ZM7.150.600 9.300 5H5ZM4.300 5h5.700v1.300H4.300ZM8 6.900c3.800-1.200 6.900.9 10.500.4 1.500-.3 2.700-.8 3.900-1.600l-2.600 4.900 2.800 4.500c-1.500.9-3 1.400-4.700 1.300-3.400-.2-6-1.900-9.900-.9ZM10.300 12.800c2.400-.4 4.500.7 6.900.6l1-1.700c-2.800.2-5.200-1-7.900-.6Z"/></symbol>
   <symbol id="i-era3" viewBox="0 0 24 24"><path d="M2.600 8.800 17.400 6.200l2.200-.6.9 4.600-2.200.6L4.200 13.400c-1.900-.2-2.500-3.600-1.600-4.600ZM9.500 11.800a4.600 4.600 0 1 0 .01 0ZM12.800 16.200 21.800 19.400l-.6 1.500-8.800-2.600ZM22 3.200a1.500 1.500 0 1 0 .01 0Z"/></symbol>
+  <!-- PLACEHOLDER emblems for eras 4-6 (art pass pending): a horsetail standard (1727), a rifle with fixed bayonet (1915-1918), a tank (Artsakh) -->
+  <symbol id="i-era4" viewBox="0 0 24 24"><path d="M11.200 4.400h1.600V23h-1.600ZM12 .600a1.900 1.900 0 1 0 .01 0ZM8.800 4.200h6.400v1.500H8.800ZM10.400 6.200c-2.600 2.900-3.700 7.300-3 12.100 1-1.600 1.700-1.500 2.300.3.400-1.900 1-2.500 1.600-1.900V6.200ZM13.600 6.200c2.600 2.900 3.700 7.300 3 12.100-1-1.600-1.700-1.500-2.300.3-.400-1.900-1-2.500-1.600-1.900V6.200Z"/></symbol>
+  <symbol id="i-era5" viewBox="0 0 24 24"><path d="M1.600 20.800 3.400 22.600 8.600 17.400 10 18.800 11.600 17.200 10.200 15.800 18.900 7.100 20.300 7.100 23 1 16.900 3.700V5.100L8.200 13.800 6.800 12.400 5.200 14 6.600 15.400ZM12.600 9.600l1.800 1.800-1 1-1.800-1.800Z"/></symbol>
+  <symbol id="i-era6" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M1.400 15.200h21.200l-2.600 5H4ZM6.400 10.200h8.800l2 4.200H4.600ZM15 11.300h8.200v1.600H15ZM5.200 17a1.300 1.300 0 1 0 .01 0ZM9.400 17a1.300 1.300 0 1 0 .01 0ZM13.600 17a1.300 1.300 0 1 0 .01 0ZM17.800 17a1.300 1.300 0 1 0 .01 0ZM8.600 8.200h3.600v2H8.600Z"/></symbol>
   <symbol id="i-crest" viewBox="0 0 48 48">
     <path d="M24 1.600 4.600 7.300v15.200C4.600 33.900 12.400 41.900 24 46.600c11.600-4.700 19.400-12.700 19.400-24.100V7.300z" fill="#6e4d1e"/>
     <path d="M24 3.400 6.400 8.600v13.900c0 10.400 7.100 17.800 17.600 22.200 10.500-4.400 17.600-11.800 17.600-22.200V8.600z" fill="#f0cf85"/>
@@ -1096,6 +1173,17 @@
       Highlands. Raise towers along the mountain roads, upgrade them into masteries,
       and hold every fortress of the kingdom.
     </div>
+    <div class="ovPager" id="ovPager">
+      <button class="pgBtn" id="pgPrev" aria-label="Previous page" title="Previous page (Left arrow)">&#8249;</button>
+      <span class="pgDots" id="pgDots"></span>
+      <button class="pgBtn" id="pgNext" aria-label="Next page" title="Next page (Right arrow)">&#8250;</button>
+    </div>
+  </div>
+  <div class="chapterBar" id="chapterBar">
+    <button class="chArrow" id="chPrev" aria-label="Previous chapter" title="Previous chapter (Left arrow)">&#8249;</button>
+    <div class="chTabs" id="chapterTabs"></div>
+    <button class="chArrow" id="chNext" aria-label="Next chapter" title="Next chapter (Right arrow)">&#8250;</button>
+    <button class="chStory" id="chStory" title="Read this chapter's story"><svg class="ic"><use href="#i-flag"/></svg>Chapter story</button>
   </div>
   <canvas id="worldMap"></canvas>
   <div class="ovFoot">
@@ -1427,7 +1515,266 @@ const LEVELS = [
              sky: ["#8fa9bd", "#c2d3dc", "#e9eef1"], backdrop: "gyumri" },
     seed: 47,
   },
+  // ======================================================================================
+  // Chapters III and IV (levels 7-13). PLACEHOLDER content: names, tags, heroes, units, chronicle, victory
+  // and defeat texts are drafts for the text pass; layouts are final-candidate and screenshot-checked.
+  // Each theme.backdrop names the battlefield's own painter; until it exists BACKDROP_STANDIN paints it
+  // with the nearest existing one (see levelTheme).
+  // ======================================================================================
+  {
+    name: "Halidzor Fortress",
+    tag: "Davit Bek's stronghold above the gorges of Syunik.",
+    era: 4, date: "1727 AD", year: 1727, placeholder: true,
+    hero: { name: "Davit Bek", title: "Sparapet of Syunik" },
+    foe: "Ottoman",
+    units: {
+      flyer: { name: "Gorge Raiders" },
+    },
+    chronicle: [
+      "When the Safavid state collapsed in 1722, the meliks of Syunik would bow neither to the Ottoman sultan nor to the new masters of Persia. Davit Bek, a Syunik noble who had served in Georgia, came home and gathered the mountaineers into sghnakhs, fortified refuges strung along the gorges. Within a few years his men held the valleys from the Vorotan to the Araxes, and the fortress of Halidzor above Kapan became his seat.",
+      "In 1727 an Ottoman army came up the gorge to finish the revolt. The chroniclers of the war tell how the defenders of Halidzor, far fewer than the besiegers, held the walls for days, then broke out by night and fell on the camp below. The siege collapsed, the guns were left behind, and Syunik stayed free a while longer. Davit Bek died the next year, and Mkhitar Sparapet carried on the fight. Hold the gorge road to Halidzor.",
+    ],
+    victory: "Halidzor holds. The besiegers' camp breaks in the night and their guns lie abandoned in the gorge; the sghnakhs of Syunik stand free for another year.",
+    defeat: "The gorge falls silent and the gates of Halidzor are breached. The meliks will gather again in the high villages.",
+    history: "In 1727 an Ottoman army besieged Halidzor, the stronghold of Davit Bek above the gorges of Syunik. The defenders held, broke out by night and routed the besiegers. Hold the gorge road.",
+    path: [[1720, 200], [980, 200], [980, 420], [620, 420], [620, 200], [260, 200], [260, 600], [900, 600]],
+    fort: { x: 900, y: 570 },
+    pads: [[1150, 290], [1350, 290], [1080, 520], [800, 300], [800, 510], [520, 510], [440, 310], [440, 110], [800, 110], [160, 330], [160, 520], [380, 690], [640, 690], [1000, 670]],
+    rocks: [[1200, 450, 20], [90, 680, 15], [560, 300, 14], [880, 690, 14], [60, 200, 13], [1180, 640, 18]],
+    vishaps: [[340, 400], [1100, 400]],
+    lake: null,
+    plots: [[1250, 330], [700, 300], [620, 520], [300, 110], [160, 690], [1080, 110]],
+    theme: { top: "#9cb070", mid: "#7f9852", bot: "#5a7040", patch: "70, 104, 52",
+             sky: ["#8fb3cf", "#c9d8d8", "#efe9d6"], backdrop: "halidzor" },
+    seed: 151,
+  },
+  {
+    name: "Walls of Van",
+    tag: "The Armenian quarters of Van barricade their streets.",
+    era: 5, date: "1915 AD", year: 1915, placeholder: true,
+    hero: { name: "Aram Manukian", title: "Leader of the Defense of Van" },
+    foe: "Ottoman",
+    units: {
+      raider: { name: "Hamidiye Irregulars" },
+      boss:   { name: "Gendarmerie Commander" },
+    },
+    chronicle: [
+      "In April 1915, as deportations and massacres began across the Ottoman east, the governor of Van moved against the city's Armenians. The Armenian quarters, the walled Old City under the Rock of Van and the garden suburb of Aygestan, barricaded their streets and dug in. Tens of thousands of people, many of them refugees from the villages around the lake, sheltered behind the defenders' improvised walls.",
+      "For about four weeks the defenders, with a few hundred rifles and gunpowder made in their own workshops, held off regular troops, irregular horsemen and artillery. A defense committee led by Aram Manukian organised food, workshops and a field hospital, and volunteers rebuilt every breach by night. In mid-May the besiegers withdrew before an advancing Russian army and the Armenian volunteer battalions.",
+      "The relief did not last: that summer the front moved back, and much of the population of Van had to flee north to the Caucasus with the retreating army. Hold the barricades of Van.",
+    ],
+    victory: "The barricades of Van hold. The guns fall silent, the besiegers draw off, and relief comes over the hills from the north.",
+    defeat: "The barricades are overrun and the quarters of Van burn. The city will be remembered in every telling of that spring.",
+    history: "In April 1915 the Armenian quarters of Van barricaded their streets and held out for a month against the governor's troops until a Russian army and Armenian volunteers relieved them. Hold the barricades.",
+    paths: [
+      [[-420, 200], [300, 200], [300, 380], [620, 380], [620, 220], [920, 220], [920, 420], [1110, 420]],
+      [[-420, 630], [400, 630], [400, 560], [780, 560], [780, 660], [1040, 660], [1040, 420], [1110, 420]],
+    ],
+    fort: { x: 1110, y: 390 },
+    pads: [[150, 290], [460, 290], [770, 310], [770, 130], [1010, 300], [460, 470], [180, 470], [600, 470], [250, 710], [590, 660], [1150, 560], [1240, 480], [1010, 120], [880, 500]],
+    rocks: [[90, 400, 16], [1200, 680, 16], [700, 130, 13], [700, 705, 14], [340, 470, 14]],
+    vishaps: [[620, 130], [1150, 680]],
+    lake: { x: 1500, y: 230, rx: 300, ry: 90, rot: 0 },
+    plots: [[300, 110], [770, 420], [60, 540], [910, 580], [460, 140], [1240, 370]],
+    theme: { top: "#b8b07e", mid: "#9c9462", bot: "#77714a", patch: "104, 112, 72",
+             sky: ["#7aa2c8", "#c0d2de", "#f0e4c8"], backdrop: "van" },
+    seed: 163,
+  },
+  {
+    name: "Musa Dagh",
+    tag: "Forty days on the Mountain of Moses above the sea.",
+    era: 5, date: "1915 AD", year: 1915, placeholder: true,
+    hero: { name: "Captain of Musa Dagh", title: "Defender of the mountain" },
+    foe: "Ottoman",
+    units: {
+      flyer: { name: "Ridge Riflemen" },
+    },
+    chronicle: [
+      "In July 1915 the six Armenian villages at the foot of Musa Dagh, the Mountain of Moses on the Mediterranean coast near Antioch, were ordered to leave for the Syrian desert. Instead some four thousand villagers climbed the mountain with their flocks, old rifles and hunting guns, dug trenches across the paths and fortified its slopes above the sea.",
+      "For some forty days they beat back assault after assault from the ridges. As food ran out they hung two great banners toward the sea, one with a red cross and one calling for help. In September the French cruiser Guichen saw the signal, and Allied ships carried more than four thousand people to safety in Port Said. Franz Werfel told their story in The Forty Days of Musa Dagh. Hold the mountain until the ships come.",
+    ],
+    victory: "The mountain holds. Smoke rises from a warship's funnels on the horizon, and the boats are coming in to the shore below Musa Dagh.",
+    defeat: "The trenches on the ridge are overrun. Somewhere below, the banners still face the empty sea.",
+    history: "In 1915 four thousand villagers climbed Musa Dagh above the Mediterranean and held it for some forty days until French warships carried them to safety. Hold the mountain.",
+    paths: [
+      [[1720, 200], [1040, 200], [1040, 360], [700, 360], [700, 190], [420, 190], [420, 440], [300, 440]],
+      [[1720, 610], [880, 610], [880, 540], [560, 540], [560, 640], [300, 640], [300, 440]],
+    ],
+    fort: { x: 300, y: 410 },
+    pads: [[870, 280], [1150, 290], [560, 280], [560, 100], [870, 110], [700, 450], [1000, 460], [1060, 700], [720, 640], [430, 560], [200, 360], [300, 280], [1250, 500], [1200, 110]],
+    rocks: [[850, 455, 14], [1150, 420, 16], [380, 110, 13], [80, 250, 15], [960, 700, 15]],
+    vishaps: [[240, 200], [1060, 110]],
+    lake: { x: -160, y: 560, rx: 330, ry: 220, rot: 0.1 },
+    plots: [[560, 440], [700, 110], [300, 120], [1300, 300], [100, 140], [1340, 520]],
+    theme: { top: "#a9b37a", mid: "#8a9a5a", bot: "#62743e", patch: "84, 116, 60",
+             sky: ["#5d9fd0", "#a8d2e6", "#eef4ee"], backdrop: "musadagh" },
+    seed: 177,
+  },
+  {
+    name: "Sardarapat Field",
+    tag: "On the plain beneath Ararat, Armenia stands.",
+    era: 5, date: "1918 AD", year: 1918, placeholder: true,
+    hero: { name: "Movses Silikyan", title: "Commander at Sardarapat" },
+    foe: "Ottoman",
+    units: {
+      boss: { name: "Ottoman Army Commander" },
+    },
+    chronicle: [
+      "In May 1918, with the Russian army gone from the Caucasus front, the Ottoman army crossed the Araxes and advanced into the Ararat plain, aiming at Yerevan and beyond it at Baku. At Sardarapat, on the western edge of the plain, Armenian regiments and volunteers gathered under General Movses Silikyan, with Colonel Daniel Bek-Pirumyan holding the centre.",
+      "Church bells rang across the plain to call every man who could carry a rifle; villagers brought carts, bread and water to the lines. From 22 to 29 May the Armenians fought the advancing divisions to a standstill and drove them back to the west, while further battles raged at Bash Abaran and Karakilisa. On 28 May the Republic of Armenia was proclaimed. Hold the plain beneath Ararat.",
+    ],
+    victory: "The line at Sardarapat holds and the enemy columns fall back to the west. The bells ring again across the Ararat plain: the Republic will live.",
+    defeat: "The line breaks on the plain and the road to Yerevan lies open. The bells fall silent beneath Ararat.",
+    history: "In May 1918 Armenian troops and volunteers stopped the Ottoman advance at Sardarapat, on the plain beneath Ararat, and saved Yerevan; the Republic of Armenia was proclaimed on 28 May. Hold the plain.",
+    paths: [
+      [[-420, 200], [420, 200], [420, 330], [880, 330], [880, 200], [1180, 200], [1180, 420]],
+      [[-420, 560], [300, 560], [300, 660], [760, 660], [760, 520], [1040, 520], [1040, 420], [1180, 420]],
+    ],
+    fort: { x: 1180, y: 390 },
+    pads: [[200, 290], [200, 470], [560, 240], [720, 240], [1030, 290], [1030, 110], [560, 430], [880, 430], [420, 560], [620, 580], [900, 620], [1150, 600], [1290, 300], [120, 650]],
+    rocks: [[60, 380, 15], [700, 110, 14], [1280, 500, 16], [430, 720, 14], [760, 420, 12]],
+    vishaps: [[300, 400], [1000, 700]],
+    lake: null,
+    plots: [[400, 110], [700, 470], [1180, 500], [80, 110], [1300, 160], [150, 380]],
+    theme: { top: "#c8c276", mid: "#a8a854", bot: "#7c843e", patch: "96, 128, 56",
+             sky: ["#78acd6", "#c8dce0", "#f4e2b4"], backdrop: "sardarapat" },
+    seed: 191,
+  },
+  {
+    name: "Stepanakert Siege",
+    tag: "A winter of shelling on the capital in the valley.",
+    era: 6, date: "1992 AD", year: 1992, placeholder: true,
+    hero: { name: "Self-Defense Commander", title: "Defender of Stepanakert" },
+    foe: "Azerbaijani",
+    units: {
+      ram: { name: "Grad Rocket Launcher" },
+    },
+    chronicle: [
+      "As the Soviet Union came apart, the Armenians of Nagorno-Karabakh voted for independence, and war came in the winter of 1991 to 1992. Stepanakert, the capital in the valley of the Karkar, lay beneath the heights of Shushi, and from there and from the villages around it Grad rockets and artillery fell on the city day after day.",
+      "Without electricity or gas, its people lived in cellars through the cold while self-defense units held the approaches. In May 1992 Armenian forces took Shushi, the shelling of the capital eased, and the Lachin corridor opened a road to Armenia. A ceasefire came only in 1994. Hold the city in the valley.",
+    ],
+    victory: "Stepanakert holds through the winter. The rockets fall silent at last, and people climb up from the cellars into the cold light.",
+    defeat: "The defenses around the city give way. Stepanakert endures another night beneath the guns.",
+    history: "In the winter of 1991 to 1992 Stepanakert, the capital of Nagorno-Karabakh, lay under months of shelling from the heights around it until Shushi was taken in May 1992. Hold the city.",
+    path: [[-420, 190], [1100, 190], [1100, 680], [180, 680], [180, 360], [900, 360], [900, 530], [480, 530]],
+    fort: { x: 480, y: 500 },
+    pads: [[600, 275], [300, 275], [900, 275], [1000, 450], [1210, 420], [700, 445], [330, 445], [80, 500], [700, 605], [300, 605], [1000, 605], [600, 100], [1000, 100], [200, 100]],
+    rocks: [[1220, 640, 16], [40, 300, 14], [400, 110, 13], [1180, 120, 14]],
+    vishaps: [[800, 100], [1210, 560]],
+    lake: null,
+    plots: [[450, 275], [800, 445], [1000, 300], [80, 640], [500, 605], [1210, 280]],
+    theme: { top: "#e8edf0", mid: "#d4dde2", bot: "#aebcc6", patch: "228, 236, 242",
+             sky: ["#8a9fb2", "#bccbd4", "#e4e8ea"], backdrop: "stepanakert92" },
+    seed: 203,
+  },
+  {
+    name: "Shushi Heights",
+    tag: "The cliff-top town that guards the road to Armenia.",
+    era: 6, date: "2020 AD", year: 2020, placeholder: true,
+    hero: { name: "Garrison Commander", title: "Defender of Shushi" },
+    foe: "Azerbaijani",
+    units: {
+      flyer: { name: "Loitering Drones" },
+    },
+    chronicle: [
+      "On 27 September 2020 Azerbaijan, backed by Turkey, launched a large offensive against Artsakh. For six weeks drones, artillery and armour struck the defenders along the whole front, and the war moved steadily north from the Araxes valley toward the heart of the mountains.",
+      "By early November light infantry had climbed through the forests and gorges below Shushi, the old fortress town on its plateau above Stepanakert and the Lachin road. After days of fighting at the cliffs and in the streets the town was lost, and on 10 November a ceasefire ended the war. Hold the heights of Shushi.",
+    ],
+    victory: "The cliffs of Shushi hold and the road below stays open. History ended otherwise; here, for one stand, the heights are kept.",
+    defeat: "The cliffs are climbed and Shushi falls, as it fell in November 2020.",
+    history: "In November 2020 Shushi, the fortress town on its plateau above Stepanakert, fell after days of fighting at its cliffs, and a ceasefire ended the war. Hold the heights.",
+    paths: [
+      [[-420, 660], [300, 660], [300, 500], [80, 500], [80, 330], [420, 330], [420, 260], [640, 260]],
+      [[1700, 660], [980, 660], [980, 500], [1200, 500], [1200, 330], [860, 330], [860, 260], [640, 260]],
+    ],
+    fort: { x: 640, y: 230 },
+    pads: [[190, 580], [190, 415], [250, 240], [520, 175], [760, 175], [1090, 580], [1090, 415], [1030, 240], [520, 420], [760, 420], [400, 590], [880, 590], [65, 590], [1215, 590]],
+    rocks: [[640, 560, 22], [330, 140, 14], [950, 140, 14], [60, 230, 15], [1220, 230, 15], [500, 700, 14]],
+    vishaps: [[640, 450], [640, 690]],
+    lake: null,
+    plots: [[300, 410], [980, 410], [400, 130], [880, 130], [520, 560], [760, 560]],
+    theme: { top: "#b8a46e", mid: "#9a8650", bot: "#6e5e3a", patch: "120, 100, 58",
+             sky: ["#8aa4bc", "#c6ccc8", "#ecdcc0"], backdrop: "shushi" },
+    seed: 211,
+  },
+  {
+    name: "Stepanakert Blockade",
+    tag: "The last road closes on the capital of Artsakh.",
+    era: 6, date: "2023 AD", year: 2023, placeholder: true,
+    hero: { name: "Volunteer Commander", title: "Defender of Artsakh" },
+    foe: "Azerbaijani",
+    units: {},
+    chronicle: [
+      "From December 2022 the Lachin corridor, the only road between Artsakh and Armenia, was blockaded. For nine months food, fuel and medicine ran short, and some 120,000 people lived under siege in their own land.",
+      "On 19 September 2023 Azerbaijan launched a final offensive. Within a day the outnumbered defenders were forced to lay down their arms, and in the following week almost the entire Armenian population of Artsakh left for Armenia along the corridor. Their churches, khachkars and graves remain in the mountains. Hold the last road.",
+    ],
+    victory: "Stepanakert holds and the road stays open. History ended otherwise; here, for one stand, the lights of the city burn on.",
+    defeat: "The last road closes. The people of Artsakh carry its memory with them over the mountains.",
+    history: "In 2023, after nine months of blockade, Azerbaijan's final offensive ended the Republic of Artsakh, and almost its entire Armenian population left for Armenia. Hold the last road.",
+    paths: [
+      [[-420, 220], [360, 220], [360, 390], [120, 390], [120, 560], [480, 560], [480, 470], [640, 470]],
+      [[1700, 220], [920, 220], [920, 390], [1160, 390], [1160, 560], [800, 560], [800, 470], [640, 470]],
+    ],
+    fort: { x: 640, y: 440 },
+    pads: [[200, 305], [240, 475], [20, 470], [470, 300], [640, 330], [810, 300], [1080, 305], [1040, 475], [1260, 470], [300, 650], [980, 650], [640, 600], [200, 130], [1080, 130]],
+    rocks: [[640, 200, 16], [460, 700, 14], [820, 700, 14], [40, 650, 14], [1240, 650, 14]],
+    vishaps: [[480, 640], [800, 640]],
+    lake: null,
+    plots: [[470, 140], [810, 140], [380, 470], [900, 470], [130, 650], [1150, 650]],
+    theme: { top: "#cdb886", mid: "#b29a64", bot: "#857048", patch: "140, 118, 72",
+             sky: ["#86aed0", "#ccd8d8", "#f2dcb0"], backdrop: "stepanakert23" },
+    seed: 223,
+  },
 ];
+
+// ---------- chapters ----------
+// The campaign map shows one chapter per page (see renderWorldMap). levels lists the battlefields of a chapter
+// in order (contiguous: unlocking stays sequential across chapters, so winning Gyumri opens Halidzor); chart
+// names the map it is drawn on (MAP_CHARTS); intro holds the pages of the chapter's story, shown the first time
+// the chapter is opened and from the map's "Chapter story" button. PLACEHOLDER intro text for the text pass.
+const CHAPTERS = [
+  {
+    num: "I", name: "Kingdoms of the Highlands", levels: [0, 1, 2], chart: "highlands",
+    intro: [
+      "Long before there was an Armenian kingdom, the highlands between Lake Van, Lake Sevan and the Araxes were ruled from rock citadels by the kings of Urartu, who called their land Biainili. Their canals watered the Ararat plain, their fortresses watched every road, and again and again the armies of Assyria marched north against them.",
+      "From the lands of Urartu rose Armenia, which early in the fourth century became the first kingdom to take Christianity as its faith. When Sasanian Persia demanded that it turn back, the nobles gave their answer on the plain of Avarayr. This chapter follows the kingdoms of the highlands from the founding of Erebuni to that field.",
+    ],
+  },
+  {
+    num: "II", name: "Faith and Crown", levels: [3, 4, 5, 6], chart: "highlands",
+    intro: [
+      "After Avarayr the highlands passed from empire to empire. The Arab conquest came in the seventh century; in the ninth the Bagratid princes restored the crown, and Armenian kings ruled again, defending their lands against the emirs who governed in the caliph's name.",
+      "Later came the long wars of Ottoman sultans and Safavid shahs, fought across the Armenian plateau for more than a century. This chapter follows the cathedral city of Dvin, the forest gorges of Tashir, the shores of Lake Sevan and the winter road to Gyumri.",
+    ],
+  },
+  {
+    num: "III", name: "The Long Night", levels: [7, 8, 9, 10], chart: "anatolia",
+    intro: [
+      "In the eighteenth century the Armenian meliks of Syunik and Artsakh rose against the empires around them, and for a few years Davit Bek held the gorges free. In the century that followed, the Armenians of the Ottoman Empire lived as a subject people, while the Russian Empire pushed south over the Caucasus.",
+      "In 1915, during the First World War, the Ottoman government deported and massacred its Armenian subjects; some one and a half million people perished in the Armenian Genocide. Where they could, Armenians fought back, at Van and on Musa Dagh. In 1918, on the plain of Sardarapat, the survivors stood their ground, and an Armenian republic was born.",
+    ],
+  },
+  {
+    num: "IV", name: "Artsakh", levels: [11, 12, 13], chart: "artsakh",
+    intro: [
+      "Artsakh, the mountain land east of Syunik, was for centuries a country of Armenian princes, monasteries and villages. Placed inside Soviet Azerbaijan in the 1920s, the Armenians of Nagorno-Karabakh voted for independence in 1991, and a war followed that ended in a ceasefire in 1994, with the Lachin corridor linking Artsakh to Armenia.",
+      "In 2020 a new war took Shushi and much of the land, and in 2023, after a nine-month blockade of the corridor, a final offensive ended the Republic of Artsakh, and its people left for Armenia. This chapter remembers those who held its heights.",
+    ],
+  },
+];
+function chapterOf(i) {
+  const c = CHAPTERS.findIndex(C => C.levels.includes(i));
+  return c < 0 ? 0 : c;
+}
+// "782 BC to 451 AD": the span of a chapter's battlefields
+function chapterSpan(c) {
+  const lv = CHAPTERS[c].levels, a = LEVELS[lv[0]], b = LEVELS[lv[lv.length - 1]];
+  return a.date === b.date ? a.date : a.date + " to " + b.date;
+}
+// the pages of a battlefield's chronicle: L.chronicle when it has one, else its single history paragraph
+function levelPages(L) {
+  return L.chronicle && L.chronicle.length ? L.chronicle : [L.history || ""];
+}
 
 const DIFFS = [
   { name: "Easy", lives: 30, gold: 260, hp: 0.85 },
@@ -1443,12 +1790,41 @@ const bg = document.createElement("canvas");
 bg.width = VW; bg.height = VH;
 const bctx = bg.getContext("2d");
 
+// ---- backdrop stand-ins ----
+// Every battlefield names its own backdrop in theme.backdrop. The painters (bgBackdrop, terrPlanScene,
+// TERR_BIOME, BACKDROP_PEAK, FOOT_STONE, Snd.AMB, the brief miniature...) all switch on THEME.backdrop,
+// so a battlefield whose painter has not been written yet is painted as the nearest existing one:
+// THEME.backdrop is the painter actually used and THEME.id always keeps the battlefield's own id.
+// To give one of these its own art: add its branches under its own id, then delete its entry here.
+// An id with neither a painter nor a stand-in still works: every switch has a default (the Tushpa look).
+// (A painter may also branch on THEME.id early, e.g. its own skyline over a borrowed biome.)
+const BACKDROP_STANDIN = {
+  halidzor: "lori",          // 1727, the forested gorges of Syunik
+  van: "urartu",             // 1915, the Rock of Van and its lake
+  musadagh: "sevan",         // 1915, green slopes above open water (the lake object is the sea)
+  sardarapat: "ararat",      // 1918, the plain beneath Ararat
+  stepanakert92: "gyumri",   // winter 1991-92, the capital under snow
+  shushi: "urartu",          // 2020, a citadel town on its rock
+  stepanakert23: "dvin",     // 2023, a city in a dry late summer
+};
+const levelThemes = new Map();
+function levelTheme(L) {
+  let t = levelThemes.get(L);
+  if (!t) {
+    const id = L.theme.backdrop;
+    const paint = BACKDROP_STANDIN[id] || id;   // an id nobody paints falls through every switch to its default
+    t = Object.assign({}, L.theme, { id, backdrop: paint });
+    levelThemes.set(L, t);
+  }
+  return t;
+}
+
 function loadLevel(i) {
   const L = LEVELS[i];
   FORT = L.fort; PADS = L.pads.slice();
   plots = (L.plots || []).slice();
   plotsBought = 0;
-  ROCKS = L.rocks; VISHAPS = L.vishaps; LAKE = L.lake; THEME = L.theme; LVLSEED = L.seed;
+  ROCKS = L.rocks; VISHAPS = L.vishaps; LAKE = L.lake; THEME = levelTheme(L); LVLSEED = L.seed;
   const polys = L.paths || [L.path];
   ROUTES = polys.map(pts => {
     const sl = [];
@@ -2634,7 +3010,7 @@ registerProcessor("kl-tract", KLTract);
     death(v, t, o) {
       const kind = o.kind, varn = o.variant;
       this.lvl(v, kind === "ram" ? ({ elephant: -16.0, cannon: -17.2 }[varn] || -13.4) : kind === "boss" ? -14.6 :
-        (kind === "cavalry" || (kind === "flyer" && o.era === 3)) ? -5.2 : 0);
+        (kind === "cavalry" || (kind === "flyer" && artEra(o.era) === 3)) ? -5.2 : 0);
       if (kind === "ram" && varn === "elephant") {
         // a bellow sinking to a groan (with a subharmonic growl under it), then the earth takes the
         // weight and the howdah splinters
@@ -2668,7 +3044,7 @@ registerProcessor("kl-tract", KLTract);
         this.nz(v, { t, k: "crackle", rate: 0.7, f: 2000, q: 0.6, p: 0.7, d: 0.45 });
         this.thump(v, t + 0.2, 95, 60, 0.05, 0.3, 4);
         this.nz(v, { t: t + 0.2, k: "pink", f: 440, q: 1, p: 0.5, d: 0.35 });
-      } else if (kind === "cavalry" || (kind === "flyer" && o.era === 3)) {
+      } else if (kind === "cavalry" || (kind === "flyer" && artEra(o.era) === 3)) {   // the outflanker is a horseman in the art of era 3
         // the horse goes down: a blowing snort through the nostrils, a heavy fall, the tack jingling
         if (this.vcall(v, "snort", t, 0.128)) { if (this.rnd() < 0.4) this.vcall(v, "whinny", t + this.rr(0.03, 0.12), 0.078); }
         else {
@@ -2705,20 +3081,24 @@ registerProcessor("kl-tract", KLTract);
     },
     // the wave call: each age blows its own horn on D and A, the soundtrack's tonic and fifth
     horn(v, t, o) {
-      const era = Math.max(0, Math.min(3, o.era | 0));
       const D3 = 146.83, A3 = 220, D4 = 293.66, A4 = 440, A2 = 110;
       const calls = [
         [[D4, 0.38], [A4, 0.95]],               // Urartu: a raw ram's horn, high and blatting
         [[A2, 0.32], [D3, 0.42], [A3, 1.05]],   // Avarayr: the long war horn's three rising calls
         [[D3, 0.4], [A3, 1.05]],                // the Bagratid princes' horn, with the dhol under it
         [[D3, 0.3], [D3, 0.3], [A3, 1.05]],     // 1579: the horn over a dhol roll
+        // eras 4-6: PLACEHOLDER calls (a bugle voice is for the audio pass)
+        [[D3, 0.3], [D3, 0.3], [A3, 1.05]],     // 1727: the 1579 call
+        [[A3, 0.22], [D4, 0.22], [A4, 0.9]],    // 1915-1918: a bright rising call, bugle-like
+        [[D4, 0.3], [A3, 0.3], [D4, 0.9]],      // Artsakh: a short high call
       ];
-      const raw = [1, 0.45, 0.6, 0.6][era];
-      this.lvl(v, [-1.9, 0, -0.3, -0.3][era]);
+      const era = Math.max(0, Math.min(calls.length - 1, o.era | 0));
+      const raw = [1, 0.45, 0.6, 0.6, 0.6, 0.35, 0.35][era];
+      this.lvl(v, [-1.9, 0, -0.3, -0.3, -0.3, -1, -1][era]);
       let tt = t;
       for (const [f, d] of calls[era]) { this.hornNote(v, tt, f, d, 0.55, raw); tt += d + 0.07; }
       if (era === 2) { this.drum(v, t, true, 0.7); this.drum(v, t + 0.47, true, 0.7); }
-      if (era === 3) for (let i = 0; i < 8; i++) this.drum(v, t + i * 0.11, i % 4 === 0, 0.3 + i * 0.06);
+      if (era === 3 || era === 4) for (let i = 0; i < 8; i++) this.drum(v, t + i * 0.11, i % 4 === 0, 0.3 + i * 0.06);
     },
     // a tower raised: the frame set down, pinned with a mallet, and each age's own flourish
     build(v, t, o) {
@@ -3317,6 +3697,11 @@ registerProcessor("kl-tract", KLTract);
     { voice: "duduk", lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320 },
     { voice: "knar", lead: 2, lp: 4500, lvl: 0.16, rest: 0.17, dhol: 2, drone: [0.032, 0.028, 0.025], dlp: 380 },
     { voice: "zurna", lead: 2, lp: 6000, lvl: 0.078, rest: 0.45, dhol: 3, drone: [0.035, 0.035, 0.028], dlp: 460 },
+    // eras 4-6: PLACEHOLDER voicings until the soundtrack pass gives them their own: 1727 keeps the zurna,
+    // 1915-1918 and Artsakh return to the duduk, darker and sparser
+    { voice: "zurna", lead: 2, lp: 5200, lvl: 0.074, rest: 0.4, dhol: 3, drone: [0.038, 0.034, 0.028], dlp: 440 },
+    { voice: "duduk", lead: 2, lp: 1200, rest: 0.3, dhol: 1, drone: [0.06, 0.045, 0.026], dlp: 300 },
+    { voice: "duduk", lead: 2, lp: 1300, rest: 0.28, dhol: 2, drone: [0.058, 0.044, 0.028], dlp: 320 },
   ],
   startMusic() {
     if (!this.ctx || this.timer) return;
@@ -3355,7 +3740,7 @@ registerProcessor("kl-tract", KLTract);
   },
   // a new field in another age: the drone re-voices itself over a few seconds
   setEra(era, t) {
-    era = Math.max(0, Math.min(3, era | 0));
+    era = Math.max(0, Math.min(this.MUS_ERA.length - 1, era | 0));
     if (era === this.musEra) return;
     this.musEra = era;
     const E = this.MUS_ERA[era];
@@ -3776,7 +4161,57 @@ const ERAS = [
       flyer:    { name: "Kurdish Horsemen",     color: "#7d3a3a", trim: "#f0d0a0", variant: "flyer" },
     },
   },
+  // ---- eras 4-6: PLACEHOLDER rosters and text (names, periods, stories to be finalised by the text pass).
+  // Until their own art lands they draw with the art of the era named in ERA_ART below.
+  {
+    name: "Ottoman Advance", period: "1720s, Syunik", icon: "🗡", hpMult: 1.7, bounty: 1.4, foe: "Ottoman",
+    story: "1722 to 1728. As Safavid Persia collapses, Ottoman armies march into the Caucasus. In the gorges of Syunik the Armenian meliks and their sghnakh strongholds rise under Davit Bek. Hold the mountain forts.",
+    units: {
+      raider:   { name: "Ottoman Irregulars",   color: "#8a4a32", trim: "#e8c9a0" },
+      spearman: { name: "Musket Infantry",      color: "#7a2c30", trim: "#efe8dc", variant: "janissary" },
+      shield:   { name: "Janissary Veterans",   color: "#5a3636", trim: "#efe8dc", variant: "janissary" },
+      cavalry:  { name: "Timariot Horsemen",    color: "#8a662c", trim: "#f2cc78" },
+      ram:      { name: "Field Cannon",         color: "#4a4a50", trim: "#c4a468", variant: "cannon", spdMult: 0.9 },
+      boss:     { name: "The Pasha's Serasker",  color: "#7a1e2c", trim: "#f2cc78" },
+      flyer:    { name: "Mounted Raiders",      color: "#7a3c34", trim: "#ecd09e", variant: "flyer" },
+    },
+  },
+  {
+    name: "Great War Offensive", period: "1915 to 1918", icon: "🪖", hpMult: 1.85, bounty: 1.48, foe: "Ottoman",
+    story: "1915 to 1918. In the First World War the Ottoman army brings rifles, machine guns, field and mountain guns against the Armenians of Van, Musa Dagh and the Ararat plain. Hold until relief comes.",
+    units: {
+      raider:   { name: "Irregular Riflemen",   color: "#7d6448", trim: "#d8c49a" },
+      spearman: { name: "Ottoman Riflemen",     color: "#6b6a4a", trim: "#d6d0b0", variant: "janissary" },
+      shield:   { name: "Machine-Gun Section",  color: "#5a5a42", trim: "#c8c2a0", variant: "janissary" },
+      cavalry:  { name: "Ottoman Cavalry",      color: "#6e5a3a", trim: "#d8be7a" },
+      ram:      { name: "Field Gun",            color: "#4e5246", trim: "#a8a088", variant: "cannon", spdMult: 0.95 },
+      boss:     { name: "Ottoman Division Commander", color: "#5c4a32", trim: "#e2c47a" },
+      flyer:    { name: "Cavalry Scouts",       color: "#6a563a", trim: "#d8c494", variant: "flyer" },
+    },
+  },
+  {
+    name: "Azerbaijani Offensive", period: "1991 to 2023, Artsakh", icon: "🛩", hpMult: 2.0, bounty: 1.56, foe: "Azerbaijani",
+    story: "1991 to 2023. Three wars over the mountains of Artsakh: rifles and Grad rockets in the 1990s, armour and drones in 2020, a blockade and a final assault in 2023. Hold the high ground.",
+    units: {
+      raider:   { name: "Rifle Infantry",       color: "#5e6248", trim: "#c8c6a4" },
+      spearman: { name: "Motor-Rifle Squad",    color: "#4e5a40", trim: "#bfc4a2", variant: "janissary" },
+      shield:   { name: "Assault Infantry",     color: "#454c3c", trim: "#b6b89a", variant: "janissary" },
+      cavalry:  { name: "BMP Column",           color: "#55603f", trim: "#a8ae8a", armorAdd: 4, spdMult: 0.9, hpMult: 1.2 },
+      ram:      { name: "T-72 Tank",            color: "#4a5040", trim: "#9aa086", variant: "cannon", hpMult: 1.2 },
+      boss:     { name: "Brigade Commander",    color: "#3e4636", trim: "#d8c47a" },
+      flyer:    { name: "Strike Drones",        color: "#6a6e64", trim: "#d0d2c6", variant: "flyer" },
+    },
+  },
 ];
+
+// Art fallback per era: which era's painted units, fallen, outflankers and commanders an era borrows.
+// Eras 4-6 reuse the 16th-century (era 3) art until their own lands; set an entry to its own index then.
+// Gameplay (stats, names, era powers) always follows the real era; only the pictures read this table.
+const ERA_ART = [0, 1, 2, 3, 3, 3, 3];
+function artEra(era) {
+  const e = Math.max(0, Math.min(ERAS.length - 1, era | 0));
+  return ERA_ART[e] === undefined ? Math.min(3, e) : ERA_ART[e];
+}
 
 // a battlefield may name its own foes where the era's roster is wrong for that battle
 function levelUnits(L) { return (L && L.units) || {}; }
@@ -3799,30 +4234,34 @@ function heroName() {
 // Gameplay lives in TOWER_DEFS and never changes with the era; only what stands on the pad does.
 // A skin registers its painter (baked once per rank, like every structure), its live parts
 // (drawn each frame in screen space) and its projectile in SKIN_ART, in its own section below.
+// One column per era. Columns 4-6 (1727, 1915-1918, Artsakh) are PLACEHOLDERS that repeat the 16th-century
+// engines until their own skins are painted; replace an id here once its SKIN_ART section exists.
 const TOWER_SKINS = {
-  archer:   ["archer", "archer", "archer", "archer"],
-  ballista: ["javelin", "ballista", "ballista", "musket"],
-  catapult: ["hurlers", "catapult", "trebuchet", "hurlers"],
-  fire:     ["beacon", "cauldron", "cauldron", "cauldron"],
-  drums:    ["standard", "exhort", "banner", "drums"],
+  //         0 Urartu    1 Avarayr   2 Caliphate  3 Ottoman  | 4 1727     5 1915-18  6 Artsakh
+  archer:   ["archer",   "archer",   "archer",    "archer",    "archer",  "archer",  "archer"],
+  ballista: ["javelin",  "ballista", "ballista",  "musket",    "musket",  "musket",  "musket"],
+  catapult: ["hurlers",  "catapult", "trebuchet", "hurlers",   "hurlers", "hurlers", "hurlers"],
+  fire:     ["beacon",   "cauldron", "cauldron",  "cauldron",  "cauldron", "cauldron", "cauldron"],
+  drums:    ["standard", "exhort",   "banner",    "drums",     "drums",   "drums",   "drums"],
 };
 const SKIN_ART = {};      // skin id -> { box, scale, paint, variant, live, footing, proj, projSpeed, sound, onFire, kickDrop }
 const PROJ_ART = {};      // projectile kind -> painter, for kinds the first arsenal lacked
 function towerSkin(type, era) {
   const row = TOWER_SKINS[type], e = era == null ? curEra : era;
-  return (row && row[Math.max(0, Math.min(3, e | 0))]) || type;
+  return (row && row[Math.max(0, Math.min(row.length - 1, e | 0))]) || type;
 }
 function skinArt(type) { return SKIN_ART[towerSkin(type)] || null; }
 
 // what each slot is called in each age. Urartu: no mechanical artillery before c. 400 BC, and
 // hill-top fire beacons are attested; Haldi was the god of war and state, Teisheba of storm.
 // 451: no fire altar on the Christian side. 1579: gunpowder, and the defenders' guns are few.
+// eras 4-6: PLACEHOLDER names for the coming skins (the art still shows the era-3 engines)
 const SLOT_NAMES = {
-  archer:   ["Biainili Bowmen", "Nakharar Bowmen", "Nakharar Bowmen", "Highland Bowmen"],
-  ballista: ["Javelin Bastion", "Field Ballista", "Bolt-Thrower", "Musket Nest"],
-  catapult: ["Stone-Hurlers", "Onager", "Traction Trebuchet", "Stone-Hurlers"],
-  fire:     ["Beacon Fire", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron"],
-  drums:    ["Standard of Haldi", "Ghevond's Exhortation", "Prince's Banner", "Village Drums"],
+  archer:   ["Biainili Bowmen", "Nakharar Bowmen", "Nakharar Bowmen", "Highland Bowmen", "Sghnakh Marksmen", "Volunteer Riflemen", "Rifle Squad"],
+  ballista: ["Javelin Bastion", "Field Ballista", "Bolt-Thrower", "Musket Nest", "Musket Nest", "Machine-Gun Nest", "Machine-Gun Post"],
+  catapult: ["Stone-Hurlers", "Onager", "Traction Trebuchet", "Stone-Hurlers", "Stone-Hurlers", "Mountain Gun", "Mortar Pit"],
+  fire:     ["Beacon Fire", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron", "Pitch Cauldron", "Fire Barricade", "Fire Barricade"],
+  drums:    ["Standard of Haldi", "Ghevond's Exhortation", "Prince's Banner", "Village Drums", "Melik's Banner", "Volunteer Bugle", "Field Radio"],
 };
 const SKIN_BLURB = {
   archer: "Fast arrows, single target. Reliable.",
@@ -3852,10 +4291,10 @@ const SKIN_SPECS = {
   banner:   { b: ["Battle Standards"] },
   drums:    { b: ["Battle Standards"] },
 };
-const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
+const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
 function towerName(type) {
   const row = SLOT_NAMES[type];
-  return (row && row[Math.max(0, Math.min(3, curEra | 0))]) || TOWER_DEFS[type].name;
+  return (row && row[Math.max(0, Math.min(row.length - 1, curEra | 0))]) || TOWER_DEFS[type].name;
 }
 function specInfo(type, key) {
   const sp = TOWER_DEFS[type].specs[key], own = (SKIN_SPECS[towerSkin(type)] || {})[key];
@@ -3878,7 +4317,7 @@ function applyEraLabels() {
     }
   });
   const wb = document.querySelector('#spellbar .spell[data-spell="wrath"]');
-  if (wb) wb.title = WRATH_NAMES[curEra] + ": lightning strike (E)";
+  if (wb) wb.title = (WRATH_NAMES[curEra] || WRATH_NAMES[0]) + ": lightning strike (E)";
   const hb = $("heroBtn");
   if (hb) hb.title = heroName() + ": select, then click the field to march to that spot (R)";
   if (eraLabelsDrawn !== curEra && typeof renderShopPortraits === "function") {
@@ -4614,9 +5053,11 @@ function endCelebration() {
   const heldLives = celebration.lives;
   celebration = null;
   confetti = [];
-  showMenu("🏆", LEVELS[curLevel].name + " Stands!",
-    "The " + ERAS[curEra].name + " breaks against your towers like water against the highland rocks. " +
-    "A circle dance turns before the gates, and the fires of the citadel burn on. " +
+  // a battlefield may tell its own victory (L.victory); the tally and the endless offer always follow
+  const L = LEVELS[curLevel];
+  showMenu("🏆", L.name + " Stands!",
+    (L.victory ? L.victory + " " : "The " + ERAS[curEra].name + " breaks against your towers like water against the highland rocks. " +
+    "A circle dance turns before the gates, and the fires of the citadel burn on. ") +
     "You held with " + heldLives + " defenders to spare on " + DIFFS[curDiff].name + ". " +
     "Your army still stands: hold forever, if you dare.",
     "Defend Again", true);
@@ -4627,9 +5068,11 @@ function defeat() {
   saveBest();
   clearRun();
   Snd.play("lose");
+  // L.defeat replaces the closing line; the wave count is always given
+  const L = LEVELS[curLevel];
   showMenu("🔥", "The Citadel Falls",
     "The " + ERAS[curEra].name.toLowerCase() + " breaches the gates at wave " + waveIdx + " of " + TOTAL_WAVES + " in " +
-    LEVELS[curLevel].name + ". The highlands will remember this stand. Choose your ground and try again.",
+    L.name + ". " + (L.defeat ? L.defeat + " Choose your ground and try again." : "The highlands will remember this stand. Choose your ground and try again."),
     "Try Again");
 }
 
@@ -4865,7 +5308,8 @@ function update(dt) {
             e.mechT = -12;
           }
         }
-      } else if (curEra === 3) {
+      } else if (curEra >= 3) {
+        // the guns of every later age (cannon, field guns, tanks) bombard the towers
         e.mechT += dt;
         if (e.mechT >= 6) { e.mechT = 0; bombardVolley(e); }
       }
@@ -16469,7 +16913,7 @@ function drawLobbedShot(pr, gx, gy, y, s) {
 function drawFallen(c, x, y, k, a) {
   const C = UNIT_COLORS;
   const flip = Math.floor(c.x) % 2 ? 1 : -1;
-  const era = Math.max(0, Math.min(3, (LEVELS[curLevel] && LEVELS[curLevel].era) || 0));
+  const era = artEra((LEVELS[curLevel] && LEVELS[curLevel].era) || 0);
   const cloth = c.color, lit = shade(c.color, 34), dim = shade(c.color, -34), deep = shade(c.color, -62);
   const m = ctx.getTransform();
   const ink = Math.max(1.5, Math.min(3.2, 2.5 / Math.max(0.05, k * Math.hypot(m.a, m.b))));
@@ -26859,12 +27303,14 @@ function unitPalette(color, trim) {
 // curEra is not trustworthy at draw time, so the era is read off the unit's own name
 function unitEra(e, d) {
   if (e.eraVis === undefined) {
-    e.eraVis = Math.max(0, Math.min(ERAS.length - 1, curEra));
+    let era = Math.max(0, Math.min(ERAS.length - 1, curEra));
     for (let i = 0; i < ERAS.length; i++) {
       const u = ERAS[i].units[e.type];
-      if (u && u.name === d.name) { e.eraVis = i; break; }
-      if (LEVELS.some(L => L.era === i && L.units && L.units[e.type] && L.units[e.type].name === d.name)) { e.eraVis = i; break; }
+      if (u && u.name === d.name) { era = i; break; }
+      if (LEVELS.some(L => L.era === i && L.units && L.units[e.type] && L.units[e.type].name === d.name)) { era = i; break; }
     }
+    // what is stored and returned is the era whose art the unit is drawn in (ERA_ART)
+    e.eraVis = artEra(era);
   }
   return e.eraVis;
 }
@@ -30606,7 +31052,7 @@ function drawSoldier(e, k, d, walk, view) {
 }
 
 function drawRam(e, p, k, dir) {
-  const gabled = (e.eraVis === undefined ? curEra : e.eraVis) >= 2;
+  const gabled = (e.eraVis === undefined ? artEra(curEra) : e.eraVis) >= 2;
   const view = unitView(p);
   uc.save();
   uc.scale(k, k);
@@ -31354,7 +31800,8 @@ function paintRibbon(c, main, sub, o) {
       c.translate(x, subY - 13.5);
       c.scale(emblem / 24, emblem / 24);
       c.fillStyle = "#f0cf85";
-      c.fill(eraEmblemPath(o.emblem));
+      const en = document.querySelector("#i-era" + o.emblem + " path");
+      c.fill(eraEmblemPath(o.emblem), en && en.getAttribute("fill-rule") === "evenodd" ? "evenodd" : "nonzero");
       c.restore();
     }
     c.textAlign = "left";
@@ -31477,6 +31924,144 @@ function buildMenu() {
 }
 
 // ---------- campaign world map ----------
+// Each chapter is drawn on a chart (CHAPTERS[c].chart). "highlands" is the hand-placed chart of the Armenian
+// plateau (chapters I and II, MAP_HIGHLANDS below); the other charts are projected from real longitudes and
+// latitudes (MAP_GEO) through their bounds, so a new chart only needs bounds, labels and a title.
+// Every chart is authored in MAP_W x MAP_H units.
+const MAP_W = 720, MAP_H = 400;
+const MAP_CHARTS = {
+  highlands: { title: "The Armenian Highlands", caption: "March from fortress to fortress — each stand won opens the next road." },
+  // chapter III: from the Cilician coast (Musa Dagh) to Syunik (Halidzor), with Van and the Ararat plain between
+  anatolia: {
+    title: "From the Highlands to the Sea", caption: "Van, Musa Dagh, Sardarapat: each stand won opens the next road.",
+    geo: { lon: [32.85, 48.33], lat: [34.7, 41.45] }, seed: 43, relief: 1, rivers: 1, trees: 1, cartouche: "br", compass: [676, 54, 21],
+    araratK: 0.4,
+    labels: [
+      ["Black Sea", 38.6, 41.05, 11.5, "water", 0.03],
+      ["Mediterranean", 34.3, 36.0, 10.5, "water", -0.25],
+      ["Lake Van", 41.75, 38.6, 9.5, "water", 0],
+      ["Sevan", 45.27, 40.34, 7.5, "water", 0],
+      ["Urmia", 45.55, 37.72, 8, "water", -1.1],
+      ["Araxes", 47.45, 39.55, 9, "water", 0.45],
+      ["Euphrates", 38.75, 37.45, 10, "water", 1.05],
+      ["Tigris", 41.2, 37.48, 10, "water", 0.1],
+      ["Mt. Ararat", 44.3, 39.38, 8.5, "land", 0],
+      ["Cilicia", 35.45, 37.02, 11, "land", 0],
+    ],
+  },
+  // chapter IV: a close-up of Artsakh and the Lachin corridor over the Syunik mountains to Goris
+  artsakh: {
+    title: "Artsakh and Syunik", caption: "From the capital in the valley to the corridor road.",
+    geo: { lon: [45.95, 47.25], lat: [39.42, 39.975] }, seed: 47, relief: 1.35, rivers: 1.25, trees: 1, cartouche: "tl", compass: [676, 54, 21],
+    // the close-up needs more relief than the region-wide ridges give: the hills of Kashatagh and the Artsakh uplands
+    ridges: [
+      { size: 10, pts: [[46.03, 39.93], [46.22, 39.8], [46.38, 39.7]] },
+      { size: 10, pts: [[46.02, 39.45], [46.2, 39.44], [46.42, 39.47]] },
+      { size: 10, pts: [[46.82, 39.62], [46.98, 39.55], [47.12, 39.5]] },
+      { size: 9, pts: [[46.55, 39.95], [46.62, 39.86]] },
+    ],
+    labels: [
+      ["Syunik", 46.1, 39.84, 13, "land", 0],
+      ["Artsakh", 46.98, 39.48, 13, "land", 0],
+      ["Lachin corridor", 46.38, 39.6, 9.5, "land", -0.62],
+      ["Hakari", 46.585, 39.47, 9, "water", 1.35],
+      ["Karkar", 46.98, 39.9, 9, "water", -0.35],
+      ["Vorotan", 46.17, 39.535, 9, "water", 0.22],
+    ],
+    towns: [["Goris", 46.34, 39.51], ["Berdzor (Lachin)", 46.55, 39.63]],
+    routes: [[[46.34, 39.51], [46.43, 39.535], [46.5, 39.575], [46.55, 39.63], [46.64, 39.7], [46.72, 39.745], [46.75, 39.76], [46.75, 39.82]]],
+  },
+};
+
+// real geography for the projected charts, [longitude, latitude] pairs; a feature off a chart is simply not seen.
+// Rivers run from source to mouth.
+const MAP_GEO = {
+  seas: [
+    // the north-east corner of the Mediterranean: the Cilician coast, the gulf of Iskenderun and the Syrian shore
+    { ring: [[32.0, 36.1], [33.95, 36.3], [34.25, 36.45], [34.65, 36.8], [34.9, 36.75], [35.15, 36.62], [35.35, 36.55], [35.55, 36.62],
+      [35.78, 36.78], [35.98, 36.86], [36.16, 36.92], [36.21, 36.72], [36.17, 36.58], [36.02, 36.46], [35.88, 36.36], [35.8, 36.3],
+      [35.86, 36.2], [35.93, 36.06], [35.88, 35.86], [35.78, 35.55], [35.9, 35.1], [35.9, 34.0], [32.0, 34.0]],
+      islands: [[[32.3, 35.1], [32.9, 35.38], [33.6, 35.36], [34.1, 35.48], [34.6, 35.7], [33.95, 35.25], [34.0, 34.97], [33.6, 34.82], [33.0, 34.6], [32.4, 34.75]]] },
+    // the southern shore of the Black Sea, Sinop to Batumi
+    { ring: [[33.0, 42.2], [35.15, 42.02], [35.5, 41.7], [36.0, 41.65], [36.35, 41.3], [37.0, 41.15], [37.6, 41.08], [38.0, 40.97], [38.4, 40.93],
+      [39.0, 41.0], [39.7, 41.0], [40.5, 41.04], [41.0, 41.2], [41.4, 41.4], [41.62, 41.62], [41.67, 42.15], [41.5, 42.8], [41.0, 43.5], [33.0, 43.5]], islands: [] },
+  ],
+  highlands: [   // umber tint: the plateau and the mountain belts
+    [[38.5, 40.4], [41.5, 41.0], [44.0, 41.3], [46.5, 41.0], [47.0, 40.0], [46.6, 38.9], [45.0, 38.6], [43.8, 37.7], [41.5, 38.2], [39.0, 38.6]],
+    [[32.5, 37.2], [35.0, 37.8], [37.5, 38.4], [39.0, 38.4], [38.5, 37.6], [36.6, 37.1], [35.0, 37.0], [33.0, 36.6]],
+    [[35.5, 40.8], [39.0, 40.6], [41.5, 41.0], [41.5, 40.5], [38.5, 40.2], [35.5, 40.3]],
+  ],
+  plains: [      // green-ochre tint
+    [[43.6, 40.25], [44.6, 40.3], [44.9, 39.95], [44.6, 39.75], [44.0, 39.95], [43.6, 40.05]],                 // the Ararat plain
+    [[34.7, 36.85], [35.3, 37.15], [36.0, 37.15], [36.2, 36.95], [35.8, 36.8], [35.3, 36.6], [34.9, 36.75]],      // the Cilician plain
+    [[36.6, 36.6], [38.5, 36.9], [40.5, 37.0], [42.2, 37.1], [43.8, 36.4], [44.0, 35.0], [36.5, 35.0]],           // the Syrian steppe
+    [[46.9, 40.6], [48.5, 40.6], [48.5, 39.2], [47.6, 39.35], [47.05, 39.7], [46.88, 40.1]],                        // the Kura-Araxes lowland
+  ],
+  forests: [     // woodland tint, with trees drawn over it (box: lon0, lat0, lon1, lat1)
+    { ring: [[36.5, 41.0], [41.5, 41.35], [41.6, 40.95], [39.0, 40.75], [36.5, 40.8]], box: [37.0, 40.98, 41.2, 40.78], fir: 0.6 },
+    { ring: [[44.2, 41.1], [45.6, 41.0], [45.6, 40.75], [44.4, 40.85]], box: [44.4, 41.0, 45.4, 40.82], fir: 0.55 },
+    { ring: [[46.2, 40.2], [46.9, 40.2], [46.9, 39.45], [46.45, 39.4], [46.3, 39.85]], box: [46.4, 40.05, 46.85, 39.5], fir: 0.3 },
+    { ring: [[36.1, 36.25], [36.45, 36.3], [36.6, 37.0], [36.3, 37.05], [36.1, 36.6]], box: [36.18, 36.95, 36.45, 36.38], fir: 0.4 },
+    { ring: [[46.2, 39.25], [46.6, 39.25], [46.55, 38.95], [46.2, 39.0]], box: [46.25, 39.2, 46.55, 39.0], fir: 0.2 },
+    { ring: [[46.0, 39.75], [46.25, 39.78], [46.3, 39.6], [46.05, 39.62]], box: [46.05, 39.75, 46.25, 39.64], fir: 0.5 },
+  ],
+  lakes: [
+    { name: "Van", pts: [[42.25, 38.48], [42.45, 38.72], [42.75, 38.82], [43.0, 38.85], [43.25, 39.0], [43.45, 38.98], [43.45, 38.75], [43.3, 38.55], [43.15, 38.38], [42.85, 38.33], [42.55, 38.38]] },
+    { name: "Sevan", pts: [[44.95, 40.55], [45.08, 40.62], [45.25, 40.5], [45.45, 40.3], [45.55, 40.18], [45.45, 40.05], [45.2, 40.1], [45.05, 40.25], [44.98, 40.4]] },
+    { name: "Urmia", pts: [[45.1, 38.2], [45.35, 38.3], [45.6, 38.05], [45.85, 37.75], [45.95, 37.45], [45.7, 37.2], [45.4, 37.35], [45.25, 37.7], [45.1, 37.95]] },
+  ],
+  rivers: [
+    { name: "Araxes", w: [1.2, 3.0], pts: [[41.1, 39.6], [41.6, 39.9], [42.2, 40.0], [42.7, 40.1], [43.15, 40.15], [43.6, 40.12], [44.1, 40.03], [44.45, 39.88],
+      [44.8, 39.62], [45.2, 39.4], [45.45, 39.15], [45.65, 38.95], [46.05, 38.88], [46.4, 38.9], [46.8, 39.2], [47.2, 39.45], [47.8, 39.7], [48.3, 39.95], [48.55, 40.0]] },
+    { name: "Kura", w: [1.0, 2.8], pts: [[42.7, 41.1], [42.98, 41.65], [43.4, 41.85], [44.1, 41.98], [44.8, 41.7], [45.0, 41.55], [45.7, 41.25], [46.4, 41.05], [47.05, 40.77], [47.8, 40.35], [48.5, 40.0]] },
+    { name: "Euphrates", w: [0.9, 2.9], pts: [[41.3, 39.95], [40.5, 39.85], [39.5, 39.75], [39.0, 39.5], [38.8, 38.85], [38.6, 38.4], [38.3, 38.05], [38.1, 37.6], [37.95, 37.05],
+      [38.0, 36.75], [38.2, 36.3], [38.5, 35.95], [39.0, 35.85], [39.6, 35.95], [40.15, 35.35]] },
+    { name: "Murat", w: [0.7, 1.9], pts: [[43.7, 39.5], [43.0, 39.2], [42.5, 39.15], [41.9, 38.85], [41.5, 38.75], [40.5, 38.85], [39.6, 38.78], [38.85, 38.82]] },
+    { name: "Tigris", w: [0.8, 2.6], pts: [[39.45, 38.5], [39.9, 38.2], [40.2, 37.9], [40.7, 37.75], [41.5, 37.7], [42.2, 37.3], [42.6, 37.1], [43.0, 36.6], [43.15, 36.3], [43.3, 35.9], [43.5, 35.4]] },
+    { name: "Orontes", w: [0.7, 1.7], pts: [[36.7, 34.7], [36.75, 35.15], [36.45, 35.5], [36.33, 35.82], [36.35, 36.1], [36.16, 36.2], [35.95, 36.05]] },
+    { name: "Hrazdan", w: [0.6, 1.4], pts: [[44.95, 40.55], [44.7, 40.4], [44.5, 40.18], [44.42, 39.95]] },
+    { name: "Akhurian", w: [0.6, 1.4], pts: [[43.6, 41.15], [43.8, 40.8], [43.7, 40.4], [43.65, 40.12]] },
+    { name: "Vorotan", w: [0.6, 1.5], pts: [[45.7, 39.65], [45.85, 39.6], [46.03, 39.52], [46.25, 39.47], [46.45, 39.38], [46.6, 39.25]] },
+    { name: "Hakari", w: [0.6, 1.6], pts: [[46.2, 40.05], [46.35, 39.86], [46.5, 39.72], [46.55, 39.63], [46.55, 39.5], [46.6, 39.25], [46.75, 39.12], [46.85, 39.05]] },
+    { name: "Karkar", w: [0.5, 1.3], pts: [[46.58, 39.78], [46.68, 39.8], [46.75, 39.82], [46.85, 39.9], [46.95, 39.97], [47.15, 40.05], [47.4, 40.12]] },
+    { name: "Voghji", w: [0.5, 1.2], pts: [[46.0, 39.22], [46.2, 39.2], [46.4, 39.2], [46.6, 39.1], [46.8, 38.98]] },
+  ],
+  ridges: [      // chains of small peaks; size in map units before the chart's relief factor
+    { size: 12, pts: [[36.0, 40.55], [38.0, 40.45], [40.0, 40.5], [41.3, 40.75]] },                       // the Pontic mountains
+    { size: 13, pts: [[33.6, 37.0], [34.8, 37.35], [36.0, 37.7], [37.3, 38.0]] },                         // the Taurus
+    { size: 11, pts: [[36.3, 38.2], [37.3, 38.9], [38.2, 39.3]] },                                        // the Anti-Taurus
+    { size: 13, pts: [[38.6, 38.3], [40.0, 38.5], [41.5, 38.45], [42.8, 38.1], [43.8, 37.6], [44.5, 37.3]] }, // the Armenian Taurus
+    { size: 12, pts: [[44.8, 37.0], [45.4, 36.6], [45.9, 36.0]] },                                        // the northern Zagros
+    { size: 11, pts: [[43.6, 41.1], [44.5, 40.85], [45.4, 40.75], [46.2, 40.45]] },                       // the Lesser Caucasus
+    { size: 10, pts: [[44.75, 40.2], [45.0, 39.95]] },                                                    // Gegham
+    { size: 13, pts: [[45.92, 39.98], [46.0, 39.55], [46.15, 39.1], [46.3, 38.9]] },                       // the Zangezur range
+    { size: 11, pts: [[46.38, 40.15], [46.5, 39.88], [46.62, 39.58], [46.82, 39.35]] },                    // the Karabakh range
+    { size: 12, pts: [[45.9, 40.3], [46.6, 40.3]] },                                                      // Mrav
+    { size: 9, pts: [[36.2, 36.3], [36.35, 36.7], [36.5, 37.1]] },                                        // the Amanus
+    { size: 10, pts: [[46.9, 39.75], [47.1, 39.6], [47.2, 39.47]] },                                      // the eastern foothills of Artsakh
+  ],
+  peaks: [       // lone summits: [lon, lat, width, height, snow, dome]
+    [44.2, 40.53, 30, 26, 0.38, 0],     // Aragats
+    [42.83, 38.93, 26, 22, 0.35, 0],    // Suphan
+    [35.45, 38.53, 26, 24, 0.35, 0],    // Erciyes
+    [46.0, 39.17, 22, 20, 0.3, 0],      // Kaputjugh
+    [46.66, 39.6, 22, 18, 0, 0],        // Kirs
+  ],
+  ararat: [44.3, 39.7],
+};
+
+// longitude/latitude -> chart units through a chart's bounds (an equirectangular sheet)
+function mapGeoXY(chart, lon, lat) {
+  const g = MAP_CHARTS[chart].geo;
+  return [(lon - g.lon[0]) / (g.lon[1] - g.lon[0]) * MAP_W, (g.lat[1] - lat) / (g.lat[1] - g.lat[0]) * MAP_H];
+}
+// a node placed by its real position; nudge (in chart units) parts nodes that stand closer than their plates
+function mapGeoNode(chart, lon, lat, nudge) {
+  const p = mapGeoXY(chart, lon, lat);
+  return Object.assign({ x: Math.round(p[0] + (nudge ? nudge[0] : 0)), y: Math.round(p[1] + (nudge ? nudge[1] : 0)) }, nudge && nudge[2] ? { plate: nudge[2] } : null);
+}
+
+// one entry per battlefield, in the units of its chapter's chart. plate: [dx, dy] moves the nameplate off the default spot below
 const MAP_NODES = [
   { x: 372, y: 162 },   // 782 BC — Erebuni, the Ararat plain
   { x: 180, y: 272 },   // 714 BC — Vale of Tushpa, Lake Van
@@ -31485,12 +32070,19 @@ const MAP_NODES = [
   { x: 500, y: 64 },    // 910 AD — Lori Gates, the northern gorges
   { x: 580, y: 150 },   // 921 AD — Sevan Shores, the Iron King's stand
   { x: 134, y: 118 },   // 1579 AD — Gyumri Road, plain of Shirak
+  mapGeoNode("anatolia", 46.33, 39.2),                  // 1727 — Halidzor above Kapan, Syunik
+  mapGeoNode("anatolia", 43.38, 38.5),                  // 1915 — Van, on the eastern shore of its lake
+  mapGeoNode("anatolia", 35.95, 36.15),                 // 1915 — Musa Dagh on the Cilician coast
+  mapGeoNode("anatolia", 44.0, 40.1, [0, 0, [-100, -28]]), // 1918 — Sardarapat on the Ararat plain (plate to its west, clear of Ararat)
+  mapGeoNode("artsakh", 46.75, 39.82, [-10, -10]),      // 1992 — Stepanakert
+  mapGeoNode("artsakh", 46.75, 39.76, [-24, 32]),       // 2020 — Shushi, on its plateau just south of the capital
+  mapGeoNode("artsakh", 46.75, 39.82, [158, -6]),       // 2023 — Stepanakert again, drawn on its eastern approaches
 ];
-const MAP_W = 720, MAP_H = 400;
-// the map is authored in MAP_W x MAP_H units and painted at three times that, so it stays sharp at full width
+// the map is painted at three times its units, so it stays sharp at full width
 const MAP_BACKING = 3;
 const MAP_INK = "rgba(38, 24, 12, .8)";
-// the road from each fortress to the next: the two control points of a cubic, bent to keep clear of plates and peaks
+// the road from each fortress to the next (index i: from level i to i + 1): the two control points of a cubic,
+// bent to keep clear of plates and peaks. Roads are drawn only inside a chapter; null bends a road on its own.
 const MAP_ROADS = [
   [298, 174, 232, 212],
   [275, 224, 372, 230],
@@ -31498,8 +32090,15 @@ const MAP_ROADS = [
   [520, 236, 446, 128],
   [566, 62, 590, 100],
   [427, 114, 280, 103],
+  null,                     // Gyumri -> Halidzor runs between chapters: not drawn
+  null,                     // Halidzor -> Van
+  [400, 300, 250, 330],     // Van -> Musa Dagh, south through Mesopotamia
+  [140, 180, 330, 70],      // Musa Dagh -> Sardarapat, north over Anatolia
+  null, null, null, null,
 ];
-const MAP_FORTS = ["citadel", "crag", "ford", "dome", "gorge", "isle", "tuff"];
+// the fortress vignette of each node; new battlefields borrow the existing kinds until their own are drawn
+const MAP_FORTS = ["citadel", "crag", "ford", "dome", "gorge", "isle", "tuff",
+  "gorge", "crag", "crag", "ford", "citadel", "crag", "dome"];
 let mapHover = -1;
 
 function levelBestAnyEra(i) {
@@ -31519,8 +32118,6 @@ function highestUnlocked() {
   return h;
 }
 
-// inked parchment chart of the Armenian plateau, drawn once and cached
-let terrainCanvas = null;
 
 // closed hand-cut shape through a ring of points
 function mapBlobPath(c, pts) {
@@ -31802,13 +32399,199 @@ function mapCompass(c, x, y, r) {
   c.fillText("N", x, y - r - 3);
 }
 
-function buildWorldTerrain() {
-  const W = MAP_W, H = MAP_H;
-  terrainCanvas = document.createElement("canvas");
-  terrainCanvas.width = W * MAP_BACKING; terrainCanvas.height = H * MAP_BACKING;
-  const tc = terrainCanvas.getContext("2d");
+// The hand-placed chart of the Armenian plateau (chapters I and II), in chart units, in the form every chart
+// is painted from (see buildWorldTerrain). Order inside each list is paint order.
+const MAP_HIGHLANDS = {
+  seed: 42,
+  // flat land tints: umber highlands, green-ochre plains, woodland
+  hills: [
+    [[214, 70], [300, 64], [420, 20], [650, 18], [640, 44], [450, 52], [410, 96], [300, 100], [226, 98]],
+    [[220, 124], [266, 112], [312, 136], [310, 174], [262, 182], [222, 170]],
+    [[636, 176], [704, 168], [708, 330], [676, 338], [652, 300], [654, 230]],
+    [[20, 352], [120, 342], [216, 352], [222, 388], [20, 388]],
+    [[436, 362], [500, 356], [566, 362], [572, 388], [436, 388]],
+    [[226, 300], [296, 262], [372, 296], [420, 340], [404, 366], [236, 364]],
+  ],
+  plains: [
+    [[196, 232], [280, 212], [384, 214], [456, 232], [520, 268], [610, 312], [668, 344], [600, 362], [520, 338], [452, 316], [410, 262], [300, 252], [222, 252]],
+    [[80, 104], [146, 82], [212, 100], [226, 150], [204, 190], [130, 194], [80, 164]],
+    [[112, 262], [150, 236], [226, 250], [246, 300], [222, 336], [130, 334]],
+  ],
+  woodTints: [
+    [[552, 26], [636, 30], [646, 96], [606, 110], [574, 84]],
+    [[366, 44], [444, 46], [452, 78], [404, 92], [362, 72]],
+    [[26, 326], [112, 322], [124, 348], [30, 352]],
+  ],
+  // water: the Araxes with its tributary, the Debed in the north, lakes Van and Sevan
+  rivers: [
+    { pts: [[186, 70], [195, 100], [211, 138], [216, 176], [206, 204], [197, 219]], w0: 0.7, w1: 1.9 },
+    { pts: [[12, 196], [70, 204], [140, 213], [197, 219], [262, 224], [330, 224], [392, 228], [434, 246], [456, 268], [468, 292],
+      [502, 300], [540, 309], [590, 328], [650, 344], [708, 350]], w0: 1.4, w1: 3.3 },
+    { pts: [[527, 72], [537, 52], [553, 34], [570, 12]], w0: 0.7, w1: 1.9 },
+  ],
+  lakes: [
+    { pts: [[20, 284], [38, 263], [72, 256], [98, 266], [106, 288], [93, 311], [60, 320], [30, 309]], ripples: [[36, 276, 22], [64, 305, 24], [78, 272, 16]] },
+    { pts: [[600, 122], [622, 108], [652, 114], [678, 134], [682, 156], [660, 164], [632, 154], [610, 142]], ripples: [[622, 120, 18], [652, 154, 18]] },
+  ],
+  // relief: chains of small inked peaks along the ridge lines
+  ridges: [
+    { pts: [[336, 40], [392, 33], [440, 38]], count: 8, size: 13 },              // Lesser Caucasus
+    { pts: [[236, 90], [300, 86], [356, 90], [392, 96]], count: 9, size: 12 },    // Pambak chain
+    { pts: [[650, 196], [696, 190]], count: 4, size: 13 },                        // Gegham–Vardenis
+    { pts: [[672, 226], [690, 270], [680, 322]], count: 8, size: 14 },            // Zangezur chain
+    { pts: [[34, 372], [110, 376], [204, 370]], count: 12, size: 14 },            // Armenian Taurus
+    { pts: [[452, 374], [500, 378], [552, 373]], count: 6, size: 10 },            // hills of the far bank
+  ],
+  // Aragats, the four-peaked massif
+  peaks: [[294, 170, 26, 22, 0.3, 0], [238, 170, 32, 30, 0.34, 0], [278, 171, 34, 37, 0.38, 0], [257, 172, 38, 44, 0.4, 0]],
+  ararat: { x: 294, base: 354, k: 1 },
+  // grass tufts across the open plains
+  tufts: [[96, 150], [168, 178], [112, 182], [262, 238], [338, 246], [404, 240], [470, 232], [500, 250], [612, 318],
+    [566, 340], [636, 336], [150, 250], [228, 300], [452, 150], [476, 196], [528, 130], [330, 122], [396, 122], [56, 232], [118, 228]],
+  // woods: Lori's forests and the Taurus foothills
+  woods: [[574, 34, 636, 98, 22, 0.55], [372, 54, 440, 82, 12, 0.55], [34, 334, 112, 348, 9, 0.2], [208, 328, 236, 346, 4, 0.2]],
+  labels: [
+    ["Lake Van", 62, 293, 11.5, "#1d4053"],
+    ["Lake Sevan", 643, 140, 11, "#1d4053"],
+    ["Mt. Ararat", 312, 376, 12, "#3a2612"],
+    ["Araxes", 618, 366, 11.5, "#1d4053", 0.2],
+  ],
+  compass: [676, 54, 23],
+  cartouche: "tl",
+};
+
+// a projected chart's features in chart units, built once from MAP_GEO through the chart's bounds
+function mapGeoSpec(id) {
+  const C = MAP_CHARTS[id], P = (lon, lat) => mapGeoXY(id, lon, lat), ring = pts => pts.map(q => P(q[0], q[1]));
+  const box = pts => {
+    const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
+  const seen = b => b[2] > -20 && b[0] < MAP_W + 20 && b[3] > -20 && b[1] < MAP_H + 20;
+  const keep = list => list.map(ring).filter(r => seen(box(r)));
+  const relief = C.relief || 1, G = MAP_GEO;
+  const spec = { seed: C.seed || 42, cartouche: C.cartouche || "tl", compass: C.compass || [676, 54, 23] };
+  spec.seas = G.seas.map(s => ({ ring: ring(s.ring), islands: s.islands.map(ring) })).filter(s => seen(box(s.ring)));
+  spec.hills = keep(G.highlands);
+  spec.plains = keep(G.plains);
+  spec.woodTints = keep(G.forests.map(f => f.ring));
+  spec.rivers = G.rivers.map(r => ({ pts: ring(r.pts), w0: r.w[0] * (C.rivers || 1), w1: r.w[1] * (C.rivers || 1) })).filter(r => seen(box(r.pts)));
+  spec.lakes = G.lakes.map(l => {
+    const pts = ring(l.pts), b = box(pts), w = b[2] - b[0], h = b[3] - b[1], cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+    return { pts, ripples: w > 34 ? [[cx - w * 0.3, cy - h * 0.18, w * 0.3], [cx, cy + h * 0.22, w * 0.28]] : [], b };
+  }).filter(l => seen(l.b));
+  spec.ridges = G.ridges.concat(C.ridges || []).map(r => {
+    const pts = ring(r.pts), size = r.size * relief;
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    return { pts, size, count: Math.max(2, Math.min(18, Math.round(len / (size * 1.15)))), b: box(pts) };
+  }).filter(r => seen(r.b));
+  spec.peaks = G.peaks.map(p => { const q = P(p[0], p[1]); return [q[0], q[1], p[2] * relief, p[3] * relief, p[4], p[5]]; })
+    .filter(p => p[0] > 0 && p[0] < MAP_W && p[1] > 0 && p[1] < MAP_H + 10);
+  if (C.araratK) { const q = P(G.ararat[0], G.ararat[1]); spec.ararat = { x: q[0] - 40 * C.araratK, base: q[1] + 10 * C.araratK, k: C.araratK }; }
+  // grass tufts scattered over the plains that lie on the sheet
+  spec.tufts = [];
+  const r = mulberry32(spec.seed * 7 + 3);
+  for (const pl of spec.plains) {
+    const b = box(pl), path = new Path2D();
+    pl.forEach((q, i) => (i ? path.lineTo(q[0], q[1]) : path.moveTo(q[0], q[1])));
+    path.closePath();
+    const probe = document.createElement("canvas").getContext("2d");
+    for (let i = 0, n = 0; i < 80 && n < 9; i++) {
+      const x = b[0] + r() * (b[2] - b[0]), y = b[1] + r() * (b[3] - b[1]);
+      if (x > 16 && x < MAP_W - 16 && y > 16 && y < MAP_H - 16 && probe.isPointInPath(path, x, y)) { spec.tufts.push([x, y]); n++; }
+    }
+  }
+  spec.woods = G.forests.map(f => {
+    const a = P(f.box[0], f.box[1]), b = P(f.box[2], f.box[3]);
+    const area = Math.abs((b[0] - a[0]) * (b[1] - a[1]));
+    return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(2, Math.min(110, Math.round(area / 260 * (C.trees || 1)))), f.fir];
+  }).filter(w => seen(w));
+  spec.routes = (C.routes || []).map(ring);
+  spec.towns = (C.towns || []).map(t => [t[0]].concat(P(t[1], t[2])));
+  spec.labels = (C.labels || []).map(l => [l[0]].concat(P(l[1], l[2]), [l[3], l[4] === "water" ? "#1d4053" : "#3a2612", l[5] || 0]));
+  return spec;
+}
+
+// open water reaching off the sheet: the lakes' fill and lining, a shoreline in ink, a few wave strokes
+function mapSea(c, sea, rand) {
+  // each ring is drawn as the lakes are, a hand-cut curve through the midpoints of its points
+  const path = new Path2D(), add = pts => {
+    const n = pts.length;
+    path.moveTo((pts[n - 1][0] + pts[0][0]) / 2, (pts[n - 1][1] + pts[0][1]) / 2);
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      path.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+    }
+    path.closePath();
+  };
+  add(sea.ring);
+  sea.islands.forEach(add);
+  c.save();
+  c.fillStyle = "#8dbcc0";
+  c.fill(path, "evenodd");
+  c.clip(path, "evenodd");
+  c.lineJoin = "round";
+  c.strokeStyle = "rgba(30, 58, 74, .42)";
+  c.lineWidth = 4.6;
+  c.stroke(path);
+  c.strokeStyle = "#8dbcc0";
+  c.lineWidth = 3.2;
+  c.stroke(path);
+  c.strokeStyle = "rgba(30, 58, 74, .45)";
+  c.lineWidth = 0.8;
+  c.lineCap = "round";
+  for (let i = 0; i < 60; i++) {
+    const x = rand() * MAP_W, y = rand() * MAP_H, w = 10 + rand() * 12;
+    if (!c.isPointInPath(path, x, y, "evenodd") || !c.isPointInPath(path, x + w, y, "evenodd")) continue;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + w * 0.25, y - 1.6, x + w * 0.5, y);
+    c.quadraticCurveTo(x + w * 0.75, y + 1.6, x + w, y);
+    c.stroke();
+  }
+  c.restore();
+  c.strokeStyle = "rgba(30, 58, 74, .9)";
+  c.lineWidth = 1.3;
+  c.lineJoin = "round";
+  c.stroke(path);
+}
+
+// Masis and Sis, the twin peaks of Ararat, with their ground shadow and the reed lines at their foot; k scales the group
+function mapArarat(c, x, base, k) {
+  c.fillStyle = "rgba(92, 62, 30, .2)";
+  c.beginPath();
+  c.moveTo(x + 6 * k, base);
+  c.lineTo(x + 106 * k, base);
+  c.quadraticCurveTo(x + 138 * k, base - 2 * k, x + 150 * k, base + 6 * k);
+  c.quadraticCurveTo(x + 106 * k, base + 12 * k, x + 28 * k, base + 9 * k);
+  c.closePath();
+  c.fill();
+  mapPeak(c, x, base, 152 * k, 80 * k, 0.4, 5 * k);
+  mapPeak(c, x + 72 * k, base, 70 * k, 48 * k, 0.28, 0);
+  c.strokeStyle = MAP_INK;
+  c.lineWidth = 0.8;
+  c.beginPath();
+  for (const tuft of [[-58, 3, 14], [-30, 5, 20], [24, 5, 16], [58, 4, 10], [88, 4, 14]]) {
+    c.moveTo(x + tuft[0] * k, base + tuft[1] * k);
+    c.lineTo(x + (tuft[0] + tuft[2]) * k, base + tuft[1] * k);
+  }
+  c.stroke();
+}
+
+// Paints one chart (an id of MAP_CHARTS) onto its own canvas: the parchment sheet, then the chart's features
+// in a fixed order, the compass, the title cartouche and the braided border.
+const terrainCanvases = {};
+function buildWorldTerrain(id) {
+  id = MAP_CHARTS[id] ? id : "highlands";
+  const W = MAP_W, H = MAP_H, chart = MAP_CHARTS[id];
+  const spec = chart.geo ? mapGeoSpec(id) : MAP_HIGHLANDS;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * MAP_BACKING; canvas.height = H * MAP_BACKING;
+  terrainCanvases[id] = canvas;
+  const tc = canvas.getContext("2d");
   tc.scale(MAP_BACKING, MAP_BACKING);
-  const rand = mulberry32(42);
+  const rand = mulberry32(spec.seed);
 
   // the sheet: warm parchment, darker toward the edges, a faint grain of specks and fibres
   const sheet = tc.createLinearGradient(0, 0, W, H);
@@ -31836,79 +32619,26 @@ function buildWorldTerrain() {
   }
   tc.stroke();
 
-  // flat land tints: umber highlands, green-ochre plains, woodland
+  // land tints, then the seas over their edges
   tc.fillStyle = "rgba(176, 128, 74, .2)";
-  for (const hill of [
-    [[214, 70], [300, 64], [420, 20], [650, 18], [640, 44], [450, 52], [410, 96], [300, 100], [226, 98]],
-    [[220, 124], [266, 112], [312, 136], [310, 174], [262, 182], [222, 170]],
-    [[636, 176], [704, 168], [708, 330], [676, 338], [652, 300], [654, 230]],
-    [[20, 352], [120, 342], [216, 352], [222, 388], [20, 388]],
-    [[436, 362], [500, 356], [566, 362], [572, 388], [436, 388]],
-    [[226, 300], [296, 262], [372, 296], [420, 340], [404, 366], [236, 364]],
-  ]) { mapBlobPath(tc, hill); tc.fill(); }
+  for (const hill of spec.hills) { mapBlobPath(tc, hill); tc.fill(); }
   tc.fillStyle = "rgba(150, 160, 84, .36)";
-  for (const plain of [
-    [[196, 232], [280, 212], [384, 214], [456, 232], [520, 268], [610, 312], [668, 344], [600, 362], [520, 338], [452, 316], [410, 262], [300, 252], [222, 252]],
-    [[80, 104], [146, 82], [212, 100], [226, 150], [204, 190], [130, 194], [80, 164]],
-    [[112, 262], [150, 236], [226, 250], [246, 300], [222, 336], [130, 334]],
-  ]) { mapBlobPath(tc, plain); tc.fill(); }
+  for (const plain of spec.plains) { mapBlobPath(tc, plain); tc.fill(); }
   tc.fillStyle = "rgba(104, 136, 70, .32)";
-  for (const wood of [
-    [[552, 26], [636, 30], [646, 96], [606, 110], [574, 84]],
-    [[366, 44], [444, 46], [452, 78], [404, 92], [362, 72]],
-    [[26, 326], [112, 322], [124, 348], [30, 352]],
-  ]) { mapBlobPath(tc, wood); tc.fill(); }
+  for (const wood of spec.woodTints) { mapBlobPath(tc, wood); tc.fill(); }
+  for (const sea of spec.seas || []) mapSea(tc, sea, rand);
 
-  // water: the Araxes with its tributary, the Debed in the north, lakes Van and Sevan
-  mapRiver(tc, [[186, 70], [195, 100], [211, 138], [216, 176], [206, 204], [197, 219]], 0.7, 1.9);
-  mapRiver(tc, [[12, 196], [70, 204], [140, 213], [197, 219], [262, 224], [330, 224], [392, 228], [434, 246], [456, 268], [468, 292],
-    [502, 300], [540, 309], [590, 328], [650, 344], [708, 350]], 1.4, 3.3);
-  mapRiver(tc, [[527, 72], [537, 52], [553, 34], [570, 12]], 0.7, 1.9);
-  mapLake(tc, [[20, 284], [38, 263], [72, 256], [98, 266], [106, 288], [93, 311], [60, 320], [30, 309]],
-    [[36, 276, 22], [64, 305, 24], [78, 272, 16]]);
-  mapLake(tc, [[600, 122], [622, 108], [652, 114], [678, 134], [682, 156], [660, 164], [632, 154], [610, 142]],
-    [[622, 120, 18], [652, 154, 18]]);
+  for (const r of spec.rivers) mapRiver(tc, r.pts, r.w0, r.w1);
+  for (const l of spec.lakes) mapLake(tc, l.pts, l.ripples);
+  for (const r of spec.ridges) mapRidge(tc, r.pts, r.count, r.size, rand);
+  for (const p of spec.peaks) mapPeak(tc, p[0], p[1], p[2], p[3], p[4], p[5]);
+  if (spec.ararat) mapArarat(tc, spec.ararat.x, spec.ararat.base, spec.ararat.k);
 
-  // relief: chains of small inked peaks along the ridge lines
-  mapRidge(tc, [[336, 40], [392, 33], [440, 38]], 8, 13, rand);           // Lesser Caucasus
-  mapRidge(tc, [[236, 90], [300, 86], [356, 90], [392, 96]], 9, 12, rand); // Pambak chain
-  mapRidge(tc, [[650, 196], [696, 190]], 4, 13, rand);                     // Gegham–Vardenis
-  mapRidge(tc, [[672, 226], [690, 270], [680, 322]], 8, 14, rand);         // Zangezur chain
-  mapRidge(tc, [[34, 372], [110, 376], [204, 370]], 12, 14, rand);         // Armenian Taurus
-  mapRidge(tc, [[452, 374], [500, 378], [552, 373]], 6, 10, rand);         // hills of the far bank
-  // Aragats, the four-peaked massif
-  mapPeak(tc, 294, 170, 26, 22, 0.3, 0);
-  mapPeak(tc, 238, 170, 32, 30, 0.34, 0);
-  mapPeak(tc, 278, 171, 34, 37, 0.38, 0);
-  mapPeak(tc, 257, 172, 38, 44, 0.4, 0);
-
-  // Masis and Sis: the twin peaks of Ararat with their ground shadow
-  tc.fillStyle = "rgba(92, 62, 30, .2)";
-  tc.beginPath();
-  tc.moveTo(300, 354);
-  tc.lineTo(400, 354);
-  tc.quadraticCurveTo(432, 352, 444, 360);
-  tc.quadraticCurveTo(400, 366, 322, 363);
-  tc.closePath();
-  tc.fill();
-  mapPeak(tc, 294, 354, 152, 80, 0.4, 5);
-  mapPeak(tc, 366, 354, 70, 48, 0.28, 0);
-  tc.strokeStyle = MAP_INK;
-  tc.lineWidth = 0.8;
-  tc.beginPath();
-  for (const tuft of [[236, 357, 14], [264, 359, 20], [318, 359, 16], [352, 358, 10], [382, 358, 14]]) {
-    tc.moveTo(tuft[0], tuft[1]);
-    tc.lineTo(tuft[0] + tuft[2], tuft[1]);
-  }
-  tc.stroke();
-
-  // grass tufts across the open plains
   tc.strokeStyle = "rgba(38, 24, 12, .42)";
   tc.lineWidth = 0.7;
   tc.lineCap = "round";
   tc.beginPath();
-  for (const tuft of [[96, 150], [168, 178], [112, 182], [262, 238], [338, 246], [404, 240], [470, 232], [500, 250], [612, 318],
-    [566, 340], [636, 336], [150, 250], [228, 300], [452, 150], [476, 196], [528, 130], [330, 122], [396, 122], [56, 232], [118, 228]]) {
+  for (const tuft of spec.tufts) {
     for (const lean of [-1.5, 0, 1.5]) {
       tc.moveTo(tuft[0] + lean * 0.5, tuft[1]);
       tc.lineTo(tuft[0] + lean, tuft[1] - 2.8 + Math.abs(lean) * 0.5);
@@ -31916,25 +32646,43 @@ function buildWorldTerrain() {
   }
   tc.stroke();
 
-  // woods: Lori's forests and the Taurus foothills
-  mapWoods(tc, 574, 34, 636, 98, 22, rand, 0.55);
-  mapWoods(tc, 372, 54, 440, 82, 12, rand, 0.55);
-  mapWoods(tc, 34, 334, 112, 348, 9, rand, 0.2);
-  mapWoods(tc, 208, 328, 236, 346, 4, rand, 0.2);
+  for (const w of spec.woods) mapWoods(tc, w[0], w[1], w[2], w[3], w[4], rand, w[5]);
+  // old roads in fine dotted ink (the Lachin corridor)
+  for (const route of spec.routes || []) {
+    tc.save();
+    tc.setLineDash([2.4, 2.6]);
+    tc.lineCap = "round"; tc.lineJoin = "round";
+    for (const pass of [["rgba(244, 232, 200, .8)", 3.4], ["rgba(70, 44, 20, .85)", 1.3]]) {
+      tc.strokeStyle = pass[0];
+      tc.lineWidth = pass[1];
+      tc.beginPath();
+      route.forEach((q, i) => (i ? tc.lineTo(q[0], q[1]) : tc.moveTo(q[0], q[1])));
+      tc.stroke();
+    }
+    tc.restore();
+  }
+  for (const t of spec.towns || []) {
+    tc.beginPath(); tc.arc(t[1], t[2], 2.3, 0, Math.PI * 2);
+    tc.fillStyle = "#a8322a"; tc.fill();
+    tc.strokeStyle = MAP_INK; tc.lineWidth = 0.8; tc.stroke();
+    tc.font = "600 9.5px " + UI_FONT;
+    tc.textAlign = "left";
+    tc.fillStyle = "#3a2612";
+    tc.fillText(t[0], t[1] + 5, t[2] + 3.4);
+  }
+  for (const l of spec.labels) mapLabel(tc, l[0], l[1], l[2], l[3], l[4], l[5]);
 
-  mapLabel(tc, "Lake Van", 62, 293, 11.5, "#1d4053");
-  mapLabel(tc, "Lake Sevan", 643, 140, 11, "#1d4053");
-  mapLabel(tc, "Mt. Ararat", 312, 376, 12, "#3a2612");
-  mapLabel(tc, "Araxes", 618, 366, 11.5, "#1d4053", 0.2);
+  mapCompass(tc, spec.compass[0], spec.compass[1], spec.compass[2]);
 
-  mapCompass(tc, 676, 54, 23);
-
-  // title cartouche on its own plate
+  // title cartouche on its own plate, in the chart's upper-left or lower-right corner
+  const title = chart.title, caption = chart.caption;
   tc.font = "700 16px " + UI_FONT;
-  const titleW = tc.measureText("The Armenian Highlands").width;
+  const titleW = tc.measureText(title).width;
   tc.font = "italic 11px " + UI_FONT;
-  const caption = "March from fortress to fortress — each stand won opens the next road.";
   const plateW = Math.max(titleW + 30, tc.measureText(caption).width) + 26;
+  const px = spec.cartouche === "br" ? Math.round(W - 20 - plateW) : 20, py = spec.cartouche === "br" ? H - 64 : 20;
+  tc.save();
+  tc.translate(px - 20, py - 20);
   tc.fillStyle = "rgba(58, 36, 14, .3)";
   tc.fillRect(21.5, 22, plateW, 44);
   tc.fillStyle = "#f5e9c9";
@@ -31960,10 +32708,11 @@ function buildWorldTerrain() {
   tc.textAlign = "left";
   tc.fillStyle = "#2c1e10";
   tc.font = "700 16px " + UI_FONT;
-  tc.fillText("The Armenian Highlands", 52, 41.5);
+  tc.fillText(title, 52, 41.5);
   tc.font = "italic 11px " + UI_FONT;
   tc.fillStyle = "#4a3318";
   tc.fillText(caption, 33, 56);
+  tc.restore();
 
   // braided inner border in crimson and bronze between two ink rules
   tc.fillStyle = "#cfb47c";
@@ -31988,6 +32737,7 @@ function buildWorldTerrain() {
     tc.closePath();
     tc.fill();
   }
+  return canvas;
 }
 
 // ---- fortress vignettes for the map nodes ----
@@ -32282,20 +33032,31 @@ function drawMapPlate(m, cx, top, name, status, look) {
   m.textAlign = "left";
 }
 
+// the chapter on the map's page is always the one holding the chosen battlefield
+function mapChapter() { return chapterOf(curLevel); }
+function chapterReached(c) { return levelUnlocked(CHAPTERS[c].levels[0]); }
+// a road's control points: the authored ones, or a gentle bend to the left of the straight line
+function mapRoad(i) {
+  if (MAP_ROADS[i]) return MAP_ROADS[i];
+  const a = MAP_NODES[i], b = MAP_NODES[i + 1], dx = b.x - a.x, dy = b.y - a.y, k = 0.14;
+  return [a.x + dx / 3 + dy * k, a.y + 5 + dy / 3 - dx * k, a.x + dx * 2 / 3 + dy * k, a.y + 5 + dy * 2 / 3 - dx * k];
+}
+
 function renderWorldMap() {
   const cv = $("worldMap");
   if (cv.width !== MAP_W * MAP_BACKING) { cv.width = MAP_W * MAP_BACKING; cv.height = MAP_H * MAP_BACKING; }
   const m = cv.getContext("2d");
-
-  if (!terrainCanvas) buildWorldTerrain();
+  const ch = CHAPTERS[mapChapter()], lv = ch.levels;
+  const terrain = terrainCanvases[ch.chart] || buildWorldTerrain(ch.chart);
   m.setTransform(1, 0, 0, 1, 0, 0);
-  m.drawImage(terrainCanvas, 0, 0);
+  m.drawImage(terrain, 0, 0);
   m.setTransform(MAP_BACKING, 0, 0, MAP_BACKING, 0, 0);
+  syncChapterBar();
 
   // campaign road between nodes: dark ink where it has been marched, a faint dotted line where it is still closed
   m.lineCap = "round";
-  for (let i = 0; i < MAP_NODES.length - 1; i++) {
-    const a = MAP_NODES[i], b = MAP_NODES[i + 1], r = MAP_ROADS[i];
+  for (let k = 0; k < lv.length - 1; k++) {
+    const i = lv[k], a = MAP_NODES[i], b = MAP_NODES[i + 1], r = mapRoad(i);
     const open = levelUnlocked(i + 1);
     m.setLineDash(open ? [7, 5.5] : [1.5, 5.5]);
     m.strokeStyle = open ? "rgba(112, 44, 24, .95)" : "rgba(96, 62, 34, .46)";
@@ -32308,7 +33069,7 @@ function renderWorldMap() {
   m.setLineDash([]);
 
   // nodes
-  for (let i = 0; i < LEVELS.length; i++) {
+  for (const i of lv) {
     const n = MAP_NODES[i];
     const unlocked = levelUnlocked(i);
     const conquered = levelConquered(i);
@@ -32357,8 +33118,8 @@ function renderWorldMap() {
   }
 
   // nameplates last, so no glow or road ever runs over one
-  for (let i = 0; i < LEVELS.length; i++) {
-    const n = MAP_NODES[i];
+  for (const i of lv) {
+    const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
     const sel = i === curLevel;
     const best = levelBestAnyEra(i);
@@ -32366,7 +33127,7 @@ function renderWorldMap() {
       : !unlocked ? "Locked"
       : best >= 21 ? "Conquered"
       : best > 0 ? "Best: wave " + best : "Unconquered";
-    drawMapPlate(m, n.x, n.y + 21, LEVELS[i].name, status, { sel, locked: !unlocked, star: !sel && best >= 21 });
+    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, status, { sel, locked: !unlocked, star: !sel && best >= 21 });
   }
 }
 
@@ -32375,10 +33136,20 @@ function mapNodeAt(evt) {
   const r = cv.getBoundingClientRect();
   const mx = (evt.clientX - r.left) * (MAP_W / r.width);
   const my = (evt.clientY - r.top) * (MAP_H / r.height);
-  for (let i = 0; i < MAP_NODES.length; i++) {
+  for (const i of CHAPTERS[mapChapter()].levels) {
     if (Math.hypot(MAP_NODES[i].x - mx, MAP_NODES[i].y - my) < 34) return i;
   }
   return -1;
+}
+
+// choose a battlefield on the map: its date, age and tag become the subtitle
+function selectMapLevel(i) {
+  curLevel = i;
+  curEra = LEVELS[i].era;
+  applyEraLabels();
+  $("ovSub").textContent = LEVELS[i].date + " · " + ERAS[curEra].icon + " " +
+    ERAS[curEra].name + ". " + LEVELS[i].tag;
+  buildMenu();
 }
 
 $("worldMap").addEventListener("click", (evt) => {
@@ -32397,13 +33168,8 @@ $("worldMap").addEventListener("click", (evt) => {
     showBrief();
     return;
   }
-  curLevel = i;
-  curEra = LEVELS[i].era;
-  applyEraLabels();
-  $("ovSub").textContent = LEVELS[i].date + " · " + ERAS[curEra].icon + " " +
-    ERAS[curEra].name + ". " + LEVELS[i].tag;
   Snd.play("mapSelect");
-  buildMenu();
+  selectMapLevel(i);
 });
 $("worldMap").addEventListener("mousemove", (evt) => {
   const i = mapNodeAt(evt);
@@ -32414,6 +33180,62 @@ $("worldMap").addEventListener("mousemove", (evt) => {
     renderWorldMap();
   }
 });
+
+// ---- chapter tabs over the map ----
+// One tab per chapter, between two arrows; a chapter not yet reached is locked. Turning to a chapter
+// chooses its furthest open battlefield, and the first visit to a chapter opens its story.
+function chaptersSeen() {
+  try { return JSON.parse(localStorage.getItem("hs_chapters_seen") || "[]") || []; } catch (e) { return []; }
+}
+function markChapterSeen(c) {
+  const seen = chaptersSeen();
+  if (!seen.includes(c)) { seen.push(c); try { localStorage.setItem("hs_chapters_seen", JSON.stringify(seen)); } catch (e) {} }
+}
+function buildChapterBar() {
+  const bar = $("chapterTabs");
+  if (!bar || bar.childElementCount) return;
+  CHAPTERS.forEach((C, c) => {
+    const b = document.createElement("button");
+    b.className = "chTab";
+    b.dataset.ch = c;
+    b.innerHTML = '<span class="seal">' + escapeHtml(C.num) + '</span><span class="chName">' + escapeHtml(C.name) + "</span>";
+    b.addEventListener("click", () => { Snd.init(); turnChapter(c); });
+    bar.appendChild(b);
+  });
+  $("chPrev").addEventListener("click", () => { Snd.init(); turnChapter(mapChapter() - 1); });
+  $("chNext").addEventListener("click", () => { Snd.init(); turnChapter(mapChapter() + 1); });
+  $("chStory").addEventListener("click", () => { Snd.init(); showChapterIntro(mapChapter()); });
+}
+function syncChapterBar() {
+  buildChapterBar();
+  const cur = mapChapter(), seen = chaptersSeen();
+  document.querySelectorAll("#chapterTabs .chTab").forEach(b => {
+    const c = Number(b.dataset.ch), reached = chapterReached(c);
+    b.classList.toggle("selected", c === cur);
+    b.classList.toggle("locked", !reached);
+    b.classList.toggle("fresh", reached && c !== cur && !seen.includes(c));
+    b.title = (reached ? "" : "Locked: ") + "Chapter " + CHAPTERS[c].num + " · " + CHAPTERS[c].name + " · " + chapterSpan(c);
+    b.querySelector(".seal").innerHTML = reached ? escapeHtml(CHAPTERS[c].num) : icon("lock");
+  });
+  $("chPrev").disabled = cur <= 0;
+  $("chNext").disabled = cur >= CHAPTERS.length - 1 || !chapterReached(cur + 1);
+}
+function turnChapter(c) {
+  if (c < 0 || c >= CHAPTERS.length || menuMode !== "map") return;
+  if (c === mapChapter()) return;
+  if (!chapterReached(c)) {
+    const first = CHAPTERS[c].levels[0];
+    toast("🔒 Conquer " + LEVELS[first - 1].name + " to open Chapter " + CHAPTERS[c].num + "!");
+    Snd.play("mapLocked");
+    return;
+  }
+  let i = CHAPTERS[c].levels[0];
+  for (const k of CHAPTERS[c].levels) if (levelUnlocked(k)) i = k;
+  mapHover = -1;
+  Snd.play("mapSelect");
+  selectMapLevel(i);
+  if (!chaptersSeen().includes(c)) showChapterIntro(c);
+}
 
 // newly opened roads get a fanfare and a golden pulse on their node
 let unlockFx = null, unlockFxTimer = null;
@@ -32446,7 +33268,7 @@ function checkNewUnlocks() {
   } catch (e) {}
 }
 
-let menuMode = "map";   // "map" → world map; "brief" → history chronicle
+let menuMode = "map";   // "map" → world map; "brief" → history chronicle; "chapter" → a chapter's story
 
 function showMenu(crest, title, sub, btnText, offerEndless) {
   menuMode = "map";
@@ -32458,6 +33280,8 @@ function showMenu(crest, title, sub, btnText, offerEndless) {
   $("ovCrest").innerHTML = icon(crestIconName(crest));
   $("ovTitle").textContent = title;
   $("ovRubric").textContent = "";
+  clearLeaf();
+  introReturn = null;
   $("ovSub").innerHTML = richText(sub);
   $("startBtn").textContent = btnText;
   buildMenu();
@@ -32478,6 +33302,15 @@ const BRIEF_CROPS = [
   { x: 528, w: 290, gate: 0.36 },   // Lori: the monastery on the gorge rim
   { x: 642, w: 256, gate: 0.5 },    // Sevan: the island monastery
   { x: 384, w: 300, gate: 0.5 },    // Gyumri: the black-tuff city under Aragats
+  // levels 7-13: PLACEHOLDER crops framing their stand-in skylines (see BACKDROP_STANDIN); re-frame once
+  // each battlefield's own backdrop is painted
+  { x: 528, w: 290, gate: 0.36 },   // Halidzor (stand-in: the Lori gorge rim)
+  { x: 318, w: 384, gate: 0.62 },   // Van 1915 (stand-in: the Rock of Van)
+  { x: 600, w: 320, gate: 0.45 },   // Musa Dagh (stand-in: the Sevan shore)
+  { x: 760, w: 440, gate: 0.55 },   // Sardarapat (stand-in: Masis over the plain)
+  { x: 360, w: 340, gate: 0.5 },    // Stepanakert 1992 (stand-in: winter under Aragats)
+  { x: 300, w: 360, gate: 0.4 },    // Shushi (stand-in: the citadel rock)
+  { x: 296, w: 264, gate: 0.6 },    // Stepanakert 2023 (stand-in: the walled city)
 ];
 const BRIEF_FRAME = 38;   // width of the miniature's border, in canvas pixels
 const BRIEF_ARCH = 196;   // rise of its arched head
@@ -32750,13 +33583,14 @@ function mosaicCut(level, W, H, x0, y0, x1, y1, px) {
   tiles.sort((a, b) => a.at - b.at);
   return tiles;
 }
-function startBriefMosaic() {
+function startBriefMosaic(lvl) {
   const cv = $("briefArt");
+  if (lvl === undefined) lvl = curLevel;
   if (briefMosaic) { cancelAnimationFrame(briefMosaic.raf); briefMosaic = null; }
-  if (!cv || cv.style.display === "none" || !briefPainting || briefPaintingLevel !== curLevel) return;
+  if (!cv || cv.style.display === "none" || !briefPainting || briefPaintingLevel !== lvl) return;
   const W = cv.width, H = cv.height, F = BRIEF_FRAME, c = cv.getContext("2d");
   const x0 = F + 7, y0 = F + 14, x1 = W - F - 7, y1 = H - F;   // inset so the gilt moulding stays untouched
-  const level = curLevel;
+  const level = lvl;
   const finished = mosaicFinal.get(level);
   const still = HARNESS_ON || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   // the bedding: the leaf with its picture replaced by warm lime mortar, lightly speckled
@@ -32806,7 +33640,7 @@ function startBriefMosaic() {
   briefMosaic = m;
   const frame = (now) => {
     if (briefMosaic !== m) return;
-    if (menuMode !== "brief") { briefMosaic = null; tiles.slice(m.next).forEach(bake); finish(); return; }
+    if (menuMode !== "brief" && menuMode !== "chapter") { briefMosaic = null; tiles.slice(m.next).forEach(bake); finish(); return; }
     const t = (now - m.t0) / 1000;
     // stones that have landed are set into the bed for good
     let landedNow = 0;
@@ -32872,7 +33706,7 @@ function renderBriefArt(levelIndex) {
   try {
     const W = cv.width, H = cv.height, F = BRIEF_FRAME;
     const x0 = F, y0 = F, x1 = W - F, y1 = H - F;
-    THEME = LEVELS[levelIndex].theme;
+    THEME = levelTheme(LEVELS[levelIndex]);
     const scene = briefScene(BRIEF_CROPS[levelIndex] || BRIEF_CROPS[0], x1 - x0, y1 - y0, 7001 + levelIndex * 53);
     const c = cv.getContext("2d");
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -32959,6 +33793,114 @@ function renderBriefArt(levelIndex) {
   }
 }
 
+// ---- the leaf's pages ----
+// A chronicle (LEVELS[i].chronicle) or a chapter's story (CHAPTERS[c].intro) is read page by page: beads
+// and arrows under the text, and the arrow keys. The first page opens on a versal; the text block keeps the
+// height of the longest page, so the leaf does not jump as it turns.
+let leafPages = [""], leafPage = 0;
+function leafHtml(k) {
+  const text = leafPages[k] || "";
+  if (k > 0) return escapeHtml(text);
+  // the versal and the rest of its word are set as one unit, so the name reads unbroken
+  const opening = /^(\S)(\S*)([\s\S]*)$/.exec(text) || ["", "", "", text];
+  return '<span class="versal">' + escapeHtml(opening[1]) + '</span><span class="incipit">' +
+    escapeHtml(opening[2]) + "</span>" + escapeHtml(opening[3]);
+}
+function setLeafPages(pages, at) {
+  leafPages = pages && pages.length ? pages : [""];
+  const sub = $("ovSub");
+  sub.style.minHeight = "";
+  if (leafPages.length > 1) {
+    let tallest = 0;
+    for (let k = 0; k < leafPages.length; k++) { sub.innerHTML = leafHtml(k); tallest = Math.max(tallest, sub.offsetHeight); }
+    sub.style.minHeight = tallest + "px";
+  }
+  const dots = $("pgDots");
+  dots.innerHTML = leafPages.length > 1 ? leafPages.map((_, k) => '<i data-k="' + k + '" title="Page ' + (k + 1) + '"></i>').join("") : "";
+  $("ovPager").classList.toggle("on", leafPages.length > 1);
+  showLeafPage(Math.max(0, Math.min(leafPages.length - 1, at || 0)));
+}
+function showLeafPage(k) {
+  leafPage = k;
+  $("ovSub").innerHTML = leafHtml(k);
+  document.querySelectorAll("#pgDots i").forEach((d, j) => d.classList.toggle("on", j === k));
+  $("pgPrev").disabled = k <= 0;
+  $("pgNext").disabled = k >= leafPages.length - 1;
+}
+function turnLeaf(dir) {
+  const k = leafPage + dir;
+  if (k < 0 || k >= leafPages.length) return;
+  Snd.play("uiTick");
+  showLeafPage(k);
+}
+function clearLeaf() {
+  leafPages = [""]; leafPage = 0;
+  $("ovSub").style.minHeight = "";
+  $("ovPager").classList.remove("on");
+}
+$("pgPrev").addEventListener("click", () => turnLeaf(-1));
+$("pgNext").addEventListener("click", () => turnLeaf(1));
+$("pgDots").addEventListener("click", (e) => {
+  const k = e.target && e.target.dataset ? Number(e.target.dataset.k) : NaN;
+  if (k >= 0 && k !== leafPage) { Snd.play("uiTick"); showLeafPage(k); }
+});
+window.addEventListener("resize", () => {
+  if ((menuMode === "brief" || menuMode === "chapter") && leafPages.length > 1) setLeafPages(leafPages, leafPage);
+});
+
+// ---- a chapter's story, on the same leaf as the chronicle ----
+// Opened the first time a chapter is reached on the map, and from the map's "Chapter story" button;
+// "To the Map" returns to the map page exactly as it was.
+let introReturn = null;
+function showChapterIntro(c) {
+  const C = CHAPTERS[c];
+  if (!C) return;
+  markChapterSeen(c);
+  if (menuMode === "map") {
+    introReturn = { crestCls: $("ovCrest").className, crest: $("ovCrest").innerHTML, crestTitle: $("ovCrest").title,
+      title: $("ovTitle").textContent, sub: $("ovSub").innerHTML, endless: $("endlessBtn").style.display };
+  }
+  menuMode = "chapter";
+  const first = LEVELS[C.levels[0]];
+  $("worldMap").style.display = "none";
+  $("diffRow").style.display = "none";
+  $("resumeBtn").style.display = "none";
+  $("endlessBtn").style.display = "none";
+  overlayEl.classList.add("brief");
+  $("ovCrest").className = "crest era" + first.era;
+  $("ovCrest").innerHTML = icon("era" + first.era);
+  $("ovCrest").title = "Chapter " + C.num;
+  $("ovTitle").textContent = C.name;
+  $("ovRubric").textContent = "Chapter " + C.num + " · " + chapterSpan(c);
+  setLeafPages(C.intro);
+  $("briefHost").innerHTML = C.levels.map(i => {
+    const L = LEVELS[i];
+    return '<div class="foe field" title="' + escapeHtml(L.name + ", " + L.date) + '"><span class="disc">' + icon("era" + L.era) +
+      '</span><span class="nm">' + escapeHtml(L.name) + "<i>" + escapeHtml(L.date) + "</i></span></div>";
+  }).join("");
+  renderBriefArt(C.levels[0]);
+  startBriefMosaic(C.levels[0]);
+  $("startBtn").innerHTML = icon("flag") + "To the Map";
+  Snd.play("mapSelect");
+}
+function closeChapterIntro() {
+  menuMode = "map";
+  overlayEl.classList.remove("brief");
+  $("worldMap").style.display = "";
+  $("diffRow").style.display = "";
+  clearLeaf();
+  const R = introReturn;
+  introReturn = null;
+  if (R) {
+    $("ovCrest").className = R.crestCls; $("ovCrest").innerHTML = R.crest; $("ovCrest").title = R.crestTitle;
+    $("ovTitle").textContent = R.title;
+    $("ovSub").innerHTML = R.sub;
+  }
+  $("ovRubric").textContent = "";
+  buildMenu();
+  if (R) $("endlessBtn").style.display = R.endless;
+}
+
 // the chronicle: real history of the chosen battlefield, read before battle
 // ordered so that no two long names stand side by side under their medallions
 const BRIEF_ROLES = ["raider", "spearman", "shield", "cavalry", "ram", "flyer", "boss"];
@@ -32978,10 +33920,7 @@ function showBrief() {
   $("ovCrest").title = E.name;
   $("ovTitle").textContent = L.name;
   $("ovRubric").textContent = L.date + " · " + E.name;
-  // the versal and the rest of its word are set as one unit, so the name reads unbroken
-  const opening = /^(\S)(\S*)([\s\S]*)$/.exec(L.history) || ["", "", "", L.history];
-  $("ovSub").innerHTML = '<span class="versal">' + escapeHtml(opening[1]) + '</span><span class="incipit">' +
-    escapeHtml(opening[2]) + "</span>" + escapeHtml(opening[3]);
+  setLeafPages(levelPages(L));
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
     const name = Object.assign({}, ENEMY_DEFS[role], E.units[role], levelUnits(L)[role]).name;
     return '<div class="foe' + (role === "boss" ? " boss" : "") + '" title="' + escapeHtml(name) + '"><span class="disc">' +
@@ -33156,7 +34095,7 @@ function toggleAmb() { Snd.ambOn = !Snd.ambOn; syncSoundUi(); }
 Snd.sceneOf = () => {
   const L = LEVELS[curLevel], inGame = overlayEl.classList.contains("hidden");
   const p = inGame ? (dayFactor() || 0) : 0;
-  return { map: L && L.theme ? L.theme.backdrop : null, era: L ? L.era : null, night: Math.max(0, Math.min(1, (p - 0.6) / 0.32)) };
+  return { map: L && L.theme ? levelTheme(L).backdrop : null, era: L ? L.era : null, night: Math.max(0, Math.min(1, (p - 0.6) / 0.32)) };
 };
 
 $("musicBtn").addEventListener("click", toggleMusic);
@@ -33202,6 +34141,14 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.shiftKey && e.code === "KeyG" && !gameOver) { gold += 5000; syncHud(); toast("Test mode: +5000 gold"); return; }
   Snd.init();   // a key press is a gesture too: keyboard-only players get sound from the first key
+  // on the menu the arrow keys turn the map's chapters, and the pages of a chronicle or a chapter's story
+  if ((e.code === "ArrowLeft" || e.code === "ArrowRight") && !overlayEl.classList.contains("hidden")) {
+    const dir = e.code === "ArrowLeft" ? -1 : 1;
+    if (menuMode === "map") turnChapter(mapChapter() + dir);
+    else turnLeaf(dir);
+    e.preventDefault();
+    return;
+  }
   const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
   if (keys[e.code]) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
   if (e.code === "Escape") { setPlacing(null); hidePanel(); settingsEl.style.display = "none"; castingSpell = null; heroSelected = false; updateSpellBar(); }
@@ -33224,6 +34171,7 @@ window.addEventListener("keydown", (e) => {
 $("startBtn").addEventListener("click", () => {
   Snd.init();
   if (menuMode === "map") { showBrief(); return; }
+  if (menuMode === "chapter") { Snd.play("mapSelect"); closeChapterIntro(); return; }
   clearRun();
   menuMode = "map";
   overlayEl.classList.add("hidden");
@@ -33282,11 +34230,15 @@ function frame(time) {
 })();
 
 loadSettings();
-loadLevel(0);
+// the map opens on the furthest battlefield reached, in its chapter
+if (!HARNESS_ON) curLevel = highestUnlocked();
+loadLevel(curLevel);
 resetGame();
 buildMenu();
 renderShopPortraits();
 requestAnimationFrame(frame);
+// a chapter opened for the first time tells its story first
+if (!HARNESS_ON && !chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
 
 // ---------- harness scenes (only reachable through ?shot= / ?selftest=) ----------
 const PHOTO_TIME = 98765;
@@ -33363,7 +34315,8 @@ function photoStageBattle(lv, wave, o) {
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
 }
 
-function photoSheet(kind) {
+// units: four ages per sheet, from era0 (default 0, or &era0=N on the URL: &era0=3 shows eras 3-6)
+function photoSheet(kind, era0) {
   curLevel = HARNESS.has("lv") ? Math.max(0, Math.min(LEVELS.length - 1, Number(HARNESS.get("lv")) | 0)) : 1;
   curDiff = 1;
   resetGame();
@@ -33381,17 +34334,19 @@ function photoSheet(kind) {
   });
   if (kind === "units") {
     const roles = ["raider", "spearman", "shield", "cavalry", "ram", "boss", "flyer"];
-    for (let er = 0; er < 4; er++) {
+    const e0 = Math.max(0, Math.min(ERAS.length - 4, era0 !== undefined ? era0 : HARNESS.has("era0") ? Number(HARNESS.get("era0")) | 0 : 0));
+    for (let row = 0; row < 4; row++) {
+      const er = e0 + row;
       curEra = er;
       roles.forEach((r, c) => {
         spawnEnemy(r);
         const e = enemies[enemies.length - 1];
-        const w = unproj(412 + c * 76, 318 + er * 70);
+        const w = unproj(412 + c * 76, 318 + row * 70);
         e.pin = { x: w.x, y: w.y, ang: 0 };
         e.wobble = 0.9 + c * 0.7;
         if (c === 2) e.hp = e.maxHp * 0.6;
       });
-      labels.push({ x: 354, y: 318 + er * 70 + 14, text: ERAS[er].name.split(" ")[0] });
+      labels.push({ x: 354, y: 318 + row * 70 + 14, text: ERAS[er].name.split(" ")[0] });
     }
     curEra = 0;
     photo = { time: PHOTO_TIME, zoom: 2.2, cx: 640, cy: 420, plain: true, labels };
@@ -33434,22 +34389,39 @@ function photoSheet(kind) {
   }
 }
 
+// &lv=N picks the battlefield (and so the map's chapter), &unlock opens every battlefield as Shift+U does,
+// &page=K turns the chronicle to page K (from 0)
 function photoMenu(brief) {
   localStorage.setItem("hs_best_0_0", "21");
   localStorage.setItem("hs_best_1_0", "21");
   localStorage.setItem("hs_best_2_1", "24");
   localStorage.setItem("hs_best_3_2", "13");
   localStorage.setItem("hs_unlocked_seen", JSON.stringify([0, 1, 2, 3]));
-  curLevel = 3;
+  localStorage.setItem("hs_chapters_seen", JSON.stringify(CHAPTERS.map((_, c) => c)));
+  if (HARNESS.has("unlock")) testUnlockAll = true;
+  const lv = HARNESS.has("lv") ? Math.max(0, Math.min(LEVELS.length - 1, Number(HARNESS.get("lv")) | 0)) : 3;
+  curLevel = levelUnlocked(lv) ? lv : 3;
+  curEra = LEVELS[curLevel].era;
+  applyEraLabels();
   gameOver = true;
-  showMenu("🏔️", "Highland Stand",
-    LEVELS[3].date + " · " + ERAS[2].icon + " " + ERAS[2].name + ". " + LEVELS[3].tag, "Take Command");
-  if (brief) showBrief();
+  const L = LEVELS[curLevel], E = ERAS[L.era];
+  showMenu("🏔️", "Highland Stand", L.date + " · " + E.icon + " " + E.name + ". " + L.tag, "Take Command");
+  if (brief) {
+    showBrief();
+    if (HARNESS.has("page")) showLeafPage(Math.max(0, Math.min(leafPages.length - 1, Number(HARNESS.get("page")) | 0)));
+  }
   photo = { time: PHOTO_TIME };
 }
 
+// &ch=C: the story page of chapter C, as it opens over the map
+function photoChapter(c) {
+  photoMenu(false);
+  showChapterIntro(Math.max(0, Math.min(CHAPTERS.length - 1, c | 0)));
+  if (HARNESS.has("page")) showLeafPage(Math.max(0, Math.min(leafPages.length - 1, Number(HARNESS.get("page")) | 0)));
+}
+
 function photoDance(seconds) {
-  photoStageBattle(1, 20, {});
+  photoStageBattle(HARNESS.has("lv") ? Math.max(0, Math.min(LEVELS.length - 1, Number(HARNESS.get("lv")) | 0)) : 1, 20, {});
   enemies = []; projectiles = []; particles = [];
   lives = 17;
   victory();
@@ -33471,6 +34443,8 @@ function runPhoto() {
       if (HARNESS.has("wave")) waveIdx = num("wave", 2);
     } else if (scene === "menu" || scene === "brief") {
       photoMenu(scene === "brief");
+    } else if (scene === "chapter") {
+      photoChapter(num("ch", 0));
     } else if (scene === "dance") {
       photoDance(num("t", 6.9));
     } else {
@@ -33495,11 +34469,14 @@ function runPhoto() {
 }
 
 function runSelftest() {
-  const res = { pass: false, checks: 0, errors: [], perfMs: null };
+  const res = { pass: false, checks: 0, errors: [], perfMs: null, slow: {} };
   const check = (name, fn) => {
     res.checks++;
+    const t0 = performance.now();
     try { if (fn() === false) res.errors.push(name + ": assertion failed"); }
     catch (err) { res.errors.push(name + ": " + (err && err.message || err)); }
+    const ms = performance.now() - t0;
+    if (ms > 1500) res.slow[name] = Math.round(ms);   // the checks that cost the run its time
   };
   photo = { time: PHOTO_TIME };   // freeze the rAF loop while the checks drive update/draw
   const spells = ["arrows", "frost", "wrath"];
@@ -33541,6 +34518,92 @@ function runSelftest() {
       document.body.classList.remove("photo-clean");
     });
   }
+  check("sheet units, later ages", () => {
+    photoSheet("units", ERAS.length - 4); draw(PHOTO_TIME);
+    document.body.classList.remove("photo-clean");
+  });
+  // every table indexed by era has a row for every era, and every era draws and labels
+  check("era tables", () => {
+    const roles = ["raider", "spearman", "shield", "cavalry", "ram", "boss", "flyer"];
+    for (let e = 0; e < ERAS.length; e++) {
+      for (const r of roles) if (!ERAS[e].units[r] || !ERAS[e].units[r].name) throw new Error("era " + e + " lacks " + r);
+      for (const t in TOWER_SKINS) if (!TOWER_SKINS[t][e] || !SLOT_NAMES[t][e]) throw new Error("era " + e + " lacks a " + t + " skin or name");
+      if (!WRATH_NAMES[e] || ERA_ART[e] === undefined || !Snd.MUS_ERA[e]) throw new Error("era " + e + " lacks a wrath name, art fallback or music");
+      if (!document.querySelector("#i-era" + e + " path")) throw new Error("no emblem #i-era" + e);
+      if (ERAS.some((E, k) => k !== e && E.icon === ERAS[e].icon)) throw new Error("era " + e + " shares its icon");
+      curEra = e; applyEraLabels();
+    }
+  });
+  // the campaign's chapters: each battlefield in exactly one, in order, every node on its chart
+  check("chapters", () => {
+    const all = CHAPTERS.flatMap(C => C.levels);
+    if (all.length !== LEVELS.length || all.some((i, k) => i !== k)) throw new Error("chapters must list every battlefield once, in order");
+    for (const C of CHAPTERS) {
+      if (!MAP_CHARTS[C.chart] || !C.intro || !C.intro.length) throw new Error("chapter " + C.num + " lacks a chart or story");
+      for (const i of C.levels) {
+        const n = MAP_NODES[i];
+        if (!n || !(n.x > 12 && n.x < MAP_W - 12 && n.y > 12 && n.y < MAP_H - 12)) throw new Error("map node " + i + " is off its chart");
+        if (!MAP_FORTS[i]) throw new Error("no map fort for " + i);
+      }
+    }
+    testUnlockAll = true;
+    for (const C of CHAPTERS) { curLevel = C.levels[C.levels.length - 1]; renderWorldMap(); }
+    testUnlockAll = false;
+  });
+  check("chronicle pages + chapter stories", () => {
+    testUnlockAll = true;
+    photoMenu(false);
+    for (let i = 0; i < LEVELS.length; i++) {
+      curLevel = i; showBrief();
+      if (leafPages.length !== levelPages(LEVELS[i]).length) throw new Error("brief " + i + " lost pages");
+      for (let k = 0; k < leafPages.length; k++) showLeafPage(k);
+      menuMode = "map";
+    }
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    for (let c = 0; c < CHAPTERS.length; c++) { showChapterIntro(c); turnLeaf(1); closeChapterIntro(); }
+    testUnlockAll = false;
+  });
+  // the new battlefields' layouts keep the conventions of the old: 14 pads, clear of every road and of each other
+  check("layouts", () => {
+    const segD = (px, py, a, b) => {
+      const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+      const t = L2 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / L2)) : 0;
+      return Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy);
+    };
+    for (let i = 7; i < LEVELS.length; i++) {
+      const L = LEVELS[i], roads = L.paths || [L.path];
+      if (L.pads.length !== 14) throw new Error(L.name + ": " + L.pads.length + " pads");
+      for (const p of L.pads.concat(L.plots)) {
+        const d = Math.min(...roads.flatMap(r => r.slice(1).map((q, k) => segD(p[0], p[1], r[k], q))));
+        if (d < 60) throw new Error(L.name + ": pad or plot at " + p + " is " + Math.round(d) + " from a road");
+      }
+      L.pads.forEach((p, k) => L.pads.forEach((q, j) => { if (j > k && Math.hypot(p[0] - q[0], p[1] - q[1]) < 100) throw new Error(L.name + ": pads " + k + "/" + j + " crowd"); }));
+      const end = roads[0][roads[0].length - 1];
+      if (roads.some(r => r[r.length - 1][0] !== end[0] || r[r.length - 1][1] !== end[1])) throw new Error(L.name + ": forked roads must meet at the gate");
+      if (Math.hypot(L.fort.x - end[0], L.fort.y - end[1]) > 60) throw new Error(L.name + ": the fort is off its road");
+      if (!L.theme.backdrop || !levelTheme(L).backdrop || !BRIEF_CROPS[i]) throw new Error(L.name + ": no backdrop or crop");
+      if (!L.chronicle || !L.victory || !L.defeat || !L.hero || !L.year) throw new Error(L.name + ": missing story fields");
+    }
+  });
+  // victory, the endless offer, defeat and the saved run on every new battlefield
+  check("victory, defeat, save on new fields", () => {
+    for (let lv = 7; lv < LEVELS.length; lv++) {
+      curLevel = lv; curDiff = 1; resetGame();
+      overlayEl.classList.add("hidden");
+      waveIdx = 3; phase = "idle";
+      saveRun();
+      const r = getSavedRun();
+      if (!r || r.lvl !== lv || r.era !== LEVELS[lv].era) throw new Error("saved run lost on " + lv);
+      if (lv === LEVELS.length - 1) resumeRun();
+      waveIdx = TOTAL_WAVES; lives = 9;
+      victory(); draw(PHOTO_TIME); endCelebration();
+      if ($("endlessBtn").style.display === "none") throw new Error("no endless offer on " + lv);
+      if (Number(localStorage.getItem("hs_best_" + lv + "_" + LEVELS[lv].era)) !== 21) throw new Error("best wave not kept on " + lv);
+      gameOver = false; waveIdx = 5; lives = 0; defeat();
+      if (!/Falls/.test($("ovTitle").textContent)) throw new Error("no defeat page on " + lv);
+    }
+    celebration = null;
+  });
   check("dance", () => {
     for (const s of [0.4, 1.2, 2.4, 3.4, 3.9, 4.6, 5.4, 6.8, 8.2, 10.5, 12.9]) {
       photoDance(s); draw(PHOTO_TIME);
