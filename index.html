@@ -19656,11 +19656,508 @@ SKIN_ART.beacon = {
 // SKIN SECTION: cauldron. 451 to 1579, fire slot: a cauldron of boiling pitch
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// The Christian defenders' incendiary, never an altar: a round-bellied cauldron of pitch set on a
+// hearth with the fire under it, a long ladle, clay jars sealed with pitch and the men who tend it.
+// Ammianus has defenders rolling down blazing baskets of pitch and bitumen; Procopius has fire-pots
+// thrown at Petra (550-551). No siphons: Greek fire is Byzantine, and first heard of in the 670s.
+// The metal follows the age: bronze at Avarayr, bronze bound in iron under the caliphs, iron in 1579.
+function cauldronMetal() {
+  return curEra >= 3 ? ["#7c7a80", "#46454a", "#1b1a1e"] : ["#e6b46a", "#a46e2c", "#4a2f12"];
+}
+// a round-bellied cauldron whose foot rests at (x, y); hands back its rim centre
+function cauldronPot(x, y, r) {
+  const c = sctx, M = cauldronMetal(), rx = r * 0.84, ry = r * 0.3, rimY = y - r * 1.12;
+  const belly = () => {
+    c.beginPath();
+    c.moveTo(x - rx, rimY);
+    c.bezierCurveTo(x - r * 1.14, rimY + r * 0.44, x - r * 0.86, y, x, y);
+    c.bezierCurveTo(x + r * 0.86, y, x + r * 1.14, rimY + r * 0.44, x + rx, rimY);
+    c.ellipse(x, rimY, rx, ry, 0, 0, Math.PI);
+    c.closePath();
+  };
+  // ring handles hang from the shoulders, the far one first
+  const ring = (dir) => {
+    c.beginPath();
+    c.ellipse(x + dir * r * 1.03, rimY + r * 0.36, 1.5, 1.9, dir * 0.3, 0, Math.PI * 2);
+    c.strokeStyle = INK; c.lineWidth = 1.6; c.stroke();
+    c.strokeStyle = dir < 0 ? M[0] : M[1]; c.lineWidth = 0.7; c.stroke();
+  };
+  ring(1);
+  belly();
+  const g = c.createLinearGradient(x - r, 0, x + r, 0);
+  g.addColorStop(0, M[0]);
+  g.addColorStop(0.42, M[1]);
+  g.addColorStop(1, M[2]);
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  // soot climbs the belly from the fire; pitch has boiled over and run down from the lip
+  const sg = c.createLinearGradient(0, rimY + r * 0.25, 0, y);
+  sg.addColorStop(0, "rgba(22, 14, 8, 0)");
+  sg.addColorStop(1, "rgba(22, 14, 8, .78)");
+  c.fillStyle = sg;
+  c.fillRect(x - r * 1.2, rimY, r * 2.4, y - rimY);
+  c.fillStyle = "#1e140c";
+  for (const d of [[-0.5, 0.42, 0.9], [0.18, 0.62, 0.7], [0.55, 0.36, 0.8]]) {
+    const dx = x + d[0] * r, len = d[1] * r;
+    c.beginPath();
+    c.moveTo(dx - d[2], rimY + ry * 0.6);
+    c.lineTo(dx - d[2] * 0.5, rimY + len);
+    c.arc(dx, rimY + len, d[2] * 0.55, Math.PI, 0, true);
+    c.lineTo(dx + d[2], rimY + ry * 0.6);
+    c.closePath();
+    c.fill();
+  }
+  if (curEra === 2) {
+    // an iron hoop shrunk round the bronze below the shoulder
+    c.strokeStyle = IRON; c.lineWidth = 1.5;
+    c.beginPath(); c.ellipse(x, rimY + r * 0.42, r * 1.1, ry * 1.05, 0, 0.05, Math.PI - 0.05); c.stroke();
+    c.fillStyle = "#c9ccd2";
+    for (const u of [-0.7, -0.25, 0.2, 0.62]) c.fillRect(x + u * r * 1.05, rimY + r * 0.42 + ry * Math.sqrt(1 - u * u) - 0.35, 0.7, 0.7);
+  }
+  // the metal's sheen: a soft streak down the lit flank
+  c.fillStyle = "rgba(255, 244, 214, .4)";
+  c.beginPath();
+  c.ellipse(x - r * 0.56, rimY + r * 0.38, r * 0.13, r * 0.36, 0.16, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+  belly();
+  inkStroke(1.3);
+  // a heavy rolled lip, then the black pitch inside it
+  inkDisc(x, rimY, rx + 0.6, ry + 0.3, M[0], 1.3);
+  c.strokeStyle = toneHex(M[2], 10);
+  c.lineWidth = 0.8;
+  c.beginPath(); c.ellipse(x, rimY + 0.2, rx - 0.6, ry - 0.3, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+  inkDisc(x, rimY + 0.35, rx - 1.1, ry - 0.55, "#1c130c", 0);
+  c.strokeStyle = "rgba(255, 214, 150, .4)";
+  c.lineWidth = 0.6;
+  c.beginPath(); c.ellipse(x - rx * 0.2, rimY + 0.2, rx * 0.45, ry * 0.3, 0, Math.PI * 1.1, Math.PI * 1.7); c.stroke();
+  c.strokeStyle = "rgba(150, 104, 62, .7)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  c.arc(x + rx * 0.3, rimY + 0.5, 0.8, 0, Math.PI * 2);
+  c.moveTo(x - rx * 0.32 + 0.55, rimY + 0.9);
+  c.arc(x - rx * 0.32, rimY + 0.9, 0.55, 0, Math.PI * 2);
+  c.stroke();
+  ring(-1);
+  return [x, rimY];
+}
+// a clay jar standing at (x, y), sealed with a cap of pitch: "pitch" red clay, "naphtha" pale clay
+// dipped in bitumen, "pot" a round fire-pot with a rag wick bound into its neck
+function cauldronJar(x, y, h, kind) {
+  const c = sctx;
+  const C = kind === "naphtha" ? ["#e2c792", "#c09a64", "#7a5a34"] : ["#d8885a", "#b05e34", "#6a3418"];
+  const body = () => {
+    c.beginPath();
+    if (kind === "pot") {
+      c.ellipse(x, y - h * 0.45, h * 0.5, h * 0.45, 0, 0, Math.PI * 2);
+      return;
+    }
+    const nw = kind === "naphtha" ? 0.11 : 0.13, bw = kind === "naphtha" ? 0.5 : 0.46;
+    c.moveTo(x - h * 0.13, y);
+    c.quadraticCurveTo(x - h * bw, y - h * 0.5, x - h * (nw + 0.04), y - h * 0.86);
+    c.lineTo(x - h * nw, y - h);
+    c.lineTo(x + h * nw, y - h);
+    c.lineTo(x + h * (nw + 0.04), y - h * 0.86);
+    c.quadraticCurveTo(x + h * bw, y - h * 0.5, x + h * 0.13, y);
+    c.closePath();
+  };
+  body();
+  const g = c.createLinearGradient(x - h * 0.45, 0, x + h * 0.45, 0);
+  g.addColorStop(0, C[0]);
+  g.addColorStop(0.45, C[1]);
+  g.addColorStop(1, C[2]);
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  if (kind === "naphtha") {
+    // dipped neck-first in bitumen to seal it
+    c.fillStyle = "#2a1c12";
+    c.beginPath();
+    c.moveTo(x - h, y - h * 0.8);
+    c.quadraticCurveTo(x, y - h * 0.74, x + h, y - h * 0.82);
+    c.lineTo(x + h, y - h * 1.2); c.lineTo(x - h, y - h * 1.2);
+    c.closePath();
+    c.fill();
+    for (const d of [[-0.16, 0.2], [0.1, 0.13]]) fillBlobs("#2a1c12", [[x + d[0] * h, y - h * (0.74 - d[1] / 2), h * 0.035, h * d[1] / 2]]);
+  }
+  c.fillStyle = "rgba(255, 238, 206, .38)";
+  c.beginPath();
+  c.ellipse(x - h * 0.2, y - h * 0.5, h * 0.07, h * 0.22, 0.1, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = "rgba(50, 22, 8, .3)";
+  c.fillRect(x - h, y - h * 0.18, h * 2, h * 0.18);
+  c.restore();
+  body();
+  inkStroke(0.9);
+  if (kind === "pot") {
+    inkRect(x - h * 0.15, y - h * 1.02, h * 0.3, h * 0.16, "#3a2414", 0.6);
+    // the rag wick, pale and oily, bound into the stopper
+    inkDisc(x + h * 0.04, y - h * 1.16, h * 0.17, h * 0.13, "#e6d6b0", 0.6);
+    c.strokeStyle = "#e6d6b0";
+    c.lineWidth = 0.6;
+    c.beginPath(); c.moveTo(x + h * 0.14, y - h * 1.2); c.quadraticCurveTo(x + h * 0.34, y - h * 1.3, x + h * 0.3, y - h * 1.08); c.stroke();
+    if (structSnow) fillBlobs("#f6f9fc", [[x - h * 0.12, y - h * 0.86, h * 0.26, h * 0.07]]);
+    return;
+  }
+  // the pitch seal and the cord that binds the neck
+  inkDisc(x, y - h, h * (kind === "naphtha" ? 0.12 : 0.15), h * 0.05, "#1e140c", 0.6);
+  if (kind !== "naphtha") {
+    c.fillStyle = "#1e140c";
+    c.fillRect(x + h * 0.03, y - h, h * 0.06, h * 0.22);
+    c.strokeStyle = "#e2cc98";
+    c.lineWidth = 0.5;
+    c.beginPath(); c.moveTo(x - h * 0.15, y - h * 0.84); c.lineTo(x + h * 0.16, y - h * 0.86); c.stroke();
+  }
+  if (structSnow) fillBlobs("#f6f9fc", [[x - h * 0.16, y - h * 0.84, h * 0.17, h * 0.06]]);
+}
+// split logs stacked end-on, for the fire
+function cauldronWood(x, y, n) {
+  const rows = n > 4 ? [[-4.2, 0], [0, 0], [4.2, 0], [-2.1, -3.4], [2.1, -3.4], [0, -6.8]] : [[-2.1, 0], [2.1, 0], [0, -3.4]];
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1.4, y + 1.6, 6.6, 1.6]]);
+  for (const p of rows.slice(0, Math.max(3, n))) endGrain(x + p[0], y + p[1], 2.1, "#8a6238");
+  if (structSnow) snowCap(x - 2.2, y - (n > 4 ? 8.6 : 5.2), 4.4, 1.1);
+}
+// a man at the cauldron: his arms go to two points on the tool he holds, which runs from `butt` to `tip`
+function cauldronMan(x, y, face, tunic, tool) {
+  garrisonFigure(x, y, 1, { tunic, cap: curEra >= 3 ? "#4e4038" : "#6e4a2c", pose: "none", face });
+  if (!tool) return;
+  const c = sctx, b = tool.butt, tp = tool.tip, ln = Math.hypot(tp[0] - b[0], tp[1] - b[1]) || 1;
+  const at = d => [b[0] + (tp[0] - b[0]) * d / ln, b[1] + (tp[1] - b[1]) * d / ln];
+  const arm = (sx, sy, h) => {
+    c.beginPath();
+    c.moveTo(sx, sy);
+    c.lineTo((sx + h[0]) / 2, (sy + h[1]) / 2 + 1.3);
+    c.lineTo(h[0], h[1]);
+    c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = toneHex(tunic, 14); c.lineWidth = 1.9; c.stroke();
+  };
+  const h1 = at(tool.hands[0]), h2 = at(tool.hands[1]);
+  arm(x - 2.6 * face, y - 10.8, h1);
+  if (tool.hex) {
+    c.beginPath();
+    c.moveTo(b[0], b[1]);
+    c.lineTo(tp[0], tp[1]);
+    c.strokeStyle = INK; c.lineWidth = 2.2; c.stroke();
+    c.strokeStyle = tool.hex; c.lineWidth = 1.1; c.stroke();
+  }
+  if (tool.glow) inkDisc(tp[0], tp[1], 1, 1, "#ffb24a", 0.5);
+  if (tool.pot) cauldronJar(tool.pot[0], tool.pot[1], tool.pot[2], "pot");
+  arm(x + 2.6 * face, y - 11, h2);
+  inkDisc(h1[0], h1[1], 1.1, 1.1, "#e2b78c", 0.6);
+  inkDisc(h2[0], h2[1], 1.1, 1.1, "#e2b78c", 0.6);
+}
+
+function paintPitchCauldron(lvl, spec) {
+  const c = sctx, S = footStone(), T = towerStone(), fit = structFit;
+  const base = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+  // tunics of undyed wool and madder, scorched at the hem by the work
+  const TUN = ["#8a4a26", "#6a5a3a"];
+  footPlinth(base.w, base.d, base.h, S, 71 + lvl, stepped);
+  // a point on the plinth top: u across, v back into the picture
+  const P = (u, v) => [u + v * OBQ.dx, -base.h + v * OBQ.dy];
+  if (!spec && lvl === 0) {
+    // first rank: a cooking-fire hearth of fieldstones on the plinth, a small cauldron straddling it
+    const h = P(0, 0.6), hx = h[0], hy = h[1], r = 9.6, rx = 12, ry = 4.4;
+    const wd = P(-15.4, 2.6);
+    cauldronWood(wd[0], wd[1], 3);
+    fillBlobs("rgba(30, 18, 10, .38)", [[hx, hy, 14.5, 5]]);
+    const stone = (a) => {
+      const sx = hx + Math.cos(a) * rx, sy = hy + Math.sin(a) * ry, tone = Math.round(Math.sin(a * 3.7) * 10);
+      inkDisc(sx, sy, 2.8, 2.1, toneHex(S[1], tone - 6), 0.9);
+      inkDisc(sx - 0.5, sy - 0.8, 1.8, 0.9, toneHex(S[0], tone + 8), 0);
+      if (structSnow && Math.cos(a) < 0.2) fillBlobs("#f6f9fc", [[sx - 0.4, sy - 1.3, 1.6, 0.6]]);
+    };
+    for (let i = 0; i < 9; i++) { const a = i * Math.PI * 2 / 9 + 0.2; if (Math.sin(a) < 0) stone(a); }
+    inkDisc(hx, hy, 9, 3.2, "#3a1a0a", 0);
+    beam(hx - 7.4, hy + 1.4, hx + 6.6, hy - 1.6, 1.7, "#4e321c");
+    beam(hx - 6, hy - 1.8, hx + 7.4, hy + 1, 1.7, "#5a3a20");
+    inkDisc(hx, hy, 6.4, 2.1, "#ff7a22", 0);
+    inkDisc(hx - 0.6, hy, 3.4, 1, "#ffe08a", 0);
+    const rim = cauldronPot(hx, hy - 2.2, r);
+    structGlow(hx, hy - 2, 17, "warm", 0.55);
+    for (let i = 0; i < 9; i++) { const a = i * Math.PI * 2 / 9 + 0.2; if (Math.sin(a) >= 0) stone(a); }
+    // the long ladle left standing in the pitch
+    c.beginPath();
+    c.moveTo(rim[0] - 2.4, rim[1] + 0.4);
+    c.lineTo(rim[0] - 16.5, rim[1] - 10.5);
+    c.strokeStyle = INK; c.lineWidth = 2.2; c.stroke();
+    c.strokeStyle = "#8a6238"; c.lineWidth = 1.1; c.stroke();
+    const j1 = P(15.8, 3), j2 = P(14.6, -2.6);
+    cauldronJar(j1[0], j1[1], 8, "pitch");
+    cauldronJar(j2[0], j2[1], 9, "pitch");
+    fit.flame = structPoint(hx, hy + 1.4);
+    fit.flameH = 8;
+    fit.sideFlames = [structPoint(hx - r * 0.95, hy - 1.2), structPoint(hx + r * 0.95, hy - 1.2)];
+    fit.sideH = 6;
+    fit.steam = structPoint(rim[0], rim[1]);
+    fit.potR = r;
+    structCrown(rim[1] - 8);
+    return;
+  }
+  // from the second rank the cauldron is set into a built hearth with a stoke-hole in its face
+  const cls = spec === "a" ? 4 : spec === "b" ? 3 : lvl;
+  const D = [null, { w: 24, h: 14, d: 11, r: 11.5, aw: 6.8, ah: 8 }, { w: 27, h: 17, d: 12, r: 13, aw: 7.4, ah: 9.4 },
+    { w: 27, h: 17, d: 12, r: 12.5, aw: 7.4, ah: 9.4 }, { w: 28, h: 25, d: 12, r: 13.5, aw: 10, ah: 14 }][cls];
+  const o = P(0, 1), ax = cls === 3 ? -D.w * 0.22 : cls === 1 ? D.w * 0.2 : D.w * 0.16, mx = cls === 3 ? D.w * 0.26 : -D.w * 0.24;
+  // things that stand behind the hearth
+  if (cls === 1) { const wd = P(-15.6, 3); cauldronWood(wd[0], wd[1], 3); }
+  if (cls === 2) { const j = P(-16.2, 3.6); cauldronJar(j[0], j[1], 8, "pitch"); }
+  if (cls === 1) { const j = P(15.8, 3.4); cauldronJar(j[0], j[1], 8, "pitch"); }
+  c.save();
+  c.translate(o[0] - D.d * OBQ.dx / 2, o[1] - D.d * OBQ.dy / 2);
+  box3(D.w, D.h, D.d, T.mid, towerWall(T, 83 + cls, { top: toneHex(T.mid, 20), course: D.h > 14 ? 6.4 : D.h / 2, block: 9.5 }));
+  // soot has blackened the face above the stoke-hole
+  const sg = c.createLinearGradient(0, -D.h, 0, -D.ah * 0.4);
+  sg.addColorStop(0, "rgba(28, 18, 10, .5)");
+  sg.addColorStop(1, "rgba(28, 18, 10, 0)");
+  c.fillStyle = sg;
+  c.fillRect(ax - D.aw * 0.9, -D.h + 0.8, D.aw * 1.8, D.h - D.ah * 0.4 - 0.8);
+  if (cls === 4) {
+    // the naphtha furnace is bound in iron against the heat, and its stones are scorched dark
+    const hg = c.createLinearGradient(0, -D.h, 0, 0);
+    hg.addColorStop(0, "rgba(40, 24, 14, .4)");
+    hg.addColorStop(0.6, "rgba(40, 24, 14, .06)");
+    hg.addColorStop(1, "rgba(40, 24, 14, 0)");
+    c.fillStyle = hg;
+    c.fillRect(-D.w / 2, -D.h, D.w, D.h);
+    for (const by of [-D.h + 2.2, -D.h * 0.48]) {
+      inkPoly([D.w / 2, by, D.w / 2 + D.d * OBQ.dx, by + D.d * OBQ.dy, D.w / 2 + D.d * OBQ.dx, by + D.d * OBQ.dy + 1.4, D.w / 2, by + 1.4], "#2a292d", 0.6);
+      inkRect(-D.w / 2 - 0.3, by, D.w + 0.6, 1.4, IRON, 0.6);
+      c.fillStyle = "#c9ccd2";
+      for (let bx = -D.w / 2 + 1.6; bx < D.w / 2 - 1; bx += 4.4) c.fillRect(bx, by + 0.4, 0.6, 0.6);
+    }
+  }
+  // the stoke-hole: a dressed arch, the fire and the logs inside it
+  archPath(ax, D.aw + 2.8, D.ah + 1.4);
+  c.fillStyle = toneHex(T.mid, 26);
+  c.fill();
+  inkStroke(1);
+  archPath(ax, D.aw, D.ah);
+  const mg = c.createLinearGradient(0, -D.ah, 0, 0);
+  mg.addColorStop(0, "#2a1408");
+  mg.addColorStop(0.55, "#a8401a");
+  mg.addColorStop(1, "#ffb24a");
+  c.fillStyle = mg;
+  c.fill();
+  inkStroke(1.1);
+  endGrain(ax - D.aw * 0.22, -1.3, 1.2, "#5a3a20");
+  endGrain(ax + D.aw * 0.24, -1.2, 1.1, "#5a3a20");
+  inkDisc(ax, -0.7, D.aw * 0.4, 0.7, "#ffe08a", 0);
+  structGlow(ax, -D.ah * 0.4, D.aw + 8, "warm", 0.65);
+  fit.mouth = structPoint(ax, -D.ah * 0.5);
+  fit.flame = structPoint(ax, -0.4);
+  fit.flameH = D.ah * 0.74;
+  fit.flameW = D.aw * 0.36;
+  rankMarks(mx, -D.h * 0.55, lvl, spec, T.urartu);
+  let tuyere = null;
+  if (cls === 3) tuyere = structPoint(ax - D.aw * 0.2, -D.ah * 0.3);
+  c.restore();
+  // the collar in the hearth top that the cauldron sits in, with the fire showing round it
+  const H = [o[0], o[1] - D.h], r = D.r, hrx = r * 0.86, hry = hrx * 0.34;
+  if (structSnow) inkDisc(H[0], H[1], hrx + 4, hry + 1.6, toneHex(T.mid, -8), 0);
+  fillBlobs("rgba(30, 18, 10, .42)", [[H[0], H[1], hrx + 2.6, hry + 1.1]]);
+  inkDisc(H[0], H[1], hrx + 1.3, hry + 0.6, toneHex(T.side, -24), 1);
+  inkDisc(H[0], H[1] + 0.2, hrx, hry, "#ff7a22", 0);
+  inkDisc(H[0], H[1] + 0.3, hrx * 0.7, hry * 0.6, "#ffd27a", 0);
+  c.save();
+  c.beginPath();
+  c.rect(H[0] - r * 2, H[1] - r * 3, r * 4, r * 3);
+  c.ellipse(H[0], H[1], hrx, hry, 0, 0, Math.PI * 2);
+  c.clip();
+  const rim = cauldronPot(H[0], H[1] + r * 0.27, r);
+  c.restore();
+  structGlow(H[0], H[1] + 1.5, r + 3, "warm", 0.5);
+  fit.sideFlames = [structPoint(H[0] - hrx * 0.9, H[1] + 0.4), structPoint(H[0] + hrx * 0.9, H[1] + 0.4)];
+  fit.sideH = cls === 4 ? 9.5 : cls === 1 ? 5.5 : 6.5;
+  fit.steam = structPoint(rim[0], rim[1]);
+  fit.potR = r;
+  if (cls === 4) fit.embers = structPoint(rim[0], rim[1] - 2);
+  structCrown(rim[1] - 8);
+  // the men and the stores in front
+  const potIn = [rim[0] - r * 0.3, rim[1] + 0.5];
+  if (cls === 1) {
+    const j = P(14.8, -2.4);
+    cauldronJar(j[0], j[1], 9, "pitch");
+    cauldronMan(-24, 3, 1, TUN[0], { butt: [-26.6, -5.4], tip: potIn, hands: [3.4, 9.2], hex: "#8a6238" });
+  } else if (cls === 2) {
+    const j = P(16.4, -3.2);
+    cauldronJar(j[0], j[1], 9, "pitch");
+    cauldronMan(-27, 3, 1, TUN[0], { butt: [-29.6, -5], tip: potIn, hands: [3.4, 9.6], hex: "#8a6238" });
+    cauldronMan(27.5, 3.5, -1, TUN[1], { butt: [31, -7.2], tip: [fit.flame[0] + 2.4, fit.flame[1] - 2.2], hands: [3.2, 8.6], hex: "#3a3a3e", glow: true });
+  } else if (cls === 4) {
+    cauldronMan(-27, 3, 1, TUN[0], { butt: [-29.6, -6], tip: potIn, hands: [3.4, 9.6], hex: "#8a6238" });
+    // naphtha in pale jars dipped in bitumen, stacked rank behind rank at the foot of the furnace
+    const j = P(15.6, 3.6);
+    cauldronJar(j[0], j[1], 10.5, "naphtha");
+    fillBlobs("rgba(24, 14, 4, .3)", [[30, 4.6, 11, 2.2]]);
+    for (const jx of [24.6, 30.2, 35.8]) cauldronJar(jx, -0.2, 10.5, "naphtha");
+    for (const jx of [22, 27.4, 32.8]) cauldronJar(jx, 4.6, 10, "naphtha");
+  } else if (cls === 3) {
+    // fire-pots ready on the hearth step and in a basket at its foot
+    for (const p of [[14.4, 3.2], [16.8, -0.6], [14.2, -3.8]]) { const q = P(p[0], p[1]); cauldronJar(q[0], q[1], 5, "pot"); }
+    const bx = 26.5, by = 4.2;
+    fillBlobs("rgba(24, 14, 4, .3)", [[bx + 1.4, by + 0.6, 8.4, 1.8]]);
+    for (const p of [[-3.4, -5.6], [0.4, -6.4], [3.8, -5.4], [-1.4, -8.6], [2.2, -9]]) cauldronJar(bx + p[0], by + p[1], 4.6, "pot");
+    inkPoly([bx - 7, by - 6.6, bx + 7, by - 6.6, bx + 5.6, by, bx - 5.6, by], "#b48a4a", 1);
+    c.strokeStyle = "rgba(70, 44, 18, .7)";
+    c.lineWidth = 0.6;
+    c.beginPath();
+    for (let wy = by - 5; wy < by; wy += 1.7) { c.moveTo(bx - 6.6 + (wy - by + 6.6) * 0.2, wy); c.lineTo(bx + 6.6 - (wy - by + 6.6) * 0.2, wy); }
+    for (let wx = -5; wx <= 5; wx += 2.5) { c.moveTo(bx + wx, by - 6.4); c.lineTo(bx + wx * 0.82, by - 0.2); }
+    c.stroke();
+    inkRect(bx - 7.2, by - 7.4, 14.4, 1.3, "#c99c58", 0.8);
+    // a thrower stands ready with a fire-pot raised
+    cauldronMan(36, 4.6, -1, TUN[1], { butt: [38.6, -16.6], tip: [31.6, -16.6], hands: [0, 7], pot: [35.1, -16.2, 6.4] });
+    // a goatskin-and-board bellows feeds the stoke-hole through a clay pipe; its upper board works live
+    const hz = [-14.6, -0.4], L = 14;
+    beam(hz[0], hz[1], tuyere[0] - 0.5, tuyere[1] + 0.6, 1.7, "#9a5a34");
+    fillBlobs("rgba(24, 14, 4, .3)", [[hz[0] - L * 0.5, hz[1] + 2.6, L * 0.6, 1.6]]);
+    // the lower board: a broad paddle lying flat, its nozzle into the pipe
+    inkPoly([hz[0] + 1, hz[1] - 0.2, hz[0] - L * 0.5, hz[1] - 1.2, hz[0] - L, hz[1] - 0.4, hz[0] - L, hz[1] + 1.8,
+      hz[0] - L * 0.5, hz[1] + 2.4, hz[0] + 1, hz[1] + 0.8], "#7a5432", 1);
+    inkRect(hz[0] - 0.6, hz[1] - 0.9, 2.6, 1.8, IRON, 0.6);
+    const bm = [-34.2, 1.6];
+    cauldronMan(bm[0], bm[1], 1, TUN[0], null);
+    fit.bellows = { h: structPoint(hz[0], hz[1]), len: L, s: [structPoint(bm[0] - 2.6, bm[1] - 10.8), structPoint(bm[0] + 2.6, bm[1] - 11)], tunic: TUN[0] };
+  }
+}
+
+// moving parts in screen space: the bellows, the fire under the cauldron, smoke and steam off the pitch
+function cauldronLive(t, c) {
+  const f = c.fit, k = c.k, ph = isFinite(t.flame) ? t.flame : 0, x = c.x, y = c.y;
+  const burst = c.spec === "b" ? structClamp(t.novaFx || 0, 0, 1) : 0;
+  let pump = 0;
+  if (f.bellows) {
+    // the upper board rises slowly and is driven down: the fire answers each stroke
+    const B = f.bellows, open = 0.5 + 0.5 * Math.sin(ph * 0.55);
+    pump = Math.max(0, -Math.cos(ph * 0.55));
+    const a = 0.1 + 0.42 * open, ca = Math.cos(a), sa = Math.sin(a);
+    const hx = x + B.h[0] * k, hy = y + B.h[1] * k - 0.4 * k, L = B.len * k;
+    // the upper board's far end and the leather that swells beneath it
+    const ux = hx - L * ca, uy = hy - L * sa, mx = hx - L * 0.5 * ca, my = hy - L * 0.5 * sa;
+    ctx.globalAlpha = c.fade;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy + 0.4 * k);
+    ctx.lineTo(ux, uy + 0.8 * k);
+    ctx.quadraticCurveTo(ux - (1 + open * 2.4) * k, (uy + hy) / 2 + 1.6 * k, hx - L + 0.6 * k, hy + 1.6 * k);
+    ctx.closePath();
+    ctx.fillStyle = "#9a6438";
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.9 * k;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(hx - L * 0.4 * ca, hy - L * 0.4 * sa + 1 * k);
+    ctx.lineTo(hx - L * 0.45 + 0.4 * k, hy + 1.4 * k);
+    ctx.moveTo(hx - L * 0.75 * ca, hy - L * 0.75 * sa + 1 * k);
+    ctx.lineTo(hx - L * 0.78, hy + 1.6 * k);
+    ctx.strokeStyle = "rgba(60, 34, 14, .7)";
+    ctx.lineWidth = 0.6 * k;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(hx + 0.6 * k, hy);
+    ctx.lineTo(mx, my - 1.1 * k);
+    ctx.lineTo(ux, uy - 0.5 * k);
+    ctx.lineTo(ux, uy + 1 * k);
+    ctx.lineTo(mx, my + 0.9 * k);
+    ctx.closePath();
+    ctx.fillStyle = "#a87a48";
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1 * k;
+    ctx.stroke();
+    // both hands bear down on the end of the board
+    // the handle stands up from the end of the board
+    const gx = ux - 0.9 * k, gy = uy - 4.8 * k;
+    ctx.beginPath();
+    ctx.moveTo(ux + 0.4 * k, uy);
+    ctx.lineTo(gx, gy);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.3 * k; ctx.stroke();
+    ctx.strokeStyle = "#8a6238"; ctx.lineWidth = 1.2 * k; ctx.stroke();
+    ctx.beginPath();
+    for (const s of B.s) {
+      const sx = x + s[0] * k, sy = y + s[1] * k;
+      ctx.moveTo(sx, sy);
+      ctx.lineTo((sx + gx) / 2, (sy + gy) / 2 + 1.2 * k);
+      ctx.lineTo(gx, gy);
+    }
+    ctx.strokeStyle = INK; ctx.lineWidth = 3 * k; ctx.stroke();
+    ctx.strokeStyle = toneHex(B.tunic, 14); ctx.lineWidth = 1.9 * k; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(gx, gy, 1.1 * k, 0, Math.PI * 2);
+    ctx.fillStyle = "#e2b78c"; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.6 * k; ctx.stroke();
+  }
+  // smoke and steam off the boiling pitch: dark wisps and pale ones, drifting with the wind
+  if (f.steam) {
+    const sx = x + f.steam[0] * k, sy = y + f.steam[1] * k, R = f.potR, tt = c.time * 0.001 + t.x * 0.37;
+    const dark = f.embers ? 5 : 3;
+    for (let i = 0; i < 6; i++) {
+      const steam = i >= dark;
+      const rise = (tt * (steam ? 0.36 : 0.26) + i / 6 + (steam ? 0.33 : 0)) % 1;
+      const px = sx + (Math.sin(rise * 4.2 + i * 2.1) * 0.22 * R + ((i % 3) - 1) * 0.28 * R + rise * 8) * k;
+      const py = sy - (1 + rise * (steam ? 24 : 32)) * k;
+      ctx.globalAlpha = c.fade * (1 - rise) * Math.min(1, rise * 5) * (steam ? 0.48 : 0.36);
+      ctx.fillStyle = steam ? "#efe9df" : "#3a302a";
+      ctx.beginPath();
+      ctx.arc(px, py, (1.4 + rise * (steam ? 3.2 : 6.4)) * k, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // two bubbles swell and burst on the pitch
+    ctx.globalAlpha = c.fade;
+    ctx.strokeStyle = "rgba(170, 120, 74, .8)";
+    ctx.lineWidth = 0.6 * k;
+    ctx.beginPath();
+    for (let i = 0; i < 2; i++) {
+      const b = (ph * 0.21 + i * 0.5) % 1, bx = sx + (i ? 0.32 : -0.24) * R * k, by = sy + (i ? 0.7 : 0.2) * k;
+      ctx.moveTo(bx + b * 1.4 * k, by);
+      ctx.ellipse(bx, by, b * 1.4 * k + 0.01, b * 0.6 * k + 0.01, 0, 0, Math.PI * 2);
+    }
+    ctx.stroke();
+  }
+  // the fire: in the stoke-hole (or under the pot on the open hearth), and licking up round the belly
+  const surge = 1 + pump * 0.35 + burst * 0.9;
+  if (f.flame) {
+    const fh = structClamp(f.flameH * surge + Math.sin(ph) * f.flameH * 0.12, 2, 30) * k;
+    structFlame(x + f.flame[0] * k, y + f.flame[1] * k, f.flameW ? Math.min(f.flameW * k * surge, fh * 0.3) : fh * 0.3, fh * 0.9, ph, true, c.fade);
+  }
+  if (f.sideFlames) {
+    for (let i = 0; i < f.sideFlames.length; i++) {
+      const sf = f.sideFlames[i], sh = structClamp(f.sideH * surge + Math.sin(ph * 1.4 + i * 2.3) * f.sideH * 0.2, 2, 22) * k;
+      structFlame(x + sf[0] * k, y + sf[1] * k, sh * 0.3, sh, ph + i * 1.7, !!f.embers, c.fade);
+    }
+  }
+  if (f.embers) {
+    // naphtha throws an ember column high over the cauldron
+    const ex = x + f.embers[0] * k, ey = y + f.embers[1] * k;
+    ctx.globalAlpha = c.fade;
+    ctx.fillStyle = "#ffc266";
+    ctx.beginPath();
+    for (let i = 0; i < 7; i++) {
+      const rise = (ph * 0.11 + i / 7) % 1, es = (1.7 - rise) * k;
+      ctx.rect(ex + Math.sin(i * 2.4 + ph * 0.7) * (3 + rise * 5) * k - es / 2, ey - (4 + rise * 26) * k, es, es);
+    }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// drawn larger than the altar it replaces, being low and wide: the box top times the scale
+// stays inside the slot's own height budget (71 x 1.05 against 96 x 0.78)
+const CAULDRON_SCALE = 1.05;
 SKIN_ART.cauldron = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.fire,
-  scale: TOWER_SCALE.fire,
-  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+  box: [-40, -71, 46, 22],
+  scale: CAULDRON_SCALE,
+  paint(lvl, spec, variant) { paintPitchCauldron(lvl, spec); },
+  live: cauldronLive,
+  // the plinth is the slot's own, so its footprint is the slot's at this skin's scale
+  footing(lvl, spec) {
+    const b = towerBase("fire", lvl, spec), k = STRUCT_K * CAULDRON_SCALE, stepped = !!spec || lvl === 2;
+    return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+  },
 };
 // ====================================== END SKIN SECTION: cauldron ======================================
 
