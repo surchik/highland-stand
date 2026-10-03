@@ -17322,12 +17322,385 @@ SKIN_ART.hurlers = {
 // SKIN SECTION: trebuchet. Caliphate era, catapult slot: a pull-crew traction trebuchet
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// A traction trebuchet (the manjaniq of the Arab chroniclers, the Byzantines' "tetrarea"): a long
+// beam pivoting on a timber frame, a sling on the long arm, and a fan of ropes from the short arm
+// hauled by a crew. No counterweight: that is a twelfth-century engine. Stone platform under it.
+// L1 a single pole and three haulers, L2 a trestle and five, L3 a two-tier frame and seven with a
+// stone pile; the Great Beam a heavier, taller frame and a longer bound beam for nine; the Firepots
+// a scorched frame, a brazier and a stack of pitch pots, the pouch loaded with a pot.
+const TREB_FX = 3.8, TREB_FY = -2.2;          // far side of the frame, as on the slot's first engine
+// the haulers' kit: mail shirts and quilted coats, conical iron helmets
+const TREB_COATS = [["#8a8d93", 1], ["#b8995e", 0], ["#8e4a2e", 0], ["#80838a", 1], ["#6e6a52", 0]];
+function trebRank(lvl, spec) {
+  if (spec === "a") return { kind: 3, W: 64, D: 17, H: 11, step: true, px: 3, py: -41, long: 55, short: 16, bt: 6.6, sp: 14, crew: 9, pile: 2 };
+  if (spec === "b") return { kind: 2, W: 60, D: 16, H: 10, step: true, px: 3, py: -38, long: 50, short: 13.5, bt: 4.6, sp: 12, crew: 7, fire: true };
+  return [
+    { kind: 0, W: 50, D: 14, H: 8, step: false, px: 2, py: -30, long: 38, short: 10, bt: 3.4, sp: 9, crew: 3 },
+    { kind: 1, W: 56, D: 15, H: 9, step: false, px: 3, py: -34, long: 44, short: 12, bt: 4, sp: 10.5, crew: 5 },
+    { kind: 2, W: 60, D: 16, H: 10, step: true, px: 3, py: -38, long: 50, short: 13.5, bt: 4.6, sp: 12, crew: 7, pile: 1 },
+  ][lvl];
+}
+// where the crew stand on the deck, right of the frame, in ranks of three: [x, y, rank]
+function trebCrewSpots(R) {
+  const out = [], ranks = Math.ceil(R.crew / 3), x0 = R.px + 6, gap = 8.4;
+  for (let r = ranks - 1; r >= 0; r--) {
+    const inRank = r === 0 ? R.crew - (ranks - 1) * Math.floor(R.crew / ranks) : Math.floor(R.crew / ranks);
+    for (let i = 0; i < inRank; i++) out.push([x0 + r * 3.6 + i * gap + (inRank < 3 ? gap / 2 : 0), 3 - r * 3.4 * (3 / Math.max(3, ranks + 1)) - (ranks === 2 ? r * 0.8 : 0), r]);
+  }
+  return out;
+}
+
+// one hauler: feet planted at (x, y), facing the engine, leaning back on his rope; both hands
+// reach for the grip point, as far as an arm will go. Hands back the upper hand, for the rope.
+function trebMan(x, y, o) {
+  const c = sctx, f = o.face || -1, lean = o.lean || 0, cr = o.crouch || 0;
+  const coat = o.coat[0], mail = o.coat[1];
+  const hipX = x - f * (lean * 2.6 + cr * 0.4), hipY = y - 5.2 + cr * 1.5;
+  const r = -f * lean, cs = Math.cos(r), sn = Math.sin(r);
+  const P = (lx, ly) => [hipX + f * lx * cs - ly * sn, hipY + f * lx * sn + ly * cs];
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  // legs: the leading foot toward the engine, the other braced back under the lean
+  for (const ft of [[x - f * (1.8 + lean * 5 + cr), y], [x + f * 2.6, y - 0.3]]) {
+    const kx = (hipX + ft[0]) / 2 + f * (0.6 + cr * 1.3), ky = (hipY + ft[1]) / 2 - cr * 0.4;
+    c.beginPath();
+    c.moveTo(hipX, hipY); c.lineTo(kx, ky); c.lineTo(ft[0], ft[1] - 0.9);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = "#4a3a2c"; c.lineWidth = 2.1; c.stroke();
+    inkDisc(ft[0] + f * 0.5, ft[1] - 0.8, 1.6, 0.95, "#33231a", 0.6);
+  }
+  const grip = o.hand;
+  const arm = (sh, hand, sleeve) => {
+    const s = P(sh[0], sh[1]);
+    let dx = hand[0] - s[0], dy = hand[1] - s[1];
+    const L = Math.hypot(dx, dy) || 1, reach = Math.min(L, 8.2);
+    dx = dx / L * reach; dy = dy / L * reach;
+    // the elbow bends down and out, more the less the arm is stretched
+    const bend = Math.sqrt(Math.max(0, 8.4 * 8.4 - reach * reach)) * 0.5;
+    const ex = s[0] + dx / 2 - (dy / reach) * bend * f * -1, ey = s[1] + dy / 2 + Math.abs(dx / reach) * bend;
+    c.beginPath();
+    c.moveTo(s[0], s[1]); c.lineTo(ex, ey); c.lineTo(s[0] + dx, s[1] + dy);
+    c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = sleeve; c.lineWidth = 1.9; c.stroke();
+    return [s[0] + dx, s[1] + dy];
+  };
+  // far arm behind the body
+  const h2 = arm([1.6, -5.6], [grip[0] - f * 0.4, grip[1] + 2.2], toneHex(coat, -22));
+  c.save();
+  c.translate(hipX, hipY);
+  c.rotate(r);
+  c.scale(f, 1);
+  // knee-length coat over the hips
+  const body = () => {
+    c.beginPath();
+    c.moveTo(-3.9, -6.6);
+    c.quadraticCurveTo(0, -8.5, 3.9, -6.6);
+    c.lineTo(4.4, 2.4);
+    c.quadraticCurveTo(0, 3.1, -4.5, 2.4);
+    c.closePath();
+  };
+  body();
+  c.fillStyle = coat;
+  c.fill();
+  c.save();
+  c.clip();
+  if (mail) {
+    // rows of rings
+    c.strokeStyle = "rgba(40, 40, 46, .55)";
+    c.lineWidth = 0.35;
+    c.beginPath();
+    for (let ry = -7; ry < 3; ry += 1.15) {
+      for (let rx = -4.4 + ((ry * 7) & 1) * 0.6; rx < 4.6; rx += 1.2) { c.moveTo(rx + 0.5, ry); c.arc(rx, ry, 0.5, 0, Math.PI); }
+    }
+    c.stroke();
+  } else {
+    // quilting: vertical stitched channels
+    c.strokeStyle = "rgba(50, 30, 14, .42)";
+    c.lineWidth = 0.4;
+    c.beginPath();
+    for (let qx = -3; qx < 4.5; qx += 1.7) { c.moveTo(qx, -7.4); c.lineTo(qx + 0.1, 2.8); }
+    c.stroke();
+  }
+  c.fillStyle = "rgba(255, 240, 210, .26)";
+  c.fillRect(-3.4, -7, 2.1, 9.6);
+  c.fillStyle = "rgba(30, 16, 6, .2)";
+  c.fillRect(2.2, -7, 2.4, 9.6);
+  c.restore();
+  body();
+  inkStroke(1.1);
+  c.fillStyle = "#35261a";
+  c.fillRect(-3.9, -1.9, 7.9, 1.3);
+  // head, beard, and the conical iron helmet with its brow band
+  inkDisc(0.4, -10.4, 3, 3, "#e2b78c", 1);
+  c.beginPath();
+  c.arc(0.4, -10.4, 2.5, 0.2, Math.PI - 0.05);
+  c.closePath();
+  c.fillStyle = "#3b2616";
+  c.fill();
+  c.fillStyle = "#24170d";
+  c.fillRect(1.6, -11.7, 1, 1.2);
+  polyPath([-3, -11.4, -2.3, -13.6, 0.5, -17.6, 3.3, -13.6, 3.9, -11.4]);
+  c.fillStyle = "#7c8088";
+  c.fill();
+  inkStroke(0.9);
+  c.fillStyle = "rgba(240, 244, 250, .55)";
+  c.beginPath();
+  c.moveTo(-1.8, -12.2); c.lineTo(0.2, -16.6); c.lineTo(-0.5, -12.2);
+  c.closePath();
+  c.fill();
+  inkRect(-3.3, -12.2, 7.5, 1.3, "#5a5e66", 0.5);
+  c.restore();
+  // near arm over the body
+  const h1 = arm([-1.4, -5.8], grip, toneHex(coat, 12));
+  inkDisc(h2[0], h2[1], 1.1, 1.1, "#e2b78c", 0.6);
+  return [h1, h2];
+}
+
+// the beam: a long tapering spar bound with rope lashings, thick at the axle
+function trebBeam(R, ang, hex) {
+  const c = sctx, ca = Math.cos(ang), sa = Math.sin(ang), nx = -sa, ny = ca;
+  const P = (t, w) => [R.px + ca * t + nx * w, R.py + sa * t + ny * w];
+  const tb = R.bt, tip = R.long, end = -R.short;
+  const pts = [].concat(P(end, tb * 0.42), P(0, tb * 0.55), P(tip, tb * 0.24), P(tip, -tb * 0.24), P(0, -tb * 0.55), P(end, -tb * 0.42));
+  polyPath(pts);
+  c.fillStyle = hex;
+  c.fill();
+  // lit upper edge, shaded under edge
+  const up = ny < 0 ? 1 : -1;
+  c.strokeStyle = toneHex(hex, 30);
+  c.lineWidth = Math.max(0.4, tb * 0.24);
+  c.beginPath();
+  let a = P(end, up * tb * 0.22), b = P(0, up * tb * 0.3), d = P(tip * 0.96, up * tb * 0.1);
+  c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]);
+  c.stroke();
+  c.strokeStyle = "rgba(40, 22, 8, .35)";
+  c.lineWidth = Math.max(0.4, tb * 0.2);
+  c.beginPath();
+  a = P(end, -up * tb * 0.28); b = P(0, -up * tb * 0.38); d = P(tip * 0.96, -up * tb * 0.12);
+  c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]);
+  c.stroke();
+  polyPath(pts);
+  inkStroke(1.2);
+  // rope lashings along a built-up spar; the Great Beam is two spars bound together
+  const binds = R.kind === 3 ? [-0.75, 0.16, 0.36, 0.56, 0.76] : R.kind === 0 ? [0.4, 0.7] : [0.2, 0.45, 0.7];
+  for (const tt of binds) {
+    const t = tt < 0 ? -tt * end : tt * tip, hw = tb * (tt < 0 ? 0.48 : 0.55 - 0.31 * tt) + 0.5;
+    const p1 = P(t - 0.9, -hw), p2 = P(t - 0.9, hw), p3 = P(t + 0.9, -hw), p4 = P(t + 0.9, hw);
+    polyPath([p1[0], p1[1], p3[0], p3[1], p4[0], p4[1], p2[0], p2[1]]);
+    c.fillStyle = "#cdb382";
+    c.fill();
+    inkStroke(0.6);
+  }
+  if (R.kind === 3) {
+    c.strokeStyle = "rgba(40, 22, 8, .5)";
+    c.lineWidth = 0.5;
+    c.beginPath();
+    const s0 = P(end * 0.9, 0), s1 = P(tip * 0.9, 0);
+    c.moveTo(s0[0], s0[1]); c.lineTo(s1[0], s1[1]);
+    c.stroke();
+  }
+  // the short end carries an iron-shod crosspiece the hauling ropes are made fast to
+  const e = P(end + 1.2, 0);
+  inkDisc(e[0], e[1], tb * 0.5 + 0.4, tb * 0.5 + 0.4, IRON, 0.8);
+  inkDisc(e[0] - 0.4, e[1] - 0.4, 0.6, 0.6, "#c9ced6", 0);
+  return { tip: P(tip, 0), end: e };
+}
+
+function paintTrebuchet(lvl, spec, released) {
+  const c = sctx, A = TOWER_ACCENT.catapult, S = footStone(), T = towerStone();
+  const R = trebRank(lvl, spec), fire = !!R.fire;
+  const WOOD = fire ? "#6a4a2c" : TIMBER, WOOD_DARK = fire ? "#42291a" : TIMBER_DARK, BEAM = fire ? "#5a3e24" : toneHex(TIMBER, 6);
+  const fx = TREB_FX, fy = TREB_FY, px = R.px, py = R.py, sp = R.sp;
+  const lr = R.kind === 3 ? 4.4 : R.kind === 0 ? 3 : 3.6;     // the stone in the pouch
+  // the stone platform: dressed blocks of the site's stone, stepped for the heavier engines
+  footPlinth(R.W, R.D, R.H, S, 61 + lvl + (spec ? 7 : 0), R.step);
+  const ox = R.D * OBQ.dx;
+  rankMarks(-ox / 2, -R.H * 0.42 + R.D * 0.19, lvl, spec, T.urartu);
+  c.save();
+  c.translate(-fx / 2, -R.H + 0.8 - (R.step ? 0.4 : 0));
+  const deckL = -R.W / 2 + 2, deckR = R.W / 2 - 2;
+  // lighting for the night: a cresset at the back corner, the brazier for the firepots
+  
+  if (lvl >= 1 || spec) pennantPole(deckR + ox * 0.5 - 1.5, -R.D * 0.3, R.kind === 3 ? 34 : spec ? 30 : lvl === 2 ? 28 : 24, 12, 5.5, A);
+
+  // pose: cocked, the long arm lies down at the tail with the loaded sling on the deck;
+  // loosed, the crew have hauled the short arm down and the long arm stands up past the frame
+  const rest = -4;
+  const ang = released ? -1.95 : Math.PI - Math.asin(structClamp((rest - py) / R.long, -1, 1));
+
+  // ---- far side of the frame ----
+  const far = (x1, y1, x2, y2, w) => beam(x1 + fx, y1 + fy, x2 + fx, y2 + fy, w, WOOD_DARK);
+  const legs = (side, draw, w) => {
+    if (R.kind === 0) {
+      // a single stout pole, braced fore and aft
+      draw(px + side * 0, -0.4, px, py + 4, w + 1.2);
+      draw(px - 10.5, 0, px - 0.8, py * 0.5, w - 0.6);
+      draw(px + 10.5, 0, px + 0.8, py * 0.5, w - 0.6);
+    } else {
+      draw(px - sp, 0, px - 1, py + 2, w);
+      draw(px + sp, 0, px + 1, py + 2, w);
+      const t1 = R.kind === 1 ? 0.48 : 0.36, y1 = py * t1, h1 = sp * (1 - t1) + 1;
+      draw(px - h1, y1, px + h1, y1, w - 1);
+      if (R.kind >= 2) {
+        const t2 = 0.7, y2 = py * t2, h2 = sp * (1 - t2) + 1.2;
+        draw(px - h2, y2, px + h2, y2, w - 1.2);
+        // a king post under the axle and raking braces from the lower tie
+        draw(px, y1, px, py + 3, w - 0.8);
+        draw(px - h1 + 1.5, y1, px, y2, w - 1.6);
+        draw(px + h1 - 1.5, y1, px, y2, w - 1.6);
+      }
+      draw(px - sp - 3, -0.6, px + sp + 3, -0.6, w - 0.6);
+    }
+  };
+  const lw = R.kind === 3 ? 4.2 : R.kind === 2 ? 3.6 : R.kind === 1 ? 3.2 : 2.9;
+  legs(1, far, lw - 0.4);
+  // the axle cheeks behind the beam
+  far(px - 1.8, py + 4, px - 1.8, py - 3.2, 2);
+  far(px + 1.8, py + 4, px + 1.8, py - 3.2, 2);
+  // cross timbers tie the two sides together at the feet
+  if (R.kind) for (const sx of [-sp, sp]) beam(px + sx, -0.4, px + sx + fx, -0.4 + fy, lw - 0.8, WOOD_DARK);
+
+  // ---- the beam, the sling and its load ----
+  const bm = trebBeam(R, ang, BEAM);
+  const tx = bm.tip[0], ty = bm.tip[1];
+  if (released) {
+    // the sling has whipped over the top and let go: the open pouch trails on its fixed cord
+    // and the loose cord streams out ahead of it
+    const sx = tx + 7.5, sy = ty - 4.5;
+    rope(tx, ty, sx, sy, 1.4, 0.6);
+    rope(sx, sy, sx + 7.5, sy + 1.2, -1.6, 0.55);
+    c.save();
+    c.translate(sx, sy);
+    c.rotate(0.35);
+    inkDisc(0, 0, 2.6, 1.2, "#6a4528", 0.7);
+    c.restore();
+    structCrown(ty - 4);
+  } else {
+    // a plank trough on the deck guides the loaded pouch on its first run
+    const lx = tx - 4.2, ly = -lr * 0.8;
+    inkRect(Math.max(lx - 6, deckL - 3), -1.4, 11, 1.6, toneHex(TIMBER, 14), 0.7);
+    rope(tx, ty, lx - lr * 0.8, ly - 0.4, 1.2, 0.6);
+    rope(tx, ty, lx + lr * 0.8, ly - 0.6, 0.6, 0.6);
+    inkDisc(lx, ly + lr * 0.25, lr * 1.15, lr * 0.7, "#5a3d24", 0.9);
+    catapultPayload(lx, ly - 0.3, lr, fire ? "pot" : "stone");
+    if (fire) {
+      // the pot is lit before the haul
+      inkPoly([lx - 1.6, ly - lr * 1.3, lx - 1.6, ly - lr * 2.1, lx - 0.2, ly - lr * 1.7, lx + 0.6, ly - lr * 2.8, lx + 1.6, ly - lr * 1.6, lx + 2.2, ly - lr * 1.3], "#ff9438", 0.6);
+      structFit.torches.push(structPoint(lx, ly - lr * 1.4));
+    }
+  }
+  // axle through the head of the frame
+  beam(px, py, px + fx, py + fy, 1.8, IRON);
+  inkDisc(px, py, 1.9, 1.9, IRON, 0.7);
+  inkDisc(px - 0.4, py - 0.4, 0.7, 0.7, "#d6dbe2", 0);
+
+  // ---- near side of the frame ----
+  const near = (x1, y1, x2, y2, w) => beam(x1, y1, x2, y2, w, WOOD);
+  legs(-1, near, lw);
+  near(px - 1.8, py + 4.5, px - 1.8, py - 3.2, 2.1);
+  inkDisc(px - 1.8, py, 1.5, 1.5, IRON, 0.6);
+  if (R.kind) {
+    lashing(px - sp, -0.6, 1.3);
+    lashing(px + sp, -0.6, 1.3);
+    for (const sx of [-sp, sp]) endGrain(px + sx * 1.15, -0.6, lw * 0.4, WOOD);
+  } else {
+    // the pole is stepped in a stone socket and wedged
+    inkRect(px - 3.6, -3, 7.2, 3.4, toneHex(S[0], -8), 0.8);
+    lashing(px, py * 0.5 + 0.6, 1.3);
+  }
+  if (R.kind >= 2) {
+    // iron cheek plates where the ties cross the legs
+    for (const sg of [-1, 1]) nailedBand(px + sg * sp * 0.64 - 1.6, py * 0.36 - 1.4, 3.2, 2.6);
+  }
+  if (R.kind === 3) {
+    // the Great Beam's frame is doubled: a second pair of legs and iron straps at the head
+    near(px - sp + 4.5, 0, px - 2, py + 5, lw - 1);
+    near(px + sp - 4.5, 0, px + 2, py + 5, lw - 1);
+  }
+
+  // ---- the crew on their ropes ----
+  const spots = trebCrewSpots(R);
+  const ex = bm.end[0], ey = bm.end[1];
+  for (let i = 0; i < spots.length; i++) {
+    const s = spots[i], coat = TREB_COATS[(i * 3 + lvl) % TREB_COATS.length];
+    const fxr = 0;
+    const feetX = s[0] + fxr + (R.kind === 3 ? 1.5 : 0), feetY = s[1];
+    // cocked, the rope is taken up overhead and the man settles back on it; loosed, he has
+    // hauled it down to his belly and sits back hard into the pull
+    const grip = released ? [feetX - 3.6, feetY - 11.5] : [feetX - 4.4 - (ex > feetX ? 0 : 0.6), feetY - 19.2];
+    const hands = trebMan(feetX, feetY, { face: -1, lean: released ? 0.42 : 0.1, crouch: released ? 1.6 : 0.2, hand: grip, coat });
+    const hx = hands[0][0], hy = hands[0][1];
+    rope(ex + (i - spots.length / 2) * 0.25, ey + 0.5, hx, hy, released ? 0 : 0.6, 0.55);
+    // the tail of the rope falls behind him to the deck
+    rope(hands[1][0], hands[1][1], feetX + 4.4, feetY - 0.4, 2.4, 0.5);
+    inkDisc(hx, hy, 1.1, 1.1, "#e2b78c", 0.6);
+  }
+  structCrown(Math.min(ey, released ? ty - 4 : py - 6) - 2);
+
+  // ---- stores on the ground in front of the platform ----
+  const gy = R.H + 3.2;
+  if (!fire) cresset(deckR + 6.5, gy - 0.6, R.H + 9);
+  const shadeAt = (x, w) => fillBlobs("rgba(24, 14, 4, .3)", [[x + 1.5, gy + 0.6, w, 1.8]]);
+  if (R.pile) {
+    // dressed round stones heaped ready for the pouch
+    const gx = deckL + 2, big = R.pile === 2;
+    shadeAt(gx, big ? 12 : 9);
+    const st = big ? [[-7, 0, 4.2], [1, 0.4, 4.4], [8.6, 0, 3.8], [-3, -6.4, 4], [5, -6.2, 4], [1, -12.2, 3.8]]
+      : [[-5, 0, 3.3], [1.6, 0.4, 3.5], [7.6, 0, 3], [-1.8, -5.4, 3.3], [4.6, -5, 3.1]];
+    for (const b of st) catapultPayload(gx + b[0], gy - b[2] + b[1], b[2], "stone");
+  }
+  if (fire) {
+    // pitch pots stacked three deep, and the brazier they are lit at
+    const gx = deckR + 7;
+    shadeAt(gx, 10);
+    for (const p of [[-6.2, 0], [0, 0.3], [6.2, 0], [-3.1, -5.2], [3.1, -5], [0, -10.2]]) catapultPayload(gx + p[0], gy - 3.3 + p[1], 3.1, "pot");
+    const bx = deckL - 4.5, by = gy - 0.4;
+    fillBlobs("rgba(22, 14, 10, .36)", [[bx + 0.5, by + 0.6, 8, 2]]);
+    // three iron legs and a shallow iron pan of coals
+    for (const lg of [[-4.4, 0.2], [4.4, 0.2], [0.8, -1.6]]) beam(bx + lg[0], by + lg[1], bx + lg[0] * 0.5, by - 8, 0.9, IRON);
+    c.beginPath();
+    c.ellipse(bx, by - 8.4, 6, 3.2, 0, 0, Math.PI);
+    c.closePath();
+    c.fillStyle = "#3a393e";
+    c.fill();
+    inkStroke(1);
+    inkDisc(bx, by - 8.6, 6, 1.6, IRON, 0.8);
+    inkDisc(bx, by - 8.8, 4.6, 1.1, "#ff7a22", 0);
+    inkDisc(bx - 0.3, by - 9, 2.4, 0.6, "#ffe08a", 0);
+    structFit.brazier = structPoint(bx, by - 9.2);
+    structGlow(bx, by - 8, 14, "warm", 0.6);
+  }
+  c.restore();
+}
+
 SKIN_ART.trebuchet = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.catapult,
+  // the crew and the long arm need room on both sides; the height stays inside the slot's own
+  box: [-54, -112, 50, 22],
   scale: TOWER_SCALE.catapult,
-  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  paint(lvl, spec, variant) { paintTrebuchet(lvl, spec, !!variant); },
   variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  footing(lvl, spec) {
+    const R = trebRank(lvl, spec), k = STRUCT_K * TOWER_SCALE.catapult;
+    return { w: (R.W + (R.step ? 3 : 0)) * k, d: (R.D + (R.step ? 2 : 0)) * k, cy: 0 };
+  },
+  live(t, c) {
+    // the firepots' brazier burns day and night, its smoke drifting up
+    const f = c.fit;
+    if (!f.brazier) return;
+    const k = c.k, time = c.time, ph = time * 0.012 + t.x;
+    const bx = c.x + f.brazier[0] * k, by = c.y + f.brazier[1] * k;
+    ctx.globalAlpha = c.fade;
+    ctx.fillStyle = "rgba(70, 60, 54, .34)";
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const rise = (time * 0.0006 + i / 3 + t.x * 0.01) % 1;
+      const sx = bx + Math.sin(rise * 5 + i) * 1.8 * k, sy = by - (7 + rise * 15) * k, pr = (1.5 + rise * 2.4) * (1 - rise * 0.5) * k;
+      ctx.moveTo(sx + pr, sy);
+      ctx.arc(sx, sy, pr, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    structFlame(bx, by, 4 * k, structClamp(9.5 + Math.sin(ph) * 1.4, 6, 12) * k, ph, false, c.fade);
+  },
   kickDrop: 1.2,
 };
 // ====================================== END SKIN SECTION: trebuchet ======================================
