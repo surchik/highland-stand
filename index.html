@@ -4485,6 +4485,12 @@ const SKIN_SPECS = {
   exhort:   { b: ["Battle Standards"] },
   banner:   { b: ["Battle Standards"] },
   drums:    { b: ["Battle Standards"] },
+  // 1915-18: each battlefield names its own masteries (E5_SPECS, in the rifles skin section)
+  rifles:    { get a() { return e5Spec("rifles", "a"); }, get b() { return e5Spec("rifles", "b"); } },
+  maxim:     { get a() { return e5Spec("maxim", "a"); }, get b() { return e5Spec("maxim", "b"); } },
+  fieldgun:  { get a() { return e5Spec("fieldgun", "a"); }, get b() { return e5Spec("fieldgun", "b"); } },
+  barricade: { get a() { return e5Spec("barricade", "a"); }, get b() { return e5Spec("barricade", "b"); } },
+  bells:     { get a() { return e5Spec("bells", "a"); }, get b() { return e5Spec("bells", "b"); } },
 };
 const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
 // a battlefield may call its towers by its own names (L.towers[slot].name) where its era's row does not fit it
@@ -25794,6 +25800,38 @@ const E5_DRESS = {
     { coat: "#7c7550", cap: "furazhka", capHex: "#6e6a48", belt: true, trou: "#625c40", boots: true },
   ],
 };
+// mastery names per battlefield (read through SKIN_SPECS); their numbers always come from TOWER_DEFS
+const E5_SPECS = {
+  rifles: {
+    van:  { a: ["Loophole Marksmen", "The best shots at the loopholes: long reach, heavy hits"], b: ["Rapid Fire", "Every man on the wall fires twice as fast"] },
+    musa: { a: ["Hunters' Long Shots", "Old hunters who rarely miss: long reach, heavy hits"], b: ["Shotgun Volleys", "Shotguns and old guns fired twice as fast"] },
+    sard: { a: ["Sharpshooters", "Picked shots: long reach, heavy hits"], b: ["Volley Fire", "Rifles fired by sections, twice as fast"] },
+  },
+  maxim: {
+    van:  { a: ["Best Shot", "One picked rifle, one heavy armor-piercing shot"], b: ["Paired Marksmen", "Two modern rifles, two targets"] },
+    musa: { a: ["Marksman of the Pass", "One high shot over the pass, armor-piercing"], b: ["Two Passes Held", "Two marksmen, two targets"] },
+    sard: { a: ["Long Bursts", "Long-range bursts that pierce armor"], b: ["Two Maxims", "Two guns, two targets"] },
+  },
+  fieldgun: {
+    van:  { a: ["Great Charge", "A heavy homemade charge, huge blast"], b: ["Kerosene Bombs", "Burning kerosene clings to the enemy"] },
+    musa: { a: ["Great Boulders", "Rocks as broad as a man, huge blast"], b: ["Burning Brushwood", "Blazing bundles rolled down after the stones"] },
+    sard: { a: ["Shrapnel Barrage", "Heavy shrapnel bursts, huge blast"], b: ["Incendiary Shells", "Burning shells set the road alight"] },
+  },
+  barricade: {
+    van:  { a: ["Burning Barricade", "Carts and timber ablaze across the lane"], b: ["Bomb Throwers", "Every 5s a thrown bomb stuns all foes near"] },
+    musa: { a: ["Brushwood Fires", "The path burns before the stone wall"], b: ["Rock Slide", "Every 5s a rock slide stuns all foes near"] },
+    sard: { a: ["Deep Wire", "Belts of wire and fire no column can cross"], b: ["Grenadiers", "Every 5s hand grenades stun all foes near"] },
+  },
+  bells: {
+    van:  { a: ["Cartridge Presses", "More cartridges: nearby towers strike far faster"], b: ["Whole Community", "Mighty blows; kills near the workshop pay +30% gold"] },
+    musa: { a: ["Lookouts", "Lookouts call every target: nearby towers strike far faster"], b: ["Banners to the Sea", "Mighty blows; kills near the banners pay +30% gold"] },
+    sard: { a: ["The Tocsin", "The bells ring without rest: nearby towers strike far faster"], b: ["Call to the Plain", "Mighty blows; kills near the bells pay +30% gold"] },
+  },
+};
+function e5Spec(skin, key) {
+  const row = E5_SPECS[skin];
+  return row ? row[e5Field()][key] : undefined;
+}
 function e5Dress(i) { const row = E5_DRESS[e5Field()]; return row[((i | 0) % row.length + row.length) % row.length]; }
 
 // ---- figures: one painter for the baked crews and the live riflemen, on any context ----
@@ -26302,10 +26340,64 @@ function e5Rock(W, H, D, seed, S) {
   hurlBoulder(W / 2 + 2.4 + ox * 0.3, oy * 0.3 - 1.2, 2.6, toneHex(R.mid, 4), seed + 5);
   return Wt;
 }
-// a dry-stone wall of fieldstones piled without mortar
+// a dry-stone wall of fieldstones piled without mortar: rounded stones of every size in rough courses
 function e5DryStone(W, H, D, seed) {
-  const T = e5Stone();
-  box3(W, H, D, toneHex(T.mid, -6), towerWall(T, seed, { side: toneHex(T.side, -10), course: 3.2, block: 4.6, rough: true, band: 0, contact: false }));
+  const c = sctx, T = e5Stone(), rnd = mulberry32(seed || 9), mid = toneHex(T.mid, -4);
+  box3(W, H, D, toneHex(mid, -24), { side: toneHex(T.side, -18), top: toneHex(mid, -10) });
+  const stones = (x0, w, h, tone, lit) => {
+    for (let y = 0, row = 0; y < h - 0.6; row++) {
+      const sh = Math.min(h - y, 2.2 + rnd() * 1.6);
+      for (let x = x0 + (row % 2 ? -1.2 : 0); x < x0 + w - 0.4;) {
+        const sw = 2.4 + rnd() * 3.4, a = Math.max(x0 + 0.2, x + 0.2), b = Math.min(x0 + w - 0.2, x + sw - 0.2);
+        if (b - a > 0.9) {
+          const cx = (a + b) / 2, cy = -y - sh / 2;
+          c.beginPath();
+          c.ellipse(cx, cy, (b - a) / 2 * 1.08, sh / 2 * 1.05, (rnd() - 0.5) * 0.3, 0, Math.PI * 2);
+          c.fillStyle = toneHex(mid, tone + rnd() * 22 - 11);
+          c.fill();
+          c.strokeStyle = "rgba(40, 30, 20, .7)";
+          c.lineWidth = 0.4;
+          c.stroke();
+          if (lit) {
+            c.fillStyle = "rgba(255, 250, 235, .35)";
+            c.beginPath();
+            c.ellipse(cx - (b - a) * 0.14, cy - sh * 0.2, (b - a) * 0.24, sh * 0.18, 0, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+        x += sw;
+      }
+      y += sh;
+    }
+  };
+  c.save();
+  c.beginPath(); c.rect(-W / 2, -H, W, H); c.clip();
+  stones(-W / 2, W, H, 0, true);
+  c.restore();
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, W / 2, 0);
+  c.beginPath(); c.rect(0, -H, D, H); c.clip();
+  stones(0, D, H, -34, false);
+  c.restore();
+  // capstones along the top
+  c.save();
+  c.transform(1, 0, OBQ.dx, OBQ.dy, -W / 2, -H);
+  c.beginPath(); c.rect(0, 0, W, D); c.clip();
+  for (let u = 0.8; u < W; u += 2.6 + rnd() * 2) {
+    for (let v = 0.9; v < D; v += 2.2) {
+      c.beginPath();
+      c.ellipse(u + rnd() * 0.6, v, 1.3 + rnd() * 0.6, 0.9, 0, 0, Math.PI * 2);
+      c.fillStyle = toneHex(mid, 16 + rnd() * 14);
+      c.fill();
+      c.strokeStyle = "rgba(40, 30, 20, .45)"; c.lineWidth = 0.35; c.stroke();
+    }
+  }
+  c.restore();
+  c.beginPath();
+  c.moveTo(-W / 2, 0); c.lineTo(-W / 2, -H); c.lineTo(-W / 2 + D * OBQ.dx, -H + D * OBQ.dy);
+  c.lineTo(W / 2 + D * OBQ.dx, -H + D * OBQ.dy); c.lineTo(W / 2 + D * OBQ.dx, D * OBQ.dy); c.lineTo(W / 2, 0); c.closePath();
+  c.moveTo(-W / 2, -H); c.lineTo(W / 2, -H); c.lineTo(W / 2, 0);
+  inkStroke(0.9);
 }
 // a breastwork round the top of a post: the far and left runs (behind the men), then the near runs
 function e5BreastBack(mat, W, H, Dp, bh, seed) {
@@ -26619,8 +26711,8 @@ function rifleMusa(lvl, spec, D) {
     e5Post(-6, -bh, Db, D(0));
     e5Post(6, -bh, Db, D(2));
   } else if (lvl === 1) {
-    e5Post(-5, -bh, Db, D(1));
-    e5Post(5.5, -bh - 0.6, Db * 0.5, Object.assign({}, D(2), { face: -1 }), { load: true });
+    e5Post(-7, -bh, Db, D(1));
+    e5Post(7.5, -bh - 0.6, Db * 0.5, Object.assign({}, D(2), { face: -1 }), { load: true });
   } else {
     e5Post(-1, -bh, Db, D(0));
   }
@@ -27636,10 +27728,10 @@ function barrPyre(x, y, w, seed, brush) {
 }
 function barrVan(lvl, spec, W, Dp, D) {
   const c = sctx, A = spec === "a", B = spec === "b";
-  const H = A ? 16 : B ? 15 : [10, 13, 15][lvl];
+  const H = A ? 19 : B ? 18 : [13, 16, 18][lvl];
   // the barricade across the back of the post
   c.save();
-  c.translate((Dp - 6) * OBQ.dx, (Dp - 6) * OBQ.dy);
+  c.translate((Dp - 8) * OBQ.dx, (Dp - 8) * OBQ.dy);
   if (B) {
     e5Figure(0, 0, 0.95, D(0), { face: 1, stride: 0.5, hands: [[-3.4, -24.4], [2.6, -14]],
       held: (h) => { const f = fgunBomb(h[0][0], h[0][1] + 0.6, 1.5, false); structFit.fuse = structPoint(f[0], f[1]); } });
@@ -27647,9 +27739,17 @@ function barrVan(lvl, spec, W, Dp, D) {
   if (lvl >= 2 || spec) {
     c.save(); c.translate(-W / 2 + 4, 0); e5Adobe(8, H + 4, 5, 401 + lvl); c.restore();
   }
-  c.save(); c.translate(lvl >= 2 || spec ? 3 : 0, 0); e5Bags(lvl >= 2 || spec ? W - 12 : W - 8, H * 0.6, 4.4, null, 405 + lvl); c.restore();
+  c.save(); c.translate(lvl >= 2 || spec ? 3 : 0, 0); e5Bags(lvl >= 2 || spec ? W - 12 : W - 8, H * 0.75, 4.4, null, 405 + lvl); c.restore();
   // doors and beams thrown across the sacks
   const x0 = lvl >= 2 || spec ? -W / 2 + 9 : -W / 2 + 5;
+  // a wardrobe stood upright in the middle of the heap, its doors nailed shut
+  if (lvl >= 1 || spec) {
+    c.save(); c.translate(x0 + 15, 0);
+    box3(7, H + 3, 3.4, "#6e4a2c", { side: "#4a3018", top: "#8a6440" });
+    plankRect(-3.2, -H - 2.6, 3, H + 2.2, "#6e4a2c", true, 409 + lvl);
+    plankRect(0.2, -H - 2.6, 3, H + 2.2, "#7a5434", true, 411 + lvl);
+    c.restore();
+  }
   inkPoly([x0, 0.6, x0 + 1.4, -H, x0 + 8.4, -H + 0.8, x0 + 7.6, 0.6], "#7b5634", 0.8);
   plankRect(x0 + 0.9, -H + 0.9, 6.2, H - 1.2, "#7b5634", true, 407 + lvl);
   ironBand(x0 + 1.2, -H * 0.66, 6, 0.7);
@@ -27670,13 +27770,13 @@ function barrVan(lvl, spec, W, Dp, D) {
   }
   c.restore();
   // the trench in front, the burning heap between trench and barricade
-  if (lvl >= 1 || spec) barrTrench(-W / 2 + 2, W / 2 - 4, 5.6, 3.2);
-  barrPyre(lvl === 0 && !spec ? 2 : -4, 2.6 + (Dp - 10) * OBQ.dy, A ? 12 : lvl === 0 && !spec ? 8 : 10, 410 + lvl, false);
-  if (lvl === 2 && !spec) barrPyre(9, 3.4, 7, 415, true);
+  barrTrench(-W / 2 + 2, W / 2 - 4, 3.4, lvl === 0 && !spec ? 2.4 : 3.2);
+  barrPyre(lvl === 0 && !spec ? 2 : -4, 1.2, A ? 12 : lvl === 0 && !spec ? 9 : 10, 410 + lvl, false);
+  if (lvl === 2 && !spec) barrPyre(9, 1.6, 7, 415, true);
 }
 function barrMusa(lvl, spec, W, Dp, D) {
   const c = sctx, A = spec === "a", B = spec === "b";
-  const H = spec ? 12 : [8, 10, 12][lvl];
+  const H = spec ? 14 : [10, 12, 14][lvl];
   c.save();
   c.translate((Dp - 6) * OBQ.dx, (Dp - 6) * OBQ.dy);
   // rocks either side of the path, the wall of loose stones across it
@@ -27705,8 +27805,8 @@ function barrMusa(lvl, spec, W, Dp, D) {
   }
   c.restore();
   // brushwood fired on the path below the wall
-  barrPyre(lvl === 0 && !spec ? 1 : -3, 3 + (Dp - 10) * OBQ.dy, A ? 12 : 9, 440 + lvl, true);
-  if (A) barrPyre(10, 4, 8, 445, true);
+  barrPyre(lvl === 0 && !spec ? 1 : -3, 2, A ? 12 : 9, 440 + lvl, true);
+  if (A) barrPyre(10, 2.4, 8, 445, true);
 }
 function barrSard(lvl, spec, W, Dp, D) {
   const c = sctx, A = spec === "a", B = spec === "b";
@@ -27735,11 +27835,11 @@ function barrSard(lvl, spec, W, Dp, D) {
   c.restore();
   // belts of wire on pickets before it
   const rows = A ? 3 : lvl >= 1 || spec ? 2 : 1;
-  barrWire(-W / 2 + 2, W / 2 - 2, 4 - (rows - 1) * 1.2, 8, rows, 460 + lvl);
+  barrWire(-W / 2 + 2, W / 2 - 2, 3 - (rows - 1) * 1.2, 8, rows, 460 + lvl);
   // stubble and straw fired in front of the wire
-  if (lvl >= 1 || spec) barrPyre(A ? -6 : -8, 8, A ? 9 : 7, 470 + lvl, true);
-  if (A || lvl === 2) barrPyre(9, 8.4, 7, 475 + lvl, true);
-  if (lvl === 0 && !spec) barrPyre(0, 8, 6, 478, true);
+  if (lvl >= 1 || spec) barrPyre(A ? -6 : -8, 2.6, A ? 9 : 7, 470 + lvl, true);
+  if (A || lvl === 2) barrPyre(9, 2.8, 7, 475 + lvl, true);
+  if (lvl === 0 && !spec) barrPyre(0, 2.6, 6, 478, true);
 }
 
 function paintBarricade(lvl, spec) {
