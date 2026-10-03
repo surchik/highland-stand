@@ -28468,103 +28468,227 @@ function briefScene(crop, w, h, seed) {
 }
 
 // ---- the miniature is laid as a mosaic each time the chronicle opens ----
-// The finished picture is sampled into tesserae, one flat stone per cell of a staggered grid
-// (opus tessellatum). They are set into pale bedding mortar from the foreground outward, each one
-// pressed into place; once the last is down the grout melts away and the painting stands whole.
-let briefMosaic = null;
-const MOSAIC_CELL = 16, MOSAIC_LAY = 2.1, MOSAIC_SET = 0.22, MOSAIC_MELT = 0.7;
+// The painted miniature is cut into tesserae (opus tessellatum): square stones on a staggered grid,
+// split into four finer stones wherever the picture has detail, so edges and faces stay sharp.
+// The stones fly in from the four corners of the leaf along spinning arcs, four streams that meet
+// in the middle; each settles into lime bedding with a small click. A sheen of light then passes
+// over the finished floor, and the picture stays a mosaic, grout and all.
+let briefMosaic = null, briefPainting = null, briefPaintingLevel = -1;
+const MOSAIC_CELL = 22, MOSAIC_GAP = 2.2, MOSAIC_LAY = 3.9, MOSAIC_FLY = 1.15, MOSAIC_SHEEN = 1.5;
+const mosaicFinal = new Map();   // level -> finished mosaic leaf, so a reopened chronicle need not recut its stones
+function mosaicEase(t) { return 1 - Math.pow(1 - t, 3); }
+// one stone: an irregular quad in its own colour, a lit upper-left edge and a shaded lower-right,
+// with now and then a glint of polish in its corner. Drawn centred on the origin.
+function mosaicStone(c, tile) {
+  const h = (tile.s - Math.min(MOSAIC_GAP, tile.s * 0.11)) / 2, q = tile.q;
+  c.beginPath();
+  c.moveTo(-h + q[0], -h + q[1]);
+  c.lineTo(h + q[2], -h + q[3]);
+  c.lineTo(h + q[4], h + q[5]);
+  c.lineTo(-h + q[6], h + q[7]);
+  c.closePath();
+  c.fillStyle = tile.col;
+  c.fill();
+  c.lineWidth = Math.max(0.45, tile.s * 0.055);
+  c.strokeStyle = tile.lit;
+  c.beginPath();
+  c.moveTo(-h + q[6] + 0.6, h + q[7] - 0.8);
+  c.lineTo(-h + q[0] + 0.6, -h + q[1] + 0.6);
+  c.lineTo(h + q[2] - 0.8, -h + q[3] + 0.6);
+  c.stroke();
+  c.strokeStyle = tile.dark;
+  c.beginPath();
+  c.moveTo(h + q[2] - 0.6, -h + q[3] + 0.8);
+  c.lineTo(h + q[4] - 0.6, h + q[5] - 0.6);
+  c.lineTo(-h + q[6] + 0.8, h + q[7] - 0.6);
+  c.stroke();
+  if (tile.glint) {
+    c.fillStyle = "rgba(255, 252, 240, .55)";
+    c.beginPath();
+    c.ellipse(-h * 0.45, -h * 0.5, h * 0.28, h * 0.14, -0.6, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+function mosaicCut(level, W, H, x0, y0, x1, y1, px) {
+  let seed = 9301 + level * 77;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const mean = (cx, cy, r) => {
+    let R = 0, G = 0, B = 0, n = 0;
+    for (const [dx, dy] of [[0, 0], [-r, -r], [r, -r], [-r, r], [r, r]]) {
+      const sx = Math.min(W - 1, Math.max(0, Math.round(cx + dx))), sy = Math.min(H - 1, Math.max(0, Math.round(cy + dy))), i = (sy * W + sx) * 4;
+      R += px[i]; G += px[i + 1]; B += px[i + 2]; n++;
+    }
+    return [R / n, G / n, B / n];
+  };
+  const shade = (rgb, d) => "rgb(" + rgb.map(v => Math.max(0, Math.min(255, Math.round(v + d)))).join(",") + ")";
+  const tiles = [];
+  const add = (x, y, sz, rgb) => {
+    const vary = (rnd() - 0.5) * 12;
+    const base = rgb.map(v => v + vary);
+    const j = () => (rnd() - 0.5) * sz * 0.1;
+    tiles.push({
+      x: x + sz / 2, y: y + sz / 2, s: sz, q: [j(), j(), j(), j(), j(), j(), j(), j()],
+      rot: (rnd() - 0.5) * 0.08,
+      col: shade(base, 0), lit: "rgba(255, 248, 228, .42)", dark: "rgba(40, 24, 10, .32)",
+      glint: rnd() < 0.07,
+    });
+  };
+  // a cell is split into four while its quarters disagree in colour, down to stones a quarter the size
+  const S = MOSAIC_CELL;
+  const cell = (x, y, sz, depth) => {
+    const h = sz / 4, r = Math.max(1, h * 0.6);
+    const quads = [[x + h, y + h], [x + 3 * h, y + h], [x + h, y + 3 * h], [x + 3 * h, y + 3 * h]].map(([cx, cy]) => mean(cx, cy, r));
+    let spread = 0;
+    for (let i = 0; i < 4; i++) for (let k = i + 1; k < 4; k++) {
+      spread = Math.max(spread, Math.hypot(quads[i][0] - quads[k][0], quads[i][1] - quads[k][1], quads[i][2] - quads[k][2]));
+    }
+    if (depth < 2 && spread > (depth ? 26 : 16)) {
+      const half = sz / 2;
+      cell(x, y, half, depth + 1); cell(x + half, y, half, depth + 1);
+      cell(x, y + half, half, depth + 1); cell(x + half, y + half, half, depth + 1);
+    } else {
+      add(x, y, sz, quads.reduce((a, b) => [a[0] + b[0] / 4, a[1] + b[1] / 4, a[2] + b[2] / 4], [0, 0, 0]));
+    }
+  };
+  for (let row = 0, y = y0; y < y1; row++, y += S) {
+    const shift = (row % 2) * S * 0.5 - S * 0.5;
+    for (let x = x0 + shift; x < x1; x += S) cell(x, y, S, 0);
+  }
+  // each stone comes from a corner: mostly its own quarter's, sometimes a far one, so the streams braid
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  const corners = [[-90, -90], [W + 90, -90], [-90, H + 90], [W + 90, H + 90]];
+  const reach = Math.hypot(x1 - x0, y1 - y0);
+  for (const t of tiles) {
+    let k = (t.x < mx ? 0 : 1) + (t.y < my ? 0 : 2);
+    if (rnd() < 0.22) k = Math.floor(rnd() * 4);
+    const c = corners[k];
+    t.sx = c[0] + (rnd() - 0.5) * 160;
+    t.sy = c[1] + (rnd() - 0.5) * 160;
+    // the arc bows to one side of the straight flight line
+    const dx = t.x - t.sx, dy = t.y - t.sy, len = Math.hypot(dx, dy) || 1, bow = (rnd() - 0.5) * 0.7 * len;
+    t.cx = (t.sx + t.x) / 2 - dy / len * bow;
+    t.cy = (t.sy + t.y) / 2 + dx / len * bow - len * 0.15;
+    t.spin = (rnd() < 0.5 ? -1 : 1) * (2 + rnd() * 4);
+    t.at = Math.min(1, Math.hypot(t.x - c[0], t.y - c[1]) / reach * 0.95 + rnd() * 0.12) * MOSAIC_LAY;
+    t.fly = MOSAIC_FLY * (0.8 + rnd() * 0.4);
+  }
+  tiles.sort((a, b) => a.at - b.at);
+  return tiles;
+}
 function startBriefMosaic() {
   const cv = $("briefArt");
   if (briefMosaic) { cancelAnimationFrame(briefMosaic.raf); briefMosaic = null; }
-  if (!cv || cv.style.display === "none" || HARNESS_ON) return;
-  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const W = cv.width, H = cv.height, F = BRIEF_FRAME;
-  const c = cv.getContext("2d");
-  // keep the finished leaf, then read the picture's colours out of it
-  const done = document.createElement("canvas");
-  done.width = W; done.height = H;
-  done.getContext("2d").drawImage(cv, 0, 0);
+  if (!cv || cv.style.display === "none" || !briefPainting || briefPaintingLevel !== curLevel) return;
+  const W = cv.width, H = cv.height, F = BRIEF_FRAME, c = cv.getContext("2d");
   const x0 = F + 7, y0 = F + 14, x1 = W - F - 7, y1 = H - F;   // inset so the gilt moulding stays untouched
-  const px = c.getImageData(0, 0, W, H).data;
-  const tiles = [];
-  let seed = 9301 + curLevel * 77;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  // tesserae are laid from the foot of the picture, middle first, spreading up and out
-  const ox = (x0 + x1) / 2, oy = y1;
-  let maxKey = 0;
-  for (let row = 0, y = y0; y < y1; row++, y += MOSAIC_CELL) {
-    const shift = (row % 2) * MOSAIC_CELL * 0.5 - MOSAIC_CELL * 0.5;
-    for (let x = x0 + shift; x < x1; x += MOSAIC_CELL) {
-      const cx = Math.min(W - 1, Math.max(0, Math.round(x + MOSAIC_CELL / 2)));
-      const cy = Math.min(H - 1, Math.round(y + MOSAIC_CELL / 2));
-      // the stone's colour: the mean of a few samples in its cell, with a little natural variation
-      let r = 0, g = 0, b = 0, n = 0;
-      for (const [dx, dy] of [[0, 0], [-4, -4], [4, -4], [-4, 4], [4, 4]]) {
-        const sx = Math.min(W - 1, Math.max(0, cx + dx)), sy = Math.min(H - 1, Math.max(0, cy + dy)), i = (sy * W + sx) * 4;
-        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
-      }
-      const vary = (rnd() - 0.5) * 14;
-      const col = "rgb(" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v / n + vary)))).join(",") + ")";
-      const key = Math.hypot((cx - ox) * 0.8, cy - oy) + rnd() * 70;
-      maxKey = Math.max(maxKey, key);
-      // a cut stone is never quite square: each corner wanders a little
-      const j = () => (rnd() - 0.5) * 2.2;
-      tiles.push({ x, y, col, key, c: [j(), j(), j(), j(), j(), j(), j(), j()] });
-    }
+  const level = curLevel;
+  const finished = mosaicFinal.get(level);
+  const still = HARNESS_ON || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // the bedding: the leaf with its picture replaced by warm lime mortar, lightly speckled
+  const bed = document.createElement("canvas");
+  bed.width = W; bed.height = H;
+  const b = bed.getContext("2d");
+  b.drawImage(briefPainting, 0, 0);
+  b.save();
+  briefArchPath(b, x0, y0, x1, y1);
+  b.clip();
+  b.fillStyle = "#d9ccae";
+  b.fillRect(x0, y0, x1 - x0, y1 - y0);
+  let ss = 4242;
+  const sr = () => (ss = (ss * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 1400; i++) {
+    b.fillStyle = sr() < 0.5 ? "rgba(120, 96, 64, .14)" : "rgba(255, 250, 236, .22)";
+    b.fillRect(x0 + sr() * (x1 - x0), y0 + sr() * (y1 - y0), 1.4, 1.4);
   }
-  tiles.sort((a, b) => a.key - b.key);
-  for (const t of tiles) t.at = t.key / maxKey * MOSAIC_LAY;
-  const m = { raf: 0, t0: performance.now(), tiles, done, x0, y0, x1, y1, clicks: 0 };
+  b.restore();
+  let tiles = null;
+  const laid = document.createElement("canvas");
+  laid.width = W; laid.height = H;
+  const l = laid.getContext("2d");
+  l.save();
+  briefArchPath(l, x0, y0, x1, y1);
+  l.clip();
+  const bake = t => { l.save(); l.translate(t.x, t.y); l.rotate(t.rot); mosaicStone(l, t); l.restore(); };
+  const finish = () => {
+    let fin = mosaicFinal.get(level);
+    if (!fin) {
+      if (!tiles) { tiles = mosaicCut(level, W, H, x0, y0, x1, y1, briefPainting.getContext("2d").getImageData(0, 0, W, H).data); tiles.forEach(bake); }
+      fin = document.createElement("canvas");
+      fin.width = W; fin.height = H;
+      const f = fin.getContext("2d");
+      f.drawImage(bed, 0, 0);
+      f.drawImage(laid, 0, 0);
+      mosaicFinal.set(level, fin);
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(fin, 0, 0);
+  };
+  if (still || finished) {
+    if (still || !briefMosaicReplay) { finish(); return; }
+  }
+  tiles = mosaicCut(level, W, H, x0, y0, x1, y1, briefPainting.getContext("2d").getImageData(0, 0, W, H).data);
+  const m = { raf: 0, t0: performance.now(), next: 0, clicks: 0 };
   briefMosaic = m;
   const frame = (now) => {
     if (briefMosaic !== m) return;
+    if (menuMode !== "brief") { briefMosaic = null; tiles.slice(m.next).forEach(bake); finish(); return; }
     const t = (now - m.t0) / 1000;
-    const finished = t >= MOSAIC_LAY + MOSAIC_SET + MOSAIC_MELT || menuMode !== "brief";
+    // stones that have landed are set into the bed for good
+    let landedNow = 0;
+    while (m.next < tiles.length && t >= tiles[m.next].at + tiles[m.next].fly) { bake(tiles[m.next]); m.next++; landedNow++; }
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(done, 0, 0);
-    if (finished) { briefMosaic = null; return; }
-    c.save();
-    briefArchPath(c, x0, y0, x1, y1);
-    c.clip();
-    const melt = Math.max(0, (t - MOSAIC_LAY - MOSAIC_SET) / MOSAIC_MELT);
-    c.globalAlpha = 1 - melt * melt * (3 - 2 * melt);
-    // the bedding: lime mortar with the setter's guide lines scored into it
-    c.fillStyle = "#e9dcc0";
-    c.fillRect(x0, y0, x1 - x0, y1 - y0);
-    const S = MOSAIC_CELL, gap = 1.6;
-    let laid = 0;
-    for (const tile of tiles) {
+    c.drawImage(bed, 0, 0);
+    c.drawImage(laid, 0, 0);
+    // stones in the air, highest last so they pass over the ones settling
+    for (let i = m.next; i < tiles.length; i++) {
+      const tile = tiles[i];
       const age = t - tile.at;
       if (age < 0) break;
-      laid++;
-      const k = Math.min(1, age / MOSAIC_SET);
-      const ease = 1 - Math.pow(1 - k, 3);
-      // each stone drops from just above its bed and settles, darkening the mortar round it
-      const lift = (1 - ease) * 6, grow = 1 + (1 - ease) * 0.35;
-      const cx = tile.x + S / 2, cy = tile.y + S / 2 - lift, h = (S - gap) / 2 * grow, q = tile.c;
-      c.globalAlpha = (1 - melt * melt * (3 - 2 * melt)) * Math.min(1, k * 2.5);
-      c.fillStyle = "rgba(60, 40, 20, .35)";
-      c.fillRect(cx - h + 1, cy - h + 1.5 + lift, h * 2, h * 2);
-      c.fillStyle = tile.col;
-      c.beginPath();
-      c.moveTo(cx - h + q[0], cy - h + q[1]);
-      c.lineTo(cx + h + q[2], cy - h + q[3]);
-      c.lineTo(cx + h + q[4], cy + h + q[5]);
-      c.lineTo(cx - h + q[6], cy + h + q[7]);
-      c.closePath();
-      c.fill();
-      // a lit upper edge on every stone: the glint of a fresh-cut face
-      c.fillStyle = "rgba(255, 250, 235, .22)";
-      c.fillRect(cx - h + 1, cy - h + 0.5, h * 2 - 2, 1.4);
+      if (age >= tile.fly) continue;
+      const k = age / tile.fly, e = mosaicEase(k), u = 1 - e;
+      const x = u * u * tile.sx + 2 * u * e * tile.cx + e * e * tile.x;
+      const y = u * u * tile.sy + 2 * u * e * tile.cy + e * e * tile.y;
+      const lift = u * 26, scale = 1 + u * 1.3;
+      c.save();
+      c.globalAlpha = Math.min(1, k * 4);
+      // its shadow on the bed below, sharpening as it comes down
+      c.fillStyle = "rgba(48, 30, 12, " + (0.28 * (1 - u * 0.6)).toFixed(3) + ")";
+      c.fillRect(x - tile.s * scale * 0.45 + lift * 0.5, y - tile.s * scale * 0.45 + lift, tile.s * scale * 0.9, tile.s * scale * 0.9);
+      c.translate(x, y - lift * 0.2);
+      c.rotate(tile.rot + tile.spin * u * u);
+      c.scale(scale, scale);
+      mosaicStone(c, tile);
+      c.restore();
     }
-    c.restore();
-    // the faint click of stone on stone as the setter works
-    const want = Math.floor(laid / 40);
-    if (want > m.clicks && t < MOSAIC_LAY) { m.clicks = want; Snd.play("uiTick"); }
+    if (landedNow) {
+      m.clicks += landedNow;
+      if (m.clicks >= 45) { m.clicks = 0; Snd.play("uiTick"); }
+    }
+    // once the floor is complete a raking light passes across it
+    const end = (tiles.length ? tiles[tiles.length - 1].at + MOSAIC_FLY * 1.2 : 0);
+    if (m.next >= tiles.length) {
+      const st = (t - end) / MOSAIC_SHEEN;
+      if (st >= 1) { briefMosaic = null; finish(); return; }
+      if (st > 0) {
+        c.save();
+        briefArchPath(c, x0, y0, x1, y1);
+        c.clip();
+        c.globalCompositeOperation = "lighter";
+        const sx = x0 - 400 + (x1 - x0 + 800) * st;
+        const g = c.createLinearGradient(sx - 160, y0, sx + 160, y1);
+        g.addColorStop(0, "rgba(255, 236, 190, 0)");
+        g.addColorStop(0.5, "rgba(255, 236, 190, .26)");
+        g.addColorStop(1, "rgba(255, 236, 190, 0)");
+        c.fillStyle = g;
+        c.fillRect(x0, y0, x1 - x0, y1 - y0);
+        c.restore();
+      }
+    }
     m.raf = requestAnimationFrame(frame);
   };
   m.raf = requestAnimationFrame(frame);
 }
+let briefMosaicReplay = true;   // the stones fly in every time a chronicle opens
 
 function renderBriefArt(levelIndex) {
   const cv = $("briefArt");
@@ -28649,6 +28773,10 @@ function renderBriefArt(levelIndex) {
     }
     cv.style.display = "";
     briefArtLevel = levelIndex;
+    briefPainting = document.createElement("canvas");
+    briefPainting.width = W; briefPainting.height = H;
+    briefPainting.getContext("2d").drawImage(cv, 0, 0);
+    briefPaintingLevel = levelIndex;
   } catch (err) {
     cv.style.display = "none";   // the leaf must open even when its miniature cannot be painted
   } finally {
