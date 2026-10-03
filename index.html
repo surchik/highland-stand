@@ -4103,7 +4103,7 @@ function terrInkedRect(c, x, y, w, h, fill, size) {
 }
 // Scenery that is built is drawn under life size: a farmhouse, a stall or a ruined gate must never
 // out-measure the smallest emplacement the player can raise beside it.
-const TERR_BUILT_K = { hut: 0.64, stall: 0.8, arch: 0.85, chapel: 1, shepherd: 0.95, tonir: 1.2, cauldron: 1.8, karas: 1.4, fishrack: 1.3, hndzan: 1.1, shrine: 1.3, cart: 1.1 };
+const TERR_BUILT_K = { hut: 0.64, stall: 0.8, arch: 0.85, shepherd: 0.95, tonir: 1.2, cauldron: 1.8, karas: 1.4, fishrack: 1.3, hndzan: 1.35, shrine: 1.3, cart: 1.4, tezek: 1.25, chapel: 1.2 };
 // A house drawn as a building: one ink contour, sunlit front and shaded east wall, roof-beam ends under
 // the parapet, a plank door under its lintel, a shuttered window, and a ladder, jars or an awning.
 // o.w / o.wall are its width and wall height (world units), o.layout 1 adds a lower annex on the west.
@@ -5514,7 +5514,7 @@ function terrChapel(c, p, q, s, B, r) {
   const roof = terrCss(terrLit(tone(1), -0.08)), roofLit = terrCss(terrLit(tone(0), 0.25)), roofDark = terrCss(terrLit(tone(2), -0.1));
   const x0 = x - w / 2, x1 = x + w / 2, top = y - h, ax = x, ay = top - rise;
   // the apse: a half-drum bulging from the east end under its own cone of slabs
-  const acx = x + w * 0.52 + ox * 0.98, acy = y + oy * 0.98 + 2 * s, ra = w * 0.27, ha = h * 0.86, cone = 7.5 * s;
+  const acx = x + w * 0.68 + ox * 0.98, acy = y + oy * 0.98 + 2 * s, ra = w * 0.33, ha = h * 0.86, cone = 8.5 * s;
   const drum = () => {
     c.moveTo(acx - ra, acy); c.lineTo(acx - ra, acy - ha); c.lineTo(acx + ra, acy - ha); c.lineTo(acx + ra, acy);
     c.ellipse(acx, acy, ra, ra * 0.32, 0, 0, Math.PI);
@@ -5529,6 +5529,8 @@ function terrChapel(c, p, q, s, B, r) {
   for (let k = 1; k < 5; k++) { c.moveTo(acx - ra, acy - ha * k / 5); c.lineTo(acx + ra, acy - ha * k / 5); }
   c.stroke();
   terrInked(c, () => { c.moveTo(acx - ra - eave, acy - ha + 0.6 * s); c.lineTo(acx, acy - ha - cone); c.lineTo(acx + ra + eave, acy - ha + 0.6 * s); c.closePath(); }, roof, h * 1.2);
+  c.fillStyle = roofLit;
+  terrPoly(c, [acx, acy - ha - cone, acx - ra - eave, acy - ha + 0.6 * s, acx - ra * 0.2, acy - ha + 0.6 * s]);
   c.fillStyle = roofDark;
   terrPoly(c, [acx, acy - ha - cone, acx + ra + eave, acy - ha + 0.6 * s, acx + ra * 0.3, acy - ha + 0.6 * s]);
   c.beginPath();
@@ -5981,66 +5983,65 @@ function terrFishRack(c, p, q, s, B, r) {
 }
 
 // Tezek: cakes of dung and straw, dried in summer and stacked for the winter fire on the treeless Shirak
-// plateau: a round stack of cakes set on edge in courses, their round faces outward, and a long stack beside
+// plateau: a beehive stack of flat cakes laid in courses, and fresh cakes spread on the ground beside it to dry
 function terrTezek(c, p, q, s, B, r) {
-  const x = q.x, y = q.y, rr = 2.2 * s, step = 4.2 * s, rise = 3.4 * s;
-  terrFootShadow(c, B, x + 2 * s, y, 22 * s, 3.2 * s);
-  // a cake: a flat, hand-pressed patty with a ragged rim, its face flecked with the chopped straw bound into it
-  const cake = (cx, cy, k) => {
-    const blob = (g) => {
+  const x = q.x, y = q.y;
+  terrFootShadow(c, B, x + 3 * s, y, 24 * s, 3.4 * s);
+  // one flat cake seen edge-on: a wide, ragged lens of dung and straw, lit along its upper lip
+  const cake = (cx, cy, w, h, k) => {
+    const rim = (g) => {
       c.beginPath();
-      for (let i = 0; i <= 8; i++) {
-        const a = i / 8 * Math.PI * 2, f = 1 + 0.12 * Math.sin(a * 3 + k * 1.7) + 0.06 * Math.sin(a * 5 + k);
-        const px = cx + Math.cos(a) * (rr + g) * f * 1.06, py = cy + Math.sin(a) * (rr + g) * f * 0.92;
+      for (let i = 0; i <= 10; i++) {
+        const a = i / 10 * Math.PI * 2, f = 1 + 0.1 * Math.sin(a * 3 + k * 2.3) + 0.07 * Math.sin(a * 5 + k);
+        const px = cx + Math.cos(a) * (w + g) * f, py = cy + Math.sin(a) * (h + g * 0.7) * f;
         if (i) c.lineTo(px, py); else c.moveTo(px, py);
       }
       c.closePath();
     };
-    blob(0.55 * s);
-    c.fillStyle = terrInkCss(0.8);
+    rim(0.5 * s);
+    c.fillStyle = terrInkCss(0.75);
     c.fill();
-    blob(0);
-    c.fillStyle = k % 3 ? "#6e5038" : "#7a5a40";
+    rim(0);
+    c.fillStyle = k % 3 === 0 ? "#5a3e28" : k % 3 === 1 ? "#674830" : "#705238";
     c.fill();
-    c.save(); blob(0); c.clip();
-    c.fillStyle = "#a07c58";
-    c.beginPath(); c.ellipse(cx - rr * 0.35, cy - rr * 0.35, rr * 0.8, rr * 0.55, -0.5, 0, Math.PI * 2); c.fill();
-    c.fillStyle = "rgba(40, 24, 12, .45)";
-    c.beginPath(); c.ellipse(cx + rr * 0.55, cy + rr * 0.5, rr * 0.75, rr * 0.5, -0.5, 0, Math.PI * 2); c.fill();
+    c.save(); rim(0); c.clip();
+    c.fillStyle = "#9c7a54";
+    c.beginPath(); c.ellipse(cx - w * 0.15, cy - h * 0.6, w * 0.85, h * 0.42, 0, 0, Math.PI * 2); c.fill();
     c.restore();
-    c.strokeStyle = "rgba(226, 196, 120, .8)";
-    c.lineWidth = Math.max(0.5, 0.3 * s);
+    c.strokeStyle = "rgba(222, 192, 118, .85)";
+    c.lineWidth = Math.max(0.5, 0.32 * s);
     c.beginPath();
     for (let i = 0; i < 3; i++) {
-      const a = k * 2.1 + i * 2.2, d = rr * 0.45;
-      c.moveTo(cx + Math.cos(a) * d - 0.5 * s, cy + Math.sin(a) * d); c.lineTo(cx + Math.cos(a) * d + 0.5 * s, cy + Math.sin(a) * d + 0.25 * s);
+      const fx = cx + (((k * 37 + i * 53) % 100) / 100 - 0.5) * w * 1.4, fy = cy + (i - 1) * h * 0.3;
+      c.moveTo(fx - 0.6 * s, fy); c.lineTo(fx + 0.6 * s, fy + 0.2 * s);
     }
     c.stroke();
   };
-  const cap = (cx, cy) => {
-    if (!B.snow) return;
-    c.fillStyle = terrInkCss(0.45);
-    c.beginPath(); c.ellipse(cx, cy - rr * 0.78, rr * 1.05, rr * 0.5, 0, Math.PI, Math.PI * 2); c.fill();
-    c.fillStyle = terrCss(B.snow);
-    c.beginPath(); c.ellipse(cx, cy - rr * 0.72, rr * 0.95, rr * 0.42, 0, Math.PI, Math.PI * 2); c.fill();
-  };
-  // the long stack behind, three courses of five
-  const lx = x + 3.5 * s, ly = y - 1.6 * s;
-  for (let k = 0; k < 3; k++) for (let i = 0; i < 4 - (k > 1 ? 1 : 0); i++) cake(lx + i * step + (k % 2) * step * 0.5, ly - rr - k * rise, i + k * 3);
-  for (let i = 0; i < 3; i++) cap(lx + i * step, ly - rr - 2 * rise);
-  // the round stack: courses narrowing to a single cake at the crown
-  const dx0 = x - 9 * s;
-  for (let k = 0; k < 5; k++) {
-    const n = 5 - k;
-    for (let i = 0; i < n; i++) cake(dx0 + (i - (n - 1) / 2) * step, y - rr - k * rise, i + k * 2);
-    cap(dx0 - (n - 1) / 2 * step, y - rr - k * rise);
-    cap(dx0 + (n - 1) / 2 * step, y - rr - k * rise);
+  // the beehive stack: cakes laid flat in courses, each course drawn in a little, crowned by a single cake
+  const dx = x - 5 * s, W = 13 * s, H = 18 * s, rows = 5, ch = H / rows;
+  for (let k = 0; k < rows; k++) {
+    const cy = y - ch * (k + 0.5), half = W * Math.sqrt(Math.max(0.08, 1 - Math.pow((k + 0.5) / rows, 1.7)));
+    const n = Math.max(1, Math.round(half * 2 / (7.4 * s)));
+    for (let i = 0; i < n; i++) {
+      const u = n === 1 ? 0 : (i / (n - 1) - 0.5) * 2, cx = dx + u * (half - 2.6 * s) + (k % 2 ? 1.2 * s : 0);
+      cake(cx, cy, Math.min(4.6 * s, half * 0.62 + 1.4 * s), ch * 0.6, k * 5 + i);
+    }
+  }
+  // the shaded east side of the stack
+  c.fillStyle = B.snow ? "rgba(40, 50, 90, .22)" : "rgba(30, 18, 8, .22)";
+  c.beginPath();
+  c.moveTo(dx + 2 * s, y - H); c.quadraticCurveTo(dx + W * 1.1, y - H * 0.6, dx + W + 1 * s, y); c.lineTo(dx + W * 0.2, y); c.quadraticCurveTo(dx + W * 0.5, y - H * 0.5, dx + 2 * s, y - H);
+  c.fill();
+  // fresh cakes laid out flat on the ground beside it to dry, seen from above as broad ragged discs
+  for (const [ux, uy, k] of [[11, -1.4, 1], [17.5, 0.4, 2], [12.5, 2.8, 4], [19, 3.6, 5]]) {
+    cake(x + ux * s, y + uy * s, 3.4 * s, 1.5 * s, k);
   }
   if (B.snow) {
-    terrSnowLedge(c, lx - rr, lx + 2.5 * step + rr, ly - rr * 2 - 2 * rise + 0.8 * s, 1.4 * s, B);
-    terrSnowLedge(c, dx0 - 4 * s, dx0 + 4 * s, y - rr * 2 - 4 * rise + 0.8 * s, 1.8 * s, B);
+    // snow lying on the crown and on the shoulders of the stack
+    terrSnowLedge(c, dx - 3.6 * s, dx + 3.6 * s, y - H + ch * 0.35, 2 * s, B);
+    terrSnowLedge(c, dx - W * 0.78, dx - W * 0.3, y - H * 0.58, 1.3 * s, B);
     c.fillStyle = terrCss(B.snow, 0.95);
-    c.beginPath(); c.ellipse(x + 1 * s, y + 0.5 * s, 19 * s, 2.2 * s, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(dx, y + 0.6 * s, W * 1.2, 2.2 * s, 0, 0, Math.PI * 2); c.fill();
   }
 }
 
@@ -6371,7 +6372,15 @@ function terrOxCart(c, p, q, s, B, r) {
   };
   // the draught pole and yoke out in front, the far wheel
   terrPole(c, x - 6 * s + ox * 0.5, y - 6.4 * s + oy * 0.5, x - 24 * s + ox * 0.5, y - 0.6 * s + oy * 0.5, 1.2 * s, wood, woodLit);
-  terrPole(c, x - 25 * s, y + 0.4 * s, x - 23 * s + ox * 1.4, y + oy * 1.4 - 0.2 * s, 1.5 * s, woodDark);
+  // the yoke across the end of the pole, its two bows for the oxen's necks
+  const yx = x - 24.5 * s, yy = y - 0.2 * s;
+  terrPole(c, yx - 1.4 * s, yy + 1.6 * s, yx + ox * 1.6, yy + oy * 1.6 - 0.4 * s, 1.8 * s, "#8a6640", "#b8925e");
+  c.strokeStyle = terrInkCss(0.8); c.lineWidth = 1.6 * s;
+  c.beginPath();
+  for (const t of [0.2, 0.8]) { const bx = yx - 1.4 * s + (ox * 1.6 + 1.4 * s) * t, by = yy + 1.6 * s + (oy * 1.6 - 2 * s) * t; c.moveTo(bx - 1.4 * s, by); c.quadraticCurveTo(bx, by + 4 * s, bx + 1.4 * s, by); }
+  c.stroke();
+  c.strokeStyle = "#8a6640"; c.lineWidth = 0.8 * s;
+  c.stroke();
   wheel(x + ox, y - 5.8 * s + oy, true);
   // the bed with its wicker sides, the hay piled over it
   const bx0 = x - 11 * s, bx1 = x + 9 * s, by = y - 6.4 * s;
@@ -6472,7 +6481,9 @@ function drawCultureSmoke(L, time) {
   if (L.glow && tod.lit) {
     // the embers in the oven's mouth, seen only once the light goes
     ctx.globalCompositeOperation = "lighter";
-    drawGlow(ctx, glowSprite(LIGHT_EMBER), L.sx, L.sy + 0.6 * k, 7 * k, 3 * k, (0.45 + 0.1 * Math.sin(time * 0.006 + L.seed * 9)) * unit01(tod.dark + tod.dusk * 0.4));
+    const on = unit01(tod.dark + tod.dusk * 0.5), flick = 0.9 + 0.1 * Math.sin(time * 0.006 + L.seed * 9);
+    drawGlow(ctx, glowSprite(LIGHT_HEARTH), L.sx, L.sy - 2 * L.s, 30 * L.s, 20 * L.s, 0.45 * on * flick);
+    drawGlow(ctx, glowSprite(LIGHT_EMBER), L.sx, L.sy + 0.4 * L.s, 9 * L.s, 3.6 * L.s, 0.95 * on * flick);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
   }
@@ -6538,7 +6549,7 @@ function drawStork(L, time) {
 // The gampr, the great Armenian flock guardian: heavy-boned and long-legged, a tawny coat, a black mask over a
 // broad muzzle, cropped ears, the thick tail carried up in a sickle and swinging slowly as it keeps watch
 function drawGampr(L, time) {
-  const pp = proj(L.wx, L.wy), s = pp.s * 1.08;
+  const pp = proj(L.wx, L.wy), s = pp.s * 1.3;
   const t = time * 0.001 + L.seed * 7, wag = Math.sin(t * 4.2) * (0.35 + 0.35 * Math.max(0, Math.sin(t * 0.37))), look = Math.sin(t * 0.21);
   shadow(pp.x + 1 * s, pp.y + 0.8 * s, 10 * s, 2.6 * s);
   ctx.save();
@@ -6546,7 +6557,7 @@ function drawGampr(L, time) {
   ctx.scale(s * L.face, s);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  const fur = L.coat === 1 ? ["#c4955a", "#e2bc84", "#8a5f34"] : ["#b88a52", "#d8b07a", "#7e5630"];
+  const fur = L.coat === 1 ? ["#c69250", "#e8c48a", "#86592e"] : ["#b4834a", "#dcb27a", "#7a522a"];
   const limb = (x0, y0, x1, y1, w, fill) => {
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
     ctx.lineWidth = w + 1.7; ctx.strokeStyle = UNIT_INK; ctx.stroke();
@@ -6577,6 +6588,11 @@ function drawGampr(L, time) {
   ctx.save(); body(); ctx.clip();
   ctx.fillStyle = fur[2];
   ctx.beginPath(); ctx.ellipse(0, -6.4, 8, 2, 0, 0, Math.PI * 2); ctx.fill();
+  // the heavy coat: shaggy tufts along the belly and a thick ruff behind the neck
+  ctx.strokeStyle = fur[2]; ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  for (let tx = -5.6; tx < 4.6; tx += 1.4) { ctx.moveTo(tx, -7.4); ctx.lineTo(tx + 0.5, -6.2); }
+  ctx.stroke();
   ctx.fillStyle = fur[1];
   ctx.beginPath(); ctx.ellipse(-1.6, -12.4, 5.8, 1.4, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -6586,9 +6602,9 @@ function drawGampr(L, time) {
   ctx.save();
   ctx.translate(5.2, -11.6);
   ctx.rotate(-0.16 + look * 0.14);
-  ctx.beginPath(); ctx.moveTo(-1.4, 2); ctx.lineTo(0.2, -3.6); ctx.lineTo(3.2, -3.4); ctx.lineTo(2.6, 2.4); ctx.closePath();
+  ctx.beginPath(); ctx.moveTo(-2.2, 2.4); ctx.quadraticCurveTo(-1.6, -3.4, 0.6, -4); ctx.lineTo(3.4, -3.4); ctx.quadraticCurveTo(3.8, 0, 2.8, 2.8); ctx.closePath();
   ctx.lineWidth = 1.7; ctx.strokeStyle = UNIT_INK; ctx.stroke();
-  ctx.fillStyle = fur[0]; ctx.fill();
+  ctx.fillStyle = fur[1]; ctx.fill();
   const head = () => {
     ctx.beginPath();
     ctx.moveTo(0, -4.2);
@@ -6603,17 +6619,18 @@ function drawGampr(L, time) {
   ctx.fillStyle = fur[0]; ctx.fill();
   ctx.save(); head(); ctx.clip();
   // the black mask over the muzzle and round the eye
-  ctx.fillStyle = "#2a1e16";
-  ctx.beginPath(); ctx.moveTo(3.4, -6); ctx.lineTo(9, -5); ctx.lineTo(9, -1.6); ctx.lineTo(3.6, -1.6); ctx.quadraticCurveTo(2.4, -3.6, 3.4, -6); ctx.fill();
+  ctx.fillStyle = "#1e1612";
+  ctx.beginPath(); ctx.moveTo(1.8, -6.6); ctx.lineTo(9, -5.2); ctx.lineTo(9, -1.4); ctx.lineTo(2.6, -1.2); ctx.quadraticCurveTo(1, -3.6, 1.8, -6.6); ctx.fill();
   ctx.fillStyle = fur[1];
   ctx.beginPath(); ctx.ellipse(1.2, -4.8, 1.6, 0.8, -0.3, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // a cropped ear standing up, the eye, the nose
-  ctx.beginPath(); ctx.moveTo(0.6, -5); ctx.lineTo(1.2, -7.6); ctx.lineTo(2.6, -5.4); ctx.closePath();
-  ctx.lineWidth = 1.3; ctx.strokeStyle = UNIT_INK; ctx.stroke();
-  ctx.fillStyle = "#3a2a1c"; ctx.fill();
+  // the cropped ear: a short blunt triangle standing straight up
+  ctx.beginPath(); ctx.moveTo(-0.2, -5); ctx.lineTo(0.4, -8.4); ctx.lineTo(1.6, -8.4); ctx.lineTo(2.4, -5.6); ctx.closePath();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = UNIT_INK; ctx.stroke();
+  ctx.fillStyle = "#2a1e16"; ctx.fill();
   ctx.fillStyle = "#e8c070";
-  ctx.beginPath(); ctx.arc(3.6, -4.4, 0.42, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5, -4.5, 0.5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#0e0a08";
   ctx.beginPath(); ctx.arc(8.2, -4.2, 0.7, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -7060,7 +7077,7 @@ function terrPlanScene() {
   S.flock = null;
   const cpick = () => unprojGround(VW * (0.05 + cr() * 0.9), HORIZON + 46 + cr() * (VH - HORIZON - 64));
   // everything of village life stands wholly inside the view, where it can be seen
-  const inView = (x, y, hw) => { const q = proj(x, y); return q.x > 24 + hw * q.s && q.x < VW - 24 - hw * q.s && q.y < VH - 14 && q.y > HORIZON + 40; };
+  const inView = (x, y, hw) => { const q = proj(x, y); return q.x > 24 + hw * q.s && q.x < VW - 24 - hw * q.s && q.y < VH - 30 && q.y > HORIZON + 40; };
   // the pieces that carry a map are kept to the nearer half of the field and off the side edges
   const SIGNATURE = { karas: 1, cauldron: 1, fishrack: 1, spring: 1, chapel: 1, shrine: 1, cart: 1, hndzan: 1, memorial: 1, pomegranate: 1 };
   const near = (x, y, hw) => { const q = proj(x, y); return q.s >= 0.74 && q.x > 60 + hw * q.s && q.x < VW - 60 - hw * q.s; };
@@ -7090,7 +7107,9 @@ function terrPlanScene() {
     for (const k of ROCKS) if (k[1] > y && k[1] - y < 32 && Math.abs(k[0] - x) < k[2] * 1.4 + hw * 0.5) return false;
     return true;
   };
-  const cadd = (kind, x, y, h, hw, extra) => inView(x, y, hw) && (!SIGNATURE[kind] || near(x, y, hw)) && dry(x, y, h, hw) && unhidden(x, y, hw) &&
+  const YARD = { karas: 1, tonir: 1, hndzan: 1, cart: 1, carpet: 1, kal: 1, tezek: 1 };
+  const clearYard = (kind, x, y) => !TREE[kind] || S.props.every(p => !YARD[p.kind] || Math.hypot(p.x - x, (p.y - y) * 1.3) > 56 + (p.hw || 0) * 0.8);
+  const cadd = (kind, x, y, h, hw, extra) => inView(x, y, hw) && clearYard(kind, x, y) && (!SIGNATURE[kind] || near(x, y, hw)) && dry(x, y, h, hw) && unhidden(x, y, hw) &&
     offFort(x, y, hw) && (!extra || !extra.roadGap || terrRoadDist(x, y) > extra.roadGap) && inSight(x, y, h, hw, kind) &&
     add(kind, x, y, h, hw, Object.assign({ seed: Math.floor(cr() * 1e9) }, extra || {}));
   // the first spot that takes the prop, from `near(i)` when given, else anywhere on the field
@@ -7108,12 +7127,12 @@ function terrPlanScene() {
   const yards = new Map();
   const nearHut = (kind, h, hw, extra, tries) => {
     // the yards nearest the viewer first, and a yard already busy only when every other one is
-    const huts = S.props.filter(p => p.kind === "hut").sort((a, b) => (yards.get(a) || 0) - (yards.get(b) || 0) || b.y - a.y);
+    const huts = S.props.filter(p => p.kind === "hut").sort((a, b) => (extra && extra.front ? 0 : (yards.get(a) || 0) - (yards.get(b) || 0)) || b.y - a.y);
     for (let i = 0; i < (tries || 200) && huts.length; i++) {
       const hut = huts[Math.min(huts.length - 1, Math.floor(i / 50))], claim = S.taken.find(t => t.x === hut.x && t.y === hut.y);
       const was = claim ? claim.r : 0, side = cr() < 0.5 ? -1 : 1, half = hut.w * 0.32;
       if (claim) claim.r = half + 4;
-      const x = hut.x + side * (half + hw * 0.62 + 4 + cr() * 18), y = hut.y + 3 + cr() * 24;
+      const wide = i % 50 > 25, x = hut.x + side * (half + hw * 0.62 + 4 + cr() * (wide ? 34 : 18)), y = hut.y + (wide ? -4 + cr() * 42 : 3 + cr() * 24);
       const ok = cadd(kind, x, y, h, hw, Object.assign({ gap: hw * 0.62 }, extra || {}));
       if (claim) claim.r = was;
       if (ok) { yards.set(hut, (yards.get(hut) || 0) + 1); return S.props[S.props.length - 1]; }
@@ -7121,8 +7140,8 @@ function terrPlanScene() {
     return extra && extra.strict ? null : place(kind, h, hw, extra);
   };
   const smokeOver = (p, sx, sy, s, k, glow) => S.live.push({ kind: "smoke", sx, sy, s, k, wy: p.y + 0.2, seed: cr(), glow });
-  const tonir = () => {
-    const p = nearHut("tonir", 22, 29, { margin: 10 });
+  const tonir = (front, strict) => {
+    const p = nearHut("tonir", 22, 29, { margin: 10, front, strict });
     if (p) { const q = proj(p.x, p.y), k = TERR_BUILT_K.tonir; smokeOver(p, q.x + 0.2 * q.s * k, q.y - 1.9 * q.s * k, q.s, 0.8, true); }
     return p;
   };
@@ -7173,9 +7192,10 @@ function terrPlanScene() {
   // him), well off the road; the flock grazes in the open beside him
   const shepherd = (b, cloak, tunic) => {
     const extra = { margin: 12, gap: 10, cloak, tunic, roadGap: 40, strict: 1 };
-    const by = f => i => ({ x: f.x + f.w + 8 + cr() * 26, y: f.y + f.h * (0.3 + cr() * 0.9) });
-    let p = b ? place("shepherd", 30, 10, extra, by(b), 160) : null;
-    for (let k = 0; !p && k < 6; k++) {
+    const by = f => i => i % 3 === 0 ? { x: f.x + f.w + 8 + cr() * 26, y: f.y + f.h * (0.3 + cr() * 0.9) }
+      : i % 3 === 1 ? { x: f.x - 8 - cr() * 26, y: f.y + f.h * (0.3 + cr() * 0.9) } : { x: f.x + f.w * cr(), y: f.y + f.h + 10 + cr() * 18 };
+    let p = b ? place("shepherd", 30, 10, extra, by(b), 400) : null;
+    for (let k = 0; !p && !b && k < 6; k++) {
       const m = mark(), f = fold();
       if (!f) break;
       p = place("shepherd", 30, 10, extra, by(f), 160);
@@ -7284,7 +7304,8 @@ function terrPlanScene() {
       const seen = pts.filter(o => { const v = proj(o[0], o[1]); return v.x > 120 && v.x < VW - 120; });
       if (seen.length) place("stele", 44, 17, { margin: 14, strict: 1 }, i => { const o = seen[Math.floor(cr() * seen.length)]; return { x: o[0] + (cr() - 0.5) * 20, y: o[1] - 26 - cr() * 12 }; }, 200);
     }
-    shepherd(S.blocks.find(b => b.kind === "fold"), null, 1);
+    const old = S.blocks.find(b => b.kind === "fold");
+    shepherd(old || fold(), null, 1);
     kal(2);
     nearHut("karas", 34, 40, { cols: 3, rows: 1, wall: 1, margin: 10 });
   } else if (name === "ararat") {
@@ -7296,7 +7317,7 @@ function terrPlanScene() {
       if (along.length) place("shrine", 44, 21, { margin: 12, strict: 1 }, i => { const o = along[Math.floor(cr() * along.length)]; return { x: o[0] + (cr() - 0.5) * 30, y: o[1] - 30 - cr() * 16 }; }, 300);
     }
     if (!S.props.some(p => p.kind === "shrine")) place("shrine", 44, 21, { margin: 12 });
-    nearHut("cart", 26, 26, { margin: 10 });
+    nearHut("cart", 32, 36, { margin: 10 });
     cluster("broadleaf", 3, 46, 62, nearHut("broadleaf", 62, 22, { margin: 9, variant: 2 }), { variant: 2 });
     kal(2);
     stork();
@@ -7304,7 +7325,7 @@ function terrPlanScene() {
     // a memorial stele by the city road, bread and a wine press in the yards, pomegranates, storks on the ruin
     place("memorial", 46, 16, { margin: 14 });
     tonir();
-    nearHut("hndzan", 26, 30, { margin: 10 });
+    nearHut("hndzan", 30, 38, { margin: 10 });
     nearHut("karas", 34, 40, { cols: 3, rows: 1, wall: 1, margin: 10 });
     pomegranates(3);
     pomegranates(3);
@@ -7317,7 +7338,7 @@ function terrPlanScene() {
   } else if (name === "lori") {
     // a forest chapel among its khachkars, a spring with its own cross-stones, the fold and its shepherd,
     // a farmstead with its tonir and a carpet airing
-    const ch = place("chapel", 50, 27, { margin: 14 });
+    const ch = place("chapel", 60, 33, { margin: 14 });
     if (ch) khachkars(3, false, i => ({ x: ch.x + (i % 2 ? 1 : -1) * (44 + cr() * 22), y: ch.y + 4 + cr() * 18 }));
     for (let k = 0; k < 40; k++) {
       const m = mark(), kg = khachkars(2, false, () => unprojGround(VW * (0.12 + cr() * 0.76), HORIZON + 200 + cr() * (VH - HORIZON - 240)), 1);
@@ -7325,9 +7346,13 @@ function terrPlanScene() {
       undo(m);
     }
     shepherd(fold(), "#5e5850");
-    newHouse();
-    nearHut("carpet", 22, 16, { margin: 10 });
-    tonir();
+    // the farmstead: a house with its tonir in the yard, built where both have room
+    for (let k = 0; k < 30; k++) {
+      const m = mark();
+      if (newHouse() && tonir(1, 1)) break;
+      undo(m);
+    }
+    nearHut("carpet", 22, 16, { margin: 10, front: 1 });
     for (let k = 0; k < 2; k++) place("stack", 20, 13, { margin: 10, gap: 12 });
   } else if (name === "sevan") {
     // fish racks on the shore, khachkars on the meadow, bread and a carpet at the cottages, the shepherd
@@ -7353,8 +7378,8 @@ function terrPlanScene() {
       const q = proj(p.x, p.y), s = q.s * TERR_BUILT_K.hut, w = p.w * s, h = p.wall * s, d = p.w * 0.5 * s;
       smokeOver(p, q.x + w * 0.3 + d * 0.33, q.y - h - h * 0.31 - d * 0.19 - 10.5 * s, q.s, 1.25);
     }
-    nearHut("tezek", 26, 24, { margin: 10 });
-    nearHut("tezek", 26, 24, { margin: 10 });
+    nearHut("tezek", 32, 30, { margin: 10 });
+    nearHut("tezek", 32, 30, { margin: 10 });
     nearHut("rugsnow", 6, 20, { margin: 10, rot: (cr() - 0.5) * 0.4 });
     khachkars(3, true);
     shepherd(fold(), "#4a3c32");
@@ -13067,7 +13092,7 @@ function gatherLightPools(time, lit) {
   if (terrScene && terrScene.live && !(photo && photo.plain)) {
     for (const L of terrScene.live) {
       if (!L.glow) continue;
-      pools.push({ x: L.sx, y: L.sy - 4 * L.s, gx: L.sx, gy: L.sy + 1 * L.s, rx: 40 * L.s, ry: 30 * L.s, a: lit * 0.5, seed: L.seed * 3, fixed: true });
+      pools.push({ x: L.sx, y: L.sy - 4 * L.s, gx: L.sx, gy: L.sy + 1 * L.s, rx: 56 * L.s, ry: 40 * L.s, a: lit * 0.8, seed: L.seed * 3, fixed: true });
     }
   }
   // the lantern on each signpost throws a small pool of its own
