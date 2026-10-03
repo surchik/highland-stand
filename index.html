@@ -4496,6 +4496,27 @@ const SKIN_SPECS = {
   fieldgun:  { get a() { return e5Spec("fieldgun", "a"); }, get b() { return e5Spec("fieldgun", "b"); } },
   barricade: { get a() { return e5Spec("barricade", "a"); }, get b() { return e5Spec("barricade", "b"); } },
   bells:     { get a() { return e5Spec("bells", "a"); }, get b() { return e5Spec("bells", "b"); } },
+  // Artsakh 1991-2023: each battlefield (a6LabelSite: 0 Stepanakert 1992, 1 Shushi 2020, 2 Stepanakert 2023) names its own
+  riflesquad: {
+    get a() { return ["SVD Marksman", "Dragunov marksman and spotter: great range, heavy rounds"]; },
+    get b() { return [a6LabelSite() ? "PKM Machine Gun" : "PK Machine Gun", "A belt-fed machine gun fires twice as fast"]; },
+  },
+  airdefense: {
+    get a() { return [["ZSU-23-4 Shilka", "Four radar-laid barrels split armor"], ["Tor-M2KM", "One heavy missile splits armor"], ["9K113 Konkurs", "One heavy anti-tank missile splits armor"]][a6LabelSite()]; },
+    get b() { return [["Strela-2 Team", "Gun and missile team, two targets"], ["Igla Team", "Osa and missile team, two targets"], ["Second ATGM Team", "Two missiles, two targets"]][a6LabelSite()]; },
+  },
+  rocketbattery: {
+    get a() { return a6LabelSite() === 1 ? ["BM-30 Smerch", "300 mm rockets, huge blast"] : ["120 mm Mortar", "Heavy bombs, huge blast"]; },
+    get b() { return a6LabelSite() === 1 ? ["Incendiary Rockets", "Fires that keep burning the enemy"] : ["Incendiary Rounds", "Fires that keep burning the enemy"]; },
+  },
+  minefield: {
+    a: ["Anti-tank Belt", "Mines, wire and dragon's teeth no column can cross"],
+    b: ["Demolition Charges", "Every 5s buried charges blast and stun all foes near"],
+  },
+  commandpost: {
+    get a() { return [["Field Telephone Net", "Wired to every post: nearby towers strike far faster"], ["Belfry Bells", "The full peal: nearby towers strike far faster"], ["Night Shift Bakery", "Baking through the blackouts: nearby towers strike far faster"]][a6LabelSite()]; },
+    get b() { return [["Headquarters", "Mighty blows; kills near the post pay +30% gold"], ["Belfry Lookout", "Mighty blows; kills near the post pay +30% gold"], ["Civil Defense Post", "Mighty blows; kills near the post pay +30% gold"]][a6LabelSite()]; },
+  },
 };
 const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
 // a battlefield may call its towers by its own names (L.towers[slot].name) where its era's row does not fit it
@@ -30419,16 +30440,946 @@ SKIN_ART.bells = {
 
 
 // ======================================================================================
+// SKIN SECTION: art6kit. 1991-2023: the kit shared by the five Artsakh emplacements (riflesquad,
+// airdefense, rocketbattery, minefield, commandpost). Nothing outside those sections calls it.
+// ======================================================================================
+// One era, three battlefields, each dressing its posts its own way, read from THEME.id:
+// 0 Stepanakert 1991-92: a city under winter siege; volunteers in whatever Soviet kit they had,
+//   quilted jackets, knitted caps and fur hats as often as steel helmets; brick and panel blocks.
+// 1 Shushi 2020: Defense Army conscripts and volunteers in Soviet-pattern helmets and green
+//   flora camouflage, hillside trenches revetted with logs, camouflage nets against the drones.
+// 2 Stepanakert 2023: the blockade; concrete blocks and sandbags, worn uniforms, and the
+//   civilians who queued for bread.
+// No flags, badges or lettering anywhere: plain shapes only.
+function a6Site() {
+  const id = THEME && THEME.id;
+  return id === "shushi" ? 1 : id === "stepanakert23" ? 2 : 0;
+}
+// the battlefield the tray is labelled for, for the mastery names
+function a6LabelSite() {
+  const L = LEVELS[curLevel], id = L && L.theme && L.theme.backdrop;
+  return id === "shushi" ? 1 : id === "stepanakert23" ? 2 : 0;
+}
+// the era's posts are drawn at the scale of the men on the road: no towers lift them up. Each skin is
+// also drawn larger than its slot's old engine (A6_SCALE), its box cut down so that its tallest rank
+// stands no higher on screen than the slot's original did
+const A6_SCALE = { archer: 1.25, ballista: 1.2, catapult: 1.1, fire: 1.05, drums: 0.95 };
+const A6_BOX = { archer: [-50, -78, 56, 24], ballista: [-52, -71, 62, 24], catapult: [-56, -78, 60, 24], fire: [-46, -71, 50, 24], drums: [-50, -77, 56, 24] };
+const A6_Z = 1.3;
+const A6 = {
+  skin: "#dcb08a", hair: "#2a1d14", gun: "#2e2f31", steel: "#45484a", wood: "#7c4a26", mag: "#6e3a22",
+  rig: "#3d412e", boot: "#2a2420",
+  bag: "#b6a47c", bagSnow: "#a99a7a",
+  concrete: "#b3afa6", concreteSide: "#8a867e",
+  od: "#5b6440", odLit: "#7a845a", odDark: "#3f4630",
+  net: "#5d6739", netDry: "#7e7649",
+  log: "#7a5a3a", mine: "#55603d", warn: "#c43a2c",
+  lime: "#ebe2cf", limeSide: "#c2b59b", bronze: "#b98538",
+};
+// per site: frozen loam under snow, the dry plateau, the dusty city
+const A6_EARTH = ["#6f5f4e", "#8e744b", "#9c8761"];
+function a6Earth() { return A6_EARTH[a6Site()]; }
+// what the i-th man (or woman) of a post wears
+function a6Dress(i, civ) {
+  const s = a6Site();
+  if (civ) {
+    const coats = ["#6d4b3f", "#4a5668", "#7b6a52", "#5b4a60"];
+    return { coat: coats[i % 4], legs: "#3a3836", head: i % 2 ? "scarf" : "bare", scarf: i % 4 === 1 ? "#8a3c36" : "#4f5b70", civ: true, grey: i % 3 === 2 };
+  }
+  if (s === 0) {
+    const coats = ["#3f4237", "#4d4639", "#3a3f42", "#56503f"], heads = ["knit", "helmet", "ushanka", "knit"];
+    return { coat: coats[i % 4], legs: i % 2 ? "#2f3231" : "#3d3b31", head: heads[i % 4], helm: "#4e5739", rig: i % 2 === 0, tache: i % 3 !== 1 };
+  }
+  return { coat: s === 1 ? "#666c44" : "#696b4a", legs: "#565b3b", head: s === 2 && i % 3 === 2 ? "cap" : "helmet", helm: "#525b3a", camo: true, rig: true, tache: i % 3 === 1 };
+}
+
+// ---- figures: drawn on any context `c` at scale f (sprite units when baked, pixels when live) ----
+function a6Line(c, x1, y1, x2, y2, w, hex, f) {
+  c.beginPath();
+  c.moveTo(x1, y1); c.lineTo(x2, y2);
+  c.strokeStyle = INK; c.lineWidth = (w + 1.1) * f; c.stroke();
+  c.strokeStyle = hex; c.lineWidth = w * f; c.stroke();
+}
+function a6Hand(c, x, y, f) {
+  c.beginPath();
+  c.arc(x, y, 1 * f, 0, Math.PI * 2);
+  c.fillStyle = A6.skin; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.55 * f; c.stroke();
+}
+function a6Head(c, hx, hy, f, face, g) {
+  const head = g.head;
+  if (head === "scarf") {
+    // a headscarf framing the face, knotted at the nape
+    c.beginPath();
+    c.moveTo(hx - 3.3 * f, hy + 1.8 * f);
+    c.bezierCurveTo(hx - 4 * f, hy - 6.6 * f, hx + 4 * f, hy - 6.6 * f, hx + 3.3 * f, hy + 1.8 * f);
+    c.quadraticCurveTo(hx, hy + 3 * f, hx - 3.3 * f, hy + 1.8 * f);
+    c.fillStyle = g.scarf; c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.9 * f; c.stroke();
+  }
+  c.beginPath();
+  c.arc(hx, hy, (head === "scarf" ? 2.3 : 2.8) * f, 0, Math.PI * 2);
+  c.fillStyle = A6.skin; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.9 * f; c.stroke();
+  c.fillStyle = "#1a100a";
+  c.fillRect(hx + face * 1.1 * f - 0.4 * f, hy - 1 * f, 0.8 * f, 0.9 * f);
+  if (g.tache) {
+    c.fillStyle = A6.hair;
+    c.fillRect(hx + face * 1 * f - 1.2 * f, hy + 0.9 * f, 2.4 * f, 0.7 * f);
+  }
+  c.beginPath();
+  if (head === "helmet") {
+    // the Soviet steel helmet: a deep dome whose rim flares a little over the ears
+    c.moveTo(hx - 3.8 * f, hy - 0.5 * f);
+    c.quadraticCurveTo(hx - 3.2 * f, hy - 1.3 * f, hx - 3.1 * f, hy - 2.6 * f);
+    c.bezierCurveTo(hx - 3 * f, hy - 7.3 * f, hx + 3 * f, hy - 7.3 * f, hx + 3.1 * f, hy - 2.6 * f);
+    c.quadraticCurveTo(hx + 3.2 * f, hy - 1.3 * f, hx + 3.8 * f, hy - 0.5 * f);
+    c.quadraticCurveTo(hx, hy - 2.2 * f, hx - 3.8 * f, hy - 0.5 * f);
+    c.fillStyle = g.helm;
+  } else if (head === "knit" || head === "ushanka") {
+    c.moveTo(hx - 3.2 * f, hy - 1.4 * f);
+    c.bezierCurveTo(hx - 3.3 * f, hy - 6.8 * f, hx + 3.3 * f, hy - 6.8 * f, hx + 3.2 * f, hy - 1.4 * f);
+    c.quadraticCurveTo(hx, hy - 2.4 * f, hx - 3.2 * f, hy - 1.4 * f);
+    c.fillStyle = head === "knit" ? "#2f3133" : "#5a4636";
+  } else if (head === "cap") {
+    c.moveTo(hx - 3 * f, hy - 1.7 * f);
+    c.lineTo(hx - 2.9 * f, hy - 5.2 * f);
+    c.quadraticCurveTo(hx, hy - 6.3 * f, hx + 2.9 * f, hy - 5.2 * f);
+    c.lineTo(hx + 3 * f, hy - 1.7 * f);
+    c.closePath();
+    c.fillStyle = g.helm;
+  } else if (head === "scarf") {
+    c.moveTo(hx - 2.8 * f, hy - 0.6 * f);
+    c.bezierCurveTo(hx - 3 * f, hy - 5.6 * f, hx + 3 * f, hy - 5.6 * f, hx + 2.8 * f, hy - 0.6 * f);
+    c.quadraticCurveTo(hx, hy - 3.2 * f, hx - 2.8 * f, hy - 0.6 * f);
+    c.fillStyle = g.scarf;
+  } else {
+    c.arc(hx, hy - 0.5 * f, 2.9 * f, Math.PI + 0.3, Math.PI * 2 - 0.3);
+    c.closePath();
+    c.fillStyle = g.grey ? "#8a8580" : A6.hair;
+  }
+  c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.85 * f; c.stroke();
+  if (head === "ushanka") {
+    // the fur flaps tied up at the sides
+    for (const sx of [-1, 1]) {
+      c.beginPath();
+      c.ellipse(hx + sx * 3.1 * f, hy - 1.4 * f, 1 * f, 2 * f, 0, 0, Math.PI * 2);
+      c.fillStyle = "#6a5644"; c.fill();
+      c.strokeStyle = INK; c.lineWidth = 0.6 * f; c.stroke();
+    }
+  } else if (head === "cap") {
+    a6Line(c, hx + face * 0.6 * f, hy - 1.8 * f, hx + face * 4.2 * f, hy - 1.3 * f, 0.7, toneHex(g.helm, -20), f);
+  } else if (head === "knit") {
+    c.strokeStyle = "rgba(255, 255, 255, .2)"; c.lineWidth = 0.8 * f;
+    c.beginPath(); c.moveTo(hx - 3 * f, hy - 2.5 * f); c.quadraticCurveTo(hx, hy - 3.3 * f, hx + 3 * f, hy - 2.5 * f); c.stroke();
+  }
+  if (head === "helmet" || head === "cap" || head === "ushanka") {
+    c.strokeStyle = "rgba(255, 248, 220, .38)"; c.lineWidth = 0.7 * f;
+    c.beginPath(); c.arc(hx - 0.2 * f, hy - 2.6 * f, 2.3 * f, Math.PI * 1.08, Math.PI * 1.45); c.stroke();
+  }
+}
+function a6TorsoPath(c, px, py, f) {
+  c.beginPath();
+  c.moveTo(px - 3.8 * f, py + 0.6 * f);
+  c.lineTo(px - 4.2 * f, py - 5.4 * f);
+  c.quadraticCurveTo(px - 3.8 * f, py - 7.3 * f, px, py - 7.4 * f);
+  c.quadraticCurveTo(px + 3.8 * f, py - 7.3 * f, px + 4.2 * f, py - 5.4 * f);
+  c.lineTo(px + 3.8 * f, py + 0.6 * f);
+  c.closePath();
+}
+// the man from the hips (px, py) up: jacket, chest rig, head
+function a6Torso(c, px, py, f, face, g) {
+  a6TorsoPath(c, px, py, f);
+  c.fillStyle = g.coat; c.fill();
+  if (g.camo) {
+    // flora: soft darker and paler patches
+    c.save();
+    c.clip();
+    c.fillStyle = toneHex(g.coat, -24);
+    c.beginPath();
+    c.ellipse(px - 1.7 * f, py - 5.3 * f, 1.7 * f, 0.9 * f, 0.5, 0, Math.PI * 2);
+    c.moveTo(px + 4 * f, py - 2.2 * f);
+    c.ellipse(px + 2.2 * f, py - 2.2 * f, 1.8 * f, 0.8 * f, -0.4, 0, Math.PI * 2);
+    c.moveTo(px - 1.2 * f, py - 0.9 * f);
+    c.ellipse(px - 2.4 * f, py - 0.9 * f, 1.2 * f, 0.7 * f, 0.2, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = toneHex(g.coat, 24);
+    c.beginPath();
+    c.ellipse(px + 1.2 * f, py - 5.7 * f, 1.2 * f, 0.6 * f, 0.3, 0, Math.PI * 2);
+    c.moveTo(px + 0.6 * f, py - 3 * f);
+    c.ellipse(px - 0.4 * f, py - 3 * f, 1 * f, 0.6 * f, -0.3, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+  c.fillStyle = "rgba(255, 240, 210, .2)";
+  c.fillRect(px - 3.6 * f, py - 5.6 * f, 1.5 * f, 5.8 * f);
+  if (g.rig) {
+    c.fillStyle = A6.rig;
+    c.fillRect(px - 3.7 * f, py - 4.5 * f, 7.4 * f, 2.3 * f);
+    c.fillStyle = "rgba(10, 8, 4, .35)";
+    for (const dx of [-1.3, 1.1]) c.fillRect(px + dx * f, py - 4.5 * f, 0.35 * f, 2.3 * f);
+    c.fillStyle = "rgba(255, 255, 255, .14)";
+    c.fillRect(px - 3.7 * f, py - 4.5 * f, 7.4 * f, 0.4 * f);
+  }
+  c.fillStyle = "#2a2622";
+  c.fillRect(px - 3.8 * f, py - 0.9 * f, 7.6 * f, 0.9 * f);
+  a6TorsoPath(c, px, py, f);
+  c.strokeStyle = INK; c.lineWidth = 1.05 * f; c.stroke();
+  a6Head(c, px + face * 0.4 * f, py - 9.6 * f, f, face, g);
+}
+// a whole figure standing (or kneeling) with its feet at (x, y), baked into the sprite
+function a6Man(x, y, s, g, pose, face) {
+  const c = sctx, fc = face || 1, kneel = pose === "kneel" || pose === "load" || pose === "kneelphone";
+  const hipY = y - (kneel ? 3.9 : 5.6) * s, legs = g.legs || "#3a3a30";
+  let out = null;
+  c.lineCap = "round";
+  fillBlobs("rgba(30, 18, 8, .25)", [[x + 1, y + 0.3, 4.2 * s, 1.2 * s]]);
+  if (kneel) {
+    a6Line(c, x - fc * 0.6 * s, hipY, x - fc * 1.8 * s, y - 0.7 * s, 2, legs, s);
+    a6Line(c, x - fc * 1.8 * s, y - 0.7 * s, x - fc * 4.6 * s, y - 0.4 * s, 1.8, legs, s);
+    a6Line(c, x + fc * 0.8 * s, hipY, x + fc * 3.2 * s, hipY - 0.6 * s, 2, legs, s);
+    a6Line(c, x + fc * 3.2 * s, hipY - 0.6 * s, x + fc * 3.4 * s, y - 0.3 * s, 1.9, legs, s);
+    inkDisc(x + fc * 3.8 * s, y - 0.3 * s, 1.4 * s, 0.7 * s, A6.boot, 0.5 * s);
+  } else {
+    for (const lx of [-1.7, 1.8]) {
+      a6Line(c, x + lx * s, hipY, x + lx * 1.1 * s, y - 0.8 * s, 2.1, legs, s);
+      inkDisc(x + lx * 1.1 * s + fc * 0.5 * s, y - 0.5 * s, 1.5 * s, 0.75 * s, A6.boot, 0.5 * s);
+    }
+  }
+  a6Torso(c, x, hipY, s, fc, g);
+  const sl = toneHex(g.coat, 14), hx = x + fc * 0.4 * s, hy = hipY - 9.6 * s;
+  const sh = [x + fc * 2.8 * s, hipY - 5.8 * s], shB = [x - fc * 2.6 * s, hipY - 5.6 * s];
+  const arm = (a, b, hand) => { a6Line(c, a[0], a[1], b[0], b[1], 1.7, sl, s); if (hand !== false) a6Hand(c, b[0], b[1], s); };
+  if (pose === "binoc") {
+    arm(shB, [hx + fc * 2.2 * s, hy + 1.2 * s]);
+    arm(sh, [hx + fc * 2.8 * s, hy + 0.8 * s]);
+    inkRect(hx + fc * 2.6 * s - 1.4 * s, hy - 1.6 * s, 2.8 * s, 1.8 * s, "#26282a", 0.5 * s);
+  } else if (pose === "phone" || pose === "kneelphone") {
+    arm(shB, [x + fc * 1.4 * s, hipY - 2.6 * s]);
+    arm(sh, [hx + fc * 2.3 * s, hy + 0.4 * s]);
+    inkRect(hx + fc * 2.6 * s - 0.6 * s, hy - 1.4 * s, 1.2 * s, 3.4 * s, "#1e2022", 0.4 * s);
+  } else if (pose === "carry") {
+    arm(shB, [x + fc * 3.6 * s, hipY - 3.6 * s], false);
+    arm(sh, [x + fc * 4.4 * s, hipY - 3.2 * s], false);
+    if (g.carry) g.carry(c, x + fc * 4.4 * s, hipY - 3.4 * s, s, fc);
+    a6Hand(c, x + fc * 3.6 * s, hipY - 3.6 * s, s);
+    a6Hand(c, x + fc * 4.6 * s, hipY - 3.1 * s, s);
+  } else if (pose === "load" || pose === "loadready") {
+    // a mortar round held over the muzzle, fins up, about to be let go (drawn live when "loadready")
+    const rx = x + fc * 5.2 * s, ry = hipY - 10.6 * s;
+    out = [rx, ry];
+    arm(shB, [rx - fc * 0.6 * s, ry + 1.4 * s], false);
+    arm(sh, [rx + fc * 0.4 * s, ry + 1 * s], false);
+    if (pose === "load") a6Round(c, rx, ry, s, -0.15 * fc);
+    a6Hand(c, rx - fc * 0.6 * s, ry + 1.4 * s, s);
+    a6Hand(c, rx + fc * 0.4 * s, ry + 1 * s, s);
+  } else if (pose === "pull") {
+    arm(shB, [x + fc * 1.8 * s, hy - 3.4 * s]);
+    arm(sh, [x + fc * 2.6 * s, hy - 1.4 * s]);
+  } else if (pose === "point") {
+    arm(shB, [x - fc * 2.8 * s, hipY - 0.6 * s]);
+    arm(sh, [x + fc * 8.2 * s, hipY - 9.6 * s]);
+  } else if (pose === "rifle") {
+    // the rifle held at the port across the chest
+    a6Line(c, x - fc * 2.6 * s, hipY - 1.6 * s, x + fc * 0.6 * s, hipY - 4.2 * s, 1.5, A6.wood, s);
+    a6Line(c, x + fc * 0.6 * s, hipY - 4.2 * s, x + fc * 5.2 * s, hipY - 9.8 * s, 0.9, A6.gun, s);
+    arm(shB, [x - fc * 1.4 * s, hipY - 2.6 * s]);
+    arm(sh, [x + fc * 2.6 * s, hipY - 6.4 * s]);
+  } else if (pose === "wait") {
+    // arms folded, or a string bag at the hand
+    arm(shB, [x + fc * 1.6 * s, hipY - 3.4 * s], false);
+    arm(sh, [x - fc * 0.6 * s, hipY - 3.6 * s], false);
+    a6Hand(c, x - fc * 0.6 * s, hipY - 3.6 * s, s);
+  } else {
+    arm(shB, [x - fc * 3.6 * s, hipY - 0.8 * s]);
+    arm(sh, [x + fc * 3.8 * s, hipY - 0.8 * s]);
+  }
+  structCrown(hy - 6.5 * s);
+  return out;
+}
+// a man kneeling on one knee, drawn live on any context: feet at (x, y); returns his hip point
+function a6Kneeler(c, x, y, f, g, fc) {
+  const hipY = y - 3.9 * f, legs = g.legs || "#3a3a30";
+  a6Line(c, x - fc * 0.6 * f, hipY, x - fc * 1.8 * f, y - 0.7 * f, 2, legs, f);
+  a6Line(c, x - fc * 1.8 * f, y - 0.7 * f, x - fc * 4.6 * f, y - 0.4 * f, 1.8, legs, f);
+  a6Line(c, x + fc * 0.8 * f, hipY, x + fc * 3.2 * f, hipY - 0.6 * f, 2, legs, f);
+  a6Line(c, x + fc * 3.2 * f, hipY - 0.6 * f, x + fc * 3.4 * f, y - 0.3 * f, 1.9, legs, f);
+  c.beginPath(); c.ellipse(x + fc * 3.8 * f, y - 0.3 * f, 1.4 * f, 0.7 * f, 0, 0, Math.PI * 2);
+  c.fillStyle = A6.boot; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.stroke();
+  a6Torso(c, x, hipY, f, fc, g);
+  return hipY;
+}
+// a mortar round: olive teardrop body, fins at the tail
+function a6Round(c, x, y, f, tilt) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(tilt || 0);
+  c.beginPath();
+  c.moveTo(0, -3.2 * f);
+  c.quadraticCurveTo(1.6 * f, -1.8 * f, 1.2 * f, 1.4 * f);
+  c.lineTo(-1.2 * f, 1.4 * f);
+  c.quadraticCurveTo(-1.6 * f, -1.8 * f, 0, -3.2 * f);
+  c.fillStyle = "#59613f"; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.stroke();
+  c.fillStyle = "#c9b27a";
+  c.fillRect(-0.8 * f, -3.4 * f, 1.6 * f, 0.8 * f);
+  c.fillStyle = "#3a3c3a";
+  c.fillRect(-1.3 * f, 1.4 * f, 2.6 * f, 1.6 * f);
+  c.restore();
+}
+
+// ---- earthworks: sandbags, mounds, logs, concrete, nets ----
+// one hessian sandbag lying lengthwise, its front at y
+function a6Bag(x, y, w, h, hex) {
+  const c = sctx;
+  roundRectPath(x - w / 2, y - h, w, h, h * 0.48);
+  c.fillStyle = hex; c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = "rgba(255, 246, 222, .32)";
+  c.fillRect(x - w / 2, y - h, w, h * 0.36);
+  c.fillStyle = "rgba(40, 26, 10, .24)";
+  c.fillRect(x - w / 2, y - h * 0.3, w, h * 0.3);
+  c.restore();
+  c.strokeStyle = "rgba(60, 40, 18, .5)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  c.moveTo(x + w / 2 - 1.1, y - h + 0.5); c.lineTo(x + w / 2 - 1.3, y - 0.4);
+  c.stroke();
+  roundRectPath(x - w / 2, y - h, w, h, h * 0.48);
+  inkStroke(0.65);
+}
+function a6BagHex(seed) {
+  const base = structSnow ? A6.bagSnow : A6.bag, r = seededUnit(seed);
+  return toneHex(base, Math.round((r - 0.5) * 22));
+}
+// a straight wall of sandbags, `rows` high, laid in stretcher bond along the front plane
+function a6BagWall(x0, x1, y, rows, seed, bw) {
+  const w = bw || 6, h = 2.7;
+  for (let r = 0; r < rows; r++) {
+    const off = r % 2 ? w / 2 : 0, yy = y - r * h * 0.82;
+    for (let x = x0 + w / 2 - off; x < x1 + w / 2 - 0.1; x += w) {
+      const lx = Math.max(x0 + w * 0.25, Math.min(x1 - w * 0.25, x));
+      a6Bag(lx, yy, Math.min(w, (x1 - x0)), h, a6BagHex(seed + r * 17 + x));
+    }
+  }
+  if (structSnow) {
+    const top = y - (rows - 1) * h * 0.82 - h;
+    for (let x = x0 + 1; x < x1 - 3; x += 7.5) snowCap(x, top + 0.6, Math.min(5.5, x1 - x - 1), 1);
+  }
+}
+// a run of bags going back into the picture from (x, y) through depth d (each bag seen end-on)
+function a6BagRun(x, y, d, rows, seed) {
+  const n = Math.max(1, Math.round(d / 4.2));
+  for (let i = n - 1; i >= 0; i--) {
+    const t = (i + 0.5) / n, bx = x + d * t * OBQ.dx, by = y + d * t * OBQ.dy;
+    for (let r = 0; r < rows; r++) a6Bag(bx, by - r * 2.2, 4.4, 2.7, a6BagHex(seed + i * 5 + r * 13));
+  }
+  if (structSnow) snowCap(x + d * OBQ.dx * 0.15 - 2, y - (rows - 1) * 2.2 - 2.5 + d * OBQ.dy * 0.15, 3.6, 0.9);
+}
+// a ring of bags round a pit, centre (cx, cy) on the ground plane; half 0 is the far arc, half 1 the near
+function a6BagRing(cx, cy, rx, ry, rows, half, seed, gapA, gapB) {
+  const n = Math.max(6, Math.round(rx * 0.85));
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i + 0.5) / n * Math.PI * 2, sn = Math.sin(a);
+    if ((half === 0) !== (sn < 0)) continue;
+    if (gapA != null && a > gapA && a < gapB) continue;
+    items.push([a, cy + sn * ry]);
+  }
+  items.sort((p, q) => p[1] - q[1]);
+  for (const it of items) {
+    const a = it[0], bx = cx + Math.cos(a) * rx, by = it[1], w = 4.2 + 2.2 * Math.abs(Math.sin(a));
+    for (let r = 0; r < rows; r++) a6Bag(bx, by - r * 2.2, w, 2.7, a6BagHex(seed + i3(a) + r * 7));
+    if (structSnow && half === 1) snowCap(bx - w / 2 + 0.4, by - (rows - 1) * 2.2 - 2.4, w - 0.8, 0.8);
+  }
+}
+function i3(a) { return Math.round(a * 100); }
+// a low mound of the site's earth, the oval top at -h
+function a6Mound(rx, ry, h, seed) {
+  const c = sctx, E = a6Earth(), rnd = mulberry32(seed || 5);
+  c.beginPath();
+  c.moveTo(-rx, -h);
+  c.quadraticCurveTo(-rx - 2, -h * 0.4, -rx - 1.4, 0);
+  c.ellipse(0, 0, rx + 1.4, ry + 0.6, 0, Math.PI, 0, true);
+  c.quadraticCurveTo(rx + 2, -h * 0.4, rx, -h);
+  c.closePath();
+  const g = c.createLinearGradient(-rx, 0, rx, 0);
+  g.addColorStop(0, toneHex(E, 6));
+  g.addColorStop(1, toneHex(E, -40));
+  c.fillStyle = g; c.fill();
+  inkStroke(1.2);
+  inkDisc(0, -h, rx, ry, toneHex(E, 18), 1);
+  // pebbles, clods and tufts on top; snow in winter
+  const blobs = [];
+  for (let i = 0; i < 9; i++) {
+    const a = rnd() * Math.PI * 2, r = 0.5 + rnd() * 0.45;
+    blobs.push([Math.cos(a) * rx * r, -h + Math.sin(a) * ry * r, 0.8 + rnd() * 1, 0.45 + rnd() * 0.4]);
+  }
+  fillBlobs(toneHex(E, -26), blobs);
+  if (a6Site() === 1) a6Tufts(-rx, rx, 0.4, seed);
+  if (structSnow) fillBlobs("rgba(246, 249, 252, .93)", [[-rx * 0.5, -h - ry * 0.25, rx * 0.34, ry * 0.32], [rx * 0.48, -h + ry * 0.3, rx * 0.26, ry * 0.3], [-rx * 0.7, ry * 0.5, rx * 0.2, 1.1]]);
+}
+// a long rounded bank of thrown-up earth along y from x0 to x1, h high
+function a6Bank(x0, x1, y, h, seed) {
+  const c = sctx, E = a6Earth();
+  c.beginPath();
+  c.moveTo(x0 - 2, y);
+  c.bezierCurveTo(x0 + 1, y - h * 1.15, x1 - 3, y - h * 1.2, x1 + 2, y);
+  c.closePath();
+  const g = c.createLinearGradient(x0, y - h, x0 + (x1 - x0) * 0.3, y);
+  g.addColorStop(0, toneHex(E, 18));
+  g.addColorStop(1, toneHex(E, -22));
+  c.fillStyle = g; c.fill();
+  inkStroke(0.8);
+  const rnd = mulberry32(seed || 7), blobs = [];
+  for (let i = 0; i < 5; i++) blobs.push([x0 + 3 + rnd() * (x1 - x0 - 6), y - h * (0.2 + rnd() * 0.5), 1 + rnd(), 0.5 + rnd() * 0.3]);
+  fillBlobs(toneHex(E, -30), blobs);
+  if (a6Site() === 1) a6Tufts(x0 + 2, x1 - 2, y - 0.4, seed || 7);
+  if (structSnow) fillBlobs("rgba(246, 249, 252, .92)", [[x0 + (x1 - x0) * 0.35, y - h * 0.82, (x1 - x0) * 0.22, h * 0.22], [x0 + (x1 - x0) * 0.72, y - h * 0.7, (x1 - x0) * 0.14, h * 0.18]]);
+}
+// an earth platform as a block, the top at -h
+function a6Berm(w, d, h, seed) {
+  const E = a6Earth(), c = sctx;
+  box3(w, h, d, toneHex(E, -4), { side: toneHex(E, -40), top: toneHex(E, 16) });
+  const rnd = mulberry32(seed || 3), ox = d * OBQ.dx, oy = d * OBQ.dy, blobs = [];
+  for (let i = 0; i < 10; i++) {
+    const u = rnd(), v = rnd();
+    blobs.push([-w / 2 + 2 + u * (w - 4) + v * ox, -h + v * oy, 0.7 + rnd() * 0.9, 0.4 + rnd() * 0.3]);
+  }
+  fillBlobs(toneHex(E, -22), blobs);
+  c.fillStyle = "rgba(40, 24, 10, .2)";
+  for (let i = 0; i < 6; i++) c.fillRect(-w / 2 + 1 + rnd() * (w - 3), -h + 1 + rnd() * (h - 2), 1.2, 0.5);
+  if (a6Site() === 1) a6Tufts(-w / 2, w / 2, 0.4, seed);
+  if (structSnow) {
+    inkPoly([-w / 2 + ox * 0.15 + 1, -h + oy * 0.15, -w / 2 + ox * 0.8, -h + oy * 0.8, w / 2 + ox * 0.6, -h + oy * 0.7, w / 2 - 2, -h + oy * 0.1], "rgba(246, 249, 252, .9)", 0);
+    snowCap(-w / 2 + 1, -h + 0.3, w * 0.4, 1);
+  }
+}
+// dry grass at the foot of the plateau's earthworks
+function a6Tufts(x0, x1, y, seed) {
+  const c = sctx, rnd = mulberry32(seed + 77);
+  c.strokeStyle = "#a08a4c";
+  c.lineWidth = 0.55;
+  c.beginPath();
+  for (let x = x0 + 2; x < x1 - 1; x += 4 + rnd() * 6) {
+    for (let k = -1; k <= 1; k++) { c.moveTo(x, y); c.lineTo(x + k * 1.1 + rnd() * 0.4, y - 2 - rnd() * 1.6); }
+  }
+  c.stroke();
+}
+// a horizontal log, seen side-on, its cut end toward us at the right
+function a6Log(x0, x1, y, r, hex) {
+  const c = sctx, L = hex || A6.log;
+  inkRect(x0, y - r, x1 - x0, r * 2, L, 0.7);
+  c.fillStyle = "rgba(255, 236, 200, .25)";
+  c.fillRect(x0, y - r, x1 - x0, r * 0.6);
+  c.fillStyle = "rgba(30, 16, 6, .25)";
+  c.fillRect(x0, y + r * 0.4, x1 - x0, r * 0.6);
+  inkDisc(x0, y, r * 0.55, r, toneHex(L, 40), 0.6);
+  sctx.strokeStyle = "rgba(70, 44, 20, .5)"; sctx.lineWidth = 0.3;
+  sctx.beginPath(); sctx.ellipse(x0, y, r * 0.25, r * 0.5, 0, 0, Math.PI * 2); sctx.stroke();
+}
+// a plain cast concrete block (the FBS kind laid as barricades), the front at y
+function a6Block(x, y, w, h, d, hex) {
+  const c = sctx, base = hex || A6.concrete;
+  c.save();
+  c.translate(x, y);
+  box3(w, h, d, base, { side: toneHex(base, -34), top: toneHex(base, 22) });
+  // stains, chips, the lifting loops
+  c.fillStyle = "rgba(60, 50, 40, .16)";
+  c.fillRect(-w / 2 + w * 0.2, -h * 0.55, w * 0.3, h * 0.55);
+  c.fillStyle = "rgba(255, 255, 255, .18)";
+  c.fillRect(-w / 2 + 0.6, -h + 0.6, w * 0.4, 0.5);
+  c.strokeStyle = "rgba(40, 30, 20, .55)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.arc(-w / 4 + d * OBQ.dx * 0.5, -h + d * OBQ.dy * 0.5, 0.8, Math.PI, 0);
+  c.arc(w / 4 + d * OBQ.dx * 0.5, -h + d * OBQ.dy * 0.5, 0.8, Math.PI, 0);
+  c.stroke();
+  if (structSnow) snowCap(-w / 2 + 0.3, -h + 0.3, w - 0.6, 1);
+  c.restore();
+}
+// an ammunition box of olive wood with rope handles and a plain stencil bar
+function a6Crate(x, y, w, h, d, hex) {
+  const c = sctx, base = hex || "#5f6a42";
+  c.save();
+  c.translate(x, y);
+  box3(w, h, d, base, { side: toneHex(base, -30), top: toneHex(base, 20) });
+  c.strokeStyle = "rgba(30, 20, 10, .45)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  c.moveTo(-w / 2 + 0.6, -h * 0.5); c.lineTo(w / 2 - 0.6, -h * 0.5);
+  c.stroke();
+  c.fillStyle = "rgba(240, 232, 200, .55)";
+  c.fillRect(-w * 0.2, -h * 0.82, w * 0.4, Math.max(0.4, h * 0.12));
+  if (structSnow) snowCap(-w / 2 + 0.2, -h + 0.2, w - 0.4, 0.8);
+  c.restore();
+}
+// a camouflage net slung over poles: a draped outline, a coarse mesh, scrim tufts at its hem
+function a6Net(pts, hex, seed) {
+  const c = sctx, rnd = mulberry32(seed || 9), base = hex || A6.net;
+  polyPath(pts);
+  c.fillStyle = base; c.fill();
+  c.save();
+  c.clip();
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < pts.length; i += 2) { x0 = Math.min(x0, pts[i]); x1 = Math.max(x1, pts[i]); y0 = Math.min(y0, pts[i + 1]); y1 = Math.max(y1, pts[i + 1]); }
+  // the scrim's mottle, then the mesh
+  const blobs = [], lit = [];
+  for (let i = 0; i < 14; i++) {
+    const bx = x0 + rnd() * (x1 - x0), by = y0 + rnd() * (y1 - y0);
+    (i % 2 ? blobs : lit).push([bx, by, 1.6 + rnd() * 2.4, 0.9 + rnd() * 1.2, rnd()]);
+  }
+  fillBlobs(toneHex(base, -22), blobs);
+  fillBlobs(toneHex(base, 22), lit);
+  c.strokeStyle = "rgba(20, 26, 10, .35)";
+  c.lineWidth = 0.3;
+  c.beginPath();
+  for (let x = x0 - (y1 - y0); x < x1; x += 2.2) { c.moveTo(x, y1); c.lineTo(x + (y1 - y0), y0); c.moveTo(x, y0); c.lineTo(x + (y1 - y0), y1); }
+  c.stroke();
+  c.fillStyle = "rgba(255, 250, 220, .16)";
+  c.fillRect(x0, y0, x1 - x0, (y1 - y0) * 0.3);
+  if (structSnow) fillBlobs("rgba(246, 249, 252, .85)", [[x0 + (x1 - x0) * 0.3, y0 + 2, (x1 - x0) * 0.18, 1.4], [x0 + (x1 - x0) * 0.7, y0 + 2.6, (x1 - x0) * 0.14, 1.2]]);
+  c.restore();
+  polyPath(pts);
+  inkStroke(0.8);
+}
+// a pole, inked
+function a6Pole(x, y, h, hex) { beam(x, y, x, y - h, 0.9, hex || A6.log); }
+// a telescopic radio mast with guy lines; its tip light blinks live
+function a6Mast(x, y, h, guys) {
+  const c = sctx;
+  if (guys) {
+    c.strokeStyle = "rgba(40, 36, 30, .55)";
+    c.lineWidth = 0.35;
+    c.beginPath();
+    c.moveTo(x, y - h * 0.8); c.lineTo(x - h * 0.34, y + 1.6);
+    c.moveTo(x, y - h * 0.8); c.lineTo(x + h * 0.3, y - 1.4);
+    c.moveTo(x, y - h * 0.5); c.lineTo(x + h * 0.16, y + 2.4);
+    c.stroke();
+  }
+  beam(x, y, x, y - h * 0.5, 1.1, "#6b6f66");
+  beam(x, y - h * 0.5, x, y - h * 0.85, 0.8, "#7c8077");
+  beam(x, y - h * 0.85, x, y - h, 0.5, "#8a8e86");
+  (structFit.blinks || (structFit.blinks = [])).push(structPoint(x, y - h - 0.6));
+  structCrown(y - h - 1);
+}
+// a whip aerial off a radio set
+function a6Whip(x, y, h, bend) {
+  const c = sctx;
+  c.strokeStyle = INK; c.lineWidth = 0.9;
+  c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + (bend || 1.5) * 0.3, y - h * 0.6, x + (bend || 1.5), y - h); c.stroke();
+  c.strokeStyle = "#5e625a"; c.lineWidth = 0.4; c.stroke();
+}
+// a field radio set: olive box, dials
+function a6Radio(x, y) {
+  a6Crate(x, y, 5, 4, 2.6, "#4d5638");
+  inkDisc(x - 1, y - 2.4, 0.6, 0.6, "#1e2022", 0.3);
+  inkDisc(x + 1, y - 2.4, 0.6, 0.6, "#1e2022", 0.3);
+  a6Whip(x + 1.8 + 2.6 * OBQ.dx, y - 4 + 2.6 * OBQ.dy, 12, 1.2);
+}
+// a lit window: dark glass by day, warm after dusk
+function a6Window(x, y, w, h, frame) {
+  const c = sctx;
+  inkRect(x - 0.6, y - 0.6, w + 1.2, h + 1.2, frame || "#8a8274", 0.5);
+  c.fillStyle = "#24262a";
+  c.fillRect(x, y, w, h);
+  c.fillStyle = "rgba(160, 180, 200, .25)";
+  c.fillRect(x, y, w * 0.4, h);
+  const a = structPoint(x, y), b = structPoint(x + w, y + h);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+}
+// the plain red warning triangle staked at the edge of a minefield (no lettering)
+function a6Sign(x, y, s) {
+  const z = s || 1;
+  beam(x, y, x, y - 9 * z, 0.8, A6.log);
+  inkPoly([x, y - 13.6 * z, x - 3.2 * z, y - 8 * z, x + 3.2 * z, y - 8 * z], A6.warn, 0.6);
+  inkPoly([x, y - 12 * z, x - 1.8 * z, y - 8.9 * z, x + 1.8 * z, y - 8.9 * z], "#f2ece0", 0);
+  structCrown(y - 14 * z);
+}
+
+// ---- live effects ----
+const a6Muzzles = [];   // reused each frame: x, y, ux, uy of every barrel that fired
+// a muzzle flash: a hot forward tongue with two side jets, and a white heart
+function a6Flash(c, x, y, ux, uy, r, a) {
+  const n = Math.hypot(ux, uy) || 1;
+  ux /= n; uy /= n;
+  c.globalAlpha = a;
+  c.fillStyle = "#ffae42";
+  c.beginPath();
+  c.moveTo(x + ux * r * 2.6, y + uy * r * 2.6);
+  c.lineTo(x + ux * r * 0.6 - uy * r * 0.5, y + uy * r * 0.6 + ux * r * 0.5);
+  c.lineTo(x + ux * r * 0.3 - uy * r * 1.5, y + uy * r * 0.3 + ux * r * 1.5);
+  c.lineTo(x - uy * r * 0.4, y + ux * r * 0.4);
+  c.lineTo(x - ux * r * 0.3, y - uy * r * 0.3);
+  c.lineTo(x + uy * r * 0.4, y - ux * r * 0.4);
+  c.lineTo(x + ux * r * 0.3 + uy * r * 1.5, y + uy * r * 0.3 - ux * r * 1.5);
+  c.lineTo(x + ux * r * 0.6 + uy * r * 0.5, y + uy * r * 0.6 - ux * r * 0.5);
+  c.closePath();
+  c.fill();
+  c.fillStyle = "#fff7d0";
+  c.beginPath();
+  c.moveTo(x + ux * r * 1.4, y + uy * r * 1.4);
+  c.lineTo(x - uy * r * 0.4, y + ux * r * 0.4);
+  c.lineTo(x - ux * r * 0.2, y - uy * r * 0.2);
+  c.lineTo(x + uy * r * 0.4, y - ux * r * 0.4);
+  c.closePath();
+  c.fill();
+}
+// a tracer streak running out along (ux, uy) from d0 to d1 past (x, y)
+function a6Tracer(c, x, y, ux, uy, d0, d1, w, a) {
+  const n = Math.hypot(ux, uy) || 1;
+  ux /= n; uy /= n;
+  c.globalAlpha = a;
+  c.beginPath();
+  c.moveTo(x + ux * d0, y + uy * d0); c.lineTo(x + ux * d1, y + uy * d1);
+  c.strokeStyle = "#ff9a3a"; c.lineWidth = w; c.stroke();
+  c.strokeStyle = "#fff4c4"; c.lineWidth = w * 0.45; c.stroke();
+}
+// a bank of grey smoke p (0..1) through its life: blown out along (dx, dy), rising and thinning
+function a6Smoke(c, x, y, dx, dy, f, p, a, big) {
+  const q = 1 - p, alpha = a * Math.min(1, q * 1.6) * Math.sqrt(q), z = big || 1;
+  if (alpha < 0.02) return;
+  for (let pass = 0; pass < 3; pass++) {
+    c.globalAlpha = alpha * (pass === 0 ? 0.5 : pass === 1 ? 0.75 : 0.85);
+    c.fillStyle = pass === 0 ? "#5d6268" : pass === 1 ? "#b0b2b4" : "#eeeeec";
+    const grow = pass === 0 ? 0.5 * f : 0, sx = pass === 2 ? -0.4 * f : 0, sy = pass === 2 ? -0.6 * f : 0, sr = pass === 2 ? 0.76 : 1;
+    c.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const s = i / 2, run = (s * 3 + p * (3 + s * 7)) * f * z, side = (i % 2 ? 1.4 : -1.1) * (0.4 + p) * f * z;
+      const px = x + dx * run - dy * side + p * 2 * f + sx, py = y + dy * run + dx * side - (p * p * 8 + p * 3 + s) * f * z + sy;
+      const r = (1.8 + p * (3.4 + s * 2)) * f * z * (1.1 - s * 0.25) * sr + grow;
+      c.moveTo(px + r, py);
+      c.arc(px, py, r, 0, Math.PI * 2);
+    }
+    c.fill();
+  }
+}
+// a soft puff rising from a point, for chimneys, craters and exhaust: three blobs on a slow cycle
+function a6Wisp(c, x, y, f, time, seed, a, rgb) {
+  for (let i = 0; i < 3; i++) {
+    const p = (time * 0.00035 + i / 3 + seed * 0.13) % 1;
+    const px = x + (Math.sin(p * 5 + seed + i) * 1.6 + p * 4) * f, py = y - p * 16 * f, r = (1.4 + p * 3.2) * f;
+    c.globalAlpha = a * (1 - p) * 0.75;
+    c.fillStyle = rgb || "#9a9894";
+    c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill();
+    c.globalAlpha = a * (1 - p) * 0.55;
+    c.fillStyle = "#e4e2dc";
+    c.beginPath(); c.arc(px - r * 0.25, py - r * 0.3, r * 0.65, 0, Math.PI * 2); c.fill();
+  }
+}
+// the seconds since the tower last fired (99 when it has not)
+function a6Since(t) {
+  const st = getStats(t), rate = st.rate / (1 + (t.buffHaste || 0));
+  return t.cd > 0 ? rate - t.cd : 99;
+}
+// an oriented box in the ground plane, drawn live: P(u, v, z) maps the box's own axes to the screen
+function a6OBox(c, P, u0, u1, v0, v1, z0, z1, hex, ca, sa, f) {
+  const faces = [];
+  // the sides that face the viewer: +u when sin > 0, -u when sin < 0, +v when cos > 0, -v when cos < 0
+  if (sa > 0) faces.push([u1, v0, u1, v1, ca]);
+  else faces.push([u0, v1, u0, v0, -ca]);
+  if (ca > 0) faces.push([u1, v1, u0, v1, -sa]);
+  else faces.push([u0, v0, u1, v0, sa]);
+  for (const fc of faces) {
+    const a = P(fc[0], fc[1], z0), b = P(fc[2], fc[3], z0), d = P(fc[2], fc[3], z1), e = P(fc[0], fc[1], z1);
+    c.beginPath();
+    c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath();
+    c.fillStyle = toneHex(hex, fc[4] > 0 ? -30 : 4); c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.7 * f; c.stroke();
+  }
+  const t0 = P(u0, v0, z1), t1 = P(u1, v0, z1), t2 = P(u1, v1, z1), t3 = P(u0, v1, z1);
+  c.beginPath();
+  c.moveTo(t0[0], t0[1]); c.lineTo(t1[0], t1[1]); c.lineTo(t2[0], t2[1]); c.lineTo(t3[0], t3[1]); c.closePath();
+  c.fillStyle = toneHex(hex, 22); c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.8 * f; c.stroke();
+}
+// a frame for live parts turned to angle a about the screen point (x, y), f pixels per unit
+function a6Frame(x, y, f, a) {
+  const ca = Math.cos(a), sa = Math.sin(a);
+  return (u, v, z) => [x + (ca * u - sa * v) * f, y + (sa * u + ca * v) * ELLIPSE * f - z * f];
+}
+// a long arm held on the aim (ux, uy) from the shoulder pocket (gx, gy): AK, SVD, PK or a launch tube.
+// Returns the muzzle's distance along the aim
+function a6Gun(c, gx, gy, ux, uy, f, kind, ground) {
+  const P = d => [gx + ux * d * f, gy + uy * d * f];
+  const L = kind === "svd" ? 16 : kind === "pk" ? 14 : kind === "tube" ? 12 : 11.5;
+  if (kind === "tube") {
+    // a shoulder-fired launch tube: long, fat, a grip and sight block under it
+    const a = P(-4), b = P(L);
+    a6Line(c, a[0], a[1], b[0], b[1], 2.2, "#55603e", f);
+    const g = P(2.4);
+    a6Line(c, g[0], g[1], g[0] + 0.3 * f, g[1] + 2.4 * f, 0.9, A6.gun, f);
+    c.beginPath(); c.arc(b[0], b[1], 1.3 * f, 0, Math.PI * 2);
+    c.fillStyle = "#2a2c24"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.stroke();
+    return L;
+  }
+  const s0 = P(-4), s1 = P(0.4), r1 = P(4.6), h1 = P(kind === "pk" ? 6.5 : 7.4), m = P(L);
+  if (kind === "pk") {
+    // the belt box under the receiver and the bipod down to the parapet
+    const bx = P(3);
+    c.fillStyle = "#4b5236"; c.fillRect(bx[0] - 1.3 * f, bx[1] + 0.4 * f, 2.6 * f, 2.6 * f);
+    c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.strokeRect(bx[0] - 1.3 * f, bx[1] + 0.4 * f, 2.6 * f, 2.6 * f);
+    const bp = P(L - 3);
+    if (ground != null && ground > bp[1] + 0.5 * f) {
+      a6Line(c, bp[0], bp[1], bp[0] - 1.3 * f, ground, 0.4, A6.gun, f);
+      a6Line(c, bp[0], bp[1], bp[0] + 1.3 * f, ground, 0.4, A6.gun, f);
+    }
+  }
+  a6Line(c, s0[0], s0[1] + 0.4 * f, s1[0], s1[1], 1.6, kind === "pk" ? "#5a3a22" : A6.wood, f);
+  a6Line(c, s1[0], s1[1], r1[0], r1[1], 1.4, A6.gun, f);
+  if (kind === "ak") {
+    const q = P(3.6);
+    c.beginPath();
+    c.moveTo(q[0], q[1]);
+    c.quadraticCurveTo(q[0] + ux * 0.3 * f, q[1] + 1.9 * f, q[0] + ux * 1.6 * f, q[1] + 3.1 * f);
+    c.strokeStyle = INK; c.lineWidth = 2.2 * f; c.stroke();
+    c.strokeStyle = A6.mag; c.lineWidth = 1.2 * f; c.stroke();
+  } else if (kind === "svd") {
+    const q = P(3.4);
+    a6Line(c, q[0], q[1], q[0], q[1] + 1.8 * f, 0.9, A6.gun, f);
+    const s2 = P(0.8), s3 = P(4.6);
+    a6Line(c, s2[0], s2[1] - 1.4 * f, s3[0], s3[1] - 1.4 * f, 0.8, "#1e2022", f);
+    c.fillStyle = "#9ec4d8"; c.fillRect(s3[0] - 0.3 * f, s3[1] - 1.8 * f, 0.6 * f, 0.7 * f);
+  }
+  a6Line(c, r1[0], r1[1], h1[0], h1[1], 1.25, kind === "pk" ? A6.gun : A6.wood, f);
+  a6Line(c, h1[0], h1[1], m[0], m[1], kind === "pk" ? 0.8 : 0.6, A6.gun, f);
+  const mb = P(L - 0.8);
+  a6Line(c, mb[0], mb[1], m[0], m[1], 0.9, A6.gun, f);
+  return L;
+}
+// a soldier behind a parapet from the hips (px, py) up, laid on the aim (ca, sa): the gun kicks
+// back into his shoulder when he fires, and the muzzle is noted for the flash
+function a6Shooter(c, px, py, f, g, ca, sa, kick, fired) {
+  const face = ca >= 0 ? 1 : -1, rec = kick * 1.2 * f, sleeve = toneHex(g.coat, 14), far = toneHex(g.coat, 20);
+  const gx = px + face * 1 * f - ca * rec, gy = py - 7 * f - sa * rec;
+  const behind = sa < -0.2;
+  const gun = () => {
+    const L = a6Gun(c, gx, gy, ca, sa, f, g.gun || "ak", py + 0.6 * f);
+    const lx = gx + ca * L * 0.42 * f, ly = gy + sa * L * 0.42 * f + 0.6 * f;
+    a6Line(c, px + face * 2.6 * f, py - 5.6 * f, lx, ly, 1.7, sleeve, f);
+    a6Hand(c, lx, ly, f);
+    a6Line(c, px - face * 2.4 * f, py - 5.4 * f, gx + ca * 0.6 * f, gy + sa * 0.6 * f + 0.9 * f, 1.7, far, f);
+    a6Hand(c, gx + ca * 0.6 * f, gy + sa * 0.6 * f + 0.9 * f, f);
+    if (fired) a6Muzzles.push(gx + ca * (L + 0.5) * f, gy + sa * (L + 0.5) * f, ca, sa);
+  };
+  if (behind) gun();
+  a6Torso(c, px - ca * rec * 0.4, py, f, face, g);
+  if (!behind) gun();
+}
+// flashes and tracer streaks at every muzzle noted this frame
+function a6Fire(c, k, kick, fade, size, tracers) {
+  if (kick <= 0.3) return;
+  const a = fade * Math.min(1, (kick - 0.3) * 3);
+  for (let i = 0; i < a6Muzzles.length; i += 4) {
+    const mx = a6Muzzles[i], my = a6Muzzles[i + 1], ux = a6Muzzles[i + 2], uy = a6Muzzles[i + 3];
+    a6Flash(c, mx, my, ux, uy, (1.6 + kick * 1.6) * k * (size || 1), a);
+    if (tracers) a6Tracer(c, mx, my, ux, uy, (4 + (1 - kick) * 40) * k, (14 + (1 - kick) * 56) * k, 1.1 * k, a);
+  }
+  c.globalAlpha = fade;
+}
+
+// ====================================== END SKIN SECTION: art6kit ======================================
+
+
+// ======================================================================================
 // SKIN SECTION: riflesquad. 1991-2023, archer slot: rifle squad in a trench
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Stepanakert 1991-92: self-defence volunteers with Kalashnikovs among the snow and the broken brick
+// of the city's edge. Shushi 2020: a Defense Army squad with AK-74s in a hillside trench revetted
+// with logs, a camouflage net against the drones. Stepanakert 2023: riflemen behind concrete blocks.
+// The masteries are the squad's marksman with a Dragunov (SVD) and spotter under a net hide, and a
+// PK machine-gun nest with its belt-feeding number two.
+
+// the broken wall, log bunker or concrete at the back of the trench (rank 2 and up)
+function rsBackdrop(site, lvl, spec, ry, h) {
+  const c = sctx, y0 = -h - ry * 0.55;
+  if (site === 0) {
+    // a shell-broken brick wall, plaster gone, a window hole that is lit at night
+    const W = lvl === 1 && !spec ? 19 : 24, H = lvl === 1 && !spec ? 22 : 31, x0 = -W / 2 - 5;
+    c.save();
+    c.translate(x0 + W / 2, y0);
+    const brick = "#9a5a44", top = [];
+    const rnd = mulberry32(31 + lvl);
+    for (let i = 0; i <= 8; i++) top.push(-W / 2 + i * W / 8, -H + (i % 2 ? 2 + rnd() * 3 : rnd() * 2) + (i > 5 ? 3 + i * 0.6 : 0));
+    const face = [-W / 2, 0].concat(top).concat([W / 2, 0]);
+    // its thickness, then the face
+    inkPoly([W / 2, 0, W / 2 + 3 * OBQ.dx, 3 * OBQ.dy, W / 2 + 3 * OBQ.dx, top[17] + 3 * OBQ.dy, W / 2, top[17]], toneHex(brick, -34), 0.8);
+    polyPath(face);
+    c.fillStyle = brick; c.fill();
+    c.save();
+    c.clip();
+    c.strokeStyle = "rgba(60, 30, 20, .4)";
+    c.lineWidth = 0.4;
+    c.beginPath();
+    for (let y = -2.2, r = 0; y > -H; y -= 2.2, r++) {
+      c.moveTo(-W / 2, y); c.lineTo(W / 2, y);
+      for (let x = -W / 2 + (r % 2 ? 2.2 : 0); x < W / 2; x += 4.4) { c.moveTo(x, y); c.lineTo(x, y + 2.2); }
+    }
+    c.stroke();
+    // remnants of plaster, soot over the window
+    fillBlobs("rgba(222, 210, 190, .75)", [[-W / 2 + 6, -H * 0.42, 5, 3.4], [W / 2 - 7, -5, 4, 2.6]]);
+    fillBlobs("rgba(30, 26, 24, .3)", [[2, -H + 5, 6, 3]]);
+    c.restore();
+    polyPath(face);
+    inkStroke(1);
+    a6Window(-5, -H + 8, 4.4, 6, "#c8bba6");
+    if (H > 24) a6Window(3, -H + 9.5, 4.4, 6, "#c8bba6");
+    if (structSnow) for (let i = 0; i < 8; i += 2) snowCap(top[i * 2], top[i * 2 + 1] + 0.6, W / 8 + 1, 0.9);
+    c.restore();
+    structCrown(y0 - H);
+  } else if (site === 1) {
+    if (lvl === 1 && !spec) {
+      // a camouflage net on two poles behind the trench
+      const X = 11;
+      a6Pole(-X, y0 + 1, 15);
+      a6Pole(X + 2, y0 - 1, 14);
+      a6Net([-X - 3, y0 - 14, -X + 5, y0 - 16, X - 2, y0 - 14.5, X + 5, y0 - 12.5, X + 6, y0 - 3, X - 1, y0 - 5, X - 8, y0 - 2.5, -X + 2, y0 - 5, -X - 4, y0 - 1.5], A6.net, 41);
+      structCrown(y0 - 16);
+    } else {
+      // a log-roofed dugout bunker sunk in the slope, its firing slit facing the road
+      const W = 22, D = 7, H = 9;
+      c.save();
+      c.translate(-3, y0 + 1);
+      a6Berm(W + 6, D + 4, 3, 43);
+      c.translate(0, -3);
+      box3(W, H, D, "#7d6446", { side: "#5a4632", top: "#8e744b" });
+      for (let y = -1.6; y > -H + 1; y -= 3) a6Log(-W / 2, W / 2, y, 1.5);
+      c.fillStyle = "#1c1612";
+      c.fillRect(-6, -H + 2.6, 12, 2.4);
+      const a = structPoint(-6, -H + 2.6), b = structPoint(6, -H + 5);
+      structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+      // a sod roof on the logs
+      c.translate(0, -H);
+      inkPoly([-W / 2 - 2, 0, -W / 2 + 2, -4, W / 2 + D * OBQ.dx - 2, -4 + D * OBQ.dy, W / 2 + D * OBQ.dx + 2, D * OBQ.dy, W / 2 + 2, 0], "#7b6a44", 1);
+      fillBlobs("#8d8050", [[-4, -3, 6, 1.4], [8, -4.4, 5, 1.2]]);
+      a6Tufts(-W / 2, W / 2 + 4, -3.4, 47);
+      c.restore();
+      if (spec !== "a") {
+        a6Pole(W / 2 - 1, y0 - 2, 20);
+        a6Net([W / 2 - 13, y0 - 20, W / 2 + 2, y0 - 24, W / 2 + 7, y0 - 18, W / 2 + 6, y0 - 9, W / 2 - 5, y0 - 12, W / 2 - 15, y0 - 13], A6.net, 49);
+        structCrown(y0 - 24);
+      }
+      structCrown(y0 - H - 8);
+    }
+  } else {
+    // concrete blocks stacked into a wall at the back, bags along the top course
+    const tall = !(lvl === 1 && !spec), bx = -3;
+    for (let i = 0; i < 3; i++) a6Block(bx - 9 + i * 9, y0 + 1, 8.6, 5.6, 4);
+    for (let i = 0; i < 2; i++) a6Block(bx - 4.5 + i * 9, y0 - 4.6, 8.6, 5.6, 4);
+    if (tall) {
+      a6Block(bx - 4.5, y0 - 10.2, 8.6, 5.6, 4);
+      a6BagWall(bx + 1, bx + 12, y0 - 4.6, 2, 53, 5.2);
+      structCrown(y0 - 17);
+    } else {
+      a6BagWall(bx - 8, bx + 8, y0 - 10.2, 1, 53, 5.2);
+      structCrown(y0 - 13);
+    }
+  }
+}
+
+function paintRifleSquad(lvl, spec) {
+  const c = sctx, site = a6Site(), base = towerBase("archer", lvl, spec);
+  const h = 3.6;
+  a6Mound(base.rx, base.ry, h, 61 + lvl + (spec ? 5 : 0));
+  rankMarks(0, base.ry - 0.6, lvl, spec, false);
+  c.save();
+  c.translate(0, -h);
+  // the post is drawn at the scale of the men on the road, larger than the old towers' garrisons
+  const Z = A6_Z;
+  c.scale(Z, Z);
+  const rx = base.rx / Z, ry = base.ry / Z;
+  // the trench cut into the mound
+  const tx = rx * (lvl === 0 && !spec ? 0.52 : 0.66), ty = ry * (lvl === 0 && !spec ? 0.52 : 0.62);
+  if (lvl > 0 || spec) rsBackdrop(site, lvl, spec, ry, 0);
+  inkDisc(0, 0, tx + 1.4, ty + 0.8, toneHex(a6Earth(), -48), 0.8);
+  inkDisc(0, 0.6, tx, ty, "#3b3026", 0);
+  const rows = spec ? 3 : 2, rrx = tx + 1.6, rry = ty + 1;
+  const front = x => ry * 0 + rry * Math.sqrt(Math.max(0, 1 - (x / rrx) * (x / rrx))) - (rows - 1) * 2.2 - 2.5;
+  const men = structFit.shooters = [];
+  const post = (x, i, gun, s) => men.push({ p: structPoint(x, front(x) + 0.3), s: (s || 1) * Z, g: Object.assign({ gun }, a6Dress(i)) });
+  if (spec === "a") {
+    // the marksman's hide: a net slung over four poles, the spotter kneeling at his side
+    a6BagRing(0, 0, rrx, rry, rows, 0, 71);
+    a6Man(-tx + 6, -1.5, 0.92, a6Dress(1), "binoc", 1);
+    const nx = rx - 2;
+    a6Pole(-nx, 1, 27); a6Pole(nx, -2, 29);
+    a6Pole(-nx + 8, -ry - 2, 31); a6Pole(nx + 2, -ry - 3, 33);
+    a6Net([-nx - 4, -25, -nx + 4, -32, -2, -34, nx - 4, -35, nx + 6, -31, nx + 6, -22, nx - 2, -26, nx - 8, -23, 0, -26, -nx + 7, -22, -nx + 1, -26, -nx - 5, -19], site === 0 ? "#767a6a" : site === 2 ? A6.netDry : A6.net, 73);
+    structCrown(-35);
+    post(4, 0, "svd", 1.04);
+    a6BagRing(0, 0, rrx, rry, rows, 1, 71);
+    a6Crate(rx - 3, ry * 0.4, 6, 3.2, 3);
+  } else if (spec === "b") {
+    // the machine-gun nest: three courses of bags, the belt-man kneeling with a box of belts
+    a6BagRing(0, 0, rrx, rry, rows, 0, 81);
+    const d = a6Dress(1);
+    d.carry = (cc, x, y, f) => { cc.fillStyle = "#4b5236"; cc.fillRect(x - 1.6 * f, y - 1.2 * f, 3.2 * f, 2.6 * f); cc.strokeStyle = INK; cc.lineWidth = 0.5 * f; cc.strokeRect(x - 1.6 * f, y - 1.2 * f, 3.2 * f, 2.6 * f); };
+    a6Man(-9, -1, 0.95, d, "carry", 1);
+    post(5, 0, "pk", 1.08);
+    a6BagRing(0, 0, rrx, rry, rows, 1, 81);
+    for (let i = 0; i < 3; i++) a6Crate(rx - 6 + i * 0.6, ry * 0.5 - i * 2.6, 5, 2.6, 3, "#4b5236");
+  } else {
+    a6BagRing(0, 0, rrx, rry, rows, 0, 91 + lvl);
+    if (lvl === 2) {
+      // a section leader with binoculars, a radio and its whip
+      a6Man(-tx + 4, -2.2, 0.9, a6Dress(3), site === 2 ? "phone" : "binoc", 1);
+      a6Radio(tx - 4, -1.8);
+    }
+    if (lvl === 0) post(1, 0, "ak");
+    else { post(-6.5, 0, "ak"); post(7.5, 2, "ak"); }
+    a6BagRing(0, 0, rrx, rry, rows, 1, 91 + lvl);
+    if (lvl === 0) a6Crate(rx - 5, ry * 0.45, 5.4, 3, 3);
+    else if (site === 2) a6Block(-rx + 7, ry * 0.75, 8, 4.4, 4);
+    else a6Crate(rx - 5, ry * 0.5, 5.4, 3, 3);
+  }
+  c.restore();
+  for (const m of men) structCrown(m.p[1] - 17.5 * m.s);
+}
+
+function rifleSquadLive(t, cx) {
+  const men = cx.fit.shooters;
+  if (!men) return;
+  const c = ctx, k = cx.k, ca = Math.cos(cx.aim), sa = Math.sin(cx.aim) * ELLIPSE;
+  const since = a6Since(t);
+  a6Muzzles.length = 0;
+  c.globalAlpha = cx.fade;
+  // the squad does not all fire at once: the first man has the shot, the others follow a beat later
+  for (let i = 0; i < men.length; i++) {
+    const m = men[i], kick = i === 0 ? cx.kick : structClamp(1 - (since - 0.12 * i) / 0.28, 0, 1) * (since >= 0.12 * i ? 1 : 0);
+    a6Shooter(c, cx.x + m.p[0] * k, cx.y + m.p[1] * k, k * m.s, m.g, ca, sa, kick, kick > 0.3);
+  }
+  a6Fire(c, k, Math.max(cx.kick, men.length > 1 ? structClamp(1 - (since - 0.12) / 0.28, 0, 1) : 0), cx.fade, men[0].g.gun === "pk" ? 1.2 : 1, true);
+}
+
 SKIN_ART.riflesquad = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.archer,
-  scale: TOWER_SCALE.archer,
-  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
-  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
-  proj: "ball", projSpeed: 1100, sound: "musket",
+  box: A6_BOX.archer,
+  scale: A6_SCALE.archer,
+  paint(lvl, spec, variant) { paintRifleSquad(lvl, spec); },
+  // the men turn live; the bake only follows the battlefield
+  variant() { return a6Site(); },
+  live: rifleSquadLive,
+  proj: "tracer", projSpeed: 1100, sound: "musket",
+};
+// a rifle or machine-gun round: a short hot tracer line, drawn long so it reads in one frame
+PROJ_ART.tracer = pr => {
+  const pp = proj(pr.x, pr.y), s = pp.s;
+  ctx.save();
+  ctx.translate(pp.x, pp.y);
+  ctx.rotate(pr.ang || 0);
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255, 140, 40, .45)";
+  ctx.lineWidth = 3.4 * s;
+  ctx.beginPath(); ctx.moveTo(-26 * s, 0); ctx.lineTo(0, 0); ctx.stroke();
+  ctx.strokeStyle = "#ffcf6a";
+  ctx.lineWidth = 1.7 * s;
+  ctx.beginPath(); ctx.moveTo(-20 * s, 0); ctx.lineTo(0, 0); ctx.stroke();
+  ctx.strokeStyle = "#fffbe6";
+  ctx.lineWidth = 0.9 * s;
+  ctx.beginPath(); ctx.moveTo(-9 * s, 0); ctx.lineTo(1 * s, 0); ctx.stroke();
+  ctx.restore();
 };
 // ====================================== END SKIN SECTION: riflesquad ======================================
 
@@ -30437,12 +31388,468 @@ SKIN_ART.riflesquad = {
 // SKIN SECTION: airdefense. 1991-2023, ballista slot: air defence or anti-tank position
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Stepanakert 1991-92: a ZU-23-2, the Soviet twin 23 mm anti-aircraft gun on its towed mount, dug in
+// against the Su-25s and helicopters; the masteries are a ZSU-23-4 Shilka (four radar-laid barrels on a
+// tracked hull) and a Strela-2 shoulder-launched missile team beside the gun.
+// Shushi 2020: a 9K33 Osa, the six-wheeled amphibious air-defence vehicle with four missiles on its
+// turret and a rotating search radar; the masteries are a tracked Tor-M2KM, whose missiles leave its
+// turret straight upward, and an Igla shoulder-launched missile team beside the Osa.
+// Stepanakert 2023: a 9K111 Fagot anti-tank guided missile on its tripod, the gunner kneeling at the
+// sight on a stony ridge; the masteries are the heavier 9K113 Konkurs and a second team with a
+// target of its own.
+
+// a road wheel of a wheeled hull
+function a6Wheel(x, y, r) {
+  inkDisc(x, y, r, r, "#25272a", 0.9);
+  inkDisc(x - r * 0.08, y - r * 0.05, r * 0.52, r * 0.52, "#4e573a", 0.5);
+  inkDisc(x - r * 0.08, y - r * 0.05, r * 0.16, r * 0.16, "#2a2c2e", 0);
+  sctx.strokeStyle = "rgba(255, 255, 255, .16)"; sctx.lineWidth = 0.5;
+  sctx.beginPath(); sctx.arc(x, y, r * 0.82, Math.PI * 1.05, Math.PI * 1.5); sctx.stroke();
+}
+// the near run of track with its road wheels, front face at y
+function a6Track(x0, x1, y, h) {
+  const c = sctx, w = x1 - x0;
+  roundRectPath(x0, y - h, w, h, h * 0.5);
+  c.fillStyle = "#2d2f30"; c.fill();
+  inkStroke(0.9);
+  const n = Math.max(4, Math.round(w / 6.4));
+  for (let i = 0; i < n; i++) {
+    const x = x0 + h * 0.5 + (i + 0.5) * (w - h) / n;
+    inkDisc(x, y - h * 0.48, h * 0.36, h * 0.36, "#4a5236", 0.5);
+    inkDisc(x, y - h * 0.48, h * 0.12, h * 0.12, "#2a2c2e", 0);
+  }
+  c.strokeStyle = "rgba(255, 255, 255, .14)"; c.lineWidth = 0.4;
+  c.beginPath();
+  for (let x = x0 + 1; x < x1 - 0.5; x += 1.6) { c.moveTo(x, y - h + 0.2); c.lineTo(x + 0.4, y - h + 0.9); }
+  c.stroke();
+}
+// an earth pad centred on the tower, its top at -h with (0, -h) the middle of the top
+function a6Pad(w, d, h, seed) {
+  const c = sctx;
+  c.save();
+  c.translate(-d * OBQ.dx / 2, -d * OBQ.dy / 2);
+  a6Berm(w, d, h, seed);
+  c.restore();
+}
+// a shoulder-launched missile team: one man with the tube, his aim live (the second target)
+function adManpads(x, y) {
+  const g = Object.assign({ gun: "tube" }, a6Dress(2));
+  (structFit.manpads || (structFit.manpads = [])).push({ p: structPoint(x, y), s: A6_Z, g });
+  structCrown(y - 30);
+}
+function adMount(kind, x, y, z) {
+  (structFit.mounts || (structFit.mounts = [])).push({ kind, p: structPoint(x, y), z: z || 0 });
+}
+
+function paintAirDefense(lvl, spec) {
+  const c = sctx, site = a6Site(), base = towerBase("ballista", lvl, spec);
+  const W = base.w + (lvl === 2 || spec ? 4 : 0), D = base.d + 2, h = 3;
+  rankMarks(0, 2.6, lvl, spec, false);
+  if (site === 0) {
+    a6Pad(W, D, h, 101 + lvl);
+    c.save();
+    c.translate(0, -h);
+    if (spec === "a") {
+      // the Shilka in a scrape, hull-down behind a low wall of bags at the front
+      c.save();
+      c.translate(-5 - 12 * OBQ.dx / 2, -1 - 12 * OBQ.dy / 2);
+      box3(32, 5.5, 12, "#535c3c", { side: "#3a4129", top: "#6b7550" });
+      c.translate(0, -5.5);
+      // the glacis and the hull top
+      inkPoly([-16, 0, -19, 2.4, -19 + 12 * OBQ.dx, 2.4 + 12 * OBQ.dy, -16 + 12 * OBQ.dx, 12 * OBQ.dy], "#5d6744", 0.8);
+      box3(28, 3.5, 12, "#5b6442", { side: "#3c442b", top: "#727c55" });
+      c.restore();
+      a6Track(-23, 13, 1.2, 5.4);
+      adMount("shilka", -5, -10.5);
+      a6BagWall(-W / 2 + 1, -W / 2 + 13, 6, 1, 111);
+      a6Crate(W / 2 - 4, 4.4, 6, 3.4, 3.6);
+      structCrown(-36);
+    } else {
+      // the gun pit: a ring of bags round the levelled mount
+      const rows = lvl === 0 && !spec ? 2 : 3, rx = 14.5, ry = 6.2;
+      if (lvl === 2 || spec) {
+        // a net slung behind the gun on two poles, against observation from the heights
+        a6Pole(-W / 2 + 3, -ry - 2, 24); a6Pole(W / 2 + 2, -ry - 4, 26);
+        a6Net([-W / 2 - 1, -26, W / 2 + 6, -31, W / 2 + 7, -16, W / 2 - 4, -12, -W / 2 + 6, -10, -W / 2 - 2, -15], "#727866", 113);
+        structCrown(-31);
+      }
+      inkDisc(0, 0, rx - 1.6, ry - 1, toneHex(a6Earth(), -44), 0.8);
+      a6BagRing(0, 0, rx, ry, rows, 0, 115 + lvl);
+      // the levelling base: three outriggers on jacks
+      for (const a of [0.5, 2.6, 4.4]) beam(0, 0, Math.cos(a) * 8, Math.sin(a) * 3.4, 1.2, "#4b5338");
+      inkDisc(0, 0, 3.8, 1.8, "#4b5338", 0.7);
+      if (lvl > 0 || spec) {
+        const d = a6Dress(1);
+        d.carry = (cc, x, y, f) => { cc.fillStyle = "#6e7348"; cc.fillRect(x - 1.8 * f, y - 1.4 * f, 3.6 * f, 2.8 * f); cc.strokeStyle = INK; cc.lineWidth = 0.5 * f; cc.strokeRect(x - 1.8 * f, y - 1.4 * f, 3.6 * f, 2.8 * f); };
+        a6Man(rx - 4, -3.2, A6_Z * 0.8, d, "carry", -1);
+      }
+      adMount("zu", 1.5, 0);
+      if (spec === "b") adManpads(rx - 1, 4.6);
+      a6BagRing(0, 0, rx, ry, rows, 1, 115 + lvl);
+      a6Crate(W / 2 - 3, 6.2, 5.4, 3.2, 3.4, "#6e7348");
+      if (lvl > 0) a6Crate(W / 2 - 4, 3.4, 5.4, 3.2, 3.4, "#6e7348");
+      if (lvl === 2 && !spec) a6Radio(-W / 2 + 4, 6.4);
+      structCrown(-28);
+    }
+    c.restore();
+  } else if (site === 1) {
+    a6Pad(W, D, h, 121 + lvl);
+    c.save();
+    c.translate(0, -h);
+    if (lvl > 0 || spec) {
+      // the revetment: a bank of earth thrown up behind and beside the vehicle
+      a6Bank(-W / 2 + 2 + 6 * OBQ.dx, W / 2 - 2 + 6 * OBQ.dx, -1 + 8 * OBQ.dy, lvl === 1 && !spec ? 6 : 8, 125);
+    }
+    if (lvl === 2 || spec === "b") {
+      a6Pole(-W / 2 + 4, -7, 25); a6Pole(W / 2 + 1, -9, 27);
+      a6Net([-W / 2 - 1, -27, W / 2 + 5, -32, W / 2 + 6, -17, W / 2 - 2, -14, -W / 2 + 8, -13, -W / 2 - 2, -17], A6.net, 127);
+      structCrown(-32);
+    }
+    if (spec === "a") {
+      // the Tor: a tracked hull under a tall box turret
+      c.save();
+      c.translate(-2 - 12 * OBQ.dx / 2, -1 - 12 * OBQ.dy / 2);
+      box3(32, 6, 12, "#5d6642", { side: "#3e452c", top: "#737d55" });
+      inkPoly([-16, 0, -19.5, -1, -19.5 + 12 * OBQ.dx, -1 + 12 * OBQ.dy, -16 + 12 * OBQ.dx, 12 * OBQ.dy], "#4c5436", 0.8);
+      c.restore();
+      a6Track(-21, 15, 1.5, 5.6);
+      adMount("tor", -1.5, -7.5);
+      structCrown(-44);
+    } else {
+      // the Osa: a boat-shaped hull on six big wheels, the turret live on its roof
+      c.save();
+      c.translate(-1 - 13 * OBQ.dx / 2, -3.2 - 13 * OBQ.dy / 2);
+      box3(36, 7.5, 13, "#5f6844", { side: "#3f472d", top: "#768058" });
+      // the sloped bow and its trim vane
+      inkPoly([-18, 0, -23, -3, -21.5, -7.5, -18, -7.5], "#69734c", 0.9);
+      inkPoly([-21.5, -7.5, -23, -3, -23 + 13 * OBQ.dx, -3 + 13 * OBQ.dy, -21.5 + 13 * OBQ.dx, -7.5 + 13 * OBQ.dy], "#7c8660", 0.8);
+      inkRect(-15, -6.4, 4, 1.6, "#2a2c2a", 0.4);
+      inkRect(-9.6, -6.4, 4, 1.6, "#2a2c2a", 0.4);
+      c.strokeStyle = "rgba(30, 30, 20, .45)"; c.lineWidth = 0.4;
+      c.beginPath(); c.moveTo(-17, -3.2); c.lineTo(17, -3.2); c.stroke();
+      c.restore();
+      for (const wx of [-12.5, -1, 10.5]) a6Wheel(wx - 13 * OBQ.dx / 2 + 1.4, 0.6 - 13 * OBQ.dy / 2 - 0.4, 3.6);
+      adMount("osa", -1, -10.7);
+      if (spec === "b") adManpads(W / 2 - 1, 5);
+      structCrown(-40);
+    }
+    if (lvl === 2 && !spec) {
+      a6Man(W / 2 - 2, 6.4, A6_Z * 0.9, a6Dress(1), "binoc", -1);
+    }
+    a6Crate(-W / 2 + 4, 6.4, 5.6, 3, 3.2, "#5f6a42");
+    if (lvl > 0 || spec) {
+      // reload missiles in their long transport crates
+      a6Crate(-W / 2 + 13, 8.4, 13, 2.4, 3, "#5d6840");
+      a6Crate(-W / 2 + 14, 6, 13, 2.4, 3, "#5d6840");
+    }
+    c.restore();
+  } else {
+    // a stony ridge: the pad heaped with rubble and boulders; from the second rank a dry-stone
+    // sangar along its back, from the third a net slung over it against the drones
+    a6Pad(W, D, h, 131 + lvl);
+    c.save();
+    c.translate(0, -h);
+    const SW = { mid: "#a29a88", side: "#7a7262", trim: "#c8c0b0", mortar: null, band: 0 };
+    if (lvl === 2 || spec) {
+      a6Pole(-W / 2 + 3, -7, 27); a6Pole(W / 2 + 1, -9, 29);
+      a6Net([-W / 2 - 1, -29, W / 2 + 5, -34, W / 2 + 6, -19, W / 2 - 4, -16, -W / 2 + 8, -15, -W / 2 - 2, -20], A6.netDry, 133);
+      structCrown(-34);
+    }
+    if (lvl > 0 || spec) {
+      const sh = lvl === 1 && !spec ? 5 : 8;
+      c.save();
+      c.translate(-W / 2 + 2 + 6 * OBQ.dx, -1 + 9 * OBQ.dy);
+      box3(W - 2, sh, 3.4, SW.mid, towerWall(SW, 139, { course: 2.8, block: 4.6, rough: true, band: 0, side: SW.side }));
+      c.restore();
+      // the sangar's left arm
+      c.save();
+      c.translate(-W / 2 + 2, 2);
+      box3(3.4, sh - 1, 8, SW.mid, towerWall(SW, 143, { course: 2.8, block: 4.6, rough: true, band: 0, side: SW.side }));
+      c.restore();
+    }
+    const rnd = mulberry32(137 + lvl);
+    for (let i = 0; i < 5; i++) {
+      const bx = -W / 2 + 6 + rnd() * (W - 10), by = -4 - rnd() * 3;
+      inkDisc(bx, by, 2 + rnd() * 1.6, 1.3 + rnd() * 0.8, toneHex("#a49c8c", Math.round(rnd() * 20 - 10)), 0.7);
+    }
+    if (lvl > 0 || spec === "a") {
+      // the spare missile containers stacked by the number two
+      for (let i = 0; i < (spec === "a" ? 3 : 2); i++) {
+        const tx = W / 2 - 9 + i * 0.8, ty = 7 - i * 2.2;
+        beam(tx - 6, ty, tx + 6, ty - 1.2, 2.4, "#56603e");
+        inkDisc(tx + 6, ty - 1.2, 1.2, 1.2, "#3a3e30", 0.5);
+      }
+      if (spec !== "b") {
+        const d = a6Dress(1);
+        d.carry = (cc, x, y, f) => a6Line(cc, x - 3 * f, y + 1 * f, x + 4 * f, y - 0.6 * f, 2.2, "#56603e", f);
+        a6Man(W / 2 - 4, -1, A6_Z * 0.8, d, "carry", -1);
+      }
+    }
+    if (spec === "b") {
+      adMount("atgm", -9, -1);
+      adMount("atgm", 8, 2, 1);
+    } else {
+      adMount(spec === "a" ? "konkurs" : "atgm", 1, 0);
+    }
+    a6BagWall(-W / 2 + 1, -W / 2 + 11, 9.5, 1, 141);
+    structCrown(-26);
+    c.restore();
+  }
+}
+
+// ---- live: each mount turns to its aim ----
+function adAim2(t, aim) { return isFinite(t.a6Aim2) ? t.a6Aim2 : aim + 0.7; }
+// the ZU-23-2: carriage, cradle, twin barrels and the gunner in his seat at the left
+function adZu(c, x, y, f, a, kick, time, fire) {
+  const P = a6Frame(x, y, f, a), ca = Math.cos(a), sa = Math.sin(a), el = 0.5, ce = Math.cos(el), se = Math.sin(el);
+  const near = ca > 0 ? 1 : -1;
+  const rec = kick * 1.6;
+  const crew = sd => {
+    const q = P(-3.4, sd * 4.6, 2.4);
+    a6Torso(c, q[0], q[1], f * 0.72, ca >= 0 ? 1 : -1, a6Dress(sd > 0 ? 0 : 2));
+  };
+  const box = sd => a6OBox(c, P, -1.2, 3, sd * 2.4, sd * 4.6, 4.6, 8.4, "#6e7348", ca, sa, f);
+  const barrel = sd => {
+    const b = P(1 - rec, sd * 1.25, 6.4), e = P(1 - rec + 21 * ce, sd * 1.25, 6.4 + 21 * se), m = P(1 - rec + 18.6 * ce, sd * 1.25, 6.4 + 18.6 * se);
+    a6Line(c, b[0], b[1], e[0], e[1], 0.9, "#3a3d3a", f);
+    a6Line(c, m[0], m[1], e[0], e[1], 1.6, "#2f3230", f);
+    if (fire && (Math.floor(time / 55) % 2 === (sd > 0 ? 0 : 1) || kick > 0.85)) a6Muzzles.push(e[0], e[1], ca * ce, sa * ce * ELLIPSE - se);
+  };
+  crew(-near);
+  box(-near);
+  a6OBox(c, P, -5, 3, -3.4, 3.4, 1.2, 4.6, "#5a6340", ca, sa, f);
+  a6OBox(c, P, -2.6, 4.4, -2.2, 2.2, 4.6, 7.6, "#4f5838", ca, sa, f);
+  barrel(-near);
+  barrel(near);
+  box(near);
+  crew(near);
+}
+// the Shilka's turret: a flat box, four barrels in two pairs, the radar dish on its arm behind
+function adShilka(c, x, y, f, a, kick, time, fire) {
+  const P = a6Frame(x, y, f, a), ca = Math.cos(a), sa = Math.sin(a), el = 0.45, ce = Math.cos(el), se = Math.sin(el);
+  const dish = () => {
+    const q = P(-6.5, 0, 12.5), m = P(-5.5, 0, 6);
+    a6Line(c, m[0], m[1], q[0], q[1], 0.7, "#4b5338", f);
+    const r = time * 0.004;
+    c.beginPath();
+    c.ellipse(q[0], q[1], Math.max(0.4, 4.6 * Math.abs(Math.cos(r))) * f, 3.2 * f, 0, 0, Math.PI * 2);
+    c.fillStyle = Math.cos(r) > 0 ? "#7c8660" : "#4e5638"; c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.7 * f; c.stroke();
+  };
+  if (sa > 0) dish();
+  a6OBox(c, P, -7, 6, -5.6, 5.6, 0, 5.6, "#5d6744", ca, sa, f);
+  for (const sd of [-1, 1]) for (const zz of [3.4, 5.2]) {
+    const b = P(5, sd * 2.4, zz), e = P(5 - kick * 1.4 + 13 * ce, sd * 2.4, zz + 13 * se);
+    a6Line(c, b[0], b[1], e[0], e[1], 0.7, "#353836", f);
+    if (fire && ((Math.floor(time / 40) + (sd > 0 ? 1 : 0) + (zz > 4 ? 1 : 0)) % 2 === 0 || kick > 0.85)) a6Muzzles.push(e[0], e[1], ca * ce, sa * ce * ELLIPSE - se);
+  }
+  if (sa <= 0) dish();
+}
+// a missile on its launch rail, from p0 to p1 on the screen
+function adMissile(c, p0, p1, f, hex) {
+  a6Line(c, p0[0], p0[1], p1[0], p1[1], 1.5, hex || "#dfe2d6", f);
+  const ux = p1[0] - p0[0], uy = p1[1] - p0[1], n = Math.hypot(ux, uy) || 1;
+  // fins at the tail, a dark nose
+  c.fillStyle = "#8c9182";
+  c.beginPath();
+  c.moveTo(p0[0] - uy / n * 1.8 * f, p0[1] + ux / n * 1.8 * f);
+  c.lineTo(p0[0] + uy / n * 1.8 * f, p0[1] - ux / n * 1.8 * f);
+  c.lineTo(p0[0] + ux / n * 2.6 * f, p0[1] + uy / n * 2.6 * f);
+  c.closePath(); c.fill();
+  c.beginPath(); c.arc(p1[0], p1[1], 0.8 * f, 0, Math.PI * 2);
+  c.fillStyle = "#3d4434"; c.fill();
+}
+// the Osa's turret: the search radar turning on top, two missiles a side
+function adOsa(c, x, y, f, a, kick, time, fire) {
+  const P = a6Frame(x, y, f, a), ca = Math.cos(a), sa = Math.sin(a), el = 0.32, ce = Math.cos(el), se = Math.sin(el);
+  const near = ca > 0 ? 1 : -1, gone = kick > 0.05;
+  const pair = sd => {
+    for (const zz of [7.6, 4.6]) {
+      if (gone && sd === near && zz === 7.6) continue;
+      adMissile(c, P(-4.4, sd * 6.4, zz - 1), P(-4.4 + 13 * ce, sd * 6.4, zz - 1 + 13 * se), f);
+    }
+    const r0 = P(-2, sd * 6.4, 5), r1 = P(-2, sd * 4.2, 5);
+    a6Line(c, r0[0], r0[1], r1[0], r1[1], 1, "#4b5338", f);
+    if (fire && sd === near) {
+      const e = P(-4.4 + 13 * ce, sd * 6.4, 6.6 + 13 * se), b = P(-4.4, sd * 6.4, 6.6);
+      a6Muzzles.push(b[0], b[1], -(ca * ce), -(sa * ce * ELLIPSE - se));
+    }
+  };
+  pair(-near);
+  a6OBox(c, P, -5, 4.4, -4.2, 4.2, 0, 6, "#5f6844", ca, sa, f);
+  // the tracking radar's dish on the turret face, toward the aim
+  const tr = P(4.6, 0, 4);
+  c.beginPath(); c.ellipse(tr[0], tr[1], 2.2 * f * (0.4 + 0.6 * Math.abs(sa)), 2.4 * f, 0, 0, Math.PI * 2);
+  c.fillStyle = "#7c8660"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.6 * f; c.stroke();
+  // the search radar: a folding dish on a short mast, turning all the time
+  const m0 = P(-2.2, 0, 6), m1 = P(-2.2, 0, 10.5), r = time * 0.0032;
+  a6Line(c, m0[0], m0[1], m1[0], m1[1], 0.8, "#4b5338", f);
+  c.beginPath();
+  c.ellipse(m1[0], m1[1] - 1 * f, Math.max(0.4, 6 * Math.abs(Math.cos(r))) * f, 2.6 * f, 0, 0, Math.PI * 2);
+  c.fillStyle = Math.cos(r) > 0 ? "#7c8660" : "#4e5638"; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.7 * f; c.stroke();
+  pair(near);
+}
+// the Tor's turret: a tall box with the search radar on top and the vertical launch cells inside
+function adTor(c, x, y, f, a, kick, time, fire) {
+  const P = a6Frame(x, y, f, a), ca = Math.cos(a), sa = Math.sin(a);
+  a6OBox(c, P, -6, 5, -5, 5, 0, 12, "#5d6642", ca, sa, f);
+  // the hatch lids of the launch cells on the roof
+  for (const u of [-3.6, -0.8]) for (const v of [-2.6, 0.6]) {
+    const q = [P(u, v, 12), P(u + 2.2, v, 12), P(u + 2.2, v + 2, 12), P(u, v + 2, 12)];
+    c.beginPath(); c.moveTo(q[0][0], q[0][1]); for (let i = 1; i < 4; i++) c.lineTo(q[i][0], q[i][1]); c.closePath();
+    c.fillStyle = "#6b7550"; c.fill(); c.strokeStyle = "rgba(30, 30, 20, .6)"; c.lineWidth = 0.4 * f; c.stroke();
+  }
+  // the tracking radar face toward the aim
+  const tr = P(5.2, 0, 7);
+  c.beginPath(); c.ellipse(tr[0], tr[1], 2.6 * f * (0.35 + 0.65 * Math.abs(sa)), 3 * f, 0, 0, Math.PI * 2);
+  c.fillStyle = "#7c8660"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.6 * f; c.stroke();
+  const m1 = P(-4, 0, 15), r = time * 0.004;
+  const m0 = P(-4, 0, 12);
+  a6Line(c, m0[0], m0[1], m1[0], m1[1], 0.9, "#4b5338", f);
+  c.fillStyle = Math.cos(r) > 0 ? "#7c8660" : "#4e5638";
+  c.fillRect(m1[0] - Math.max(0.4, 5.6 * Math.abs(Math.cos(r))) * f, m1[1] - 2 * f, Math.max(0.8, 11.2 * Math.abs(Math.cos(r))) * f, 3 * f);
+  c.strokeStyle = INK; c.lineWidth = 0.6 * f;
+  c.strokeRect(m1[0] - Math.max(0.4, 5.6 * Math.abs(Math.cos(r))) * f, m1[1] - 2 * f, Math.max(0.8, 11.2 * Math.abs(Math.cos(r))) * f, 3 * f);
+  if (fire) { const q = P(-1, 0, 13); a6Muzzles.push(q[0], q[1], 0, 1); }
+}
+// an anti-tank missile launcher on its tripod, its gunner kneeling at the sight behind it
+function adAtgm(c, x, y, f, a, kick, heavy, g) {
+  const P = a6Frame(x, y, f, a), ca = Math.cos(a), sa = Math.sin(a), L = heavy ? 18 : 14, zt = heavy ? 12 : 11;
+  const fc = ca >= 0 ? 1 : -1;
+  const gunner = () => {
+    // he kneels behind the launcher, his eye at the sight; his near hand on the guidance grip
+    const q = P(-8.5, -2.6, 0), F = f * 0.78;
+    const hip = a6Kneeler(c, q[0], q[1], F, g, fc);
+    const sb = P(-1.5, -2.4, zt + 1);
+    a6Line(c, q[0] + fc * 2.6 * F, hip - 5.6 * F, sb[0], sb[1] + 1.4 * f, 1.7, toneHex(g.coat, 14), F);
+    a6Hand(c, sb[0], sb[1] + 1.4 * f, F);
+  };
+  if (sa < 0) gunner();
+  // the tripod, splayed under the launcher head
+  const top = P(0, 0, zt - 1.2);
+  for (const lg of [[3, 3.4], [3, -3.4], [-4.4, 0]]) {
+    const ft = P(lg[0], lg[1], 0);
+    a6Line(c, top[0], top[1], ft[0], ft[1], 0.7, "#3a3e30", f);
+  }
+  const t0 = P(-L * 0.4, 0, zt), t1 = P(L * 0.6, 0, zt + 0.8);
+  if (kick < 0.05) {
+    a6Line(c, t0[0], t0[1], t1[0], t1[1], heavy ? 3.2 : 2.6, "#56603e", f);
+    for (const t of [t0, t1]) { c.beginPath(); c.arc(t[0], t[1], (heavy ? 1.7 : 1.4) * f, 0, Math.PI * 2); c.fillStyle = "#3a3e30"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.stroke(); }
+  } else {
+    // the spent container is off; the launcher's cradle stands bare until the next is loaded
+    a6Line(c, t0[0], t0[1], t1[0], t1[1], 0.8, "#3f4532", f);
+  }
+  const sb = P(-1.5, -2.4, zt + 1.4);
+  c.fillStyle = "#33372c"; c.fillRect(sb[0] - 1.5 * f, sb[1] - 1.4 * f, 3 * f, 2.6 * f);
+  c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.strokeRect(sb[0] - 1.5 * f, sb[1] - 1.4 * f, 3 * f, 2.6 * f);
+  if (sa >= 0) gunner();
+  if (kick > 0.3) {
+    const e = P(L * 0.6 + 1, 0, zt + 0.8), b = P(-L * 0.4 - 1, 0, zt);
+    a6Muzzles.push(e[0], e[1], ca, sa * ELLIPSE, b[0], b[1]);
+  }
+}
+
+function airDefenseLive(t, cx) {
+  const fit = cx.fit, c = ctx, k = cx.k, time = cx.time;
+  const since = a6Since(t), fire = cx.kick > 0.3;
+  c.globalAlpha = cx.fade;
+  a6Muzzles.length = 0;
+  let smoke = null;
+  for (const m of fit.mounts || []) {
+    const x = cx.x + m.p[0] * k, y = cx.y + m.p[1] * k, a = m.z ? adAim2(t, cx.aim) : cx.aim;
+    if (m.kind === "zu") adZu(c, x, y, k * 1.35, a, cx.kick, time, fire);
+    else if (m.kind === "shilka") adShilka(c, x, y, k, a, cx.kick, time, fire);
+    else if (m.kind === "osa") adOsa(c, x, y, k, a, cx.kick, time, fire);
+    else if (m.kind === "tor") adTor(c, x, y, k, a, cx.kick, time, fire);
+    else {
+      const n0 = a6Muzzles.length;
+      adAtgm(c, x, y, k * 1.3, a, structClamp(1 - since / 1, 0, 1) * (since < 1 ? 1 : 0), m.kind === "konkurs", Object.assign({}, a6Dress(m.z ? 2 : 0)));
+      // the back-blast: a bank of smoke and dust out behind the launcher
+      if (a6Muzzles.length > n0) {
+        smoke = smoke || [];
+        smoke.push(a6Muzzles[n0 + 4], a6Muzzles[n0 + 5], -a6Muzzles[n0 + 2], -a6Muzzles[n0 + 3]);
+        a6Muzzles.length = n0 + 4;
+      }
+    }
+  }
+  const nGun = a6Muzzles.length;
+  // the missile team's man swings his tube onto the second target, high
+  for (const mp of fit.manpads || []) {
+    const a2 = adAim2(t, cx.aim), ca = Math.cos(a2) * 0.72, sa = Math.sin(a2) * ELLIPSE * 0.72 - 0.5;
+    a6Shooter(c, cx.x + mp.p[0] * k, cx.y + mp.p[1] * k - 5.6 * k * mp.s, k * mp.s, mp.g, ca, sa, cx.kick * 0.5, false);
+  }
+  if (smoke && since < 1.4) for (let i = 0; i < smoke.length; i += 4) a6Smoke(c, smoke[i], smoke[i + 1], smoke[i + 2], smoke[i + 3], k, since / 1.4, cx.fade * 0.9, 1.3);
+  const kind = (fit.mounts && fit.mounts[0] && fit.mounts[0].kind) || "zu";
+  if (kind === "zu" || kind === "shilka") a6Fire(c, k, cx.kick, cx.fade, 1, true);
+  else if (nGun || (smoke && cx.kick > 0.3)) {
+    // a missile leaves in a flare and a puff of booster smoke
+    const p = since / 1.2;
+    for (let i = 0; i < a6Muzzles.length; i += 4) {
+      if (p < 1) a6Smoke(c, a6Muzzles[i], a6Muzzles[i + 1], a6Muzzles[i + 2] * 0.4, a6Muzzles[i + 3] * 0.4 - 0.3, k, p, cx.fade * 0.8, 1.1);
+      if (cx.kick > 0.3) a6Flash(c, a6Muzzles[i], a6Muzzles[i + 1], a6Muzzles[i + 2], a6Muzzles[i + 3], (2 + cx.kick * 2.2) * k, cx.fade * Math.min(1, (cx.kick - 0.3) * 3));
+    }
+    if (kind === "tor" && cx.kick > 0.2) {
+      // the cold launch: the missile leaves straight up before it turns
+      const m = fit.mounts[0], x = cx.x + m.p[0] * k, y = cx.y + m.p[1] * k - (13 + (1 - cx.kick) * 40) * k;
+      c.globalAlpha = cx.fade;
+      a6Line(c, x, y, x, y - 8 * k, 1.5, "#dfe2d6", k);
+      a6Flash(c, x, y + 1 * k, 0, 1, 2.4 * k, cx.fade * cx.kick);
+    }
+    c.globalAlpha = cx.fade;
+  }
+  c.globalAlpha = cx.fade;
+}
+
 SKIN_ART.airdefense = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.ballista,
-  scale: TOWER_SCALE.ballista,
-  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
-  proj: "ball", projSpeed: 1200, sound: "musket",
+  box: A6_BOX.ballista,
+  scale: A6_SCALE.ballista,
+  paint(lvl, spec, variant) { paintAirDefense(lvl, spec); },
+  variant() { return a6Site(); },
+  live: airDefenseLive,
+  // the twin's second shot goes to another foe: its missile team turns to it. A guided missile
+  // (Osa, Tor, Fagot, Konkurs, Strela) is drawn as one; the guns' rounds as tracers
+  onFire(t, target) {
+    const pr = projectiles[projectiles.length - 1], site = a6Site();
+    let second = false;
+    if (t.spec === "b") {
+      if (t.a6Mark === t.cd) {
+        second = true;
+        const p = enemyPos(target);
+        t.a6Aim2 = Math.atan2(p.y - t.y, p.x - t.x);
+      } else t.a6Mark = t.cd;
+    }
+    if (pr && pr.src === t && (site > 0 || second)) pr.art = "missile";
+  },
+  proj: "tracer", projSpeed: 1150, sound: "musket",
+};
+// a guided missile in flight: a pale body with its fins, the motor's flare and a short smoke trail
+PROJ_ART.missile = pr => {
+  const pp = proj(pr.x, pr.y), s = pp.s * 1.3;
+  shadow(pp.x, pp.y + 14 * pp.s, 6 * pp.s, 2 * pp.s);
+  ctx.save();
+  ctx.translate(pp.x, pp.y);
+  ctx.rotate(pr.ang || 0);
+  ctx.scale(s, s);
+  ctx.fillStyle = "rgba(200, 200, 196, .5)";
+  ctx.beginPath();
+  ctx.arc(-15, 0, 3.2, 0, Math.PI * 2); ctx.moveTo(-21, 0.6); ctx.arc(-22, 0.6, 2.6, 0, Math.PI * 2); ctx.moveTo(-27, 1); ctx.arc(-28, 1, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffb04a";
+  ctx.beginPath(); ctx.moveTo(-5, -1.6); ctx.lineTo(-13, 0); ctx.lineTo(-5, 1.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff6cc";
+  ctx.beginPath(); ctx.moveTo(-5, -0.8); ctx.lineTo(-9, 0); ctx.lineTo(-5, 0.8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#8c9182";
+  ctx.beginPath(); ctx.moveTo(-4.4, 0); ctx.lineTo(-6, -3); ctx.lineTo(-2.4, 0); ctx.lineTo(-6, 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#e4e6dc";
+  ctx.strokeStyle = "#1c1108";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-5, -1.3); ctx.lineTo(4, -1.3); ctx.quadraticCurveTo(7, 0, 4, 1.3); ctx.lineTo(-5, 1.3); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#4a5236";
+  ctx.fillRect(3, -1.2, 1.4, 2.4);
+  ctx.restore();
 };
 // ====================================== END SKIN SECTION: airdefense ======================================
 
@@ -30451,13 +31858,321 @@ SKIN_ART.airdefense = {
 // SKIN SECTION: rocketbattery. 1991-2023, catapult slot: mortar or rocket battery
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Stepanakert 1991-92: an 82 mm mortar crew firing from a courtyard among the snow-covered blocks.
+// Shushi 2020: the BM-21 Grad, forty 122 mm rocket tubes on a six-wheeled Ural truck, dug in behind an
+// earth bank and netted on the higher ranks; the Great mastery is the 300 mm BM-30 Smerch.
+// Stepanakert 2023: an 82 mm mortar team behind a dry-stone wall. The mortars' Great mastery is the
+// 120 mm mortar on its wheeled carriage; the Incendiary mastery fires rounds that set fires.
+
+// a mortar's baseplate and its live parts: the tube stands at a fixed bearing, the round is held live
+function rbMortar(x, y, big, face) {
+  const c = sctx, s = big ? 1.55 : 1.25, fc = face || 1;
+  const E = 1.02, L = 14 * s, ux = Math.cos(E) * fc * 0.8, uy = -Math.sin(E);
+  // the baseplate dug into the ground, the tube's foot in its socket
+  inkDisc(x, y, 5.4 * s, 2.2 * s, "#3e4234", 0.8);
+  inkDisc(x - 0.4, y - 0.4, 3.6 * s, 1.4 * s, "#555b46", 0);
+  // the bipod's two legs and the elevating screw
+  const bx = x + ux * L * 0.62, by = y + uy * L * 0.62;
+  beam(bx, by, bx - 5 * s * fc, y + 1.4, 0.8, "#3f4432");
+  beam(bx, by, bx + 3.6 * s * fc, y + 2.2, 0.8, "#3f4432");
+  beam(bx - 0.6 * fc, by + 1.6, bx + 2.4 * fc, y - 0.6, 0.6, "#2e3128");
+  // the tube
+  const mx = x + ux * L, my = y + uy * L;
+  c.lineCap = "round";
+  c.beginPath(); c.moveTo(x, y - 1); c.lineTo(mx, my);
+  c.strokeStyle = INK; c.lineWidth = 2.6 * s + 1.2; c.stroke();
+  c.strokeStyle = "#4c5440"; c.lineWidth = 2.6 * s; c.stroke();
+  c.strokeStyle = "rgba(255, 250, 220, .3)"; c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(x - 0.9, y - 1.6); c.lineTo(mx - 0.9, my - 0.4); c.stroke();
+  inkDisc(mx, my, 1.5 * s, 0.8 * s, "#2b2e26", 0.6);
+  // the sight on its bracket
+  const sx = x + ux * L * 0.5 - 1.6 * fc, sy = y + uy * L * 0.5;
+  inkRect(sx - 1, sy - 2, 2, 2.2, "#2f3230", 0.4);
+  if (big) {
+    // the 120 mm's transport wheels, run off and laid beside it
+    a6Wheel(x - 9 * fc, y + 0.6, 3.6);
+  }
+  (structFit.muzzles || (structFit.muzzles = [])).push({ p: structPoint(mx, my), u: [ux, uy], big: !!big });
+  structCrown(my - 2);
+  return [mx, my];
+}
+// a crate of rounds with the lid off: the fins of the rounds stood in a row
+function rbAmmo(x, y, red) {
+  a6Crate(x, y, 6.4, 3, 3.6, "#5f6a42");
+  for (let i = 0; i < 4; i++) {
+    const rx = x - 2.2 + i * 1.5 + 1.2, ry = y - 3 - 0.4;
+    inkDisc(rx, ry, 0.7, 0.45, red && i % 2 ? "#b8402e" : "#59613f", 0.35);
+  }
+}
+// a courtyard wall, or a dry-stone wall: a run of the battlefield's masonry along the back
+function rbWall(x, y, w, h, d, site, seed) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  if (site === 0) {
+    // plastered brick, the plaster flaking off, snow on the coping
+    box3(w, h, d, "#c7b9a2", { side: "#9a8d78", top: "#d8ccb6" });
+    fillBlobs("#a2604a", [[-w * 0.2, -h * 0.45, 3.4, 2], [w * 0.28, -h * 0.7, 2.6, 1.6]]);
+    c.strokeStyle = "rgba(90, 50, 34, .5)"; c.lineWidth = 0.35;
+    c.beginPath();
+    for (const bx of [-w * 0.2, w * 0.28]) for (let yy = -1; yy <= 1; yy++) { c.moveTo(bx - 2.6, -h * (bx < 0 ? 0.45 : 0.7) + yy * 1.1); c.lineTo(bx + 2.6, -h * (bx < 0 ? 0.45 : 0.7) + yy * 1.1); }
+    c.stroke();
+    if (structSnow) snowCap(-w / 2 + 0.3, -h + 0.3, w - 0.6, 1.2);
+  } else {
+    const T = { mid: "#b2a68e", side: "#857a66", mortar: null, band: 0 };
+    box3(w, h, d, T.mid, towerWall(T, seed, { course: 3.2, block: 5.5, rough: true, band: 0, side: T.side }));
+  }
+  c.restore();
+}
+
+function paintMortarPost(lvl, spec, site) {
+  const c = sctx, base = towerBase("catapult", lvl, spec), W = base.w + 2, D = base.d + 3;
+  a6Pad(W, D, 2.6, 201 + lvl);
+  rankMarks(0, 2.4, lvl, spec, false);
+  c.save();
+  c.translate(0, -2.6);
+  if (lvl > 0 || spec) {
+    rbWall(-W / 2 + 1 + 6 * OBQ.dx, -1 + 7 * OBQ.dy, W - 6, lvl === 1 && !spec ? 12 : 18, 3, site, 211);
+    if (lvl === 2 || spec) {
+      // the wall turns the corner at the left
+      c.save();
+      c.translate(-W / 2 + 1, 2);
+      box3(3, site === 0 ? 18 : 14, 9, site === 0 ? "#c7b9a2" : "#b2a68e", site === 0 ? { side: "#9a8d78" } : towerWall({ mid: "#b2a68e", side: "#857a66", mortar: null, band: 0 }, 213, { course: 3.2, block: 5.5, rough: true, band: 0, side: "#857a66" }));
+      c.restore();
+      if (site === 0) a6Window(-W / 2 + 9, -19, 4, 4.5, "#b8ab94");
+    }
+  }
+  const twin = spec === "b";
+  // the mortar pit: a ring of bags round the baseplate
+  const mx0 = twin ? -6.5 : spec === "a" ? -6 : -3, prx = twin ? 15 : 10.5, pry = 4.2;
+  inkDisc(mx0, 0.6, prx - 1.4, pry - 0.8, toneHex(a6Earth(), -40), 0.7);
+  a6BagRing(mx0, 0.6, prx, pry, 2, 0, 205 + lvl);
+  if (twin) {
+    rbMortar(-12, 1, false, 1);
+    rbMortar(-1, -1.2, false, 1);
+  } else rbMortar(mx0, 0.5, spec === "a", 1);
+  a6BagRing(mx0, 0.6, prx, pry, 1, 1, 207 + lvl);
+  // the gunner kneels at the sight; the loader stands ready with the next round
+  const g0 = a6Dress(0), g1 = a6Dress(1);
+  a6Man(twin ? -17 : -15, 6, A6_Z * 0.85, g0, "kneel", 1);
+  const lx = twin ? 11 : spec === "a" ? 13 : 12, ly = 3.5;
+  const hand = a6Man(lx, ly, A6_Z * 0.85, g1, "loadready", -1);
+  structFit.loader = { p: structPoint(hand[0], hand[1]), s: A6_Z * 0.85 };
+  if (lvl > 0 || spec) rbAmmo(W / 2 - 4, 7.4, twin);
+  if (lvl === 2 || spec) rbAmmo(W / 2 - 9, 9, twin);
+  if (spec === "a") rbAmmo(-W / 2 + 6, 9.5, false);
+  if (lvl === 2 && !spec) a6Man(-W / 2 + 6, 9.5, A6_Z * 0.8, a6Dress(3), "binoc", 1);
+  a6BagWall(-W / 2 + 1, -W / 2 + (lvl > 0 || spec ? 13 : 9), 10.5, 1, 221);
+  c.restore();
+}
+
+// a six-wheeled truck: cab and bonnet at the left, flatbed behind; top of the bed returned
+function rbTruck(x, y, len, big) {
+  const c = sctx, D = big ? 12 : 10, olive = "#58623f", oSide = "#3d452b", oTop = "#6f7a52";
+  const cabW = big ? 12 : 9, cabH = big ? 11 : 10, bedY = big ? -7 : -6;
+  // the chassis and the bed
+  c.save();
+  c.translate(x - len / 2 + cabW + 1 + (len - cabW - 1) / 2, y + bedY);
+  box3(len - cabW - 1, 2.4, D, olive, { side: oSide, top: oTop });
+  c.restore();
+  // the cab: a bonnet ahead of it on the Ural, a flat front on the MAZ
+  c.save();
+  c.translate(x - len / 2 + cabW / 2, y - 3);
+  box3(cabW, cabH, D, olive, { side: oSide, top: oTop });
+  inkRect(-cabW / 2 + 1, -cabH + 1.6, cabW - 2.6, 3.4, "#2c3a44", 0.5);
+  c.fillStyle = "rgba(200, 220, 236, .35)";
+  c.fillRect(-cabW / 2 + 1.4, -cabH + 1.9, 2.4, 2.8);
+  const wa = structPoint(-cabW / 2 + 1, -cabH + 1.6), wb = structPoint(cabW / 2 - 1.6, -cabH + 5);
+  structFit.windows.push([wa[0], wa[1], wb[0] - wa[0], wb[1] - wa[1]]);
+  if (!big) {
+    c.translate(-cabW / 2 - 3, 0);
+    box3(6, 5.6, D - 2, olive, { side: oSide, top: oTop });
+    c.strokeStyle = "rgba(20, 20, 10, .5)"; c.lineWidth = 0.4;
+    c.beginPath(); for (let i = -2; i <= 2; i++) { c.moveTo(-3 + 0.6, -2.6 + i * 0.8); c.lineTo(3 - 0.6, -2.6 + i * 0.8); } c.stroke();
+  }
+  if (structSnow) snowCap(-cabW / 2, -cabH, cabW, 1);
+  c.restore();
+  // wheels: the front axle and a tandem behind (four axles on the MAZ)
+  const wr = big ? 3.8 : 3.4, axles = big ? [-len / 2 + 4, -len / 2 + 11, len / 2 - 11, len / 2 - 4] : [-len / 2 + 3.4, len / 2 - 10.5, len / 2 - 4];
+  for (const ax of axles) a6Wheel(x + ax, y - wr + 0.4, wr);
+  return [x - len / 2 + cabW + 1, y + bedY - 2.4];
+}
+// the rocket pack on the bed: a box of tubes raised at E, its open end facing up and right
+function rbPack(x, y, cols, rows, tube, E, len) {
+  const c = sctx, ux = Math.cos(E), uy = -Math.sin(E), nx = Math.sin(E), ny = Math.cos(E);
+  const w = cols * tube, h = rows * tube;
+  // the turntable and the elevating ram
+  inkRect(x - 3, y - 2.4, 6, 2.4, "#3f4632", 0.6);
+  beam(x + 1, y - 2, x + ux * len * 0.4 - nx * 1, y + uy * len * 0.4 - ny * 1 + h * 0.2, 1, "#2f3428");
+  // the pack's side: a long parallelogram, its far side and top in shade
+  const p0 = [x - ux * len * 0.35, y - 3 + uy * len * -0.35], p1 = [p0[0] + ux * len, p0[1] + uy * len];
+  const up = [-nx * h, -ny * h];
+  inkPoly([p0[0], p0[1], p1[0], p1[1], p1[0] + up[0], p1[1] + up[1], p0[0] + up[0], p0[1] + up[1]], "#56603e", 0.9);
+  c.strokeStyle = "rgba(20, 24, 10, .45)"; c.lineWidth = 0.4;
+  c.beginPath();
+  for (let r = 1; r < rows; r++) { const f = r / rows; c.moveTo(p0[0] + up[0] * f, p0[1] + up[1] * f); c.lineTo(p1[0] + up[0] * f, p1[1] + up[1] * f); }
+  c.stroke();
+  // depth: the top of the pack going back
+  const dx = w * 0.5 * OBQ.dx * 1.4, dy = w * 0.5 * OBQ.dy * 1.4;
+  inkPoly([p0[0] + up[0], p0[1] + up[1], p1[0] + up[0], p1[1] + up[1], p1[0] + up[0] + dx, p1[1] + up[1] + dy, p0[0] + up[0] + dx, p0[1] + up[1] + dy], "#6e7a52", 0.8);
+  // the muzzle face: the open mouths of the tubes
+  const f0 = [p1[0], p1[1]], fA = [p1[0] + up[0], p1[1] + up[1]];
+  inkPoly([f0[0], f0[1], fA[0], fA[1], fA[0] + dx, fA[1] + dy, f0[0] + dx, f0[1] + dy], "#4a5236", 0.8);
+  for (let r = 0; r < rows; r++) for (let q = 0; q < Math.min(cols, 6); q++) {
+    const a = (r + 0.5) / rows, b = (q + 0.5) / Math.min(cols, 6);
+    inkDisc(f0[0] + up[0] * a + dx * b, f0[1] + up[1] * a + dy * b, tube * 0.32, tube * 0.36, "#1c1e1a", 0);
+  }
+  const mid = [f0[0] + up[0] * 0.5 + dx * 0.5, f0[1] + up[1] * 0.5 + dy * 0.5];
+  (structFit.tubes || (structFit.tubes = [])).push({ p: structPoint(mid[0], mid[1]), u: [ux, uy], back: structPoint(p0[0] + up[0] * 0.5 + dx * 0.5, p0[1] + up[1] * 0.5 + dy * 0.5), n: cols >= 6 ? 4 : 3 });
+  structCrown(Math.min(fA[1] + dy, fA[1]) - 2);
+}
+
+function paintGradPost(lvl, spec) {
+  const c = sctx, base = towerBase("catapult", lvl, spec), W = base.w + 6, D = base.d + 4;
+  a6Pad(W, D, 2.6, 231 + lvl);
+  rankMarks(0, 2.4, lvl, spec, false);
+  c.save();
+  c.translate(0, -2.6);
+  // a revetment of thrown-up earth behind the truck from the second rank
+  if (lvl > 0 || spec) a6Bank(-W / 2 + 2 + 6 * OBQ.dx, W / 2 - 2 + 6 * OBQ.dx, -1 + 9 * OBQ.dy, 7, 235);
+  if (spec === "a") {
+    const bed = rbTruck(-1, 4, 46, true);
+    rbPack(bed[0] + 15, bed[1], 4, 3, 4.2, 0.6, 30);
+  } else {
+    const bed = rbTruck(-1, 4, 42, false);
+    rbPack(bed[0] + 13, bed[1], 10, 4, 1.9, 0.62, 24);
+  }
+  if (lvl === 2 || spec) {
+    // the cab under a camouflage net slung from the revetment
+    a6Pole(-W / 2 + 2, -4, 22);
+    a6Net([-W / 2 - 2, -22, -W / 2 + 14, -24, -W / 2 + 18, -12, -W / 2 + 10, -8, -W / 2 + 1, -9, -W / 2 - 3, -13], A6.net, 237);
+  }
+  if (lvl === 2 || spec) rbAmmoLong(W / 2 - 8, 8.6, 3, spec === "b");
+  if (spec === "b") rbAmmoLong(W / 2 - 13, 9.6, 2, true);
+  if (lvl < 2 && !spec) a6Man(W / 2 - 3, 8.6, A6_Z * 0.8, a6Dress(2), lvl ? "binoc" : "phone", -1);
+  c.restore();
+}
+// long rocket crates stacked in the open
+function rbAmmoLong(x, y, n, red) {
+  for (let i = 0; i < n; i++) {
+    const cx = x + (i % 2) * 1.2, cy = y - i * 2.4;
+    a6Crate(cx, cy, 14, 2.4, 3, "#5d6840");
+    if (red) inkRect(cx - 1.2, cy - 2.4, 2.4, 2.4, "#a83a2a", 0.3);
+  }
+}
+
+function paintRocketBattery(lvl, spec) {
+  const site = a6Site();
+  if (site === 1) paintGradPost(lvl, spec);
+  else paintMortarPost(lvl, spec, site);
+}
+
+// ---- live: the loader's round, the flash and smoke at the muzzles, the Grad's ripple ----
+function rocketBatteryLive(t, cx) {
+  const fit = cx.fit, c = ctx, k = cx.k, since = a6Since(t), fade = cx.fade;
+  c.globalAlpha = fade;
+  if (fit.loader && since > 0.45) {
+    // the next round held ready over the tube
+    const p = fit.loader.p, f = k * fit.loader.s;
+    a6Round(c, cx.x + p[0] * k, cx.y + p[1] * k, f, 0.25);
+  }
+  for (const m of fit.muzzles || []) {
+    const x = cx.x + m.p[0] * k, y = cx.y + m.p[1] * k;
+    if (since < 1.6) a6Smoke(c, x, y, m.u[0] * 0.5, -0.8, k * (m.big ? 1.3 : 1), since / 1.6, fade * 0.85, 1.1);
+    if (cx.kick > 0.3) a6Flash(c, x, y, m.u[0], m.u[1], (2.2 + cx.kick * 2.2) * k * (m.big ? 1.3 : 1), fade * Math.min(1, (cx.kick - 0.3) * 3));
+  }
+  for (const tb of fit.tubes || []) {
+    const x = cx.x + tb.p[0] * k, y = cx.y + tb.p[1] * k, ux = tb.u[0], uy = tb.u[1];
+    // the back-blast: dust and smoke boiling out behind the launcher
+    if (since < 2.2) {
+      const bx = cx.x + tb.back[0] * k, by = cx.y + tb.back[1] * k;
+      a6Smoke(c, bx, by, -ux, -uy * 0.2, k, since / 2.2, fade * 0.8, tb.n > 1 ? 2 : 1.2);
+    }
+    // a ripple: the rockets leave one after another over the first half second
+    if (since < 0.6) {
+      for (let i = 0; i < tb.n; i++) {
+        const age = since - i * 0.12;
+        if (age < 0) continue;
+        const d = (4 + age * 160) * k, rx = x + ux * d + (i - 1) * 1.6 * k, ry = y + uy * d + (i % 2) * 1.4 * k;
+        c.globalAlpha = fade * Math.max(0, 1 - age * 2.2);
+        a6Line(c, rx - ux * 5 * k, ry - uy * 5 * k, rx, ry, 1, "#c8ccc0", k);
+        a6Flash(c, rx - ux * 5 * k, ry - uy * 5 * k, -ux, -uy, 1.6 * k, fade * Math.max(0, 1 - age * 2.2));
+      }
+    }
+    if (cx.kick > 0.3) a6Flash(c, x, y, ux, uy, (2.6 + cx.kick * 2.4) * k, fade * Math.min(1, (cx.kick - 0.3) * 3));
+  }
+  c.globalAlpha = fade;
+}
+
 SKIN_ART.rocketbattery = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.catapult,
-  scale: TOWER_SCALE.catapult,
-  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
-  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  box: A6_BOX.catapult,
+  scale: A6_SCALE.catapult,
+  paint(lvl, spec, variant) { paintRocketBattery(lvl, spec); },
+  variant() { return a6Site(); },
+  live: rocketBatteryLive,
+  // the shot keeps its kind (a lobbed, splashing "stone") but is drawn as a mortar bomb or a rocket
+  onFire(t) {
+    const pr = projectiles[projectiles.length - 1];
+    if (pr && pr.src === t) pr.art = a6Site() === 1 ? "rocket" : "mortar";
+  },
   sound: "catapult",
+};
+// the ground shadow of a lobbed shot, as drawLobbedShot casts it
+function rbLobShadow(pr, gx, gy, s) {
+  const lift = unit01((pr.arc || 0) / 85);
+  ctx.fillStyle = rgbaOf("24, 15, 6", 0.3 - 0.14 * lift);
+  ctx.beginPath();
+  ctx.ellipse(gx + lift * 6 * s, gy + 4 * s, (5.8 + 5.4 * lift) * s, (2.5 + 1.9 * lift) * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+// a mortar bomb in flight, nose along its heading; an incendiary one trails smoke and sparks
+PROJ_ART.mortar = pr => {
+  const bp = proj(pr.x, pr.gy || pr.sy), s = bp.s, y = bp.y - (pr.arc || 0) * s;
+  rbLobShadow(pr, bp.x, bp.y, s);
+  const head = lobHeading(pr);
+  ctx.save();
+  ctx.translate(bp.x, y);
+  ctx.rotate(Math.atan2(head.y, head.x));
+  ctx.scale(s * 2, s * 2);
+  if (pr.fiery) {
+    ctx.fillStyle = "rgba(90, 80, 72, .35)";
+    ctx.beginPath(); ctx.arc(-9, 0, 2.6, 0, Math.PI * 2); ctx.arc(-14, 0.5, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffb04a";
+    ctx.beginPath(); ctx.moveTo(-3, -1.4); ctx.lineTo(-9, 0); ctx.lineTo(-3, 1.4); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = "#3d4032";
+  ctx.fillRect(-4.6, -1.6, 1.8, 3.2);
+  ctx.beginPath();
+  ctx.moveTo(4, 0);
+  ctx.quadraticCurveTo(1.6, -2.4, -3, -1.1);
+  ctx.lineTo(-3, 1.1);
+  ctx.quadraticCurveTo(1.6, 2.4, 4, 0);
+  ctx.fillStyle = "#5a6240"; ctx.fill();
+  ctx.strokeStyle = "#1c1108"; ctx.lineWidth = 0.7; ctx.stroke();
+  ctx.fillStyle = "#c9b27a";
+  ctx.fillRect(2.6, -0.7, 1.2, 1.4);
+  ctx.restore();
+};
+// a Grad rocket in flight: a long body, its motor burning, a short grey wake
+PROJ_ART.rocket = pr => {
+  const bp = proj(pr.x, pr.gy || pr.sy), s = bp.s, y = bp.y - (pr.arc || 0) * s;
+  rbLobShadow(pr, bp.x, bp.y, s);
+  const head = lobHeading(pr);
+  ctx.save();
+  ctx.translate(bp.x, y);
+  ctx.rotate(Math.atan2(head.y, head.x));
+  ctx.scale(s * 1.4, s * 1.4);
+  ctx.fillStyle = "rgba(190, 188, 182, .45)";
+  ctx.beginPath(); ctx.arc(-15, 0, 2.6, 0, Math.PI * 2); ctx.arc(-21, 0.4, 3.2, 0, Math.PI * 2); ctx.arc(-27, 0.8, 3.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ff9c3a";
+  ctx.beginPath(); ctx.moveTo(-6, -1.5); ctx.lineTo(-14, 0); ctx.lineTo(-6, 1.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff4c4";
+  ctx.beginPath(); ctx.moveTo(-6, -0.8); ctx.lineTo(-10, 0); ctx.lineTo(-6, 0.8); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-6, -1.1); ctx.lineTo(4, -1.1); ctx.lineTo(7, 0); ctx.lineTo(4, 1.1); ctx.lineTo(-6, 1.1); ctx.closePath();
+  ctx.fillStyle = "#5d6640"; ctx.fill();
+  ctx.strokeStyle = "#1c1108"; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.restore();
 };
 // ====================================== END SKIN SECTION: rocketbattery ======================================
 
@@ -30466,11 +32181,190 @@ SKIN_ART.rocketbattery = {
 // SKIN SECTION: minefield. 1991-2023, fire slot: minefield and anti-tank obstacles
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Stepanakert 1991-92: TM-62 anti-tank mines laid across the valley road in the snow, marked with a
+// plain red triangle. Shushi 2020: an anti-tank ditch cut across the mountain road, wire and mines
+// along it. Stepanakert 2023: concrete blocks and mines across the approach. The ranks add coils of
+// barbed (concertina) wire on angle-iron pickets and steel "hedgehogs"; the Belt mastery adds rows of
+// concrete dragon's teeth, the Charges mastery a detonator box wired to buried charges that blast
+// every few seconds.
+
+// a TM-62: a squat round anti-tank mine, half sunk in a scrape, its fuze well in the middle
+function mfMine(x, y, s, buried) {
+  const z = s || 1;
+  inkDisc(x + 0.3, y + 0.4, 3.6 * z, 1.5 * z, "rgba(40, 26, 12, .35)", 0);
+  if (buried) inkDisc(x, y, 3.8 * z, 1.6 * z, toneHex(a6Earth(), -30), 0.5);
+  sctx.beginPath();
+  sctx.moveTo(x - 3 * z, y - 1.2 * z);
+  sctx.lineTo(x - 3 * z, y);
+  sctx.ellipse(x, y, 3 * z, 1.25 * z, 0, Math.PI, 0, true);
+  sctx.lineTo(x + 3 * z, y - 1.2 * z);
+  sctx.closePath();
+  sctx.fillStyle = "#454d33"; sctx.fill();
+  inkStroke(0.6);
+  inkDisc(x, y - 1.2 * z, 3 * z, 1.25 * z, A6.mine, 0.6);
+  inkDisc(x - 0.2 * z, y - 1.4 * z, 1 * z, 0.45 * z, "#3a4030", 0.4);
+  if (structSnow) inkDisc(x - 1.2 * z, y - 1.4 * z, 1.4 * z, 0.5 * z, "rgba(246, 249, 252, .9)", 0);
+}
+// a run of concertina wire on angle-iron pickets from x0 to x1 along y
+function mfWire(x0, x1, y, h) {
+  const c = sctx, n = Math.max(2, Math.round((x1 - x0) / 9));
+  for (let i = 0; i <= n; i++) {
+    const px = x0 + (x1 - x0) * i / n;
+    beam(px, y + 0.6, px + 0.4, y - h - 1.6, 0.7, "#4a4c48");
+  }
+  // the coils: overlapping loops, a dark line under a bright one so they read as steel
+  const r = h * 0.5, step = r * 0.55;
+  for (const pass of [0, 1]) {
+    c.strokeStyle = pass ? "#b8bcc0" : "rgba(30, 26, 20, .75)";
+    c.lineWidth = pass ? 0.35 : 0.85;
+    c.beginPath();
+    for (let x = x0 + r * 0.4; x < x1 - r * 0.2; x += step) {
+      c.moveTo(x + r * 0.55, y - r);
+      c.ellipse(x, y - r, r * 0.55, r, 0.18, 0, Math.PI * 2);
+    }
+    c.stroke();
+  }
+  // the barbs: a few bright ticks
+  c.fillStyle = "#e4e6e8";
+  for (let x = x0 + 2; x < x1 - 1; x += 3.1) c.fillRect(x, y - r * 2 + ((x * 7) % 3), 0.5, 0.5);
+}
+// a Czech hedgehog: three steel angles crossed at the middle
+function mfHedgehog(x, y, s) {
+  const z = s || 1, steel = "#55585a";
+  fillBlobs("rgba(30, 20, 10, .3)", [[x + 1, y + 0.4, 6.4 * z, 1.5 * z]]);
+  beam(x + 5.2 * z, y + 0.6, x - 4.2 * z, y - 11.4 * z, 1.4 * z, toneHex(steel, -12));
+  beam(x - 5.6 * z, y, x + 4.6 * z, y - 10.8 * z, 1.5 * z, steel);
+  beam(x - 0.6 * z, y + 1.4 * z, x + 0.8 * z, y - 12.4 * z, 1.4 * z, toneHex(steel, 10));
+  if (structSnow) snowOnBeam(x - 5.6 * z, y, x + 4.6 * z, y - 10.8 * z, 1.5 * z);
+  structCrown(y - 13 * z);
+}
+// a concrete dragon's tooth: a truncated pyramid, lit face left, shaded right
+function mfTooth(x, y, s) {
+  const z = s || 1, C = A6.concrete;
+  inkPoly([x + 3.6 * z, y, x + 3.6 * z + 2.6 * z, y - 1.6 * z, x + 1.4 * z + 1.6 * z, y - 9 * z, x + 1.4 * z, y - 8.4 * z], toneHex(C, -36), 0.7);
+  inkPoly([x - 3.6 * z, y, x + 3.6 * z, y, x + 1.4 * z, y - 8.4 * z, x - 1.4 * z, y - 8.4 * z], toneHex(C, 8), 0.8);
+  inkPoly([x - 1.4 * z, y - 8.4 * z, x + 1.4 * z, y - 8.4 * z, x + 3 * z, y - 9 * z, x + 0.2 * z, y - 9 * z], toneHex(C, 24), 0.6);
+  sctx.fillStyle = "rgba(255, 255, 255, .2)";
+  sctx.fillRect(x - 3 * z, y - 1.4 * z, 1, 1);
+  if (structSnow) inkPoly([x - 1.4 * z, y - 8.4 * z, x + 1.4 * z, y - 8.4 * z, x + 3 * z, y - 9 * z, x + 0.2 * z, y - 9.2 * z], "#f6f9fc", 0);
+  structCrown(y - 9.5 * z);
+}
+// a shell crater: a dark scorched bowl ringed with thrown earth; its smoke rises live
+function mfCrater(x, y, s) {
+  const z = s || 1, E = a6Earth();
+  inkDisc(x, y, 6 * z, 2.4 * z, toneHex(E, 10), 0.6);
+  inkDisc(x, y + 0.2, 4.2 * z, 1.6 * z, "#2e2620", 0);
+  fillBlobs(toneHex(E, -20), [[x - 5 * z, y - 1, 1.2 * z, 0.6 * z], [x + 4.6 * z, y + 1, 1 * z, 0.5 * z]]);
+  (structFit.wisps || (structFit.wisps = [])).push(structPoint(x, y - 0.4));
+}
+// the anti-tank ditch: a steep-sided cut across the pad, its spoil thrown up in a bank behind
+function mfDitch(x0, x1, y, depth) {
+  const c = sctx, E = a6Earth(), d = 9, ox = d * OBQ.dx, oy = d * OBQ.dy;
+  // the spoil bank along the far lip: a long rounded heap of raw earth
+  const bx = ox + 1.5, by = oy - 0.5;
+  c.beginPath();
+  c.moveTo(x0 + bx - 2, y + by);
+  c.bezierCurveTo(x0 + bx + 2, y + by - 6.5, x1 + bx - 4, y + by - 7, x1 + bx + 2, y + by);
+  c.closePath();
+  const g = c.createLinearGradient(0, y + by - 6, 0, y + by);
+  g.addColorStop(0, toneHex(E, 18));
+  g.addColorStop(1, toneHex(E, -18));
+  c.fillStyle = g; c.fill();
+  inkStroke(0.8);
+  fillBlobs(toneHex(E, -28), [[x0 + bx + 6, y + by - 2, 1.4, 0.6], [x0 + bx + 15, y + by - 3.4, 1.2, 0.5], [x1 + bx - 7, y + by - 2.4, 1.3, 0.6]]);
+  a6Tufts(x0 + bx + 2, x1 + bx - 2, y + by - 0.5, 251);
+  // the cut: the opening, dark; inside it the far wall lit down to the shadowed floor
+  inkPoly([x0, y, x1, y, x1 + ox, y + oy, x0 + ox, y + oy], "#1f1a14", 0.9);
+  c.save();
+  polyPath([x0, y, x1, y, x1 + ox, y + oy, x0 + ox, y + oy]);
+  c.clip();
+  c.fillStyle = toneHex(E, -14);
+  c.fillRect(x0 + ox * 0.2, y + oy, x1 - x0 + ox, depth);
+  c.strokeStyle = "rgba(40, 24, 10, .35)"; c.lineWidth = 0.4;
+  c.beginPath();
+  for (let x = x0 + 2; x < x1 + ox; x += 3.4) { c.moveTo(x, y + oy + 0.4); c.lineTo(x + 0.4, y + oy + depth - 0.3); }
+  c.stroke();
+  c.restore();
+  // the near lip, a little crumbled
+  c.strokeStyle = toneHex(E, 26); c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(x0 + 0.6, y - 0.2); c.lineTo(x1 - 0.6, y - 0.2); c.stroke();
+}
+// the detonator box with its plunger, a wire snaking off to a charge
+function mfDetonator(x, y, tx, ty) {
+  const c = sctx;
+  c.strokeStyle = "#2a2a26"; c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(x + 2, y - 1); c.bezierCurveTo(x + 8, y + 3, tx - 6, ty + 2, tx, ty); c.stroke();
+  a6Crate(x, y, 4.4, 3.6, 3, "#4b5638");
+  beam(x + 1.4 * OBQ.dx, y - 3.6 + 1.4 * OBQ.dy, x + 1.4 * OBQ.dx, y - 7.2 + 1.4 * OBQ.dy, 0.6, "#3a3c38");
+  beam(x - 1.6 + 1.4 * OBQ.dx, y - 7.2 + 1.4 * OBQ.dy, x + 1.6 + 1.4 * OBQ.dx, y - 7.2 + 1.4 * OBQ.dy, 0.7, "#3a3c38");
+  a6Crate(tx, ty, 3.6, 2.2, 2.4, "#6a6a48");
+  (structFit.charges || (structFit.charges = [])).push(structPoint(tx, ty - 1));
+}
+
+function paintMinefield(lvl, spec) {
+  const c = sctx, site = a6Site(), base = towerBase("fire", lvl, spec);
+  const W = base.w + 4, D = base.d + 6;
+  a6Pad(W, D, 2, 261 + lvl);
+  rankMarks(0, 2.4, lvl, spec, false);
+  c.save();
+  c.translate(0, -2);
+  const Z = 1.25;
+  c.scale(Z, Z);
+  const w = W / Z;
+  // the back row: wire (rank 2 up), the site's obstacle (rank 3 and the masteries)
+  if (lvl > 0 || spec) mfWire(-w / 2 + 1, w / 2 - 1, -5, spec === "a" ? 7 : 6);
+  if (lvl === 2 || spec) {
+    if (site === 1) mfDitch(-w / 2 + 2, w / 2 - 8, 0.5, 2.6);
+    else if (site === 2) {
+      a6Block(-8, -0.6, 8, 4.4, 3.6);
+      a6Block(4, -1, 8, 4.4, 3.6);
+    } else {
+      mfHedgehog(-9, -1.2, 0.9);
+      mfHedgehog(8, -2, 0.9);
+    }
+  }
+  if (lvl > 0 || spec) mfCrater(w / 2 - 6, 1.6, 0.8);
+  // the mines in staggered rows
+  const rows = lvl === 0 && !spec ? 2 : 3, rnd = mulberry32(271 + lvl);
+  for (let r = 0; r < rows; r++) {
+    const yy = 2.4 + r * 3 + (lvl === 2 || spec ? 2.4 : -1);
+    for (let x = -w / 2 + 4 + (r % 2) * 4; x < w / 2 - 3; x += 8.4) mfMine(x + rnd() * 1.4, yy, 0.82, site !== 2);
+  }
+  if (spec === "a") {
+    // the belt: a line of dragon's teeth, and hedgehogs at either end
+    for (let i = 0; i < 4; i++) mfTooth(-w / 2 + 5 + i * 7.6, 9.4 + (i % 2) * 1.2, 0.9);
+    mfHedgehog(w / 2 - 3, 12, 0.8);
+  }
+  if (spec === "b") mfDetonator(-w / 2 + 4, 13.4, 6, 6.8);
+  a6Sign(w / 2 - 2.4, 8.6 + (lvl === 2 || spec ? 2 : 0), 1);
+  if (lvl === 0 && !spec) {
+    // the sappers' crate of mines still to lay
+    a6Crate(-w / 2 + 4, 9, 6, 3, 3.6, "#5a6340");
+  }
+  c.restore();
+}
+
+function minefieldLive(t, cx) {
+  const fit = cx.fit, c = ctx, k = cx.k;
+  for (const w of fit.wisps || []) a6Wisp(c, cx.x + w[0] * k, cx.y + w[1] * k, k, cx.time, t.x * 0.1, cx.fade * 0.6, "#6a6560");
+  // the charges go up together: a flash, then a bank of earth and smoke
+  if (fit.charges && t.novaFx > 0) {
+    const p = 1 - structClamp(t.novaFx, 0, 1);
+    for (const ch of fit.charges) {
+      const x = cx.x + ch[0] * k, y = cx.y + ch[1] * k;
+      if (p < 0.3) a6Flash(c, x, y, 0, -1, (3 + (0.3 - p) * 10) * k, cx.fade);
+      a6Smoke(c, x, y, 0, -0.6, k, p, cx.fade, 1.8);
+    }
+  }
+  c.globalAlpha = cx.fade;
+}
+
 SKIN_ART.minefield = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.fire,
-  scale: TOWER_SCALE.fire,
-  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+  box: A6_BOX.fire,
+  scale: A6_SCALE.fire,
+  paint(lvl, spec, variant) { paintMinefield(lvl, spec); },
+  variant() { return a6Site(); },
+  live: minefieldLive,
 };
 // ====================================== END SKIN SECTION: minefield ======================================
 
@@ -30479,11 +32373,417 @@ SKIN_ART.minefield = {
 // SKIN SECTION: commandpost. 1991-2023, drums slot: command post or bread shelter
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Stepanakert 1991-92: the basement radio post: a field radio in a shelter under a Soviet panel block,
+// its mast run up the wall; the masteries add a field telephone exchange with its cable drums, or a
+// headquarters with its UAZ-469 field car. Shushi 2020: the bells of Ghazanchetsots, the white
+// limestone cathedral whose free-standing belfry rises in tiers to a columned rotunda; the masteries
+// are the full belfry and a lookout post at its foot. Stepanakert 2023: the bread queue: a bakery that
+// kept baking through the blockade, the queue at its door, a civil-defence post beside it.
+
+const CP_PANEL = "#cdc8bc", CP_PANEL_SIDE = "#a29d92";
+// a piece of a five-storey panel block: grey-white panels with their seams, windows in rows
+function cpBlock(x, y, w, h, d, floors, seed) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  box3(w, h, d, CP_PANEL, { side: CP_PANEL_SIDE, top: "#ddd8cc" });
+  c.strokeStyle = "rgba(80, 74, 64, .4)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  const fh = h / floors;
+  for (let i = 1; i < floors; i++) { c.moveTo(-w / 2, -i * fh); c.lineTo(w / 2, -i * fh); }
+  for (let x2 = -w / 2 + w / 3; x2 < w / 2 - 1; x2 += w / 3) { c.moveTo(x2, -h); c.lineTo(x2, 0); }
+  c.stroke();
+  // windows: boarded or blown out on the upper floors, the basement light sandbagged below
+  const rnd = mulberry32(seed || 5);
+  for (let f = 1; f < floors; f++) {
+    for (let i = 0; i < 3; i++) {
+      const wx = -w / 2 + w / 6 + i * w / 3 - 2.4, wy = -f * fh - fh * 0.7;
+      if (rnd() < 0.35) {
+        inkRect(wx, wy, 4.8, fh * 0.5, "#6e5a44", 0.4);
+        c.strokeStyle = "rgba(30, 20, 10, .5)"; c.lineWidth = 0.4;
+        c.beginPath(); c.moveTo(wx, wy + fh * 0.18); c.lineTo(wx + 4.8, wy + fh * 0.12); c.moveTo(wx, wy + fh * 0.36); c.lineTo(wx + 4.8, wy + fh * 0.38); c.stroke();
+      } else a6Window(wx, wy, 4.8, fh * 0.5, "#e2ddd2");
+    }
+  }
+  // a shell scar: the facing gone, the panel's reinforcing showing
+  fillBlobs("#8c867a", [[w * 0.28, -h * 0.72, 3.2, 2.4, 0.3]]);
+  fillBlobs("#5e5a52", [[w * 0.28, -h * 0.72, 1.8, 1.3, 0.3]]);
+  if (structSnow) snowCap(-w / 2 + 0.3, -h + 0.3, w - 0.6, 1.4);
+  c.restore();
+  structCrown(y - h - 1);
+}
+// the stair down to the shelter: a concrete hood over the steps, bags piled round it
+function cpStair(x, y) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  box3(12, 7, 8, A6.concrete, { side: A6.concreteSide, top: "#c6c2ba" });
+  inkRect(-3.4, -6, 6.8, 6, "#1d1a18", 0.5);
+  const a = structPoint(-3.4, -6), b = structPoint(3.4, -0.6);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  c.fillStyle = "#5a5650";
+  for (let i = 0; i < 3; i++) c.fillRect(-3.4, -1.6 - i * 1.4, 6.8, 0.5);
+  if (structSnow) snowCap(-6, -7, 12, 1.2);
+  c.restore();
+  a6BagWall(x - 9, x - 5.6, y + 1.5, 2, 301, 3.4);
+  a6BagWall(x + 6, x + 10, y + 1, 2, 303, 3.4);
+}
+// a UAZ-469 field car, its canvas top up, a whip aerial on the back
+function cpUaz(x, y) {
+  const c = sctx, olive = "#56603d";
+  c.save();
+  c.translate(x, y - 3);
+  box3(18, 5, 8, olive, { side: "#3c4429", top: "#6c7750" });
+  c.translate(2, -5);
+  box3(12, 5.4, 8, "#6b6a4c", { side: "#4c4b34", top: "#7e7d5c" });
+  inkRect(-5.4, -4.6, 4, 3, "#2c3a44", 0.4);
+  inkRect(-0.6, -4.6, 4, 3, "#2c3a44", 0.4);
+  if (structSnow) snowCap(-6, -5.4, 12, 1);
+  c.restore();
+  a6Wheel(x - 5.4, y - 2.4, 2.8);
+  a6Wheel(x + 5.6, y - 2.4, 2.8);
+  a6Whip(x + 8 + 8 * OBQ.dx, y - 8 + 8 * OBQ.dy, 18, 2);
+}
+// a cable drum on its stand, and the field switchboard
+function cpReel(x, y) {
+  beam(x - 3, y, x - 1.4, y - 5, 0.7, A6.log);
+  beam(x + 3, y, x + 1.4, y - 5, 0.7, A6.log);
+  inkDisc(x, y - 5, 3.2, 3.2, "#5b4a36", 0.7);
+  inkDisc(x, y - 5, 2.2, 2.2, "#3c4a2e", 0.4);
+  inkDisc(x, y - 5, 0.6, 0.6, "#2a2a28", 0);
+}
+
+function paintRadioPost(lvl, spec) {
+  const c = sctx, W = 38, D = 18;
+  a6Pad(W, D, 3, 311 + lvl);
+  rankMarks(0, 2.6, lvl, spec, false);
+  c.save();
+  c.translate(0, -3);
+  if (lvl > 0 || spec) {
+    const H = lvl === 1 && !spec ? 30 : 44;
+    cpBlock(-4 + 6 * OBQ.dx, -2 + 7 * OBQ.dy, 30, H, 4, lvl === 1 && !spec ? 2 : 3, 321 + lvl);
+    a6Mast(13 + 6 * OBQ.dx, -2 + 7 * OBQ.dy, lvl === 1 && !spec ? 46 : 64, true);
+    // the basement window at the foot of the wall, sandbagged to a slit
+    a6Window(-12 + 6 * OBQ.dx, -5 + 7 * OBQ.dy, 6, 2.6, "#9a958a");
+    a6BagWall(-16 + 6 * OBQ.dx, -2 + 6 * OBQ.dx, -1.4 + 7 * OBQ.dy, 1, 331, 4.2);
+  } else {
+    a6Whip(6, -6, 26, 2.4);
+  }
+  cpStair(-2, 3);
+  a6Radio(9, 4);
+  a6Man(14, 9, A6_Z * 0.86, a6Dress(0), "kneelphone", -1);
+  if (lvl === 2 || spec) a6Man(-14, 9.5, A6_Z * 0.86, a6Dress(1), "point", 1);
+  if (spec === "a") {
+    cpReel(-W / 2 + 4, 13);
+    cpReel(-W / 2 + 10, 14.5);
+    c.strokeStyle = "#2a2a26"; c.lineWidth = 0.5;
+    c.beginPath(); c.moveTo(-W / 2 + 4, 8); c.quadraticCurveTo(-4, 12, 9, 2); c.stroke();
+  }
+  if (spec === "b") cpUaz(-W / 2 + 6, 14);
+  c.restore();
+}
+
+// ---- Ghazanchetsots: the white limestone belfry ----
+const CP_LIME = { mid: A6.lime, side: A6.limeSide, mortar: "rgba(150, 136, 110, .35)", band: 0 };
+function cpTier(w, h, d, seed, open) {
+  const c = sctx;
+  box3(w, h, d, CP_LIME.mid, towerWall(CP_LIME, seed, { course: 3.6, block: 7, band: 0 }));
+  // a cornice at the top of the tier
+  inkRect(-w / 2 - 0.8, -h - 1.4, w + 1.6, 1.6, "#f4eedf", 0.6);
+  inkPoly([w / 2 + 0.8, -h - 1.4, w / 2 + 0.8 + d * OBQ.dx, -h - 1.4 + d * OBQ.dy, w / 2 + 0.8 + d * OBQ.dx, -h + 0.2 + d * OBQ.dy, w / 2 + 0.8, -h + 0.2], CP_LIME.side, 0.5);
+  if (open) {
+    // the arched bell opening, dark inside; the bell hangs in it live
+    const ow = Math.min(w * 0.46, 8), oh = h * 0.62, oy = -h + 2.6;
+    c.beginPath();
+    c.moveTo(-ow / 2, oy + oh);
+    c.lineTo(-ow / 2, oy + ow / 2);
+    c.arc(0, oy + ow / 2, ow / 2, Math.PI, 0);
+    c.lineTo(ow / 2, oy + oh);
+    c.closePath();
+    c.fillStyle = "#2a2622"; c.fill();
+    inkStroke(0.8);
+    inkRect(-ow / 2 - 0.8, oy + oh, ow + 1.6, 1, "#f4eedf", 0.4);
+    // a smaller arched opening on the side face too
+    const sx = w / 2 + d * OBQ.dx * 0.5, sy = d * OBQ.dy * 0.5;
+    c.beginPath();
+    c.moveTo(sx - 1.6, sy + oy + oh - 1);
+    c.lineTo(sx - 1.6, sy + oy + 3);
+    c.quadraticCurveTo(sx, sy + oy - 0.6, sx + 1.6, sy + oy + 2);
+    c.lineTo(sx + 1.6, sy + oy + oh - 2);
+    c.closePath();
+    c.fillStyle = "#24201c"; c.fill();
+    (structFit.bells || (structFit.bells = [])).push({ p: structPoint(0, oy + 1.6), r: Math.min(ow * 0.36, 3.2) });
+  }
+  if (structSnow) snowCap(-w / 2 - 0.8, -h - 1.2, w + 1.6, 1);
+}
+// a pyramid cap of stone over a tier, its plain cross on top
+function cpCap(w, d, rise, cross) {
+  const c = sctx, ox = d * OBQ.dx, oy = d * OBQ.dy, ax = ox / 2, ay = oy / 2 - rise;
+  inkPoly([w / 2, 0, w / 2 + ox, oy, ax, ay], toneHex(A6.limeSide, -12), 0.8);
+  inkPoly([-w / 2, 0, w / 2, 0, ax, ay], "#d9cfb9", 0.9);
+  c.strokeStyle = "rgba(255, 255, 255, .5)"; c.lineWidth = 0.6;
+  c.beginPath(); c.moveTo(-w / 2 + 1, -0.4); c.lineTo(ax - 0.6, ay + 1); c.stroke();
+  if (cross) cpCross(ax, ay);
+}
+function cpCross(x, y) {
+  beam(x, y, x, y - 7, 0.7, "#8a8070");
+  beam(x - 2.2, y - 4.8, x + 2.2, y - 4.8, 0.7, "#8a8070");
+  structCrown(y - 7.4);
+}
+// the columned rotunda that crowns the belfry, under its cone
+function cpRotunda(r, h) {
+  const c = sctx, ry = r * 0.4;
+  inkDisc(0, 0, r + 1, ry + 0.6, "#f4eedf", 0.7);
+  c.fillStyle = "#2a2622";
+  c.fillRect(-r + 0.6, -h, r * 2 - 1.2, h);
+  // the columns round the drum: the far ones darker
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + 0.2, sx = Math.cos(a) * r, front = Math.sin(a) > 0;
+    if (!front) beam(sx, -0.4, sx, -h + 0.6, 1.1, "#c4b9a2");
+  }
+  (structFit.bells || (structFit.bells = [])).push({ p: structPoint(0, -h + 1.6), r: r * 0.42 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + 0.2, sx = Math.cos(a) * r, front = Math.sin(a) > 0;
+    if (front) beam(sx, ry * Math.sin(a) * 0.6 - 0.4, sx, -h + 0.6, 1.3, sx < 0 ? "#f2ead8" : "#d6cbb4");
+  }
+  inkDisc(0, -h, r + 1.4, ry + 0.8, "#efe7d5", 0.8);
+  // the cone
+  inkPoly([-r - 1.2, -h, r + 1.2, -h, 0, -h - r * 1.7], "#d9cfb9", 0.9);
+  inkPoly([0, -h - r * 1.7, r + 1.2, -h, r * 0.3, -h + 0.4], toneHex(A6.limeSide, -12), 0);
+  cpCross(0, -h - r * 1.7);
+}
+
+function paintBelfry(lvl, spec) {
+  const c = sctx, W = 38, D = 18;
+  a6Pad(W, D, 3, 341 + lvl);
+  rankMarks(0, 2.6, lvl, spec, false);
+  c.save();
+  c.translate(0, -3);
+  if (lvl === 0 && !spec) {
+    // a bell hung from a beam between two timber posts, rung from below
+    c.save();
+    c.translate(-2 - 3, 0);
+    box3(16, 3, 7, A6.lime, towerWall(CP_LIME, 351, { course: 3, block: 6, band: 0 }));
+    c.restore();
+    const px = 6, py = -3;
+    beam(-11 + px * 0, py, -10.4, py - 26, 1.6, A6.log);
+    beam(4, py, 3.4, py - 26, 1.6, A6.log);
+    beam(-12.6, py - 25, 5.6, py - 25.4, 1.8, "#6a4c30");
+    (structFit.bells || (structFit.bells = [])).push({ p: structPoint(-3.5, py - 24), r: 3.4 });
+    structCrown(py - 28);
+    a6Man(11, 9, A6_Z * 0.86, a6Dress(0), "pull", -1);
+    (structFit.ropes || (structFit.ropes = [])).push({ a: structPoint(-3.5, py - 15), b: structPoint(11 - 1.8 * A6_Z * 0.86, 9 - (5.6 + 9.6 + 3.4) * A6_Z * 0.86) });
+    a6BagWall(-W / 2 + 2, -W / 2 + 12, 10, 2, 353, 4.4);
+    c.restore();
+    return;
+  }
+  const tiers = spec === "a" ? 3 : lvl === 1 ? 1 : 2;
+  c.save();
+  c.translate(-4 - 12 * OBQ.dx / 2, 1 - 12 * OBQ.dy / 2);
+  if (tiers === 1) {
+    cpTier(18, 22, 12, 361, true);
+    c.translate(0, -23.4);
+    cpCap(19.6, 12, 9, true);
+  } else {
+    // the lower storey with its arched door; the open bell storey above, set back
+    cpTier(20, 22, 13, 363, false);
+    archDoor(0, 6.4, 11, "#f4eedf");
+    c.translate(1.2 * 1, -23.4);
+    c.translate(0.6 * OBQ.dx, 0.6 * OBQ.dy);
+    cpTier(17, 19, 11.4, 365, true);
+    c.translate(0, -20.8);
+    if (tiers === 3) {
+      c.translate(17 / 2 * 0 + 11.4 * OBQ.dx / 2, 11.4 * OBQ.dy / 2);
+      cpRotunda(5.8, 11);
+    } else cpCap(18.6, 11.4, 9, true);
+  }
+  c.restore();
+  // the ringer at the foot; a lookout's post of bags on the Lookout mastery
+  a6Man(13, 9.5, A6_Z * 0.86, a6Dress(0), "rifle", -1);
+  if (spec === "b") {
+    a6BagWall(-W / 2 + 1, -W / 2 + 14, 11, 2, 371, 4.4);
+    a6Mast(W / 2 - 2, 4, 44, true);
+    a6Man(-W / 2 + 8, 7, A6_Z * 0.82, a6Dress(1), "binoc", 1);
+  } else a6BagWall(-W / 2 + 1, -W / 2 + 10, 11, 1, 373, 4.4);
+  c.restore();
+}
+
+// ---- the bread queue ----
+const CP_TUFF = { mid: "#c9a58a", side: "#9b7a62", mortar: null, band: 0 };
+// round matnakash loaves on a board
+function cpLoaves(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const lx = x + (i % 3) * 3 - 3, ly = y - Math.floor(i / 3) * 1.4;
+    inkDisc(lx, ly, 1.6, 0.8, "#c98a3e", 0.5);
+    inkDisc(lx - 0.3, ly - 0.3, 0.8, 0.3, "#e8b874", 0);
+  }
+}
+// a loaf carried in the arms
+function cpCarryLoaf(c, x, y, f) {
+  c.beginPath(); c.ellipse(x, y, 2 * f, 1 * f, -0.2, 0, Math.PI * 2);
+  c.fillStyle = "#c98a3e"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.5 * f; c.stroke();
+}
+// the canvas awning on two poles in front of the shop
+function cpAwning(x0, x1, y, h) {
+  beam(x0, y, x0, y - h, 0.8, "#6a6660");
+  beam(x1, y, x1, y - h, 0.8, "#6a6660");
+  inkPoly([x0 - 1, y - h, x1 + 1, y - h, x1 + 3 + 6 * OBQ.dx, y - h - 3.5 + 6 * OBQ.dy, x0 + 6 * OBQ.dx - 1, y - h - 3.5 + 6 * OBQ.dy], "#7a8a8e", 0.8);
+  sctx.fillStyle = "rgba(255, 255, 255, .25)";
+  sctx.fillRect(x0 - 1, y - h - 0.6, x1 - x0 + 2, 0.6);
+  if (structSnow) snowCap(x0, y - h - 3, x1 - x0, 1);
+}
+function paintBakery(lvl, spec) {
+  const c = sctx, W = 38, D = 18;
+  a6Pad(W, D, 3, 381 + lvl);
+  rankMarks(0, 2.6, lvl, spec, false);
+  c.save();
+  c.translate(0, -3);
+  if (lvl === 0 && !spec) {
+    // a stall: a trestle table of loaves under an awning, the baker behind it
+    a6Man(-3, -3, A6_Z * 0.84, Object.assign(a6Dress(2, true), { head: "cap", helm: "#e8e4d8" }), "stand", 1);
+    c.save();
+    c.translate(-3, 2);
+    box3(16, 6, 6, "#7a5a3a", { side: "#5a4028", top: "#9a7a52" });
+    c.restore();
+    cpLoaves(-3 + 3 * OBQ.dx, -4.4 + 3 * OBQ.dy, 6);
+    cpAwning(-12, 6, 1, 20);
+    const q = a6Dress(0, true);
+    q.carry = cpCarryLoaf;
+    a6Man(13, 9, A6_Z * 0.84, q, "carry", -1);
+    structCrown(-26);
+    c.restore();
+    return;
+  }
+  const bw = lvl === 1 && !spec ? 28 : 32, bh = lvl === 1 && !spec ? 21 : 26;
+  c.save();
+  c.translate(-6 - 12 * OBQ.dx / 2, 0 - 12 * OBQ.dy / 2);
+  box3(bw, bh, 12, CP_TUFF.mid, towerWall(CP_TUFF, 391 + lvl, { course: 4.4, block: 8, band: 0 }));
+  // the door and the shop window, lit through the blackout cracks after dusk
+  inkRect(-bw / 2 + 3, -10, 5, 10, "#4a3a2a", 0.7);
+  plankRect(-bw / 2 + 3.4, -9.6, 4.2, 9.4, "#6b4a2c", true, 393);
+  a6Window(-bw / 2 + 11, -12, 7, 6, "#e4d4bc");
+  a6Window(-bw / 2 + 21, -12, 5, 6, "#e4d4bc");
+  if (bh > 22) { a6Window(-bw / 2 + 4, -22, 4, 4.4, "#e4d4bc"); a6Window(-bw / 2 + 13, -22, 4, 4.4, "#e4d4bc"); a6Window(-bw / 2 + 22, -22, 4, 4.4, "#e4d4bc"); }
+  // the chimney of the oven; its smoke rises live
+  c.save();
+  c.translate(bw / 2 - 4 + 8 * OBQ.dx, -bh + 8 * OBQ.dy);
+  box3(3, 7, 3, toneHex(CP_TUFF.mid, -8), { side: CP_TUFF.side });
+  (structFit.wisps || (structFit.wisps = [])).push(structPoint(1 * OBQ.dx * 1.5, -7.6 + 1.5 * OBQ.dy));
+  c.restore();
+  if (structSnow) snowCap(-bw / 2, -bh, bw, 1.2);
+  // bags banked up under the windows on the third rank
+  if (lvl === 2 || spec) a6BagWall(-bw / 2 + 10, -bw / 2 + 26, 0.8, 2, 395, 4);
+  c.restore();
+  cpAwning(-W / 2 + 4, -W / 2 + 20, 4.6, 19);
+  // the queue: women and old men with their bread cards, waiting at the door
+  const n = lvl === 1 && !spec ? 2 : 3;
+  for (let i = 0; i < n; i++) {
+    const q = a6Dress(i, true);
+    if (i === 0) q.carry = cpCarryLoaf;
+    a6Man(-W / 2 + 6 + i * 8.4, 10 + i * 0.6, A6_Z * 0.8, q, i === 0 ? "carry" : "wait", 1);
+  }
+  if (spec === "a") {
+    // a generator to keep the ovens going through the power cuts, a string of lamps
+    a6Crate(W / 2 - 5, 7.4, 8, 5, 5, "#4f6050");
+    (structFit.wisps || (structFit.wisps = [])).push(structPoint(W / 2 - 2 + 2 * OBQ.dx, 2 + 2 * OBQ.dy));
+    c.strokeStyle = "#2a2a26"; c.lineWidth = 0.4;
+    c.beginPath(); c.moveTo(-W / 2 + 4, -15); c.quadraticCurveTo(-6, -11, 8, -15); c.stroke();
+    for (const lx of [-12, -6, 0, 5]) {
+      inkDisc(lx, -12.6 + Math.abs(lx + 3) * 0.12, 0.8, 0.9, "#ffe9a8", 0.3);
+      structFit.lanterns.push(structPoint(lx, -12.6 + Math.abs(lx + 3) * 0.12));
+    }
+  }
+  if (spec === "b") {
+    // the civil-defence post: bags round a radio, its mast on the roof
+    a6BagWall(W / 2 - 13, W / 2 - 1, 9, 2, 397, 4);
+    a6Radio(W / 2 - 5, 4.8);
+    a6Mast(6, -24, 30, false);
+    a6Man(W / 2 - 4, 13.4, A6_Z * 0.8, a6Dress(2), "phone", -1);
+  } else if (lvl === 2 && !spec) {
+    a6Man(W / 2 - 5, 10, A6_Z * 0.8, a6Dress(2), "rifle", -1);
+  }
+  c.restore();
+}
+
+function paintCommandPost(lvl, spec) {
+  const site = a6Site();
+  if (site === 1) paintBelfry(lvl, spec);
+  else if (site === 2) paintBakery(lvl, spec);
+  else paintRadioPost(lvl, spec);
+}
+
+// ---- live: the bells swing on the beat, the mast light blinks, smoke rises ----
+function commandPostLive(t, cx) {
+  const fit = cx.fit, c = ctx, k = cx.k, fade = cx.fade, beat = isFinite(t.beat) ? t.beat : cx.time * 0.004;
+  c.globalAlpha = fade;
+  const swing = Math.sin(beat) * 0.5;
+  for (const rp of fit.ropes || []) {
+    c.beginPath();
+    c.moveTo(cx.x + rp.a[0] * k + swing * 3 * k, cx.y + rp.a[1] * k);
+    c.lineTo(cx.x + rp.b[0] * k, cx.y + rp.b[1] * k + Math.max(0, swing) * 2 * k);
+    c.strokeStyle = "#cdb98a"; c.lineWidth = 0.6 * k; c.stroke();
+  }
+  for (const b of fit.bells || []) {
+    const x = cx.x + b.p[0] * k, y = cx.y + b.p[1] * k, r = b.r * k;
+    c.save();
+    c.translate(x, y);
+    c.rotate(swing);
+    // the clapper lags the bell
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(-Math.sin(swing) * r * 0.6, r * 2.1);
+    c.strokeStyle = "#2a2622"; c.lineWidth = 0.8 * k; c.stroke();
+    c.beginPath();
+    c.moveTo(-r * 0.5, r * 0.15);
+    c.quadraticCurveTo(-r * 0.6, -r * 0.2, 0, -r * 0.25);
+    c.quadraticCurveTo(r * 0.6, -r * 0.2, r * 0.5, r * 0.15);
+    c.lineTo(r * 0.75, r * 1.5);
+    c.quadraticCurveTo(r * 1.05, r * 1.85, r * 1.05, r * 1.95);
+    c.lineTo(-r * 1.05, r * 1.95);
+    c.quadraticCurveTo(-r * 1.05, r * 1.85, -r * 0.75, r * 1.5);
+    c.closePath();
+    c.fillStyle = A6.bronze; c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.7 * k; c.stroke();
+    c.fillStyle = "rgba(255, 236, 170, .45)";
+    c.fillRect(-r * 0.55, -r * 0.05, r * 0.3, r * 1.6);
+    c.restore();
+    // at the top of each swing the stroke rings out: two pale arcs
+    const ring = Math.abs(Math.cos(beat));
+    if (ring < 0.35) {
+      const a = (0.35 - ring) / 0.35 * fade;
+      c.globalAlpha = a * 0.7;
+      c.strokeStyle = "#fff4d0"; c.lineWidth = 0.8 * k;
+      c.beginPath();
+      for (const sd of [-1, 1]) {
+        c.moveTo(x + sd * r * 2.2, y - r * 0.2); c.quadraticCurveTo(x + sd * r * 2.9, y + r, x + sd * r * 2.2, y + r * 2.2);
+        c.moveTo(x + sd * r * 3, y - r * 0.6); c.quadraticCurveTo(x + sd * r * 3.9, y + r, x + sd * r * 3, y + r * 2.6);
+      }
+      c.stroke();
+      c.globalAlpha = fade;
+    }
+  }
+  for (const w of fit.wisps || []) a6Wisp(c, cx.x + w[0] * k, cx.y + w[1] * k, k, cx.time, t.x * 0.07 + w[0], fade * 0.7, "#8a8682");
+  // the aircraft-warning light at a mast's tip: a short red blink every second and a half
+  const on = ((cx.time * 0.001 + t.x * 0.013) % 1.5) < 0.35;
+  for (const b of fit.blinks || []) {
+    const x = cx.x + b[0] * k, y = cx.y + b[1] * k;
+    c.globalAlpha = fade;
+    c.beginPath(); c.arc(x, y, 0.9 * k, 0, Math.PI * 2);
+    c.fillStyle = on ? "#ff4a3a" : "#7a2a22"; c.fill();
+    if (on) {
+      c.globalCompositeOperation = "lighter";
+      drawGlow(c, glowSprite("255, 80, 60"), x, y, 5 * k, 5 * k, 0.6 * fade);
+      c.globalCompositeOperation = "source-over";
+    }
+  }
+  c.globalAlpha = fade;
+}
+
 SKIN_ART.commandpost = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.drums,
-  scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  box: A6_BOX.drums,
+  scale: A6_SCALE.drums,
+  paint(lvl, spec, variant) { paintCommandPost(lvl, spec); },
+  variant() { return a6Site(); },
+  live: commandPostLive,
 };
 // ====================================== END SKIN SECTION: commandpost ======================================
 
@@ -38580,8 +40880,8 @@ function drawFlyer(e, k, d, dir) {
 }
 
 function drawProjectile(pr) {
-  // a skin may tag its shot with a look of its own (onFire), drawn in place of its kind's
-  const own = (pr.look && PROJ_ART[pr.look]) || PROJ_ART[pr.kind];
+  // a skin may tag its shot with a look of its own (pr.art or pr.look) while the shot keeps its kind for the rules
+  const own = (pr.art && PROJ_ART[pr.art]) || (pr.look && PROJ_ART[pr.look]) || PROJ_ART[pr.kind];
   if (own) { own(pr); return; }
   if (pr.kind === "stone") {
     const bp = proj(pr.x, pr.gy || pr.sy);
