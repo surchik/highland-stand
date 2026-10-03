@@ -1538,8 +1538,8 @@ const Snd = {
     const glue = c.createDynamicsCompressor();
     glue.threshold.value = -20; glue.knee.value = 12; glue.ratio.value = 2.5; glue.attack.value = 0.008; glue.release.value = 0.28;
     const lim = c.createDynamicsCompressor();
-    lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 16; lim.attack.value = 0.001; lim.release.value = 0.12;
-    const trim1 = G(0.78), trim2 = G(0.8);   // part of the compressors' automatic make-up gain handed back
+    lim.threshold.value = -5; lim.knee.value = 2; lim.ratio.value = 16; lim.attack.value = 0.001; lim.release.value = 0.12;
+    const trim1 = G(0.85), trim2 = G(0.66);   // part of the compressors' automatic make-up gain handed back
     const ceil = c.createWaveShaper(); ceil.curve = this.ceilCurve(); ceil.oversample = "4x";
     glue.connect(trim1); trim1.connect(lim); lim.connect(trim2); trim2.connect(ceil); ceil.connect(c.destination);
     this.sfxGain = G(0); this.sfxGain.connect(glue);
@@ -1547,7 +1547,11 @@ const Snd = {
     const sub = c.createBiquadFilter(); sub.type = "highpass"; sub.frequency.value = 32; sub.Q.value = 0.6;
     // and a little air on top (a gentle 3.5 dB shelf from 3 kHz) so a busy battle never turns woolly
     const air = c.createBiquadFilter(); air.type = "highshelf"; air.frequency.value = 3000; air.gain.value = 3.5;
-    this.sfxIn = G(1); this.sfxIn.connect(sub); sub.connect(air); air.connect(this.sfxGain);
+    // and nothing above 17 kHz: a pile-up of noise transients puts energy near Nyquist that peaks
+    // between the samples after the ceiling, so it is taken off before the dynamics
+    const top1 = c.createBiquadFilter(), top2 = c.createBiquadFilter();
+    top1.type = top2.type = "lowpass"; top1.frequency.value = top2.frequency.value = 17000; top1.Q.value = 0.54; top2.Q.value = 1.31;
+    this.sfxIn = G(1); this.sfxIn.connect(sub); sub.connect(air); air.connect(top1); top1.connect(top2); top2.connect(this.sfxGain);
     // a stone courtyard's short room
     // only the mids and highs go into the room, so no low tail smears even the arrows
     const conv = c.createConvolver(); conv.buffer = this.bufs.ir;
@@ -1577,7 +1581,7 @@ const Snd = {
   // slider position -> gain: a log taper, -18 dB at mid-travel, -36 dB near the bottom, off at 0
   gainOf(x) { return x <= 0.005 ? 0 : Math.pow(10, -36 * (1 - Math.min(1, x)) / 20); },
   ceilCurve() {
-    const n = 4096, k = 0.6, L = 0.82, cv = new Float32Array(n);
+    const n = 4096, k = 0.7, L = 0.84, cv = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const x = i / (n - 1) * 2 - 1, ax = Math.abs(x);
       cv[i] = Math.sign(x) * (ax <= k ? ax : k + (L - k) * Math.tanh((ax - k) / (L - k)));
@@ -1985,9 +1989,13 @@ class KLTract extends AudioWorkletProcessor {
       h[n + M] = (n === 0 ? 0.5 : Math.sin(Math.PI * n / 2) / (Math.PI * n)) * w;
     }
     let hs = 0; for (const v of h) hs += v; for (let i = 0; i < h.length; i++) h[i] /= hs;
-    this.hb = h; this.hx = new Float64Array(2 * M + 1); this.hi = 0;
+    this.hb = h; this.hbI = []; for (let j = 0; j < h.length; j++) if (Math.abs(h[j]) > 1e-12) this.hbI.push(j);
+    this.HL = h.length; this.hx = new Float64Array(2 * h.length); this.hi = 0;   // a doubled ring: no wrap while reading
     // the output low-pass: two Butterworth sections (24 dB/oct)
     this.lp = o.lp ? [BQ("lp", o.lp, 0.5412, sampleRate), BQ("lp", o.lp, 1.3066, sampleRate)] : null;
+    // a chest/trunk rumble under the voice (the elephant): a low pulse near half the voice's pitch,
+    // jittered, kept under 150 Hz and following the call's own swell
+    this.rum = o.rumble ? [BQ("lp", 150, 0.7, sampleRate), BQ("lp", 150, 0.7, sampleRate)] : null; this.rph = 0; this.renv = 0;
     this.lfSetup(0.6);
   }
   rnd() { let x = this.seed | 0; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.seed = x; return (x >>> 0) / 4294967296; }
@@ -2033,7 +2041,7 @@ class KLTract extends AudioWorkletProcessor {
     for (let i = 1; i < N; i++) k[i] = (A[i - 1] - A[i]) / (A[i - 1] + A[i]);
     const gR = o.glotRefl == null ? 0.75 : o.glotRefl, lR = o.lipRefl == null ? -0.85 : o.lipRefl, fade = o.fade || 0.999;
     const ni = Math.max(1, Math.min(N - 2, Math.round(p.npos * N)));
-    const hb = this.hb, hx = this.hx, HL = hx.length, dur = o.dur;
+    const hb = this.hb, hbI = this.hbI, hx = this.hx, HL = this.HL, dur = o.dur;
     for (let s = 0; s < out.length; s++) {
       for (let q = 0; q < os; q++) {
         // the glottal source, computed at the tract's own (oversampled) rate
@@ -2046,7 +2054,7 @@ class KLTract extends AudioWorkletProcessor {
           g += p.mix2 * (this.ph2 < 0.4 ? Math.sin(Math.PI * this.ph2 / 0.4) : 0) * 1.5;
         }
         // breath through the glottis, band-limited, louder while it is open
-        const na = bq(this.nA[1], bq(this.nA[0], this.rnd() * 2 - 1));
+        const na = p.asp > 0 ? bq(this.nA[1], bq(this.nA[0], this.rnd() * 2 - 1)) : 0;
         const src = g * p.amp + na * 3 * p.asp * (this.ph < this.Te ? 1 : 0.35) * Math.max(p.amp, 0.15);
         const turb = p.noise > 0 ? bq(this.nF[1], bq(this.nF[0], this.rnd() * 2 - 1)) * 3 * p.noise : 0;
         // the glottis reflects through a two-tap average, the lips through a low-pass
@@ -2056,14 +2064,21 @@ class KLTract extends AudioWorkletProcessor {
         for (let i = 1; i < N; i++) { const x = k[i] * (R[i - 1] + L[i]); jR[i] = R[i - 1] - x; jL[i] = L[i] + x; }
         jR[ni] += turb * 0.5; jL[ni] += turb * 0.5;   // turbulence at the constriction
         for (let i = 0; i < N; i++) { R[i] = jR[i] * fade; L[i] = jL[i + 1] * fade; }
-        hx[this.hi] = R[N - 1]; this.hi = (this.hi + 1) % HL;
+        hx[this.hi] = hx[this.hi + HL] = R[N - 1]; this.hi = (this.hi + 1) % HL;
       }
       // decimate through the half-band filter
       let lip = 0;
-      for (let j = 0, idx = this.hi; j < HL; j++, idx = (idx + 1) % HL) lip += hb[j] * hx[idx];
+      for (let q = 0, b0 = this.hi; q < hbI.length; q++) { const j = hbI[q]; lip += hb[j] * hx[b0 + j]; }
       let y = lip - this.prev * 0.97;   // radiation from the mouth
       this.prev = lip;
       if (this.lp) y = bq(this.lp[1], bq(this.lp[0], y));
+      if (this.rum) {
+        const fr = Math.max(50, Math.min(140, p.f0 * (o.rumR || 0.5))) * (1 + 0.03 * this.gauss());
+        this.rph += fr * this.dt; if (this.rph >= 1) this.rph -= 1;
+        this.renv += (p.amp - this.renv) * 0.0015;
+        const w = Math.sin(2 * Math.PI * this.rph) + 0.45 * Math.sin(4 * Math.PI * this.rph) + 0.3 * (this.rnd() - 0.5);
+        y += bq(this.rum[1], bq(this.rum[0], w)) * this.renv * o.rumble;
+      }
       // a 2 ms fade-in, and a 40 ms raised-cosine fade after the last keyframe
       const t = this.t;
       const env = t < 0.002 ? 0.5 - 0.5 * Math.cos(Math.PI * t / 0.002) : t < dur ? 1 : t < dur + 0.04 ? 0.5 + 0.5 * Math.cos(Math.PI * (t - dur) / 0.04) : 0;
@@ -2106,30 +2121,42 @@ registerProcessor("kl-tract", KLTract);
     // a man struck down: an 'h', 'g' or open onset, a cry sliding between two or three vowels,
     // straining (jitter, period doubling) as it breaks and falls away
     man(i) {
-      const vs = [["a", "o", "u"], ["e", "a", "o"], ["a", "a", "o"], ["o", "a", "u"], ["e", "e", "a"], ["a", "u", "u"], ["i", "e", "a"], ["o", "o", "u"]][i % 8];
-      const f = this.rr(125, 200), d = this.rr(0.38, 0.62), N = Math.round(this.rr(40, 46)), sub = this.rr(0.05, 0.3);
+      // vowel paths that travel: front to back ('i' -> 'a' -> 'u') and back again, so the second
+      // formant sweeps several hundred hertz through the cry
+      const vs = [["i", "a", "u"], ["e", "o", "u"], ["a", "i", "a"], ["u", "a", "e"], ["i", "o", "u"], ["e", "a", "u"], ["o", "e", "a"],
+        ["a", "e", "o"], ["i", "e", "u"], ["u", "i", "o"], ["e", "u", "a"], ["a", "u", "i"], ["o", "i", "u"], ["i", "a", "o"]][i % 14];
+      const f = this.rr(120, 205), d = this.rr(0.4, 0.7), N = Math.round(this.rr(39, 47)), sub = this.rr(0.05, 0.35), w = () => this.rr(0.85, 1.15);
       const shapes = {}; for (const v of new Set(vs)) shapes[v] = this.klShape(v, N);
       const on = i % 3;   // 0: aspirated 'h', 1: velar 'g', 2: open
       const base = { tense: 0.65, asp: 0.06, noise: 0, npos: 0.65, jit: 0.01, shim: 0.7, sub: 0 };
       // the 'h' (or the 'g' burst) ramps in over 15 ms, well under the vowel; the voice then
       // decays on its own and the breath dies with it
-      const h = on === 0 ? this.MAN_H * { a: 0.8, e: 1.1, i: 1.3, o: 1.7, u: 1.7 }[vs[0]] : 0.04;
-      return this.klSpec(N, 2, base, [
+      const h = on === 0 ? this.MAN_H * { a: 0.8, e: 1.1, i: 1.6, o: 0.95, u: 3.4 }[vs[0]] : 0.04;
+      const head = [
         [0, f * 0.9, 0, vs[0], { asp: 0 }],
         [0.015, f * 0.9, 0, vs[0], { asp: h, noise: on === 1 ? 0.12 : 0 }],
         [0.03, f, on === 1 ? 0.2 : 0.35, vs[0], { asp: on === 0 ? h * 0.5 : 0.06 }],
-        [0.075, f * this.rr(1.08, 1.2), 1, vs[0], { tense: 0.75 }],
-        [d * 0.45, f * this.rr(1, 1.1), 0.95, vs[1], { tense: 0.8, sub, jit: 0.02 }],
-        [d * 0.75, f * this.rr(0.72, 0.85), 0.6, vs[2], { tense: 0.6, sub: sub * 1.4, jit: 0.025, asp: 0.12 }],
-        [d, f * 0.62, 0, vs[2], { tense: 0.5, asp: 0 }],
-      ], shapes, { lp: 6000, nf: 1900, nq: 1.1, lipF: 4000 });
+      ];
+      // four contours: a cry that breaks and falls; a scream held high then dropping; a sob in two
+      // pushes; a long sinking groan
+      const body = [
+        [[0.075, f * this.rr(1.08, 1.2), 1, vs[0], { tense: 0.75 }], [d * 0.45 * w(), f * this.rr(1, 1.1), 0.95, vs[1], { tense: 0.8, sub, jit: 0.02 }],
+          [d * 0.75, f * this.rr(0.72, 0.85), 0.6, vs[2], { tense: 0.6, sub: sub * 1.4, jit: 0.025, asp: 0.12 }]],
+        [[0.06, f * this.rr(1.25, 1.4), 1, vs[0], { tense: 0.85 }], [d * 0.3 * w(), f * this.rr(1.2, 1.35), 1, vs[0], { tense: 0.85, jit: 0.02 }],
+          [d * 0.55, f * this.rr(0.95, 1.05), 0.8, vs[1], { tense: 0.7, sub }], [d * 0.8, f * this.rr(0.6, 0.7), 0.45, vs[2], { tense: 0.55, sub: sub * 1.5, asp: 0.12 }]],
+        [[0.07, f * 1.1, 1, vs[0], { tense: 0.75 }], [d * 0.3 * w(), f * 0.95, 0.3, vs[1], { tense: 0.6, asp: 0.15 }],
+          [d * 0.45, f * this.rr(1.05, 1.15), 0.95, vs[1], { tense: 0.8, sub, jit: 0.02 }], [d * 0.78, f * this.rr(0.7, 0.8), 0.5, vs[2], { tense: 0.55, sub: sub * 1.4, asp: 0.12 }]],
+        [[0.12, f * 0.95, 0.9, vs[0], { tense: 0.6 }], [d * 0.5 * w(), f * this.rr(0.85, 0.95), 1, vs[1], { tense: 0.65, sub: sub * 1.3, jit: 0.025 }],
+          [d * 0.85, f * this.rr(0.6, 0.7), 0.55, vs[2], { tense: 0.5, sub: sub * 1.6, jit: 0.03, asp: 0.12 }]],
+      ][Math.floor(i / 3) % 4];
+      return this.klSpec(N, 2, base, [...head, ...body, [d, f * 0.6, 0, vs[2], { tense: 0.5, asp: 0 }]], shapes, { lp: 6000, nf: 1900, nq: 1.1, lipF: 4000 });
     },
     // a war elephant's death bellow: a long tract running into a trunk, a low, chaotic voice
     // with strong subharmonics, sinking to a groan
     elephant(i) {
       // a long tract running into a trunk; each bellow sinks differently: a long groan, a
       // broken roar, a rumble that rises before it dies
-      const tr = Math.round(this.rr(110, 200)), N = 44 + tr, f = this.rr(80, 190), d = this.rr(0.85, 1.75), sub = this.rr(0.3, 1), kind = i % 4;
+      const tr = Math.round(this.rr(50, 100)), N = 44 + tr, f = this.rr(80, 190), d = this.rr(0.85, 1.75), sub = this.rr(0.3, 1), kind = i % 4;
       const vA = this.pick(["a", "o", "e"]), vB = this.pick(["o", "u", "a", "e"]), w = () => this.rr(0.8, 1.2);
       const shapes = { [vA]: this.klShape(vA, N, tr), [vB]: this.klShape(vB, N, tr) };
       const base = { tense: this.rr(0.7, 0.88), asp: this.rr(0.15, 0.35), noise: this.rr(0.01, 0.05), npos: 0.97, jit: this.rr(0.025, 0.045), shim: 1.2, sub };
@@ -2142,13 +2169,13 @@ registerProcessor("kl-tract", KLTract);
       // each bellow's timing and pitch contour bent a little differently
       for (let j = 1; j < keys.length - 1; j++) { keys[j][0] = Math.min(keys[j][0] * w(), d * 0.95); keys[j][1] *= this.rr(0.9, 1.1); }
       keys.sort((a, b) => a[0] - b[0]);
-      return this.klSpec(N, 2, base, keys, shapes, { lp: this.rr(2800, 3800), nf: this.rr(600, 1000), nq: 0.7, lipF: 1800 });
+      return this.klSpec(N, 2, base, keys, shapes, { lp: this.rr(2800, 3800), nf: this.rr(600, 1000), nq: 0.7, lipF: 1800, rumble: this.ELE_RUM, rumR: this.rr(0.35, 0.65) });
     },
     // the war elephant's trumpet: a pressed, high, rough blare through the trunk with turbulence
     trumpet(i) {
       // four kinds of blare: a rising scream, a level brassy blast, a broken stutter, a falling roar
-      const N = 44 + Math.round(this.rr(80, 140)), tr = N - 44, f = this.rr(270, 560), d = this.rr(0.6, 1.3), kind = i % 4;
-      const vA = this.pick([["a", "e"], ["e", "a"], ["a", "o"], ["o", "a"]][kind]), vB = this.pick(["e", "a", "i", "o"].filter(v => v !== vA)), w = () => this.rr(0.8, 1.2);
+      const N = 44 + Math.round(this.rr(50, 100)), tr = N - 44, f = this.rr(240, 620), d = this.rr(0.55, 1.4), kind = i % 4;
+      const vA = this.pick([["a", "e"], ["e", "a"], ["a", "o"], ["o", "a"]][kind]), vB = this.pick(["e", "a", "o", "a"].filter(v => v !== vA)), w = () => this.rr(0.8, 1.2);
       const shapes = { [vA]: this.klShape(vA, N, tr, this.rr(0.3, 0.8)), [vB]: this.klShape(vB, N, tr, this.rr(0.3, 0.8)) };
       const base = { tense: this.rr(0.88, 0.98), asp: this.rr(0.25, 0.45), noise: this.rr(0.05, 0.14), npos: 0.95, jit: this.rr(0.02, 0.04), shim: 1.2, sub: this.rr(0.2, 0.8) };
       const keys = [
@@ -2159,7 +2186,7 @@ registerProcessor("kl-tract", KLTract);
       ][kind];
       for (let j = 1; j < keys.length - 1; j++) { keys[j][0] = Math.min(keys[j][0] * w(), d * 0.95); keys[j][1] *= this.rr(0.92, 1.08); }
       keys.sort((a, b) => a[0] - b[0]);
-      return this.klSpec(N, 2, base, keys, shapes, { lp: this.rr(5000, 6000), nf: this.rr(1400, 2200), nq: 0.8, lipF: 3000 });
+      return this.klSpec(N, 2, base, keys, shapes, { lp: this.rr(3200, 3800), nf: this.rr(1200, 1900), nq: 0.8, lipF: 2000 });
     },
     // a sheep's bleat: 'meh-eh-eh', the voice trembling at about 7 Hz
     sheep(i) {
@@ -2212,8 +2239,8 @@ registerProcessor("kl-tract", KLTract);
       return this.klSpec(N, 2, base, [[0, f, 0, "a"], [0.006, f, 1, "a"], [d * c[0][0], f * c[0][1], 0.95, "a"], [d, f * c[1][1], 0, "o"]], shapes, { lp: 6000, nf: 2500, nq: 1 });
     },
   },
-  vbank: null, vbankState: null, vbankPromise: null, vbag: {}, bseed: 0x51ed270b, MAN_H: 0.5,
-  VBANK_N: [["man", 8], ["trumpet", 12], ["elephant", 12], ["snort", 4], ["gull", 6], ["crow", 6], ["sheep", 4], ["whinny", 3]],
+  vbank: null, vbankState: null, vbankPromise: null, vbag: {}, bseed: 0x51ed270b, MAN_H: 0.5, ELE_RUM: 0.036,
+  VBANK_N: [["man", 14], ["trumpet", 12], ["elephant", 12], ["snort", 8], ["gull", 6], ["crow", 6], ["sheep", 4], ["whinny", 3]],
   // a biquad (RBJ) run in place over a buffer: the bank's one-off leveling and tone work
   bqRun(x, type, f, Q, sr, gainDb) {
     const w = 2 * Math.PI * f / sr, c = Math.cos(w), al = Math.sin(w) / (2 * Q), A = Math.pow(10, (gainDb || 0) / 40);
@@ -2251,37 +2278,52 @@ registerProcessor("kl-tract", KLTract);
         const keep = this.seed; this.seed = this.bseed;
         for (const [kind, n] of this.VBANK_N) for (let i = 0; i < n; i++) jobs.push({ kind, spec: this.KL_SPEC[kind].call(this, i) });
         this.bseed = this.seed; this.seed = keep;
-        const render = async (job) => {
-          const oc = new OAC(1, Math.ceil(sr * (job.spec.dur + 0.06)), sr);
+        // level one rendered call: undo the SFX bus's +3.5 dB air shelf (so these voices keep their
+        // own top end), then level it on its loudness as heard: the loudest 400 ms, K-weighted (the
+        // ear's +4 dB above 1.5 kHz) within the voice band (100 Hz - 6 kHz, so no hiss or subsonic
+        // counts), with peaks held under 0.95
+        const level = x => {
+          let pk = 0; for (let j = 0; j < x.length; j++) pk = Math.max(pk, Math.abs(x[j]));
+          if (!(pk > 0) || !isFinite(pk)) return false;
+          this.bqRun(x, "shelf", 3000, 0.707, sr, -3.5);
+          const y = this.bqRun(this.bqRun(this.bqRun(Float32Array.from(x), "hp", 100, 0.707, sr), "lp", 6000, 0.707, sr), "shelf", 1500, 0.707, sr, 4);
+          const w = Math.min(y.length, Math.floor(sr * 0.4));
+          let acc = 0, best = 0;
+          for (let j = 0; j < y.length; j++) { acc += y[j] * y[j]; if (j >= w) acc -= y[j - w] * y[j - w]; if (j >= w - 1) best = Math.max(best, acc); }
+          pk = 0; for (let j = 0; j < x.length; j++) pk = Math.max(pk, Math.abs(x[j]));
+          const g = Math.min(0.1275 / Math.sqrt(Math.max(best, 1e-12) / w), 0.95 / pk);
+          for (let j = 0; j < x.length; j++) x[j] *= g;
+          return true;
+        };
+        // a group of calls rendered together on one offline context, one call per channel (the
+        // browser runs every worklet on a single audio thread, so separate contexts would only add
+        // set-up time); each call is then cut out into a buffer of its own
+        const renderGroup = async group => {
+          const len = Math.ceil(sr * (Math.max(...group.map(j => j.spec.dur)) + 0.06));
+          const oc = new OAC(group.length, len, sr);
           if (url) await oc.audioWorklet.addModule(url);
           else {
             for (const u of urls) { try { await oc.audioWorklet.addModule(u); url = u; break; } catch (e) {} }
             if (!url) throw new Error("no worklet");
           }
-          const node = new AudioWorkletNode(oc, "kl-tract", { numberOfInputs: 0, outputChannelCount: [1], processorOptions: job.spec });
-          node.connect(oc.destination);
-          const buf = await oc.startRendering();
-          const x = buf.getChannelData(0);
-          let pk = 0; for (let j = 0; j < x.length; j++) pk = Math.max(pk, Math.abs(x[j]));
-          if (!(pk > 0) || !isFinite(pk)) return null;
-          // undo the SFX bus's +3.5 dB air shelf, so these voices keep their own top end
-          this.bqRun(x, "shelf", 3000, 0.707, sr, -3.5);
-          // level on the voice band: the loudest 400 ms of 300 Hz - 4 kHz, peaks held under 0.95
-          const y = this.bqRun(this.bqRun(Float32Array.from(x), "hp", 300, 0.707, sr), "lp", 4000, 0.707, sr);
-          const w = Math.min(y.length, Math.floor(sr * 0.4));
-          let acc = 0, best = 0;
-          for (let j = 0; j < y.length; j++) { acc += y[j] * y[j]; if (j >= w) acc -= y[j - w] * y[j - w]; if (j >= w - 1) best = Math.max(best, acc); }
-          pk = 0; for (let j = 0; j < x.length; j++) pk = Math.max(pk, Math.abs(x[j]));
-          const g = Math.min(0.1 / Math.sqrt(Math.max(best, 1e-12) / w), 0.95 / pk);
-          for (let j = 0; j < x.length; j++) x[j] *= g;
-          return buf;
+          oc.destination.channelInterpretation = "discrete";
+          const mg = oc.createChannelMerger(group.length);
+          mg.connect(oc.destination);
+          group.forEach((job, q) => new AudioWorkletNode(oc, "kl-tract", { numberOfInputs: 0, outputChannelCount: [1], processorOptions: job.spec }).connect(mg, 0, q));
+          const all = await oc.startRendering();
+          group.forEach((job, q) => {
+            const n = Math.min(len, Math.ceil(sr * (job.spec.dur + 0.06)));
+            const buf = typeof AudioBuffer === "function" ? new AudioBuffer({ length: n, sampleRate: sr, numberOfChannels: 1 }) : oc.createBuffer(1, n, sr);
+            const x = buf.getChannelData(0); x.set(all.getChannelData(q).subarray(0, n));
+            if (level(x)) (bank[job.kind] = bank[job.kind] || []).push(buf);
+          });
         };
         this.vbank = bank;
-        // the first call alone (it settles which module URL works), then four at a time
-        for (let j = 0; j < jobs.length;) {
-          const batch = jobs.slice(j, j + (url ? 4 : 1)); j += batch.length;
-          const bufs = await Promise.all(batch.map(render));
-          batch.forEach((job, q) => { if (bufs[q]) (bank[job.kind] = bank[job.kind] || []).push(bufs[q]); });
+        // the men's cries first and by themselves (they are needed soonest), then the elephants'
+        // calls, then the animals of the ambience
+        for (const kinds of [["man"], ["trumpet", "elephant"], ["snort", "gull", "crow", "sheep", "whinny"]]) {
+          const group = jobs.filter(j => kinds.includes(j.kind));
+          for (let i = 0; i < group.length; i += 32) await renderGroup(group.slice(i, i + 32));
           await new Promise(r => setTimeout(r, 0));
         }
         this.vbankState = "ready";
@@ -2522,8 +2564,9 @@ registerProcessor("kl-tract", KLTract);
       this.nz(v, { t, k: "crackle", rate: 1, f: 2200, q: 0.8, a: 0.002, p: 0.5, d: 0.12 });
       this.thump(v, t, 105, 62, 0.045, 0.2, 3);
       const w = this.rr(0.01, 0.09);
-      this.nz(v, { t: t + w, k: "pink", f: this.rr(320, 450), path: [[this.rr(0.12, 0.25), this.rr(1500, 2300)], [0.7, 700]], q: 0.9, a: this.rr(0.08, 0.16), p: 0.9, d: this.rr(0.4, 0.65) });
-      this.nz(v, { t: t + w + 0.08, k: "crackle", rate: this.rr(0.7, 1.1), f: this.rr(1700, 2500), q: 0.7, a: 0.08, hold: this.rr(0.15, 0.3), p: 0.55, d: 0.6 });
+      this.nz(v, { t: t + w, k: "pink", f: this.rr(320, 450), path: [[this.rr(0.12, 0.25), this.rr(900, 1400)], [0.7, 500]], q: 0.9, a: this.rr(0.08, 0.16), p: 0.9, d: this.rr(0.4, 0.65) });
+      this.nz(v, { t: t + w, k: "brown", ft: "lowpass", f: 220, q: 0.7, a: 0.03, hold: 0.08, p: 0.22, d: 0.4 });   // the whoomph of the oil catching
+      this.nz(v, { t: t + w + 0.08, k: "crackle", rate: this.rr(0.7, 1.1), f: this.rr(1300, 1900), q: 0.7, a: 0.08, hold: this.rr(0.15, 0.3), p: 0.45, d: 0.6 });
     },
     explosion(v, t) { this.blast(v, t, 1); },
     // the siege gun's ball bursts on the tower; the report from the road arrives after it
@@ -2576,7 +2619,7 @@ registerProcessor("kl-tract", KLTract);
         // weight and the howdah splinters
         // three bellows: a long sinking groan, a short broken roar, a high squeal that collapses
         let T;
-        const bd = this.vcall(v, "elephant", t, 0.65);   // the physical-model bellow
+        const bd = this.vcall(v, "elephant", t, 0.72);   // the physical-model bellow
         if (bd) T = t + Math.min(0.8 * bd, 1.2) + this.rr(-0.04, 0.04);   // it falls as the bellow dies
         else {
         const n = this.rrIdx("elephant", 3), f0 = [250, 215, 300][n] * this.rr(0.93, 1.07);
@@ -2605,7 +2648,7 @@ registerProcessor("kl-tract", KLTract);
         this.nz(v, { t: t + 0.2, k: "pink", f: 440, q: 1, p: 0.5, d: 0.35 });
       } else if (kind === "cavalry" || (kind === "flyer" && o.era === 3)) {
         // the horse goes down: a blowing snort through the nostrils, a heavy fall, the tack jingling
-        if (this.vcall(v, "snort", t, 0.115)) { if (this.rnd() < 0.3) this.vcall(v, "whinny", t + 0.05, 0.06); }
+        if (this.vcall(v, "snort", t, 0.128)) { if (this.rnd() < 0.3) this.vcall(v, "whinny", t + 0.05, 0.078); }
         else {
           this.formant(v, { cons: "h", consF: 1500, t, f: this.rr(70, 90), forms: [[600, 2, 1, 900, 500], [1500, 3, 0.5]], a: 0.02, d: 0.22, p: 0.06, breath: 1, jit: 80 });
           const g = this.nz(v, { t, k: "pink", f: 900, q: 1, a: 0.02, p: 0.3, d: 0.2 });
@@ -2725,7 +2768,7 @@ registerProcessor("kl-tract", KLTract);
     // a war elephant trumpets: a rough blare through the trunk's resonances, the vowel opening and
     // closing, a subharmonic growl under it
     trumpet(v, t) {
-      if (this.vcall(v, "trumpet", t, 1.05)) return;   // the physical-model trumpet
+      if (this.vcall(v, "trumpet", t, 1.4)) return;   // the physical-model trumpet
       const f = this.rr(390, 520);
       // the contour itself is drawn fresh each time: a rise, a ragged plateau, a collapse
       const pk = this.rr(1.05, 1.25), mid = this.rr(0.92, 1.08), tail = this.rr(0.62, 0.8);
@@ -2823,20 +2866,24 @@ registerProcessor("kl-tract", KLTract);
     // a tessera set or a map seal touched: a tiny tick in one of three materials (stone, boxwood,
     // bronze), each pitched up to two semitones either way
     uiTick(v, t) {
-      const m = this.rrIdx("uiTick", 3), j = Math.pow(2, this.rr(-2, 2) / 12);
-      if (m === 0) {        // stone on stone: dry, high, short
-        const f = 2300 * j;
-        this.nz(v, { t, f: f * 1.6, q: 1.5, a: 0.0003, p: 0.5, d: 0.01 });
-        this.modal(v, { t, f, p: 0.22, jit: 0.04, parts: [[1, 1, 0.022 * this.rr(0.8, 1.2)], [2.31, 0.45, 0.012 * this.rr(0.8, 1.2)]] });
-      } else if (m === 1) { // boxwood: rounder, lower, a hollow knock
-        const f = 1150 * j;
-        this.nz(v, { t, f: f * 2, q: 1.2, a: 0.0004, p: 0.35, d: 0.008 });
-        this.modal(v, { t, f, p: 0.3, jit: 0.04, parts: [[1, 1, 0.03 * this.rr(0.8, 1.2)], [2.76 * this.rr(0.97, 1.03), 0.4, 0.015], [5.4 * this.rr(0.96, 1.04), 0.15, 0.008]] });
-      } else {              // a little bronze: thin and ringing a touch longer
-        const f = 3200 * j;
-        this.nz(v, { t, ft: "highpass", f: 4000, a: 0.0003, p: 0.25, d: 0.006 });
-        this.modal(v, { t, f, p: 0.14, jit: 0.04, parts: [[1, 1, 0.07 * this.rr(0.8, 1.2)], [2.4 * this.rr(0.97, 1.03), 0.4, 0.04], [3.9 * this.rr(0.96, 1.04), 0.25, 0.025]] });
-      }
+      // three materials in turn; within each, every tap is struck differently: a different piece of
+      // the material (its own overtone set), pitch over +/-3 semitones, the ring longer or shorter
+      // (its level held), and now and then a light second touch a few tens of ms later
+      const m = this.rrIdx("uiTick", 3), j = Math.pow(2, this.rr(-4, 4) / 12), dk = this.rr(0.75, 1.35), r = () => this.rr(0.8, 1.25);
+      const lv = Math.pow(dk, -0.3) * Math.pow(j, -0.5);   // a longer or higher ring, a lighter touch
+      // [fundamental, [overtone ratio, weight] x2, noise-click band]: each tap a different piece
+      const P = [[2300, [this.rr(1.8, 2.8), 0.45], [this.rr(3, 4.4), 0.25], this.rr(1.3, 2.2)],
+        [1150, [this.rr(2, 3.2), 0.4], [this.rr(4.2, 6.4), 0.15], this.rr(1.6, 2.8)],
+        [this.rr(2600, 3800), [this.rr(2, 2.9), this.rr(0.2, 0.6)], [this.rr(3.2, 4.8), this.rr(0.1, 0.4)], 0]][m];
+      const dec = [0.022, 0.03, 0.07][m] * dk, p = [0.22, 0.3, 0.14][m] * lv;
+      const tap = (tt, g) => {
+        const f = P[0] * j;
+        if (m < 2) this.nz(v, { t: tt, f: f * P[3] * this.rr(0.85, 1.2), q: this.rr(0.8, 2), a: 0.0003, p: [0.5, 0.35][m] * g * lv, d: 0.01 * dk });
+        else this.nz(v, { t: tt, f: this.rr(4000, 9000), q: this.rr(0.7, 2.5), a: 0.0003, p: 0.3 * g * lv, d: 0.006 * dk });
+        this.modal(v, { t: tt, f, p: p * g, jit: 0.04, parts: [[1, 1, dec], [P[1][0] * this.rr(0.97, 1.03), P[1][1] * r(), dec * 0.55 * r()], [P[2][0] * this.rr(0.96, 1.04), P[2][1] * r(), dec * 0.35]] });
+      };
+      tap(t, 1);
+      if (this.rnd() < 0.35) tap(t + this.rr(0.025, 0.06), this.rr(0.2, 0.35));
     },
     // a wooden token set on the map, and a little bronze answer on D and A
     mapSelect(v, t) {
@@ -2865,19 +2912,19 @@ registerProcessor("kl-tract", KLTract);
   //      own, and sparse events that stand 6-10 dB proud of the bed ----
   AMB: {
     // Erebuni: open plateau, vineyards below the fortress: wind, cicadas by day, crickets at night
-    erebuni: { trim: -14.8, ntrim: -10.5, wind: 0.9, wf: 380, crickets: 1, sig: "cicadas", birds: ["lark", "lark", "sparrow"], gap: [2.5, 6], nightEv: ["owl"], rare: ["sheep"] },
+    erebuni: { trim: -14.3, ntrim: -11.9, wind: 0.9, wf: 380, crickets: 1, sig: "cicadas", birds: ["lark", "lark", "sparrow"], gap: [2.5, 6], nightEv: ["owl", "dog", "owl"], ngap: [2.5, 6], rare: ["sheep"] },
     // Tushpa on Lake Van: reeds along the shore, coots and gulls, frogs at night
-    urartu:  { trim: -15.9, ntrim: -14.5, wind: 0.7, wf: 340, water: 1, crickets: 0.8, sig: "reeds", birds: ["coot", "gull", "lark", "coot"], gap: [2.5, 6], nightEv: ["frog"] },
+    urartu:  { trim: -15.4, ntrim: -21.5, wind: 0.7, wf: 340, water: 1, crickets: 0.8, sig: "reeds", birds: ["coot", "gull", "lark", "coot"], gap: [2.5, 6], nightEv: ["frog", "frog", "frog", "owl"], ngap: [1.5, 4] },
     // Avarayr: the river Tghmut running across the plain
-    ararat:  { trim: -13.8, ntrim: -13.9, wind: 0.6, wf: 360, crickets: 1, sig: "river", birds: ["lark", "sparrow", "coot"], gap: [2.5, 6], nightEv: ["frog"], rare: ["sheep"] },
+    ararat:  { trim: -13.3, ntrim: -16.5, wind: 0.6, wf: 360, crickets: 1, sig: "river", birds: ["lark", "sparrow", "coot"], gap: [2.5, 6], nightEv: ["frog", "frog", "dog"], ngap: [1.5, 4], rare: ["sheep"] },
     // Dvin: the capital's life carried on the wind: market murmur by day, the cathedral bell
-    dvin:    { trim: -15.7, ntrim: -10.5, wind: 0.8, wf: 420, crickets: 1, sig: "town", birds: ["sparrow", "lark"], gap: [2.5, 6], nightEv: ["owl"], rare: ["churchBell", "smith", "cart", "cart", "sheep"], rareGap: [4, 10] },
+    dvin:    { trim: -15.2, ntrim: -11.8, wind: 0.8, wf: 420, crickets: 1, sig: "town", birds: ["sparrow", "lark"], gap: [2.5, 6], nightEv: ["dog", "dog", "owl"], ngap: [2, 5], rare: ["churchBell", "smith", "cart", "cart", "sheep"], rareGap: [4, 10] },
     // Tashir: a beech gorge with a stream running through it
-    lori:    { trim: -15.8, ntrim: -13.7, wind: 0.45, wf: 300, rustle: 1, crickets: 0.9, sig: "stream", birds: ["song", "song", "sparrow"], gap: [2.4, 6], nightEv: ["owl"], rare: ["twig"] },
+    lori:    { trim: -15.3, ntrim: -19.2, wind: 0.45, wf: 300, rustle: 1, crickets: 0.9, sig: "stream", birds: ["song", "song", "sparrow"], gap: [2.4, 6], nightEv: ["owl", "owl", "twig"], ngap: [2.5, 6], rare: ["twig"] },
     // Sevan: open water: slow swells and lapping, gulls wheeling
-    sevan:   { trim: -23.2, ntrim: -21.4, wind: 0.9, wf: 440, water: 1.2, crickets: 0.8, sig: "swell", birds: ["gull", "gull", "lark"], gap: [2, 5], nightEv: ["frog"] },
+    sevan:   { trim: -22.7, ntrim: -24.3, wind: 0.9, wf: 440, water: 1.2, crickets: 0.8, sig: "swell", birds: ["gull", "gull", "lark"], gap: [2, 5], nightEv: ["frog", "frog", "dog"], ngap: [1.8, 4.5] },
     // Gyumri in winter: whistling snow wind, crows, boots crunching, timbers creaking in the cold
-    gyumri:  { trim: -16.2, ntrim: -9.5, wind: 1.3, wf: 520, whistle: 1, sig: "snow", birds: ["crow"], gap: [5, 11], nightEv: ["timber", "timber", "wolf"], rare: ["crunch", "timber"] },
+    gyumri:  { trim: -15.7, ntrim: -7.5, wind: 1.3, wf: 520, whistle: 1, sig: "snow", birds: ["crow"], gap: [5, 11], nightEv: ["timber", "wolf", "dog", "timber"], ngap: [3, 7], rare: ["crunch", "timber"] },
   },
   scene() {
     if (this.sceneOverride) return this.sceneOverride;
@@ -3018,14 +3065,14 @@ registerProcessor("kl-tract", KLTract);
     }
     const b = this.amb;
     if (!b) return;
-    // night: the wind drops about 7 dB, the insects come up, the day layers fade
-    const P = b.P, night = Math.max(0, Math.min(1, sc.night || 0)), nb = 1 - 0.55 * night;
+    // night: the wind drops about 12 dB, the insects come up, the day layers fade
+    const P = b.P, night = Math.max(0, Math.min(1, sc.night || 0)), nb = 1 - 0.75 * night;
     if (Math.abs(night - b.night) > 0.01) {
       const first = b.night < 0;
       b.night = night;
       b.nightG.gain.setTargetAtTime(night * 1.45, t, 2);
       b.dayG.gain.setTargetAtTime(1 - 0.9 * night, t, 2);
-      // each bed is levelled separately for day and night, so both sit near -42 LUFS
+      // each bed is levelled separately for day and night: about -42 LUFS by day, 3-4 dB quieter by night
       b.out.gain.setTargetAtTime(Math.pow(10, ((P.trim || 0) * (1 - night) + (P.ntrim == null ? P.trim || 0 : P.ntrim) * night) / 20), t, first ? 0.9 : 2);
     }
     for (; b.nGust < horizon; b.nGust += this.rr(2, 5)) {
@@ -3060,10 +3107,10 @@ registerProcessor("kl-tract", KLTract);
     for (; b.nBird < horizon; b.nBird += this.rr(P.gap[0], P.gap[1])) {
       if (P.birds && this.rnd() > night * 1.2) this.ambEv(b, this.pick(P.birds), b.nBird);
     }
-    for (; b.nNight < horizon; b.nNight += this.rr(3, 7)) {
+    for (; b.nNight < horizon; b.nNight += this.rr(...(P.ngap || [3, 7]))) {
       if (P.nightEv && this.rnd() < night * 0.8) {
         const k = this.pick(P.nightEv);
-        if (k !== "wolf" || this.rnd() < 0.3) this.ambEv(b, k, b.nNight);
+        if (k !== "wolf" || this.rnd() < 0.4) this.ambEv(b, k, b.nNight, k === "dog" ? this.rr(0.6, 1) : 1);
       }
     }
     for (; b.nRare < horizon; b.nRare += P.rareGap ? this.rr(P.rareGap[0], P.rareGap[1]) : this.rr(8, 20)) {
@@ -3123,7 +3170,7 @@ registerProcessor("kl-tract", KLTract);
       for (let i = 0; i < n; i++) {
         // each call in the series has its own shape: a long 'kee-ow', a clipped 'kek', a rising 'kyow'
         const tt = t + i * this.rr(0.3, 0.55), f = this.rr(820, 1080), shape = this.pick([0, 0, 1, 2]);
-        if (this.vcall(v, "gull", tt, 0.033)) continue;
+        if (this.vcall(v, "gull", tt, 0.041)) continue;
         const path = [[[this.rr(0.05, 0.1), f * this.rr(1.3, 1.6)], [this.rr(0.25, 0.38), f * this.rr(0.75, 0.9)]], [[0.04, f * this.rr(1.1, 1.25)], [0.1, f * 0.95]], [[0.12, f * this.rr(1.4, 1.7)], [0.22, f * 1.3]]][shape];
         this.formant(v, { cry: true, syrinx: true, t: tt, f, path, forms: [[1800 * this.rr(0.9, 1.1), 4, 1, 2300 * this.rr(0.9, 1.1), 1500], [3000, 5, 0.5]], hold: [0.08, 0.02, 0.06][shape], d: [0.22, 0.08, 0.16][shape] * this.rr(0.85, 1.15), p: 0.022, drive: 2, jit: 18, breath: 0.2 });
       }
@@ -3142,7 +3189,7 @@ registerProcessor("kl-tract", KLTract);
       for (let i = 0; i < n; i++) {
         // caws vary: a flat 'kaah', a falling 'kraa', a short clipped one
         const tt = t + i * this.rr(0.28, 0.45), f = this.rr(370, 470), shape = this.pick([0, 1, 1, 2]);
-        if (this.vcall(v, "crow", tt, 0.028)) continue;
+        if (this.vcall(v, "crow", tt, 0.036)) continue;
         const path = [[[0.15, f * this.rr(0.95, 1.02)]], [[0.04, f * 1.08], [0.2, f * this.rr(0.72, 0.85)]], [[0.08, f * 0.9]]][shape];
         this.formant(v, { cry: true, syrinx: true, rough: 0.4, t: tt, f, path, forms: [[1100 * this.rr(0.9, 1.1), 3, 1, 1300, 900], [1700 * this.rr(0.9, 1.1), 4, 0.6]], hold: [0.08, 0.06, 0.02][shape], d: [0.15, 0.17, 0.08][shape], p: 0.03, drive: 4, jit: 30, breath: 0.35 });
       }
@@ -3164,7 +3211,7 @@ registerProcessor("kl-tract", KLTract);
         s.setPeriodicWave(this.pulseWave); s.frequency.value = this.rr(120, 170);
         g.gain.setValueAtTime(0, t0);
         const k = 5 + Math.floor(this.rnd() * 4);
-        for (let i = 0; i < k; i++) { const tk = t0 + i * 0.026; g.gain.setValueAtTime(0, tk); g.gain.linearRampToValueAtTime(0.09, tk + 0.006); g.gain.linearRampToValueAtTime(0, tk + 0.022); }
+        for (let i = 0; i < k; i++) { const tk = t0 + i * 0.026; g.gain.setValueAtTime(0, tk); g.gain.linearRampToValueAtTime(0.06, tk + 0.006); g.gain.linearRampToValueAtTime(0, tk + 0.022); }
         s.connect(b); b.connect(g); g.connect(v.out); this.start(v, s, t0, t0 + k * 0.026 + 0.05);
       }
     },
@@ -3175,6 +3222,14 @@ registerProcessor("kl-tract", KLTract);
         this.tn(v, { t: t + dt, f, f2: f * 0.93, a: 0.05, hold: d * 0.4, p: 0.009, d: d * 0.6 });
       });
     },
+    // a dog barking far off at a village: one to four rough barks, the pitch flicking up and falling
+    dog(v, t) {
+      const n = 1 + Math.floor(this.rnd() * 4), f = this.rr(380, 560), gap = this.rr(0.28, 0.5);
+      for (let i = 0; i < n; i++) {
+        const tt = t + i * gap * this.rr(0.85, 1.2), ff = f * this.rr(0.94, 1.06);
+        this.formant(v, { cry: true, rough: 0.4, cons: "h", consF: 1200, t: tt, f: ff, path: [[0.025, ff * 1.3], [0.12, ff * 0.75]], forms: [[750, 4, 1, 650], [1500, 5, 0.45, 1300], [2500, 6, 0.1]], a: 0.008, hold: 0.03, d: 0.09, p: 0.012, drive: 3, jit: 25, breath: 0.35 });
+      }
+    },
     // a wolf far off across the snow
     wolf(v, t) {
       const s = this.tn(v, { t, f: 380, f2: 560, gl: 0.6, a: 0.4, hold: 1.2, p: 0.008, d: 1 });
@@ -3183,7 +3238,7 @@ registerProcessor("kl-tract", KLTract);
     },
     // a sheep somewhere in the flock
     sheep(v, t) {
-      if (this.vcall(v, "sheep", t, 0.034)) return;
+      if (this.vcall(v, "sheep", t, 0.031)) return;
       const f = this.rr(270, 340);
       const s = this.formant(v, { cons: "b", consF: 700, t, f, path: [[0.5, f * 0.9]], forms: [[800, 4, 1, 700, 600], [2100, 6, 0.5, 1900]], a: 0.06, hold: 0.3, d: 0.25, p: 0.025, jit: 25, breath: 0.3 });
       this.lfo(v, s.detune, t, t + 0.65, 7, 40);
