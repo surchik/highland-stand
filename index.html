@@ -4486,6 +4486,10 @@ const SKIN_SPECS = {
   exhort:   { b: ["Battle Standards"] },
   banner:   { b: ["Battle Standards"] },
   drums:    { b: ["Battle Standards"] },
+  matchlock: { a: ["Picked Marksmen", "Great range and heavy balls"], b: ["Rolling Volley", "Fire by turns, twice as fast"] },
+  falconet: { a: ["Bronze Falconet", "One heavy armor-splitting shot"], b: ["Paired Wall Guns", "Two guns, two targets"] },
+  rollstones: { a: ["Stone Avalanche", "A whole crib of boulders, huge blast"], b: ["Blazing Logs", "Burning pitch-soaked logs cling to the enemy"] },
+  bekbanner: { a: ["Dhol and Zurna", "Nearby towers strike far faster"], b: ["Banners of the Meliks", "Mighty blows; kills near the banners pay +30% gold"] },
 };
 const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm"];
 // a battlefield may call its towers by its own names (L.towers[slot].name) where its era's row does not fit it
@@ -26631,12 +26635,352 @@ SKIN_ART.exhort = {
 // SKIN SECTION: matchlock. 1727, archer slot: Syunik matchlock musketeers
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Halidzor, 1727: a quadrangle of grey rubble walls on a ridge above the Voghji, with round towers
+// on its corners. Davit Bek's mountaineers held it with matchlocks: long dark coats, sashes, fur
+// or felt caps, a powder flask on its cord. The gunners are the 1579 kit (MUSKET_DRESS, the
+// musket section's live pass); the round towers and dry-stone works are Syunik's own.
+// The Syunik helpers here (SYK_*, syk*) are shared by the falconet, rollstones and bekbanner skins.
+const SYK_STONE = { mid: "#a59e91", side: "#756e65", trim: "#d3cab9", mortar: "rgba(236, 230, 214, .3)", band: 0, urartu: false };
+const SYK_DRY = { mid: "#978f82", side: "#6a6359", trim: "#bfb6a5", mortar: null, band: 0, urartu: false };
+const SYK_Q = 0.38;   // a round work's ellipse, as the pads' drums are drawn
+
+// the outline of an upright round work standing on (0, 0): its body and its whole top
+function sykCylPath(rx, ry, h) {
+  const c = sctx;
+  c.beginPath();
+  c.moveTo(-rx, -h);
+  c.lineTo(-rx, 0);
+  c.ellipse(0, 0, rx, ry, 0, Math.PI, 0, true);
+  c.lineTo(rx, -h);
+  c.ellipse(0, -h, rx, ry, 0, 0, Math.PI, true);
+  c.closePath();
+}
+// stones laid in courses round the front of a curved face between y0 (foot) and y0 - h:
+// each stone a little lighter or darker, the joints dark (dry) or with pale mortar
+function sykCourses(rx, ry, y0, h, rough, seed) {
+  const c = sctx, rnd = mulberry32(seed || 7);
+  let y = y0, row = 0;
+  c.lineWidth = 0.45;
+  while (y > y0 - h + 0.6) {
+    const hh = rough ? 2.7 + rnd() * 1.8 : 4.4, y1 = Math.max(y0 - h, y - hh);
+    let u = Math.PI + (row % 2 ? 0 : 0.12) + rnd() * 0.1;
+    while (u > 0) {
+      const len = rough ? 3.2 + rnd() * 3.6 : 6 + rnd() * 2.4, u1 = Math.max(0, u - len / rx);
+      const x0 = rx * Math.cos(u), x1 = rx * Math.cos(u1), s0 = ry * Math.sin(u), s1 = ry * Math.sin(u1);
+      const r = rnd();
+      c.beginPath();
+      c.moveTo(x0, y + s0); c.lineTo(x1, y + s1); c.lineTo(x1, y1 + s1); c.lineTo(x0, y1 + s0);
+      c.closePath();
+      if (r < 0.42) {
+        c.fillStyle = r < 0.2 ? "rgba(40, 30, 20, " + (0.08 + rnd() * 0.1).toFixed(2) + ")" : "rgba(255, 248, 232, " + (0.06 + rnd() * 0.1).toFixed(2) + ")";
+        c.fill();
+      }
+      c.strokeStyle = rough ? "rgba(34, 24, 14, .42)" : "rgba(40, 28, 16, .26)";
+      c.stroke();
+      if (!rough) {
+        c.strokeStyle = "rgba(240, 232, 214, .22)";
+        c.beginPath(); c.moveTo(x0, y1 + s0 + 0.5); c.lineTo(x1, y1 + s1 + 0.5); c.stroke();
+        c.lineWidth = 0.45;
+      }
+      u = u1;
+    }
+    y = y1;
+    row++;
+  }
+}
+// an upright round work: tower, drum or breastwork ring. o: T, rough, seed, top (fill its top)
+function sykCyl(rx, h, o) {
+  const c = sctx, T = o.T || SYK_STONE, ry = rx * SYK_Q;
+  sykCylPath(rx, ry, h);
+  const g = c.createLinearGradient(-rx, 0, rx, 0);
+  g.addColorStop(0, toneHex(T.mid, 18));
+  g.addColorStop(0.32, T.mid);
+  g.addColorStop(0.78, T.side);
+  g.addColorStop(1, toneHex(T.side, -24));
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  sykCourses(rx, ry, 0, h, o.rough, o.seed);
+  // damp at the foot, the light down the lit flank
+  const fg = c.createLinearGradient(0, ry - 4, 0, ry);
+  fg.addColorStop(0, "rgba(30, 18, 8, 0)");
+  fg.addColorStop(1, "rgba(30, 18, 8, .3)");
+  c.fillStyle = fg;
+  c.fillRect(-rx, -4, rx * 2, ry + 4);
+  c.strokeStyle = "rgba(255, 248, 228, .42)";
+  c.lineWidth = 0.7;
+  c.beginPath();
+  c.moveTo(-rx + 0.9, -h + 1); c.lineTo(-rx + 0.9, -1);
+  c.stroke();
+  c.restore();
+  if (o.top !== false) {
+    const tg = c.createLinearGradient(-rx, -h - ry, rx, -h + ry);
+    tg.addColorStop(0, toneHex(T.mid, 30));
+    tg.addColorStop(1, toneHex(T.mid, 4));
+    inkDisc(0, -h, rx, ry, tg, 0.9);
+  }
+  sykCylPath(rx, ry, h);
+  inkStroke(1.3);
+}
+// a curved string course round the front of a round work at height y
+function sykCylCourse(rx, y) {
+  const c = sctx, ry = rx * SYK_Q;
+  c.beginPath();
+  c.ellipse(0, y + 1.6, rx, ry, 0, 0.04, Math.PI - 0.04);
+  c.strokeStyle = "rgba(30, 16, 6, .24)"; c.lineWidth = 2; c.stroke();
+  c.beginPath();
+  c.ellipse(0, y, rx + 0.6, ry + 0.2, 0, 0, Math.PI);
+  c.strokeStyle = INK; c.lineWidth = 2.2; c.stroke();
+  c.strokeStyle = SYK_STONE.trim; c.lineWidth = 1.2; c.stroke();
+}
+// the far half of a breastwork ring of thickness t on a round top at -H, merlons along its crest
+// (they stand behind the men; the near half is a plain breastwork the guns fire over)
+function sykRingBack(rx, H, bh, T, o) {
+  const c = sctx, t = 2.2, ir = rx - t, iry = ir * SYK_Q, mh = o.merlons ? 3.6 : 0, n = 26;
+  // the inner face of the far run, seen over the walk
+  c.beginPath();
+  for (let i = 0; i <= n; i++) {
+    const u = Math.PI + Math.PI * i / n, x = ir * Math.cos(u), y = -H + iry * Math.sin(u);
+    if (i) c.lineTo(x, y); else c.moveTo(x, y);
+  }
+  for (let i = n; i >= 0; i--) {
+    const u = Math.PI + Math.PI * i / n, x = ir * Math.cos(u), y = -H - bh + iry * Math.sin(u);
+    const m = o.merlons && i > 1 && i < n - 1 && Math.floor(i / 3) % 2 === 0 ? mh : 0;
+    c.lineTo(x, y - m);
+  }
+  c.closePath();
+  const g = c.createLinearGradient(-ir, 0, ir, 0);
+  g.addColorStop(0, toneHex(T.side, -14));
+  g.addColorStop(1, toneHex(T.mid, 6));
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  c.strokeStyle = o.rough ? "rgba(34, 24, 14, .38)" : "rgba(40, 28, 16, .22)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let yy = -H - 2.2; yy > -H - bh - mh; yy -= 2.4) {
+    c.moveTo(-ir, yy); c.ellipse(0, yy, ir, iry, 0, Math.PI, Math.PI * 2);
+  }
+  c.stroke();
+  c.restore();
+  inkStroke(1);
+  // the lit crest of the far run
+  c.strokeStyle = "rgba(255, 248, 228, .55)";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  c.ellipse(0, -H - bh - 0.5, ir, iry, 0, Math.PI * 1.05, Math.PI * 1.95);
+  c.stroke();
+  if (structSnow) snowCap(-ir * 0.6, -H - bh - iry - mh, ir * 1.2, 1.2);
+}
+// the near half of the ring: the outer face, a coping on its crest, gun loops at `loops` (x)
+function sykRingFront(rx, H, bh, T, o) {
+  const c = sctx, t = 2.2, ry = rx * SYK_Q, ir = rx - t, iry = ir * SYK_Q;
+  c.save();
+  c.translate(0, -H);
+  // the band of wall: outer front arc at its foot and its crest
+  c.beginPath();
+  c.moveTo(-rx, -bh);
+  c.lineTo(-rx, 0);
+  c.ellipse(0, 0, rx, ry, 0, Math.PI, 0, true);
+  c.lineTo(rx, -bh);
+  c.ellipse(0, -bh, rx, ry, 0, 0, Math.PI, false);
+  c.closePath();
+  const g = c.createLinearGradient(-rx, 0, rx, 0);
+  g.addColorStop(0, toneHex(T.mid, 18));
+  g.addColorStop(0.32, T.mid);
+  g.addColorStop(0.78, T.side);
+  g.addColorStop(1, toneHex(T.side, -24));
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  sykCourses(rx, ry, 0, bh, o.rough, o.seed || 31);
+  c.restore();
+  inkStroke(1.2);
+  // the coping: the crest of the near run, between its outer and inner arcs
+  c.beginPath();
+  c.ellipse(0, -bh, rx, ry, 0, Math.PI, 0, true);
+  c.ellipse(0, -bh, ir, iry, 0, 0, Math.PI, false);
+  c.closePath();
+  c.fillStyle = o.rough ? toneHex(T.mid, 14) : toneHex(T.trim, -8);
+  c.fill();
+  inkStroke(0.8);
+  c.strokeStyle = "rgba(255, 250, 236, .6)";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  c.ellipse(0, -bh - 0.3, ir + 0.6, iry + 0.3, 0, Math.PI * 0.62, Math.PI * 0.96);
+  c.stroke();
+  if (o.loops) for (const lx of o.loops) musketLoop(lx, -bh * 0.48 + ry * Math.sqrt(Math.max(0, 1 - (lx / rx) * (lx / rx))), 0.8);
+  if (structSnow) {
+    snowCap(-rx * 0.9, -bh + ry * 0.5, rx * 0.8, 1.2);
+    snowCap(rx * 0.1, -bh + ry * 0.9, rx * 0.7, 1.1);
+  }
+  c.restore();
+}
+// a row of stout corbels under an overhanging round parapet, at the foot y of the ring
+function sykCorbels(rx, y, n) {
+  const c = sctx, ry = rx * SYK_Q;
+  for (let i = 0; i < n; i++) {
+    const u = Math.PI * (i + 0.5) / n, x = rx * Math.cos(u), yy = y + ry * Math.sin(u), w = 1.6 * Math.sin(u) + 0.4;
+    inkPoly([x - w, yy, x + w, yy, x + w * 0.6, yy + 4, x - w * 0.6, yy + 4], u < Math.PI / 2 ? SYK_STONE.side : toneHex(SYK_STONE.mid, 4), 0.6);
+    c.fillStyle = "rgba(20, 12, 6, .45)";
+    c.fillRect(x + w, yy + 0.4, 0.9, 3.2);
+  }
+}
+// the front y of a ring's crest at x: where a gunner standing behind it has his hips
+function sykCrest(rx, H, bh, x) {
+  const ir = rx - 2.2, u = Math.min(1, Math.abs(x) / ir);
+  return -H - bh + ir * SYK_Q * Math.sqrt(1 - u * u) * 0.55;
+}
+// a gunner for the musket section's live pass, hips at (x, y) in the painter's frame
+function sykGunner(x, y, o) {
+  const g = Object.assign({ p: structPoint(x, y), s: 1, len: 17, coat: MUSKET_DRESS.coats[0], fur: true, face: 1 }, o);
+  g.sleeve = toneHex(g.coat, 14);
+  g.sleeveFar = toneHex(g.coat, 20);
+  (structFit.gunners || (structFit.gunners = [])).push(g);
+  structCrown(y - 17.5 * g.s - (g.load ? 6 : 0));
+}
+// a ladder leant against a wall: two rails and rungs
+function sykLadder(x0, y0, x1, y1, w) {
+  const c = sctx, n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 4.6));
+  beam(x0, y0, x1, y1, 1.2, TIMBER);
+  beam(x0 + w, y0, x1 + w, y1, 1.2, TIMBER);
+  c.strokeStyle = TIMBER_DARK;
+  c.lineWidth = 0.9;
+  c.beginPath();
+  for (let i = 1; i < n; i++) {
+    const f = i / n, x = x0 + (x1 - x0) * f, y = y0 + (y1 - y0) * f;
+    c.moveTo(x, y); c.lineTo(x + w, y);
+  }
+  c.stroke();
+}
+// grass and a little scrub where the stone meets the hill, the green of a Syunik spring
+function sykTufts(pts, seed) {
+  const c = sctx, rnd = mulberry32(seed || 13);
+  c.lineCap = "round";
+  for (const p of pts) {
+    const n = 4 + Math.floor(rnd() * 3);
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i - n / 2) * 0.32 + (rnd() - 0.5) * 0.2, l = (p[2] || 3.6) * (0.6 + rnd() * 0.5);
+      c.beginPath();
+      c.moveTo(p[0] + (i - n / 2) * 0.5, p[1]);
+      c.lineTo(p[0] + (i - n / 2) * 0.5 + Math.cos(a) * l, p[1] + Math.sin(a) * l);
+      c.strokeStyle = "rgba(38, 30, 12, .7)"; c.lineWidth = 1.2; c.stroke();
+      c.strokeStyle = i % 2 ? "#6f8f3e" : "#8aa84c"; c.lineWidth = 0.6; c.stroke();
+    }
+  }
+}
+
+function paintMatchlock(lvl, spec) {
+  const c = sctx, S = footStone(), D = MUSKET_DRESS, A = TOWER_ACCENT.archer;
+  const base = towerBase("archer", lvl, spec);
+  footDrum(base.rx, base.ry, base.h, S, 405 + lvl + (spec === "a" ? 7 : spec === "b" ? 13 : 0));
+  c.save();
+  c.translate(0, -base.h);
+  // each rank its own outline: a dry-stone sangar tower, a mortared corner tower, the same raised
+  // and corbelled; the marksmen's slender roofed tower, the volley's broad two-tiered drum
+  const R = spec === "a" ? { rx: 13, H: 50, bh: 5.2 } : spec === "b" ? { rx: 19, H: 32, bh: 5.6 }
+    : [{ rx: 16, H: 19, bh: 5 }, { rx: 16, H: 38, bh: 5.4 }, { rx: 16.5, H: 44, bh: 5.8 }][lvl];
+  const rough = !spec && lvl === 0, T = rough ? SYK_DRY : SYK_STONE, seed = 411 + lvl * 7 + (spec ? 19 : 0) + (spec === "b" ? 5 : 0);
+  const rx = R.rx, H = R.H, ry = rx * SYK_Q;
+  sykCyl(rx, H, { T, rough, seed });
+  upgradeStuds(0, ry - 2.6, lvl, spec);
+  if (rough) {
+    // a ladder is the way up; tufts grow out of the dry joints at the foot
+    sykLadder(-rx + 1.6, ry * 0.7 + 1, -rx + 4.2, -H + 1.2, 3.6);
+    sykTufts([[-rx + 1.4, ry * 0.4, 3], [rx - 2.4, ry * 0.6, 3.4], [4, ry + 0.4, 2.6]], seed);
+  } else {
+    // a low arched door on the near side, its sill on the drum
+    c.save();
+    c.translate(spec === "b" ? -6 : -2.5, ry * 0.92);
+    archDoor(0, spec === "b" ? 5.6 : 5, spec === "b" ? 8.6 : 9.4, SYK_STONE.trim);
+    c.restore();
+    sykCylCourse(rx, -H * 0.42);
+    weatherStreaks(-rx * 0.7, -H * 0.42 + ry + 2, rx * 1.4, 7, seed + 3);
+    wallTorch(spec === "b" ? 4.6 : 4.2, -6 + ry * 0.7);
+  }
+  // loops in the shaft
+  if (spec === "b") {
+    // the volley's lower tier: guns run out of three loops below the string course
+    for (const lx of [-10, 0, 10]) musketLoop(lx, -H * 0.42 + 5.2 + ry * Math.sqrt(1 - (lx / rx) * (lx / rx)), 1, true);
+  } else if (spec === "a") {
+    musketLoop(-3, -H * 0.72 + ry, 0.9);
+    stainedSlit(3.6, -H * 0.42 - 9 + ry, 1.6, 4.4);
+  } else if (lvl > 0) {
+    musketLoop(-5.6, -H * 0.74 + ry * 0.85, 0.9);
+    stainedSlit(5.2, -H * 0.64 + ry * 0.7, 1.6, 4.6);
+  } else {
+    musketLoop(4.4, -H * 0.5 + ry * 0.9, 0.85);
+  }
+  // the fighting top
+  let Rr = rx, bh = R.bh;
+  if (lvl === 2 && !spec) {
+    // the ring is carried out on corbels over the shaft
+    Rr = rx + 2.4;
+    c.save();
+    c.translate(0, -H);
+    sykCyl(Rr, 2.2, { T, seed: seed + 2, top: true });
+    c.restore();
+    sykCorbels(rx, -H + 0.4, 9);
+    c.save();
+    c.translate(0, -2.2);
+  } else c.save();
+  sykRingBack(Rr, H, bh, T, { merlons: !rough, rough });
+  const cr = x => sykCrest(Rr, H, bh, x);
+  if (spec === "a") {
+    // the marksmen's roof: four posts carry a cone of shingles high over the walk
+    const eave = -H - bh - 19.5, ir = Rr - 2.6, iry = ir * SYK_Q;
+    beam(-ir * 0.72, -H - iry * 0.7, -ir * 0.72, eave + 2, 1.5, TIMBER_DARK);
+    beam(ir * 0.72, -H - iry * 0.7, ir * 0.72, eave + 2, 1.5, TIMBER_DARK);
+    sykGunner(-2.6, cr(-2.6), { s: 1.08, len: 25, rest: true, coat: D.coats[1] });
+    sykGunner(5.6, cr(5.6) - 0.6, { load: true, face: -1, fur: false, coat: D.coats[2], s: 0.92 });
+    c.save();
+    sykRingFront(Rr, H, bh, T, { seed: seed + 5 });
+    c.restore();
+    beam(-ir * 0.9, -H - bh + iry * 0.5, -ir * 0.9, eave + 2.6, 1.5, TIMBER_DARK);
+    beam(ir * 0.9, -H - bh + iry * 0.5, ir * 0.9, eave + 2.6, 1.5, TIMBER_DARK);
+    coneCap(0, eave + 2, Rr + 4, 13, "#6e5a44");
+  } else if (spec === "b") {
+    sykGunner(-9, cr(-9) - 0.4, { coat: D.coats[0] });
+    sykGunner(0.4, cr(0.4), { coat: D.coats[2], fur: false });
+    sykGunner(9.4, cr(9.4) - 0.4, { coat: D.coats[1] });
+    sykRingFront(Rr, H, bh, T, { seed: seed + 5 });
+  } else if (lvl === 2) {
+    pennantPole(Rr * 0.5, -H - bh - Rr * SYK_Q * 0.8, 20, 12, 5.5, A);
+    sykGunner(-9.6, cr(-9.6) - 0.3, { coat: D.coats[0] });
+    sykGunner(0.4, cr(0.4), { coat: D.coats[1], fur: false, rest: true, len: 20 });
+    sykGunner(10.4, cr(10.4) - 0.6, { load: true, face: -1, coat: D.coats[2], s: 0.94 });
+    sykRingFront(Rr, H, bh, T, { seed: seed + 5, loops: [-11] });
+  } else if (lvl === 1) {
+    musketRestStanding(Rr * 0.55, -H - Rr * SYK_Q * 0.75, 7);
+    sykGunner(-5.6, cr(-5.6), { coat: D.coats[0] });
+    sykGunner(7.4, cr(7.4) - 0.4, { load: true, face: -1, fur: false, coat: D.coats[2], s: 0.94 });
+    sykRingFront(Rr, H, bh, T, { seed: seed + 5 });
+  } else {
+    sykGunner(0.6, cr(0.6), { coat: D.coats[2] });
+    sykRingFront(Rr, H, bh, T, { seed: seed + 5, rough: true });
+  }
+  c.restore();
+  // stores at the foot: a keg and a long gun stood ready
+  if (lvl === 0 && !spec) {
+    musketKeg(rx + 5, ry * 0.4 + 2, 2.4, 4.2);
+  } else if (spec === "a") {
+    musketLeaning(rx + 3.4, ry * 0.5 + 2, 26, -2.2);
+    musketRestStanding(rx + 6.6, ry * 0.3 + 2.6, 13);
+  } else {
+    musketKeg(rx + 4, ry * 0.6 + 1.8, 2.5, 4.4);
+    if (lvl === 2 || spec) musketKeg(rx + 8.4, ry * 0.2 + 1, 2.2, 4);
+  }
+  c.restore();
+}
+
 SKIN_ART.matchlock = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.archer,
   scale: TOWER_SCALE.archer,
-  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
-  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
+  paint(lvl, spec, variant) { paintMatchlock(lvl, spec); },
+  live: musketLive,
   proj: "ball", projSpeed: 820, sound: "musket",
 };
 // ====================================== END SKIN SECTION: matchlock ======================================
@@ -26646,11 +26990,267 @@ SKIN_ART.matchlock = {
 // SKIN SECTION: falconet. 1727, ballista slot: a light falconet gun on the walls
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// The Long Wall Musket: a heavy, long-barrelled gun too big to fire from the shoulder, laid on
+// the parapet in a fork or an iron swivel and traversed by the man behind it; the Bronze
+// Falconet mastery mounts a small bronze swivel gun the same way, steered by its iron tiller.
+// Walls are Halidzor's grey rubble (SYK_* helpers in the matchlock section); gunners wear the
+// highland kit of the musket section. The gun, its crew's upper bodies, flash and smoke are live.
+const FLC_BRONZE = "#b4843e";
+
+// a short pyramid of iron shot on the ground
+function flcShot(x, y, rows, r) {
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1, y + 0.4, rows * r * 1.1, 1.3]]);
+  for (let i = 0; i < rows; i++) {
+    const n = rows - i;
+    for (let j = 0; j < n; j++) {
+      const bx = x + (j - (n - 1) / 2) * r * 2, by = y - r - i * r * 1.6;
+      inkDisc(bx, by, r, r, "#3f4047", 0.5);
+      sctx.fillStyle = "rgba(220, 226, 236, .55)";
+      sctx.fillRect(bx - r * 0.5, by - r * 0.55, r * 0.5, r * 0.4);
+    }
+  }
+}
+// the mount a gun turns on, planted in the coping at (x, y): a forked timber post or a squat
+// stone pillar carrying an iron swivel. Records the pivot `rise` above it for the live gun
+function flcMount(x, y, rise, kind, o) {
+  const c = sctx;
+  if (kind === "post") {
+    beam(x, y + 1, x, y - rise + 0.8, 1.5, MUSKET_DRESS.rest);
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(x, y - rise + 1); c.lineTo(x - 1.5, y - rise - 1);
+    c.moveTo(x, y - rise + 1); c.lineTo(x + 1.5, y - rise - 1);
+    c.strokeStyle = MUSKET_INK; c.lineWidth = 1.8; c.stroke();
+    c.strokeStyle = MUSKET_DRESS.rest; c.lineWidth = 0.9; c.stroke();
+  } else {
+    inkRect(x - 2, y - rise + 2.2, 4, rise - 1.6, toneHex(SYK_STONE.mid, 6), 0.7);
+    c.fillStyle = "rgba(30, 16, 6, .28)";
+    c.fillRect(x + 0.6, y - rise + 2.6, 1.3, rise - 2.2);
+    inkDisc(x, y - rise + 2.2, 2, 0.8, toneHex(SYK_STONE.trim, -6), 0.6);
+    beam(x, y - rise + 2.2, x, y - rise + 0.4, 1, IRON);
+  }
+  (structFit.fguns || (structFit.fguns = [])).push(Object.assign({ p: structPoint(x, y - rise), drop: rise, kind: o.gun || "wall", fur: true }, o));
+  structCrown(y - rise - 18);
+}
+// a loader stood behind the coping at (x, y), ramming home the next charge
+function flcLoader(x, y, o) {
+  const g = Object.assign({ p: structPoint(x, y), s: 0.94, coat: MUSKET_DRESS.coats[2], fur: false, face: -1 }, o);
+  g.sleeve = toneHex(g.coat, 14);
+  g.sleeveFar = toneHex(g.coat, 20);
+  (structFit.floaders || (structFit.floaders = [])).push(g);
+  structCrown(y - 24 * g.s);
+}
+
+function paintFalconet(lvl, spec) {
+  const c = sctx, A = TOWER_ACCENT.ballista, S = footStone(), D = MUSKET_DRESS;
+  const base = towerBase("ballista", lvl, spec), stepped = !!spec || lvl === 2;
+  const bw = base.w - 4, bd = base.d - 4, ox = bd * OBQ.dx, oy = bd * OBQ.dy;
+  const rough = !spec && lvl === 0, T = rough ? SYK_DRY : SYK_STONE;
+  const seed = 451 + lvl * 7 + (spec === "a" ? 17 : spec === "b" ? 29 : 0);
+  footPlinth(base.w, base.d, base.h, S, seed, stepped);
+  c.save();
+  c.translate(-ox / 2, -base.h - oy / 2);
+  rankMarks(0, 3.2, lvl, spec, false);
+  // a length of the curtain: dry-stone on the first rank, mortared rubble above; the third rank
+  // and the masteries are a square wall-tower
+  const W = spec === "b" ? bw + 2 : spec === "a" ? bw : lvl === 2 ? bw - 2 : bw;
+  const H = spec === "a" ? 27 : spec === "b" ? 24 : [12, 20, 29][lvl], Dp = bd, bh = rough ? 4.2 : 5.2;
+  box3(W, H, Dp, rough ? toneHex(T.mid, -4) : T.mid, towerWall(T, seed, {
+    side: rough ? toneHex(T.side, -8) : T.side, course: rough ? 3.8 : 5.4, block: rough ? 6.5 : 9, rough, band: 0,
+  }));
+  if (spec === "a") {
+    // the battered foot of a tower built to take shot
+    const tb = 9, sp = 2.4;
+    inkPoly([W / 2, 0, W / 2 + sp, 0.4, W / 2 + sp + Dp * OBQ.dx, Dp * OBQ.dy + 0.4, W / 2 + Dp * OBQ.dx, -tb + Dp * OBQ.dy, W / 2, -tb],
+      toneHex(T.side, -6), 0.9);
+    inkPoly([-W / 2 - sp, 0.4, W / 2 + sp, 0.4, W / 2, -tb, -W / 2, -tb], toneHex(T.mid, 10), 1);
+    c.strokeStyle = "rgba(40, 28, 16, .3)";
+    c.lineWidth = 0.55;
+    c.beginPath();
+    for (let yy = -tb + 3; yy < 0; yy += 3) { c.moveTo(-W / 2 - sp * (1 + yy / tb), yy); c.lineTo(W / 2 + sp * (1 + yy / tb), yy); }
+    c.stroke();
+    c.fillStyle = "rgba(255, 248, 228, .5)";
+    c.fillRect(-W / 2 + 0.6, -tb - 0.2, W - 1.2, 0.7);
+  }
+  if (rough) {
+    sykTufts([[-W / 2 + 2, 0.2, 3], [W / 2 - 3, 0.4, 2.6], [2, 0.6, 2.4]], seed);
+    musketLoop(-W / 2 + 7, -6.4, 0.85);
+  } else {
+    const sy = spec === "a" ? -16 : -H * 0.5 + 1;
+    stringCourse(W, Dp, sy);
+    ledgeShade(-W / 2, sy + 1.6, W);
+    weatherStreaks(-W / 2 + 1, sy + 2.6, W - 2, 7, seed + 2);
+    if (structSnow) snowCap(-W / 2 - 0.5, sy, W + 1, 1.1);
+    archDoor(spec === "b" ? 0 : -W / 2 + 7, 6, spec === "a" ? 7.6 : 8.6, SYK_STONE.trim);
+    wallTorch(spec === "b" ? 6.4 : -W / 2 + 13, -6.4);
+    if (spec === "b") for (const lx of [-9.4, 9.4]) musketLoop(lx, sy - 5.4, 0.95);
+    else if (lvl === 2 || spec === "a") musketLoop(W / 2 - 6, sy - 5.4, 0.95);
+    else musketLoop(W / 2 - 6, -6.2, 0.9);
+  }
+  // the fighting top: a corbelled breastwork on the tower ranks
+  const corb = lvl === 2 || !!spec, e = corb ? 1.6 : 0, TW = W + e * 2, TD = Dp + e;
+  c.save();
+  c.translate(-e * 0 + (Dp - TD) * OBQ.dx / 2, (Dp - TD) * OBQ.dy / 2);
+  if (corb) {
+    for (let jx = -TW / 2 + 2.2; jx < TW / 2 - 1; jx += 4.4) {
+      inkPoly([jx - 1.4, -H, jx + 1.4, -H, jx + 0.9, -H + 3.8, jx - 0.9, -H + 3.8], toneHex(T.side, -6), 0.7);
+      c.fillStyle = "rgba(20, 12, 6, .5)";
+      c.fillRect(jx + 1.4, -H + 0.4, 1.1, 2.8);
+    }
+  }
+  musketBreastBack(TW, H, TD, bh, T, seed + 40, rough);
+  // how far along the walk a gunner can step as his gun swings
+  structFit.fspan = [structPoint(-TW / 2 + 4.5, 0)[0], structPoint(TW / 2 + TD * OBQ.dx * 0.3 - 4, 0)[0]];
+  const front = -H - bh;   // the crest of the near run
+  const cx = TD * OBQ.dx * 0.12, cy = front + TD * OBQ.dy * 0.12;
+  if (lvl === 2 && !spec) pennantPole(TW / 2 + TD * OBQ.dx - 2.4, -H + TD * OBQ.dy - bh + 0.4, 17, 11, 5, A);
+  if (spec === "b") {
+    musketBreastFront(TW, H, TD, bh, T, seed + 40, rough);
+    flcMount(-8.4 + cx, cy, 4.6, "swivel", { len: 26, back: 6.5, coat: D.coats[0] });
+    flcMount(8.6 + cx, cy, 4.6, "swivel", { len: 26, back: 6.5, coat: D.coats[1], fur: false });
+  } else if (spec === "a") {
+    flcLoader(9.6 + cx * 2, front + TD * OBQ.dy * 0.4, { coat: D.coats[2] });
+    musketBreastFront(TW, H, TD, bh, T, seed + 40, rough);
+    flcMount(-2.4 + cx, cy, 5, "swivel", { gun: "falconet", len: 24, back: 8.5, s: 1.08, coat: D.coats[1] });
+  } else if (lvl === 0) {
+    musketBreastFront(TW, H, TD, bh, T, seed + 40, rough);
+    flcMount(1.6 + cx, cy, 4.4, "post", { len: 25, back: 6.5, coat: D.coats[2] });
+  } else {
+    flcLoader(8.4 + cx * 2, front + TD * OBQ.dy * 0.4, { coat: D.coats[2] });
+    musketBreastFront(TW, H, TD, bh, T, seed + 40, rough);
+    flcMount(-3 + cx, cy, 4.6, "swivel", { len: lvl === 2 ? 29 : 27, back: 6.5, coat: D.coats[0] });
+  }
+  c.restore();
+  // stores at the foot of the wall
+  const gx = W / 2 + ox + 2.6, gy = oy / 2 + 3.2;
+  if (spec === "a") {
+    flcShot(-W / 2 - 1.6, 4.2, 3, 1.5);
+    musketKeg(gx, gy, 2.6, 4.6);
+  } else if (lvl === 2 || spec === "b") {
+    // a spare wall gun and its rest stood by the wall
+    musketLeaning(gx - 1, gy, 30, -2.6);
+    musketRestStanding(gx + 2.6, gy - 0.4, 13);
+    musketKeg(-W / 2 - 2, 4.4, 2.5, 4.4);
+  } else if (lvl === 1) {
+    musketKeg(gx - 1, gy, 2.5, 4.4);
+    flcShot(-W / 2 - 1, 4.4, 2, 1.3);
+  } else {
+    musketKeg(gx - 1.4, gy, 2.4, 4.2);
+  }
+  c.restore();
+}
+
+// ---- live: the gun swings to the aim on its mount, the man behind it follows ----
+function flcGun(c, g, bx, by, mx, my, ux, uy, f, kick) {
+  const nx = -uy, ny = ux;
+  if (g.kind === "falconet") {
+    // a cast bronze barrel, thick at the breech and swelling at the muzzle; reinforcing rings,
+    // a knob on the cascabel and the iron tiller the gunner steers it by
+    const tx = bx - ux * 7 * f, ty = by - uy * 7 * f;
+    c.beginPath(); c.moveTo(bx, by); c.lineTo(tx, ty);
+    c.strokeStyle = MUSKET_INK; c.lineWidth = 1.9 * f; c.stroke();
+    c.strokeStyle = IRON; c.lineWidth = 0.9 * f; c.stroke();
+    const r0 = 2.3 * f, r1 = 1.5 * f, r2 = 1.95 * f;
+    c.beginPath();
+    c.moveTo(bx + nx * r0, by + ny * r0);
+    c.lineTo(mx - ux * 1.6 * f + nx * r1, my - uy * 1.6 * f + ny * r1);
+    c.lineTo(mx + nx * r2, my + ny * r2);
+    c.lineTo(mx - nx * r2, my - ny * r2);
+    c.lineTo(mx - ux * 1.6 * f - nx * r1, my - uy * 1.6 * f - ny * r1);
+    c.lineTo(bx - nx * r0, by - ny * r0);
+    c.closePath();
+    c.fillStyle = FLC_BRONZE; c.fill();
+    c.strokeStyle = MUSKET_INK; c.lineWidth = 0.8 * f; c.stroke();
+    // the sun along its upper flank, and the rings
+    const up = ny < 0 ? 1 : -1;
+    c.beginPath();
+    c.moveTo(bx + nx * r0 * 0.5 * up, by + ny * r0 * 0.5 * up);
+    c.lineTo(mx + nx * r1 * 0.5 * up, my + ny * r1 * 0.5 * up);
+    c.strokeStyle = "rgba(255, 236, 176, .75)"; c.lineWidth = 0.6 * f; c.stroke();
+    c.strokeStyle = MUSKET_INK; c.lineWidth = 0.55 * f;
+    c.beginPath();
+    for (const q of [0.12, 0.42, 0.7]) {
+      const qx = bx + (mx - bx) * q, qy = by + (my - by) * q, rr = r0 + (r1 - r0) * q + 0.3 * f;
+      c.moveTo(qx + nx * rr, qy + ny * rr); c.lineTo(qx - nx * rr, qy - ny * rr);
+    }
+    c.stroke();
+    c.beginPath(); c.arc(bx - ux * 1 * f, by - uy * 1 * f, 1.3 * f, 0, Math.PI * 2);
+    c.fillStyle = FLC_BRONZE; c.fill(); c.strokeStyle = MUSKET_INK; c.lineWidth = 0.6 * f; c.stroke();
+    c.beginPath(); c.arc(mx, my, 0.8 * f, 0, Math.PI * 2);
+    c.fillStyle = "#1a120a"; c.fill();
+    return [tx, ty, bx - ux * 3 * f, by - uy * 3 * f];
+  }
+  // the long wall gun: a walnut stock that runs well up the barrel, a heavy octagon barrel
+  // and a hook forged under it that catches on the mount
+  musketLine(c, bx + ux * 2 * f, by + uy * 2 * f, mx, my, 1.5, MUSKET_DRESS.barrel, f);
+  c.beginPath(); c.arc(mx, my, 1.05 * f, 0, Math.PI * 2);
+  c.fillStyle = MUSKET_DRESS.barrel; c.fill(); c.strokeStyle = MUSKET_INK; c.lineWidth = 0.5 * f; c.stroke();
+  const sx = bx - ux * 6 * f, sy = by - uy * 6 * f + 0.6 * f, fx = bx + ux * (g.len * 0.42) * f, fy = by + uy * (g.len * 0.42) * f;
+  musketLine(c, sx, sy, bx + ux * 1.6 * f, by + uy * 1.6 * f, 2.3, MUSKET_DRESS.stock, f);
+  musketLine(c, bx + ux * 1.6 * f, by + uy * 1.6 * f, fx, fy, 1.4, MUSKET_DRESS.stock, f);
+  c.strokeStyle = "rgba(220, 226, 236, .5)"; c.lineWidth = 0.35 * f;
+  c.beginPath(); c.moveTo(fx - nx * 0.4 * f, fy - ny * 0.4 * f); c.lineTo(mx - nx * 0.4 * f, my - ny * 0.4 * f); c.stroke();
+  c.fillStyle = "rgba(255, 220, 170, .35)";
+  c.fillRect(bx - 0.4 * f, by - 0.9 * f, 0.8 * f, 0.5 * f);
+  // the match in its serpentine
+  c.beginPath(); c.arc(bx + ux * 0.6 * f, by + uy * 0.6 * f - 1.2 * f, 0.6 * f, 0, Math.PI * 2);
+  c.fillStyle = kick > 0.3 ? "#fff1b0" : "#ff7a2a"; c.fill();
+  return [sx + ux * 1 * f, sy + uy * 1 * f, bx + ux * 4.6 * f, by + uy * 4.6 * f];
+}
+function falconetLive(t, cx) {
+  const fit = cx.fit;
+  if (!fit.fguns) return;
+  const c = ctx, k = cx.k, x = cx.x, y = cx.y, fade = cx.fade, kick = cx.kick;
+  const ca = Math.cos(cx.aim), sa = Math.sin(cx.aim) * ELLIPSE, n = Math.hypot(ca, sa) || 1, ux = ca / n, uy = sa / n;
+  const st = getStats(t), rate = st.rate / (1 + (t.buffHaste || 0)), since = t.cd > 0 ? rate - t.cd : 99;
+  c.globalAlpha = fade;
+  for (let i = 0; fit.floaders && i < fit.floaders.length; i++) {
+    const g = fit.floaders[i];
+    musketLoading(c, x + g.p[0] * k, y + g.p[1] * k, k * g.s, g, cx.time, t.x * 0.37 + i);
+  }
+  musketMuzzles.length = 0;
+  for (const g of fit.fguns) {
+    if (!g.sleeve) { g.sleeve = toneHex(g.coat, 14); g.sleeveFar = toneHex(g.coat, 20); }
+    const f = k * (g.s || 1), px = x + g.p[0] * k, py = y + g.p[1] * k, rec = kick * 2.2 * f;
+    const bx = px - ca * (g.back * f + rec), by = py - sa * (g.back * f + rec);
+    const mx = px + ca * ((g.len - g.back) * f - rec), my = py + sa * ((g.len - g.back) * f - rec);
+    const face = ca >= 0 ? 1 : -1;
+    // the man stands behind the breech, his hips on the coping
+    const sp = fit.fspan, hx = structClamp(bx - ca * 3.4 * f - face * 0.6 * f, x + sp[0] * k, x + sp[1] * k), hy = py + g.drop * k - Math.max(-1.5, Math.min(1.5, sa * 2.4)) * f;
+    const yoke = () => {
+      // the swivel's fork holds the gun at the pivot
+      c.beginPath();
+      c.moveTo(px - uy * 2.4 * f, py + ux * 2.4 * f + 0.6 * f); c.lineTo(px, py + 1.6 * f); c.lineTo(px + uy * 2.4 * f, py - ux * 2.4 * f + 0.6 * f);
+      c.strokeStyle = MUSKET_INK; c.lineWidth = 1.6 * f; c.stroke();
+      c.strokeStyle = "#55555c"; c.lineWidth = 0.7 * f; c.stroke();
+    };
+    const man = () => musketBody(c, hx, hy, f, face, g);
+    const gun = () => {
+      yoke();
+      const h = flcGun(c, g, bx, by, mx, my, ux, uy, f, kick);
+      // arms: the far hand on the butt or the tiller, the near hand forward on the stock
+      musketLine(c, hx - face * 2.4 * f, hy - 5.4 * f, h[0], h[1], 1.7, g.sleeveFar, f);
+      musketHand(c, h[0], h[1], f);
+      musketLine(c, hx + face * 2.6 * f, hy - 5.6 * f, h[2], h[3], 1.7, g.sleeve, f);
+      musketHand(c, h[2], h[3], f);
+    };
+    if (sa < -0.25) { gun(); man(); } else { man(); gun(); }
+    if (since < 1.5) musketMuzzles.push(mx + ca * 0.8 * f, my + sa * 0.8 * f, ca, sa, g.kind === "falconet" ? 1.5 : 1.15);
+  }
+  const p = since / 1.5;
+  for (let i = 0; i < musketMuzzles.length; i += 5) {
+    const mx = musketMuzzles[i], my = musketMuzzles[i + 1], big = musketMuzzles[i + 4];
+    if (p < 1) musketSmoke(c, mx, my, musketMuzzles[i + 2], musketMuzzles[i + 3], k * big, p, fade * 0.85);
+    if (kick > 0.45) musketFlash(c, mx, my, musketMuzzles[i + 2], musketMuzzles[i + 3], (2.6 + kick * 2.4) * k * big, fade * Math.min(1, (kick - 0.45) * 3));
+  }
+  c.globalAlpha = fade;
+}
+
 SKIN_ART.falconet = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.ballista,
   scale: TOWER_SCALE.ballista,
-  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  paint(lvl, spec, variant) { paintFalconet(lvl, spec); },
+  live: falconetLive,
   proj: "ball", projSpeed: 900, sound: "musket",
 };
 // ====================================== END SKIN SECTION: falconet ======================================
@@ -26660,12 +27260,346 @@ SKIN_ART.falconet = {
 // SKIN SECTION: rollstones. 1727, catapult slot: rolling stones and boulders from the heights
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Rolling Stones: on the ridges round Halidzor the defenders heaped boulders behind dry-stone
+// breastworks and log cribs at the lip of the slope, and levered them down onto the men climbing
+// below. A crag of the Syunik rock, a breastwork or crib along its lip, villagers in long coats and
+// fur caps (the hurlers' kit, hurlMan). Variant 0: a stone raised or a boulder levered up, ready;
+// variant 1: it has gone over and is bounding down the face. Stone Avalanche lets go a whole crib;
+// Blazing Logs rolls pitch-soaked trunks set alight at a fire on the walk.
+const RS_DIM = {
+  // crag width, depth, height of its top
+  l: [{ w: 34, d: 12.5, h: 11 }, { w: 38, d: 13.5, h: 17 }, { w: 42, d: 14.5, h: 22 }],
+  s: { w: 44, d: 15, h: 22 },
+};
+function rsDim(lvl, spec) { return spec ? RS_DIM.s : RS_DIM.l[lvl]; }
+const RS_ROCK = { lit: "#b3ab9b", mid: "#958d7f", side: "#6c665d", top: "#a9a48c" };
+const RS_STONE = "#787168";
+const RS_COATS = ["#3a322c", "#2f3236", "#45372b"], RS_CAPS = ["#2a231e", "#4a3a2e", "#3a2e26"];
+
+// one mass of rock in a crag face: a chamfered block, lit along its top and left, shaded under
+function rsBlock(x, y, w, h, hex, rnd) {
+  const c = sctx, j = () => rnd() * Math.min(w, h) * 0.3;
+  const pts = [x + j(), y, x + w - j(), y + rnd() * 0.8, x + w, y + j(), x + w - rnd() * 0.8, y + h - j(), x + w - j(), y + h, x + j(), y + h, x, y + h - j(), x + rnd() * 0.6, y + j()];
+  polyPath(pts);
+  const g = c.createLinearGradient(x, y, x + w * 0.6, y + h);
+  g.addColorStop(0, toneHex(hex, 22));
+  g.addColorStop(0.5, hex);
+  g.addColorStop(1, toneHex(hex, -26));
+  c.fillStyle = g;
+  c.fill();
+  c.strokeStyle = "rgba(30, 20, 12, .7)";
+  c.lineWidth = 0.7;
+  c.stroke();
+  c.strokeStyle = "rgba(255, 250, 234, .45)";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  c.moveTo(pts[14] + 0.5, pts[15] + 0.3); c.lineTo(pts[0] + 0.3, pts[1] + 0.5); c.lineTo(pts[2] - 0.4, pts[3] + 0.5);
+  c.stroke();
+}
+// a rounded mass of rock: lumpy outline, lit crown, shaded underside and a crack
+function rsMass(x, y, rx, ry, hex, rnd) {
+  const c = sctx, pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI * 2, rr = 0.86 + rnd() * 0.2;
+    pts.push(x + Math.cos(a) * rx * rr, y + Math.sin(a) * ry * rr);
+  }
+  polyPath(pts);
+  c.fillStyle = hex;
+  c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = "rgba(255, 248, 228, .3)";
+  c.beginPath(); c.ellipse(x - rx * 0.3, y - ry * 0.42, rx * 0.62, ry * 0.4, -0.3, 0, Math.PI * 2); c.fill();
+  c.fillStyle = "rgba(28, 20, 14, .34)";
+  c.beginPath(); c.ellipse(x + rx * 0.3, y + ry * 0.55, rx * 0.9, ry * 0.45, -0.2, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "rgba(40, 26, 14, .45)";
+  c.lineWidth = 0.55;
+  c.beginPath();
+  c.moveTo(x + rx * (rnd() - 0.5) * 0.6, y - ry * 0.8); c.lineTo(x + rx * (rnd() - 0.3) * 0.4, y - ry * 0.1); c.lineTo(x + rx * (rnd() - 0.5) * 0.5, y + ry * 0.4);
+  c.stroke();
+  c.restore();
+  polyPath(pts);
+  c.strokeStyle = "rgba(30, 20, 12, .75)";
+  c.lineWidth = 0.8;
+  c.stroke();
+}
+// a crag of the gorge's rock, its walk on top at -H: great blocks split by the frost on the face,
+// a shaded flank, turf on the top; ragged where a box would be straight
+function rsCrag(W, H, D, seed) {
+  const c = sctx, rnd = mulberry32(seed), ox = D * OBQ.dx, oy = D * OBQ.dy;
+  const lipL = -W / 2 + 0.6, lipR = W / 2;
+  const face = [-W / 2 - 3.2, 0.6, -W / 2 - 2.4, -H * 0.35, -W / 2 - 0.4, -H * 0.62, lipL, -H - 1.2];
+  for (let i = 1; i < 6; i++) face.push(-W / 2 + W * i / 6 + (rnd() - 0.5) * 2, -H - rnd() * 2.4 + 0.6);
+  face.push(lipR, -H - 0.8, W / 2 + 0.9, -H * 0.5, W / 2 + 1.6, 0.6);
+  // the flank, in shade
+  const side = [lipR, -H - 0.8, W / 2 + ox, -H + oy, W / 2 + ox + 1.2, -H * 0.45 + oy, W / 2 + ox + 1.6, oy + 0.6, W / 2 + 1.6, 0.6, W / 2 + 0.9, -H * 0.5];
+  polyPath(side);
+  c.fillStyle = toneHex(RS_ROCK.side, -18);
+  c.fill();
+  c.save();
+  c.clip();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, W / 2, 0);
+  for (let yy = -H - 2; yy < 1; ) {
+    const bh = 4.5 + rnd() * 4;
+    for (let xx = -1 - rnd() * 3; xx < D + 1; ) {
+      const bw = 5 + rnd() * 5;
+      rsBlock(xx, yy, bw - 0.8, bh - 0.8, toneHex(RS_ROCK.side, (rnd() - 0.5) * 16), rnd);
+      xx += bw;
+    }
+    yy += bh;
+  }
+  c.restore();
+  polyPath(side);
+  inkStroke(1.1);
+  // the top: rock and turf
+  const tp = [-W / 2, -H, -W / 2 + ox, -H + oy, W / 2 + ox, -H + oy, W / 2, -H];
+  polyPath(tp);
+  c.fillStyle = RS_ROCK.top;
+  c.fill();
+  c.save();
+  c.clip();
+  const blobs = [];
+  for (let i = 0; i < 7; i++) blobs.push([-W / 2 + rnd() * (W + ox), -H + oy * (0.4 + rnd() * 0.6), 3 + rnd() * 4, 1 + rnd() * 1.2]);
+  fillBlobs("rgba(110, 140, 64, .55)", blobs);
+  c.restore();
+  polyPath(tp);
+  inkStroke(0.9);
+  // the face: dark crevices behind, great rounded masses of rock heaped over them, the upper
+  // tiers first so the lower ones bulge out over them
+  polyPath(face);
+  c.fillStyle = "#4a443d";
+  c.fill();
+  c.save();
+  c.clip();
+  const tiers = H > 14 ? 3 : 2, th = (H + 3) / tiers;
+  for (let t = 0; t < tiers; t++) {
+    const cy = -H - 1.5 + th * (t + 0.5), r0 = th * 0.66 + t * 0.8;
+    let xx = -W / 2 - 3 + (t % 2) * 4 - rnd() * 3;
+    while (xx < W / 2 + 4) {
+      const rw = r0 * (1.3 + rnd() * 0.8), rh = r0 * (0.85 + rnd() * 0.25);
+      const lit = (xx < -W * 0.15 ? 16 : xx > W * 0.25 ? -8 : 6);
+      rsMass(xx + rw, cy + (rnd() - 0.5) * 1.6, rw, rh, toneHex(RS_ROCK.mid, lit + (rnd() - 0.5) * 16), rnd);
+      xx += rw * 1.75;
+    }
+  }
+  // lichen, a few cracks, and the damp dark at the foot
+  fillBlobs("rgba(196, 186, 120, .4)", [[-W / 2 + 4 + rnd() * 6, -H * 0.6, 2, 1.2], [W * 0.1 + rnd() * 8, -H * 0.35, 2.4, 1.1]]);
+  const fg = c.createLinearGradient(0, -4, 0, 1);
+  fg.addColorStop(0, "rgba(30, 18, 8, 0)");
+  fg.addColorStop(1, "rgba(30, 18, 8, .35)");
+  c.fillStyle = fg;
+  c.fillRect(-W / 2 - 4, -4, W + 8, 5);
+  c.restore();
+  polyPath(face);
+  inkStroke(1.4);
+  sykTufts([[-W / 2 - 1, 0.4, 3.4], [W * 0.18, 0.6, 2.8], [W / 2, 0.4, 3], [-W * 0.2, -H + 0.2, 2.6], [W * 0.32, -H, 2.4], [-W / 2 - 1.4, -H * 0.62, 2.2]], seed + 3);
+  if (structSnow) {
+    snowCap(-W / 2 + 0.4, -H + 0.2, W * 0.4, 1.3);
+    snowCap(W * 0.08, -H + 0.2, W * 0.38, 1.1);
+  }
+}
+// a crib of stakes and laid logs along the lip, holding the boulders heaped behind it
+function rsCrib(x0, x1, y, h, opened, seed) {
+  const c = sctx;
+  for (const sx of [x0, (x0 + x1) / 2, x1]) beam(sx, y + 1.2, sx + 0.3, y - h - 1.4, 1.9, TIMBER_DARK);
+  if (!opened) {
+    for (const f of [0.3, 0.72]) {
+      const ly = y - h * f;
+      beam(x0 - 2, ly + 0.4, x1 + 2, ly - 0.4, 2.6, TIMBER);
+      endGrain(x0 - 2, ly + 0.4, 1.3);
+      endGrain(x1 + 2, ly - 0.4, 1.3);
+    }
+    lashing(x0 + 0.2, y - h * 0.72, 1);
+    lashing(x1 + 0.2, y - h * 0.72, 1);
+  } else {
+    // the key stake knocked out: the logs have dropped from one end and hang across the lip
+    beam(x0 - 1.4, y - h * 0.72, x1 + 2, y + 0.6, 2.6, TIMBER);
+    endGrain(x0 - 1.4, y - h * 0.72, 1.3);
+    lashing(x0 + 0.2, y - h * 0.72, 1);
+  }
+  if (structSnow) snowOnBeam(x0 - 2, y - h * 0.72 + 0.4, x1 + 2, y - h * 0.72 - 0.4, 2.6);
+}
+// a boulder bounding down the face: dust where it last struck and the trace of its fall
+function rsTumble(x, y, r, seed, burning) {
+  const c = sctx;
+  // dust kicked up where it last struck, the path it bounced down, and its spin
+  fillBlobs("rgba(226, 212, 184, .8)", [[x - r * 1.2, y - r * 2.2, r * 0.9, r * 0.55], [x - r * 0.1, y - r * 2.7, r * 0.7, r * 0.45], [x + r * 1.3, y + r * 0.6, r * 0.9, r * 0.45]]);
+  c.strokeStyle = "rgba(40, 26, 14, .55)";
+  c.lineWidth = 0.7;
+  c.setLineDash([1.6, 1.4]);
+  c.beginPath();
+  c.moveTo(x - r * 0.6, y - r * 1.1); c.quadraticCurveTo(x - r * 1.4, y - r * 2.6, x - r * 0.6, y - r * 4);
+  c.stroke();
+  c.setLineDash([]);
+  c.strokeStyle = "rgba(40, 26, 14, .7)";
+  c.lineWidth = 0.8;
+  c.beginPath(); c.arc(x, y, r * 1.45, -2.5, -1.3); c.stroke();
+  c.beginPath(); c.arc(x, y, r * 1.45, 0.65, 1.85); c.stroke();
+  if (burning) {
+    // a burning trunk end-on to us, rolling: bark and the cut end, flames drawn live
+    inkDisc(x, y, r * 1.05, r * 0.8, "#4a2e18", 1.1);
+    inkDisc(x - r * 0.3, y - 0.2, r * 0.6, r * 0.6, "#c78c4c", 0.7);
+    sctx.strokeStyle = "rgba(90, 50, 20, .7)"; sctx.lineWidth = 0.4;
+    sctx.beginPath(); sctx.arc(x - r * 0.3, y - 0.2, r * 0.3, 0, Math.PI * 2); sctx.stroke();
+    (structFit.rsFlames || (structFit.rsFlames = [])).push([structPoint(x, y - r * 0.6), 2.4, 6.5]);
+  } else {
+    fillBlobs("rgba(24, 14, 6, .35)", [[x + r * 0.5, y + r * 0.8, r * 1.1, r * 0.35]]);
+    hurlBoulder(x, y, r, "#5b5650", seed);
+  }
+}
+// a pitch-soaked log lying along the lip, flames licking it (drawn live)
+function rsLog(x0, y0, x1, y1, lit) {
+  beam(x0, y0, x1, y1, 3.2, "#5a3a20");
+  endGrain(x1, y1, 1.7, "#7a5030");
+  sctx.fillStyle = "rgba(14, 8, 4, .55)";
+  sctx.fillRect(Math.min(x0, x1) + 2, Math.min(y0, y1) - 1.2, Math.abs(x1 - x0) - 4, 1);
+  if (lit) {
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 0.5) / n;
+      (structFit.rsFlames || (structFit.rsFlames = [])).push([structPoint(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f - 1.6), 1.9, 5 + i % 2]);
+    }
+  }
+}
+
+function paintRollStones(lvl, spec, variant) {
+  const c = sctx, S = footStone(), T = SYK_DRY, A = TOWER_ACCENT.catapult;
+  const great = spec === "a", fire = spec === "b", thrown = variant === 1, D0 = rsDim(lvl, spec);
+  const W = D0.w, D = D0.d, H = D0.h, ox = D * OBQ.dx, oy = D * OBQ.dy, FIG = 1.12;
+  const seed = 480 + lvl * 9 + (great ? 31 : fire ? 47 : 0), stone = RS_STONE;
+  footPlinth(W + 5, D + 3, 3, S, seed, !!spec || lvl === 2);
+  c.save();
+  c.translate(-ox / 2, -3 - oy / 2);
+  rsCrag(W, H, D, seed);
+  rankMarks(-W / 2 + 9, -2.6, lvl, spec, false);
+  const walkX = ox * 0.5, walkY = -H + oy * 0.5 + 0.6;
+  const man = (dx, i, o) => hurlMan(walkX + dx, walkY, FIG, Object.assign({ late: true, coat: RS_COATS[i], cap: RS_CAPS[i], stone }, o));
+  // the lever: its foot jammed under a boulder rocked up on the lip, its head in the man's hands
+  const lever = (mx, bx, br, face) => {
+    const hand = (lx, ly) => [walkX + mx + face * lx * FIG, walkY + ly * FIG];
+    const a = thrown ? hand(7, -15.2) : hand(4.4, -18.4), b = thrown ? hand(9.2, -14.2) : hand(6.6, -15.7);
+    const by = -H - 1.2;
+    if (!thrown) {
+      const tx = bx - face * 2, ty = b[1] + (tx - b[0]) * (b[1] - a[1]) / (b[0] - a[0]);
+      const ux = a[0] - b[0], uy = a[1] - b[1], ul = Math.hypot(ux, uy);
+      beam(tx, Math.min(ty, by - 0.5), a[0] + ux / ul * 3, a[1] + uy / ul * 3, 2.6, TIMBER);
+      if (br) hurlBoulder(bx, by - br * 0.75, br, toneHex(stone, 4), seed + 3);
+      structCrown(by - br * 1.7 - 6);
+    } else {
+      beam(bx + face * 2, by + 0.6, a[0] - face * 1.6, a[1] - 1.2, 2.6, TIMBER);
+      endGrain(bx + face * 2, by + 0.6, 1.2);
+    }
+    inkDisc(a[0], a[1], 1.1, 1.1, "#e2b78c", 0.6);
+    inkDisc(b[0], b[1], 1.1, 1.1, "#e2b78c", 0.6);
+  };
+  // stones heaped at the back of the walk
+  if (lvl > 0 || spec) hurlPile(walkX + W * 0.32, walkY - 2.4, lvl === 1 && !spec ? 2 : 3, 2.3, stone, seed + 1);
+  if (fire) {
+    // a fire on the walk to light the logs; logs stacked ready beside it
+    hurlBrazier(walkX - W * 0.36, walkY - 1, true);
+    rsLog(walkX + W * 0.14, walkY - 3.4, walkX + W * 0.42, walkY - 4.6, false);
+    rsLog(walkX + W * 0.16, walkY - 6.4, walkX + W * 0.4, walkY - 7.4, false);
+  }
+  if (great) {
+    // two men at the key stake of the crib, a third bringing up more
+    man(-15.5, 0, { face: 1, pose: thrown ? "throw" : "lever" });
+    man(15, 2, { face: -1, pose: "carry", r: 2.6 });
+  } else if (fire) {
+    man(-6, 0, { face: 1, pose: thrown ? "throw" : "lever" });
+    man(10, 1, { face: -1, pose: "carry", r: 2.5 });
+  } else if (lvl === 2) {
+    man(-12.5, 0, { face: 1, pose: thrown ? "throw" : "raise", r: 3.4 });
+    man(1, 1, { face: 1, pose: thrown ? "throw" : "lever" });
+    man(13.5, 2, { face: -1, pose: "carry", r: 2.5 });
+  } else if (lvl === 1) {
+    man(-9, 0, { face: 1, pose: thrown ? "throw" : "raise", r: 3.4 });
+    man(5, 1, { face: 1, pose: thrown ? "throw" : "lever" });
+  } else {
+    man(-1, 0, { face: 1, pose: thrown ? "throw" : "raise", r: 3.6 });
+  }
+  // along the lip: a dry-stone breastwork, or a crib of logs holding the boulders back
+  if (great) {
+    const x0 = -W / 2 + 4, x1 = W / 2 - 6, y = -H;
+    if (!thrown) {
+      for (const b of [[-7.6, -6.4, 5], [2.4, -7, 5.6], [10.6, -6.2, 4.6], [-13, 0, 5.4], [-3, 0.4, 6.2], [7, 0, 5.6], [14, 0.2, 4.6]])
+        hurlBoulder(b[0], y - b[2] * 0.8 + b[1] - 1.4, b[2], toneHex(stone, (b[0] % 3) * 3), seed + b[0] + 20);
+      structCrown(y - 20);
+    } else {
+      hurlBoulder(-9, y - 4.4, 3.8, stone, seed + 21);
+      hurlBoulder(9, y - 3.8, 3.4, stone, seed + 22);
+    }
+    rsCrib(x0, x1, y, 9, thrown, seed);
+  } else if (fire) {
+    hurlBreast(W, H, D, 4.4, toneHex(T.mid, 4), T, true, seed + 11);
+    if (!thrown) rsLog(-6, -H - 6.6, 10, -H - 7.4, true);
+  } else {
+    hurlBreast(W, H, D, lvl === 0 ? 4 : 4.6, toneHex(T.mid, 4), T, true, seed + 11);
+    if (!thrown && lvl === 0) for (const sx of [-12, 9]) hurlStone(sx, -H - 7, 1.7, stone);
+  }
+  if (!great && !fire && lvl > 0) lever(lvl === 2 ? 1 : 5, lvl === 2 ? 9 : 12.4, lvl === 2 ? 5.6 : 5, 1);
+  if (fire && !thrown) lever(-6, 3, 0, 1);
+  if (great) lever(-15.5, -W / 2 + 7, 0, 1);
+  // what has gone over the lip is bounding down the face
+  if (thrown) {
+    if (great) {
+      rsTumble(-9, -H * 0.3, 5.4, seed + 30);
+      rsTumble(9, -1.4, 4.8, seed + 31);
+      rsTumble(1, -H * 0.66, 4.4, seed + 32);
+    } else if (fire) rsTumble(-2, -H * 0.35, 3.6, seed + 30, true);
+    else if (lvl > 0) rsTumble(lvl === 2 ? 6 : 8, -H * 0.3, lvl === 2 ? 5.4 : 4.8, seed + 30);
+    else rsTumble(-2, -H * 0.2, 3.8, seed + 30);
+  }
+  c.restore();
+  // a boulder or two that came to rest at the foot of the crag
+  const gy = 5.8;
+  if (great) {
+    hurlBoulder(-W / 2 - 1.4, gy - 3.4, 4.4, stone, seed + 40);
+    hurlBoulder(W / 2 - 1, gy - 2.6, 3.4, stone, seed + 41);
+  } else if (fire) {
+    fillBlobs("rgba(24, 14, 4, .3)", [[W / 2 - 5, gy + 0.4, 8, 1.4]]);
+    rsLog(W / 2 - 13, gy - 1.6, W / 2 + 1, gy - 2.2, false);
+  } else if (lvl === 2) {
+    hurlBoulder(W / 2 - 2, gy - 2.8, 3.6, stone, seed + 40);
+    hurlBasket(-W / 2 + 1, gy, 6, 4.8, stone);
+  } else {
+    hurlPile(W / 2 - 4, gy - 0.4, 2, 2.1, stone, seed + 4);
+  }
+}
+
 SKIN_ART.rollstones = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.catapult,
-  scale: TOWER_SCALE.catapult,
-  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  // a low crag rather than a tall engine, like the hurlers' wall
+  box: [-50, -86, 56, 22],
+  scale: 0.86,
+  paint(lvl, spec, variant) { paintRollStones(lvl, spec, variant); },
   variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  footing(lvl, spec) {
+    const d = rsDim(lvl, spec), k = STRUCT_K * SKIN_ART.rollstones.scale, step = spec || lvl === 2 ? 3 : 0;
+    return { w: (d.w + 5 + step) * k, d: (d.d + 3 + (step ? 2 : 0)) * k, cy: 0 };
+  },
+  live(t, c) {
+    const f = c.fit, k = c.k;
+    ctx.globalAlpha = c.fade;
+    if (f.brazier) {
+      const ph = c.time * 0.012 + t.x, bx = c.x + f.brazier[0] * k, by = c.y + f.brazier[1] * k;
+      ctx.fillStyle = "rgba(70, 60, 54, .34)";
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const rise = (c.time * 0.0006 + i / 3 + t.x * 0.01) % 1;
+        const px = bx + Math.sin(rise * 5 + i) * 1.8 * k, py = by - (7 + rise * 15) * k, pr = (1.5 + rise * 2.4) * (1 - rise * 0.5) * k;
+        ctx.moveTo(px + pr, py);
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      structFlame(bx, by, 3.6 * k, structClamp(8.5 + Math.sin(ph) * 1.2, 5, 11) * k, ph, false, c.fade);
+    }
+    if (f.rsFlames) {
+      for (let i = 0; i < f.rsFlames.length; i++) {
+        const fl = f.rsFlames[i], ph = c.time * 0.014 + t.x + i * 1.7;
+        structFlame(c.x + fl[0][0] * k, c.y + fl[0][1] * k, fl[1] * k, structClamp(fl[2] + Math.sin(ph) * 1.1, 3, 10) * k, ph, false, c.fade);
+      }
+    }
+    ctx.globalAlpha = 1;
+  },
   sound: "hurl",
 };
 // ====================================== END SKIN SECTION: rollstones ======================================
@@ -26675,11 +27609,201 @@ SKIN_ART.rollstones = {
 // SKIN SECTION: bekbanner. 1727, drums slot: Davit Bek's banner with drum and zurna
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Ter Avetis' Blessing: the fighting priest Ter Avetis, in a black robe and the pointed hood of an
+// Armenian priest, a sabre at his belt, lifts the cross over the defenders on a dry-stone dais.
+// Davit Bek's war-banner stands beside him: plain crimson cloth under a gilt cross (no device is
+// invented for it). The second rank brings a dhol, the double-headed drum of the highland villages,
+// beaten with a heavy stick and a light switch; the third a zurna, the shawm that plays with it.
+// The rally helpers (rallyPlanted, rallyBearer, exhortRobed, rallyLive) live in the standard and
+// exhort sections; the musicians wear the musket section's highland kit.
+const BEK_CLOTH = "#9e2b26", BEK_GILT = "#c9a24a", BEK_DHOL = "#8a5a30";
+
+// a highlander standing at (x, y): legs, then the musket section's coat and cap from the hips up
+function bekMan(x, y, face, g) {
+  const c = sctx;
+  c.lineCap = "round";
+  for (const lx of [-1.8, 1.9]) {
+    c.beginPath();
+    c.moveTo(x + lx * face, y - 5.4); c.lineTo(x + lx * 1.1 * face, y - 1.2);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = "#2c2420"; c.lineWidth = 2.1; c.stroke();
+  }
+  musketBody(c, x, y - 4.8, 1, face, g);
+  structCrown(y - 23);
+  return [structPoint(x - 2.6 * face, y - 10.4), structPoint(x + 2.6 * face, y - 10.4)];
+}
+// a dhol slung across the belly, its two heads to either side: the drum is baked, the arms and
+// sticks are live. Returns the drummer's record
+function bekDrummer(x, y, face, coat, off) {
+  const c = sctx, sh = bekMan(x, y, face, { coat, fur: true });
+  const dx = x + face * 2.4, dy = y - 8, hw = 5.2, hr = 3.9;
+  // the strap over the far shoulder
+  c.strokeStyle = "#3a2716"; c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(x - face * 2.4, y - 15); c.lineTo(dx + face * 1.4, dy - hr + 0.2); c.stroke();
+  // the shell, its rope lacing, and the two heads
+  inkRect(dx - hw, dy - hr, hw * 2, hr * 2, BEK_DHOL, 0.9);
+  c.fillStyle = "#4a2c14";
+  c.fillRect(dx - hw + 0.4, dy - hr + 0.4, 1, hr * 2 - 0.8);
+  c.fillRect(dx + hw - 1.4, dy - hr + 0.4, 1, hr * 2 - 0.8);
+  c.fillStyle = "rgba(255, 228, 180, .25)";
+  c.fillRect(dx - hw, dy - hr + 0.4, hw * 2, hr * 0.6);
+  c.fillStyle = "rgba(30, 14, 4, .3)";
+  c.fillRect(dx - hw, dy + hr * 0.35, hw * 2, hr * 0.65);
+  c.strokeStyle = "rgba(226, 206, 156, .6)"; c.lineWidth = 0.3;
+  c.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const px = dx - hw + 0.8 + i * (hw * 2 - 1.6) / 4;
+    c.moveTo(px, dy - hr + 0.5); c.lineTo(px + (hw * 2 - 1.6) / 8, dy + hr - 0.5); c.lineTo(px + (hw * 2 - 1.6) / 4, dy - hr + 0.5);
+  }
+  c.stroke();
+  inkDisc(dx - hw, dy, 1.7, hr + 0.2, "#efe2c0", 0.9);
+  inkDisc(dx + hw, dy, 1.7, hr + 0.2, "#e2d2aa", 0.9);
+  const rec = { kind: "dhol", sh, face, off: off || 0, sleeve: toneHex(coat, 14),
+    near: structPoint(dx + face * (hw + 0.8), dy - 0.4), far: structPoint(dx - face * (hw + 0.8), dy + 0.2) };
+  (structFit.bek || (structFit.bek = [])).push(rec);
+}
+// a zurna player: the shawm at his lips, pointing out and down; the pipe and his arms are live
+function bekZurna(x, y, face, coat, off) {
+  const sh = bekMan(x, y, face, { coat, fur: false });
+  (structFit.bek || (structFit.bek = [])).push({ kind: "zurna", sh, face, off: off || 0, sleeve: toneHex(coat, 14),
+    mouth: structPoint(x + face * 2.6, y - 13.6) });
+}
+// Ter Avetis: the robed priest of the exhort section under a black pointed hood, a sabre at his side
+function bekPriest(x, y, great, lift) {
+  const c = sctx, face = 1;
+  // the sabre's scabbard, hung behind the robe at the left hip
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(x - 1.4, y - 7.2); c.quadraticCurveTo(x + 4.6, y - 5.4, x + 7.4, y - 1.6);
+  c.strokeStyle = INK; c.lineWidth = 2.2; c.stroke();
+  c.strokeStyle = "#3b2a1c"; c.lineWidth = 1.1; c.stroke();
+  inkDisc(x - 1.6, y - 7.4, 0.8, 0.8, BEK_GILT, 0.4);
+  const sh = exhortRobed(x, y, { robe: "#25212a", fold: "rgba(0, 0, 0, .45)", hair: "#2a2220", beard: "#5d5650", face });
+  // the hood: a cone of black cloth over the crown, its fall down to the shoulders behind
+  inkPoly([x - 3.4, y - 11.6, x - 3.9, y - 16.6, x - 1, y - 23.4, x + 2.6, y - 18.4, x + 0.6, y - 18.2, x - 0.8, y - 16.8, x - 1.8, y - 12.6],
+    "#1d1a21", 0.8);
+  c.strokeStyle = "rgba(200, 196, 220, .35)"; c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(x - 2.8, y - 16.8); c.lineTo(x - 0.8, y - 22.2); c.stroke();
+  // a gilt pectoral cross on its chain
+  c.strokeStyle = BEK_GILT; c.lineWidth = 0.45;
+  c.beginPath(); c.moveTo(x - 1.2, y - 11.8); c.lineTo(x + 0.9, y - 8.6); c.lineTo(x + 2.6, y - 11.4); c.stroke();
+  inkRect(x + 0.5, y - 9.2, 0.8, 2.2, BEK_GILT, 0.3);
+  inkRect(x - 0.1, y - 8.6, 2, 0.7, BEK_GILT, 0.3);
+  structCrown(y - 24);
+  rallyBearer(x, y, {
+    sh, sleeve: "#3a3440", above: great ? 17 : 14, lift, fin: "cross", fr: great ? 3.4 : 3, wood: BEK_GILT, pw: 1.2, hex: BEK_CLOTH,
+  });
+}
+
+function paintBekBanner(lvl, spec) {
+  const c = sctx, base = towerBase("drums", lvl, spec), T = SYK_STONE;
+  const pd = base.d - 4, ox = pd * OBQ.dx, oy = pd * OBQ.dy, cx = ox / 2;
+  footPlinth(base.w, base.d, base.h, footStone(), 521 + lvl, !!spec || lvl === 2);
+  c.save();
+  c.translate(-ox / 2, -base.h - oy / 2);
+  const great = !!spec || lvl === 2;
+  const pw = great ? base.w - 5 : [22, 27][lvl], ph = great ? 17 : [10, 14][lvl];
+  const COATS = MUSKET_DRESS.coats;
+  rankMarks(0, 3.2, lvl, spec, false);
+  // a dais of dry-laid rubble with a coping of flat slabs
+  box3(pw, ph, pd, SYK_DRY.mid, towerWall(SYK_DRY, 523 + lvl, { side: SYK_DRY.side, course: 3.6, block: 6.5, rough: true, band: 0 }));
+  inkRect(-pw / 2 - 0.6, -ph - 0.4, pw + 1.2, 1.6, toneHex(T.trim, -12), 0.7);
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, pw / 2 + 0.6, -ph - 0.4);
+  inkRect(0, 0, pd, 1.6, toneHex(T.side, -6), 0.6);
+  c.restore();
+  if (structSnow) snowCap(-pw / 2, -ph - 0.4, pw * 0.5, 1.2);
+  sykTufts([[-pw / 2 + 1.4, 0.3, 3], [pw / 2 - 2, 0.3, 2.6]], 527 + lvl);
+  if (great) {
+    stringCourse(pw, pd, -ph * 0.48);
+    ledgeShade(-pw / 2, -ph * 0.48 + 1.6, pw);
+    wallTorch(-pw / 2 + 3.2, -ph + 7);
+  } else if (lvl === 1) wallTorch(pw / 2 - 3.4, -ph + 6.4);
+  const mid = -ph + oy * 0.58, front = -ph + oy * 0.26;
+  const W = base.w / 2;
+  if (spec === "b") {
+    // the meliks' banners: two lesser banners planted at the back corners of the plinth
+    rallyPlanted(-W - 4.4, 3.8, 52, { fin: "cross", fr: 2.6, flag: [14, 10], hex: "#7e2a2a", off: 2.1 });
+    rallyPlanted(W + 3.2, 0.6, 55, { fin: "cross", fr: 2.6, flag: [14, 10], hex: "#7e2a2a", off: 4.2 });
+  }
+  // Davit Bek's banner, stepped into the dais behind the priest
+  const bx = great ? cx + 1.2 : lvl === 1 ? cx + 0.6 : cx + 5.4, height = great ? 56 : [44, 50][lvl];
+  rallyPlanted(bx, mid, height, { fin: "cross", fr: great ? 3.3 : [2.8, 3.1][lvl], flag: great ? [26, 18] : [19, 13.5], hex: BEK_CLOTH, pw: great ? 2.4 : 2.1, wood: "#6e4c2c" });
+  // the musicians: on the dais from the second rank, a zurna from the third; the masteries add
+  // a second drum and pipe at the foot of the dais
+  if (spec === "a") bekDrummer(-W - 3.4, 4.4, 1, COATS[1], 1.6);
+  if (great) bekZurna(W + 4.4 + ox * 0.4, 1.4, -1, COATS[2], 0.4);
+  if (lvl > 0 || spec) bekDrummer(great ? cx + 8.6 : cx + 8.4, front, -1, COATS[0], 0);
+  bekPriest(great ? cx - 9 : lvl === 1 ? cx - 7.4 : cx - 4.2, front + 0.6, great, spec === "a" ? 7 : 5.5);
+  c.restore();
+}
+
+// ---- live: the banner and the priest's cross (rallyLive), then the drum and the pipe ----
+function bekArm(sx, sy, hx, hy, k, sleeve) { rallyArmLive(sx, sy, hx, hy, k, sleeve); }
+function bekLive(t, c) {
+  rallyLive(t, c);
+  const list = c.fit.bek;
+  if (!list) return;
+  const k = c.k, X0 = c.x, Y0 = c.y, beat = isFinite(t.beat) ? t.beat : 0;
+  ctx.globalAlpha = c.fade;
+  ctx.lineCap = "round";
+  for (const r of list) {
+    const f = r.face;
+    if (r.kind === "dhol") {
+      // the heavy stick falls on the near head twice to the switch's once on the far head
+      const a = Math.max(0, Math.sin(beat * 2 + r.off)), b = Math.max(0, Math.sin(beat + r.off + 1.4));
+      const nx = X0 + r.near[0] * k, ny = Y0 + r.near[1] * k, fx = X0 + r.far[0] * k, fy = Y0 + r.far[1] * k;
+      // near hand: the heavy curved stick (kopal) raised and brought down onto the head
+      const hx = nx + f * (2.6 + a * 1.6) * k, hy = ny - (2.2 + a * 5) * k;
+      bekArm(X0 + r.sh[1][0] * k, Y0 + r.sh[1][1] * k, hx, hy, k, r.sleeve);
+      const tx = nx + f * 0.4 * k, ty = ny - a * 2.4 * k;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(hx - f * 0.4 * k, (hy + ty) / 2 + 0.6 * k, tx, ty);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2.2 * k; ctx.stroke();
+      ctx.strokeStyle = "#5a3a1e"; ctx.lineWidth = 1.2 * k; ctx.stroke();
+      // far hand: the light switch (chubuk) flicking on the far head
+      const gx = fx - f * (2.4 + b * 1.4) * k, gy = fy - (1.4 + b * 3.6) * k;
+      bekArm(X0 + r.sh[0][0] * k, Y0 + r.sh[0][1] * k, gx, gy, k, toneHex(r.sleeve, 6));
+      ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(fx + f * 0.3 * k, fy - b * 1.6 * k);
+      ctx.strokeStyle = "#3a2716"; ctx.lineWidth = 0.6 * k; ctx.stroke();
+      if (a > 0.92) {
+        // the stroke lands: a ring of sound off the head
+        ctx.strokeStyle = "rgba(255, 246, 214, .7)"; ctx.lineWidth = 0.6 * k;
+        ctx.beginPath(); ctx.arc(nx + f * 1.6 * k, ny, 3.4 * k, -0.9, 0.9); ctx.stroke();
+      }
+    } else if (r.kind === "zurna") {
+      // the pipe sways with the tune; both hands on the finger holes
+      const sw = Math.sin(c.time * 0.005 + r.off + t.x * 0.1) * 0.12 + Math.max(0, Math.sin(beat + r.off)) * 0.08;
+      const ang = 0.62 + sw, L = 10 * k, mx = X0 + r.mouth[0] * k, my = Y0 + r.mouth[1] * k;
+      const dx = Math.cos(ang) * f, dy = Math.sin(ang), ex = mx + dx * L, ey = my + dy * L;
+      const p1x = mx + dx * L * 0.38, p1y = my + dy * L * 0.38, p2x = mx + dx * L * 0.66, p2y = my + dy * L * 0.66;
+      bekArm(X0 + r.sh[0][0] * k, Y0 + r.sh[0][1] * k, p1x, p1y + 0.4 * k, k, toneHex(r.sleeve, 6));
+      // the conical bore widening to its flared bell
+      const nx = -dy * f, ny = dx * f;
+      ctx.beginPath();
+      ctx.moveTo(mx + nx * 0.5 * k, my + ny * 0.5 * k);
+      ctx.lineTo(ex - dx * 2 * k + nx * 1.1 * k, ey - dy * 2 * k + ny * 1.1 * k);
+      ctx.lineTo(ex + nx * 2.2 * k, ey + ny * 2.2 * k);
+      ctx.lineTo(ex - nx * 2.2 * k, ey - ny * 2.2 * k);
+      ctx.lineTo(ex - dx * 2 * k - nx * 1.1 * k, ey - dy * 2 * k - ny * 1.1 * k);
+      ctx.lineTo(mx - nx * 0.5 * k, my - ny * 0.5 * k);
+      ctx.closePath();
+      ctx.fillStyle = "#7a4a26"; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.7 * k; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx - dx * 1.2 * k, my - dy * 1.2 * k); ctx.lineTo(mx, my);
+      ctx.strokeStyle = "#d8c08a"; ctx.lineWidth = 0.8 * k; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(ex, ey, 0.7 * k, 2.2 * k, Math.atan2(dy, dx), 0, Math.PI * 2);
+      ctx.fillStyle = "#3a2010"; ctx.fill();
+      bekArm(X0 + r.sh[1][0] * k, Y0 + r.sh[1][1] * k, p2x, p2y + 0.4 * k, k, r.sleeve);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 SKIN_ART.bekbanner = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.drums,
   scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  paint(lvl, spec, variant) { paintBekBanner(lvl, spec); },
+  live: bekLive,
 };
 // ====================================== END SKIN SECTION: bekbanner ======================================
 
