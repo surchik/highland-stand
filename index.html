@@ -12455,23 +12455,127 @@ function snowSparkles() {
 // SKIN SECTION: smoke. Caliphate era: the smoke clouds the ladder parties light
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
-// drawn over the field from the clouds in smokeClouds (world units); reach is c.r * smokeSwell(c)
-function drawSmokeClouds(time) {
-  // placeholder until the art lands: soft grey puffs
-  for (const c of smokeClouds) {
-    const fade = Math.min(1, (c.dur - c.t) / 2), pp = proj(c.x, c.y), R = c.r * smokeSwell(c) * pp.s;
-    ctx.save();
-    ctx.translate(pp.x, pp.y - 20 * pp.s);
-    ctx.scale(1, ELLIPSE);
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
-    g.addColorStop(0, "rgba(96, 92, 88, " + (0.55 * fade).toFixed(3) + ")");
-    g.addColorStop(1, "rgba(96, 92, 88, 0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, R, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+// drawn over the field from the clouds in smokeClouds (world units); reach is c.r * smokeSwell(c).
+// A cloud is a heap of billows: a broad dark skirt rolling along the ground, a middle bank and a
+// few crowning puffs, every billow lit on its upper left like everything else on the field. Each
+// billow is one drawImage of a puff baked once; each cloud lays out its billows once (c.puffs).
+// The heap rolls in place, and as the cloud ages it lifts off the ground and thins away, so the
+// last seconds show the towers through it.
+let smokePuffSprite = null;
+function smokePuff() {
+  if (smokePuffSprite) return smokePuffSprite;
+  const n = 96, h = n / 2, c = document.createElement("canvas");
+  c.width = c.height = n;
+  const g = c.getContext("2d");
+  // the body: a ball of grey-brown smoke, see-through, with a soft but definite edge
+  const body = g.createRadialGradient(h, h, 0, h, h, h);
+  body.addColorStop(0, "rgba(116, 106, 94, .66)");
+  body.addColorStop(0.78, "rgba(118, 108, 96, .62)");
+  body.addColorStop(0.92, "rgba(122, 112, 100, .34)");
+  body.addColorStop(1, "rgba(122, 112, 100, 0)");
+  g.fillStyle = body;
+  g.fillRect(0, 0, n, n);
+  // a cool shade tucked under its lower right
+  g.globalCompositeOperation = "source-atop";
+  const dim = g.createRadialGradient(h + 14, h + 20, 0, h + 14, h + 20, h * 0.7);
+  dim.addColorStop(0, "rgba(60, 52, 52, .8)");
+  dim.addColorStop(1, "rgba(60, 52, 52, 0)");
+  g.fillStyle = dim;
+  g.fillRect(0, 0, n, n);
+  // the sunlit crown on its upper left is denser than the body, so the billows keep their shape
+  // while the middle of the heap still lets the field show through
+  g.globalCompositeOperation = "source-over";
+  g.save();
+  g.beginPath();
+  g.arc(h, h, h * 0.9, 0, Math.PI * 2);
+  g.clip();
+  const lit = g.createRadialGradient(h - 12, h - 16, 0, h - 12, h - 16, h * 0.74);
+  lit.addColorStop(0, "rgba(236, 226, 206, .86)");
+  lit.addColorStop(0.55, "rgba(200, 190, 172, .5)");
+  lit.addColorStop(1, "rgba(170, 160, 146, 0)");
+  g.fillStyle = lit;
+  g.fillRect(0, 0, n, n);
+  g.restore();
+  smokePuffSprite = c;
+  return c;
+}
+
+// the billows of one cloud: where each stands on the ground (unit ellipse), how high, how big, how dense
+const SMOKE_LAYERS = [
+  { n: 10, spread: 0.72, h: 0.1, size: 0.42, squash: 0.72, alpha: 0.68 },  // the skirt along the ground
+  { n: 6, spread: 0.4, h: 0.4, size: 0.38, squash: 0.86, alpha: 0.64 },    // the bank
+  { n: 4, spread: 0.2, h: 0.7, size: 0.32, squash: 0.95, alpha: 0.62 },    // the crown
+];
+function smokeLayout(c) {
+  const puffs = [], seed = c.x * 0.131 + c.y * 0.717;
+  for (let l = 0; l < SMOKE_LAYERS.length; l++) {
+    const L = SMOKE_LAYERS[l], row = [];
+    for (let i = 0; i < L.n; i++) {
+      const u = seededUnit(seed + l * 17.3 + i * 3.7), v = seededUnit(seed + l * 5.9 + i * 11.1);
+      const a = (i + u * 0.7) / L.n * Math.PI * 2, rr = L.spread * (0.45 + 0.55 * Math.sqrt(v));
+      row.push({
+        ax: Math.cos(a) * rr, ay: Math.sin(a) * rr, h: L.h * (0.8 + 0.4 * u),
+        size: L.size * (0.82 + 0.36 * v), squash: L.squash, alpha: L.alpha, ph: u * 6.283, spd: 0.6 + 0.5 * v,
+      });
+    }
+    // far billows first within each layer, so the near ones roll over them
+    row.sort((p, q) => p.ay - q.ay);
+    for (const p of row) puffs.push(p);
   }
+  return puffs;
+}
+
+// Smoke is soft, so each cloud's billows are painted at half resolution into one reused buffer
+// and laid over the field with a single scaled draw: a quarter of the fill for the same picture.
+let smokeBuf = null;
+function drawSmokeClouds(time) {
+  const sprite = smokePuff();
+  if (!smokeBuf) smokeBuf = document.createElement("canvas");
+  const m = ctx.getTransform(), bs = Math.max(0.25, (Math.hypot(m.a, m.b) || 1) * 0.5);
+  // after dark the sunlit crowns would glow through the night wash, so the billows are dimmed toward
+  // the moonlit blue first; at dusk they take a little of the evening's warmth
+  const tod = timeOfDay(), dim = tod.dark * 0.55, warm = tod.dusk * (1 - tod.dark) * 0.18;
+  for (const c of smokeClouds) {
+    if (!c.puffs) c.puffs = smokeLayout(c);
+    const swell = smokeSwell(c), Rw = c.r * swell;
+    const pp = proj(c.x, c.y), R = Rw * pp.s;
+    const life = unit01(c.t / c.dur);
+    // it gathers over its first second, then lifts and thins through its last three
+    const thin = unit01(c.t / 0.8) * (1 - unit01((c.t - (c.dur - 3)) / 3)) * (1 - life * 0.25);
+    if (thin < 0.01 || !(R > 1)) continue;
+    const lift = life * life * R * 0.5;
+    const x0 = pp.x - R * 1.45, y0 = pp.y - R * 2.5, w = Math.ceil(R * 2.9 * bs), h = Math.ceil(R * 3.65 * bs);
+    if (smokeBuf.width < w || smokeBuf.height < h) {
+      smokeBuf.width = Math.max(smokeBuf.width, w);
+      smokeBuf.height = Math.max(smokeBuf.height, h);
+    }
+    const g = smokeBuf.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, w, h);
+    g.setTransform(bs, 0, 0, bs, -x0 * bs, -y0 * bs);
+    // a dark smudge where the smoke hugs the ground
+    g.globalAlpha = 0.3 * (1 - life * 0.6);
+    g.drawImage(sprite, pp.x - R, pp.y - R * ELLIPSE * 0.9, R * 2, R * ELLIPSE * 1.8);
+    for (const p of c.puffs) {
+      const q = proj(c.x + p.ax * Rw, c.y + p.ay * Rw * ELLIPSE);
+      const roll = time * 0.45 * p.spd + p.ph;
+      const s = R * p.size * (0.86 + 0.28 * life + 0.06 * Math.sin(roll * 1.3));
+      const x = q.x + Math.sin(roll) * R * 0.05;
+      const y = q.y - (p.h + 0.06 * (1 + Math.cos(roll))) * R - lift * (0.6 + p.h);
+      g.globalAlpha = p.alpha;
+      g.drawImage(sprite, x - s, y - s * p.squash, s * 2, s * p.squash * 2);
+    }
+    g.globalAlpha = 1;
+    if (dim > 0.01 || warm > 0.01) {
+      g.globalCompositeOperation = "source-atop";
+      g.fillStyle = dim > 0.01 ? "rgba(22, 28, 52, " + dim.toFixed(3) + ")" : "rgba(170, 92, 60, " + warm.toFixed(3) + ")";
+      g.fillRect(x0, y0, w / bs, h / bs);
+      g.globalCompositeOperation = "source-over";
+    }
+    ctx.globalAlpha = thin;
+    ctx.drawImage(smokeBuf, 0, 0, w, h, x0, y0, w / bs, h / bs);
+  }
+  ctx.globalAlpha = 1;
 }
 // ====================================== END SKIN SECTION: smoke ======================================
 
@@ -19503,12 +19607,206 @@ function drawOutflanker(e, p, k, d, dir) {
 // ======================================================================================
 // Sebeos: Dvin fell in 640 to smoke, arrows and ladders scaled over the wall. The party carries
 // a ladder and smoke pots; near a tower it lights one, and the smoke blinds the towers inside it.
-const LADDER_LOOKS = { side: UNIT_LOOKS.foot, end: UNIT_LOOKS.footEnd };
+// Side on: three turbaned men in step under a long scaling ladder carried on edge on the far
+// shoulder, the rear man swinging a clay smoke pot on a cord. End on: the ladder foreshortened
+// over the shoulders of two men in file, the pot man walking alongside.
+// The figures are baked as unit sprites, so f is set to bring the men to a foot soldier's height
+// (the ram's hit radius would otherwise scale them up), and up holds the smoke wisp.
+const LADDER_LOOKS = {
+  side: { f: 0.9, back: 38, front: 34, up: 47, down: 3, top: 31, barW: 28, shadow: 22, feet: 19, rate: 1, bob: 0.8 },
+  end:  { f: 0.9, back: 19, front: 19, up: 48, down: 3, top: 38, barW: 28, shadow: 14, feet: 11, rate: 1, bob: 0.8, end: true },
+};
+const LADDER_POT = { body: "#b2643a", lit: "#d98e5c", shade: "#7a3d1f", ember: "#ffb24a" };
+let ladderKits = null;
+// the three bearers wear the era-2 kit with its weapon set down: a raider, a spearman and a veiled mailed man
+function ladderParty() {
+  if (!ladderKits) {
+    const K = UNIT_KITS[2], bare = { weapon: null, shield: null, back: null, lean: 0.11, hunch: false, slim: 0.92 };
+    ladderKits = [
+      { kit: Object.assign({}, K.spearman, bare), pal: null },
+      { kit: Object.assign({}, K.raider, bare), pal: unitPalette("#8a6a3a", "#ece8da") },
+      { kit: Object.assign({}, K.shield, bare, { armor: null }), pal: unitPalette("#4f6e58", "#ece8da") },
+    ];
+  }
+  return ladderKits;
+}
+
+// a thin wisp from the pot mouth: puffs that climb, swell and thin over one loop of the walk,
+// drifting back along the march; then the ember glowing in the mouth
+function ladderWisp(x, y, drift) {
+  const turn = Math.PI * 2, base = unitPhase / turn;
+  uc.beginPath();
+  uc.moveTo(x, y);
+  uc.bezierCurveTo(x + 1.6, y - 6, x - 2.4 + drift * 0.2, y - 10, x + drift * 0.35, y - 16 + Math.sin(unitPhase) * 0.8);
+  uc.lineWidth = 1.5; uc.strokeStyle = "rgba(104, 96, 88, .62)"; uc.stroke();
+  for (let i = 0; i < 4; i++) {
+    const u = (base + i / 4) % 1;
+    const px = x + drift * u + Math.sin(u * 7 + i) * 1.3, py = y - 2 - u * 30, r = 1.3 + u * 3.6;
+    const a = 1 - u * u;
+    uFlatOval(px, py, r, r * 0.8, 0, "rgba(108, 100, 92, " + (0.72 * a).toFixed(3) + ")");
+    uFlatOval(px - r * 0.3, py - r * 0.3, r * 0.55, r * 0.45, 0, "rgba(206, 198, 186, " + (0.5 * a).toFixed(3) + ")");
+  }
+  uFlatDisc(x, y + 0.3, 0.9, LADDER_POT.ember);
+}
+
+// a round-bellied clay pot hung by its neck on a cord from the hand at (hx, hy)
+function ladderPot(hx, hy, swing) {
+  const C = UNIT_COLORS;
+  const px = hx + swing, py = hy + 6.4;
+  uFlatLine([hx, hy, px - 0.9, py - 2.6], C.leatherShade, 0.6);
+  uFlatLine([hx, hy, px + 0.9, py - 2.6], C.leatherShade, 0.6);
+  uOval(px, py, 2.9, 2.6, 0, LADDER_POT.body);
+  uCrescent(px, py, 2.6, -1, LADDER_POT.lit);
+  uCrescent(px, py + 0.2, 2.5, 1, LADDER_POT.shade);
+  uPoly([px - 1.3, py - 2.2, px + 1.3, py - 2.2, px + 1.1, py - 3.4, px - 1.1, py - 3.4], LADDER_POT.body);
+  uFlatSeg(px - 1.8, py - 0.4, px + 1.8, py - 0.4, 0.45, LADDER_POT.shade);
+  return [px, py - 3.6];
+}
+
+// the ladder on edge: two rails and their rungs, x0 the heel, x1 the head; rungs first so the rails lie over them
+function ladderSide(x0, x1, yLow, yHigh) {
+  const C = UNIT_COLORS;
+  for (let x = x0 + 3; x < x1 - 1.5; x += 5.6) uSeg(x, yLow - 0.6, x + 0.4, yHigh + 0.6, 0.95, C.woodShade);
+  for (const y of [yHigh, yLow]) {
+    uSeg(x0, y, x1, y + (y === yHigh ? 0.15 : 0), 1.7, C.wood);
+    uFlatSeg(x0 + 0.6, y - 0.45, x1 - 0.6, y - 0.3, 0.55, C.woodLit);
+  }
+}
+
+// one bearer in profile, standing at x with his far hand up on the ladder rail at railY
+function ladderBearer(x, who, pal, railY, pot) {
+  const C = UNIT_COLORS, kit = who.kit, skin = kit.skin || C.skin;
+  const tip = kit.lean;
+  uc.save();
+  uc.translate(x, 0);
+  // far arm first, straight up to the rail behind the head
+  uc.save();
+  uc.translate(0, -9); uc.rotate(tip); uc.translate(0, 9);
+  uLine([-1.6, -15.4, -3.6, -13.4, -4.6, railY + 0.6], pal.dark, 2.3);
+  uDisc(-4.6, railY + 0.6, 1.4, shade(skin, -24));
+  uc.restore();
+  unitPaintLeg(0.5, unitPhase + Math.PI, kit, true);
+  unitPaintLeg(-0.5, unitPhase, kit, false);
+  uc.save();
+  uc.translate(0, -9); uc.rotate(tip); uc.translate(0, 9);
+  unitPaintTunic(kit, pal, Math.sin(unitPhase) * 0.7, 0.4, false);
+  uc.save();
+  uc.translate(1, -20.6);
+  unitPaintHead(kit, pal);
+  uc.restore();
+  let mouth = null;
+  if (pot) {
+    // the near hand hangs back with the pot's cord
+    const hx = -4.6 - Math.sin(unitPhase) * 0.8;
+    uLine([-2.6, -15, -3.6, -12, hx, -9.2], pal.lit, 2.4);
+    uDisc(hx, -9.2, 1.45, skin);
+    mouth = ladderPot(hx - 0.4, -8.4, -Math.sin(unitPhase) * 1.4);
+  } else {
+    // the near hand reaches up past the beard to steady the lower rail ahead of him
+    uLine([-2.4, -15, 3.8, -12.4, 7, railY + 0.9], pal.lit, 2.4);
+    uDisc(7, railY + 0.4, 1.45, skin);
+  }
+  uc.restore();
+  uc.restore();
+  return mouth ? [mouth[0] + x, mouth[1]] : null;
+}
+
+function ladderPaintSide(pal0) {
+  const party = ladderParty();
+  const yLow = -17.6, yHigh = -24.8;
+  ladderSide(-33, 31, yLow, yHigh);
+  const mouth = ladderBearer(-21, party[1], party[1].pal, yLow, true);
+  ladderBearer(-2, party[2], party[2].pal, yLow, false);
+  ladderBearer(17, party[0], pal0, yLow, false);
+  ladderWisp(mouth[0], mouth[1], -11);
+}
+
+// End on, the ladder runs up the screen from its near end; the rails close a little and the rungs
+// crowd together as it goes. near and far are the y of its two ends, cx its centre line.
+function ladderEnd(cx, near, far, from, to) {
+  const C = UNIT_COLORS;
+  const w0 = 5.2, w1 = 3.6;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  for (let i = 0; i < 9; i++) {
+    const t = 1 - Math.pow(1 - i / 8, 1.5);
+    if (t < from || t > to) continue;
+    const y = lerp(near, far, t), w = lerp(w0, w1, t);
+    uSeg(cx - w, y, cx + w, y, 0.9, C.woodShade);
+  }
+  const ya = lerp(near, far, from), yb = lerp(near, far, to);
+  const wa = lerp(w0, w1, from), wb = lerp(w0, w1, to);
+  uSeg(cx - wa, ya, cx - wb, yb, 1.5, C.woodLit);
+  uSeg(cx + wa, ya, cx + wb, yb, 1.5, C.wood);
+}
+
+// one bearer seen from the front or behind; ladderX is where his shoulder takes the rail
+function ladderBearerEnd(x, y, who, pal, front, ladderX, pot) {
+  const C = UNIT_COLORS, kit = who.kit, skin = kit.skin || C.skin;
+  uc.save();
+  uc.translate(x, y);
+  const lead = Math.sin(unitPhase) > 0;
+  if (lead === front) {
+    unitPaintLegEnd(1, unitPhase + Math.PI, kit, front);
+    unitPaintLegEnd(-1, unitPhase, kit, front);
+  } else {
+    unitPaintLegEnd(-1, unitPhase, kit, front);
+    unitPaintLegEnd(1, unitPhase + Math.PI, kit, front);
+  }
+  unitPaintTunic(kit, pal, Math.sin(unitPhase) * 0.5, 0, !front);
+  uc.save();
+  uc.translate(0, -20.8);
+  unitPaintHeadEnd(kit, pal, front);
+  uc.restore();
+  let mouth = null;
+  if (pot) {
+    const hx = 6.2;
+    uLine([4.6, -15, 6, -12.4, hx, -9.4], front ? pal.base : pal.dark, 2.4);
+    uDisc(hx, -9.4, 1.45, skin);
+    mouth = ladderPot(hx + 0.2, -8.6, Math.sin(unitPhase) * 0.9);
+    uLine([-4.6, -15, -5.4, -12.4, -5.6 + Math.sin(unitPhase), -9.6], front ? pal.lit : pal.base, 2.4);
+    uDisc(-5.6 + Math.sin(unitPhase), -9.6, 1.45, skin);
+  } else {
+    // the shoulder hand grips the rail, the other swings
+    uLine([4.6, -15, 5.4, -12.4, 5.8 - Math.sin(unitPhase), -9.6], front ? pal.base : pal.dark, 2.4);
+    uDisc(5.8 - Math.sin(unitPhase), -9.6, 1.45, skin);
+  }
+  uc.restore();
+  return mouth ? [mouth[0] + x, mouth[1] + y] : null;
+}
+
+function ladderPaintEnd(pal0, front) {
+  const C = UNIT_COLORS, party = ladderParty();
+  const cx = -7.6, near = front ? -10.5 : -11.5, far = -44;
+  // the second bearer, further up the road, then the pot man beside the file
+  const second = front ? party[2] : party[0], first = front ? party[0] : party[2];
+  const secondPal = front ? party[2].pal : pal0, firstPal = front ? pal0 : party[2].pal;
+  ladderEnd(cx, near, far, 0.42, 1);
+  ladderBearerEnd(cx + 6.4, -9, second, secondPal, front, cx, false);
+  uLine([cx + 2, -25.4, cx + 0.6, -27.6, cx + 2.6, -29.4], secondPal.base, 2.2);
+  uDisc(cx + 2.6, -29.4, 1.35, second.kit.skin || C.skin);
+  const mouth = ladderBearerEnd(10.6, -4, party[1], party[1].pal, front, 0, true);
+  ladderEnd(cx, near, far, 0.12, 0.42);
+  ladderBearerEnd(0, 0, first, firstPal, front, cx, false);
+  // the near end of the ladder lies over his shoulder, his hand up on the rail
+  ladderEnd(cx, near, far, 0, 0.16);
+  uLine([-4.4, -15, -6.6, -13.4, cx - 2.6, -16], front ? firstPal.lit : firstPal.base, 2.4);
+  uDisc(cx - 2.6, -16, 1.45, first.kit.skin || C.skin);
+  ladderWisp(mouth[0], mouth[1], 4);
+}
+
 function drawLadderParty(e, p, k, d, dir) {
-  // placeholder until the art lands
   const view = unitView(p);
-  if (view === "side") unitFace(dir); else unitLit = 1;
-  drawSoldier(e, k, d, Math.sin(unitPhase), view);
+  const pal = unitPalette(d.color, d.trim);
+  uc.save();
+  uc.scale(k, k);
+  if (view === "side") {
+    unitFace(dir);
+    ladderPaintSide(pal);
+  } else {
+    unitLit = 1;
+    ladderPaintEnd(pal, view === "front");
+  }
+  uc.restore();
 }
 // ====================================== END SKIN SECTION: ladder ======================================
 
