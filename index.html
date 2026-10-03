@@ -4422,11 +4422,11 @@ function heroName() {
 // engines until their own skins are painted; replace an id here once its SKIN_ART section exists.
 const TOWER_SKINS = {
   //         0 Urartu    1 Avarayr   2 Caliphate  3 Ottoman  | 4 1727     5 1915-18  6 Artsakh
-  archer:   ["archer",   "archer",   "archer",    "archer",    "archer",  "archer",  "archer"],
-  ballista: ["javelin",  "ballista", "ballista",  "musket",    "musket",  "musket",  "musket"],
-  catapult: ["hurlers",  "catapult", "trebuchet", "hurlers",   "hurlers", "hurlers", "hurlers"],
-  fire:     ["beacon",   "cauldron", "cauldron",  "cauldron",  "cauldron", "cauldron", "cauldron"],
-  drums:    ["standard", "exhort",   "banner",    "drums",     "drums",   "drums",   "drums"],
+  archer:   ["archer",   "archer",   "archer",    "archer",    "matchlock", "rifles",   "riflesquad"],
+  ballista: ["javelin",  "ballista", "ballista",  "musket",    "falconet",  "maxim",    "airdefense"],
+  catapult: ["hurlers",  "catapult", "trebuchet", "hurlers",   "rollstones", "fieldgun", "rocketbattery"],
+  fire:     ["beacon",   "cauldron", "cauldron",  "cauldron",  "cauldron",  "barricade", "minefield"],
+  drums:    ["standard", "exhort",   "banner",    "drums",     "bekbanner", "bells",    "commandpost"],
 };
 const SKIN_ART = {};      // skin id -> { box, scale, paint, variant, live, footing, proj, projSpeed, sound, onFire, kickDrop }
 const PROJ_ART = {};      // projectile kind -> painter, for kinds the first arsenal lacked
@@ -25691,6 +25691,204 @@ SKIN_ART.exhort = {
   live: rallyLive,
 };
 // ====================================== END SKIN SECTION: exhort ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: matchlock. 1727, archer slot: Syunik matchlock musketeers
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.matchlock = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.archer,
+  scale: TOWER_SCALE.archer,
+  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
+  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
+  proj: "ball", projSpeed: 820, sound: "musket",
+};
+// ====================================== END SKIN SECTION: matchlock ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: falconet. 1727, ballista slot: a light falconet gun on the walls
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.falconet = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  proj: "ball", projSpeed: 900, sound: "musket",
+};
+// ====================================== END SKIN SECTION: falconet ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: rollstones. 1727, catapult slot: rolling stones and boulders from the heights
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.rollstones = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.catapult,
+  scale: TOWER_SCALE.catapult,
+  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  sound: "hurl",
+};
+// ====================================== END SKIN SECTION: rollstones ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: bekbanner. 1727, drums slot: Davit Bek's banner with drum and zurna
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.bekbanner = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: bekbanner ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: rifles. 1915-18, archer slot: riflemen behind sandbags or walls
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.rifles = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.archer,
+  scale: TOWER_SCALE.archer,
+  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
+  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
+  proj: "ball", projSpeed: 980, sound: "musket",
+};
+// ====================================== END SKIN SECTION: rifles ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: maxim. 1915-18, ballista slot: a machine gun or long-range rifle post
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.maxim = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  proj: "ball", projSpeed: 1050, sound: "musket",
+};
+// ====================================== END SKIN SECTION: maxim ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: fieldgun. 1915-18, catapult slot: mountain or field gun
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.fieldgun = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.catapult,
+  scale: TOWER_SCALE.catapult,
+  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  sound: "catapult",
+};
+// ====================================== END SKIN SECTION: fieldgun ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: barricade. 1915-18, fire slot: a burning barricade or bomb-thrower's post on the road
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.barricade = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.fire,
+  scale: TOWER_SCALE.fire,
+  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: barricade ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: bells. 1915-18, drums slot: church bells calling the defenders
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.bells = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: bells ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: riflesquad. 1991-2023, archer slot: rifle squad in a trench
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.riflesquad = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.archer,
+  scale: TOWER_SCALE.archer,
+  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
+  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
+  proj: "ball", projSpeed: 1100, sound: "musket",
+};
+// ====================================== END SKIN SECTION: riflesquad ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: airdefense. 1991-2023, ballista slot: air defence or anti-tank position
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.airdefense = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  proj: "ball", projSpeed: 1200, sound: "musket",
+};
+// ====================================== END SKIN SECTION: airdefense ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: rocketbattery. 1991-2023, catapult slot: mortar or rocket battery
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.rocketbattery = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.catapult,
+  scale: TOWER_SCALE.catapult,
+  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
+  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
+  sound: "catapult",
+};
+// ====================================== END SKIN SECTION: rocketbattery ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: minefield. 1991-2023, fire slot: minefield and anti-tank obstacles
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.minefield = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.fire,
+  scale: TOWER_SCALE.fire,
+  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: minefield ======================================
+
+
+// ======================================================================================
+// SKIN SECTION: commandpost. 1991-2023, drums slot: command post or bread shelter
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+SKIN_ART.commandpost = {
+  // placeholder until the art lands: the slot's original engine stands in
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+};
+// ====================================== END SKIN SECTION: commandpost ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
