@@ -25754,12 +25754,986 @@ SKIN_ART.bekbanner = {
 // SKIN SECTION: rifles. 1915-18, archer slot: riflemen behind sandbags or walls
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// The three battlefields of 1915-1918 man the same slot three ways, and every skin of this era
+// paints all three, branching on the battlefield (THEME.id):
+//  Van, April-May 1915: Aygestan's garden walls and flat-roofed mud-brick houses, loopholed and
+//    banked with sandbags; townsmen in dark jackets, papakhas and cloth caps, bandoliers crossed.
+//    "Armenian men with old rifles and pistols at loopholes."
+//  Musa Dagh, July-September 1915: rock outcrops and dry-stone breastworks on the mountain;
+//    villagers in homespun, head-cloths and felt caps, with old hunting guns and shotguns.
+//  Sardarapat, May 1918: the regiments of the new Armenian army in Russian-pattern khaki,
+//    papakhas and peaked caps, the greatcoat rolled over the shoulder, Mosin rifles with bayonets
+//    fixed, behind sandbags and log-revetted earthworks.
+// The kit below (figures, sandbags, mud brick, rock) serves all five 1915-18 skins.
+const E5_FIELDS = ["van", "musa", "sard"];
+function e5Field() {
+  const id = THEME && THEME.id;
+  return id === "musadagh" ? "musa" : id === "sardarapat" ? "sard" : "van";
+}
+// a variant number that also names the battlefield, so its sprites never share a cache key
+function e5Variant(base) { return (base || 0) + 4 * E5_FIELDS.indexOf(e5Field()); }
+const E5_SKIN = "#e0b48a", E5_HAIR = "#2a1c12";
+const E5_GUN = { stock: "#6e4524", barrel: "#3c3e45", steel: "#c4c8d0", hunt: "#7a4e2a" };
+const E5_DRESS = {
+  van: [
+    { coat: "#4a3d33", cap: "papakha", capHex: "#2b241f", bando: 2, trou: "#2e2a28" },
+    { coat: "#3a3e46", cap: "flatcap", capHex: "#36332f", bando: 1, trou: "#2a2826" },
+    { coat: "#5e4b39", cap: "papakha", capHex: "#4a3b2e", bando: 2, trou: "#3a3028" },
+    { coat: "#433a36", cap: "flatcap", capHex: "#5a4a3a", bando: 1, trou: "#2c2826" },
+  ],
+  musa: [
+    { coat: "#6b5640", cap: "wrap", capHex: "#9a7a52", bando: 1, trou: "#3a3430", beard: true, hunt: true },
+    { coat: "#ddd3bb", cap: "felt", capHex: "#6e5e4a", bando: 1, vest: "#3e3530", trou: "#40382e", hunt: true },
+    { coat: "#55483a", cap: "wrap", capHex: "#c9b48c", bando: 0, trou: "#2e2a26", hunt: true },
+    { coat: "#d6cbb0", cap: "wrap", capHex: "#7e5e40", bando: 1, vest: "#5a3c2a", trou: "#3a3430" },
+  ],
+  sard: [
+    { coat: "#8a805a", cap: "papakha", capHex: "#4a4440", roll: true, belt: true, trou: "#6e6648", boots: true, bayonet: true },
+    { coat: "#7f7752", cap: "furazhka", capHex: "#76704e", roll: true, belt: true, trou: "#6a6244", boots: true, bayonet: true },
+    { coat: "#857c56", cap: "papakha", capHex: "#5e5650", roll: true, belt: true, trou: "#6e6648", boots: true, bayonet: true },
+    { coat: "#7c7550", cap: "furazhka", capHex: "#6e6a48", belt: true, trou: "#625c40", boots: true },
+  ],
+};
+function e5Dress(i) { const row = E5_DRESS[e5Field()]; return row[((i | 0) % row.length + row.length) % row.length]; }
+
+// ---- figures: one painter for the baked crews and the live riflemen, on any context ----
+function e5Head(c, hx, hy, f, face, g) {
+  c.beginPath();
+  c.arc(hx, hy, 2.9 * f, 0, Math.PI * 2);
+  c.fillStyle = E5_SKIN; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.95 * f; c.stroke();
+  if (g.beard) {
+    c.beginPath();
+    c.arc(hx + face * 0.3 * f, hy + 0.3 * f, 2.3 * f, 0.35, Math.PI - 0.35);
+    c.closePath();
+    c.fillStyle = "#3b2a1c"; c.fill();
+  }
+  // the moustache every man of the age wore
+  c.fillStyle = E5_HAIR;
+  c.fillRect(hx + face * 1.1 * f - 1.4 * f, hy + 0.5 * f, 2.8 * f, 0.8 * f);
+  c.fillStyle = "#1a100a";
+  c.fillRect(hx + face * 1.3 * f - 0.45 * f, hy - 1.2 * f, 0.9 * f, 0.95 * f);
+  const cap = g.cap, hex = g.capHex;
+  c.beginPath();
+  if (cap === "papakha") {
+    // a tall cap of sheepskin, slightly flared
+    c.moveTo(hx - 3.1 * f, hy - 1.5 * f);
+    c.lineTo(hx - 3.5 * f, hy - 6.3 * f);
+    c.quadraticCurveTo(hx, hy - 7.4 * f, hx + 3.5 * f, hy - 6.3 * f);
+    c.lineTo(hx + 3.1 * f, hy - 1.5 * f);
+    c.quadraticCurveTo(hx, hy - 2.5 * f, hx - 3.1 * f, hy - 1.5 * f);
+  } else if (cap === "furazhka") {
+    // the peaked service cap: a stiff flat crown over a band, a short black peak
+    c.moveTo(hx - 3 * f, hy - 1.6 * f);
+    c.lineTo(hx - 3.1 * f, hy - 3.4 * f);
+    c.lineTo(hx - 3.9 * f, hy - 4.6 * f);
+    c.quadraticCurveTo(hx, hy - 5.9 * f, hx + 3.9 * f, hy - 4.6 * f);
+    c.lineTo(hx + 3.1 * f, hy - 3.4 * f);
+    c.lineTo(hx + 3 * f, hy - 1.6 * f);
+    c.closePath();
+  } else if (cap === "flatcap") {
+    c.moveTo(hx - 3.1 * f, hy - 1.5 * f);
+    c.quadraticCurveTo(hx - 3.6 * f, hy - 4.8 * f, hx - 0.4 * f * face, hy - 5 * f);
+    c.quadraticCurveTo(hx + face * 3.9 * f, hy - 4.6 * f, hx + face * 3.6 * f, hy - 2 * f);
+    c.lineTo(hx - face * 3.1 * f, hy - 1.5 * f);
+    c.closePath();
+  } else if (cap === "wrap") {
+    // a head-cloth wound round, its loose end hanging behind
+    c.moveTo(hx - 3.3 * f, hy - 1.3 * f);
+    c.quadraticCurveTo(hx - 3.9 * f, hy - 5.6 * f, hx, hy - 5.8 * f);
+    c.quadraticCurveTo(hx + 3.9 * f, hy - 5.6 * f, hx + 3.3 * f, hy - 1.3 * f);
+    c.quadraticCurveTo(hx, hy - 2.4 * f, hx - 3.3 * f, hy - 1.3 * f);
+    c.moveTo(hx - face * 2.6 * f, hy - 1.8 * f);
+    c.lineTo(hx - face * 4.4 * f, hy + 1.6 * f);
+    c.lineTo(hx - face * 3 * f, hy + 1.9 * f);
+    c.lineTo(hx - face * 1.8 * f, hy - 1.4 * f);
+  } else {
+    // a round felt cap, its brim rolled up
+    c.moveTo(hx - 3.3 * f, hy - 1.6 * f);
+    c.quadraticCurveTo(hx - 3.5 * f, hy - 6.4 * f, hx, hy - 6.6 * f);
+    c.quadraticCurveTo(hx + 3.5 * f, hy - 6.4 * f, hx + 3.3 * f, hy - 1.6 * f);
+    c.quadraticCurveTo(hx, hy - 2.6 * f, hx - 3.3 * f, hy - 1.6 * f);
+  }
+  c.fillStyle = hex; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.9 * f; c.stroke();
+  c.lineWidth = 0.6 * f;
+  c.beginPath();
+  if (cap === "papakha") {
+    c.strokeStyle = toneHex(hex, 46);
+    for (let i = 0; i < 4; i++) {
+      const tx = hx - 2.4 * f + i * 1.5 * f;
+      c.moveTo(tx, hy - 5.6 * f + (i % 2) * 0.8 * f); c.lineTo(tx + 0.5 * f, hy - 4.2 * f + (i % 2) * 0.8 * f);
+    }
+    c.stroke();
+  } else if (cap === "furazhka") {
+    c.strokeStyle = "rgba(30, 20, 8, .5)";
+    c.moveTo(hx - 3.1 * f, hy - 3.4 * f); c.lineTo(hx + 3.1 * f, hy - 3.4 * f);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(hx + face * 0.6 * f, hy - 1.7 * f);
+    c.quadraticCurveTo(hx + face * 3.4 * f, hy - 1.9 * f, hx + face * 4.2 * f, hy - 0.9 * f);
+    c.strokeStyle = INK; c.lineWidth = 1.2 * f; c.stroke();
+    c.beginPath();
+    c.arc(hx + face * 0.4 * f, hy - 2.5 * f, 0.45 * f, 0, Math.PI * 2);
+    c.fillStyle = "#d8c47a"; c.fill();
+  } else if (cap === "flatcap") {
+    c.moveTo(hx + face * 1.6 * f, hy - 1.7 * f);
+    c.lineTo(hx + face * 4.3 * f, hy - 1.2 * f);
+    c.strokeStyle = INK; c.lineWidth = 1.1 * f; c.stroke();
+  } else if (cap === "wrap") {
+    c.strokeStyle = "rgba(40, 24, 10, .45)";
+    c.moveTo(hx - 3.2 * f, hy - 3.1 * f); c.quadraticCurveTo(hx, hy - 4.6 * f, hx + 3.3 * f, hy - 2.6 * f);
+    c.stroke();
+  } else {
+    c.strokeStyle = "rgba(30, 18, 8, .45)";
+    c.moveTo(hx - 3 * f, hy - 2.2 * f); c.quadraticCurveTo(hx, hy - 3.1 * f, hx + 3 * f, hy - 2.2 * f);
+    c.stroke();
+  }
+}
+// a man from the hips (px, py) up: coat, vest, belt or sash, bandoliers, the soldier's greatcoat roll
+function e5Torso(c, px, py, f, face, g) {
+  c.beginPath();
+  c.moveTo(px - 3.9 * f, py + 0.6 * f);
+  c.lineTo(px - 4.1 * f, py - 5.2 * f);
+  c.quadraticCurveTo(px, py - 7.4 * f, px + 4.1 * f, py - 5.2 * f);
+  c.lineTo(px + 3.9 * f, py + 0.6 * f);
+  c.closePath();
+  c.fillStyle = g.coat; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 1.05 * f; c.stroke();
+  if (g.vest) {
+    c.fillStyle = g.vest;
+    c.beginPath();
+    c.moveTo(px - 3.95 * f, py + 0.5 * f); c.lineTo(px - 4.05 * f, py - 5 * f); c.lineTo(px - 1.6 * f, py - 6.4 * f); c.lineTo(px - 0.9 * f, py + 0.5 * f);
+    c.moveTo(px + 3.95 * f, py + 0.5 * f); c.lineTo(px + 4.05 * f, py - 5 * f); c.lineTo(px + 1.6 * f, py - 6.4 * f); c.lineTo(px + 0.9 * f, py + 0.5 * f);
+    c.fill();
+  }
+  c.fillStyle = "rgba(255, 240, 210, .2)";
+  c.fillRect(px - 3.4 * f, py - 5.4 * f, 1.6 * f, 5.6 * f);
+  if (g.roll) {
+    // the rolled greatcoat over the far shoulder, across to the near hip
+    c.beginPath();
+    c.moveTo(px - face * 3.4 * f, py - 6.2 * f);
+    c.quadraticCurveTo(px + face * 0.4 * f, py - 3.6 * f, px + face * 3.6 * f, py - 0.4 * f);
+    c.strokeStyle = INK; c.lineWidth = 2.6 * f; c.stroke();
+    c.strokeStyle = "#7a7464"; c.lineWidth = 1.7 * f; c.stroke();
+    c.strokeStyle = "rgba(255, 250, 230, .3)"; c.lineWidth = 0.5 * f; c.stroke();
+  }
+  if (g.belt) {
+    c.fillStyle = "#5a3a20";
+    c.fillRect(px - 3.95 * f, py - 1.9 * f, 7.9 * f, 1.3 * f);
+    // cartridge pouches either side of the buckle
+    c.fillStyle = "#6e4a28";
+    c.fillRect(px - 3.4 * f, py - 2.2 * f, 1.8 * f, 1.9 * f);
+    c.fillRect(px + 1.6 * f, py - 2.2 * f, 1.8 * f, 1.9 * f);
+    c.fillStyle = "#c8b070";
+    c.fillRect(px - 0.4 * f, py - 1.8 * f, 0.8 * f, 1.1 * f);
+  } else {
+    c.fillStyle = g.vest ? "#8a3a2a" : "#3a2a1c";
+    c.fillRect(px - 3.95 * f, py - 1.8 * f, 7.9 * f, 1.2 * f);
+  }
+  // bandoliers of rifle cartridges, crossed on the chest
+  for (let b = 0; b < (g.bando || 0); b++) {
+    const s = b ? -face : face;
+    const x1 = px - s * 3.3 * f, y1 = py - 6.3 * f, x2 = px + s * 3.4 * f, y2 = py - 0.9 * f;
+    c.beginPath();
+    c.moveTo(x1, y1); c.lineTo(x2, y2);
+    c.strokeStyle = INK; c.lineWidth = 1.9 * f; c.stroke();
+    c.strokeStyle = "#6a4a2a"; c.lineWidth = 1.1 * f; c.stroke();
+    c.fillStyle = "#d8b860";
+    for (let i = 1; i < 5; i++) {
+      const u = i / 5;
+      c.fillRect(x1 + (x2 - x1) * u - 0.3 * f, y1 + (y2 - y1) * u - 0.45 * f, 0.6 * f, 0.6 * f);
+    }
+  }
+  e5Head(c, px + face * 0.4 * f, py - 9.6 * f, f, face, g);
+}
+function e5Line(c, x1, y1, x2, y2, w, hex, f) {
+  c.beginPath();
+  c.moveTo(x1, y1); c.lineTo(x2, y2);
+  c.strokeStyle = INK; c.lineWidth = (w + 1.1) * f; c.stroke();
+  c.strokeStyle = hex; c.lineWidth = w * f; c.stroke();
+}
+function e5Hand(c, x, y, f) {
+  c.beginPath();
+  c.arc(x, y, 1 * f, 0, Math.PI * 2);
+  c.fillStyle = E5_SKIN; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.55 * f; c.stroke();
+}
+// a rifle (or an old hunting gun) from its butt at (bx, by) along (ca, sa), L long
+function e5Gun(c, bx, by, ca, sa, L, f, g) {
+  const mx = bx + ca * L, my = by + sa * L, hunt = g.hunt;
+  e5Line(c, bx + ca * 4 * f, by + sa * 4 * f, mx, my, hunt ? 1.2 : 0.9, E5_GUN.barrel, f);
+  // the wooden fore-end runs well up a service rifle's barrel
+  e5Line(c, bx, by + 0.4 * f, bx + ca * (hunt ? 7 : L * 0.72), by + sa * (hunt ? 7 : L * 0.72) + 0.4 * f, hunt ? 1.6 : 1.3, hunt ? E5_GUN.hunt : E5_GUN.stock, f);
+  e5Line(c, bx - ca * 1.2 * f, by - sa * 1.2 * f + 0.6 * f, bx + ca * 3.6 * f, by + sa * 3.6 * f + 0.4 * f, 2, hunt ? E5_GUN.hunt : E5_GUN.stock, f);
+  if (g.bayonet) {
+    c.beginPath();
+    c.moveTo(mx, my); c.lineTo(mx + ca * 5.4 * f, my + sa * 5.4 * f);
+    c.strokeStyle = INK; c.lineWidth = 1.1 * f; c.stroke();
+    c.strokeStyle = E5_GUN.steel; c.lineWidth = 0.5 * f; c.stroke();
+  }
+  return [mx, my];
+}
+// a rifleman laid on the aim at hips (px, py); pushes his muzzle into `out` when he has just fired
+function e5Aiming(c, px, py, f, g, ca, sa, kick, fired, out) {
+  const face = ca >= 0 ? 1 : -1, rec = kick * 1.3 * f;
+  const gx = px + face * 1 * f - ca * rec, gy = py - 7.2 * f - sa * rec;
+  const L = (g.len || (g.hunt ? 15 : 17)) * f;
+  const behind = sa < -0.2;
+  const draw = () => {
+    if (g.rest) {
+      // the barrel laid over a sandbag or a stone on the coping
+      const rx = gx + ca * L * 0.62, ry = gy + sa * L * 0.62;
+      if (ry < py - 1 * f) {
+        c.beginPath();
+        c.ellipse(rx, ry + 1.6 * f, 2.4 * f, 1.3 * f, 0, 0, Math.PI * 2);
+        c.fillStyle = g.restHex || "#b8a274"; c.fill();
+        c.strokeStyle = INK; c.lineWidth = 0.6 * f; c.stroke();
+      }
+    }
+    const m = e5Gun(c, gx - ca * 1.6 * f, gy - sa * 1.6 * f, ca, sa, L, f, g);
+    const lx = gx + ca * L * 0.42, ly = gy + sa * L * 0.42 + 0.6 * f;
+    e5Line(c, px + face * 2.6 * f, py - 5.6 * f, lx, ly, 1.7, toneHex(g.coat, 12), f);
+    e5Hand(c, lx, ly, f);
+    e5Line(c, px - face * 2.4 * f, py - 5.4 * f, gx + ca * 0.6 * f, gy + sa * 0.6 * f + 0.8 * f, 1.7, toneHex(g.coat, 18), f);
+    e5Hand(c, gx + ca * 0.6 * f, gy + sa * 0.6 * f + 0.8 * f, f);
+    return m;
+  };
+  let m;
+  if (behind) m = draw();
+  e5Torso(c, px - ca * rec * 0.4, py, f, face, g);
+  if (!behind) m = draw();
+  if (fired && out) {
+    const tip = g.bayonet ? 0 : 0.6 * f;
+    out.push(m[0] + ca * tip, m[1] + sa * tip, ca, sa);
+  }
+}
+// a man reloading: the rifle upright before him, the bolt worked or (with the old guns) the rammer driven home
+function e5Loading(c, px, py, f, g, time, seed) {
+  const face = g.face || 1, pump = (Math.sin(time * 0.006 + seed) * 0.5 + 0.5) * (g.hunt ? 3.4 : 1.6) * f;
+  e5Torso(c, px, py, f, face, g);
+  const bx = px + face * 3.4 * f, top = py - 17 * f;
+  e5Line(c, bx, py + 0.6 * f, bx + face * 0.4 * f, py - 6 * f, 1.8, g.hunt ? E5_GUN.hunt : E5_GUN.stock, f);
+  e5Line(c, bx + face * 0.3 * f, py - 4 * f, bx + face * 0.7 * f, top, 0.9, E5_GUN.barrel, f);
+  if (g.hunt) e5Line(c, bx + face * 0.75 * f, top - 4.6 * f + pump, bx + face * 0.8 * f, top + 2 * f + pump, 0.45, "#d8c08a", f);
+  e5Line(c, px - face * 2.2 * f, py - 5.6 * f, bx + face * 0.3 * f, py - 5 * f, 1.7, toneHex(g.coat, 18), f);
+  e5Hand(c, bx + face * 0.3 * f, py - 5 * f, f);
+  const hy = g.hunt ? top - 4.2 * f + pump : py - 10.4 * f - pump;
+  e5Line(c, px + face * 2.6 * f, py - 5.8 * f, bx + face * 0.9 * f, hy, 1.7, toneHex(g.coat, 12), f);
+  e5Hand(c, bx + face * 0.9 * f, hy, f);
+}
+// a whole man standing (or kneeling) at his feet (x, y), baked: hands at figure-unit points facing right
+function e5Figure(x, y, s, g, o) {
+  const c = sctx, face = o.face || 1, kneel = !!o.kneel;
+  const hipY = y - (kneel ? 5.4 : 8.6) * s, px = x;
+  c.lineCap = "round";
+  const legHex = g.trou || "#3a3430";
+  const leg = (pts, boot) => {
+    c.beginPath();
+    c.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+    c.strokeStyle = INK; c.lineWidth = 3.2 * s; c.stroke();
+    c.strokeStyle = legHex; c.lineWidth = 2.1 * s; c.stroke();
+    const n = pts.length;
+    c.beginPath();
+    c.moveTo(pts[n - 2] - 0.2 * s, pts[n - 1] - (g.boots ? 2.6 : 0.9) * s); c.lineTo(pts[n - 2] + face * 0.6 * s, pts[n - 1]);
+    c.strokeStyle = "#241a12"; c.lineWidth = 2.2 * s; c.stroke();
+  };
+  fillBlobs("rgba(24, 14, 4, .28)", [[x + 1.2 * s, y + 0.3 * s, 4.4 * s, 1.2 * s]]);
+  if (g.skirt) {
+    // a long dress to the ankle
+    inkPoly([px - 3.6 * s, hipY - 1, px + 3.6 * s, hipY - 1, px + 4.6 * s, y - 0.4 * s, px - 4.4 * s, y - 0.4 * s], g.trou, 0.9 * s);
+    c.fillStyle = "rgba(255, 240, 220, .18)";
+    c.fillRect(px - 3.4 * s, hipY, 1.2 * s, y - hipY - 1);
+  } else if (kneel) {
+    leg([px - face * 1.4 * s, hipY, px - face * 2.6 * s, y - 0.4 * s, px - face * 5.4 * s, y]);
+    leg([px + face * 1.6 * s, hipY, px + face * 4.6 * s, hipY - 0.4 * s, px + face * 4.4 * s, y]);
+  } else {
+    const st = o.stride || 0;
+    leg([px - 1.7 * s, hipY, px - (1.9 + st) * s, y]);
+    leg([px + 1.8 * s, hipY, px + (2 + st) * s, y]);
+  }
+  const hands = o.hands || [[3.8, -13.2], [-1.6, -12.2]];
+  const pts = hands.map(h => [x + h[0] * face * s, y + h[1] * s]);
+  const sh = [[px + face * 2.6 * s, hipY - 5.6 * s], [px - face * 2.4 * s, hipY - 5.4 * s]];
+  // the far arm is drawn first, behind the body
+  e5Line(c, sh[1][0], sh[1][1], pts[1][0], pts[1][1], 1.7, toneHex(g.coat, 18), s);
+  e5Hand(c, pts[1][0], pts[1][1], s);
+  if (o.under) o.under(pts);
+  e5Torso(c, px, hipY, s, face, g);
+  if (o.held) o.held(pts);
+  e5Line(c, sh[0][0], sh[0][1], pts[0][0], pts[0][1], 1.7, toneHex(g.coat, 12), s);
+  e5Hand(c, pts[0][0], pts[0][1], s);
+  structCrown(hipY - 17 * s);
+}
+// a rifleman posted behind a parapet whose coping is y: he is drawn live from the hips up
+function e5Post(x, y, Dp, g, o) {
+  const m = Object.assign({ p: structPoint(x + Dp * OBQ.dx * 0.3, y), s: 1 }, o);
+  m.g = Object.assign({}, g, o && o.rest ? { rest: true, restHex: o.restHex } : null, o && o.len ? { len: o.len } : null);
+  (structFit.e5men || (structFit.e5men = [])).push(m);
+  structCrown(y - 18 * m.s);
+}
+
+// ---- materials ----
+// the field stone of the map, for walls and breastworks
+function e5Stone() {
+  // the mountain's grey-buff limestone on Musa Dagh
+  if (e5Field() === "musa") return { mid: "#b9b09c", side: "#7f7766", trim: "#d4ccb8", mortar: null, band: 0 };
+  const S = footStone();
+  return { mid: mixHex(S[0], S[1], 0.3), side: toneHex(S[1], -8), trim: toneHex(S[0], 10), mortar: null, band: 0 };
+}
+const E5_ADOBE = { mid: "#c9aa80", side: "#977752", top: "#dcc49a", brick: "#b48e66" };
+// a mud-brick wall under its mud plaster, the plaster fallen away here and there from the bricks
+function e5Adobe(W, H, D, seed, hex) {
+  const c = sctx, A = E5_ADOBE, mid = hex || A.mid, rnd = mulberry32(seed || 11);
+  box3(W, H, D, mid, { side: toneHex(mid, -46), top: toneHex(mid, 24) });
+  c.save();
+  c.beginPath();
+  c.rect(-W / 2, -H, W, H);
+  c.clip();
+  // bare patches show the brick courses
+  for (let i = 0; i < Math.max(1, Math.round(W * H / 300)); i++) {
+    const pw = 5 + rnd() * 7, ph = 3.4 + rnd() * 4, px = -W / 2 + rnd() * (W - pw), py = -H + 1 + rnd() * (H - ph - 1);
+    c.fillStyle = toneHex(mixHex(A.brick, mid, 0.45), rnd() * 8 - 4);
+    c.beginPath();
+    c.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "rgba(70, 44, 20, .5)";
+    c.lineWidth = 0.35;
+    c.beginPath();
+    for (let yy = py + 1.2; yy < py + ph; yy += 1.7) {
+      c.moveTo(px + 0.6, yy); c.lineTo(px + pw - 0.6, yy);
+      for (let xx = px + 1 + ((yy * 7) % 3); xx < px + pw - 1; xx += 3.2) { c.moveTo(xx, yy); c.lineTo(xx, yy + 1.7); }
+    }
+    c.stroke();
+    c.strokeStyle = "rgba(255, 244, 220, .5)";
+    c.lineWidth = 0.4;
+    c.beginPath();
+    c.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, Math.PI * 1.05, Math.PI * 1.7);
+    c.stroke();
+  }
+  // rain streaks and a crack
+  c.strokeStyle = "rgba(90, 64, 36, .25)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (let i = 0; i < W / 4; i++) {
+    const sx = -W / 2 + 1 + rnd() * (W - 2);
+    c.moveTo(sx, -H + 0.6); c.lineTo(sx + rnd() * 0.6, -H + 2 + rnd() * 4);
+  }
+  c.stroke();
+  c.strokeStyle = "rgba(60, 38, 18, .5)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  const cx = -W / 2 + W * (0.2 + rnd() * 0.6);
+  c.moveTo(cx, -H); c.lineTo(cx + 1, -H + H * 0.3); c.lineTo(cx - 0.4, -H + H * 0.5);
+  c.stroke();
+  c.restore();
+  c.beginPath();
+  c.rect(-W / 2, -H, W, H);
+  inkStroke(1);
+}
+// a flat roof of beaten earth on poles whose ends show under the eave
+function e5Roof(W, D, rh) {
+  const c = sctx, E = "#8a7254";
+  c.save();
+  c.translate(-0.7 * OBQ.dx, -0.7 * OBQ.dy);
+  box3(W + 2, rh, D + 1.4, E, { side: toneHex(E, -30), top: toneHex(E, 18) });
+  for (let jx = -W / 2 + 1.4; jx < W / 2 + 0.6; jx += 4.2) endGrain(jx, -rh * 0.5, 0.9);
+  c.restore();
+}
+// sandbags laid in courses over a box of earth: the front, the right side and the top each show their bags
+const E5_BAG = "#b9a67a";
+function e5Bags(W, H, D, hex, seed) {
+  const c = sctx, B = hex || E5_BAG, rnd = mulberry32(seed || 5), bh = 2.7, bw = 5.4;
+  box3(W, H, D, B, { side: toneHex(B, -40), top: toneHex(B, 20) });
+  const course = (x0, w, h, dark, lit) => {
+    c.lineWidth = 0.45;
+    for (let y = 0, row = 0; y < h - 0.3; y += bh, row++) {
+      const yy = -y - bh, off = row % 2 ? bw / 2 : 0;
+      for (let x = x0 - off; x < x0 + w; x += bw) {
+        const a = Math.max(x0, x + 0.15), b = Math.min(x0 + w, x + bw - 0.15);
+        if (b - a < 0.8) continue;
+        roundRectPath(a, Math.max(-h, yy + 0.15), b - a, Math.min(bh - 0.3, h + yy + bh), Math.min(1.1, (b - a) / 2));
+        c.fillStyle = toneHex(B, dark + rnd() * 12 - 6);
+        c.fill();
+        c.strokeStyle = "rgba(60, 44, 20, .55)";
+        c.stroke();
+        c.fillStyle = lit;
+        c.fillRect(a + 0.6, Math.max(-h, yy + 0.15) + 0.35, Math.max(0, b - a - 1.2), 0.45);
+      }
+    }
+  };
+  course(-W / 2, W, H, 0, "rgba(255, 250, 230, .45)");
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, W / 2, 0);
+  course(0, D, H, -40, "rgba(255, 250, 230, .15)");
+  c.restore();
+  // the top course: bags laid across, their tied ends showing
+  c.save();
+  c.transform(1, 0, OBQ.dx, OBQ.dy, -W / 2, -H);
+  c.lineWidth = 0.4;
+  for (let v = 0, row = 0; v < D - 0.3; v += bh * 1.3, row++) {
+    for (let u = (row % 2) * 2.4; u < W - 1; u += bw) {
+      roundRectPath(u + 0.2, v + 0.2, Math.min(bw - 0.4, W - u - 0.4), Math.min(bh * 1.3 - 0.4, D - v - 0.4), 1);
+      c.fillStyle = toneHex(B, 18 + rnd() * 10 - 5);
+      c.fill();
+      c.strokeStyle = "rgba(60, 44, 20, .4)";
+      c.stroke();
+    }
+  }
+  c.restore();
+  c.beginPath();
+  c.moveTo(-W / 2, 0); c.lineTo(-W / 2, -H); c.lineTo(-W / 2 + D * OBQ.dx, -H + D * OBQ.dy);
+  c.lineTo(W / 2 + D * OBQ.dx, -H + D * OBQ.dy); c.lineTo(W / 2 + D * OBQ.dx, D * OBQ.dy); c.lineTo(W / 2, 0); c.closePath();
+  c.moveTo(-W / 2, -H); c.lineTo(W / 2, -H); c.lineTo(W / 2, 0);
+  c.moveTo(W / 2, -H); c.lineTo(W / 2 + D * OBQ.dx, -H + D * OBQ.dy);
+  inkStroke(0.9);
+}
+// a wall of logs laid horizontally, their cut ends at the corner
+function e5Logs(W, H, D, seed) {
+  const c = sctx, L = "#86603a", lh = 2.6;
+  box3(W, H, D, L, { side: toneHex(L, -34), top: toneHex(L, 26) });
+  c.lineWidth = 0.5;
+  c.strokeStyle = "rgba(50, 30, 12, .6)";
+  c.beginPath();
+  for (let y = -lh; y > -H + 0.4; y -= lh) { c.moveTo(-W / 2, y); c.lineTo(W / 2, y); }
+  c.stroke();
+  c.strokeStyle = "rgba(255, 236, 200, .3)";
+  c.beginPath();
+  for (let y = -lh + 0.5; y > -H + 0.4; y -= lh) { c.moveTo(-W / 2 + 0.6, y - lh + 1); c.lineTo(W / 2 - 0.6, y - lh + 1); }
+  c.stroke();
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, W / 2, 0);
+  c.strokeStyle = "rgba(30, 18, 6, .5)";
+  c.beginPath();
+  for (let y = -lh; y > -H + 0.4; y -= lh) { c.moveTo(0, y); c.lineTo(D, y); }
+  c.stroke();
+  c.restore();
+  // the log ends stand out past the corner
+  for (let y = -lh / 2; y > -H; y -= lh) {
+    inkDisc(-W / 2 - 0.5, y, 0.9, lh * 0.5, toneHex(L, 30), 0.6);
+    sctx.fillStyle = "rgba(70, 44, 20, .55)";
+    sctx.fillRect(-W / 2 - 0.7, y - 0.25, 0.5, 0.5);
+  }
+  c.beginPath();
+  c.rect(-W / 2, -H, W, H);
+  inkStroke(0.9);
+}
+// a mass of living rock with a flat top: lit front, shaded flank, a broken outline split by fissures,
+// boulders fallen at its foot
+function e5Rock(W, H, D, seed, S) {
+  const c = sctx, R = S || e5Stone(), rnd = mulberry32(seed || 7), ox = D * OBQ.dx, oy = D * OBQ.dy;
+  const j = (a) => (rnd() - 0.5) * 2 * a;
+  // the front outline: up the left side in ledges, over the top, down the right; the crag narrows upward
+  const Wt = W * 0.76, hw = (u) => W / 2 + 1.5 - u * (W / 2 + 1.5 - Wt / 2);
+  const front = [-hw(0), 0.4];
+  const nL = Math.max(2, Math.round(H / 6));
+  for (let i = 1; i <= nL; i++) {
+    const u = i / nL, x = -hw(u) + (i < nL ? j(1.4) + (i % 2 ? 1 : -0.6) : 0);
+    front.push(x, -H * u + (i < nL ? j(1) : 0));
+    if (i < nL) front.push(x + 1.2 + j(0.6), -H * u - 0.7);
+  }
+  for (let i = 1; i < 4; i++) front.push(-Wt / 2 + Wt * i / 4 + j(1.2), -H + j(0.7));
+  const nR = Math.max(2, Math.round(H / 7));
+  for (let i = 0; i < nR; i++) {
+    const u = 1 - i / nR;
+    front.push(hw(u) + (i ? j(1.2) + (i % 2 ? 0.8 : -0.4) : 0), -H * u + (i ? j(1) : 0));
+  }
+  front.push(hw(0), 0.4);
+  // the shaded flank going back, and the lit top
+  inkPoly([hw(0), 0.4, Wt / 2, -H, Wt / 2 + ox, -H + oy, hw(0) + ox * 0.9, oy * 0.9 + 0.4], toneHex(R.side, -4), 1);
+  inkPoly([-Wt / 2, -H, -Wt / 2 + ox, -H + oy, Wt / 2 + ox, -H + oy, Wt / 2, -H], toneHex(R.mid, 28), 1);
+  polyPath(front);
+  c.fillStyle = R.mid;
+  c.fill();
+  c.save();
+  c.clip();
+  // planes of light and shade, block by block between the fissures
+  const cuts = [];
+  for (let x = -W / 2 + 4 + rnd() * 3; x < W / 2 - 3; x += 6 + rnd() * 6) cuts.push(x);
+  let x0 = -W / 2 - 2;
+  for (let i = 0; i <= cuts.length; i++) {
+    const x1 = i < cuts.length ? cuts[i] : W / 2 + 2, mid = (x0 + x1) / 2;
+    const lit = mid < -W / 6 ? 0.2 : mid < W / 6 ? 0.08 : -0.12;
+    c.fillStyle = lit > 0 ? "rgba(255, 248, 228, " + lit + ")" : "rgba(30, 22, 16, " + (-lit) + ")";
+    c.beginPath();
+    c.moveTo(x0, 2); c.lineTo(x0 + 1, -H - 2); c.lineTo(x1 + 1, -H - 2); c.lineTo(x1, 2);
+    c.fill();
+    // a lit bevel down the left edge of every block
+    c.fillStyle = "rgba(255, 250, 235, .3)";
+    c.fillRect(x0 + 0.6, -H, 0.7, H);
+    x0 = x1;
+  }
+  c.strokeStyle = "rgba(36, 24, 16, .6)";
+  c.lineWidth = 0.7;
+  c.beginPath();
+  for (const x of cuts) {
+    let yy = -H - 1, xx = x;
+    c.moveTo(xx, yy);
+    while (yy < 1) { yy += 2.5 + rnd() * 3; xx += j(1); c.lineTo(xx, yy); }
+  }
+  // the bedding planes run across
+  for (let i = 0; i < H / 6; i++) {
+    const y = -H * (0.2 + 0.7 * rnd()), xs = -W / 2 + rnd() * W * 0.5;
+    c.moveTo(xs, y); c.lineTo(xs + W * (0.2 + rnd() * 0.3), y + j(1.2));
+  }
+  c.stroke();
+  // the foot darkens where it meets the ground
+  const g = c.createLinearGradient(0, -Math.min(8, H), 0, 1);
+  g.addColorStop(0, "rgba(40, 28, 16, 0)");
+  g.addColorStop(1, "rgba(40, 28, 16, .3)");
+  c.fillStyle = g;
+  c.fillRect(-W / 2 - 3, -Math.min(8, H), W + 6, Math.min(8, H) + 2);
+  c.restore();
+  polyPath(front);
+  inkStroke(1.1);
+  // tufts of grass and a thorn bush in the cracks
+  const grass = THEME && THEME.backdrop === "sevan" ? "#5f8a3c" : "#8a8a48";
+  c.strokeStyle = grass;
+  c.lineWidth = 0.7;
+  c.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const x = -W / 2 + 3 + rnd() * (W - 6), y = -rnd() * H * 0.7;
+    c.moveTo(x, y); c.lineTo(x - 0.9, y - 2.2); c.moveTo(x, y); c.lineTo(x + 0.7, y - 2.4); c.moveTo(x, y); c.lineTo(x + 1.6, y - 1.4);
+  }
+  c.stroke();
+  // fallen boulders at the foot
+  hurlBoulder(-W / 2 - 1.5, -1.6, 3.2, toneHex(R.mid, -6), seed + 3);
+  hurlBoulder(W / 2 + 2.4 + ox * 0.3, oy * 0.3 - 1.2, 2.6, toneHex(R.mid, 4), seed + 5);
+  return Wt;
+}
+// a dry-stone wall of fieldstones piled without mortar
+function e5DryStone(W, H, D, seed) {
+  const T = e5Stone();
+  box3(W, H, D, toneHex(T.mid, -6), towerWall(T, seed, { side: toneHex(T.side, -10), course: 3.2, block: 4.6, rough: true, band: 0, contact: false }));
+}
+// a breastwork round the top of a post: the far and left runs (behind the men), then the near runs
+function e5BreastBack(mat, W, H, Dp, bh, seed) {
+  const c = sctx, t = mat === "bags" ? 3 : 2.4;
+  c.save();
+  c.translate((Dp - t) * OBQ.dx, -H + (Dp - t) * OBQ.dy);
+  e5Run(mat, W, bh * 0.92, t, seed + 1, -14);
+  c.restore();
+  c.save();
+  c.translate(-W / 2 + t / 2, -H);
+  e5Run(mat, t, bh, Dp, seed + 2, -10);
+  c.restore();
+}
+function e5BreastFront(mat, W, H, Dp, bh, seed, skipSide) {
+  const c = sctx, t = mat === "bags" ? 3 : 2.4;
+  if (!skipSide) {
+    c.save();
+    c.translate(W / 2 - t / 2, -H);
+    e5Run(mat, t, bh, Dp, seed + 3, 0);
+    c.restore();
+  }
+  c.save();
+  c.translate(0, -H);
+  e5Run(mat, W, bh, t, seed + 4, 0);
+  c.restore();
+}
+function e5Run(mat, W, H, D, seed, tone) {
+  if (mat === "bags") e5Bags(W, H, D, toneHex(E5_BAG, tone), seed);
+  else if (mat === "adobe") e5Adobe(W, H, D, seed, toneHex(E5_ADOBE.mid, tone));
+  else if (mat === "logs") e5Logs(W, H, D, seed);
+  else e5DryStone(W, H, D, seed);
+}
+// a loophole: a dark slot through the wall; `muzzle` runs a barrel out of it and records its mouth
+function e5Loop(x, y, s, muzzle) {
+  const c = sctx, z = s || 1;
+  c.fillStyle = "rgba(255, 244, 220, .35)";
+  c.fillRect(x - 1.6 * z, y - 2.4 * z, 3.2 * z, 4.8 * z);
+  c.fillStyle = "#1c120a";
+  c.fillRect(x - 0.9 * z, y - 1.8 * z, 1.8 * z, 3.6 * z);
+  c.fillStyle = "rgba(30, 16, 6, .35)";
+  c.fillRect(x - 1.6 * z, y + 2.4 * z, 3.2 * z, 0.7);
+  const a = structPoint(x - 0.9 * z, y - 1.8 * z), b = structPoint(x + 0.9 * z, y + 1.8 * z);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  if (muzzle) {
+    inkDisc(x, y + 0.3 * z, 0.75 * z, 0.7 * z, E5_GUN.barrel, 0.4);
+    (structFit.loopGuns || (structFit.loopGuns = [])).push(structPoint(x, y + 0.3 * z));
+  }
+}
+// a window blocked up with planks against the shells, a loophole left between them
+function e5Boarded(x, y, w, h, muzzle) {
+  const c = sctx;
+  inkRect(x - w / 2 - 0.8, y - h - 0.8, w + 1.6, 1.2, "#7a5a3a", 0.5);
+  c.fillStyle = "#24170d";
+  c.fillRect(x - w / 2, y - h, w, h);
+  plankRect(x - w / 2 + 0.3, y - h + 0.3, w - 0.6, h - 0.6, "#7b5634", true, Math.round(x * 3 + y));
+  c.fillStyle = "#1c120a";
+  c.fillRect(x - 0.7, y - h * 0.62, 1.4, h * 0.34);
+  const a = structPoint(x - 0.7, y - h * 0.62), b = structPoint(x + 0.7, y - h * 0.28);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  if (muzzle) {
+    inkDisc(x, y - h * 0.45, 0.7, 0.65, E5_GUN.barrel, 0.4);
+    (structFit.loopGuns || (structFit.loopGuns = [])).push(structPoint(x, y - h * 0.45));
+  }
+  c.beginPath();
+  c.rect(x - w / 2, y - h, w, h);
+  inkStroke(0.7);
+}
+// a wooden ammunition box with rope handles
+function e5Crate(x, y, w, h, d, hex) {
+  const H = hex || "#7a5a34";
+  sctx.save();
+  sctx.translate(x, y);
+  box3(w, h, d, H, { side: toneHex(H, -30), top: toneHex(H, 24) });
+  plankRect(-w / 2 + 0.3, -h + 0.3, w - 0.6, h - 0.6, H, false, Math.round(x * 7));
+  sctx.fillStyle = "rgba(30, 18, 6, .6)";
+  sctx.fillRect(-w / 2 + 0.5, -h * 0.55, w - 1, 0.5);
+  sctx.beginPath();
+  sctx.rect(-w / 2, -h, w, h);
+  inkStroke(0.6);
+  sctx.restore();
+}
+// a rifle stood against a wall, butt down
+function e5Leaning(x, y, len, lean, g) {
+  const c = sctx, n = Math.hypot(lean, len), ca = lean / n, sa = -len / n;
+  e5Gun(c, x, y, ca, sa, n - 4, 1, g || {});
+}
+
+// ---- live: the riflemen turn to the aim; a sharp flash and a thin wisp (smokeless powder;
+// the old hunting guns at Musa Dagh still throw out black-powder smoke) ----
+const e5Muzzles = [];
+function e5Puff(c, x, y, dx, dy, f, p, a, black) {
+  const q = 1 - p, alpha = a * q * q * (black ? 0.85 : 0.5);
+  if (alpha < 0.02) return;
+  c.globalAlpha = alpha;
+  c.fillStyle = black ? "#e8e6e0" : "#f2efe6";
+  c.beginPath();
+  const n = black ? 3 : 2;
+  for (let i = 0; i < n; i++) {
+    const run = (1.5 + i * 2.6 + p * (3 + i * 5)) * f, r = (black ? 1.8 + p * 3.4 : 1 + p * 2) * f;
+    const px = x + dx * run + p * 2 * f, py = y + dy * run - (p * 6 + i) * f;
+    c.moveTo(px + r, py);
+    c.arc(px, py, r, 0, Math.PI * 2);
+  }
+  c.fill();
+  if (black) {
+    c.globalAlpha = alpha * 0.5;
+    c.strokeStyle = "#7a7a80";
+    c.lineWidth = 0.5 * f;
+    c.stroke();
+  }
+}
+function e5Flash(c, x, y, dx, dy, r, a) {
+  if (typeof musketFlash === "function") { musketFlash(c, x, y, dx, dy, r, a); return; }
+  c.globalAlpha = a;
+  c.fillStyle = "#ffe08a";
+  c.beginPath(); c.arc(x + dx * r, y + dy * r, r, 0, Math.PI * 2); c.fill();
+}
+// draws every posted man; returns how long ago the tower fired (s)
+function e5LiveMen(t, cx, opt) {
+  const fit = cx.fit, gs = fit.e5men;
+  const c = ctx, k = cx.k, x = cx.x, y = cx.y, fade = cx.fade, kick = cx.kick;
+  const ca = Math.cos(cx.aim), sa = Math.sin(cx.aim) * ELLIPSE;
+  const st = getStats(t), rate = st.rate / (1 + (t.buffHaste || 0));
+  const since = t.cd > 0 ? rate - t.cd : 99;
+  e5Muzzles.length = 0;
+  c.globalAlpha = fade;
+  if (gs) {
+    for (let i = 0; i < gs.length; i++) {
+      const g = gs[i], px = x + g.p[0] * k, py = y + g.p[1] * k, f = k * g.s;
+      if (g.load) e5Loading(c, px, py, f, g.g, cx.time, t.x * 0.37 + i);
+      else if (g.look) {
+        // a spotter with field glasses, turned to the aim
+        const face = ca >= 0 ? 1 : -1;
+        e5Torso(c, px, py, f, face, g.g);
+        const hx = px + face * 3.6 * f, hy = py - 10 * f;
+        e5Line(c, px + face * 2.4 * f, py - 5.6 * f, hx, hy + 0.6 * f, 1.7, toneHex(g.g.coat, 12), f);
+        e5Line(c, px - face * 2.2 * f, py - 5.4 * f, hx - face * 0.6 * f, hy + 1 * f, 1.7, toneHex(g.g.coat, 18), f);
+        c.fillStyle = "#2a2622";
+        c.fillRect(hx - 1.2 * f, hy - 1.1 * f, 2.4 * f, 1.6 * f);
+        e5Hand(c, hx, hy + 0.6 * f, f);
+      } else {
+        const fired = since < 0.9 && (!opt || !opt.oneFires || i === (t.shots || 0) % gs.filter(m => !m.load && !m.look).length);
+        e5Aiming(c, px, py, f, g.g, ca, sa, fired ? kick : 0, fired, e5Muzzles);
+      }
+    }
+  }
+  const nGun = e5Muzzles.length;
+  if (fit.loopGuns && since < 0.9) for (const lg of fit.loopGuns) e5Muzzles.push(x + lg[0] * k, y + lg[1] * k, -0.5, 0.25);
+  const p = since / 0.9, black = opt && opt.black;
+  for (let i = 0; i < e5Muzzles.length; i += 4) {
+    const mx = e5Muzzles[i], my = e5Muzzles[i + 1], loop = i >= nGun;
+    if (p < 1) e5Puff(c, mx, my, e5Muzzles[i + 2], e5Muzzles[i + 3], loop ? k * 0.6 : k, p, fade, black);
+    if (kick <= 0.5) continue;
+    const a = fade * Math.min(1, (kick - 0.5) * 3);
+    if (!loop) e5Flash(c, mx, my, e5Muzzles[i + 2], e5Muzzles[i + 3], (1.8 + kick * 1.6) * k, a);
+    else {
+      c.globalAlpha = a;
+      c.fillStyle = "#ffb347";
+      c.beginPath(); c.arc(mx, my, (1.2 + kick) * k, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#fff6cc";
+      c.beginPath(); c.arc(mx, my, (0.6 + kick * 0.5) * k, 0, Math.PI * 2); c.fill();
+    }
+  }
+  c.globalAlpha = 1;
+  return since;
+}
+
+// ---- the riflemen's posts ----
+function paintRiflePost(lvl, spec) {
+  const c = sctx, S = footStone(), F = e5Field(), D = (i) => e5Dress(i);
+  const base = towerBase("archer", lvl, spec);
+  footDrum(base.rx, base.ry, base.h, S, 5 + lvl);
+  const fd = 15;
+  c.save();
+  c.translate(-fd * OBQ.dx / 2, -base.h - fd * OBQ.dy / 2);
+  upgradeStuds(0, 3.4, lvl, spec);
+  if (F === "van") rifleVan(lvl, spec, D);
+  else if (F === "musa") rifleMusa(lvl, spec, D);
+  else rifleSard(lvl, spec, D);
+  c.restore();
+}
+// Van: Aygestan's garden walls and flat-roofed houses of mud brick on a stone footing
+function rifleVan(lvl, spec, D) {
+  const c = sctx, T = e5Stone();
+  if (!spec && lvl === 0) {
+    // a garden wall knocked through for a loophole, sandbags along its top, one man behind it
+    const W = 32, H = 17, Dp = 9;
+    box3(W + 1, 3, Dp + 1, T.mid, towerWall(T, 31, { course: 3, block: 6, rough: true, band: 0 }));
+    c.save();
+    c.translate(0.5 * OBQ.dx, -3 + 0.5 * OBQ.dy);
+    e5Adobe(W, H - 3, Dp, 33);
+    e5Loop(-8, -5.6, 0.9, true);
+    e5Post(3, -H + 3 - 2.6, Dp, D(0));
+    c.translate(0, -H + 3);
+    for (const bx of [-11, -5.6]) { c.save(); c.translate(bx, 0); e5Bags(5.4, 2.6, Dp - 1, null, bx * 3); c.restore(); }
+    c.save(); c.translate(10.4, 0); e5Bags(10, 2.6, Dp - 1, null, 41); c.restore();
+    c.restore();
+    e5Leaning(W / 2 - 1.6, 1.2, 14, 3.6, D(1));
+    return;
+  }
+  // a house: a stone ground storey, mud-brick above, a flat earth roof banked with sandbags
+  const W = spec === "a" ? 22 : spec === "b" ? 34 : lvl === 1 ? 27 : 30;
+  const Dp = spec === "a" ? 13 : 14;
+  const H1 = spec === "a" ? 22 : lvl === 1 ? 0 : 15, H2 = spec === "a" ? 22 : lvl === 1 ? 27 : spec === "b" ? 16 : 18;
+  const H = H1 + H2, rh = 2.4, bh = 4.4;
+  if (H1) {
+    box3(W, H1, Dp, T.mid, towerWall(T, 51 + lvl, { course: 4.4, block: 8, rough: true, band: 0 }));
+    // the lower storey's loopholes, guns run out of them
+    const n = spec === "b" ? 3 : 2;
+    for (let i = 0; i < n; i++) e5Loop(-W / 2 + W * (i + 0.5) / n + (i === 0 ? 2 : 0), -H1 * 0.55, 1, true);
+    // a low door blocked with a cart-load of beams and sacks
+    c.save();
+    c.translate(W / 2 - 6, 0);
+    c.restore();
+  }
+  c.save();
+  c.translate(0, -H1);
+  if (!H1) {
+    // a plain mud-brick house of one tall storey on a low stone footing
+    box3(W + 1, 2.4, Dp + 0.6, T.mid, towerWall(T, 57, { course: 2.4, block: 6, rough: true, band: 0 }));
+    c.translate(0, -2.4);
+  }
+  e5Adobe(W, H2 - (H1 ? 0 : 2.4), Dp, 61 + lvl * 3 + (spec ? 7 : 0));
+  const h2 = H2 - (H1 ? 0 : 2.4);
+  // windows boarded up, loopholes left in the boards
+  if (spec === "b") { e5Boarded(-9, -3.6, 5, 6.4, true); e5Boarded(9, -3.6, 5, 6.4, false); e5Loop(0, -h2 * 0.5, 0.9, true); }
+  else if (spec === "a") { e5Boarded(-2, -4.4, 5, 6.6, true); e5Loop(5.6, -h2 * 0.55, 0.85, false); }
+  else if (lvl === 1) {
+    e5Boarded(-6, -9, 5.2, 7, true);
+    // the house door, its lintel a single beam
+    inkRect(5, -10.4, 6.4, 1.4, TIMBER, 0.6);
+    c.fillStyle = "#24170d"; c.fillRect(5.6, -9, 5.2, 9);
+    plankRect(5.9, -8.6, 4.6, 8.6, "#6b4526", true, 17);
+    c.beginPath(); c.rect(5.6, -9, 5.2, 9); inkStroke(0.7);
+  } else { e5Boarded(-7, -3.8, 5, 6.4, true); e5Boarded(7, -3.8, 5, 6.4, false); }
+  c.translate(0, -h2);
+  e5Roof(W, Dp, rh);
+  c.translate(0, -rh);
+  // the roof's breastwork of sandbags; the men stand behind it
+  const Wb = W - 3, Db = Dp - 2;
+  c.save();
+  c.translate(1 * OBQ.dx, 1 * OBQ.dy);
+  e5BreastBack("bags", Wb, 0, Db, bh, 70);
+  if (spec === "a") {
+    e5Post(-1.5, -bh, Db, D(0), { rest: true });
+    // a lookout behind him with his field glasses
+    e5Post(6.5, -bh - 1.4, Db * 0.6, D(1), { look: true, s: 0.92 });
+  } else if (spec === "b") {
+    e5Post(-10, -bh, Db, D(0));
+    e5Post(0, -bh, Db, D(1));
+    e5Post(10, -bh, Db, D(2));
+  } else if (lvl === 2) {
+    e5Post(-6.5, -bh, Db, D(0));
+    e5Post(6.5, -bh, Db, D(2));
+  } else {
+    e5Post(-2, -bh, Db, D(1));
+  }
+  e5BreastFront("bags", Wb, 0, Db, bh, 70);
+  c.restore();
+  c.restore();
+  if (spec === "a") {
+    // a wooden balcony on beams: the old houses of Van had them
+    c.save();
+    c.translate(0, -H1 - 2);
+    for (const bx of [-W / 2 + 2, W / 2 - 2]) beam(bx, 3.6, bx, 0, 1.4, TIMBER_DARK);
+    c.restore();
+  }
+  if (lvl === 1 && !spec) {
+    // a ladder to the roof
+    beam(-W / 2 - 3.2, 1, -W / 2 + 0.2, -H - 4, 1.2, TIMBER);
+    beam(-W / 2 - 0.4, 1.6, -W / 2 + 3, -H - 3.6, 1.2, TIMBER);
+    c.strokeStyle = TIMBER_DARK; c.lineWidth = 0.9;
+    c.beginPath();
+    for (let i = 1; i < 6; i++) { const u = i / 6; c.moveTo(-W / 2 - 3.2 + 3.4 * u, 1 - (H + 5) * u); c.lineTo(-W / 2 - 0.4 + 3.4 * u, 1.6 - (H + 5.2) * u); }
+    c.stroke();
+  }
+  if (lvl === 2 || spec) wallTorch(W / 2 - 2.6, -H1 - (H1 ? 4 : 12));
+  // sacks and a crate of cartridges at the foot of the wall
+  if (spec === "b" || lvl === 2) {
+    e5Crate(-W / 2 - 1.5 + Dp * OBQ.dx * 0.2, 2.4, 6, 3.4, 3.6);
+  }
+}
+// Musa Dagh: rocks of the mountain, a breastwork of loose stones, villagers with old guns
+function rifleMusa(lvl, spec, D) {
+  const c = sctx;
+  const W = spec === "a" ? 22 : spec === "b" ? 42 : [36, 34, 36][lvl];
+  const H = spec === "a" ? 44 : spec === "b" ? 22 : [10, 20, 28][lvl];
+  const Dp = spec === "a" ? 12 : 14, bh = spec === "a" ? 5 : 6;
+  const Wt = e5Rock(W, H, Dp, 81 + lvl * 7 + (spec === "a" ? 30 : spec === "b" ? 40 : 0));
+  c.save();
+  c.translate(0, -H);
+  const Wb = Wt - 0.5, Db = Dp - 1.5;
+  c.save();
+  c.translate(0.6 * OBQ.dx, 0.6 * OBQ.dy);
+  if (lvl === 2 && !spec) {
+    // a lean-to of cut branches at the back of the post, the hunters' shelter
+    const bx = -Wb / 2 + Db * OBQ.dx + 2, by = Db * OBQ.dy;
+    for (let i = 0; i < 6; i++) beam(bx + i * 2.2, by + 0.4, bx + 3 + i * 2.2, by - 12, 1.1, i % 2 ? "#7a6a40" : "#6a5a38");
+    c.fillStyle = "#5c7a3a";
+    fillBlobs("#5c7a3a", [[bx + 6.5, by - 11.6, 8, 2.4], [bx + 4, by - 9, 4, 2]]);
+    fillBlobs("#76964a", [[bx + 5.5, by - 12.4, 5, 1.2]]);
+  }
+  e5BreastBack("stone", Wb, 0, Db, bh, 90);
+  if (spec === "a") {
+    e5Post(-1, -bh, Db, D(0), { rest: true, s: 1.04, restHex: "#9a9488" });
+  } else if (spec === "b") {
+    e5Post(-10, -bh, Db, D(0));
+    e5Post(0, -bh, Db, D(1));
+    e5Post(10, -bh, Db, D(3));
+  } else if (lvl === 2) {
+    e5Post(-6, -bh, Db, D(0));
+    e5Post(6, -bh, Db, D(2));
+  } else if (lvl === 1) {
+    e5Post(-5, -bh, Db, D(1));
+    e5Post(5.5, -bh - 0.6, Db * 0.5, Object.assign({}, D(2), { face: -1 }), { load: true });
+  } else {
+    e5Post(-1, -bh, Db, D(0));
+  }
+  e5BreastFront("stone", Wb, 0, Db, bh, 90);
+  c.restore();
+  c.restore();
+  // the villagers' few stores: a water jar, a powder horn on a peg, a bundle of cut brush
+  if (spec || lvl > 0) {
+    const jx = W / 2 + 2.4, jy = 2;
+    fillBlobs("rgba(24, 14, 4, .3)", [[jx + 1, jy + 0.4, 3.4, 1]]);
+    c.beginPath();
+    c.moveTo(jx - 1, jy - 6.4);
+    c.quadraticCurveTo(jx - 3.6, jy - 4.4, jx - 2.2, jy);
+    c.lineTo(jx + 2.2, jy);
+    c.quadraticCurveTo(jx + 3.6, jy - 4.4, jx + 1, jy - 6.4);
+    c.closePath();
+    c.fillStyle = "#b8643a"; c.fill(); inkStroke(0.8);
+    c.fillStyle = "rgba(255, 230, 190, .35)"; c.fillRect(jx - 2, jy - 5, 1, 4);
+  }
+  if (spec === "a") e5Leaning(-W / 2 - 2, 1.4, 16, 2.6, D(2));
+}
+// Sardarapat: sandbags, log revetments and earth: the field works of a regular army
+function rifleSard(lvl, spec, D) {
+  const c = sctx;
+  if (!spec && lvl === 0) {
+    // a ring of sandbags on a scrape of earth, one soldier
+    const W = 30, Dp = 12, bh = 9;
+    // a bank of thrown-up earth under the bags
+    box3(W + 3, 3, Dp + 2, "#7a6446", { side: "#5a4632", top: "#94805e" });
+    sctx.translate(0, -3);
+    e5BreastBack("bags", W, 0, Dp, bh, 110);
+    e5Post(0, -bh, Dp, D(0));
+    e5BreastFront("bags", W, 0, Dp, bh, 110);
+    e5Crate(W / 2 + 4 + Dp * OBQ.dx * 0.1, 3, 5, 3, 3.2, "#6e5a36");
+    return;
+  }
+  if (spec === "a") {
+    // a timber observation post on four legs, braced, sandbagged at the top: the sharpshooter's perch
+    const W = 18, Dp = 11, H = 40, bh = 4.6;
+    const leg = (x, d, hex) => beam(x + d * OBQ.dx, d * OBQ.dy + 0.6, x + d * OBQ.dx + (x < 0 ? 1.6 : -1.6), -H + d * OBQ.dy, 1.7, hex);
+    leg(-W / 2 + 1, Dp - 1, TIMBER_DARK);
+    leg(W / 2 - 1, Dp - 1, TIMBER_DARK);
+    // cross-bracing
+    c.save();
+    c.translate((Dp - 1) * OBQ.dx, (Dp - 1) * OBQ.dy);
+    beam(-W / 2 + 1.4, -2, W / 2 - 2, -H * 0.5, 0.9, TIMBER_DARK);
+    c.restore();
+    leg(-W / 2 + 1, 1, TIMBER);
+    leg(W / 2 - 1, 1, TIMBER);
+    beam(-W / 2 + 1.4, -2, W / 2 - 2.4, -H * 0.5, 1, TIMBER);
+    beam(W / 2 - 1.4, -2, -W / 2 + 2.4, -H * 0.5, 1, TIMBER);
+    beam(-W / 2 + 2, -H * 0.5, W / 2 - 2, -H * 0.5, 1, TIMBER);
+    beam(W / 2 - 1.4, -H * 0.5, -W / 2 + 2.6, -H + 1, 1, TIMBER);
+    // a ladder up the near side
+    beam(W / 2 + 3, 1, W / 2 - 0.8, -H, 1, TIMBER);
+    c.translate(0, -H);
+    box3(W + 2, 1.6, Dp + 1, TIMBER, { side: "#573a1e" });
+    c.translate(0, -1.6);
+    e5BreastBack("bags", W, 0, Dp, bh, 130);
+    e5Post(-2, -bh, Dp, D(1), { rest: true });
+    e5BreastFront("bags", W, 0, Dp, bh, 130);
+    return;
+  }
+  // a log-revetted earthwork; on the third rank a log blockhouse with loopholes under a roof of earth and bags
+  const W = spec === "b" ? 34 : lvl === 1 ? 26 : 28, Dp = 14;
+  const H = spec === "b" ? 16 : lvl === 1 ? 14 : 24, bh = 5;
+  e5Logs(W, H, Dp, 140 + lvl);
+  if (lvl === 2 && !spec) {
+    e5Loop(-8, -H * 0.5, 1, true);
+    e5Loop(1, -H * 0.5, 1, true);
+    // the blockhouse door, a heavy plank leaf
+    c.fillStyle = "#24170d"; c.fillRect(6.6, -9.6, 5.4, 9.6);
+    plankRect(6.9, -9.2, 4.8, 9.2, "#6b4526", true, 23);
+    c.beginPath(); c.rect(6.6, -9.6, 5.4, 9.6); inkStroke(0.7);
+    wallTorch(W / 2 - 2.6, -12);
+  } else if (spec === "b") {
+    e5Loop(-10, -H * 0.5, 1, false);
+    e5Loop(10, -H * 0.5, 1, false);
+  }
+  c.translate(0, -H);
+  // earth heaped on the logs, then the sandbag parapet
+  box3(W + 1, 1.8, Dp + 0.6, "#7a6446", { side: "#5a4632", top: "#94805e" });
+  c.translate(0, -1.8);
+  const Wb = W - 2, Db = Dp - 1.5;
+  c.save();
+  c.translate(0.6 * OBQ.dx, 0.6 * OBQ.dy);
+  e5BreastBack("bags", Wb, 0, Db, bh, 150);
+  if (spec === "b") {
+    e5Post(-11, -bh, Db, D(0));
+    e5Post(0, -bh, Db, D(1));
+    e5Post(11, -bh, Db, D(2));
+  } else if (lvl === 2) {
+    e5Post(-6.5, -bh, Db, D(0));
+    e5Post(6.5, -bh, Db, D(2));
+  } else {
+    e5Post(-4.5, -bh, Db, D(0));
+    e5Post(7, -bh - 0.6, Db * 0.5, Object.assign({}, D(3), { face: -1 }), { load: true });
+  }
+  e5BreastFront("bags", Wb, 0, Db, bh, 150);
+  c.restore();
+}
+
 SKIN_ART.rifles = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.archer,
-  scale: TOWER_SCALE.archer,
-  paint(lvl, spec, variant) { paintArcherTower(lvl, spec, variant ? -1 : 1); },
-  variant(t, aim) { return Math.cos(aim) < 0 ? 1 : 0; },
+  // drawn larger than the bowmen's tower, being lower: 98 x 1.0 stays inside the slot's 116 x 0.85
+  box: [-46, -98, 52, 20],
+  scale: 1,
+  footing(lvl, spec) {
+    const b = towerBase("archer", lvl, spec);
+    return { round: true, rx: b.rx, ry: b.ry, cy: 0 };
+  },
+  paint(lvl, spec, variant) { paintRiflePost(lvl, spec); },
+  variant() { return e5Variant(0); },
+  live(t, c) { e5LiveMen(t, c, { black: e5Field() === "musa" }); },
   proj: "ball", projSpeed: 980, sound: "musket",
 };
 // ====================================== END SKIN SECTION: rifles ======================================
@@ -25769,11 +26743,341 @@ SKIN_ART.rifles = {
 // SKIN SECTION: maxim. 1915-18, ballista slot: a machine gun or long-range rifle post
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Sardarapat: "A Russian Maxim machine gun on a wheeled mount": the Maxim of 1910 on its Sokolov
+// carriage, two small spoked wheels, a trail and a steel shield, the water-cooled jacket in front of
+// the shield. The gun is drawn live, turned to the aim on the ground plane; it fires in bursts, the
+// flash flickering and the spent cases falling, and the jacket steams after a long burst.
+// Van and Musa Dagh had no machine guns: there the slot is the few men with modern rifles, picked
+// shots posted high (a roof gallery over Van's lanes; a rock commanding a pass on the mountain),
+// rifle laid on a rest, a lookout with field glasses beside them.
+const MAXIM_HEX = { jacket: "#4a5048", dark: "#2e322e", shield: "#5d6656", wood: "#6a4a2c", brass: "#d8b860", wheel: "#4e4232" };
+
+// the gun and its carriage at (px, py) on the ground, turned to `aim`; f is the screen scale
+function maximGun(c, px, py, f, aim, kick, since, time, fade, crew) {
+  const ca = Math.cos(aim), sa = Math.sin(aim);
+  const ax = ca, ay = sa * ELLIPSE;                       // forward along the ground, on screen
+  const lx = -sa, ly = ca * ELLIPSE;                       // to the gun's left, on screen
+  const H = MAXIM_HEX, rec = kick * 0.9 * f;
+  const toward = sa > 0.15;                                // muzzle toward the viewer
+  const P = (u, v, h) => [px + (ax * u + lx * v) * f - ax * rec, py + (ay * u + ly * v) * f - h * f];
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  // the wheels, each in the plane of the aim
+  const wheel = (side) => {
+    const w = P(-1.5, side * 3.6, 0);
+    const rx = Math.max(0.7, 2.4 * Math.abs(ax)) * f, ry = 2.4 * f;
+    c.beginPath();
+    c.ellipse(w[0], w[1] - 2.2 * f, rx, ry, 0, 0, Math.PI * 2);
+    c.fillStyle = H.wheel; c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.9 * f; c.stroke();
+    c.beginPath();
+    c.ellipse(w[0], w[1] - 2.2 * f, rx * 0.4, ry * 0.4, 0, 0, Math.PI * 2);
+    c.fillStyle = "#2a241c"; c.fill();
+  };
+  const farSide = ly < 0 ? 1 : -1;            // the wheel on the far (upper) side is drawn first
+  wheel(farSide);
+  // the trail runs back to the spade grips, the carriage body over the axle
+  const tr0 = P(-1, 0, 2.2), tr1 = P(-9.5, 0, 0.6);
+  e5Line(c, tr0[0], tr0[1], tr1[0], tr1[1], 1.5, H.dark, f);
+  const shieldPts = () => {
+    const b = P(1.6, 0, 1.4), half = 4.6, up = 8.2;
+    const l0 = [b[0] + lx * half * f, b[1] + ly * half * f], r0 = [b[0] - lx * half * f, b[1] - ly * half * f];
+    return [l0[0], l0[1], r0[0], r0[1], r0[0], r0[1] - up * f, b[0] - lx * half * 0.5 * f, b[1] - ly * half * 0.5 * f - (up + 1.1) * f,
+      b[0] + lx * half * 0.5 * f, b[1] + ly * half * 0.5 * f - (up + 1.1) * f, l0[0], l0[1] - up * f];
+  };
+  const shield = () => {
+    const pts = shieldPts();
+    c.beginPath();
+    c.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+    c.closePath();
+    c.fillStyle = toward ? H.shield : toneHex(H.shield, -18); c.fill();
+    c.strokeStyle = INK; c.lineWidth = 0.9 * f; c.stroke();
+    // the lit edge, and the sighting slot
+    c.strokeStyle = "rgba(230, 240, 220, .35)"; c.lineWidth = 0.5 * f;
+    c.beginPath(); c.moveTo(pts[10], pts[11] + 0.6 * f); c.lineTo(pts[8], pts[9] + 0.6 * f); c.stroke();
+    const s = P(1.6, 0, 6.4);
+    c.fillStyle = "#151612";
+    c.fillRect(s[0] - 0.9 * f, s[1] - 0.4 * f, 1.8 * f, 0.8 * f);
+  };
+  const body = () => {
+    // the receiver box and the spade grips behind the shield
+    const r0 = P(-4.6, 0, 4.6), r1 = P(1.2, 0, 4.6);
+    e5Line(c, r0[0], r0[1], r1[0], r1[1], 2.4, H.dark, f);
+    const g0 = P(-5.4, 0.9, 4.4), g1 = P(-5.4, -0.9, 4.4);
+    c.beginPath(); c.moveTo(g0[0], g0[1]); c.lineTo(g1[0], g1[1]);
+    c.strokeStyle = INK; c.lineWidth = 1.2 * f; c.stroke();
+    // the cartridge belt fed in from the left
+    const b0 = P(-1.6, 1.4, 4.4), b1 = P(-1.4, 5, 0.8);
+    c.beginPath(); c.moveTo(b0[0], b0[1]); c.quadraticCurveTo(b1[0], b0[1], b1[0], b1[1]);
+    c.strokeStyle = "#8a6a3a"; c.lineWidth = 1.1 * f; c.stroke();
+    c.strokeStyle = H.brass; c.lineWidth = 0.5 * f; c.setLineDash([0.4 * f, 0.6 * f]); c.stroke(); c.setLineDash([]);
+  };
+  const jacket = () => {
+    // the water jacket and the muzzle cone, ribbed along its length
+    const j0 = P(1.2, 0, 4.7), j1 = P(10.6, 0, 4.7 + 0.2), m1 = P(12.4, 0, 4.9);
+    e5Line(c, j0[0], j0[1], j1[0], j1[1], 2.6, H.jacket, f);
+    c.strokeStyle = "rgba(220, 228, 214, .35)"; c.lineWidth = 0.5 * f;
+    c.beginPath(); c.moveTo(j0[0], j0[1] - 0.8 * f); c.lineTo(j1[0], j1[1] - 0.8 * f); c.stroke();
+    c.strokeStyle = "rgba(20, 22, 18, .5)"; c.lineWidth = 0.4 * f;
+    c.beginPath();
+    for (let i = 1; i < 6; i++) { const q = P(1.2 + i * 1.6, 0, 4.7); c.moveTo(q[0] - lx * 0.2 * f, q[1] - 1.2 * f); c.lineTo(q[0] + lx * 0.2 * f, q[1] + 1.2 * f); }
+    c.stroke();
+    e5Line(c, j1[0], j1[1], m1[0], m1[1], 1.2, H.dark, f);
+    return m1;
+  };
+  let muzzle;
+  const gunner = () => { if (crew) crew(P, toward); };
+  if (toward) {
+    gunner(); body(); shield(); muzzle = jacket();
+  } else {
+    muzzle = jacket(); shield(); body(); gunner();
+  }
+  wheel(-farSide);
+  // the burst: the flash flickers on and off while the gun is firing
+  if (since < 0.42) {
+    const on = ((time / 46) | 0) % 2 === 0;
+    if (on) e5Flash(c, muzzle[0], muzzle[1], ax, ay, (1.6 + Math.random() * 0.8) * f, fade);
+    // spent cases spill out under the gun
+    c.globalAlpha = fade;
+    c.fillStyle = MAXIM_HEX.brass;
+    for (let i = 0; i < 3; i++) {
+      const q = ((since * 6 + i / 3) % 1), cp = P(-1.6, -1.4 - q * 3, 3.8 - q * 3.6 + q * q * 2);
+      c.fillRect(cp[0] - 0.4 * f, cp[1] - 0.4 * f, 0.8 * f, 0.8 * f);
+    }
+  }
+  // the water boils in the jacket after a long burst: a thread of steam from the vent
+  const steam = since < 3 ? 1 - since / 3 : 0;
+  if (steam > 0.02) {
+    const v = P(9, 0, 6);
+    c.globalAlpha = fade * steam * 0.55;
+    c.fillStyle = "#f4f2ec";
+    c.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const rise = ((time * 0.0009 + i / 3) % 1), r = (0.8 + rise * 2.2) * f;
+      c.moveTo(v[0] + rise * 2 * f + r, v[1] - rise * 9 * f);
+      c.arc(v[0] + rise * 2 * f, v[1] - rise * 9 * f, r, 0, Math.PI * 2);
+    }
+    c.fill();
+  }
+  c.globalAlpha = fade;
+  return muzzle;
+}
+// the gunner sits behind his gun, both hands on the spade grips
+function maximCrew(g, f) {
+  return (P, toward) => {
+    const hip = P(-8, 0, 0.4), grip = P(-5.4, 0, 4.4);
+    const face = (grip[0] - hip[0]) >= 0 ? 1 : -1;
+    const c = ctx;
+    e5Torso(c, hip[0], hip[1], f * 0.95, face, g);
+    e5Line(c, hip[0] + face * 2.4 * f, hip[1] - 5.2 * f, grip[0], grip[1], 1.6, toneHex(g.coat, 12), f);
+    e5Hand(c, grip[0], grip[1], f);
+  };
+}
+
+// ---- the emplacements ----
+function paintMaximPost(lvl, spec) {
+  const c = sctx, S = footStone(), F = e5Field(), D = (i) => e5Dress(i);
+  const base = towerBase("ballista", lvl, spec);
+  const bw = base.w - 4, bd = base.d - 4, ox = bd * OBQ.dx, oy = bd * OBQ.dy;
+  footPlinth(base.w, base.d, base.h, S, 131 + lvl, !!spec || lvl === 2);
+  c.save();
+  c.translate(-ox / 2, -base.h - oy / 2);
+  upgradeStuds(0, 3.2, lvl, spec);
+  if (F === "sard") maximSard(lvl, spec, bw, bd, D);
+  else if (F === "van") maximVan(lvl, spec, bw, bd, D);
+  else maximMusa(lvl, spec, bw, bd, D);
+  c.restore();
+}
+// the gun stands on the floor of a sandbagged pit; it and its gunner are drawn live
+function maximMount(x, y, d) {
+  (structFit.maxims || (structFit.maxims = [])).push(structPoint(x + d * OBQ.dx * 0.5, y + d * OBQ.dy * 0.5));
+}
+function maximSard(lvl, spec, bw, bd, D) {
+  const c = sctx;
+  const H = spec === "a" ? 28 : spec === "b" ? 16 : [5, 13, 20][lvl];
+  const W = spec === "b" ? bw + 4 : bw, Dp = bd + 1, bh = 4;
+  if (H) {
+    e5Logs(W, H, Dp, 160 + lvl);
+    if (lvl === 2 || spec) wallTorch(W / 2 - 2.4, -H + 5);
+    if (spec === "a") {
+      // a dugout door in the revetment, the crew's shelter under the gun
+      c.fillStyle = "#1c120a"; c.fillRect(-4, -10, 7, 10);
+      beam(-5, -10.4, 4, -10.4, 1.6, TIMBER_DARK);
+      beam(-4.6, 0, -4.6, -10, 1.3, TIMBER_DARK);
+      beam(3.6, 0, 3.6, -10, 1.3, TIMBER_DARK);
+      e5Loop(-11, -H * 0.55, 1, false);
+      e5Loop(10, -H * 0.55, 1, false);
+    }
+    c.translate(0, -H);
+    box3(W + 1, 1.6, Dp + 0.6, "#7a6446", { side: "#5a4632", top: "#94805e" });
+    c.translate(0, -1.6);
+  } else {
+    box3(W + 2, 2.6, Dp + 1.6, "#7a6446", { side: "#5a4632", top: "#94805e" });
+    c.translate(0, -2.6);
+  }
+  // the pit: a horseshoe of sandbags open at the back, the gun inside
+  c.save();
+  c.translate(0.5 * OBQ.dx, 0.5 * OBQ.dy);
+  const Wb = W - 1, Db = Dp - 1;
+  e5BreastBack("bags", Wb, 0, Db, bh * 0.8, 170);
+  if (spec === "b") {
+    maximMount(-7.5, 0, Db);
+    maximMount(8, 0, Db);
+  } else {
+    maximMount(spec === "a" ? -2 : 4, 0, Db);
+  }
+  // the loader kneels by his ammunition boxes, a fresh belt in his hands
+  const lx = -Wb / 2 + 5.5;
+  if (spec !== "b") {
+    c.save();
+    c.translate(Db * OBQ.dx * 0.45, Db * OBQ.dy * 0.45);
+    e5Crate(lx - 3.5, 0, 4.4, 2.8, 3, "#5e5a3a");
+    e5Crate(lx - 3.5, -2.8, 4.4, 2.6, 3, "#66603e");
+    e5Figure(lx + 1.6, 0, 0.92, D(1), { kneel: true, face: 1, hands: [[3.6, -9.6], [1.6, -8.8]],
+      held: (h) => { sctx.beginPath(); sctx.moveTo(h[0][0], h[0][1]); sctx.quadraticCurveTo(h[0][0] + 1, h[0][1] + 4, h[1][0], h[1][1] + 2); sctx.strokeStyle = "#8a6a3a"; sctx.lineWidth = 1.1; sctx.stroke(); } });
+    c.restore();
+  }
+  if (spec === "a") {
+    // the section commander watches the fall of the shot through his glasses
+    e5Post(10.5, -bh * 0.8 - 1, Db * 0.7, D(1), { look: true, s: 0.95 });
+  }
+  e5BreastFront("bags", Wb, 0, Db, bh, 170);
+  c.restore();
+  if (lvl === 2 || spec) {
+    // spare ammunition boxes stacked at the foot of the work
+    e5Crate(-W / 2 - 2.6, 3 + H * 0, 5, 3.2, 3.4, "#5e5a3a");
+  }
+}
+// Van: the marksmen's roof gallery over the lanes, sandbagged between its posts
+function maximVan(lvl, spec, bw, bd, D) {
+  const c = sctx, T = e5Stone();
+  const W = spec === "b" ? bw : bw - 4, Dp = bd;
+  // the old city's stone houses: one storey, two, three; the tall house of the Best Shot
+  const H1 = spec === "a" ? 20 : [14, 15, 16][lvl] || 15, H2 = spec === "a" ? 18 : lvl === 0 && !spec ? 0 : lvl === 1 ? 10 : 14;
+  box3(W, H1, Dp, T.mid, towerWall(T, 181 + lvl, { course: 4.6, block: 8, rough: true, band: 0 }));
+  e5Loop(-W / 4, -H1 * 0.55, 1, false);
+  e5Loop(W / 4, -H1 * 0.55, 1, false);
+  if (lvl > 0 || spec) {
+    c.fillStyle = "#24170d"; c.fillRect(-2.6, -9.4, 5.2, 9.4);
+    plankRect(-2.3, -9, 4.6, 9, "#6b4526", true, 29);
+    c.beginPath(); c.rect(-2.6, -9.4, 5.2, 9.4); inkStroke(0.7);
+    inkRect(-3.4, -10.6, 6.8, 1.3, TIMBER, 0.6);
+  }
+  c.save();
+  c.translate(0, -H1);
+  if (H2) {
+    box3(W, H2, Dp, toneHex(T.mid, 6), towerWall(T, 191 + lvl + (spec ? 5 : 0), { course: 4.6, block: 9, band: 0 }));
+    stringCourse(W, Dp, 0);
+    e5Boarded(-W / 4, -3, 4.6, Math.min(6.6, H2 - 4), true);
+    e5Boarded(W / 4, -3, 4.6, Math.min(6.6, H2 - 4), spec === "a");
+    c.translate(0, -H2);
+  }
+  e5Roof(W, Dp, 2.4);
+  c.translate(0, -2.4);
+  const Wb = W - 2, Db = Dp - 1.5, bh = 4.4;
+  const gallery = lvl >= 1 || spec === "b";
+  c.save();
+  c.translate(0.6 * OBQ.dx, 0.6 * OBQ.dy);
+  e5BreastBack("bags", Wb, 0, Db, bh, 200);
+  if (gallery) {
+    // posts carrying a light plank roof over the gallery
+    const dox = Db * OBQ.dx, doy = Db * OBQ.dy;
+    beam(-Wb / 2 + dox + 1.2, doy - bh * 0.6, -Wb / 2 + dox + 1.2, doy - 21, 1.4, TIMBER_DARK);
+    beam(Wb / 2 + dox - 1.2, doy - bh * 0.6, Wb / 2 + dox - 1.2, doy - 21, 1.4, TIMBER_DARK);
+  }
+  if (spec === "b") {
+    e5Post(-7, -bh, Db, D(0), { rest: true, len: 19 });
+    e5Post(7, -bh, Db, D(2), { rest: true, len: 19 });
+  } else if (spec === "a") {
+    e5Post(-3, -bh, Db, D(0), { rest: true, len: 19, s: 1.04 });
+    e5Post(7.5, -bh - 0.8, Db * 0.6, D(1), { look: true, s: 0.92 });
+  } else if (lvl >= 1) {
+    e5Post(-3.5, -bh, Db, D(2), { rest: true, len: 19 });
+    e5Post(7, -bh - 0.8, Db * 0.6, D(1), { look: true, s: 0.92 });
+  } else {
+    e5Post(0, -bh, Db, D(0), { rest: true, len: 19 });
+  }
+  e5BreastFront("bags", Wb, 0, Db, bh, 200);
+  if (gallery) {
+    beam(-Wb / 2 - 0.2, -bh, -Wb / 2 - 0.2, -21, 1.5, TIMBER_DARK);
+    beam(Wb / 2 + 0.2, -bh, Wb / 2 + 0.2, -21, 1.5, TIMBER_DARK);
+    c.save();
+    c.translate(0, -21);
+    box3(Wb + 3, 1.6, Db + 1.4, "#7a5a36", { side: "#523a20", top: "#9a7a52" });
+    plankRect(-Wb / 2 - 1.3, -1.4, Wb + 2.6, 1.2, "#7a5a36", true, 31);
+    c.restore();
+    structCrown(-21 - 3);
+  }
+  c.restore();
+  c.restore();
+}
+// Musa Dagh: a wall of loose stones closing a pass between two rocks, the marksman on the higher one
+function maximMusa(lvl, spec, bw, bd, D) {
+  const c = sctx;
+  const Dp = bd, bh = 4.6;
+  const hi = spec === "a" ? 34 : [14, 22, 26][lvl] || 26, lo = spec === "b" ? hi : Math.round(hi * 0.55);
+  const wR = spec === "a" ? 19 : 17, wL = spec === "b" ? 17 : 13;
+  // the low rock on the left, the high one on the right, the wall across the gap between
+  c.save();
+  c.translate(-bw / 2 + wL / 2 - 1, 0);
+  const tL = e5Rock(wL, lo, Dp, 211 + lvl);
+  c.restore();
+  c.save();
+  c.translate(-bw / 2 + wL - 1 + (bw - wL - wR) / 2 + 1, 0);
+  e5DryStone(bw - wL - wR + 3, Math.max(8, lo * 0.7), Dp - 3, 215);
+  c.restore();
+  c.save();
+  c.translate(bw / 2 - wR / 2 + 1, 0);
+  const tR = e5Rock(wR, hi, Dp, 221 + lvl * 3 + (spec ? 9 : 0));
+  c.translate(0, -hi);
+  c.save();
+  c.translate(0.5 * OBQ.dx, 0.5 * OBQ.dy);
+  const Wb = tR, Db = Dp - 1.5;
+  e5BreastBack("stone", Wb, 0, Db, bh, 230);
+  e5Post(-0.5, -bh, Db, D(0), { rest: true, len: 19, restHex: "#9a9488", s: spec === "a" ? 1.04 : 1 });
+  e5BreastFront("stone", Wb, 0, Db, bh, 230);
+  c.restore();
+  c.restore();
+  // on the lower rock: the lookout (second rank up), or the second marksman (Paired Marksmen)
+  if (lvl >= 1 || spec) {
+    c.save();
+    c.translate(-bw / 2 + wL / 2 - 1, -lo);
+    c.translate(0.5 * OBQ.dx, 0.5 * OBQ.dy);
+    const Wb = tL, Db = Dp - 1.5;
+    e5BreastBack("stone", Wb, 0, Db, bh, 240);
+    if (spec === "b") e5Post(0, -bh, Db, D(3), { rest: true, len: 19, restHex: "#9a9488" });
+    else e5Post(0, -bh - 0.6, Db * 0.6, D(1), { look: true, s: 0.92 });
+    e5BreastFront("stone", Wb, 0, Db, bh, 240);
+    c.restore();
+  }
+}
+
+function maximLive(t, cx) {
+  const fit = cx.fit;
+  const since = e5LiveMen(t, cx);
+  if (!fit.maxims) return;
+  const k = cx.k, g = e5Dress(0);
+  ctx.globalAlpha = cx.fade;
+  for (let i = 0; i < fit.maxims.length; i++) {
+    const m = fit.maxims[i];
+    // the gun is drawn over life size, as the slot's engines are, so it reads at a glance
+    maximGun(ctx, cx.x + m[0] * k, cx.y + m[1] * k, k * 1.45, cx.aim, since < 0.42 ? cx.kick : 0, since, cx.time + i * 23, cx.fade, maximCrew(e5Dress(i ? 2 : 0), k));
+  }
+  ctx.globalAlpha = 1;
+}
+
 SKIN_ART.maxim = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.ballista,
-  scale: TOWER_SCALE.ballista,
-  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
+  // a little over the slot's scale, being lower than its towers: 89 x 0.95 stays inside 98 x 0.87
+  box: [-44, -89, 56, 20],
+  scale: 0.95,
+  footing(lvl, spec) {
+    const b = towerBase("ballista", lvl, spec), stepped = !!spec || lvl === 2, k = STRUCT_K * 0.95;
+    return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+  },
+  paint(lvl, spec, variant) { paintMaximPost(lvl, spec); },
+  variant() { return e5Variant(0); },
+  live: maximLive,
   proj: "ball", projSpeed: 1050, sound: "musket",
 };
 // ====================================== END SKIN SECTION: maxim ======================================
@@ -25783,13 +27087,477 @@ SKIN_ART.maxim = {
 // SKIN SECTION: fieldgun. 1915-18, catapult slot: mountain or field gun
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Three battlefields, three answers to "splash damage over an area":
+//  Sardarapat: "Russian 76 mm field gun firing shrapnel": the three-inch gun of 1902 on its wheeled
+//    carriage, steel shield, painted field grey-green, served by its crew from a sandbagged pit.
+//  Van: "Hand-made explosive charges thrown over barricades": the defenders' tin-can bombs, lit at a
+//    lantern and thrown from behind barricades of carts, beams, doors and mud brick.
+//  Musa Dagh: "Boulders rolled down ravines onto climbing troops": a ledge of rock with boulders
+//    heaped ready behind a log, the villagers levering them over.
+// Variant: which way the piece faces (1 = to the left), plus 2 for the moment after it has fired.
+const FGUN_HEX = { paint: "#5d6450", dark: "#3c4134", lit: "#7d856c", wheel: "#6a5232", brass: "#d6b25a" };
+
+// the three-inch gun, side on, facing +x: wheels of radius R, its muzzle at (14 * z, -12 * z)
+function fgunPiece(z, fired) {
+  const c = sctx, H = FGUN_HEX, R = 7.6 * z, T = 6.5 * z, rec = fired ? 3.2 * z : 0;
+  const P = (x, h, d) => [x + d * OBQ.dx, -h + d * OBQ.dy];
+  const wheel = (d, near) => {
+    const w = P(0, R, d);
+    inkDisc(w[0], w[1], R, R, "rgba(0,0,0,0)", 1.4 * z);
+    c.lineWidth = 1.7 * z;
+    c.strokeStyle = near ? H.wheel : toneHex(H.wheel, -20);
+    c.beginPath(); c.arc(w[0], w[1], R - 0.9 * z, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = near ? toneHex(H.wheel, 10) : toneHex(H.wheel, -14);
+    c.lineWidth = 0.75 * z;
+    c.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      c.moveTo(w[0] + Math.cos(a) * 1.4 * z, w[1] + Math.sin(a) * 1.4 * z);
+      c.lineTo(w[0] + Math.cos(a) * (R - 1.6 * z), w[1] + Math.sin(a) * (R - 1.6 * z));
+    }
+    c.stroke();
+    // the iron tyre's lit upper rim
+    c.strokeStyle = "rgba(255, 244, 220, .35)";
+    c.lineWidth = 0.5 * z;
+    c.beginPath(); c.arc(w[0], w[1], R - 0.3 * z, Math.PI * 1.05, Math.PI * 1.7); c.stroke();
+    inkDisc(w[0], w[1], 1.6 * z, 1.6 * z, H.dark, 0.6 * z);
+  };
+  wheel(T, false);
+  // the box trail, down to its spade on the ground behind
+  const ax = P(0, R, 0), sp = P(-21 * z, 1.2 * z, 0);
+  c.lineCap = "round";
+  c.beginPath(); c.moveTo(ax[0] + 1.4 * z, ax[1]); c.lineTo(sp[0], sp[1]);
+  c.strokeStyle = INK; c.lineWidth = 4.2 * z; c.stroke();
+  c.strokeStyle = H.paint; c.lineWidth = 2.9 * z; c.stroke();
+  c.strokeStyle = H.lit; c.lineWidth = 0.6 * z;
+  c.beginPath(); c.moveTo(ax[0], ax[1] - 1 * z); c.lineTo(sp[0], sp[1] - 1.1 * z); c.stroke();
+  inkPoly([sp[0] - 1.2 * z, sp[1] - 1.6 * z, sp[0] + 0.6 * z, sp[1] - 1.6 * z, sp[0] - 0.2 * z, sp[1] + 1.4 * z], H.dark, 0.6 * z);
+  // the axle-tree
+  const a0 = P(0, R, -T), a1 = P(0, R, T);
+  c.beginPath(); c.moveTo(a0[0], a0[1]); c.lineTo(a1[0], a1[1]);
+  c.strokeStyle = INK; c.lineWidth = 2.4 * z; c.stroke();
+  c.strokeStyle = H.dark; c.lineWidth = 1.3 * z; c.stroke();
+  // cradle and breech behind the shield; the recoil cylinder under the barrel
+  const by = 12 * z;
+  const cr0 = P(-8 * z, by - 1.4 * z, 0), cr1 = P(3 * z, by - 1.4 * z, 0);
+  e5BeamS(cr0, cr1, 2.4 * z, H.paint, z);
+  const b0 = P(-7.2 * z - rec, by, 0), bm = P(2.5 * z - rec, by, 0);
+  e5BeamS(b0, bm, 2.1 * z, H.dark, z);
+  inkRect(b0[0] - 2 * z, b0[1] - 1.6 * z, 2.6 * z, 3.2 * z, H.dark, 0.6 * z);
+  // the elevating wheel and the sight
+  inkDisc(cr0[0] + 2.6 * z, cr0[1] + 2.2 * z, 1.2 * z, 1.2 * z, H.dark, 0.5 * z);
+  e5BeamS(P(-2.4 * z, by + 1.2 * z, -1.5 * z), P(-2.4 * z, by + 3.4 * z, -1.5 * z), 0.6 * z, "#2a2a26", z);
+  // the shield: a plate square to the bore, spanning the carriage, its top edge stepped
+  const sx = 2.6 * z, s0 = 2.6 * z, s1 = 17.5 * z, half = 6.6 * z;
+  const sh = [P(sx, s0, -half), P(sx, s1 - 1.6 * z, -half), P(sx, s1, -half * 0.3), P(sx, s1, half * 0.3), P(sx, s1 - 1.6 * z, half), P(sx, s0, half)];
+  inkPoly(sh.flat(), H.paint, 1.1 * z);
+  c.fillStyle = "rgba(255, 248, 225, .16)";
+  polyPath([sh[0], sh[1], sh[2], P(sx, s0, -half * 0.3)].flat());
+  c.fill();
+  c.strokeStyle = H.lit; c.lineWidth = 0.55 * z;
+  c.beginPath(); c.moveTo(sh[1][0], sh[1][1] + 0.5 * z); c.lineTo(sh[2][0], sh[2][1] + 0.5 * z); c.lineTo(sh[3][0], sh[3][1] + 0.5 * z); c.stroke();
+  // rivets along the plate's edge
+  c.fillStyle = "rgba(20, 22, 16, .6)";
+  for (let i = 0; i <= 4; i++) {
+    const q = P(sx, s0 + 1.2 * z, -half + i * half * 0.5);
+    c.fillRect(q[0] - 0.3 * z, q[1] - 0.3 * z, 0.6 * z, 0.6 * z);
+  }
+  // the barrel out through the shield to the muzzle
+  const m0 = P(2.6 * z - rec, by, 0), m1 = P(14 * z - rec, by + 0.2 * z, 0);
+  e5BeamS(m0, m1, 1.7 * z, H.dark, z);
+  inkDisc(m1[0], m1[1], 0.6 * z, 1.1 * z, "#1a1c18", 0.5 * z);
+  wheel(-T, true);
+  return P(14.4 * z - rec, by + 0.2 * z, 0);
+}
+// a straight member between two points: ink, colour and a lit upper edge
+function e5BeamS(a, b, w, hex, z) {
+  const c = sctx;
+  c.lineCap = "round";
+  c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]);
+  c.strokeStyle = INK; c.lineWidth = w + 1.2 * z; c.stroke();
+  c.strokeStyle = hex; c.lineWidth = w; c.stroke();
+  c.strokeStyle = "rgba(255, 248, 228, .3)"; c.lineWidth = Math.max(0.3, w * 0.25);
+  c.beginPath(); c.moveTo(a[0], a[1] - w * 0.28); c.lineTo(b[0], b[1] - w * 0.28); c.stroke();
+}
+// a three-inch round: the brass case and the shell, a band of red on the incendiary rounds
+function fgunRound(x, y, ang, z, red) {
+  const c = sctx, ca = Math.cos(ang), sa = Math.sin(ang);
+  const p = (u) => [x + ca * u * z, y + sa * u * z];
+  e5BeamS(p(0), p(3.6), 1.6 * z, FGUN_HEX.brass, z);
+  e5BeamS(p(3.6), p(6), 1.5 * z, red ? "#8a3a2a" : "#6a6e5a", z);
+  inkDisc(p(6.4)[0], p(6.4)[1], 0.7 * z, 0.7 * z, red ? "#b84a2a" : "#7a7e66", 0.4 * z);
+}
+// a stack of shell boxes, lids off, the rounds showing
+function fgunShells(x, y, n, red) {
+  for (let i = 0; i < n; i++) e5Crate(x + (i % 2) * 5.6, y - Math.floor(i / 2) * 3.2, 5.2, 3.2, 3.6, i % 2 ? "#5e5a3a" : "#66603e");
+  for (let i = 0; i < 3; i++) fgunRound(x - 2 + i * 1.8, y - Math.ceil(n / 2) * 3.2 - 0.6, -1.2, 0.8, red);
+}
+
+// ---- Sardarapat: the gun in its pit ----
+function fgunSard(lvl, spec, fired, D) {
+  const c = sctx, big = spec === "a";
+  const z = big ? 1.5 : 1.36;
+  const W = 46, Dp = 15;
+  // the pit's rear revetment of logs on the third rank and both masteries
+  if (lvl === 2 || spec) {
+    c.save();
+    c.translate((Dp - 1) * OBQ.dx - 2, (Dp - 1) * OBQ.dy);
+    e5Logs(W - 4, big ? 11 : 9, 2.4, 300 + lvl);
+    c.restore();
+  }
+  if (spec) fgunShells(-W / 2 + 6 + Dp * 0.6 * OBQ.dx, Dp * 0.6 * OBQ.dy, 4, spec === "b");
+  // the crew: the layer kneels at the sight, the loader stands ready with a round, the third brings up more
+  const g0 = D(0), g1 = D(1), g2 = D(2);
+  if (lvl >= 1 || spec) {
+    e5Figure(-14.5 * z, -1 + 4 * OBQ.dy, 0.9, g1, { face: 1, hands: fired ? [[4.2, -12.6], [2.4, -11.8]] : [[4.6, -14.6], [3, -13.4]],
+      held: (h) => fgunRound(h[1][0] - 0.6, h[1][1] + 0.8, -0.05, 0.9, spec === "b") });
+  }
+  if (lvl === 2 || spec) {
+    e5Figure(-21 * z, -1 + 9 * OBQ.dy, 0.88, g2, { face: 1, stride: 0.6, hands: [[3, -10.6], [1.2, -10]],
+      held: (h) => { sctx.save(); sctx.translate(h[0][0] - 1, h[0][1] + 1.6); e5Crate(0, 0, 4.4, 2.6, 2.6, "#5e5a3a"); sctx.restore(); } });
+  }
+  c.save();
+  c.translate(2 * z, 0);
+  const muzzle = fgunPiece(z, fired);
+  c.restore();
+  structFit.muzzle = structPoint(muzzle[0] + 2 * z, muzzle[1]);
+  structCrown(-18.5 * z);
+  // the layer kneels by the near wheel, eye to the sight
+  e5Figure(-6.5 * z, 3.6, 0.9, g0, { kneel: true, face: 1, hands: [[3.4, -11.6], [2.2, -12.2]] });
+  if (spec === "a") {
+    // the battery officer watches the burst through his field glasses
+    e5Figure(15 * z, 3 + 2 * OBQ.dy, 0.9, Object.assign({}, D(3), { cap: "furazhka" }), { face: -1, hands: [[2.4, -18.4], [1, -18]],
+      held: (h) => { sctx.fillStyle = "#2a2622"; sctx.fillRect(h[0][0] - 1.4, h[0][1] - 1.4, 2.6, 1.8); } });
+  }
+  // a low wall of sandbags across the front of the pit
+  c.save();
+  c.translate(spec ? -4 : 0, 6.2);
+  const fw = lvl === 0 && !spec ? 14 : 24;
+  c.translate(-W / 2 + fw / 2 + 2, 0);
+  e5Bags(fw, 3.6, 3.2, null, 310 + lvl);
+  c.restore();
+  if (lvl >= 1 || spec) {
+    c.save();
+    c.translate(W / 2 - 7, 6.4);
+    e5Bags(10, 3, 3.2, null, 320);
+    c.restore();
+  }
+}
+
+// ---- Van: a barricade across a lane, the bombers behind it ----
+function fgunBomb(x, y, r, big) {
+  const c = sctx;
+  // a tin can packed with powder and scrap, wired round, a fuse from its lid
+  inkRect(x - r, y - r * 1.5, r * 2, r * 1.9, big ? "#6a6e72" : "#80847e", 0.6);
+  c.fillStyle = "rgba(255, 255, 255, .35)";
+  c.fillRect(x - r + 0.3, y - r * 1.5 + 0.3, r * 0.5, r * 1.9 - 0.6);
+  c.strokeStyle = "rgba(30, 24, 18, .7)"; c.lineWidth = 0.35;
+  c.beginPath(); c.moveTo(x - r, y - r * 0.9); c.lineTo(x + r, y - r * 0.9); c.moveTo(x - r, y - r * 0.2); c.lineTo(x + r, y - r * 0.2); c.stroke();
+  c.beginPath(); c.moveTo(x + 0.2, y - r * 1.5); c.quadraticCurveTo(x + r * 0.9, y - r * 2.1, x + r * 0.6, y - r * 2.6);
+  c.strokeStyle = "#3a2a18"; c.lineWidth = 0.5; c.stroke();
+  return [x + r * 0.6, y - r * 2.6];
+}
+function fgunBarricade(W, H, seed, tall) {
+  const c = sctx, rnd = mulberry32(seed);
+  // a mud-brick wall stub at the left, then doors, beams and a cart wheel heaped against sacks
+  c.save();
+  c.translate(-W / 2 + 5, 0);
+  e5Adobe(10, H + (tall ? 5 : 2), 6, seed + 1);
+  c.restore();
+  c.save();
+  c.translate(3, 0);
+  e5Bags(W - 12, H * 0.55, 5, null, seed + 2);
+  c.restore();
+  // a door laid slantwise against the sacks, planks and beams across it
+  const dx0 = -W / 2 + 10, dx1 = W / 2 - 1;
+  inkPoly([dx0, 1, dx0 + 1.6, -H, dx0 + 9, -H + 0.6, dx0 + 8.2, 1], "#7b5634", 0.8);
+  plankRect(dx0 + 1, -H + 0.8, 6.6, H - 0.8, "#7b5634", true, seed + 3);
+  ironBand(dx0 + 1.4, -H * 0.7, 6.4, 0.7);
+  beam(dx0 + 4, -H * 0.62, dx1, -H * 0.62 - 2 - rnd() * 2, 1.6, TIMBER);
+  beam(dx0 + 8, -H * 0.3, dx1 - 1, -H * 0.44 + rnd(), 1.5, TIMBER_DARK);
+  // a cart wheel stood on edge in the heap
+  const wx = W / 2 - 7, wy = -H * 0.5, r = Math.min(5.4, H * 0.48);
+  inkDisc(wx, wy, r, r, "rgba(0,0,0,0)", 1.1);
+  c.strokeStyle = "#7a5a34"; c.lineWidth = 1.3;
+  c.beginPath(); c.arc(wx, wy, r - 0.7, 0, Math.PI * 2); c.stroke();
+  c.lineWidth = 0.7;
+  c.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.moveTo(wx, wy); c.lineTo(wx + Math.cos(a) * (r - 1), wy + Math.sin(a) * (r - 1)); }
+  c.stroke();
+  inkDisc(wx, wy, 1.1, 1.1, "#5a3a20", 0.5);
+}
+function fgunVan(lvl, spec, fired, D) {
+  const c = sctx, A = spec === "a", B = spec === "b";
+  const H = spec ? 15 : [11, 13, 15][lvl], W = spec ? 46 : [34, 40, 44][lvl];
+  // the bombers stand behind the barricade; a lit bomb in the raised hand, or the arm just thrown
+  const men = A || B || lvl === 2 ? [[-6, D(0)], [8, D(2)]] : lvl === 1 ? [[-2, D(0)], [10, D(1)]] : [[0, D(0)]];
+  c.save();
+  c.translate(6 * OBQ.dx, 6 * OBQ.dy);
+  for (let i = 0; i < men.length; i++) {
+    const [mx, g] = men[i], thrower = i === 0;
+    if (thrower) {
+      const big = A;
+      e5Figure(mx, 1.2, 1.1, g, { face: 1, stride: 0.6, hands: fired ? [[7, -17.4], [-1.4, -12.6]] : [[-3.4, -24.4], [2.6, -14]],
+        held: (h) => {
+          if (fired) return;
+          const f = fgunBomb(h[0][0], h[0][1] + 0.6, big ? 2.2 : 1.5, big);
+          structFit.fuse = structPoint(f[0], f[1]);
+        } });
+    } else if (B || lvl >= 1) {
+      // the second man lights the next fuse at a lantern on the barricade's top
+      e5Figure(mx, 1.2, 1.05, g, { face: -1, hands: [[3.4, -12.6], [2, -11.4]],
+        held: (h) => { fgunBomb(h[0][0] - 0.4, h[0][1] + 1.8, B ? 1.6 : 1.4, false); } });
+    }
+  }
+  c.restore();
+  fgunBarricade(W, H, 330 + lvl * 3 + (A ? 11 : B ? 17 : 0), lvl === 2 || !!spec);
+  // the lantern on the coping, the store of bombs in a basket
+  if (lvl >= 1 || spec) {
+    const lx = 6, ly = -H * 0.55;
+    inkRect(lx - 1.1, ly - 3.6, 2.2, 3, "#3a3a36", 0.5);
+    c.fillStyle = "#ffd98a"; c.fillRect(lx - 0.6, ly - 3, 1.2, 1.8);
+    structFit.lanterns.push(structPoint(lx, ly - 2.2));
+    hurlBasket(-W / 2 + 2, 5.6, 6.4, 4.6, "#80847e");
+    for (const p of [[-1.6, 0], [1.4, -0.3]]) fgunBomb(-W / 2 + 2 + p[0], 1 + p[1], 1.2, false);
+  }
+  if (B) {
+    // tins of kerosene for the incendiary bombs
+    for (const p of [[W / 2 - 3, 6], [W / 2 + 1.4, 4.6]]) {
+      c.save(); c.translate(p[0], p[1]);
+      box3(3.4, 4.6, 2.4, "#9a8a5a", { side: "#6a5e3a", top: "#b8a878" });
+      inkRect(0.4, -5.6, 1, 1, "#5a5040", 0.4);
+      c.restore();
+    }
+  }
+  if (A) {
+    // the great charge's iron pipe lengths and a keg of powder by the wall
+    c.save(); c.translate(W / 2 - 1, 6.2); musketKeg(0, 0, 2.8, 4.8); c.restore();
+  }
+  structCrown(-30);
+}
+
+// ---- Musa Dagh: the rock fall ----
+function fgunMusa(lvl, spec, fired, D) {
+  const c = sctx, A = spec === "a", B = spec === "b", R = e5Stone(), stone = R.mid;
+  const H = spec ? 20 : [12, 16, 20][lvl], W = spec ? 44 : [34, 40, 44][lvl], Dp = 14;
+  const Wt = e5Rock(W, H, Dp, 350 + lvl * 5 + (A ? 13 : B ? 19 : 0));
+  c.save();
+  c.translate(0, -H);
+  // on the ledge: a heap of boulders held by a log on stakes, the men at work behind it
+  const hx = -Wt / 2 + 6 + Dp * OBQ.dx * 0.5, hy = Dp * OBQ.dy * 0.5;
+  if (lvl >= 1 || spec) hurlPile(hx, hy - 0.4, lvl === 1 && !spec ? 2 : 3, 2.4, toneHex(stone, -10), 360 + lvl);
+  const man = (x, i, o) => e5Figure(x + Dp * OBQ.dx * 0.4, Dp * OBQ.dy * 0.4 + 0.4, 1.05, D(i), o);
+  const boulder = (x, y, r, seed) => hurlBoulder(x, y, r, toneHex(stone, 4), seed);
+  if (A) {
+    // a boulder as broad as a man on the lip, a pole jammed under it
+    const bx = Wt / 2 - 8, by = -6.4;
+    if (!fired) boulder(bx, by, 6.4, 371);
+    man(-2, 0, { face: 1, stride: 1, hands: fired ? [[6, -11], [4, -10.4]] : [[5.4, -14.6], [3.4, -12.6]] });
+    if (!fired) beam(-2 + Dp * OBQ.dx * 0.4 + 6, -9, bx - 3, by + 3.6, 2.2, TIMBER);
+    else beam(-2 + Dp * OBQ.dx * 0.4 + 6, -5.6, bx + 2, -2.4, 2.2, TIMBER);
+  } else if (B) {
+    // bundles of brushwood, one blazing, pitched down after the stones
+    const fx = Wt / 2 - 10 + Dp * OBQ.dx * 0.3, fy = Dp * OBQ.dy * 0.3;
+    for (let i = 0; i < 3; i++) {
+      const by = fy - i * 1.6, bx = fx + (i % 2) * 3;
+      for (let k = 0; k < 4; k++) beam(bx - 3.4, by - k * 0.5, bx + 3.4, by - 0.8 - k * 0.5, 0.8, k % 2 ? "#8a6a40" : "#6e5432");
+      ironBand(bx - 0.4, by - 2.6, 0.9, 2.8);
+    }
+    structFit.brazier = structPoint(fx + 1.4, fy - 4.6);
+    man(-4, 1, { face: 1, stride: 0.8, hands: fired ? [[7, -16], [5.4, -15]] : [[4.4, -9.6], [2.6, -9.2]] });
+  }
+  if (!spec) {
+    const raise = (x, i, face) => man(x, i, { face, hands: fired ? [[6.6, -15.8], [4.6, -15.2]] : [[1.6, -23.2], [-1.6, -23]],
+      held: (h) => { if (!fired) hurlStone((h[0][0] + h[1][0]) / 2, (h[0][1] + h[1][1]) / 2 - 2.4, 2.6, toneHex(stone, 6)); } });
+    if (lvl === 0) raise(2, 0, 1);
+    else {
+      raise(Wt / 2 - 14, 0, 1);
+      // a man brings up the next stone in his arms
+      man(-Wt / 2 + 12, 2, { face: 1, stride: 0.8, hands: [[3, -11.6], [1, -11]],
+        held: (h) => hurlStone(h[0][0] - 1, h[0][1] - 1.6, 2.4, toneHex(stone, -4)) });
+    }
+    if (lvl === 2) {
+      // a log on stakes holding back the heap until it is cut loose
+      beam(-Wt / 2 + 1, -3.4, -Wt / 2 + 13, -4.6, 2, TIMBER);
+      beam(-Wt / 2 + 3, 0.6, -Wt / 2 + 3.4, -6, 1.1, TIMBER_DARK);
+      beam(-Wt / 2 + 11, 0.4, -Wt / 2 + 11.4, -7, 1.1, TIMBER_DARK);
+    }
+  }
+  c.restore();
+  structCrown(-H - 30);
+}
+
+function paintFieldGun(lvl, spec, variant) {
+  const c = sctx, S = footStone(), F = e5Field(), D = (i) => e5Dress(i);
+  const v = (variant || 0) & 3, face = v & 1 ? -1 : 1, fired = !!(v & 2);
+  const base = towerBase("catapult", lvl, spec);
+  footPlinth(base.w, base.d, base.h, S, 61 + lvl, true);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  // the whole work is drawn facing its target: mirrored when the aim is to the left
+  c.scale(face, 1);
+  if (F === "sard") fgunSard(lvl, spec, fired, D);
+  else if (F === "van") fgunVan(lvl, spec, fired, D);
+  else fgunMusa(lvl, spec, fired, D);
+  c.restore();
+}
+
+function fgunLive(t, cx) {
+  const f = cx.fit, k = cx.k, F = e5Field();
+  const st = getStats(t), rate = st.rate / (1 + (t.buffHaste || 0)), since = t.cd > 0 ? rate - t.cd : 99;
+  ctx.globalAlpha = cx.fade;
+  if (f.muzzle) {
+    // the gun's report: a bright blast at the muzzle, then a bank of smoke and dust that rolls away
+    const face = Math.cos(cx.aim) < 0 ? -1 : 1;
+    const mx = cx.x + f.muzzle[0] * k, my = cx.y + f.muzzle[1] * k;
+    if (since < 1.6) {
+      const p = since / 1.6, q = 1 - p;
+      ctx.globalAlpha = cx.fade * q * 0.7;
+      ctx.fillStyle = "#e9e4d6";
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const run = (2 + i * 3.2 + p * (6 + i * 4)) * k, r = (2.4 + p * (4 + i * 1.2)) * k;
+        const px = mx + face * run, py = my - (p * 8 + i * 1.2) * k + (i % 2) * 1.4 * k;
+        ctx.moveTo(px + r, py);
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.globalAlpha = cx.fade * q * 0.35;
+      ctx.strokeStyle = "#8a867a";
+      ctx.lineWidth = 0.6 * k;
+      ctx.stroke();
+      // dust thrown up from under the muzzle
+      ctx.globalAlpha = cx.fade * q * 0.5;
+      ctx.fillStyle = "rgba(214, 196, 150, 1)";
+      ctx.beginPath();
+      ctx.ellipse(mx - face * 4 * k, cx.y + 4 * k, (6 + p * 10) * k, (2 + p * 2.4) * k, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (since < 0.16) {
+      const a = cx.fade * (1 - since / 0.16);
+      e5Flash(ctx, mx, my, face, -0.08, 4.2 * k, a);
+    }
+  }
+  if (f.fuse) {
+    // the fuse fizzes in the bomber's hand
+    const fx = cx.x + f.fuse[0] * k, fy = cx.y + f.fuse[1] * k, ph = cx.time * 0.03 + t.x;
+    ctx.globalAlpha = cx.fade;
+    ctx.fillStyle = "#ffe08a";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = ph * 1.7 + i * 1.3, r = (0.8 + ((ph + i) % 1) * 1.8) * k;
+      ctx.rect(fx + Math.cos(a) * r - 0.35 * k, fy + Math.sin(a) * r - 0.35 * k, 0.7 * k, 0.7 * k);
+    }
+    ctx.fill();
+    ctx.fillStyle = "#fffbe0";
+    ctx.beginPath(); ctx.arc(fx, fy, 0.7 * k, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = cx.fade * 0.4;
+    ctx.fillStyle = "#cfcac0";
+    const rise = (cx.time * 0.0012 + t.x * 0.01) % 1;
+    ctx.beginPath(); ctx.arc(fx + rise * 2 * k, fy - (2 + rise * 6) * k, (0.8 + rise * 1.6) * k, 0, Math.PI * 2); ctx.fill();
+  }
+  if (f.brazier) {
+    const ph = cx.time * 0.012 + t.x, bx = cx.x + f.brazier[0] * k, by = cx.y + f.brazier[1] * k;
+    ctx.fillStyle = "rgba(70, 60, 54, .34)";
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const rise = (cx.time * 0.0006 + i / 3 + t.x * 0.01) % 1;
+      const px = bx + Math.sin(rise * 5 + i) * 1.8 * k, py = by - (7 + rise * 15) * k, pr = (1.5 + rise * 2.4) * (1 - rise * 0.5) * k;
+      ctx.moveTo(px + pr, py);
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    structFlame(bx, by, 3.4 * k, structClamp(8 + Math.sin(ph) * 1.2, 5, 10) * k, ph, false, cx.fade);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// the shell and the bomb in flight; the boulders of Musa Dagh are the slot's own lobbed stone
+PROJ_ART.e5shell = (pr) => {
+  const bp = proj(pr.x, pr.gy || pr.sy), s = bp.s, y = bp.y - (pr.arc || 0) * s;
+  const lift = unit01((pr.arc || 0) / 85), head = lobHeading(pr);
+  ctx.fillStyle = rgbaOf("24, 15, 6", 0.3 - 0.14 * lift);
+  ctx.beginPath(); ctx.ellipse(bp.x, bp.y + 4 * s, (4 + 3 * lift) * s, (1.8 + lift) * s, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(bp.x, y);
+  ctx.rotate(Math.atan2(head.y, head.x));
+  ctx.scale(s * 1.4, s * 1.4);
+  ctx.fillStyle = "rgba(255, 244, 214, .5)";
+  ctx.beginPath(); ctx.moveTo(-2, -1.1); ctx.lineTo(-18, 0); ctx.lineTo(-2, 1.1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = pr.fiery ? "#9a4a2a" : "#5d6450";
+  ctx.strokeStyle = "#1c1108"; ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-3, -1.6); ctx.lineTo(1.6, -1.6); ctx.quadraticCurveTo(4.4, -1.4, 4.8, 0); ctx.quadraticCurveTo(4.4, 1.4, 1.6, 1.6); ctx.lineTo(-3, 1.6);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#c89a3a"; ctx.fillRect(-2.6, -1.6, 0.9, 3.2);
+  ctx.fillStyle = "rgba(255, 255, 255, .35)"; ctx.fillRect(-2.8, -1.3, 6, 0.6);
+  ctx.restore();
+};
+PROJ_ART.e5bomb = (pr) => {
+  const bp = proj(pr.x, pr.gy || pr.sy), s = bp.s, y = bp.y - (pr.arc || 0) * s;
+  const lift = unit01((pr.arc || 0) / 85), spin = (pr.t || 0) * 14;
+  ctx.fillStyle = rgbaOf("24, 15, 6", 0.3 - 0.14 * lift);
+  ctx.beginPath(); ctx.ellipse(bp.x, bp.y + 4 * s, (4 + 3 * lift) * s, (1.8 + lift) * s, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(bp.x, y);
+  ctx.scale(s * 1.5, s * 1.5);
+  // sparks streaming from the fuse
+  ctx.fillStyle = "#ffd36a";
+  for (let i = 0; i < 4; i++) ctx.fillRect(Math.cos(spin + i * 1.6) * (2.6 + i * 0.8) - 0.4, Math.sin(spin + i * 1.6) * (2.6 + i * 0.8) - 3.4, 0.8, 0.8);
+  ctx.rotate(spin * 0.4);
+  ctx.fillStyle = pr.fiery ? "#9a8a5a" : "#80847e";
+  ctx.strokeStyle = "#1c1108"; ctx.lineWidth = 0.8;
+  ctx.fillRect(-2, -2.4, 4, 4.8); ctx.strokeRect(-2, -2.4, 4, 4.8);
+  ctx.fillStyle = "rgba(255, 255, 255, .4)"; ctx.fillRect(-1.6, -2, 1, 4);
+  ctx.strokeStyle = "#3a2a18"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(0, -2.4); ctx.quadraticCurveTo(1.6, -3.6, 1, -4.6); ctx.stroke();
+  ctx.fillStyle = "#fff4c0"; ctx.beginPath(); ctx.arc(1, -4.6, 0.8, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+};
+PROJ_ART.e5brush = (pr) => {
+  const bp = proj(pr.x, pr.gy || pr.sy), s = bp.s, y = bp.y - (pr.arc || 0) * s, spin = (pr.t || 0) * 9;
+  ctx.fillStyle = "rgba(24, 15, 6, .2)";
+  ctx.beginPath(); ctx.ellipse(bp.x, bp.y + 4 * s, 6 * s, 2.4 * s, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(bp.x, y);
+  ctx.scale(s * 1.3, s * 1.3);
+  drawGlow(ctx, glowSprite("255, 150, 60"), 0, 0, 12, 12, 0.5);
+  ctx.globalAlpha = 1;
+  ctx.rotate(spin);
+  ctx.strokeStyle = "#1c1108"; ctx.lineWidth = 2.6;
+  ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.stroke();
+  ctx.strokeStyle = "#7a5a34"; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.rotate(-spin);
+  ctx.fillStyle = "rgba(255, 120, 30, .9)";
+  ctx.beginPath(); ctx.moveTo(-4, 1); ctx.quadraticCurveTo(-3, -6, 0, -9); ctx.quadraticCurveTo(3, -5, 4, 1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffe08a";
+  ctx.beginPath(); ctx.moveTo(-2, 0.6); ctx.quadraticCurveTo(-1, -3.6, 0, -5.4); ctx.quadraticCurveTo(1.4, -3, 2, 0.6); ctx.closePath(); ctx.fill();
+  ctx.restore();
+};
+
 SKIN_ART.fieldgun = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.catapult,
-  scale: TOWER_SCALE.catapult,
-  paint(lvl, spec, variant) { paintCatapult(lvl, spec, !!variant); },
-  variant(t, aim, rate) { return t.cd > rate * 0.6 ? 1 : 0; },
-  sound: "catapult",
+  // drawn larger than the onager, being low: 82 x 1.05 stays inside the slot's 112 x 0.77
+  box: [-50, -82, 54, 24],
+  scale: 1.05,
+  paint(lvl, spec, variant) { paintFieldGun(lvl, spec, variant); },
+  // which way it faces (1: to the left), and 2 while the shot has only just left
+  variant(t, aim, rate) { return e5Variant((Math.cos(aim) < 0 ? 1 : 0) + (t.cd > rate * 0.6 ? 2 : 0)); },
+  footing(lvl, spec) {
+    const b = towerBase("catapult", lvl, spec), k = STRUCT_K * 1.05;
+    return { w: (b.w + 3) * k, d: (b.d + 2) * k, cy: 0 };
+  },
+  live: fgunLive,
+  // the shell or bomb this battlefield throws; the Musa Dagh boulders fly as the slot's own stone
+  onFire(t) {
+    const F = e5Field(), pr = projectiles[projectiles.length - 1];
+    if (!pr || pr.src !== t) return;
+    if (F === "sard") pr.look = "e5shell";
+    else if (F === "van") pr.look = "e5bomb";
+    else if (t.spec === "b") pr.look = "e5brush";
+  },
+  get kickDrop() { return e5Field() === "sard" ? 0.7 : 0; },
+  get sound() { return e5Field() === "sard" ? "cannon" : "hurl"; },
 };
 // ====================================== END SKIN SECTION: fieldgun ======================================
 
@@ -25798,11 +27566,243 @@ SKIN_ART.fieldgun = {
 // SKIN SECTION: barricade. 1915-18, fire slot: a burning barricade or bomb-thrower's post on the road
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// What closed the road on each battlefield, as the levels describe it:
+//  Van: "Dug trenches and barricaded lanes": a lane barricaded with doors, beams, carts and sacks of
+//    earth behind a dug trench, a heap of kerosene-soaked timber burning before it; on the Bomb
+//    Throwers' post a man waits behind it with a lit tin-can bomb.
+//  Musa Dagh: "Stone breastworks closing a mountain path": a wall of loose stones across the path
+//    between rocks, cut brushwood fired in front of it; on the Rock Slide a man levers boulders down.
+//  Sardarapat: "Dug-in trench lines with barbed wire across the plain": a sandbagged trench behind
+//    belts of wire on wooden stakes, stubble and straw burning in front; on the Grenadiers' post a
+//    soldier in the trench with hand grenades.
+// The flames are live: structFlame at each point the painter reports, with smoke drifting off.
+function barrWire(x0, x1, y, h, rows, seed) {
+  const c = sctx, rnd = mulberry32(seed);
+  // pickets of rough timber, and the wire strung between them in loose strands with barbs
+  const posts = [];
+  for (let x = x0; x <= x1 + 0.1; x += (x1 - x0) / Math.max(1, Math.round((x1 - x0) / 9))) posts.push(x);
+  for (let r = rows - 1; r >= 0; r--) {
+    const ox = r * 3.2 * OBQ.dx, oy = r * 3.2 * OBQ.dy;
+    for (const px of posts) beam(px + ox, y + oy + 0.6, px + ox + (rnd() - 0.5) * 0.8, y + oy - h, 0.9, "#6e5232");
+    c.strokeStyle = "rgba(40, 36, 34, .9)";
+    c.lineWidth = 0.45;
+    c.beginPath();
+    for (let s = 0; s < 3; s++) {
+      const hy = y + oy - h * (0.25 + s * 0.3);
+      c.moveTo(posts[0] + ox, hy);
+      for (let i = 1; i < posts.length; i++) {
+        const mx = (posts[i - 1] + posts[i]) / 2 + ox;
+        c.quadraticCurveTo(mx, hy + 1.2 + rnd() * 0.8, posts[i] + ox, hy + (rnd() - 0.5) * 0.6);
+      }
+      // a criss-cross strand between the strands
+      if (s < 2) for (let i = 1; i < posts.length; i++) { c.moveTo(posts[i - 1] + ox, hy); c.lineTo(posts[i] + ox, hy - h * 0.3); }
+    }
+    c.stroke();
+    c.strokeStyle = "rgba(200, 200, 196, .5)";
+    c.lineWidth = 0.3;
+    c.beginPath();
+    for (let i = 0; i < (x1 - x0) * 0.8; i++) {
+      const bx = x0 + rnd() * (x1 - x0) + ox, by = y + oy - h * (0.2 + rnd() * 0.65);
+      c.moveTo(bx - 0.4, by - 0.4); c.lineTo(bx + 0.4, by + 0.4);
+    }
+    c.stroke();
+  }
+}
+// a trench cut across the front: the dark slot, its lit far lip and the spoil thrown up behind
+function barrTrench(x0, x1, y, w) {
+  const c = sctx, ox = w * OBQ.dx, oy = w * OBQ.dy;
+  inkPoly([x0, y, x1, y, x1 + ox, y + oy, x0 + ox, y + oy], "#3a2c1e", 0.9);
+  c.fillStyle = "#5a4630";
+  c.beginPath();
+  c.moveTo(x0 + 0.4, y - 0.1); c.lineTo(x1 - 0.4, y - 0.1); c.lineTo(x1 + ox * 0.3, y + oy * 0.3); c.lineTo(x0 + ox * 0.3, y + oy * 0.3);
+  c.fill();
+  c.strokeStyle = "rgba(255, 240, 210, .35)";
+  c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(x0 + ox, y + oy - 0.3); c.lineTo(x1 + ox, y + oy - 0.3); c.stroke();
+}
+// a heap of timber and brush, set alight: the flame itself is live
+function barrPyre(x, y, w, seed, brush) {
+  const c = sctx, rnd = mulberry32(seed);
+  fillBlobs("rgba(30, 20, 10, .35)", [[x + 1, y + 0.6, w * 0.7, 1.6]]);
+  for (let i = 0; i < 5; i++) {
+    const a = (rnd() - 0.5) * 0.9, l = w * (0.5 + rnd() * 0.4);
+    beam(x - Math.cos(a) * l / 2, y - 0.6 - i * 0.7 + Math.sin(a) * l / 2, x + Math.cos(a) * l / 2, y - 0.6 - i * 0.7 - Math.sin(a) * l / 2, brush ? 0.8 : 1.3, i % 2 ? "#4a3626" : "#2e2218");
+  }
+  // embers glowing in the heap
+  c.fillStyle = "#ff8a3a";
+  for (let i = 0; i < 5; i++) c.fillRect(x - w * 0.35 + rnd() * w * 0.7, y - 1 - rnd() * 2.4, 0.8, 0.6);
+  (structFit.e5fires || (structFit.e5fires = [])).push([...structPoint(x, y - 2.6), w * 0.42]);
+  structFit.torches.push(structPoint(x, y - 3));
+}
+function barrVan(lvl, spec, W, Dp, D) {
+  const c = sctx, A = spec === "a", B = spec === "b";
+  const H = A ? 16 : B ? 15 : [10, 13, 15][lvl];
+  // the barricade across the back of the post
+  c.save();
+  c.translate((Dp - 6) * OBQ.dx, (Dp - 6) * OBQ.dy);
+  if (B) {
+    e5Figure(0, 0, 0.95, D(0), { face: 1, stride: 0.5, hands: [[-3.4, -24.4], [2.6, -14]],
+      held: (h) => { const f = fgunBomb(h[0][0], h[0][1] + 0.6, 1.5, false); structFit.fuse = structPoint(f[0], f[1]); } });
+  }
+  if (lvl >= 2 || spec) {
+    c.save(); c.translate(-W / 2 + 4, 0); e5Adobe(8, H + 4, 5, 401 + lvl); c.restore();
+  }
+  c.save(); c.translate(lvl >= 2 || spec ? 3 : 0, 0); e5Bags(lvl >= 2 || spec ? W - 12 : W - 8, H * 0.6, 4.4, null, 405 + lvl); c.restore();
+  // doors and beams thrown across the sacks
+  const x0 = lvl >= 2 || spec ? -W / 2 + 9 : -W / 2 + 5;
+  inkPoly([x0, 0.6, x0 + 1.4, -H, x0 + 8.4, -H + 0.8, x0 + 7.6, 0.6], "#7b5634", 0.8);
+  plankRect(x0 + 0.9, -H + 0.9, 6.2, H - 1.2, "#7b5634", true, 407 + lvl);
+  ironBand(x0 + 1.2, -H * 0.66, 6, 0.7);
+  beam(x0 + 6, -H * 0.7, W / 2 - 3, -H * 0.62 - 1.4, 1.6, TIMBER);
+  beam(x0 + 8, -H * 0.35, W / 2 - 1, -H * 0.4, 1.4, TIMBER_DARK);
+  if (A) {
+    // an ox-cart overturned on the barricade, burning
+    const wx = W / 2 - 8, wy = -H * 0.55;
+    inkDisc(wx, wy, 5.4, 5.4, "rgba(0,0,0,0)", 1.1);
+    c.strokeStyle = "#5a4024"; c.lineWidth = 1.3;
+    c.beginPath(); c.arc(wx, wy, 4.7, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = 0.7;
+    c.beginPath();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.moveTo(wx, wy); c.lineTo(wx + Math.cos(a) * 4.4, wy + Math.sin(a) * 4.4); }
+    c.stroke();
+    (structFit.e5fires || (structFit.e5fires = [])).push([...structPoint(-2, -H - 0.4), 5.6]);
+    (structFit.e5fires || (structFit.e5fires = [])).push([...structPoint(W / 2 - 10, -H - 1), 4.4]);
+  }
+  c.restore();
+  // the trench in front, the burning heap between trench and barricade
+  if (lvl >= 1 || spec) barrTrench(-W / 2 + 2, W / 2 - 4, 5.6, 3.2);
+  barrPyre(lvl === 0 && !spec ? 2 : -4, 2.6 + (Dp - 10) * OBQ.dy, A ? 12 : lvl === 0 && !spec ? 8 : 10, 410 + lvl, false);
+  if (lvl === 2 && !spec) barrPyre(9, 3.4, 7, 415, true);
+}
+function barrMusa(lvl, spec, W, Dp, D) {
+  const c = sctx, A = spec === "a", B = spec === "b";
+  const H = spec ? 12 : [8, 10, 12][lvl];
+  c.save();
+  c.translate((Dp - 6) * OBQ.dx, (Dp - 6) * OBQ.dy);
+  // rocks either side of the path, the wall of loose stones across it
+  if (lvl >= 1 || spec) {
+    c.save(); c.translate(-W / 2 + 5, 0); e5Rock(10, H + 8 + (B ? 8 : 0), 6, 421 + lvl); c.restore();
+  }
+  if (lvl >= 2 || spec) {
+    c.save(); c.translate(W / 2 - 5, 0); e5Rock(9, H + 5, 6, 425 + lvl); c.restore();
+  }
+  c.save();
+  c.translate(lvl >= 1 || spec ? 0.5 : 0, 0);
+  e5DryStone(lvl >= 2 || spec ? W - 18 : lvl === 1 ? W - 12 : W - 8, H, 5, 430 + lvl);
+  c.restore();
+  if (lvl >= 2 || spec) {
+    // sharpened stakes driven in before the wall
+    for (let x = -W / 2 + 11; x < W / 2 - 10; x += 3.4) beam(x, 1.4, x + 1.6, -4.4, 0.9, "#7a5a34");
+  }
+  if (B) {
+    // on the rock: boulders and the man with the lever who sends them down
+    c.save();
+    c.translate(-W / 2 + 5, -H - 16);
+    hurlPile(1.6, 0, 2, 2.2, toneHex(e5Stone().mid, -10), 433);
+    e5Figure(-1.6, 0.4, 0.9, D(0), { face: 1, hands: [[5, -12], [3, -10.8]] });
+    beam(1.6, -9.6, 8, -1.6, 1.6, TIMBER);
+    c.restore();
+  }
+  c.restore();
+  // brushwood fired on the path below the wall
+  barrPyre(lvl === 0 && !spec ? 1 : -3, 3 + (Dp - 10) * OBQ.dy, A ? 12 : 9, 440 + lvl, true);
+  if (A) barrPyre(10, 4, 8, 445, true);
+}
+function barrSard(lvl, spec, W, Dp, D) {
+  const c = sctx, A = spec === "a", B = spec === "b";
+  // the trench at the back: its sandbag parapet facing the road
+  c.save();
+  c.translate((Dp - 5) * OBQ.dx, (Dp - 5) * OBQ.dy);
+  barrTrench(-W / 2 + 3, W / 2 - 3, -1, 3.4);
+  if (B) {
+    // a soldier stands in the trench, a grenade ready in his hand
+    e5Figure(2, 4, 0.95, D(0), { face: 1, hands: [[-3, -22.4], [3, -13.4]],
+      held: (h) => {
+        inkDisc(h[0][0], h[0][1] - 0.6, 1.2, 1.5, "#4e5446", 0.5);
+        beam(h[0][0], h[0][1] + 0.4, h[0][0] + 0.4, h[0][1] + 3, 0.7, "#6a5032");
+        structFit.fuse = structPoint(h[0][0] + 0.4, h[0][1] - 2);
+      } });
+  }
+  if (!B && (lvl >= 1 || spec)) {
+    // a sentry stands in the trench, his rifle at the ready
+    e5Figure(-6, 4, 0.95, D(1), { face: 1, hands: [[4.2, -14.6], [1.6, -11.6]],
+      held: (h) => e5Gun(sctx, h[1][0] - 1.4, h[1][1] + 1.6, Math.cos(-1.15), Math.sin(-1.15), 17, 1, D(1)) });
+  }
+  c.save();
+  c.translate(0, -1);
+  e5Bags(W - 6, lvl === 0 && !spec ? 5 : 6, 3, null, 450 + lvl);
+  c.restore();
+  c.restore();
+  // belts of wire on pickets before it
+  const rows = A ? 3 : lvl >= 1 || spec ? 2 : 1;
+  barrWire(-W / 2 + 2, W / 2 - 2, 4 - (rows - 1) * 1.2, 8, rows, 460 + lvl);
+  // stubble and straw fired in front of the wire
+  if (lvl >= 1 || spec) barrPyre(A ? -6 : -8, 8, A ? 9 : 7, 470 + lvl, true);
+  if (A || lvl === 2) barrPyre(9, 8.4, 7, 475 + lvl, true);
+  if (lvl === 0 && !spec) barrPyre(0, 8, 6, 478, true);
+}
+
+function paintBarricade(lvl, spec) {
+  const c = sctx, S = footStone(), F = e5Field(), D = (i) => e5Dress(i);
+  const base = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 81 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const W = base.w + 4, Dp = base.d;
+  if (F === "van") barrVan(lvl, spec, W, Dp, D);
+  else if (F === "musa") barrMusa(lvl, spec, W, Dp, D);
+  else barrSard(lvl, spec, W, Dp, D);
+  c.restore();
+}
+
+function barrLive(t, cx) {
+  const f = cx.fit, k = cx.k, ph = isFinite(t.flame) ? t.flame : cx.time * 0.01;
+  const burst = cx.spec === "b" ? structClamp(t.novaFx || 0, 0, 1) : 0;
+  const big = cx.spec === "a" ? 1.25 : 1;
+  if (f.e5fires) {
+    for (let i = 0; i < f.e5fires.length; i++) {
+      const p = f.e5fires[i], fx = cx.x + p[0] * k, fy = cx.y + p[1] * k, w = p[2];
+      // smoke first, behind the flame: dark from the kerosene and green brush
+      ctx.fillStyle = "rgba(60, 54, 50, .3)";
+      ctx.globalAlpha = cx.fade;
+      ctx.beginPath();
+      for (let j = 0; j < 3; j++) {
+        const rise = (cx.time * 0.0005 + j / 3 + i * 0.37 + t.x * 0.01) % 1;
+        const px = fx + (Math.sin(rise * 5 + j + i) * 1.6 + rise * 6) * k, py = fy - (6 + rise * 20) * k, pr = (1.6 + rise * 3.6) * (1 - rise * 0.4) * k;
+        ctx.moveTo(px + pr, py);
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      const fh = structClamp((w * 2.3 + Math.sin(ph * 1.3 + i * 2.1) * w * 0.3) * big * (1 + burst * 0.6), 4, 26) * k;
+      structFlame(fx, fy, Math.min(w * 0.45 * k, fh * 0.32), fh, ph + i * 1.7, w > 5, cx.fade);
+    }
+  }
+  if (f.fuse) {
+    const fx = cx.x + f.fuse[0] * k, fy = cx.y + f.fuse[1] * k, q = cx.time * 0.03 + t.x;
+    ctx.globalAlpha = cx.fade;
+    ctx.fillStyle = "#ffe08a";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = q * 1.7 + i * 1.3, r = (0.8 + ((q + i) % 1) * 1.8) * k;
+      ctx.rect(fx + Math.cos(a) * r - 0.35 * k, fy + Math.sin(a) * r - 0.35 * k, 0.7 * k, 0.7 * k);
+    }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// low and wide: drawn larger than the altar, still inside the slot's height (71 x 1.05 against 96 x 0.78)
 SKIN_ART.barricade = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.fire,
-  scale: TOWER_SCALE.fire,
-  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+  box: [-44, -71, 50, 24],
+  scale: 1.05,
+  paint(lvl, spec, variant) { paintBarricade(lvl, spec); },
+  variant() { return e5Variant(0); },
+  live: barrLive,
+  footing(lvl, spec) {
+    const b = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+    return { w: (b.w + (stepped ? 3 : 0)) * 1.05, d: (b.d + (stepped ? 2 : 0)) * 1.05, cy: 0 };
+  },
 };
 // ====================================== END SKIN SECTION: barricade ======================================
 
@@ -25811,11 +27811,451 @@ SKIN_ART.barricade = {
 // SKIN SECTION: bells. 1915-18, drums slot: church bells calling the defenders
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// The support aura, as each battlefield names it:
+//  Sardarapat: "The bells of the Mother See ringing to call defenders": an Armenian belfry of the
+//    plain's red tuff, an open arcade of columns under a conical roof (the shape of the belfries of
+//    Etchmiadzin and the village churches round it), its bells swinging live, a ringer on the rope.
+//  Van: "Craftsmen refilling cartridges and supplying the line": the defenders' workshops, a bench
+//    under an awning, then a mud-brick shop with its forge and chimney; the hammer falls live on
+//    the beat, sparks fly, crates of cartridges go out to the walls.
+//  Musa Dagh: "The red cross banner and the 'Christians in distress' banner": two great bedsheets on
+//    poles above a cairn, flying live toward the sea; the lettering is suggested, never written.
+const BELL_TUFF = { mid: "#c99a7c", side: "#9a6e56", trim: "#e2bca0", mortar: null, band: 0 };
+const BELL_BRONZE = "#b88a3a";
+
+// ---- Sardarapat: the belfry ----
+function bellSpot(x, y, r) {
+  (structFit.bells || (structFit.bells = [])).push({ p: structPoint(x, y), r });
+}
+// a column with a cushion capital and a square base
+function bellColumn(x, y0, y1, w) {
+  const T = BELL_TUFF;
+  inkRect(x - w / 2, y1, w, y0 - y1, T.mid, 0.7);
+  sctx.fillStyle = "rgba(255, 244, 228, .35)";
+  sctx.fillRect(x - w / 2 + 0.3, y1 + 0.5, w * 0.3, y0 - y1 - 1);
+  inkRect(x - w / 2 - 0.7, y1 - 1.2, w + 1.4, 1.4, T.trim, 0.6);
+  inkRect(x - w / 2 - 0.6, y0 - 1, w + 1.2, 1.2, T.trim, 0.6);
+}
+// the rotunda: a ring of columns under a conical stone roof, the bell hung in the middle (live)
+function bellRotunda(cx, y, R, H, n, bells) {
+  const c = sctx, T = BELL_TUFF, ry = R * 0.38;
+  // the floor slab and the far columns, then the bell's beam, then the near columns
+  inkDisc(cx, y, R + 1.2, ry + 0.6, toneHex(T.mid, 18), 0.8);
+  c.fillStyle = toneHex(T.side, -6);
+  c.beginPath(); c.ellipse(cx, y, R + 1.2, ry + 0.6, 0, 0, Math.PI); c.lineTo(cx - R - 1.2, y + 2); c.ellipse(cx, y + 2, R + 1.2, ry + 0.6, 0, Math.PI, 0, true); c.closePath(); c.fill();
+  c.beginPath(); c.ellipse(cx, y + 2, R + 1.2, ry + 0.6, 0, 0, Math.PI); inkStroke(0.8);
+  const cols = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i + 0.5) / n * Math.PI * 2;
+    cols.push([cx + Math.cos(a) * R, y + Math.sin(a) * ry, Math.sin(a)]);
+  }
+  c.fillStyle = "rgba(30, 18, 10, .55)";
+  c.beginPath(); c.ellipse(cx, y - H * 0.5, R, H * 0.5, 0, 0, Math.PI * 2); c.fill();
+  for (const p of cols) if (p[2] < 0) bellColumn(p[0], p[1], p[1] - H, 1.8);
+  beam(cx - R * 0.8, y - H + 1.6, cx + R * 0.8, y - H + 1.6, 1.2, TIMBER_DARK);
+  for (let i = 0; i < bells.length; i++) bellSpot(cx + bells[i][0], y - H + 2.4, bells[i][1]);
+  for (const p of cols) if (p[2] >= 0) bellColumn(p[0], p[1], p[1] - H, 1.9);
+  // the entablature ring and the cone
+  c.save();
+  c.translate(cx, y - H);
+  inkDisc(0, 0, R + 1.6, ry + 0.8, T.trim, 0.8);
+  c.fillStyle = toneHex(T.side, 4);
+  c.beginPath(); c.ellipse(0, 0, R + 1.6, ry + 0.8, 0, 0, Math.PI); c.lineTo(-R - 1.6, -2); c.ellipse(0, -2, R + 1.6, ry + 0.8, 0, Math.PI, 0, true); c.closePath(); c.fill();
+  inkStroke(0.8);
+  const ch = R * 1.5;
+  polyPath([-R - 2, -2, 0, -2 - ch, R + 2, -2]);
+  c.fillStyle = toneHex(T.mid, -6); c.fill();
+  c.save(); c.clip();
+  c.fillStyle = "rgba(255, 240, 220, .3)";
+  c.beginPath(); c.moveTo(-R - 2, -2); c.lineTo(0, -2 - ch); c.lineTo(-R * 0.3, -2); c.fill();
+  c.fillStyle = "rgba(40, 20, 10, .25)";
+  c.beginPath(); c.moveTo(R * 0.35, -2); c.lineTo(0, -2 - ch); c.lineTo(R + 2, -2); c.fill();
+  c.strokeStyle = "rgba(60, 34, 20, .35)"; c.lineWidth = 0.4;
+  c.beginPath();
+  for (let i = 1; i < 5; i++) { c.moveTo(-R * i / 5 - 1, -2); c.lineTo(0, -2 - ch); c.moveTo(R * i / 5 + 1, -2); c.lineTo(0, -2 - ch); }
+  c.stroke();
+  c.restore();
+  c.beginPath(); c.moveTo(-R - 2, -2); c.lineTo(0, -2 - ch); c.lineTo(R + 2, -2); inkStroke(0.9);
+  c.beginPath(); c.ellipse(0, -2, R + 1.6, ry + 0.8, 0, 0, Math.PI); inkStroke(0.8);
+  // a plain iron cross on the apex
+  c.strokeStyle = INK; c.lineWidth = 1.4;
+  c.beginPath(); c.moveTo(0, -2 - ch); c.lineTo(0, -2 - ch - 5.6); c.moveTo(-1.8, -2 - ch - 3.8); c.lineTo(1.8, -2 - ch - 3.8); c.stroke();
+  c.strokeStyle = "#e8c860"; c.lineWidth = 0.6; c.stroke();
+  c.restore();
+  structCrown(y - H - 2 - R * 1.5 - 6);
+}
+function bellSard(lvl, spec, D) {
+  const c = sctx, T = BELL_TUFF;
+  if (!spec && lvl === 0) {
+    // a timber bell-frame on a stone step: the village bell before the church was built up
+    box3(20, 3, 10, T.mid, towerWall(T, 501, { course: 3, block: 7, band: 0 }));
+    c.translate(0, -3);
+    const H = 24;
+    beam(-7, 3 * OBQ.dy + 0.4, -6, -H, 1.8, TIMBER);
+    beam(7, 3 * OBQ.dy + 0.4, 6, -H, 1.8, TIMBER);
+    beam(-7, 0, -5.6, -H * 0.6, 1, TIMBER_DARK);
+    beam(-8.6, -H, 8.6, -H, 2, TIMBER);
+    beam(-9.4, -H - 1.6, 9.4, -H - 1.6, 1.4, TIMBER_DARK);
+    bellSpot(0, -H + 1, 4.2);
+    (structFit.ropes || (structFit.ropes = [])).push({ top: structPoint(1.6, -H + 6), hand: structPoint(11, -12) });
+    e5Figure(12.4, 0.4, 0.9, D(3), { face: -1, hands: [[1.4, -13.4], [0.6, -12]] });
+    structCrown(-H - 4);
+    return;
+  }
+  if (!spec && lvl === 1) {
+    // a bell-gable: a tuff wall pierced by an arch, the bell hung in it
+    const W = 18, H = 26, Dp = 7;
+    box3(W + 4, 3, Dp + 3, T.mid, towerWall(T, 511, { course: 3, block: 7, band: 0 }));
+    c.translate(1.5 * OBQ.dx, -3 + 1.5 * OBQ.dy);
+    box3(W, H, Dp, T.mid, towerWall(T, 513, { course: 4.4, block: 8, band: 0 }));
+    // the arch, open right through
+    c.fillStyle = "#2a1a10";
+    c.beginPath(); c.moveTo(-5, -9); c.lineTo(-5, -18); c.arc(0, -18, 5, Math.PI, 0); c.lineTo(5, -9); c.closePath(); c.fill();
+    inkStroke(0.8);
+    c.strokeStyle = T.trim; c.lineWidth = 1;
+    c.beginPath(); c.arc(0, -18, 5.6, Math.PI, 0); c.stroke();
+    bellSpot(0, -21.5, 3.8);
+    // a gabled top with a cross
+    polyPath([-W / 2 - 1, -H, 0, -H - 6, W / 2 + 1, -H]);
+    c.fillStyle = T.trim; c.fill(); inkStroke(0.9);
+    c.strokeStyle = INK; c.lineWidth = 1.3;
+    c.beginPath(); c.moveTo(0, -H - 6); c.lineTo(0, -H - 11); c.moveTo(-1.7, -H - 9.2); c.lineTo(1.7, -H - 9.2); c.stroke();
+    c.strokeStyle = "#e8c860"; c.lineWidth = 0.55; c.stroke();
+    (structFit.ropes || (structFit.ropes = [])).push({ top: structPoint(1.4, -14), hand: structPoint(12, -11) });
+    e5Figure(13, 0.6 - 1.5 * OBQ.dy, 0.9, D(3), { face: -1, hands: [[1.6, -13.4], [0.6, -12]] });
+    structCrown(-H - 12);
+    return;
+  }
+  // the belfry: a square tuff storey with an arched door, the rotunda of columns above
+  const W = spec === "b" ? 20 : 19, Dp = 12, H = spec === "a" ? 26 : 20;
+  box3(W + 4, 3, Dp + 3, T.mid, towerWall(T, 521, { course: 3, block: 7, band: 0 }));
+  c.translate(1.5 * OBQ.dx, -3 + 1.5 * OBQ.dy);
+  box3(W, H, Dp, T.mid, towerWall(T, 523 + lvl, { course: 4.6, block: 8.5, band: 0 }));
+  archDoor(0, 6, 10, T.trim);
+  if (spec === "a") {
+    // a second arcaded storey: three bays, a bell in the middle one
+    for (const x of [-6, 0, 6]) {
+      c.fillStyle = "#2a1a10";
+      c.beginPath(); c.moveTo(x - 2, -15); c.lineTo(x - 2, -20); c.arc(x, -20, 2, Math.PI, 0); c.lineTo(x + 2, -15); c.closePath(); c.fill(); inkStroke(0.6);
+    }
+  } else {
+    c.fillStyle = "#2a1a10"; c.fillRect(-1, -17, 2, 3.4);
+  }
+  stringCourse(W, Dp, -H + 1.6);
+  c.translate(0, -H);
+  // the rotunda stands on the roof of the storey, in its middle
+  bellRotunda(Dp * OBQ.dx * 0.5, Dp * OBQ.dy * 0.5, 7.4, spec === "a" ? 13 : 12, 6, spec ? [[-2.4, 3.2], [2.6, 2.6]] : [[0, 3.6]]);
+  c.translate(0, H);
+  // the ringer at the foot of the belfry, the rope running up to the bell
+  (structFit.ropes || (structFit.ropes = [])).push({ top: structPoint(W / 2 + 0.6, -H - 2), hand: structPoint(W / 2 + 4, -12.4) });
+  e5Figure(W / 2 + 5.4, 1 - 1.5 * OBQ.dy, 0.9, D(3), { face: -1, hands: [[1.4, -13.4], [0.6, -12]] });
+  if (spec === "b") {
+    // the people called in from the plain: a villager with an old rifle, a church banner raised
+    e5Figure(-W / 2 - 4.6, 1.6 - 1.5 * OBQ.dy, 0.9, e5Dress(0), { face: 1, hands: [[3.2, -16], [2.6, -9.6]],
+      held: (h) => {
+        beam(h[0][0], h[0][1] + 7.4, h[0][0], h[0][1] - 16, 0.9, TIMBER_DARK);
+        (structFit.flags || (structFit.flags = [])).push({ p: structPoint(h[0][0] + 0.4, h[0][1] - 15.4), len: 8, hgt: 9, kind: "church" });
+      } });
+  } else if (lvl === 2 || spec === "a") {
+    e5Leaning(-W / 2 - 2.4, 1.2, 15, -2.4, e5Dress(0));
+  }
+}
+
+// ---- Van: the cartridge workshop ----
+// a woman of the town: long dark dress, a head-scarf
+const BELL_WOMAN = { coat: "#5a3a3a", cap: "wrap", capHex: "#3a3540", trou: "#4a3434", skirt: true };
+function bellBench(x, y, w, d) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  // the top on four legs, tools and a heap of brass on it
+  for (const lx of [-w / 2 + 0.8, w / 2 - 0.8]) { beam(lx, 0, lx, -5.4, 0.9, TIMBER_DARK); beam(lx + d * OBQ.dx, d * OBQ.dy, lx + d * OBQ.dx, d * OBQ.dy - 5.4, 0.9, TIMBER_DARK); }
+  c.translate(0, -5.4);
+  box3(w, 1.3, d, TIMBER, { side: "#573a1e" });
+  c.fillStyle = "#d8b860";
+  for (let i = 0; i < 9; i++) c.fillRect(-w / 2 + 1.4 + (i * 2.3) % (w - 3), -1.6 - (i % 3) * 0.3 + d * OBQ.dy * 0.4 + ((i * 7) % 3) * -0.4, 0.6, 1.1);
+  // the little press for seating bullets in their cases
+  inkRect(w / 2 - 4, -5, 1.4, 3.8, IRON, 0.5);
+  inkRect(w / 2 - 4.8, -5.6, 3, 1, IRON, 0.5);
+  c.restore();
+}
+function bellAnvil(x, y) {
+  const c = sctx;
+  inkRect(x - 1.4, y - 3.4, 2.8, 3.4, TIMBER_DARK, 0.6);
+  inkPoly([x - 3.4, y - 3.4, x + 3.6, y - 3.4, x + 2.6, y - 5, x - 2.2, y - 5], IRON, 0.7);
+  inkPoly([x + 3.6, y - 3.4, x + 5.4, y - 4.6, x + 2.6, y - 5], IRON, 0.6);
+  sctx.fillStyle = "rgba(220, 224, 232, .5)";
+  sctx.fillRect(x - 2, y - 4.9, 4.4, 0.5);
+}
+function bellVan(lvl, spec, D) {
+  const c = sctx, A = spec === "a", B = spec === "b";
+  const smith = (x, y, g, s) => {
+    // the smith at the anvil: his hammer arm is live
+    e5Figure(x, y, s || 0.95, g, { face: 1, stride: 0.8, hands: [[5.4, -11.6], [4, -11]] });
+    (structFit.hammers || (structFit.hammers = [])).push({ sh: structPoint(x + 2.4, y - 14), hit: structPoint(x + 7.8, y - 5.4) });
+    bellAnvil(x + 7.4, y + 0.4);
+  };
+  if (!spec && lvl === 0) {
+    // a bench under a lean-to of poles and an old carpet
+    beam(-14, 1, -14, -20, 1.4, TIMBER_DARK);
+    beam(10, 1, 10, -20, 1.4, TIMBER_DARK);
+    c.save(); c.translate(0, -20);
+    inkPoly([-16, 0, 12, 0, 12 + 8 * OBQ.dx, 8 * OBQ.dy - 2, -16 + 8 * OBQ.dx, 8 * OBQ.dy - 2], "#8a3a2a", 0.9);
+    c.fillStyle = "#c8a050";
+    for (let x = -14; x < 11; x += 4) c.fillRect(x, -0.4 + 1 * OBQ.dy, 2, 0.8);
+    c.restore();
+    bellBench(-3, 1, 14, 5);
+    e5Figure(-5, 3.4, 0.9, D(0), { face: 1, hands: [[4.2, -10.6], [3, -10]] });
+    e5Crate(9.6, 4, 5, 3, 3.4);
+    e5Crate(9.6, 1, 4.6, 2.6, 3, "#6a4a2c");
+    structCrown(-26);
+    return;
+  }
+  // the shop: mud brick, flat-roofed, its front open on a beam, the forge glowing inside
+  const W = A ? 30 : B ? 28 : lvl === 1 ? 24 : 28, H = A ? 20 : 17, Dp = 13;
+  c.save();
+  c.translate(2 * OBQ.dx + 2, 4 * OBQ.dy);
+  e5Adobe(W, H, Dp, 541 + lvl + (spec ? 7 : 0));
+  // the open front: a dark interior with the forge's glow at the back
+  const ox = -W / 2 + 3, ow = W * 0.55, oh = 11;
+  c.fillStyle = "#24160c";
+  c.fillRect(ox, -oh, ow, oh);
+  const g = c.createRadialGradient(ox + ow * 0.35, -2.6, 0.5, ox + ow * 0.35, -2.6, 8);
+  g.addColorStop(0, "rgba(255, 170, 70, .95)");
+  g.addColorStop(1, "rgba(255, 120, 40, 0)");
+  c.fillStyle = g;
+  c.fillRect(ox, -oh, ow, oh);
+  structFit.torches.push(structPoint(ox + ow * 0.35, -2.2));
+  beam(ox - 0.6, -oh - 0.6, ox + ow + 0.6, -oh - 0.6, 1.6, TIMBER_DARK);
+  e5Boarded(W / 2 - 4.4, -4.6, 4.2, 6, false);
+  c.translate(0, -H);
+  e5Roof(W, Dp, 2.2);
+  // the chimney of the forge at the back of the roof
+  c.save();
+  c.translate(W / 2 - 6 + Dp * OBQ.dx * 0.6, -2.2 + Dp * OBQ.dy * 0.6);
+  box3(3.6, A ? 12 : 8, 3, toneHex(E5_ADOBE.mid, -14), { side: toneHex(E5_ADOBE.mid, -50) });
+  structFit.chimney = structPoint(1.2 * OBQ.dx, -(A ? 12 : 8) + 1.2 * OBQ.dy);
+  c.restore();
+  if (lvl >= 2 || spec) {
+    // crates of cartridges on the roof, ready to go to the walls
+    e5Crate(-W / 2 + 6 + Dp * OBQ.dx * 0.4, -2.2 + Dp * OBQ.dy * 0.4, 5, 2.8, 3.4);
+  }
+  structCrown(-H - (A ? 14 : 10) + Dp * OBQ.dy);
+  c.restore();
+  // the awning out front over the bench, the smith at his anvil
+  c.save();
+  c.translate(-W / 2 + 2, 0);
+  bellBench(W * 0.18, 6, 12, 4);
+  c.restore();
+  smith(W / 2 - 16, 8.6, D(0));
+  if (lvl >= 2 || spec) e5Figure(-W / 2 + 1, 8.4, 0.9, D(1), { face: 1, hands: [[4, -10], [2.4, -9.6]] });
+  if (B) {
+    // the whole community: a woman carries out a basket of filled cartridges
+    e5Figure(W / 2 + 2, 7.6, 0.92, BELL_WOMAN, { face: -1, hands: [[3.4, -9.8], [1.2, -9.4]],
+      held: (h) => hurlBasket(h[0][0] - 1, h[0][1] + 2.6, 4.6, 3.4, "#d8b860") });
+  }
+  if (A) e5Figure(W / 2 + 2.6, 7.6, 0.9, D(2), { face: -1, hands: [[3.4, -10.6], [1.6, -10]],
+    held: (h) => e5Crate(h[0][0] - 1.6, h[0][1] + 1.6, 4.4, 2.6, 2.6) });
+  e5Crate(W / 2 + 4, 10.4, 5, 3, 3.4);
+}
+
+// ---- Musa Dagh: the banners to the sea ----
+function bellCairn(x, y, r, seed) {
+  hurlPile(x, y, 3, r, toneHex(e5Stone().mid, -6), seed);
+}
+function bellPole(x, y, h, kind, len, hgt) {
+  beam(x, y, x, y - h, 1.3, "#8a6a44");
+  (structFit.flags || (structFit.flags = [])).push({ p: structPoint(x + 0.5, y - h + 0.8), len, hgt, kind });
+  structCrown(y - h - 1);
+}
+function bellMusa(lvl, spec, D) {
+  const A = spec === "a", B = spec === "b";
+  const H = A ? 16 : B ? 10 : [6, 9, 10][lvl];
+  const W = 36, Dp = 13;
+  const Wt = e5Rock(W, H, Dp, 561 + lvl + (spec ? 9 : 0));
+  sctx.save();
+  sctx.translate(Dp * OBQ.dx * 0.4, -H + Dp * OBQ.dy * 0.4);
+  const two = lvl >= 2 || spec;
+  // the red cross first; the second banner from the third rank on
+  bellCairn(two ? -7 : -2, 0, 2.2, 571);
+  bellPole(two ? -7 : -2, -3.6, A ? 38 : 30 + lvl * 2, "cross", A ? 17 : 15, A ? 11 : 10);
+  if (two) {
+    bellCairn(8, 0.4, 2.2, 573);
+    bellPole(8, -3.2, A ? 34 : 26, "words", A ? 17 : 15, A ? 10 : 9);
+  }
+  if (lvl >= 1 || spec) {
+    // a lookout watching the sea for ships, one hand shading his eyes
+    e5Figure(two ? 1 : 8, 1.8, 0.9, D(1), { face: 1, hands: [[2.4, -17.6], [-1.4, -9.6]] });
+  }
+  if (B) e5Figure(-Wt / 2 + 1, 2.2, 0.9, BELL_WOMAN, { face: 1, hands: [[3, -10.4], [1.4, -9.6]] });
+  if (A) e5Figure(Wt / 2 - 1, 2.4, 0.9, D(0), { face: -1, hands: [[3.4, -13.4], [1.6, -12]] });
+  sctx.restore();
+}
+
+function paintBells(lvl, spec) {
+  const c = sctx, S = footStone(), F = e5Field(), D = (i) => e5Dress(i);
+  const base = towerBase("drums", lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 91 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  if (F === "sard") bellSard(lvl, spec, D);
+  else if (F === "van") bellVan(lvl, spec, D);
+  else bellMusa(lvl, spec, D);
+  c.restore();
+}
+
+// ---- live ----
+// a bronze bell hung at (x, y), swung through `a`
+function bellDraw(c, x, y, r, a, k) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(a);
+  const R = r * k;
+  c.beginPath();
+  c.moveTo(-R * 0.42, R * 0.2);
+  c.quadraticCurveTo(-R * 0.5, R * 1.1, -R, R * 1.7);
+  c.lineTo(R, R * 1.7);
+  c.quadraticCurveTo(R * 0.5, R * 1.1, R * 0.42, R * 0.2);
+  c.quadraticCurveTo(0, -R * 0.2, -R * 0.42, R * 0.2);
+  c.closePath();
+  c.fillStyle = BELL_BRONZE; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.9 * k; c.stroke();
+  c.fillStyle = "rgba(255, 236, 170, .55)";
+  c.fillRect(-R * 0.5, R * 0.4, R * 0.24, R * 1.1);
+  c.fillStyle = "rgba(60, 30, 6, .35)";
+  c.fillRect(R * 0.3, R * 0.5, R * 0.3, R * 1.1);
+  // the lip and the clapper, which lags behind the swing
+  c.beginPath(); c.ellipse(0, R * 1.7, R, R * 0.26, 0, 0, Math.PI * 2);
+  c.fillStyle = "#4a3214"; c.fill(); c.strokeStyle = INK; c.lineWidth = 0.7 * k; c.stroke();
+  c.beginPath(); c.arc(-Math.sin(a) * R * 0.5, R * 1.62, R * 0.24, 0, Math.PI * 2);
+  c.fillStyle = "#3a2a14"; c.fill();
+  // the yoke
+  c.fillStyle = "#4a3420"; c.fillRect(-R * 0.6, -R * 0.15, R * 1.2, R * 0.3);
+  c.restore();
+}
+// a banner on its pole: bedsheet white, rippling in the sea wind; a red cross, or rows of lettering
+function bellBanner(c, x, y, len, hgt, kind, ph, k) {
+  const L = len * k, H = hgt * k;
+  const at = (u, v) => {
+    const w = Math.sin(ph + u * 3.2) * H * 0.12 * u;
+    return [x + L * u * (1 - 0.06 * Math.abs(Math.sin(ph * 0.5)) * u), y + H * v + w + H * 0.12 * u * u];
+  };
+  c.beginPath();
+  for (let i = 0; i <= 8; i++) { const p = at(i / 8, 0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
+  for (let i = 8; i >= 0; i--) { const p = at(i / 8, 1); c.lineTo(p[0], p[1]); }
+  c.closePath();
+  c.fillStyle = kind === "church" ? "#a8322a" : "#f2efe4"; c.fill();
+  c.strokeStyle = INK; c.lineWidth = 0.9 * k; c.stroke();
+  if (kind === "cross" || kind === "church") {
+    // the rescue banner's red cross on white; a church banner's gold cross on red
+    const red = kind === "church" ? "#e0b44a" : "#c8322a";
+    const quad = (u0, v0, u1, v1) => {
+      const a = at(u0, v0), b = at(u1, v0), d = at(u1, v1), e = at(u0, v1);
+      c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath();
+    };
+    c.beginPath();
+    quad(0.38, 0.14, 0.58, 0.86);
+    quad(0.2, 0.38, 0.76, 0.58);
+    c.fillStyle = red; c.fill();
+  } else {
+    // three rows of dark lettering, too small to read
+    c.strokeStyle = "#2a2622";
+    c.lineWidth = 0.8 * k;
+    c.beginPath();
+    for (let r = 0; r < 3; r++) {
+      const v = 0.26 + r * 0.24;
+      for (let u = 0.12; u < 0.86; u += 0.11) {
+        const a = at(u, v), b = at(u + 0.07, v);
+        c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]);
+      }
+    }
+    c.stroke();
+  }
+  // a fold of shadow following the ripple
+  c.fillStyle = "rgba(60, 50, 40, .14)";
+  c.beginPath();
+  const f0 = at(0.5, 0), f1 = at(0.62, 0), f2 = at(0.62, 1), f3 = at(0.5, 1);
+  c.moveTo(f0[0], f0[1]); c.lineTo(f1[0], f1[1]); c.lineTo(f2[0], f2[1]); c.lineTo(f3[0], f3[1]); c.closePath();
+  c.fill();
+}
+function bellsLive(t, cx) {
+  const f = cx.fit, k = cx.k, beat = isFinite(t.beat) ? t.beat : cx.time * 0.004;
+  ctx.globalAlpha = cx.fade;
+  if (f.bells) {
+    // the bells swing on the beat, each a little behind the one before
+    for (let i = 0; i < f.bells.length; i++) {
+      const b = f.bells[i];
+      bellDraw(ctx, cx.x + b.p[0] * k, cx.y + b.p[1] * k, b.r, Math.sin(beat + i * 0.9) * 0.55, k);
+    }
+  }
+  if (f.ropes) {
+    for (const r of f.ropes) {
+      // the rope runs down from the wheel to the ringer's hands, which rise and fall with it
+      const pull = (Math.sin(beat) * 0.5 + 0.5) * 2.4 * k;
+      const tx = cx.x + r.top[0] * k, ty = cx.y + r.top[1] * k, hx = cx.x + r.hand[0] * k, hy = cx.y + r.hand[1] * k + pull;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + hx) / 2 + 1 * k, (ty + hy) / 2, hx, hy);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.1 * k; ctx.stroke();
+      ctx.strokeStyle = "#cdb48a"; ctx.lineWidth = 0.5 * k; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, hy + 3 * k);
+      ctx.strokeStyle = "#cdb48a"; ctx.lineWidth = 0.5 * k; ctx.stroke();
+      e5Hand(ctx, hx, hy, k * 0.9);
+    }
+  }
+  if (f.hammers) {
+    for (const h of f.hammers) {
+      // the hammer is raised and falls on the beat: a shower of sparks at each blow
+      const s = Math.abs(Math.sin(beat)), lift = s * s;
+      const sx = cx.x + h.sh[0] * k, sy = cx.y + h.sh[1] * k, ax = cx.x + h.hit[0] * k, ay = cx.y + h.hit[1] * k;
+      const hx = ax - 2 * k * lift, hy = ay - 9 * k * lift;
+      e5Line(ctx, sx, sy, (sx + hx) / 2 + 1 * k, (sy + hy) / 2 + 1 * k, 1.7, "#5a4a3a", k);
+      e5Line(ctx, (sx + hx) / 2 + 1 * k, (sy + hy) / 2 + 1 * k, hx - 1 * k, hy + 1.6 * k, 1.6, "#5a4a3a", k);
+      e5Hand(ctx, hx - 1 * k, hy + 1.6 * k, k);
+      e5Line(ctx, hx - 1 * k, hy + 1.6 * k, hx + 0.6 * k, hy - 0.6 * k, 0.7, TIMBER, k);
+      ctx.fillStyle = IRON;
+      ctx.fillRect(hx - 0.2 * k, hy - 1.6 * k, 1.8 * k, 1.4 * k);
+      if (lift < 0.12) {
+        ctx.fillStyle = "#ffd36a";
+        for (let i = 0; i < 6; i++) {
+          const a = -Math.PI / 2 + (i - 2.5) * 0.45, r = (2 + (i * 1.7) % 3) * k * (1 - lift * 6);
+          ctx.fillRect(ax + Math.cos(a) * r, ay - 1 * k + Math.sin(a) * r, 0.7 * k, 0.7 * k);
+        }
+      }
+    }
+  }
+  if (f.chimney) {
+    const px0 = cx.x + f.chimney[0] * k, py0 = cx.y + f.chimney[1] * k;
+    ctx.fillStyle = "rgba(80, 74, 70, .35)";
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const rise = (cx.time * 0.0005 + i / 3 + t.x * 0.01) % 1;
+      const px = px0 + (Math.sin(rise * 5 + i) * 1.4 + rise * 6) * k, py = py0 - (1 + rise * 16) * k, pr = (1.2 + rise * 3) * k;
+      ctx.moveTo(px + pr, py);
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  if (f.flags) {
+    const wind = cx.time * 0.004 + t.x * 0.37;
+    for (let i = 0; i < f.flags.length; i++) {
+      const fl = f.flags[i];
+      bellBanner(ctx, cx.x + fl.p[0] * k, cx.y + fl.p[1] * k, fl.len, fl.hgt, fl.kind, wind + i * 1.3, k);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// drawn larger than the drum tower: 77 x 0.95 stays inside the slot's 104 x 0.71
 SKIN_ART.bells = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.drums,
-  scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  box: [-44, -77, 54, 24],
+  scale: 0.95,
+  paint(lvl, spec, variant) { paintBells(lvl, spec); },
+  variant() { return e5Variant(0); },
+  live: bellsLive,
+  footing(lvl, spec) {
+    const b = towerBase("drums", lvl, spec), stepped = !!spec || lvl === 2, k = STRUCT_K * 0.95;
+    return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+  },
 };
 // ====================================== END SKIN SECTION: bells ======================================
 
@@ -31682,7 +34122,8 @@ function drawFlyer(e, k, d, dir) {
 }
 
 function drawProjectile(pr) {
-  const own = PROJ_ART[pr.kind];
+  // a skin may tag its shot with a look of its own (onFire), drawn in place of its kind's
+  const own = (pr.look && PROJ_ART[pr.look]) || PROJ_ART[pr.kind];
   if (own) { own(pr); return; }
   if (pr.kind === "stone") {
     const bp = proj(pr.x, pr.gy || pr.sy);
