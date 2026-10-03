@@ -1544,7 +1544,9 @@ const Snd = {
     this.sfxGain = G(0); this.sfxGain.connect(glue);
     // the sfx bus loses its sub-rumble, so thirty engines' thumps never pile into mud
     const sub = c.createBiquadFilter(); sub.type = "highpass"; sub.frequency.value = 32; sub.Q.value = 0.6;
-    this.sfxIn = G(1); this.sfxIn.connect(sub); sub.connect(this.sfxGain);
+    // and a little air on top (a gentle 3.5 dB shelf from 3 kHz) so a busy battle never turns woolly
+    const air = c.createBiquadFilter(); air.type = "highshelf"; air.frequency.value = 3000; air.gain.value = 3.5;
+    this.sfxIn = G(1); this.sfxIn.connect(sub); sub.connect(air); air.connect(this.sfxGain);
     // a stone courtyard's short room
     // only the mids and highs go into the room, so no low tail smears even the arrows
     const conv = c.createConvolver(); conv.buffer = this.bufs.ir;
@@ -1751,11 +1753,14 @@ const Snd = {
   // a living voiced source through resonances (throats, trunks, birds, creaks): a narrow pulse whose
   // pitch drifts 1-2 % and whose level shimmers, breath noise through the same formants, and formants
   // that can morph across up to three vowel targets: forms = [[f, q, gain, f2?, f3?], ...]
+  // o.cry: a strained call (screams, bellows, bird calls): 1-2 % period jitter, ~0.7 dB shimmer,
+  // brief period-doubling stretches (an f0/2 component), ring-mod roughness (o.rough), and per-formant
+  // glides that each move their own way. o.cons: a 'k', 'g', 'b' or 'h' noise onset; o.syrinx: a
+  // bird's abrupt 5-8 ms attack with no consonant
   formant(v, o) {
-    const c = this.ctx, s = c.createOscillator();
-    // consonant onset: a 20-30 ms noise burst ('k', 'g' or an aspirated 'h') before the voicing
+    const c = this.ctx, s = c.createOscillator(), cry = !!o.cry;
     let t = o.t;
-    if (o.cons) {
+    if (o.cons && !o.syrinx) {
       const hard = o.cons !== "h";
       this.nz(v, { t, f: o.consF || (hard ? 2600 : 1800), q: hard ? 1.4 : 0.8, a: hard ? 0.002 : 0.008, p: o.p * (hard ? 1.1 : 0.7), d: hard ? 0.022 : 0.03, to: o.to });
       if (hard) t += this.rr(0.018, 0.028);
@@ -1764,32 +1769,59 @@ const Snd = {
     s.frequency.setValueAtTime(o.f, t);
     if (o.path) for (const [dt, fq] of o.path) s.frequency.exponentialRampToValueAtTime(fq, t + dt);
     const g = this.node(v, c.createGain());
-    const end = this.env(g.gain, t, o.a == null ? 0.01 : o.a, o.p, o.hold || 0, o.d), dur = end - t;
+    const a = o.syrinx ? this.rr(0.005, 0.008) : o.a == null ? 0.01 : o.a;
+    const end = this.env(g.gain, t, a, o.p, o.hold || 0, o.d), dur = end - t;
+    const srcs = [s];
+    // period doubling: a pulse an octave down on the same contour, let in for 50-150 ms stretches
+    let sub = null, subG = null;
+    if (cry && o.jit !== 0 && !o.type) {
+      sub = c.createOscillator(); sub.setPeriodicWave(this.pulseWave); srcs.push(sub);
+      sub.frequency.setValueAtTime(o.f / 2, t);
+      if (o.path) for (const [dt, fq] of o.path) sub.frequency.exponentialRampToValueAtTime(fq / 2, t + dt);
+      subG = this.node(v, c.createGain()); subG.gain.setValueAtTime(0, t);
+      const nwin = 1 + Math.floor(this.rnd() * 2.5);
+      for (let i = 0; i < nwin; i++) {
+        const w0 = t + this.rr(0.05, Math.max(0.06, dur - 0.15)), wl = this.rr(0.05, 0.15), lv = this.rr(0.35, 0.6);
+        subG.gain.setValueAtTime(0, w0); subG.gain.linearRampToValueAtTime(lv, w0 + 0.01); subG.gain.setValueAtTime(lv, w0 + wl); subG.gain.linearRampToValueAtTime(0, w0 + wl + 0.01);
+      }
+      sub.connect(subG);
+    }
     if (o.jit !== 0) {
-      // a living source: slow pitch drift, plus period-to-period jitter and shimmer from fast noise
+      // slow pitch drift, plus period-to-period jitter and shimmer from band-limited noise
       const jn = this.loopSrc(v, "brown", this.rr(0.6, 1.4), t, end + 0.02), jg = this.node(v, c.createGain());
-      jg.gain.value = (o.jit || 22) * 2.5; jn.connect(jg); jg.connect(s.detune);
-      const fj = this.loopSrc(v, "white", 1, t, end + 0.02), fjl = this.filt(v, "lowpass", Math.min(400, o.f * 0.6), 0.5, t), fjg = this.node(v, c.createGain());
-      fjg.gain.value = (o.jit || 22) * 0.9; fj.connect(fjl); fjl.connect(fjg); fjg.connect(s.detune);
-      const sn = this.loopSrc(v, "white", 1, t, end + 0.02), snl = this.filt(v, "lowpass", 250, 0.5, t), sg = this.node(v, c.createGain());
-      sg.gain.value = o.p * 0.5; sn.connect(snl); snl.connect(sg); sg.connect(g.gain);
+      jg.gain.value = (o.jit || 22) * 2.5; jn.connect(jg);
+      const fj = this.loopSrc(v, "white", 1, t, end + 0.02), fjl = this.filt(v, "lowpass", Math.min(600, o.f * 0.8), 0.5, t), fjg = this.node(v, c.createGain());
+      fjg.gain.value = cry ? 900 : 260; fj.connect(fjl); fjl.connect(fjg);
+      for (const x of srcs) { jg.connect(x.detune); fjg.connect(x.detune); }
+      const sn = this.loopSrc(v, "white", 1, t, end + 0.02), snl = this.filt(v, "lowpass", Math.min(500, o.f), 0.5, t), sg = this.node(v, c.createGain());
+      sg.gain.value = o.p * (cry ? 2.2 : 0.9); sn.connect(snl); snl.connect(sg); sg.connect(g.gain);
     }
     let src = s;
-    if (o.drive) { const ws = this.node(v, c.createWaveShaper()); ws.curve = this.driveCurve(o.drive); s.connect(ws); src = ws; }
+    if (o.drive) { const ws = this.node(v, c.createWaveShaper()); ws.curve = this.driveCurve(o.drive); s.connect(ws); if (subG) subG.connect(ws); src = ws; }
+    else if (subG) { const mix = this.node(v, c.createGain()); s.connect(mix); subG.connect(mix); src = mix; }
+    if (o.rough) {
+      // ring-mod roughness: the source's level shaken by a chaotic 30-90 Hz signal
+      const rg = this.node(v, c.createGain()); rg.gain.value = 1 - o.rough * 0.5;
+      const rn = this.loopSrc(v, "brown", this.rr(10, 16), t, end + 0.02), rf = this.filt(v, "bandpass", this.rr(40, 80), 0.7, t), rd = this.node(v, c.createGain());
+      rd.gain.value = o.rough * 6; rn.connect(rf); rf.connect(rd); rd.connect(rg.gain);
+      src.connect(rg); src = rg;
+    }
     const br = o.breath == null ? 0.25 : o.breath;
     let ng = null;
     if (br > 0) { const nsrc = this.loopSrc(v, "pink", 1, t, end + 0.02); ng = this.node(v, c.createGain()); ng.gain.value = br * 1.6; nsrc.connect(ng); }
-    // formants glide in from the consonant's locus, then morph through the vowel targets
-    const loc = o.locus == null ? (o.cons ? 0.78 : 0.9) : o.locus;
-    for (const [ff, q, fg, f2, f3] of o.forms) {
+    // each formant glides in from its own locus (F1 up from below, F2/F3 from either side), then
+    // morphs through the vowel targets on its own timing
+    for (let i = 0; i < o.forms.length; i++) {
+      const [ff, q, fg, f2, f3] = o.forms[i];
+      const loc = o.locus != null ? o.locus : (o.cons || cry) ? (i === 0 ? this.rr(0.62, 0.82) : this.rr(0.8, 1.22)) : 0.9;
       const b = this.filt(v, "bandpass", ff * loc, q, t), bg = this.node(v, c.createGain());
-      b.frequency.exponentialRampToValueAtTime(ff, t + Math.min(0.05, dur * 0.25));
-      if (f2) b.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.45);
+      b.frequency.exponentialRampToValueAtTime(ff, t + Math.min(cry ? this.rr(0.03, 0.08) : 0.05, dur * 0.25));
+      if (f2) b.frequency.exponentialRampToValueAtTime(f2, t + dur * (cry ? this.rr(0.3, 0.6) : 0.45));
       if (f3) b.frequency.exponentialRampToValueAtTime(f3, end);
       bg.gain.value = fg; src.connect(b); if (ng) ng.connect(b); b.connect(bg); bg.connect(g);
     }
     g.connect(o.to || v.out);
-    this.start(v, s, t, end + 0.02);
+    for (const x of srcs) this.start(v, x, t, end + 0.02);
     return s;
   },
   lfo(v, param, t, t1, rate, depth, type) {
@@ -1903,7 +1935,7 @@ const Snd = {
   manFall(v, t, s, boss) {
     const vw = this.pick([[[700, 1150], [560, 950], [450, 800]], [[520, 1700], [650, 1250], [480, 900]], [[430, 1900], [600, 1300], [520, 1000]], [[750, 1250], [700, 1100], [500, 850]]]);
     const f0 = this.rr(125, 180) * (boss ? 0.75 : 1);
-    this.formant(v, { cons: this.pick(["h", "g", "h", "k"]), consF: vw[0][1] * 1.6, t, f: f0, path: [[0.07, f0 * 1.1], [0.22, f0 * 0.72]], forms: [[vw[0][0], 5, 1, vw[1][0], vw[2][0]], [vw[0][1], 7, 0.5, vw[1][1], vw[2][1]], [2700, 6, 0.18]], a: 0.015, d: 0.22 * s, p: 0.3, drive: 1.5, breath: 0.3 });
+    this.formant(v, { cry: true, rough: 0.35, cons: this.pick(["h", "g", "h", "k"]), consF: vw[0][1] * 1.6, t, f: f0, path: [[0.07, f0 * 1.1], [0.22, f0 * 0.72]], forms: [[vw[0][0], 5, 1, vw[1][0], vw[2][0]], [vw[0][1], 7, 0.5, vw[1][1], vw[2][1]], [2700, 6, 0.18]], a: 0.015, d: 0.22 * s, p: 0.3, drive: 1.5, breath: 0.3 });
     const T = t + this.rr(0.13, 0.2);
     this.nz(v, { t: T, k: "pink", f: 430, q: 1, a: 0.004, p: 0.65 * s, d: 0.2 * s });
     this.thump(v, T, 120, 80, 0.035 * s, 0.12 * s, 3);
@@ -1935,19 +1967,19 @@ const Snd = {
     plot:       { thr: 100, max: 2, g: 1.15, pri: true, rev: 0.12 },
     rally:      { thr: 100, max: 2, g: 1.736, pri: true, rev: 0.1 },
     upgrade:    { thr: 100, max: 2, g: 0.46, pri: true, rev: 0.2 },
-    leak:       { thr: 250, max: 2, g: 1.173, pri: true, rev: 0.25, echo: 0.1, duck: [3, 0.4, 0.3] },
+    leak:       { thr: 250, max: 2, g: 1.394, pri: true, rev: 0.25, echo: 0.1, duck: [3, 0.4, 0.3] },
     heroDown:   { thr: 500, max: 1, g: 0.48, pri: true, rev: 0.3, duck: [6, 1.6, 0.5] },
-    trumpet:    { thr: 400, max: 2, g: 0.276, pri: true, rev: 0.25, echo: 0.15, duck: [5, 0.9, 0.4] },
-    smoke:      { thr: 300, max: 2, g: 1.617, pri: true, rev: 0.12 },
+    trumpet:    { thr: 400, max: 2, g: 0.413, pri: true, rev: 0.25, echo: 0.15, duck: [5, 0.9, 0.4] },
+    smoke:      { thr: 300, max: 2, g: 1.213, pri: true, rev: 0.12 },
     nova:       { thr: 300, max: 2, g: 0.534, pri: true, rev: 0.3, duck: [4, 0.8, 0.4] },
-    burn:       { thr: 700, thrMax: 1200, max: 2, g: 0.541, cat: "burn", rev: 0.05 },
+    burn:       { thr: 700, thrMax: 1200, max: 2, g: 0.607, cat: "burn", rev: 0.05 },
     spellArrows:{ thr: 300, max: 1, g: 1.51, pri: true, rev: 0.2, duck: [5, 0.9, 0.4] },
     arrowRain:  { thr: 80, max: 4, g: 1.583, cat: "hit", rev: 0.12 },
     spellFrost: { thr: 300, max: 1, g: 1.0, pri: true, rev: 0.35, duck: [5, 1.2, 0.4] },
     spellWrath: { thr: 300, max: 1, g: 0.52, pri: true, rev: 0.35, echo: 0.2, duck: [9, 1.8, 0.6] },
     win:        { thr: 1000, max: 1, g: 0.57, pri: true, rev: 0.35, echo: 0.1 },
     lose:       { thr: 1000, max: 1, g: 0.4, pri: true, rev: 0.35, duck: [12, 4.5, 0.8] },
-    uiTick:     { thr: 35, max: 3, g: 2.364, pri: true, rev: 0.03 },
+    uiTick:     { thr: 35, max: 3, g: 2.059, pri: true, rev: 0.03 },
     mapSelect:  { thr: 80, max: 2, g: 0.53, pri: true, rev: 0.12 },
     mapLocked:  { thr: 120, max: 2, g: 0.63, pri: true, rev: 0.08 },
     unlock:     { thr: 300, max: 1, g: 0.18, pri: true, rev: 0.25, duck: [4, 1, 0.4] },
@@ -2146,12 +2178,12 @@ const Snd = {
         this.nz(v, { t, f: 1200 * k, q: 0.9, a: 0.0005, p: 0.45, d: 0.02 });
       } else {
         // the three flesh variants are level-matched (each its own trim) and only jitter +/-6 %
-        this.lvl(v, 12.3 + [0, 0.8, -0.9][n]);
+        this.lvl(v, 12.3 + [0, 0.3, 0][n]);
         const k = this.rr(0.94, 1.06);
         this.nz(v, { t, k: "pink", f: [420, 360, 520][n] * k, q: 0.8, a: 0.001, p: 1, d: 0.07 });
         this.nz(v, { t, f: [1500, 1900, 1300][n] * k, q: 1, a: 0.0005, p: 0.4, d: 0.012 });
       }
-      if (o.kind === "ball") this.nz(v, { t, ft: "highpass", f: 3000, a: 0.0003, p: 0.25, d: 0.01 });
+      if (o.kind === "ball") { this.lvl(v, -3.5); this.nz(v, { t, ft: "highpass", f: 3000, a: 0.0003, p: 0.25, d: 0.01 }); }
     },
     // the hero's blade: the swing, then steel ringing off steel
     heroHit(v, t) {
@@ -2164,16 +2196,17 @@ const Snd = {
     // a foe falls; what falls depends on what he was
     death(v, t, o) {
       const kind = o.kind, varn = o.variant;
-      this.lvl(v, kind === "ram" ? ({ elephant: -19.3, cannon: -18 }[varn] || -14.4) : kind === "boss" ? -14.6 :
+      this.lvl(v, kind === "ram" ? ({ elephant: -16.8, cannon: -18 }[varn] || -14.4) : kind === "boss" ? -14.6 :
         (kind === "cavalry" || (kind === "flyer" && o.era === 3)) ? -6 : 0);
       if (kind === "ram" && varn === "elephant") {
         // a bellow sinking to a groan (with a subharmonic growl under it), then the earth takes the
         // weight and the howdah splinters
         // three bellows: a long sinking groan, a short broken roar, a high squeal that collapses
         const n = this.rrIdx("elephant", 3), f0 = [250, 215, 300][n] * this.rr(0.93, 1.07);
+        this.lvl(v, [0, 2.2, -2.1][n]);   // the three bellows level-matched
         const path = [[[0.15, f0 * 1.24], [0.7, f0 * 0.48]], [[0.08, f0 * 1.1], [0.3, f0 * 0.9], [0.55, f0 * 0.55]], [[0.1, f0 * 1.5], [0.35, f0 * 1.2], [0.65, f0 * 0.45]]][n];
         const fm = [[900, 1100, 700], [750, 950, 600], [1100, 1400, 800]][n];
-        const s = this.formant(v, { cons: "h", consF: 1200, t, f: f0, path, forms: [[fm[0], 3, 1, fm[1], fm[2]], [fm[0] * 2, 4, 0.5, fm[1] * 1.9, fm[2] * 2.1], [480, 3, 0.6]], a: 0.04, hold: [0.25, 0.12, 0.2][n], d: [0.45, 0.35, 0.4][n], p: 0.45, drive: 3, jit: 35, breath: 0.3 });
+        const s = this.formant(v, { cry: true, rough: 0.5, cons: "h", consF: 1200, t, f: f0, path, forms: [[fm[0], 3, 1, fm[1], fm[2]], [fm[0] * 2, 4, 0.5, fm[1] * 1.9, fm[2] * 2.1], [480, 3, 0.6]], a: 0.04, hold: [0.25, 0.12, 0.2][n], d: [0.45, 0.35, 0.4][n], p: 0.45, drive: 3, jit: 35, breath: 0.3 });
         this.lfo(v, s.frequency, t, t + 0.8, this.rr(22, 36), this.rr(10, 18));   // the rasp in the throat
         this.formant(v, { t, f: f0 / 2, path: path.map(([d, f]) => [d, f / 2]), forms: [[500, 2, 1], [1000, 3, 0.4]], a: 0.06, hold: 0.2, d: 0.45, p: 0.18, breath: 0 });
         const T = t + [0.55, 0.42, 0.7][n] + this.rr(-0.05, 0.08);
@@ -2312,9 +2345,14 @@ const Snd = {
     // closing, a subharmonic growl under it
     trumpet(v, t) {
       const f = this.rr(390, 520);
-      const s = this.formant(v, { cons: "h", consF: 1500, t, f: f * 0.7, path: [[0.12, f * 1.12], [0.55, f * 1.05], [0.95, f * 0.72]], forms: [[1150, 2, 1, 1400, 950], [2500, 3, 0.7, 2900, 2200], [600, 2, 0.4]], a: 0.05, hold: 0.55, d: 0.4, p: 0.55, drive: 4, jit: 30, breath: 0.25 });
-      this.lfo(v, s.frequency, t, t + 1.05, 33, f * 0.05);
-      this.lfo(v, s.detune, t, t + 1.05, 6.5, 25);
+      // the contour itself is drawn fresh each time: a rise, a ragged plateau, a collapse
+      const pk = this.rr(1.05, 1.25), mid = this.rr(0.92, 1.08), tail = this.rr(0.62, 0.8);
+      const s = this.formant(v, { cry: true, rough: 0.7, cons: "h", consF: 1500, t, f: f * 0.7, path: [[this.rr(0.08, 0.16), f * pk], [this.rr(0.4, 0.6), f * mid], [this.rr(0.85, 1), f * tail]], forms: [[1150, 2, 1, 1400 * this.rr(0.9, 1.1), 950], [2500, 3, 0.7, 2900, 2200], [600, 2, 0.4]], a: 0.05, hold: 0.55, d: 0.4, p: 0.55, drive: 5, jit: 30, breath: 0.35 });
+      // chaos rather than vibrato: the trunk's air column flutters irregularly
+      const cn = this.loopSrc(v, "brown", this.rr(6, 12), t, t + 1.1), cg = this.node(v, this.ctx.createGain());
+      cg.gain.value = 140; cn.connect(cg); cg.connect(s.detune);
+      const fn = this.loopSrc(v, "white", 1, t, t + 1.1), fl = this.filt(v, "bandpass", this.rr(28, 45), 1, t), fg = this.node(v, this.ctx.createGain());
+      fg.gain.value = f * 0.6; fn.connect(fl); fl.connect(fg); fg.connect(s.frequency);
       this.formant(v, { t, f: f * 0.35, path: [[0.12, f * 0.56], [0.95, f * 0.36]], forms: [[500, 2, 1], [900, 3, 0.5]], a: 0.06, hold: 0.5, d: 0.35, p: 0.16, breath: 0 });
       this.nz(v, { t, k: "pink", f: 1500, q: 0.8, a: 0.05, hold: 0.5, p: 0.2, d: 0.4 });
     },
@@ -2336,7 +2374,7 @@ const Snd = {
     // cauldron seethes and pops
     burn(v, t, o) {
       if (o.skin === "cauldron") {
-        this.lvl(v, -10.8);
+        this.lvl(v, -14.2);
         for (let i = 0; i < 5; i++) this.bubble(v, t + this.rr(0, 0.5), 0.3);
         this.nz(v, { t, ft: "highpass", f: 4500, a: 0.15, hold: 0.2, p: 0.12, d: 0.35 });
         this.nz(v, { t, k: "pink", f: 320, q: 0.8, a: 0.15, hold: 0.2, p: 0.25, d: 0.35 });
@@ -2408,15 +2446,15 @@ const Snd = {
       if (m === 0) {        // stone on stone: dry, high, short
         const f = 2300 * j;
         this.nz(v, { t, f: f * 1.6, q: 1.5, a: 0.0003, p: 0.5, d: 0.01 });
-        this.modal(v, { t, f, p: 0.22, jit: 0.03, parts: [[1, 1, 0.022], [2.31, 0.45, 0.012]] });
+        this.modal(v, { t, f, p: 0.22, jit: 0.04, parts: [[1, 1, 0.022 * this.rr(0.8, 1.2)], [2.31, 0.45, 0.012 * this.rr(0.8, 1.2)]] });
       } else if (m === 1) { // boxwood: rounder, lower, a hollow knock
         const f = 1150 * j;
         this.nz(v, { t, f: f * 2, q: 1.2, a: 0.0004, p: 0.35, d: 0.008 });
-        this.modal(v, { t, f, p: 0.3, parts: [[1, 1, 0.03], [2.76, 0.4, 0.015], [5.4, 0.15, 0.008]] });
+        this.modal(v, { t, f, p: 0.3, jit: 0.04, parts: [[1, 1, 0.03 * this.rr(0.8, 1.2)], [2.76 * this.rr(0.97, 1.03), 0.4, 0.015], [5.4 * this.rr(0.96, 1.04), 0.15, 0.008]] });
       } else {              // a little bronze: thin and ringing a touch longer
         const f = 3200 * j;
         this.nz(v, { t, ft: "highpass", f: 4000, a: 0.0003, p: 0.25, d: 0.006 });
-        this.modal(v, { t, f, p: 0.14, jit: 0.01, parts: [[1, 1, 0.07], [2.4, 0.4, 0.04], [3.9, 0.25, 0.025]] });
+        this.modal(v, { t, f, p: 0.14, jit: 0.04, parts: [[1, 1, 0.07 * this.rr(0.8, 1.2)], [2.4 * this.rr(0.97, 1.03), 0.4, 0.04], [3.9 * this.rr(0.96, 1.04), 0.25, 0.025]] });
       }
     },
     // a wooden token set on the map, and a little bronze answer on D and A
@@ -2702,8 +2740,10 @@ const Snd = {
     gull(v, t) {
       const n = 2 + Math.floor(this.rnd() * 2);
       for (let i = 0; i < n; i++) {
-        const tt = t + i * this.rr(0.35, 0.5), f = this.rr(850, 1050);
-        this.formant(v, { cons: "k", consF: 3000, t: tt, f, path: [[0.08, f * 1.45], [0.32, f * 0.85]], forms: [[1800, 4, 1, 2300, 1500], [3000, 5, 0.5]], a: 0.02, hold: 0.08, d: 0.22, p: 0.022, drive: 2, jit: 18, breath: 0.2 });
+        // each call in the series has its own shape: a long 'kee-ow', a clipped 'kek', a rising 'kyow'
+        const tt = t + i * this.rr(0.3, 0.55), f = this.rr(820, 1080), shape = this.pick([0, 0, 1, 2]);
+        const path = [[[this.rr(0.05, 0.1), f * this.rr(1.3, 1.6)], [this.rr(0.25, 0.38), f * this.rr(0.75, 0.9)]], [[0.04, f * this.rr(1.1, 1.25)], [0.1, f * 0.95]], [[0.12, f * this.rr(1.4, 1.7)], [0.22, f * 1.3]]][shape];
+        this.formant(v, { cry: true, syrinx: true, t: tt, f, path, forms: [[1800 * this.rr(0.9, 1.1), 4, 1, 2300 * this.rr(0.9, 1.1), 1500], [3000, 5, 0.5]], hold: [0.08, 0.02, 0.06][shape], d: [0.22, 0.08, 0.16][shape] * this.rr(0.85, 1.15), p: 0.022, drive: 2, jit: 18, breath: 0.2 });
       }
     },
     // coot on the reed margin: a short, nasal 'kowk', once to three times
@@ -2711,15 +2751,17 @@ const Snd = {
       const n = 1 + Math.floor(this.rnd() * 3);
       for (let i = 0; i < n; i++) {
         const tt = t + i * this.rr(0.18, 0.3), f = this.rr(520, 640);
-        this.formant(v, { cons: "k", consF: 2500, t: tt, f, path: [[0.06, f * 0.85]], forms: [[1150, 5, 1, 1000], [2300, 6, 0.5]], a: 0.008, d: 0.08, p: 0.03, drive: 2, jit: 15, breath: 0.15 });
+        this.formant(v, { syrinx: true, t: tt, f, path: [[0.06, f * this.rr(0.8, 0.92)]], forms: [[1150, 5, 1, 1000], [2300, 6, 0.5]], a: 0.008, d: 0.08, p: 0.03, drive: 2, jit: 15, breath: 0.15 });
       }
     },
     // a hooded crow over the snow
     crow(v, t) {
       const n = 2 + Math.floor(this.rnd() * 2);
       for (let i = 0; i < n; i++) {
-        const tt = t + i * this.rr(0.32, 0.42), f = this.rr(380, 460);
-        this.formant(v, { cons: "k", consF: 2000, t: tt, f, path: [[0.2, f * 0.85]], forms: [[1100, 3, 1, 1300, 900], [1700, 4, 0.6]], a: 0.015, hold: 0.06, d: 0.15, p: 0.03, drive: 4, jit: 30, breath: 0.35 });
+        // caws vary: a flat 'kaah', a falling 'kraa', a short clipped one
+        const tt = t + i * this.rr(0.28, 0.45), f = this.rr(370, 470), shape = this.pick([0, 1, 1, 2]);
+        const path = [[[0.15, f * this.rr(0.95, 1.02)]], [[0.04, f * 1.08], [0.2, f * this.rr(0.72, 0.85)]], [[0.08, f * 0.9]]][shape];
+        this.formant(v, { cry: true, syrinx: true, rough: 0.4, t: tt, f, path, forms: [[1100 * this.rr(0.9, 1.1), 3, 1, 1300, 900], [1700 * this.rr(0.9, 1.1), 4, 0.6]], hold: [0.08, 0.06, 0.02][shape], d: [0.15, 0.17, 0.08][shape], p: 0.03, drive: 4, jit: 30, breath: 0.35 });
       }
     },
     splash(v, t) { this.nz(v, { t, f: this.rr(1500, 3500), q: 1.5, a: 0.005, p: 0.03, d: 0.08 }); },
@@ -2811,7 +2853,7 @@ const Snd = {
   MUS_ERA: [
     { voice: "blul", lead: 2, lp: 2600, lvl: 0.075, rest: 0.4, dhol: 0, drone: [0.03, 0.028, 0.022], dlp: 320 },
     { voice: "duduk", lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320 },
-    { voice: "knar", lead: 2, lp: 4500, lvl: 0.11, rest: 0.17, dhol: 2, drone: [0.039, 0.032, 0.025], dlp: 380 },
+    { voice: "knar", lead: 2, lp: 4500, lvl: 0.16, rest: 0.17, dhol: 2, drone: [0.032, 0.028, 0.025], dlp: 380 },
     { voice: "zurna", lead: 2, lp: 6000, lvl: 0.06, rest: 0.1, dhol: 3, drone: [0.035, 0.035, 0.028], dlp: 460 },
   ],
   startMusic() {
@@ -2872,19 +2914,51 @@ const Snd = {
       if (on && b % 8 === 7) this.mNoise(0.04, 3200, 0.035, t);
       if (on && E.dhol >= 2 && b % 4 === 3) this.mNoise(0.035, 2600, 0.03, t + BEAT * 0.5);
       if (on && E.dhol >= 3 && b % 8 === 6) this.mTone(70, 0.22, "sine", 0.11, 42, t + BEAT * 0.5);
-      // melody: phrase-based random walk
-      if (this.melRest > 0) { this.melRest--; }
-      else if (b % 2 === 0) {
-        const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(this.rnd() * 7)];
-        this.melNote = Math.max(0, Math.min(this.SCALE.length - 1, this.melNote + step));
-        if (this.rnd() < 0.22) this.melNote = 0;
-        const f = this.SCALE[this.melNote] * E.lead;
-        const dur = BEAT * (this.rnd() < 0.3 ? 2.6 : 1.4);
-        if (on) this.mLead(f, dur, t, E);
-        if (this.rnd() < E.rest) this.melRest = 2 + Math.floor(this.rnd() * 3);
-      }
+      this.melody(t, b, BEAT, E, on);
       this.nextBeat += BEAT;
       this.beatN++;
+    }
+  },
+  // each age improvises its own way over the drone. Scale degrees index SCALE (D hijaz)
+  KOCH: [[0, 2, 4, 4, 5, 4, 3, 2], [3, 3, 2, 1, 2, 1, 0, 0], [4, 4, 5, 7, 5, 4, 3, 2], [3, 2, 1, 2, 0, 0, null, null], [0, 0, 2, 3, 4, null, 4, null]],
+  kochN: 0,
+  melody(t, b, BEAT, E, on) {
+    const S = this.SCALE, cl = i => Math.max(0, Math.min(S.length - 1, i)), note = i => S[cl(i)] * E.lead;
+    if (E.voice === "blul") {
+      // Urartu: a shepherd's sparse modal improvisation, long tones leaning on the tonic and the
+      // fifth, often approached by a grace note from above, with whole bars of silence between
+      if (b % 4 !== 0) return;
+      if (this.melRest > 0) { this.melRest--; return; }
+      this.melNote = this.pick([0, 0, 4, 4, 3, 1, 7, 2]);
+      if (on) {
+        if (this.rnd() < 0.5) this.mLead(note(this.melNote + 1), 0.13, t, E);
+        this.mLead(note(this.melNote), BEAT * this.rr(2.5, 3.6), t + 0.11, E);
+      }
+      this.melRest = this.rnd() < E.rest + 0.2 ? 1 : 0;
+    } else if (E.voice === "knar") {
+      // the gusan's knar: quick broken runs of three or four plucks, then a held, re-plucked note
+      if (b % 4 !== 0 || this.rnd() < E.rest) return;
+      const dir = this.rnd() < 0.5 ? 1 : -1, len = 3 + Math.floor(this.rnd() * 2);
+      let i = cl(this.melNote + this.pick([-2, -1, 0, 1, 2]));
+      for (let k = 0; k < len; k++) { if (on) this.mLead(note(i), BEAT * 0.45, t + k * BEAT / 2, E); i = cl(i + dir * this.pick([1, 1, 2])); }
+      if (on) this.mLead(note(i), BEAT * 1.6, t + len * BEAT / 2, E);
+      this.melNote = i;
+    } else if (E.voice === "zurna") {
+      // 1579: kochari-like dance figures, eighth-note motifs repeated and varied bar to bar
+      if (b % 4 !== 0 || this.rnd() < E.rest) return;
+      if (this.rnd() > 0.6) this.kochN = Math.floor(this.rnd() * this.KOCH.length);
+      const shift = this.rnd() < 0.25 ? this.pick([-1, 1]) : 0;
+      this.KOCH[this.kochN].forEach((d, k) => { if (d != null && on) this.mLead(note(d + shift), BEAT * (k % 4 === 3 ? 0.9 : 0.46), t + k * BEAT / 2, E); });
+    } else {
+      // Avarayr: the original duduk line, a phrase-based random walk
+      if (this.melRest > 0) { this.melRest--; return; }
+      if (b % 2 !== 0) return;
+      const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(this.rnd() * 7)];
+      this.melNote = cl(this.melNote + step);
+      if (this.rnd() < 0.22) this.melNote = 0;
+      const dur = BEAT * (this.rnd() < 0.3 ? 2.6 : 1.4);
+      if (on) this.mLead(note(this.melNote), dur, t, E);
+      if (this.rnd() < E.rest) this.melRest = 2 + Math.floor(this.rnd() * 3);
     }
   },
   // the era's lead voice (the duduk is the original soundtrack voice, kept as it was)
@@ -2922,27 +2996,33 @@ const Snd = {
       n.connect(nb); nb.connect(ng); ng.connect(fl); n.start(t0, this.rnd() * 1.5); n.stop(end);
     }
   },
-  // the knar: a plucked gut-strung lyre. Each pluck is a set of decaying partials (upper ones die
-  // first, slightly stretched), a quill-and-string noise click and a wooden body resonance; long
-  // notes are re-plucked, as players sustain a plucked line
+  // the knar: a plucked gut-strung lyre. Each pluck is 14 near-harmonic partials (gut is barely
+  // stiff: the 7th sits a few cents sharp) shaped by where the finger plucks (a comb of notches), a
+  // bright attack whose top closes from ~9 kHz to ~2.5 kHz in a fifth of a second, a wooden body
+  // resonance, and a ring of 0.6-1 s to -30 dB; long notes are plucked again
   mKnar(f, dur, t0, E) {
     const c = this.ctx, out = c.createGain(), body = c.createBiquadFilter(), fl = c.createBiquadFilter();
     body.type = "peaking"; body.frequency.value = 420; body.Q.value = 1.2; body.gain.value = 5;
-    fl.type = "lowpass"; fl.frequency.value = E.lp; out.gain.value = E.lvl;
+    fl.type = "lowpass"; fl.Q.value = 0.6; out.gain.value = E.lvl;
     out.connect(body); body.connect(fl); fl.connect(this.musGain);
     const plucks = dur > 1.2 ? [0, dur * 0.45, dur * 0.72] : [0];
     plucks.forEach((dt, i) => {
-      const t = t0 + dt, lv = i ? 0.55 : 1, decay = Math.min(1.6, dur * 1.2);
-      for (let n = 1; n <= 7; n++) {
-        const o = c.createOscillator(), g = c.createGain(), d = decay / (1 + 0.55 * (n - 1));
-        o.frequency.value = f * n * (1 + 0.0009 * n * n);
-        const a = lv * Math.pow(n, -1.1) * (n === 2 ? 1.3 : 1);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.003); g.gain.exponentialRampToValueAtTime(a * 0.001, t + d);
+      const t = t0 + dt, lv = i ? 0.55 : 1, t30 = this.rr(0.6, 1), beta = this.rr(0.12, 0.22);
+      fl.frequency.setValueAtTime(9000, t); fl.frequency.exponentialRampToValueAtTime(2500, t + 0.2);
+      for (let n = 1; n <= 14; n++) {
+        const fn = f * n * (1 + 0.00007 * n * n);
+        if (fn > 16000) break;
+        const comb = Math.abs(Math.sin(n * Math.PI * beta));   // pluck position
+        const a = lv * comb * Math.pow(n, -0.9), d = 2 * t30 / (1 + 0.35 * (n - 1));   // -60 dB at 2 x T30
+        if (a < 0.004) continue;
+        const o = c.createOscillator(), g = c.createGain();
+        o.frequency.value = fn;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.exponentialRampToValueAtTime(a * 0.001, t + d);
         o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02);
       }
       const n = c.createBufferSource(), nb = c.createBiquadFilter(), ng = c.createGain();
-      n.buffer = this.bufs.white; n.loop = true; nb.type = "bandpass"; nb.frequency.value = 2800; nb.Q.value = 1;
-      ng.gain.setValueAtTime(0.5 * lv, t); ng.gain.exponentialRampToValueAtTime(0.0005, t + 0.02);
+      n.buffer = this.bufs.white; n.loop = true; nb.type = "highpass"; nb.frequency.value = 5000;
+      ng.gain.setValueAtTime(0.6 * lv, t); ng.gain.exponentialRampToValueAtTime(0.0005, t + 0.02);
       n.connect(nb); nb.connect(ng); ng.connect(out); n.start(t, this.rnd() * 1.5); n.stop(t + 0.03);
     });
   },
