@@ -17363,11 +17363,349 @@ SKIN_ART.cauldron = {
 // SKIN SECTION: standard. Urartu, drums slot: the standard of Haldi
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// ---- what the three rally skins share (standard here; exhort and banner below use it) ----
+// No drums in these ages: the men rally to a raised standard, a horn, a priest's cross. The stage,
+// the men and anything planted are baked; whatever is lifted, blown or swung on the beat is drawn
+// live from records the painter leaves in structFit.rally (sprite units).
+const RALLY_SKIN = "#e2b78c", RALLY_WOOD = "#7a5632";
+// a cross of the Armenian kind, arms flaring to forked ends; unit arm, the foot arm longer
+const RALLY_CROSS = [-0.24, -0.24, -0.5, -1, 0, -0.72, 0.5, -1, 0.24, -0.24, 1, -0.5, 0.72, 0, 1, 0.5, 0.24, 0.24,
+  0.5, 1.45, 0, 1.17, -0.5, 1.45, -0.24, 0.24, -1, 0.5, -0.72, 0, -1, -0.5];
+function rallyRecords() { return structFit.rally || (structFit.rally = []); }
+// the plinth every rally stage stands on, the same footprint as the slot's drums; leaves the
+// painter translated to the stage's front-bottom centre (caller restores)
+function rallyStage(lvl, spec, seed) {
+  const c = sctx, base = towerBase("drums", lvl, spec);
+  const pd = base.d - 4, ox = pd * OBQ.dx, oy = pd * OBQ.dy;
+  footPlinth(base.w, base.d, base.h, footStone(), seed, !!spec || lvl === 2);
+  c.save();
+  c.translate(-ox / 2, -base.h - oy / 2);
+  return { T: towerStone(), base, maxW: base.w - 4, pd, ox, oy, cx: ox / 2 };
+}
+// how far a finial stands above the top of its pole
+function rallyFinialH(fin, r) { return fin === "haldi" ? 2 * r + 6.6 : fin === "cross" ? 2.45 * r + 0.6 : 0; }
+// a finial at the top (X, T) of a pole, on any context: the sprite while baking (k = 1) or the
+// screen (k = unit scale). haldi: bronze disc with a rosette under a spear point, on a crossbar
+// that carries the streamers; cross: a gilt cross with flared, forked arms
+function rallyFinial(g, fin, X, T, r, k) {
+  g.lineJoin = "round";
+  g.lineCap = "round";
+  if (fin === "haldi") {
+    const bar = T + 3 * k, hw = (r + 1.4) * k;
+    g.beginPath();
+    g.moveTo(X - hw, bar); g.lineTo(X + hw, bar);
+    g.strokeStyle = INK; g.lineWidth = 2.1 * k; g.stroke();
+    g.strokeStyle = "#c99a3a"; g.lineWidth = 1 * k; g.stroke();
+    const sy = T - 2 * r * k;
+    g.beginPath();
+    g.moveTo(X, sy - 6.6 * k); g.lineTo(X + 1.7 * k, sy - 2.4 * k); g.lineTo(X + 0.5 * k, sy + 0.6 * k);
+    g.lineTo(X - 0.5 * k, sy + 0.6 * k); g.lineTo(X - 1.7 * k, sy - 2.4 * k); g.closePath();
+    g.fillStyle = "#e6c47c"; g.fill();
+    g.strokeStyle = INK; g.lineWidth = 0.75 * k; g.stroke();
+    g.beginPath(); g.moveTo(X - 0.4 * k, sy - 5.4 * k); g.lineTo(X - 0.9 * k, sy - 2.4 * k);
+    g.strokeStyle = "rgba(255, 250, 226, .8)"; g.lineWidth = 0.5 * k; g.stroke();
+    const cy = T - r * k, R = r * k;
+    g.beginPath(); g.arc(X, cy, R, 0, Math.PI * 2);
+    g.fillStyle = "#d29a3c"; g.fill();
+    g.strokeStyle = INK; g.lineWidth = 1.05 * k; g.stroke();
+    // the lit upper-left of the boss, a raised rim, and the rosette chased into it
+    g.beginPath(); g.arc(X, cy, R * 0.8, Math.PI * 0.95, Math.PI * 1.75);
+    g.strokeStyle = "rgba(255, 238, 190, .8)"; g.lineWidth = 0.7 * k; g.stroke();
+    g.beginPath(); g.arc(X, cy, R * 0.66, 0, Math.PI * 2);
+    g.strokeStyle = "rgba(96, 60, 20, .7)"; g.lineWidth = 0.45 * k; g.stroke();
+    g.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 4, ca = Math.cos(a) * R * 0.58, sa = Math.sin(a) * R * 0.58;
+      g.moveTo(X - ca, cy - sa); g.lineTo(X + ca, cy + sa);
+    }
+    g.strokeStyle = "rgba(96, 60, 20, .75)"; g.lineWidth = Math.max(0.3, R * 0.13); g.stroke();
+    g.beginPath(); g.arc(X, cy, R * 0.24, 0, Math.PI * 2);
+    g.fillStyle = "#fff0bc"; g.fill();
+  } else if (fin === "cross") {
+    const s = r * k, cy = T - 1.45 * s;
+    g.beginPath();
+    for (let i = 0; i < RALLY_CROSS.length; i += 2) {
+      const px = X + RALLY_CROSS[i] * s, py = cy + RALLY_CROSS[i + 1] * s;
+      if (i) g.lineTo(px, py); else g.moveTo(px, py);
+    }
+    g.closePath();
+    g.fillStyle = "#e9b949"; g.fill();
+    g.strokeStyle = INK; g.lineWidth = 0.8 * k; g.stroke();
+    g.beginPath();
+    g.moveTo(X - 0.08 * s, cy + 1.1 * s); g.lineTo(X - 0.08 * s, cy - 0.8 * s);
+    g.moveTo(X - 0.8 * s, cy - 0.08 * s); g.lineTo(X + 0.4 * s, cy - 0.08 * s);
+    g.strokeStyle = "rgba(255, 248, 214, .75)"; g.lineWidth = Math.max(0.3, 0.16 * s); g.stroke();
+  }
+}
+// one arm baked into the sprite: ink, sleeve, then the hand
+function rallyArm(pts, sleeve) {
+  const c = sctx;
+  c.beginPath();
+  c.moveTo(pts[0], pts[1]);
+  for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+  c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+  c.strokeStyle = sleeve; c.lineWidth = 1.9; c.stroke();
+  inkDisc(pts[pts.length - 2], pts[pts.length - 1], 1.1, 1.1, RALLY_SKIN, 0.6);
+}
+// a man of the garrison with his arms left to the live pass; returns [back, front] shoulders
+function rallyMan(x, y, tunic, cap, face, pose) {
+  garrisonFigure(x, y, 1, { tunic, cap, pose: pose || "none", face });
+  structCrown(y - 21);
+  return [structPoint(x - 3 * face, y - 10.9), structPoint(x + 3 * face, y - 10.9)];
+}
+// a spearman kneeling behind a plain round shield
+function rallyKneeler(x, y, tunic, cap, face, shield) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.scale(face, 1);
+  for (const leg of [[-1.6, -2.2, -2.6, -0.3, -6.4, -0.4], [1.9, -2.2, 5.6, -3.1, 5.8, -0.2]]) {
+    c.beginPath();
+    c.moveTo(leg[0], leg[1]); c.lineTo(leg[2], leg[3]); c.lineTo(leg[4], leg[5]);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = "#5a3c22"; c.lineWidth = 2.1; c.stroke();
+  }
+  c.restore();
+  garrisonFigure(x, y + 3, 1, { tunic, cap, pose: "spear", face, noLegs: true });
+  // a tall oval shield seen a little edge-on, its lit half and a plain iron boss
+  const sx = x - 0.4 * face, sy = y - 6.2;
+  inkDisc(sx, sy, 3.1, 5.4, shield, 1.1);
+  sctx.save();
+  sctx.beginPath();
+  sctx.ellipse(sx, sy, 3.1, 5.4, 0, 0, Math.PI * 2);
+  sctx.clip();
+  sctx.fillStyle = "rgba(255, 236, 200, .2)";
+  sctx.fillRect(sx - 3.1, sy - 5.4, 2.2, 10.8);
+  sctx.fillStyle = "rgba(30, 14, 4, .22)";
+  sctx.fillRect(sx + 1.4, sy - 5.4, 1.8, 10.8);
+  sctx.restore();
+  inkDisc(sx, sy, 0.9, 1.1, "#a9a49a", 0.5);
+  structCrown(y - 24);
+}
+// a pole held in both hands: baked man, live pole, finial, cloth and arms
+function rallyBearer(x, y, o) {
+  const sh = o.sh || rallyMan(x, y, o.tunic, o.cap, 1);
+  const foot = structPoint(x + 5.2, y - 0.8), grip = structPoint(x + 5.2, y - 15.5);
+  rallyRecords().push({
+    kind: "pole", sh, x: foot[0], foot: foot[1], g1: grip[1], g2: grip[1] + 6.4, top: grip[1] - o.above,
+    lift: o.lift, sleeve: o.sleeve || toneHex(o.tunic, 14), wood: o.wood || RALLY_WOOD, pw: o.pw || 1.9,
+    fin: o.fin, fr: o.fr, str: o.str || 0, slen: o.slen || 0, flag: o.flag || null, hex: o.hex, off: o.off || 0,
+  });
+  structCrown(y - 15.5 - o.above - o.lift - rallyFinialH(o.fin, o.fr));
+}
+// a pole planted in a socket: everything but its cloth is baked
+function rallyPlanted(x, y, height, o) {
+  const c = sctx, top = y - height;
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + 1.6, y + 0.3, 3.4, 1]]);
+  beam(x, y, x, top, o.pw || 1.8, o.wood || RALLY_WOOD);
+  c.strokeStyle = "rgba(255, 236, 196, .4)";
+  c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(x - 0.5, y - 1); c.lineTo(x - 0.5, top + 1); c.stroke();
+  inkRect(x - 1.9, y - 3, 3.8, 3, o.socket || "#5e4024", 0.8);
+  lashing(x, y - 4.2, 1.2);
+  rallyFinial(c, o.fin, x, top, o.fr, 1);
+  const p = structPoint(x, top);
+  rallyRecords().push({ kind: "cloth", x: p[0], top: p[1], lift: 0, fin: o.fin, fr: o.fr, str: o.str || 0, slen: o.slen || 0, flag: o.flag || null, hex: o.hex, off: o.off || 0 });
+  structCrown(top - rallyFinialH(o.fin, o.fr));
+}
+// a horn-blower: the man is baked, the horn and his arms are live
+function rallyHorner(x, y, o) {
+  const face = o.face || 1, sh = rallyMan(x, y, o.tunic, o.cap, face);
+  rallyRecords().push({
+    kind: "horn", sh, face, len: o.len || 12, sleeve: toneHex(o.tunic, 14), hex: o.hex || "#c9913a", off: o.off || 0,
+    m0: structPoint(x + 2.2 * face, y - 10.6), m1: structPoint(x + 3.2 * face, y - 14.4),
+  });
+  structCrown(y - 30);
+}
+
+// a pair of lesser poles planted in the ground at the two front corners of the plinth
+function rallyFlank(st, height, o) {
+  const W = st.base.w / 2;
+  rallyPlanted(-W - 4.4, 3.8, height, Object.assign({}, o, { off: 2.1 }));
+  rallyPlanted(W + 3.2, 0.6, height + 2.4, Object.assign({}, o, { off: 4.2 }));
+}
+
+// ---- live pass ----
+function rallyArmLive(sx, sy, hx, hy, k, sleeve) {
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(hx, hy);
+  ctx.strokeStyle = INK; ctx.lineWidth = 3 * k; ctx.stroke();
+  ctx.strokeStyle = sleeve; ctx.lineWidth = 1.9 * k; ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(hx, hy, 1.1 * k, 0, Math.PI * 2);
+  ctx.fillStyle = RALLY_SKIN; ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 0.6 * k; ctx.stroke();
+}
+// red cloth strips hanging from the crossbar of a Haldi standard, all filled in one pass
+function rallyStreamers(X, bar, r, n, len, ph, hex, k) {
+  const hw = (r + 0.9) * k, w = 1.35 * k, L = len * k;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = n === 1 ? X : X - hw + 2 * hw * i / (n - 1), q = ph + i * 1.1;
+    const sw = (Math.sin(q) * 0.24 + 0.14) * L, mid = Math.sin(q - 0.9) * 0.1 * L, bx = x + sw, by = bar + L * (0.96 - 0.06 * Math.abs(Math.sin(q)));
+    ctx.moveTo(x - w, bar);
+    ctx.quadraticCurveTo(x - w + mid, bar + L * 0.55, bx - w, by);
+    ctx.lineTo(bx, by - w * 1.3);
+    ctx.lineTo(bx + w, by);
+    ctx.quadraticCurveTo(x + w + mid, bar + L * 0.55, x + w, bar);
+    ctx.closePath();
+  }
+  ctx.fillStyle = hex; ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 0.65 * k; ctx.stroke();
+}
+// a plain cloth flown from a pole: its fly ripples, the hoist stays on the pole
+function rallyFlag(X, Y, len, hgt, ph, hex, k) {
+  const L = len * k, H = hgt * k, w1 = Math.sin(ph) * H * 0.2, w2 = Math.sin(ph - 1.4) * H * 0.22, droop = H * 0.16;
+  const bx = X + L * (0.96 - 0.04 * Math.abs(Math.sin(ph * 0.5))), by = Y + droop + w2;
+  ctx.beginPath();
+  ctx.moveTo(X, Y);
+  ctx.quadraticCurveTo(X + L * 0.5, Y - H * 0.06 + w1, bx, by);
+  ctx.lineTo(bx - L * 0.04, by + H);
+  ctx.quadraticCurveTo(X + L * 0.5, Y + H * 1.02 + w1, X, Y + H);
+  ctx.closePath();
+  ctx.fillStyle = hex; ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 0.9 * k; ctx.stroke();
+  // one fold in shadow following the ripple, and the light along the hoist
+  ctx.beginPath();
+  ctx.moveTo(X + L * 0.42, Y + w1 * 0.8 - H * 0.02);
+  ctx.quadraticCurveTo(X + L * 0.52, Y + H * 0.5 + w1, X + L * 0.46, Y + H * 1.0 + w1 * 0.9);
+  ctx.lineTo(X + L * 0.62, Y + H * 1.0 + w1 * 0.7 + droop * 0.4);
+  ctx.quadraticCurveTo(X + L * 0.66, Y + H * 0.5 + w1 * 0.8, X + L * 0.6, Y + w1 * 0.7 + droop * 0.3);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(40, 10, 6, .26)"; ctx.fill();
+  ctx.fillStyle = "rgba(255, 226, 196, .22)";
+  ctx.fillRect(X + 0.6 * k, Y + 0.6 * k, L * 0.1, H - 1.2 * k);
+}
+function rallyClothLive(r, x, top, k, wind) {
+  if (r.str) rallyStreamers(x, top + 3 * k, r.fr, r.str, r.slen, wind + r.off, r.hex, k);
+  if (r.flag) rallyFlag(x + 0.6 * k, top + 0.4 * k, r.flag[0], r.flag[1], wind * 1.3 + r.off, r.hex, k);
+}
+function rallyLive(t, c) {
+  const list = c.fit.rally;
+  if (!list) return;
+  const k = c.k, X0 = c.x, Y0 = c.y, tm = c.time;
+  const beat = isFinite(t.beat) ? t.beat : 0, wind = tm * 0.0044 + t.x * 0.37;
+  ctx.globalAlpha = c.fade;
+  for (const r of list) {
+    if (r.kind === "horn") {
+      // lowered to the chest between calls, raised to the lips and blown on the beat
+      const up = Math.max(0, Math.sin(beat + r.off)), f = r.face;
+      const th = 0.95 - 1.75 * up, dx = Math.cos(th) * f, dy = Math.sin(th);
+      const mx = X0 + (r.m0[0] + (r.m1[0] - r.m0[0]) * up) * k, my = Y0 + (r.m0[1] + (r.m1[1] - r.m0[1]) * up) * k;
+      const L = r.len * k, nx = dy * f, ny = -dx * f;
+      const ex = mx + dx * L + nx * L * 0.16, ey = my + dy * L + ny * L * 0.16;
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.quadraticCurveTo(mx + dx * L * 0.6 - nx * L * 0.06, my + dy * L * 0.6 - ny * L * 0.06, ex, ey);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2.7 * k; ctx.stroke();
+      ctx.strokeStyle = r.hex; ctx.lineWidth = 1.5 * k; ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, 2.1 * k, 1.3 * k, Math.atan2(dy + ny * 0.3, dx + nx * 0.3) + Math.PI / 2, 0, Math.PI * 2);
+      ctx.fillStyle = r.hex; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.8 * k; ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(ex + dx * 0.4 * k, ey + dy * 0.4 * k, 1.1 * k, 0.6 * k, Math.atan2(dy, dx) + Math.PI / 2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(40, 20, 6, .7)"; ctx.fill();
+      rallyArmLive(X0 + r.sh[0][0] * k, Y0 + r.sh[0][1] * k, mx + dx * 2.2 * k, my + dy * 2.2 * k, k, r.sleeve);
+      rallyArmLive(X0 + r.sh[1][0] * k, Y0 + r.sh[1][1] * k, mx + dx * L * 0.52, my + dy * L * 0.52, k, r.sleeve);
+    } else if (r.kind === "censer") {
+      // the censer swings on its chains and trails a thread of smoke
+      const sw = Math.sin(tm * 0.0052 + t.x * 0.13) * 0.8, hx = X0 + r.hand[0] * k, hy = Y0 + r.hand[1] * k;
+      const px = hx + Math.sin(sw) * r.len * k, py = hy + Math.cos(sw) * r.len * k;
+      ctx.fillStyle = "rgba(232, 230, 226, .42)";
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const rise = (tm * 0.0006 + i / 3 + t.x * 0.01) % 1, pr = (0.9 + rise * 2) * k;
+        const sx = px + (Math.sin(rise * 6 + i) * 1.4 - rise * 2.5) * k, sy = py - (2.4 + rise * 13) * k;
+        ctx.moveTo(sx + pr, sy);
+        ctx.arc(sx, sy, pr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(hx, hy); ctx.lineTo(px, py - 1.2 * k);
+      ctx.strokeStyle = "#4a3a24"; ctx.lineWidth = 0.55 * k; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(px, py - 0.4 * k, 1.9 * k, 0, Math.PI);
+      ctx.closePath();
+      ctx.moveTo(px + 1.4 * k, py - 0.4 * k);
+      ctx.arc(px, py - 0.4 * k, 1.4 * k, 0, Math.PI, true);
+      ctx.fillStyle = "#c99a3a"; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.6 * k; ctx.stroke();
+      rallyArmLive(X0 + r.sh[0] * k, Y0 + r.sh[1] * k, hx, hy, k, r.sleeve);
+    } else {
+      // a held pole rises in the bearer's hands on the beat; a planted one only flies its cloth
+      const u = r.lift ? (0.5 + 0.5 * Math.sin(beat + r.off)) * r.lift : 0;
+      const x = X0 + r.x * k, top = Y0 + (r.top - u) * k;
+      if (r.kind === "pole") {
+        const foot = Y0 + (r.foot - u) * k;
+        ctx.beginPath();
+        ctx.moveTo(x, foot); ctx.lineTo(x, top);
+        ctx.strokeStyle = INK; ctx.lineWidth = (r.pw + 1.3) * k; ctx.stroke();
+        ctx.strokeStyle = r.wood; ctx.lineWidth = r.pw * k; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - r.pw * 0.25 * k, foot - 0.6 * k); ctx.lineTo(x - r.pw * 0.25 * k, top + 0.6 * k);
+        ctx.strokeStyle = "rgba(255, 236, 196, .45)"; ctx.lineWidth = Math.max(0.3, r.pw * 0.28) * k; ctx.stroke();
+        rallyFinial(ctx, r.fin, x, top, r.fr, k);
+      }
+      rallyClothLive(r, x, top, k, wind);
+      if (r.sh) {
+        // the near arm takes the upper grip, the far arm reaches across the chest to the lower one
+        rallyArmLive(X0 + r.sh[0][0] * k, Y0 + r.sh[0][1] * k, x, Y0 + (r.g2 - u) * k, k, r.sleeve);
+        rallyArmLive(X0 + r.sh[1][0] * k, Y0 + r.sh[1][1] * k, x, Y0 + (r.g1 - u) * k, k, r.sleeve);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ---- the Standard of Haldi: a raised dais of the citadel's banded brick, a bronze standard
+// (rosette disc and spear point, red streamers) carried by its bearer, and a horn to sound it.
+// Urartian bronze discs and spear finials are attested; no inscription is put on them.
+function paintRallyStandard(lvl, spec) {
+  const c = sctx, st = rallyStage(lvl, spec, 131 + lvl), T = st.T, ox = st.ox, oy = st.oy, pd = st.pd, cx = st.cx;
+  const great = !!spec || lvl === 2;
+  const pw = great ? st.maxW - 1 : [23, 28][lvl], ph = great ? 26 : [16, 21][lvl];
+  const RED = "#b3352a", TUNIC = TOWER_ACCENT.drums, HORN = "#c58a3a";
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+  box3(pw, ph, pd, T.mid, towerWall(T, 133 + lvl, { course: great ? 6 : 5, block: 11 }));
+  if (great) {
+    const sy = -ph * 0.42;
+    stringCourse(pw, pd, sy);
+    ledgeShade(-pw / 2, sy + 1.6, pw);
+    weatherStreaks(-pw / 2 + 1, sy + 2.6, pw - 2, 6, 137 + lvl);
+    if (structSnow) snowCap(-pw / 2 - 0.5, sy, pw + 1, 1.1);
+  }
+  if (T.urartu) towerFrieze(pw, pd, -ph + 2.2);
+  else stringCourse(pw, pd, -ph + 1.2);
+  // torches on the dais face
+  if (lvl > 0 || spec) parapetBack(pw, ph, pd, T.mid, true);
+  if (lvl === 0 && !spec) wallTorch(pw / 2 - 3.6, -ph + 8.2);
+  else {
+    wallTorch(-pw / 2 + 3.8, great ? -ph * 0.42 - 3.4 : -ph + 9.4);
+    wallTorch(pw / 2 - 4.2, great ? -ph * 0.42 - 3.4 : -ph + 9.4);
+  }
+  const front = -ph + oy * 0.28;
+  const above = great ? 33 : [24, 29][lvl], fr = great ? 4.8 : [3.7, 4.2][lvl], slen = great ? 16 : [12, 14][lvl];
+  if (spec === "b") {
+    // the Standards of Haldi: two lesser standards planted at the back corners of the dais
+    rallyFlank(st, 54, { fin: "haldi", fr: 3.6, str: 3, slen: 12, hex: RED });
+  }
+  if (spec === "a") {
+    // Battle Fury: a second horn answers the first, spearmen stand guard at the foot of the dais
+    garrisonFigure(-st.base.w / 2 - 4.6, 4.6, 1, { tunic: "#7a4a2a", cap: BRONZE, pose: "spear", face: 1 });
+    garrisonFigure(st.base.w / 2 + 4.2 + ox * 0.5, 1.2, 1, { tunic: "#7a4a2a", cap: BRONZE, pose: "spear", face: -1 });
+    rallyHorner(cx - 12.6, front, { face: -1, tunic: "#9c4a2a", hex: HORN, off: 1.6 });
+  }
+  const bx = lvl === 0 && !spec ? cx - 4.6 : spec === "a" ? cx - 4.4 : cx - 7.2;
+  rallyBearer(bx, front, { tunic: TUNIC, cap: BRONZE, above, lift: 4, fin: "haldi", fr, str: 3, slen, hex: RED, pw: great ? 2 : 1.8 });
+  if (lvl > 0 || spec) rallyHorner(cx + (spec === "a" ? 8.6 : 7.4), front, { face: 1, tunic: "#9c4a2a", hex: HORN });
+  c.restore();
+}
 SKIN_ART.standard = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.drums,
   scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  paint(lvl, spec, variant) { paintRallyStandard(lvl, spec); },
+  live: rallyLive,
 };
 // ====================================== END SKIN SECTION: standard ======================================
 
@@ -17376,11 +17714,63 @@ SKIN_ART.standard = {
 // SKIN SECTION: banner. Caliphate era, drums slot: a prince's banner with horn-blowers
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// A prince's war-banner: plain cloth (no device is invented for it) on a tall pole under a gilt
+// cross, planted on a stone base with a timber deck; horn-blowers raise their horns on the beat.
+// The shared rally helpers live in the standard section above.
+function paintRallyBanner(lvl, spec) {
+  const c = sctx, st = rallyStage(lvl, spec, 171 + lvl), T = st.T, ox = st.ox, oy = st.oy, pd = st.pd, cx = st.cx;
+  const great = !!spec || lvl === 2;
+  const pw = great ? st.maxW - 1 : [24, 28][lvl], ph = great ? 23 : [15, 19][lvl], tim = 3.6, sh = ph - tim;
+  const CLOTH = "#a8322a", TUNIC = "#8f3a2c", HELM = "#8c8e95", HORN = "#d9c08a";
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+  // a stone base of the map's tuff, and a plank deck laid over it on joists
+  box3(pw, sh, pd, T.mid, towerWall(T, 173 + lvl, { course: great ? 7 : sh, block: 12 }));
+  weatherStreaks(-pw / 2 + 1, -sh + 1.4, pw - 2, 7, 179 + lvl);
+  if (great) {
+    stainedSlit(-pw / 2 + 5, -sh + 4, 2.2, 5);
+    stainedSlit(pw / 2 - 5, -sh + 4, 2.2, 5);
+  }
+  c.save();
+  c.translate(-0.5 * OBQ.dx, -sh - 0.5 * OBQ.dy);
+  const dw = pw + 2.4, dd = pd + 1;
+  box3(dw, tim, dd, TIMBER, { side: "#573a1e" });
+  plankRect(-dw / 2 + 0.6, -tim + 0.5, dw - 1.2, tim - 1, TIMBER, false, 177 + lvl);
+  for (let jx = -dw / 2 + 2.2; jx < dw / 2 - 1.5; jx += 5.6) endGrain(jx, -tim * 0.5, 0.9);
+  c.beginPath();
+  c.rect(-dw / 2, -tim, dw, tim);
+  inkStroke(1.1);
+  deckTop(dw, tim, dd, TIMBER);
+  c.restore();
+  ledgeShade(-pw / 2, -sh, pw);
+  // torches on the stone
+  if (great) {
+    wallTorch(-pw / 2 + 3.2, -sh + 6.4 + (sh > 13 ? 3 : 0));
+    wallTorch(pw / 2 - 3.6, -sh + 6.4 + (sh > 13 ? 3 : 0));
+  } else wallTorch(pw / 2 - 3.4, -sh + 6);
+  const mid = -ph + oy * 0.55, front = -ph + oy * 0.24;
+  if (spec === "b") {
+    // Battle Standards: two lesser banners on the back corners of the deck
+    rallyFlank(st, 62, { fin: "cross", fr: 2.7, flag: [15, 10.5], hex: CLOTH });
+  }
+  // the prince's banner itself, stepped into a timber shoe on the deck
+  const bx = lvl === 0 && !spec ? cx - 2.8 : cx + 0.6, height = great ? 58 : [45, 52][lvl];
+  rallyPlanted(bx, mid, height, {
+    fin: "cross", fr: great ? 3.4 : [2.8, 3.1][lvl], flag: great ? [27, 19] : [19, 13.5], hex: CLOTH, pw: great ? 2.5 : 2.2, wood: "#6e4c2c",
+  });
+  if (spec === "a") {
+    // Battle Fury: spearmen at the foot of the platform, the horns answering each other
+    garrisonFigure(-st.base.w / 2 - 4.6, 4.6, 1, { tunic: "#5d5a3c", cap: HELM, pose: "spear", face: 1 });
+    garrisonFigure(st.base.w / 2 + 4.2 + ox * 0.5, 1.2, 1, { tunic: "#5d5a3c", cap: HELM, pose: "spear", face: -1 });
+  }
+  if (lvl > 0 || spec) rallyHorner(cx - 9.4, front, { face: -1, tunic: TUNIC, cap: HELM, hex: HORN, len: 12.5, off: spec === "a" ? 1.6 : 0 });
+  rallyHorner(lvl === 0 && !spec ? cx + 5.6 : cx + 9.6, front, { face: 1, tunic: TUNIC, cap: HELM, hex: HORN, len: 12.5 });
+  c.restore();
+}
 SKIN_ART.banner = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.drums,
   scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  paint(lvl, spec, variant) { paintRallyBanner(lvl, spec); },
+  live: rallyLive,
 };
 // ====================================== END SKIN SECTION: banner ======================================
 
@@ -17389,11 +17779,133 @@ SKIN_ART.banner = {
 // SKIN SECTION: exhort. 451, drums slot: Ghevond the priest exhorts the army
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Before Avarayr Yeghishe has the priest Ghevond exhort the army. A timber rostrum; the priest in
+// a dark robe raises a processional cross on the beat, a deacon in white swings a censer, and the
+// spearmen kneel at its foot behind plain shields. The shared rally helpers live in the standard
+// section above.
+// a long-robed figure: a priest (dark robe, grey beard) or a deacon (white robe, red stole);
+// returns [back, front] shoulders for the live arms
+function exhortRobed(x, y, o) {
+  const c = sctx, face = o.face || 1;
+  c.save();
+  c.translate(x, y);
+  c.scale(face, 1);
+  c.beginPath();
+  c.moveTo(-4.2, -11.6);
+  c.quadraticCurveTo(0, -13.5, 4.2, -11.6);
+  c.lineTo(5.6, -0.7);
+  c.quadraticCurveTo(0, 0.5, -5.6, -0.7);
+  c.closePath();
+  c.fillStyle = o.robe;
+  c.fill();
+  inkStroke(1.1);
+  c.fillStyle = "rgba(255, 240, 210, .2)";
+  c.beginPath();
+  c.moveTo(-3.4, -11.6); c.lineTo(-1.4, -12); c.lineTo(-1.8, -0.4); c.lineTo(-4.6, -0.8);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = o.fold;
+  c.lineWidth = 0.6;
+  c.beginPath();
+  c.moveTo(0.6, -9); c.lineTo(1.1, -0.6);
+  c.moveTo(3, -8.4); c.lineTo(4, -0.9);
+  c.stroke();
+  if (o.stole) {
+    // the deacon's stole over the left shoulder
+    c.beginPath();
+    c.moveTo(-2.6, -12.4); c.lineTo(3.4, -6.2); c.lineTo(3.2, -1.2);
+    c.strokeStyle = INK; c.lineWidth = 2.3; c.stroke();
+    c.strokeStyle = o.stole; c.lineWidth = 1.3; c.stroke();
+  } else {
+    c.fillStyle = "#1c1820";
+    c.fillRect(-3.8, -7.2, 7.6, 1.2);
+  }
+  inkDisc(0.4, -15.2, 3, 3, RALLY_SKIN, 1);
+  // hair on the crown and nape; the priest's long beard
+  c.beginPath();
+  c.arc(0.4, -15.2, 3, Math.PI * 0.95, Math.PI * 1.95);
+  c.quadraticCurveTo(0.6, -17, -1.2, -15.4);
+  c.lineTo(-2.4, -13.4);
+  c.closePath();
+  c.fillStyle = o.hair;
+  c.fill();
+  if (o.beard) {
+    c.beginPath();
+    c.moveTo(-1.6, -14.4);
+    c.quadraticCurveTo(-1.4, -10.6, 1.2, -9.6);
+    c.quadraticCurveTo(3.6, -11.4, 3.4, -14);
+    c.quadraticCurveTo(1.8, -13, -1.6, -14.4);
+    c.closePath();
+    c.fillStyle = o.beard;
+    c.fill();
+    inkStroke(0.6);
+  }
+  c.fillStyle = "#24170d";
+  c.fillRect(1.6, -16.5, 1, 1.1);
+  c.restore();
+  structCrown(y - 21);
+  return [structPoint(x - 3 * face, y - 10.9), structPoint(x + 3 * face, y - 10.9)];
+}
+function paintRallyExhort(lvl, spec) {
+  const c = sctx, st = rallyStage(lvl, spec, 151 + lvl), T = st.T, ox = st.ox, oy = st.oy, pd = st.pd, cx = st.cx;
+  const great = !!spec || lvl === 2;
+  const pw = great ? st.maxW - 1 : [22, 27][lvl], ph = great ? 20 : [12, 16][lvl];
+  const SPEAR = ["#7a3a2c", "#5d5a3c"], HELM = "#8c8e95", SHIELD = "#9a4630", FLAG = "#a33027";
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+  // the rostrum: a plank stage on posts, braced, with a deck of boards
+  box3(pw, ph, pd, TIMBER, { side: "#573a1e" });
+  plankRect(-pw / 2 + 0.8, -ph + 0.8, pw - 1.6, ph - 1.6, TIMBER, true, 153 + lvl);
+  woodGrain(-pw / 2 + 0.8, -ph + 0.8, pw - 1.6, ph - 1.6, true, 155 + lvl);
+  c.fillStyle = "rgba(255, 232, 190, .16)";
+  c.fillRect(-pw / 2 + 0.8, -ph + 0.8, (pw - 1.6) * 0.45, ph - 1.6);
+  if (ph > 9) {
+    beam(-pw / 2 + 2.6, -1.4, -0.6, -ph + 2.6, 1.6, TIMBER_DARK);
+    beam(pw / 2 - 2.6, -1.4, 0.6, -ph + 2.6, 1.6, TIMBER_DARK);
+    lashing(0, -ph * 0.5 + 0.6, 1.2);
+  }
+  nailedBand(-pw / 2 + 0.8, -ph + 2.6, pw - 1.6, 1);
+  for (const px of [-pw / 2 + 1.5, pw / 2 - 1.5]) beam(px, -0.6, px, -ph + 0.6, 2.4, toneHex(TIMBER, -18));
+  deckTop(pw, ph, pd, TIMBER);
+  if (structSnow) snowCap(-pw / 2, -ph + 0.2, pw * 0.4, 1.2);
+  const front = -ph + oy * 0.3;
+  // torches on the rostrum's corner posts; the Battle Standards stand in the ground at its foot
+  wallTorch(-pw / 2 + 3.6, -ph + 7);
+  wallTorch(pw / 2 - 4, -ph + 7);
+  if (spec === "b") {
+    rallyFlank(st, 60, { fin: "cross", fr: 2.7, flag: [15, 10.5], hex: FLAG });
+  }
+  // the army at the foot of the rostrum: spearmen kneeling behind their shields
+  const W = st.base.w / 2;
+  if (spec === "a") {
+    rallyKneeler(-W - 7.4, -1.6, SPEAR[1], HELM, 1, "#6e5a3a");
+    rallyKneeler(W + 9.6 + ox * 0.4, -3.6, SPEAR[0], HELM, -1, "#6e5a3a");
+  }
+  if (great) {
+    rallyKneeler(-W - 2.6, 4.4, SPEAR[0], HELM, 1, SHIELD);
+    rallyKneeler(W + 4.2 + ox * 0.3, 2, SPEAR[1], HELM, -1, SHIELD);
+  }
+  // the deacon swings his censer out toward the army
+  if (lvl > 0 || spec) {
+    const dx = cx + 9.6, sh = exhortRobed(dx, front - 0.2, { robe: "#ece4d0", fold: "rgba(120, 100, 70, .45)", hair: "#3b2616", stole: "#a8322a", face: 1 });
+    rallyArm([dx - 3, front - 11.3, dx - 4.6, front - 6.8], "#f4ecdb");
+    const hand = structPoint(dx + 6.6, front - 13.2);
+    rallyRecords().push({ kind: "censer", sh: sh[1], hand, len: 7.4, sleeve: "#f4ecdb" });
+    structCrown(front - 30);
+  }
+  // Ghevond with the cross: lifted high on the beat
+  const px = lvl === 0 && !spec ? cx - 3 : cx - 5.6;
+  const psh = exhortRobed(px, front, { robe: "#2d2731", fold: "rgba(0, 0, 0, .45)", hair: "#2a2220", beard: "#8f8a84", face: 1 });
+  rallyBearer(px, front, {
+    sh: psh, sleeve: "#3e3742", above: great ? 18 : [13, 15][lvl], lift: spec === "a" ? 7 : 5.5, fin: "cross",
+    fr: great ? 3.4 : 3, wood: "#c9a24a", pw: 1.2, hex: FLAG,
+  });
+  c.restore();
+}
 SKIN_ART.exhort = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.drums,
   scale: TOWER_SCALE.drums,
-  paint(lvl, spec, variant) { paintWarDrums(lvl, spec); },
+  paint(lvl, spec, variant) { paintRallyExhort(lvl, spec); },
+  live: rallyLive,
 };
 // ====================================== END SKIN SECTION: exhort ======================================
 
