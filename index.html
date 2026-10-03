@@ -19236,11 +19236,418 @@ SKIN_ART.trebuchet = {
 // SKIN SECTION: beacon. Urartu, fire slot: a hill-top fire beacon
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Sargon II's letter on his eighth campaign (714 BC) tells of the Urartian fire signals passed from
+// peak to peak. The beacon is a squat watch-post of dressed stone and mudbrick under rectangular
+// merlons, crowned by an iron fire basket on a crib of firewood, with its warden and woodpile.
+const BEACON_TUNIC = "#a8552c";
+// log crib: courses laid crosswise, long logs and end grain by turns, from y upward
+function beaconCrib(x, y, w, layers) {
+  const c = sctx;
+  for (let i = 0; i < layers; i++) {
+    const ly = y - 1.25 - i * 2.4;
+    if (i % 2 === 0) {
+      beam(x - w / 2, ly, x + w / 2, ly, 2.1, i ? TIMBER : TIMBER_DARK);
+    } else {
+      for (let j = 0; j < 3; j++) endGrain(x - w / 2 + 1.4 + j * (w - 2.8) / 2, ly, 1.25, TIMBER);
+    }
+  }
+  c.fillStyle = "rgba(30, 16, 6, .3)";
+  c.fillRect(x - w / 2, y - 0.6, w, 0.8);
+}
+// a stack of split logs seen end-on, their lengths running back into the shade
+function beaconWoodpile(x, y, rows, r, len) {
+  const c = sctx, ox = len * OBQ.dx, oy = len * OBQ.dy;
+  const ends = [];
+  rows.forEach((n, row) => {
+    for (let i = 0; i < n; i++) ends.push([x + (i - (n - 1) / 2) * r * 2.05, y - r - row * r * 1.75]);
+  });
+  // the logs' upper flanks, lit, then the ends of the logs
+  for (let i = ends.length - 1; i >= 0; i--) {
+    const e = ends[i];
+    polyPath([e[0] - r * 0.95, e[1], e[0] - r * 0.95 + ox, e[1] + oy, e[0] + r * 0.95 + ox, e[1] + oy, e[0] + r * 0.95, e[1]]);
+    c.fillStyle = i % 3 ? TIMBER : toneHex(TIMBER, -18);
+    c.fill();
+    inkStroke(0.6);
+  }
+  for (const e of ends) endGrain(e[0], e[1], r, TIMBER);
+}
+// iron fire basket: a flared cage of bars and bands, packed with burning wood; returns the flame point
+function beaconBasket(x, y, r, h) {
+  const c = sctx, rb = r * 0.62, ry = r * 0.3, ty = y - h;
+  // the burning load seen through the bars
+  polyPath([x - rb, y, x - r, ty, x + r, ty, x + rb, y]);
+  c.fillStyle = "#3a1a0a";
+  c.fill();
+  const g = c.createLinearGradient(0, ty, 0, y);
+  g.addColorStop(0, "rgba(255, 150, 50, .85)");
+  g.addColorStop(1, "rgba(160, 50, 16, .2)");
+  c.fillStyle = g;
+  c.fill();
+  // back bars, thin and dim
+  c.strokeStyle = "#2a1c14";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  for (let i = 1; i < 6; i++) {
+    const a = Math.PI + i * Math.PI / 6;
+    c.moveTo(x + Math.cos(a) * rb, y + Math.sin(a) * ry * 0.62);
+    c.lineTo(x + Math.cos(a) * r, ty + Math.sin(a) * ry);
+  }
+  c.stroke();
+  // the mouth: embers heaped up, split logs standing out of it
+  inkDisc(x, ty, r, ry, "#2a160a", 1.1);
+  inkDisc(x, ty + 0.1, r * 0.76, ry * 0.62, "#ff8a2c", 0);
+  inkDisc(x - r * 0.12, ty, r * 0.4, ry * 0.3, "#ffe08a", 0);
+  for (const lg of [[-0.55, -0.9, 0.1, -0.15], [0.5, -1.1, -0.15, -0.2], [0.05, -1.25, 0.35, -0.1]]) {
+    beam(x + lg[2] * r, ty + 0.4, x + lg[0] * r, ty + lg[1] * r * 0.55, 1.2, "#4a2e18");
+  }
+  // front bars over the load, then two bands and the rim
+  c.beginPath();
+  for (let i = 0; i <= 6; i++) {
+    const a = i * Math.PI / 6;
+    c.moveTo(x + Math.cos(a) * rb, y + Math.sin(a) * ry * 0.62);
+    c.lineTo(x + Math.cos(a) * r, ty + Math.sin(a) * ry);
+  }
+  c.strokeStyle = INK;
+  c.lineWidth = 1.5;
+  c.stroke();
+  c.strokeStyle = "#4c4a50";
+  c.lineWidth = 0.7;
+  c.stroke();
+  for (const t of [0.5, 1]) {
+    const rr = rb + (r - rb) * t, yy = y - h * t;
+    c.beginPath();
+    c.ellipse(x, yy, rr, ry * (0.62 + 0.38 * t), 0, 0, Math.PI);
+    c.strokeStyle = INK;
+    c.lineWidth = t === 1 ? 2 : 1.6;
+    c.stroke();
+    c.strokeStyle = t === 1 ? "#6a686e" : IRON;
+    c.lineWidth = t === 1 ? 1 : 0.8;
+    c.stroke();
+  }
+  c.beginPath();
+  c.ellipse(x, y, rb, ry * 0.62, 0, 0, Math.PI);
+  inkStroke(1.2);
+  // the near lip catches the light of the fire it holds
+  c.strokeStyle = "rgba(255, 196, 120, .7)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.ellipse(x, ty + 0.4, r * 0.96, ry * 0.9, 0, 0.5, Math.PI - 0.5);
+  c.stroke();
+  structGlow(x, ty - 2, r + 10, "warm", 0.55);
+  return structPoint(x, ty);
+}
+// the warden: a garrison man with his arms set to his task
+function beaconWarden(x, y, k, face, hold) {
+  const c = sctx;
+  const stick = (x1, y1, x2, y2, hex, w) => {
+    c.beginPath();
+    c.moveTo(x1, y1); c.lineTo(x2, y2);
+    c.strokeStyle = INK; c.lineWidth = w + 1; c.stroke();
+    c.strokeStyle = hex; c.lineWidth = w; c.stroke();
+  };
+  if (hold === "bundle") {
+    // a faggot of brushwood slung over the shoulder, behind the head, bound twice with cord
+    c.save();
+    c.translate(x, y);
+    c.scale(k * face, k);
+    for (let i = 0; i < 5; i++) stick(-6.5 + i * 0.2, -19.6 + i * 0.75, 11 + i * 0.3, -10.6 + i * 0.75, i % 2 ? "#8a6238" : "#6e4a28", 0.85);
+    c.strokeStyle = "#e2cc98";
+    c.lineWidth = 0.9;
+    c.beginPath();
+    c.moveTo(-3.6, -19.4); c.lineTo(-4.4, -16.1);
+    c.moveTo(7.4, -13.6); c.lineTo(6.7, -10.4);
+    c.stroke();
+    c.restore();
+  }
+  garrisonFigure(x, y, k, { tunic: BEACON_TUNIC, cap: BRONZE, pose: "none", face });
+  c.save();
+  c.translate(x, y);
+  c.scale(k * face, k);
+  const arm = pts => {
+    c.beginPath();
+    c.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+    c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = toneHex(BEACON_TUNIC, 14); c.lineWidth = 1.9; c.stroke();
+    inkDisc(pts[pts.length - 2], pts[pts.length - 1], 1.1, 1.1, "#e2b78c", 0.6);
+  };
+  if (hold === "torch") {
+    arm([-3.4, -11, -4.4, -6.6]);
+    stick(6.4, -12.8, 7.4, -23, "#6a4626", 1.1);
+    inkPoly([6.3, -23.8, 8.7, -23.8, 8.3, -21.4, 6.6, -21.4], "#3a2414", 0.6);
+    arm([3, -11, 5.6, -14.6, 6.9, -17.6]);
+    structFit.brand = structFit.brazier = structPoint(7.5, -23.8);
+  } else if (hold === "bundle") {
+    arm([-3.4, -11, -4.4, -6.6]);
+    arm([3, -11, 5.4, -12.4, 5.6, -13.4]);
+  } else if (hold === "poker") {
+    // the stoker rakes the hearth with a long iron
+    stick(-2, -13.6, 13.5, -3.4, "#4c4a50", 0.9);
+    arm([-2.8, -10.8, 0.8, -9.4, 3.4, -10.8]);
+    arm([2.8, -11, 6.2, -9.4, 8.6, -6.6]);
+  } else {
+    arm([-3.4, -11, -4.4, -6.6]);
+    arm([3.4, -11, 4.6, -6.8]);
+  }
+  c.restore();
+}
+// a small walking beast in a shield's frieze, its feet on the outer edge of the band, facing +x
+function beaconBeast(x, y, s, ang, bull, hex) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  c.scale(s, s);
+  c.fillStyle = hex;
+  c.beginPath();
+  c.ellipse(0, -2.6, 3.4, 1.35, 0, 0, Math.PI * 2);
+  if (bull) {
+    c.moveTo(3, -2.4); c.lineTo(4.9, -2.6); c.lineTo(4.6, -1.4); c.lineTo(3.1, -1.3);
+  } else {
+    c.moveTo(4.3, -3.4); c.arc(3.4, -3.4, 1.35, 0, Math.PI * 2);
+  }
+  c.fill();
+  c.strokeStyle = hex;
+  c.lineWidth = 0.75;
+  c.lineCap = "round";
+  c.beginPath();
+  for (const lx of [-2.4, -1.4, 1.6, 2.6]) { c.moveTo(lx, -2); c.lineTo(lx + (lx < 0 ? -0.3 : 0.3), 0); }
+  if (bull) { c.moveTo(3.6, -2.9); c.quadraticCurveTo(4, -4.6, 3.1, -5); }
+  else { c.moveTo(-3.3, -2.8); c.quadraticCurveTo(-4.8, -4.6, -3.6, -5.1); }
+  c.stroke();
+  c.restore();
+}
+// a votive bronze shield of the kind hung in Haldi's temples: concentric friezes of lions and
+// bulls round a central boss (after the shields from Teishebaini); the dedication is left off
+function haldiShield(x, y, r) {
+  const c = sctx;
+  inkDisc(x + 1.2, y + 1.4, r, r, "rgba(30, 16, 6, .3)", 0);
+  const g = c.createLinearGradient(x - r, y - r, x + r, y + r);
+  g.addColorStop(0, "#f6d68a");
+  g.addColorStop(0.5, "#d4a04a");
+  g.addColorStop(1, "#7a561c");
+  inkDisc(x, y, r, r, g, 1.4);
+  c.strokeStyle = "rgba(90, 56, 16, .8)";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  for (const t of [0.86, 0.6, 0.36]) { c.moveTo(x + r * t, y); c.arc(x, y, r * t, 0, Math.PI * 2); }
+  c.stroke();
+  c.strokeStyle = "rgba(255, 244, 200, .55)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (const t of [0.86, 0.6, 0.36]) c.arc(x, y, r * t - 0.5, Math.PI * 1.05, Math.PI * 1.55);
+  c.stroke();
+  // rivets on the rim
+  c.fillStyle = "#fff0c0";
+  for (let i = 0; i < 16; i++) {
+    const a = i * Math.PI / 8;
+    c.fillRect(x + Math.cos(a) * r * 0.93 - 0.3, y + Math.sin(a) * r * 0.93 - 0.3, 0.6, 0.6);
+  }
+  // the two friezes walk round the shield in opposite senses
+  const dark = "#4a2c0c";
+  for (let i = 0; i < 7; i++) {
+    const a = i * Math.PI * 2 / 7 + 0.2, rb = r * 0.84;
+    beaconBeast(x + Math.cos(a) * rb, y + Math.sin(a) * rb, r * 0.058, a - Math.PI / 2, false, dark);
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5 + 0.6, rb = r * 0.58;
+    beaconBeast(x + Math.cos(a) * rb, y + Math.sin(a) * rb, r * 0.05, a + Math.PI / 2, true, dark);
+  }
+  const bg = c.createRadialGradient(x - r * 0.12, y - r * 0.12, 0.2, x, y, r * 0.3);
+  bg.addColorStop(0, "#fff4c8");
+  bg.addColorStop(1, "#b98538");
+  inkDisc(x, y, r * 0.3, r * 0.3, bg, 0.9);
+  inkDisc(x - r * 0.08, y - r * 0.08, r * 0.09, r * 0.09, "#fffbe8", 0);
+}
+
+function paintBeacon(lvl, spec) {
+  const c = sctx, S = footStone(), T = towerStone();
+  const base = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+  const SOCLE = mixHex(S[0], S[1], 0.8), SOCLE_SIDE = toneHex(S[1], -24);
+  footPlinth(base.w, base.d, base.h, S, 81 + lvl + (spec === "a" ? 5 : spec === "b" ? 9 : 0), stepped);
+  // ground in front of the post: soot and trodden ash
+  fillBlobs("rgba(40, 26, 14, .2)", [[base.w / 2 - 8, base.d * -OBQ.dy / 2 + 1.6, 7, 1.6]]);
+  const D = spec === "a" ? { w: 28, h: 28, d: 13.5 } : spec === "b" ? { w: 28, h: 37, d: 13.5 }
+    : [{ w: 27, h: 12, d: 13.5 }, { w: 25, h: 26, d: 12.5 }, { w: 28, h: 37, d: 13.5 }][lvl];
+  const w = D.w, d = D.d, ox = d * OBQ.dx, oy = d * OBQ.dy;
+  const plat = !spec && lvl === 0, rough = !spec && lvl === 1, sock = plat ? 0 : 4.5;
+  let flameH = spec === "a" ? 34 : spec === "b" ? 22 : [14, 18, 22][lvl];
+  c.save();
+  c.translate(-d * OBQ.dx / 2, -base.h - d * OBQ.dy / 2);
+  if (plat) {
+    // first rank: a low platform of big dressed blocks, the fire set straight on it
+    box3(w + 2, D.h, d, SOCLE, { masonry: true, side: SOCLE_SIDE, top: toneHex(S[0], -4), course: 5, block: 13, seed: 83 });
+    rankMarks(0, -D.h * 0.5, lvl, spec, T.urartu);
+    const H = D.h, wx = ox * 0.5, wy = -H + oy * 0.5 + 0.6;
+    beaconWarden(wx - 9.5, wy, 1.1, 1, "torch");
+    // an iron brazier on three legs
+    const bx = wx + 4, by = wy;
+    for (const lg of [[-4, 0.6], [4, 0.6], [0.6, -1.4]]) beam(bx + lg[0] * 0.55, by - 6.4, bx + lg[0], by + lg[1], 0.8, "#4c4a50");
+    structFit.flame = beaconBasket(bx, by - 5.6, 6.2, 5.2);
+    beaconWoodpile(w / 2 + 2, 4.6, [3, 2, 1], 1.7, 7);
+    structCrown(by - 11 - flameH * 0.5);
+  } else {
+    // dressed stone socle under a body of mudbrick (rubble at the second rank)
+    box3(w + 4, sock, d + 1.5, SOCLE, { masonry: true, side: SOCLE_SIDE, top: toneHex(S[0], -12), course: sock, block: 10, seed: 85 + lvl });
+    rankMarks(0, -sock / 2, lvl, spec, T.urartu);
+    c.translate(0.75 * OBQ.dx, -sock + 0.75 * OBQ.dy);
+    const H = D.h;
+    box3(w, H, d, rough ? toneHex(T.mid, -10) : T.mid, towerWall(T, 87 + lvl * 5 + (spec ? 17 : 0), {
+      side: rough ? toneHex(T.side, -12) : T.side, course: rough ? 7 : 6.3, block: rough ? 9.5 : 11.5, rough, band: rough ? 0 : T.band,
+    }));
+    // soot has blackened the wall head under the fire
+    const sg = c.createLinearGradient(0, -H, 0, -H + (spec === "a" ? 16 : 9));
+    sg.addColorStop(0, "rgba(26, 16, 10, " + (spec === "a" ? ".55" : ".32") + ")");
+    sg.addColorStop(1, "rgba(26, 16, 10, 0)");
+    c.fillStyle = sg;
+    c.fillRect(-w / 2, -H, w, spec === "a" ? 16 : 9);
+    if (rough) {
+      // a ladder to the fire, and the scaffold's putlog holes
+      const lean = 2 / (H - 1.6);
+      beam(-9.6, 0.4, -7.6, -H + 1.6, 1.2, TIMBER);
+      beam(-5, 0.4, -3, -H + 1.6, 1.2, TIMBER);
+      c.strokeStyle = TIMBER_DARK;
+      c.lineWidth = 0.9;
+      c.beginPath();
+      for (let ry = -3.6; ry > -H + 2.4; ry -= 4.4) { c.moveTo(-9.6 + (0.4 - ry) * lean, ry); c.lineTo(-5 + (0.4 - ry) * lean, ry); }
+      c.stroke();
+      c.fillStyle = "rgba(30, 16, 6, .6)";
+      for (const p of [[3.5, -H * 0.42], [8.4, -H * 0.72]]) c.fillRect(p[0], p[1], 1.6, 1.4);
+      stainedSlit(6.2, -H + 7, 2.4, 5.6);
+    } else if (spec === "a") {
+      // the stoke-hole of the hearth, glowing
+      archPath(0, 11, 12.5);
+      c.fillStyle = "#3a1a0a";
+      c.fill();
+      inkStroke(1.2);
+      archPath(0, 7.6, 9.6);
+      const mg = c.createLinearGradient(0, -9.6, 0, 0);
+      mg.addColorStop(0, "#ff7a22");
+      mg.addColorStop(1, "#ffe08a");
+      c.fillStyle = mg;
+      c.fill();
+      // split logs fed into the mouth
+      beam(-2.6, -0.8, 1.4, -2.6, 1.3, "#4a2e18");
+      beam(2.8, -0.6, -0.6, -3.2, 1.3, "#5a3a1e");
+      structGlow(0, -5, 12, "warm", 0.7);
+      structFit.mouth = structPoint(0, -5);
+      inkPoly([-6.8, -13.6, 6.8, -13.6, 5.6, -15.4, -5.6, -15.4], toneHex(T.mid, 24), 0.8);
+      stainedSlit(-8.6, -H + 6, 2.4, 5);
+    } else {
+      archDoor(-6, 6.6, 10.5, "#ead3b0");
+      stainedSlit(6.5, -H * 0.55, 2.4, 6.2);
+      stringCourse(w, d, -H * 0.5 - 4);
+      ledgeShade(-w / 2, -H * 0.5 - 2.4, w);
+    }
+    if (!rough) towerFrieze(w, d, -H + 3.4);
+    wallTorch(w / 2 - 3, rough ? -H + 7.5 : -H + 13);
+    const walkX = ox * 0.5, walkY = -H + oy * 0.5 + 0.8;
+    if (spec === "a") {
+      // Sacred Inferno: the wall head is a great corbelled hearth, open to the sky
+      const HW = w + 6, HD = d + 2, hh = 9;
+      for (let bx = -HW / 2 + 3.4; bx < HW / 2 - 2; bx += 4.6) inkPoly([bx - 1.6, -H, bx + 1.6, -H, bx + 1, -H + 4, bx - 1, -H + 4], toneHex(T.side, -8), 0.8);
+      c.save();
+      c.translate((d - HD) * OBQ.dx / 2, -H + (d - HD) * OBQ.dy / 2);
+      box3(HW, hh, HD, toneHex(T.mid, 6), towerWall(T, 99, { course: 4.5, block: 9, band: 0, contact: false }));
+      const hox = HD * OBQ.dx, hoy = HD * OBQ.dy;
+      // bronze bands bind the hearth's lip
+      inkRect(-HW / 2 - 0.4, -hh + 1.2, HW + 0.8, 1.5, BRONZE, 0.7);
+      c.fillStyle = "#f0cf86";
+      c.fillRect(-HW / 2, -hh + 1.3, HW * 0.55, 0.4);
+      inkPoly([HW / 2 + 0.4, -hh + 1.2, HW / 2 + 0.4 + hox, -hh + 1.2 + hoy, HW / 2 + 0.4 + hox, -hh + 2.7 + hoy, HW / 2 + 0.4, -hh + 2.7], "#8a5f24", 0.6);
+      // the hearth's mouth, a bed of coals inside its rim
+      const ix = 2.4, iy = -hh, ip = 0.22;
+      inkPoly([-HW / 2 + ix + hox * ip, iy + hoy * ip, -HW / 2 + ix + hox * (1 - ip), iy + hoy * (1 - ip), HW / 2 - ix + hox * (1 - ip), iy + hoy * (1 - ip), HW / 2 - ix + hox * ip, iy + hoy * ip], "#2a160a", 1);
+      const cx0 = hox * 0.5, cy0 = iy + hoy * 0.5;
+      inkDisc(cx0, cy0, HW * 0.36, -hoy * 0.24, "#ff8a2c", 0);
+      inkDisc(cx0 - 1, cy0, HW * 0.2, -hoy * 0.14, "#ffe08a", 0);
+      for (const lg of [[-9, 2], [-3, -1.6], [5, 1.4], [9.5, -0.4]]) beam(cx0 + lg[0] - 2, cy0 + lg[1] + 0.6, cx0 + lg[0] + 1.8, cy0 + lg[1] - 2.4, 1.3, "#4a2e18");
+      structGlow(cx0, cy0 - 3, 22, "warm", 0.75);
+      structFit.flame = structPoint(cx0, cy0 + 0.4);
+      structFit.sideFlames = [structPoint(-HW / 2 + ix + hox * 0.3 + 2, iy + hoy * 0.3), structPoint(HW / 2 - ix + hox * 0.7 - 2.4, iy + hoy * 0.7)];
+      c.restore();
+      structCrown(-H - hh - flameH * 0.5);
+    } else {
+      parapetBack(w, H, d, T.mid);
+      const cw = rough ? 11.5 : 14, layers = rough ? 5 : 6;
+      if (spec === "b") {
+        // Wrath of Haldi: the god's bronze shield on its pole beside the blaze
+        const px = w / 2 + ox - 3.4, py = -H + oy - 0.4, top = py - 37;
+        beam(px, py, px, top, 1.8, TIMBER_DARK);
+        inkDisc(px, top - 1.2, 1.6, 1.6, GOLD, 0.7);
+        haldiShield(px, top + 11.5, 10.6);
+        structFit.corona = structPoint(px, top + 11.5);
+        structCrown(top - 3);
+      }
+      beaconWarden(walkX - (rough ? 0 : 8.5), walkY, 1.05, -1, rough ? "none" : "torch");
+      beaconCrib(walkX + (rough ? 3 : 2), walkY + 0.4, cw, layers);
+      const by = walkY + 0.4 - layers * 2.4 - 0.3;
+      structFit.flame = beaconBasket(walkX + (rough ? 3 : 2), by, rough ? 6.4 : 8, rough ? 5.6 : 7);
+      parapetFront(w, H, d, T.mid);
+      if (spec !== "b") structCrown(by - (rough ? 5.6 : 7) - flameH * 0.5);
+    }
+  }
+  c.restore();
+  // what the warden feeds it: brushwood and split logs piled at the foot
+  if (lvl === 1 && !spec) {
+    beaconWarden(-14.2, 2.4, 1.05, 1, "bundle");
+    beaconWoodpile(12.6, 5, [3, 2, 1], 1.75, 8);
+  } else if (spec === "a") {
+    beaconWarden(-13.2, 3.4, 1.05, 1, "poker");
+    beaconWoodpile(13.2, 5, [3, 2, 1], 1.75, 8);
+  } else if (!plat) {
+    beaconWoodpile(13.4, 5, [3, 2, 1], 1.75, 8);
+  }
+  structFit.flameH = flameH;
+}
+
 SKIN_ART.beacon = {
-  // placeholder until the art lands: the slot's original engine stands in
   box: TOWER_BOX.fire,
   scale: TOWER_SCALE.fire,
-  paint(lvl, spec, variant) { paintFireAltar(lvl, spec); },
+  paint(lvl, spec) { paintBeacon(lvl, spec); },
+  // the fire as the slot's original branch draws it, the warden's brand, and sparks going up
+  live(t, c) {
+    const fit = c.fit, k = c.k, x = c.x, y = c.y;
+    if (!fit.flame) return;
+    const ph = isFinite(t.flame) ? t.flame : 0;
+    const fx = x + fit.flame[0] * k, fy = y + fit.flame[1] * k;
+    const fh = structClamp(fit.flameH + Math.sin(ph) * 1.6, 3, 38) * k;
+    if (fit.corona && t.novaFx > 0) {
+      // the god's shield flares as the stun goes out
+      ctx.globalAlpha = c.fade * structClamp(t.novaFx, 0, 1);
+      const r = 17 * k;
+      ctx.drawImage(structLight("warm"), x + fit.corona[0] * k - r, y + fit.corona[1] * k - r, r * 2, r * 2);
+    }
+    structFlame(fx, fy, fh * 0.27, fh * 0.9, ph, true, c.fade);
+    if (fit.sideFlames) {
+      for (const sf of fit.sideFlames) {
+        structFlame(x + sf[0] * k, y + sf[1] * k, 2 * k, structClamp(6.4 + Math.sin(ph * 1.4 + sf[0]) * 1.1, 3, 9) * k, ph + sf[0], false, c.fade);
+      }
+    }
+    if (fit.brand) {
+      structFlame(x + fit.brand[0] * k, y + fit.brand[1] * k, 1.5 * k, structClamp(5 + Math.sin(ph * 1.9) * 0.9, 3, 7) * k, ph * 1.3 + 2, false, c.fade);
+    }
+    ctx.globalAlpha = c.fade;
+    if (fit.mouth) {
+      // ember column climbing out of the furnace
+      ctx.fillStyle = "#ffc266";
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const rise = (ph * 0.11 + i / 6) % 1, es = (1.7 - rise * 1) * k;
+        ctx.rect(fx + Math.sin(i * 2.4 + ph * 0.7) * (2.4 + rise * 4) * k - es / 2, fy - (8 + rise * 22) * k, es, es);
+      }
+      ctx.fill();
+    }
+    // sparks lifted off the beacon on the draught, drifting as they cool
+    ctx.fillStyle = "#ffe3a0";
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const rise = (ph * 0.083 + i / 4 + 0.13) % 1, es = (1.2 - rise * 0.7) * k;
+      ctx.rect(fx + Math.sin(i * 1.9 + rise * 5) * (1.5 + rise * 6) * k - es / 2, fy - fh * 0.8 - rise * 16 * k, es, es);
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  },
 };
 // ====================================== END SKIN SECTION: beacon ======================================
 
