@@ -17279,12 +17279,479 @@ function ballistaEngineSprite(lvl, spec, pxu, dir8) {
 // SKIN SECTION: javelin. Urartu, ballista slot: a bastion of javelin-throwers
 // Everything this skin needs lives between this banner and its END banner.
 // ======================================================================================
+// Urartu had no mechanical artillery: the slot is a bastion in the citadel manner, a socle of big
+// dressed grey blocks under mudbrick courses, flat buttresses and plain rectangular merlons, manned
+// by javelin-men in conical bronze helmets with round bronze shields and bronze belts.
+const JV = {
+  mud: "#c79c6c", mudSide: "#8a6444", socle: "#8c8070", socleSide: "#5f564c",
+  tunic: TOWER_ACCENT.ballista, sleeve: toneHex(TOWER_ACCENT.ballista, 14),
+  skin: "#e2b78c", shaft: "#b08a52", head: "#d3d8dc", bronzeDark: "#8a5f24",
+};
+// each rank's outline: w, d of the brick body, socle and brick heights, the men and their scale
+function jvDims(lvl, spec) {
+  if (spec === "a") return { w: 31, d: 16, socle: 15, brick: 27, F: 1.34 };
+  if (spec === "b") return { w: 40, d: 15, socle: 12, brick: 21, F: 1.1 };
+  return [
+    { w: 23, d: 13, socle: 10, brick: 10, F: 1.1 },
+    { w: 25, d: 13, socle: 12, brick: 20, F: 1.1 },
+    { w: 30, d: 15, socle: 13, brick: 25, F: 1.1 },
+  ][lvl];
+}
+function jvPlinth(lvl, spec) {
+  const D = jvDims(lvl, spec);
+  return { w: D.w + (spec === "a" ? 13 : 9), d: D.d + 6, h: 4.5, stepped: !!spec || lvl === 2 };
+}
+// which way each thrower looks: the first at the tower's aim, the twin's second at its own mark
+function jvFace(a) { return Math.cos(a) < 0 ? -1 : 1; }
+function jvAim2(t, aim) { return t && isFinite(t.jvAim2) ? t.jvAim2 : aim; }
+
+// a leaf-shaped head on a shaft from (x0, y0) to its tip (x1, y1)
+function jvLeaf(x1, y1, dx, dy, len, half, fill, inkW) {
+  const c = sctx, nx = -dy, ny = dx;
+  const mx = x1 - dx * len * 0.58, my = y1 - dy * len * 0.58, bx = x1 - dx * len, by = y1 - dy * len;
+  c.beginPath();
+  c.moveTo(x1, y1);
+  c.quadraticCurveTo(mx + nx * half * 1.15 + dx * len * 0.2, my + ny * half * 1.15 + dy * len * 0.2, mx + nx * half, my + ny * half);
+  c.lineTo(bx + nx * 0.3, by + ny * 0.3);
+  c.lineTo(bx - nx * 0.3, by - ny * 0.3);
+  c.lineTo(mx - nx * half, my - ny * half);
+  c.quadraticCurveTo(mx - nx * half * 1.15 + dx * len * 0.2, my - ny * half * 1.15 + dy * len * 0.2, x1, y1);
+  c.closePath();
+  c.fillStyle = fill;
+  c.fill();
+  inkStroke(inkW);
+}
+// one javelin standing or leaning: butt at (x0, y0), tip at (x1, y1)
+function jvShaft(x0, y0, x1, y1, heavy) {
+  const c = sctx, len = Math.hypot(x1 - x0, y1 - y0) || 1, dx = (x1 - x0) / len, dy = (y1 - y0) / len;
+  const hl = heavy ? 5.6 : 4.2, sx = x1 - dx * hl, sy = y1 - dy * hl;
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(x0, y0);
+  c.lineTo(sx, sy);
+  c.strokeStyle = INK;
+  c.lineWidth = heavy ? 2.3 : 1.7;
+  c.stroke();
+  c.strokeStyle = JV.shaft;
+  c.lineWidth = heavy ? 1.2 : 0.8;
+  c.stroke();
+  jvLeaf(x1, y1, dx, dy, hl, heavy ? 1.6 : 1.15, JV.head, heavy ? 0.6 : 0.5);
+}
+// a bundle of javelins leaning against a wall, tied at the waist
+function jvBundle(x, y, n, len, lean, heavy) {
+  for (let i = 0; i < n; i++) {
+    const o = (i - (n - 1) / 2) * (heavy ? 1.5 : 1.15);
+    jvShaft(x + o * 0.7, y, x + o * 1.4 + lean, y - len + Math.abs(o) * 0.5, heavy);
+  }
+  lashing(x + lean * 0.32, y - len * 0.32, 0.75);
+}
+// a timber rack: two posts, two rails, the javelins stood up in it
+function jvRack(x, y, w, n, len, heavy) {
+  const c = sctx;
+  fillBlobs("rgba(24, 14, 4, .28)", [[x + w / 2 + 1.5, y + 0.4, w / 2 + 3, 1.6]]);
+  beam(x, y, x, y - len * 0.62, 1.5, TIMBER_DARK);
+  beam(x + w, y - 0.8, x + w, y - len * 0.6, 1.5, TIMBER_DARK);
+  beam(x - 1, y - len * 0.56, x + w + 1, y - len * 0.54, 1.3, TIMBER);
+  for (let i = 0; i < n; i++) {
+    const bx = x + 1.6 + i * (w - 3.2) / Math.max(1, n - 1), tilt = (i % 2 ? 0.6 : -0.4) + (i - (n - 1) / 2) * 0.35;
+    jvShaft(bx, y - 0.4, bx + tilt, y - len, heavy);
+  }
+  beam(x - 1, y - len * 0.22, x + w + 1, y - len * 0.2, 1.3, TIMBER);
+  snowOnBeam(x - 1, y - len * 0.56, x + w + 1, y - len * 0.54, 1.3);
+}
+// the round bronze shield of the Urartian infantry: two raised rings and a boss
+function jvShield(x, y, rx, ry) {
+  const c = sctx;
+  c.fillStyle = "rgba(30, 16, 6, .3)";
+  c.beginPath();
+  c.ellipse(x + 0.7, y + 0.7, rx, ry, 0, 0, Math.PI * 2);
+  c.fill();
+  const g = c.createLinearGradient(x - rx, y - ry, x + rx, y + ry);
+  g.addColorStop(0, "#e6b864");
+  g.addColorStop(0.5, BRONZE);
+  g.addColorStop(1, "#7f5822");
+  inkDisc(x, y, rx, ry, g, 1);
+  c.strokeStyle = "rgba(90, 56, 18, .8)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.ellipse(x, y, rx * 0.74, ry * 0.74, 0, 0, Math.PI * 2);
+  c.moveTo(x + rx * 0.44, y);
+  c.ellipse(x, y, rx * 0.44, ry * 0.44, 0, 0, Math.PI * 2);
+  c.stroke();
+  c.strokeStyle = "rgba(255, 236, 190, .7)";
+  c.beginPath();
+  c.ellipse(x, y, rx * 0.86, ry * 0.86, 0, Math.PI * 1.05, Math.PI * 1.55);
+  c.stroke();
+  inkDisc(x, y, rx * 0.2, ry * 0.2, "#f0cf86", 0.45);
+}
+// a javelin-man, in the build of the garrison figures. He faces +x before `face` mirrors him.
+// o.arm: "throw" leaves the throwing arm to the live pass, "hold" stands a javelin by him
+function jvMan(x, y, F, face, o) {
+  const c = sctx, crest = !!o.crest;
+  c.save();
+  c.translate(x, y);
+  c.scale(F * face, F);
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  // a quiver of spare javelins slung across the back
+  if (o.quiver) {
+    for (const q of [[-4.4, -2.2], [-5.4, -3.2], [-3.6, -1.4]]) jvShaft(q[0] + 1.6, -5, q[0] - 1.4, -25 + q[1], false);
+    inkPoly([-1.6, -5.4, -3.2, -5, -6.2, -16.6, -4.3, -17.2], "#6e4a2a", 0.8);
+    c.fillStyle = "rgba(255, 232, 190, .25)";
+    c.fillRect(-4.6, -15, 0.7, 7);
+    c.strokeStyle = BRONZE;
+    c.lineWidth = 0.7;
+    c.beginPath(); c.moveTo(-6, -15.6); c.lineTo(-4.3, -16.2); c.stroke();
+  }
+  // legs in a throwing stride
+  for (const l of [[-1.8, -3.4], [1.9, 3]]) {
+    c.beginPath();
+    c.moveTo(l[0], -5); c.lineTo(l[1], -1.2);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = "#5a3c22"; c.lineWidth = 2.1; c.stroke();
+  }
+  // short tunic with a fringed hem and the broad bronze belt
+  c.beginPath();
+  c.moveTo(-4.1, -11.6);
+  c.quadraticCurveTo(0, -13.4, 4.1, -11.6);
+  c.lineTo(3.8, -4.2);
+  c.lineTo(-3.8, -4.2);
+  c.closePath();
+  c.fillStyle = JV.tunic;
+  c.fill();
+  inkStroke(1.1);
+  c.fillStyle = "rgba(255, 240, 210, .3)";
+  c.fillRect(-3.1, -11.4, 2.1, 6.2);
+  c.strokeStyle = "rgba(242, 226, 190, .85)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let fx = -3.2; fx < 3.6; fx += 1.1) { c.moveTo(fx, -4.6); c.lineTo(fx - 0.2, -3.5); }
+  c.stroke();
+  inkRect(-3.7, -7.9, 7.4, 2, BRONZE, 0.6);
+  c.fillStyle = "#f0cf86";
+  c.fillRect(-3.4, -7.7, 6.8, 0.45);
+  // head, full dark beard, conical bronze helmet with a crest ridge on some
+  inkDisc(0.4, -15.2, 3, 3, JV.skin, 1);
+  c.beginPath();
+  c.moveTo(-0.6, -14.6);
+  c.quadraticCurveTo(0.2, -11.2, 2.4, -11.6);
+  c.quadraticCurveTo(3.6, -12.4, 3.4, -14.4);
+  c.closePath();
+  c.fillStyle = "#3b2616";
+  c.fill();
+  c.fillStyle = "#24170d";
+  c.fillRect(1.6, -16.4, 1, 1.1);
+  c.fillStyle = "#3b2616";
+  c.fillRect(-2.7, -15.8, 1.3, 2.4);
+  c.beginPath();
+  c.moveTo(-3, -16.1);
+  c.quadraticCurveTo(-2.1, -20.8, 0.7, -23.6);
+  c.quadraticCurveTo(3.1, -20.8, 3.9, -16.1);
+  c.closePath();
+  c.fillStyle = BRONZE;
+  c.fill();
+  inkStroke(0.9);
+  c.strokeStyle = JV.bronzeDark;
+  c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(-2.8, -16.7); c.lineTo(3.7, -16.7); c.stroke();
+  c.fillStyle = "rgba(255, 244, 214, .5)";
+  c.fillRect(-1.4, -20, 1, 3);
+  if (crest) {
+    // a raised ridge from brow to apex, curling forward at the top
+    c.beginPath();
+    c.moveTo(3.2, -17.4);
+    c.quadraticCurveTo(2.6, -21.4, 0.7, -23.6);
+    c.quadraticCurveTo(2.6, -24.6, 3.8, -23);
+    c.strokeStyle = INK; c.lineWidth = 1.6; c.stroke();
+    c.strokeStyle = "#e9c072"; c.lineWidth = 0.7; c.stroke();
+  }
+  const arm = pts => {
+    c.beginPath();
+    c.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]);
+    c.strokeStyle = INK; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = JV.sleeve; c.lineWidth = 1.9; c.stroke();
+    inkDisc(pts[pts.length - 2], pts[pts.length - 1], 1.1, 1.1, JV.skin, 0.6);
+  };
+  if (o.arm === "hold") {
+    // the loader: a javelin stood by him, ready to pass up
+    jvShaft(-4.8, -1, -5.2, -27.5, o.heavy);
+    arm([-2.4, -11, -4.2, -10.2, -5, -12.6]);
+  }
+  // the shield on the leading arm
+  const sr = o.great ? 4.4 : 3.9;
+  jvShield(3.9, -10.2, sr * 0.82, sr);
+  c.restore();
+  // the live pass needs his feet and scale
+  structFit.men.push({ p: structPoint(x, y), F, thrower: o.arm === "throw", heavy: !!o.heavy, n: o.n || 0 });
+}
+// a plain doorway with a heavy stone lintel, cut through the socle
+function jvDoor(x, w, h) {
+  const c = sctx;
+  inkRect(x - w / 2 - 1.3, -h - 1.2, w + 2.6, h + 1.2, "#b9ab96", 0.9);
+  inkRect(x - w / 2, -h, w, h, "#6b4526", 0.8);
+  c.strokeStyle = "rgba(36, 20, 8, .7)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let px = x - w / 2 + 1.5; px < x + w / 2 - 0.3; px += 1.5) { c.moveTo(px, 0); c.lineTo(px, -h); }
+  c.stroke();
+  c.fillStyle = "rgba(20, 10, 4, .5)";
+  c.fillRect(x - w / 2, -h, w, 1.8);
+  ironBand(x - w / 2, -h * 0.66, w, 0.8);
+  ironBand(x - w / 2, -h * 0.28, w, 0.8);
+  inkRect(x - w / 2 - 2.6, -h - 3.6, w + 5.2, 2.6, toneHex(JV.socle, 18), 0.9);
+  c.fillStyle = "rgba(255, 248, 228, .45)";
+  c.fillRect(x - w / 2 - 2, -h - 3.2, w + 4, 0.5);
+}
+// the socle's dressed blocks: long stones laid in two courses, each with a drafted lit margin
+function jvAshlar(w, h, rows, seed) {
+  const c = sctx, rnd = mulberry32(seed), ch = h / rows;
+  c.strokeStyle = "rgba(34, 26, 20, .55)";
+  c.lineWidth = 0.7;
+  c.lineCap = "butt";
+  c.beginPath();
+  const lit = [];
+  for (let r = 0; r < rows; r++) {
+    const y1 = -r * ch, y0 = y1 - ch;
+    if (r > 0) { c.moveTo(-w / 2, y1); c.lineTo(w / 2, y1); }
+    let x = -w / 2 + (r % 2 ? 4 + rnd() * 3 : 8 + rnd() * 4);
+    let prev = -w / 2;
+    while (x < w / 2 - 3) {
+      c.moveTo(x, y0 + 0.3); c.lineTo(x, y1 - 0.3);
+      lit.push(prev + 0.8, y0 + 0.9, x - prev - 1.6);
+      prev = x;
+      x += 10 + rnd() * 6;
+    }
+    lit.push(prev + 0.8, y0 + 0.9, w / 2 - prev - 1.6);
+  }
+  c.stroke();
+  c.lineCap = "round";
+  c.fillStyle = "rgba(255, 248, 232, .32)";
+  for (let i = 0; i < lit.length; i += 3) if (lit[i + 2] > 1) c.fillRect(lit[i], lit[i + 1], lit[i + 2], 0.5);
+}
+// a flat buttress standing proud of the brick face by `p`
+function jvButtress(x, w, h, p, seed) {
+  const c = sctx;
+  c.save();
+  c.translate(x - p * OBQ.dx, -p * OBQ.dy);
+  box3(w, h, p, JV.mud, { masonry: true, side: JV.mudSide, course: 5.6, block: 9, band: 10, seed, contact: false });
+  c.restore();
+}
+
+function paintJavelinBastion(lvl, spec, variant) {
+  const c = sctx, S = footStone(), T = towerStone(), D = jvDims(lvl, spec), P = jvPlinth(lvl, spec), A = TOWER_ACCENT.ballista;
+  const face0 = variant & 1 ? -1 : 1, face1 = variant & 2 ? -1 : 1;
+  const great = spec === "a", twin = spec === "b";
+  structFit.men = [];
+  footPlinth(P.w, P.d, P.h, S, 61 + lvl + (spec ? 7 : 0), P.stepped);
+  c.save();
+  // the socle: two courses of big dressed blocks, a little wider and deeper than the brickwork
+  const sw = D.w + 3, sd = D.d + 3;
+  c.translate(-sd * OBQ.dx / 2, -P.h - sd * OBQ.dy / 2);
+  box3(sw, D.socle, sd, JV.socle, { masonry: true, side: JV.socleSide, course: D.socle / 2, block: great ? 19 : 16, seed: 71 + lvl, rough: !spec && lvl === 0 });
+  jvAshlar(sw, D.socle, 2, 51 + lvl * 3 + (spec === "b" ? 7 : 0));
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+  if (lvl > 0 || spec) jvDoor(twin ? -9 : 0, 5.4, Math.min(D.socle - 3.4, 9));
+  // mudbrick upper courses, set back on the socle
+  c.translate(1.5 * OBQ.dx, -D.socle + 1.5 * OBQ.dy);
+  const W = D.w, H = D.brick, Dp = D.d, ox = Dp * OBQ.dx, oy = Dp * OBQ.dy;
+  box3(W, H, Dp, JV.mud, { masonry: true, side: JV.mudSide, course: 5.6, block: 9, band: 10, seed: 81 + lvl + (spec ? 11 : 0), contact: false });
+  ledgeShade(-W / 2, 0, W);
+  if (lvl > 0 || spec) towerFrieze(W, Dp, -H + 3.4);
+  // the flat buttresses of the citadel walls
+  const butts = great ? [[-W / 2 + 3.2, 6.4, 2.6], [W / 2 - 3.2, 6.4, 2.6]]
+    : twin ? [[-W / 2 + 2.4, 4.6, 1.8], [0, 4.6, 1.8], [W / 2 - 2.4, 4.6, 1.8]]
+      : lvl === 2 ? [[-W / 2 + 2.4, 4.6, 1.8], [W / 2 - 2.4, 4.6, 1.8]] : [];
+  for (const b of butts) jvButtress(b[0], b[1], H, b[2], 90 + Math.round(b[0]));
+  // loops for the night, a torch for the wall
+  if (lvl === 0 && !spec) stainedSlit(5.5, -H + 3.6, 2.2, 4.4);
+  else if (twin) { stainedSlit(-10, -H + 9, 2.4, 6); stainedSlit(10, -H + 9, 2.4, 6); }
+  else if (great) { stainedSlit(-5.6, -H + 9.5, 2.4, 7); stainedSlit(5.6, -H + 9.5, 2.4, 7); }
+  else if (lvl === 2) { stainedSlit(-7.5, -H + 9.5, 2.4, 6.4); stainedSlit(7.5, -H + 9.5, 2.4, 6.4); }
+  else stainedSlit(-6.5, -H + 9, 2.4, 6);
+  // bronze shields hung on the wall face, as on the temple walls of Urartu
+  if (great) {
+    for (const sx of [-5.6, 0, 5.6]) jvShield(sx, -H + (sx ? 21.5 : 14), 2.9, 3.2);
+  } else if (!spec && lvl === 2) {
+    jvShield(0, -H + 13, 3, 3.3);
+  }
+  if (lvl > 0 || spec) wallTorch(twin ? 15 : W / 2 - 4.2, -6.4);
+  if (twin) wallTorch(-15.4, -6.4);
+  else wallTorch(-W / 2 + 4.6, -3.2);
+  if (structSnow) snowCap(-sw / 2 - 1.5, -0.2, sw * 0.4, 1);
+
+  // the fighting deck
+  const cx = ox / 2, cy = -H + oy / 2, walk = cy + 1.4;
+  parapetBack(W, H, Dp, JV.mud);
+  if (lvl > 0 || spec) pennantPole(W / 2 + ox - 2.4, -H + oy + 0.4, great ? 22 : 18, 12, 5.5, A);
+  // spare javelins: a bundle against the back wall, a rack from the third rank
+  if (twin) {
+    jvBundle(cx - 19, walk - 3.2, 4, 25, -1.2, false);
+  } else if (great) {
+    jvBundle(cx - 13, walk - 3.6, 3, 29, -1.6, true);
+  } else if (lvl === 2) {
+    jvRack(cx - 17.5, walk - 3.6, 8, 4, 25, false);
+  } else if (lvl === 1) {
+    jvBundle(cx - 9, walk - 3.4, 4, 24, -1.2, false);
+  } else {
+    jvBundle(cx - 7.5, walk - 3, 2, 22, -1, false);
+  }
+  if (twin) {
+    jvMan(cx - 10.5, walk, D.F, face0, { arm: "throw", crest: true, n: 0 });
+    jvMan(cx + 10.5, walk + 0.4, D.F, face1, { arm: "throw", crest: false, n: 1 });
+  } else if (great) {
+    jvMan(cx + 1, walk + 0.6, D.F, face0, { arm: "throw", crest: true, great: true, heavy: true, n: 0 });
+  } else if (lvl === 2) {
+    jvMan(cx - 9.5, walk - 0.2, D.F, face0, { arm: "hold", crest: false });
+    jvMan(cx + 7.5, walk + 0.4, D.F, face0, { arm: "throw", crest: true, n: 0 });
+  } else {
+    jvMan(cx + 1, walk + 0.4, D.F, face0, { arm: "throw", crest: lvl === 1, n: 0 });
+  }
+  parapetFront(W, H, Dp, JV.mud);
+  structCrown(walk - 27 * D.F);
+  c.restore();
+  if (great) {
+    // the great rack of heavy javelins stood on the plinth beside the bastion
+    const gx = sw / 2 + 2, gy = -P.h + 1;
+    jvRack(gx, gy, 10, 4, 36, true);
+  }
+}
+
 SKIN_ART.javelin = {
-  // placeholder until the art lands: the slot's original engine stands in
-  box: TOWER_BOX.ballista,
+  box: [-44, -98, 58, 20],
   scale: TOWER_SCALE.ballista,
-  paint(lvl, spec, variant) { paintBallistaBase(lvl, spec); },
-  proj: "javelin", projSpeed: 520, sound: "javelin",
+  paint(lvl, spec, variant) { paintJavelinBastion(lvl, spec, variant); },
+  // the bake follows which way each thrower faces; the twin's second man has a target of his own
+  variant(t, aim) {
+    return (jvFace(aim) < 0 ? 1 : 0) + (t.spec === "b" && jvFace(jvAim2(t, aim)) < 0 ? 2 : 0);
+  },
+  footing(lvl, spec) {
+    const P = jvPlinth(lvl, spec), k = STRUCT_K * TOWER_SCALE.ballista;
+    return { w: (P.w + (P.stepped ? 3 : 0)) * k, d: (P.d + (P.stepped ? 2 : 0)) * k, cy: 0 };
+  },
+  // the twin's second javelin goes to another foe: note where, so his man turns to it
+  onFire(t, target) {
+    if (t.spec !== "b") return;
+    if (t.jvMark === t.cd) {
+      const p = enemyPos(target);
+      t.jvAim2 = Math.atan2(p.y - t.y, p.x - t.x);
+    } else t.jvMark = t.cd;
+  },
+  live(t, c) {
+    const men = c.fit.men;
+    if (!men) return;
+    // the arm snaps forward on the throw and comes back over the shoulder with the next javelin
+    const e = c.kick, armed = c.kick < 0.22;
+    for (let i = 0; i < men.length; i++) {
+      const m = men[i];
+      if (!m.thrower) continue;
+      const a = m.n === 1 ? jvAim2(t, c.aim) : c.aim, f = jvFace(a), u = c.k * m.F;
+      const ox = c.x + m.p[0] * c.k, oy = c.y + m.p[1] * c.k;
+      const sx = ox - 1.6 * f * u, sy = oy - 11.4 * u;
+      const ex = ox + (-5.2 + 7.8 * e) * f * u, ey = oy + (-14.6 - 0.2 * e) * u;
+      const hx = ox + (-6 + 12.8 * e) * f * u, hy = oy + (-19.5 + 3.3 * e) * u;
+      if (armed) {
+        // the javelin is poised over the helmet, tilted up toward its mark
+        let dx = 0.35 + 0.65 * Math.abs(Math.cos(a)), dy = Math.min(-0.3, Math.sin(a) * 0.5 - 0.5);
+        const dl = Math.hypot(dx, dy);
+        dx = dx / dl * f; dy /= dl;
+        const L = m.heavy ? 27 : 24, back = L * 0.38, hl = (m.heavy ? 5.6 : 4.4) * u, half = (m.heavy ? 1.7 : 1.25) * u;
+        const tx = hx + dx * (L - back) * u, ty = hy + dy * (L - back) * u;
+        const bx = tx - dx * hl, by = ty - dy * hl, mx = tx - dx * hl * 0.58, my = ty - dy * hl * 0.58;
+        ctx.beginPath();
+        ctx.moveTo(hx - dx * back * u, hy - dy * back * u);
+        ctx.lineTo(bx, by);
+        ctx.strokeStyle = INK; ctx.lineWidth = (m.heavy ? 2.4 : 1.8) * u; ctx.stroke();
+        ctx.strokeStyle = JV.shaft; ctx.lineWidth = (m.heavy ? 1.3 : 0.9) * u; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(mx - dy * half, my + dx * half);
+        ctx.lineTo(bx - dy * 0.3 * u, by + dx * 0.3 * u);
+        ctx.lineTo(bx + dy * 0.3 * u, by - dx * 0.3 * u);
+        ctx.lineTo(mx + dy * half, my - dx * half);
+        ctx.closePath();
+        ctx.fillStyle = JV.head; ctx.fill();
+        ctx.strokeStyle = INK; ctx.lineWidth = 0.55 * u; ctx.stroke();
+      } else if (e > 0.55) {
+        // the swing leaves a pale sweep over his head
+        ctx.beginPath();
+        ctx.arc(sx, sy, 8.5 * u, f > 0 ? -2.3 : -0.84, f > 0 ? -0.6 : -2.54, f < 0);
+        ctx.strokeStyle = "rgba(255, 248, 226, " + ((e - 0.55) * 1.4).toFixed(2) + ")";
+        ctx.lineWidth = 1.6 * u;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy);
+      ctx.strokeStyle = INK; ctx.lineWidth = 3 * u; ctx.stroke();
+      ctx.strokeStyle = JV.sleeve; ctx.lineWidth = 1.9 * u; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(hx, hy, 1.1 * u, 0, Math.PI * 2);
+      ctx.fillStyle = JV.skin; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.6 * u; ctx.stroke();
+    }
+  },
+  proj: "javelin", projSpeed: 470, sound: "javelin",
+};
+
+// the thrown javelin, drawn over life size like the bolt: longer than an arrow, a leaf-shaped
+// iron head, and a pale streak off the butt so it reads in the one frame it crosses the road
+PROJ_ART.javelin = pr => {
+  const pp = proj(pr.x, pr.y), heavy = !!(pr.src && pr.src.spec === "a");
+  const big = pp.s * (heavy ? 1.45 : 1.3);
+  shadow(pp.x, pp.y + 14 * pp.s, (heavy ? 10 : 8.5) * pp.s, 2.4 * pp.s);
+  ctx.save();
+  ctx.translate(pp.x, pp.y);
+  ctx.rotate(pr.ang || 0);
+  ctx.scale(big, big);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const INK_EDGE = "#1c1108", up = Math.cos(pr.ang || 0) >= 0 ? -1 : 1;
+  const tail = heavy ? -16 : -14, tip = heavy ? 21 : 19, hl = heavy ? 10.5 : 9;
+  // dark wake, then the pale streak
+  ctx.fillStyle = "rgba(28, 17, 6, .22)";
+  ctx.beginPath(); ctx.moveTo(tail + 2, -2.6); ctx.lineTo(tail - 32, 0); ctx.lineTo(tail + 2, 2.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255, 246, 216, .86)";
+  ctx.beginPath(); ctx.moveTo(tail + 2, -1.4); ctx.lineTo(tail - 28, 0); ctx.lineTo(tail + 2, 1.4); ctx.closePath(); ctx.fill();
+  // the shaft, its lit edge, the cord grip and the bronze butt
+  ctx.strokeStyle = INK_EDGE;
+  ctx.lineWidth = heavy ? 3.6 : 2.8;
+  ctx.beginPath(); ctx.moveTo(tail, 0); ctx.lineTo(tip - hl + 1, 0); ctx.stroke();
+  ctx.strokeStyle = JV.shaft;
+  ctx.lineWidth = heavy ? 2 : 1.4;
+  ctx.stroke();
+  ctx.strokeStyle = "#dcc08a";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(tail + 1, up * (heavy ? 0.6 : 0.4)); ctx.lineTo(tip - hl, up * (heavy ? 0.6 : 0.4)); ctx.stroke();
+  ctx.fillStyle = "#3a2716";
+  ctx.fillRect(-2.2, heavy ? -1.3 : -1, 3.2, heavy ? 2.6 : 2);
+  ctx.fillStyle = BRONZE;
+  ctx.fillRect(tail - 1.2, heavy ? -1.2 : -0.9, 2.4, heavy ? 2.4 : 1.8);
+  // the leaf-shaped head and its midrib
+  const hw = heavy ? 3.2 : 2.5, b = tip - hl, m = tip - hl * 0.55;
+  ctx.fillStyle = "#c9d0da";
+  ctx.strokeStyle = INK_EDGE;
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(tip, 0);
+  ctx.quadraticCurveTo(m + hl * 0.25, -hw * 1.1, m, -hw);
+  ctx.quadraticCurveTo(b + hl * 0.12, -hw * 0.5, b, -0.7);
+  ctx.lineTo(b, 0.7);
+  ctx.quadraticCurveTo(b + hl * 0.12, hw * 0.5, m, hw);
+  ctx.quadraticCurveTo(m + hl * 0.25, hw * 1.1, tip, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#eef1f4";
+  ctx.beginPath();
+  ctx.moveTo(tip - 0.8, 0);
+  ctx.quadraticCurveTo(m + hl * 0.2, up * hw * 0.95, m, up * hw * 0.82);
+  ctx.lineTo(m - 1, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#7d8693";
+  ctx.lineWidth = 0.45;
+  ctx.beginPath(); ctx.moveTo(b, 0); ctx.lineTo(tip - 1.2, 0); ctx.stroke();
+  ctx.restore();
 };
 // ====================================== END SKIN SECTION: javelin ======================================
 
