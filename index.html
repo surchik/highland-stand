@@ -1578,7 +1578,7 @@ const LEVELS = [
     vishaps: [[340, 400], [1100, 400]],
     lake: null,
     plots: [[1250, 330], [700, 300], [620, 520], [300, 110], [160, 690], [1080, 110]],
-    theme: { top: "#9cb070", mid: "#7f9852", bot: "#5a7040", patch: "70, 104, 52",
+    theme: { top: "#a4ab76", mid: "#858f56", bot: "#5e6a42", patch: "80, 102, 56",
              sky: ["#8fb3cf", "#c9d8d8", "#efe9d6"], backdrop: "halidzor" },
     seed: 151,
   },
@@ -1982,14 +1982,16 @@ const bctx = bg.getContext("2d");
 // An id with neither a painter nor a stand-in still works: every switch has a default (the Tushpa look).
 // (A painter may also branch on THEME.id early, e.g. its own skyline over a borrowed biome.)
 const BACKDROP_STANDIN = {
-  halidzor: "lori",          // 1727, the forested gorges of Syunik
-  van: "urartu",             // 1915, the Rock of Van and its lake
-  musadagh: "sevan",         // 1915, green slopes above open water (the lake object is the sea)
   sardarapat: "ararat",      // 1918, the plain beneath Ararat
   stepanakert92: "gyumri",   // winter 1991-92, the capital under snow
   shushi: "urartu",          // 2020, a citadel town on its rock
   stepanakert23: "dvin",     // 2023, a city in a dry late summer
 };
+// A battlefield with its own painter may borrow another map's ambience bed (Snd.AMB is keyed by painter)
+const BACKDROP_AMB = { halidzor: "lori", van: "urartu", musadagh: "sevan" };
+// A battlefield with its own painter may plan its own field scenery: TERR_SCENERY[id] = { plan(k), life(k) },
+// called from terrPlanScene with its placing helpers (plan: the older scenery, life: the life of the villages)
+const TERR_SCENERY = {};
 const levelThemes = new Map();
 function levelTheme(L) {
   let t = levelThemes.get(L);
@@ -9587,7 +9589,9 @@ function terrPlanScene() {
     S.zones.push({ x: o.x, y: o.y, r: 120 + r() * 130, lush: i % 2 === 0 });
   }
 
-  if (name === "lori") {
+  if (TERR_SCENERY[name] && TERR_SCENERY[name].plan) {
+    TERR_SCENERY[name].plan({ S, r, add, grove, groves, scatter, block, occupy, house, spot, centre, free });
+  } else if (name === "lori") {
     // gorge lip in whichever far corner the roads leave alone
     for (const side of [1, -1]) {
       const fx = x => 640 + side * (x - 640);
@@ -10067,7 +10071,9 @@ function terrPlanScene() {
     return pts;
   };
 
-  if (name === "erebuni") {
+  if (TERR_SCENERY[name] && TERR_SCENERY[name].life) {
+    TERR_SCENERY[name].life({ S, cr, place, cadd, nearHut, khachkars, shepherd, fold, kal, tonir, newHouse, farmstead, cluster, stork, smokeOver, mark, undo, cpick });
+  } else if (name === "erebuni") {
     // the storeroom of karases by a house, an offering cauldron at the stele, bread, grain, fruit and storks
     newHouse();
     // the karas store wants a house wall with open ground round it, well clear of the tower pads
@@ -10234,7 +10240,13 @@ function bgBackdrop(c, rand) {
   c.translate(0, HORIZON - BACKDROP_LIFT);
   c.scale(1, bgBackdropSquash());
   c.translate(0, -HORIZON);
-  if (THEME.backdrop === "gyumri") {
+  if (THEME.backdrop === "halidzor") {
+    bgHalidzor(c);
+  } else if (THEME.backdrop === "van") {
+    bgVan1915(c);
+  } else if (THEME.backdrop === "musadagh") {
+    bgMusaDagh(c);
+  } else if (THEME.backdrop === "gyumri") {
     // snowbound Aragats massif: four linked summits
     c.fillStyle = "rgba(140, 155, 175, .5)";
     bgRidge(c, -60, HORIZON, 700, 40, 0.5);
@@ -12288,7 +12300,7 @@ function bgLake(c, rand) {
   const S = terrLakeShape(), T = terrScene, B = T.biome, N = S.N;
   const r = mulberry32(LVLSEED * 41 + 13);
   const ground = terrRgb(THEME.mid), lush = THEME.patch.split(",").map(Number);
-  const sand = terrMix(T.name === "sevan" ? [194, 192, 178] : T.name === "ararat" ? [200, 176, 130] : [202, 190, 160], ground, 0.15);
+  const sand = terrMix(T.name === "sevan" || T.name === "musadagh" ? [194, 192, 178] : T.name === "ararat" ? [200, 176, 130] : [202, 190, 160], ground, 0.15);
   const wet = terrMix(sand, [72, 96, 100], 0.42);
   const widen = T.name === "sevan" ? 1.4 : 1;
   const marginN = terrNoise(r, 17), fineN = terrNoise(r, 43), wetN = terrNoise(r, 23);
@@ -12538,7 +12550,7 @@ function bgLake(c, rand) {
       break;
     }
   }
-  const clumps = T.name === "urartu" ? 14 : 22;
+  const clumps = T.name === "urartu" ? 14 : T.name === "musadagh" ? 0 : 22;
   for (let k = 0, made = 0; k < 400 && made < clumps; k++) {
     const q = along(), w = terrLakeWorld(q.a, S.f[q.i] * (0.975 + rand() * 0.03), rand() * 5), p = proj(w.x, w.y);
     if (p.y > VH - 3 || p.x < 4 || p.x > VW - 4 || !terrPropFits(w.x, w.y, 23, 7, 7, false)) continue;
@@ -33721,6 +33733,760 @@ function showMenu(crest, title, sub, btnText, offerEndless) {
   syncPauseBtn();
 }
 
+// ====================================== BACKDROP SECTION: halidzor ======================================
+// Halidzor, late winter 1727: Davit Bek's hill fortress on its ridge above the Voghji gorge near Kapan.
+// Snow lingers on the Zangezur peaks and on jagged Khustup; the oak and hornbeam of the slopes stand bare;
+// the river glints at the foot of the gorge; the Ottoman siege camp lies in the valley to the west.
+
+// A wooded ridge seen from afar, for the broadleaf woods of the south: a body raked by the sun, its slopes
+// stippled with crowns and a soft crest of them along the top. o.kind "bare" draws leafless winter crowns
+// (a haze of twigs), "pine" the dark umbrella crowns of the Mediterranean pine; o.snow lays late patches
+// on the slopes that fall away from the sun. o: lit, shade, crown, crownShade, mist, sink, tuft, gap, snow
+function bdWoodRidge(c, keys, baseY, seed, o) {
+  const rand = mulberry32(seed);
+  const ridge = skyRidgeline(keys, rand, 0.35);
+  const x0 = ridge[0][0], x1 = ridge[ridge.length - 1][0];
+  let top = baseY;
+  for (const p of ridge) top = Math.min(top, p[1]);
+  const mid = skyMix(o.lit, o.shade, 0.5);
+  const body = c.createLinearGradient(0, top, 0, baseY);
+  body.addColorStop(0, skyCss(mid));
+  body.addColorStop(1, skyCss(skyMix(mid, o.mist, o.sink === undefined ? 0.45 : o.sink)));
+  const tuft = o.tuft || 4;
+  const crown = (x, y, k, lit) => {
+    const rw = tuft * k, rh = tuft * k * (o.kind === "pine" ? 0.55 : 0.8);
+    if (o.kind === "pine") {
+      c.fillStyle = skyCss(o.crownShade);
+      c.beginPath(); c.ellipse(x, y, rw, rh, 0, Math.PI, 0); c.closePath(); c.fill();
+      c.fillStyle = skyCss(o.crown, lit);
+      c.beginPath(); c.ellipse(x - rw * 0.25, y - rh * 0.25, rw * 0.6, rh * 0.6, 0, Math.PI, 0); c.closePath(); c.fill();
+    } else {
+      // a leafless crown is a haze of twigs: a faint dome with a fan of fine branches through it
+      c.fillStyle = skyCss(o.crown, lit * 0.45);
+      c.beginPath(); c.ellipse(x, y, rw, rh * 1.15, 0, Math.PI, 0); c.closePath(); c.fill();
+      c.strokeStyle = skyCss(o.crownShade, 0.75);
+      c.lineWidth = Math.max(0.5, tuft * k * 0.16);
+      c.beginPath();
+      for (let j = -2; j <= 2; j++) { c.moveTo(x, y + 0.4); c.lineTo(x + j * rw * 0.42, y - rh * (1.05 - Math.abs(j) * 0.18)); }
+      c.stroke();
+    }
+  };
+  c.save();
+  c.beginPath();
+  c.moveTo(x0, baseY);
+  for (const p of ridge) c.lineTo(p[0], p[1]);
+  c.lineTo(x1, baseY);
+  c.closePath();
+  c.fillStyle = body;
+  c.fill();
+  c.clip();
+  for (let i = 1; i < ridge.length; i++) {
+    const a = ridge[i - 1], b = ridge[i];
+    if (Math.abs(b[1] - a[1]) < 0.8) continue;
+    const sunward = b[1] < a[1];
+    skyPoly(c, [a, b, [b[0] + (baseY - b[1]) * 0.5, baseY], [a[0] + (baseY - a[1]) * 0.5, baseY]], skyCss(sunward ? o.lit : o.shade, 0.3));
+    // late snow lies on in the shade of the slopes that face away from the sun
+    if (o.snow && !sunward && rand() < 0.4) {
+      const sx = (a[0] + b[0]) / 2, sy = (a[1] + b[1]) / 2 + 3 + rand() * 6;
+      c.fillStyle = skyCss(skyMix([236, 242, 250], o.mist, 0.3), o.snow * 0.6);
+      for (let k = 0; k < 2; k++) {
+        c.beginPath(); c.ellipse(sx + (rand() - 0.3) * 10, sy + k * 3 + rand() * 2, 3 + rand() * 4, 0.9 + rand() * 0.6, 0.3, 0, Math.PI * 2); c.fill();
+      }
+    }
+  }
+  const n = Math.round((x1 - x0) * (baseY - top) / (o.kind === "pine" ? 90 : 60));
+  for (let i = 0; i < n; i++) {
+    const tx = x0 + rand() * (x1 - x0), crest = skyRidgeY(ridge, tx);
+    const ty = crest + 4 + rand() * rand() * (baseY - crest);
+    crown(tx, ty, 0.5 + rand() * 0.35, 0.5);
+  }
+  c.restore();
+  // the crest: crowns shoulder to shoulder along the skyline
+  for (let tx = x0 + 2; tx < x1 - 2;) {
+    const k = 0.7 + rand() * 0.6;
+    if (!o.gap || tx < o.gap[0] || tx > o.gap[1]) crown(tx, skyRidgeY(ridge, tx) + 1.6, k, 0.75);
+    tx += tuft * k * (o.kind === "pine" ? 1.1 + rand() * 0.9 : 0.6 + rand() * 0.6);
+  }
+  return ridge;
+}
+
+// a pale band of valley mist, thickest at its foot, with a few drifting wisps
+function bdMistBand(c, by, depth, strength, mist, rand) {
+  const g = c.createLinearGradient(0, by - depth, 0, by);
+  g.addColorStop(0, skyCss(mist, 0));
+  g.addColorStop(0.6, skyCss(mist, strength * 0.7));
+  g.addColorStop(1, skyCss(mist, strength));
+  c.fillStyle = g;
+  c.fillRect(-100, by - depth, VW + 200, depth);
+  c.fillStyle = skyCss(mist, strength * 0.4);
+  for (let i = 0; i < 6; i++) {
+    c.beginPath();
+    c.ellipse(rand() * VW, by - depth * (0.35 + rand() * 0.4), 60 + rand() * 90, 2.5 + rand() * 3, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+// a rising column of smoke, leaning downwind and widening as it climbs; dark at its root
+function bdSmokeColumn(c, x, y, h, w, rgb, alpha, rand, lean) {
+  const steps = 22;
+  for (let i = steps; i >= 0; i--) {
+    const t = i / steps;
+    const px = x + (lean || 0.55) * h * t * t + Math.sin(t * 9 + x) * 2.4 * t + (rand() - 0.5) * w * 0.5 * t;
+    const py = y - h * t;
+    const r = w * (0.3 + t * 1.1) * (0.8 + rand() * 0.4);
+    const tone = skyMix(rgb, skyRgb(THEME.sky[1]), t * 0.55);
+    c.fillStyle = skyCss(tone, alpha * (1 - t * 0.75));
+    c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = skyCss(skyMix(tone, [255, 250, 240], 0.25), alpha * (1 - t * 0.75) * 0.5);
+    c.beginPath(); c.arc(px - r * 0.3, py - r * 0.3, r * 0.55, 0, Math.PI * 2); c.fill();
+  }
+}
+
+function bgHalidzor(c) {
+  const by = HORIZON;
+  const rand = mulberry32(1727);
+  const mist = skyRgb(THEME.sky[2]);
+  // the high Zangezur peaks still under snow
+  skyRange(c, -90, 1370, by - 30, 52, 17271, {
+    lit: skyAir([150, 160, 176], 0.6), shade: skyAir([102, 114, 140], 0.55),
+    snowLit: skyAir([252, 252, 250], 0.22), snowShade: skyAir([184, 196, 222], 0.42),
+    snow: 0.45, rough: 0.5, fade: 0.5, ribs: 2, massifs: 3,
+  });
+  // Khustup: the jagged pyramid that stands over Kapan
+  skyPeak(c, [[96, by], [168, by - 46], [214, by - 78], [238, by - 92], [262, by - 80], [300, by - 61], [338, by - 40], [420, by]], 3, by, {
+    lit: skyAir([150, 136, 130], 0.34), shade: skyAir([84, 86, 112], 0.3),
+    snowLit: skyAir([252, 252, 250], 0.12), snowShade: skyAir([180, 192, 220], 0.28),
+    snow: 0.28, rough: 0.7, fade: 0.55, ribs: 3,
+  });
+  skyCloudsDriftHere(c);
+  bdMistBand(c, by, 60, 0.55, mist, rand);
+  // the bare oak and hornbeam of the ridges, browner and darker as they near
+  bdWoodRidge(c, [[-90, by - 42], [40, by - 52], [170, by - 43], [330, by - 54], [470, by - 47], [600, by - 55], [770, by - 45],
+    [930, by - 56], [1080, by - 47], [1220, by - 55], [1370, by - 45]], by, 17272, {
+    lit: skyAir([150, 136, 132], 0.5), shade: skyAir([98, 96, 112], 0.46), crown: skyAir([170, 152, 142], 0.45), crownShade: skyAir([112, 104, 112], 0.42),
+    mist, sink: 0.5, tuft: 2.6, kind: "bare", snow: 0.7,
+  });
+  bdMistBand(c, by, 44, 0.5, mist, rand);
+  bdWoodRidge(c, [[-90, by - 33], [60, by - 42], [210, by - 34], [360, by - 44], [470, by - 36], [560, by - 30], [700, by - 40],
+    [860, by - 34], [1000, by - 46], [1150, by - 36], [1370, by - 42]], by, 17273, {
+    lit: skyAir([152, 126, 104], 0.28), shade: skyAir([86, 76, 82], 0.26), crown: skyAir([170, 140, 114], 0.25), crownShade: skyAir([102, 84, 82], 0.24),
+    mist, sink: 0.45, tuft: 3.2, kind: "bare", snow: 0.85,
+  });
+  bdMistBand(c, by, 30, 0.42, mist, rand);
+
+  // the valley floor west of the gorge, where the besiegers have pitched their camp
+  const floorLit = skyAir([150, 140, 104], 0.18), floorShade = skyAir([104, 96, 80], 0.18);
+  skyHills(c, -110, 460, by, 13, 17274, floorLit, floorShade);
+  const tent = (x, y, s, pavilion) => {
+    const lit = skyAir([238, 228, 204], 0.1), shade = skyAir([170, 154, 136], 0.1), ink = skyCss([70, 54, 44], 0.7);
+    if (pavilion) {
+      // the commander's pavilion: a long ridge tent with walls
+      c.fillStyle = ink;
+      c.fillRect(x - 13 * s, y - 6.6 * s, 26 * s, 7 * s);
+      c.fillStyle = skyCss(lit); c.fillRect(x - 12.4 * s, y - 6 * s, 15 * s, 6 * s);
+      c.fillStyle = skyCss(shade); c.fillRect(x + 2.6 * s, y - 6 * s, 9.8 * s, 6 * s);
+      skyPoly(c, [[x - 14 * s, y - 5.6 * s], [x - 8 * s, y - 12 * s], [x + 8 * s, y - 12 * s], [x + 2 * s, y - 5.6 * s]], skyCss(skyMix(lit, [255, 252, 240], 0.3)));
+      skyPoly(c, [[x + 2 * s, y - 5.6 * s], [x + 8 * s, y - 12 * s], [x + 14 * s, y - 5.6 * s]], skyCss(shade));
+      c.fillStyle = skyCss([150, 52, 40], 0.9);
+      c.fillRect(x - 12.4 * s, y - 6 * s, 25 * s, 1 * s);
+      c.fillStyle = skyCss([52, 38, 32], 0.9);
+      c.fillRect(x - 4 * s, y - 4 * s, 2.4 * s, 4 * s);
+    } else {
+      // a bell tent: a low drum under a cone
+      skyPoly(c, [[x - 4.6 * s, y], [x - 4.6 * s, y - 2.6 * s], [x, y - 8.6 * s], [x + 4.6 * s, y - 2.6 * s], [x + 4.6 * s, y]], ink);
+      skyPoly(c, [[x - 4 * s, y], [x - 4 * s, y - 2.6 * s], [x, y - 8 * s], [x, y]], skyCss(lit));
+      skyPoly(c, [[x, y], [x, y - 8 * s], [x + 4 * s, y - 2.6 * s], [x + 4 * s, y]], skyCss(shade));
+      c.fillStyle = skyCss([60, 44, 36], 0.85);
+      c.fillRect(x - 1.6 * s, y - 2.6 * s, 1.4 * s, 2.6 * s);
+    }
+  };
+  const camp = [];
+  for (let i = 0; i < 26; i++) camp.push([30 + rand() * 400, by - 2 - rand() * 7, 0.75 + rand() * 0.3]);
+  camp.sort((a, b) => a[1] - b[1]);
+  for (const [x, y, s] of camp) tent(x, y, s, false);
+  tent(250, by - 3, 1.05, true);
+  // campfire smoke drifting over the tents
+  for (const [x, y] of [[96, by - 6], [188, by - 4], [318, by - 7], [402, by - 3]]) skySmoke(c, x, y, 16, [214, 208, 200], 0.4, 1);
+
+
+  // the fortress hill: bare woods on its flanks, snow lying in their shade, rising to a crag under the walls
+  const hill = bdWoodRidge(c, [[540, by], [566, by - 22], [606, by - 34], [646, by - 46], [672, by - 52], [700, by - 55], [760, by - 56],
+    [808, by - 53], [840, by - 44], [886, by - 36], [940, by - 30], [1010, by - 26]], by, 17276, {
+    lit: skyAir([150, 122, 98], 0.12), shade: skyAir([80, 68, 72], 0.12), crown: skyAir([168, 134, 106], 0.12), crownShade: skyAir([90, 72, 70], 0.12),
+    mist, sink: 0.3, tuft: 4, kind: "bare", snow: 0.9, gap: [652, 842],
+  });
+  // the crag under the walls: grey rock breaking through the turf in broken, lit-and-shaded facets
+  const rockLit = skyAir([176, 168, 156], 0.06), rockShade = skyAir([98, 94, 100], 0.06);
+  for (const [x0, w, d] of [[656, 22, 9], [676, 30, 6], [704, 26, 8], [728, 34, 5], [760, 26, 9], [784, 30, 6], [812, 26, 8]]) {
+    const y0 = skyRidgeY(hill, x0 + w * 0.5) + 1;
+    skyPoly(c, [[x0, y0], [x0 + w * 0.5, y0 - 0.5], [x0 + w * 0.62, y0 + d], [x0 + w * 0.2, y0 + d * 0.7]], skyCss(rockLit));
+    skyPoly(c, [[x0 + w * 0.5, y0 - 0.5], [x0 + w, y0 + 0.5], [x0 + w * 0.8, y0 + d * 0.8], [x0 + w * 0.62, y0 + d]], skyCss(rockShade));
+  }
+  // the gorge wall below the fortress: bare rock on the east bank of the Voghji, its west face in the sun
+  skyPoly(c, [[548, by], [558, by - 10], [570, by - 19], [584, by - 24], [586, by - 14], [578, by - 4], [574, by]], skyCss(skyAir([146, 134, 120], 0.12)));
+  skyPoly(c, [[584, by - 24], [596, by - 20], [604, by - 9], [608, by], [574, by], [578, by - 4], [586, by - 14]], skyCss(skyAir([94, 88, 92], 0.12)));
+  skyStrata(c, 552, 604, by - 9, 1, skyCss([70, 64, 66], 0.35), skyCss([255, 248, 232], 0.2), rand);
+  // the Voghji, glinting along the valley floor at the foot of the cliff
+  c.strokeStyle = skyCss(skyAir([120, 160, 186], 0.2));
+  c.lineWidth = 2.6;
+  c.beginPath(); c.moveTo(420, by + 0.5); c.bezierCurveTo(470, by - 3.4, 520, by - 0.4, 552, by - 1.6); c.lineTo(640, by - 0.4); c.stroke();
+  c.strokeStyle = skyCss([226, 240, 246], 0.85);
+  c.lineWidth = 1;
+  c.beginPath(); c.moveTo(430, by - 0.2); c.bezierCurveTo(470, by - 3.6, 520, by - 0.8, 552, by - 2.2); c.stroke();
+  c.fillStyle = "rgba(255, 255, 255, .9)";
+  for (const gx of [462, 497, 528, 590]) c.fillRect(gx, by - 2.6, 2.4, 0.8);
+  // the stone houses of the village, terraced into the slope under the walls
+  const house = { lit: skyAir([168, 150, 128], 0.12), shade: skyAir([100, 88, 84], 0.12) };
+  for (const [hx, hy, w, h] of [[852, by - 33, 10, 6], [864, by - 31, 9, 5.5], [880, by - 27, 11, 6], [896, by - 24, 9, 5.5], [868, by - 20, 10, 6],
+    [910, by - 19, 9, 5.5], [886, by - 14, 11, 6], [926, by - 13, 9, 5.5], [902, by - 9, 10, 6]]) {
+    skyHouse(c, hx, hy, w, h, house.lit, house.shade, { win: skyCss([84, 70, 62], 0.6), rand });
+    c.fillStyle = skyCss([240, 244, 250], 0.6);
+    c.fillRect(hx - 0.5, hy - h - 1.6, w * 0.62 + 0.5, 1);
+  }
+  // the path climbing from the river to the gate
+  c.strokeStyle = skyCss([206, 190, 160], 0.6);
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(566, by - 1); c.lineTo(612, by - 10); c.lineTo(590, by - 18); c.lineTo(636, by - 28); c.lineTo(668, by - 40);
+  c.stroke();
+
+  // Halidzor: a quadrangle of stone walls with towers at its corners, the vaulted basalt church within
+  const wl = skyAir([196, 186, 166], 0.04), ws = skyAir([118, 110, 104], 0.04), wd = skyCss([44, 38, 36], 0.9);
+  const ink = skyCss([46, 36, 32], 0.75);
+  const wallBase = by - 53, wallTop = by - 62;
+  // the far (north) wall shows over the near one
+  c.fillStyle = skyCss(skyMix(wl, ws, 0.55));
+  c.fillRect(692, wallTop - 4, 110, 5);
+  for (let x = 692; x < 802; x += 5) c.fillRect(x, wallTop - 6, 2.6, 2.2);
+  // the church: a long hall under a stone gable, darker basalt than the walls
+  const ch = { lit: skyAir([130, 124, 124], 0.04), shade: skyAir([76, 74, 82], 0.04) };
+  c.fillStyle = ink; c.fillRect(717.5, wallTop - 13.5, 31, 14);
+  c.fillStyle = skyCss(ch.lit); c.fillRect(718, wallTop - 13, 18, 13);
+  c.fillStyle = skyCss(ch.shade); c.fillRect(736, wallTop - 13, 12, 13);
+  skyPoly(c, [[716, wallTop - 12.6], [727, wallTop - 20], [741, wallTop - 20], [750, wallTop - 12.6]], skyCss(skyMix(ch.lit, [240, 236, 228], 0.25)));
+  skyPoly(c, [[741, wallTop - 20], [750, wallTop - 12.6], [736, wallTop - 12.6]], skyCss(ch.shade));
+  c.strokeStyle = skyCss([250, 244, 226]);
+  c.lineWidth = 1.1;
+  c.beginPath(); c.moveTo(727, wallTop - 20); c.lineTo(727, wallTop - 26); c.moveTo(725, wallTop - 24); c.lineTo(729, wallTop - 24); c.stroke();
+  // the near (south) curtain, with its merlons and loopholes
+  c.fillStyle = ink; c.fillRect(663.5, wallTop - 0.5, 147, wallBase - wallTop + 1.5);
+  c.fillStyle = skyCss(wl); c.fillRect(664, wallTop, 146, wallBase - wallTop + 1);
+  c.fillStyle = skyCss(skyMix(wl, ws, 0.5)); c.fillRect(664, wallBase - 2, 146, 3);
+  c.fillStyle = skyCss(skyMix(wl, [255, 250, 236], 0.4));
+  for (let x = 664; x < 808; x += 5) c.fillRect(x, wallTop - 2.4, 2.8, 2.4);
+  c.fillStyle = wd;
+  for (let x = 680; x < 800; x += 14) c.fillRect(x, wallTop + 3, 1, 2.4);
+  // the gate
+  c.beginPath(); c.moveTo(696, wallBase + 1); c.lineTo(696, wallBase - 4); c.arc(698.6, wallBase - 4, 2.6, Math.PI, 0); c.lineTo(701.2, wallBase + 1); c.closePath(); c.fill();
+  // towers: round at the corners, square between
+  const towerR = (tx, th) => {
+    const tw = 12;
+    c.fillStyle = ink; c.fillRect(tx - tw / 2 - 0.6, wallBase - th - 0.6, tw + 1.2, th + 1.6);
+    const g = c.createLinearGradient(tx - tw / 2, 0, tx + tw / 2, 0);
+    g.addColorStop(0, skyCss(skyMix(wl, [255, 250, 236], 0.2)));
+    g.addColorStop(0.45, skyCss(wl));
+    g.addColorStop(1, skyCss(ws));
+    c.fillStyle = g; c.fillRect(tx - tw / 2, wallBase - th, tw, th + 1);
+    c.fillStyle = skyCss(skyMix(wl, [255, 250, 236], 0.4));
+    for (const mx of [tx - 6, tx - 2.2, tx + 1.6]) c.fillRect(mx, wallBase - th - 2.4, 2.6, 2.4);
+    c.fillStyle = skyCss(ws);
+    c.fillRect(tx + 4, wallBase - th - 2.4, 2, 2.4);
+    c.fillStyle = wd;
+    c.fillRect(tx - 1.6, wallBase - th * 0.6, 1.1, 2.6);
+  };
+  const towerS = (tx, th) => {
+    const tw = 10;
+    c.fillStyle = ink; c.fillRect(tx - tw / 2 - 0.6, wallBase - th - 0.6, tw + 1.2, th + 1.6);
+    c.fillStyle = skyCss(wl); c.fillRect(tx - tw / 2, wallBase - th, tw * 0.6, th + 1);
+    c.fillStyle = skyCss(ws); c.fillRect(tx + tw * 0.1, wallBase - th, tw * 0.4, th + 1);
+    c.fillStyle = skyCss(skyMix(wl, [255, 250, 236], 0.4));
+    for (const mx of [tx - 5, tx - 1.3]) c.fillRect(mx, wallBase - th - 2.4, 2.6, 2.4);
+    c.fillStyle = skyCss(ws); c.fillRect(tx + 2.4, wallBase - th - 2.4, 2.6, 2.4);
+  };
+  towerR(664, 16);
+  towerS(740, 14);
+  towerR(810, 15);
+  // a pennon over the gate tower: plain red cloth, no device
+  c.strokeStyle = skyCss([70, 50, 38], 0.95);
+  c.lineWidth = 1.1;
+  c.beginPath(); c.moveTo(664, wallBase - 18); c.lineTo(664, wallBase - 29); c.stroke();
+  skyPoly(c, [[664, wallBase - 29], [673, wallBase - 27], [664, wallBase - 24.5]], "rgba(176, 52, 40, .95)");
+  // hearth smoke inside the walls
+  skySmoke(c, 700, wallTop - 4, 14, [226, 222, 214], 0.45, 0.9);
+
+  // the near ridge east of the fortress, bare woods with snow lying under them
+  bdWoodRidge(c, [[960, by - 24], [1050, by - 30], [1150, by - 24], [1250, by - 32], [1370, by - 26]], by, 17275, {
+    lit: skyAir([150, 120, 96], 0.1), shade: skyAir([78, 66, 70], 0.1), crown: skyAir([166, 132, 104], 0.1), crownShade: skyAir([92, 74, 72], 0.1),
+    mist, sink: 0.2, tuft: 5, kind: "bare", snow: 0.9,
+  });
+  bdMistBand(c, by, 9, 0.28, mist, rand);
+}
+
+TERR_SCENERY.halidzor = {
+  // bare oak and hornbeam in groves, a few dark pines among them, grey crags breaking the slope, and the
+  // stone houses of the hill villages
+  plan(k) {
+    const { r, grove, scatter, add, spot, house } = k;
+    for (let i = 0, made = 0; i < 500 && made < 10; i++) {
+      const size = 50 + r() * 60;
+      if (grove(spot(), size, [["bare", 0.82], ["fir", 0.18]], 44, 80, Math.round(4 + size * 0.08 + r() * 4), 4)) made++;
+    }
+    for (let i = 0, made = 0; i < 600 && made < 9; i++) {
+      const o = spot(), fir = r() < 0.25, h = 44 + r() * 34;
+      if (add(fir ? "fir" : "bare", o.x, o.y, h, h * (fir ? 0.25 : 0.3), { margin: 9, gap: 34 })) made++;
+    }
+    scatter(6, "outcrop", 26, 24, () => ({ R: 13 + r() * 10 }));
+    scatter(5, "stump", 9, 9, () => ({ margin: 8, gap: 16, cut: 0 }));
+    const stone = house(44, 52, 28, 32, 12);
+    for (let i = 0, made = 0; i < 400 && made < 2; i++) {
+      const o = spot(), hut = stone();
+      if (add("hut", o.x, o.y, hut.h, hut.hw, hut)) made++;
+    }
+  },
+  // khachkars by the path, the fold with its shepherd, hay kept over the winter
+  life(k) {
+    const { place, khachkars, shepherd, fold, tonir } = k;
+    khachkars(3, false);
+    tonir();
+    shepherd(fold(), "#4e4640");
+    for (let i = 0; i < 2; i++) place("stack", 20, 13, { margin: 10, gap: 12 });
+  },
+};
+// ==================================== END BACKDROP SECTION: halidzor ====================================
+
+// ====================================== BACKDROP SECTION: van ======================================
+// Van in the spring of 1915: the long limestone Rock of Van with its citadel walls over the walled old city
+// of flat-roofed mud-brick houses; nearer, the Aygestan garden quarter, poplars and blossoming orchards
+// among flat roofs, its church dome and belfry; Lake Van blue to the west under the far snow peaks, Mount
+// Erek white to the east, and the smoke of the siege rising over both quarters.
+function bgVan1915(c) {
+  const by = HORIZON, shore = by - 22;
+  const rand = mulberry32(1915);
+  const air = skyRgb(THEME.sky[2]);
+  // the far ranges round the lake
+  skyRange(c, -90, 1370, by, 50, 19151, {
+    lit: skyAir([150, 156, 180], 0.62), shade: skyAir([104, 112, 146], 0.56),
+    snowLit: skyAir([252, 252, 252], 0.25), snowShade: skyAir([184, 194, 222], 0.45),
+    snow: 0.45, rough: 0.45, fade: 0.5, ribs: 2, massifs: 3,
+  });
+  // Süphan, a great white cone far across the water
+  skyPeak(c, [[980, shore], [1080, shore - 30], [1150, shore - 52], [1196, shore - 36], [1260, shore - 20], [1330, shore]], 2, shore, {
+    lit: skyAir([170, 176, 196], 0.6), shade: skyAir([120, 130, 162], 0.55),
+    snowLit: skyAir([252, 252, 252], 0.3), snowShade: skyAir([190, 200, 226], 0.5), snow: 0.6, rough: 0.3, fade: 0.4, ribs: 2,
+  });
+  // Mount Erek, broad and snowbound, east of the city
+  skyPeak(c, [[-60, by], [40, by - 46], [108, by - 74], [146, by - 88], [176, by - 82], [236, by - 58], [300, by - 34], [380, by]], 3, by, {
+    lit: skyAir([160, 150, 156], 0.42), shade: skyAir([100, 104, 136], 0.38),
+    snowLit: skyAir([252, 252, 250], 0.12), snowShade: skyAir([182, 194, 222], 0.3),
+    snow: 0.42, rough: 0.45, fade: 0.55, ribs: 3,
+  });
+  skyFoothills(c, -90, 640, by, 22, 19152, skyAir([186, 170, 130], 0.3), skyAir([128, 116, 112], 0.3));
+  // Lake Van, deep blue
+  const water = c.createLinearGradient(0, shore, 0, by);
+  water.addColorStop(0, skyCss(skyMix([120, 172, 206], air, 0.35)));
+  water.addColorStop(0.5, "#4f8fbf");
+  water.addColorStop(1, "#2f6c9e");
+  c.fillStyle = water;
+  c.fillRect(860, shore, VW + 200 - 860, by - shore);
+  c.fillStyle = skyCss(air, 0.6);
+  c.fillRect(860, shore - 0.6, VW + 200 - 860, 1.4);
+  c.lineWidth = 1;
+  for (let i = 0; i < 40; i++) {
+    const gy = Math.round(shore + 2 + rand() * (by - shore - 3)) + 0.5, gx = 880 + rand() * 480, len = 4 + rand() * 16;
+    c.strokeStyle = skyCss([255, 255, 255], 0.2 + rand() * 0.35);
+    c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + len, gy); c.stroke();
+  }
+  skyCloudsDriftHere(c);
+
+  // the Rock of Van: a long, narrow limestone crag, its sheer south face toward us
+  const rx0 = 690, rx1 = 1040;
+  const crest = skyRidgeline([[rx0, by], [rx0 + 16, by - 24], [rx0 + 40, by - 44], [rx0 + 84, by - 54], [rx0 + 160, by - 58], [rx0 + 236, by - 57],
+    [rx0 + 286, by - 50], [rx0 + 316, by - 34], [rx1 - 4, by - 10], [rx1 + 20, by]], rand, 0.3);
+  const rockLit = skyAir([206, 180, 138], 0.1), rockShade = skyAir([128, 104, 92], 0.1);
+  c.save();
+  c.beginPath();
+  c.moveTo(rx0, by);
+  for (const p of crest) c.lineTo(p[0], p[1]);
+  c.closePath();
+  const rg = c.createLinearGradient(0, by - 60, 0, by);
+  rg.addColorStop(0, skyCss(skyMix(rockLit, [255, 244, 222], 0.15)));
+  rg.addColorStop(1, skyCss(skyMix(rockLit, rockShade, 0.45)));
+  c.fillStyle = rg;
+  c.fill();
+  c.clip();
+  skyPoly(c, [[rx0 + 270, by - 64], [rx1 + 30, by - 64], [rx1 + 30, by + 2], [rx0 + 250, by + 2]], skyCss(rockShade, 0.8));
+  for (let i = 0; i < 8; i++) {
+    const fx = rx0 + 26 + i * 38 + rand() * 18, fy = skyRidgeY(crest, fx), len = (by - fy) * (0.45 + rand() * 0.5);
+    skyPoly(c, [[fx, fy], [fx + 5 + rand() * 5, fy + len], [fx + 13 + rand() * 8, fy + len * 0.8]], skyCss(rockShade, 0.45));
+    skyPoly(c, [[fx, fy], [fx + 5, fy + len], [fx - 5 - rand() * 4, fy + len * 0.85]], skyCss([255, 244, 220], 0.22));
+  }
+  for (const ledge of [by - 48, by - 40, by - 32, by - 24]) skyStrata(c, rx0, rx1, ledge, 4, skyCss(rockShade, 0.55), skyCss([255, 244, 220], 0.3), rand);
+  c.restore();
+  c.strokeStyle = skyCss(skyMix(rockShade, [40, 26, 20], 0.5), 0.45);
+  c.lineWidth = 1.1;
+  c.beginPath();
+  c.moveTo(crest[0][0], crest[0][1]);
+  for (const p of crest) c.lineTo(p[0], p[1]);
+  c.stroke();
+  // the citadel walls along the crest, stepping with it, with square towers
+  const wl = skyAir([216, 190, 148], 0.08), ws = skyAir([150, 122, 98], 0.08);
+  for (let x = rx0 + 40; x < rx0 + 316; x += 2) {
+    const y = skyRidgeY(crest, x) + 1;
+    c.fillStyle = skyCss(x > rx0 + 262 ? ws : wl);
+    c.fillRect(x, y - 6, 2.2, 6);
+    if (Math.floor(x / 2) % 3 === 0) c.fillRect(x, y - 8, 2, 2);
+  }
+  for (const [tx, th] of [[rx0 + 46, 9], [rx0 + 104, 11], [rx0 + 170, 13], [rx0 + 214, 10], [rx0 + 268, 11], [rx0 + 308, 8]]) {
+    const ty = skyRidgeY(crest, tx + 4) + 1;
+    c.fillStyle = skyCss([70, 50, 40], 0.6); c.fillRect(tx - 0.6, ty - th - 0.6, 9.2, th + 0.6);
+    c.fillStyle = skyCss(wl); c.fillRect(tx, ty - th, 5.2, th);
+    c.fillStyle = skyCss(ws); c.fillRect(tx + 5.2, ty - th, 3.4, th);
+    c.fillStyle = skyCss(skyMix(wl, [255, 248, 230], 0.35));
+    for (const mx of [tx - 0.6, tx + 3.2]) c.fillRect(mx, ty - th - 2.2, 2.4, 2.2);
+    c.fillStyle = skyCss(ws); c.fillRect(tx + 6.6, ty - th - 2.2, 2.2, 2.2);
+  }
+
+  // the walled old city at the foot of the rock: a crenellated wall with towers before a press of flat roofs,
+  // the domes and minarets of its churches and mosques rising out of it
+  const mud = [210, 184, 142], mudShade = [146, 118, 94];
+  for (const [near, y0, air2] of [[0, by - 9, 0.22], [1, by - 4, 0.12]]) {
+    let hx = 640 + near * 7;
+    while (hx < 1010) {
+      const hw = 8 + rand() * 11, hh = 6 + rand() * 7;
+      skyHouse(c, hx, y0, hw, hh, skyAir(skyMix(mud, [236, 214, 176], rand() * 0.5), air2), skyAir(mudShade, air2), {
+        win: skyCss(skyAir([84, 58, 44], air2), 0.75), rand,
+      });
+      hx += hw * (0.6 + rand() * 0.5);
+    }
+  }
+  const stoneP = { lit: skyAir([200, 184, 160], 0.1), shade: skyAir([128, 114, 104], 0.1), roofLit: skyAir([184, 170, 150], 0.1), roofShade: skyAir([118, 104, 98], 0.1), dark: [52, 40, 34], cross: [248, 240, 220] };
+  skyChurch(c, 726, by - 10, 0.52, stoneP);
+  skyChurch(c, 928, by - 9, 0.46, stoneP);
+  // minarets: slender shafts, a balcony and a pointed cap
+  const minaret = (mx, base, h) => {
+    c.fillStyle = skyCss([70, 54, 44], 0.6); c.fillRect(mx - 2.2, base - h, 4.4, h);
+    c.fillStyle = skyCss(skyAir([236, 226, 206], 0.1)); c.fillRect(mx - 1.6, base - h, 2, h);
+    c.fillStyle = skyCss(skyAir([176, 162, 146], 0.1)); c.fillRect(mx + 0.4, base - h, 1.2, h);
+    c.fillStyle = skyCss(skyAir([236, 226, 206], 0.1)); c.fillRect(mx - 2.6, base - h * 0.72, 5.2, 1.4);
+    skyPoly(c, [[mx - 1.8, base - h], [mx, base - h - 6], [mx + 1.8, base - h]], skyCss(skyAir([120, 112, 116], 0.1)));
+  };
+  minaret(808, by - 8, 22);
+  minaret(872, by - 8, 18);
+  // the city wall
+  const cw = skyAir([196, 168, 130], 0.08), cwShade = skyAir([136, 110, 90], 0.08);
+  c.fillStyle = skyCss([70, 52, 40], 0.6); c.fillRect(632, by - 7.6, 392, 8);
+  c.fillStyle = skyCss(cw); c.fillRect(633, by - 7, 390, 7);
+  c.fillStyle = skyCss(cwShade); c.fillRect(633, by - 2, 390, 2);
+  c.fillStyle = skyCss(skyMix(cw, [255, 248, 230], 0.3));
+  for (let x = 633; x < 1022; x += 5) c.fillRect(x, by - 9.2, 2.6, 2.2);
+  for (const tx of [640, 712, 790, 868, 948, 1014]) {
+    c.fillStyle = skyCss([70, 52, 40], 0.6); c.fillRect(tx - 4.6, by - 13.6, 9.2, 14);
+    c.fillStyle = skyCss(cw); c.fillRect(tx - 4, by - 13, 5, 13);
+    c.fillStyle = skyCss(cwShade); c.fillRect(tx + 1, by - 13, 3, 13);
+    c.fillStyle = skyCss(skyMix(cw, [255, 248, 230], 0.3));
+    for (const mx of [tx - 4.4, tx - 0.8]) c.fillRect(mx, by - 15.2, 2.4, 2.2);
+  }
+  c.fillStyle = skyCss([56, 40, 32], 0.9);
+  c.beginPath(); c.moveTo(788, by); c.lineTo(788, by - 4.6); c.arc(790, by - 4.6, 2, Math.PI, 0); c.lineTo(792, by); c.closePath(); c.fill();
+
+  // Aygestan, the garden city: poplars and orchards in blossom between walled gardens and flat roofs
+  const poplarLit = skyAir([150, 186, 92], 0.12), poplarShade = skyAir([74, 110, 60], 0.12);
+  const blossomLit = skyAir([250, 236, 236], 0.1), blossomShade = skyAir([206, 176, 184], 0.1);
+  const leafLit = skyAir([142, 172, 96], 0.14), leafShade = skyAir([84, 112, 66], 0.14);
+  // a rear row of gardens, hazier
+  for (let x = -80; x < 640; x += 7 + rand() * 9) {
+    const roll = rand();
+    if (roll < 0.35) skyTree(c, x, by - 10, 3 + rand() * 1.4, skyMix(poplarLit, air, 0.25), skyMix(poplarShade, air, 0.25), "poplar");
+    else if (roll < 0.7) skyTree(c, x, by - 10, 3.2 + rand() * 1.6, skyMix(leafLit, air, 0.25), skyMix(leafShade, air, 0.25), "round");
+  }
+  // the houses of the quarter, flat-roofed and parapeted, each in its garden
+  for (let hx = -70; hx < 630;) {
+    const hw = 10 + rand() * 9, hh = 7 + rand() * 6;
+    if (rand() < 0.75) {
+      skyHouse(c, hx, by - 4, hw, hh, skyAir(skyMix(mud, [240, 220, 186], rand() * 0.5), 0.08), skyAir(mudShade, 0.08), {
+        win: skyCss([70, 50, 40], 0.75), door: rand() < 0.5 ? skyCss([66, 44, 34], 0.85) : null, rand,
+      });
+    }
+    hx += hw + 6 + rand() * 22;
+  }
+  // the church of the quarter with its belfry, and the larger two-storey mission buildings on its edge
+  const tuff = { lit: skyAir([206, 168, 140], 0.06), shade: skyAir([138, 104, 92], 0.06), roofLit: skyAir([186, 160, 140], 0.06), roofShade: skyAir([120, 96, 90], 0.06), dark: [48, 34, 30], cross: [250, 244, 228] };
+  skyChurch(c, 300, by - 3, 0.72, tuff);
+  skyBelfry(c, 330, by - 3, 0.62, tuff);
+  skyHouse(c, 470, by - 3, 30, 14, skyAir([214, 196, 166], 0.06), skyAir([150, 130, 112], 0.06), {
+    roof: "hip", pitch: 5, roofLit: skyAir([170, 96, 76], 0.06), roofShade: skyAir([118, 70, 62], 0.06), win: skyCss([66, 50, 44], 0.8), rand,
+  });
+  skyHouse(c, 504, by - 2, 22, 11, skyAir([220, 202, 172], 0.06), skyAir([152, 132, 112], 0.06), {
+    roof: "hip", pitch: 4, roofLit: skyAir([170, 96, 76], 0.06), roofShade: skyAir([118, 70, 62], 0.06), win: skyCss([66, 50, 44], 0.8), rand,
+  });
+  // the near gardens: poplars in rows, fruit trees white with blossom, and the long garden walls
+  for (let x = -84; x < 680; x += 6 + rand() * 10) {
+    const roll = rand(), base = by - rand() * 1.5;
+    if (Math.abs(x - 312) < 26 || (x > 466 && x < 528)) continue;
+    if (roll < 0.34) skyTree(c, x, base, 3.6 + rand() * 1.8, poplarLit, poplarShade, "poplar");
+    else if (roll < 0.62) skyTree(c, x, base, 3.4 + rand() * 1.6, blossomLit, blossomShade, "round");
+    else if (roll < 0.8) skyTree(c, x, base, 3.6 + rand() * 1.6, leafLit, leafShade, "round");
+  }
+  c.fillStyle = skyCss(skyAir([200, 176, 134], 0.06));
+  for (let x = -90; x < 690; x += 30 + rand() * 40) {
+    const len = 20 + rand() * 40;
+    c.fillRect(x, by - 2.6, len, 2.6);
+    c.fillStyle = skyCss(skyAir([150, 124, 96], 0.06));
+    c.fillRect(x, by - 0.8, len, 0.8);
+    c.fillStyle = skyCss(skyAir([200, 176, 134], 0.06));
+  }
+
+  // the smoke of the siege: burning houses in both quarters, leaning away on the spring wind
+  for (const [sx, sy, h, w, dark] of [[176, by - 6, 66, 8, 0.6], [418, by - 5, 50, 7, 0.45], [574, by - 4, 76, 9, 0.7],
+    [846, by - 12, 64, 8, 0.6], [976, by - 10, 46, 6.5, 0.45]]) {
+    bdSmokeColumn(c, sx, sy, h, w, skyMix([64, 58, 56], [150, 144, 140], 1 - dark), 0.62, rand, 0.32);
+  }
+}
+
+TERR_SCENERY.van = {
+  // the Aygestan gardens: orchards in blossom inside their walls, rows of poplars along the water channels,
+  // and the flat-roofed mud-brick houses of the quarter
+  plan(k) {
+    const { r, add, block, occupy, groves, house, spot } = k;
+    for (let i = 0; i < 2; i++) {
+      const b = block("orchard", 120, 170, 70, 100);
+      if (!b) continue;
+      for (let ty = b.y + 14; ty < b.y + b.h - 4; ty += 30) {
+        for (let tx = b.x + 12 + r() * 10; tx < b.x + b.w - 8; tx += 29 + r() * 14) {
+          if (r() < 0.12) continue;
+          add("apricot", tx + (r() - 0.5) * 5, ty + (r() - 0.5) * 7, 44 * (0.8 + r() * 0.4), 8);
+        }
+      }
+      occupy(b);
+    }
+    groves(5, 30, [["poplar", 1]], 58, 84, 3);
+    const mudbrick = house(46, 56, 30, 36, 12);
+    for (let i = 0, made = 0; i < 400 && made < 4; i++) {
+      const o = spot(), hut = mudbrick();
+      if (add("hut", o.x, o.y, hut.h, hut.hw, hut)) made++;
+    }
+  },
+  // the yards of the quarter: bread ovens, an ox-cart, a carpet airing, a stork back on its nest in spring
+  life(k) {
+    const { nearHut, tonir, newHouse, stork } = k;
+    newHouse();
+    tonir();
+    nearHut("cart", 32, 36, { margin: 10 });
+    nearHut("carpet", 22, 16, { margin: 10, front: 1 });
+    stork();
+  },
+};
+// ==================================== END BACKDROP SECTION: van ====================================
+
+// ====================================== BACKDROP SECTION: musadagh ======================================
+// Musa Dagh, late summer 1915: the mountain's pine and myrtle slopes falling in cliffs to the Mediterranean;
+// on the seaward point the defenders' two great banners, a red cross on a white sheet and a sheet of
+// lettering; their camp of branch shelters among the trees, a signal fire, the village roofs in the valley;
+// and far out, a grey French cruiser on the horizon.
+function bgMusaDagh(c) {
+  const by = HORIZON, sea = by - 40;
+  const rand = mulberry32(19159);
+  const air = skyRgb(THEME.sky[2]);
+  // the sea from the horizon to the foot of the slopes
+  const water = c.createLinearGradient(0, sea, 0, by);
+  water.addColorStop(0, skyCss(skyMix([120, 176, 210], air, 0.4)));
+  water.addColorStop(0.35, "#4c93c4");
+  water.addColorStop(1, "#2a6f9f");
+  c.fillStyle = water;
+  c.fillRect(-100, sea, VW + 200, by - sea);
+  c.fillStyle = skyCss(air, 0.7);
+  c.fillRect(-100, sea - 0.6, VW + 200, 1.4);
+  c.lineWidth = 1;
+  for (let i = 0; i < 110; i++) {
+    const gy = Math.round(sea + 2 + rand() * 37) + 0.5, sunny = rand() < 0.45;
+    const gx = sunny ? 235 + (rand() + rand() - 1) * (30 + (gy - sea) * 5) : -80 + rand() * 720, len = 3 + rand() * (sunny ? 12 : 20);
+    c.strokeStyle = skyCss([255, 255, 255], sunny ? 0.45 + rand() * 0.4 : 0.16 + rand() * 0.28);
+    c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + len, gy); c.stroke();
+  }
+  // the French cruiser on the horizon: grey hull, three funnels and two masts; a sister ship hull-down beyond
+  const ship = (sx, s, a) => {
+    const hull = skyCss(skyMix([96, 104, 116], air, 0.3), a), upper = skyCss(skyMix([132, 140, 150], air, 0.3), a), dark = skyCss(skyMix([60, 64, 72], air, 0.3), a);
+    const hy = sea + 0.4;
+    skyPoly(c, [[sx - 26 * s, hy - 3.4 * s], [sx + 22 * s, hy - 3.4 * s], [sx + 28 * s, hy - 4.6 * s], [sx + 25 * s, hy], [sx - 24 * s, hy]], hull);
+    c.fillStyle = upper;
+    c.fillRect(sx - 14 * s, hy - 6.4 * s, 24 * s, 3 * s);
+    c.fillRect(sx + 10 * s, hy - 8.4 * s, 5 * s, 5 * s);
+    c.fillStyle = dark;
+    for (const fx of [-9, -3.5, 2]) c.fillRect(sx + fx * s, hy - 11.6 * s, 2.6 * s, 5.4 * s);
+    c.fillRect(sx - 20 * s, hy - 16 * s, 0.9 * s, 12.8 * s);
+    c.fillRect(sx + 13 * s, hy - 17 * s, 0.9 * s, 9 * s);
+    c.fillRect(sx - 20 * s, hy - 13 * s, 34 * s, 0.5 * s);
+    // a trail of coal smoke on the breeze
+    for (let i = 0; i < 7; i++) {
+      c.fillStyle = skyCss(skyMix([110, 110, 116], air, 0.3 + i * 0.08), a * 0.4 * (1 - i / 7));
+      c.beginPath(); c.arc(sx - 3 * s + i * 4.4 * s, hy - 13 * s - i * 1.4 * s, (1.4 + i * 0.7) * s, 0, Math.PI * 2); c.fill();
+    }
+  };
+  ship(296, 1, 0.95);
+  ship(120, 0.55, 0.6);
+  // the far coast to the south: Mount Kasios over the bay of Antioch, faint in the haze
+  skyPeak(c, [[900, sea + 2], [1010, sea - 34], [1080, sea - 58], [1140, sea - 40], [1260, sea - 18], [1380, sea + 2]], 2, sea + 2, {
+    lit: skyAir([150, 164, 186], 0.62), shade: skyAir([112, 128, 160], 0.58), snow: 0, rough: 0.35, fade: 0.4, ribs: 2,
+  });
+  skyCloudsDriftHere(c);
+
+  // Musa Dagh: the massif climbing from the sea to its summit, its flanks dark with pine, pale limestone in the ravines
+  const massif = bdWoodRidge(c, [[470, by], [540, by - 30], [620, by - 52], [720, by - 70], [820, by - 86], [900, by - 96], [960, by - 90],
+    [1050, by - 78], [1130, by - 82], [1220, by - 70], [1300, by - 62], [1380, by - 56]], by, 19160, {
+    lit: skyAir([110, 140, 92], 0.4), shade: skyAir([60, 88, 76], 0.38), crown: skyAir([92, 126, 76], 0.36), crownShade: skyAir([44, 72, 58], 0.36),
+    mist: air, sink: 0.4, tuft: 3.2, kind: "pine",
+  });
+  c.save();
+  c.beginPath();
+  c.moveTo(470, by);
+  for (const p of massif) c.lineTo(p[0], p[1]);
+  c.lineTo(1380, by);
+  c.closePath();
+  c.clip();
+  for (const [x, y, h] of [[660, by - 52, 34], [780, by - 70, 44], [930, by - 84, 52], [1080, by - 70, 44], [1240, by - 58, 36]]) {
+    skyPoly(c, [[x, y], [x - 3 - rand() * 3, y + h], [x + 1, y + h * 0.9], [x + 3, y + 3]], skyCss(skyAir([206, 200, 184], 0.4), 0.35));
+  }
+  c.restore();
+  // the seaward shoulder: myrtle and pine above white cliffs that drop straight into the water
+  const near = bdWoodRidge(c, [[400, by], [430, by - 26], [470, by - 40], [540, by - 50], [590, by - 54], [640, by - 50], [700, by - 40],
+    [780, by - 34], [880, by - 30], [980, by - 34], [1080, by - 28], [1180, by - 32], [1380, by - 26]], by, 19161, {
+    lit: skyAir([132, 156, 86], 0.12), shade: skyAir([56, 86, 52], 0.12), crown: skyAir([104, 138, 70], 0.1), crownShade: skyAir([40, 70, 44], 0.1),
+    mist: air, sink: 0.2, tuft: 4.4, kind: "pine", gap: [560, 620],
+  });
+  // the rocks where the shoulder meets the sea, and the surf at their foot
+  const cliffLit = skyAir([190, 178, 156], 0.1), cliffShade = skyAir([120, 112, 106], 0.1);
+  skyPoly(c, [[392, by + 0.5], [402, by - 7], [418, by - 12], [430, by - 11], [426, by - 4], [432, by + 0.5]], skyCss(cliffLit));
+  skyPoly(c, [[430, by - 11], [446, by - 8], [458, by - 3], [462, by + 0.5], [432, by + 0.5], [426, by - 4]], skyCss(cliffShade));
+  c.strokeStyle = skyCss([60, 54, 52], 0.5);
+  c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(392, by + 0.5); c.lineTo(402, by - 7); c.lineTo(418, by - 12); c.lineTo(430, by - 11); c.lineTo(446, by - 8); c.lineTo(458, by - 3); c.stroke();
+  c.fillStyle = "rgba(255, 255, 255, .6)";
+  c.fillRect(366, by - 1.4, 30, 1.2);
+  c.fillRect(378, by - 3.8, 14, 0.9);
+  // the banners on the seaward point, raised to be seen by any passing ship: a red cross on a white sheet,
+  // and a white sheet painted with a call for rescue
+  const crestAt = x => skyRidgeY(near, x);
+  const pole = (px, h) => {
+    c.strokeStyle = skyCss([86, 62, 42]);
+    c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(px, crestAt(px) + 1); c.lineTo(px, crestAt(px) - h); c.stroke();
+    return crestAt(px) - h;
+  };
+  let top = pole(572, 24);
+  skyPoly(c, [[572, top], [592, top + 1.2], [592.6, top + 13.6], [572, top + 12.6]], skyCss([70, 56, 46], 0.55));
+  skyPoly(c, [[572.6, top + 0.6], [591.6, top + 1.6], [592, top + 13], [572.6, top + 12]], skyCss([250, 248, 240]));
+  skyPoly(c, [[584, top + 1.1], [591.6, top + 1.6], [592, top + 13], [586, top + 12.4]], skyCss([214, 212, 206], 0.6));
+  c.fillStyle = skyCss([196, 36, 34]);
+  c.fillRect(580, top + 2.6, 3.2, 8.6);
+  c.fillRect(576.2, top + 5.4, 11, 3);
+  top = pole(608, 20);
+  skyPoly(c, [[608, top], [628, top + 1], [628.6, top + 11.4], [608, top + 10.6]], skyCss([70, 56, 46], 0.55));
+  skyPoly(c, [[608.6, top + 0.6], [627.6, top + 1.4], [628, top + 10.8], [608.6, top + 10]], skyCss([248, 246, 236]));
+  // lines of painted lettering, too far off to read
+  c.fillStyle = skyCss([40, 34, 34], 0.75);
+  for (const [ly, lx0, lx1] of [[3, 611, 625], [5.8, 610.6, 626], [8.4, 612, 623]]) {
+    for (let x = lx0; x < lx1; x += 1.6 + rand() * 1.4) c.fillRect(x, top + ly + (x - 608) * 0.04, 1 + rand() * 0.6, 1.1);
+  }
+  // the signal fire on the high point, and its smoke
+  const fx = 654, fy = crestAt(654);
+  skySmoke(c, fx, fy - 3, 30, [190, 184, 176], 0.6, 1.3);
+  c.fillStyle = "rgba(255, 196, 92, .95)";
+  skyPoly(c, [[fx - 3, fy + 0.6], [fx, fy - 5], [fx + 3, fy + 0.6]], "rgba(240, 120, 40, .95)");
+  skyPoly(c, [[fx - 1.4, fy + 0.6], [fx, fy - 3], [fx + 1.4, fy + 0.6]], "rgba(255, 220, 120, .95)");
+
+  // the camp: shelters of branches and blankets among the trees, cook smoke rising between them
+  const blankets = [[176, 64, 52], [70, 96, 140], [196, 160, 92], [140, 72, 84], [210, 204, 186]];
+  for (let i = 0; i < 16; i++) {
+    const sx = 690 + rand() * 170, base = crestAt(sx) + 4 + rand() * 12, w = 6 + rand() * 4, h = 3.4 + rand() * 2;
+    const blanket = blankets[Math.floor(rand() * blankets.length)];
+    skyPoly(c, [[sx - w / 2 - 0.6, base + 0.4], [sx - w * 0.15, base - h - 0.6], [sx + w / 2 + 0.6, base + 0.4]], skyCss([60, 44, 34], 0.7));
+    skyPoly(c, [[sx - w / 2, base], [sx - w * 0.15, base - h], [sx + w * 0.1, base]], skyCss(skyAir([140, 112, 76], 0.08)));
+    skyPoly(c, [[sx + w * 0.1, base], [sx - w * 0.15, base - h], [sx + w / 2, base]], skyCss(skyAir(blanket, 0.1)));
+  }
+  for (const sx of [712, 768, 832]) skySmoke(c, sx, crestAt(sx) + 6, 16, [222, 220, 214], 0.42, 1);
+
+  // the village in the valley: stone houses under tiled roofs, its church, orchards round about
+  const stone = { lit: skyAir([224, 210, 182], 0.1), shade: skyAir([156, 140, 120], 0.1) };
+  const roofLit = skyAir([196, 110, 76], 0.1), roofShade = skyAir([136, 74, 58], 0.1);
+  for (let hx = 1010; hx < 1290;) {
+    const hw = 10 + rand() * 8, hh = 6 + rand() * 4, base = by - 2 - rand() * 6;
+    if (rand() < 0.7) skyTree(c, hx - 3, base + 1, 3 + rand() * 1.5, skyAir([120, 150, 80], 0.1), skyAir([66, 96, 56], 0.1), "round");
+    skyHouse(c, hx, base, hw, hh, stone.lit, stone.shade, { roof: "gable", pitch: 4, roofLit, roofShade, win: skyCss([70, 50, 40], 0.75), rand });
+    hx += hw + 4 + rand() * 14;
+  }
+  const church = { lit: stone.lit, shade: stone.shade, roofLit, roofShade, dark: [52, 40, 34], cross: [250, 244, 228] };
+  skyHouse(c, 1120, by - 3, 24, 11, church.lit, church.shade, { roof: "gable", pitch: 6, roofLit, roofShade, door: skyCss([56, 40, 32], 0.9) });
+  skyBelfry(c, 1146, by - 3, 0.5, church);
+  for (let x = 980; x < 1370; x += 8 + rand() * 12) skyTree(c, x, by + 0.5, 3.2 + rand() * 1.6, skyAir([110, 144, 72], 0.06), skyAir([56, 88, 50], 0.06), "round");
+  // gulls over the water
+  c.strokeStyle = "rgba(70, 70, 75, .6)";
+  c.lineWidth = 1.2;
+  for (const [gx, gy] of [[260, by - 62], [292, by - 70], [520, by - 74]]) {
+    c.beginPath(); c.moveTo(gx - 5, gy); c.quadraticCurveTo(gx, gy + 3, gx + 5, gy); c.stroke();
+  }
+}
+
+TERR_SCENERY.musadagh = {
+  // pine on the slopes, myrtle scrub, limestone breaking through, and the orchards and houses of the villages
+  plan(k) {
+    const { r, grove, scatter, add, spot, house, groves } = k;
+    for (let i = 0, made = 0; i < 500 && made < 8; i++) {
+      const size = 44 + r() * 50;
+      if (grove(spot(), size, [["fir", 0.75], ["broadleaf", 0.25]], 46, 78, Math.round(4 + size * 0.07 + r() * 3), 4)) made++;
+    }
+    groves(3, 30, [["apricot", 1]], 40, 54, 4);
+    scatter(16, "bush", 14, 12, () => ({ margin: 6, gap: 14 }));
+    scatter(7, "outcrop", 26, 24, () => ({ R: 12 + r() * 11 }));
+    const village = house(44, 52, 28, 34, 12);
+    for (let i = 0, made = 0; i < 400 && made < 2; i++) {
+      const o = spot(), hut = village();
+      if (add("hut", o.x, o.y, hut.h, hut.hw, hut)) made++;
+    }
+  },
+  // the flocks the villagers drove up the mountain with them, and blankets airing at the shelters
+  life(k) {
+    const { nearHut, shepherd, fold } = k;
+    shepherd(fold(), "#5a4a3c");
+    nearHut("carpet", 22, 16, { margin: 10, front: 1 });
+  },
+};
+// ==================================== END BACKDROP SECTION: musadagh ====================================
+
+// the three battlefields' ground, stone and far-plain tables (see TERR_BIOME, BACKDROP_PEAK, FOOT_STONE)
+Object.assign(TERR_BIOME, {
+  // late winter in the Syunik gorges: dead grass, mud on the road, basalt, snowdrops in the shade
+  halidzor: {
+    stones: 160, dry: [172, 170, 122], blade: [72, 88, 48], tip: [170, 164, 112], earth: [110, 88, 64],
+    pebble: [128, 128, 122], flowers: [[248, 248, 240]], drifts: 4, scrub: [104, 100, 72], scrubs: 14,
+    bed: [120, 96, 70], crown: [142, 118, 88], rut: [74, 56, 40], rockMoss: [96, 116, 64],
+    rock: [[150, 148, 142], [108, 106, 104], [62, 62, 64]],
+    leaf: [[36, 66, 44], [58, 92, 58], [104, 138, 92]],
+    wall: [[176, 168, 152], [134, 128, 118], [82, 78, 74]], fringe: 1, farTrees: 1.1,
+  },
+  // spring in the gardens of Van: young grass, tulips and poppies, apricots in blossom, mud-brick walls
+  van: {
+    stones: 300, dry: [200, 194, 148], blade: [80, 104, 52], tip: [172, 182, 110], earth: [146, 120, 90],
+    pebble: [150, 144, 132], flowers: [[236, 206, 90], [214, 70, 60]], drifts: 6, scrub: [104, 116, 70], scrubs: 18,
+    bed: [196, 180, 148], crown: [216, 202, 172], rut: [140, 120, 92], kerb: [140, 132, 122], gravel: 1,
+    rock: [[176, 164, 146], [126, 116, 104], [74, 66, 60]],
+    leaf: [[62, 92, 40], [104, 140, 56], [170, 196, 100]], fruit: [250, 230, 236],
+    wall: [[220, 196, 156], [184, 156, 118], [126, 102, 78]], fringe: 0.9, farTrees: 0.6,
+  },
+  // late summer on the mountain: dry grass on red earth, myrtle, pale limestone
+  musadagh: {
+    stones: 200, dry: [206, 196, 138], blade: [92, 106, 52], tip: [190, 184, 112], earth: [164, 120, 86],
+    pebble: [200, 194, 180], flowers: [[236, 226, 206]], drifts: 3, scrub: [88, 108, 62], scrubs: 24,
+    bed: [210, 192, 160], crown: [228, 214, 186], rut: [150, 126, 98], gravel: 1,
+    rock: [[214, 206, 188], [168, 160, 144], [106, 100, 92]],
+    leaf: [[38, 70, 42], [68, 104, 56], [128, 158, 86]], fruit: [214, 120, 60],
+    wall: [[218, 204, 176], [178, 162, 136], [118, 104, 86]], fringe: 0.9, farTrees: 0.7,
+  },
+});
+Object.assign(BACKDROP_PEAK, { halidzor: 58, van: 62, musadagh: 54 });
+Object.assign(FOOT_STONE, { halidzor: ["#9e9c94", "#66645f"], van: ["#cdb48e", "#97805e"], musadagh: ["#d2c9b4", "#968d7a"] });
+Object.assign(TERR_BANK_STYLE, { halidzor: "basalt", van: "scarp", musadagh: "ledge" });
+Object.assign(FAR_ROAD_TO, { halidzor: 698, van: 790 });
+
 // ---- the chronicle's miniature ----
 // The battlefield's own skyline, painted by the backdrop painters of the bake, stood on a strip of
 // its ground and road and set in an arched manuscript frame. Each entry frames a stretch of the
@@ -33733,11 +34499,11 @@ const BRIEF_CROPS = [
   { x: 528, w: 290, gate: 0.36 },   // Lori: the monastery on the gorge rim
   { x: 642, w: 256, gate: 0.5 },    // Sevan: the island monastery
   { x: 384, w: 300, gate: 0.5 },    // Gyumri: the black-tuff city under Aragats
-  // levels 7-13: PLACEHOLDER crops framing their stand-in skylines (see BACKDROP_STANDIN); re-frame once
+  { x: 520, w: 340, gate: 0.52 },   // Halidzor: the fortress on its crag over the Voghji gorge
+  { x: 620, w: 440, gate: 0.39 },   // Van 1915: the Rock of Van over the walled old city, Lake Van beyond
+  { x: 226, w: 440, gate: 0.6 },    // Musa Dagh: the banners on the seaward point, the cruiser offshore
+  // levels 10-13: PLACEHOLDER crops framing their stand-in skylines (see BACKDROP_STANDIN); re-frame once
   // each battlefield's own backdrop is painted
-  { x: 528, w: 290, gate: 0.36 },   // Halidzor (stand-in: the Lori gorge rim)
-  { x: 318, w: 384, gate: 0.62 },   // Van 1915 (stand-in: the Rock of Van)
-  { x: 600, w: 320, gate: 0.45 },   // Musa Dagh (stand-in: the Sevan shore)
   { x: 760, w: 440, gate: 0.55 },   // Sardarapat (stand-in: Masis over the plain)
   { x: 360, w: 340, gate: 0.5 },    // Stepanakert 1992 (stand-in: winter under Aragats)
   { x: 300, w: 360, gate: 0.4 },    // Shushi (stand-in: the citadel rock)
@@ -34554,7 +35320,8 @@ function toggleAmb() { Snd.ambOn = !Snd.ambOn; syncSoundUi(); }
 Snd.sceneOf = () => {
   const L = LEVELS[curLevel], inGame = overlayEl.classList.contains("hidden");
   const p = inGame ? (dayFactor() || 0) : 0;
-  return { map: L && L.theme ? levelTheme(L).backdrop : null, era: L ? L.era : null, night: Math.max(0, Math.min(1, (p - 0.6) / 0.32)) };
+  const bd = L && L.theme ? levelTheme(L).backdrop : null;
+  return { map: bd ? BACKDROP_AMB[bd] || bd : null, era: L ? L.era : null, night: Math.max(0, Math.min(1, (p - 0.6) / 0.32)) };
 };
 
 $("musicBtn").addEventListener("click", toggleMusic);
