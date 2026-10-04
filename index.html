@@ -42679,13 +42679,10 @@ function drawDayNight(time) {
 // a range whisper when you hover any tower
 function drawHoverRange() {
   if (placing || castingSpell || !overlayEl.classList.contains("hidden")) return;
-  for (const t of towers) {
-    if (t === selected) continue;
-    if (Math.hypot(t.x - mouse.x, t.y - mouse.y) < 30) {
-      const pp = proj(t.x, t.y);
-      drawRange(pp.x, pp.y, getStats(t).range, "rgba(255, 220, 150, .28)", pp.s);
-      break;
-    }
+  const t = towerUnderPointer(pointerClient);
+  if (t && t !== selected) {
+    const pp = proj(t.x, t.y);
+    drawRange(pp.x, pp.y, getStats(t).range, "rgba(255, 220, 150, .28)", pp.s);
   }
 }
 
@@ -46038,7 +46035,25 @@ function nearestFreePad(x, y, maxDist) {
   return best;
 }
 
-canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); });
+// A tower is picked where it is seen, in screen space: the world point under the pointer stops at the far
+// edge of the field, so a tower on a pad beyond that edge could be placed but never clicked again. The hit
+// zone is an upright oval over the drawn tower, from its footing to its parapet, shrinking with distance.
+let pointerClient = null;
+function towerUnderPointer(e) {
+  if (!e) return null;
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+  let best = null, bd = 1;
+  for (const t of towers) {
+    const p = proj(t.x, t.y), s = Math.max(0.35, p.s);
+    const dx = (sx - p.x) / (30 * s), dy = (sy - (p.y - 26 * s)) / (44 * s);
+    const d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
+
+canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); pointerClient = { clientX: e.clientX, clientY: e.clientY }; });
 
 canvas.addEventListener("pointerdown", (e) => {
   settingsEl.style.display = "none";
@@ -46076,14 +46091,12 @@ canvas.addEventListener("pointerdown", (e) => {
     setPlacing(null);
     return;
   }
+  // a tower drawn under the pointer wins over the patch of land beside it
+  const hit = towerUnderPointer(e);
+  if (hit) { showPanel(hit); return; }
   const pi = nearestPlot(v.x, v.y, 40);
   if (pi >= 0) { buyPlot(pi); return; }
-  let hit = null;
-  for (const t of towers) {
-    if (Math.hypot(t.x - v.x, t.y - v.y) < 32) { hit = t; break; }
-  }
-  if (hit) showPanel(hit);
-  else hidePanel();
+  hidePanel();
 });
 
 window.addEventListener("contextmenu", (e) => { e.preventDefault(); setPlacing(null); });
