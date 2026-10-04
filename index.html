@@ -34135,9 +34135,11 @@ function paintFort(style) {
 //    blown out, the entrance and ground floor sandbagged, concrete blocks; a plain tricolour.
 //  shushi: the old fortress wall of Shushi by its town gate: limestone rubble curtain, half-round
 //    towers, the arched gate; sandbags along the wall-walk, a camouflage net.
-//  stepanakert23: the city's administrative building of pink tuff with a civil defence shelter
-//    entrance, ground floor windows sandbagged, concrete blocks; no flag, nothing triumphal.
-// Flags here are plain bands only (no emblems); they wave live from structFit.flags (drawFort).
+//  stepanakert23: the National Assembly of the Republic of Artsakh on Renaissance Square: the
+//    stuccoed tower under its open gilded lattice cone, the arched portico, the red-roofed wings and
+//    the glazed corner rotunda; concrete blocks and a sandbagged post on the square, the Artsakh flag.
+// Flags here are plain bands (no emblems; the Artsakh flag adds its white stepped chevron); they wave
+// live from structFit.flags (drawFort).
 const HF_FORT_SITES = ["halidzor", "van", "musadagh", "sardarapat", "stepanakert92", "shushi", "stepanakert23"];
 function hfFortSite() {
   const id = THEME && THEME.id;
@@ -34232,12 +34234,13 @@ function hfFortFlags(c, sp, fx, fy, fs, time) {
   if (!flags) return;
   for (let i = 0; i < flags.length; i++) {
     const fl = flags[i], x = fx + fl.p[0] * fs, y = fy + fl.p[1] * fs, ph = time * 0.004 + i * 1.3;
-    if (fl.kind === "tri") hfTricolour(c, x, y, fl.len, fl.hgt, ph, fs);
+    if (fl.kind === "tri" || fl.kind === "artsakh") hfTricolour(c, x, y, fl.len, fl.hgt, ph, fs, fl.kind === "artsakh");
     else bellBanner(c, x, y, fl.len, fl.hgt, fl.kind, ph, fs);
   }
 }
 // three plain horizontal bands, red, blue and apricot, rippling like the banners
-function hfTricolour(c, x, y, len, hgt, ph, k) {
+// (`carpet`: the Artsakh flag's white stepped chevron cut in from the fly)
+function hfTricolour(c, x, y, len, hgt, ph, k, carpet) {
   const L = len * k, H = hgt * k;
   const at = (u, v) => [x + L * u, y + H * v + Math.sin(ph + u * 3.2) * H * 0.12 * u + H * 0.1 * u * u];
   const band = (v0, v1, hex) => {
@@ -34251,6 +34254,17 @@ function hfTricolour(c, x, y, len, hgt, ph, k) {
   band(0, 1 / 3, "#c8322a");
   band(1 / 3, 2 / 3, "#2f4f9a");
   band(2 / 3, 1, "#e8a23a");
+  if (carpet) {
+    // a stepped white chevron from the fly's top and foot to a point a third of the way in
+    const st = [[1, 0], [0.9, 0], [0.9, 0.1], [0.8, 0.1], [0.8, 0.2], [0.7, 0.2], [0.7, 0.3], [0.6, 0.3], [0.6, 0.5],
+      [0.6, 0.7], [0.7, 0.7], [0.7, 0.8], [0.8, 0.8], [0.8, 0.9], [0.9, 0.9], [0.9, 1], [1, 1], [1, 0.86], [0.92, 0.86], [0.92, 0.76],
+      [0.82, 0.76], [0.82, 0.66], [0.74, 0.66], [0.74, 0.34], [0.82, 0.34], [0.82, 0.24], [0.92, 0.24], [0.92, 0.14], [1, 0.14]];
+    c.beginPath();
+    st.forEach((q, i) => { const p = at(q[0], q[1]); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
+    c.closePath();
+    c.fillStyle = "#f4f1ea";
+    c.fill();
+  }
   c.beginPath();
   for (let i = 0; i <= 8; i++) { const p = at(i / 8, 0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
   for (let i = 8; i >= 0; i--) { const p = at(i / 8, 1); c.lineTo(p[0], p[1]); }
@@ -34669,42 +34683,428 @@ function hfShushi() {
 }
 
 // ---- Stepanakert 2023 ----
+// The National Assembly of the Republic of Artsakh on Renaissance Square. A cream stuccoed tower
+// block on a plinth of rough grey-pink tuff carries a ring of slender columns, and on it the
+// building's sign: a tall open cone of gilded lattice with a needle spire, the drum and cone of an
+// Armenian church drawn as a wireframe. In front, a two-storey round-arched portico under a
+// pediment with the arms in a roundel and small balconies either side; to the right a long wing
+// under a red hipped roof with dormers, ending in a glazed rotunda under a red cone; to the left
+// the lower wing of the Armenia hotel with red awnings over its shopfronts; lamps on the square.
+const HF_ASM = {
+  cream: "#e2d3b2", creamSide: "#b09e7e", trim: "#f5efe0", tuff: "#a8948e", tuffSide: "#76666a",
+  roof: "#b04a32", gold: "#e6c46a", goldDark: "#8e6a2e", col: "#b88e50", glass: "#2a3a4a",
+};
+// a white band across the front and round the side of a box w wide and d deep, from y down t
+function hfAsmBand(w, d, y, t, hex) {
+  const ox = d * OBQ.dx, oy = d * OBQ.dy, th = t || 1.4, H = hex || HF_ASM.trim;
+  inkPoly([w / 2, y, w / 2 + ox, y + oy, w / 2 + ox, y + oy + th, w / 2, y + th], toneHex(H, -46), 0.5);
+  inkRect(-w / 2 - 0.4, y, w + 0.8, th, H, 0.5);
+  sctx.fillStyle = "rgba(30, 16, 6, .22)";
+  sctx.fillRect(-w / 2, y + th, w, 0.9);
+}
+// one block of the building: rough tuff up to `plinth`, cream stucco above, white bands
+function hfAsmBlock(w, h, d, plinth, seed) {
+  const c = sctx, A = HF_ASM;
+  box3(w, plinth, d, A.tuff, { masonry: true, rough: true, side: A.tuffSide, course: 5.5, block: 9, seed, band: 0 });
+  c.save();
+  c.translate(0, -plinth);
+  box3(w, h - plinth, d, A.cream, { side: A.creamSide, top: toneHex(A.cream, 14) });
+  c.restore();
+  hfAsmBand(w, d, -plinth - 1, 1.3);
+  hfAsmBand(w, d, -h, 1.8);
+}
+// rows of windows down the side face (x from 0 at the front corner to d at the back)
+function hfAsmSideWindows(w, d, y0, floorH, rows, cols, ww, wh, arched) {
+  const c = sctx;
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, w / 2, 0);
+  for (let r = 0; r < rows; r++) {
+    for (let i = 0; i < cols; i++) {
+      const x = d * (i + 0.5) / cols - ww / 2, y = y0 - floorH * r - floorH * 0.5 - wh / 2;
+      if (arched && r === rows - 1) hfAsmArchWindow(x + ww / 2, y + wh, ww, wh, "#d8ccb0");
+      else a6Window(x, y, ww, wh, "#d8ccb0");
+    }
+  }
+  c.restore();
+}
+// a small round-headed window standing on (x, y)
+function hfAsmArchWindow(x, y, w, h, frame) {
+  const c = sctx;
+  c.save();
+  c.translate(0, y);
+  archPath(x, w + 1.2, h + 0.6);
+  c.fillStyle = frame || HF_ASM.trim;
+  c.fill();
+  inkStroke(0.5);
+  archPath(x, w, h);
+  c.fillStyle = "#24262a";
+  c.fill();
+  c.fillStyle = "rgba(160, 180, 200, .25)";
+  c.fillRect(x - w / 2, -h + w / 2, w * 0.4, h - w / 2);
+  const a = structPoint(x - w / 2, -h + w * 0.3), b = structPoint(x + w / 2, 0);
+  structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+  c.restore();
+}
+// a red tiled hipped roof on a box w x d: the right hip and the front slope show; small
+// triangular dormers stand in a row on the front slope
+function hfAsmHipRoof(w, d, rise, dormers) {
+  const c = sctx, hex = HF_ASM.roof, o = 1.4, ox = d * OBQ.dx, oy = d * OBQ.dy, hx = ox / 2, hy = oy / 2;
+  const ins = Math.min(d / 2, w / 2 - 2);
+  const FL = [-w / 2 - o, 1], FR = [w / 2 + o, 1], BR = [w / 2 + ox + o * 0.6, oy + 0.4];
+  const L = [-w / 2 + ins + hx, hy - rise], R = [w / 2 - ins + hx, hy - rise];
+  // the right hip, in shade
+  inkPoly([FR[0], FR[1], BR[0], BR[1], R[0], R[1]], toneHex(hex, -44), 1);
+  c.strokeStyle = "rgba(30, 12, 6, .3)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (let t = 0.2; t < 1; t += 0.2) {
+    c.moveTo(FR[0] + (R[0] - FR[0]) * t, FR[1] + (R[1] - FR[1]) * t);
+    c.lineTo(BR[0] + (R[0] - BR[0]) * t, BR[1] + (R[1] - BR[1]) * t);
+  }
+  c.stroke();
+  // the front slope: courses of tiles
+  const front = [FL[0], FL[1], FR[0], FR[1], R[0], R[1], L[0], L[1]];
+  polyPath(front);
+  const g = c.createLinearGradient(0, L[1], 0, FL[1]);
+  g.addColorStop(0, toneHex(hex, 4));
+  g.addColorStop(1, toneHex(hex, 22));
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  c.strokeStyle = "rgba(60, 18, 8, .38)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let t = 0.14; t < 1; t += 0.14) {
+    c.moveTo(FL[0] + (L[0] - FL[0]) * t, FL[1] + (L[1] - FL[1]) * t);
+    c.lineTo(FR[0] + (R[0] - FR[0]) * t, FR[1] + (R[1] - FR[1]) * t);
+  }
+  for (let x = -w / 2 + 1.6; x < w / 2 + hx; x += 2.2) { c.moveTo(x, 1); c.lineTo(x + hx, hy - rise); }
+  c.strokeStyle = "rgba(60, 18, 8, .16)";
+  c.stroke();
+  c.restore();
+  polyPath(front);
+  inkStroke(1);
+  // the dormers: a little cream gable with a dark light, its own red ridge running back
+  for (let i = 0; i < dormers; i++) {
+    const u = (i + 0.5) / dormers, t = 0.42;
+    const xl = FL[0] + (L[0] - FL[0]) * t, xr = FR[0] + (R[0] - FR[0]) * t;
+    const x = xl + (xr - xl) * (0.12 + 0.76 * u), y = FL[1] + (L[1] - FL[1]) * t;
+    const s = Math.min(2.6, w / dormers * 0.22);
+    const bx = hx * 0.12, by = (hy - rise) * 0.12;
+    inkPoly([x + s, y, x + s + bx, y + by, x + bx, y - s * 1.9 + by, x, y - s * 1.9], toneHex(hex, -30), 0.6);
+    inkPoly([x - s, y, x + s, y, x, y - s * 1.9], HF_ASM.cream, 0.6);
+    inkRect(x - s * 0.36, y - s * 1.0, s * 0.72, s * 0.9, "#2a2a2c", 0.3);
+    c.strokeStyle = toneHex(hex, -10);
+    c.lineWidth = 0.7;
+    c.beginPath();
+    c.moveTo(x - s - 0.3, y + 0.2); c.lineTo(x, y - s * 1.9 - 0.4); c.lineTo(x + s + 0.3, y + 0.2);
+    c.stroke();
+  }
+  if (structSnow) {
+    snowCap(L[0], L[1] + 0.4, R[0] - L[0], 1.2);
+    inkPoly([FL[0] + 2, -1, FR[0] - 2, -1, FR[0] - 2 + (R[0] - FR[0]) * 0.3, (R[1] - 1) * 0.3, FL[0] + 2 + (L[0] - FL[0]) * 0.3, (L[1] - 1) * 0.3], "rgba(246, 249, 252, .8)", 0);
+  }
+  structCrown(hy - rise - 1);
+}
+// the crown of the tower: a ring of slender columns and on it the open gilded cone and its needle
+function hfAsmCrown(rx, colH, rise) {
+  const c = sctx, A = HF_ASM, ry = rx * SYK_Q, n = 18;
+  // the round step the columns stand on
+  c.save();
+  sykCylPath(rx + 1.4, (rx + 1.4) * SYK_Q, 2);
+  c.fillStyle = toneHex(A.cream, -14);
+  c.fill();
+  inkStroke(0.7);
+  inkDisc(0, -2, rx + 1.4, (rx + 1.4) * SYK_Q, toneHex(A.cream, 10), 0.6);
+  c.translate(0, -2);
+  // the shaded hollow seen between the columns
+  sykCylPath(rx - 0.6, (rx - 0.6) * SYK_Q, colH);
+  const hg = c.createLinearGradient(-rx, 0, rx, 0);
+  hg.addColorStop(0, "rgba(70, 56, 40, .62)");
+  hg.addColorStop(1, "rgba(40, 30, 22, .78)");
+  c.fillStyle = hg;
+  c.fill();
+  const col = (a, near) => {
+    const x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+    beam(x, y, x, y - colH, near ? 0.75 : 0.55, near ? (x < 0 ? toneHex(A.col, 26) : x > rx * 0.5 ? toneHex(A.col, -24) : A.col) : toneHex(A.col, -40));
+  };
+  for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (Math.sin(a) < 0) col(a, false); }
+  for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2; if (Math.sin(a) >= 0) col(a, true); }
+  // the ring beam over the columns
+  c.translate(0, -colH);
+  sykCylPath(rx + 0.8, (rx + 0.8) * SYK_Q, 2.4);
+  const rg = c.createLinearGradient(-rx, 0, rx, 0);
+  rg.addColorStop(0, toneHex(A.col, 34));
+  rg.addColorStop(0.5, A.col);
+  rg.addColorStop(1, toneHex(A.col, -36));
+  c.fillStyle = rg;
+  c.fill();
+  inkStroke(0.7);
+  c.translate(0, -2.4);
+  // the lattice cone: a faint gilded skin, the far ribs and rings thin, the near ones bright
+  const R = rx + 1, Ry = R * SYK_Q, top = -rise;
+  c.beginPath();
+  c.moveTo(-R, 0);
+  c.lineTo(0, top);
+  c.lineTo(R, 0);
+  c.ellipse(0, 0, R, Ry, 0, 0, Math.PI);
+  c.closePath();
+  const sg = c.createLinearGradient(-R, 0, R, 0);
+  sg.addColorStop(0, "rgba(255, 236, 170, .34)");
+  sg.addColorStop(0.5, "rgba(230, 190, 100, .2)");
+  sg.addColorStop(1, "rgba(150, 110, 50, .3)");
+  c.fillStyle = sg;
+  c.fill();
+  const ribs = 20, rings = 7;
+  c.lineCap = "round";
+  c.strokeStyle = rgbaOf("120, 86, 36", 0.75);
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (let i = 0; i < ribs; i++) {
+    const a = i / ribs * Math.PI * 2;
+    if (Math.sin(a) < 0) { c.moveTo(Math.cos(a) * R, Math.sin(a) * Ry); c.lineTo(0, top); }
+  }
+  for (let k = 1; k <= rings; k++) {
+    const t = k / (rings + 1);
+    c.moveTo(R * (1 - t), top * t);
+    c.ellipse(0, top * t, R * (1 - t), Ry * (1 - t), 0, 0, Math.PI, true);
+  }
+  c.stroke();
+  const near = (w, hex) => {
+    c.strokeStyle = hex;
+    c.lineWidth = w;
+    c.beginPath();
+    for (let i = 0; i < ribs; i++) {
+      const a = i / ribs * Math.PI * 2;
+      if (Math.sin(a) > 0.01) { c.moveTo(Math.cos(a) * R, Math.sin(a) * Ry); c.lineTo(0, top); }
+    }
+    for (let k = 0; k <= rings; k++) {
+      const t = k / (rings + 1);
+      c.moveTo(R * (1 - t), top * t);
+      c.ellipse(0, top * t, R * (1 - t), Ry * (1 - t), 0, 0, Math.PI);
+    }
+    c.moveTo(-R, 0); c.lineTo(0, top); c.lineTo(R, 0);
+    c.stroke();
+  };
+  near(1.15, "rgba(60, 40, 14, .7)");
+  near(0.55, A.gold);
+  // the bright flank toward the light
+  c.strokeStyle = "rgba(255, 246, 210, .85)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.moveTo(-R * 0.72, Ry * 0.69); c.lineTo(0, top);
+  c.stroke();
+  // the needle and its ball
+  beam(0, top + 1, 0, top - 9, 0.45, A.gold);
+  inkDisc(0, top - 1.2, 0.9, 0.9, A.gold, 0.4);
+  structCrown(top - 9.5);
+  c.restore();
+}
+// a black square lamp standard of the city with three white globes on a crossbar and one on top
+function hfAsmLamp(x, y, h) {
+  const c = sctx, P = "#1e1d20";
+  inkRect(x - 0.9, y - 1.4, 1.8, 1.4, P, 0.4);
+  beam(x, y - 1, x, y - h, 0.55, P);
+  beam(x - 3, y - h + 1.6, x + 3, y - h + 1.6, 0.4, P);
+  for (const [gx, gy] of [[x - 3, y - h + 0.2], [x + 3, y - h + 0.2], [x, y - h - 1.4]]) {
+    inkDisc(gx, gy, 1.15, 1.2, "#f2eee2", 0.4);
+    fillBlobs("rgba(255, 255, 255, .8)", [[gx - 0.35, gy - 0.4, 0.4, 0.4]]);
+    structFit.lanterns.push(structPoint(gx, gy));
+  }
+  structCrown(y - h - 3);
+}
+// the lower hotel wing on the left, shopfronts under red awnings
+function hfAsmHotel(w, h, d) {
+  const c = sctx, A = HF_ASM;
+  hfAsmBlock(w, h, d, 9, 1351);
+  hfWindows(-w / 2, w / 2, -10, (h - 10) / 2, 2, 6, 3.2, 5.6, A.trim, () => "glass");
+  for (let i = 0; i < 4; i++) {
+    const x = -w / 2 + w * (i + 0.5) / 4;
+    a6Window(x - 3.6, -7, 7.2, 5.6, "#5a524a");
+    inkPoly([x - 4.6, -8.4, x + 4.6, -8.4, x + 5.4, -5.6, x - 5.4, -5.6], "#b8382c", 0.5);
+    sctx.fillStyle = "rgba(255, 240, 230, .5)";
+    sctx.fillRect(x - 5.2, -6.2, 10.4, 0.5);
+  }
+  c.save();
+  c.translate(0, -h - 0.4);
+  hfAsmHipRoof(w, d, 9, 4);
+  c.restore();
+}
+// the long wing on the right
+function hfAsmWing(w, h, d) {
+  const c = sctx, A = HF_ASM;
+  hfAsmBlock(w, h, d, 10, 1361);
+  hfWindows(-w / 2, w / 2, -11, (h - 11) / 3, 3, 7, 3, 5.4, A.trim, () => "glass");
+  hfWindows(-w / 2, w / 2, 0, 10, 1, 7, 3.4, 4.6, "#8a7c74", () => "glass");
+  c.save();
+  c.translate(0, -h - 0.4);
+  hfAsmHipRoof(w, d, 11, 5);
+  c.restore();
+}
+// the corner rotunda: a tuff foot, a drum of dark curved glazing, a red cone
+function hfAsmRotunda(rx, h) {
+  const c = sctx, A = HF_ASM, ry = rx * SYK_Q, foot = 11, gh = h - foot - 2.2;
+  sykCyl(rx, foot, { T: { mid: A.tuff, side: A.tuffSide, trim: A.trim }, seed: 1371, rough: true });
+  c.save();
+  c.translate(0, -foot);
+  sykCylPath(rx, ry, gh);
+  const g = c.createLinearGradient(-rx, 0, rx, 0);
+  g.addColorStop(0, "#5a7488");
+  g.addColorStop(0.3, A.glass);
+  g.addColorStop(0.7, "#1a2430");
+  g.addColorStop(1, "#10161e");
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  // the sky caught in the curve, the mullions and transoms of the curtain wall
+  c.fillStyle = "rgba(200, 222, 240, .22)";
+  c.fillRect(-rx * 0.62, -gh - ry, rx * 0.22, gh + ry * 2);
+  c.strokeStyle = "rgba(210, 214, 210, .55)";
+  c.lineWidth = 0.45;
+  c.beginPath();
+  for (let i = 1; i < 10; i++) {
+    const a = i / 10 * Math.PI, x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+    c.moveTo(x, y); c.lineTo(x, y - gh);
+  }
+  for (const f of [1 / 3, 2 / 3]) { c.moveTo(rx, -gh * f); c.ellipse(0, -gh * f, rx, ry, 0, 0, Math.PI); }
+  c.stroke();
+  c.restore();
+  sykCylPath(rx, ry, gh);
+  inkStroke(1);
+  // the panes that light up at night: the middle bays of each floor
+  for (let f = 0; f < 3; f++) {
+    for (let i = 3; i < 7; i++) {
+      if ((i + f) % 3 === 0) continue;
+      const a0 = i / 10 * Math.PI, a1 = (i + 1) / 10 * Math.PI, ym = Math.sin((a0 + a1) / 2) * ry;
+      const a = structPoint(Math.cos(a1) * rx + 0.35, ym - gh * (f + 1) / 3 + 0.9), b = structPoint(Math.cos(a0) * rx - 0.35, ym - gh * f / 3 - 0.9);
+      structFit.windows.push([a[0], a[1], b[0] - a[0], b[1] - a[1]]);
+    }
+  }
+  c.translate(0, -gh);
+  sykCylPath(rx + 0.8, (rx + 0.8) * SYK_Q, 2.2);
+  c.fillStyle = A.trim;
+  c.fill();
+  inkStroke(0.7);
+  coneCap(0, -2.2, rx + 2, 14, A.roof);
+  inkDisc(0, -16.6, 0.8, 0.8, A.goldDark, 0.4);
+  structCrown(-17);
+  c.restore();
+}
+// the portico: pilasters, the tall round arch through both storeys, balconies, the pediment
+function hfAsmPortico(w, h, d) {
+  const c = sctx, A = HF_ASM, P = A.trim, ox = d * OBQ.dx, oy = d * OBQ.dy;
+  hfAsmBlock(w, h, d, 12, 1381);
+  // pilasters at the corners and either side of the arch
+  for (const x of [-w / 2, -8.6, 6.4, w / 2 - 2.2]) {
+    inkRect(x, -h + 1.8, 2.2, h - 14, "#efe6d0", 0.45);
+    c.fillStyle = "rgba(60, 40, 20, .14)";
+    c.fillRect(x + 1.5, -h + 1.8, 0.7, h - 14);
+  }
+  // the arch: a white surround, glazing and the doors
+  const aw = 11.2, ah = 36;
+  archPath(0, aw + 3, ah + 1.5);
+  c.fillStyle = P;
+  c.fill();
+  inkStroke(0.8);
+  archPath(0, aw, ah);
+  const gg = c.createLinearGradient(0, -ah, 0, 0);
+  gg.addColorStop(0, "#3a4a5a");
+  gg.addColorStop(1, "#1a1f26");
+  c.fillStyle = gg;
+  c.fill();
+  c.save();
+  c.clip();
+  c.strokeStyle = "rgba(220, 214, 196, .6)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (const x of [-2.8, 0, 2.8]) { c.moveTo(x, 0); c.lineTo(x, -ah + aw / 2); }
+  for (const y of [-12, -23, -ah + aw / 2]) { c.moveTo(-aw / 2, y); c.lineTo(aw / 2, y); }
+  for (let i = 1; i < 4; i++) { const a = Math.PI + i / 4 * Math.PI; c.moveTo(0, -ah + aw / 2); c.lineTo(Math.cos(a) * aw / 2, -ah + aw / 2 + Math.sin(a) * aw / 2); }
+  c.stroke();
+  c.restore();
+  inkRect(-3.8, -10.5, 7.6, 10.5, "#4c3424", 0.5);
+  beam(0, -10.3, 0, -0.3, 0.2, "#2a1c12");
+  archPath(0, aw, ah);
+  inkStroke(0.8);
+  inkPoly([-1.4, -ah - 1.6, 1.4, -ah - 1.6, 1, -ah + 1.2, -1, -ah + 1.2], "#efe6d0", 0.4);
+  const a = structPoint(0, 0), b = structPoint(aw, ah);
+  structFit.gate = [a[0], a[1], b[0] - a[0], b[1] - a[1]];
+  // the side bays: windows over balconies upstairs, small lights by the door below
+  for (const s of [-1, 1]) {
+    const bx = s < 0 ? -12.4 : 10.6;
+    a6Window(bx - 1.6 + 0.4, -h + 7, 3.2, 7.6, P);
+    hfAsmArchWindow(bx + 0.4, -14, 2.8, 6, P);
+    // the balcony: a slab and a little row of balusters
+    inkRect(bx - 3, -h + 15, 6.8, 1.1, P, 0.4);
+    c.strokeStyle = "#f2ead6";
+    c.lineWidth = 0.5;
+    c.beginPath();
+    for (let x = bx - 2.4; x < bx + 3.6; x += 1) { c.moveTo(x, -h + 15); c.lineTo(x, -h + 12.2); }
+    c.stroke();
+    inkRect(bx - 3, -h + 11.6, 6.8, 0.7, P, 0.35);
+  }
+  // the pediment, the portico's roof behind it, the arms in a roundel
+  const pw = w / 2 + 1, pr = 10.4, py = -h - 0.3;
+  inkPoly([0, py - pr, pw, py, pw + ox, py + oy, ox, py - pr + oy], toneHex(A.roof, -18), 0.8);
+  inkPoly([-pw, py, pw, py, 0, py - pr], P, 0.9);
+  inkPoly([-pw + 3.2, py - 0.9, pw - 3.2, py - 0.9, 0, py - pr + 2.2], toneHex(A.cream, 4), 0.4);
+  inkDisc(0, py - 3.8, 2.4, 2.4, P, 0.5);
+  inkDisc(0, py - 3.8, 1.6, 1.6, A.gold, 0.3);
+  fillBlobs("#b8382c", [[0, py - 3.8, 0.7, 0.9]]);
+  if (structSnow) snowCap(-pw * 0.4, py - pr * 0.6, pw * 0.8, 1.2);
+  structCrown(py - pr);
+}
 function hfStep23() {
-  const c = sctx, TUF = "#c9a48a", SIDE = "#946f58";
+  const c = sctx, A = HF_ASM, D = OBQ;
   hfYard("#9c8761", 1301);
   c.save();
   c.translate(0, -12);
+  // the tower block, set back, and its crown
+  const TW = 38, TH = 76, TD = 26;
   c.save();
-  c.translate(2 + 6 * OBQ.dx, 6 * OBQ.dy);
-  box3(116, 52, 26, TUF, { masonry: true, side: SIDE, course: 5.2, block: 12, seed: 1311, band: 0 });
-  stringCourse(116, 26, -17.6);
-  hfWindows(-58, 58, 0, 17.4, 3, 9, 5.2, 9, "#e8d4be", (i, r) => (r === 0 ? (i === 4 ? "dark" : "bags") : "glass"));
-  // a plain cornice along the roof
-  c.translate(0, -52);
-  box3(118, 2.4, 27, toneHex(TUF, 14), { side: toneHex(SIDE, 6) });
-  c.restore();
-  // the entrance: a shallow portico of four square piers, sandbagged
+  c.translate(-4 + 10 * D.dx, 10 * D.dy);
+  hfAsmBlock(TW, TH, TD, 12, 1341);
+  // only the upper storeys clear the portico and the wings (a window reported under them would
+  // still be lit at night through the roofs)
+  for (const x of [-14.2, 14.2]) a6Window(x - 1.4, -TH + 18, 2.8, 5.4, A.trim);
+  for (const x of [-11, -3.7, 3.7, 11]) hfAsmArchWindow(x, -TH + 9, 2.8, 6.4);
+  hfAsmSideWindows(TW, TD, -45, 11, 2, 3, 2.6, 5.4, true);
+  c.translate(0, -TH);
   c.save();
-  c.translate(2, 0);
-  for (const px of [-12, -4, 4, 12]) {
-    c.save();
-    c.translate(px, 0);
-    box3(3, 22, 3, toneHex(TUF, 10), { side: SIDE });
-    c.restore();
-  }
-  box3(30, 3, 4, toneHex(TUF, 16), { side: SIDE });
-  c.translate(0, -22);
-  box3(30, 3.6, 4, toneHex(TUF, 16), { side: SIDE });
+  c.translate(TD * D.dx / 2, TD * D.dy / 2);
+  hfAsmCrown(13, 12.5, 39);
   c.restore();
-  // the civil defence shelter's stair at the side
-  cpStair(-46, 12);
-  a6Man(-28, 8, A6_Z, a6Dress(0, true), "wait", 1);
-  a6BagWall(-38, -14, 13, 2, 1321);
-  a6Block(-20, 18, 9, 5.6, 5);
-  a6Block(23, 18, 9, 5.6, 5);
-  a6BagWall(40, 64, 13, 3, 1331);
-  a6Man(52, 7, A6_Z, a6Dress(2), "rifle", -1);
-  a6BagWall(40, 64, 16, 1, 1341);
+  hfFlagPole(-TW / 2 + 2, -1, 14, "artsakh", 10, 6.4);
+  c.restore();
+  // the hotel wing on the left, the long wing and its rotunda on the right
+  c.save();
+  c.translate(-49 + 6 * D.dx, 6 * D.dy);
+  hfAsmHotel(50, 30, 22);
+  c.restore();
+  c.save();
+  c.translate(42 + 6 * D.dx, 6 * D.dy);
+  hfAsmWing(52, 40, 24);
+  c.restore();
+  c.save();
+  c.translate(70 + 12 * D.dx, 6 + 12 * D.dy);
+  hfAsmRotunda(10.5, 38);
+  c.restore();
+  // the portico stands forward of the tower
+  c.save();
+  c.translate(-4, 0);
+  hfAsmPortico(32, 44, 10);
+  c.restore();
+  // the square: lamp standards, concrete blocks and a sandbagged post, a civil defence volunteer
+  hfAsmLamp(-30, 12, 22);
+  hfAsmLamp(24, 12, 22);
+  a6Block(-17, 19, 8, 5, 5);
+  a6Block(12, 19, 8, 5, 5);
+  a6Man(-44, 9, A6_Z, a6Dress(0, true), "wait", 1);
+  a6BagWall(46, 70, 14, 2, 1331);
+  a6Man(58, 9, A6_Z, a6Dress(2), "rifle", -1);
+  a6BagWall(46, 70, 17, 1, 1341);
   c.restore();
 }
 // ====================================== END FORT SECTION: herofort ======================================
