@@ -272,6 +272,8 @@
   }
   @keyframes dsTouch { 0%, 78% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 
+  @keyframes nudge { 0%, 100% { transform: none; } 15%, 45%, 75% { transform: translateX(-3px) scale(1.05); } 30%, 60%, 90% { transform: translateX(3px) scale(1.05); } }
+  .nudge { animation: nudge .8s ease-in-out 3; box-shadow: 0 0 0 3px rgba(255, 210, 122, .9), 0 0 22px rgba(255, 170, 60, .8) !important; }
   #speedBtn.secret { color: #ffd27a; text-shadow: 0 0 6px rgba(255, 120, 60, .9); }
   #panel { position: fixed; z-index: 20; width: 250px; padding: 16px 12px 18px; display: none; }
   #panel .ptr {
@@ -48483,6 +48485,7 @@ speedBtn.addEventListener("click", (e) => {
 });
 autoBtn.addEventListener("click", () => {
   auto = !auto;
+  coachEvent("auto");
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
   autoBtn.classList.toggle("on", auto);
   if (auto && phase === "idle" && !gameOver && waveIdx < TOTAL_WAVES) {
@@ -48820,10 +48823,17 @@ const TUT_STEPS = [
     world: () => { const p = PADS[tut.pad] || PADS[0]; return [p[0], p[1], 34, 0]; },
     enter: () => { if (tut.pad < 0 || towerAt(tut.pad)) tut.pad = tutBestPad(); },
     done: () => towers.length > 0, back: () => (!placing && !towers.length ? "shop" : null) },
-  { id: "wave", freeze: false, enter: () => setPlacing(null),
-    html: () => "Ready! Tap or click <b>Send Wave</b> (or press Space). Later, calling a wave early while foes are still " +
-      "marching pays bonus gold, and <b>Auto</b> sends the waves for you.",
-    el: () => waveBtn, also: () => [autoBtn],
+  { id: "wave", freeze: false, enter: () => setPlacing(null), nag: true,
+    html: () => {
+      const base = "Ready! Tap or click <b>Send Wave</b> (or press Space) to bring on the first wave. Later, calling a wave early " +
+        "while foes are still marching pays bonus gold.";
+      const n = tutNagLevel();
+      return n === 0 ? base
+        : n === 1 ? "<b>The foe waits for your signal.</b> Tap or click the glowing red <b>Send Wave</b> button at the bottom right."
+        : "Nothing happens until you send the wave: tap or click <b>Send Wave</b> " + (tutTouch() ? "" : "or press <b>Space</b> ") +
+          "and your archers will meet them.";
+    },
+    el: () => waveBtn,
     done: () => waveIdx >= 1 },
   { id: "fight", freeze: false, prefer: ["below", "right", "left", "above"],
     html: () => "Your archers shoot on their own. Every foe they fell drops <b>gold</b>.",
@@ -48867,6 +48877,12 @@ const TUT_STEPS = [
     html: () => "The <b>speed</b> button runs the battle at 2×; tap or click it again for 1×.",
     el: () => speedBtn,
     done: () => tut.ev.speed },
+  { id: "auto", freeze: false, next: "Next",
+    html: () => "<b>Auto</b> sends each new wave by itself a few seconds after the last one is cleared, so the battle " +
+      "flows on without you pressing Send Wave. Tap or click it to turn it on; tap again to take back control. " +
+      "Leave it off while you are still building.",
+    el: () => autoBtn,
+    done: () => tut.ev.auto },
   { id: "plots", freeze: true, next: "Next",
     html: () => "Signposts mark <b>land you can claim</b>. When you have the gold, tap or click one to add a new build pad.",
     world: () => { const p = tutPlot(); return p ? [p[0], p[1], 38, 14] : null; } },
@@ -48909,11 +48925,31 @@ function tutGo(i) {
   if (!tut) return;
   if (i >= TUT_STEPS.length) { endTutorial(false); return; }
   tut.i = i;
+  tut.t0 = performance.now();
   const S = TUT_STEPS[i];
   if (S.enter) S.enter();
   tut.shown = "";
 }
 function tutAdvance() { if (tut) tutGo(tut.i + 1); }
+// how long the player has sat on a step that waits for them: 0 at first, 1 after 8 s, 2 after 18 s
+function tutNagLevel() {
+  if (!tut || !tut.t0) return 0;
+  const s = (performance.now() - tut.t0) / 1000;
+  return s > 18 ? 2 : s > 8 ? 1 : 0;
+}
+// After the lesson, on a coached Erebuni: when the field has been clear for a while and no wave is called
+// (and Auto is off), a reminder says how to go on: at 15 s, then every 25 s, three times in all.
+let tutIdle = { t: 0, n: 0 };
+function tutIdleNudge() {
+  if (!tutGentle || curLevel !== 0 || tut || gameOver || auto || phase !== "idle" || waveIdx < 1 || waveIdx >= TOTAL_WAVES ||
+      !overlayEl.classList.contains("hidden") || paused) { tutIdle.t = performance.now(); return; }
+  if (tutIdle.n >= 3) return;
+  if (performance.now() - tutIdle.t > (tutIdle.n ? 25000 : 15000)) {
+    tutIdle.t = performance.now(); tutIdle.n++;
+    toast("The field is clear: tap or click Send Wave for wave " + (waveIdx + 1) + ", or switch on Auto to keep them coming.");
+    waveBtn.classList.add("nudge"); setTimeout(() => waveBtn.classList.remove("nudge"), 2400);
+  }
+}
 function endTutorial(skipped) {
   if (!tut) return;
   tut = null;
@@ -49016,6 +49052,7 @@ function haloOn(els) {
 // once a frame: move on when the step is done, fall back when its premise is undone, and keep the bubble,
 // the ring and the outlines on their targets
 function coachTick() {
+  tutIdleNudge();
   if (!tut) return;
   const live = overlayEl.classList.contains("hidden") && !gameOver;
   if (!live) {
@@ -49031,8 +49068,15 @@ function coachTick() {
     break;
   }
   const nextLbl = typeof S.next === "function" ? S.next() : S.next;
-  const key = tut.i + "|" + (nextLbl || "") + "|" + tutTouch();
+  const nag = S.nag ? tutNagLevel() : 0;
+  const key = tut.i + "|" + (nextLbl || "") + "|" + tutTouch() + "|" + nag;
   if (tut.shown !== key) {
+    // a reminder comes with a tick and a shake of the button it points at
+    if (nag && tut.shown && tut.shown.split("|")[0] === String(tut.i)) {
+      Snd.play("uiTick");
+      const tgt = S.el && S.el();
+      if (tgt) { tgt.classList.remove("nudge"); void tgt.offsetWidth; tgt.classList.add("nudge"); setTimeout(() => tgt.classList.remove("nudge"), 2400); }
+    }
     tut.shown = key;
     coachEl.querySelector(".cStep").textContent = (tut.i + 1) + " / " + TUT_STEPS.length;
     coachEl.querySelector(".cText").innerHTML = S.html();
