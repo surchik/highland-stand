@@ -19893,7 +19893,7 @@ function drawCelebration(time) {
   const cb = beat % 8;
   const travel = cb < 4 ? cb / 4 : 1;
   const lineShift = ((cycle % 2 === 0 ? travel : 1 - travel) - 0.5) * C.travel;
-  const N = KOCHARI_CAST.length;
+  const W = kochariWardrobe(), cast = W.cast, N = cast.length;
   const row = proj(stage.x, stage.y), s = row.s * C.scale, step = 30 * s;
   const firstX = row.x + (lineShift - (N - 1) / 2 * C.gap) * row.s;
   const fire = proj(stage.fireX, stage.y + C.fireGap), fk = fire.s * 1.45;
@@ -19931,9 +19931,9 @@ function drawCelebration(time) {
   ctx.globalAlpha = 1;
 
   for (const f of figures) {
-    if (f.role === "zurna") drawZurnachi(f.x, row.y, s, beat);
-    else if (f.role === "dhol") drawDholchi(f.x, row.y, s, beat);
-    else if (f.role === "dancer") drawKochariDancer(f.x, row.y, s, beat, cb, cycle, f.i, KOCHARI_CAST[f.i]);
+    if (f.role === "zurna") drawZurnachi(f.x, row.y, s, beat, W.zurna, W.pipe);
+    else if (f.role === "dhol") drawDholchi(f.x, row.y, s, beat, W.dhol);
+    else if (f.role === "dancer") drawKochariDancer(f.x, row.y, s, beat, cb, cycle, f.i, cast[f.i]);
     else drawVardanDance(f.x, row.y, s, beat, cb, cycle, f.arrived, t);
   }
 
@@ -19973,15 +19973,124 @@ function drawCelebration(time) {
 }
 
 // ---- the kochari ensemble ----
-const KOCHARI_CAST = [
-  { type: "m", coat: "#a31d24", trim: "#f4bc3a" },
-  { type: "f", dress: "#1d3f94", apron: "#c4262a", veil: "#fbf4e2", trim: "#f4bc3a" },
-  { type: "m", coat: "#1c4e80", trim: "#e0392e" },
-  { type: "f", dress: "#7c1c5e", apron: "#f0b12e", veil: "#ffffff", trim: "#e0392e" },
-  { type: "m", coat: "#226b3a", trim: "#f4bc3a" },
-  { type: "f", dress: "#b3261e", apron: "#1d3f94", veil: "#fbf4e2", trim: "#f4bc3a" },
-  { type: "m", coat: "#5b2a8c", trim: "#e0392e" },
-];
+// The line dresses for the battlefield's age. Each period lists its seven dancers (man, woman,
+// man, ...), its two musicians and their pipe. A man's garment is a "tunic", "kaftan", "chokha",
+// "shirt" or "uniform"; a woman's head is "mantle", "coins", "scarf" or bare "hair".
+const KOCHARI_BRONZE = "#c48a3a", KOCHARI_SILVER = "#d5dae2", KOCHARI_LEATHER = "#5a3a22";
+const KOCHARI_CAMO = ["#3f4a2a", "#7a6a44", "#2a2a1e"];
+// the festive taraz of the folk ensembles: the costume of the seventeenth and eighteenth centuries,
+// still danced in at every celebration today
+const KOCHARI_TARAZ_M = { type: "m", garment: "chokha", gazyr: true, coat: "#a31d24", trim: "#f4bc3a", belt: KOCHARI_SILVER, dagger: true };
+const KOCHARI_TARAZ_F = { type: "f", dress: "#1d3f94", apron: "#c4262a", veil: "#fbf4e2", trim: "#f4bc3a", head: "coins", yoke: true, braids: true, belt: KOCHARI_SILVER };
+const KOCHARI_WARDROBE = {
+  // Urartu: long belted tunics with fringed hems and wide bronze belts, rounded caps and full
+  // beards on the men; ankle-length fringed robes with a long veil over the head for the women.
+  // The pipers of the age blew a double pipe.
+  urartu: {
+    pipe: "double",
+    cast: [
+      { type: "m", garment: "tunic", coat: "#a8321f", trim: "#e2b04a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#6e2a1c", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+      { type: "f", dress: "#2c4a86", trim: "#e2b04a", veil: "#efe3c6", head: "mantle", fringe: true, belt: KOCHARI_BRONZE },
+      { type: "m", garment: "tunic", coat: "#d9c9a0", trim: "#a3372a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#2f4a72", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+      { type: "f", dress: "#9c2f22", trim: "#e2b04a", veil: "#f5ecd6", head: "mantle", fringe: true, belt: KOCHARI_BRONZE },
+      { type: "m", garment: "tunic", coat: "#2f4f7a", trim: "#e2b04a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#8a3a1c", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+      { type: "f", dress: "#c08a2e", trim: "#8a2a1e", veil: "#efe3c6", head: "mantle", fringe: true, belt: KOCHARI_BRONZE },
+      { type: "m", garment: "tunic", coat: "#8a3a1c", trim: "#e9d6a6", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#d9c9a0", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+    ],
+    zurna: { type: "m", garment: "tunic", coat: "#6e5a8a", trim: "#e2b04a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#a8321f", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+    dhol: { type: "m", garment: "tunic", coat: "#b7863a", trim: "#7a2a1e", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#2f4a72", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+  },
+  // Late antique and early medieval Armenia, in the reds, ochres and blues of the gospel books:
+  // belted kaftans bordered down the front, soft felt caps, beards; long dresses under white
+  // head veils that frame the face and fall down the back.
+  medieval: {
+    pipe: "zurna",
+    cast: [
+      { type: "m", garment: "kaftan", coat: "#b8322a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#2a4c9a", beard: true },
+      { type: "f", dress: "#2a4c9a", trim: "#e6b33c", veil: "#f3ead4", head: "mantle", veilLong: true, belt: "#c8962e" },
+      { type: "m", garment: "kaftan", coat: "#c8922e", trim: "#a3241e", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#7a1e1a" },
+      { type: "f", dress: "#a3241e", trim: "#e6b33c", veil: "#fbf4e2", head: "mantle", veilLong: true, belt: "#c8962e" },
+      { type: "m", garment: "kaftan", coat: "#2a4c9a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#c8922e", beard: true },
+      { type: "f", dress: "#3c6a3a", trim: "#e6b33c", veil: "#f3ead4", head: "mantle", veilLong: true, belt: "#c8962e" },
+      { type: "m", garment: "kaftan", coat: "#7a1e3a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#2a2420", beard: true },
+    ],
+    zurna: { type: "m", garment: "kaftan", coat: "#3c6a3a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#a3241e", beard: true },
+    dhol: { type: "m", garment: "kaftan", coat: "#8f5a1e", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#2a4c9a", beard: true },
+  },
+  // the sixteenth to eighteenth centuries: the men in long arkhalukh coats fastened over the chest,
+  // silver-buckled belts and low fleece papakhs or soft caps; the women in the full taraz with
+  // embroidered aprons, coin brow-bands, long braids and white veils
+  early: {
+    pipe: "zurna",
+    cast: [
+      { type: "m", garment: "chokha", coat: "#a31d24", vest: "#e9d6a6", trim: "#f4bc3a", belt: KOCHARI_SILVER, dagger: true, hat: "low" },
+      { type: "f", dress: "#1d3f94", apron: "#c4262a", veil: "#fbf4e2", trim: "#f4bc3a", head: "coins", yoke: true, braids: true, belt: KOCHARI_SILVER },
+      { type: "m", garment: "chokha", coat: "#1c4e80", vest: "#a31d24", trim: "#e0392e", belt: KOCHARI_SILVER, hat: "soft", hatC: "#5a2a1a" },
+      { type: "f", dress: "#7c1c5e", apron: "#f0b12e", veil: "#ffffff", trim: "#e0392e", head: "coins", yoke: true, braids: true, belt: KOCHARI_SILVER },
+      { type: "m", garment: "chokha", coat: "#226b3a", vest: "#f0d9a0", trim: "#f4bc3a", belt: KOCHARI_SILVER, dagger: true, hat: "low" },
+      { type: "f", dress: "#b3261e", apron: "#1d3f94", veil: "#fbf4e2", trim: "#f4bc3a", head: "coins", yoke: true, braids: true, belt: KOCHARI_SILVER },
+      { type: "m", garment: "chokha", coat: "#5b2a8c", vest: "#e9d6a6", trim: "#e0392e", belt: KOCHARI_SILVER, hat: "low" },
+    ],
+    zurna: { type: "m", garment: "chokha", coat: "#1f6a5a", vest: "#e9d6a6", trim: "#e0392e", belt: KOCHARI_SILVER, hat: "low", hatC: "#3a2c20" },
+    dhol: { type: "m", garment: "chokha", coat: "#8f5a1e", vest: "#e9d6a6", trim: "#f4bc3a", belt: KOCHARI_SILVER, hat: "soft", hatC: "#3a2c20" },
+  },
+  // 1915: the fedayi volunteers in dark chokhas with cartridge loops, bandoliers, papakhs and
+  // puttees beside village men in shirts and waistcoats with wool sashes; the women in long
+  // skirts, aprons and headscarves
+  war: {
+    pipe: "zurna",
+    cast: [
+      { type: "m", garment: "chokha", gazyr: true, coat: "#4a4036", trim: "#b89a5a", belt: KOCHARI_LEATHER, dagger: true, bandolier: true, shin: "#8a7a5a", puttees: "#5e523a" },
+      { type: "f", dress: "#3a2f5a", top: "#8a2a24", apron: "#d9c49a", trim: "#b23a2e", head: "scarf", scarf: "#b23a2e", hemBand: false },
+      { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#3a2e26", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", shin: "#d6c8a8", puttees: "#8a7a5a", hat: "low", hatC: "#4a3424" },
+      { type: "f", dress: "#2b2a28", top: "#2f4a72", apron: "#c94a3a", trim: "#e2b04a", head: "scarf", scarf: "#e9dcc0", hemBand: false },
+      { type: "m", garment: "chokha", gazyr: true, coat: "#5c4a36", trim: "#b89a5a", belt: KOCHARI_LEATHER, bandolier: true, shin: "#8a7a5a", puttees: "#5e523a" },
+      { type: "f", dress: "#6a2a24", top: "#d9c49a", apron: "#2f4a72", trim: "#e2b04a", head: "scarf", scarf: "#2a2a30", hemBand: false },
+      { type: "m", garment: "shirt", coat: "#d4c3a0", vest: "#2c3440", sash: "#6a2a5a", trim: "#6a2a5a", legs: "#3a3430", shin: "#d6c8a8", puttees: "#8a7a5a", hat: "soft", hatC: "#3a2c20" },
+    ],
+    zurna: { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#4a2e22", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", hat: "low", hatC: "#3a2c20" },
+    dhol: { type: "m", garment: "shirt", coat: "#c9b892", vest: "#2c3440", sash: "#b8862e", trim: "#b8862e", legs: "#3a3430", hat: "soft", hatC: "#3a2c20" },
+  },
+  // Sardarapat, 1918: soldiers of the new army in khaki tunics, peaked caps and papakhs, a
+  // volunteer and villagers who marched out beside them
+  war1918: {
+    pipe: "zurna",
+    cast: [
+      { type: "m", garment: "uniform", coat: "#857a52", trim: "#5e5438", belt: KOCHARI_LEATHER, strap: true, legs: "#6e6444", boots: "#1e1610", hat: "peaked", hatC: "#857a52" },
+      { type: "f", dress: "#3a2f5a", top: "#8a2a24", apron: "#d9c49a", trim: "#b23a2e", head: "scarf", scarf: "#b23a2e", hemBand: false },
+      { type: "m", garment: "chokha", gazyr: true, coat: "#4a4036", trim: "#b89a5a", belt: KOCHARI_LEATHER, dagger: true, bandolier: true, shin: "#8a7a5a", puttees: "#5e523a" },
+      { type: "f", dress: "#2b2a28", top: "#2f4a72", apron: "#c94a3a", trim: "#e2b04a", head: "scarf", scarf: "#e9dcc0", hemBand: false },
+      { type: "m", garment: "uniform", coat: "#7c7350", trim: "#5e5438", belt: KOCHARI_LEATHER, bandolier: true, legs: "#6e6444", shin: "#7c7350", puttees: "#4e4630", hat: "papakha", hatC: "#3a2e24" },
+      { type: "f", dress: "#6a2a24", top: "#d9c49a", apron: "#2f4a72", trim: "#e2b04a", head: "scarf", scarf: "#2a2a30", hemBand: false },
+      { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#3a2e26", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", shin: "#d6c8a8", puttees: "#8a7a5a", hat: "low", hatC: "#4a3424" },
+    ],
+    zurna: { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#4a2e22", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", hat: "low", hatC: "#3a2c20" },
+    dhol: { type: "m", garment: "uniform", coat: "#857a52", trim: "#5e5438", belt: KOCHARI_LEATHER, legs: "#6e6444", hat: "peaked", hatC: "#857a52" },
+  },
+  // Artsakh, 1992 to 2023: a couple in the stage taraz of the folk ensembles leads a line of
+  // Defence Army soldiers in green and camouflage, men in jeans and sweaters, and women in
+  // everyday dresses and skirts with their hair uncovered
+  modern: {
+    pipe: "zurna",
+    cast: [
+      KOCHARI_TARAZ_M,
+      KOCHARI_TARAZ_F,
+      { type: "m", garment: "uniform", coat: "#55613a", camoTop: true, camo: KOCHARI_CAMO, trim: "#3e4a2a", belt: "#2a2a22", legs: "#55613a", shin: "#55613a", boots: "#16130f", hat: "none", stache: false },
+      { type: "f", dress: "#b0303e", trim: "#b0303e", head: "hair", hem: -9.6, legs: "#c99a7c", shoe: "#1e1a1c", hemBand: false, neck: true },
+      { type: "m", garment: "shirt", coat: "#3a4f6b", collar: false, trim: "#2a3a52", belt: "#2a1e18", legs: "#3c5a86", shin: "#3c5a86", boots: "#e4e0d6", hat: "none" },
+      { type: "f", dress: "#1f2f4a", top: "#efe6d4", trim: "#1f2f4a", head: "hair", hair: "#3a2416", hem: -8.4, legs: "#2a2228", shoe: "#5a2a22", hemBand: false, neck: true },
+      { type: "m", garment: "shirt", coat: "#e9e4d6", trim: "#9a9484", belt: "#2a1e18", legs: "#55613a", camo: KOCHARI_CAMO, shin: "#55613a", boots: "#16130f", hat: "fieldcap", hatC: "#55613a", stache: false },
+    ],
+    zurna: { type: "m", garment: "shirt", coat: "#2a2a30", collar: false, trim: "#1a1a20", belt: "#1a1410", legs: "#3a3a40", shin: "#3a3a40", boots: "#14110e", hat: "none" },
+    dhol: { type: "m", garment: "shirt", coat: "#e9e4d6", vest: "#2a2a30", trim: "#9a9484", belt: "#1a1410", legs: "#55613a", camo: KOCHARI_CAMO, shin: "#55613a", boots: "#16130f", hat: "none" },
+  },
+};
+function kochariWardrobe() {
+  const year = (LEVELS[curLevel] || LEVELS[0]).year || 0;
+  const W = KOCHARI_WARDROBE;
+  return year < 0 ? W.urartu : year < 1000 ? W.medieval : year < 1800 ? W.early
+    : year < 1917 ? W.war : year < 1950 ? W.war1918 : W.modern;
+}
 
 function kochariMotion(beat, cb, cycle, male) {
   const stepPh = beat * Math.PI;
@@ -20124,68 +20233,209 @@ function kochariArm(sx, sy, hx, hy, bend, sleeve, cuff) {
   uDisc(palm[0], palm[1], 1.55, C.skin);
 }
 
-// legs, coat, cartridge loops and silver belt of a man of the ensemble, seen from the front.
+// a point a fraction t along a limb drawn from its first point to its last, pushed off it sideways by o
+function kochariAlong(pts, t, o) {
+  const n = pts.length, x0 = pts[0], y0 = pts[1], x1 = pts[n - 2], y1 = pts[n - 1];
+  const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+  return [x0 + (x1 - x0) * t - (y1 - y0) / len * o, y0 + (y1 - y0) * t + (x1 - x0) / len * o];
+}
+// camouflage blotches down a limb
+function kochariCamo(pts, cols) {
+  for (let k = 0; k < 3; k++) {
+    const p = kochariAlong(pts, 0.2 + k * 0.3, k % 2 ? 0.7 : -0.6);
+    uFlatDisc(p[0], p[1], 0.85, cols[k % cols.length]);
+  }
+}
+// puttees: the cloth wound slantwise round the shin
+function kochariWraps(pts, color) {
+  const n = pts.length, dx = pts[n - 2] - pts[0], dy = pts[n - 1] - pts[1];
+  const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  for (let t = 0.12; t < 0.8; t += 0.16) {
+    const p = kochariAlong(pts, t, 0);
+    uFlatSeg(p[0] + uy * 1.5 - ux * 0.5, p[1] - ux * 1.5 - uy * 0.5, p[0] - uy * 1.5 + ux * 0.5, p[1] + ux * 1.5 + uy * 0.5, 0.45, color);
+  }
+}
+
+// a man of the ensemble, seen from the front, dressed by his wardrobe entry c (see KOCHARI_WARDROBE).
 // The body rides `lift` above standing height (negative in a knee bend) over feet that stay where the dance puts them.
 function kochariMan(c, lift, feet, sway) {
   const C = UNIT_COLORS;
+  const g = c.garment || "chokha";
   const hipY = -16 - lift;
   const deep = shade(c.coat, -52);
+  const legs = c.legs || "#2d2836", boots = c.boots || "#191310", shinC = c.shin || boots;
   for (const f of feet) {
     const hx = f.side * 2.6;
     const knee = kochariJoint(hx, hipY, f.x, f.y - 1.6, 8.2, 8.2, -f.side);
     const thigh = [hx, hipY, knee[0], knee[1]], shin = [knee[0], knee[1], f.x, f.y - 1.6];
-    uLine(thigh, "#2d2836", 3.6);
+    uLine(thigh, legs, 3.6);
+    if (c.camo) kochariCamo(thigh, c.camo);
     kochariLimb(thigh, 3.6, f.side);
-    uLine(shin, "#191310", 3.3);
+    uLine(shin, shinC, 3.3);
+    if (c.camo && shinC === legs) kochariCamo(shin, c.camo);
+    if (c.puttees) kochariWraps(shin, c.puttees);
+    if (shinC !== boots) {
+      // boots or shoes below trousers and puttees
+      const top = kochariAlong(shin, c.puttees ? 0.82 : 0.86, 0);
+      uFlatSeg(top[0], top[1], f.x, f.y - 1.6, 3.3, boots);
+    }
     kochariLimb(shin, 3.3, f.side);
-    uOval(f.x + f.side * 1.3, f.y - 1.2, 2.7, 1.5, 0, "#191310");
+    uOval(f.x + f.side * 1.3, f.y - 1.2, 2.7, 1.5, 0, boots);
   }
   uc.save();
   uc.translate(0, -lift);
-  // knee-length chokha: fitted to the waist, flaring below the belt
-  uc.beginPath();
-  uc.moveTo(-6, -26.4);
-  uc.quadraticCurveTo(0, -28.8, 6, -26.4);
-  uc.lineTo(4.7, -19.8);
-  uc.lineTo(7.6 + sway, -10);
-  uc.quadraticCurveTo(sway * 0.6, -8.4, -7.6 + sway, -10);
-  uc.lineTo(-4.7, -19.8);
-  uc.closePath();
-  uInk(c.coat);
-  kochariEdges([6, -26.4, 4.7, -19.8, 7.6 + sway, -10], [-6, -26.4, -4.7, -19.8, -7.6 + sway, -10], 3.2);
-  uFlatLine([-3.4, -18.6, -4.7 + sway * 0.8, -10.6], deep, 0.6);
-  uFlatLine([3.7, -18.6, 5.1 + sway * 0.8, -10.6], deep, 0.6);
-  uFlatLine([0.2, -22.4, 0.9 + sway * 0.6, -9.5], deep, 0.7);
-  uFlatLine([1.1, -18.6, 1.8 + sway * 0.6, -9.7], c.trim, 0.7);
-  uc.beginPath();
-  uc.moveTo(-6.9 + sway, -10.7);
-  uc.quadraticCurveTo(sway * 0.6, -9.2, 6.9 + sway, -10.7);
-  uc.lineWidth = 0.9; uc.strokeStyle = c.trim; uc.stroke();
-  // shirt in the open collar, piped in the trim colour
-  uFlatPoly([-2.3, -27.5, 0, -22.6, 2.3, -27.5], "#f6efdc");
-  uFlatLine([-2.5, -27.5, 0, -22.4, 2.5, -27.5], c.trim, 0.8);
-  // a row of cartridge loops on each breast
-  for (const side of [-1, 1]) {
-    uFlatPoly([side * 1.7, -25.9, side * 4.2, -25.7, side * 4.1, -23, side * 1.7, -23.1], deep);
-    for (let j = 0; j < 3; j++) {
-      const gx = side * (2.15 + j * 0.8);
-      uFlatSeg(gx, -25.5, gx, -23.3, 0.56, "#f6efdc");
-      uFlatDisc(gx, -25.6, 0.33, "#c9ced6");
+  if (g === "chokha" || g === "kaftan" || g === "tunic") {
+    // a long coat or tunic: fitted to the waist, flaring below the belt
+    const hemY = g === "chokha" ? -10 : g === "kaftan" ? -7.2 : -5.6;
+    const flare = g === "tunic" ? 6.8 : g === "kaftan" ? 8 : 7.6;
+    uc.beginPath();
+    uc.moveTo(-6, -26.4);
+    uc.quadraticCurveTo(0, -28.8, 6, -26.4);
+    uc.lineTo(4.7, -19.8);
+    uc.lineTo(flare + sway, hemY);
+    uc.quadraticCurveTo(sway * 0.6, hemY + 1.6, -flare + sway, hemY);
+    uc.lineTo(-4.7, -19.8);
+    uc.closePath();
+    uInk(c.coat);
+    kochariEdges([6, -26.4, 4.7, -19.8, flare + sway, hemY], [-6, -26.4, -4.7, -19.8, -flare + sway, hemY], 3.2);
+    const hemBand = (w, color) => {
+      uc.beginPath();
+      uc.moveTo(-flare + 0.7 + sway, hemY - 0.7);
+      uc.quadraticCurveTo(sway * 0.6, hemY + 0.8, flare - 0.7 + sway, hemY - 0.7);
+      uc.lineWidth = w; uc.strokeStyle = color; uc.stroke();
+    };
+    if (g === "chokha") {
+      uFlatLine([-3.4, -18.6, -4.7 + sway * 0.8, -10.6], deep, 0.6);
+      uFlatLine([3.7, -18.6, 5.1 + sway * 0.8, -10.6], deep, 0.6);
+      uFlatLine([0.2, -22.4, 0.9 + sway * 0.6, -9.5], deep, 0.7);
+      uFlatLine([1.1, -18.6, 1.8 + sway * 0.6, -9.7], c.trim, 0.7);
+      hemBand(0.9, c.trim);
+      if (c.gazyr) {
+        // shirt in the open collar, piped in the trim colour, and a row of cartridge loops on each breast
+        uFlatPoly([-2.3, -27.5, 0, -22.6, 2.3, -27.5], "#f6efdc");
+        uFlatLine([-2.5, -27.5, 0, -22.4, 2.5, -27.5], c.trim, 0.8);
+        for (const side of [-1, 1]) {
+          uFlatPoly([side * 1.7, -25.9, side * 4.2, -25.7, side * 4.1, -23, side * 1.7, -23.1], deep);
+          for (let j = 0; j < 3; j++) {
+            const gx = side * (2.15 + j * 0.8);
+            uFlatSeg(gx, -25.5, gx, -23.3, 0.56, "#f6efdc");
+            uFlatDisc(gx, -25.6, 0.33, "#c9ced6");
+          }
+        }
+      } else {
+        // the arkhalukh beneath, buttoned up to the throat in the deep V of the open coat
+        uFlatPoly([-3.6, -27.4, 0, -20.6, 3.6, -27.4, 0, -28.2], c.vest || "#e9d6a6");
+        uFlatLine([-3.8, -27.4, 0, -20.4, 3.8, -27.4], c.trim, 0.8);
+        uFlatLine([-1.6, -28, 0, -27.4, 1.6, -28], shade(c.vest || "#e9d6a6", -40), 0.7);
+        for (let j = 0; j < 4; j++) uFlatDisc(0, -26.6 + j * 1.4, 0.32, shade(c.vest || "#e9d6a6", -60));
+      }
+    } else if (g === "kaftan") {
+      // wrapped across the chest, a band of ornament down the opening and round the hem
+      uFlatLine([-3.4, -18.6, -5.6 + sway * 0.8, -8], deep, 0.6);
+      uFlatLine([3.9, -18.6, 6 + sway * 0.8, -8], deep, 0.6);
+      hemBand(1.5, c.trim);
+      uFlatLine([-2.6, -27.6, 2, -21.4, 2.4 + sway * 0.6, -19.8], c.trim, 1.3);
+      uFlatLine([2.4 + sway * 0.6, -18.8, 3 + sway * 0.7, hemY + 0.6], c.trim, 1.3);
+      uFlatLine([-2.6, -27.6, 2, -21.4], deep, 0.35);
+      uc.beginPath();
+      uc.moveTo(-2.6, -27.6); uc.quadraticCurveTo(0, -26.2, 2.6, -27.6);
+      uc.lineWidth = 1; uc.strokeStyle = c.trim; uc.stroke();
+    } else {
+      // a long tunic, straight folds, a fringed hem and a round neck
+      for (const fx of [-3, 0.4, 3.4]) uFlatLine([fx * 0.8, -18.6, fx * 1.25 + sway * 0.7, hemY - 0.6], deep, 0.55);
+      hemBand(1.2, c.trim);
+      for (let fx = -flare + 1; fx <= flare - 0.9; fx += 1.15) {
+        const u = (fx + flare) / (2 * flare), fy = hemY + 0.5 + 4 * u * (1 - u) * 0.8;
+        uFlatSeg(fx + sway, fy, fx + sway * 1.05, fy + 1.5, 0.45, c.trim);
+      }
+      uc.beginPath();
+      uc.moveTo(-2.4, -27.6); uc.quadraticCurveTo(0, -25.4, 2.4, -27.6);
+      uc.lineWidth = 1.1; uc.strokeStyle = c.trim; uc.stroke();
+    }
+  } else {
+    // trousers to the hip, then a shirt, waistcoat or army tunic tucked in under the belt
+    uPoly([-4.8, -19.4, 4.8, -19.4, 5, -14.6, -5, -14.6], legs);
+    if (c.camo) for (const [bx, by, k] of [[-2.6, -16, 0], [1.8, -17.6, 1], [3.1, -15.4, 2]]) uFlatDisc(bx, by, 0.85, c.camo[k]);
+    const tuck = g === "uniform" ? -15.2 : -16.6;
+    uc.beginPath();
+    uc.moveTo(-6, -26.4);
+    uc.quadraticCurveTo(0, -28.8, 6, -26.4);
+    uc.lineTo(5 + sway * 0.2, tuck);
+    uc.quadraticCurveTo(sway * 0.2, tuck + 0.8, -5 + sway * 0.2, tuck);
+    uc.closePath();
+    uInk(c.coat);
+    kochariEdges([6, -26.4, 5 + sway * 0.2, tuck], [-6, -26.4, -5 + sway * 0.2, tuck], 3);
+    if (c.camoTop) for (const [bx, by, k] of [[-3.4, -24.4, 0], [2.6, -25.8, 1], [3.6, -21.6, 2], [-1.8, -19.4, 1], [0.8, -22.6, 2], [-3.9, -17.2, 2], [2.4, -17.4, 0]]) uFlatDisc(bx, by, 0.8, c.camo[k]);
+    if (c.vest) {
+      for (const side of [-1, 1]) uFlatPoly([side * 6, -26.4, side * 2.3, -27.6, side * 1.2, -21.4, side * 1.5, tuck + 0.4, side * 5 + sway * 0.2, tuck], c.vest);
+      for (let j = 0; j < 3; j++) uFlatDisc(1.5, -23.2 + j * 1.6, 0.3, "#c9b58a");
+    }
+    if (g === "uniform") {
+      // a field tunic: standing collar, two breast pockets with flaps, a button placket
+      uFlatPoly([-2.4, -27.8, 2.4, -27.8, 2, -26.6, -2, -26.6], deep);
+      uFlatLine([0, -26.6, 0, -18.6], deep, 0.5);
+      for (const side of [-1, 1]) {
+        uFlatPoly([side * 1.3, -24.6, side * 4.1, -24.6, side * 4, -21.8, side * 1.4, -21.8], shade(c.coat, -18));
+        uFlatLine([side * 1.2, -24.6, side * 4.2, -24.6], deep, 0.8);
+        uFlatDisc(side * 2.7, -24.1, 0.3, deep);
+      }
+    } else if (c.collar === false) {
+      // a pullover: crew neck and a ribbed hem
+      uc.beginPath();
+      uc.moveTo(-2.4, -27.6); uc.quadraticCurveTo(0, -25.6, 2.4, -27.6);
+      uc.lineWidth = 1.1; uc.strokeStyle = deep; uc.stroke();
+      uFlatLine([-4.9 + sway * 0.2, tuck - 0.6, sway * 0.2, tuck + 0.2, 4.9 + sway * 0.2, tuck - 0.6], shade(c.coat, -28), 1.2);
+    } else {
+      // a shirt: turned-down collar, a placket of buttons
+      uFlatPoly([-2.6, -27.8, 0, -26.4, -1.2, -25.2], shade(c.coat, -16));
+      uFlatPoly([2.6, -27.8, 0, -26.4, 1.2, -25.2], shade(c.coat, -16));
+      if (!c.vest) for (let j = 0; j < 4; j++) uFlatDisc(0.1, -25.4 + j * 2, 0.3, deep);
+    }
+    if (c.sash) {
+      uPoly([-5.1, -19.2, 5.1, -19.2, 5 + sway * 0.2, -16.4, -5 + sway * 0.2, -16.4], c.sash);
+      uFlatLine([-4.9, -17.8, 4.9, -17.8], shade(c.sash, -40), 0.4);
+      uFlatLine([-3.6, -16.8, -4.2 + sway, -13.6], c.sash, 1.2);
+    } else if (c.belt) {
+      uPoly([-5, -17.9, 5, -17.9, 5, -16.5, -5, -16.5], c.belt);
+      uFlatPoly([-0.8, -18, 0.8, -18, 0.8, -16.4, -0.8, -16.4], g === "uniform" ? "#b8a26a" : "#a8a8a8");
     }
   }
-  // silver belt, buckle and a dagger slung in front
-  uPoly([-4.9, -20.7, 4.9, -20.7, 4.8, -18.9, -4.8, -18.9], "#d5dae2");
-  for (let bx = -3.6; bx <= 3.7; bx += 1.8) uFlatDisc(bx, -19.8, 0.4, "#8b93a1");
-  uSeg(0.5, -19, 2.7, -13.9, 1, "#221c1a");
-  uFlatSeg(0.9, -18.2, 2.5, -14.4, 0.4, "#c9ced6");
-  uDisc(0, -19.8, 1.05, C.gold);
+  if (c.strap) uFlatLine([4.9, -26.6, -0.4, -21.8, -4.4, -18], c.belt || KOCHARI_LEATHER, 0.9);
+  if (c.bandolier) {
+    // a bandolier slung from the left shoulder to the right hip
+    uLine([-5.2, -26.4, 4.6, -18.4], KOCHARI_LEATHER, 1.8);
+    for (let j = 1; j < 7; j++) {
+      const bx = -5.2 + j * 1.4, by = -26.4 + j * 1.14;
+      uFlatSeg(bx - 0.35, by - 0.55, bx + 0.35, by + 0.55, 0.5, "#c9a64a");
+    }
+  }
+  if (g !== "shirt" && g !== "uniform") {
+    // the belt: silver with a gilt buckle and a dagger, plain leather, or a broad bronze band
+    const belt = c.belt || KOCHARI_SILVER;
+    if (g === "tunic") {
+      uPoly([-4.9, -21.6, 4.9, -21.6, 4.8, -18.4, -4.8, -18.4], belt);
+      uFlatLine([-4.4, -20, -3.2, -21, -2, -19.2, -0.8, -21, 0.4, -19.2, 1.6, -21, 2.8, -19.2, 4, -21], shade(belt, -45), 0.45);
+    } else {
+      uPoly([-4.9, -20.7, 4.9, -20.7, 4.8, -18.9, -4.8, -18.9], belt);
+      if (belt === KOCHARI_SILVER) for (let bx = -3.6; bx <= 3.7; bx += 1.8) uFlatDisc(bx, -19.8, 0.4, "#8b93a1");
+      if (c.dagger) {
+        uSeg(0.5, -19, 2.7, -13.9, 1, "#221c1a");
+        uFlatSeg(0.9, -18.2, 2.5, -14.4, 0.4, "#c9ced6");
+      }
+      uDisc(0, -19.8, 1.05, C.gold);
+    }
+  }
   uc.restore();
 }
 
-// a man's head seen from the front: moustache, a glance toward the fire, a tall fleece papakha.
+// a man's head seen from the front: a glance toward the fire and the headwear of his age (look.hat:
+// a tall fleece "papakha", a "low" papakh, an Urartian rounded "cap", a medieval "soft" felt cap,
+// a 1918 "peaked" cap, a modern "fieldcap", or "none" and short hair), with an optional beard.
 // puff > 0 blows the cheeks out, for the piper
-function drawMaleHead(cx, cy, hat, glance, puff) {
+function drawMaleHead(cx, cy, hat, glance, puff, look) {
   const C = UNIT_COLORS;
+  const L = look || {}, kind = L.hat || "papakha", hatC = L.hatC || hat || "#241d18";
+  const hair = "#24170f";
   uc.save();
   uc.translate(cx, cy);
   uDisc(-4.2, 0.5, 1.1, C.skin);
@@ -20203,61 +20453,163 @@ function drawMaleHead(cx, cy, hat, glance, puff) {
     uFlatOval(ex, -0.3, 1.1, 1.05, 0, "#fff6e4");
     uFlatDisc(ex + glance * 0.38, -0.25 - (puff > 0 ? 0.25 : 0), 0.64, C.eye);
   }
-  uFlatLine([-2.9, -2, -0.9, -1.6], "#24170f", 0.7);
-  uFlatLine([0.9, -1.6, 2.9, -2], "#24170f", 0.7);
+  uFlatLine([-2.9, -2, -0.9, -1.6], hair, 0.7);
+  uFlatLine([0.9, -1.6, 2.9, -2], hair, 0.7);
   uFlatLine([glance * 0.3, 0.2, glance * 0.6, 1.2], C.skinShade, 0.7);
-  uFlatLine([-2.8, 2.8, -1.3, 1.9, 0, 2.3, 1.3, 1.9, 2.8, 2.8], "#24170f", 1.3);
-  uc.beginPath();
-  uc.moveTo(-4.9, -1.7);
-  uc.lineTo(-5.4, -8.2);
-  uc.quadraticCurveTo(-5.2, -10.6, 0, -10.8);
-  uc.quadraticCurveTo(5.2, -10.6, 5.4, -8.2);
-  uc.lineTo(4.9, -1.7);
-  uc.quadraticCurveTo(0, -3.2, -4.9, -1.7);
-  uc.closePath();
-  uInk(hat || "#241d18");
-  kochariEdges([4.6, -10, 5.4, -8.2, 4.9, -2], [-4.6, -10, -5.4, -8.2, -4.9, -2], 3);
-  // tufts of fleece
-  for (const [kx, ky] of [[-3.2, -4.6], [-0.6, -5.4], [2.2, -4.8], [3.8, -7], [-1.8, -8], [1, -8.4], [-4, -7.6]]) {
-    uFlatLine([kx, ky + 0.9, kx + 0.5, ky], "rgba(196, 176, 154, .36)", 0.6);
+  if (L.beard && !(puff > 0)) {
+    // a full curled beard from ear to ear
+    uc.beginPath();
+    uc.moveTo(-4.3, 0.4);
+    uc.quadraticCurveTo(-4.6, 5.4, 0, 7.2);
+    uc.quadraticCurveTo(4.6, 5.4, 4.3, 0.4);
+    uc.quadraticCurveTo(3.2, 3.6, 0, 3.4);
+    uc.quadraticCurveTo(-3.2, 3.6, -4.3, 0.4);
+    uc.closePath();
+    uInk("#2a1a12");
+    for (const [bx, by] of [[-2.2, 4.6], [0, 5.6], [2.2, 4.6], [-1.1, 6.3], [1.1, 6.3]]) uFlatLine([bx - 0.5, by, bx + 0.5, by + 0.4], "rgba(120, 90, 66, .55)", 0.5);
+  }
+  if (L.stache !== false || L.beard) uFlatLine([-2.8, 2.8, -1.3, 1.9, 0, 2.3, 1.3, 1.9, 2.8, 2.8], hair, 1.3);
+  else uFlatLine([-0.9, 2.6, 0, 2.9, 0.9, 2.6], "#9a3a32", 0.7);
+  if (kind === "papakha" || kind === "low") {
+    const H = kind === "low" ? 7.4 : 10.8;
+    uc.beginPath();
+    uc.moveTo(-4.9, -1.7);
+    uc.lineTo(-5.4, -H + 2.6);
+    uc.quadraticCurveTo(-5.2, -H + 0.2, 0, -H);
+    uc.quadraticCurveTo(5.2, -H + 0.2, 5.4, -H + 2.6);
+    uc.lineTo(4.9, -1.7);
+    uc.quadraticCurveTo(0, -3.2, -4.9, -1.7);
+    uc.closePath();
+    uInk(hatC);
+    kochariEdges([4.6, -H + 0.8, 5.4, -H + 2.6, 4.9, -2], [-4.6, -H + 0.8, -5.4, -H + 2.6, -4.9, -2], 3);
+    // tufts of fleece
+    for (const [kx, ky] of [[-3.2, -4.6], [-0.6, -5.4], [2.2, -4.8], [3.8, -7], [-1.8, -8], [1, -8.4], [-4, -7.6]]) {
+      if (ky > -H + 1.4) uFlatLine([kx, ky + 0.9, kx + 0.5, ky], "rgba(196, 176, 154, .36)", 0.6);
+    }
+  } else if (kind === "cap") {
+    // Urartian rounded cap rising to a soft point, with a woven band at the brow
+    uc.beginPath();
+    uc.moveTo(-4.8, -1.4);
+    uc.quadraticCurveTo(-5.4, -7.4, 0.8, -10.4);
+    uc.quadraticCurveTo(5, -7.2, 4.8, -1.4);
+    uc.quadraticCurveTo(0, -2.9, -4.8, -1.4);
+    uc.closePath();
+    uInk(hatC);
+    kochariEdges(kochariCurve(0.8, -10.4, 5, -7.2, 4.8, -1.4), kochariCurve(0.8, -10.4, -5.4, -7.4, -4.8, -1.4), 2.6);
+    uFlatLine([-4.7, -2.2, 0, -3.4, 4.7, -2.2], "#e2b04a", 1);
+    uFlatLine([-3.8, -4.2, -1.6, -8.2], shade(hatC, -40), 0.5);
+  } else if (kind === "soft") {
+    // a soft round felt cap with a rolled brim
+    uc.beginPath();
+    uc.moveTo(-5, -1.6);
+    uc.quadraticCurveTo(-5.8, -7.6, 0, -8);
+    uc.quadraticCurveTo(5.8, -7.6, 5, -1.6);
+    uc.quadraticCurveTo(0, -3, -5, -1.6);
+    uc.closePath();
+    uInk(hatC);
+    kochariEdges(kochariCurve(0, -8, 5.8, -7.6, 5, -1.6), kochariCurve(0, -8, -5.8, -7.6, -5, -1.6), 2.6);
+    uFlatLine([-4.9, -2.4, 0, -3.6, 4.9, -2.4], shade(hatC, -34), 1.5);
+    uFlatLine([-1.4, -7.2, -0.6, -4.6], shade(hatC, -30), 0.5);
+  } else if (kind === "peaked") {
+    // the peaked service cap of 1918: a flat crown, a band and a black visor
+    uc.beginPath();
+    uc.moveTo(-4.6, -2.4);
+    uc.lineTo(-6, -6.2);
+    uc.quadraticCurveTo(0, -8.4, 6, -6.2);
+    uc.lineTo(4.6, -2.4);
+    uc.closePath();
+    uInk(hatC);
+    kochariEdges([6, -6.2, 4.6, -2.4], [-6, -6.2, -4.6, -2.4], 2.2);
+    uPoly([-4.7, -3.8, 4.7, -3.8, 4.6, -2.2, -4.6, -2.2], shade(hatC, -36));
+    uc.beginPath();
+    uc.moveTo(-4.2, -2.4);
+    uc.quadraticCurveTo(0, -0.4, 4.2, -2.4);
+    uc.quadraticCurveTo(0, -1.6, -4.2, -2.4);
+    uInk("#1c1714");
+    uFlatDisc(0, -3, 0.6, "#c9a64a");
+  } else if (kind === "fieldcap") {
+    // a modern field cap with its short peak
+    uc.beginPath();
+    uc.moveTo(-4.8, -1.9);
+    uc.lineTo(-4.6, -6.4);
+    uc.quadraticCurveTo(0, -7.6, 4.6, -6.4);
+    uc.lineTo(4.8, -1.9);
+    uc.quadraticCurveTo(0, -3, -4.8, -1.9);
+    uc.closePath();
+    uInk(hatC);
+    kochariEdges([4.6, -6.4, 4.8, -1.9], [-4.6, -6.4, -4.8, -1.9], 2.2);
+    for (const [bx, by, k] of [[-2.6, -4.6, 0], [1.2, -5.6, 1], [3, -3.4, 2]]) uFlatDisc(bx, by, 0.75, KOCHARI_CAMO[k]);
+    uc.beginPath();
+    uc.moveTo(-4, -2.2);
+    uc.quadraticCurveTo(0, -0.2, 4, -2.2);
+    uc.quadraticCurveTo(0, -1.4, -4, -2.2);
+    uInk(shade(hatC, -30));
+  } else {
+    // bare-headed: short dark hair
+    uc.beginPath();
+    uc.arc(0, 0, 4.5, Math.PI + 0.42, -0.42);
+    uc.quadraticCurveTo(1.4, -3.4, -1.4, -2.9);
+    uc.quadraticCurveTo(-3.4, -2.6, -4.1, -1.8);
+    uc.closePath();
+    uInk("#22160f");
+    uFlatLine([-1.4, -4, 0.8, -4.2], "rgba(120, 96, 80, .45)", 0.5);
   }
   uc.restore();
 }
 
-// a woman of the ensemble from the front: ankle-length taraz with an embroidered hem, a banded apron,
-// long braids, and a coin headband under a white veil that falls behind the shoulders
+// a woman of the ensemble from the front, dressed by her wardrobe entry c: a long dress or a modern
+// one to the knee (c.hem), an apron, a bodice in c.top, long braids, and on her head a coin
+// band under a white veil, a veil framing the face ("mantle"), a headscarf, or her own hair
 function kochariWoman(c, lift, feet, sway, glance) {
   const C = UNIT_COLORS;
   const waist = -20.2 - lift, chest = -26.2 - lift, head = -31.4 - lift;
-  const hem = Math.min(-1.7, -3.2 - lift);
-  const deep = shade(c.dress, -52);
-  const silver = "#d5dae2", hair = "#2a1a12";
+  const short = c.hem != null;
+  const hem = short ? c.hem - lift : Math.min(-1.7, -3.2 - lift);
+  const top = c.top || c.dress, deep = shade(c.dress, -52);
+  const hair = c.hair || "#2a1a12", headwear = c.head || "coins";
 
-  // veil
-  uc.beginPath();
-  uc.moveTo(-4.2, head - 4.8);
-  uc.quadraticCurveTo(-8.8, head + 2, -7.5 + sway * 0.6, waist + 3.2);
-  uc.quadraticCurveTo(sway * 0.6, waist + 5, 7.5 + sway * 0.6, waist + 3.2);
-  uc.quadraticCurveTo(8.8, head + 2, 4.2, head - 4.8);
-  uc.closePath();
-  uInk(c.veil);
-  kochariEdges(kochariCurve(4.2, head - 4.8, 8.8, head + 2, 7.5 + sway * 0.6, waist + 3.2),
-    kochariCurve(-4.2, head - 4.8, -8.8, head + 2, -7.5 + sway * 0.6, waist + 3.2), 2.6);
-  uFlatLine([-5.7, head + 3, -6 + sway * 0.4, waist + 2.2], "rgba(150, 132, 110, .5)", 0.5);
-  uFlatLine([5.7, head + 3, 6 + sway * 0.4, waist + 2.2], "rgba(150, 132, 110, .5)", 0.5);
+  // behind her: the veil, the tail of her headscarf, or her hair
+  if (c.veil) {
+    const fall = waist + (c.veilLong ? 9 : 3.2);
+    uc.beginPath();
+    uc.moveTo(-4.2, head - 4.8);
+    uc.quadraticCurveTo(-8.8, head + 2, -7.5 + sway * 0.6, fall);
+    uc.quadraticCurveTo(sway * 0.6, fall + 1.8, 7.5 + sway * 0.6, fall);
+    uc.quadraticCurveTo(8.8, head + 2, 4.2, head - 4.8);
+    uc.closePath();
+    uInk(c.veil);
+    kochariEdges(kochariCurve(4.2, head - 4.8, 8.8, head + 2, 7.5 + sway * 0.6, fall),
+      kochariCurve(-4.2, head - 4.8, -8.8, head + 2, -7.5 + sway * 0.6, fall), 2.6);
+    uFlatLine([-5.7, head + 3, -6 + sway * 0.4, fall - 1], "rgba(150, 132, 110, .5)", 0.5);
+    uFlatLine([5.7, head + 3, 6 + sway * 0.4, fall - 1], "rgba(150, 132, 110, .5)", 0.5);
+  } else if (headwear === "scarf") {
+    uPoly([-5.2, head - 1, 5.2, head - 1, sway * 0.5 + 1, chest + 4.5], c.scarf);
+  } else if (headwear === "hair") {
+    uc.beginPath();
+    uc.moveTo(-4.4, head - 2);
+    uc.quadraticCurveTo(-6.6, head + 4, -5.4 + sway * 0.4, chest + 2);
+    uc.lineTo(5.4 + sway * 0.4, chest + 2);
+    uc.quadraticCurveTo(6.6, head + 4, 4.4, head - 2);
+    uc.closePath();
+    uInk(hair);
+  }
 
-  // stockinged ankles and red slippers: a kick swings clear of the skirt and lifts the hem on that side
+  // ankles and slippers below a long dress, or legs below a short one: a kick swings clear of the
+  // skirt and lifts the hem on that side
   const flare = { "-1": 0, "1": 0 };
   for (const f of feet) {
     const out = Math.max(0, Math.abs(f.x) - 6.4), up = Math.max(0, -f.y - 3.4);
     flare[f.side] = Math.min(3, out * 0.5 + up * 0.25);
-    const shin = [f.side * Math.min(4.6, Math.abs(f.x)), Math.min(f.y - 1.6, hem - 2.2), f.x, f.y - 1.6];
-    uLine(shin, "#f3e9d2", 2);
+    const shin = short
+      ? [f.side * Math.min(3.4, Math.abs(f.x)), Math.min(f.y - 2.2, hem - 1), f.x, f.y - 1.6]
+      : [f.side * Math.min(4.6, Math.abs(f.x)), Math.min(f.y - 1.6, hem - 2.2), f.x, f.y - 1.6];
+    uLine(shin, c.legs || "#f3e9d2", 2);
     kochariLimb(shin, 2, f.side);
-    uOval(f.x + f.side * 0.9, f.y - 1.1, 2.3, 1.35, 0, "#8a1c22");
+    uOval(f.x + f.side * 0.9, f.y - 1.1, 2.3, 1.35, 0, c.shoe || "#8a1c22");
   }
   const leftHem = hem - flare[-1], rightHem = hem - flare[1];
-  const leftX = -7.6 + sway - flare[-1] * 0.5, rightX = 7.6 + sway + flare[1] * 0.5;
+  const spread = short ? 6.8 : 7.6;
+  const leftX = -spread + sway - flare[-1] * 0.5, rightX = spread + sway + flare[1] * 0.5;
 
   // skirt
   uc.beginPath();
@@ -20271,46 +20623,79 @@ function kochariWoman(c, lift, feet, sway, glance) {
     kochariCurve(-3.9, waist, -6.7 + sway * 0.3, waist + 7, leftX, leftHem), 3.2);
   uFlatLine([-3, waist + 2, -5.4 + sway * 0.7, hem - 3], deep, 0.6);
   uFlatLine([3, waist + 2, 5.4 + sway * 0.7, hem - 3], deep, 0.6);
-  // embroidered hem band
-  uc.beginPath();
-  uc.moveTo(leftX + 1, leftHem - 1.5);
-  uc.quadraticCurveTo(sway * 0.7, hem + 0.6, rightX - 1, rightHem - 1.5);
-  uc.lineWidth = 2.2; uc.strokeStyle = c.trim; uc.stroke();
-  uc.setLineDash([0.9, 1.5]);
-  uc.lineWidth = 0.9; uc.strokeStyle = deep; uc.stroke();
-  uc.setLineDash([]);
-
-  // apron with its ornament bands
-  const apronTop = waist + 0.6, apronEnd = hem - 3.4;
-  uPoly([-2.9, apronTop, 2.9, apronTop, 4 + sway * 0.7, apronEnd, -4 + sway * 0.7, apronEnd], c.apron);
-  for (const [t, color, wide] of [[0.48, c.trim, 0.9], [0.67, "#fbf4e2", 0.7], [0.86, c.trim, 1.1]]) {
-    const by = apronTop + (apronEnd - apronTop) * t, half = 2.5 + 1.1 * t;
-    uFlatSeg(-half + sway * 0.7 * t, by, half + sway * 0.7 * t, by, wide, color);
+  if (c.hemBand !== false) {
+    // embroidered hem band
+    uc.beginPath();
+    uc.moveTo(leftX + 1, leftHem - 1.5);
+    uc.quadraticCurveTo(sway * 0.7, hem + 0.6, rightX - 1, rightHem - 1.5);
+    uc.lineWidth = 2.2; uc.strokeStyle = c.trim; uc.stroke();
+    uc.setLineDash([0.9, 1.5]);
+    uc.lineWidth = 0.9; uc.strokeStyle = deep; uc.stroke();
+    uc.setLineDash([]);
+  }
+  if (c.fringe) {
+    // a fringe of tassels along the hem, as on the Urartian bronzes
+    for (let k = 0; k <= 10; k++) {
+      const u = k / 10, fx = leftX + 0.6 + (rightX - leftX - 1.2) * u;
+      const fy = (1 - u) * (1 - u) * leftHem + 2 * u * (1 - u) * (hem + 2.2) + u * u * rightHem - 0.4;
+      uFlatSeg(fx, fy, fx + sway * 0.1, fy + 1.4, 0.45, c.trim);
+    }
   }
 
-  // bodice with an embroidered yoke, silver belt
+  // apron: the taraz apron with its ornament bands, or a plain village apron
+  if (c.apron) {
+    const apronTop = waist + 0.6, apronEnd = hem - 3.4;
+    uPoly([-2.9, apronTop, 2.9, apronTop, 4 + sway * 0.7, apronEnd, -4 + sway * 0.7, apronEnd], c.apron);
+    const bands = c.yoke ? [[0.48, c.trim, 0.9], [0.67, "#fbf4e2", 0.7], [0.86, c.trim, 1.1]] : [[0.84, c.trim, 0.7]];
+    for (const [t, color, wide] of bands) {
+      const by = apronTop + (apronEnd - apronTop) * t, half = 2.5 + 1.1 * t;
+      uFlatSeg(-half + sway * 0.7 * t, by, half + sway * 0.7 * t, by, wide, color);
+    }
+  }
+
+  // bodice, with an embroidered yoke on the taraz, and the belt
   uc.beginPath();
   uc.moveTo(-5, chest);
   uc.quadraticCurveTo(0, chest - 2.2, 5, chest);
   uc.lineTo(3.9, waist + 0.4);
   uc.lineTo(-3.9, waist + 0.4);
   uc.closePath();
-  uInk(c.dress);
+  uInk(top);
   kochariEdges([5, chest, 3.9, waist + 0.4], [-5, chest, -3.9, waist + 0.4], 2.4);
-  uFlatPoly([-2.2, chest - 1, 2.2, chest - 1, 1.5, chest + 3.2, -1.5, chest + 3.2], c.apron);
-  uFlatLine([-2.2, chest - 1, -1.5, chest + 3.2, 1.5, chest + 3.2, 2.2, chest - 1], c.trim, 0.6);
-  uFlatDisc(0, chest + 1.2, 0.6, c.trim);
-  uPoly([-4.1, waist - 0.9, 4.1, waist - 0.9, 4, waist + 0.7, -4, waist + 0.7], silver);
-  uDisc(0, waist - 0.1, 1, C.gold);
-  // braids over the shoulders
-  for (const side of [-1, 1]) {
-    uLine([side * 3.5, head + 2.6, side * 4.1, chest + 2.4, side * 3.6 + sway * 0.3, waist - 1.6], hair, 1.5);
-    uFlatDisc(side * 3.6 + sway * 0.3, waist - 1.4, 0.75, c.trim);
+  if (c.yoke) {
+    uFlatPoly([-2.2, chest - 1, 2.2, chest - 1, 1.5, chest + 3.2, -1.5, chest + 3.2], c.apron);
+    uFlatLine([-2.2, chest - 1, -1.5, chest + 3.2, 1.5, chest + 3.2, 2.2, chest - 1], c.trim, 0.6);
+    uFlatDisc(0, chest + 1.2, 0.6, c.trim);
+  } else if (c.neck) {
+    uFlatPoly([-1.7, chest - 1.3, 0, chest + 1.3, 1.7, chest - 1.3], C.skin);
+  } else {
+    uc.beginPath();
+    uc.moveTo(-2.1, chest - 1.2); uc.quadraticCurveTo(0, chest + 0.6, 2.1, chest - 1.2);
+    uc.lineWidth = 0.9; uc.strokeStyle = c.trim; uc.stroke();
+  }
+  if (c.belt) {
+    uPoly([-4.1, waist - 0.9, 4.1, waist - 0.9, 4, waist + 0.7, -4, waist + 0.7], c.belt);
+    uDisc(0, waist - 0.1, 1, C.gold);
+  } else if (c.apron) {
+    uFlatLine([-4, waist + 0.2, 4, waist + 0.2], shade(c.apron, -30), 0.8);
+  } else {
+    uFlatLine([-3.9, waist + 0.4, 3.9, waist + 0.4], deep, 0.6);
+  }
+  if (c.braids) {
+    // braids over the shoulders
+    for (const side of [-1, 1]) {
+      uLine([side * 3.5, head + 2.6, side * 4.1, chest + 2.4, side * 3.6 + sway * 0.3, waist - 1.6], hair, 1.5);
+      uFlatDisc(side * 3.6 + sway * 0.3, waist - 1.4, 0.75, c.trim);
+    }
   }
 
-  // face, parted hair, velvet cap and the row of coins on the brow
+  // face and parted hair, then what she wears on her head
   uc.save();
   uc.translate(0, head);
+  if (headwear === "mantle" || headwear === "scarf") {
+    uDisc(0, -0.5, 5.5, headwear === "scarf" ? c.scarf : c.veil);
+    kochariDisc(0, -0.5, 5.5);
+  }
   uDisc(0, 0, 4.3, C.skin);
   kochariDisc(0, 0, 4.3);
   uc.beginPath();
@@ -20328,17 +20713,37 @@ function kochariWoman(c, lift, feet, sway, glance) {
   }
   uFlatLine([glance * 0.3, 0.6, glance * 0.5, 1.4], C.skinShade, 0.6);
   uFlatLine([-0.9, 2.5, 0, 2.85, 0.9, 2.5], "#b02c2c", 0.85);
-  uc.beginPath();
-  uc.moveTo(-4.4, -3.2);
-  uc.quadraticCurveTo(-4.6, -7.5, 0, -7.7);
-  uc.quadraticCurveTo(4.6, -7.5, 4.4, -3.2);
-  uc.closePath();
-  uInk(c.apron);
-  uFlatLine([-3.4, -5.6, 0, -6.4, 3.4, -5.6], c.trim, 0.6);
-  uPoly([-4.6, -3.6, 4.6, -3.6, 4.5, -2.2, -4.5, -2.2], silver);
-  for (let k = -2; k <= 2; k++) {
-    uFlatDisc(k * 1.6, -1.6, 0.72, C.goldShade);
-    uFlatDisc(k * 1.6, -1.7, 0.5, C.gold);
+  if (headwear === "coins") {
+    // velvet cap and the row of coins on the brow
+    uc.beginPath();
+    uc.moveTo(-4.4, -3.2);
+    uc.quadraticCurveTo(-4.6, -7.5, 0, -7.7);
+    uc.quadraticCurveTo(4.6, -7.5, 4.4, -3.2);
+    uc.closePath();
+    uInk(c.apron);
+    uFlatLine([-3.4, -5.6, 0, -6.4, 3.4, -5.6], c.trim, 0.6);
+    uPoly([-4.6, -3.6, 4.6, -3.6, 4.5, -2.2, -4.5, -2.2], KOCHARI_SILVER);
+    for (let k = -2; k <= 2; k++) {
+      uFlatDisc(k * 1.6, -1.6, 0.72, C.goldShade);
+      uFlatDisc(k * 1.6, -1.7, 0.5, C.gold);
+    }
+  } else if (headwear === "mantle" || headwear === "scarf") {
+    // the cloth drawn low over the brow, framing the face
+    const cloth = headwear === "scarf" ? c.scarf : c.veil;
+    const brow = headwear === "scarf" ? -2 : -1.5;
+    uc.beginPath();
+    uc.arc(0, 0, 4.4, Math.PI + 0.42, -0.42);
+    uc.quadraticCurveTo(0, brow - 1.6, -4.0, -1.8);
+    uc.closePath();
+    uInk(cloth);
+    if (headwear === "mantle") uFlatLine([-3.9, brow - 0.6, 0, brow - 1.5, 3.9, brow - 0.6], c.trim, 0.9);
+    else {
+      for (const [dx, dy] of [[-2.4, -4.6], [0.4, -5.6], [2.8, -4.2], [-4.6, 0.6], [4.6, 0.8]]) uFlatDisc(dx, dy, 0.42, shade(cloth, cloth === "#2a2a30" ? 60 : -40));
+      uDisc(1.6, 4.9, 0.95, cloth);
+      uDisc(2.6, 5.4, 0.7, cloth);
+    }
+  } else if (headwear === "hair") {
+    uFlatLine([-3.4, -2.6, -1, -3.6], "rgba(150, 110, 80, .4)", 0.5);
   }
   uc.restore();
 }
@@ -20356,7 +20761,7 @@ function drawKochariDancer(x, y, s, beat, cb, cycle, i, c) {
     if (male) kochariMan(c, lift, feet, sway); else kochariWoman(c, lift, feet, sway, fire);
     // both arms reach out to the neighbours: the hands stay at one height while the body rises and sinks
     const shoulderX = male ? 5.5 : 4.7, shoulderY = (male ? -25.8 : -25.4) - lift;
-    const sleeve = male ? c.coat : c.dress;
+    const sleeve = male ? c.coat : c.top || c.dress;
     for (const side of [-1, 1]) {
       if (i === 0 && side < 0) continue;
       kochariArm(side * shoulderX, shoulderY, side * 15, -24, side, sleeve, c.trim);
@@ -20380,16 +20785,16 @@ function drawKochariDancer(x, y, s, beat, cb, cycle, i, c) {
       uFlatLine([hx - 1, hy + 0.6, hx - tx * 3.6 - 2.6, hy - ty * 2 + 1.6], "rgba(110, 6, 12, .45)", 0.6);
       kochariArm(-shoulderX, shoulderY, hx, hy, -1, sleeve, c.trim);
     }
-    if (male) drawMaleHead(0, -31.2 - lift, "#221a15", fire, 0);
+    if (male) drawMaleHead(0, -31.2 - lift, "#221a15", fire, 0, c);
   });
   return { x, y: y - (mo.lift + 28) * s };
 }
 
 // the dhol drummer: a two-headed drum slung at the hip, the heavy curved mallet landing on the
 // beat and the thin switch answering on the off-beat
-function drawDholchi(x, y, s, beat) {
+function drawDholchi(x, y, s, beat, look) {
   const C = UNIT_COLORS;
-  const c = { coat: "#8f5a1e", trim: "#f4bc3a" };
+  const c = look || { coat: "#8f5a1e", trim: "#f4bc3a" };
   const dip = Math.abs(Math.sin(beat * Math.PI)) * 1.6;
   // each stick winds up over the last quarter beat and lands a quarter beat later
   const raised = ph => (ph < 0.5 ? 1 - ph / 0.5 : ph > 1.5 ? (ph - 1.5) / 0.5 : 0);
@@ -20428,14 +20833,15 @@ function drawDholchi(x, y, s, beat) {
     uStroke("#6b4424", 1.5);
     uDisc(tipX, tipY, 1.3, "#4a2c14");
     kochariArm(5.5, shoulderY, rx, ry, -1, c.coat, c.trim);
-    drawMaleHead(0, -31.2 + dip, "#3a2c20", 1, 0);
+    drawMaleHead(0, -31.2 + dip, "#3a2c20", 1, 0, c);
   });
 }
 
-// the zurna player: leaning back, cheeks blown out, the pipe raised and swaying with the phrase
-function drawZurnachi(x, y, s, beat) {
+// the zurna player: leaning back, cheeks blown out, the pipe raised and swaying with the phrase.
+// In Urartu he blows the double pipe of the age instead of the zurna.
+function drawZurnachi(x, y, s, beat, look, pipeKind) {
   const C = UNIT_COLORS;
-  const c = { coat: "#1f6a5a", trim: "#e0392e" };
+  const c = look || { coat: "#1f6a5a", trim: "#e0392e" };
   const lean = -0.07 + Math.sin(beat * Math.PI) * 0.04;
   const puff = Math.abs(Math.sin(beat * Math.PI * 2));
   const pipe = -0.52 + Math.sin(beat * Math.PI * 0.5) * 0.14;
@@ -20446,11 +20852,25 @@ function drawZurnachi(x, y, s, beat) {
     const along = d => [mouthX + Math.cos(pipe) * d, mouthY + Math.sin(pipe) * d];
     const near = along(6.4), far = along(10.6);
     kochariArm(-5.5, -25.8, near[0], near[1] + 0.8, 1, c.coat, c.trim);
-    drawMaleHead(0, -31.2, "#3a2c20", 1, 0.35 + puff * 0.65);
-    // conical wooden pipe flaring into its bell
+    drawMaleHead(0, -31.2, "#3a2c20", 1, 0.35 + puff * 0.65, c);
     uc.save();
     uc.translate(mouthX, mouthY);
     uc.rotate(pipe);
+    if (pipeKind === "double") {
+      // two slender cane pipes splaying from the lips, one for the drone and one for the tune
+      for (const spread of [-0.09, 0.07]) {
+        uc.save();
+        uc.rotate(spread);
+        uPoly([0.4, -0.55, 15, -0.75, 15, 0.75, 0.4, 0.55], "#c9a35a");
+        uFlatLine([1, 0.35, 14.6, 0.5], KOCHARI_AMBER, 0.5);
+        for (const hole of [8.4, 10.2, 12]) uFlatDisc(hole, -0.05, 0.3, "#5a3a14");
+        uFlatSeg(5, -0.8, 5, 0.8, 0.5, "#7a2a1e");
+        uc.restore();
+      }
+      uDisc(0.6, 0, 1, "#8a5a24");
+      uc.restore();
+    } else {
+    // conical wooden pipe flaring into its bell
     uc.beginPath();
     uc.moveTo(0.6, -0.75);
     uc.lineTo(11, -1.5);
@@ -20469,6 +20889,7 @@ function drawZurnachi(x, y, s, beat) {
     uFlatSeg(11.8, -1.6, 11.8, 1.6, 0.7, "#e8d9b0");
     uDisc(0.6, 0, 1.2, "#e8d9b0");
     uc.restore();
+    }
     uDisc(near[0], near[1] + 0.6, 1.55, C.skin);
     kochariArm(5.5, -25.8, far[0], far[1] + 0.8, -1, c.coat, c.trim);
   });
