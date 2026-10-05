@@ -47742,8 +47742,9 @@ function briefScene(crop, w, h, seed) {
 let briefMosaic = null, briefPainting = null, briefPaintingLevel = -1;
 // MOSAIC_SPLIT: colour spread (rgb std dev) that splits a 22 px and an 11 px cell, and the spread of
 // an 11 px cell's quarters that cuts it three by three; MOSAIC_SHARP: unsharp amount on the cartoon
-// stones are 1.4 times finer than the first floor (22 px cells): 15.7, 7.9, 3.9 and 2.6 px
-const MOSAIC_CELL = 22 / 1.4, MOSAIC_SPLIT = [12, 16, 55], MOSAIC_SHARP = 0.8, MOSAIC_GAP = 2.2 / 1.4, MOSAIC_LAY = 3.9, MOSAIC_FLY = 1.15, MOSAIC_SHEEN = 1.5;
+// the big and middle stones are 2.1 times finer than the first floor's (22 px cells): 10.5 and 5.2 px; the
+// finest stay at 2.6 px, about the smallest a stone can be and still show its grout on a retina screen
+const MOSAIC_CELL = 22 / 2.1, MOSAIC_SPLIT = [12, 16, 55], MOSAIC_SHARP = 0.8, MOSAIC_GAP = 2.2 / 2.1, MOSAIC_LAY = 3.9, MOSAIC_FLY = 1.15, MOSAIC_SHEEN = 1.5;
 const mosaicFinal = new Map();   // level -> finished mosaic leaf, so a reopened chronicle need not recut its stones
 function mosaicEase(t) { return 1 - Math.pow(1 - t, 3); }
 // one stone: an irregular quad in its own colour, a lit upper-left edge and a shaded lower-right,
@@ -47876,7 +47877,7 @@ function mosaicCut(level, W, H, x0, y0, x1, y1, src) {
         // look at the four quarters first: if any still holds an edge, cut three by three
         let busy = 0;
         for (const [qx, qy] of [[x, y], [x + half, y], [x, y + half], [x + half, y + half]]) if (stats(qx, qy, half).sd > FINE) busy++;
-        if (busy >= 2) {
+        if (busy >= 2 && sz / 3 >= 2.4) {
           const third = sz / 3;
           for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) {
             const sub = stats(x + k * third, y + r * third, third);
