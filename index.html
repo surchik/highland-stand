@@ -1905,7 +1905,7 @@ const LEVELS = [
   {
     name: "Shushi",
     tag: "The 44-day war and the fall of the fortress, 2020.",
-    era: 6, date: "27 September to 10 November 2020", year: 2020,
+    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: 0.92,
     hero: { name: "Defense Army volunteer", title: "Artsakh Defense Army volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -5368,14 +5368,15 @@ const TOWER_DEFS = {
     name: "Ballista", cost: 90, proj: "bolt", pierce: true, air: true,
     levels: [
       { dmg: 55, range: 175, rate: 1.5 },
-      { dmg: 95, range: 202, rate: 1.35, cost: 110 },
-      { dmg: 160, range: 245, rate: 1.2, cost: 200 },
+      { dmg: 92, range: 198, rate: 1.38, cost: 115 },
+      { dmg: 148, range: 235, rate: 1.26, cost: 215 },
     ],
+    // the piercing bolt shrugs off armour, so it is costed and paced to stay one good tower among five
     specs: {
-      a: { name: "Titan Bolt", cost: 300, desc: "One colossal armor-splitting bolt",
-           stats: { dmg: 340, range: 300, rate: 1.55 } },
-      b: { name: "Twin Ballistae", cost: 300, desc: "Two bolts, two targets",
-           stats: { dmg: 135, range: 265, rate: 1.0, twin: true } },
+      a: { name: "Titan Bolt", cost: 320, desc: "One colossal armor-splitting bolt",
+           stats: { dmg: 320, range: 290, rate: 1.62 } },
+      b: { name: "Twin Ballistae", cost: 320, desc: "Two bolts, two targets",
+           stats: { dmg: 112, range: 250, rate: 1.1, twin: true } },
     },
   },
   catapult: {
@@ -5758,7 +5759,10 @@ function waveGroups(w) {
 // enemy strength by wave: a straight climb plus a bend that bites in the second half, where a full board of
 // mastered towers used to coast. Each battlefield also stands a little higher than the one before it.
 function hpScale(w) { return 1 + (w - 1) * 0.13 + 0.005 * (w - 1) * (w - 1); }
-function levelHpMult() { return (1 + 0.015 * curLevel) * (LEVELS[curLevel].hpTune || 1); }
+// the first chapters were won with lives to spare by any sensible build, so their foes stand taller; the
+// first battlefield stays the gentlest
+const EARLY_HP = [1.12, 1.3, 1.3, 1.3, 1.3, 1.3, 1.25];
+function levelHpMult() { return (1 + 0.015 * curLevel) * (EARLY_HP[curLevel] || 1) * (LEVELS[curLevel].hpTune || 1); }
 // gold per kill thins in the late waves, so the treasury cannot outgrow the war
 function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
 // the drone war of 2020 and the assault of 2023
