@@ -405,6 +405,14 @@
   #ovRubric, #ovPage .headpiece, #ovPage .corner, #ovPage .briefLeft, #ovPage .sideband { display: none; }
   #overlay .sub { font-size: clamp(14px, 2vw, 17px); color: var(--parch); max-width: 900px; padding: 0 28px; line-height: 1.5; }
   #overlay .sub .ic { width: 1.15em; height: 1.15em; vertical-align: -.22em; color: var(--bronze-hi); }
+  /* on the map page the line under the title is a fixed box: choosing a battlefield (whose line is shorter or
+     longer than a victory's or a defeat's) never changes the page's size, so the map never rescales under the finger */
+  #overlay:not(.brief):not(.victory) .sub {
+    box-sizing: border-box; width: min(900px, calc(100vw - 40px)); height: 4.5em;
+    display: block; align-content: center;
+  }
+  /* and the march button keeps one width whichever battlefield it names */
+  #overlay:not(.brief):not(.victory) #startBtn { min-width: min(410px, calc(100vw - 40px)); justify-content: center; }
   /* the map leads the screen: it takes whatever height is left once title, seals and button are seated
      (so a long victory text shrinks the map instead of scrolling the page), up to 1180 px wide */
   #worldMap {
@@ -517,6 +525,38 @@
   #overlay .bigRow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
   #overlay #resumeBtn { background: linear-gradient(180deg, #75a652, var(--green) 50%, #33552a); text-shadow: 0 1px 0 rgba(20,45,10,.9); }
   #overlay #endlessBtn { background: linear-gradient(180deg, #a57a34, #7a5622 50%, #523815); text-shadow: 0 1px 0 rgba(50,30,5,.9); }
+  /* the victory page: no map; the next battle leads on a line of its own, the quieter choices sit under it */
+  #overlay.victory .chapterBar { display: none; }
+  #overlay.settling { pointer-events: none; }
+  #overlay #mapBtn, #overlay .big.quiet, #overlay.victory #endlessBtn {
+    padding: 9px 22px; font-size: 16px; gap: 9px;
+    background: linear-gradient(180deg, #5a4630, #3a2b1b 55%, #241a11); border-color: var(--bronze);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.3), inset 0 -3px 0 rgba(0,0,0,.3), 0 0 0 2px var(--bronze-sh), 0 6px 16px rgba(0,0,0,.55);
+    text-shadow: 0 1px 0 rgba(0,0,0,.8);
+  }
+  #overlay #mapBtn .ic, #overlay .big.quiet .ic, #overlay.victory #endlessBtn .ic { width: 18px; height: 18px; color: var(--bronze-hi); }
+  #overlay #mapBtn.lead { padding: 12px 44px; font-size: 19px; background: linear-gradient(180deg, #d5503f, var(--crimson) 50%, #7d211b); border-color: var(--bronze-hi); }
+  #overlay #mapBtn.lead .ic { color: #fff3d6; }
+  #overlay.victory .bigRow { display: grid; grid-auto-flow: row; grid-template-columns: repeat(3, auto); justify-content: center; gap: 12px 14px; }
+  #overlay.victory #nextBtn { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
+  #overlay.victory #mapBtn.lead { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
+  #overlay #nextBtn {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 46px 12px; position: relative;
+    animation: nextGlow 1.8s ease-in-out infinite alternate;
+  }
+  #overlay #nextBtn .nbKick { font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: #ffe2b0; opacity: .92; }
+  #overlay #nextBtn .nbName { font-size: 21px; letter-spacing: .4px; }
+  #overlay #nextBtn .nbName::after { content: " \2192"; }
+  #overlay #nextBtn > .ic { position: absolute; left: 16px; top: 50%; margin-top: -11px; opacity: .85; }
+  @keyframes nextGlow {
+    from { box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 2px var(--bronze-sh), 0 10px 26px rgba(0,0,0,.6), 0 0 6px rgba(255,200,90,.25); }
+    to { box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 2px var(--bronze-sh), 0 10px 26px rgba(0,0,0,.6), 0 0 22px rgba(255,200,90,.7); }
+  }
+  @media (max-width: 700px) {
+    #overlay.victory .bigRow { grid-template-columns: auto; }
+    #overlay #nextBtn { padding: 10px 22px 12px 46px; }
+    #overlay #nextBtn .nbName { font-size: 18px; }
+  }
 
   /* the chronicle: the same content block opens as an illuminated spread, a framed miniature of the
      battlefield and the invader's host on the left, the history on the right */
@@ -698,6 +738,49 @@
   }
   #toast .ic { width: 17px; height: 17px; margin: 0 3px; vertical-align: -3px; }
   #toast.show { opacity: 1; }
+
+  /* the tutorial's coach: a carved bubble beside what it points at, a pulsing ring on the field, glowing outlines */
+  #coach {
+    position: fixed; left: 0; top: 0; z-index: 28; width: min(340px, calc(100vw - 24px)); padding: 13px 16px 14px;
+    display: none; font-size: 15px; line-height: 1.42; touch-action: manipulation;
+  }
+  #coach.on { display: block; animation: coachIn .25s ease-out; }
+  @keyframes coachIn { from { opacity: 0; } to { opacity: 1; } }
+  #coach .cHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  #coach .cStep { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--bronze-hi); opacity: .9; }
+  #coach .cSkip {
+    font-family: var(--face); font-size: 12.5px; font-weight: 700; color: var(--parch-dk); background: none; border: 0; cursor: pointer;
+    padding: 6px 2px 6px 8px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(240,207,133,.45);
+  }
+  #coach .cSkip:hover { color: #fff3d6; }
+  #coach .cText { color: var(--parch); }
+  #coach .cText b { color: #ffe2a0; }
+  #coach .cText i { display: block; margin-top: 5px; font-size: 13.5px; opacity: .85; }
+  #coach .cText .ic { width: 17px; height: 17px; vertical-align: -3px; color: var(--bronze-hi); }
+  #coach .cFoot { display: flex; justify-content: flex-end; margin-top: 10px; }
+  #coach .cNext {
+    min-width: 96px; min-height: 36px; font-size: 15px; color: #fff3d6; border: 1px solid var(--bronze);
+    background: linear-gradient(180deg, #a57a34, #7a5622 55%, #5c3f18);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.4), 0 2px 5px rgba(0,0,0,.5);
+  }
+  #coach .cPtr {
+    position: absolute; width: 14px; height: 14px; transform: rotate(45deg); background: var(--walnut);
+    border: 2px solid var(--bronze-sh); pointer-events: none;
+  }
+  #coach .cPtr.above { bottom: -9px; border-left: 0; border-top: 0; }
+  #coach .cPtr.below { top: -9px; border-right: 0; border-bottom: 0; }
+  #coach .cPtr.right { left: -9px; border-right: 0; border-top: 0; }
+  #coach .cPtr.left { right: -9px; border-left: 0; border-bottom: 0; }
+  #coachRing, .coachHalo { position: fixed; z-index: 27; pointer-events: none; display: none; }
+  #coachRing { border-radius: 50%; border: 3px solid #ffd77a; box-shadow: 0 0 0 2px rgba(60,36,10,.7), 0 0 18px rgba(255,200,90,.85), inset 0 0 14px rgba(255,200,90,.6); }
+  #coachRing.on { display: block; animation: coachPulse 1.1s ease-in-out infinite alternate; }
+  #coachRing::after {
+    content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid rgba(255,215,122,.9);
+    animation: coachWave 1.4s ease-out infinite;
+  }
+  .coachHalo { border: 2px solid #ffd77a; box-shadow: 0 0 0 2px rgba(60,36,10,.65), 0 0 16px 2px rgba(255,200,90,.8); animation: coachPulse 1.1s ease-in-out infinite alternate; }
+  @keyframes coachPulse { from { opacity: .65; } to { opacity: 1; } }
+  @keyframes coachWave { from { transform: scale(1); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
 
   /* narrower screens: the carved left cap goes first, then the tiles slim down, and at last the
      wave cap leaves the tray to hang under the header so the send button is never lost */
@@ -1188,6 +1271,7 @@
       <button type="button" class="tgl" data-band="zurna" role="radio">Zurna &amp; dhol</button>
     </div>
   </div>
+  <button class="btn menuBtn" id="tutBtn"><svg class="ic"><use href="#i-flag"/></svg>Replay tutorial</button>
   <button class="btn menuBtn" id="pauseBtn">Pause</button>
   <button class="btn menuBtn" id="menuBtn"><svg class="ic"><use href="#i-flag"/></svg>Abandon &amp; Level Select</button>
   <div class="hint">Hotkeys: 1–5 towers · Space send wave · P pause · F speed · A auto · M music · S sound · Esc close</div>
@@ -1249,7 +1333,9 @@
   <div class="bigRow">
     <button class="big" id="resumeBtn" style="display:none"><svg class="ic"><use href="#i-play"/></svg>Resume</button>
     <button class="big" id="endlessBtn" style="display:none"><svg class="ic"><use href="#i-shield"/></svg>Hold Forever</button>
+    <button class="big quietable" id="mapBtn" style="display:none"><svg class="ic"><use href="#i-flag"/></svg>Campaign Map</button>
     <button class="big" id="startBtn">Take Command</button>
+    <button class="big" id="nextBtn" style="display:none">Next battle</button>
   </div>
   </div>
 </div>
@@ -6228,6 +6314,7 @@ function castSpell(key, x, y) {
   spellCd[key] = S.cd;
   castingSpell = null;
   updateSpellBar();
+  coachEvent("spell");
   if (key === "arrows") {
     spellFx.push({ type: "arrows", x, y, t: 0, ticks: 0 });
     Snd.play("spellArrows", { x });
@@ -6429,6 +6516,8 @@ function resumeRun() {
 }
 
 function resetGame() {
+  stopTutorial();
+  tutGentle = false;
   loadLevel(curLevel);
   const D = DIFFS[curDiff];
   gold = D.gold + 15 * LEVELS[curLevel].era; lives = D.lives;
@@ -6512,6 +6601,8 @@ function toast(msg) {
 }
 
 function saveBest() {
+  // test mode opens every battlefield for a visit: a stand won there out of turn is not saved as conquered
+  if (testUnlockAll && !levelOpen(curLevel)) return;
   const key = "hs_best_" + curLevel + "_" + curEra;
   const val = gameOver && lives > 0 ? 21 : waveIdx;
   const prev = Number(localStorage.getItem(key) || 0);
@@ -6522,6 +6613,11 @@ function saveBest() {
 function startWave() {
   if (gameOver || paused) return;
   if (waveIdx >= TOTAL_WAVES && !endless) return;
+  // the coached first stand: the field holds still while a step is read, and the first wave waits for a tower
+  if (tut && (coachFreeze() || !towers.length)) {
+    if (!towers.length) toast("Build a tower first: tap or click one in the tray");
+    return;
+  }
   let early = 0;
   if (phase === "wave") {
     // early call: allowed once the current wave has fully spawned; pays a
@@ -6537,7 +6633,7 @@ function startWave() {
   autoT = 0;
   spawnQueue = [];
   let t = 0.5;
-  for (const grp of waveGroups(waveIdx)) {
+  for (const grp of tutorialWave(waveGroups(waveIdx))) {
     for (let i = 0; i < grp.n; i++) {
       spawnQueue.push({ type: grp.type, t });
       t += grp.gap;
@@ -6564,7 +6660,7 @@ function spawnEnemy(type) {
   // the commanders keep the old straight climb: the late-wave bend is for the rank and file they bring
   const climb = type === "boss" ? 1 + (waveIdx - 1) * 0.13 : hpScale(waveIdx);
   const hp = Math.round(d.hp * (d.hpMult || 1) * E.hpMult * climb * levelHpMult() * DIFFS[curDiff].hp *
-    (type === "boss" && waveIdx === 20 ? 1.2 : 1));
+    (type === "boss" && waveIdx === 20 ? 1.2 : 1) * tutorialHp());
   const e = {
     type, hp, maxHp: hp, dist: 0, speed: d.spd * (d.spdMult || 1),
     armor: d.armor + (d.armorAdd || 0),
@@ -6681,13 +6777,77 @@ function endCelebration() {
   celebration = null;
   confetti = [];
   // a battlefield may tell its own victory (L.victory); the tally and the endless offer always follow
-  const L = LEVELS[curLevel];
-  showMenu("🏆", L.name + " Stands!",
+  const L = LEVELS[curLevel], last = curLevel >= LEVELS.length - 1;
+  showMenu("🏆", last ? "The Chronicle Is Complete" : L.name + " Stands!",
     (L.victory ? L.victory + " " : "The " + ERAS[curEra].name + " breaks against your towers like water against the highland rocks. " +
     "A circle dance turns before the gates, and the fires of the citadel burn on. ") +
     "You held with " + heldLives + " defenders to spare on " + DIFFS[curDiff].name + ". " +
-    "Your army still stands: hold forever, if you dare.",
+    (last ? "Every battlefield of the campaign, from Erebuni in 782 BC to Stepanakert in 2023, has now been held. " +
+      "Return to any of them on a harder difficulty, or hold forever here." : "Your army still stands: hold forever, if you dare."),
     "Defend Again", true);
+  showVictoryScreen();
+}
+
+// ---- after a victory: the call to action is the battlefield it has just opened ----
+// The victory page drops the map and offers, in this order of weight: the next battle (straight to its
+// chronicle, through its chapter's story the first time a chapter is entered), a replay, the endless
+// stand and the campaign map. After the last battlefield the campaign map takes the lead instead.
+let victoryNext = -1;      // the battlefield the victory page offers next (-1: the campaign is complete)
+let introThen = -1;        // a chapter story opened on the way to a battlefield continues to its chronicle
+let overlaySettleT = 0;
+function showVictoryScreen() {
+  victoryNext = curLevel + 1 < LEVELS.length ? curLevel + 1 : -1;
+  menuMode = "victory";
+  overlayEl.classList.add("victory");
+  $("worldMap").style.display = "none";
+  $("diffRow").style.display = "none";
+  $("resumeBtn").style.display = "none";
+  const nb = $("nextBtn"), mb = $("mapBtn"), sb = $("startBtn");
+  if (victoryNext >= 0) {
+    const N = LEVELS[victoryNext];
+    nb.innerHTML = '<span class="nbKick">Next battle</span><span class="nbName">' + escapeHtml(N.name + ", " + N.date) + "</span>" + icon("swords");
+    nb.title = "Next battle: " + N.name + ", " + N.date;
+    nb.style.display = "";
+  } else nb.style.display = "none";
+  mb.style.display = "";
+  mb.classList.toggle("lead", victoryNext < 0);
+  sb.innerHTML = icon("swords") + escapeHtml("Replay " + LEVELS[curLevel].name);
+  sb.classList.add("quiet");
+  // the tap that ended the dance must not land on a button of the page that replaces it
+  overlayEl.classList.add("settling");
+  clearTimeout(overlaySettleT);
+  overlaySettleT = setTimeout(() => overlayEl.classList.remove("settling"), 450);
+}
+function leaveVictory() {
+  if (menuMode === "victory") menuMode = "map";
+  overlayEl.classList.remove("victory");
+  $("nextBtn").style.display = "none";
+  $("mapBtn").classList.remove("lead");
+  $("startBtn").classList.remove("quiet");
+}
+// on to the battlefield the victory opened: its chapter's story first if that chapter is new, then its chronicle
+function marchToNext() {
+  const n = victoryNext;
+  if (n < 0) return;
+  const from = chapterOf(curLevel);
+  leaveVictory();
+  curLevel = n;
+  curEra = LEVELS[n].era;
+  applyEraLabels();
+  const c = chapterOf(n);
+  if (c !== from && !chaptersSeen().includes(c)) { showChapterIntro(c, n); return; }
+  Snd.play("mapSelect");
+  showBrief();
+}
+// the campaign map, opened on the chapter of the battlefield given (the furthest reached by default)
+function openCampaignMap(lv) {
+  leaveVictory();
+  curLevel = lv === undefined ? furthestOpen() : lv;
+  curEra = LEVELS[curLevel].era;
+  applyEraLabels();
+  showMenu("🏔️", "Highland Stand", "", "Take Command");
+  selectMapLevel(curLevel);
+  if (!chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
 }
 
 function defeat() {
@@ -6981,6 +7141,7 @@ function update(dt) {
         }
       }
       gold += bounty;
+      coachEvent("kill");
       Snd.play("death", { x: p.x, kind: e.type, variant: e.def.variant, era: curEra });
       Snd.play("coin", { x: p.x });
       corpses.push({ x: p.x, y: p.y, k: e.r / 11, color: e.def.color, t: 0.8, type: e.type, name: e.def.name, fly: !!e.fly });
@@ -45199,11 +45360,20 @@ function levelBestAnyEra(i) {
 function levelConquered(i) { return levelBestAnyEra(i) >= 21; }
 // test mode (Shift+U on the menu): every battlefield opens for this visit only; nothing is saved as conquered
 let testUnlockAll = false;
-function levelUnlocked(i) { return testUnlockAll || i === 0 || levelConquered(i - 1) || levelConquered(i); }
-function highestUnlocked() {
+// The campaign runs in chronological order: the first battlefield is open from the start, and winning a
+// battlefield opens the one after it (and only that one). Progress is read from the saved best waves, so an
+// older save keeps everything it had won, and the road after every won battlefield stands open.
+function levelOpen(i) { return i === 0 || levelConquered(i - 1) || levelConquered(i); }
+function levelUnlocked(i) { return testUnlockAll || levelOpen(i); }
+// the furthest battlefield the campaign has truly reached (test mode aside): where the map opens
+function furthestOpen() {
   let h = 0;
-  while (h + 1 < LEVELS.length && levelUnlocked(h + 1)) h++;
+  for (let i = 1; i < LEVELS.length; i++) if (levelOpen(i)) h = i;
   return h;
+}
+function highestUnlocked() {
+  if (!testUnlockAll) return furthestOpen();
+  return LEVELS.length - 1;
 }
 
 
@@ -46359,7 +46529,11 @@ function checkNewUnlocks() {
 let menuMode = "map";   // "map" → world map; "brief" → history chronicle; "chapter" → a chapter's story
 
 function showMenu(crest, title, sub, btnText, offerEndless) {
+  leaveVictory();
+  stopTutorial();
   menuMode = "map";
+  introThen = -1;
+  $("mapBtn").style.display = "none";
   overlayEl.classList.remove("brief");
   $("worldMap").style.display = "";
   $("diffRow").style.display = "";
@@ -48013,10 +48187,13 @@ window.addEventListener("resize", () => {
 // Opened the first time a chapter is reached on the map, and from the map's "Chapter story" button;
 // "To the Map" returns to the map page exactly as it was.
 let introReturn = null;
-function showChapterIntro(c) {
+function showChapterIntro(c, then) {
   const C = CHAPTERS[c];
   if (!C) return;
   markChapterSeen(c);
+  leaveVictory();
+  introThen = then === undefined ? -1 : then;
+  $("mapBtn").style.display = "none";
   if (menuMode === "map") {
     introReturn = { crestCls: $("ovCrest").className, crest: $("ovCrest").innerHTML, crestTitle: $("ovCrest").title,
       title: $("ovTitle").textContent, sub: $("ovSub").innerHTML, endless: $("endlessBtn").style.display };
@@ -48043,7 +48220,8 @@ function showChapterIntro(c) {
   }).join("");
   renderBriefArt(C.levels[0]);
   startBriefMosaic(C.levels[0]);
-  $("startBtn").innerHTML = icon("flag") + "To the Map";
+  $("startBtn").innerHTML = introThen >= 0 ? icon("swords") + escapeHtml("Onward to " + LEVELS[introThen].name)
+    : icon("flag") + "To the Map";
   Snd.play("mapSelect");
 }
 function closeChapterIntro() {
@@ -48082,7 +48260,10 @@ function fitRubric() {
 }
 window.addEventListener("resize", fitRubric);
 function showBrief() {
+  leaveVictory();
+  introThen = -1;
   menuMode = "brief";
+  $("mapBtn").style.display = "";
   const L = LEVELS[curLevel];
   const E = ERAS[L.era];
   $("worldMap").style.display = "none";
@@ -48107,7 +48288,7 @@ function showBrief() {
   }).join("");
   renderBriefArt(curLevel);
   startBriefMosaic();
-  $("startBtn").innerHTML = icon("swords") + "Begin the Stand";
+  $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() ? "Begin the Stand · Tutorial" : "Begin the Stand");
   Snd.play("horn", { era: LEVELS[curLevel].era });
 }
 
@@ -48168,6 +48349,7 @@ canvas.addEventListener("pointerdown", (e) => {
     };
     heroSelected = false;
     updateSpellBar();
+    coachEvent("hero");
     Snd.play("rally", { x: hero.rally.x });
     return;
   }
@@ -48248,6 +48430,7 @@ waveBtn.addEventListener("click", startWave);
 // click or F drops back to the usual 1x/2x
 function setSpeed(m) {
   speedMult = m;
+  coachEvent("speed");
   speedBtn.textContent = m + "×";
   speedBtn.classList.toggle("secret", m === 4);
 }
@@ -48376,6 +48559,37 @@ function togglePause() {
   toast(paused ? "Paused" : "Onward!");
 }
 $("pauseBtn").addEventListener("click", togglePause);
+// Settings: the tutorial again. On a fresh Erebuni (no tower, no wave yet) it starts at once; anywhere else a
+// second tap confirms leaving the battle for Erebuni's chronicle, where it then runs
+let tutConfirmT = 0;
+$("tutBtn").addEventListener("click", () => {
+  const b = $("tutBtn");
+  const fresh = curLevel === 0 && !gameOver && waveIdx === 0 && towers.length === 0 && overlayEl.classList.contains("hidden");
+  if (fresh) {
+    settingsEl.style.display = "none";
+    paused = false; syncPauseBtn();
+    startTutorial();
+    return;
+  }
+  if (!tutConfirmT) {
+    b.innerHTML = icon("flag") + "Tap again to leave this battle";
+    tutConfirmT = setTimeout(() => { tutConfirmT = 0; b.innerHTML = icon("flag") + "Replay tutorial"; }, 3000);
+    return;
+  }
+  clearTimeout(tutConfirmT); tutConfirmT = 0;
+  b.innerHTML = icon("flag") + "Replay tutorial";
+  settingsEl.style.display = "none";
+  setTutorialState("0");
+  gameOver = true;
+  clearRun();
+  celebration = null;
+  paused = false;
+  $("pauseBtn").textContent = "Pause";
+  curLevel = 0;
+  showMenu("🏔️", "Highland Stand", "", "Take Command");
+  selectMapLevel(0);
+  showBrief();
+});
 $("menuBtn").addEventListener("click", () => {
   settingsEl.style.display = "none";
   gameOver = true;
@@ -48383,9 +48597,11 @@ $("menuBtn").addEventListener("click", () => {
   celebration = null;
   paused = false;
   $("pauseBtn").textContent = "Pause";
+  curLevel = furthestOpen();
   showMenu("🏔️", "Highland Stand",
     "Choose your battlefield and difficulty. Five tower types, two masteries each — the highlands are counting on you.",
     "Take Command");
+  if (!chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
 });
 
 // quick testing: Shift+U opens every battlefield, Shift+G adds 5000 gold in battle; on a touch screen,
@@ -48433,7 +48649,7 @@ window.addEventListener("keydown", (e) => {
   if ((e.code === "ArrowLeft" || e.code === "ArrowRight") && !overlayEl.classList.contains("hidden")) {
     const dir = e.code === "ArrowLeft" ? -1 : 1;
     if (menuMode === "map") turnChapter(mapChapter() + dir);
-    else turnLeaf(dir);
+    else if (menuMode !== "victory") turnLeaf(dir);
     e.preventDefault();
     return;
   }
@@ -48462,18 +48678,34 @@ window.addEventListener("keydown", (e) => {
 $("startBtn").addEventListener("click", () => {
   Snd.init();
   if (menuMode === "map") { showBrief(); return; }
-  if (menuMode === "chapter") { Snd.play("mapSelect"); closeChapterIntro(); return; }
+  if (menuMode === "victory") { leaveVictory(); showBrief(); return; }
+  if (menuMode === "chapter") {
+    Snd.play("mapSelect");
+    const n = introThen;
+    closeChapterIntro();
+    if (n >= 0) { curLevel = n; curEra = LEVELS[n].era; applyEraLabels(); showBrief(); }
+    return;
+  }
   clearRun();
   menuMode = "map";
   overlayEl.classList.add("hidden");
   resetGame();
-  if (auto) autoT = 1.5;
+  maybeStartTutorial();
+  if (auto && !tut) autoT = 1.5;
 });
 
 $("resumeBtn").addEventListener("click", resumeRun);
+$("nextBtn").addEventListener("click", () => { Snd.init(); marchToNext(); });
+// from the victory page: the map on the furthest chapter reached; from a chronicle: back to its own chapter
+$("mapBtn").addEventListener("click", () => {
+  Snd.init();
+  Snd.play("mapSelect");
+  openCampaignMap(menuMode === "brief" ? curLevel : undefined);
+});
 
 $("endlessBtn").addEventListener("click", () => {
   Snd.init();
+  leaveVictory();
   overlayEl.classList.add("hidden");
   gameOver = false;
   endless = true;
@@ -48484,6 +48716,321 @@ $("endlessBtn").addEventListener("click", () => {
   toast("The endless stand begins — wave " + (waveIdx + 1) + " approaches!");
 });
 
+// ---------- the first battlefield's tutorial ----------
+// The first stand at Erebuni is coached: a bubble in the panels' walnut and bronze points at one thing at a
+// time (a pulsing ring on the field, a glowing outline on a button) and moves on when the player has done
+// what it asks. The field is held still while a step only needs reading or tapping, and the first wave waits
+// for the first tower. It runs once, on the first visit to Erebuni (a player who has already fought there is
+// not stopped), can be skipped at any step, and Settings can replay it.
+const TUT_KEY = "hs_tutorial_done";   // "1": finished or skipped · "0": asked to run again · absent: never seen
+let tut = null;                        // { i, ev, pad } while the coach is on the field
+let tutGentle = false;                 // this run of Erebuni began with the coach: its first waves come thinner
+function tutorialPending() {
+  let v = null;
+  try { v = localStorage.getItem(TUT_KEY); } catch (e) { return false; }
+  if (v === "1") return false;
+  if (v === "0") return true;
+  return levelBestAnyEra(0) <= 0;
+}
+function setTutorialState(v) { try { localStorage.setItem(TUT_KEY, v); } catch (e) {} }
+// the tutorial waves: the first three waves of a coached Erebuni bring three foes in five
+function tutorialWave(groups) {
+  if (!tutGentle || curLevel !== 0 || endless || waveIdx > 3) return groups;
+  return groups.map(g => Object.assign({}, g, { n: Math.max(1, Math.ceil(g.n * 0.6)), gap: g.gap * 1.25 }));
+}
+
+// and its foes stand lighter, so one first tower can fell them: a third of their strength in the first wave
+function tutorialHp() {
+  if (!tutGentle || curLevel !== 0 || endless || waveIdx > 3) return 1;
+  return [1, 0.3, 0.5, 0.7][waveIdx] || 1;
+}
+const tutTouch = () => matchMedia("(hover: none)").matches;
+// the free pad that watches the most road for a first archer
+function tutBestPad() {
+  const r = TOWER_DEFS.archer.levels[0].range;
+  let best = -1, bs = -1;
+  PADS.forEach((p, i) => {
+    if (towerAt(i)) return;
+    let n = 0;
+    for (const R of ROUTES) for (let d = 0; d <= R.len; d += 12) {
+      const q = routeAt(ROUTES.indexOf(R), d);
+      if (inGroundRange(p[0], p[1], q.x, q.y, r)) n++;
+    }
+    if (n > bs) { bs = n; best = i; }
+  });
+  return best;
+}
+const tutTower = () => towers[0] || null;
+function tutPlot() {
+  const t = tutTower(), o = t ? [t.x, t.y] : [FORT.x, FORT.y];
+  let best = null, bd = 1e9;
+  for (const p of plots) { const d = Math.hypot(p[0] - o[0], p[1] - o[1]); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+const tutHeroName = () => (LEVELS[curLevel].hero && LEVELS[curLevel].hero.name) || "your hero";
+
+// each step: html, what it points at (el: a DOM element; world: [x, y, radius, lift] on the field), what else
+// glows (also), whether the field holds still (freeze), whether it moves on by itself (done) or by a button
+// (next: its label), and where it falls back to when the player undoes its premise (back)
+const TUT_STEPS = [
+  { id: "welcome", freeze: true, next: "Next",
+    html: () => "<b>Welcome, commander.</b> This is Erebuni, 782 BC. Foes march down the road to your fortress; " +
+      "each one that gets through costs defenders " + icon("shield") + ". Lose them all and the city falls.",
+    world: () => [FORT.x, FORT.y, 80, 30], also: () => [$("lives").parentElement] },
+  { id: "gold", freeze: true, next: "Next",
+    html: () => "This is your <b>gold</b> " + icon("coin") + ". Towers cost gold, and every foe you fell pays more.",
+    el: () => $("gold").parentElement },
+  { id: "shop", freeze: true,
+    html: () => "Choose a tower: tap or click the <b>" + escapeHtml(towerName("archer")) + "</b> (archers) in the tray.",
+    el: () => document.querySelector('#shop .card[data-type="archer"]'),
+    done: () => !!placing || towers.length > 0 },
+  { id: "pad", freeze: true,
+    html: () => "Now tap or click the <b>glowing pad</b> beside the road to build there. The circle shows how far the tower reaches." +
+      (tutTouch() ? " <i>On a touch screen, tap once to see its reach and again to build.</i>" : ""),
+    world: () => { const p = PADS[tut.pad] || PADS[0]; return [p[0], p[1], 34, 0]; },
+    enter: () => { if (tut.pad < 0 || towerAt(tut.pad)) tut.pad = tutBestPad(); },
+    done: () => towers.length > 0, back: () => (!placing && !towers.length ? "shop" : null) },
+  { id: "wave", freeze: false, enter: () => setPlacing(null),
+    html: () => "Ready! Tap or click <b>Send Wave</b> (or press Space). Later, calling a wave early while foes are still " +
+      "marching pays bonus gold, and <b>Auto</b> sends the waves for you.",
+    el: () => waveBtn, also: () => [autoBtn],
+    done: () => waveIdx >= 1 },
+  { id: "fight", freeze: false, prefer: ["below", "right", "left", "above"],
+    html: () => "Your archers shoot on their own. Every foe they fell drops <b>gold</b>.",
+    world: () => { const t = tutTower(); return t ? [t.x, t.y, 40, 26] : null; },
+    done: () => tut.ev.kill || (phase === "idle" && waveIdx >= 1) },
+  { id: "select", freeze: true,
+    html: () => "Tap or click your <b>tower</b> to open its panel.",
+    world: () => { const t = tutTower(); return t ? [t.x, t.y, 40, 26] : null; },
+    done: () => !!selected && panelEl.style.display === "block" },
+  { id: "upgrade", freeze: true,
+    html: () => "<b>Upgrade</b> makes a tower hit harder and reach further. Tap or click Upgrade.",
+    // the bubble stands clear of the whole panel; the Upgrade button glows
+    el: () => (panelEl.style.display === "block" ? panelEl : null), halo: () => [document.querySelector("#pActions .up")],
+    enter: () => {
+      const t = selected || tutTower();
+      if (!t) return;
+      const L = TOWER_DEFS[t.type].levels[t.level + 1];
+      if (L && gold < L.cost) { gold = L.cost; syncHud(); refreshPanelBtns(); toast("The king's treasury sends gold for the upgrade"); }
+    },
+    done: () => towers.some(t => t.level > 0 || t.spec),
+    back: () => (panelEl.style.display !== "block" ? "select" : null) },
+  { id: "kinds", freeze: true, next: "Next",
+    enter: () => hidePanel(),
+    html: () => {
+      const n = k => "<b>" + escapeHtml(towerName(k)) + "</b>";
+      return "Five towers, five jobs: " + n("archer") + " shoot fast · " + n("ballista") + " bolts pierce armour · " +
+        n("catapult") + " stones splash a crowd · " + n("fire") + " slows and burns · " + n("drums") + " make nearby towers faster and stronger.";
+    },
+    el: () => document.querySelector("#shop .trayPanel") },
+  { id: "spells", freeze: false,
+    html: () => "<b>Spells</b>: tap or click one (or press Q, W, E), then tap or click the field where it should strike. Try one now.",
+    el: () => $("spellbar"), halo: () => [...document.querySelectorAll("#spellbar .spell[data-spell]")],
+    done: () => tut.ev.spell },
+  { id: "hero", freeze: false,
+    html: () => "Your hero, <b>" + escapeHtml(tutHeroName()) + "</b>, fights on the road. Tap or click his medallion (or press R), " +
+      "then tap or click the field to march him there.",
+    el: () => $("heroBtn"),
+    next: () => (hero && hero.alive ? null : "Next"),
+    done: () => tut.ev.hero },
+  { id: "speed", freeze: false, next: "Next",
+    html: () => "The <b>speed</b> button runs the battle at 2×; tap or click it again for 1×.",
+    el: () => speedBtn,
+    done: () => tut.ev.speed },
+  { id: "plots", freeze: true, next: "Next",
+    html: () => "Signposts mark <b>land you can claim</b>. When you have the gold, tap or click one to add a new build pad.",
+    world: () => { const p = tutPlot(); return p ? [p[0], p[1], 38, 14] : null; } },
+  { id: "mastery", freeze: true, next: "Next",
+    html: () => "At its third level a tower can take one of two <b>Masteries</b> " + icon("star") +
+      ", a powerful specialty. Open its panel to choose.",
+    world: () => { const t = tutTower(); return t ? [t.x, t.y, 40, 26] : null; } },
+  { id: "ready", freeze: true, next: "To battle!",
+    html: () => "<b>You're ready.</b> Hold Erebuni through all twenty waves: the battle is yours." },
+];
+
+let coachEl = null, coachRing = null, coachHalos = [];
+function buildCoach() {
+  if (coachEl) return;
+  coachEl = document.createElement("div");
+  coachEl.id = "coach";
+  coachEl.className = "kit";
+  coachEl.setAttribute("role", "dialog");
+  coachEl.setAttribute("aria-live", "polite");
+  coachEl.innerHTML = '<i class="cPtr"></i><div class="cHead"><span class="cStep"></span>' +
+    '<button type="button" class="cSkip">Skip tutorial</button></div><div class="cText"></div>' +
+    '<div class="cFoot"><button type="button" class="btn cNext">Next</button></div>';
+  // taps on the bubble are the bubble's own: they never reach the field under it
+  for (const t of ["pointerdown", "pointerup", "click"]) coachEl.addEventListener(t, e => e.stopPropagation());
+  coachEl.querySelector(".cSkip").addEventListener("click", () => { Snd.play("uiTick"); endTutorial(true); });
+  coachEl.querySelector(".cNext").addEventListener("click", () => { Snd.play("mapSelect"); tutAdvance(); });
+  coachRing = document.createElement("div");
+  coachRing.id = "coachRing";
+  document.body.appendChild(coachRing);
+  document.body.appendChild(coachEl);
+}
+function startTutorial() {
+  buildCoach();
+  tut = { i: -1, ev: {}, pad: -1, shown: "" };
+  tutGentle = true;
+  setTutorialState("0");
+  tutGo(0);
+}
+function tutGo(i) {
+  if (!tut) return;
+  if (i >= TUT_STEPS.length) { endTutorial(false); return; }
+  tut.i = i;
+  const S = TUT_STEPS[i];
+  if (S.enter) S.enter();
+  tut.shown = "";
+}
+function tutAdvance() { if (tut) tutGo(tut.i + 1); }
+function endTutorial(skipped) {
+  if (!tut) return;
+  tut = null;
+  setTutorialState("1");
+  if (coachEl) coachEl.classList.remove("on");
+  if (coachRing) coachRing.classList.remove("on");
+  for (const h of coachHalos) h.remove();
+  coachHalos = [];
+  if (skipped) toast("Tutorial skipped: Settings can replay it");
+}
+// leaving the battle puts the coach away without marking it finished
+function stopTutorial() {
+  if (!tut) return;
+  tut = null;
+  if (coachEl) coachEl.classList.remove("on");
+  if (coachRing) coachRing.classList.remove("on");
+  for (const h of coachHalos) h.remove();
+  coachHalos = [];
+}
+function coachEvent(name) { if (tut) tut.ev[name] = true; }
+function coachFreeze() { return !!(tut && TUT_STEPS[tut.i] && TUT_STEPS[tut.i].freeze); }
+function maybeStartTutorial() {
+  stopTutorial();
+  tutGentle = false;
+  if (curLevel === 0 && tutorialPending()) startTutorial();
+}
+
+// a world point on the screen, in client pixels
+function tutScreen(wx, wy, lift) {
+  const p = proj(wx, wy);
+  return { x: p.x * scale + offX, y: (p.y - (lift || 0) * p.s) * scale + offY, s: p.s * scale };
+}
+function tutInsets() {
+  const cs = getComputedStyle(safeProbe);
+  return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+}
+function rectsMeet(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
+// the bubble beside its target: above, below, right or left, the first side where it fits on screen
+// without covering the target; failing that, the side that covers least
+function placeCoach(T, prefer) {
+  const W = window.innerWidth, H = window.innerHeight, ins = tutInsets(), m = 10;
+  const bw = coachEl.offsetWidth, bh = coachEl.offsetHeight;
+  const area = { l: ins.l + m, t: ins.t + m, r: W - ins.r - m, b: H - ins.b - m };
+  const ptr = coachEl.querySelector(".cPtr");
+  if (!T) {
+    coachEl.style.left = Math.round((W - bw) / 2) + "px";
+    coachEl.style.top = Math.round(Math.max(area.t + 60, H * 0.3 - bh / 2)) + "px";
+    ptr.style.display = "none";
+    return;
+  }
+  const gap = 18, cx = (T.l + T.r) / 2, cy = (T.t + T.b) / 2;
+  const clampX = x => Math.max(area.l, Math.min(area.r - bw, x));
+  const clampY = y => Math.max(area.t, Math.min(area.b - bh, y));
+  const sides = [
+    ["above", clampX(cx - bw / 2), T.t - gap - bh],
+    ["below", clampX(cx - bw / 2), T.b + gap],
+    ["right", T.r + gap, clampY(cy - bh / 2)],
+    ["left", T.l - gap - bw, clampY(cy - bh / 2)],
+  ];
+  if (prefer) sides.sort((a, b) => prefer.indexOf(a[0]) - prefer.indexOf(b[0]));
+  let pick = null, least = 1e12;
+  const pad = { l: T.l - 4, t: T.t - 4, r: T.r + 4, b: T.b + 4 };
+  for (const [side, x, y] of sides) {
+    const R = { l: x, t: y, r: x + bw, b: y + bh };
+    const inside = R.l >= area.l - 0.5 && R.r <= area.r + 0.5 && R.t >= area.t - 0.5 && R.b <= area.b + 0.5;
+    if (inside && !rectsMeet(R, pad)) { pick = [side, x, y]; break; }
+    // a side that does not fit is pulled on screen, and scored by how much of the target it then hides
+    const cxl = Math.max(area.l, Math.min(area.r - bw, x)), cyl = Math.max(area.t, Math.min(area.b - bh, y));
+    const C = { l: cxl, t: cyl, r: cxl + bw, b: cyl + bh };
+    const ov = Math.max(0, Math.min(C.r, pad.r) - Math.max(C.l, pad.l)) * Math.max(0, Math.min(C.b, pad.b) - Math.max(C.t, pad.t));
+    if (ov < least) { least = ov; pick = [side, cxl, cyl]; }
+  }
+  const [side, x, y] = pick;
+  coachEl.style.left = Math.round(x) + "px";
+  coachEl.style.top = Math.round(y) + "px";
+  ptr.style.display = "";
+  ptr.className = "cPtr " + side;
+  if (side === "above" || side === "below") ptr.style.left = Math.round(Math.max(14, Math.min(bw - 28, cx - x - 7))) + "px", ptr.style.top = "";
+  else ptr.style.top = Math.round(Math.max(14, Math.min(bh - 28, cy - y - 7))) + "px", ptr.style.left = "";
+}
+function haloOn(els) {
+  els = els.filter(Boolean);
+  while (coachHalos.length < els.length) {
+    const h = document.createElement("div");
+    h.className = "coachHalo";
+    document.body.appendChild(h);
+    coachHalos.push(h);
+  }
+  coachHalos.forEach((h, k) => {
+    const el = els[k];
+    if (!el || !el.offsetParent && getComputedStyle(el).position !== "fixed") { h.style.display = "none"; return; }
+    const r = el.getBoundingClientRect();
+    if (!r.width) { h.style.display = "none"; return; }
+    h.style.display = "block";
+    h.style.left = (r.left - 5) + "px"; h.style.top = (r.top - 5) + "px";
+    h.style.width = (r.width + 10) + "px"; h.style.height = (r.height + 10) + "px";
+    h.style.borderRadius = getComputedStyle(el).borderRadius === "50%" ? "50%" : "12px";
+  });
+}
+// once a frame: move on when the step is done, fall back when its premise is undone, and keep the bubble,
+// the ring and the outlines on their targets
+function coachTick() {
+  if (!tut) return;
+  const live = overlayEl.classList.contains("hidden") && !gameOver;
+  if (!live) {
+    coachEl.classList.remove("on"); coachRing.classList.remove("on");
+    for (const h of coachHalos) h.style.display = "none";
+    return;
+  }
+  let S = TUT_STEPS[tut.i];
+  for (let guard = 0; guard < TUT_STEPS.length && S; guard++) {
+    const back = S.back && S.back();
+    if (back) { tutGo(TUT_STEPS.findIndex(x => x.id === back)); S = TUT_STEPS[tut.i]; continue; }
+    if (S.done && S.done()) { tutGo(tut.i + 1); if (!tut) return; S = TUT_STEPS[tut.i]; continue; }
+    break;
+  }
+  const nextLbl = typeof S.next === "function" ? S.next() : S.next;
+  const key = tut.i + "|" + (nextLbl || "") + "|" + tutTouch();
+  if (tut.shown !== key) {
+    tut.shown = key;
+    coachEl.querySelector(".cStep").textContent = (tut.i + 1) + " / " + TUT_STEPS.length;
+    coachEl.querySelector(".cText").innerHTML = S.html();
+    const nb = coachEl.querySelector(".cNext");
+    nb.style.display = nextLbl ? "" : "none";
+    nb.textContent = nextLbl || "";
+    coachEl.querySelector(".cFoot").style.display = nextLbl ? "" : "none";
+  }
+  coachEl.classList.add("on");
+  // the target: an element on the screen or a ring on the field
+  let T = null;
+  const el = S.el && S.el();
+  const w = S.world && S.world();
+  if (w) {
+    const c = tutScreen(w[0], w[1], w[3]), r = Math.max(18, w[2] * c.s);
+    coachRing.classList.add("on");
+    coachRing.style.left = (c.x - r) + "px"; coachRing.style.top = (c.y - r) + "px";
+    coachRing.style.width = coachRing.style.height = (2 * r) + "px";
+    T = { l: c.x - r, t: c.y - r, r: c.x + r, b: c.y + r };
+  } else coachRing.classList.remove("on");
+  if (el) {
+    const r = el.getBoundingClientRect();
+    if (r.width) T = { l: r.left, t: r.top, r: r.right, b: r.bottom };
+  }
+  haloOn(S.halo ? S.halo() : [el].concat(S.also ? S.also() : []));
+  placeCoach(T, S.prefer);
+}
+
 // ---------- main loop ----------
 let last = performance.now();
 function frame(time) {
@@ -48491,11 +49038,12 @@ function frame(time) {
   if (photo) { draw(photo.time); return; }
   const dt = Math.min((time - last) / 1000, 0.05);
   last = time;
-  if (!gameOver && !paused && overlayEl.classList.contains("hidden")) {
+  if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
     for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
   }
   if (celebration && time - celebration.start > 13500) endCelebration();
   draw(time);
+  coachTick();
 }
 
 // one-time save migration: the campaign grew from 4 battlefields to 7
@@ -48925,6 +49473,71 @@ function runSelftest() {
       if (keep.lv == null) HARNESS.delete("lv"); else HARNESS.set("lv", keep.lv);
     }
     celebration = null;
+  });
+  // the campaign runs in order: a fresh save opens only the first battlefield, each victory the next one;
+  // the victory page leads to that battlefield (through a new chapter's story once) and the map follows it
+  check("progression", () => {
+    const keys = [];
+    for (let i = 0; i < LEVELS.length; i++) for (let e = 0; e < ERAS.length; e++) keys.push("hs_best_" + i + "_" + e);
+    const saved = keys.map(k => localStorage.getItem(k)), seen = localStorage.getItem("hs_chapters_seen");
+    try {
+      keys.forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem("hs_chapters_seen");
+      testUnlockAll = false;
+      const open = () => LEVELS.map((_, i) => levelUnlocked(i) ? i : -1).filter(i => i >= 0).join(",");
+      if (open() !== "0") throw new Error("fresh save opens " + open());
+      if (!tutorialPending()) throw new Error("fresh save skips the tutorial");
+      localStorage.setItem("hs_best_0_0", "21");
+      if (open() !== "0,1") throw new Error("after Erebuni: " + open());
+      if (furthestOpen() !== 1) throw new Error("furthest after Erebuni");
+      // an old save with a gap keeps all it won and opens the road after each
+      localStorage.setItem("hs_best_4_2", "21");
+      if (open() !== "0,1,4,5" || furthestOpen() !== 5) throw new Error("gapped save opens " + open());
+      localStorage.removeItem("hs_best_4_2");
+      localStorage.setItem("hs_best_1_0", "21");
+      // win the third battlefield: the call to action is the fourth, in chapter II
+      curLevel = 2; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration();
+      if (open() !== "0,1,2,3") throw new Error("after the third: " + open());
+      if (menuMode !== "victory" || $("nextBtn").style.display === "none" || !$("nextBtn").textContent.includes(LEVELS[3].name)) throw new Error("no next-battle call");
+      marchToNext();
+      if (menuMode !== "chapter" || !/Chapter II\b/.test($("ovRubric").textContent) || introThen !== 3) throw new Error("chapter II story not shown");
+      $("startBtn").click();
+      if (menuMode !== "brief" || curLevel !== 3 || $("ovTitle").textContent !== LEVELS[3].name) throw new Error("no chronicle of the fourth");
+      $("mapBtn").click();
+      if (menuMode !== "map" || mapChapter() !== chapterOf(3)) throw new Error("map not on chapter II");
+      // a second victory there does not show the story again
+      curLevel = 2; resetGame(); overlayEl.classList.add("hidden");
+      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration(); marchToNext();
+      if (menuMode !== "brief" || curLevel !== 3) throw new Error("chapter story shown twice");
+      // the last battlefield ends the campaign
+      for (let i = 0; i < LEVELS.length - 1; i++) localStorage.setItem("hs_best_" + i + "_" + LEVELS[i].era, "21");
+      curLevel = LEVELS.length - 1; resetGame(); overlayEl.classList.add("hidden");
+      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration();
+      if ($("nextBtn").style.display !== "none" || !$("mapBtn").classList.contains("lead") || !/Complete/.test($("ovTitle").textContent)) throw new Error("no campaign end");
+      $("mapBtn").click();
+      if (curLevel !== LEVELS.length - 1) throw new Error("map after the end");
+      celebration = null;
+      clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
+    } finally {
+      keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+      if (seen === null) localStorage.removeItem("hs_chapters_seen"); else localStorage.setItem("hs_chapters_seen", seen);
+    }
+  });
+  // the coached first stand: every step can be shown, the first wave waits for a tower and comes thinner
+  check("tutorial", () => {
+    curLevel = 0; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+    startTutorial();
+    startWave();
+    if (waveIdx !== 0) throw new Error("a wave left before the first tower");
+    for (let i = 0; i < TUT_STEPS.length; i++) { tutGo(i); coachTick(); if (tut && !$("coach").textContent) throw new Error("empty step " + i); }
+    tutGo(4); placeTower("archer", 1); startWave();
+    const n = spawnQueue.length, full = waveGroups(1).reduce((a, g) => a + g.n, 0);
+    if (!(waveIdx === 1 && n < full)) throw new Error("first coached wave not thinner: " + n + " of " + full);
+    endTutorial(false);
+    if (tutorialPending()) throw new Error("finished tutorial still pending");
+    localStorage.removeItem(TUT_KEY);
+    resetGame();
   });
   check("menu + brief", () => { photoMenu(false); renderWorldMap(); photoMenu(true); });
   check("perf + pixels", () => {
