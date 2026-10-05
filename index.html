@@ -239,6 +239,7 @@
   .card .ds i.dep { display: block; margin-bottom: 4px; opacity: .85; }
   .card:hover .ds { display: block; }
 
+  #speedBtn.secret { color: #ffd27a; text-shadow: 0 0 6px rgba(255, 120, 60, .9); }
   #panel { position: fixed; z-index: 20; width: 250px; padding: 16px 12px 18px; display: none; }
   #panel .ptr {
     position: absolute; left: -9px; top: 40px; width: 14px; height: 14px; transform: rotate(45deg);
@@ -1639,7 +1640,7 @@ const LEVELS = [
   {
     name: "Musa Dagh",
     tag: "Fifty-three days on the mountain of Moses.",
-    era: 5, date: "21 July to 12 September 1915", year: 1915,
+    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 0.8,
     hero: { name: "Movses Ter-Kalustian", title: "Commander on Musa Dagh" },
     foe: "Ottoman",
     units: {
@@ -1962,7 +1963,7 @@ function levelPages(L) {
 const DIFFS = [
   { name: "Easy", lives: 30, gold: 260, hp: 0.85 },
   { name: "Normal", lives: 20, gold: 220, hp: 1.0 },
-  { name: "Hard", lives: 14, gold: 200, hp: 1.18 },
+  { name: "Hard", lives: 14, gold: 200, hp: 1.08 },
 ];
 
 let curLevel = 0, curDiff = 1, curEra = 0;
@@ -5105,8 +5106,9 @@ const ERAS = [
       raider:   { name: "Rifle Infantry",       color: "#5e6248", trim: "#c8c6a4" },
       spearman: { name: "Motor-Rifle Squad",    color: "#4e5a40", trim: "#bfc4a2", variant: "janissary" },
       shield:   { name: "Assault Infantry",     color: "#454c3c", trim: "#b6b89a", variant: "janissary" },
-      cavalry:  { name: "BMP Column",           color: "#55603f", trim: "#a8ae8a", armorAdd: 4, spdMult: 0.9, hpMult: 1.2 },
-      ram:      { name: "T-72 Tank",            color: "#4a5040", trim: "#9aa086", variant: "cannon", hpMult: 1.2 },
+      cavalry:  { name: "BMP Column",           color: "#55603f", trim: "#a8ae8a", armorAdd: 9, spdMult: 0.9, hpMult: 1.2 },
+      // rifle fire rings off a tank: it takes the rocket battery, the anti-tank ditch or a piercing shot
+      ram:      { name: "T-72 Tank",            color: "#4a5040", trim: "#9aa086", variant: "cannon", hpMult: 1.2, armorAdd: 16 },
       boss:     { name: "Brigade Commander",    color: "#3e4636", trim: "#d8c47a" },
       flyer:    { name: "Strike Drones",        color: "#6a6e64", trim: "#d0d2c6", variant: "flyer" },
     },
@@ -5324,14 +5326,26 @@ function waveGroups(w) {
   if (w >= 2) g.push({ type: "raider", n: 2 + w, gap: 0.45 });
   if (w >= 4) g.push({ type: "shield", n: Math.floor(w / 2), gap: 1.1 });
   if (w >= 5) g.push({ type: "cavalry", n: Math.floor(w / 2) - 1, gap: 0.6 });
-  if (w >= 6 && w % 3 === 0) g.push({ type: "ram", n: Math.floor(w / 6), gap: 2.4 });
-  if (w >= 7 && w % 2 === 1) g.push({ type: "flyer", n: Math.max(2, Math.floor(w / 2) - 1), gap: 0.7 });
+  // the siege engines carry each era's power (patching, trumpeting, smoke, the guns), so they come every
+  // wave from the sixth, and more of them on the waves that used to bring them
+  if (w >= 6) g.push({ type: "ram", n: Math.max(1, Math.floor(w / 6)) + (w % 3 === 0 ? 1 : 0), gap: 2.4 });
+  if (droneWar()) {
+    // 2020 and 2023: the drones are over the field from the third wave on and hunt the towers
+    if (w >= 3) g.push({ type: "flyer", n: 1 + Math.floor(w / 4), gap: 2.2 });
+  } else if (w >= 7 && w % 2 === 1) g.push({ type: "flyer", n: Math.max(2, Math.floor(w / 2) - 1), gap: 0.7 });
   if (w === 10) g.push({ type: "boss", n: 1, gap: 1 });
   if (w === 20) g.push({ type: "boss", n: 2, gap: 5 });
   if (w > 20 && w % 10 === 0) g.push({ type: "boss", n: Math.floor(w / 10), gap: 5 });
   return g;
 }
-function hpScale(w) { return 1 + (w - 1) * 0.13; }
+// enemy strength by wave: a straight climb plus a bend that bites in the second half, where a full board of
+// mastered towers used to coast. Each battlefield also stands a little higher than the one before it.
+function hpScale(w) { return 1 + (w - 1) * 0.13 + 0.005 * (w - 1) * (w - 1); }
+function levelHpMult() { return (1 + 0.015 * curLevel) * (LEVELS[curLevel].hpTune || 1); }
+// gold per kill thins in the late waves, so the treasury cannot outgrow the war
+function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
+// the drone war of 2020 and the assault of 2023
+function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 
 // ---------- state ----------
 const TOTAL_WAVES = 20;
@@ -5568,8 +5582,9 @@ function bombardVolley(e) {
   const p = enemyPos(e);
   const targets = towers.filter(t => TOWER_DEFS[t.type].proj && inGroundRange(p.x, p.y, t.x, t.y, 260));
   if (!targets.length) return;
-  const t = targets[Math.floor(Math.random() * targets.length)];
-  t.stunnedT = 2;
+  // counter-battery: the gunners range on whichever tower in reach has done them the most harm
+  const t = targets.reduce((a, b) => ((b.dmgDone || 0) > (a.dmgDone || 0) ? b : a));
+  t.stunnedT = Math.max(t.stunnedT || 0, 2.6);
   Snd.play("cannon", { x: t.x });
   for (let i = 0; i < 12; i++) {
     const a = Math.random() * Math.PI * 2, sp2 = 20 + Math.random() * 50;
@@ -5840,13 +5855,14 @@ function resumeRun() {
 function resetGame() {
   loadLevel(curLevel);
   const D = DIFFS[curDiff];
-  gold = D.gold; lives = D.lives;
+  gold = D.gold + 15 * LEVELS[curLevel].era; lives = D.lives;
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
   autoT = 0;
   towers = []; enemies = []; projectiles = []; particles = [];
   spawnQueue = []; waveTime = 0;
+  droneWarned = false;
   placing = null; selected = null;
   paused = false;
   endless = false;
@@ -5865,7 +5881,7 @@ function resetGame() {
   confetti = [];
   const pb = $("pauseBtn");
   if (pb) pb.textContent = "Pause";
-  speedBtn.textContent = "1×";
+  speedBtn.textContent = "1×"; speedBtn.classList.remove("secret");
   hidePanel();
   syncHud();
 }
@@ -5969,12 +5985,14 @@ function startWave() {
 function spawnEnemy(type) {
   const d = eraUnit(type);
   const E = ERAS[curEra];
-  const hp = Math.round(d.hp * (d.hpMult || 1) * E.hpMult * hpScale(waveIdx) * DIFFS[curDiff].hp *
+  // the commanders keep the old straight climb: the late-wave bend is for the rank and file they bring
+  const climb = type === "boss" ? 1 + (waveIdx - 1) * 0.13 : hpScale(waveIdx);
+  const hp = Math.round(d.hp * (d.hpMult || 1) * E.hpMult * climb * levelHpMult() * DIFFS[curDiff].hp *
     (type === "boss" && waveIdx === 20 ? 1.2 : 1));
   const e = {
     type, hp, maxHp: hp, dist: 0, speed: d.spd * (d.spdMult || 1),
     armor: d.armor + (d.armorAdd || 0),
-    bounty: Math.round(d.bounty * E.bounty), r: d.r, dmg: d.dmg, def: d,
+    bounty: Math.max(1, Math.round(d.bounty * E.bounty * bountyScale(waveIdx))), r: d.r, dmg: d.dmg, def: d,
     slowTimer: 0, slowFactor: 1, stunT: 0, burnDps: 0, burnT: 0, flash: 0,
     wobble: Math.random() * Math.PI * 2,
   };
@@ -5982,9 +6000,11 @@ function spawnEnemy(type) {
   if (type === "flyer") {
     const entry = ROUTES[e.route].pts[0];
     const x0 = entry[0], y0 = entry[1] + (Math.random() - 0.5) * 90;
-    const x1 = FORT.x, y1 = FORT.y + 35;
+    let x1 = FORT.x, y1 = FORT.y + 35;
+    const prey = droneWar() ? droneTarget() : null;
+    if (prey) { e.strike = prey; x1 = prey.x; y1 = prey.y - 4; }
     e.fly = { x0, y0, x1, y1, len: Math.hypot(x1 - x0, y1 - y0), ang: Math.atan2(y1 - y0, x1 - x0) };
-    if (LAKE) {
+    if (LAKE && !e.strike) {
       // Tushpa's skin-float raiders and Avarayr's fording party take to the water where it lies
       // near their line; a lake far off the line (Sevan, beyond the fortress) is left alone
       const mx = LAKE.x + LAKE.rx * 0.35 + (Math.random() - 0.5) * 30, my = LAKE.y - LAKE.ry * 0.2 + (Math.random() - 0.5) * 30;
@@ -5996,6 +6016,45 @@ function spawnEnemy(type) {
   enemies.push(e);
 }
 let spawnSeq = 0;
+
+// a loitering drone picks the tower the defence has sunk the most gold into; the one that has done the
+// most damage breaks a tie
+function towerWorth(t) {
+  const def = TOWER_DEFS[t.type];
+  let g = def.cost;
+  for (let k = 1; k <= t.level; k++) g += def.levels[k].cost || 0;
+  if (t.spec) g += specInfo(t.type, t.spec).cost;
+  return g;
+}
+function droneTarget() {
+  let best = null, bv = -1;
+  for (const t of towers) {
+    const v = towerWorth(t) + (t.dmgDone || 0) * 1e-6;
+    if (v > bv) { bv = v; best = t; }
+  }
+  return best;
+}
+const DRONE_KNOCKOUT = 7;
+let droneWarned = false;
+// the drone reaches its tower: the tower is knocked out for some seconds, burning, and the drone is spent
+function droneStrike(e) {
+  const t = e.strike;
+  if (!towers.includes(t)) return false;
+  t.stunnedT = Math.max(t.stunnedT || 0, DRONE_KNOCKOUT);
+  t.burnFx = DRONE_KNOCKOUT;
+  shakeFort = Math.max(shakeFort, 0.4);
+  Snd.play("rocketHit", { x: t.x });
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random() * Math.PI * 2, sp2 = 30 + Math.random() * 70;
+    particles.push({ x: t.x, y: t.y - 16, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2 * 0.5 - 40, life: 0.7,
+      color: i % 3 ? "#ff9a3c" : "#5a5652", size: 3.5 });
+  }
+  if (!droneWarned) {
+    droneWarned = true;
+    toast("Drone strike! A tower is knocked out. Shoot the drones down before they dive.");
+  }
+  return true;
+}
 
 function flyPos(e) {
   const f = e.fly;
@@ -6210,6 +6269,11 @@ function update(dt) {
   for (const t of towers) {
     t.buffHaste = 0; t.buffMight = 0;
     if (t.stunnedT > 0) t.stunnedT -= dt;
+    if (t.burnFx > 0) {
+      t.burnFx -= dt;
+      if (Math.random() < dt * 9) particles.push({ x: t.x + (Math.random() - 0.5) * 14, y: t.y - 22, vx: (Math.random() - 0.5) * 6, vy: -22,
+        life: 0.9, color: Math.random() < 0.3 ? "#ff8a2c" : "rgba(70,66,62,.75)", size: 4 });
+    }
   }
   for (const d of towers) {
     if (d.type !== "drums") continue;
@@ -6313,6 +6377,11 @@ function update(dt) {
     if (moveMult > 0 && Math.random() < dt * 2.2) {
       const p = enemyPos(e);
       particles.push({ x: p.x - Math.cos(p.ang) * 8, y: p.y + 3, vx: -Math.cos(p.ang) * 8, vy: -4, life: 0.5, color: "rgba(150,130,95,.6)", size: 3 });
+    }
+    if (e.strike && e.dist >= e.fly.len) {
+      e.dead = true;
+      if (!droneStrike(e)) { lives -= e.dmg; syncHud(); if (lives <= 0 && !gameOver) { lives = 0; defeat(); } }
+      continue;
     }
     if (e.dist >= (e.fly ? e.fly.len : ROUTES[e.route || 0].len)) {
       e.dead = true;
@@ -46132,9 +46201,16 @@ document.querySelectorAll("#shop .card").forEach(card => {
 });
 
 waveBtn.addEventListener("click", startWave);
-speedBtn.addEventListener("click", () => {
-  speedMult = speedMult === 1 ? 2 : 1;
-  speedBtn.textContent = speedMult + "×";
+// the secret fourth gear: Shift+F, or Shift+click on the speed button, runs the battle at 4x; a plain
+// click or F drops back to the usual 1x/2x
+function setSpeed(m) {
+  speedMult = m;
+  speedBtn.textContent = m + "×";
+  speedBtn.classList.toggle("secret", m === 4);
+}
+speedBtn.addEventListener("click", (e) => {
+  if (e.shiftKey) { setSpeed(speedMult === 4 ? 1 : 4); if (speedMult === 4) toast("Secret 4× speed"); return; }
+  setSpeed(speedMult === 1 ? 2 : 1);
 });
 autoBtn.addEventListener("click", () => {
   auto = !auto;
@@ -46266,7 +46342,10 @@ window.addEventListener("keydown", (e) => {
     updateSpellBar();
   }
   if (e.code === "Space") { e.preventDefault(); if (overlayEl.classList.contains("hidden")) startWave(); }
-  if (e.code === "KeyF") speedBtn.click();
+  if (e.code === "KeyF") {
+    if (e.shiftKey) { setSpeed(speedMult === 4 ? 1 : 4); if (speedMult === 4) toast("Secret 4× speed"); }
+    else speedBtn.click();
+  }
   if (e.code === "KeyA") autoBtn.click();
   if (e.code === "KeyM") toggleMusic();
   if (e.code === "KeyS") toggleSfx();
@@ -46306,7 +46385,7 @@ function frame(time) {
   const dt = Math.min((time - last) / 1000, 0.05);
   last = time;
   if (!gameOver && !paused && overlayEl.classList.contains("hidden")) {
-    update(dt * speedMult);
+    for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
   }
   if (celebration && time - celebration.start > 13500) endCelebration();
   draw(time);
