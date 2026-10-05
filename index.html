@@ -1397,6 +1397,8 @@ function mulberry32(a) {
 // World stays a flat 1280x720 plane; rendering projects it toward a vanishing
 // point: far rows compress (1/z foreshortening) and the far edge narrows.
 const HORIZON = 150;
+// the victory kochari's tempo: music and choreography both read it (a stately, unhurried kochari)
+const DANCE_BPM = 96;
 // `top` is the far edge of the world and `sTop` the screen row it lands on: a little below the skyline,
 // so that nothing standing on the far row touches it.
 const PSP = { top: HORIZON, sTop: HORIZON + 20, bot: VH, wTop: 0.60, wBot: 1.08, k: 1.35 };
@@ -4478,7 +4480,7 @@ registerProcessor("kl-tract", KLTract);
   // with slides, grace notes and trills; the oud doubling it an octave down and turning held notes
   // into tremolo; the kanun's runs and doubled plucks; a violin (the kamancha's place) joining in
   // unison; an oud/bass line on the roots; the dumbek's doum, tek and ka with the def's jingles.
-  // A kochari in 2/4 at 112 BPM, the tempo the dancers' choreography is locked to: each 4-bar
+  // A kochari in 2/4 at DANCE_BPM (96), the tempo the dancers' choreography is locked to: each 4-bar
   // phrase is one 8-beat cycle of the dance (travelling steps, knee bends, kicks), and every fourth
   // bar the dumbek fills under the kicks.
   // ORIGINAL TUNE, not a transcription: no notation source for a traditional kochari (or tamzara,
@@ -4509,7 +4511,7 @@ registerProcessor("kl-tract", KLTract);
   // the band for the victory: "kef" (the default) or "zurna" (zurna & dhol), chosen in Settings
   band: "kef",
   danceBus: null, danceT0: 0, danceSpec: null,
-  // Both bands play the kochari at 112 BPM from the same downbeat, so the dancers' choreography
+  // Both bands play the kochari at DANCE_BPM from the same downbeat, so the dancers' choreography
   // fits either. spec (victoryBand()) says which band and, for the kef band, which lead and drum
   // its age allows. `from` (an audio time on a bar line) brings a band in mid-dance: what the
   // other band was playing fades on that bar line and this one picks up the tune from there.
@@ -4537,7 +4539,7 @@ registerProcessor("kl-tract", KLTract);
   // (returns that bar's number from the dance's first downbeat, or -1 when no dance is playing)
   danceSwitch(spec) {
     if (!this.ctx || (!this.musicOn && !this.sfxOn) || !this.danceBus || !(this.ctx.currentTime < this.danceEnd - 1.6)) return -1;
-    const BAR = 4 * 60 / 112 / 2, bar = Math.max(0, Math.ceil((this.ctx.currentTime + 0.1 - this.danceT0) / BAR));
+    const BAR = 4 * 60 / DANCE_BPM / 2, bar = Math.max(0, Math.ceil((this.ctx.currentTime + 0.1 - this.danceT0) / BAR));
     this.dance(spec, this.danceT0 + bar * BAR);
     return bar;
   },
@@ -4546,7 +4548,7 @@ registerProcessor("kl-tract", KLTract);
   // the low strings and a frame drum (spec.drum "def"), without the kanun and violin
   danceKef(t0, tFrom, out, spec) {
     const c = this.ctx;
-    const E8 = 60 / 112 / 2, S16 = E8 / 2;   // an eighth and a sixteenth at 112 BPM
+    const E8 = 60 / DANCE_BPM / 2, S16 = E8 / 2;   // an eighth and a sixteenth at the dance tempo
     const SC = ["D4", "Eb4", "F#4", "G4", "A4", "Bb4", "C#5", "D5", "Eb5", "F#5", "G5", "A5"];
     const hz = n => this.kefHz(n), up = n => hz(SC[Math.min(SC.length - 1, SC.indexOf(n) + 1)]), down = n => hz(SC[Math.max(0, SC.indexOf(n) - 2)]);
     const on = t => t >= tFrom;
@@ -4638,7 +4640,7 @@ registerProcessor("kl-tract", KLTract);
   // (the traditional pairing for the line dances). Its tune, two phrases played twice, comes in
   // after a half-bar dhol pick-up
   danceZurna(t0, tFrom, out) {
-    const E8 = 60 / 112 / 2;            // eighth note at 112 BPM
+    const E8 = 60 / DANCE_BPM / 2;      // eighth note at the dance tempo
     const N = { D: 293.66, E: 329.63, Fs: 370, G: 392, A: 440, B: 493.88, C5: 523.25 };
     const line = [
       N.D, N.Fs, N.A, N.A, N.B, N.A, N.G, N.Fs,
@@ -6684,8 +6686,12 @@ function endWaveIfClear() {
   }
 }
 
+// the dancers have the field for at least this long before a tap moves on; left alone, they dance
+// the whole tune (16 bars of the kochari, about 21 s at 96 BPM)
+const DANCE_MIN_MS = 10000, DANCE_MAX_MS = (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
 function victory() {
   gameOver = true;
+  if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
   saveBest();
   clearRun();
   Snd.play("win");
@@ -20485,10 +20491,10 @@ function drawCelebration(time) {
   const C = CELEBRATION, stage = celebrationStage();
   const dark = timeOfDay().dark;
 
-  // the kochari line — choreography locked to the 112 BPM zurna & dhol:
+  // the kochari line — choreography locked to the band at DANCE_BPM:
   // 4 beats traveling side-steps, 2 beats of deep knee-bends, 2 beats of kicks
   // (the men drop to squat-kicks every other cycle)
-  const beat = Math.max(0, t - 0.15) * (112 / 60);
+  const beat = Math.max(0, t - 0.15) * (DANCE_BPM / 60);
   const cycle = Math.floor(beat / 8);
   const cb = beat % 8;
   const travel = cb < 4 ? cb / 4 : 1;
@@ -48175,7 +48181,7 @@ canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); pointerCli
 
 canvas.addEventListener("pointerdown", (e) => {
   settingsEl.style.display = "none";
-  if (celebration) { endCelebration(); return; }
+  if (celebration) { if (performance.now() - celebration.start >= DANCE_MIN_MS) endCelebration(); return; }
   if (gameOver) return;
   const v = toVirtual(e);
   // a finger has no hover: the tap itself is where the pointer is, for the previews drawn under it
@@ -48378,7 +48384,7 @@ function setVictoryBand(band) {
   // the painted band changes with the music: on the bar line where the new band comes in, or at the
   // next bar line of the dance when no music plays (a bar of the kochari is two beats)
   const spec = victoryBand(), bar = Snd.danceSwitch(spec);
-  const beat = Math.max(0, (performance.now() - celebration.start) / 1000 - 0.15) * (112 / 60);
+  const beat = Math.max(0, (performance.now() - celebration.start) / 1000 - 0.15) * (DANCE_BPM / 60);
   celebration.bandPrev = celebrationBand(beat);
   celebration.bandFrom = bar >= 0 ? bar * 2 : Math.ceil(beat / 2) * 2;
   celebration.band = spec;
@@ -48518,7 +48524,7 @@ function frame(time) {
   if (!gameOver && !paused && overlayEl.classList.contains("hidden")) {
     for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
   }
-  if (celebration && time - celebration.start > 13500) endCelebration();
+  if (celebration && time - celebration.start > DANCE_MAX_MS) endCelebration();
   draw(time);
 }
 
