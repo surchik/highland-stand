@@ -6117,6 +6117,24 @@ function buyPlot(i) {
   syncHud();
 }
 
+// A plot is bought where the player sees it: on its price board (which plotSignSpot may have set aside
+// from the plot to clear what stands there) or on the claimed ground itself, both tested on screen.
+const plotSignRects = new WeakMap();
+let pointerClient = null;   // the last pointer position over the field (client px), for hover
+function plotUnderPointer(e) {
+  if (!e || !plots.length) return -1;
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+  let best = -1, bd = 1;
+  for (let i = 0; i < plots.length; i++) {
+    const rc = plotSignRects.get(plots[i]);
+    if (rc && sx >= rc[0] - 4 && sx <= rc[2] + 4 && sy >= rc[1] - 4 && sy <= rc[3] + 4) return i;
+    const q = proj(plots[i][0], plots[i][1]), k = Math.max(0.5, q.s);
+    const dx = (sx - q.x) / (40 * k), dy = (sy - q.y) / (24 * k), d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
 function nearestPlot(x, y, maxDist) {
   let best = -1, bd = maxDist;
   for (let i = 0; i < plots.length; i++) {
@@ -37161,12 +37179,15 @@ function drawPlotSign(plot) {
   const price = plotPrice(), affordable = gold >= price;
   // under the pointer the board steps forward, a quarter larger; its rim is gilt there and on
   // every board while a tower is being placed
-  const hot = Math.hypot(plot[0] - mouse.x, plot[1] - mouse.y) < 45, bright = hot || !!placing;
+  const hot = plotUnderPointer(pointerClient) === plots.indexOf(plot), bright = hot || !!placing;
   const kd = hot ? view.ks * 1.25 : view.ks, sxu = structPxu(m, kd);
   const glow = structClamp((dayFactor() - 0.5) / 0.2, 0, 1), lit = glow > 0.4;
   const sign = structSprite("plotsign" + price + (affordable ? "y" : "n") + (bright ? "h" : "") + (lit ? "l" : "") + "|" + Math.round(sxu * 256), sxu, PLOT_SIGN_BOX,
     () => paintPlotSign(price, affordable, bright, lit));
   blitStructSprite(ctx, sign, view.spot[0], view.spot[1], kd, m);
+  // where the board stood this frame, in field-screen units, so a click on it buys its plot
+  const B = PLOT_SIGN_BOX, kb = view.ks * 1.25;
+  plotSignRects.set(plot, [view.spot[0] + B[0] * kb, view.spot[1] + B[1] * kb, view.spot[0] + B[2] * kb, view.spot[1] + B[3] * kb]);
   // the lantern lights its own board: the sign is laid back over the night light-map with the fires
   if (glow > 0.02) nightLit.push(sign, view.spot[0], view.spot[1], kd, glow * 0.85);
 }
@@ -48136,7 +48157,6 @@ function nearestFreePad(x, y, maxDist) {
 // A tower is picked where it is seen, in screen space: the world point under the pointer stops at the far
 // edge of the field, so a tower on a pad beyond that edge could be placed but never clicked again. The hit
 // zone is an upright oval over the drawn tower, from its footing to its parapet, shrinking with distance.
-let pointerClient = null;
 function towerUnderPointer(e) {
   if (!e) return null;
   const r = canvas.getBoundingClientRect();
@@ -48197,7 +48217,7 @@ canvas.addEventListener("pointerdown", (e) => {
       if (gold < TOWER_DEFS[placing].cost) setPlacing(null);
       return;
     }
-    const pi = nearestPlot(v.x, v.y, 45);
+    const pi = plotUnderPointer(e);
     if (pi >= 0) { buyPlot(pi); return; }   // claim land without dropping placement mode
     setPlacing(null);
     return;
@@ -48205,7 +48225,7 @@ canvas.addEventListener("pointerdown", (e) => {
   // a tower drawn under the pointer wins over the patch of land beside it
   const hit = towerUnderPointer(e);
   if (hit) { showPanel(hit); return; }
-  const pi = nearestPlot(v.x, v.y, 40);
+  const pi = plotUnderPointer(e);
   if (pi >= 0) { buyPlot(pi); return; }
   hidePanel();
 });
