@@ -347,6 +347,12 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.6);
   }
   #settings .tgl.on { background: linear-gradient(180deg, #4d6a36, #2f4422); border-color: #86a85a; color: #eaf6c8; box-shadow: inset 0 1px 0 rgba(230,255,190,.3); }
+  /* the victory band: two touch-sized choices side by side under their label */
+  #settings .row.band { flex-wrap: wrap; gap: 6px 8px; }
+  #settings .row.band label { width: 100%; }
+  #settings .seg { display: flex; gap: 6px; flex: 1; }
+  #settings .seg .tgl { flex: 1; width: auto; min-height: 34px; padding: 6px 4px; font-family: inherit; line-height: 1.15; touch-action: manipulation; }
+  @media (hover: none) { #settings .seg .tgl { min-height: 42px; font-size: 13px; } }
   #settings .menuBtn { width: 100%; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   #settings .menuBtn .ic { width: 16px; height: 16px; vertical-align: 0; color: var(--bronze-hi); }
   #pauseBtn::before {
@@ -1174,6 +1180,13 @@
     <label>Ambient</label>
     <div class="tgl" id="setAmbTgl">On</div>
     <input type="range" id="ambVol" min="0" max="100" value="83">
+  </div>
+  <div class="row band">
+    <label id="setBandLbl">Victory band</label>
+    <div class="seg" id="setBand" role="radiogroup" aria-labelledby="setBandLbl">
+      <button type="button" class="tgl" data-band="kef" role="radio">Kef band</button>
+      <button type="button" class="tgl" data-band="zurna" role="radio">Zurna &amp; dhol</button>
+    </div>
   </div>
   <button class="btn menuBtn" id="pauseBtn">Pause</button>
   <button class="btn menuBtn" id="menuBtn"><svg class="ic"><use href="#i-flag"/></svg>Abandon &amp; Level Select</button>
@@ -4460,7 +4473,7 @@ registerProcessor("kl-tract", KLTract);
     src.connect(f); f.connect(g); g.connect(this.musGain);
     src.start(t0, this.rnd() * 1.9); src.stop(t0 + dur + 0.01);
   },
-  // ---- the victory dance: a kef band plays a kochari ----
+  // ---- the victory dance: a kef band (or, by the Settings' "Victory band", a zurna & dhol) plays a kochari ----
   // The kef band of the Armenian party (the diaspora's and Armenia's): a clarinet leading, bright,
   // with slides, grace notes and trills; the oud doubling it an octave down and turning held notes
   // into tremolo; the kanun's runs and doubled plucks; a violin (the kamancha's place) joining in
@@ -4493,66 +4506,207 @@ registerProcessor("kl-tract", KLTract);
     const PC = { C: 0, "C#": 1, D: 2, Eb: 3, E: 4, F: 5, "F#": 6, G: 7, "G#": 8, A: 9, Bb: 10, B: 11 }, m = /^([A-G][b#]?)(\d)$/.exec(n);
     return 293.66 * Math.pow(2, (PC[m[1]] - 2) / 12 + (+m[2] - 4));
   },
-  dance() {
+  // the band for the victory: "kef" (the default) or "zurna" (zurna & dhol), chosen in Settings
+  band: "kef",
+  danceBus: null, danceT0: 0, danceSpec: null,
+  // Both bands play the kochari at 112 BPM from the same downbeat, so the dancers' choreography
+  // fits either. spec (victoryBand()) says which band and, for the kef band, which lead and drum
+  // its age allows. `from` (an audio time on a bar line) brings a band in mid-dance: what the
+  // other band was playing fades on that bar line and this one picks up the tune from there.
+  dance(spec, from) {
     if (!this.ctx || !this.musicOn) return;
-    const c = this.ctx, t0 = c.currentTime + 0.12;
+    const c = this.ctx;
+    spec = spec || { band: "kef", lead: "clarinet", drum: "dumbek" };
+    if (!from) this.danceT0 = c.currentTime + 0.12;
+    const t0 = this.danceT0, tFrom = from || 0;
+    if (this.danceBus) {
+      const g = this.danceBus.gain, at = Math.max(c.currentTime, tFrom - 0.04);
+      g.setValueAtTime(1, at); g.linearRampToValueAtTime(0, at + 0.04);
+    }
+    const out = c.createGain();
+    out.connect(this.musGain);
+    this.danceBus = out; this.danceSpec = spec;
+    if (spec.band === "zurna") this.danceZurna(t0, tFrom, out);
+    else this.danceKef(t0, tFrom, out, spec);
+  },
+  // the band changed while the line is still dancing: the new one comes in on the next bar line
+  // (returns that bar's number from the dance's first downbeat, or -1 when no dance is playing)
+  danceSwitch(spec) {
+    if (!this.ctx || !this.musicOn || !this.danceBus || !(this.ctx.currentTime < this.danceEnd - 1.6)) return -1;
+    const BAR = 4 * 60 / 112 / 2, bar = Math.max(0, Math.ceil((this.ctx.currentTime + 0.1 - this.danceT0) / BAR));
+    this.dance(spec, this.danceT0 + bar * BAR);
+    return bar;
+  },
+  // the kef band; before the clarinet reached the highlands (the nineteenth century) the same tune
+  // goes to the age's own pipe (spec.lead "duduk", or the blul in Urartu) over the barbat-like lute,
+  // the low strings and a frame drum (spec.drum "def"), without the kanun and violin
+  danceKef(t0, tFrom, out, spec) {
+    const c = this.ctx;
     const E8 = 60 / 112 / 2, S16 = E8 / 2;   // an eighth and a sixteenth at 112 BPM
     const SC = ["D4", "Eb4", "F#4", "G4", "A4", "Bb4", "C#5", "D5", "Eb5", "F#5", "G5", "A5"];
     const hz = n => this.kefHz(n), up = n => hz(SC[Math.min(SC.length - 1, SC.indexOf(n) + 1)]), down = n => hz(SC[Math.max(0, SC.indexOf(n) - 2)]);
+    const on = t => t >= tFrom;
+    const lead = spec.lead || "clarinet", modern = lead === "clarinet", frame = spec.drum === "def";
+    // the whole band trimmed to sit level with the zurna & dhol (within a dB, K-weighted)
+    const mix = c.createGain();
+    mix.gain.value = modern ? 0.7 : lead === "duduk" ? 0.85 : 0.95;
+    mix.connect(out);
     // each player on a bus of their own, spread across the stage as they stand around the fire
     const bus = (pan, g) => {
       const b = c.createGain(); b.gain.value = g;
-      if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = pan; b.connect(p); p.connect(this.musGain); } else b.connect(this.musGain);
+      if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = pan; b.connect(p); p.connect(mix); } else b.connect(mix);
       return b;
     };
     const clar = bus(0.05, 0.82), oud = bus(-0.35, 0.85), kanun = bus(0.4, 0.9), vln = bus(-0.15, 1), bass = bus(0, 0.85), dum = bus(0.15, 1), def = bus(-0.25, 0.9);
     const OUD = { lvl: 0.1, out: oud, body: [210, 1, 6], hi: 6500, lo: 1700, close: 0.12, ring: [0.35, 0.55], beta: [0.07, 0.12], tick: 0.35, tickF: 3500 };
     const KANUN = { lvl: 0.06, out: kanun, body: [650, 0.9, 3], hi: 12000, lo: 4200, close: 0.25, ring: [0.55, 0.85], beta: [0.05, 0.09], tick: 0.4, tickF: 6000, roll: 0.8 };
     const BASS = { lvl: 0.16, out: bass, body: [120, 0.8, 4], hi: 2600, lo: 700, close: 0.15, ring: [0.45, 0.6], beta: [0.2, 0.28], tick: 0.12, tickF: 1800, top: 8 };
+    // the lead: the clarinet, or the duduk's soft reed, or the blul's breathy edge
+    const BLUL = { voice: "blul", lp: 2800, lvl: 0 };
+    const play = (f, dur, t, lvl, orn) => {
+      if (modern) this.mClar(f, dur, t, lvl, orn, clar);
+      else if (lead === "duduk") this.mDuduk(f, dur, t, 1700, lvl * 1.25, orn, clar);
+      else { BLUL.lvl = lvl * 1.15; this.mLead(f, dur, t, BLUL, orn, clar); }
+    };
     const bars = 16;
     this.danceEnd = t0 + bars * 4 * E8 + 1.2;
-    // the tune: clarinet throughout; oud an octave down (tremolo on held notes); violin in unison
+    // the tune: the lead throughout; oud an octave down (tremolo on held notes); violin in unison
     // from the second phrase; kanun doubling with paired plucks in the high half
     let e = 0;
     this.KEF.forEach(([n, len, o]) => {
       if (!n) { e += len; return; }
       const t = t0 + e * E8, bar = Math.floor(e / 4), f = hz(n), dur = len * E8;
+      e += len;
+      if (!on(t)) return;
       const orn = o === "s" ? { gl: down(n) } : o === "g" ? { gr: up(n) } : o === "t" ? { tr: up(n), trs: 0.058 } : null;
       const fin = o === "x";
-      this.mClar(f, fin ? 0.9 : dur * 0.96, t, fin ? 0.13 : (e % 4 === 0 ? 0.11 : 0.095), orn, clar);
+      play(f, fin ? 0.9 : dur * 0.96, t, fin ? 0.13 : ((e - len) % 4 === 0 ? 0.11 : 0.095), orn);
       if (len >= 2 || fin) for (let k = 0; k < (fin ? 6 : len * 2); k++) this.mPluck(f / 2, t + k * S16, k ? Object.assign({}, OUD, { lvl: OUD.lvl * (k % 2 ? 0.55 : 0.7) }) : OUD);
       else this.mPluck(f / 2, t, Object.assign({}, OUD, { slide: o === "s" ? 0.94 : 0 }));
-      if (bar >= 4 || fin) this.mBow(f, fin ? 0.9 : dur * 0.98, t + 0.008, 0.042, 4200, orn && orn.tr ? orn : null, vln);
-      if (bar >= 8 && bar < 16) for (let k = 0; k < len * 2; k++) this.mPluck(f, t + k * S16, k % 2 ? Object.assign({}, KANUN, { lvl: KANUN.lvl * 0.6 }) : KANUN);
-      if (fin) { this.mPluck(f * 2, t, KANUN); this.mPluck(f / 4, t, Object.assign({}, BASS, { lvl: BASS.lvl * 1.2 })); }
-      e += len;
+      if (modern && (bar >= 4 || fin)) this.mBow(f, fin ? 0.9 : dur * 0.98, t + 0.008, 0.042, 4200, orn && orn.tr ? orn : null, vln);
+      if (modern && bar >= 8 && bar < 16) for (let k = 0; k < len * 2; k++) this.mPluck(f, t + k * S16, k % 2 ? Object.assign({}, KANUN, { lvl: KANUN.lvl * 0.6 }) : KANUN);
+      if (fin) { this.mPluck(f * (modern ? 2 : 1), t, modern ? KANUN : OUD); this.mPluck(f / 4, t, Object.assign({}, BASS, { lvl: BASS.lvl * 1.2 })); }
     });
     // the kanun's opening sweep up to the clarinet's first A, and its runs over the held notes
-    ["D4", "Eb4", "F#4", "G4"].forEach((n, k) => this.mPluck(hz(n), t0 + k * S16 / 2, Object.assign({}, KANUN, { lvl: KANUN.lvl * (0.6 + 0.1 * k) })));
-    for (const b in this.KEF_RUN) this.KEF_RUN[b].forEach((n, k) => this.mPluck(hz(n), t0 + (+b * 4) * E8 + k * S16, Object.assign({}, KANUN, { lvl: KANUN.lvl * (k ? 0.8 : 1) })));
+    // (in the older ensemble the lute plays the runs an octave down)
+    const RUN = modern ? KANUN : Object.assign({}, OUD, { lvl: OUD.lvl * 0.8 }), rk = modern ? 1 : 0.5;
+    if (on(t0)) ["D4", "Eb4", "F#4", "G4"].forEach((n, k) => this.mPluck(hz(n) * rk, t0 + k * S16 / 2, Object.assign({}, RUN, { lvl: RUN.lvl * (0.6 + 0.1 * k) })));
+    for (const b in this.KEF_RUN) this.KEF_RUN[b].forEach((n, k) => {
+      const t = t0 + (+b * 4) * E8 + k * S16;
+      if (on(t)) this.mPluck(hz(n) * rk, t, Object.assign({}, RUN, { lvl: RUN.lvl * (k ? 0.8 : 1) }));
+    });
     // the bass: root on the down-beat, fifth (or octave) on the second beat, a pick-up every other bar
     const ROOT = { D: 73.42, G: 98, A: 110 };
     for (let bar = 0; bar < bars - 1; bar++) {
       const t = t0 + bar * 4 * E8, r = ROOT[this.KEF_ROOT[bar]], fifth = this.KEF_ROOT[bar] === "A" ? r * 2 : r * 1.5;
+      if (!on(t)) continue;
       this.mPluck(r, t, BASS);
       this.mPluck(fifth, t + 2 * E8, Object.assign({}, BASS, { lvl: BASS.lvl * 0.8 }));
       if (bar % 2) this.mPluck(r, t + 3 * E8, Object.assign({}, BASS, { lvl: BASS.lvl * 0.6 }));
     }
-    this.mPluck(73.42, t0 + 15 * 4 * E8, BASS);
+    if (on(t0 + 15 * 4 * E8)) this.mPluck(73.42, t0 + 15 * 4 * E8, BASS);
     // dumbek (D doum, T tek, k ka) and def, on a sixteenth grid; every fourth bar is a fill under
-    // the kicks; the last bar stops on the closing hit
+    // the kicks; the last bar stops on the closing hit. The older ensemble has the frame drum
+    // alone: its deep centre stroke on D, the rim on T, the jingles on k
     const PAT = ["D.kTD.Tk", "D.TkDkTk", "D.kTD.Tk", "DkTkDTTT"];
     for (let bar = 0; bar < bars; bar++) {
       const t = t0 + bar * 4 * E8, pat = bar === bars - 1 ? "D...D..." : PAT[bar % 4];
+      if (!on(t)) continue;
       [...pat].forEach((ch, k) => {
         const tt = t + k * S16, acc = bar === bars - 1 && k === 4 ? 1.3 : bar % 4 === 3 && k > 3 ? 0.75 + k * 0.05 : 1;
+        if (frame) {
+          if (ch === "D") this.kefDrum(tt, "def", acc * 1.15, def);
+          else if (ch === "T") this.kefDrum(tt, "tek", acc * 0.45, def);
+          else if (ch === "k") this.kefDrum(tt, "jingle", acc * 0.9, def);
+          return;
+        }
         if (ch === "D") this.kefDrum(tt, "doum", acc, dum);
         else if (ch === "T") this.kefDrum(tt, "tek", acc, dum);
         else if (ch === "k") this.kefDrum(tt, "ka", acc, dum);
       });
+      if (frame) continue;
       this.kefDrum(t, "def", bar === bars - 1 ? 0.8 : 1, def);
       if (bar < bars - 1) { this.kefDrum(t + 2 * E8, "jingle", 0.8, def); this.kefDrum(t + E8, "jingle", 0.45, def); this.kefDrum(t + 3 * E8, "jingle", 0.45, def); }
       else this.kefDrum(t + 2 * E8, "def", 1.2, def);
+    }
+  },
+  // the zurna & dhol: the village band of the highlands, a bright zurna lead over a driving dhol
+  // (the traditional pairing for the line dances). Its tune, two phrases played twice, comes in
+  // after a half-bar dhol pick-up
+  danceZurna(t0, tFrom, out) {
+    const E8 = 60 / 112 / 2;            // eighth note at 112 BPM
+    const N = { D: 293.66, E: 329.63, Fs: 370, G: 392, A: 440, B: 493.88, C5: 523.25 };
+    const line = [
+      N.D, N.Fs, N.A, N.A, N.B, N.A, N.G, N.Fs,
+      N.G, N.G, N.Fs, N.E, N.Fs, N.E, N.D, N.D,
+      N.A, N.A, N.B, N.C5, N.B, N.A, N.G, N.Fs,
+      N.G, N.Fs, N.E, N.Fs, N.D, N.D, 0, 0,
+    ];
+    const totalEighths = 2 + 2 * line.length + 4, bars = Math.ceil(totalEighths / 4);
+    this.danceEnd = t0 + bars * 4 * E8 + 1.2;
+    for (let L2 = 0; L2 < 2; L2++) {
+      const base = t0 + 2 * E8 + L2 * line.length * E8;   // half-bar dhol pickup
+      line.forEach((f, i) => {
+        const t = base + i * E8;
+        if (!f || t < tFrom) return;
+        this.zurna(f, t, (i % 8 === 7 ? 1.9 : 1.05) * E8, i % 4 === 0, out);
+      });
+    }
+    // dhol: DUM – tek te | DUM DUM tek – groove
+    for (let bar = 0; bar < bars; bar++) {
+      const bt = t0 + bar * 4 * E8;
+      if (bt < tFrom) continue;
+      this.dhol(bt, true, 1, out);
+      this.dhol(bt + 2 * E8, false, 1, out);
+      this.dhol(bt + 3 * E8, false, 0.55, out);
+      if (bar % 2 === 1) this.dhol(bt + E8, true, 0.7, out);
+    }
+  },
+  // the zurna: two detuned saws through a nasal band at 1.5 kHz, a quick vibrato
+  zurna(f, t0, dur, accent, out) {
+    const g = this.ctx.createGain(), fl = this.ctx.createBiquadFilter();
+    fl.type = "bandpass"; fl.frequency.value = 1500; fl.Q.value = 1.1;
+    const v = accent ? 0.15 : 0.11;
+    g.gain.setValueAtTime(0.001, t0);
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.02);
+    g.gain.setValueAtTime(v, t0 + dur * 0.72);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    fl.connect(g); g.connect(out || this.musGain);
+    const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+    lfo.frequency.value = 6.5; lg.gain.value = 8;
+    lfo.connect(lg);
+    for (const det of [0, 9]) {
+      const o = this.ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      o.detune.value = det;
+      lg.connect(o.detune);
+      o.connect(fl);
+      o.start(t0); o.stop(t0 + dur + 0.03);
+    }
+    lfo.start(t0); lfo.stop(t0 + dur + 0.03);
+  },
+  // the dhol: the bass head's falling DUM, or the thin stick's tek
+  dhol(t0, boom, vmul, out) {
+    const v = vmul || 1;
+    if (boom) {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(82, t0);
+      o.frequency.exponentialRampToValueAtTime(46, t0 + 0.22);
+      g.gain.setValueAtTime(0.32 * v, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.24);
+      o.connect(g); g.connect(out || this.musGain);
+      o.start(t0); o.stop(t0 + 0.26);
+    } else {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.bufs.white; src.loop = true;
+      const f = this.ctx.createBiquadFilter();
+      f.type = "bandpass"; f.frequency.value = 2600;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.1 * v, t0); g.gain.linearRampToValueAtTime(0, t0 + 0.05);
+      src.connect(f); f.connect(g); g.connect(out || this.musGain);
+      src.start(t0, this.rnd() * 1.9); src.stop(t0 + 0.06);
     }
   },
   // the kef clarinet: the odd-harmonic wave of the reed and cylinder, a bright tongued attack that
@@ -4607,7 +4761,7 @@ registerProcessor("kl-tract", KLTract);
       for (let i = 0; i < 4; i++) nz("bandpass", 7200 + i * 600, 2.5, 0.06 + i * 0.01, (0.05 - i * 0.009), i * 0.012);
     }
   },
-  mDuduk(f, dur, t0, lp, lvl, orn) {
+  mDuduk(f, dur, t0, lp, lvl, orn, out) {
     // two detuned triangles + vibrato + soft lowpass = reedy, breathy lead
     const g = this.ctx.createGain(), fl = this.ctx.createBiquadFilter(), pk = lvl || 0.085;
     fl.type = "lowpass"; fl.frequency.value = lp || 1400; fl.Q.value = 2;
@@ -4615,7 +4769,7 @@ registerProcessor("kl-tract", KLTract);
     g.gain.linearRampToValueAtTime(pk, t0 + dur * 0.25);
     g.gain.setValueAtTime(pk, t0 + dur * 0.7);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    fl.connect(g); g.connect(this.musGain);
+    fl.connect(g); g.connect(out || this.musGain);
     const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
     lfo.frequency.value = 5.2; lg.gain.value = 5;
     lfo.connect(lg);
@@ -4637,7 +4791,7 @@ registerProcessor("kl-tract", KLTract);
   CTX_KEYS: ["ctx", "bufs", "sfxIn", "sfxGain", "musGain", "duckGain", "ambIn", "ambGain", "revIn", "echoIn",
     "amb", "voices", "lastPlay", "dens", "duckSt", "nextBeat", "beatN", "melNote", "melRest", "sceneOverride", "stats",
     "musEra", "droneNodes", "pulseWave", "musE", "musKey", "phr", "padN", "uloops", "nHoof",
-    "thB", "thSync", "thCyc", "danceEnd", "musWaves", "kochN"],
+    "thB", "thSync", "thCyc", "danceEnd", "musWaves", "kochN", "danceBus", "danceT0", "danceSpec"],
   async renderOffline(seconds, setup, sr, channels) {
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC) return null;
@@ -4649,6 +4803,7 @@ registerProcessor("kl-tract", KLTract);
       this.voices = []; this.lastPlay = {}; this.dens = {}; this.amb = null; this.duckSt = null; this.sceneOverride = null;
       this.musEra = -1; this.droneNodes = null; this.musE = null; this.musKey = null; this.phr = null; this.uloops = {}; this.nHoof = 0;
       this.thB = 0; this.thSync = true; this.thCyc = 0; this.danceEnd = 0; this.musWaves = null;
+      this.danceBus = null; this.danceT0 = 0; this.danceSpec = null;
       this.stats = { voices: 0, freed: 0, dropped: 0 };
       this.build(oc);
       this.applyVolumes(true);
@@ -6508,8 +6663,9 @@ function victory() {
   saveBest();
   clearRun();
   Snd.play("win");
-  Snd.dance();
-  celebration = { start: performance.now(), lives };
+  const band = victoryBand();
+  Snd.dance(band);
+  celebration = { start: performance.now(), lives, band, bandPrev: band, bandFrom: 0 };
   confetti = [];
   hidePanel();
   setPlacing(null);
@@ -19729,6 +19885,7 @@ function drawPlots() {
 const CELEBRATION = {
   scale: 1.4, gap: 42, travel: 46, fireGap: 40,
   drum: 183, zurna: 231, left: 242, right: 201,     // reach of the ensemble either side of the stage centre
+  lead: 236, lute: 213, luteBack: 2, kefDrum: 179,  // the kef band: lead, lute (seated a step behind) and drummer
   cardW: 600, cardH: 214, cardY: 68,
 };
 let celebrationStageKnown = null;
@@ -20315,8 +20472,16 @@ function drawCelebration(time) {
   const firstX = row.x + (lineShift - (N - 1) / 2 * C.gap) * row.s;
   const fire = proj(stage.fireX, stage.y + C.fireGap), fk = fire.s * 1.45;
 
-  // everyone on the stage, left to right: zurna, dhol, the seven dancers, then Vardan
-  const figures = [{ x: row.x - C.zurna * row.s, role: "zurna" }, { x: row.x - C.drum * row.s, role: "dhol" }];
+  // everyone on the stage, left to right: the band (zurna and dhol, or the kef band's lead and
+  // drummer with the lute seated a step behind them), the seven dancers, then Vardan
+  const band = celebrationBand(beat);
+  const figures = [];
+  if (band.band === "zurna") figures.push({ x: row.x - C.zurna * row.s, role: "zurna" }, { x: row.x - C.drum * row.s, role: "dhol" });
+  else {
+    const back = proj(stage.x, stage.y - C.luteBack);
+    figures.push({ x: back.x - C.lute * back.s, y: back.y, s: back.s * C.scale, role: "lute" },
+      { x: row.x - C.lead * row.s, role: "lead" }, { x: row.x - C.kefDrum * row.s, role: "drum" });
+  }
   for (let i = 0; i < N; i++) figures.push({ x: firstX + i * step, role: "dancer", i });
   if (t > 3.6 && hero) {
     // Vardan sprints in along the line to take the free hand at its end
@@ -20333,12 +20498,12 @@ function drawCelebration(time) {
   ctx.globalCompositeOperation = "source-over";
   const murk = glowSprite("12, 7, 18");
   for (const f of figures) {
-    const dx = f.x - fire.x, dy = row.y - fire.y;
+    const fy = f.y || row.y, dx = f.x - fire.x, dy = fy - fire.y;
     const far = Math.hypot(dx, dy) || 1;
     // a shadow running up the screen lies along the foreshortened depth axis
     const reach = Math.min(112, 46 + far * 0.24) * row.s * mix(1, 0.6, Math.abs(dy) / far);
     ctx.save();
-    ctx.translate(f.x, row.y + 1.5 * s);
+    ctx.translate(f.x, fy + 1.5 * s);
     ctx.rotate(Math.atan2(dy, dx));
     drawGlow(ctx, murk, reach * 0.42, 0, reach * 0.66, 7.4 * s, 0.4 + 0.4 * dark);
     drawGlow(ctx, murk, reach * 0.16, 0, reach * 0.3, 5.4 * s, 0.3 + 0.3 * dark);
@@ -20350,6 +20515,9 @@ function drawCelebration(time) {
   for (const f of figures) {
     if (f.role === "zurna") drawZurnachi(f.x, row.y, s, beat, W.zurna, W.pipe);
     else if (f.role === "dhol") drawDholchi(f.x, row.y, s, beat, W.dhol);
+    else if (f.role === "lute") drawKefLute(f.x, f.y, f.s, beat, W.lute, band.year < 0 ? "long" : "oud");
+    else if (f.role === "lead") drawKefLead(f.x, row.y, s, beat, W.zurna, band.lead);
+    else if (f.role === "drum") drawKefDrum(f.x, row.y, s, beat, W.dhol, band.drum, W.kit);
     else if (f.role === "dancer") drawKochariDancer(f.x, row.y, s, beat, cb, cycle, f.i, cast[f.i]);
     else drawVardanDance(f.x, row.y, s, beat, cb, cycle, f.arrived, t);
   }
@@ -20416,6 +20584,7 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "tunic", coat: "#6e5a8a", trim: "#e2b04a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#a8321f", beard: true, legs: "#6b4a30", boots: "#4a3020" },
     dhol: { type: "m", garment: "tunic", coat: "#b7863a", trim: "#7a2a1e", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#2f4a72", beard: true, legs: "#6b4a30", boots: "#4a3020" },
+    lute: { type: "m", garment: "tunic", coat: "#3a6a5a", trim: "#e2b04a", belt: KOCHARI_BRONZE, hat: "cap", hatC: "#c08a2e", beard: true, legs: "#6b4a30", boots: "#4a3020" },
   },
   // Late antique and early medieval Armenia, in the reds, ochres and blues of the gospel books:
   // belted kaftans bordered down the front, soft felt caps, beards; long dresses under white
@@ -20433,6 +20602,7 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "kaftan", coat: "#3c6a3a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#a3241e", beard: true },
     dhol: { type: "m", garment: "kaftan", coat: "#8f5a1e", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#2a4c9a", beard: true },
+    lute: { type: "m", garment: "kaftan", coat: "#6a2a5a", trim: "#e6b33c", belt: KOCHARI_LEATHER, hat: "soft", hatC: "#c8922e", beard: true },
   },
   // the sixteenth to eighteenth centuries: the men in long arkhalukh coats fastened over the chest,
   // silver-buckled belts and low fleece papakhs or soft caps; the women in the full taraz with
@@ -20450,6 +20620,7 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "chokha", coat: "#1f6a5a", vest: "#e9d6a6", trim: "#e0392e", belt: KOCHARI_SILVER, hat: "low", hatC: "#3a2c20" },
     dhol: { type: "m", garment: "chokha", coat: "#8f5a1e", vest: "#e9d6a6", trim: "#f4bc3a", belt: KOCHARI_SILVER, hat: "soft", hatC: "#3a2c20" },
+    lute: { type: "m", garment: "chokha", coat: "#2a3f6a", vest: "#e9d6a6", trim: "#f4bc3a", belt: KOCHARI_SILVER, hat: "low", hatC: "#3a2c20", beard: true },
   },
   // 1915: the fedayi volunteers in dark chokhas with cartridge loops, bandoliers, papakhs and
   // puttees beside village men in shirts and waistcoats with wool sashes; the women in long
@@ -20467,6 +20638,8 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#4a2e22", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", hat: "low", hatC: "#3a2c20" },
     dhol: { type: "m", garment: "shirt", coat: "#c9b892", vest: "#2c3440", sash: "#b8862e", trim: "#b8862e", legs: "#3a3430", hat: "soft", hatC: "#3a2c20" },
+    lute: { type: "m", garment: "shirt", coat: "#d9cfb4", vest: "#3a2a20", sash: "#2f4a72", trim: "#2f4a72", legs: "#3a3430", hat: "soft", hatC: "#2a2420", beard: true },
+    kit: { body: "#b0623a", band: "#5a2414", dot: "#f4ecd8" },
   },
   // Sardarapat, 1918: soldiers of the new army in khaki tunics, peaked caps and papakhs, a
   // volunteer and villagers who marched out beside them
@@ -20483,6 +20656,8 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "shirt", coat: "#e6dcc2", vest: "#4a2e22", sash: "#9a2a22", trim: "#9a2a22", legs: "#4a3a2c", hat: "low", hatC: "#3a2c20" },
     dhol: { type: "m", garment: "uniform", coat: "#857a52", trim: "#5e5438", belt: KOCHARI_LEATHER, legs: "#6e6444", hat: "peaked", hatC: "#857a52" },
+    lute: { type: "m", garment: "shirt", coat: "#d9cfb4", vest: "#3a2a20", sash: "#2f4a72", trim: "#2f4a72", legs: "#3a3430", hat: "low", hatC: "#3a2c20" },
+    kit: { body: "#b0623a", band: "#5a2414", dot: "#f4ecd8" },
   },
   // Artsakh, 1992 to 2023: a couple in the stage taraz of the folk ensembles leads a line of
   // Defence Army soldiers in green and camouflage, men in jeans and sweaters, and women in
@@ -20500,8 +20675,27 @@ const KOCHARI_WARDROBE = {
     ],
     zurna: { type: "m", garment: "shirt", coat: "#2a2a30", collar: false, trim: "#1a1a20", belt: "#1a1410", legs: "#3a3a40", shin: "#3a3a40", boots: "#14110e", hat: "none" },
     dhol: { type: "m", garment: "shirt", coat: "#e9e4d6", vest: "#2a2a30", trim: "#9a9484", belt: "#1a1410", legs: "#55613a", camo: KOCHARI_CAMO, shin: "#55613a", boots: "#16130f", hat: "none" },
+    lute: { type: "m", garment: "shirt", coat: "#e8e2d2", vest: "#22242a", trim: "#55555e", belt: "#1a1410", legs: "#2a2a30", shin: "#2a2a30", boots: "#14110e", hat: "none" },
+    kit: { body: "#c4c8ce", band: "#7e8590" },
   },
 };
+// The band that plays the victory kochari, by the Settings' "Victory band" (Snd.band) and the age of
+// the battlefield. The zurna & dhol play in every age. The kef band's clarinet only reached Armenian
+// and Anatolian village music in the nineteenth century, so before 1800 the kef choice is played by
+// the age's own trio: the duduk (the blul, an end-blown cane flute, in Urartu), a barbat-like lute
+// and a def frame drum; from the nineteenth century on, clarinet, oud and dumbek
+function victoryBand() {
+  const year = (LEVELS[curLevel] || LEVELS[0]).year || 0;
+  if (Snd.band === "zurna") return { band: "zurna", year };
+  return year < 1800 ? { band: "kef", lead: year < 0 ? "blul" : "duduk", drum: "def", year }
+    : { band: "kef", lead: "clarinet", drum: "dumbek", year };
+}
+// the band painted at a beat of the dance (it changes on a bar line when the setting changes mid-dance)
+function celebrationBand(beat) {
+  const C = celebration;
+  if (!C || !C.band) return victoryBand();
+  return beat >= (C.bandFrom || 0) ? C.band : C.bandPrev || C.band;
+}
 function kochariWardrobe() {
   const year = (LEVELS[curLevel] || LEVELS[0]).year || 0;
   const W = KOCHARI_WARDROBE;
@@ -20683,7 +20877,8 @@ function kochariMan(c, lift, feet, sway) {
   const legs = c.legs || "#2d2836", boots = c.boots || "#191310", shinC = c.shin || boots;
   for (const f of feet) {
     const hx = f.side * 2.6;
-    const knee = kochariJoint(hx, hipY, f.x, f.y - 1.6, 8.2, 8.2, -f.side);
+    // (a seated player's foot carries its knee: forward over the stool, the shin straight down)
+    const knee = f.knee || kochariJoint(hx, hipY, f.x, f.y - 1.6, 8.2, 8.2, -f.side);
     const thigh = [hx, hipY, knee[0], knee[1]], shin = [knee[0], knee[1], f.x, f.y - 1.6];
     uLine(thigh, legs, 3.6);
     if (c.camo) kochariCamo(thigh, c.camo);
@@ -21309,6 +21504,283 @@ function drawZurnachi(x, y, s, beat, look, pipeKind) {
     }
     uDisc(near[0], near[1] + 0.6, 1.55, C.skin);
     kochariArm(5.5, -25.8, far[0], far[1] + 0.8, -1, c.coat, c.trim);
+  });
+}
+
+// ---- the kef band (Settings: Victory band) ----
+// From the nineteenth century on, the band of the village wedding and the city kef: the clarinet
+// standing to lead, the oud and the dumbek seated on low stools. Before 1800 the same three places go
+// to the age's own trio (see victoryBand): the duduk, or the blul in Urartu; a barbat-like lute, or
+// the long-necked lute of the Urartian reliefs; and the def frame drum. Every hand keeps to the music:
+// the drummer's strokes follow the pattern Snd.danceKef plays, on the same sixteenths.
+const KEF_PAT = ["D.kTD.Tk", "D.TkDkTk", "D.kTD.Tk", "DkTkDTTT"];
+// the drum stroke on sixteenth j of the dance: D the centre, T the rim, k the other hand
+function kefStrokeAt(j) {
+  const bar = Math.floor(j / 8);
+  if (j < 0 || bar >= 16) return ".";
+  return (bar === 15 ? "D...D..." : KEF_PAT[bar % 4])[j % 8];
+}
+// a striking hand at a beat: how far it is off the skin (a hump between its strokes, higher over a
+// longer gap) and the stroke it has just played or is about to play
+function kefHand(beat, strokes) {
+  const s = Math.max(0, beat) * 4, i = Math.floor(s);
+  const hit = j => strokes.includes(kefStrokeAt(j));
+  let prev = i, next = i + 1;
+  while (prev > i - 8 && !hit(prev)) prev--;
+  while (next < i + 9 && !hit(next)) next++;
+  const gap = next - prev, u = (s - prev) / gap;
+  return { lift: Math.sin(Math.max(0, Math.min(1, (u - 0.15) / 0.85)) * Math.PI) * Math.min(1, gap / 2.5), stroke: kefStrokeAt(u < 0.45 ? prev : next) };
+}
+// a low wooden stool under a seated player, in his frame (origin at his feet)
+function kefStool() {
+  const wood = "#7a4e2a";
+  uSeg(-5.6, -7.8, -7, -0.4, 1.3, wood);
+  uSeg(5.6, -7.8, 7, -0.4, 1.3, wood);
+  uPoly([-7.8, -9.8, 7.8, -9.8, 7.4, -7.6, -7.4, -7.6], "#9a6a3a");
+  uFlatLine([-7, -9.2, 6.8, -9.2], "rgba(255, 214, 150, .5)", 0.6);
+}
+const KEF_SEAT = 7.5;    // a seated player's body sits this much lower than a standing one's
+function kefSeated(c, sway) {
+  kefStool();
+  const kneeY = -16 + KEF_SEAT + 1.4;
+  kochariMan(c, -KEF_SEAT, [{ x: -5, y: 0, side: -1, knee: [-4.6, kneeY] }, { x: 5, y: 0, side: 1, knee: [4.6, kneeY] }], sway);
+}
+// fingers over a pipe or a neck: small knuckles across it at a, b (in the instrument's frame, the
+// instrument along +y), each lifted off it when it is up
+function kefFingers(ys, up, side) {
+  ys.forEach((fy, k) => {
+    const off = up[k] ? 1.5 * side : 0.5 * side;
+    uOval(off, fy, 1.05, 0.62, 0, UNIT_COLORS.skin);
+  });
+}
+
+// the lead, standing: the clarinet (a long dark tube, silver keys, the bell swinging up with the
+// phrase), the duduk (short, wide, apricot wood, its broad reed in the puffed-out cheeks) or the blul
+// (a long cane, end-blown, held slanting off to one side)
+function drawKefLead(x, y, s, beat, look, kind) {
+  const C = UNIT_COLORS, c = look;
+  const e8 = Math.floor(Math.max(0, beat) * 2);
+  const dip = Math.abs(Math.sin(beat * Math.PI)) * 1.1;
+  const tilt = Math.sin(beat * Math.PI * 0.5) * 0.035;
+  const clar = kind === "clarinet", duduk = kind === "duduk";
+  // the instrument's angle off the vertical (toward +x) and its length
+  // (negative: the bell swings out to the player's right, away from the rest of the band)
+  const ang = clar ? -0.3 - Math.max(0, Math.sin(beat * Math.PI * 0.25)) * 0.2 : duduk ? -0.4 - Math.sin(beat * Math.PI * 0.5) * 0.05 : -0.72;
+  const L = clar ? 18 : duduk ? 11 : 18;
+  kochariFigure(x, y, s, 1, () => {
+    uc.rotate(tilt);
+    kochariMan(c, -dip, [{ x: -3.6, y: 0, side: -1 }, { x: 3.6, y: 0, side: 1 }], tilt * 12);
+    const headY = -31.2 + dip, mouthX = clar || duduk ? 0.2 : 1.4, mouthY = headY + 2.7;
+    drawMaleHead(0, headY, "#3a2c20", 1, clar ? 0.15 : duduk ? 0.75 + Math.abs(Math.sin(beat * Math.PI)) * 0.25 : 0.1, c);
+    const dx = Math.sin(ang), dy = Math.cos(ang);
+    const at = t => [mouthX + dx * L * t, mouthY + dy * L * t];
+    const hands = clar ? [0.34, 0.62] : duduk ? [0.36, 0.66] : [0.4, 0.64];
+    const h1 = at(hands[0]), h2 = at(hands[1]);
+    // the upper hand's arm goes behind the instrument, the lower one's in front
+    kochariArm(5.5, -25.8 + dip, h1[0] + 1, h1[1], -1, c.coat, c.trim);
+    uc.save();
+    uc.translate(mouthX, mouthY);
+    uc.rotate(-ang);
+    if (clar) {
+      // mouthpiece and ligature, the barrel, the two joints, the flared bell
+      uc.beginPath();
+      uc.moveTo(-0.8, 0.2); uc.lineTo(0.8, 0.2);
+      uc.lineTo(0.95, L * 0.84);
+      uc.quadraticCurveTo(1.2, L * 0.95, 2.9, L);
+      uc.lineTo(-2.9, L);
+      uc.quadraticCurveTo(-1.2, L * 0.95, -0.95, L * 0.84);
+      uc.closePath();
+      uInk("#2a2228");
+      uFlatPoly([-0.8, 0.2, 0.8, 0.2, 0.75, L * 0.1, -0.75, L * 0.1], "#111014");
+      uFlatLine([-0.35, L * 0.12, -0.45, L * 0.84, -1.5, L * 0.98], "rgba(200, 200, 220, .3)", 0.45);
+      uFlatLine([0.5, L * 0.12, 0.6, L * 0.84, 1.8, L * 0.98], KOCHARI_AMBER, 0.5);
+      // silver rings at the joints, rods and keys down the body
+      for (const t of [0.1, 0.2, 0.5, 0.56, 0.84]) uFlatSeg(-1, L * t, 1, L * t, 0.55, "#cfd6de");
+      for (const t of [0.26, 0.33, 0.41, 0.62, 0.7, 0.77]) {
+        uFlatSeg(-0.55, L * t, 0.65, L * t, 0.3, "#e6ecf2");
+        uFlatDisc(0.65, L * t, 0.32, "#f6f9fc");
+      }
+      uFlatSeg(0.6, L * 0.24, 0.6, L * 0.48, 0.25, "#cfd6de");
+      uFlatSeg(-0.6, L * 0.6, -0.6, L * 0.8, 0.25, "#cfd6de");
+      uOval(0, L, 2.9, 0.85, 0, "#141014");
+      uFlatDisc(-0.4, L * 0.3, 0.35, "#ffffff");
+    } else if (duduk) {
+      // the broad flattened reed with its tuning band, then the apricot-wood body with its holes
+      uPoly([-0.75, -0.3, 0.75, -0.3, 1.05, 2.4, -1.05, 2.4], "#dcc47e");
+      uFlatSeg(-1, 1.5, 1, 1.5, 0.5, "#7a2a1e");
+      uPoly([-1.15, 2.2, 1.15, 2.2, 1.2, L, -1.2, L], "#a5552a");
+      uFlatPoly([-1.05, 2.4, -0.4, 2.4, -0.45, L - 0.2, -1.1, L - 0.2], "#7c3c1a");
+      uFlatLine([0.75, 2.6, 0.8, L - 0.3], KOCHARI_AMBER, 0.5);
+      for (const t of [0.42, 0.52, 0.62, 0.72, 0.82]) uFlatDisc(0.1, L * t, 0.32, "#2a140a");
+      uOval(0, L, 1.2, 0.45, 0, "#3a1c0c");
+    } else {
+      // a slender cane with its nodes, the rim at the lips
+      uPoly([-0.5, 0, 0.5, 0, 0.6, L, -0.6, L], "#d4b46a");
+      uFlatLine([0.25, 0.4, 0.35, L - 0.3], KOCHARI_AMBER, 0.4);
+      for (const t of [0.25, 0.55, 0.9]) uFlatSeg(-0.6, L * t, 0.6, L * t, 0.4, "#8a6a32");
+      for (const t of [0.62, 0.69, 0.76, 0.83]) uFlatDisc(0, L * t, 0.26, "#3a2410");
+    }
+    // fingers on the holes and keys, lifting and closing with the tune's eighths
+    const up = k => ((e8 * 5 + k * 3) % 7) < 2;
+    kefFingers([L * (hands[0] - 0.08), L * (hands[0] - 0.02), L * (hands[0] + 0.04)], [up(0), up(1), up(2)], 1);
+    kefFingers([L * (hands[1] - 0.06), L * hands[1], L * (hands[1] + 0.06)], [up(3), up(4), up(5)], 1);
+    uc.restore();
+    kochariArm(-5.5, -25.8 + dip, h2[0] - 1, h2[1], 1, c.coat, c.trim);
+  });
+}
+
+// the lute, seated: an oud (the pear-shaped bowl, short fretless neck, pegbox bent back and three
+// round rosettes) played with a quill in tremolo; in Urartu the long-necked lute of the age
+function drawKefLute(x, y, s, beat, look, kind) {
+  const C = UNIT_COLORS, c = look;
+  const e8 = Math.floor(Math.max(0, beat) * 2), sway = Math.sin(beat * Math.PI) * 0.4;
+  const long = kind === "long";
+  kochariFigure(x, y, s, 1, () => {
+    kefSeated(c, sway);
+    const lift = -KEF_SEAT, nod = Math.abs(Math.sin(beat * Math.PI)) * 0.5;
+    drawMaleHead(0, -31.2 - lift + nod, "#3a2c20", 1, 0, c);
+    // the instrument's frame: the bowl's centre on the lap, the neck rising to the player's left
+    const bx = -1.8, by = -13.6 - lift, rot = long ? -1 : -0.72, k = long ? 1 : 1.1;
+    const cs = Math.cos(rot), sn = Math.sin(rot);
+    const P = (u, v) => [bx + (u * cs - v * sn) * k, by + (u * sn + v * cs) * k];
+    // the quill hand's tremolo across the strings, over the sixteenths
+    const trem = Math.sin(beat * Math.PI * 4) * 1.1;
+    const fret = long ? 9 + ((e8 * 3) % 5) * 1.6 : 8.6 + ((e8 * 3) % 4) * 0.7;
+    const pick = P(long ? -0.6 : -2, trem), stop = P(fret, 0);
+    // the stopping arm reaches round behind the neck: the instrument lies over it, the fingers on top
+    kochariArm(5.5, -25.8 - lift, stop[0] + 0.5, stop[1] + 0.9, -1, c.coat, c.trim);
+    uc.save();
+    uc.translate(bx, by);
+    uc.rotate(rot);
+    uc.scale(k, k);
+    if (long) {
+      // a small oval bowl, a long fretted neck with a tassel at its end
+      uPoly([4, -0.8, 21, -0.6, 21, 0.6, 4, 0.8], "#5a3418");
+      for (let f = 6; f < 20; f += 2.1) uFlatSeg(f, -0.6, f, 0.6, 0.3, "#d9c08a");
+      uOval(0, 0, 4.6, 3.6, 0, "#8a4e22");
+      uOval(0.2, 0, 4, 3, 0, "#d9ab62");
+      uFlatDisc(1.2, 0, 0.7, "#2a160a");
+      uFlatLine([-3.4, 0, 21, 0], "rgba(250, 240, 210, .75)", 0.25);
+      uFlatSeg(-3, -1, -3, 1, 0.7, "#2a160a");
+      uSeg(21, 0, 22.6, 0.4, 1, "#5a3418");
+      uFlatLine([22.6, 0.4, 22.2, 3.2], "#b8321f", 0.8);
+      uFlatLine([0.6, -3, 3.8, -1.9], KOCHARI_AMBER, 0.6);
+    } else {
+      // the bowl's staves showing at the edge, the soundboard, the bent-back pegbox
+      const pear = (k, dv) => {
+        uc.beginPath();
+        uc.moveTo(5.6 * k, -1.7 * k + dv);
+        uc.bezierCurveTo(3 * k, -6.4 * k + dv, -6.8 * k, -6.6 * k + dv, -6.8 * k, dv);
+        uc.bezierCurveTo(-6.8 * k, 6.6 * k + dv, 3 * k, 6.4 * k + dv, 5.6 * k, 1.7 * k + dv);
+        uc.closePath();
+      };
+      pear(1.04, 0.5); uInk("#6e3818");
+      for (const v of [-2.6, 0, 2.6]) uFlatLine([-6.4, v * 1.3 + 0.6, -2, v * 1.7 + 0.8, 4.6, v * 0.5 + 0.8], "rgba(40, 18, 6, .35)", 0.35);
+      pear(1, 0); uInk("#e0b066");
+      uFlatOval(-3.4, 0, 1.9, 2.3, 0, "#b8823a");                 // the pick guard
+      // the pegbox, bent back from the nut, and its pegs
+      uPoly([5.4, -1.4, 11.6, -0.95, 11.6, 0.95, 5.4, 1.4], "#a8703a");
+      uFlatPoly([5.6, -0.8, 11.6, -0.55, 11.6, 0.55, 5.6, 0.8], "#2e1a0c");      // the fretless fingerboard
+      uPoly([11.3, -1, 15.8, 2.1, 14.9, 3.5, 11.1, 1.1], "#c99050");
+      uFlatLine([11.6, -0.8, 15.6, 2], KOCHARI_AMBER, 0.5);
+      for (const t of [0.2, 0.45, 0.7]) {
+        const px = 11.5 + 4 * t, py = -0.2 + 3.1 * t;
+        uSeg(px - 1.1, py - 1.6, px + 1.1, py + 1.6, 0.5, "#3a2010");
+      }
+      uFlatSeg(11.6, -0.9, 11.6, 0.9, 0.5, "#efe3c4");          // the nut
+      // the rosettes: a large one under the strings and two small ones toward the neck
+      for (const [u, v, r] of [[0.6, 0, 1.5], [3, -2.2, 0.62], [3, 2.2, 0.62]]) {
+        uFlatDisc(u, v, r + 0.35, "#8a5a24");
+        uFlatDisc(u, v, r, "#2a160a");
+        uFlatDisc(u - r * 0.3, v - r * 0.3, r * 0.3, "rgba(255, 220, 160, .35)");
+      }
+      uSeg(-4.9, -2.4, -4.9, 2.4, 0.9, "#2a160a");               // the bridge
+      for (const v of [-1.05, -0.35, 0.35, 1.05]) uFlatLine([-4.9, v, 11.6, v * 0.5], "rgba(250, 240, 210, .8)", 0.2);
+      uFlatLine([-5.6, -3.6, -2, -5.4, 3, -4.6], KOCHARI_AMBER, 0.7);
+    }
+    uc.restore();
+    // the stopping hand's fingers on the neck, the quill hand over the rosette
+    uc.save();
+    uc.translate(stop[0], stop[1]);
+    uc.rotate(rot + Math.PI / 2);
+    kefFingers([-1.3, 0, 1.3], [e8 % 3 === 0, e8 % 3 === 1, false], 1);
+    uc.restore();
+    kochariArm(-5.5, -25.8 - lift, pick[0] - 0.9, pick[1] + 0.4, 1, c.coat, c.trim);
+    uSeg(pick[0] + 0.2, pick[1] + 0.2, pick[0] + 2.2, pick[1] - 0.6 + trem * 0.2, 0.45, "#efe3c4");
+  });
+}
+
+// the drummer, seated: the dumbek, a goblet drum laid across the left thigh and held under the arm,
+// the right hand's doum in the centre and tek at the rim, the left hand's fingers flicking ka; or the
+// def, a frame drum with jingles, held up in the left hand and struck by the right
+function drawKefDrum(x, y, s, beat, look, kind, kit) {
+  const C = UNIT_COLORS, c = look;
+  const sway = Math.sin(beat * Math.PI) * 0.5;
+  const R = kefHand(beat, "DT"), Lh = kefHand(beat, "k");
+  kochariFigure(x, y, s, 1, () => {
+    kefSeated(c, sway);
+    const lift = -KEF_SEAT;
+    drawMaleHead(0, -31.2 - lift, "#3a2c20", -0.6, 0, c);
+    if (kind === "def") {
+      const cx = 3.6, cy = -18.4 - lift, rx = 5.4, ry = 7;
+      const shiver = Math.sin(beat * 70) * 0.25 * (1 - Lh.lift);
+      // the left hand holds the frame at its far edge, its fingers over the skin
+      kochariArm(5.5, -25.8 - lift, cx + rx - 0.6, cy + 1.4, -1, c.coat, c.trim);
+      uOval(cx, cy, rx + 1.1, ry + 1.1, 0, "#8a5a2a");
+      uOval(cx, cy, rx, ry, 0, "#ead7a8");
+      uFlatOval(cx + 0.6, cy + 0.6, rx * 0.55, ry * 0.55, 0, "rgba(150, 100, 50, .18)");
+      uc.beginPath(); uc.ellipse(cx, cy, rx + 0.55, ry + 0.55, 0, -1.2, 1.2);
+      uc.lineWidth = 0.8; uc.strokeStyle = KOCHARI_AMBER; uc.stroke();
+      // pairs of brass jingles set in the frame
+      for (const a of [-2.4, -0.8, 0.8, 2.4, Math.PI]) {
+        const jx = cx + Math.cos(a) * (rx + 0.6), jy = cy + Math.sin(a) * (ry + 0.6) + shiver;
+        uOval(jx, jy, 0.9, 0.55, a, "#e2b85a");
+        uFlatDisc(jx - 0.3, jy - 0.15, 0.25, "#fff2c0");
+      }
+      for (const k of [0, 1, 2]) uOval(cx + rx - 1.4 - Lh.lift * 0.8, cy - 2 + k * 1.5 - Lh.lift * 0.6, 0.95, 0.6, 0, C.skin);
+      // the right hand: the centre for the deep stroke, the rim for the bright one
+      const tx = R.stroke === "T" ? cx - rx + 1.4 : cx - 0.6, ty = R.stroke === "T" ? cy + 2.6 : cy + 0.6;
+      const hx = tx - R.lift * 3.2, hy = ty - R.lift * 2.6;
+      kochariArm(-5.5, -25.8 - lift, hx, hy, 1, c.coat, c.trim);
+      uOval(hx + 0.8, hy - 0.2, 1.3, 1.9, 0.5, C.skin);
+    } else {
+      // the goblet: the head toward the right hand, the waist and the flared foot under the left arm
+      const hx = -2.6, hy = -13.8 - lift, body = (kit && kit.body) || "#c4c8ce", band = (kit && kit.band) || "#7e8590";
+      uc.save();
+      uc.translate(hx, hy);
+      uc.rotate(0.14);
+      uc.beginPath();
+      uc.moveTo(0, -5);
+      uc.bezierCurveTo(4.8, -5.3, 5.6, -1.8, 8.2, -1.6);
+      uc.quadraticCurveTo(10.6, -1.8, 12, -3.4);
+      uc.lineTo(12, 3.4);
+      uc.quadraticCurveTo(10.6, 1.8, 8.2, 1.6);
+      uc.bezierCurveTo(5.6, 1.8, 4.8, 5.3, 0, 5);
+      uc.closePath();
+      uInk(body);
+      uFlatPoly([0.4, 2.9, 4.6, 3, 7.4, 1.6, 8.2, 1.2, 5.4, 1.3, 4.4, 4.5, 0.4, 4.7], "rgba(40, 30, 40, .35)");
+      for (const u of [1.4, 3.4]) uFlatSeg(u, -4.8 + (u - 1.4) * 0.45, u, 4.8 - (u - 1.4) * 0.45, 0.6, band);
+      uFlatSeg(9.6, -2.1, 9.6, 2.1, 0.55, band);
+      // the shell's ornament: inlaid dots (mother-of-pearl on the clay drum, punched in the metal one)
+      for (const [u, v] of [[2.4, -3.2], [2.4, 0], [2.4, 3.2], [5.6, -1.4], [5.6, 1.4], [10.8, 0]]) uFlatDisc(u, v, 0.42, (kit && kit.dot) || band);
+      uFlatLine([0.6, -4.5, 4.6, -4.6, 7.4, -1.9], "rgba(255, 255, 255, .45)", 0.5);
+      uFlatLine([0.6, 4.5, 4.6, 4.6], KOCHARI_AMBER, 0.6);
+      uOval(12, 0, 0.9, 3.4, 0, shade(body, -30));
+      // the head, rimmed, faced toward the player's right hand
+      uOval(0, 0, 2, 5.1, 0, "#efe3c4");
+      uc.beginPath(); uc.ellipse(0, 0, 2, 5.1, 0, 0, Math.PI * 2);
+      uc.lineWidth = 0.6; uc.strokeStyle = band; uc.stroke();
+      uFlatOval(-0.4, -0.6, 0.8, 2.6, 0, "rgba(255, 250, 235, .6)");
+      uc.restore();
+      // the left arm over the shell, its fingers at the top of the head for ka
+      kochariArm(5.5, -25.8 - lift, hx + 3.2, hy - 4.4, -1, c.coat, c.trim);
+      for (const k of [0, 1, 2]) uOval(hx + 1.6 - k * 0.9, hy - 3.6 - Lh.lift * (2.2 - k * 0.4), 0.95, 0.6, 0.3, C.skin);
+      // the right hand: flat in the centre for doum, the fingers at the rim for tek
+      const tx = R.stroke === "T" ? hx - 0.4 : hx - 1, ty = R.stroke === "T" ? hy + 3.6 : hy + 0.4;
+      const px = tx - R.lift * 3.4, py = ty - R.lift * 2.8;
+      kochariArm(-5.5, -25.8 - lift, px - 1.6, py + 0.4, 1, c.coat, c.trim);
+      uOval(px - 0.4, py, 1.4, 1.9, 0.3, C.skin);
+    }
   });
 }
 
@@ -47792,7 +48264,7 @@ autoBtn.addEventListener("click", () => {
 function saveSettings() {
   localStorage.setItem("hs_settings", JSON.stringify({
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
-    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2,
+    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2, band: Snd.band,
   }));
 }
 function loadSettings() {
@@ -47804,6 +48276,7 @@ function loadSettings() {
     if (typeof s.musVol === "number") Snd.musVol = s.musVol;
     if (typeof s.ambOn === "boolean") Snd.ambOn = s.ambOn;
     if (typeof s.ambVol === "number") Snd.ambVol = s.ambVol;
+    if (s.band === "kef" || s.band === "zurna") Snd.band = s.band;
     // settings saved before the log taper held linear gains: carry them over to slider positions
     // (taper 1 was a 50 dB curve: keep the same gain on the 36 dB one)
     if (!s.taper) for (const k of ["sfxVol", "musVol", "ambVol"]) {
@@ -47828,6 +48301,10 @@ function syncSoundUi() {
   $("setSfxTgl").classList.toggle("on", Snd.sfxOn);
   $("setAmbTgl").textContent = Snd.ambOn ? "On" : "Off";
   $("setAmbTgl").classList.toggle("on", Snd.ambOn);
+  for (const b of $("setBand").children) {
+    b.classList.toggle("on", b.dataset.band === Snd.band);
+    b.setAttribute("aria-checked", b.dataset.band === Snd.band ? "true" : "false");
+  }
   Snd.applyVolumes();
   saveSettings();
 }
@@ -47850,6 +48327,21 @@ $("sfxBtn").addEventListener("click", toggleSfx);
 $("setMusicTgl").addEventListener("click", toggleMusic);
 $("setSfxTgl").addEventListener("click", toggleSfx);
 $("setAmbTgl").addEventListener("click", toggleAmb);
+// the victory band: a dance already under way changes band on its next bar line, music and painting alike
+function setVictoryBand(band) {
+  if (band === Snd.band) return;
+  Snd.band = band;
+  syncSoundUi();
+  if (!celebration) return;
+  // the painted band changes with the music: on the bar line where the new band comes in, or at the
+  // next bar line of the dance when no music plays (a bar of the kochari is two beats)
+  const spec = victoryBand(), bar = Snd.danceSwitch(spec);
+  const beat = Math.max(0, (performance.now() - celebration.start) / 1000 - 0.15) * (112 / 60);
+  celebration.bandPrev = celebrationBand(beat);
+  celebration.bandFrom = bar >= 0 ? bar * 2 : Math.ceil(beat / 2) * 2;
+  celebration.band = spec;
+}
+for (const b of $("setBand").children) b.addEventListener("click", () => setVictoryBand(b.dataset.band));
 $("ambVol").addEventListener("input", (e) => { Snd.ambVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("musicVol").addEventListener("input", (e) => { Snd.musVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("sfxVol").addEventListener("input", (e) => { Snd.sfxVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); Snd.play("coin"); });
@@ -48205,6 +48697,8 @@ function photoDance(seconds) {
   photoStageBattle(HARNESS.has("lv") ? Math.max(0, Math.min(LEVELS.length - 1, Number(HARNESS.get("lv")) | 0)) : 1, 20, {});
   enemies = []; projectiles = []; particles = [];
   lives = 17;
+  // &band=kef|zurna: the victory band (as the Settings choose it)
+  if (HARNESS.has("band")) Snd.band = HARNESS.get("band") === "zurna" ? "zurna" : "kef";
   victory();
   photo = { time: PHOTO_TIME };
   celebration.start = PHOTO_TIME - seconds * 1000;
@@ -48388,6 +48882,29 @@ function runSelftest() {
   check("dance", () => {
     for (const s of [0.4, 1.2, 2.4, 3.4, 3.9, 4.6, 5.4, 6.8, 8.2, 10.5, 12.9]) {
       photoDance(s); draw(PHOTO_TIME);
+    }
+    // both victory bands in every age's dress (the kef band's older trio before 1800), and a change
+    // of band mid-dance: the old band is painted up to the bar line, the new one from it
+    const keep = { band: Snd.band, lv: HARNESS.get("lv") };
+    try {
+      for (const lv of [0, 2, 6, 7, 8, 10, 12]) {
+        HARNESS.set("lv", lv);
+        for (const band of ["kef", "zurna"]) {
+          Snd.band = band;
+          photoDance(5.4); draw(PHOTO_TIME);
+          if (victoryBand().band !== band || celebration.band.band !== band) throw new Error("band not kept on " + lv);
+          if (band === "kef" && victoryBand().lead !== (LEVELS[lv].year < 0 ? "blul" : LEVELS[lv].year < 1800 ? "duduk" : "clarinet")) throw new Error("kef lead on " + lv);
+        }
+        Snd.band = "kef";
+        photoDance(5.4);
+        Snd.band = "zurna";
+        celebration.bandPrev = celebration.band; celebration.band = victoryBand(); celebration.bandFrom = 12;
+        draw(PHOTO_TIME);
+        if (celebrationBand(11).band !== "kef" || celebrationBand(12).band !== "zurna") throw new Error("band change mid-dance on " + lv);
+      }
+    } finally {
+      Snd.band = keep.band;
+      if (keep.lv == null) HARNESS.delete("lv"); else HARNESS.set("lv", keep.lv);
     }
     celebration = null;
   });
