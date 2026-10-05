@@ -1656,7 +1656,7 @@ const LEVELS = [
   {
     name: "Halidzor",
     tag: "Davit Bek's fortress in the gorges of Syunik.",
-    era: 4, date: "Spring 1727", year: 1727,
+    era: 4, date: "Spring 1727", year: 1727, hpTune: 0.84,
     hero: { name: "Davit Bek", title: "Liberator of Syunik" },
     foe: "Ottoman",
     units: {
@@ -1760,7 +1760,7 @@ const LEVELS = [
   {
     name: "Musa Dagh",
     tag: "Fifty-three days on the mountain of Moses.",
-    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 0.8,
+    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 0.76,
     hero: { name: "Movses Ter-Kalustian", title: "Commander on Musa Dagh" },
     foe: "Ottoman",
     units: {
@@ -4513,18 +4513,22 @@ registerProcessor("kl-tract", KLTract);
   // fits either. spec (victoryBand()) says which band and, for the kef band, which lead and drum
   // its age allows. `from` (an audio time on a bar line) brings a band in mid-dance: what the
   // other band was playing fades on that bar line and this one picks up the tune from there.
+  // the dance is the reward: it stands about 8 dB over the field music it replaces, and it still plays
+  // (on the effects bus) for a player who has switched the music off but kept the sound
+  DANCE_LVL: 2.5,
   dance(spec, from) {
-    if (!this.ctx || !this.musicOn) return;
+    if (!this.ctx || (!this.musicOn && !this.sfxOn)) return;
     const c = this.ctx;
     spec = spec || { band: "kef", lead: "clarinet", drum: "dumbek" };
     if (!from) this.danceT0 = c.currentTime + 0.12;
     const t0 = this.danceT0, tFrom = from || 0;
     if (this.danceBus) {
       const g = this.danceBus.gain, at = Math.max(c.currentTime, tFrom - 0.04);
-      g.setValueAtTime(1, at); g.linearRampToValueAtTime(0, at + 0.04);
+      g.setValueAtTime(g.value, at); g.linearRampToValueAtTime(0, at + 0.04);
     }
     const out = c.createGain();
-    out.connect(this.musGain);
+    out.gain.value = this.musicOn ? this.DANCE_LVL : this.DANCE_LVL * 0.5;
+    out.connect(this.musicOn ? this.musGain : this.sfxGain);
     this.danceBus = out; this.danceSpec = spec;
     if (spec.band === "zurna") this.danceZurna(t0, tFrom, out);
     else this.danceKef(t0, tFrom, out, spec);
@@ -4532,7 +4536,7 @@ registerProcessor("kl-tract", KLTract);
   // the band changed while the line is still dancing: the new one comes in on the next bar line
   // (returns that bar's number from the dance's first downbeat, or -1 when no dance is playing)
   danceSwitch(spec) {
-    if (!this.ctx || !this.musicOn || !this.danceBus || !(this.ctx.currentTime < this.danceEnd - 1.6)) return -1;
+    if (!this.ctx || (!this.musicOn && !this.sfxOn) || !this.danceBus || !(this.ctx.currentTime < this.danceEnd - 1.6)) return -1;
     const BAR = 4 * 60 / 112 / 2, bar = Math.max(0, Math.ceil((this.ctx.currentTime + 0.1 - this.danceT0) / BAR));
     this.dance(spec, this.danceT0 + bar * BAR);
     return bar;
@@ -5528,10 +5532,10 @@ const TOWER_DEFS = {
     ],
     // the piercing bolt shrugs off armour, so it is costed and paced to stay one good tower among five
     specs: {
-      a: { name: "Titan Bolt", cost: 320, desc: "One colossal armor-splitting bolt",
-           stats: { dmg: 320, range: 290, rate: 1.62 } },
-      b: { name: "Twin Ballistae", cost: 320, desc: "Two bolts, two targets",
-           stats: { dmg: 112, range: 250, rate: 1.1, twin: true } },
+      a: { name: "Titan Bolt", cost: 500, desc: "One colossal armor-splitting bolt",
+           stats: { dmg: 300, range: 280, rate: 1.66 } },
+      b: { name: "Twin Ballistae", cost: 500, desc: "Two bolts, two targets",
+           stats: { dmg: 104, range: 245, rate: 1.14, twin: true } },
     },
   },
   catapult: {
