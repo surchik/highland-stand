@@ -45830,17 +45830,180 @@ const BRIEF_CROPS = [
   { x: 528, w: 290, gate: 0.36 },   // Lori: the monastery on the gorge rim
   { x: 642, w: 256, gate: 0.5 },    // Sevan: the island monastery
   { x: 384, w: 300, gate: 0.5 },    // Gyumri: the black-tuff city under Aragats
-  { x: 520, w: 340, gate: 0.52 },   // Halidzor: the fortress on its crag over the Voghji gorge
-  { x: 620, w: 440, gate: 0.39 },   // Van 1915: the Rock of Van over the walled old city, Lake Van beyond
-  { x: 226, w: 440, gate: 0.6 },    // Musa Dagh: the banners on the seaward point, the cruiser offshore
-  { x: 330, w: 580, gate: 0.42 },   // Sardarapat: Sis and Masis over the plain
-  { x: 700, w: 330, gate: 0.3 },    // Stepanakert 1992: the cliffs of Shushi over the city
-  { x: 430, w: 360, gate: 0.42 },   // Shushi: Ghazanchetsots and its belfry
-  { x: 400, w: 400, gate: 0.36 },   // Stepanakert 2023: We Are Our Mountains over the city
+  { x: 596, w: 270, gate: 0.52, air: 0.3, mist: 0.5, ink: [1.15, 1.35, 1.25] },   // Halidzor: the fortress on its crag over the Voghji gorge
+  { x: 680, w: 350, gate: 0.39, air: 0.3, mist: 0.5, ink: [1.2, 1.5, 1.45] },   // Van 1915: the Rock of Van over the walled old city, Lake Van beyond
+  { x: 236, w: 420, gate: 0.6, air: 0.3, mist: 0.5, ink: [1.1, 1.15, 1.1] },    // Musa Dagh: the banners on the seaward point, the cruiser offshore
+  { x: 380, w: 510, gate: 0.5, air: 0.3, mist: 0.5, ink: [1.15, 1.5, 1.35], motif: "bells" },   // Sardarapat: Sis and Masis over the plain, the bells of Etchmiadzin
+  { x: 740, w: 280, gate: 0.3, air: 0.3, mist: 0.5, ink: [1.15, 1.4, 1.45], motif: "grad" },    // Stepanakert 1992: the cliffs of Shushi over the city under Grad fire
+  { x: 490, w: 250, gate: 0.42, air: 0.3, mist: 0.5, ink: [1.15, 1.6, 1.5] },   // Shushi: Ghazanchetsots and its belfry
+  { x: 430, w: 320, gate: 0.36, air: 0.3, mist: 0.5, ink: [1.15, 1.35, 1.5], motif: "exodus" },   // Stepanakert 2023: We Are Our Mountains over the city, the exodus on the road
 ];
 const BRIEF_FRAME = 38;   // width of the miniature's border, in canvas pixels
 const BRIEF_ARCH = 196;   // rise of its arched head
 let briefArtLevel = -1;
+// Emblems the miniaturist sets in the foreground, large and in strong colour, where the field's own far
+// skyline can only hint at them: each is (ctx, w, h, horizon row, road centre/row/half-width at t, rand)
+const BRIEF_MOTIFS = {
+  // Sardarapat: the bells of Etchmiadzin rung to call the people out: a tufa belfry by the road, its bell swinging
+  bells(s, w, h, hy, roadX, roadY, roadHalf, rand) {
+    const x = w * 0.17, base = hy + (h - hy) * 0.56, pw = 13, span = 58, top = base - 150;
+    const ink = "#2c1e10", tufa = "#c4673f", tufaD = "#8a3f28";
+    s.save();
+    s.translate(x, base); s.scale(1.45, 1.45); s.translate(-x, -base);
+    s.lineJoin = "round";
+    // the stepped plinth, the two piers and the gabled head with its cross
+    const shape = () => {
+      s.beginPath();
+      s.rect(x - span / 2 - pw - 8, base - 14, span + pw * 2 + 16, 14);
+      s.rect(x - span / 2 - pw, top + 40, pw, base - 14 - top - 40);
+      s.rect(x + span / 2, top + 40, pw, base - 14 - top - 40);
+      s.moveTo(x - span / 2 - pw - 6, top + 44);
+      s.lineTo(x + span / 2 + pw + 6, top + 44);
+      s.lineTo(x + span / 2 + pw + 6, top + 22);
+      s.lineTo(x, top);
+      s.lineTo(x - span / 2 - pw - 6, top + 22);
+      s.closePath();
+    };
+    shape();
+    s.fillStyle = tufa;
+    s.fill();
+    s.lineWidth = 3;
+    s.strokeStyle = ink;
+    s.stroke();
+    s.fillStyle = tufaD;
+    s.fillRect(x + span / 2 + pw * 0.45, top + 46, pw * 0.55 - 1.5, base - 14 - top - 47);
+    s.fillRect(x - span / 2 - pw + 1.5, top + 46, pw * 0.3, base - 14 - top - 47);
+    // the dark of the bell chamber under the head
+    s.fillStyle = "rgba(44, 30, 16, .55)";
+    s.fillRect(x - span / 2, top + 46, span, 8);
+    // the bell, caught mid-swing, and the rope
+    s.save();
+    s.translate(x, top + 48);
+    s.rotate(-0.32);
+    s.beginPath();
+    s.moveTo(-6, 4);
+    s.bezierCurveTo(-8, 16, -12, 26, -18, 32);
+    s.lineTo(18, 32);
+    s.bezierCurveTo(12, 26, 8, 16, 6, 4);
+    s.quadraticCurveTo(0, -2, -6, 4);
+    const bronze = s.createLinearGradient(-18, 0, 18, 0);
+    bronze.addColorStop(0, "#f2cf6c");
+    bronze.addColorStop(0.45, "#c98d2c");
+    bronze.addColorStop(1, "#7a4a16");
+    s.fillStyle = bronze;
+    s.fill();
+    s.lineWidth = 2.2;
+    s.stroke();
+    s.fillStyle = ink;
+    s.beginPath(); s.arc(4, 35, 3.6, 0, Math.PI * 2); s.fill();
+    s.restore();
+    s.strokeStyle = "rgba(44, 30, 16, .8)";
+    s.lineWidth = 1.4;
+    s.beginPath(); s.moveTo(x + 8, top + 52); s.quadraticCurveTo(x + 18, base - 50, x + 12, base - 16); s.stroke();
+    // the cross on the gable, and the ringing: gilt arcs either side
+    s.strokeStyle = ink; s.lineWidth = 6;
+    s.beginPath(); s.moveTo(x, top + 2); s.lineTo(x, top - 26); s.moveTo(x - 9, top - 16); s.lineTo(x + 9, top - 16); s.stroke();
+    s.strokeStyle = "#f0cf85"; s.lineWidth = 3;
+    s.stroke();
+    s.lineCap = "round";
+    for (const side of [-1, 1]) for (let k = 0; k < 3; k++) {
+      s.strokeStyle = k ? "rgba(214, 160, 60, " + (0.85 - k * 0.22) + ")" : "#d29a3a";
+      s.lineWidth = 3.4 - k * 0.6;
+      s.beginPath();
+      s.arc(x, top + 70, span / 2 + pw + 16 + k * 14, side < 0 ? Math.PI * 0.9 : -Math.PI * 0.18, side < 0 ? Math.PI * 1.18 : Math.PI * 0.1);
+      s.stroke();
+    }
+    s.restore();
+  },
+  // Stepanakert 1992: the Grad salvoes coming down out of the winter sky from the heights, and the city burning
+  grad(s, w, h, hy, roadX, roadY, roadHalf, rand) {
+    s.save();
+    s.lineCap = "round";
+    const hits = [];
+    for (let i = 0; i < 7; i++) {
+      const x0 = w * (0.78 + rand() * 0.3), y0 = hy * (0.06 + rand() * 0.14);
+      const x1 = w * (0.06 + i * 0.12 + rand() * 0.06), y1 = hy - 60 + rand() * 30;
+      const cx = (x0 + x1) / 2 + 40, cy = Math.min(y0, y1) - 30 - rand() * 40;
+      const tip = 0.55 + rand() * 0.4;   // how far down its arc each rocket has come
+      // the smoke trail behind it
+      s.strokeStyle = "rgba(78, 70, 74, .55)";
+      s.lineWidth = 3.2;
+      s.beginPath();
+      s.moveTo(x0, y0);
+      for (let k = 1; k <= 20; k++) {
+        const t = tip * k / 20, u = 1 - t;
+        s.lineTo(u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1);
+      }
+      s.stroke();
+      const u = 1 - tip, hx = u * u * x0 + 2 * u * tip * cx + tip * tip * x1, hy2 = u * u * y0 + 2 * u * tip * cy + tip * tip * y1;
+      drawGlow(s, glowSprite("255, 150, 60"), hx, hy2, 30, 30, 0.9);
+      s.fillStyle = "#fff0b0";
+      s.beginPath(); s.arc(hx, hy2, 3.4, 0, Math.PI * 2); s.fill();
+      if (tip > 0.8) hits.push(x1);
+    }
+    for (const x of hits.concat([w * 0.3, w * 0.62])) {
+      const y = hy - 34 - rand() * 50, r = 16 + rand() * 12;
+      s.fillStyle = "rgba(52, 44, 46, .7)";
+      for (let k = 0; k < 5; k++) { s.beginPath(); s.arc(x + (rand() - 0.5) * r, y - r * 0.8 - k * r * 0.5, r * (0.5 + k * 0.12), 0, Math.PI * 2); s.fill(); }
+      drawGlow(s, glowSprite("255, 120, 40"), x, y, r * 3, r * 3, 0.95);
+      s.fillStyle = "#e0541e";
+      s.beginPath();
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI + (k / 8) * Math.PI, rr = k % 2 ? r * 0.55 : r;
+        s.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.9);
+      }
+      s.closePath(); s.fill();
+      s.fillStyle = "#ffd36a";
+      s.beginPath(); s.arc(x, y - r * 0.2, r * 0.3, 0, Math.PI * 2); s.fill();
+    }
+    s.restore();
+  },
+  // Stepanakert 2023: the exodus, the road out to Lachin jammed with cars, loads lashed to their roofs
+  exodus(s, w, h, hy, roadX, roadY, roadHalf, rand) {
+    const paints = ["#e9e4d8", "#8c9096", "#2e3440", "#9a2e26", "#284a7a", "#c9b98e", "#5a6640", "#b8b2a8"];
+    const cars = [];
+    for (let t = 0.1; t < 0.98; t += 0.03 + 0.11 * t) cars.push(t);
+    s.save();
+    s.lineJoin = "round";
+    for (let i = cars.length - 1; i >= 0; i--) {   // nearest last, so it overlaps the one ahead
+      const t = cars[i], half = roadHalf(t), cw = half * 0.82, ch = cw * 0.62, x = roadX(t) + half * 0.14 * (i % 2 ? 1 : -1), y = roadY(t);
+      const lw = Math.max(1, cw * 0.035);
+      // the car from behind: body, glass, tail lights, and a load on the roof
+      s.fillStyle = "rgba(44, 30, 16, .35)";
+      s.fillRect(x - cw * 0.52, y - ch * 0.08, cw * 1.04, ch * 0.14);
+      s.fillStyle = paints[Math.floor(rand() * paints.length)];
+      s.strokeStyle = "#2c1e10";
+      s.lineWidth = lw;
+      s.beginPath();
+      s.moveTo(x - cw / 2, y);
+      s.lineTo(x - cw / 2, y - ch * 0.55);
+      s.lineTo(x - cw * 0.36, y - ch);
+      s.lineTo(x + cw * 0.36, y - ch);
+      s.lineTo(x + cw / 2, y - ch * 0.55);
+      s.lineTo(x + cw / 2, y);
+      s.closePath();
+      s.fill(); s.stroke();
+      s.fillStyle = "#3c4656";
+      s.beginPath();
+      s.moveTo(x - cw * 0.4, y - ch * 0.58); s.lineTo(x - cw * 0.3, y - ch * 0.9); s.lineTo(x + cw * 0.3, y - ch * 0.9); s.lineTo(x + cw * 0.4, y - ch * 0.58);
+      s.closePath(); s.fill();
+      s.fillStyle = "#d8261c";
+      s.fillRect(x - cw * 0.46, y - ch * 0.46, cw * 0.14, ch * 0.12);
+      s.fillRect(x + cw * 0.32, y - ch * 0.46, cw * 0.14, ch * 0.12);
+      s.fillStyle = "#2c1e10";
+      s.fillRect(x - cw * 0.48, y - ch * 0.04, cw * 0.16, ch * 0.1);
+      s.fillRect(x + cw * 0.32, y - ch * 0.04, cw * 0.16, ch * 0.1);
+      if (rand() < 0.7) {
+        s.fillStyle = rand() < 0.5 ? "#d9c7a0" : rand() < 0.5 ? "#7a5a3a" : "#b0483a";
+        s.beginPath();
+        s.rect(x - cw * 0.3, y - ch * 1.32, cw * 0.6, ch * 0.32);
+        s.fill(); s.stroke();
+        s.beginPath(); s.moveTo(x - cw * 0.1, y - ch * 1.32); s.lineTo(x - cw * 0.1, y - ch); s.moveTo(x + cw * 0.12, y - ch * 1.32); s.lineTo(x + cw * 0.12, y - ch); s.stroke();
+      }
+    }
+    s.restore();
+  },
+};
 
 // two squares turned through each other: the eight-pointed knot of the khachkar carvers
 function briefKnot(c, x, y, r) {
@@ -45874,6 +46037,19 @@ function briefArchPath(c, x0, y0, x1, y1) {
   c.closePath();
 }
 
+// the miniaturist's pigment on a painted layer: each channel pushed from mid-grey by `contrast`, then
+// away from its own grey by `sat`, then a gamma that deepens the darks; alpha is left as painted
+function briefInk(c, w, h, ink) {
+  const [contrast, sat, gamma] = ink, img = c.getImageData(0, 0, w, h), px = img.data, lut = new Float32Array(256);
+  for (let v = 0; v < 256; v++) lut[v] = 255 * Math.pow(Math.max(0, Math.min(1, 0.5 + (v / 255 - 0.5) * contrast)), gamma);
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    const r = lut[px[i]], g = lut[px[i + 1]], b = lut[px[i + 2]], L = r * 0.3 + g * 0.59 + b * 0.11;
+    px[i] = L + (r - L) * sat; px[i + 1] = L + (g - L) * sat; px[i + 2] = L + (b - L) * sat;
+  }
+  c.putImageData(img, 0, 0);
+}
+
 // Sky and skyline come from the level's own backdrop painters, which read nothing but THEME;
 // the caller swaps THEME in and restores it. The ground strip and its road are painted here.
 function briefScene(crop, w, h, seed) {
@@ -45902,7 +46078,37 @@ function briefScene(crop, w, h, seed) {
   }
   s.globalAlpha = 1;
   s.setTransform(q, 0, 0, q, -crop.x * q, hy - HORIZON * q);
-  bgBackdrop(s, rand);
+  // The field's skyline is painted for a far horizon, every layer mixed toward the low sky (skyAir) and
+  // veiled at its foot. The miniaturist paints the same skyline near and in clear air, in full pigment:
+  // a battlefield whose painter leans hard on that haze gives a pale, cream-on-cream picture otherwise.
+  // crop.air scales the aerial mixing; crop.mist (a lerp toward sky[1]) deepens the veils' colour.
+  const keepAir = skyAir, keepTheme = THEME;
+  if (crop.air !== undefined) skyAir = (rgb, amount) => keepAir(rgb, amount * crop.air);
+  if (crop.mist) {
+    const m = terrMix(terrRgb(THEME.sky[2]), terrRgb(THEME.sky[1]), crop.mist).map(Math.round);
+    THEME = Object.assign({}, THEME, { sky: [THEME.sky[0], THEME.sky[1], "#" + ((1 << 24) + (m[0] << 16) + (m[1] << 8) + m[2]).toString(16).slice(1)] });
+  }
+  // crop.ink grades the skyline alone, on a layer of its own before it is laid over the sky:
+  // [contrast about mid-grey, saturation, gamma] -- the pale limestone and tufa of the modern fields
+  // are given the value range and pigment of the older miniatures without touching sky or ground
+  const layer = crop.ink ? document.createElement("canvas") : null;
+  let t = s;
+  if (layer) {
+    layer.width = w; layer.height = Math.ceil(hy + 6 * q);
+    t = layer.getContext("2d");
+    t.setTransform(q, 0, 0, q, -crop.x * q, hy - HORIZON * q);
+  }
+  try {
+    bgBackdrop(t, rand);
+  } finally {
+    skyAir = keepAir;
+    THEME = keepTheme;
+  }
+  if (layer) {
+    briefInk(t, layer.width, layer.height, crop.ink);
+    s.setTransform(1, 0, 0, 1, 0, 0);
+    s.drawImage(layer, 0, 0);
+  }
   s.restore();
 
   // the plain before the walls: the level's ground tones, lighter and hazier toward the skyline
@@ -45987,6 +46193,9 @@ function briefScene(crop, w, h, seed) {
       s.stroke();
     }
   }
+
+  // the battlefield's own emblem, painted large where the far skyline can only hint at it
+  if (crop.motif) BRIEF_MOTIFS[crop.motif](s, w, h, hy, roadX, roadY, roadHalf, mulberry32(seed + 17));
 
   // a wash of parchment over the whole picture, browned toward its edges: pigment on vellum
   s.globalCompositeOperation = "multiply";
