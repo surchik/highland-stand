@@ -2127,6 +2127,11 @@ const Snd = {
     // sfx after it, with the level the compressor's make-up would have given them
     const beds = G(1.79); beds.connect(lim);
     this.musGain.connect(this.duckGain); this.duckGain.connect(beds);
+    // the music's own touch of the stone room (after the Music volume, so it follows the slider and
+    // the ducking): mids and highs only, so the drone and the drums stay dry and tight
+    const mRevHp = c.createBiquadFilter(), mConv = c.createConvolver(), mRev = G(0.16);
+    mRevHp.type = "highpass"; mRevHp.frequency.value = 280; mRevHp.Q.value = 0.6; mConv.buffer = this.bufs.ir;
+    this.musGain.connect(mRevHp); mRevHp.connect(mConv); mConv.connect(mRev); mRev.connect(this.duckGain);
     this.ambIn = G(1); this.ambGain = G(0);
     this.ambIn.connect(this.ambGain); this.ambGain.connect(beds);
   },
@@ -3906,25 +3911,33 @@ registerProcessor("kl-tract", KLTract);
   // drone, sparse; Avarayr: the duduk; the Bagratid age (914): the knar, the plucked lyre of the
   // medieval gusans; 1579: a bright, reedy zurna over a busy dhol
   MUS_ERA: [
-    { voice: "blul", lead: 2, lp: 2600, lvl: 0.075, rest: 0.4, dhol: 0, drone: [0.03, 0.028, 0.022], dlp: 320 },
-    { voice: "duduk", lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320 },
-    { voice: "knar", lead: 2, lp: 4500, lvl: 0.16, rest: 0.17, dhol: 2, drone: [0.032, 0.028, 0.025], dlp: 380 },
-    { voice: "zurna", lead: 2, lp: 6000, lvl: 0.078, rest: 0.45, dhol: 3, drone: [0.035, 0.035, 0.028], dlp: 460 },
+  // v2: the second voice the field theme is handed to (see THEME below), kept to each age's own
+  // instruments: a second, lower blul for Urartu; the blul beside the duduk at Avarayr; the duduk
+  // answering the knar in 914 and the zurna in 1579; the kamancha (the bowed fiddle of Sayat-Nova's
+  // century) from 1727 on; Sardarapat's cornet answered by a lower brass voice
+    { voice: "blul", lead: 2, lp: 2600, lvl: 0.075, rest: 0.4, dhol: 0, drone: [0.03, 0.028, 0.022], dlp: 320, v2: { lead: 1, lp: 1800, lvl: 0.07 } },
+    { voice: "duduk", lead: 2, lp: 1400, rest: 0.25, dhol: 1, drone: [0.06, 0.045, 0.028], dlp: 320, v2: { voice: "blul", lp: 2400, lvl: 0.055 } },
+    { voice: "knar", lead: 2, lp: 4500, lvl: 0.16, rest: 0.17, dhol: 2, drone: [0.032, 0.028, 0.025], dlp: 380, v2: { voice: "duduk", lp: 1400, dlvl: 0.07 } },
+    { voice: "zurna", lead: 2, lp: 6000, lvl: 0.078, rest: 0.45, dhol: 3, drone: [0.035, 0.035, 0.028], dlp: 460, thLvl: 0.8, v2: { voice: "duduk", lp: 1400, dlvl: 0.075 } },
     // eras 4-6 (their patterns live in the eras 4-6 audio section): 1727, Davit Bek's rising: a martial
     // zurna over a marching dhol, a little quicker; 1915-18: the duduk's lament in the natural minor,
     // long phrases and long silences over a low drone and a single frame-drum stroke (Sardarapat has
     // its own brighter march in MUS_MAP); Artsakh: the duduk, restrained, over a slow bowed-string pad
     // and a held double pulse
-    { voice: "zurna", lead: 2, lp: 5200, lvl: 0.074, style: "march", motifs: "m1727", beat: 0.62, perc: "dhol", rest: 0.3, drone: [0.038, 0.034, 0.028], dlp: 440 },
-    { voice: "duduk", lead: 2, lp: 1150, dlvl: 0.085, style: "lament", phrases: "p1915", restB: [3, 7], scale: "aeolian", beat: 0.8, perc: "frame", drone: [0.055, 0.04, 0.02], dlp: 280 },
+    { voice: "zurna", lead: 2, lp: 5200, lvl: 0.074, style: "march", motifs: "m1727", beat: 0.62, perc: "dhol", rest: 0.3, drone: [0.038, 0.034, 0.028], dlp: 440, thLvl: 0.8,
+      v2: { voice: "kamancha", lp: 3000, lvl: 0.05 } },
+    { voice: "duduk", lead: 2, lp: 1150, dlvl: 0.085, style: "lament", phrases: "p1915", restB: [3, 7], scale: "aeolian", beat: 0.8, perc: "frame", drone: [0.055, 0.04, 0.02], dlp: 280, form: "slow",
+      v2: { voice: "kamancha", lp: 2400, lvl: 0.045 } },
     { voice: "duduk", lead: 2, lp: 1300, dlvl: 0.075, style: "lament", phrases: "pArtsakh", restB: [4, 9], scale: "aeolian", beat: 0.8, perc: "heart", drone: [0.045, 0.034, 0.018], dlp: 300,
-      pad: [[293.66, 349.23, 440], [233.08, 293.66, 349.23], [196, 233.08, 293.66], [220, 293.66, 329.63]], padLvl: 0.012, padLp: 950 },
+      pad: [[293.66, 349.23, 440], [233.08, 293.66, 349.23], [196, 233.08, 293.66], [220, 293.66, 329.63]], padLvl: 0.012, padLp: 950, form: "slow",
+      v2: { voice: "kamancha", lp: 2400, lvl: 0.042 } },
   ],
   startMusic() {
     if (!this.ctx || this.timer) return;
     this.nextBeat = this.ctx.currentTime + 0.1;
     this.beatN = 0;
     this.melNote = 0;
+    this.thB = 0; this.thSync = true;
     this.startDrone();
     this.timer = setInterval(() => this.tick(), 120);
   },
@@ -3963,6 +3976,7 @@ registerProcessor("kl-tract", KLTract);
     const own = map && this.MUS_MAP[map] && this.MUS_MAP[map].era === era ? this.MUS_MAP[map] : null, key = era + (own ? "/" + map : "");
     if (key === this.musKey) return;
     this.musEra = era; this.musKey = key; this.phr = null;
+    this.thSync = true;   // a new field starts the field theme from its top, on the next bar line
     const E = this.musE = own || this.MUS_ERA[era];
     if (this.droneNodes) this.droneNodes.forEach((d, i) => {
       d.g.gain.setTargetAtTime(Math.max(0.0001, E.drone[i]), t, 1.5);
@@ -3975,18 +3989,145 @@ registerProcessor("kl-tract", KLTract);
     const E = this.musCfg(), BEAT = E.beat || 0.72;
     while (this.nextBeat < until) {
       const t = this.nextBeat, b = this.beatN;
-      if (E.perc) this.percNew(t, b, BEAT, E, on);   // eras 4-6: their own drums (or none)
+      // the field theme's place: it starts on a bar line (four beats, with the drums) after a new field
+      if (this.thSync && b % 4 === 0) { this.thSync = false; this.thB = 0; this.thCyc = 0; this.phr = null; this.melRest = 0; }
+      const sec = this.thSync ? null : this.themeSec(E, this.thB);
+      // the victory dance has the field to itself: the field's drums and tune wait it out (the drone stays)
+      const dancing = this.danceEnd && t < this.danceEnd;
+      const drums = !dancing && (!sec || sec.dr !== 0), pl = on && drums;
+      if (E.perc) this.percNew(t, b, BEAT, E, pl);   // eras 4-6: their own drums (or none)
       // dhol-like pulse, busier in the later ages
-      else if (on && b % 4 === 0) this.mTone(65, 0.28, "sine", 0.16, 40, t);
-      if (on && !E.perc && b % 4 === 2) this.mNoise(0.05, 2200, 0.05, t);
-      if (on && !E.perc && b % 8 === 7) this.mNoise(0.04, 3200, 0.035, t);
-      if (on && !E.perc && E.dhol >= 2 && b % 4 === 3) this.mNoise(0.035, 2600, 0.03, t + BEAT * 0.5);
-      if (on && !E.perc && E.dhol >= 3 && b % 8 === 6) this.mTone(70, 0.22, "sine", 0.11, 42, t + BEAT * 0.5);
+      else if (pl && b % 4 === 0) this.mTone(65, 0.28, "sine", 0.16, 40, t);
+      if (pl && !E.perc && b % 4 === 2) this.mNoise(0.05, 2200, 0.05, t);
+      if (pl && !E.perc && b % 8 === 7) this.mNoise(0.04, 3200, 0.035, t);
+      if (pl && !E.perc && E.dhol >= 2 && b % 4 === 3) this.mNoise(0.035, 2600, 0.03, t + BEAT * 0.5);
+      if (pl && !E.perc && E.dhol >= 3 && b % 8 === 6) this.mTone(70, 0.22, "sine", 0.11, 42, t + BEAT * 0.5);
+      // the dance-tune sections (C) drive a little harder: the stick on every off-beat
+      if (pl && sec && sec.dr === 2 && b % 2 === 1) this.mNoise(0.03, 2700, 0.024, t + BEAT * 0.5);
       if (E.pad && b % 8 === 0) this.padChord(t, b, BEAT, E, on);
-      this.melody(t, b, BEAT, E, on);
+      if (sec) this.themeBeat(t, BEAT, E, on && !dancing, sec);
+      else if (!this.thSync && !dancing) this.melody(t, b, BEAT, E, on);
+      if (!this.thSync) {
+        this.thB++;
+        const F = this.themeForm(E);
+        if (this.thB >= F.beats) { this.thB = 0; this.thCyc = (this.thCyc || 0) + 1; }
+      }
       this.nextBeat += BEAT;
       this.beatN++;
     }
+  },
+
+  // ---- the field theme ----
+  // ORIGINAL MELODIES, not transcriptions. The brief asked for a documented traditional Armenian
+  // folk tune (Sareri Hovin Mernem, Kele Kele, Krunk...), transcribed from a notation source that
+  // was actually read. Every notation source tried while this was written (abcnotation.com, IMSLP's
+  // Komitas volumes, Wikipedia / Wikimedia Commons, folkdancefootnotes.org, trala.com, zulal.org)
+  // was unreachable from the build environment, and no traditional tune here is written from
+  // memory. So the theme below is an original melody in the manner of an Armenian highland song:
+  // stepwise, leaning on the fifth and resting on the tonic, the descending 5-4-3-2-1 line of the
+  // dance songs; it is written in scale degrees, so each age's own mode colours it (the D hijaz of
+  // the older ages, D natural minor for 1915 and Artsakh, D major for Sardarapat). A verified
+  // transcription can replace THEME.A/B/C later without touching anything else.
+  // Notes are [degree, eighths] (degree 0 = the tonic, 7 the octave above; null a rest).
+  THEME: {
+    // the opening call: long tones from the fifth down to the tonic (4 bars)
+    I: [[4, 6], [5, 1], [4, 1], [3, 4], [2, 4], [1, 4], [0, 12]],
+    // A: the song (8 bars): question to the third, answer down to the tonic
+    A: [[4, 2], [4, 1], [5, 1], [4, 2], [3, 2], [2, 2], [3, 1], [2, 1], [1, 2], [0, 2],
+      [0, 1], [1, 1], [2, 2], [3, 2], [4, 2], [3, 1], [2, 1], [1, 2], [2, 4],
+      [4, 2], [4, 1], [5, 1], [6, 2], [5, 1], [4, 1], [5, 2], [4, 1], [3, 1], [2, 2], [1, 2],
+      [2, 1], [1, 1], [0, 2], [1, 1], [2, 1], [1, 2], [0, 6], [null, 2]],
+    // B: the high answer (8 bars), from the octave down to the fifth, then home
+    B: [[7, 3], [6, 1], [5, 2], [4, 2], [5, 1], [6, 1], [7, 2], [6, 2], [5, 2],
+      [4, 2], [5, 1], [4, 1], [3, 2], [2, 2], [3, 6], [4, 1], [5, 1],
+      [7, 2], [7, 1], [8, 1], [7, 2], [6, 1], [5, 1], [4, 2], [5, 1], [4, 1], [3, 2], [2, 2],
+      [1, 1], [2, 1], [3, 2], [2, 1], [1, 1], [0, 2], [0, 6], [null, 2]],
+    // C: the dance tune (8 bars), running eighths
+    C: [[4, 1], [4, 1], [5, 1], [4, 1], [3, 1], [4, 1], [2, 2], [3, 1], [3, 1], [4, 1], [3, 1], [2, 1], [1, 1], [0, 2],
+      [0, 1], [2, 1], [4, 1], [4, 1], [5, 1], [4, 1], [3, 1], [2, 1], [3, 1], [2, 1], [1, 1], [2, 1], [0, 4],
+      [4, 1], [4, 1], [5, 1], [4, 1], [3, 1], [4, 1], [2, 2], [3, 1], [3, 1], [4, 1], [3, 1], [2, 1], [1, 1], [0, 2],
+      [0, 1], [2, 1], [4, 1], [5, 1], [7, 1], [5, 1], [4, 1], [3, 1], [2, 1], [3, 1], [1, 1], [2, 1], [0, 4]],
+  },
+  // the form, section by section: m the tune (or "imp": the age's own improvisation, from melody()),
+  // bars, w the voice (1 the lead, 2 the second voice), o how freely it is ornamented, x a slower
+  // statement (durations times x), dr the drums (0 out, 1 as usual, 2 driving)
+  FORMS: {
+    main: [
+      { m: "I", bars: 4, w: 2, o: 0.1, dr: 0 }, { m: "A", bars: 8, w: 1, o: 0.15 }, { m: "A", bars: 8, w: 2, o: 0.3 },
+      { m: "B", bars: 8, w: 1, o: 0.25 }, { m: "imp", bars: 8 }, { m: "C", bars: 8, w: 1, o: 0.3, dr: 2 },
+      { m: "A", bars: 8, w: 2, o: 0.2, x: 2, half: 0, dr: 0 }, { m: "B", bars: 8, w: 1, o: 0.55 },
+      { m: "C", bars: 8, w: 2, o: 0.35, dr: 2 }, { m: "A", bars: 8, w: 1, o: 0.6 }, { m: "imp", bars: 8 }, { m: "rest", bars: 4 },
+    ],
+    // the laments of 1915 and Artsakh: no dance tune, longer silences, the song slower in places
+    slow: [
+      { m: "I", bars: 4, w: 2, o: 0.1, dr: 0 }, { m: "A", bars: 8, w: 1, o: 0.15 }, { m: "imp", bars: 8 },
+      { m: "A", bars: 8, w: 2, o: 0.25 }, { m: "B", bars: 8, w: 1, o: 0.3 }, { m: "A", bars: 8, w: 2, o: 0.2, x: 2, half: 0, dr: 0 },
+      { m: "imp", bars: 8 }, { m: "B", bars: 8, w: 1, o: 0.5 }, { m: "A", bars: 8, w: 1, o: 0.5 }, { m: "rest", bars: 4 },
+    ],
+  },
+  // a form compiled once: each section's start beat and its notes as [start eighth, degree, eighths]
+  themeForm(E) {
+    const name = E.form === "slow" ? "slow" : "main";
+    const memo = this.thForms || (this.thForms = {});
+    if (memo[name]) return memo[name];
+    let at = 0;
+    const secs = this.FORMS[name].map(S => {
+      const x = S.x || 1, notes = [];
+      let e = 0;
+      if (this.THEME[S.m]) for (const [d, n] of this.THEME[S.m]) {
+        if (S.x && S.half === 0 && e >= S.bars * 8 / x) break;   // a slow statement plays the first half of the tune
+        if (d != null) notes.push([e * x, d, n * x]);
+        e += n;
+      }
+      const sec = Object.assign({ notes, b0: at, beats: S.bars * 4 }, S);
+      at += S.bars * 4;
+      return sec;
+    });
+    return (memo[name] = { secs, beats: at });
+  },
+  themeSec(E, beat) {
+    const F = this.themeForm(E);
+    for (const S of F.secs) if (beat < S.b0 + S.beats) return S;
+    return null;
+  },
+  // the voice a theme note goes to, its level trimmed by the age's thLvl (a zurna is loud) and by
+  // soft (the slow, quiet statement of the interlude)
+  themeCfg(E, w, soft) {
+    const memo = this.thCfg || (this.thCfg = new Map()), key = w + "/" + (soft || 1);
+    let m = memo.get(E);
+    if (!m) memo.set(E, m = {});
+    if (m[key]) return m[key];
+    const C = Object.assign({}, E, w === 2 ? E.v2 : null), k = (w === 2 ? 1 : E.thLvl || 1) * (soft || 1);
+    if (C.lvl) C.lvl *= k;
+    if (C.dlvl || C.voice === "duduk") C.dlvl = (C.dlvl || 0.085) * k;
+    return (m[key] = C);
+  },
+  // one beat of the theme: the notes that start in it, ornamented by the section's freedom (more on
+  // every second time through the form): a grace note from above, a slide into a leap, a trill on a
+  // held note, a passing note filling a third
+  themeBeat(t, BEAT, E, on, sec) {
+    if (sec.m === "imp") return this.melody(t, this.beatN, BEAT, E, on);
+    this.phr = null; this.melRest = 0;   // an improvised phrase never runs on under the tune
+    if (!on || !sec.notes.length) return;
+    const C = this.themeCfg(E, sec.w || 1, sec.x ? 0.6 : 1), S = (C.scale && this.SCALES[C.scale]) || this.SCALE;
+    const f = d => S[((d % 7) + 7) % 7] * Math.pow(2, Math.floor(d / 7)) * C.lead;
+    const rb = this.thB - sec.b0, E8 = BEAT / 2, o = Math.min(0.9, (sec.o || 0) + ((this.thCyc || 0) % 2 ? 0.2 : 0));
+    const legato = C.voice === "knar" ? 1 : 0.97;
+    sec.notes.forEach(([e, d, n], i) => {
+      if (e < rb * 2 || e >= rb * 2 + 2) return;
+      const T = t + (e - rb * 2) * E8, prev = sec.notes[i - 1], next = sec.notes[i + 1];
+      let dur = n * E8, orn = null;
+      if (prev && Math.abs(d - prev[1]) >= 3 && this.rnd() < 0.4 + o * 0.5) orn = { gl: f(prev[1]) };
+      else if (n >= 2 && this.rnd() < o * 0.6) orn = { gr: f(d + 1) };
+      if (n >= 4 && this.rnd() < o * 0.5) orn = Object.assign(orn || {}, { tr: f(d + 1) });
+      // a passing note through a third on the way to the next note
+      if (n === 2 && next && Math.abs(next[1] - d) === 2 && next[0] === e + 2 && this.rnd() < o * 0.5) {
+        this.mLead(f(d), E8 * legato, T, C, orn);
+        this.mLead(f((d + next[1]) / 2), E8 * legato, T + E8, C);
+        return;
+      }
+      this.mLead(f(d), dur * legato, T, C, orn);
+    });
   },
   // each age improvises its own way over the drone. Scale degrees index SCALE (D hijaz)
   KOCH: [[0, 2, 4, 4, 5, 4, 3, 2], [3, 3, 2, 1, 2, 1, 0, 0], [4, 4, 5, 7, 5, 4, 3, 2], [3, 2, 1, 2, 0, 0, null, null], [0, 0, 2, 3, 4, null, 4, null]],
@@ -4031,17 +4172,20 @@ registerProcessor("kl-tract", KLTract);
       if (this.rnd() < E.rest) this.melRest = 2 + Math.floor(this.rnd() * 3);
     }
   },
-  // the era's lead voice (the duduk is the original soundtrack voice, kept as it was)
-  mLead(f, dur, t0, E) {
-    if (E.voice === "duduk") return this.mDuduk(f, dur, t0, E.lp, E.dlvl);
-    if (E.voice === "brass") return this.mBrass(f, dur, t0, E);
-    if (E.voice === "knar") return this.mKnar(f, dur, t0, E);
+  // the era's lead voice (the duduk is the original soundtrack voice, kept as it was). orn, from the
+  // field theme: { gr: a grace note's pitch, gl: the pitch a slide starts from, tr: a trill's upper
+  // note }; out: the bus to play into (the music bus unless given)
+  mLead(f, dur, t0, E, orn, out) {
+    if (E.voice === "duduk") return this.mDuduk(f, dur, t0, E.lp, E.dlvl, orn);
+    if (E.voice === "brass") return this.mBrass(f, dur, t0, E, orn);
+    if (E.voice === "knar") return this.mKnar(f, dur, t0, E, orn);
+    if (E.voice === "kamancha") return this.mBow(f, dur, t0, E.lvl, E.lp, orn, out);
     const c = this.ctx, g = c.createGain(), fl = c.createBiquadFilter(), end = t0 + dur + 0.05;
     fl.type = "lowpass"; fl.frequency.value = E.lp; fl.Q.value = 0.7;
     const zurna = E.voice === "zurna", pk = E.lvl, att = zurna ? 0.03 : dur * 0.15;
     g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(pk, t0 + att);
     g.gain.setValueAtTime(pk, t0 + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    fl.connect(g); g.connect(this.musGain);
+    fl.connect(g); g.connect(out || this.musGain);
     // the zurna's flared bell: a strong 2.5 kHz presence and a 1.2 kHz nasal body
     let body = fl;
     if (zurna) {
@@ -4056,7 +4200,7 @@ registerProcessor("kl-tract", KLTract);
     const parts = zurna ? [["sawtooth", 0, 0.6], ["sawtooth", 9, 0.6]] : [["sine", 0, 1], ["sine", 1200, 0.18], ["triangle", 1902, 0.05]];
     for (const [type, det, lv] of parts) {
       const o = c.createOscillator(), og = c.createGain();
-      o.type = type; o.frequency.value = f; o.detune.value = det; og.gain.value = lv;
+      o.type = type; this.pitchOrn(o.frequency, f, t0, dur, orn); o.detune.value = det; og.gain.value = lv;
       lg.connect(o.detune); o.connect(og); og.connect(body);
       o.start(t0); o.stop(end);
     }
@@ -4067,40 +4211,106 @@ registerProcessor("kl-tract", KLTract);
       n.connect(nb); nb.connect(ng); ng.connect(fl); n.start(t0, this.rnd() * 1.5); n.stop(end);
     }
   },
-  // the knar: a plucked gut-strung lyre. Each pluck is 14 near-harmonic partials (gut is barely
-  // stiff: the 7th sits a few cents sharp) shaped by where the finger plucks (a comb of notches), a
-  // bright attack whose top closes from ~9 kHz to ~2.5 kHz in a fifth of a second, a wooden body
-  // resonance, and a ring of 0.6-1 s to -30 dB; long notes are plucked again
-  mKnar(f, dur, t0, E) {
+  // a note's pitch with its ornament: a grace note from above (a quick upper neighbour), a slide up
+  // or down into the note, a trill with the upper neighbour through the middle of a held note
+  pitchOrn(p, f, t0, dur, orn) {
+    if (!orn) { p.setValueAtTime(f, t0); return; }
+    if (orn.gl) { p.setValueAtTime(orn.gl, t0); p.exponentialRampToValueAtTime(f, t0 + Math.min(0.13, dur * 0.35)); }
+    else if (orn.gr) { p.setValueAtTime(orn.gr, t0); p.setValueAtTime(f, t0 + Math.min(0.075, dur * 0.3)); }
+    else p.setValueAtTime(f, t0);
+    if (orn.tr && dur > 0.3) {
+      const step = orn.trs || 0.062, t1 = t0 + Math.max(0.1, dur * 0.25), t2 = t0 + dur * 0.8;
+      for (let t = t1, up = true; t < t2; t += step, up = !up) p.setValueAtTime(up ? orn.tr : f, t);
+      p.setValueAtTime(f, t2);
+    }
+  },
+  // one plucked string, the knar's model made general (the kef band's oud, kanun and bass use it
+  // too): near-harmonic partials (slightly stretched) shaped by where the string is plucked (a comb
+  // of notches), a bright attack whose top closes in a fifth of a second, a wooden body resonance,
+  // and a ring to -30 dB. P: lvl, out, body [Hz, Q, dB], hi/lo the filter's attack and settled
+  // tops, ring [s, s], beta [a, b] the plucking point, tick the nail or plectrum's click level
+  mPluck(f, t, P) {
     const c = this.ctx, out = c.createGain(), body = c.createBiquadFilter(), fl = c.createBiquadFilter();
-    body.type = "peaking"; body.frequency.value = 420; body.Q.value = 1.2; body.gain.value = 5;
-    fl.type = "lowpass"; fl.Q.value = 0.6; out.gain.value = E.lvl;
-    out.connect(body); body.connect(fl); fl.connect(this.musGain);
-    const plucks = dur > 1.2 ? [0, dur * 0.45, dur * 0.72] : [0];
-    plucks.forEach((dt, i) => {
-      const t = t0 + dt, lv = i ? 0.55 : 1, t30 = this.rr(0.6, 1), beta = this.rr(0.12, 0.22);
-      fl.frequency.setValueAtTime(9000, t); fl.frequency.exponentialRampToValueAtTime(2500, t + 0.2);
-      // the three lowest partials ring on their own (slightly stretched, slowest decay); partials
-      // 4-14 share one PeriodicWave oscillator with the pluck-position comb baked in and a faster
-      // decay, so a pluck costs four oscillators rather than fourteen
-      const mk = (fn, a, d, wave) => {
-        const o = c.createOscillator(), g = c.createGain();
-        if (wave) o.setPeriodicWave(wave); o.frequency.value = fn;
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.exponentialRampToValueAtTime(a * 0.001, t + d);
-        o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02);
-      };
-      for (let n = 1; n <= 3; n++) {
-        const a = lv * Math.abs(Math.sin(n * Math.PI * beta)) * Math.pow(n, -0.9);
-        if (a > 0.004) mk(f * n * (1 + 0.00007 * n * n), a, 2 * t30 / (1 + 0.35 * (n - 1)));
-      }
-      const top = Math.min(14, Math.floor(16000 / f)), re = new Float32Array(top + 1), im = new Float32Array(top + 1);
-      let sum = 0;
-      for (let n = 4; n <= top; n++) { im[n] = Math.abs(Math.sin(n * Math.PI * beta)) * Math.pow(n, -0.9); sum += im[n]; }
-      if (sum > 0) mk(f, lv, 2 * t30 / (1 + 0.35 * 5), c.createPeriodicWave(re, im, { disableNormalization: true }));
+    body.type = "peaking"; body.frequency.value = P.body[0]; body.Q.value = P.body[1]; body.gain.value = P.body[2];
+    fl.type = "lowpass"; fl.Q.value = 0.6; out.gain.value = P.lvl;
+    out.connect(body); body.connect(fl); fl.connect(P.out || this.musGain);
+    const t30 = this.rr(P.ring[0], P.ring[1]), beta = this.rr(P.beta[0], P.beta[1]), end = t + 2 * t30 + 0.05;
+    fl.frequency.setValueAtTime(Math.min(P.hi, 20000), t); fl.frequency.exponentialRampToValueAtTime(P.lo, t + (P.close || 0.2));
+    // the three lowest partials ring on their own (slowest decay); partials 4-14 share one
+    // PeriodicWave oscillator with the pluck-position comb baked in and a faster decay, so a pluck
+    // costs four oscillators rather than fourteen
+    const mk = (fn, a, d, wave) => {
+      const o = c.createOscillator(), g = c.createGain();
+      if (wave) o.setPeriodicWave(wave);
+      o.frequency.value = fn;
+      if (P.slide) { o.frequency.setValueAtTime(fn * P.slide, t); o.frequency.exponentialRampToValueAtTime(fn, t + 0.06); }
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.exponentialRampToValueAtTime(a * 0.001, t + d);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02);
+    };
+    for (let n = 1; n <= 3; n++) {
+      const a = Math.abs(Math.sin(n * Math.PI * beta)) * Math.pow(n, -0.9);
+      if (a > 0.004) mk(f * n * (1 + 0.00007 * n * n), a, 2 * t30 / (1 + 0.35 * (n - 1)));
+    }
+    const top = Math.min(P.top || 14, Math.floor(16000 / f)), re = new Float32Array(Math.max(top, 4) + 1), im = new Float32Array(Math.max(top, 4) + 1);
+    let sum = 0;
+    for (let n = 4; n <= top; n++) { im[n] = Math.abs(Math.sin(n * Math.PI * beta)) * Math.pow(n, -(P.roll || 0.9)); sum += im[n]; }
+    if (sum > 0) mk(f, 1, 2 * t30 / (1 + 0.35 * 5), c.createPeriodicWave(re, im, { disableNormalization: true }));
+    if (P.tick) {
       const n = c.createBufferSource(), nb = c.createBiquadFilter(), ng = c.createGain();
-      n.buffer = this.bufs.white; n.loop = true; nb.type = "highpass"; nb.frequency.value = 5000;
-      ng.gain.setValueAtTime(0.6 * lv, t); ng.gain.exponentialRampToValueAtTime(0.0005, t + 0.02);
+      n.buffer = this.bufs.white; n.loop = true; nb.type = "highpass"; nb.frequency.value = P.tickF || 5000;
+      ng.gain.setValueAtTime(P.tick, t); ng.gain.exponentialRampToValueAtTime(0.0005, t + 0.02);
       n.connect(nb); nb.connect(ng); ng.connect(out); n.start(t, this.rnd() * 1.5); n.stop(t + 0.03);
+    }
+    return end;
+  },
+  // the knar: a plucked gut-strung lyre (gut is barely stiff), a ring of 0.6-1 s, the finger's
+  // pluck a fifth to a tenth of the way along the string, a 420 Hz wooden body; long notes are
+  // plucked again, and a grace note or a trill is plucked too
+  mKnar(f, dur, t0, E, orn) {
+    const P = { lvl: E.lvl, body: [420, 1.2, 5], hi: 9000, lo: 2500, ring: [0.6, 1], beta: [0.12, 0.22], tick: 0.6 };
+    let t = t0;
+    if (orn && orn.gr) { this.mPluck(orn.gr, t, Object.assign({}, P, { lvl: E.lvl * 0.5 })); t += 0.07; }
+    const plucks = orn && orn.tr && dur > 0.6 ? [0, 0.12, 0.24, 0.36].filter(x => x < dur * 0.7) : dur > 1.2 ? [0, dur * 0.45, dur * 0.72] : [0];
+    plucks.forEach((dt, i) => this.mPluck(orn && orn.tr && i % 2 ? orn.tr : f, t + dt, i ? Object.assign({}, P, { lvl: E.lvl * 0.55 }) : P));
+  },
+  // a bowed string: the kamancha of the later ages and the kef band's violin. A bowed string's
+  // sawtooth-like wave, its top rolled off, through the bridge's 'hill' near 2.5-3 kHz and a body
+  // near 500 Hz; the bow's attack, a vibrato that blooms after the onset, the hiss of the hair
+  mBow(f, dur, t0, lvl, lp, orn, out) {
+    const c = this.ctx, W = this.musWaveSet(), end = t0 + dur + 0.12;
+    const g = c.createGain(), fl = c.createBiquadFilter(), bodyF = c.createBiquadFilter(), hill = c.createBiquadFilter();
+    fl.type = "lowpass"; fl.frequency.value = lp || 3200; fl.Q.value = 0.5;
+    bodyF.type = "peaking"; bodyF.frequency.value = 520; bodyF.Q.value = 1.1; bodyF.gain.value = 4;
+    hill.type = "peaking"; hill.frequency.value = 2700; hill.Q.value = 1.2; hill.gain.value = 3;
+    const att = Math.min(0.07, dur * 0.3);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(lvl, t0 + att);
+    g.gain.linearRampToValueAtTime(lvl * 0.85, t0 + Math.max(att + 0.01, dur * 0.6));
+    g.gain.setTargetAtTime(0, t0 + dur, 0.035);
+    const fl2 = c.createBiquadFilter(); fl2.type = "lowpass"; fl2.frequency.value = (lp || 3200) * 1.3; fl2.Q.value = 0.6;   // 24 dB/octave above the top: no rasp
+    bodyF.connect(hill); hill.connect(fl); fl.connect(fl2); fl2.connect(g); g.connect(out || this.musGain);
+    const lfo = c.createOscillator(), lg = c.createGain();
+    lfo.frequency.value = this.rr(5.3, 6); lg.gain.setValueAtTime(0, t0); lg.gain.linearRampToValueAtTime(dur > 0.4 ? 14 : 5, t0 + Math.min(0.35, dur));
+    lfo.connect(lg); lfo.start(t0); lfo.stop(end);
+    for (const det of [-4, 4]) {
+      const o = c.createOscillator(); o.setPeriodicWave(W.bow);
+      this.pitchOrn(o.frequency, f, t0, dur, orn); o.detune.value = det; lg.connect(o.detune);
+      o.connect(bodyF); o.start(t0); o.stop(end);
+    }
+    const n = c.createBufferSource(), nb = c.createBiquadFilter(), ng = c.createGain();
+    n.buffer = this.bufs.white; n.loop = true; nb.type = "bandpass"; nb.frequency.value = Math.min(6000, f * 5); nb.Q.value = 1.2;
+    ng.gain.value = 0.05; n.connect(nb); nb.connect(ng); ng.connect(fl); n.start(t0, this.rnd() * 1.5); n.stop(end);
+  },
+  // the wave shapes of the melodic voices, made once per context: the bowed string (every
+  // harmonic, falling a little faster than 1/n) and the clarinet (the odd harmonics strong, the
+  // even ones weak, as a cylindrical bore closed at the reed gives)
+  musWaveSet() {
+    const c = this.ctx;
+    if (this.musWaves && this.musWaves.ctx === c) return this.musWaves;
+    const mk = (N, amp) => { const re = new Float32Array(N + 1), im = new Float32Array(N + 1); for (let n = 1; n <= N; n++) im[n] = amp(n); return c.createPeriodicWave(re, im); };
+    return (this.musWaves = {
+      ctx: c,
+      bow: mk(28, n => Math.pow(n, -1.25) * (n % 2 ? 1 : 0.85)),
+      clar: mk(24, n => n % 2 ? Math.pow(n, -1.05) : 0.11 * Math.pow(n, -0.8)),
     });
   },
   mTone(f, dur, type, vol, slide, t0) {
@@ -4123,77 +4333,154 @@ registerProcessor("kl-tract", KLTract);
     src.connect(f); f.connect(g); g.connect(this.musGain);
     src.start(t0, this.rnd() * 1.9); src.stop(t0 + dur + 0.01);
   },
-  // kochari for the victory dance: bright zurna lead over driving dhol
-  // (the traditional line-dance pairing), synced with the dancers at 112 BPM
+  // ---- the victory dance: a kef band plays a kochari ----
+  // The kef band of the Armenian party (the diaspora's and Armenia's): a clarinet leading, bright,
+  // with slides, grace notes and trills; the oud doubling it an octave down and turning held notes
+  // into tremolo; the kanun's runs and doubled plucks; a violin (the kamancha's place) joining in
+  // unison; an oud/bass line on the roots; the dumbek's doum, tek and ka with the def's jingles.
+  // A kochari in 2/4 at 112 BPM, the tempo the dancers' choreography is locked to: each 4-bar
+  // phrase is one 8-beat cycle of the dance (travelling steps, knee bends, kicks), and every fourth
+  // bar the dumbek fills under the kicks.
+  // ORIGINAL TUNE, not a transcription: no notation source for a traditional kochari (or tamzara,
+  // whose 9/8 would not fit the dancers anyway) could be reached when this was written (see the
+  // field theme's note), so this is an original kochari-style melody in the D hijaz of the game's
+  // other music: repeated-note figures on the fifth, the augmented second E flat - F sharp, the
+  // octave answer in the second half. A verified kochari can replace KEF without other changes.
+  // Notes: [name, eighths, ornament]: s a slide up into the note, g a grace note from above,
+  // t a trill, x the closing hit
+  KEF: [
+    ["A4", 1, "s"], ["A4", 1], ["Bb4", 1, "g"], ["A4", 1], ["G4", 1], ["F#4", 1], ["G4", 1], ["A4", 1],
+    ["F#4", 1, "g"], ["G4", 1], ["F#4", 1], ["Eb4", 1], ["D4", 2, "t"], ["D4", 1], [null, 1],
+    ["A4", 1], ["A4", 1], ["Bb4", 1, "g"], ["A4", 1], ["G4", 1], ["A4", 1], ["Bb4", 1], ["C#5", 1],
+    ["D5", 1, "s"], ["C#5", 1], ["Bb4", 1], ["A4", 1], ["A4", 3, "t"], [null, 1],
+    ["D5", 1, "s"], ["D5", 1], ["Eb5", 1, "g"], ["D5", 1], ["C#5", 1], ["Bb4", 1], ["C#5", 1], ["D5", 1],
+    ["Bb4", 1], ["A4", 1], ["G4", 1], ["A4", 1], ["Bb4", 1, "g"], ["A4", 1], ["G4", 1], ["F#4", 1],
+    ["D5", 1, "s"], ["D5", 1], ["Eb5", 1, "g"], ["D5", 1], ["C#5", 1], ["Bb4", 1], ["A4", 1], ["G4", 1],
+    ["F#4", 1], ["G4", 1], ["Eb4", 1], ["F#4", 1], ["D4", 2], ["D4", 1, "x"], [null, 1],
+  ],
+  // the bass's root for each of the 16 bars (the fifth answers it, an octave on A)
+  KEF_ROOT: ["D", "G", "D", "D", "D", "G", "G", "A", "D", "A", "G", "D", "D", "A", "D", "D"],
+  // the kanun's runs over the held notes (16ths, in bars 4 and 8) and its opening sweep
+  KEF_RUN: { 3: ["D5", "C#5", "Bb4", "A4", "G4", "F#4", "Eb4", "D4"], 7: ["A4", "Bb4", "C#5", "D5", "Eb5", "F#5", "Eb5", "C#5"] },
+  kefHz(n) {
+    const PC = { C: 0, "C#": 1, D: 2, Eb: 3, E: 4, F: 5, "F#": 6, G: 7, "G#": 8, A: 9, Bb: 10, B: 11 }, m = /^([A-G][b#]?)(\d)$/.exec(n);
+    return 293.66 * Math.pow(2, (PC[m[1]] - 2) / 12 + (+m[2] - 4));
+  },
   dance() {
     if (!this.ctx || !this.musicOn) return;
-    const t0 = this.ctx.currentTime + 0.12;
-    const E8 = 60 / 112 / 2;            // eighth note at 112 BPM
-    const N = { D: 293.66, E: 329.63, Fs: 370, G: 392, A: 440, B: 493.88, C5: 523.25 };
-    // two-phrase kochari melody in eighths, played twice
-    const line = [
-      N.D, N.Fs, N.A, N.A, N.B, N.A, N.G, N.Fs,
-      N.G, N.G, N.Fs, N.E, N.Fs, N.E, N.D, N.D,
-      N.A, N.A, N.B, N.C5, N.B, N.A, N.G, N.Fs,
-      N.G, N.Fs, N.E, N.Fs, N.D, N.D, 0, 0,
-    ];
-    for (let L2 = 0; L2 < 2; L2++) {
-      const base = t0 + 2 * E8 + L2 * line.length * E8;   // half-bar dhol pickup
-      line.forEach((f, i) => {
-        if (!f) return;
-        const dur = (i % 8 === 7 ? 1.9 : 1.05) * E8;
-        this.zurna(f, base + i * E8, dur, i % 4 === 0);
+    const c = this.ctx, t0 = c.currentTime + 0.12;
+    const E8 = 60 / 112 / 2, S16 = E8 / 2;   // an eighth and a sixteenth at 112 BPM
+    const SC = ["D4", "Eb4", "F#4", "G4", "A4", "Bb4", "C#5", "D5", "Eb5", "F#5", "G5", "A5"];
+    const hz = n => this.kefHz(n), up = n => hz(SC[Math.min(SC.length - 1, SC.indexOf(n) + 1)]), down = n => hz(SC[Math.max(0, SC.indexOf(n) - 2)]);
+    // each player on a bus of their own, spread across the stage as they stand around the fire
+    const bus = (pan, g) => {
+      const b = c.createGain(); b.gain.value = g;
+      if (c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = pan; b.connect(p); p.connect(this.musGain); } else b.connect(this.musGain);
+      return b;
+    };
+    const clar = bus(0.05, 0.82), oud = bus(-0.35, 0.85), kanun = bus(0.4, 0.9), vln = bus(-0.15, 1), bass = bus(0, 0.85), dum = bus(0.15, 1), def = bus(-0.25, 0.9);
+    const OUD = { lvl: 0.1, out: oud, body: [210, 1, 6], hi: 6500, lo: 1700, close: 0.12, ring: [0.35, 0.55], beta: [0.07, 0.12], tick: 0.35, tickF: 3500 };
+    const KANUN = { lvl: 0.06, out: kanun, body: [650, 0.9, 3], hi: 12000, lo: 4200, close: 0.25, ring: [0.55, 0.85], beta: [0.05, 0.09], tick: 0.4, tickF: 6000, roll: 0.8 };
+    const BASS = { lvl: 0.16, out: bass, body: [120, 0.8, 4], hi: 2600, lo: 700, close: 0.15, ring: [0.45, 0.6], beta: [0.2, 0.28], tick: 0.12, tickF: 1800, top: 8 };
+    const bars = 16;
+    this.danceEnd = t0 + bars * 4 * E8 + 1.2;
+    // the tune: clarinet throughout; oud an octave down (tremolo on held notes); violin in unison
+    // from the second phrase; kanun doubling with paired plucks in the high half
+    let e = 0;
+    this.KEF.forEach(([n, len, o]) => {
+      if (!n) { e += len; return; }
+      const t = t0 + e * E8, bar = Math.floor(e / 4), f = hz(n), dur = len * E8;
+      const orn = o === "s" ? { gl: down(n) } : o === "g" ? { gr: up(n) } : o === "t" ? { tr: up(n), trs: 0.058 } : null;
+      const fin = o === "x";
+      this.mClar(f, fin ? 0.9 : dur * 0.96, t, fin ? 0.13 : (e % 4 === 0 ? 0.11 : 0.095), orn, clar);
+      if (len >= 2 || fin) for (let k = 0; k < (fin ? 6 : len * 2); k++) this.mPluck(f / 2, t + k * S16, k ? Object.assign({}, OUD, { lvl: OUD.lvl * (k % 2 ? 0.55 : 0.7) }) : OUD);
+      else this.mPluck(f / 2, t, Object.assign({}, OUD, { slide: o === "s" ? 0.94 : 0 }));
+      if (bar >= 4 || fin) this.mBow(f, fin ? 0.9 : dur * 0.98, t + 0.008, 0.042, 4200, orn && orn.tr ? orn : null, vln);
+      if (bar >= 8 && bar < 16) for (let k = 0; k < len * 2; k++) this.mPluck(f, t + k * S16, k % 2 ? Object.assign({}, KANUN, { lvl: KANUN.lvl * 0.6 }) : KANUN);
+      if (fin) { this.mPluck(f * 2, t, KANUN); this.mPluck(f / 4, t, Object.assign({}, BASS, { lvl: BASS.lvl * 1.2 })); }
+      e += len;
+    });
+    // the kanun's opening sweep up to the clarinet's first A, and its runs over the held notes
+    ["D4", "Eb4", "F#4", "G4"].forEach((n, k) => this.mPluck(hz(n), t0 + k * S16 / 2, Object.assign({}, KANUN, { lvl: KANUN.lvl * (0.6 + 0.1 * k) })));
+    for (const b in this.KEF_RUN) this.KEF_RUN[b].forEach((n, k) => this.mPluck(hz(n), t0 + (+b * 4) * E8 + k * S16, Object.assign({}, KANUN, { lvl: KANUN.lvl * (k ? 0.8 : 1) })));
+    // the bass: root on the down-beat, fifth (or octave) on the second beat, a pick-up every other bar
+    const ROOT = { D: 73.42, G: 98, A: 110 };
+    for (let bar = 0; bar < bars - 1; bar++) {
+      const t = t0 + bar * 4 * E8, r = ROOT[this.KEF_ROOT[bar]], fifth = this.KEF_ROOT[bar] === "A" ? r * 2 : r * 1.5;
+      this.mPluck(r, t, BASS);
+      this.mPluck(fifth, t + 2 * E8, Object.assign({}, BASS, { lvl: BASS.lvl * 0.8 }));
+      if (bar % 2) this.mPluck(r, t + 3 * E8, Object.assign({}, BASS, { lvl: BASS.lvl * 0.6 }));
+    }
+    this.mPluck(73.42, t0 + 15 * 4 * E8, BASS);
+    // dumbek (D doum, T tek, k ka) and def, on a sixteenth grid; every fourth bar is a fill under
+    // the kicks; the last bar stops on the closing hit
+    const PAT = ["D.kTD.Tk", "D.TkDkTk", "D.kTD.Tk", "DkTkDTTT"];
+    for (let bar = 0; bar < bars; bar++) {
+      const t = t0 + bar * 4 * E8, pat = bar === bars - 1 ? "D...D..." : PAT[bar % 4];
+      [...pat].forEach((ch, k) => {
+        const tt = t + k * S16, acc = bar === bars - 1 && k === 4 ? 1.3 : bar % 4 === 3 && k > 3 ? 0.75 + k * 0.05 : 1;
+        if (ch === "D") this.kefDrum(tt, "doum", acc, dum);
+        else if (ch === "T") this.kefDrum(tt, "tek", acc, dum);
+        else if (ch === "k") this.kefDrum(tt, "ka", acc, dum);
       });
-    }
-    // dhol: DUM – tek te | DUM DUM tek – groove
-    const totalEighths = 2 + 2 * line.length + 4;
-    for (let bar = 0; bar * 4 < totalEighths; bar++) {
-      const bt = t0 + bar * 4 * E8;
-      this.dhol(bt, true);
-      this.dhol(bt + 2 * E8, false);
-      this.dhol(bt + 3 * E8, false, 0.55);
-      if (bar % 2 === 1) this.dhol(bt + E8, true, 0.7);
+      this.kefDrum(t, "def", bar === bars - 1 ? 0.8 : 1, def);
+      if (bar < bars - 1) { this.kefDrum(t + 2 * E8, "jingle", 0.8, def); this.kefDrum(t + E8, "jingle", 0.45, def); this.kefDrum(t + 3 * E8, "jingle", 0.45, def); }
+      else this.kefDrum(t + 2 * E8, "def", 1.2, def);
     }
   },
-  zurna(f, t0, dur, accent) {
-    const g = this.ctx.createGain(), fl = this.ctx.createBiquadFilter();
-    fl.type = "bandpass"; fl.frequency.value = 1500; fl.Q.value = 1.1;
-    const v = accent ? 0.15 : 0.11;
-    g.gain.setValueAtTime(0.001, t0);
-    g.gain.exponentialRampToValueAtTime(v, t0 + 0.02);
-    g.gain.setValueAtTime(v, t0 + dur * 0.72);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    fl.connect(g); g.connect(this.musGain);
-    const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
-    lfo.frequency.value = 6.5; lg.gain.value = 8;
-    lfo.connect(lg);
-    for (const det of [0, 9]) {
-      const o = this.ctx.createOscillator();
-      o.type = "sawtooth";
-      o.frequency.value = f;
-      o.detune.value = det;
-      lg.connect(o.detune);
-      o.connect(fl);
-      o.start(t0); o.stop(t0 + dur + 0.03);
+  // the kef clarinet: the odd-harmonic wave of the reed and cylinder, a bright tongued attack that
+  // settles, a vibrato that blooms on longer notes, and breath; slides (glissandi), grace notes and
+  // trills on its pitch
+  mClar(f, dur, t0, lvl, orn, out) {
+    const c = this.ctx, W = this.musWaveSet(), end = t0 + dur + 0.15;
+    const g = c.createGain(), fl = c.createBiquadFilter(), pres = c.createBiquadFilter();
+    fl.type = "lowpass"; fl.Q.value = 0.6;
+    fl.frequency.setValueAtTime(Math.min(9000, f * 4), t0); fl.frequency.exponentialRampToValueAtTime(Math.min(9000, f * 11), t0 + 0.03);
+    fl.frequency.exponentialRampToValueAtTime(Math.min(7000, f * 7.5), t0 + 0.18);
+    pres.type = "peaking"; pres.frequency.value = 1500; pres.Q.value = 0.8; pres.gain.value = 3;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(lvl, t0 + 0.016); g.gain.linearRampToValueAtTime(lvl * 0.82, t0 + 0.09);
+    if (dur > 0.5) g.gain.linearRampToValueAtTime(lvl * 0.92, t0 + dur * 0.7);
+    g.gain.setTargetAtTime(0, t0 + dur, 0.03);
+    pres.connect(fl); fl.connect(g); g.connect(out || this.musGain);
+    const lfo = c.createOscillator(), lg = c.createGain();
+    lfo.frequency.value = 5.8; lg.gain.setValueAtTime(3, t0); lg.gain.linearRampToValueAtTime(dur > 0.4 ? 16 : 6, t0 + Math.min(0.3, dur));
+    lfo.connect(lg); lfo.start(t0); lfo.stop(end);
+    for (const [det, lv] of [[0, 1], [6, 0.35]]) {
+      const o = c.createOscillator(), og = c.createGain(); o.setPeriodicWave(W.clar);
+      this.pitchOrn(o.frequency, f, t0, dur, orn); o.detune.value = det; og.gain.value = lv; lg.connect(o.detune);
+      o.connect(og); og.connect(pres); o.start(t0); o.stop(end);
     }
-    lfo.start(t0); lfo.stop(t0 + dur + 0.03);
+    const n = c.createBufferSource(), nb = c.createBiquadFilter(), ng = c.createGain();
+    n.buffer = this.bufs.white; n.loop = true; nb.type = "bandpass"; nb.frequency.value = 2400; nb.Q.value = 0.9;
+    ng.gain.setValueAtTime(0.09, t0); ng.gain.exponentialRampToValueAtTime(0.025, t0 + 0.08);
+    n.connect(nb); nb.connect(ng); ng.connect(fl); n.start(t0, this.rnd() * 1.5); n.stop(end);
   },
-  dhol(t0, boom, vmul) {
-    const v = vmul || 1;
-    if (boom) {
-      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(82, t0);
-      o.frequency.exponentialRampToValueAtTime(46, t0 + 0.22);
-      g.gain.setValueAtTime(0.32 * v, t0);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.24);
-      o.connect(g); g.connect(this.musGain);
-      o.start(t0); o.stop(t0 + 0.26);
-    } else {
-      this.mNoise(0.05, 2600, 0.1 * v, t0);
+  // the dumbek's strokes and the def: doum (the open centre: a low, falling tone and the skin's
+  // slap), tek (the rim: a sharp, ringing crack), ka (the other hand's lighter rim), and the def's
+  // low stroke with its jingles shivering after it (jingle: the jingles alone)
+  kefDrum(t, k, acc, out) {
+    const c = this.ctx, a = acc || 1;
+    const hit = (f0, f1, d, lv, type) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = type || "sine";
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lv * a, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0005, t + d);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02);
+    };
+    const nz = (ft, f, q, d, lv, dt) => {
+      const n = c.createBufferSource(), bf = c.createBiquadFilter(), g = c.createGain(), tt = t + (dt || 0);
+      n.buffer = this.bufs.white; n.loop = true; bf.type = ft; bf.frequency.value = f; bf.Q.value = q;
+      g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(lv * a, tt + 0.002); g.gain.exponentialRampToValueAtTime(0.0005, tt + d);
+      n.connect(bf); bf.connect(g); g.connect(out); n.start(tt, this.rnd() * 1.5); n.stop(tt + d + 0.02);
+    };
+    if (k === "doum") { hit(120, 68, 0.3, 0.26); nz("lowpass", 700, 0.7, 0.05, 0.12); }
+    else if (k === "tek") { nz("bandpass", 3600, 1.1, 0.05, 0.36); hit(2350, 2300, 0.04, 0.03); nz("highpass", 6500, 0.7, 0.018, 0.08); }
+    else if (k === "ka") { nz("bandpass", 2900, 1.2, 0.04, 0.2); hit(2100, 2050, 0.03, 0.015); }
+    else {
+      if (k === "def") { hit(85, 58, 0.35, 0.16); nz("lowpass", 500, 0.7, 0.06, 0.07); }
+      for (let i = 0; i < 4; i++) nz("bandpass", 7200 + i * 600, 2.5, 0.06 + i * 0.01, (0.05 - i * 0.009), i * 0.012);
     }
   },
-  mDuduk(f, dur, t0, lp, lvl) {
+  mDuduk(f, dur, t0, lp, lvl, orn) {
     // two detuned triangles + vibrato + soft lowpass = reedy, breathy lead
     const g = this.ctx.createGain(), fl = this.ctx.createBiquadFilter(), pk = lvl || 0.085;
     fl.type = "lowpass"; fl.frequency.value = lp || 1400; fl.Q.value = 2;
@@ -4208,7 +4495,7 @@ registerProcessor("kl-tract", KLTract);
     for (const det of [0, 7]) {
       const o = this.ctx.createOscillator();
       o.type = "triangle";
-      o.frequency.value = f;
+      this.pitchOrn(o.frequency, f, t0, dur, orn);
       o.detune.value = det;
       lg.connect(o.detune);
       o.connect(fl);
@@ -4222,7 +4509,8 @@ registerProcessor("kl-tract", KLTract);
   // puts the live context and every piece of per-context state back exactly as it was
   CTX_KEYS: ["ctx", "bufs", "sfxIn", "sfxGain", "musGain", "duckGain", "ambIn", "ambGain", "revIn", "echoIn",
     "amb", "voices", "lastPlay", "dens", "duckSt", "nextBeat", "beatN", "melNote", "melRest", "sceneOverride", "stats",
-    "musEra", "droneNodes", "pulseWave", "musE", "musKey", "phr", "padN", "uloops", "nHoof"],
+    "musEra", "droneNodes", "pulseWave", "musE", "musKey", "phr", "padN", "uloops", "nHoof",
+    "thB", "thSync", "thCyc", "danceEnd", "musWaves", "kochN"],
   async renderOffline(seconds, setup, sr, channels) {
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC) return null;
@@ -4233,6 +4521,7 @@ registerProcessor("kl-tract", KLTract);
       const rate = sr || 48000, oc = new OAC(channels || 2, Math.ceil(rate * seconds), rate);
       this.voices = []; this.lastPlay = {}; this.dens = {}; this.amb = null; this.duckSt = null; this.sceneOverride = null;
       this.musEra = -1; this.droneNodes = null; this.musE = null; this.musKey = null; this.phr = null; this.uloops = {}; this.nHoof = 0;
+      this.thB = 0; this.thSync = true; this.thCyc = 0; this.danceEnd = 0; this.musWaves = null;
       this.stats = { voices: 0, freed: 0, dropped: 0 };
       this.build(oc);
       this.applyVolumes(true);
@@ -4593,7 +4882,7 @@ Object.assign(Snd, {
   },
 
   // ---- music ----
-  musE: null, musKey: null, phr: null, padN: 0,
+  musE: null, musKey: null, phr: null, padN: 0, thB: 0, thSync: true, thCyc: 0, danceEnd: 0, musWaves: null, thForms: null, thCfg: null,
   musCfg() { return this.musE || this.MUS_ERA[this.musEra < 0 ? 1 : this.musEra]; },
   SCALES: {
     aeolian: [146.83, 164.81, 174.61, 196.0, 220.0, 233.08, 261.63, 293.66],   // D natural minor
@@ -4601,7 +4890,8 @@ Object.assign(Snd, {
   },
   // Sardarapat, May 1918: the brighter march of the turning point: a cornet over a field drum, in D major
   MUS_MAP: {
-    sardarapat: { era: 5, voice: "brass", lead: 2, lp: 2400, lvl: 0.075, style: "march", motifs: "m1918", scale: "major", beat: 0.56, perc: "snare", rest: 0.3, drone: [0.034, 0.032, 0.03], dlp: 420 },
+    sardarapat: { era: 5, voice: "brass", lead: 2, lp: 2400, lvl: 0.075, style: "march", motifs: "m1918", scale: "major", beat: 0.56, perc: "snare", rest: 0.3, drone: [0.034, 0.032, 0.03], dlp: 420, thLvl: 0.85,
+      v2: { lead: 1, lp: 1600, lvl: 0.07 } },
   },
   // eight-eighth march figures (scale degrees, null a rest). 1727 in the hijaz of the older ages,
   // repeated notes on the beat, martial; 1918 in D major, bugle arpeggios and stepwise answers
@@ -4677,7 +4967,7 @@ Object.assign(Snd, {
     }
   },
   // the cornet of the 1918 march: two sawtooths whose lowpass flares open on the tongued attack
-  mBrass(f, dur, t0, E) {
+  mBrass(f, dur, t0, E, orn) {
     const c = this.ctx, g = c.createGain(), fl = c.createBiquadFilter(), end = t0 + dur + 0.06;
     fl.type = "lowpass"; fl.Q.value = 0.8;
     fl.frequency.setValueAtTime(f * 1.5, t0); fl.frequency.exponentialRampToValueAtTime(E.lp, t0 + 0.04);
@@ -4685,7 +4975,7 @@ Object.assign(Snd, {
     g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(E.lvl, t0 + 0.025); g.gain.linearRampToValueAtTime(E.lvl * 0.75, t0 + 0.1);
     g.gain.setValueAtTime(E.lvl * 0.75, t0 + Math.max(0.1, dur * 0.75)); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.05);
     fl.connect(g); g.connect(this.musGain);
-    for (const det of [0, 5]) { const o = c.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = det; o.connect(fl); o.start(t0); o.stop(end); }
+    for (const det of [0, 5]) { const o = c.createOscillator(); o.type = "sawtooth"; this.pitchOrn(o.frequency, f, t0, dur, orn); o.detune.value = det; o.connect(fl); o.start(t0); o.stop(end); }
   },
 });
 
