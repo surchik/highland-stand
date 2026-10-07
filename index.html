@@ -1719,11 +1719,11 @@ const LEVELS = [
     history: "In 921 AD (some scholars say 924) Beshir, general of the Sajid emir Yusuf, marched on Lake Sevan, where King Ashot II, called Erkat, 'the Iron', held the island monastery with a small band. Catholicos Hovhannes, who lived through these years, writes that the king sailed out in eleven boats with seventy bowmen, and their arrows drove Beshir's host from the shore. Make your stand where the Iron King made his.",
     path: [[-420, 160], [880, 160], [880, 340], [620, 340], [620, 560], [300, 560], [300, 340], [80, 340], [80, 640], [980, 640]],
     fort: { x: 980, y: 610 },
-    pads: [[170, 240], [450, 240], [720, 240], [760, 430], [480, 450], [170, 450], [440, 650], [680, 720], [200, 700], [550, 120], [900, 90], [60, 480], [1000, 720], [860, 540]],
+    pads: [[170, 240], [450, 240], [720, 240], [760, 430], [480, 450], [170, 450], [440, 650], [680, 698], [200, 700], [550, 120], [900, 90], [60, 480], [1000, 698], [860, 540]],
     rocks: [[60, 220, 14], [1000, 120, 15], [240, 620, 13], [600, 700, 15]],
     vishaps: [[350, 440], [760, 330]],
     lake: { x: 1210, y: 420, rx: 330, ry: 240, rot: 0.1 },
-    plots: [[300, 440], [600, 240], [80, 560], [560, 560], [300, 720], [720, 540]],
+    plots: [[300, 440], [600, 240], [80, 560], [560, 560], [300, 698], [720, 540]],
     theme: { top: "#a3b98a", mid: "#86a56e", bot: "#62824f", patch: "90, 128, 84",
              sky: ["#5f9bc6", "#a9d0e2", "#e6f0ef"], backdrop: "sevan" },
     seed: 93,
@@ -1846,7 +1846,7 @@ const LEVELS = [
       [[-420, 630], [400, 630], [400, 560], [780, 560], [780, 660], [1040, 660], [1040, 420], [1110, 420]],
     ],
     fort: { x: 1110, y: 390 },
-    pads: [[150, 290], [460, 290], [770, 310], [770, 130], [1010, 300], [460, 470], [180, 470], [600, 470], [250, 710], [590, 660], [1150, 560], [1240, 480], [1010, 120], [880, 500]],
+    pads: [[150, 290], [460, 290], [770, 310], [770, 130], [1010, 300], [460, 470], [180, 470], [600, 470], [250, 698], [590, 660], [1150, 560], [1240, 480], [1010, 120], [880, 500]],
     rocks: [[90, 400, 16], [1200, 680, 16], [700, 130, 13], [700, 705, 14], [340, 470, 14]],
     vishaps: [[620, 130], [1150, 680]],
     lake: { x: 1500, y: 230, rx: 300, ry: 90, rot: 0 },
@@ -44618,7 +44618,7 @@ function drawPlacement() {
   // this is the structures' one pass after the night light-map: fires are put back at full strength first
   drawNightLights();
   if (!placing) return;
-  const padIdx = nearestFreePad(mouse.x, mouse.y, 60);
+  const padIdx = touchArmedPad >= 0 && !towerAt(touchArmedPad) ? touchArmedPad : freePadUnderPointer(pointerClient, mouse.x, mouse.y);
   const def = TOWER_DEFS[placing];
   if (padIdx >= 0) {
     const pp = proj(PADS[padIdx][0], PADS[padIdx][1]);
@@ -48344,6 +48344,25 @@ function toVirtual(e) {
   return unproj(sx, sy);   // screen → world through the perspective
 }
 
+// A free pad is chosen where it is seen, on screen: the world point under the pointer stops at the far edge of
+// the field, so a pad beyond it (the far row on several maps) lay out of reach of a click. The catch area is an
+// oval a little larger than the drawn pad, shrinking with distance; failing that, the old world-distance pick.
+function freePadUnderPointer(e, wx, wy) {
+  if (e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+    let best = -1, bd = 1;
+    for (let i = 0; i < PADS.length; i++) {
+      if (towerAt(i)) continue;
+      const q = proj(PADS[i][0], PADS[i][1]), k = Math.max(0.45, q.s);
+      const dx = (sx - q.x) / (PAD_OPEN.rx * 1.6 * k), dy = (sy - (q.y + PAD_OPEN.cy * k)) / (PAD_OPEN.ry * 2.6 * k);
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) return best;
+  }
+  return nearestFreePad(wx, wy, 60);
+}
 function nearestFreePad(x, y, maxDist) {
   let best = -1, bd = maxDist;
   for (let i = 0; i < PADS.length; i++) {
@@ -48402,7 +48421,7 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   if (placing) {
-    const padIdx = nearestFreePad(v.x, v.y, 60);
+    const padIdx = freePadUnderPointer(e, v.x, v.y);
     if (padIdx >= 0) {
       // on touch the first tap on a pad shows the tower's reach there (what hovering shows a mouse),
       // and a second tap on the same pad builds
