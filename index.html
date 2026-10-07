@@ -539,6 +539,14 @@
   #overlay #mapBtn .ic, #overlay .big.quiet .ic, #overlay.victory #endlessBtn .ic { width: 18px; height: 18px; color: var(--bronze-hi); }
   #overlay #mapBtn.lead { padding: 12px 44px; font-size: 19px; background: linear-gradient(180deg, #d5503f, var(--crimson) 50%, #7d211b); border-color: var(--bronze-hi); }
   #overlay #mapBtn.lead .ic { color: #fff3d6; }
+  @media (min-width: 900px) and (min-height: 640px) {
+    #overlay.victory { gap: 0; }
+    #overlay.victory #ovPage { gap: 14px; }
+    #overlay.victory .ovRule { margin: 4px 0 6px; }
+    #overlay.victory .sub { max-width: 820px; line-height: 1.7; margin-bottom: 40px; }
+    #overlay.victory .bigRow { gap: 26px 26px !important; }
+    #overlay.victory #nextBtn { margin-bottom: 10px; padding: 14px 64px 16px; }
+  }
   #overlay.victory .bigRow { display: grid; grid-auto-flow: row; grid-template-columns: repeat(3, auto); justify-content: center; gap: 12px 14px; }
   #overlay.victory #nextBtn { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
   #overlay.victory #mapBtn.lead { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
@@ -20555,9 +20563,11 @@ function paintVictoryCard(c, tally) {
     { label: tally.gold + " gold", icon: "i-coin" },
     { label: tally.kills + " foes felled", icon: "g-sword", crossed: true },
   ];
-  const chipH = 24, chipGap = 12, chipY = 129;
-  chips.forEach(chip => { chip.w = Math.ceil(c.measureText(chip.label).width) + 44; });
-  let tx = cx - (chips.reduce((n, chip) => n + chip.w, 0) + chipGap * (chips.length - 1)) / 2;
+  const chipH = 25, chipY = 128;
+  chips.forEach(chip => { chip.w = Math.ceil(c.measureText(chip.label).width) + 54; });   // icon 32 + room 22 to the right
+  const chipsW = chips.reduce((n, chip) => n + chip.w, 0);
+  const chipGap = Math.max(10, Math.min(26, (W - 70 - chipsW) / (chips.length - 1)));
+  let tx = cx - (chipsW + chipGap * (chips.length - 1)) / 2;
   for (const chip of chips) {
     c.fillStyle = "rgba(240, 207, 133, .22)";
     round(tx, chipY + 1, chip.w, chipH, 13); c.fill();
