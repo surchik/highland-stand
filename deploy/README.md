@@ -11,3 +11,6 @@ a cron job running `deploy/update.sh` every two minutes.
 Log: `/var/log/highland-update.log`.
 
 `deploy.sh`, `nginx-highland.conf` and `Caddyfile` are the manual alternatives.
+
+**Another name for the same game** (e.g. hyelands.avunjian.com): point the name's DNS A record at 76.13.121.176,
+then on the server run `bash /opt/highland-stand/deploy/add-domain.sh hyelands.avunjian.com`.
