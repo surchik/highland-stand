@@ -1,5 +1,5 @@
 #!/bin/bash
-# Serve the game under another name as well: bash /opt/highland-stand/deploy/add-domain.sh hyelands.avunjian.com
+# Serve the game under another name as well: bash /opt/highland-stand/deploy/add-domain.sh hyeland.avunjian.com
 # The name's DNS A record must already point at this server, so Caddy can fetch its HTTPS certificate.
 # The new name joins highland.avunjian.com's site block in the Caddyfile; the other sites there are untouched.
 set -euo pipefail
@@ -11,7 +11,7 @@ if grep -qE "(^|[ ,])$(printf %s "$NEW" | sed 's/\./\\./g')([ ,{]|$)" "$CF"; the
   echo "$NEW is already in $CF"
 else
   cp "$CF" "$CF.bak.$(date +%s)"
-  # "highland.avunjian.com {"  ->  "highland.avunjian.com, hyelands.avunjian.com {"
+  # "highland.avunjian.com {"  ->  "highland.avunjian.com, hyeland.avunjian.com {"
   sed -i -E "s/^(highland\.avunjian\.com([^{]*[^ {])?)[[:space:]]*\{/\1, $NEW {/" "$CF"
   grep -q "$NEW" "$CF" || { echo "could not find the highland.avunjian.com block in $CF"; exit 1; }
   caddy validate --config "$CF" --adapter caddyfile
