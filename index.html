@@ -15603,6 +15603,12 @@ function bgBakeIsCurrent(q) {
   return !!b && b.q === q && b.theme === THEME && b.seed === LVLSEED && b.scene === terrScene &&
     b.lake === LAKE && b.rocks === ROCKS && b.fort === FORT && b.stones === VISHAPS;
 }
+// A fresh bake costs most of a second (several on a slow iPad, the very screen the frame governor steps down
+// for), so in battle a bake that no longer matches the density keeps serving, scaled by drawImage, until the
+// next lull: between waves, with the game paused or a menu up. The dance waits too, then its victory page.
+function bgBakeMustWait() {
+  return !photo && !paused && overlayEl.classList.contains("hidden") && ((phase === "wave" && !gameOver) || !!celebration);
+}
 function buildBackground() {
   const q = bgBakeDensity();
   if (bgBakeIsCurrent(q)) return;
@@ -18002,8 +18008,8 @@ function bgMountain(c, x, baseY, w, h, peak) {
 let drawStamp = 0;
 function draw(time) {
   drawStamp++;
-  // the bake follows the window and the zoom, once the size has stopped changing
-  if (bgBaked && bgBaked.q !== bgBakeDensity() && performance.now() - bgResizedAt > 250) buildBackground();
+  // the bake follows the window and the zoom, once the size has stopped changing and the battle allows it
+  if (bgBaked && bgBaked.q !== bgBakeDensity() && performance.now() - bgResizedAt > 250 && !bgBakeMustWait()) buildBackground();
   const w = canvas.width / DPR, h = canvas.height / DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = "#191410";
