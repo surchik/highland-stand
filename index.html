@@ -2026,7 +2026,10 @@ const LEVELS = [
       cavalry:  { name: "Light armored car" },
       ram:      { name: "T-72 tank column" },
       flyer:    { name: "Bayraktar TB2" },
-      boss:     { name: "Harop strike wave" },
+      // a salvo of loitering munitions (spawnEnemy): it flies, so only the towers that hit outflankers reach it,
+      // and by a shorter way than the road. Hence about a quarter of a road commander's strength: with it the
+      // bot's best build downs the wave-10 salvo with about a quarter of its strength to spare
+      boss:     { name: "Harop strike wave", flies: true, hpMult: 0.27 },
     },
     // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
     towers: {
@@ -6679,7 +6682,7 @@ function startWave() {
   waveBannerT = 2.6;
   const bossWave = waveIdx % 10 === 0 && waveIdx >= 10;
   waveBannerMain = bossWave ? eraUnit("boss").name : "Wave " + waveIdx;
-  waveBannerSub = bossWave ? "commands this wave — stand fast!"
+  waveBannerSub = bossWave ? (eraUnit("boss").flies ? "flies in: only towers that hit outflankers reach it" : "commands this wave — stand fast!")
     : ERAS[curEra].icon + " " + foeName() + " forces advance";
   let msg = early > 0
     ? "Early call! +" + early + " gold — wave " + waveIdx + " joins the field!"
@@ -6703,14 +6706,23 @@ function spawnEnemy(type) {
     wobble: Math.random() * Math.PI * 2,
   };
   e.route = spawnSeq++ % ROUTES.length;   // forked maps split the horde
-  if (type === "flyer") {
+  if (type === "flyer" || d.flies) {
     const entry = ROUTES[e.route].pts[0];
     const x0 = entry[0], y0 = entry[1] + (Math.random() - 0.5) * 90;
     let x1 = FORT.x, y1 = FORT.y + 35;
-    const prey = droneWar() ? droneTarget() : null;
+    const prey = type === "flyer" && droneWar() ? droneTarget() : null;
     if (prey) { e.strike = prey; x1 = prey.x; y1 = prey.y - 4; }
     e.fly = { x0, y0, x1, y1, len: Math.hypot(x1 - x0, y1 - y0), ang: Math.atan2(y1 - y0, x1 - x0) };
-    if (LAKE && !e.strike) {
+    // a commander that flies is a salvo of three loitering munitions (the Harop strike wave over Shushi): it
+    // makes for the fortress by way of the air defence it homes on, and over it the lead munition dives
+    const radar = type === "flyer" ? null : radarTarget();
+    if (radar) {
+      const mx = radar.x, my = radar.y - 4, a = Math.hypot(mx - x0, my - y0);
+      Object.assign(e.fly, { mx, my, a, len: a + Math.hypot(x1 - mx, y1 - my) });
+      e.dive = radar;
+    }
+    if (type !== "flyer") e.salvo = 3;
+    if (LAKE && !e.strike && !e.dive) {
       // Tushpa's skin-float raiders and Avarayr's fording party take to the water where it lies
       // near their line; a lake far off the line (Sevan, beyond the fortress) is left alone
       const mx = LAKE.x + LAKE.rx * 0.35 + (Math.random() - 0.5) * 30, my = LAKE.y - LAKE.ry * 0.2 + (Math.random() - 0.5) * 30;
@@ -6740,11 +6752,21 @@ function droneTarget() {
   }
   return best;
 }
+// the Harop homes on radar emissions: it hunts the air-defence launcher the defence has sunk the most gold
+// into, and on a field with none of them the tower a drone would pick
+function radarTarget() {
+  let best = null, bv = -1;
+  for (const t of towers) {
+    if (towerSkin(t.type) !== "airdefense") continue;
+    const v = towerWorth(t) + (t.dmgDone || 0) * 1e-6;
+    if (v > bv) { bv = v; best = t; }
+  }
+  return best || droneTarget();
+}
 const DRONE_KNOCKOUT = 7;
 let droneWarned = false;
-// the drone reaches its tower: the tower is knocked out for some seconds, burning, and the drone is spent
-function droneStrike(e) {
-  const t = e.strike;
+// a drone reaches its tower t: the tower is knocked out for some seconds, burning, and the drone is spent
+function droneStrike(t) {
   if (!towers.includes(t)) return false;
   t.stunnedT = Math.max(t.stunnedT || 0, DRONE_KNOCKOUT);
   t.burnFx = DRONE_KNOCKOUT;
@@ -7155,8 +7177,13 @@ function update(dt) {
     }
     if (e.strike && e.dist >= e.fly.len) {
       e.dead = true;
-      if (!droneStrike(e)) { lives -= e.dmg; syncHud(); if (lives <= 0 && !gameOver) { lives = 0; defeat(); } }
+      if (!droneStrike(e.strike)) { lives -= e.dmg; syncHud(); if (lives <= 0 && !gameOver) { lives = 0; defeat(); } }
       continue;
+    }
+    // over its air defence the strike wave spends its lead munition there, and the other two fly on
+    if (e.dive && e.dist >= e.fly.a && e.hp > 0) {
+      if (droneStrike(e.dive)) e.salvo = 2;
+      e.dive = null;
     }
     if (e.dist >= (e.fly ? e.fly.len : ROUTES[e.route || 0].len)) {
       e.dead = true;
@@ -37679,9 +37706,10 @@ function drawEnemy(e, p) {
 
   const top = look.foot ? ((UNIT_KITS[e.eraVis] || UNIT_KITS[0])[e.type] || look).top : look.top;
 
-  // a foe holds one pose for many frames, so the sprite lookup is skipped until the pose changes
+  // a foe holds one pose for many frames, so the sprite lookup is skipped until the pose changes; a salvo
+  // that has spent a munition is another picture
   const light = unitLightBucket(tod);
-  const view = (look.end ? unitView(p) : dir) + (e.fly ? outflankWater(e, p) : "");
+  const view = (look.end ? unitView(p) : dir) + (e.fly ? outflankWater(e, p) : "") + (e.salvo ? "|s" + e.salvo : "");
   const pose = view + "|" + frame + "|" + step + "|" + light + (e.iceVis ? "|ice" : "");
   let sprite = e.spriteVis;
   if (e.poseVis !== pose || !sprite) {
@@ -43313,8 +43341,9 @@ const E6_OLIVE = "#5d693b", E6_OLIVE20 = "#56633a", E6_SAND = "#857c55", E6_PATR
 // which machine or man a unit is, read off the name its battlefield gives it
 function e6KindOf(type, name, fly) {
   const n = name || "";
-  if (fly || type === "flyer") return /Su-25/.test(n) ? "su25" : /Harop|Strike drone$/.test(n) ? "harop" : "tb2";
+  // the commander first: the Harop strike wave flies, and is still the salvo of three
   if (type === "boss") return /Harop/.test(n) ? "haropWave" : /Blockade/.test(n) ? "blockade" : "gradBattery";
+  if (fly || type === "flyer") return /Su-25/.test(n) ? "su25" : /Harop|Strike drone$/.test(n) ? "harop" : "tb2";
   if (type === "ram") return /Artillery/.test(n) ? "sph" : "t72";
   if (type === "cavalry") return /BRDM/.test(n) ? "brdm" : /Checkpoint/.test(n) ? "patrol" : /BMP/.test(n) ? "bmp2" : "armcar";
   if (type === "shield") return /BMP-2/.test(n) ? "bmp2" : /BMP/.test(n) ? "bmp3" : "rpg";
@@ -44267,11 +44296,12 @@ function e6Su25() {
   uc.restore();
 }
 
-function e6HaropWave() {
+// n of the salvo still in the air: once the lead munition has dived on the air defence, two fly on
+function e6HaropWave(n) {
   const s = Math.sin(unitPhase) * 0.5;
   e6Harop(-15, -46 + s, 0.95);
   e6Harop(-12, -27 - s, 0.95);
-  e6Harop(9, -37 + s * 0.6, 1.1);
+  if (n == null || n > 2) e6Harop(9, -37 + s * 0.6, 1.1);
 }
 
 // ---- the painter and the look ------------------------------------------------------------------
@@ -44315,7 +44345,7 @@ function e6PaintPose(e, p, d, dir) {
   } else if (kind === "blockade") {
     e6Blockade(e6Paint(E6_OLIVE20), e6Paint(E6_PATROL));
   } else if (kind === "haropWave") {
-    e6HaropWave();
+    e6HaropWave(e.salvo);
   } else if (kind === "harop") {
     e6Harop(0, -36 + Math.sin(unitPhase) * 0.4, 1);
   } else if (kind === "su25") {
@@ -49478,6 +49508,29 @@ function runSelftest() {
       if (ERAS.some((E, k) => k !== e && E.icon === ERAS[e].icon)) throw new Error("era " + e + " shares its icon");
       curEra = e; applyEraLabels();
     }
+  });
+  // the Harop strike wave over Shushi flies: the road's weapons cannot touch it, and over the air defence it
+  // homes on its lead munition dives; every other commander keeps to the road
+  check("flying commander", () => {
+    for (let lv = 0; lv < LEVELS.length; lv++) {
+      curLevel = lv; curEra = LEVELS[lv].era;
+      if (!!eraUnit("boss").flies !== /Harop/.test(eraUnit("boss").name)) throw new Error(LEVELS[lv].name + ": boss flight");
+    }
+    curLevel = LEVELS.findIndex(L => L.units && L.units.boss && L.units.boss.flies);
+    curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+    gold = 1e6;
+    placeTower("catapult", 0); placeTower("ballista", 1); placeTower("ballista", 2); placeTower("fire", 3);
+    towers[2].level = 2;
+    waveIdx = 10; phase = "wave"; spawnQueue = [];
+    spawnEnemy("boss");
+    const b = enemies[enemies.length - 1];
+    if (!b.fly || b.dive !== towers[2] || e6KindOf(b.type, b.def.name, b.fly) !== "haropWave") throw new Error("boss not a salvo homing on the air defence");
+    const hp = b.hp;
+    b.dist = b.fly.a - 1;
+    towers.forEach(t => { if (t.type !== "ballista") { t.x = enemyPos(b).x; t.y = enemyPos(b).y; } else t.stunnedT = 99; });
+    for (let i = 0; i < 20; i++) update(0.05);
+    if (b.hp < hp - 1 || b.salvo !== 2 || !(towers[2].stunnedT > 0)) throw new Error("road weapons reached it, or no dive: " + [hp, Math.round(b.hp), b.salvo]);
+    resetGame();
   });
   // the campaign's chapters: each battlefield in exactly one, in order, every node on its chart
   check("chapters", () => {
