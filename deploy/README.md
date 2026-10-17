@@ -10,12 +10,20 @@ a cron job running `deploy/update.sh` every two minutes.
 **Updates:** push to `master`. The server publishes the new `index.html` within two minutes.
 Log: `/var/log/highland-update.log`.
 
-Before it publishes, `update.sh` runs `node deploy/check-page.js index.html`, which puts every inline script
-through `node --check` (you can run the same line locally before pushing). A page that fails is not published:
-the page already live stays live, the log names the commit and the line that broke, and the next push is tried
-as usual. The check needs Node.js on the server. `update.sh` looks for it on the PATH and in the usual install
-folders; if it finds none, it publishes without the check and logs a warning. Point it at a node elsewhere with
-`HS_NODE=/path/to/node` before the command in `/etc/cron.d/highland-update`.
+Before it publishes, `update.sh` runs `node deploy/check-page.js index.html`, which makes sure every inline
+script parses as the browser will parse it (you can run the same line locally before pushing). A page that fails
+is not published: the page already live stays live, the log names the commit, the Node.js version and the line
+that broke, and the next push is tried as usual. A commit that fails is logged once, not every two minutes, and
+the clone on the server goes back to the commit that is live, so running `setup-server.sh` again publishes that
+same page. If the check itself cannot run (node is killed, say, or `check-page.js` stops on an error of its own and
+exits 2), nothing is published and the same commit is tried again two minutes later.
+
+The check needs **Node.js 18 or newer** on the server (an older one does not know the syntax the page is written
+in). `update.sh` takes the first such node it finds on the PATH or in the usual install folders
+(`/usr/local/bin`, `/usr/bin`, `/opt/node*/bin`, root's nvm); if it finds none, it publishes without the check and
+logs a warning. For a node somewhere else, link it as `/usr/local/bin/node`. (`HS_NODE=/path/to/node` before the
+command in `/etc/cron.d/highland-update` works too, but a re-run of `setup-server.sh` rewrites that line and drops
+it.)
 
 `deploy.sh`, `nginx-highland.conf` and `Caddyfile` are the manual alternatives.
 
