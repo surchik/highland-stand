@@ -109,7 +109,9 @@
     box-shadow: inset 0 1px 0 rgba(240,207,133,.25), 0 1px 2px rgba(0,0,0,.6); text-shadow: 0 1px 0 rgba(0,0,0,.7);
   }
   .chip .ic { width: 22px; height: 22px; color: var(--bronze-hi); vertical-align: 0; filter: drop-shadow(0 1px 0 rgba(0,0,0,.55)); }
-  .chip.boss { border-color: #d0563f; color: #ffd9a0; background: linear-gradient(180deg, #5a2a20, #32160f); }
+  .chip.boss { position: relative; border-color: #d0563f; color: #ffd9a0; background: linear-gradient(180deg, #5a2a20, #32160f); }
+  /* a commander that flies: a small wing at the crown's shoulder, taking no room from the row */
+  .chip .ic.fly { position: absolute; left: 15px; top: 1px; width: 13px; height: 13px; color: #f6dc9a; }
 
   .btn {
     padding: 7px 13px; border: 1px solid var(--bronze-sh); border-radius: 7px;
@@ -598,11 +600,16 @@
   .briefHost { display: flex; align-items: flex-start; gap: 2px; min-height: 68px; padding-left: 70px; }
   .briefHost .foe { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .briefHost .disc {
-    width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    position: relative; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none;
     background: radial-gradient(circle at 36% 30%, #6a5235, #33271a 62%, #1c140d);
     border: 2px solid var(--bronze); box-shadow: 0 0 0 1px #5a3d17, 0 2px 3px rgba(60,35,10,.45), inset 0 1px 0 rgba(255,235,190,.3);
   }
   .briefHost .disc .ic { width: 30px; height: 30px; vertical-align: 0; }
+  /* the flying commander's wing, badged on its medallion */
+  .briefHost .disc .ic.fly {
+    position: absolute; right: -6px; top: -6px; width: 20px; height: 20px; padding: 2px; border-radius: 50%;
+    color: #f6dc9a; background: #33271a; box-shadow: 0 0 0 1.5px var(--crimson);
+  }
   .briefHost .foe.boss .disc { border-color: var(--crimson); box-shadow: 0 0 0 1px #5e1813, 0 2px 3px rgba(60,35,10,.45), inset 0 1px 0 rgba(255,235,190,.3); }
   .briefHost .nm { font-size: 9.300px; line-height: 1.16; font-weight: 700; letter-spacing: -.15px; text-align: center; color: #4a3318; }
   #overlay.brief #ovPage .sideband {
@@ -2027,9 +2034,10 @@ const LEVELS = [
       ram:      { name: "T-72 tank column" },
       flyer:    { name: "Bayraktar TB2" },
       // a salvo of loitering munitions (spawnEnemy): it flies, so only the towers that hit outflankers reach it,
-      // and by a shorter way than the road. Hence about a quarter of a road commander's strength: with it the
-      // bot's best build downs the wave-10 salvo with about a quarter of its strength to spare
-      boss:     { name: "Harop strike wave", flies: true, hpMult: 0.27 },
+      // and by a shorter way than the road. Hence under a third of a road commander's strength: the bot's best
+      // build downs it on Normal and Hard alike, on Hard often only just short of the fortress; at 0.33
+      // it gets through on Hard about one run in three
+      boss:     { name: "Harop strike wave", flies: true, salvo: 3, hpMult: 0.3 },
     },
     // what this battlefield calls its five towers, and what each one shows (towerName, towerDepicts)
     towers: {
@@ -6569,7 +6577,8 @@ function resumeRun() {
       type: tw.type, pad: tw.pad, level: tw.level, spec: tw.spec || null,
       prio: tw.prio || "first", kills: tw.kills || 0, dmgDone: tw.dmg || 0,
       x, y, cd: 0, aim: -0.5, flame: Math.random() * 9, beat: 0,
-      novaT: 0, novaFx: 0, buffHaste: 0, buffMight: 0, placedAt: 0,
+      // placed long ago: a resumed tower never sells back at the full price of a placement just undone
+      novaT: 0, novaFx: 0, buffHaste: 0, buffMight: 0, placedAt: -1e9,
     };
   });
   auto = !!r.auto;
@@ -6742,15 +6751,15 @@ function spawnEnemy(type) {
     const prey = type === "flyer" && droneWar() ? droneTarget() : null;
     if (prey) { e.strike = prey; x1 = prey.x; y1 = prey.y - 4; }
     e.fly = { x0, y0, x1, y1, len: Math.hypot(x1 - x0, y1 - y0), ang: Math.atan2(y1 - y0, x1 - x0) };
-    // a commander that flies is a salvo of three loitering munitions (the Harop strike wave over Shushi): it
-    // makes for the fortress by way of the air defence it homes on, and over it the lead munition dives
-    const radar = type === "flyer" ? null : radarTarget();
+    // a salvo of loitering munitions (the Harop strike wave over Shushi, three of them) makes for the fortress
+    // by way of the air defence it homes on, and over it the lead munition dives
+    const radar = d.salvo ? radarTarget() : null;
     if (radar) {
       const mx = radar.x, my = radar.y - 4, a = Math.hypot(mx - x0, my - y0);
       Object.assign(e.fly, { mx, my, a, len: a + Math.hypot(x1 - mx, y1 - my) });
       e.dive = radar;
     }
-    if (type !== "flyer") e.salvo = 3;
+    if (d.salvo) e.salvo = d.salvo;
     if (LAKE && !e.strike && !e.dive) {
       // Tushpa's skin-float raiders and Avarayr's fording party take to the water where it lies
       // near their line; a lake far off the line (Sevan, beyond the fortress) is left alone
@@ -7064,7 +7073,8 @@ function damageEnemy(e, dmg, pierce, src) {
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
   if (src && Snd.ctx) {
     const art = skinArt(src.type), kind = (art && art.proj) || TOWER_DEFS[src.type].proj;
-    if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind, unit: e.type, era: curEra });
+    // a hit on anything in the air (the flying Harop salvo too) rings off an airframe, not tank plate
+    if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind, unit: e.fly ? "flyer" : e.type, era: curEra });
   }
 }
 
@@ -15604,8 +15614,8 @@ function bgBakeIsCurrent(q) {
     b.lake === LAKE && b.rocks === ROCKS && b.fort === FORT && b.stones === VISHAPS;
 }
 // A fresh bake costs most of a second (several on a slow iPad, the very screen the frame governor steps down
-// for), so in battle a bake that no longer matches the density keeps serving, scaled by drawImage, until the
-// next lull: between waves, with the game paused or a menu up. The dance waits too, then its victory page.
+// for), so in battle a bake denser than the density now wanted keeps serving, scaled down by drawImage, until
+// the next lull: between waves, with the game paused or a menu up. The dance waits too, then its victory page.
 function bgBakeMustWait() {
   return !photo && !paused && overlayEl.classList.contains("hidden") && ((phase === "wave" && !gameOver) || !!celebration);
 }
@@ -18008,8 +18018,11 @@ function bgMountain(c, x, baseY, w, h, peak) {
 let drawStamp = 0;
 function draw(time) {
   drawStamp++;
-  // the bake follows the window and the zoom, once the size has stopped changing and the battle allows it
-  if (bgBaked && bgBaked.q !== bgBakeDensity() && performance.now() - bgResizedAt > 250 && !bgBakeMustWait()) buildBackground();
+  // the bake follows the window and the zoom, once the size has stopped changing; a denser bake than the
+  // screen now needs (the frame governor stepped down, the window shrank) keeps serving until the battle allows
+  // a fresh one, while a bigger window or a closer zoom gets its sharper bake at once
+  const bgQ = bgBakeDensity();
+  if (bgBaked && bgBaked.q !== bgQ && performance.now() - bgResizedAt > 250 && !(bgBaked.q > bgQ && bgBakeMustWait())) buildBackground();
   const w = canvas.width / DPR, h = canvas.height / DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = "#191410";
@@ -44847,11 +44860,17 @@ function coinBadge(amount) {
 
 // the next wave as role chips: icon plus head-count, full names on hover
 function waveChipsHtml(w) {
-  const groups = waveGroups(w);
-  const names = groups.map(g => g.n + " " + eraUnit(g.type).name);
+  // the commander leads the row: on a crowded boss wave the chips that find no room are the rank and file's
+  const groups = waveGroups(w).sort((a, b) => (b.type === "boss") - (a.type === "boss"));
+  const names = groups.map(g => g.n + " " + eraUnit(g.type).name + (flyingCommander(g.type) ? " (flies)" : ""));
   return '<span class="lbl" title="' + escapeHtml("Next wave: " + names.join(", ")) + '">Next<i>wave</i></span>' +
     groups.map((g, i) => '<span class="chip' + (g.type === "boss" ? " boss" : "") + '" title="' +
-      escapeHtml(names[i]) + '">' + icon(ROLE_ICON[g.type]) + g.n + "</span>").join("");
+      escapeHtml(names[i]) + '">' + icon(ROLE_ICON[g.type]) + (flyingCommander(g.type) ? icon("wing", "fly") : "") + g.n + "</span>").join("");
+}
+// a foe that flies though its role walks (the Harop strike wave) wears the wing of the tower panel's "Hits
+// outflankers" on its chip and its medallion, so the warning is there before the wave and on a touch screen too
+function flyingCommander(role, u) {
+  return role !== "flyer" && !!(u || eraUnit(role)).flies;
 }
 
 // send / call early are the only things to press, so only they get the big crimson plate;
@@ -48391,9 +48410,10 @@ function showBrief() {
   setLeafPages(levelPages(L));
   showLeafFact(L);
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
-    const name = Object.assign({}, ENEMY_DEFS[role], E.units[role], levelUnits(L)[role]).name;
-    return '<div class="foe' + (role === "boss" ? " boss" : "") + '" title="' + escapeHtml(name) + '"><span class="disc">' +
-      icon(ROLE_ICON[role]) + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
+    const u = Object.assign({}, ENEMY_DEFS[role], E.units[role], levelUnits(L)[role]), name = u.name;
+    const fly = flyingCommander(role, u);
+    return '<div class="foe' + (role === "boss" ? " boss" : "") + '" title="' + escapeHtml(name + (fly ? " (flies)" : "")) + '"><span class="disc">' +
+      icon(ROLE_ICON[role]) + (fly ? icon("wing", "fly") : "") + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
   }).join("");
   renderBriefArt(curLevel);
   startBriefMosaic();
@@ -48739,7 +48759,7 @@ function testUnlock() {
   toast("Test mode: every battlefield is open");
   try { renderWorldMap(); } catch (err) { /* the map is not on screen */ }
 }
-function testGold() { if (gameOver) return; gold += 5000; syncHud(); toast("Test mode: +5000 gold"); }
+function testGold() { if (gameOver) return; spendGold(-5000); syncHud(); toast("Test mode: +5000 gold"); }
 function onFiveTaps(el, fn) {
   let n = 0, t0 = 0;
   el.addEventListener("pointerdown", () => {
@@ -48946,7 +48966,8 @@ const TUT_STEPS = [
       const t = selected || tutTower();
       if (!t) return;
       const L = TOWER_DEFS[t.type].levels[t.level + 1];
-      if (L && gold < L.cost) { gold = L.cost; syncHud(); refreshPanelBtns(); toast("The king's treasury sends gold for the upgrade"); }
+      // the gift is booked as a refund (spendGold), so a run saved during the wave keeps the upgrade it paid for
+      if (L && gold < L.cost) { spendGold(gold - L.cost); syncHud(); refreshPanelBtns(); toast("The king's treasury sends gold for the upgrade"); }
     },
     done: () => towers.some(t => t.level > 0 || t.spec),
     back: () => (panelEl.style.display !== "block" ? "select" : null) },
@@ -49562,9 +49583,17 @@ function runSelftest() {
     if (!b.fly || b.dive !== towers[2] || e6KindOf(b.type, b.def.name, b.fly) !== "haropWave") throw new Error("boss not a salvo homing on the air defence");
     const hp = b.hp;
     b.dist = b.fly.a - 1;
-    towers.forEach(t => { if (t.type !== "ballista") { t.x = enemyPos(b).x; t.y = enemyPos(b).y; } else t.stunnedT = 99; });
+    // the ballistas are held silent; only the dive itself sets the fire on the launcher it struck
+    towers.forEach(t => { t.burnFx = 0; if (t.type !== "ballista") { t.x = enemyPos(b).x; t.y = enemyPos(b).y; } else t.stunnedT = 99; });
     for (let i = 0; i < 20; i++) update(0.05);
-    if (b.hp < hp - 1 || b.salvo !== 2 || !(towers[2].stunnedT > 0)) throw new Error("road weapons reached it, or no dive: " + [hp, Math.round(b.hp), b.salvo]);
+    if (b.hp < hp - 1 || b.salvo !== 2 || !(towers[2].burnFx > DRONE_KNOCKOUT - 2) || towers[1].burnFx > 0) throw new Error("road weapons reached it, or no dive: " + [hp, Math.round(b.hp), b.salvo, towers[2].burnFx]);
+    // any other commander given wings (a raid that outflanks, say) is no salvo: it dives on nothing
+    const L = LEVELS[curLevel], harop = L.units.boss;
+    L.units.boss = { name: "Raiding column", flies: true };
+    spawnEnemy("boss");
+    const raid = enemies[enemies.length - 1];
+    L.units.boss = harop;
+    if (!raid.fly || raid.salvo || raid.dive) throw new Error("a flying commander without a salvo dived or drew as one");
     resetGame();
   });
   // the campaign's chapters: each battlefield in exactly one, in order, every node on its chart
@@ -49667,12 +49696,22 @@ function runSelftest() {
     if (r.cleared !== w - 1 || r.gold !== purse || r.towers.length !== 2) throw new Error("early call save " + [r.cleared, r.gold, r.towers.length]);
     resumeRun();
     if (waveIdx !== w - 1 || gold !== purse || lives !== sentLives || towers.length !== 2 || towers[1].level !== 1 || phase !== "idle") throw new Error("resume");
+    // however soon after the page loads Resume is tapped
+    if (towers.some(t => sellRefund(t).fresh || performance.now() - t.placedAt < 5000)) throw new Error("a resumed tower sells back as a placement just undone");
+    // a gift (the test purse, the tutorial's treasury) is booked as a refund: what it pays for stays bought
+    gold = 60;
+    startWave();
+    testGold();
+    placeTower("catapult", 3);
+    r = getSavedRun();
+    if (r.gold !== 5060 - TOWER_DEFS.catapult.cost || r.towers.length !== 3) throw new Error("gift " + [r.gold, r.towers.length]);
+    resumeRun();
     gold = 60;
     startWave();
     gold += 5000;
-    placeTower("catapult", 3);
+    placeTower("catapult", 4);
     r = getSavedRun();
-    if (r.gold !== 60 || r.towers.length !== 2 || r.cleared !== w - 1) throw new Error("bought with bounties " + [r.gold, r.towers.length, r.cleared]);
+    if (r.gold !== 60 || r.towers.length !== 3 || r.cleared !== w - 1) throw new Error("bought with bounties " + [r.gold, r.towers.length, r.cleared]);
     clearRun(); resetGame();
   });
   check("dance", () => {
