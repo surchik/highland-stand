@@ -6208,7 +6208,7 @@ function plotPrice() { return 150 + 125 * plotsBought; }
 function buyPlot(i) {
   const price = plotPrice();
   if (gold < price) { toast("Need 🪙" + price + " to claim this ground"); return; }
-  gold -= price;
+  spendGold(price);
   PADS.push(plots[i]);
   plots.splice(i, 1);
   plotsBought++;
@@ -6500,21 +6500,48 @@ function sellRefund(t) {
 }
 
 // ---- run persistence: resume a war after closing the tab ----
+// A run saved mid-wave resumes at the start of the wave and fights it again from its first foe. So the save
+// keeps the wave as it was sent: the purse at the horn less what the board has cost since, the lives at
+// the horn, and each tower's tally as it stood then. Otherwise every bounty the wave had already paid would
+// be paid again. An early call does not move that point: the wave it cut short was never cleared.
+let waveStart = null;   // the run as the first uncleared wave was sent (startWave)
+let waveSpent = 0;      // gold laid out on the board since then, less refunds
+// gold laid out on the board; a refund is a negative outlay
+function spendGold(n) { gold -= n; waveSpent += n; }
+// the run as it stands this moment, in the shape hs_run stores
+function runRecord() {
+  return {
+    v: 1, lvl: curLevel, era: curEra, diff: curDiff,
+    gold, lives,
+    cleared: phase === "wave" ? waveIdx - 1 : waveIdx,
+    endless, auto, plotsBought,
+    pads: PADS, plotsLeft: plots,
+    towers: towers.map(t => ({
+      type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
+      kills: t.kills || 0, dmg: Math.round(t.dmgDone || 0),
+    })),
+  };
+}
+// a fresh wave is sent: remember the run as it stood at the horn
+function markWaveStart() {
+  waveStart = { json: JSON.stringify(runRecord()), gold, lives, tally: new Map(towers.map(t => [t, [t.kills || 0, Math.round(t.dmgDone || 0)]])) };
+  waveSpent = 0;
+}
 function saveRun() {
   if (gameOver) return;
-  try {
-    localStorage.setItem("hs_run", JSON.stringify({
-      v: 1, lvl: curLevel, era: curEra, diff: curDiff,
-      gold, lives,
-      cleared: phase === "wave" ? waveIdx - 1 : waveIdx,
-      endless, auto, plotsBought,
-      pads: PADS, plotsLeft: plots,
-      towers: towers.map(t => ({
-        type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
-        kills: t.kills || 0, dmg: Math.round(t.dmgDone || 0),
-      })),
-    }));
-  } catch (e) {}
+  let run = runRecord();
+  if (phase === "wave" && waveStart) {
+    const sent = JSON.parse(waveStart.json), purse = waveStart.gold - waveSpent;
+    if (purse >= 0) {
+      // the board as it stands now, paid for out of the purse the wave was sent with
+      run.cleared = sent.cleared; run.gold = purse; run.lives = waveStart.lives;
+      run.towers.forEach((r, i) => { const was = waveStart.tally.get(towers[i]) || [0, 0]; r.kills = was[0]; r.dmg = was[1]; });
+    } else {
+      // what was built this wave was paid for with its bounties: resume from the board as it was sent
+      run = Object.assign(sent, { auto });
+    }
+  }
+  try { localStorage.setItem("hs_run", JSON.stringify(run)); } catch (e) {}
 }
 function clearRun() { localStorage.removeItem("hs_run"); }
 function getSavedRun() {
@@ -6531,6 +6558,7 @@ function resumeRun() {
   overlayEl.classList.add("hidden");
   resetGame();
   gold = r.gold; lives = r.lives; waveIdx = r.cleared;
+  waveStart = null; waveSpent = 0;
   endless = !!r.endless;
   plotsBought = r.plotsBought || 0;
   PADS = r.pads.map(p => p.slice());
@@ -6561,6 +6589,7 @@ function resetGame() {
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
+  waveStart = null; waveSpent = 0;
   autoT = 0;
   towers = []; enemies = []; projectiles = []; particles = [];
   spawnQueue = []; waveTime = 0;
@@ -6663,7 +6692,7 @@ function startWave() {
     early = earlyBonus();
     gold += early;
     Snd.play("coin");
-  }
+  } else markWaveStart();
   waveIdx++;
   phase = "wave";
   waveTime = 0;
@@ -6943,7 +6972,7 @@ function towerInvested(t) {
 function placeTower(type, padIdx) {
   const def = TOWER_DEFS[type];
   if (gold < def.cost) { toast("Not enough gold"); return; }
-  gold -= def.cost;
+  spendGold(def.cost);
   const [x, y] = PADS[padIdx];
   towers.push({
     type, pad: padIdx, level: 0, spec: null, x, y,
@@ -6961,7 +6990,7 @@ function upgradeTower(t) {
   if (t.spec || t.level >= def.levels.length - 1) return;
   const cost = def.levels[t.level + 1].cost;
   if (gold < cost) { toast("Not enough gold"); return; }
-  gold -= cost;
+  spendGold(cost);
   t.level++;
   Snd.play("upgrade", { x: t.x });
   saveRun();
@@ -6974,7 +7003,7 @@ function specializeTower(t, key) {
   if (t.spec || t.level < def.levels.length - 1) return;
   const spec = specInfo(t.type, key);
   if (gold < spec.cost) { toast("Not enough gold"); return; }
-  gold -= spec.cost;
+  spendGold(spec.cost);
   t.spec = key;
   Snd.play("upgrade", { x: t.x });
   toast(spec.name + "!");
@@ -6985,7 +7014,7 @@ function specializeTower(t, key) {
 
 function sellTower(t) {
   const r = sellRefund(t);
-  gold += r.amount;
+  spendGold(-r.amount);
   if (r.fresh) toast("Placement undone — full refund");
   towers = towers.filter(x => x !== t);
   Snd.play("coin");
@@ -49601,6 +49630,44 @@ function runSelftest() {
       if (!/Falls/.test($("ovTitle").textContent)) throw new Error("no defeat page on " + lv);
     }
     celebration = null;
+  });
+  // a run saved mid-wave resumes at the start of that wave: no bounty is paid twice and no life lost twice,
+  // an early call does not skip the wave it cut short, and a board bought with the wave's own bounties
+  // goes back to the board the wave was sent against
+  check("resume mid-wave", () => {
+    curLevel = 3; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+    gold = 600;
+    placeTower("archer", 0); placeTower("ballista", 1);
+    towers[0].kills = 5; towers[0].dmgDone = 400;
+    startWave();
+    const sentGold = gold, sentLives = lives, w = waveIdx;
+    let n = 0;
+    while (gold < sentGold + 30 && phase === "wave" && n < 6000) { update(0.05); n++; }
+    if (gold < sentGold + 30) throw new Error("no bounty paid");
+    lives -= 2; towers[0].kills += 3;
+    const built = TOWER_DEFS.archer.cost, up = TOWER_DEFS.ballista.levels[1].cost;
+    placeTower("archer", 2); upgradeTower(towers[1]);
+    let r = getSavedRun();
+    if (r.cleared !== w - 1 || r.gold !== sentGold - built - up || r.lives !== sentLives) throw new Error("mid-wave save " + [r.cleared, r.gold, r.lives] + ", not " + [w - 1, sentGold - built - up, sentLives]);
+    if (r.towers.length !== 3 || r.towers[0].kills !== 5 || r.towers[0].dmg !== 400 || r.towers[2].kills !== 0 || r.towers[1].level !== 1) throw new Error("mid-wave towers");
+    spawnQueue = [];
+    if (!enemies.length) spawnEnemy("spearman");
+    startWave();
+    if (waveIdx !== w + 1) throw new Error("no early call");
+    const back = sellRefund(towers[2]).amount;
+    sellTower(towers[2]);
+    const purse = sentGold - built - up + back;
+    r = getSavedRun();
+    if (r.cleared !== w - 1 || r.gold !== purse || r.towers.length !== 2) throw new Error("early call save " + [r.cleared, r.gold, r.towers.length]);
+    resumeRun();
+    if (waveIdx !== w - 1 || gold !== purse || lives !== sentLives || towers.length !== 2 || towers[1].level !== 1 || phase !== "idle") throw new Error("resume");
+    gold = 60;
+    startWave();
+    gold += 5000;
+    placeTower("catapult", 3);
+    r = getSavedRun();
+    if (r.gold !== 60 || r.towers.length !== 2 || r.cleared !== w - 1) throw new Error("bought with bounties " + [r.gold, r.towers.length, r.cleared]);
+    clearRun(); resetGame();
   });
   check("dance", () => {
     for (const s of [0.4, 1.2, 2.4, 3.4, 3.9, 4.6, 5.4, 6.8, 8.2, 10.5, 12.9]) {
