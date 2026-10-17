@@ -411,6 +411,19 @@
   /* the menu pages' gear sits inside the frame's top right corner, beside the gilt corner piece */
   #overlay #ovGear { position: fixed; top: calc(26px + var(--sat)); right: calc(80px + var(--sar)); z-index: 2; width: 44px; height: 44px; }
   #overlay #ovGear .ic { width: 22px; height: 22px; }
+  /* the stars won across the campaign hang in the top left corner, across from the gear: a plaque of the
+     header's make, not a button. The chronicle and the chapter stories leave it out */
+  #ovStars {
+    position: fixed; top: calc(26px + var(--sat)); left: calc(80px + var(--sal)); z-index: 2; box-sizing: border-box; height: 44px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 12px; border-radius: 22px;
+    border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #17100a, #2a1f15);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.6), inset 0 3px 6px rgba(0,0,0,.75), 0 1px 0 rgba(255,235,190,.1);
+    font-family: var(--face); font-weight: 700; color: #fff3d6; line-height: 1; cursor: default;
+  }
+  #ovStars:empty, #overlay.brief #ovStars { display: none; }
+  #ovStars .lbl { font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--parch-dk); }
+  #ovStars .num { display: flex; align-items: center; gap: 4px; font-size: 15px; letter-spacing: .3px; }
+  #ovStars .num .ic { width: 14px; height: 14px; vertical-align: 0; }
   #overlay .ovOrn { position: fixed; width: 74px; height: 74px; pointer-events: none; }
   #overlay .ovOrn.o1 { left: 13px; top: 13px; }
   #overlay .ovOrn.o2 { right: 13px; top: 13px; transform: scaleX(-1); }
@@ -478,6 +491,11 @@
   /* a chapter newly reached and not yet opened glows until its story has been read */
   .chTab.fresh { border-color: var(--bronze-hi); box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 12px rgba(255,200,90,.65); animation: chFresh 1.6s ease-in-out infinite alternate; }
   @keyframes chFresh { from { box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 4px rgba(255,200,90,.3); } to { box-shadow: 0 0 0 1px var(--bronze-sh), 0 0 16px rgba(255,200,90,.8); } }
+  /* the stars a chapter has won, out of all it holds, set small after its name */
+  .chTab .chStars { display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; letter-spacing: 0; color: #d9c08a; }
+  .chTab .chStars:empty { display: none; }
+  .chTab .chStars .ic { width: 12px; height: 12px; vertical-align: 0; }
+  .chTab.selected .chStars { color: #f6dc9a; }
   .chStory { padding: 4px 14px 4px 11px; font-size: 13px; margin-left: 6px; }
   .chStory .ic { width: 14px; height: 14px; vertical-align: 0; color: var(--bronze-hi); }
   .chArrow, .pgBtn {
@@ -565,6 +583,51 @@
   #overlay #mapBtn .ic, #overlay .big.quiet .ic, #overlay.victory #endlessBtn .ic { width: 18px; height: 18px; color: var(--bronze-hi); }
   #overlay #mapBtn.lead { padding: 12px 44px; font-size: 19px; background: linear-gradient(180deg, #d5503f, var(--crimson) 50%, #7d211b); border-color: var(--bronze-hi); }
   #overlay #mapBtn.lead .ic { color: #fff3d6; }
+  /* under the victory page's title: the stand's stars and the seal of its difficulty, then a crimson ribbon
+     when it set a record; the end of an endless stand shows the ribbon alone */
+  #ovRecord { display: none; }
+  #ovRecord.on { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 2px 0 4px; }
+  #overlay.brief #ovRecord { display: none; }
+  #ovRecord .recRow { display: flex; align-items: center; gap: 5px; }
+  #ovRecord .recRow > .ic { width: 34px; height: 34px; vertical-align: 0; filter: brightness(.26) saturate(.4) drop-shadow(0 1px 0 rgba(240,207,133,.35)); }
+  #ovRecord .recRow > .ic.won { filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+  #ovRecord .recRow > .ic:nth-child(2) { width: 42px; height: 42px; margin-top: -10px; }
+  #ovRecord .recSeal {
+    display: inline-flex; align-items: center; gap: 7px; margin-left: 14px;
+    font-family: var(--face); font-weight: 700; font-size: 15px; letter-spacing: .5px; color: #f6dc9a;
+  }
+  #ovRecord .recSeal .seal {
+    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 36% 30%, #de5f51, var(--crimson) 60%, #74201a); border: 1px solid var(--bronze-hi);
+    box-shadow: inset 0 1px 0 rgba(255,220,200,.45), 0 0 0 1px #5e1813, 0 2px 5px rgba(0,0,0,.5);
+  }
+  #ovRecord .recSeal .seal .ic { width: 17px; height: 17px; vertical-align: 0; }
+  /* the ribbon: a crimson band with swallow-tailed ends and gilt lines along it, lifted by its shadow */
+  #ovRecord .recBest { filter: drop-shadow(0 3px 5px rgba(0,0,0,.6)); }
+  #ovRecord .recBest > span {
+    display: inline-flex; align-items: baseline; gap: 10px; padding: 6px 34px 7px;
+    font-family: var(--face); font-size: 15.5px; font-weight: 700; color: #fff0d2; text-shadow: 0 1px 0 rgba(50,12,6,.9);
+    background:
+      linear-gradient(#e3b65a, #e3b65a) 0 3px / 100% 1px no-repeat,
+      linear-gradient(#e3b65a, #e3b65a) 0 calc(100% - 3px) / 100% 1px no-repeat,
+      linear-gradient(180deg, #d9584a, #a8322a 50%, #74201a);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 50%, 100% 100%, 0 100%, 13px 50%);
+  }
+  #ovRecord .recBest b { font-size: 12.5px; letter-spacing: 2.2px; text-transform: uppercase; color: #fbe7a1; }
+  /* on a phone held sideways the record takes one short line in the rule's place, and a page that still
+     runs long starts at its title, so nothing above the fold is cut off */
+  @media (max-height: 500px) {
+    #overlay.victory { justify-content: safe center; }
+    #overlay.victory:has(#ovRecord.on) .ovRule { display: none; }
+    #ovRecord.on { flex-direction: row; gap: 12px; margin: 0; }
+    #ovRecord .recRow > .ic { width: 22px; height: 22px; }
+    #ovRecord .recRow > .ic:nth-child(2) { width: 27px; height: 27px; margin-top: -5px; }
+    #ovRecord .recSeal { margin-left: 8px; font-size: 13.5px; }
+    #ovRecord .recSeal .seal { width: 22px; height: 22px; }
+    #ovRecord .recSeal .seal .ic { width: 14px; height: 14px; }
+    #ovRecord .recBest > span { padding: 3px 26px 4px; font-size: 13.5px; }
+    #ovRecord .recBest b { font-size: 11px; }
+  }
   @media (min-width: 900px) and (min-height: 640px) {
     #overlay.victory { gap: 0; }
     #overlay.victory #ovPage { gap: 14px; }
@@ -1333,6 +1396,7 @@
   <svg class="ovOrn o3" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <svg class="ovOrn o4" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <button class="btn icon" id="ovGear" title="Settings" aria-label="Settings"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
+  <div id="ovStars" role="img"></div>
   <div id="ovPage">
     <svg class="corner c1" aria-hidden="true"><use href="#i-corner"/></svg>
     <svg class="corner c2" aria-hidden="true"><use href="#i-corner"/></svg>
@@ -1357,6 +1421,7 @@
       <path d="M215 .800 221 6l-6 5.200L209 6z" fill="#f0cf85" stroke="#6e4d1e" stroke-width="1"/>
       <path d="M180 3.200 183.200 6 180 8.800 176.800 6zM250 3.200 253.200 6 250 8.800 246.800 6z" fill="#b98a3e"/>
     </svg>
+    <div id="ovRecord"></div>
     <div id="ovRubric"></div>
     <div class="sub" id="ovSub">
       Kingdom of Urartu, 8th century BC. The armies of Assyria march across the Armenian
@@ -6578,6 +6643,7 @@ function runRecord() {
     gold, lives,
     cleared: phase === "wave" ? waveIdx - 1 : waveIdx,
     endless, auto, plotsBought,
+    aided: testAided, endlessFrom,
     pads: PADS, plotsLeft: plots,
     towers: towers.map(t => ({
       type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
@@ -6601,7 +6667,7 @@ function saveRun() {
       run.towers.forEach((r, i) => { const was = waveStart.tally.get(towers[i]) || [0, 0]; r.kills = was[0]; r.dmg = was[1]; });
     } else {
       // what was built this wave was paid for with its bounties: resume from the board as it was sent
-      run = Object.assign(sent, { auto });
+      run = Object.assign(sent, { auto, aided: testAided });
     }
   }
   try { localStorage.setItem("hs_run", JSON.stringify(run)); } catch (e) {}
@@ -6623,6 +6689,9 @@ function resumeRun() {
   gold = r.gold; lives = r.lives; waveIdx = r.cleared;
   waveStart = null; waveSpent = 0;
   endless = !!r.endless;
+  testAided = !!r.aided;
+  // a run saved before the records began brings no endlessFrom: the record as it stands now takes its place
+  endlessFrom = Number.isInteger(r.endlessFrom) ? r.endlessFrom : levelRecord(curLevel).endless[curDiff];
   plotsBought = r.plotsBought || 0;
   lastCleared = r.cleared;
   PADS = r.pads.map(p => p.slice());
@@ -6662,6 +6731,8 @@ function resetGame() {
   placing = null; selected = null;
   paused = false;
   endless = false;
+  endlessFrom = 0;
+  testAided = false;
   lastCleared = 0;
   sandActive = false;
   smokeClouds = [];
@@ -6730,13 +6801,97 @@ function toast(msg) {
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
 }
 
+// ---- the records of every battlefield: its stars, the hardest difficulty won, its endless stand ----
+// hs_best_<battlefield>_<age> keeps how far the campaign has gone there (the wave reached, or 21 once won),
+// and that alone opens the roads. hs_records keeps beside it how well each battlefield was held, one row per
+// difficulty (indexed as DIFFS): the most stars a victory earned there, the most defenders it kept, and the
+// furthest wave an endless stand held. The map's stars, its difficulty seals and its endless marks, the
+// chapters' tallies and the "New best" ribbons are all read from these rows.
+const RECORDS_KEY = "hs_records";
+// the stars a victory earns for the defenders kept, out of those its difficulty began with: the victory
+// plaque shows them, and the records keep them
+function victoryStars(kept, max) { return kept >= max * 0.85 ? 3 : kept >= max * 0.5 ? 2 : 1; }
+function loadRecords() {
+  try {
+    const all = JSON.parse(localStorage.getItem(RECORDS_KEY) || "{}");
+    return all && typeof all === "object" && !Array.isArray(all) ? all : {};
+  } catch (e) { return {}; }
+}
+// one battlefield's rows, every value a whole number in its range whatever the save holds
+function levelRecord(i) {
+  const r = loadRecords()[i] || {};
+  const row = (k, max) => DIFFS.map((_, d) => Math.max(0, Math.min(max, Math.floor(Number((r[k] || [])[d]) || 0))));
+  return { stars: row("stars", 3), lives: row("lives", 999), endless: row("endless", 9999) };
+}
+function storeRecord(i, rec) {
+  const all = loadRecords();
+  all[i] = rec;
+  try { localStorage.setItem(RECORDS_KEY, JSON.stringify(all)); } catch (e) {}
+}
+// what the map shows of a battlefield: its best stars, the hardest difficulty won (-1 when none is recorded),
+// the defenders kept on that difficulty and the furthest endless wave held. A battlefield won always shows at
+// least the one star every victory earns, even when the stand that won it set no record (test mode, below)
+function levelStanding(i) {
+  if (!levelConquered(i)) return { stars: 0, diff: -1, lives: 0, endless: 0 };
+  const r = levelRecord(i);
+  let diff = -1;
+  r.stars.forEach((s, d) => { if (s > 0) diff = d; });
+  return { stars: Math.max(1, ...r.stars), diff, lives: diff >= 0 ? r.lives[diff] : 0, endless: Math.max(...r.endless) };
+}
+// the stars won across some battlefields (a chapter, the campaign), and the most there are to win
+function starTally(levels) {
+  return { won: levels.reduce((n, i) => n + levelStanding(i).stars, 0), of: levels.length * 3 };
+}
+// test mode is for looking around: a stand fought while every battlefield stands open (Shift+U) or paid for
+// with the test purse (Shift+G) sets no record. The purse marks its whole run, and the run is saved with the mark
+let testAided = false;
+function recordsBarred() { return testUnlockAll || testAided; }
+function starWords(n) { return n + (n === 1 ? " star" : " stars"); }
+// a victory joins the records of its difficulty. It returns the words of a "New best" ribbon when it beat a
+// record that stood before it, else null: a battlefield's first victory needs no ribbon, as all of it is new
+function recordWin(kept) {
+  if (recordsBarred()) return null;
+  const i = curLevel, d = curDiff, D = DIFFS[d].name, rec = levelRecord(i), was = levelStanding(i);
+  const stars = victoryStars(kept, DIFFS[d].lives), had = rec.stars[d];
+  let news = null;
+  if (was.stars) {
+    if (d > was.diff) news = "first victory on " + D;
+    else if (stars > was.stars) news = starWords(stars);
+    else if (had && stars > had) news = starWords(stars) + " on " + D;
+    // an old save's victory kept no count of its defenders, so the first count is no record broken
+    else if (had && rec.lives[d] && kept > rec.lives[d]) news = kept + " defenders kept on " + D;
+  }
+  rec.stars[d] = Math.max(had, stars);
+  rec.lives[d] = Math.max(rec.lives[d], kept);
+  storeRecord(i, rec);
+  return news;
+}
+// An endless stand's record is the last wave it cleared beyond the chronicle's twenty (lastCleared), on its own
+// difficulty. endlessFrom is the record that stood when the stand began, so the ribbon's words come back for
+// as long as the stand has gone past it
+let endlessFrom = 0;
+function recordEndless() {
+  if (recordsBarred() || lastCleared <= TOTAL_WAVES) return null;
+  const rec = levelRecord(curLevel);
+  if (lastCleared > rec.endless[curDiff]) { rec.endless[curDiff] = lastCleared; storeRecord(curLevel, rec); }
+  return lastCleared > endlessFrom ? "held to wave " + lastCleared + " on " + DIFFS[curDiff].name : null;
+}
+
+// the end of a stand (and every wave an endless stand clears) is written to the save. It returns the words of
+// a "New best" ribbon, or null
 function saveBest() {
   // test mode opens every battlefield for a visit: a stand won there out of turn is not saved as conquered
-  if (testUnlockAll && !levelOpen(curLevel)) return;
+  if (testUnlockAll && !levelOpen(curLevel)) return null;
+  // an endless stand fights on from a victory already saved: the waves it holds are a record of their own
+  // (older saves put them in the campaign's key, where a stand held to wave 34 read only as "Conquered")
+  if (endless) return recordEndless();
+  const won = gameOver && lives > 0;
+  const news = won ? recordWin(lives) : null;   // before the line below marks the battlefield won
   const key = "hs_best_" + curLevel + "_" + curEra;
-  const val = gameOver && lives > 0 ? 21 : waveIdx;
+  const val = won ? 21 : waveIdx;
   const prev = Number(localStorage.getItem(key) || 0);
   if (val > prev) localStorage.setItem(key, val);
+  return news;
 }
 
 // ---------- wave control ----------
@@ -6916,12 +7071,12 @@ function victory() {
   gameOver = true;
   syncPauseBtn();
   if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
-  saveBest();
+  const best = saveBest();   // the words of the "New best" ribbon, when the stand beat a record
   clearRun();
   Snd.play("win");
   const band = victoryBand();
   Snd.dance(band);
-  celebration = { start: performance.now(), lives, band, bandPrev: band, bandFrom: 0 };
+  celebration = { start: performance.now(), lives, band, bandPrev: band, bandFrom: 0, best };
   confetti = [];
   hidePanel();
   setPlacing(null);
@@ -6929,7 +7084,7 @@ function victory() {
 
 function endCelebration() {
   if (!celebration) return;
-  const heldLives = celebration.lives;
+  const heldLives = celebration.lives, best = celebration.best;
   celebration = null;
   confetti = [];
   // a battlefield may tell its own victory (L.victory); the tally and the endless offer always follow
@@ -6942,6 +7097,7 @@ function endCelebration() {
       "Return to any of them on a harder difficulty, or hold forever here." : "Your army still stands: hold forever, if you dare."),
     "Defend Again", true);
   showVictoryScreen();
+  showRecord(victoryStars(heldLives, DIFFS[curDiff].lives), curDiff, best);
 }
 
 // ---- after a victory: the call to action is the battlefield it has just opened ----
@@ -6971,12 +7127,31 @@ function showVictoryScreen() {
   sb.classList.add("quiet");
   // the tap that ended the dance must not land on a button of the page that replaces it
   overlayEl.classList.add("settling");
+  fitCampaignStars();
   clearTimeout(overlaySettleT);
   overlaySettleT = setTimeout(() => overlayEl.classList.remove("settling"), 450);
+}
+// The record under the victory page's title: the stars the stand earned, the seal of its difficulty, and a
+// "New best" ribbon with the record's words when the stand beat one that stood before it. The end of an
+// endless stand shows the ribbon alone; no stars and no news hide it.
+function showRecord(stars, diff, news) {
+  const el = $("ovRecord");
+  let html = "";
+  if (stars) {
+    const D = DIFFS[diff];
+    html += '<div class="recRow" role="img" aria-label="' + escapeHtml(starWords(stars) + " of 3, on " + D.name) + '">' +
+      [0, 1, 2].map(k => icon("star", k < stars ? "won" : "")).join("") +
+      '<span class="recSeal"><span class="seal">' + icon(DIFF_SEAL[diff] || "swords") + "</span>" + escapeHtml(D.name) + "</span></div>";
+  }
+  if (news) html += '<div class="recBest"><span><b>New best</b>' + escapeHtml(news.charAt(0).toUpperCase() + news.slice(1)) + "</span></div>";
+  el.innerHTML = html;
+  el.classList.toggle("on", html !== "");
+  fitCampaignStars();   // the page's title moves with it
 }
 function leaveVictory() {
   if (menuMode === "victory") menuMode = "map";
   overlayEl.classList.remove("victory");
+  showRecord(0, 0, null);
   $("nextBtn").style.display = "none";
   $("mapBtn").classList.remove("lead");
   $("startBtn").classList.remove("quiet");
@@ -7008,7 +7183,7 @@ function openCampaignMap(lv) {
 
 function defeat() {
   gameOver = true;
-  saveBest();
+  const best = saveBest();
   clearRun();
   Snd.play("lose");
   // The foe is named as the wave banner names it ("<foe> forces advance"), and the wave count is always given.
@@ -7025,6 +7200,7 @@ function defeat() {
           " Your victory here on " + diff + " still stands.") +
       " Choose your ground and try again.",
       "Try Again");
+    showRecord(0, 0, best);
     return;
   }
   showMenu("🔥", "The Citadel Falls",
@@ -20643,6 +20819,42 @@ function paintVictoryCard(c, tally) {
     c.beginPath(); c.arc(stud[0] - 0.9, stud[1] - 1, 1.3, 0, Math.PI * 2); c.fill();
   }
 
+  // a stand that beat a record wears a crimson sash across the plaque's right shoulder, gilt-edged and
+  // wrapped over the frame; it runs from the top edge to the side well clear of the stud and the chips
+  if (tally.best) {
+    const v0 = 43, v1 = 62, len = 90;   // the band's near and far edge from the corner, along the diagonal
+    c.save();
+    victoryCartouchePath(c, W, H, 0);
+    c.clip();
+    c.translate(W, VICTORY_CREST);
+    c.rotate(Math.PI / 4);
+    c.shadowColor = "rgba(0, 0, 0, .55)";
+    c.shadowBlur = 5 * tally.k;
+    c.shadowOffsetY = 2 * tally.k;
+    const sash = c.createLinearGradient(0, v0, 0, v1);
+    sash.addColorStop(0, "#d9584a");
+    sash.addColorStop(0.5, "#a8322a");
+    sash.addColorStop(1, "#74201a");
+    c.fillStyle = sash;
+    c.fillRect(-len, v0, len * 2, v1 - v0);
+    c.shadowColor = "transparent";
+    c.fillStyle = "#e3b65a";
+    c.fillRect(-len, v0 + 1.6, len * 2, 1);
+    c.fillRect(-len, v1 - 2.6, len * 2, 1);
+    c.fillStyle = "#4a1410";
+    c.fillRect(-len, v0, len * 2, 0.8);
+    c.fillRect(-len, v1 - 0.8, len * 2, 0.8);
+    c.textAlign = "center";
+    c.font = "700 10.5px " + UI_FONT;
+    if ("letterSpacing" in c) c.letterSpacing = "1.6px";
+    c.fillStyle = "rgba(50, 12, 6, .85)";
+    c.fillText("NEW BEST", 0.8, (v0 + v1) / 2 + 4.6);
+    c.fillStyle = "#fbe7a1";
+    c.fillText("NEW BEST", 0.8, (v0 + v1) / 2 + 3.7);
+    if ("letterSpacing" in c) c.letterSpacing = "0px";
+    c.restore();
+  }
+
   // three stars for the defenders kept, the middle one raised into the crest
   for (let i = 0; i < 3; i++) {
     victoryStar(c, cx + (i - 1) * 45, i === 1 ? 28 : 34.5, i === 1 ? 17 : 14.5, i < tally.stars, tally.k);
@@ -20784,9 +20996,9 @@ function drawVictoryCard(alpha) {
   const tally = {
     k, lives: kept, maxLives: max, gold: Math.floor(gold || 0),
     kills: towers.reduce((n, t) => n + (t.kills || 0), 0),
-    stars: kept >= max * 0.85 ? 3 : kept >= max * 0.5 ? 2 : 1,
+    stars: victoryStars(kept, max), best: !!celebration.best,
   };
-  const key = [tally.lives, tally.maxLives, tally.gold, tally.kills, k].join("|");
+  const key = [tally.lives, tally.maxLives, tally.gold, tally.kills, k, tally.best].join("|");
   let sprite = victoryCards.get(key);
   if (!sprite) {
     if (victoryCards.size >= 4) victoryCards.clear();
@@ -46446,7 +46658,7 @@ function drawMapBanner(m, top) {
   m.fillStyle = "#f0cf85"; m.fill(); m.stroke();
 }
 
-function drawMapStar(m, x, y, r) {
+function mapStarPath(m, x, y, r) {
   m.beginPath();
   for (let i = 0; i < 10; i++) {
     const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
@@ -46454,6 +46666,9 @@ function drawMapStar(m, x, y, r) {
     else m.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
   }
   m.closePath();
+}
+function drawMapStar(m, x, y, r) {
+  mapStarPath(m, x, y, r);
   m.fillStyle = "#f2c64c";
   m.fill();
   m.strokeStyle = MAP_INK;
@@ -46478,14 +46693,68 @@ function drawMapPadlock(m, x, y) {
   m.fillRect(x - 0.6, y + 1, 1.2, 2.3);
 }
 
+// A won battlefield's record, in one line: three stars (those not yet won as empty sockets), the seal of the
+// hardest difficulty won (as the difficulty buttons under the map wear it) and, when an endless stand was
+// held there, the infinity sign and its furthest wave. mapRecordWidth measures what drawMapRecord draws.
+const MAP_REC = { star: 4.7, step: 10.4, seal: 6.6, gap: 5 };
+function mapRecordWidth(m, rec) {
+  const R = MAP_REC;
+  let w = R.step * 2 + R.star * 2;
+  if (rec.diff >= 0) w += R.gap + R.seal * 2;
+  if (rec.endless) { m.font = "700 10.5px " + UI_FONT; w += R.gap + m.measureText("∞ " + rec.endless).width; }
+  return w;
+}
+function drawMapRecord(m, cx, y, rec) {
+  const R = MAP_REC;
+  let x = cx - mapRecordWidth(m, rec) / 2 + R.star;
+  for (let k = 0; k < 3; k++, x += R.step) {
+    if (k < rec.stars) drawMapStar(m, x, y, R.star);
+    else {
+      // an empty socket pressed into the parchment
+      mapStarPath(m, x, y, R.star);
+      m.fillStyle = "rgba(110, 84, 48, .16)";
+      m.fill();
+      m.strokeStyle = "rgba(96, 70, 38, .6)";
+      m.lineWidth = 0.8;
+      m.lineJoin = "round";
+      m.stroke();
+    }
+  }
+  x += R.gap - R.step + R.star;
+  if (rec.diff >= 0) {
+    const sx = x + R.seal;
+    const wax = m.createRadialGradient(sx - 2, y - 2.4, 0.5, sx, y, R.seal);
+    wax.addColorStop(0, "#6b5a45");
+    wax.addColorStop(0.65, "#40331f");
+    wax.addColorStop(1, "#2b2118");
+    m.beginPath(); m.arc(sx, y, R.seal, 0, Math.PI * 2);
+    m.fillStyle = wax; m.fill();
+    m.strokeStyle = "#b98a3e"; m.lineWidth = 1; m.stroke();
+    const glyph = DIFF_SEAL[rec.diff], g = R.seal * 1.42;
+    if (glyph === "swords") { victorySymbol(m, "g-sword", sx - g / 2, y - g / 2, g, true); victorySymbol(m, "g-sword", sx - g / 2, y - g / 2, g, false); }
+    else victorySymbol(m, "i-" + glyph, sx - g / 2, y - g / 2, g, false);
+    x += R.seal * 2 + R.gap;
+  }
+  if (rec.endless) {
+    m.textAlign = "left";
+    m.font = "700 10.5px " + UI_FONT;
+    m.fillStyle = "#4a3318";
+    m.fillText("∞ " + rec.endless, x, y + 3.7);
+    m.textAlign = "center";
+  }
+}
+
 // parchment nameplate under a node: the name and one status line. An open site gets a solid plate;
-// a locked one only a faded label inside a dashed line, as a chart marks what is not yet surveyed
+// a locked one only a faded label inside a dashed line, as a chart marks what is not yet surveyed.
+// A won battlefield's record (look.rec) is drawn in the status line's place, or under a status given with it
 function drawMapPlate(m, cx, top, name, status, look) {
   m.font = "700 13.5px " + UI_FONT;
   const nameW = m.measureText(name).width;
+  const recW = look.rec ? mapRecordWidth(m, look.rec) : 0;
   m.font = (look.sel || look.locked ? "italic 600 " : "600 ") + "10.5px " + UI_FONT;
-  const statusW = m.measureText(status).width + (look.star ? 11 : 0);
-  const w = Math.max(72, Math.ceil(Math.max(nameW, statusW)) + 18), h = 31, x = Math.round(cx - w / 2);
+  const statusW = status ? m.measureText(status).width : 0;
+  const w = Math.max(72, Math.ceil(Math.max(nameW, statusW, recW)) + 18), x = Math.round(cx - w / 2);
+  const h = status && look.rec ? 44 : 31;
   m.lineJoin = "miter";
   if (look.locked) {
     m.fillStyle = "#ecdfba";
@@ -46519,8 +46788,8 @@ function drawMapPlate(m, cx, top, name, status, look) {
   m.fillText(name, cx, top + 14.2);
   m.font = (look.sel || look.locked ? "italic 600 " : "600 ") + "10.5px " + UI_FONT;
   m.fillStyle = look.locked ? "rgba(110, 84, 48, .8)" : look.sel ? "#5c3d10" : "#4a3318";
-  m.fillText(status, cx + (look.star ? 5.5 : 0), top + 25.6);
-  if (look.star) drawMapStar(m, cx - statusW / 2 + 4, top + 22, 4);
+  if (status) m.fillText(status, cx, top + 25.6);
+  if (look.rec) drawMapRecord(m, cx, top + (status ? 35 : 22.2), look.rec);
   m.textAlign = "left";
 }
 
@@ -46601,25 +46870,25 @@ function renderWorldMap() {
     m.translate(n.x, n.y);
     if (hov && unlocked) m.scale(1.12, 1.12);
     const top = drawMapFort(m, MAP_FORTS[i] || "citadel", !unlocked);
-    if (conquered) {
-      drawMapBanner(m, top);
-      drawMapStar(m, -17, -15, 5.6);
-    }
+    // a won fortress flies its banner; its stars are on its nameplate
+    if (conquered) drawMapBanner(m, top);
     if (!unlocked) drawMapPadlock(m, 0, 3);
     m.restore();
   }
 
-  // nameplates last, so no glow or road ever runs over one
-  for (const i of lv) {
+  // nameplates last, so no glow or road ever runs over one, and the chosen one last of all, over its neighbours.
+  // A won battlefield's plate shows its record under its name, chosen or not (the line over the map then
+  // gives the chosen one's date and age); any other chosen plate shows its date and age
+  for (const i of lv.filter(k => k !== curLevel).concat(lv.includes(curLevel) ? [curLevel] : [])) {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
     const sel = i === curLevel;
-    const best = levelBestAnyEra(i);
-    const status = sel ? LEVELS[i].date + " · " + ERAS[LEVELS[i].era].name
+    const best = levelBestAnyEra(i), rec = levelStanding(i);
+    const status = rec.stars ? ""
+      : sel ? LEVELS[i].date + " · " + ERAS[LEVELS[i].era].name
       : !unlocked ? "Locked"
-      : best >= 21 ? "Conquered"
       : best > 0 ? "Best: wave " + best : "Unconquered";
-    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, status, { sel, locked: !unlocked, star: !sel && best >= 21 });
+    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, status, { sel, locked: !unlocked, rec: rec.stars ? rec : null });
   }
 }
 
@@ -46690,7 +46959,7 @@ function buildChapterBar() {
     const b = document.createElement("button");
     b.className = "chTab";
     b.dataset.ch = c;
-    b.innerHTML = '<span class="seal">' + escapeHtml(C.num) + '</span><span class="chName">' + escapeHtml(C.name) + "</span>";
+    b.innerHTML = '<span class="seal">' + escapeHtml(C.num) + '</span><span class="chName">' + escapeHtml(C.name) + '</span><span class="chStars"></span>';
     b.addEventListener("click", () => { Snd.init(); turnChapter(c); });
     bar.appendChild(b);
   });
@@ -46706,12 +46975,36 @@ function syncChapterBar() {
     b.classList.toggle("selected", c === cur);
     b.classList.toggle("locked", !reached);
     b.classList.toggle("fresh", reached && c !== cur && !seen.includes(c));
-    b.title = (reached ? "" : "Locked: ") + "Chapter " + CHAPTERS[c].num + " · " + CHAPTERS[c].name + " · " + chapterSpan(c);
+    // a chapter reached counts its stars won out of all it holds
+    const T = starTally(CHAPTERS[c].levels);
+    b.title = (reached ? "" : "Locked: ") + "Chapter " + CHAPTERS[c].num + " · " + CHAPTERS[c].name + " · " + chapterSpan(c) +
+      (reached ? " · " + T.won + " of " + T.of + " stars" : "");
     b.querySelector(".seal").innerHTML = reached ? escapeHtml(CHAPTERS[c].num) : icon("lock");
+    b.querySelector(".chStars").innerHTML = reached ? icon("star") + T.won + "/" + T.of : "";
   });
+  // and the whole campaign's, in the page's top left corner
+  const all = starTally(LEVELS.map((_, i) => i));
+  $("ovStars").innerHTML = '<span class="lbl">Campaign</span><span class="num">' + icon("star") + all.won + "/" + all.of + "</span>";
+  $("ovStars").title = "Stars won across the campaign: " + all.won + " of " + all.of;
+  $("ovStars").setAttribute("aria-label", $("ovStars").title);
+  fitCampaignStars();
   $("chPrev").disabled = cur <= 0;
   $("chNext").disabled = cur >= CHAPTERS.length - 1 || !chapterReached(cur + 1);
 }
+// the campaign's tally sits in the page's top left corner; where a long title on a narrow screen reaches into
+// that corner, the tally gives way to it
+function fitCampaignStars() {
+  const el = $("ovStars");
+  el.style.visibility = "";
+  const a = el.getBoundingClientRect();
+  if (!a.width) return;
+  const hit = ["ovCrest", "ovTitle"].some(id => {
+    const r = $(id).getBoundingClientRect();
+    return r.left < a.right + 10 && r.right > a.left - 10 && r.top < a.bottom + 4 && r.bottom > a.top - 4;
+  });
+  if (hit) el.style.visibility = "hidden";
+}
+addEventListener("resize", fitCampaignStars);
 function turnChapter(c) {
   if (c < 0 || c >= CHAPTERS.length || menuMode !== "map") return;
   if (c === mapChapter()) return;
@@ -48961,7 +49254,7 @@ function testUnlock() {
   toast("Test mode: every battlefield is open");
   try { renderWorldMap(); } catch (err) { /* the map is not on screen */ }
 }
-function testGold() { if (gameOver) return; spendGold(-5000); syncHud(); toast("Test mode: +5000 gold"); }
+function testGold() { if (gameOver) return; testAided = true; spendGold(-5000); syncHud(); toast("Test mode: +5000 gold"); }
 function onFiveTaps(el, fn) {
   let n = 0, t0 = 0;
   el.addEventListener("pointerdown", () => {
@@ -49064,6 +49357,7 @@ $("endlessBtn").addEventListener("click", () => {
   overlayEl.classList.add("hidden");
   gameOver = false;
   endless = true;
+  endlessFrom = levelRecord(curLevel).endless[curDiff];
   phase = "idle";
   autoT = auto ? 3 : 0;
   saveRun();
@@ -49465,6 +49759,28 @@ function frame(time) {
   localStorage.setItem("hs_mig_7lv", "1");
 })();
 
+// one-time save migration: the records began (hs_records). A save from before them knew only which battlefields
+// were won (21 in hs_best) and, past 21 in the same key, the wave an endless stand had reached. Each battlefield
+// won counts one star on Normal, never more, for neither the defenders kept nor the difficulty was saved. An
+// endless stand counts the wave before the one it reached, as the old key cannot tell a wave held from the wave
+// it fell in. A battlefield that already has a record is left as it is.
+function migrateRecords() {
+  try {
+    if (localStorage.getItem("hs_mig_rec")) return;
+    const all = loadRecords();
+    for (let i = 0; i < LEVELS.length; i++) {
+      if (all[i] || !levelConquered(i)) continue;
+      const rec = levelRecord(i), reached = levelBestAnyEra(i);
+      rec.stars[1] = 1;
+      if (reached - 1 > TOTAL_WAVES) rec.endless[1] = reached - 1;
+      all[i] = rec;
+    }
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+    localStorage.setItem("hs_mig_rec", "1");
+  } catch (e) {}
+}
+migrateRecords();
+
 loadSettings();
 // the map opens on the furthest battlefield reached, in its chapter
 if (!HARNESS_ON) curLevel = highestUnlocked();
@@ -49632,6 +49948,12 @@ function photoMenu(brief) {
   localStorage.setItem("hs_best_1_0", "21");
   localStorage.setItem("hs_best_2_1", "24");
   localStorage.setItem("hs_best_3_2", "13");
+  // how those three were won: three stars on Hard, two on Normal, one on Easy and an endless stand held to wave 23
+  localStorage.setItem(RECORDS_KEY, JSON.stringify({
+    0: { stars: [0, 0, 3], lives: [0, 0, 13], endless: [0, 0, 0] },
+    1: { stars: [0, 2, 0], lives: [0, 12, 0], endless: [0, 0, 0] },
+    2: { stars: [1, 0, 0], lives: [9, 0, 0], endless: [23, 0, 0] },
+  }));
   localStorage.setItem("hs_unlocked_seen", JSON.stringify([0, 1, 2, 3]));
   localStorage.setItem("hs_chapters_seen", JSON.stringify(CHAPTERS.map((_, c) => c)));
   if (HARNESS.has("unlock")) testUnlockAll = true;
@@ -50167,6 +50489,142 @@ function runSelftest() {
       curDiff = 1; resetGame();
     }
   });
+  // the records of the battlefields (hs_records). Both checks below put back every key they touch
+  const recordKeys = ["hs_records", "hs_mig_rec", "hs_run", "hs_unlocked_seen", "hs_chapters_seen"];
+  for (let i = 0; i < LEVELS.length; i++) for (let e = 0; e < ERAS.length; e++) recordKeys.push("hs_best_" + i + "_" + e);
+  const recordsKept = fn => {
+    const saved = recordKeys.map(k => localStorage.getItem(k));
+    try {
+      recordKeys.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem("hs_chapters_seen", JSON.stringify(CHAPTERS.map((_, c) => c)));
+      testUnlockAll = false;
+      fn();
+    } finally {
+      recordKeys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+      testUnlockAll = false; endless = false; celebration = null;
+      clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
+      curDiff = 1; resetGame();
+    }
+  };
+  // a won stand, played out to the victory page: the words of its ribbon come back
+  const recordedWin = (lv, diff, kept) => {
+    curLevel = lv; curDiff = diff; resetGame(); overlayEl.classList.add("hidden");
+    waveIdx = TOTAL_WAVES; lives = kept;
+    victory();
+    const best = celebration.best;
+    draw(PHOTO_TIME);   // the plaque, with its sash when a record fell
+    endCelebration();
+    clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
+    return best;
+  };
+  const rows = i => { const r = levelRecord(i); return [r.stars, r.lives, r.endless].map(a => a.join(",")).join(" | "); };
+  // an old save knew only which battlefields were won and how far an endless stand reached: each won counts one
+  // star on Normal, never more, its endless stand the wave before the one it reached, and the migration runs once
+  check("records: old saves", () => recordsKept(() => {
+    localStorage.setItem("hs_best_0_0", "21");
+    localStorage.setItem("hs_best_1_0", "21");
+    localStorage.setItem("hs_best_1_2", "34");   // an endless stand to wave 34, under another age's key
+    localStorage.setItem("hs_best_2_1", "13");   // lost at wave 13
+    localStorage.setItem("hs_best_3_2", "22");   // won, then fell in the first wave beyond the twenty, or held it
+    localStorage.setItem("hs_best_4_2", "21");
+    localStorage.setItem("hs_records", JSON.stringify({ 4: { stars: [0, 0, 3], lives: [0, 0, 14], endless: [0, 0, 0] } }));
+    migrateRecords();
+    const want = { 0: "0,1,0 | 0,0,0 | 0,0,0", 1: "0,1,0 | 0,0,0 | 0,33,0", 2: "0,0,0 | 0,0,0 | 0,0,0",
+      3: "0,1,0 | 0,0,0 | 0,21,0", 4: "0,0,3 | 0,0,14 | 0,0,0" };
+    for (const i in want) if (rows(i) !== want[i]) throw new Error("migrated " + i + ": " + rows(i) + ", not " + want[i]);
+    if (Object.keys(loadRecords()).join() !== "0,1,3,4") throw new Error("migrated records for " + Object.keys(loadRecords()));
+    const s1 = levelStanding(1);
+    if (s1.stars !== 1 || s1.diff !== 1 || s1.endless !== 33 || levelStanding(2).stars !== 0) throw new Error("standing " + JSON.stringify(s1));
+    if (levelStanding(4).stars !== 3 || levelStanding(4).diff !== 2) throw new Error("a record standing before the migration was changed");
+    // once only: a battlefield won later by the old rules is not migrated, and shows the one star of any victory, with no seal
+    localStorage.setItem("hs_best_5_3", "21");
+    migrateRecords();
+    if (loadRecords()[5]) throw new Error("the migration ran twice");
+    if (levelStanding(5).stars !== 1 || levelStanding(5).diff !== -1) throw new Error("a won battlefield without a record " + JSON.stringify(levelStanding(5)));
+    // a migrated victory is beaten by more stars; its unknown count of defenders is no record to beat
+    if (recordedWin(0, 1, 12) !== "2 stars") throw new Error("two stars over a migrated one");
+    if (recordedWin(0, 1, 13) !== "13 defenders kept on Normal") throw new Error("defenders kept over a counted victory");
+    localStorage.setItem("hs_records", JSON.stringify({ 1: { stars: [0, 1, 0], lives: [0, 0, 0], endless: [0, 0, 0] } }));
+    if (recordedWin(1, 1, 11) !== "2 stars" || recordedWin(1, 1, 12) !== "12 defenders kept on Normal") throw new Error("a migrated record beaten");
+    localStorage.setItem("hs_records", JSON.stringify({ 1: { stars: [0, 2, 0], lives: [0, 0, 0], endless: [0, 0, 0] } }));
+    if (recordedWin(1, 1, 11) !== null) throw new Error("a first count of defenders read as a record broken");
+    // a damaged save reads as no record, and every value is kept in its range
+    localStorage.setItem("hs_records", "{oops");
+    if (rows(0) !== "0,0,0 | 0,0,0 | 0,0,0" || levelStanding(0).stars !== 1) throw new Error("a damaged save");
+    localStorage.setItem("hs_records", JSON.stringify({ 0: { stars: [9, -1, "x"], endless: [22.5] } }));
+    if (rows(0) !== "3,0,0 | 0,0,0 | 22,0,0") throw new Error("values out of range: " + rows(0));
+  }));
+  // A victory keeps its stars (by the plaque's thresholds), its difficulty and its defenders; the ribbon names a
+  // record beaten. An endless stand keeps its own wave apart from the campaign. Test mode records nothing.
+  // The map's plates, the chapter tabs and the campaign's tally show the records, and they never open a road.
+  check("records: victories, endless, test mode, map", () => recordsKept(() => {
+    for (const [k, m, s] of [[17, 20, 3], [16, 20, 2], [10, 20, 2], [9, 20, 1], [0, 20, 1], [12, 14, 3], [11, 14, 2], [7, 14, 2], [26, 30, 3], [25, 30, 2], [14, 30, 1]]) {
+      if (victoryStars(k, m) !== s) throw new Error(k + " of " + m + " defenders earn " + victoryStars(k, m) + " stars, not " + s);
+    }
+    localStorage.setItem("hs_mig_rec", "1");
+    // a first victory: its stars and difficulty, no ribbon; the page shows the stars and the seal
+    if (recordedWin(0, 1, 12) !== null) throw new Error("a first victory wore a ribbon");
+    const page = () => $("ovRecord").classList.contains("on") ? $("ovRecord").querySelectorAll(".recRow .ic.won").length + " " + $("ovRecord").textContent : "off";
+    if (rows(0) !== "0,2,0 | 0,12,0 | 0,0,0" || page() !== "2 Normal") throw new Error("first victory: " + rows(0) + " / " + page());
+    if (recordedWin(0, 0, 14) !== null) throw new Error("a lesser stand on Easy read as a record");
+    if (recordedWin(0, 0, 30) !== "3 stars" || page() !== "3 EasyNew best3 stars") throw new Error("more stars than ever: " + page());
+    if (recordedWin(0, 2, 8) !== "first victory on Hard") throw new Error("a harder difficulty");
+    if (recordedWin(0, 2, 12) !== "3 stars on Hard") throw new Error("more stars on Hard");
+    if (recordedWin(0, 2, 13) !== "13 defenders kept on Hard" || recordedWin(0, 2, 13) !== null) throw new Error("defenders kept on Hard");
+    if (rows(0) !== "3,2,3 | 30,12,13 | 0,0,0") throw new Error("Erebuni's rows: " + rows(0));
+    const s0 = levelStanding(0);
+    if (s0.stars !== 3 || s0.diff !== 2 || s0.lives !== 13) throw new Error("Erebuni stands " + JSON.stringify(s0));
+    // the campaign still opens one road at a time
+    const open = () => LEVELS.map((_, i) => levelUnlocked(i) ? i : -1).filter(i => i >= 0).join(",");
+    if (open() !== "0,1" || furthestOpen() !== 1) throw new Error("records opened " + open());
+    // test mode: a victory with every battlefield open counts as won where the campaign stands open, so the road
+    // after it opens, but sets no record; one won out of turn is not saved at all
+    testUnlockAll = true;
+    if (recordedWin(1, 2, 14) !== null || !levelConquered(1) || loadRecords()[1]) throw new Error("test mode recorded Tushpa");
+    if (recordedWin(5, 2, 14) !== null || levelConquered(5) || loadRecords()[5]) throw new Error("test mode saved a battlefield out of turn");
+    testUnlockAll = false;
+    if (open() !== "0,1,2") throw new Error("after test mode: " + open());
+    // the test purse marks its run; the mark is saved with the run, comes back with it, and dies with it
+    curLevel = 2; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+    testGold(); waveIdx = 3; phase = "idle"; saveRun();
+    if (!getSavedRun().aided) throw new Error("the saved run lost the test purse's mark");
+    resumeRun();
+    if (!testAided) throw new Error("a resumed run lost the test purse's mark");
+    waveIdx = TOTAL_WAVES; lives = 20; victory();
+    if (celebration.best !== null || loadRecords()[2] || !levelConquered(2)) throw new Error("a stand paid by the test purse was recorded");
+    endCelebration();
+    resetGame();
+    if (testAided) throw new Error("the test purse's mark outlived its run");
+    // an endless stand: its own record, on its difficulty; the campaign's key keeps 21
+    recordedWin(0, 1, 20);
+    $("endlessBtn").click();
+    if (!endless || endlessFrom !== 0) throw new Error("the endless stand began from " + endlessFrom);
+    waveIdx = TOTAL_WAVES + 2; phase = "wave"; spawnQueue = []; enemies = [];
+    endWaveIfClear();
+    if (levelRecord(0).endless[1] !== TOTAL_WAVES + 2 || localStorage.getItem("hs_best_0_0") !== "21") throw new Error("a wave held beyond the twenty: " + rows(0));
+    if (getSavedRun().endlessFrom !== 0) throw new Error("the saved run lost the record its stand began from");
+    waveIdx = TOTAL_WAVES + 4; lastCleared = TOTAL_WAVES + 3; lives = 0; defeat();
+    if ($("ovTitle").textContent !== "The Endless Stand Ends" || levelRecord(0).endless[1] !== TOTAL_WAVES + 3 ||
+      $("ovRecord").textContent !== "New bestHeld to wave " + (TOTAL_WAVES + 3) + " on Normal") throw new Error("the endless record: " + $("ovRecord").textContent);
+    // a later stand that falls short of it sets none, and leaves it standing
+    recordedWin(0, 1, 20);
+    $("endlessBtn").click();
+    if (endlessFrom !== TOTAL_WAVES + 3) throw new Error("the second endless stand began from " + endlessFrom);
+    waveIdx = TOTAL_WAVES + 2; lastCleared = TOTAL_WAVES + 1; lives = 0; defeat();
+    if ($("ovRecord").classList.contains("on") || levelRecord(0).endless[1] !== TOTAL_WAVES + 3) throw new Error("a shorter endless stand: " + rows(0));
+    if (localStorage.getItem("hs_best_0_0") !== "21") throw new Error("the endless stand wrote the campaign's key");
+    // the map: Erebuni's three stars, Tushpa and Avarayr one each (won, nothing recorded); chapter II reached, the rest locked
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    selectMapLevel(0);
+    const tabs = [...document.querySelectorAll("#chapterTabs .chTab .chStars")].map(e => e.textContent).join(" ");
+    if (tabs !== "5/9 0/12  " || !$("ovStars").textContent.includes("5/42") || starTally(LEVELS.map((_, i) => i)).won !== 5) {
+      throw new Error("the tallies: " + tabs + " / " + $("ovStars").textContent);
+    }
+    selectMapLevel(1);   // a chosen plate with a record, and one without
+    // a record without its victory shows no stars and opens nothing
+    storeRecord(7, { stars: [3, 3, 3], lives: [0, 0, 0], endless: [0, 0, 0] });
+    if (levelStanding(7).stars || levelUnlocked(8) || open() !== "0,1,2,3") throw new Error("a record opened a road: " + open());
+  }));
   check("menu + brief", () => { photoMenu(false); renderWorldMap(); photoMenu(true); });
   check("perf + pixels", () => {
     photoStageBattle(1, 19, { spell: "frost", banner: true });
