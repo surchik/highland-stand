@@ -134,6 +134,16 @@
   .btn.icon.muted { color: #7b6a4e; box-shadow: inset 0 0 0 1px rgba(240,207,133,.26), inset 0 3px 6px rgba(0,0,0,.75), 0 1px 0 rgba(255,235,190,.1); }
   .btn.plaque { padding: 0 14px 0 11px; min-width: 62px; border-radius: 18px; font-size: 14.5px; font-variant-numeric: tabular-nums lining-nums; }
   .btn.plaque.on { border-color: var(--bronze-sh); color: #e4f5bd; background: linear-gradient(180deg, #121a0b, #27351a); box-shadow: inset 0 0 0 1px rgba(190,224,130,.7), inset 0 3px 6px rgba(0,0,0,.7), 0 1px 0 rgba(255,235,190,.1); }
+  /* a finger gets more than the 34 px it sees: each round header button answers taps down the plaque's
+     height and halfway into the gaps beside it, about 42 x 46 px (the insets count from inside the rim) */
+  #topbar .btn.icon { position: relative; }
+  #topbar .btn.icon::after { content: ""; position: absolute; inset: -8px -6px; }
+  @media (max-width: 1100px) { #topbar .btn.icon::after { inset: -8px -5px; } }
+  /* paused, the header's pause button turns to a lit play button: the banner on the field points at it */
+  #hudPause.is-paused {
+    color: #ffe2a0; border-color: var(--bronze-hi);
+    box-shadow: inset 0 0 0 1px rgba(255,226,160,.85), inset 0 3px 6px rgba(0,0,0,.6), 0 0 9px rgba(255,200,100,.55);
+  }
   #autoBtn::before {
     content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px;
     background: #150e08; box-shadow: inset 0 1px 2px #000, 0 0 0 1px var(--bronze-sh);
@@ -357,6 +367,15 @@
   @media (hover: none) { #settings .seg .tgl { min-height: 42px; font-size: 13px; } }
   #settings .menuBtn { width: 100%; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   #settings .menuBtn .ic { width: 16px; height: 16px; vertical-align: 0; color: var(--bronze-hi); }
+  /* Abandon stands a little apart from Pause, and a button waiting for its second tap shows it in crimson */
+  #settings #menuBtn { margin-top: 11px; }
+  #settings .menuBtn.confirm { border-color: #d0563f; color: #ffd9c4; background: linear-gradient(180deg, #6a2a20, #3c1711); }
+  #settings .menuBtn.confirm .ic { color: #ffb89c; }
+  @media (hover: none) { #settings .menuBtn { min-height: 40px; } }
+  /* opened from the title, map or chronicle, the panel hangs under the page's own gear, above the page, and
+     keeps only what a page out of battle can use: sound, the victory band, the tutorial */
+  body.onMenu #settings { z-index: 33; top: calc(76px + var(--sat)); right: calc(80px + var(--sar)); }
+  body.onMenu #pauseBtn, body.onMenu #menuBtn { display: none; }
   #pauseBtn::before {
     content: ""; display: inline-block; width: 11px; height: 12px;
     border-left: 4px solid var(--bronze-hi); border-right: 4px solid var(--bronze-hi);
@@ -385,6 +404,9 @@
     transition: opacity .35s; overflow-y: auto; padding: 30px 0;
   }
   #overlay.hidden { opacity: 0; pointer-events: none; }
+  /* the menu pages' gear sits inside the frame's top right corner, beside the gilt corner piece */
+  #overlay #ovGear { position: fixed; top: calc(26px + var(--sat)); right: calc(80px + var(--sar)); z-index: 2; width: 42px; height: 42px; }
+  #overlay #ovGear .ic { width: 22px; height: 22px; }
   #overlay .ovOrn { position: fixed; width: 74px; height: 74px; pointer-events: none; }
   #overlay .ovOrn.o1 { left: 13px; top: 13px; }
   #overlay .ovOrn.o2 { right: 13px; top: 13px; transform: scaleX(-1); }
@@ -744,10 +766,15 @@
     background: linear-gradient(180deg, rgba(64,48,31,.96), rgba(31,23,16,.96));
     border: 1px solid var(--bronze); box-shadow: inset 0 0 0 1px rgba(0,0,0,.5), 0 6px 18px rgba(0,0,0,.5);
     text-shadow: 0 1px 0 rgba(0,0,0,.7);
-    opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 15; white-space: nowrap;
+    opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 35; white-space: nowrap;
   }
   #toast .ic { width: 17px; height: 17px; margin: 0 3px; vertical-align: -3px; }
   #toast.show { opacity: 1; }
+  /* over a menu page (where "Conquer … first" and "A new road opens" are told) it stands mid-screen, on the
+     map or the parchment, clear of the title above and the buttons below */
+  body.onMenu #toast { top: 50%; transform: translate(-50%, -50%); }
+  /* but the victory page has its text in the middle: there it keeps the free space above the title */
+  body.onMenu:has(#overlay.victory) #toast { top: calc(68px + var(--sat)); transform: translateX(-50%); }
 
   /* the tutorial's coach: a carved bubble beside what it points at, a pulsing ring on the field, glowing outlines */
   #coach {
@@ -1144,6 +1171,7 @@
     <button class="btn icon" id="sfxBtn" title="Sound (S)"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="btn icon" id="gearBtn" title="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
     <button class="btn plaque" id="autoBtn" title="Auto-send waves (A)">Auto: Off</button>
+    <button class="btn icon" id="hudPause" title="Pause (P)" aria-label="Pause"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
     <button class="btn plaque" id="speedBtn" title="Toggle speed (F)">1×</button>
   </div>
 </div>
@@ -1294,6 +1322,7 @@
   <svg class="ovOrn o2" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <svg class="ovOrn o3" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <svg class="ovOrn o4" aria-hidden="true"><use href="#i-ovcorner"/></svg>
+  <button class="btn icon" id="ovGear" title="Settings" aria-label="Settings"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
   <div id="ovPage">
     <svg class="corner c1" aria-hidden="true"><use href="#i-corner"/></svg>
     <svg class="corner c2" aria-hidden="true"><use href="#i-corner"/></svg>
@@ -6578,8 +6607,6 @@ function resetGame() {
   updateSpellBar();
   celebration = null;
   confetti = [];
-  const pb = $("pauseBtn");
-  if (pb) pb.textContent = "Pause";
   speedBtn.textContent = "1×"; speedBtn.classList.remove("secret");
   hidePanel();
   syncHud();
@@ -6645,7 +6672,8 @@ function saveBest() {
 
 // ---------- wave control ----------
 function startWave() {
-  if (gameOver || paused) return;
+  if (gameOver) return;
+  if (paused) { toast("Paused: " + resumeHint()); return; }
   if (waveIdx >= TOTAL_WAVES && !endless) return;
   // the coached first stand: the field holds still while a step is read, and the first wave waits for a tower
   if (tut && (coachFreeze() || !towers.length)) {
@@ -6797,6 +6825,7 @@ function endWaveIfClear() {
 const DANCE_MIN_MS = 10000, DANCE_MAX_MS = (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
 function victory() {
   gameOver = true;
+  syncPauseBtn();
   if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
   saveBest();
   clearRun();
@@ -22076,8 +22105,11 @@ function drawVardanDance(x, y, s, beat, cb, cycle, arrived, t) {
   });
 }
 
+// the banner names the header's play button (a text-style triangle, never the emoji); a touch screen has no P key
+let pausedHoverMq = null;
 function drawPausedBanner() {
-  drawRibbonBanner(VW / 2, VH / 2, "Paused", "press P or use Settings to resume", { size: 38 });
+  pausedHoverMq = pausedHoverMq || matchMedia("(hover: none)");
+  drawRibbonBanner(VW / 2, VH / 2, "Paused", pausedHoverMq.matches ? "Tap \u25B6\uFE0E to resume" : "Click \u25B6\uFE0E or press P to resume", { size: 38 });
 }
 
 // One soft shadow serves all three clouds: a few overlapping lobes whose edge is feathered a long way
@@ -44746,7 +44778,7 @@ function serviceRecord(t) {
 const UI_FONT = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
 const ROLE_ICON = { raider: "r-raider", spearman: "r-spear", shield: "r-shield", cavalry: "r-horse", ram: "r-ram", boss: "r-boss", flyer: "r-scout" };
 const DIFF_SEAL = ["rshield", "swords", "flame"];
-const TEXT_ICONS = [["🪙", "coin"], ["⚔", "swords"], ["🔒", "lock"]];
+const TEXT_ICONS = [["🪙", "coin"], ["⚔", "swords"], ["🔒", "lock"], ["▶", "play"]];
 const hudCache = {};
 let panelStatsHtml = "";
 
@@ -44800,11 +44832,23 @@ function waveBtnView(txt) {
   return { state: "underway", html: icon("swords") + '<span class="wl">Battle underway</span>' };
 }
 
-// the pause button's icon is drawn by CSS from this class, so plain-text label
-// writes elsewhere can never strand a stale glyph
+// the pause buttons follow `paused`: Settings' Pause/Resume (its icon drawn by CSS from the class, so a
+// plain-text label never strands a stale glyph) and the header's pause button, which turns to a play button
+// while paused and rests (disabled) once the battle is over
+let pauseBtnState = "";
 function syncPauseBtn() {
-  const pb = $("pauseBtn");
-  if (pb) pb.classList.toggle("is-paused", paused);
+  const st = (paused ? "p" : "r") + (gameOver ? "x" : "");
+  if (st === pauseBtnState) return;
+  pauseBtnState = st;
+  const pb = $("pauseBtn"), hp = $("hudPause");
+  if (pb) { pb.classList.toggle("is-paused", paused); pb.textContent = paused ? "Resume" : "Pause"; }
+  if (hp) {
+    hp.classList.toggle("is-paused", paused);
+    hp.innerHTML = icon(paused ? "play" : "pause");
+    hp.setAttribute("aria-label", paused ? "Resume" : "Pause");
+    hp.title = paused ? "Resume (P)" : "Pause (P)";
+    hp.disabled = gameOver;
+  }
 }
 
 function statRow(iconName, value, label, cls, extra) {
@@ -45208,6 +45252,7 @@ function buildMenu() {
     b.innerHTML = '<span class="seal">' + icon(DIFF_SEAL[i] || "swords") + "</span>" + escapeHtml(D.name);
     b.addEventListener("click", () => {
       curDiff = i;
+      saveSettings();
       buildMenu();
       Snd.play("coin");
     });
@@ -48393,7 +48438,7 @@ function towerUnderPointer(e) {
 canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); pointerClient = { clientX: e.clientX, clientY: e.clientY }; });
 
 canvas.addEventListener("pointerdown", (e) => {
-  settingsEl.style.display = "none";
+  closeSettings();
   if (celebration) { if (performance.now() - celebration.start >= DANCE_MIN_MS) endCelebration(); return; }
   if (gameOver) return;
   const v = toVirtual(e);
@@ -48487,7 +48532,8 @@ document.querySelectorAll("#shop .card").forEach(card => {
   });
 });
 
-waveBtn.addEventListener("click", startWave);
+// a Send Wave still holding focus when a menu page comes up is no way to start a battle behind it
+waveBtn.addEventListener("click", () => { if (overlayEl.classList.contains("hidden")) startWave(); });
 // the secret fourth gear: Shift+F, or Shift+click on the speed button, runs the battle at 4x; a plain
 // click or F drops back to the usual 1x/2x
 function setSpeed(m) {
@@ -48525,10 +48571,11 @@ autoBtn.addEventListener("click", () => {
 });
 
 // ---- sound / settings UI ----
+// the settings remembered between visits: sound, the victory band and the difficulty last chosen on the map
 function saveSettings() {
   localStorage.setItem("hs_settings", JSON.stringify({
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
-    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2, band: Snd.band,
+    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2, band: Snd.band, diff: curDiff,
   }));
 }
 function loadSettings() {
@@ -48541,6 +48588,7 @@ function loadSettings() {
     if (typeof s.ambOn === "boolean") Snd.ambOn = s.ambOn;
     if (typeof s.ambVol === "number") Snd.ambVol = s.ambVol;
     if (s.band === "kef" || s.band === "zurna") Snd.band = s.band;
+    if (Number.isInteger(s.diff) && DIFFS[s.diff]) curDiff = s.diff;
     // settings saved before the log taper held linear gains: carry them over to slider positions
     // (taper 1 was a 50 dB curve: keep the same gain on the 36 dB one)
     if (!s.taper) for (const k of ["sfxVol", "musVol", "ambVol"]) {
@@ -48609,63 +48657,138 @@ for (const b of $("setBand").children) b.addEventListener("click", () => setVict
 $("ambVol").addEventListener("input", (e) => { Snd.ambVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("musicVol").addEventListener("input", (e) => { Snd.musVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); });
 $("sfxVol").addEventListener("input", (e) => { Snd.sfxVol = e.target.value / 100; Snd.applyVolumes(); saveSettings(); Snd.play("coin"); });
-$("gearBtn").addEventListener("click", (e) => {
+// Settings opens from the header's gear in battle and from the menu pages' own gear. Opened in battle it is a
+// pause menu: the field holds still while it is open and moves on when it closes, unless the player had paused
+// already, or paused or resumed from inside it (their own choice then stands)
+let settingsHold = false;
+function battleLive() { return !gameOver && overlayEl.classList.contains("hidden"); }
+function openSettings() {
+  settingsEl.style.display = "block";
+  if (battleLive() && !paused) { paused = true; settingsHold = true; syncPauseBtn(); }
+}
+function closeSettings() {
+  if (settingsEl.style.display === "block") settingsEl.style.display = "none";
+  tutConfirm.disarm();
+  abandonConfirm.disarm();
+  if (settingsHold) { settingsHold = false; paused = false; syncPauseBtn(); }
+}
+function toggleSettings(e) {
   e.stopPropagation();
-  settingsEl.style.display = settingsEl.style.display === "block" ? "none" : "block";
-});
+  if (settingsEl.style.display === "block") closeSettings(); else openSettings();
+}
+$("gearBtn").addEventListener("click", toggleSettings);
+$("ovGear").addEventListener("click", toggleSettings);
 settingsEl.addEventListener("pointerdown", (e) => e.stopPropagation());
+// on a menu page a tap anywhere else puts the panel away, as a tap on the field does in battle
+overlayEl.addEventListener("pointerdown", (e) => { if (!e.target.closest("#ovGear")) closeSettings(); });
 function togglePause() {
   if (gameOver || !overlayEl.classList.contains("hidden")) return;
   paused = !paused;
-  $("pauseBtn").textContent = paused ? "Resume" : "Pause";
+  settingsHold = false;
   syncPauseBtn();
   toast(paused ? "Paused" : "Onward!");
 }
 $("pauseBtn").addEventListener("click", togglePause);
-// Settings: the tutorial again. On a fresh Erebuni (no tower, no wave yet) it starts at once; anywhere else a
-// second tap confirms leaving the battle for Erebuni's chronicle, where it then runs
-let tutConfirmT = 0;
+$("hudPause").addEventListener("click", togglePause);
+// Leaving the app (the iPad's app switcher, a call, a closed cover, a hidden tab) pauses a battle that would
+// otherwise fight on alone: a wave on the field, or Auto counting down to the next. The stand stays paused on
+// return, under its banner, until the player resumes it. An idle field with Auto off just waits as it is, and
+// a field the tutorial's coach already holds is left to the coach, whose Next must still lead on.
+let pausedOnLeave = false;
+function pauseOnLeave() {
+  if (HARNESS_ON || !battleLive() || coachFreeze()) return;
+  if (settingsHold) { settingsHold = false; pausedOnLeave = true; return; }   // Settings' hold becomes the player's own pause
+  if (paused || (phase !== "wave" && !(auto && autoT > 0))) return;
+  paused = true;
+  pausedOnLeave = true;
+  syncPauseBtn();
+}
+// how to resume, in the words of the screen in hand (a touch screen has no P key)
+function resumeHint() { return matchMedia("(hover: none)").matches ? "tap ▶ to resume" : "press P or click ▶ to resume"; }
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { pauseOnLeave(); return; }
+  // back again: a word above the field (the coach's bubble can sit over the banner)
+  if (pausedOnLeave && paused && battleLive()) toast("Paused while you were away: " + resumeHint());
+  pausedOnLeave = false;
+});
+window.addEventListener("pagehide", pauseOnLeave);
+
+// A tap-again guard for the buttons that leave a battle: the first tap turns the label into the question for
+// 3 s and a second tap within that time goes ahead. Closing Settings takes the question back.
+function tapAgain(btn, label, ask) {
+  let t = 0;
+  const calm = () => { clearTimeout(t); t = 0; btn.classList.remove("confirm"); btn.innerHTML = icon("flag") + escapeHtml(label); };
+  return {
+    armed: () => t !== 0,
+    arm() { btn.innerHTML = icon("flag") + escapeHtml(ask); btn.classList.add("confirm"); t = setTimeout(calm, 3000); },
+    disarm() { if (t) calm(); },
+  };
+}
+const tutConfirm = tapAgain($("tutBtn"), "Replay tutorial", "Tap again to leave this battle");
+const abandonConfirm = tapAgain($("menuBtn"), "Abandon & Level Select", "Tap again to abandon");
+// Settings: the tutorial again. On a fresh Erebuni (no tower, no wave yet) it starts at once; from a menu page
+// it opens Erebuni's chronicle at once, as no battle is left behind; in any other battle a second tap confirms
+// leaving it for Erebuni's chronicle, where it then runs
 $("tutBtn").addEventListener("click", () => {
-  const b = $("tutBtn");
-  const fresh = curLevel === 0 && !gameOver && waveIdx === 0 && towers.length === 0 && overlayEl.classList.contains("hidden");
+  const onMenu = !overlayEl.classList.contains("hidden");
+  const fresh = !onMenu && curLevel === 0 && !gameOver && waveIdx === 0 && towers.length === 0;
   if (fresh) {
-    settingsEl.style.display = "none";
+    closeSettings();
     paused = false; syncPauseBtn();
     startTutorial();
     return;
   }
-  if (!tutConfirmT) {
-    b.innerHTML = icon("flag") + "Tap again to leave this battle";
-    tutConfirmT = setTimeout(() => { tutConfirmT = 0; b.innerHTML = icon("flag") + "Replay tutorial"; }, 3000);
-    return;
+  if (!onMenu && !tutConfirm.armed()) { tutConfirm.arm(); return; }
+  closeSettings();
+  if (!onMenu) {
+    if (!gameOver) saveBest();   // the waves held still count toward the battlefield's best
+    clearRun();
   }
-  clearTimeout(tutConfirmT); tutConfirmT = 0;
-  b.innerHTML = icon("flag") + "Replay tutorial";
-  settingsEl.style.display = "none";
   setTutorialState("0");
   gameOver = true;
-  clearRun();
   celebration = null;
   paused = false;
-  $("pauseBtn").textContent = "Pause";
   curLevel = 0;
   showMenu("🏔️", "Highland Stand", "", "Take Command");
   selectMapLevel(0);
   showBrief();
 });
+// Abandon & Level Select ends the battle and deletes its saved run, and it sits just under Pause, so it too
+// asks for a second tap. The waves held count toward the battlefield's best, as a defeat's do.
 $("menuBtn").addEventListener("click", () => {
-  settingsEl.style.display = "none";
+  if (!abandonConfirm.armed()) { abandonConfirm.arm(); return; }
+  closeSettings();
+  if (!gameOver) saveBest();
   gameOver = true;
   clearRun();
   celebration = null;
   paused = false;
-  $("pauseBtn").textContent = "Pause";
   curLevel = furthestOpen();
   showMenu("🏔️", "Highland Stand",
     "Choose your battlefield and difficulty. Five tower types, two masteries each — the highlands are counting on you.",
     "Take Command");
   if (!chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
 });
+
+// While a page of the overlay is up (title, map, chronicle, chapter story, victory) the battle's HUD behind it
+// is out of reach: no Tab stop, no screen-reader detour, no Enter on a hidden Send Wave or Auto. While the
+// overlay is away in battle its own buttons are out of reach in turn (Enter on a March button still holding
+// focus would open a chronicle over the fight). Browsers without inert (Safari before 15.5) lose only the
+// focus rules: Send Wave checks for itself. Settings is put away whenever the overlay comes or goes.
+let overlayUp = null;
+function syncOverlayUp() {
+  const up = !overlayEl.classList.contains("hidden");
+  if (up === overlayUp) return;
+  overlayUp = up;
+  document.body.classList.toggle("onMenu", up);
+  for (const id of ["topbar", "shop", "spellbar"]) $(id).toggleAttribute("inert", up);
+  overlayEl.toggleAttribute("inert", !up);
+  const f = document.activeElement, away = up ? ["topbar", "shop", "spellbar"].map($) : [overlayEl];
+  if (f && away.some(el => el.contains(f))) f.blur();
+  closeSettings();
+}
+new MutationObserver(syncOverlayUp).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+syncOverlayUp();
 
 // quick testing: Shift+U opens every battlefield, Shift+G adds 5000 gold in battle; on a touch screen,
 // five quick taps on the menu's crest and on the gold counter
@@ -48718,7 +48841,7 @@ window.addEventListener("keydown", (e) => {
   }
   const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
   if (keys[e.code]) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
-  if (e.code === "Escape") { setPlacing(null); hidePanel(); settingsEl.style.display = "none"; castingSpell = null; heroSelected = false; updateSpellBar(); }
+  if (e.code === "Escape") { setPlacing(null); hidePanel(); closeSettings(); castingSpell = null; heroSelected = false; updateSpellBar(); }
   if (e.code === "KeyQ") trySelectSpell("arrows");
   if (e.code === "KeyW") trySelectSpell("frost");
   if (e.code === "KeyE") trySelectSpell("wrath");
@@ -49642,6 +49765,43 @@ function runSelftest() {
     if (tutorialPending()) throw new Error("finished tutorial still pending");
     localStorage.removeItem(TUT_KEY);
     resetGame();
+  });
+  // the pauses and the guarded way out of a battle: Settings holds the field and lets it go, the header button
+  // pauses, Abandon asks twice and keeps the best, the difficulty is remembered, the HUD behind a menu is out of reach
+  check("pause + abandon", () => {
+    const keys = ["hs_best_1_0", "hs_settings", "hs_run"], saved = keys.map(k => localStorage.getItem(k));
+    try {
+      curLevel = 1; curDiff = 2; resetGame(); overlayEl.classList.add("hidden"); syncOverlayUp();
+      if ($("topbar").hasAttribute("inert") || !overlayEl.hasAttribute("inert")) throw new Error("inert in battle");
+      phase = "wave"; waveIdx = 4;
+      $("gearBtn").click();
+      if (!paused || !settingsHold) throw new Error("Settings did not hold the field");
+      closeSettings();
+      if (paused) throw new Error("closing Settings did not let the field go");
+      $("hudPause").click();
+      if (!paused || $("hudPause").getAttribute("aria-label") !== "Resume") throw new Error("header pause");
+      $("gearBtn").click(); closeSettings();
+      if (!paused) throw new Error("closing Settings undid the player's pause");
+      $("hudPause").click();
+      localStorage.removeItem("hs_best_1_0");
+      saveRun();
+      $("menuBtn").click();
+      if (!overlayEl.classList.contains("hidden") || !localStorage.getItem("hs_run")) throw new Error("Abandon went on one tap");
+      $("menuBtn").click();
+      if (overlayEl.classList.contains("hidden") || localStorage.getItem("hs_run")) throw new Error("Abandon did not leave");
+      if (localStorage.getItem("hs_best_1_0") !== "4") throw new Error("Abandon lost the waves held");
+      syncOverlayUp();
+      if (!$("topbar").hasAttribute("inert") || overlayEl.hasAttribute("inert")) throw new Error("HUD reachable behind the menu");
+      gameOver = false; phase = "idle"; waveIdx = 0;
+      waveBtn.click();
+      if (waveIdx !== 0) throw new Error("Send Wave started a wave behind the menu");
+      saveSettings();
+      if (JSON.parse(localStorage.getItem("hs_settings")).diff !== 2) throw new Error("difficulty not remembered");
+      if (+getComputedStyle($("toast")).zIndex <= +getComputedStyle(overlayEl).zIndex) throw new Error("toast under the overlay");
+    } finally {
+      keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+      curDiff = 1; resetGame();
+    }
   });
   check("menu + brief", () => { photoMenu(false); renderWorldMap(); photoMenu(true); });
   check("perf + pixels", () => {
