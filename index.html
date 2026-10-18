@@ -102,6 +102,11 @@
   #waveInfo .lbl i { display: block; font-style: normal; }
   /* a full muster of six kinds needs the whole row: the caption steps aside for it */
   #waveInfo:has(.chip:nth-child(7)) .lbl { display: none; }
+  /* and seven kinds (every foe and the commander) close ranks, so on most screens the last one keeps its place too;
+     where it still finds no room, the row is ordered so that the rank and file are the ones that give way */
+  #waveInfo:has(.chip:nth-child(8)) { gap: 0 1px; }
+  #waveInfo:has(.chip:nth-child(8))::before { margin-right: -1px; }
+  #waveInfo:has(.chip:nth-child(8)) .chip { padding: 0 3px 0 0; }
   .chip {
     display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 5px 0 2px; border-radius: 5px;
     font-size: 14.5px; font-weight: 700; color: #fff3d6; font-variant-numeric: tabular-nums lining-nums;
@@ -114,7 +119,9 @@
      that leaves the road, its power (or its speed) at the other shoulder, and its armor as a number on a steel
      shield at the foot (red from 10 up). A click or tap on the chip opens the foe's card */
   .chip { position: relative; cursor: pointer; }
-  .chip:hover { filter: brightness(1.15); }
+  /* a touch screen keeps :hover on what was last tapped, so only a pointer that hovers brightens a chip */
+  @media (hover: hover) { .chip:hover { filter: brightness(1.15); } }
+  .chip:focus-visible { outline: 2px solid #ffd77a; outline-offset: 1px; }
   .chip .ic.fly { position: absolute; left: 15px; top: 1px; width: 13px; height: 13px; color: #f6dc9a; }
   .chip .ic.act { position: absolute; left: 0; top: 0; width: 11px; height: 11px; color: #ffc27a; filter: drop-shadow(0 0 1px #000) drop-shadow(0 1px 0 #000); }
   .chip .mk.arm, .briefHost .disc .mk.arm {
@@ -715,13 +722,18 @@
   /* a foe's marks on its medallion, as on its wave chip: its power or speed at the left shoulder, its armor at the
      foot; the whole medallion opens the foe's card */
   .briefHost .foe[data-role] { cursor: pointer; }
-  .briefHost .foe[data-role]:hover .disc { filter: brightness(1.15); }
+  @media (hover: hover) { .briefHost .foe[data-role]:hover .disc { filter: brightness(1.15); } }
+  .briefHost .foe[data-role]:focus { outline: none; }
+  .briefHost .foe[data-role]:focus-visible .disc { outline: 2px solid var(--crimson); outline-offset: 2px; }
   .briefHost .disc .ic.act {
     position: absolute; left: -6px; top: -6px; width: 20px; height: 20px; padding: 3px; border-radius: 50%;
     color: #ffc27a; background: #33271a; box-shadow: 0 0 0 1.5px var(--bronze);
   }
   .briefHost .disc .mk.arm { right: -8px; bottom: -5px; min-width: 19px; height: 16px; padding: 0 3px; border-radius: 4px 4px 9px 9px; font-size: 11px; line-height: 16px; }
   .briefHost .nm { font-size: 9.300px; line-height: 1.16; font-weight: 700; letter-spacing: -.15px; text-align: center; color: #4a3318; }
+  /* one quiet line under the host saying its medallions open a card (a touch screen has no tooltip to tell it) */
+  .briefHint { margin-top: -8px; padding-left: 70px; font-size: 11px; line-height: 13px; font-style: italic; text-align: center; color: #7a5a2e; }
+  .briefHint:empty { display: none; }
   #overlay.brief #ovPage .sideband {
     display: block; position: relative; grid-column: 3; grid-row: 1 / -1; align-self: stretch; width: 22px;
     border: 1.600px solid var(--crimson); border-radius: 2px; background: #dcc48e; box-shadow: inset 0 0 0 1px #8a6a36;
@@ -789,6 +801,7 @@
     #overlay.brief { padding: 14px 0; gap: 6px; }
     #overlay.brief #ovPage { width: min(94vw, 1030px); grid-template-columns: 42% minmax(0, 1fr) 22px; column-gap: 26px; padding: 22px 24px 20px 26px; margin-bottom: 4px; }
     .briefHost { gap: 0; padding-left: 64px; }
+    .briefHint { padding-left: 64px; }
     .briefHost .nm { font-size: 8.700px; letter-spacing: -.25px; }
     /* the medallions stand closer here: their marks sit tighter on them */
     .briefHost .disc .ic.act { left: -4px; top: -5px; width: 17px; height: 17px; padding: 2.5px; }
@@ -811,7 +824,7 @@
     #overlay.brief .ovRule { order: 9; }
     #overlay.brief .ovPager.on { order: 10; }
     #overlay.brief .ovFact.on { order: 11; }
-    .briefHost { padding-left: 0; }
+    .briefHost, .briefHint { padding-left: 0; }
   }
 
   /* four medallions on a carved rail let into the left edge of the screen */
@@ -1439,6 +1452,7 @@
     <div class="briefLeft">
       <canvas id="briefArt" width="960" height="940"></canvas>
       <div class="briefHost" id="briefHost"></div>
+      <div class="briefHint" id="briefHint"></div>
     </div>
     <div class="sideband" aria-hidden="true"><svg><rect x="1.400" y="0" width="16" height="100%" fill="url(#braidV)"/></svg></div>
     <svg class="headpiece" viewBox="0 0 320 22" aria-hidden="true">
@@ -6419,7 +6433,7 @@ function earlyBonus() { return Math.min(60, 10 + 4 * enemies.length); }
 // the shooting towers within `reach` for `stun` seconds; smoke: a ladder party within `near` of a tower lights a
 // cloud of radius `r` lasting `dur` seconds and waits `rest` seconds, and a tower inside shoots at `sight` of its
 // range; guns: every `every` seconds the guns silence, for `stun` seconds, the shooting tower within `reach` that
-// has hurt them most
+// has done the most damage this battle
 const ERA_POWER = {
   patch: 6,
   trumpet: { every: 7, reach: 140, stun: 1.6 },
@@ -6454,7 +6468,8 @@ function bombardVolley(e) {
   const p = enemyPos(e);
   const targets = towers.filter(t => TOWER_DEFS[t.type].proj && inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.guns.reach));
   if (!targets.length) return;
-  // counter-battery: the gunners range on whichever tower in reach has done them the most harm
+  // counter-battery: the gunners range on whichever tower in reach has done the most damage this battle (to every
+  // foe, not to the guns alone)
   const t = targets.reduce((a, b) => ((b.dmgDone || 0) > (a.dmgDone || 0) ? b : a));
   t.stunnedT = Math.max(t.stunnedT || 0, ERA_POWER.guns.stun);
   Snd.play("cannon", { x: t.x });
@@ -6896,12 +6911,12 @@ function startWave() {
 }
 
 // a foe's strength on wave w of the battlefield being fought, at the difficulty chosen: spawnEnemy and the foe
-// card both read it here, so the card's numbers are the battle's
-function foeHp(type, d, w) {
+// card both read it here, so the card's numbers are the battle's (`gentle`: see tutorialHp)
+function foeHp(type, d, w, gentle) {
   // the commanders keep the old straight climb: the late-wave bend is for the rank and file they bring
   const climb = type === "boss" ? 1 + (w - 1) * 0.13 : hpScale(w);
   return Math.round(d.hp * (d.hpMult || 1) * ERAS[curEra].hpMult * climb * levelHpMult() * DIFFS[curDiff].hp *
-    (type === "boss" && w === 20 ? 1.2 : 1) * tutorialHp(w));
+    (type === "boss" && w === 20 ? 1.2 : 1) * tutorialHp(w, gentle));
 }
 function foeArmor(d) { return d.armor + (d.armorAdd || 0); }
 function foeSpeed(d) { return d.spd * (d.spdMult || 1); }
@@ -18285,6 +18300,7 @@ function draw(time) {
   for (const e of enemies) drawEnemyMarks(e);
   if (hero && hero.alive && !celebration) drawHeroBar();
   drawHoverRange();
+  drawSelectedGhosts();
   drawPlacement();
   drawCastPreview();
   drawWaveBanner();
@@ -37884,10 +37900,7 @@ function drawTower(t, time) {
     }
   }
 
-  if (selected === t) {
-    drawRange(x, y, getStats(t).range, "rgba(255, 210, 122, .5)", s);
-    if (panelEl.style.display === "block") drawRangeGhosts(t, x, y);
-  }
+  if (selected === t) drawRange(x, y, getStats(t).range, "rgba(255, 210, 122, .5)", s);
 }
 
 // the ring is the region inGroundRange tests: a world ellipse, carried to the screen point by point (48 of them,
@@ -37940,15 +37953,22 @@ function rangeGhosts(t) {
   }
   return out;
 }
+// drawn after the field (towers, the fortress, foes, the weather and the light), so nothing stands over a ring or
+// its name; every ring goes down before any name, so no dash crosses a name either
+function drawSelectedGhosts() {
+  if (!selected || panelEl.style.display !== "block" || !overlayEl.classList.contains("hidden")) return;
+  const pp = proj(selected.x, selected.y);
+  drawRangeGhosts(selected, pp.x, pp.y);
+}
 function drawRangeGhosts(t, x, y) {
   const gs = rangeGhosts(t);
   // the names go on the side of the rings away from the panel (it stands beside the tower), above and below the
   // middle when there are two; where that side runs off the field a name slides round its ring until it is seen
   const right = panelEl.classList.contains("ptr-right"), up = right ? -1 : 1;
   const start = gs.length > 1 ? [right ? 46 : 26, right ? 2 : 22] : [right ? 0 : 24];
-  gs.forEach((g, j) => {
-    const pts = rangeRingPts(x, y, g.r);
-    ctx.setLineDash([5, 5]);
+  const rings = gs.map(g => rangeRingPts(x, y, g.r));
+  ctx.setLineDash([5, 5]);
+  for (const pts of rings) {
     traceRing(pts);
     ctx.strokeStyle = "rgba(30, 18, 6, .55)";
     ctx.lineWidth = 3.6;
@@ -37956,7 +37976,10 @@ function drawRangeGhosts(t, x, y) {
     ctx.strokeStyle = "rgba(255, 240, 190, .95)";
     ctx.lineWidth = 1.8;
     ctx.stroke();
-    ctx.setLineDash([]);
+  }
+  ctx.setLineDash([]);
+  gs.forEach((g, j) => {
+    const pts = rings[j];
     ctx.font = "700 12px " + UI_FONT;
     const w = ctx.measureText(g.tag).width + 12, h = 17;
     const dirs = gs.length > 1 ? [j ? -up : up] : [up, -up], seen = q => q.x >= w / 2 + 4 && q.x <= VW - w / 2 - 4;
@@ -45144,16 +45167,18 @@ function coinBadge(amount) {
 }
 
 // the next wave as role chips: icon plus head-count, with the foe's marks (armor, wing, power or speed); full names
-// and badges on hover, and a click or tap opens the foe's card
+// and badges on hover, and a click, a tap or Enter opens the foe's card
 function waveChipsHtml(w) {
-  // the commander leads the row: on a crowded boss wave the chips that find no room are the rank and file's
-  const groups = waveGroups(w).sort((a, b) => (b.type === "boss") - (a.type === "boss"));
+  // the commander leads the row, then the foes that leave the road or carry a power (the siege engines, the
+  // drones): on a crowded boss wave the chips that find no room are the rank and file's
+  const rank = g => g.type === "boss" ? 0 : foeOffRoad(g.type, foeUnit(g.type)) || foePower(g.type, foeUnit(g.type)) ? 1 : 2;
+  const groups = waveGroups(w).sort((a, b) => rank(a) - rank(b));
   const units = groups.map(g => foeUnit(g.type));
   const names = groups.map((g, i) => foeTitle(g.type, units[i], g.n));
   return '<span class="lbl" title="' + escapeHtml("Next wave: " + names.join(", ")) + '">Next<i>wave</i></span>' +
     groups.map((g, i) => '<span class="chip' + (g.type === "boss" ? " boss" : "") + '" data-role="' + g.type + '" data-w="' + w +
-      '" role="button" title="' + escapeHtml(names[i]) + '" aria-label="' + escapeHtml(names[i]) + '">' + icon(ROLE_ICON[g.type]) +
-      foeMarksHtml(g.type, units[i]) + g.n + "</span>").join("");
+      '" role="button" tabindex="0" title="' + escapeHtml(names[i]) + '" aria-label="' + escapeHtml(names[i]) + '">' +
+      icon(ROLE_ICON[g.type]) + foeMarksHtml(g.type, units[i]) + g.n + "</span>").join("");
 }
 // a foe that flies though its role walks (the Harop strike wave) wears the wing of the tower panel's "Hits
 // outflankers" on its chip and its medallion, so the warning is there before the wave and on a touch screen too
@@ -45206,7 +45231,7 @@ function foePower(role, u) {
       " s, shooting towers in the cloud reach only " + foePct(P.smoke.sight) + " as far." };
   }
   return { ic: "blast", label: "Bombards", text: "Every " + P.guns.every + " s it fires on the shooting tower within a range of " +
-    P.guns.reach + " that has hurt it most, and silences it for " + P.guns.stun + " s." };
+    P.guns.reach + " that has done the most damage this battle, and silences it for " + P.guns.stun + " s." };
 }
 
 // the badges of a foe, in the order the card shows them
@@ -45222,8 +45247,10 @@ function foeTraits(role, u) {
 
 // which towers answer a foe and which it shrugs off, by the battle's own rules: what can reach it (stones and fire
 // keep to the road), what its armor leaves of a blow from a first and a third-rank tower (armorHit), what slows
-// it, and what catches a crowd. The drums strike nothing themselves, so they are never named.
+// it, and what catches a crowd. The drums strike nothing themselves, so they are never named. An anti-aircraft
+// gun or missile in the piercing slot (1992, 2020) is not said to pierce a tank: its line gives the game's rule
 function foeCounters(role, u) {
+  const antiAir = type => /anti-aircraft|air defen[cs]e|\bAA\b|\bSAM\b/i.test(towerName(type) + " " + ((levelTower(type) || {}).depicts || ""));
   const armor = foeArmor(u), off = foeOffRoad(role, u), fly = foeFlies(role, u), fast = foeSpeed(u) >= FOE_FAST;
   const good = [], poor = [];
   for (const type of Object.keys(TOWER_DEFS)) {
@@ -45238,7 +45265,7 @@ function foeCounters(role, u) {
       if (fast) why.push("slows it by " + Math.round(lv0.slow * 100) + "–" + foePct(top.slow));
     } else {
       if (off) why.push(fly ? "can hit it in the air" : "reaches it off the road");
-      if (def.pierce && armor >= FOE_ARMORED) why.push("pierces its armor");
+      if (def.pierce && armor >= FOE_ARMORED) why.push(antiAir(type) ? "its hits ignore armor" : "pierces its armor");
       if (!def.pierce) {
         const a = armorHit(lv0.dmg, armor, false), b = armorHit(top.dmg, armor, false);
         const hits = "hits of " + lv0.dmg + "–" + top.dmg + " land as " + a + "–" + b;
@@ -45342,10 +45369,12 @@ function foeCardHtml(role, w, from) {
     hpLbl = "HP";
     sub = "Wave " + w + " · " + diff;
   } else {
-    const a = foeHp(role, u, first || 1), b = foeHp(role, u, last);
+    // the chronicle speaks of the run its button begins: Erebuni with the coach still to come opens thinner
+    const gentle = curLevel === 0 && tutorialPending(), f = first || 1;
+    const a = foeHp(role, u, f, gentle), b = foeHp(role, u, last, gentle);
     hp = a.toLocaleString("en-US") + (b !== a ? " → " + b.toLocaleString("en-US") : "");
-    hpLbl = "HP, wave " + (first || 1) + (b !== a ? " → " + last : "");
-    sub = (first ? "From wave " + first : "Not in the twenty waves") + " · " + diff;
+    hpLbl = "HP, wave " + f + (b !== a ? " → " + last : "");
+    sub = (first ? "From wave " + first : "Not in the twenty waves") + " · " + diff + (gentle && tutorialHp(f, true) < 1 ? " · Tutorial" : "");
   }
   const gold = foeBounty(u, from === "chip" ? w : first || 1);
   let h = '<button class="fcX" type="button" aria-label="Close">' + icon("close") + "</button>" +
@@ -45370,7 +45399,9 @@ function foeCardHtml(role, w, from) {
 }
 
 // opens the card for a foe beside the element that asked for it (a chip, a medallion), above it where there is room;
-// a card carried over to a new row of chips opens without its tick
+// a card carried over to a new row of chips opens without its tick. A chip's card stands clear of the whole wave
+// cap, so it never lies over the Send Wave button under the chips (in portrait the cap hangs under the header and
+// the card opens below it)
 function openFoeCard(role, w, from, anchor, quiet) {
   if (!foeCardEl || !ENEMY_DEFS[role]) return;
   if (from === "chip") hidePanel();
@@ -45382,12 +45413,14 @@ function openFoeCard(role, w, from, anchor, quiet) {
   if (!quiet) Snd.play("uiTick");
 }
 function placeFoeCard(anchor) {
-  const r = anchor && anchor.isConnected ? anchor.getBoundingClientRect()
+  const live = anchor && anchor.isConnected, cap = live && anchor.closest(".trayCap.right");
+  const a = live ? anchor.getBoundingClientRect()
     : { left: innerWidth / 2, right: innerWidth / 2, top: innerHeight / 2, bottom: innerHeight / 2 };
+  const r = cap ? cap.getBoundingClientRect() : a;
   const W = innerWidth, H = innerHeight, m = 8, gap = 12;
   foeCardEl.classList.remove("scroll");
   foeCardEl.style.maxHeight = "";
-  const w = foeCardEl.offsetWidth, h = foeCardEl.offsetHeight, cx = (r.left + r.right) / 2;
+  const w = foeCardEl.offsetWidth, h = foeCardEl.offsetHeight, cx = (a.left + a.right) / 2;
   const roomUp = r.top - gap - m, roomDown = H - r.bottom - gap - m;
   const above = h <= roomUp || roomUp >= roomDown;
   // a card taller than the room on its side scrolls inside a frame of that height
@@ -48996,6 +49029,7 @@ function showChapterIntro(c, then) {
   fitRubric();
   setLeafPages(C.intro);
   showLeafFact(null);
+  $("briefHint").textContent = "";
   $("briefHost").innerHTML = C.levels.map(i => {
     const L = LEVELS[i];
     return '<div class="foe field" title="' + escapeHtml(L.name + ", " + L.date) + '"><span class="disc">' + icon("era" + L.era) +
@@ -49068,10 +49102,11 @@ function showBrief() {
   closeFoeCard();
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
     const u = foeUnit(role), name = u.name;
-    return '<div class="foe' + (role === "boss" ? " boss" : "") + '" data-role="' + role + '" role="button" title="' +
+    return '<div class="foe' + (role === "boss" ? " boss" : "") + '" data-role="' + role + '" role="button" tabindex="0" title="' +
       escapeHtml(foeTitle(role, u)) + '" aria-label="' + escapeHtml(foeTitle(role, u)) + '"><span class="disc">' +
       icon(ROLE_ICON[role]) + foeMarksHtml(role, u) + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
   }).join("");
+  $("briefHint").textContent = (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses";
   renderBriefArt(curLevel);
   startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() ? "Begin the Stand · Tutorial" : "Begin the Stand");
@@ -49562,6 +49597,12 @@ window.addEventListener("keydown", (e) => {
   const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
   if (keys[e.code]) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
   if (e.code === "Escape") { setPlacing(null); hidePanel(); closeSettings(); closeFoeCard(); castingSpell = null; heroSelected = false; updateSpellBar(); }
+  // Enter on a wave chip or a chronicle medallion reached by Tab opens its foe's card, or puts it away again
+  // (Space stays the Send Wave key)
+  if (e.code === "Enter" || e.code === "NumpadEnter") {
+    const foe = document.activeElement && document.activeElement.closest && document.activeElement.closest("#waveInfo .chip[data-role], #briefHost .foe[data-role]");
+    if (foe) { e.preventDefault(); foe.click(); }
+  }
   if (e.code === "KeyQ") trySelectSpell("arrows");
   if (e.code === "KeyW") trySelectSpell("frost");
   if (e.code === "KeyE") trySelectSpell("wrath");
@@ -49645,9 +49686,10 @@ function tutorialWave(groups) {
   return groups.map(g => Object.assign({}, g, { n: Math.max(1, Math.ceil(g.n * 0.6)), gap: g.gap * 1.25 }));
 }
 
-// and its foes stand lighter, so one first tower can fell them: a third of their strength in the first wave
-function tutorialHp(w = waveIdx) {
-  if (!tutGentle || curLevel !== 0 || endless || w > 3) return 1;
+// and its foes stand lighter, so one first tower can fell them: a third of their strength in the first wave.
+// `gentle` is this run's coach; the chronicle's foe card asks for the coming run's (tutorialPending)
+function tutorialHp(w = waveIdx, gentle = tutGentle && !endless) {
+  if (!gentle || curLevel !== 0 || w > 3) return 1;
   return [1, 0.3, 0.5, 0.7][w] || 1;
 }
 const tutTouch = () => matchMedia("(hover: none)").matches;
@@ -50745,17 +50787,34 @@ function runSelftest() {
           }
           const lore = foeLore(role);
           if (!lore || !loreSentences(lore).every(x => texts.includes(x))) throw new Error(id + ": history line not from the game's text: " + lore);
+          // the line is the one FOE_LORE names, not the age's fallback: a rewritten chronicle or fact that drops the
+          // phrase fails here, naming the entry to update
+          const F = FOE_LORE[L.name], want = F && (F[role] || F.all);
+          if (!want) throw new Error(L.name + ": no FOE_LORE entry");
+          if (!lore.includes(want)) throw new Error(id + ': FOE_LORE phrase "' + want + '" is no longer in the text; the card fell back to: ' + lore);
           const html = foeCardHtml(role, 5, lv % 2 ? "chip" : "brief");
           if (!html.includes(escapeHtml(u.name)) || /NaN|undefined/.test(html)) throw new Error(id + ": card " + html.slice(0, 200));
         }
       }
-      // the card opens from a wave chip and from a chronicle medallion, and Escape puts it away
+      // the chronicle's card for Erebuni gives the HP of the run its button begins, coached or not
+      curLevel = 0; curEra = LEVELS[0].era; curDiff = 1; resetGame();
+      const sp = foeUnit("spearman"), card = foeCardHtml("spearman", 0, "brief");
+      tutGentle = tutorialPending(); waveIdx = 1;
+      spawnEnemy("spearman");
+      const e1 = enemies.pop();
+      if (!card.includes(">" + e1.maxHp.toLocaleString("en-US") + " →")) throw new Error("brief card HP is not the run's wave-1 HP " + e1.maxHp);
+      tutGentle = false;
+      // the card opens from a wave chip and from a chronicle medallion (by click and by Enter), and Escape puts it away
       curLevel = 12; curEra = LEVELS[12].era; curDiff = 1; resetGame(); overlayEl.classList.add("hidden"); syncOverlayUp();
       const chip = waveInfoEl.querySelector(".chip[data-role]");
       chip.click();
       if (!foeCardOn || foeCardOn.role !== chip.dataset.role || foeCardEl.style.display !== "block") throw new Error("a chip did not open its card");
       window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" }));
       if (foeCardOn) throw new Error("Escape left the card open");
+      chip.focus();
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "Enter" }));
+      if (!foeCardOn || foeCardOn.role !== chip.dataset.role) throw new Error("Enter on a focused chip did not open its card");
+      closeFoeCard(); chip.blur();
       // the archer's upgrade names its damage a second before and after, and the field shows the next reach
       gold = 1e5;
       placeTower("archer", 0);
