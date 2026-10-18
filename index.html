@@ -1252,7 +1252,7 @@
       <div class="nm">Catapult</div>
       <span class="key">3</span>
       <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>100</span>
-      <div class="ds kit"><b>Catapult</b>Lobbed stone, splash damage.</div>
+      <div class="ds kit"><b>Catapult</b>Lobbed stone: splash damage that slows a crowd.</div>
     </div>
     <div class="card" data-type="fire">
       <div class="pic"><canvas width="284" height="116"></canvas></div>
@@ -1810,7 +1810,7 @@ const LEVELS = [
   {
     name: "Halidzor",
     tag: "Davit Bek's fortress in the gorges of Syunik.",
-    era: 4, date: "Spring 1727", year: 1727, hpTune: 1.09,
+    era: 4, date: "Spring 1727", year: 1727, hpTune: 1.13,
     hero: { name: "Davit Bek", title: "Liberator of Syunik" },
     foe: "Ottoman",
     units: {
@@ -1860,7 +1860,7 @@ const LEVELS = [
   {
     name: "Van",
     tag: "The self-defence of Van during the Genocide.",
-    era: 5, date: "20 April to mid-May 1915", year: 1915, hpTune: 1.2,
+    era: 5, date: "20 April to mid-May 1915", year: 1915, hpTune: 1.42,
     hero: { name: "Aram Manukian", title: "Organizer of Van's Self-Defence" },
     foe: "Ottoman",
     units: {
@@ -1914,7 +1914,7 @@ const LEVELS = [
   {
     name: "Musa Dagh",
     tag: "Fifty-three days on the mountain of Moses.",
-    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 0.9,
+    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 1.04,
     hero: { name: "Movses Ter-Kalustian", title: "Commander on Musa Dagh" },
     foe: "Ottoman",
     units: {
@@ -1968,7 +1968,7 @@ const LEVELS = [
   {
     name: "Sardarapat",
     tag: "The stand that saved Armenia, May 1918.",
-    era: 5, date: "21 to 29 May 1918", year: 1918,
+    era: 5, date: "21 to 29 May 1918", year: 1918, hpTune: 1.18,
     hero: { name: "Movses Silikyan", title: "Commander at Sardarapat" },
     foe: "Ottoman",
     units: {
@@ -2072,7 +2072,7 @@ const LEVELS = [
   {
     name: "Shushi",
     tag: "The 44-day war and the fall of the fortress, 2020.",
-    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: 0.98,
+    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: 1.02,
     hero: { name: "Defense Army volunteer", title: "Artsakh Defense Army volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -2129,7 +2129,7 @@ const LEVELS = [
   {
     name: "Stepanakert 2023",
     tag: "Blockade, offensive and exodus, 2022-2023.",
-    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: 0.85,
+    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: 1.02,
     hero: { name: "Civil defense volunteer", title: "Stepanakert civil defense volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -2238,10 +2238,14 @@ function levelPages(L) {
   return L.chronicle && L.chronicle.length ? L.chronicle : [L.history || ""];
 }
 
+// hp: the rank and file's strength, cmd: the commanders'. Every battlefield is tuned on Normal (EARLY_HP, hpTune
+// and CMD_HP, with tools/balance.js), and Hard's test is its thinner treasury, its fewer lives and commanders a
+// step stronger: its rank and file stand as Normal's, so a field that costs Normal's best build eight lives
+// leaves a Hard player a few, not none
 const DIFFS = [
-  { name: "Easy", lives: 30, gold: 260, hp: 0.85 },
-  { name: "Normal", lives: 20, gold: 220, hp: 1.0 },
-  { name: "Hard", lives: 14, gold: 200, hp: 1.08 },
+  { name: "Easy", lives: 30, gold: 260, hp: 0.85, cmd: 0.85 },
+  { name: "Normal", lives: 20, gold: 220, hp: 1.0, cmd: 1.0 },
+  { name: "Hard", lives: 14, gold: 200, hp: 1.0, cmd: 1.08 },
 ];
 
 let curLevel = 0, curDiff = 1, curEra = 0;
@@ -5705,7 +5709,7 @@ const TOWER_DEFS = {
   catapult: {
     name: "Catapult", cost: 100, proj: "stone",
     // a stone staggers the foes it lands among (stagger: seconds at STAGGER_PACE), which holds a column under
-    // every tower's fire; Firepots' burn stacks up to BURN_STACKS pots
+    // every tower's fire; each of Firepots' pots burns on its own timer, up to BURN_STACKS at once
     levels: [
       { dmg: 42, range: 150, rate: 1.9, splash: 66, stagger: 0.5 },
       { dmg: 70, range: 172, rate: 1.75, splash: 76, stagger: 0.6, cost: 140 },
@@ -5715,7 +5719,7 @@ const TOWER_DEFS = {
       a: { name: "Great Boulder", cost: 360, desc: "Massive stone, huge blast",
            stats: { dmg: 200, range: 235, rate: 1.8, splash: 110, stagger: 1.0 } },
       b: { name: "Firepots", cost: 360, desc: "Burning pitch clings to the enemy",
-           stats: { dmg: 85, range: 225, rate: 1.5, splash: 92, stagger: 0.6, burnHit: 18, burnDur: 3 } },
+           stats: { dmg: 85, range: 225, rate: 1.5, splash: 92, stagger: 0.6, burnHit: 18, burnDur: 4 } },
     },
   },
   fire: {
@@ -5927,9 +5931,9 @@ const SKIN_BLURB = {
   javelin: "Hurled javelins. Long reach, pierces armor.",
   ballista: "Long range bolt. Pierces armor.",
   musket: "Matchlock fire. Long reach, pierces armor.",
-  hurlers: "Hurled stones, splash damage.",
-  catapult: "Lobbed stone, splash damage.",
-  trebuchet: "Pull-crew engine: lobbed stone, splash damage.",
+  hurlers: "Hurled stones: splash damage that slows a crowd.",
+  catapult: "Lobbed stone: splash damage that slows a crowd.",
+  trebuchet: "Pull-crew engine: lobbed stone, splash damage that slows a crowd.",
   beacon: "Beacon flames slow and burn nearby foes.",
   cauldron: "Boiling pitch slows and burns nearby foes.",
   standard: "Inspire nearby towers: faster, harder strikes.",
@@ -5942,7 +5946,7 @@ const SKIN_BLURB = {
 const SLOT_BLURB = {
   archer: "Fast shots, single target. Reliable.",
   ballista: "Long reach, pierces armor.",
-  catapult: "Splash damage over an area.",
+  catapult: "Splash damage over an area; slows the crowd it hits.",
   fire: "Slows and wears down nearby foes.",
   drums: "Inspire nearby towers: faster, harder strikes.",
 };
@@ -6085,13 +6089,28 @@ function waveGroups(w) {
 // enemy strength by wave: a straight climb plus a bend that bites in the second half, where a full board of
 // mastered towers used to coast. Each battlefield also stands a little higher than the one before it.
 function hpScale(w) { return 1 + (w - 1) * 0.13 + 0.005 * (w - 1) * (w - 1); }
+// the commanders keep the old straight climb (the late-wave bend is for the rank and file they bring), and the
+// pair on wave 20 stands a fifth above it. The first commander, on wave 10, comes while the board is still going
+// up, so it stands lower than the climb would put it (1.5, not 2.17): one that reaches the walls costs 10 lives
+function commanderClimb(w) { return w === 10 ? 1.5 : (1 + (w - 1) * 0.13) * (w === 20 ? 1.2 : 1); }
 // the first chapters were won with lives to spare by any sensible build, so their foes stand taller; the
-// first battlefield stays the gentlest. These and each later battlefield's hpTune are set with tools/balance.js:
-// on Normal the best of its builds should lose a few lives on battlefields 1-6 and end battlefields 7-13 with
-// about half of them, while a balanced mix holds most battlefields. (Tushpa, Avarayr and Sevan stop short:
-// the mix holds them whole even with far stronger foes, and only the pure builds would pay for more.)
-const EARLY_HP = [1.12, 1.49, 1.69, 1.43, 1.69, 1.89, 1.56];
-function levelHpMult() { return (1 + 0.015 * curLevel) * (EARLY_HP[curLevel] || 1) * (LEVELS[curLevel].hpTune || 1); }
+// first battlefield stays the gentlest. These and each later battlefield's hpTune set the rank and file's
+// strength, with tools/balance.js: on Normal the best of its builds should lose a few lives on battlefields 1-6
+// and end battlefields 7-13 with about half of them, from the rank and file alone, while a balanced mix holds
+// most battlefields. Tushpa, Avarayr and Sevan stop short: the mix holds them whole however strong their foes
+// stand (1.8 times and more), so there more strength only punishes the other builds; foes 30% faster, columns
+// 40% tighter or half again as many horse and skirmishers did not cost it a life either. Their 20 lives stand
+// until the owner decides what pressure those three fields should get
+const EARLY_HP = [1.12, 1.49, 1.69, 1.72, 1.86, 1.89, 1.72];
+// each battlefield's commanders stand on their own number, apart from the rank and file's: one that reaches the
+// walls costs 10 lives at a stroke, so a field's toll should be the rank and file's. Set with tools/balance.js
+// CMD=probe so that on Normal the best build fells both commanders on every seed, and on Hard, where they stand
+// 8% stronger, on most battlefields
+const CMD_HP = [1.12, 1.49, 1.69, 1.12, 1.45, 1.89, 1.5, 1.09, 0.9, 0.78, 0.85, 1.35, 0.98, 0.65];
+function levelHpMult(type) {
+  const own = type === "boss" ? CMD_HP[curLevel] : (EARLY_HP[curLevel] || 1) * (LEVELS[curLevel].hpTune || 1);
+  return (1 + 0.015 * curLevel) * (own || 1);
+}
 // gold per kill thins in the late waves, so the treasury cannot outgrow the war
 function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
 // the drone war of 2020 and the assault of 2023
@@ -6802,15 +6821,14 @@ function startWave() {
 function spawnEnemy(type) {
   const d = eraUnit(type);
   const E = ERAS[curEra];
-  // the commanders keep the old straight climb: the late-wave bend is for the rank and file they bring
-  const climb = type === "boss" ? 1 + (waveIdx - 1) * 0.13 : hpScale(waveIdx);
-  const hp = Math.round(d.hp * (d.hpMult || 1) * E.hpMult * climb * levelHpMult() * DIFFS[curDiff].hp *
-    (type === "boss" && waveIdx === 20 ? 1.2 : 1) * tutorialHp());
+  const climb = type === "boss" ? commanderClimb(waveIdx) : hpScale(waveIdx);
+  const hp = Math.round(d.hp * (d.hpMult || 1) * E.hpMult * climb * levelHpMult(type) *
+    DIFFS[curDiff][type === "boss" ? "cmd" : "hp"] * tutorialHp());
   const e = {
     type, hp, maxHp: hp, dist: 0, speed: d.spd * (d.spdMult || 1),
     armor: d.armor + (d.armorAdd || 0),
     bounty: Math.max(1, Math.round(d.bounty * E.bounty * bountyScale(waveIdx))), r: d.r, dmg: d.dmg, def: d,
-    slowTimer: 0, slowFactor: 1, stunT: 0, staggerT: 0, burnDps: 0, burnT: 0, flash: 0,
+    slowTimer: 0, slowFactor: 1, stunT: 0, staggerT: 0, burnDps: 0, burnT: 0, pots: null, flash: 0,
     wobble: Math.random() * Math.PI * 2,
   };
   e.route = spawnSeq++ % ROUTES.length;   // forked maps split the horde
@@ -7118,11 +7136,12 @@ function sellTower(t) {
   syncHud();
 }
 
-const BURN_STACKS = 3;   // how many pots' worth of burning pitch one foe can carry
-// a foe a stone lands on staggers: for st.stagger seconds it keeps only this share of its pace (its own
-// timer, so it never cuts short or outlasts an altar's slow)
+const BURN_STACKS = 3;   // how many pots of burning pitch can burn on one foe at once
+// a foe a stone lands on staggers: for st.stagger seconds it keeps only this share of its pace. The stagger
+// runs on its own timer, so it never cuts short or outlasts an altar's slow, and the two do not compound: the
+// stronger slow holds (a foe in a 60% altar's flames under a stone still keeps 40% of its pace, not 24%)
 const STAGGER_PACE = 0.6;
-function paceOf(e) { return e.slowFactor * (e.staggerT > 0 ? STAGGER_PACE : 1); }
+function paceOf(e) { return Math.min(e.slowFactor, e.staggerT > 0 ? STAGGER_PACE : 1); }
 function fireTowerShot(t, target, dmgMult) {
   const st = getStats(t);
   const def = TOWER_DEFS[t.type];
@@ -7133,7 +7152,7 @@ function fireTowerShot(t, target, dmgMult) {
     projectiles.push({
       kind: "stone", x: t.x, y: t.y - 26, sx: t.x, sy: t.y - 26, tx: tp.x, ty: tp.y,
       t: 0, dur: 0.9, dmg, splash: st.splash, src: t, stagger: st.stagger || 0,
-      burnHit: st.burnHit || 0, burnDur: st.burnDur || 0,
+      burnHit: (st.burnHit || 0) * dmgMult, burnDur: st.burnDur || 0,   // the drums' might feeds the pitch too
       fiery: t.spec === "b" && t.type === "catapult",
     });
     Snd.play((art && art.sound) || "catapult", { x: t.x, spec: t.spec });
@@ -7266,10 +7285,23 @@ function update(dt) {
     if (e.stunT > 0) e.stunT -= dt;
     if (e.staggerT > 0) e.staggerT -= dt;
     if (e.flash > 0) e.flash -= dt;
+    // the fire a lightning strike leaves (burnT), and each pot of pitch on the foe, every pot on its own timer
+    let alight = false;
     if (e.burnT > 0) {
       e.burnT -= dt;
       e.hp -= e.burnDps * dt;
-      if (e.burnSrc) { e.burnSrc.dmgDone = (e.burnSrc.dmgDone || 0) + e.burnDps * dt; e.lastHit = e.burnSrc; }
+      alight = true;
+    }
+    if (e.pots && e.pots.length) {
+      for (let i = e.pots.length - 1; i >= 0; i--) {
+        const q = e.pots[i], d = q.dps * Math.min(dt, q.t);
+        e.hp -= d;
+        if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; }
+        if ((q.t -= dt) <= 0) e.pots.splice(i, 1);
+      }
+      alight = true;
+    }
+    if (alight) {
       if (Math.random() < dt * 6) {
         const p = enemyPos(e);
         particles.push({ x: p.x + (Math.random() - .5) * 10, y: p.y - 12, vx: 0, vy: -24, life: 0.4, color: "#ff7a2c", size: 2.5 });
@@ -7402,11 +7434,12 @@ function update(dt) {
           if (inGroundRange(pr.tx, pr.ty, p.x, p.y, pr.splash + e.r)) {
             damageEnemy(e, pr.dmg, false, pr.src);
             if (pr.stagger) e.staggerT = Math.max(e.staggerT || 0, pr.stagger);
-            // burning pitch clings: each pot adds its fire to what still burns on the foe, up to three pots'
-            // worth, and the fire lasts while fresh pots keep landing
+            // burning pitch clings: each pot burns for its own burnDur, and up to BURN_STACKS pots burn on one
+            // foe at once; a pot past that rekindles the one nearest to going out
             if (pr.burnHit) {
-              e.burnDps = Math.min(pr.burnHit * BURN_STACKS, (e.burnT > 0 ? e.burnDps : 0) + pr.burnHit);
-              e.burnT = Math.max(e.burnT, pr.burnDur); e.burnSrc = pr.src;
+              const pots = e.pots || (e.pots = []), pot = { dps: pr.burnHit, t: pr.burnDur, src: pr.src };
+              if (pots.length < BURN_STACKS) pots.push(pot);
+              else pots[pots.reduce((k, q, i) => q.t < pots[k].t ? i : k, 0)] = pot;
             }
           }
         }
@@ -44936,7 +44969,7 @@ function statText(t) {
   if (st.stagger) s += statRow("frost", Math.round((1 - STAGGER_PACE) * 100) + "%", "slow for " + st.stagger + "s", "wide");
   if (def.pierce) s += statRow("spear", "", "Pierces armor");
   if (st.twin) s += statRow("target", "", "Two targets");
-  if (st.burnHit) s += statRow("flame", st.burnHit + "/s", "for " + st.burnDur + "s, up to " + BURN_STACKS + " pots stack", "wide");
+  if (st.burnHit) s += statRow("flame", st.burnHit + "/s", "for " + st.burnDur + "s, stacks up to " + BURN_STACKS + "x", "wide", might);
   s += statRow("wing", "", def.air ? "Hits outflankers" : "Road only");
   return s;
 }
@@ -45379,7 +45412,10 @@ function showPanel(t) {
   } else if (!t.spec) {
     for (const key of ["a", "b"]) {
       const sp = specInfo(t.type, key);
-      const b = mkBtn(icon("star") + sp.name + coinBadge(sp.cost), sp.desc, "spec", () => specializeTower(t, key), gold < sp.cost);
+      // a stun mastery's "Every 5s" quickens to the drums' beat where they reach this altar, as its panel shows
+      const desc = sp.stats.nova && t.buffHaste > 0
+        ? sp.desc.replace(/^Every \d+s/, "Every " + +(sp.stats.nova / (1 + t.buffHaste)).toFixed(1) + "s") : sp.desc;
+      const b = mkBtn(icon("star") + sp.name + coinBadge(sp.cost), desc, "spec", () => specializeTower(t, key), gold < sp.cost);
       panelCostBtns.push({ el: b, cost: sp.cost });
       acts.appendChild(b);
     }
@@ -49217,7 +49253,7 @@ const TUT_STEPS = [
     html: () => {
       const n = k => "<b>" + escapeHtml(towerName(k)) + "</b>";
       return "Five towers, five jobs: " + n("archer") + " shoot fast · " + n("ballista") + " bolts pierce armour · " +
-        n("catapult") + " stones splash a crowd · " + n("fire") + " slows and burns · " + n("drums") + " make nearby towers faster and stronger.";
+        n("catapult") + " stones splash and slow a crowd · " + n("fire") + " slows and burns · " + n("drums") + " make nearby towers faster and stronger.";
     },
     el: () => document.querySelector("#shop .trayPanel") },
   { id: "spells", freeze: false,
@@ -49838,8 +49874,9 @@ function runSelftest() {
     resetGame();
   });
   // the balance rules tools/balance.js was tuned against: the tray prices are the towers' own, armour never
-  // takes more than four parts in five of a blow, pitch from three pots burns as one and no more, stones stagger,
-  // the drums reach the fire altars, and "First" means the foe nearest the walls, however it travels
+  // takes more than four parts in five of a blow, each pot of pitch burns on its own timer and at most three at
+  // once, stones stagger (and the stronger slow holds), the drums reach the fire altars, and "First" means the
+  // foe nearest the walls, however it travels
   check("tower rules", () => {
     document.querySelectorAll("#shop .card").forEach(c => {
       const price = +c.querySelector(".pr").textContent.replace(/\D/g, "");
@@ -49855,14 +49892,27 @@ function runSelftest() {
     if (Math.abs(hp - e.hp - 2.4) > 1e-9) throw new Error("12 against armour 28 took " + (hp - e.hp));
     hp = e.hp; e.armor = 12; damageEnemy(e, 40, false);
     if (hp - e.hp !== 28) throw new Error("40 against armour 12 took " + (hp - e.hp));
-    const p = enemyPos(e);
-    for (let i = 0; i < 5; i++) {
+    // each pot burns on its own timer: two pots 1.5 s apart, then the first goes out 3 s after it landed
+    e.hp = e.maxHp = 1e7;
+    const pot = () => {
+      const p = enemyPos(e);
       projectiles.push({ kind: "stone", x: p.x, y: p.y, sx: p.x, sy: p.y, tx: p.x, ty: p.y, t: 0.999, dur: 0.9, dmg: 1, splash: 40,
         src: null, stagger: 0.6, burnHit: 18, burnDur: 3 });
       update(0.01);
-      if (Math.abs(e.burnDps - 18 * Math.min(i + 1, BURN_STACKS)) > 1e-9) throw new Error("pot " + (i + 1) + " burns at " + e.burnDps);
-    }
+    };
+    const pitch = () => (e.pots || []).reduce((s, q) => s + q.dps, 0);
+    pot();
+    for (let k = 0; k < 149; k++) update(0.01);
+    pot();
+    if (pitch() !== 36) throw new Error("two pots 1.5 s apart burn at " + pitch());
+    for (let k = 0; k < 160; k++) update(0.01);
+    if (pitch() !== 18) throw new Error("the first pot still burns 3 s on: " + pitch());
+    for (let i = 0; i < 4; i++) pot();
+    if (pitch() !== 18 * BURN_STACKS) throw new Error("more than " + BURN_STACKS + " pots burn at once: " + pitch());
     if (!(e.staggerT > 0.5) || paceOf(e) !== STAGGER_PACE) throw new Error("the stone did not stagger: " + [e.staggerT, paceOf(e)]);
+    // the stronger of a stone's stagger and an altar's slow holds; they do not compound
+    e.slowFactor = 0.4; e.slowTimer = 1;
+    if (paceOf(e) !== 0.4) throw new Error("stagger and slow compound: " + paceOf(e));
     gold = 1e6;
     placeTower("fire", 0); placeTower("drums", 1);
     towers[1].x = towers[0].x + 60; towers[1].y = towers[0].y;
@@ -49874,6 +49924,27 @@ function runSelftest() {
     const order = [e, f]; sortByPrio(order, "first");
     if (order[0] !== f) throw new Error("First passed over the flyer at the walls");
     resetGame();
+  });
+  // the foes' strength: the rank and file stand on EARLY_HP (and hpTune), the commanders on CMD_HP alone, and
+  // Hard's rank and file stand as Normal's while its commanders stand 8% higher
+  check("foe strength", () => {
+    const tune = EARLY_HP[0];
+    curLevel = 0; curDiff = 1; waveIdx = 10; phase = "wave"; spawnQueue = [];
+    const hpOf = (diff, type, t) => {
+      curDiff = diff; EARLY_HP[0] = t;
+      spawnEnemy(type);
+      return enemies.pop().maxHp;
+    };
+    try {
+      if (hpOf(1, "spearman", tune) !== hpOf(2, "spearman", tune)) throw new Error("Hard's rank and file are not Normal's");
+      if (hpOf(1, "spearman", tune * 2) < hpOf(1, "spearman", tune) * 1.9) throw new Error("EARLY_HP does not reach the rank and file");
+      const boss = hpOf(1, "boss", tune);
+      if (hpOf(1, "boss", tune * 2) !== boss) throw new Error("EARLY_HP reaches the commander");
+      if (Math.abs(hpOf(2, "boss", tune) / boss - DIFFS[2].cmd) > 0.01) throw new Error("Hard's commander is not " + DIFFS[2].cmd + "x");
+      if (commanderClimb(10) >= commanderClimb(20) / 2) throw new Error("the wave-10 commander stands too high");
+    } finally {
+      EARLY_HP[0] = tune; curDiff = 1; resetGame();
+    }
   });
   // the campaign's chapters: each battlefield in exactly one, in order, every node on its chart
   check("chapters", () => {

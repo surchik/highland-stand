@@ -17,8 +17,18 @@
 //                 Per kind for an A/B test: SPEC=catapult=b,drums=a (kinds not named alternate)
 //   DT=s          simulation step in seconds (default 1/60, one frame of the game at 60 Hz; a coarser step
 //                 rounds every reload up and so shortchanges the fast-shooting towers)
-//   JSON=1        also print one JSON line per battle: leaks by wave, damage by tower, and a trace with
-//                 wave:lives:gold:towers after each wave (a tower as its kind's initial and rank, "b3", "ca")
+//   JSON=1        also print one JSON line per battle: leaks by wave, damage by tower, each commander's fate
+//                 (its wave, whether it reached the walls, the share of its hit points it had left there or the
+//                 share of its road it had walked when it fell), and a trace with wave:lives:gold:towers after
+//                 each wave (a tower as its kind's initial and rank, "b3", "ca")
+//   CMD=probe     the commanders can neither fall nor cost lives: each walks its whole road, pays its bounty
+//                 once it has taken its own hit points, and a second table gives, per cell, the least damage a
+//                 wave-10 and a wave-20 commander took on its road as a share of its hit points. Above 1 the
+//                 build fells a commander of that strength; 1.3 means it could stand 30% more hit points. The
+//                 battle is the same as an ordinary one up to the moment the commander would have fallen, so
+//                 the main table then shows the rank and file's toll alone. The wave-20 pair share the towers'
+//                 fire all the way, where in a real battle the second gets all of it once the first falls, so
+//                 its figure understates the pair: confirm a change with an ordinary run
 //   BUILD_name=kinds  add a build of your own for this run, e.g. BUILD_catdrum=catapult,catapult,archer,drums
 //   PATCH=js      run this code in every page once it has loaded, before any battle: for trying numbers
 //                 without editing the game, e.g. PATCH='TOWER_DEFS.ballista.levels[0].dmg = 50' or
@@ -26,11 +36,25 @@
 //
 // What it prints, for each difficulty: one row per battlefield and one column per build. With one seed, "W 14"
 // is a stand held with 14 lives left and "L 12" a stand lost on wave 12; with several, "2/3 9.7" is two wins in
-// three with 9.7 lives left on average (a loss counting 0) and "0/3 w12" three losses around wave 12. The "best"
-// column is the best build for that battlefield (most wins, then most lives, else the furthest wave): roughly
-// what a capable player finds. Under the table: wins per build, then damage per 100 gold invested for each
-// tower kind and mastery, summed over every battle. A tower built late has had less time to deal damage, so
-// compare a mastery with its twin ("archer.a" with "archer.b"), not with an unmastered tower.
+// three with 9.7 lives left on average (a loss counting 0) and "0/3 w12" three losses around wave 12. A cell
+// ending "c2" saw two commanders reach the walls over its battles: each costs 10 lives at a stroke, so "3/3 10.0c3"
+// is a field that cost the rank and file nothing and lost one commander a battle. The "best" column is the best
+// build for that battlefield (most wins, then most lives, else the furthest wave): roughly what a capable player
+// finds; where commanders got through it also gives the lives the build would have kept without them. Under the
+// table: wins per build, the battlefields each build held on every seed, the commanders that reached the walls,
+// then damage per 100 gold invested for each tower kind and mastery, summed over every battle. A tower built late
+// has had less time to deal damage, so compare a mastery with its twin ("archer.a" with "archer.b"), not with an
+// unmastered tower.
+//
+// What the game is tuned to (EARLY_HP and each battlefield's hpTune for the rank and file, CMD_HP for the
+// commanders, all in index.html; Hard's rank and file stand as Normal's), with SEEDS=3:
+//   - Normal: the best build fells both commanders on every battlefield and every seed, so the lives it loses
+//     are the rank and file's toll: a few on battlefields 1-6 (Erebuni, the first, stays gentle), and about
+//     7-14 left on 7-13. A balanced mix holds most battlefields; all-archer and all-catapult builds hold some.
+//     Tushpa, Avarayr and Sevan are the exception for now: the mix holds them whole at any strength tried
+//     (see EARLY_HP), so the best build ends them with 20 lives
+//   - Hard: the best build holds at least 12 of the 14 on every seed with 3 lives or more, and the mix most of
+//     the early ones. Easy: comfortable for every sensible build.
 //
 // How the bot plays: the same rules for every build, so the table compares builds, not the bot's skill.
 //   - Pads are ranked greedily by how much road each adds within 170 px of the pads already taken; for the
@@ -74,7 +98,7 @@ function parseList(s, all) {
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, diff, plan, seed, pace, spells, spec, dt } = a;
+  const { lv, diff, plan, seed, pace, spells, spec, dt, probe } = a;
   Math.random = mulberry32(seed);
   toast = () => {};
   curDiff = diff; curLevel = lv;
@@ -152,6 +176,30 @@ function playBattle(a) {
     }
   };
   const every = Math.max(1, Math.round(pace / dt)), leaks = {}, trace = [];
+  // every commander on the field, watched until it falls or reaches the walls: one that reaches them costs 10
+  // lives at a stroke, so it is counted apart from the rank and file. For each: its wave, and either the share
+  // of its hit points it still had at the walls (a leak) or the share of its road it had walked when it fell.
+  // With CMD=probe a commander can neither fall nor cost lives: it walks the whole road, pays its bounty once it
+  // has taken its own hit points, and "took" is the damage it took over the road as a share of those hit points
+  // (above 1, a commander of that strength falls short of the walls; the battle is the same until it would fall)
+  const bosses = new Set(), boss = [];
+  const roadOf = e => e.fly ? e.fly.len : ROUTES[e.route || 0].len;
+  const watchBosses = () => {
+    for (const e of enemies) if (e.type === "boss" && !bosses.has(e)) {
+      bosses.add(e);
+      if (probe) { e.hp0 = e.maxHp; e.hp = e.maxHp = e.maxHp * 1e4; e.dmg = 0; }
+    }
+    for (const b of bosses) {
+      if (probe && !b.paid && b.maxHp - b.hp >= b.hp0) { b.paid = true; gold += b.bounty; }
+      if (!b.dead && enemies.includes(b)) continue;
+      bosses.delete(b);
+      if (!b.dead) continue;   // the battle ended around it
+      const leaked = b.dist >= roadOf(b);
+      boss.push(probe ? { w: waveIdx, took: +((b.maxHp - b.hp) / b.hp0).toFixed(3) } :
+        { w: waveIdx, leaked, left: leaked ? +Math.max(0, b.hp / b.maxHp).toFixed(3) : 0,
+          walked: +Math.min(1, b.dist / roadOf(b)).toFixed(3) });
+    }
+  };
   while (!gameOver && waveIdx < TOTAL_WAVES) {
     spend();
     startWave();
@@ -159,6 +207,7 @@ function playBattle(a) {
     const before = lives;
     while (phase === "wave" && !gameOver && n < 2400 / dt) {
       update(dt); n++;
+      watchBosses();
       if (n % every === 0) { spend(); if (spells) castAll(); }
     }
     if (lives < before) leaks[waveIdx] = before - Math.max(0, lives);
@@ -174,7 +223,8 @@ function playBattle(a) {
     o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t);
   }
   return { won: lives > 0 && waveIdx >= TOTAL_WAVES && gameOver, lives: Math.max(0, lives), wave: waveIdx,
-    towers: towers.length, plots: plotsBought, leaks, by, trace: trace.join(" ") };
+    towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
+    trace: trace.join(" ") };
 }
 
 (async () => {
@@ -190,6 +240,7 @@ function playBattle(a) {
   const spec = process.env.SPEC || "alt";
   const dt = +(process.env.DT || 1 / 60);
   const jobs = Math.max(1, +(process.env.JOBS || Math.min(4, os.cpus().length)));
+  const probe = process.env.CMD === "probe";
 
   const browser = await chromium.launch();
   const errors = [];
@@ -210,7 +261,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * lv, pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt });
+      spells, spec, dt, probe });
   }
   const results = [];
   let done = 0;
@@ -229,29 +280,55 @@ function playBattle(a) {
 
   const DN = ["Easy", "Normal", "Hard"];
   const pad = (s, n) => String(s).padEnd(n);
+  // a cell ends in "c" and a count when commanders reached the walls in its battles (each one 10 lives)
+  const cmdOf = rs => rs.reduce((s, r) => s + r.cmd, 0);
   const cellOf = rs => {
     const w = rs.filter(r => r.won).length, mean = rs.reduce((s, r) => s + r.lives, 0) / rs.length;
-    if (rs.length === 1) return rs[0].won ? "W " + rs[0].lives : "L " + rs[0].wave;
-    return w + "/" + rs.length + (w ? " " + mean.toFixed(1) : " w" + Math.round(rs.reduce((s, r) => s + r.wave, 0) / rs.length));
+    const c = cmdOf(rs) ? "c" + cmdOf(rs) : "";
+    if (rs.length === 1) return (rs[0].won ? "W " + rs[0].lives : "L " + rs[0].wave) + c;
+    return w + "/" + rs.length + (w ? " " + mean.toFixed(1) : " w" + Math.round(rs.reduce((s, r) => s + r.wave, 0) / rs.length)) + c;
   };
   const score = rs => rs.filter(r => r.won).length * 1000 + rs.reduce((s, r) => s + r.lives + r.wave * 10 * !r.won, 0) / rs.length;
   for (const diff of diffs) {
     console.log("\n" + DN[diff] + ": " + levels.length + " battlefields, " + seeds + " seed" + (seeds > 1 ? "s" : "") +
       ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4));
-    const W = 10, NW = 25;
+    const W = 12, NW = 25;
     console.log(pad("battlefield", NW) + builds.map(b => pad(b, W)).join("") + "| best");
-    const wins = {};
+    const wins = {}, cmds = {}, held = {};
+    let bestWins = 0, bestCmd = 0, bestHeld = 0;
     for (const lv of levels) {
       let row = pad(lv + " " + names[lv], NW).slice(0, NW), best = null;
       for (const b of builds) {
         const rs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b);
         wins[b] = (wins[b] || 0) + rs.filter(r => r.won).length;
+        cmds[b] = (cmds[b] || 0) + cmdOf(rs);
+        held[b] = (held[b] || 0) + (rs.every(r => r.won) ? 1 : 0);
         row += pad(cellOf(rs), W);
         if (!best || score(rs) > score(best.rs)) best = { b, rs };
       }
-      console.log(row + "| " + cellOf(best.rs) + " " + best.b);
+      bestWins += best.rs.filter(r => r.won).length; bestCmd += cmdOf(best.rs); bestHeld += best.rs.every(r => r.won);
+      // the rank and file's toll: the lives the best build lost apart from commanders at the walls
+      const rank = best.rs.reduce((s, r) => s + r.lives + 10 * r.cmd * r.won, 0) / best.rs.length;
+      console.log(row + "| " + pad(cellOf(best.rs) + " " + best.b, 22) + (cmdOf(best.rs) ? "(" + rank.toFixed(1) + " without)" : ""));
     }
-    console.log(pad("wins (of " + levels.length * seeds + ")", NW) + builds.map(b => pad(wins[b], W)).join(""));
+    console.log(pad("wins (of " + levels.length * seeds + ")", NW) + builds.map(b => pad(wins[b], W)).join("") +
+      "| " + bestWins);
+    console.log(pad("held every seed", NW) + builds.map(b => pad(held[b], W)).join("") + "| " + bestHeld);
+    console.log(pad("commanders at the walls", NW) + builds.map(b => pad(cmds[b], W)).join("") + "| " + bestCmd);
+    if (probe) {
+      // the commanders' margins: the least any seed's wave-10 commander took (as a share of its hit points),
+      // then the least of the wave-20 pair; "-" where no battle reached that wave
+      console.log("\ncommander margins (CMD=probe): wave 10, wave 20; the least over the seeds");
+      for (const lv of levels) {
+        let row = pad(lv + " " + names[lv], NW).slice(0, NW);
+        for (const b of builds) {
+          const bs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b).flatMap(r => r.boss);
+          const least = w => { const v = bs.filter(x => x.w === w).map(x => x.took); return v.length ? Math.min(...v).toFixed(2) : "-"; };
+          row += pad(least(10) + " " + least(20), W);
+        }
+        console.log(row);
+      }
+    }
     // damage per 100 gold, by tower kind and mastery
     const agg = {};
     for (const r of results) if (r.diff === diff) for (const k in r.by) {
