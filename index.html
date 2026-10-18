@@ -980,6 +980,19 @@
     <path d="M20.100 3.900 23.400 1.200 21.900 5 23.900 6.300 20.900 6.600 20.500 9.500 19 6.900 16.300 7.700 18.200 5.400z" fill="#ffd27a" stroke="#1c140d" stroke-width="1" stroke-linejoin="round"/>
     <circle cx="20.200" cy="4.800" r="1.300" fill="#fffbe0"/>
   </symbol>
+  <!-- the hero's own arm in 1915: a rifle with its bayonet fixed (the hero button; heroArm) -->
+  <symbol id="i-bayonet" viewBox="0 0 24 24">
+    <path d="M8.400 15.600 17.600 6.400" fill="none" stroke="#1c140d" stroke-width="4.600" stroke-linecap="round"/>
+    <path d="M8.400 15.600 17.600 6.400" fill="none" stroke="#8c97a6" stroke-width="2.400" stroke-linecap="round"/>
+    <path d="M8.900 14.400 17 6.300" fill="none" stroke="#eef1f2" stroke-width=".900" stroke-linecap="round"/>
+    <path d="M16.300 5.700 23.300.7 18.300 7.700z" fill="#c4ccd4" stroke="#1c140d" stroke-width="1.200" stroke-linejoin="round"/>
+    <path d="M16.300 5.700 23.300.7 17.300 6.700z" fill="#f4f7f9"/>
+    <path d="M15.600 6.100 17.900 8.400" fill="none" stroke="#1c140d" stroke-width="2.200" stroke-linecap="round"/>
+    <path d="M15.600 6.100 17.900 8.400" fill="none" stroke="#8c97a6" stroke-width=".900" stroke-linecap="round"/>
+    <path d="M.900 19.300 4.700 23.100 9.900 18.500 15.300 13.100 11.900 9.700 6.500 15.100z" fill="#a9682a" stroke="#1c140d" stroke-width="1.400" stroke-linejoin="round"/>
+    <path d="M1.900 19.400 6.900 15.200 11.900 10.200 12.800 11.100 7.700 16.200 3.100 20.500z" fill="#f0bd74"/>
+    <path d="M8.200 16.900c.3 2 2.100 2.900 3.400 2" fill="none" stroke="#1c140d" stroke-width="1.300" stroke-linecap="round"/>
+  </symbol>
   <symbol id="i-mortar" viewBox="0 0 24 24">
     <ellipse cx="7.400" cy="20.600" rx="5.400" ry="1.800" fill="#4a4f42" stroke="#1c140d" stroke-width="1.200"/>
     <path d="M12.400 11.400 16.600 20.400M12.400 11.400 19.400 19.200" fill="none" stroke="#1c140d" stroke-width="2.300" stroke-linecap="round"/>
@@ -3626,7 +3639,7 @@ registerProcessor("kl-tract", KLTract);
       const calls = [
         [[D4, 0.38], [A4, 0.95]],               // Urartu: a raw ram's horn, high and blatting
         [[A2, 0.32], [D3, 0.42], [A3, 1.05]],   // Avarayr: the long war horn's three rising calls
-        [[D3, 0.4], [A3, 1.05]],                // the Bagratid princes' horn, with the dhol under it
+        [[D3, 0.4], [A3, 1.05]],                // the princes' horn of 640-921, with the dhol under it
         [[D3, 0.3], [D3, 0.3], [A3, 1.05]],     // 1579: the horn over a dhol roll
       ];
       const era = Math.max(0, Math.min(6, o.era | 0));
@@ -3680,7 +3693,7 @@ registerProcessor("kl-tract", KLTract);
     // the hero sent to a new spot: a blade drawn, mail shrugged on, two quick steps. From 1727 (o.arm) no
     // mail: the sabre drawn, a rifle's bolt worked, or an AK's charging handle racked
     rally(v, t, o) {
-      if (o.arm === "ak") { this.lvl(v, -9); this.anvil(v, t, 2100, 0.1); this.anvil(v, t + 0.11, 1800, 0.12); }
+      if (o.arm === "ak") { this.anvil(v, t, 2100, 0.035); this.anvil(v, t + 0.11, 1800, 0.043); }
       else if (o.arm === "fire" || o.arm === "bayonet") this.bolt4(v, t, this.rr(0.96, 1.04), 1.3);
       else this.nz(v, { t, f: 2600, path: [[0.2, 5200]], q: 4, a: 0.05, p: 0.25, d: 0.18 });
       if (!o.arm) this.nz(v, { t: t + 0.02, k: "crackle", ft: "highpass", f: 5000, a: 0.02, p: 0.3, d: 0.2 });
@@ -3743,12 +3756,14 @@ registerProcessor("kl-tract", KLTract);
       this.nz(v, { t: t + 0.15, k: "pink", ft: "highpass", f: 2600, path: [[1.6, 1800]], a: 0.25, hold: 0.5, p: 0.3, d: 1.2 });
       this.nz(v, { t: t + 0.2, k: "crackle", f: 4200, q: 0.8, a: 0.2, hold: 0.4, p: 0.25, d: 1.2 });
     },
-    // Wrath of Haldi at the altar: the fire flares and the god's bronze sounds on D. The barricade's and the
-    // minefield's masteries are blasts, not the god's bronze (novaModern, by o.skin and the battlefield o.site)
+    // Wrath of Haldi at the altar: the fire flares and the god's bronze sounds on D. Haldi's bronze belongs to
+    // Urartu's beacon alone: the pitch cauldron's Fire Burst (451 to 1727) flares with a heavy whoomph and no
+    // gong, and the barricade's and the minefield's masteries are blasts (novaModern, by o.skin and o.site)
     nova(v, t, o) {
       if (o.skin === "minefield" || o.skin === "barricade") return this.novaModern(v, t, o.skin === "minefield" ? "charges" : o.site);
       this.nz(v, { t, k: "pink", ft: "lowpass", f: 200, path: [[0.12, 2800], [0.8, 500]], q: 1, a: 0.06, p: 0.8, d: 0.75 });
-      this.gong(v, t + 0.02, 146.83, 0.4, 2.2);
+      if (o.skin === "cauldron") { this.lvl(v, 6); this.thump(v, t, 80, 45, 0.2, 0.45, 4); }
+      else this.gong(v, t + 0.02, 146.83, 0.4, 2.2);
       this.nz(v, { t: t + 0.05, k: "crackle", f: 2800, q: 0.7, a: 0.05, p: 0.55, d: 0.8 });
     },
     // the fire slot at work: an open beacon roars and crackles (never the same burst twice), a pitch
@@ -3771,7 +3786,7 @@ registerProcessor("kl-tract", KLTract);
     // Rain of Arrows: a company looses together, the flight passes overhead whistling. The guns of the later
     // ages (o.look: musket, rifle, mortar) are spellGuns and volleyStrike
     spellArrows(v, t, o) {
-      if (o.look && o.look !== "arrows") return this.spellGuns(v, t, o.look);
+      if (o.look && o.look !== "arrows") return this.spellGuns(v, t, o.look, o.gap);
       for (let i = 0; i < 9; i++) {
         const f = this.rr(170, 240);
         this.tn(v, { t: t + this.rr(0, 0.16), type: "sawtooth", f, f2: f * 0.8, gl: 0.05, lp: 3000, lp2: 500, lpt: 0.1, p: 0.12, d: 0.12 });
@@ -5638,18 +5653,20 @@ Object.assign(Snd.SPEC, {
   heroShot:   { thr: 120, max: 2, g: 1.0, cat: "shot", rev: 0.12, echo: 0.12 },
 });
 Object.assign(Snd, {
-  SPELL_GAP: 0.35,   // seconds between the Q spell's three damage ticks (updateSpells)
   // the cast of a gun volley: the roll of the company's fire coming back off the hills, under the three
   // volleys themselves (volleyStrike); rifles have their bolts worked after the last, and the mortar bombs
-  // of the second and third salvos are heard shrieking in before they land
-  spellGuns(v, t, look) {
-    const span = 2 * this.SPELL_GAP;
+  // of the second and third salvos are heard shrieking in before they land. gap: the real seconds between
+  // the salvos (VOLLEY.gap of game time, shorter when the game runs fast; castSpell)
+  spellGuns(v, t, look, gap) {
+    gap = gap || VOLLEY.gap;
+    const span = 2 * gap;
     if (look === "mortar") {
       this.lvl(v, -11.5);
-      for (const land of [this.SPELL_GAP, span]) {
-        const T = t + land - 0.3, f = this.rr(1500, 1800);
-        this.tn(v, { t: T, f, f2: f * 0.42, gl: 0.3, a: 0.06, hold: 0.16, p: 0.1, d: 0.08 });
-        this.nz(v, { t: T, f: f * 1.1, path: [[0.3, f * 0.5]], q: 5, a: 0.08, hold: 0.14, p: 0.35, d: 0.08 });
+      for (const land of [gap, span]) {
+        // a third of a second of falling shriek, cut shorter when the game runs fast, ending as the bomb lands
+        const w = Math.min(0.3, land), k = w / 0.3, T = t + land - w, f = this.rr(1500, 1800);
+        this.tn(v, { t: T, f, f2: f * 0.42, gl: w, a: 0.06 * k, hold: 0.16 * k, p: 0.1, d: 0.08 });
+        this.nz(v, { t: T, f: f * 1.1, path: [[w, f * 0.5]], q: 5, a: 0.08 * k, hold: 0.14 * k, p: 0.35, d: 0.08 });
       }
       this.nz(v, { t: t + 0.1, k: "brown", ft: "lowpass", f: 420, path: [[span + 1.2, 130]], a: 0.2, hold: span, p: 0.85, d: 1.3 });
       return;
@@ -6230,7 +6247,8 @@ const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Hi
 // mortars of the Artsakh wars. The highland frost holds until 1727. A frost on Musa Dagh in July would be no
 // truth, so from 1915 the hold is what the defenders built or threw: barricades across the lanes and passes
 // (Van's barricaded lanes, Musa Dagh's breastworks, Sardarapat's trench and wire), then a smoke screen that
-// blinds a column and the drones over it.
+// blinds a column. Nothing stops an aircraft in the air: one caught over the smoke cannot see its mark and goes
+// round until it lifts (circleAircraft), and the mortar bombs, bursting on the ground, never touch it.
 const SPELL_ERAS = {
   arrows: [
     ["Rain of Arrows", "volleys pierce all foes", "arrows"],
@@ -6239,7 +6257,7 @@ const SPELL_ERAS = {
     ["Rain of Arrows", "volleys pierce all foes", "arrows"],
     ["Musket Volley", "volleys pierce all foes", "musket"],
     ["Rifle Volley", "volleys pierce all foes", "rifle"],
-    ["Mortar Barrage", "salvos strike all foes", "mortar"],
+    ["Mortar Barrage", "salvos strike all ground foes", "mortar"],
   ],
   frost: [
     ["Frost of Aragats", "freeze foes for 3s", "frost"],
@@ -6310,8 +6328,13 @@ function applyEraLabels() {
     b.title = row[0] + ": " + row[1] + " (" + SPELLS[key].hotkey + ")";
     if (use && SPELL_ICONS[row[2]]) use.setAttribute("href", "#" + SPELL_ICONS[row[2]]);
   });
+  // the hero's medallion shows what he fights with: the sword, a rifle with its bayonet fixed, or a gun firing
   const hb = $("heroBtn");
-  if (hb) hb.title = heroName() + ": select, then click the field to march to that spot (R)";
+  if (hb) {
+    hb.title = heroName() + ": select, then click the field to march to that spot (R)";
+    const arm = heroArm(), use = hb.querySelector(".ic use");
+    if (use) use.setAttribute("href", arm === "ak" || arm === "fire" ? "#i-volley" : arm === "bayonet" ? "#i-bayonet" : "#i-sword");
+  }
   fitCardNames();
   if (eraLabelsDrawn !== curEra && typeof renderShopPortraits === "function") {
     eraLabelsDrawn = curEra;
@@ -6697,11 +6720,16 @@ function castSpell(key, x, y) {
   castingSpell = null;
   updateSpellBar();
   coachEvent("spell");
-  // the age decides only the look and the sound (SPELL_ERAS); the numbers below are the same in every age
+  // the age decides only the look and the sound (SPELL_ERAS); the numbers below are the same in every age.
+  // The game clock runs speedMult times faster than the sound's, so a cast's sound is told how far apart, in
+  // real seconds, the strikes it has to meet will fall
   const look = spellLook(key);
   if (key === "arrows") {
-    spellFx.push({ type: "arrows", look, x, y, t: 0, ticks: 0 });
-    Snd.play("spellArrows", { x, look });
+    const fx = { type: "arrows", look, x, y, t: 0, ticks: 0 };
+    // Musa Dagh's villagers fired old black-powder hunting guns beside their few modern rifles (E5_SPECS)
+    if (look === "rifle" && e5Field() === "musa") fx.powder = true;
+    spellFx.push(fx);
+    Snd.play("spellArrows", { x, look, gap: VOLLEY.gap / speedMult });
   } else if (key === "frost") {
     // the smoke screen hangs on after the hold has been set; every other look is gone by 1.6 s
     const fx = { type: "frostRing", look, x, y, t: 0, life: look === "smoke" ? SMOKE_SCREEN.life : 1.6 };
@@ -6711,7 +6739,12 @@ function castSpell(key, x, y) {
     for (const e of enemies) {
       const p = enemyPos(e);
       // e.hold: what holds the foe, so it is drawn iced, behind a barricade or simply halted in the smoke
-      if (inGroundRange(x, y, p.x, p.y, S.radius + e.r)) { e.stunT = Math.max(e.stunT, 3); e.flash = 0.1; e.hold = look; e.holdSeed = Math.random(); }
+      if (inGroundRange(x, y, p.x, p.y, S.radius + e.r)) {
+        e.stunT = Math.max(e.stunT, 3); e.flash = 0.1; e.hold = look; e.holdSeed = Math.random();
+        // the frost of the old ages holds what it touches; a smoke screen cannot stop an aircraft in the air,
+        // so one caught over it goes round instead (circleAircraft)
+        if (look !== "frost" && unitAirborne(e, p)) circleAircraft(e);
+      }
     }
     // cold motes settling on the ice, or the dust the barricades throw up; the smoke screen is its own cloud
     const mote = look === "frost" ? { vy: 14, color: "#cfeaff" } : look === "barricade" ? { vy: -12, color: "#b39b78" } : null;
@@ -6719,7 +6752,7 @@ function castSpell(key, x, y) {
       const a = Math.random() * Math.PI * 2, rr = Math.random() * S.radius;
       particles.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr * ELLIPSE - 10, vx: 0, vy: mote.vy, life: 0.8, color: mote.color, size: 2.5 });
     }
-    Snd.play("spellFrost", { x, look, cans: fx.cans ? fx.cans.map(c => c.at) : null });
+    Snd.play("spellFrost", { x, look, cans: fx.cans ? fx.cans.map(c => c.at / speedMult) : null });
   } else if (key === "wrath") {
     spellFx.push({ type: "bolt", x, y, t: 0 });
     for (const e of enemies) {
@@ -6827,11 +6860,14 @@ function updateSpells(dt) {
   for (const k in spellCd) if (spellCd[k] > 0) spellCd[k] = Math.max(0, spellCd[k] - dt);
   for (const fx of spellFx) {
     fx.t += dt;
-    if (fx.type === "arrows" && fx.ticks < 3 && fx.t >= fx.ticks * 0.35) {
+    if (fx.type === "arrows" && fx.ticks < VOLLEY.salvos && fx.t >= fx.ticks * VOLLEY.gap) {
       fx.ticks++;
       for (const e of enemies) {
         const p = enemyPos(e);
-        if (inGroundRange(fx.x, fx.y, p.x, p.y, SPELLS.arrows.radius + e.r)) damageEnemy(e, 30, true);
+        if (!inGroundRange(fx.x, fx.y, p.x, p.y, SPELLS.arrows.radius + e.r)) continue;
+        // arrows, balls and bullets can find a low flyer; a mortar bomb bursts on the ground and cannot
+        if (fx.look === "mortar" && unitAirborne(e, p)) continue;
+        damageEnemy(e, 30, true);
       }
       if (fx.look === "arrows" || !fx.look) {
         // pale streaks of the shafts coming down
@@ -7095,8 +7131,8 @@ function startWave() {
 }
 
 // the wave's call in words, as Snd.horn sounds it in each age: horns until the 16th century (the dhol under
-// them from the Bagratids on), Davit Bek's horn and dhol in 1727, the bugle of 1915-18, the field radio and the
-// air-raid siren of the Artsakh wars
+// them from the 7th century on: Dvin in 640, then the Bagratid wars), Davit Bek's horn and dhol in 1727, the
+// bugle of 1915-18, the field radio and the air-raid siren of the Artsakh wars
 const WAVE_CALLS = [
   "the horns sound in the valley",
   "the war horns sound",
@@ -7215,7 +7251,46 @@ function flyPos(e) {
   const t = Math.min(1, e.dist / f.len);
   return { x: f.x0 + (f.x1 - f.x0) * t, y: f.y0 + (f.y1 - f.y0) * t, ang: f.ang };
 }
-function enemyPos(e) { return e.pin || (e.fly ? flyPos(e) : routeAt(e.route || 0, e.dist)); }
+function enemyPos(e) {
+  if (e.pin) return e.pin;
+  const p = e.fly ? flyPos(e) : routeAt(e.route || 0, e.dist);
+  return e.orbit ? orbitPos(p, e.orbit) : p;
+}
+
+// --- an aircraft over the smoke screen ---
+// Smoke hides the ground from a pilot and from a drone's camera, so an aircraft caught over the screen can find
+// neither its mark nor its way. It cannot stop in the air as the column below it does: it goes round in a level
+// circle at its own pace instead, leaving its line and rejoining it at the same spot, heading the same way, just
+// as the hold ends, so it gains no ground while it is held. e.orbit: a, the angle flown so far; to, where the
+// circle closes; side, which way it banks; r, the circle's radius on the ground.
+function circleAircraft(e) {
+  const o = e.orbit;
+  if (o) {
+    // caught again while going round: it closes this circle, or flies one more if little of it is left
+    if (o.to - o.a < Math.PI) o.to += Math.PI * 2;
+    return;
+  }
+  const r = Math.max(16, Math.min(34, (e.speed || 40) * e.stunT / (Math.PI * 2)));
+  e.orbit = { a: 0, to: Math.PI * 2, side: e.holdSeed < 0.5 ? -1 : 1, r };
+}
+// the circle closes exactly as the hold ends, however long the hold is made or however it is cut short
+function stepOrbit(e, dt) {
+  if (e.stunT > dt) e.orbit.a += (e.orbit.to - e.orbit.a) * dt / e.stunT;
+  else e.orbit = null;
+}
+// where the circle has taken it from p, its place on its line. The circle is laid out on the true ground,
+// whose depth the world's y foreshortens by ELLIPSE
+function orbitPos(p, o) {
+  let ux = Math.cos(p.ang), uy = Math.sin(p.ang) / ELLIPSE;
+  const n = Math.hypot(ux, uy) || 1;
+  ux /= n; uy /= n;
+  const nx = -uy * o.side, ny = ux * o.side, sa = Math.sin(o.a), ca = Math.cos(o.a);
+  return {
+    x: p.x + o.r * (sa * ux + (1 - ca) * nx),
+    y: p.y + o.r * (sa * uy + (1 - ca) * ny) * ELLIPSE,
+    ang: Math.atan2((ca * uy + sa * ny) * ELLIPSE, ca * ux + sa * nx),
+  };
+}
 
 function endWaveIfClear() {
   if (gameOver) return;
@@ -7337,7 +7412,7 @@ function defeat() {
   saveBest();
   clearRun();
   Snd.play("lose");
-  // The foe is named by foeName(), as on the wave banner ("<foe> forces"), and the wave count is always given.
+  // The foe is named by foeName(), as on the wave banner, and the wave count is always given.
   // A stand lost within the chronicle tells the battlefield's own defeat (L.defeat); an endless stand lost
   // after the victory counts the waves held beyond the chronicle instead, for the battlefield stays won. A
   // wave counts as held once its every foe has fallen (lastCleared): the wave an early call cut short does not.
@@ -7566,6 +7641,7 @@ function update(dt) {
   for (const e of enemies) {
     e.slowTimer -= dt;
     if (e.slowTimer <= 0) e.slowFactor = 1;
+    if (e.orbit) stepOrbit(e, dt);
     if (e.stunT > 0) e.stunT -= dt;
     if (e.flash > 0) e.flash -= dt;
     if (e.burnT > 0) {
@@ -7608,7 +7684,7 @@ function update(dt) {
     const blocked = hero && hero.alive && hero.engaged.includes(e);
     const moveMult = e.stunT > 0 || blocked ? 0 : e.slowFactor;
     e.dist += e.speed * moveMult * dt;
-    e.wobble += dt * (e.type === "cavalry" ? 13 : 9) * (moveMult > 0 ? 1 : 0.2);
+    e.wobble += dt * (e.type === "cavalry" ? 13 : 9) * (moveMult > 0 || e.orbit ? 1 : 0.2);
     // walking dust
     if (moveMult > 0 && Math.random() < dt * 2.2) {
       const p = enemyPos(e);
@@ -18477,8 +18553,15 @@ function draw(time) {
       objs.push({ y: unprojGround(spot[0], spot[1]).y, fn: () => drawPlotSign(plot) });
     }
   }
-  // whatever flies is drawn over everything that stands on the ground
-  for (const e of enemies) { const p = enemyPos(e); objs.push({ y: p.y + (unitAirborne(e, p) ? 1e6 : 0), fn: () => drawEnemy(e, p) }); }
+  // whatever flies is drawn over everything that stands on the ground, the spells' smoke and dust included;
+  // a piece of barricade (the W spell of 1915-18) stands just in front of the foe it holds
+  const flyers = [];
+  for (const e of enemies) {
+    const p = enemyPos(e);
+    if (unitAirborne(e, p)) { flyers.push({ y: p.y, fn: () => drawEnemy(e, p) }); continue; }
+    objs.push({ y: p.y, fn: () => drawEnemy(e, p) });
+    if (e.hold === "barricade" && e.stunT > 0) objs.push({ y: p.y + 0.5, fn: () => drawBarricadeHold(e, p) });
+  }
   objs.sort((a, b) => a.y - b.y);
   for (const o of objs) o.fn();
 
@@ -18486,6 +18569,8 @@ function draw(time) {
 
   // spell bursts go down first: a floating reward is never buried under the debris of a strike
   drawSpellFx(time);
+  flyers.sort((a, b) => a.y - b.y);
+  for (const o of flyers) o.fn();
 
   drawParticles();
   drawAtmosphere(time);
@@ -19473,6 +19558,7 @@ function drawVolleyHitSparks(fx, landed, reach, fade) {
   for (const e of enemies) {
     const p = enemyPos(e);
     if (!inGroundRange(fx.x, fx.y, p.x, p.y, SPELLS.arrows.radius + e.r)) continue;
+    if (fx.look === "mortar" && unitAirborne(e, p)) continue;   // the bombs burst under the aircraft (updateSpells)
     const ep = proj(p.x, p.y);
     let hit = 0;
     for (const ar of landed) {
@@ -19499,7 +19585,8 @@ function drawVolleyHitSparks(fx, landed, reach, fade) {
 // (volleyArrow places them), but nothing is seen in flight: a ball or bullet shows only where it strikes. A
 // faint whip of its passage, a spurt of earth thrown up, a puff of dust, a nick left in the dirt, and the white
 // spark over any foe it strikes beside. Black powder leaves its smoke hanging along the side the volley came
-// from; the smokeless rifles of 1915-18 leave none, and their strikes are smaller and sharper.
+// from: Davit Bek's matchlocks, and a thinner haze from Musa Dagh's old hunting guns (fx.powder). The smokeless
+// rifles of Van and Sardarapat leave none, and every rifle's strikes are smaller and sharper.
 function drawGunVolleyGround(fx, pp) {
   const fade = unit01((VOLLEY.linger - fx.t) / 0.3);
   const s = pp.s, radius = SPELLS.arrows.radius * s;
@@ -19535,7 +19622,8 @@ function drawGunVolleyAir(fx, pp) {
   ctx.save();
   ctx.lineCap = "round";
   // black powder: the smoke of each salvo drifts in along the side it was fired from and hangs there
-  if (musket && fx.t > 0.02) {
+  if ((musket || fx.powder) && fx.t > 0.02) {
+    const thick = musket ? 0.46 : 0.3;
     const haze = glowSprite("238, 234, 224");
     for (let i = 0; i < 9; i++) {
       const salvo = i % 3, born = salvo * VOLLEY.gap;
@@ -19544,7 +19632,7 @@ function drawGunVolleyAir(fx, pp) {
       const ang = -2.3 + (i / 9 - 0.5) * 1.5 + (seededUnit(fx.x + i * 5.3) - 0.5) * 0.3;
       const rr = radius * (1.02 + 0.14 * seededUnit(fx.y + i * 3.1));
       const hx = pp.x + Math.cos(ang) * rr + k * 16 * s, hy = pp.y + Math.sin(ang) * rr * ELLIPSE - (8 + k * 10) * s;
-      drawGlow(ctx, haze, hx, hy, (30 + 26 * k) * s, (13 + 9 * k) * s, 0.46 * unit01(k * 5) * fade);
+      drawGlow(ctx, haze, hx, hy, (30 + 26 * k) * s, (13 + 9 * k) * s, thick * unit01(k * 5) * fade);
     }
   }
   // the whip of a ball the instant before it strikes, slanting down from the walls
@@ -20127,11 +20215,11 @@ function drawBarricadeAir(fx, pp) {
 // one piece of barricade, centred at x, y (its foot line), k the foe's scale; site: "van", "musa" or "sard"
 function paintBarricadePiece(x, y, k, site, seed) {
   const ink = UNIT_INK, C = UNIT_COLORS;
+  const tilt = (seededUnit(seed) - 0.5) * 0.12;
+  ctx.save();
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.strokeStyle = ink;
-  const tilt = (seededUnit(seed) - 0.5) * 0.12;
-  ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);
   if (site === "musa") {
@@ -20197,7 +20285,7 @@ function paintBarricadePiece(x, y, k, site, seed) {
 // --- Smoke Screen (Artsakh): four smoke grenades thrown into the ring pop one after another, and their clouds
 // billow and merge over the foes they blind, then thin away; it is the same heap of billows as a ladder party's
 // pitch smoke (drawSmokeHeap), in the pale grey of a smoke grenade, and it hides nothing for good: the foes and
-// their health bars show through it.
+// their health bars show through it, and any aircraft circles above it (draw puts what flies over the spells).
 const SMOKE_SCREEN = { life: 3.3, cans: 4, gap: 0.09, reach: 0.6 };
 function smokeScreenCans(x, y, radius) {
   const cans = [], seed = x * 0.37 + y * 0.53;
@@ -20252,29 +20340,22 @@ function drawSmokeScreenAir(fx, pp, time) {
   }
 }
 
-// what holds a foe the W spell caught, drawn over his feet for as long as he is held: the barricade piece
-// (ice crystals belong to drawFrostAir; the smoke screen is its own cloud)
-function drawSpellHolds() {
-  let site = null;
-  for (const e of enemies) {
-    if (e.hold !== "barricade" || !(e.stunT > 0)) continue;
-    const p = enemyPos(e);
-    if (unitAirborne(e, p)) continue;
-    site = site || e5Field();
-    // the piece is drawn at the scale the figures are, a little ahead of him along his road and in front
-    const ep = proj(p.x, p.y), k = 1.55 * Math.min(1.5, (e.r || 11) / 11) * ep.s;
-    // dropped across his way from above, with a little bounce, then gone as he wins free
-    const age = 3 - e.stunT, drop = unit01(age / 0.16);
-    const lift = (1 - drop) * (1 - drop) * 24 * k;
-    const x = ep.x + Math.cos(p.ang || 0) * 9 * k, y = ep.y + 5 * k;
-    if (age > 0.12 && age < 0.7) {
-      const d = (age - 0.12) / 0.58;
-      drawGlow(ctx, glowSprite("214, 196, 160"), x, y - 2 * k, (14 + 12 * d) * k, (6 + 4 * d) * k, 0.7 * (1 - d));
-    }
-    ctx.globalAlpha = unit01(age / 0.05) * unit01(e.stunT / 0.35);
-    paintBarricadePiece(x, y - lift, k, site, (e.holdSeed || 0) * 100);
-    ctx.globalAlpha = 1;
+// what holds a foe the W spell caught, drawn just in front of him (in the field's depth order) for as long as he
+// is held: the barricade piece. Ice crystals belong to drawFrostAir; the smoke screen is its own cloud
+function drawBarricadeHold(e, p) {
+  // the piece is drawn at the scale the figures are, a little ahead of him along his road and in front
+  const ep = proj(p.x, p.y), k = 1.55 * Math.min(1.5, (e.r || 11) / 11) * ep.s;
+  // dropped across his way from above, with a little bounce, then gone as he wins free
+  const age = 3 - e.stunT, drop = unit01(age / 0.16);
+  const lift = (1 - drop) * (1 - drop) * 24 * k;
+  const x = ep.x + Math.cos(p.ang || 0) * 9 * k, y = ep.y + 5 * k;
+  if (age > 0.12 && age < 0.7) {
+    const d = (age - 0.12) / 0.58;
+    drawGlow(ctx, glowSprite("214, 196, 160"), x, y - 2 * k, (14 + 12 * d) * k, (6 + 4 * d) * k, 0.7 * (1 - d));
   }
+  ctx.globalAlpha = unit01(age / 0.05) * unit01(e.stunT / 0.35);
+  paintBarricadePiece(x, y - lift, k, e5Field(), (e.holdSeed || 0) * 100);
+  ctx.globalAlpha = 1;
 }
 
 // --- Wrath of Haldi: sky-to-ground lightning, burst, sparks, then a smoking scorch ---
@@ -20761,7 +20842,6 @@ function drawFallen(c, x, y, k, a) {
 }
 
 function drawSpellFx(time) {
-  drawSpellHolds();
   for (const fx of spellFx) {
     const pp = proj(fx.x, fx.y);
     if (fx.type === "frostRing") {
@@ -20913,12 +20993,12 @@ function drawSmokeClouds(time) {
     const life = unit01(c.t / c.dur);
     // it gathers over its first second, then lifts and thins through its last three
     const thin = unit01(c.t / 0.8) * (1 - unit01((c.t - (c.dur - 3)) / 3)) * (1 - life * 0.25);
-    drawSmokeHeap(c, time, sprite, c.r * smokeSwell(c), life, thin);
+    drawSmokeHeap(c, time / 1000, sprite, c.r * smokeSwell(c), life, thin);
   }
   ctx.globalAlpha = 1;
 }
 // one heap of billows c (world x, y; its layout cached on c.puffs) of reach Rw world units, life 0..1 lifting it
-// off the ground, thin its opacity
+// off the ground, thin its opacity; time in seconds rolls the billows
 function drawSmokeHeap(c, time, sprite, Rw, life, thin) {
   if (!smokeBuf) smokeBuf = document.createElement("canvas");
   const m = ctx.getTransform(), bs = Math.max(0.25, (Math.hypot(m.a, m.b) || 1) * 0.5);
@@ -38641,7 +38721,8 @@ function drawEnemy(e, p) {
   let frame = Math.floor((((e.wobble * look.rate) % turn + turn) % turn) / turn * UNIT_FRAMES) % UNIT_FRAMES;
 
   // frost holds a foe in the pose it was caught in until the stun has fully worn off; a foe held by a
-  // barricade or blinded by smoke stands as he is (spellHolds draws what holds him)
+  // barricade or blinded by smoke stands as he is (drawBarricadeHold draws what holds him), and an aircraft
+  // over the smoke flies on round its circle (circleAircraft)
   if (e.stunT > 1.25 && (!e.hold || e.hold === "frost")) {
     if (!e.iceVis) e.iceFrame = frame;
     e.iceVis = true;
@@ -38649,7 +38730,7 @@ function drawEnemy(e, p) {
     e.iceVis = false;
   }
   if (e.iceVis) frame = e.iceFrame || 0;
-  const bob = e.stunT > 0 ? 0 : Math.abs(Math.sin(e.wobble)) * (look.bob || 0) * k;
+  const bob = e.stunT > 0 && !e.orbit ? 0 : Math.abs(Math.sin(e.wobble)) * (look.bob || 0) * k;
 
   // directional soft shadow + contact shadow, both sized to the figure; the cast part follows
   // the sun: long at dusk, drawn in under the feet by moonlight
@@ -50632,6 +50713,36 @@ function runSelftest() {
         if (spellFx.includes(fx)) throw new Error("era " + e + ": " + fx.look + " never ends");
       }
     }
+  });
+  // nothing stops an aircraft in the air: one the smoke screen catches goes round a whole circle, smoothly, and
+  // rejoins its line where it left it, having gained no ground; the mortar bombs burst under it and never touch
+  // it, though they strike the column on the ground
+  check("aircraft over the smoke", () => {
+    photoStageBattle(LEVELS.findIndex(L => L.era === 6), 12, {});
+    const air = enemies.find(e => unitAirborne(e, enemyPos(e))), foot = enemies.find(e => !e.fly);
+    if (!air || !foot || spellLook("frost") !== "smoke") throw new Error("no aircraft over a column to test");
+    towers.forEach(t => { t.stunnedT = 99; });
+    air.hp = air.maxHp = 1e7;
+    const d0 = air.dist, p0 = enemyPos(air), fast = 2 * Math.max(air.speed, 80) / 30;
+    castSpell("frost", p0.x, p0.y);
+    if (air.hold !== "smoke" || !air.orbit) throw new Error("the smoke caught no aircraft");
+    let far = 0, step = 0, prev = p0;
+    for (let t = 0; t < 3.3; t += 1 / 30) {
+      update(1 / 30);
+      const p = enemyPos(air), q = flyPos(air);
+      far = Math.max(far, Math.hypot(p.x - q.x, p.y - q.y));
+      step = Math.max(step, Math.hypot(p.x - prev.x, p.y - prev.y));
+      prev = p;
+      if (t < 2.9 && air.dist !== d0) throw new Error("the aircraft gained ground over the smoke");
+    }
+    if (far < 20 || air.orbit || step > fast) throw new Error("no smooth circle closed on its line: " + [far, step, !!air.orbit].join(" "));
+    const p = enemyPos(air), hp = air.hp;
+    foot.pin = { x: p.x, y: p.y, ang: 0 };
+    foot.hp = foot.maxHp = 1e7;
+    castSpell("arrows", p.x, p.y);
+    for (let t = 0; t < 1; t += 1 / 30) update(1 / 30);
+    if (spellLook("arrows") !== "mortar" || air.hp !== hp || !(foot.hp < 1e7)) throw new Error("the mortar bombs struck the aircraft, or missed the column");
+    resetGame();
   });
   // the Harop strike wave over Shushi flies: the road's weapons cannot touch it, and over the air defence it
   // homes on its lead munition dives; every other commander keeps to the road
