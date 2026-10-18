@@ -94,6 +94,27 @@
     border: 1px solid var(--bronze); box-shadow: 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,235,190,.3);
   }
   .stat .medal .ic { width: 19px; height: 19px; vertical-align: 0; }
+  /* the defenders' counter: a leak flushes it red (.flash, run by livesHit) and the defenders lost float off it
+     (.livesFloat, laid over the field below it); under a quarter of the defenders it stays red (.low) */
+  .stat.lives { position: relative; }
+  .stat.lives > :not(.flash) { position: relative; }
+  .stat.lives .flash {
+    position: absolute; inset: -2px; border-radius: 18px; opacity: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(255, 96, 66, .95), rgba(178, 32, 22, .92) 62%, rgba(118, 16, 10, .9));
+    box-shadow: 0 0 12px 2px rgba(240, 70, 40, .7);
+  }
+  .stat.lives.low {
+    border-color: #b8322a;
+    box-shadow: inset 0 0 0 1px rgba(255, 140, 110, .55), inset 0 3px 6px rgba(0,0,0,.75), 0 0 9px rgba(220, 50, 30, .6);
+  }
+  .stat.lives.low .medal { border-color: #d8483a; }
+  .stat.lives.low #lives { color: #ffb4a2; }
+  .livesFloat {
+    position: fixed; z-index: 12; pointer-events: none; transform: translate(-50%, 0); opacity: 0;
+    font-family: var(--face); font-weight: 800; font-size: 20px; line-height: 1; color: #ff6a52;
+    font-variant-numeric: tabular-nums lining-nums; white-space: nowrap;
+    text-shadow: 0 1px 0 #1a0604, 0 0 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0,.7);
+  }
   /* the wave preview heads the tray's right end-cap: one row of chips, whole chips giving way when it is narrow */
   #waveInfo { display: flex; align-items: center; flex-wrap: wrap; gap: 0 3px; height: 28px; overflow: hidden; min-width: 0; flex: none; }
   /* a zero-width first item: a chip with no room wraps out of sight instead of being cut in half */
@@ -536,6 +557,40 @@
     box-sizing: border-box; width: min(900px, calc(100vw - 40px)); height: 4.5em;
     display: block; align-content: center;
   }
+  /* the defeat page's debrief under its line: what got through the gates, the defenders lost on each road and one
+     tip. It stays while the map is browsed, so the map keeps its size, and steps back (.past) once another
+     battlefield is chosen */
+  .ovDebrief { display: none; }
+  #overlay:not(.brief):not(.victory) .ovDebrief.on {
+    display: flex; flex-direction: column; align-items: center; gap: 3px; box-sizing: border-box;
+    width: min(900px, calc(100vw - 40px)); padding: 5px 16px 6px;
+    border-top: 1px solid rgba(185,138,62,.5); border-bottom: 1px solid rgba(185,138,62,.5);
+    background: linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.14));
+    font-size: 14px; line-height: 1.35; color: var(--parch); transition: opacity .3s;
+  }
+  #overlay .ovDebrief.past { opacity: .45; }
+  .ovDebrief .dbRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px; }
+  .ovDebrief .dbLbl { font-variant: small-caps; letter-spacing: .8px; font-weight: 700; color: var(--bronze-hi); margin-right: 4px; }
+  .ovDebrief .dbChip {
+    position: relative; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 7px 0 3px; border-radius: 5px;
+    white-space: nowrap; font-weight: 700; color: #fff3d6; font-variant-numeric: tabular-nums lining-nums;
+    background: linear-gradient(180deg, #4a3826, #2a1f15); border: 1px solid rgba(185,138,62,.75);
+    box-shadow: inset 0 1px 0 rgba(240,207,133,.25), 0 1px 2px rgba(0,0,0,.6); text-shadow: 0 1px 0 rgba(0,0,0,.7);
+  }
+  .ovDebrief .dbChip .ic { width: 20px; height: 20px; color: var(--bronze-hi); vertical-align: 0; filter: drop-shadow(0 1px 0 rgba(0,0,0,.55)); }
+  .ovDebrief .dbChip .ic.fly { position: absolute; left: 14px; top: 0; width: 12px; height: 12px; color: #f6dc9a; }
+  .ovDebrief .dbChip .nm { font-weight: 600; }
+  .ovDebrief .dbChip i { font-style: normal; color: #ff9a86; }
+  .ovDebrief .dbRoads { color: var(--parch-dk); }
+  .ovDebrief .dbRoads b { color: #ff9a86; font-variant-numeric: tabular-nums lining-nums; }
+  .ovDebrief .dbTip { max-width: 840px; }
+  .ovDebrief .dbTip b { color: #ffe2b0; }
+  /* on a short window (a laptop at 720 px, an iPad Mini held wide) every pixel saved goes to the map */
+  @media (max-height: 780px) {
+    #overlay:not(.brief):not(.victory) .ovDebrief.on { padding: 3px 14px 4px; gap: 2px; font-size: 13px; line-height: 1.3; }
+    .ovDebrief .dbChip { height: 23px; }
+    .ovDebrief .dbChip .ic { width: 18px; height: 18px; }
+  }
   /* and the march button keeps one width whichever battlefield it names */
   #overlay:not(.brief):not(.victory) #startBtn { min-width: min(410px, calc(100vw - 40px)); justify-content: center; }
   /* the map leads the screen: it takes whatever height is left once title, seals and button are seated
@@ -950,6 +1005,8 @@
      (in battle it stays under the tower panel, Settings and the coach) and stands mid-screen, on the map or the
      parchment, clear of the title above and the buttons below */
   body.onMenu #toast { z-index: 35; top: 50%; transform: translate(-50%, -50%); }
+  /* a long one there (a debrief chip named on a tap, on an iPad held tall) wraps inside the screen */
+  body.onMenu #toast { width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; white-space: normal; text-align: center; }
   /* but the victory page has its text in the middle: there it keeps the free space above the title */
   body.onMenu:has(#overlay.victory) #toast { top: calc(68px + var(--sat)); transform: translateX(-50%); }
 
@@ -1398,7 +1455,7 @@
 <div id="topbar">
   <div class="hudPlaque left">
     <div class="stat" title="Gold"><span class="medal"><svg class="ic"><use href="#i-coin"/></svg></span><span id="gold">0</span></div>
-    <div class="stat" title="Defenders left"><span class="medal"><svg class="ic"><use href="#i-shield"/></svg></span><span id="lives">0</span></div>
+    <div class="stat lives" title="Defenders left"><span class="flash" aria-hidden="true"></span><span class="medal"><svg class="ic"><use href="#i-shield"/></svg></span><span id="lives">0</span></div>
     <div class="stat" title="Wave"><span class="medal"><svg class="ic"><use href="#i-swords"/></svg></span><span id="waveNum">Wave 0/20</span></div>
   </div>
   <div class="hudPlaque right">
@@ -1593,6 +1650,7 @@
       Highlands. Raise towers along the mountain roads, upgrade them into masteries,
       and hold every fortress of the kingdom.
     </div>
+    <div class="ovDebrief" id="ovDebrief" role="note" aria-label="What got through"></div>
     <div class="ovPager" id="ovPager">
       <button class="pgBtn" id="pgPrev" aria-label="Previous page" title="Previous page (Left arrow)">&#8249;</button>
       <span class="pgDots" id="pgDots"></span>
@@ -3513,6 +3571,8 @@ registerProcessor("kl-tract", KLTract);
     spellWrath: { thr: 300, max: 1, g: 0.52, pri: true, rev: 0.35, echo: 0.2, duck: [9, 1.8, 0.6] },
     win:        { thr: 1000, max: 1, g: 0.57, pri: true, rev: 0.35, echo: 0.1 },
     lose:       { thr: 1000, max: 1, g: 0.4, pri: true, rev: 0.35, duck: [12, 4.5, 0.8] },
+    toll:       { thr: 1000, max: 1, g: 0.5, pri: true, rev: 0.4, echo: 0.12 },
+    heartbeat:  { thr: 600, max: 1, g: 0.7, pri: true, rev: 0.03 },
     uiTick:     { thr: 35, max: 3, g: 2.059, pri: true, rev: 0.03 },
     mapSelect:  { thr: 80, max: 2, g: 0.53, pri: true, rev: 0.12 },
     mapLocked:  { thr: 120, max: 2, g: 0.63, pri: true, rev: 0.08 },
@@ -3556,6 +3616,19 @@ registerProcessor("kl-tract", KLTract);
     }
     vs.push({ name, t, end: v.end, v });
     if (S.duck) this.duck(t, S.duck[0], S.duck[1], S.duck[2]);
+  },
+  // the citadel falls: the music sinks away (to -30 dB) over the beat before the defeat page and stays down for
+  // `hold` seconds; the lament that opens the page keeps it down a while longer through its own duck, for
+  // overlapping dips keep the deeper one (`at`: a time on the audio clock, as play's o.at, for the audio harness)
+  hush(hold, at) {
+    if (!this.ctx || !this.duckGain) return;
+    const t = at != null ? at : this.ctx.currentTime, p = this.duckGain.gain, g = 0.03;
+    const until = Math.max(this.duckSt && t < this.duckSt.until ? this.duckSt.until : 0, t + hold);
+    this.duckSt = { g, until };
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+    else { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); }
+    p.setTargetAtTime(g, t, 0.35);
+    p.setTargetAtTime(1, until, 1.2);
   },
   // sidechain-style dip of the music bus under a big event; overlapping dips keep the deeper one
   duck(t, db, hold, rel) {
@@ -4023,6 +4096,23 @@ registerProcessor("kl-tract", KLTract);
       let tt = t + 0.4;
       for (const [f, d] of [[440, 0.5], [392, 0.42], [369.99, 0.42], [311.13, 0.62], [293.66, 1.9]]) { this.duduk(v, tt, f, d, 0.3); tt += d * 0.92; }
       this.bell(v, tt - 0.3, 146.83, 0.22, 2.5);
+    },
+    // the citadel falls: one stroke of a great bell on D, the clapper's thud at its head, the hum an octave down
+    // and the minor-third tierce that makes a bell sound like a bell, all slow to die over the hushed field
+    toll(v, t) {
+      this.thump(v, t, 78, 50, 0.22, 0.5, 2.5);
+      this.nz(v, { t, k: "pink", f: 520, q: 0.8, a: 0.002, p: 0.3, d: 0.18 });
+      this.modal(v, { t, f: 146.83, p: 0.42, jit: 0.003, parts: [[0.5, 0.75, 5.5], [1, 1, 4.2], [1.19, 0.5, 2.8], [1.5, 0.3, 2.2], [2, 0.4, 1.9], [2.52, 0.16, 1.2], [3.01, 0.12, 0.9], [4.1, 0.06, 0.5]] });
+    },
+    // the defenders' own pulse when the gates are nearly lost: lub-dub, low, dry and close; a touch quicker
+    // and higher with the last two. A gently driven thump with its octave beside it, so a small speaker carries it
+    heartbeat(v, t, o) {
+      const k = o.fast ? 1.08 : 1, gap = 0.27 / k;
+      for (const [dt, f, p, d] of [[0, 60, 1, 0.2], [gap, 68, 0.68, 0.16]]) {
+        this.thump(v, t + dt, f * k, f * 0.66, 0.55 * p, d, 1.5);
+        this.tn(v, { t: t + dt, f: f * 2 * k, f2: f * 1.32, a: 0.004, p: 0.12 * p, d: d * 0.6 });
+        this.nz(v, { t: t + dt, k: "brown", ft: "lowpass", f: 170, a: 0.006, p: 0.4 * p, d: 0.11 });
+      }
     },
     // a tessera set or a map seal touched: a tiny tick in one of three materials (stone, boxwood,
     // bronze), each pitched up to two semitones either way
@@ -7135,8 +7225,9 @@ function sellRefund(t) {
 // ---- run persistence: resume a war after closing the tab ----
 // A run saved mid-wave resumes at the start of the wave and fights it again from its first foe. So the save
 // keeps the wave as it was sent: the purse at the horn less what the board has cost since, the lives at
-// the horn, and each tower's tally as it stood then. Otherwise every bounty the wave had already paid would
-// be paid again. An early call does not move that point: the wave it cut short was never cleared.
+// the horn with the leaks that cost them, and each tower's tally as it stood then. Otherwise every bounty the
+// wave had already paid would be paid again, and every leak booked twice. An early call does not move that
+// point: the wave it cut short was never cleared.
 let waveStart = null;   // the run as the first uncleared wave was sent (startWave)
 let waveSpent = 0;      // gold laid out on the board since then, less refunds
 // gold laid out on the board; a refund is a negative outlay
@@ -7156,6 +7247,7 @@ function runRecord() {
       type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
       kills: t.kills || 0, dmg: Math.round(t.dmgDone || 0),
     })),
+    leaks: JSON.parse(JSON.stringify(leaks)),   // what got through, for the defeat page's debrief
   };
 }
 // a fresh wave is sent: remember the run as it stood at the horn
@@ -7170,7 +7262,7 @@ function saveRun() {
     const sent = JSON.parse(waveStart.json), purse = waveStart.gold - waveSpent;
     if (purse >= 0) {
       // the board as it stands now, paid for out of the purse the wave was sent with
-      run.cleared = sent.cleared; run.gold = purse; run.lives = waveStart.lives;
+      run.cleared = sent.cleared; run.gold = purse; run.lives = waveStart.lives; run.leaks = sent.leaks;
       run.towers.forEach((r, i) => { const was = waveStart.tally.get(towers[i]) || [0, 0]; r.kills = was[0]; r.dmg = was[1]; });
     } else {
       // what was built this wave was paid for with its bounties: resume from the board as it was sent
@@ -7180,6 +7272,24 @@ function saveRun() {
   try { localStorage.setItem("hs_run", JSON.stringify(run)); } catch (e) {}
 }
 function clearRun() { localStorage.removeItem("hs_run"); }
+// the leak tally of a saved run, checked entry by entry (a run saved before the tally existed has none). A road is
+// kept only if this battlefield still has it ("off", or a route of ROUTES, which resumeRun has loaded by now): a run
+// saved before its roads were redrawn may name one that is gone
+function savedLeaks(x) {
+  const out = {};
+  if (!x || typeof x !== "object") return out;
+  for (const k in x) {
+    const r = x[k];
+    if (!ENEMY_DEFS[k] || !r || !(r.n > 0)) continue;
+    const roads = {};
+    for (const rd in r.roads || {}) {
+      if (rd !== "off" && !(/^\d+$/.test(rd) && Number(rd) < ROUTES.length)) continue;
+      if (r.roads[rd] > 0) roads[rd] = Math.round(r.roads[rd]);
+    }
+    out[k] = { n: Math.round(r.n), lost: Math.round(r.lost) || 0, roads };
+  }
+  return out;
+}
 function getSavedRun() {
   try {
     const r = JSON.parse(localStorage.getItem("hs_run"));
@@ -7195,6 +7305,7 @@ function resumeRun() {
   resetGame();
   gold = r.gold; lives = r.lives; waveIdx = r.cleared;
   waveStart = null; waveSpent = 0;
+  leaks = savedLeaks(r.leaks);
   endless = !!r.endless;
   testAided = !!r.aided;
   // a run saved before the records began brings no endlessFrom: the record as it stands now takes its place
@@ -7231,6 +7342,7 @@ function resetGame() {
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
   waveStart = null; waveSpent = 0;
+  leaks = {}; fallen = null; heartT = 0;
   autoT = 0;
   towers = []; enemies = []; projectiles = []; particles = [];
   spawnQueue = []; waveTime = 0;
@@ -7262,6 +7374,10 @@ function resetGame() {
 function syncHud() {
   setHudText(goldEl, "gold", String(gold));
   setHudText(livesEl, "lives", String(lives));
+  // under a quarter of the defenders the counter stays red, as the citadel burns, and through the beat after the
+  // last of them falls (resetGame clears the beat and refills the lives, so the next stand starts unlit)
+  const low = (lives > 0 || !!fallen) && livesShare() < 0.25;
+  if (hudCache.livesLow !== low) { livesEl.parentElement.classList.toggle("low", low); hudCache.livesLow = low; }
   setHudText(waveNumEl, "wave", endless ? "Wave " + waveIdx + " ∞" : "Wave " + waveIdx + "/" + TOTAL_WAVES);
   const chips = waveIdx >= TOTAL_WAVES && !endless ? "" : waveChipsHtml(waveIdx + 1);
   if (chips !== hudCache.chips) { waveInfoEl.innerHTML = chips; hudCache.chips = chips; refreshFoeCardChip(); }
@@ -7767,16 +7883,226 @@ function openCampaignMap(lv) {
   if (!chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
 }
 
+// ---- danger: what gets through the gates is felt at once, and taught after ----
+// Every foe that reaches the gates is booked by its role and the road it came by. The lives counter flashes red and
+// floats off the defenders lost; the citadel smokes once half its defenders are gone and burns below a quarter
+// (drawFortDamage); below a quarter a heartbeat sounds while a wave is on. When the last defender falls the field
+// holds still for a beat while the music sinks under a tolling bell, and then the defeat page reads the tally back
+// as a debrief: what got through, on which road, and one lesson drawn from it. The tally rides in the saved run
+// beside the lives it accounts for, so a resumed stand still reports its whole cost.
+let leaks = {};            // role -> { n: foes through, lost: defenders they cost, roads: { road: defenders lost } }
+let fallen = null;         // the beat on the field between the breach and the defeat page: { start, best }
+const FALL_MS = 1500;
+let heartT = 0;            // seconds to the next heartbeat
+// the share of the stand's defenders still standing: 1 at the start of a stand on any difficulty
+function livesShare() { return lives / Math.max(1, DIFFS[curDiff].lives); }
+let reduceMotionQ = null;
+function reducedMotion() {
+  if (reduceMotionQ === null) reduceMotionQ = (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)")) || false;
+  return !!(reduceMotionQ && reduceMotionQ.matches);
+}
+// the road a foe came by: its route's index in ROUTES, or "off" for an outflanker, who leaves the road
+function leakRoad(e) { return e.fly ? "off" : String(e.route || 0); }
+// a foe reaches the gates; `quiet` for a drone that finds its tower gone and strikes the defenders instead (the
+// gate itself takes no blow, so it neither shakes nor booms)
+function leakFoe(e, quiet) {
+  if (gameOver) return;
+  const lost = Math.min(lives, e.dmg), road = leakRoad(e);
+  const r = leaks[e.type] || (leaks[e.type] = { n: 0, lost: 0, roads: {} });
+  r.n++; r.lost += lost; r.roads[road] = (r.roads[road] || 0) + lost;
+  lives -= lost;
+  if (!quiet) { shakeFort = 1; Snd.play("leak", { x: FORT.x }); }
+  livesHit(lost);
+  if (lives <= 0) { lives = 0; defeat(); }
+  syncHud();
+}
+// the lives counter takes the blow: a red flash, and the defenders lost float off it. Leaks in quick succession add
+// up on one figure (for the first 450 ms of its float) rather than stacking a column of them
+let livesFloat = null;     // { el, n, born }
+function livesHit(n) {
+  const flash = livesEl.parentElement.querySelector(".flash");
+  if (flash && flash.animate) flash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 750, easing: "ease-out" });
+  const now = performance.now(), still = reducedMotion();
+  if (livesFloat && now - livesFloat.born < 450 && livesFloat.el.isConnected) livesFloat.n += n;
+  else {
+    const el = document.createElement("span");
+    el.className = "livesFloat";
+    el.setAttribute("aria-hidden", "true");
+    // under the number, just clear of the plaque it hangs from
+    const r = livesEl.getBoundingClientRect(), plaque = livesEl.closest(".hudPlaque") || livesEl;
+    el.style.left = (r.left + r.width / 2) + "px";
+    el.style.top = (plaque.getBoundingClientRect().bottom + 3) + "px";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1700);   // its float, restarted by a leak up to 450 ms in, is over by then
+    livesFloat = { el, n, born: now };
+  }
+  const f = livesFloat;
+  f.el.textContent = "\u2212" + f.n;
+  if (f.el.animate) {
+    for (const a of f.el.getAnimations ? f.el.getAnimations() : []) a.cancel();
+    // with reduced motion the figure only fades where it appears; otherwise it drops away from the counter
+    f.el.animate([
+      { opacity: 0, transform: "translate(-50%, " + (still ? 0 : -6) + "px) scale(" + (still ? 1 : 1.35) + ")" },
+      { opacity: 1, transform: "translate(-50%, 0) scale(1)", offset: 0.14 },
+      { opacity: 1, transform: "translate(-50%, " + (still ? 0 : 8) + "px)", offset: 0.55 },
+      { opacity: 0, transform: "translate(-50%, " + (still ? 0 : 24) + "px)" },
+    ], { duration: 1150, easing: "ease-out", fill: "forwards" });
+  }
+}
+// the heartbeat: while fewer than a quarter of the defenders stand, a little faster with the last two. In a wave it
+// beats every 1.25 s (0.95 s with the last two); between waves, while the player builds, it keeps on slower and
+// softer (every 2.2 s, at 60%), so the danger is still felt without crowding the choice. It keeps the frame's own
+// clock (frame calls it beside update), so it waits out a pause, a menu or the coach and holds its pace at 2x and 4x
+function dangerTick(dt) {
+  if (lives <= 0 || livesShare() >= 0.25) { heartT = 0.35; return; }
+  heartT -= dt;
+  if (heartT > 0) return;
+  const calm = phase !== "wave";
+  heartT = calm ? 2.2 : lives <= 2 ? 0.95 : 1.25;
+  Snd.play("heartbeat", { fast: !calm && lives <= 2, vol: calm ? 0.6 : 1 });
+}
+
+// what the debrief calls a road: on a forked map by where its foes come in (the upper and the lower road, or the
+// left and the right), and an outflanker's way off the road, "by air" in the age of aircraft
+function roadTitle(key) {
+  const i = Number(key) || 0;
+  if (ROUTES.length < 2) return "the road";
+  if (!ROUTES[i]) return "a road";   // a road this battlefield no longer has
+  if (ROUTES.length > 2) return "road " + (i + 1);
+  const me = ROUTES[i].pts[0], other = ROUTES[1 - i].pts[0];
+  const vertical = Math.abs(me[1] - other[1]) >= Math.abs(me[0] - other[0]);
+  return "the " + (vertical ? (me[1] < other[1] ? "upper" : "lower") : (me[0] < other[0] ? "left" : "right")) + " road";
+}
+function roadName(key) {
+  if (key === "off") return curEra >= 6 ? "by air" : "off the road";
+  return "on " + roadTitle(key);
+}
+// the kind of breach a foe makes, for the tip: the strongest foe (who leads every tenth wave), armour, an
+// outflanker, a fast rider, or foot
+function breachKind(role) {
+  const u = eraUnit(role);
+  if (role === "flyer" || u.flies) return "air";
+  if (role === "boss") return "boss";
+  if (u.armor + (u.armorAdd || 0) >= 7) return "armour";
+  return u.spd * (u.spdMult || 1) >= 80 ? "fast" : "foot";
+}
+// one lesson from the tally, chosen by the defenders each kind of breach cost: the strongest foe at the gates,
+// armour, outflankers, fast riders, one road left weak (on a forked map, when it cost at least 70% of the road
+// losses), or foot in numbers (five or more: fewer is no crowd, and the lesson falls to the next kind, or at last to
+// a general line). A tip is headed by the kind of foe, which reads the same for one or many ("Fast foes outran your
+// towers"), with the foes of that kind after it in brackets, as this battlefield names them. Towers are named as the
+// battlefield names them too, and each claim is one of the game's own rules: only the archer and ballista slots hit
+// outflankers, the ballista pierces armour, the fire slot slows and its burn ignores armour, the catapult's stone
+// splashes a crowd, the strongest foe leads every tenth wave. Where the ballista slot is an anti-aircraft weapon
+// (Stepanakert 1992, Shushi) the tip never sends it against armour or a commander on the ground: the game lets it
+// pierce them, but advice to turn an air-defence launcher on a tank column would read as a slip in the history
+function debriefTip() {
+  const w = { boss: 0, armour: 0, air: 0, fast: 0, road: 0, foot: 0 }, of = {}, roads = {};
+  for (const k in leaks) {
+    const r = leaks[k], kind = breachKind(k);
+    w[kind] += r.lost;
+    (of[kind] || (of[kind] = [])).push(k);
+    for (const rd in r.roads) if (rd !== "off") roads[rd] = (roads[rd] || 0) + r.roads[rd];
+  }
+  if (!Object.keys(of).length) return "";
+  let heavy = null, onRoads = 0;
+  for (const rd in roads) { onRoads += roads[rd]; if (heavy === null || roads[rd] > roads[heavy]) heavy = rd; }
+  if (ROUTES.length > 1 && heavy !== null && onRoads >= 4 && roads[heavy] >= 0.7 * onRoads) w.road = 2 * roads[heavy] - onRoads;
+  if (of.foot && of.foot.reduce((s, k) => s + leaks[k].n, 0) < 5) w.foot = 0;
+  const kind = ["boss", "armour", "air", "fast", "road", "foot"].reduce((a, b) => (w[b] > w[a] ? b : a));
+  const b = s => "<b>" + escapeHtml(s) + "</b>", T = type => b(towerName(type));
+  // the foes of a kind, costliest first and at most two, each with its count past one: " (Siege Ram ×3)"
+  const who = kind => " (" + of[kind].sort((x, y) => leaks[y].lost - leaks[x].lost || leaks[y].n - leaks[x].n).slice(0, 2)
+    .map(k => b(eraUnit(k).name) + (leaks[k].n > 1 ? " \u00d7" + leaks[k].n : "")).join(", ") + ")";
+  // a tower named in the plural ("Village Hunters", "Trench and Wire") takes a plural verb
+  const many = type => { const n = towerName(type); return / and /.test(n) || (/(s|men)$/i.test(n) && !/ss$/i.test(n)); };
+  const vb = (type, one, more) => (many(type) ? more : one);
+  const airGun = /anti-aircraft|air defen[cs]e/i.test(towerDepicts("ballista"));
+  if (!w[kind]) return "Every foe that reaches the gates costs defenders: upgrade your towers between waves, and keep a spell ready for any that slip past.";
+  switch (kind) {
+    case "boss": return "The strongest foe got through" + who("boss") + ". Every tenth wave is led by one: have your " +
+      (airGun ? "towers" : T("ballista")) + " upgraded and a spell ready by then.";
+    case "armour": return "Armour got through" + who("armour") + ": " +
+      (airGun ? "" : "your " + T("ballista") + " " + vb("ballista", "pierces", "pierce") + " it, and ") +
+      "your " + T("fire") + " " + vb("fire", "slows and wears", "slow and wear") + " it down.";
+    case "air": return "Outflankers got through" + who("air") + ": only two of your towers hit them, your " + T("archer") + " and your " + T("ballista") + ".";
+    case "fast": return "Fast foes outran your towers" + who("fast") + ": your " + T("fire") + " " + vb("fire", "slows", "slow") + " them, and " +
+      b(spellName("frost")) + " holds a column still.";
+    case "road": {
+      const t = roadTitle(heavy);
+      return (roads[heavy] === onRoads ? "All " + onRoads + " defenders lost on the roads fell on " + t
+        : t[0].toUpperCase() + t.slice(1) + " cost you " + roads[heavy] + " of the " + onRoads + " defenders lost on the roads") +
+        ": give it more towers, or march your hero there.";
+    }
+    default: return "Foot soldiers came through in numbers" + who("foot") + ": your " + T("catapult") + " " + vb("catapult", "strikes", "strike") + " a whole column at once.";
+  }
+}
+// the debrief, built while the lost battlefield is still the one chosen: the foes that got through, costliest first
+// (a heavy foe's toll in defenders beside its count; the costliest three by name, or two when six kinds or more got
+// through, the rest by their wave-preview icon, so one row holds them; every chip tells its name and roads on
+// hover, or in a toast on a tap, for a finger has no hover), the defenders lost on each road, and the tip; empty
+// when nothing was booked (a run saved before the tally existed)
+function debriefHtml() {
+  const roles = Object.keys(leaks).filter(k => leaks[k].n > 0).sort((a, b) => leaks[b].lost - leaks[a].lost || leaks[b].n - leaks[a].n);
+  if (!roles.length) return "";
+  const roads = {};
+  for (const k of roles) for (const rd in leaks[k].roads) roads[rd] = (roads[rd] || 0) + leaks[k].roads[rd];
+  const roadKeys = Object.keys(roads).filter(k => roads[k] > 0).sort((a, b) => roads[b] - roads[a]);
+  const named = roles.length >= 6 ? 2 : 3;
+  const chips = roles.map((k, i) => {
+    const r = leaks[k], u = eraUnit(k), fly = flyingCommander(k, u);
+    const by = Object.keys(r.roads).filter(rd => r.roads[rd] > 0).map(rd => r.roads[rd] + " " + roadName(rd)).join(", ");
+    return '<span class="dbChip" title="' + escapeHtml(u.name + " \u00d7" + r.n + ": " + r.lost + (r.lost === 1 ? " defender" : " defenders") + " lost" + (by ? " (" + by + ")" : "")) + '">' +
+      icon(ROLE_ICON[k]) + (fly ? icon("wing", "fly") : "") + (i < named ? '<span class="nm">' + escapeHtml(u.name) + "</span>" : "") + "<b>\u00d7" + r.n + "</b>" +
+      (r.lost !== r.n ? "<i>\u2212" + r.lost + "</i>" : "") + "</span>";
+  });
+  const tip = debriefTip();
+  return '<div class="dbRow"><span class="dbLbl">Through the gates</span>' + chips.join("") + "</div>" +
+    '<div class="dbRow dbRoads">Defenders lost: ' + roadKeys.map(k => "<b>" + roads[k] + "</b> " + escapeHtml(roadName(k))).join(" \u00b7 ") + "</div>" +
+    (tip ? '<div class="dbTip"><span class="dbLbl">Tip</span>' + tip + "</div>" : "");
+}
+let debriefLevel = -1;     // the battlefield the debrief on the map page speaks of (-1: none shown)
+function showDebrief(html, lv) {
+  const el = $("ovDebrief");
+  el.innerHTML = html;
+  el.classList.toggle("on", !!html);
+  debriefLevel = html ? lv : -1;
+  el.classList.toggle("past", !!html && curLevel !== lv);
+}
+function clearDebrief() { showDebrief("", -1); }
+
+// the last defender falls: the field holds still for a beat (FALL_MS) while the music sinks away and a low bell
+// tolls, and then the defeat page opens (endFall, from frame). The run is settled at once, so a tab closed in
+// the beat has already lost it
 function defeat() {
   gameOver = true;
   const best = saveBest();
   clearRun();
+  syncPauseBtn();
+  hidePanel();
+  setPlacing(null);
+  castingSpell = null; heroSelected = false;
+  updateSpellBar();
+  fallen = { start: performance.now(), best };   // best: the endless record this fall set, for the page's ribbon
+  Snd.hush(FALL_MS / 1000 + 0.6);
+  Snd.play("toll");
+}
+
+// the beat is over (a test skips it): the defeat page, with its lament and its debrief
+function endFall() {
+  if (!fallen) return;
+  // the debrief is read first, while the stand is as it fell; a debrief that cannot be read is left out, for the
+  // defeat page must always open
+  let debrief = "";
+  try { debrief = debriefHtml(); } catch (e) { /* no debrief, but never a stand stuck on the darkened field */ }
+  const best = fallen.best;
+  fallen = null;
   Snd.play("lose");
   // The foe is named by foeName(), as on the wave banner, and the wave count is always given.
   // A stand lost within the chronicle tells the battlefield's own defeat (L.defeat); an endless stand lost
   // after the victory counts the waves held beyond the chronicle instead, for the battlefield stays won. A
   // wave counts as held once its every foe has fallen (lastCleared): the wave an early call cut short does not.
-  const L = LEVELS[curLevel], foes = foeName() + " forces";
+  const L = LEVELS[curLevel], lv = curLevel, foes = foeName() + " forces";
   if (endless) {
     const beyond = Math.max(0, lastCleared - TOTAL_WAVES), diff = DIFFS[curDiff].name;
     showMenu("🔥", "The Endless Stand Ends",
@@ -7787,12 +8113,17 @@ function defeat() {
       " Choose your ground and try again.",
       "Try Again");
     showRecord(0, 0, best);
-    return;
+  } else {
+    showMenu("🔥", "The Citadel Falls",
+      foes + " breach the gates at wave " + waveIdx + " of " + TOTAL_WAVES + ". " +
+      (L.defeat ? L.defeat + " Choose your ground and try again." : "The highlands will remember this stand. Choose your ground and try again."),
+      "Try Again");
   }
-  showMenu("🔥", "The Citadel Falls",
-    foes + " breach the gates at wave " + waveIdx + " of " + TOTAL_WAVES + ". " +
-    (L.defeat ? L.defeat + " Choose your ground and try again." : "The highlands will remember this stand. Choose your ground and try again."),
-    "Try Again");
+  showDebrief(debrief, lv);
+  // a tap meant for the field in the beat must not land on a button of the page that replaces it
+  overlayEl.classList.add("settling");
+  clearTimeout(overlaySettleT);
+  overlaySettleT = setTimeout(() => overlayEl.classList.remove("settling"), 450);
 }
 
 // ---------- tower logic ----------
@@ -8082,7 +8413,7 @@ function update(dt) {
     }
     if (e.strike && e.dist >= e.fly.len) {
       e.dead = true;
-      if (!droneStrike(e.strike)) { lives -= e.dmg; syncHud(); if (lives <= 0 && !gameOver) { lives = 0; defeat(); } }
+      if (!droneStrike(e.strike)) leakFoe(e, true);
       continue;
     }
     // over its air defence the strike wave spends its lead munition there, and the other two fly on
@@ -8092,11 +8423,7 @@ function update(dt) {
     }
     if (e.dist >= (e.fly ? e.fly.len : ROUTES[e.route || 0].len)) {
       e.dead = true;
-      lives -= e.dmg;
-      shakeFort = 1;
-      Snd.play("leak", { x: FORT.x });
-      if (lives <= 0 && !gameOver) { lives = 0; defeat(); }
-      syncHud();
+      leakFoe(e);
     }
     if (e.hp <= 0 && !e.dead) {
       e.dead = true;
@@ -16488,9 +16815,10 @@ function bgBakeIsCurrent(q) {
 }
 // A fresh bake costs most of a second (several on a slow iPad, the very screen the frame governor steps down
 // for), so in battle a bake denser than the density now wanted keeps serving, scaled down by drawImage, until
-// the next lull: between waves, with the game paused or a menu up. The dance waits too, then its victory page.
+// the next lull: between waves, with the game paused or a menu up. The dance waits too, then its victory page,
+// and so does the beat before the defeat page.
 function bgBakeMustWait() {
-  return !photo && !paused && overlayEl.classList.contains("hidden") && ((phase === "wave" && !gameOver) || !!celebration);
+  return !photo && !paused && overlayEl.classList.contains("hidden") && ((phase === "wave" && !gameOver) || !!celebration || !!fallen);
 }
 function buildBackground() {
   const q = bgBakeDensity();
@@ -18981,6 +19309,7 @@ function draw(time) {
   drawWaveBanner();
   if (celebration) drawCelebration(time);
   drawVignette();
+  if (fallen) drawFall(time);
   if (paused && overlayEl.classList.contains("hidden")) drawPausedBanner();
   if (photo && photo.labels) drawPhotoLabels();
   ctx.restore();
@@ -24045,7 +24374,8 @@ function structCastShadow(sp, x, y, unitScale, baseW) {
 function drawFort(time) {
   const fp = proj(FORT.x, FORT.y + 32);
   const fs = fp.s * FORT_K;
-  const fx = fp.x + (shakeFort > 0 ? (Math.random() - .5) * shakeFort * 6 : 0);
+  // a leak jolts the citadel (held still for a player who asks for reduced motion: the counter's flash says it)
+  const fx = fp.x + (shakeFort > 0 && !reducedMotion() ? (Math.random() - .5) * shakeFort * 6 : 0);
 
   // the whole citadel, with its night lighting, is one baked sprite; only the banners move
   const m = ctx.getTransform();
@@ -24081,6 +24411,98 @@ function drawFort(time) {
   }
   hfFortFlags(ctx, sp, fx, fp.y, fs, time);
   ctx.lineJoin = join;
+  drawFortDamage(sp, fx, fp.y, fs, time);
+}
+
+// ---- the citadel under attack: live smoke and fire over its baked sprite ----
+// Below half its defenders the citadel smokes from two points along its roofline; below a quarter, and in the beat
+// after it falls, it burns from three under heavy smoke. The National Assembly of 2023 never burns, out of respect:
+// it smokes, and no more. Through the victory dance no citadel burns, and the heavy smoke thins to the two grey
+// columns of a battle survived. All of it is drawn live over the cached sprite (no damaged citadel is ever baked),
+// so it follows the lives at once. At worst it comes with the busiest waves, so it is kept to some fifty soft blits
+// a frame: twelve puffs to a column, the grey ash over them only on its upper half (where the soot has thinned
+// enough for it to show), and none of the widest puffs at the top once they have all but faded. With reduced
+// motion the smoke rises and the fire stirs at a third of the pace.
+// Where it smokes and burns: three points along the roofline, read once per baked sprite from its own pixels. The
+// roofline is the highest painted row in each band of columns; each point takes the lowest roof within three bands
+// of its place (the walls beside a keep, never the tip of a spire or a flagstaff), but never one down at the crag
+// the citadel stands on. In fort units
+function fortHearths(sp) {
+  if (sp.hearths) return sp.hearths;
+  const cv = sp.cv, W = cv.width, H = cv.height, N = 30;
+  let data = null;
+  try { data = cv.getContext("2d").getImageData(0, 0, W, H).data; } catch (e) { /* unreadable: a fixed roofline */ }
+  const tops = [];
+  for (let b = 0; b < N; b++) {
+    const x0 = Math.floor(b * W / N), x1 = Math.max(x0 + 1, Math.floor((b + 1) * W / N));
+    let top = data ? H : Math.round(H * 0.4);
+    if (data) scan: for (let y = 0; y < H; y++) for (let x = x0; x < x1; x++) if (data[(y * W + x) * 4 + 3] > 140) { top = y; break scan; }
+    tops.push(top);
+  }
+  sp.hearths = [0.3, 0.52, 0.72].map(f => {
+    const b0 = Math.round(f * (N - 1));
+    let b = b0;
+    for (let d = 1; d <= 3; d++) for (const j of [b0 - d, b0 + d]) {
+      if (tops[j] < H * 0.6 && (tops[j] > tops[b] || tops[b] >= H * 0.6)) b = j;
+    }
+    return [sp.x + (b + 0.5) * sp.w / N, sp.y + Math.min(H * 0.6, tops[b]) * sp.h / H + 4];
+  });
+  return sp.hearths;
+}
+// returns the columns of smoke and the fires it drew, for the self-test
+const FORT_WHOLE = { smoke: 0, fires: 0 }, HEARTHS_ALL = [0, 1, 2], HEARTHS_TWO = [0, 2];
+function drawFortDamage(sp, x, y, fs, time) {
+  const share = fallen ? 0 : livesShare();
+  if (share >= 0.5) return FORT_WHOLE;
+  const heavy = share < 0.25 && !celebration, hs = fortHearths(sp);
+  const flames = heavy && fortStyle() !== "hf_stepanakert23";
+  const t = time * 0.001 * (reducedMotion() ? 0.35 : 1);
+  const soot = glowSprite(heavy ? "34, 30, 27" : "60, 56, 52"), ash = glowSprite("124, 118, 112"), ember = glowSprite("255, 138, 48");
+  const lit = heavy ? HEARTHS_ALL : HEARTHS_TWO;
+  // the fires first, each with the glow it throws on the wall around it
+  if (flames) {
+    for (const i of lit) {
+      const [ux, uy] = hs[i], px = x + ux * fs, py = y + uy * fs, ph = t * 9 + i * 1.9;
+      const hgt = (10 + 2.5 * Math.sin(ph * 1.3) + 1.5 * Math.sin(ph * 2.9)) * fs * (i === 1 ? 1.2 : 1);
+      drawGlow(ctx, ember, px, py - hgt * 0.35, 16 * fs, 11 * fs, 0.4 + 0.08 * Math.sin(ph * 2.2));
+      ctx.globalAlpha = 1;
+      structFlame(px - 3.2 * fs, py + 1 * fs, 2.6 * fs, hgt * 0.7, ph + 1.1, true, 0.95);
+      structFlame(px + 0.6 * fs, py, 3.4 * fs, hgt, ph, true, 1);
+      structFlame(px + 3.8 * fs, py + 1.4 * fs, 2.2 * fs, hgt * 0.55, ph + 2.3, true, 0.9);
+    }
+  }
+  // then the smoke: a column of soft puffs, sooty at its root and greying as it climbs, leaning downwind and
+  // widening as it thins
+  const rise = heavy ? 135 : 90, n = heavy ? 12 : 11;
+  for (const i of lit) {
+    const [ux, uy] = hs[i], base = uy - (flames ? 9 : 2);
+    for (let k = 0; k < n; k++) {
+      const u = (t * (heavy ? 0.1 : 0.08) + k / n + i * 0.37) % 1;
+      const px = ux + u * u * rise * 0.45 + Math.sin(t * 0.7 + k * 2.1 + i) * 3.5 * u;
+      const py = base - u * rise;
+      const r = (heavy ? 9 : 7) + u * (heavy ? 40 : 30);
+      const a = (heavy ? 0.66 * Math.pow(1 - u, 1.15) : 0.8 * Math.pow(1 - u, 0.9)) * Math.min(1, u * 10);
+      if (a < 0.045) continue;   // the widest puffs at the top, all but faded: the most pixels for the least smoke
+      drawGlow(ctx, soot, x + px * fs, y + py * fs, r * fs, r * 0.86 * fs, a * (1 - u * 0.7));
+      if (u > 0.45) drawGlow(ctx, ash, x + (px - r * 0.2) * fs, y + (py - r * 0.2) * fs, r * 0.8 * fs, r * 0.7 * fs, a * u * 0.8 * Math.min(1, (u - 0.45) / 0.15));
+    }
+  }
+  ctx.globalAlpha = 1;
+  return { smoke: lit.length, fires: flames ? lit.length : 0 };
+}
+// the beat after the breach: the field sinks into a smoky dusk around the burning citadel. The dusk falls fastest at
+// once (an ease-out: a third of it in the first 300 ms), so the still field reads as a moment held, never as a hang,
+// even with the sound off and no bell to mark it
+function drawFall(time) {
+  const k = unit01((time - fallen.start) / FALL_MS), a = 1 - (1 - k) * (1 - k);
+  if (a <= 0) return;
+  const fp = proj(FORT.x, FORT.y);
+  const g = ctx.createRadialGradient(fp.x, fp.y - 50, 70, fp.x, fp.y - 50, Math.max(VW, VH) * 0.75);
+  g.addColorStop(0, "rgba(40, 12, 4, 0)");
+  g.addColorStop(0.3, "rgba(34, 11, 5, " + (0.42 * a).toFixed(3) + ")");
+  g.addColorStop(1, "rgba(16, 6, 3, " + (0.8 * a).toFixed(3) + ")");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
 }
 
 // ---------- structures: masonry, timber, garrison figures and the sprite cache ----------
@@ -47173,6 +47595,9 @@ function refreshPanelBtns() {
 // ---------- menu / overlay ----------
 function buildMenu() {
   $("endlessBtn").style.display = "none";
+  // the debrief of a lost stand stays while the map is browsed (so the map never rescales under the finger), and
+  // steps back once another battlefield is chosen
+  $("ovDebrief").classList.toggle("past", debriefLevel >= 0 && curLevel !== debriefLevel);
   const saved = getSavedRun();
   const rb = $("resumeBtn");
   rb.style.display = saved ? "" : "none";
@@ -48650,6 +49075,7 @@ let menuMode = "map";   // "map" → world map; "brief" → history chronicle; "
 function showMenu(crest, title, sub, btnText, offerEndless) {
   leaveVictory();
   stopTutorial();
+  clearDebrief();
   menuMode = "map";
   introThen = -1;
   $("mapBtn").style.display = "none";
@@ -50546,7 +50972,7 @@ document.querySelectorAll("#spellbar .spell").forEach(b => {
   b.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
     if (b.id === "heroBtn") {
-      if (hero && hero.alive && overlayEl.classList.contains("hidden")) {
+      if (hero && hero.alive && !gameOver && overlayEl.classList.contains("hidden")) {
         heroSelected = !heroSelected;
         if (heroSelected) { setPlacing(null); castingSpell = null; }
         updateSpellBar();
@@ -50563,6 +50989,7 @@ document.querySelectorAll("#spellbar .spell").forEach(b => {
 document.querySelectorAll("#shop .card").forEach(card => {
   card.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
+    if (gameOver) return;   // the field holds still in the beat after the last defender falls
     const type = card.dataset.type;
     setPlacing(placing === type ? null : type);
   });
@@ -50718,6 +51145,12 @@ $("ovGear").addEventListener("click", toggleSettings);
 settingsEl.addEventListener("pointerdown", (e) => e.stopPropagation());
 // on a menu page a tap anywhere else puts the panel away, as a tap on the field does in battle
 overlayEl.addEventListener("pointerdown", (e) => { if (!e.target.closest("#ovGear")) closeSettings(); });
+// a chip of the defeat page's debrief tells its foe's name and roads on hover, which a finger never sees (and past
+// the first few the chip shows only an icon and a count): a tap names it in a toast instead, as the spell buttons do
+$("ovDebrief").addEventListener("pointerdown", (e) => {
+  const chip = e.target.closest(".dbChip");
+  if (chip && e.pointerType !== "mouse") toast(chip.title);
+});
 function togglePause() {
   if (gameOver || !overlayEl.classList.contains("hidden")) return;
   paused = !paused;
@@ -50814,6 +51247,7 @@ $("menuBtn").addEventListener("click", () => {
   gameOver = true;
   clearRun();
   celebration = null;
+  fallen = null;
   paused = false;
   curLevel = furthestOpen();
   curDiff = prefDiff;
@@ -50899,7 +51333,7 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
-  if (keys[e.code]) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
+  if (keys[e.code] && !gameOver) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
   if (e.code === "Escape") { setPlacing(null); hidePanel(); closeSettings(); closeFoeCard(); castingSpell = null; heroSelected = false; updateSpellBar(); }
   // Enter on a wave chip or a chronicle medallion reached by Tab opens its foe's card, or puts it away again
   // (Space stays the Send Wave key)
@@ -50910,7 +51344,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyQ") trySelectSpell("arrows");
   if (e.code === "KeyW") trySelectSpell("frost");
   if (e.code === "KeyE") trySelectSpell("wrath");
-  if (e.code === "KeyR" && hero && hero.alive && overlayEl.classList.contains("hidden")) {
+  if (e.code === "KeyR" && hero && hero.alive && !gameOver && overlayEl.classList.contains("hidden")) {
     heroSelected = !heroSelected;
     if (heroSelected) { setPlacing(null); castingSpell = null; }
     updateSpellBar();
@@ -51335,8 +51769,10 @@ function frame(time) {
   last = time;
   if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
     for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
+    if (!gameOver) dangerTick(dt);
   }
   if (celebration && time - celebration.start > DANCE_MAX_MS) endCelebration();
+  if (fallen && time - fallen.start > FALL_MS) endFall();
   draw(time);
   coachTick();
 }
@@ -51593,6 +52029,18 @@ function photoDance(seconds) {
   celebration.start = PHOTO_TIME - seconds * 1000;
 }
 
+// &lv=N, &wave=W: the staged battle's foes reach the gates one by one (spearmen after them, if they are too few)
+// until the last defender falls; shot=fall shows the beat &t seconds in, shot=defeat the page with its debrief
+function photoFall(lv, wave, seconds, page) {
+  photoStageBattle(lv, wave, {});
+  for (const e of enemies.slice()) { if (gameOver) break; e.dead = true; leakFoe(e); }
+  while (!gameOver) { spawnEnemy("spearman"); const e = enemies[enemies.length - 1]; e.dead = true; leakFoe(e); }
+  enemies = enemies.filter(e => !e.dead);
+  photo = { time: PHOTO_TIME };
+  fallen.start = PHOTO_TIME - seconds * 1000;
+  if (page) endFall();
+}
+
 function runPhoto() {
   const scene = HARNESS.get("shot");
   const num = (k, d) => (HARNESS.has(k) ? Number(HARNESS.get(k)) : d);
@@ -51601,6 +52049,8 @@ function runPhoto() {
       photoStageBattle(num("lv", 1), num("wave", 3), {
         spell: HARNESS.get("spell"), banner: HARNESS.has("banner"), panel: num("panel", 0),
       });
+      // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
+      if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
       photo = { time: PHOTO_TIME };
     } else if (scene === "units" || scene === "towers" || scene === "props") {
       photoSheet(scene);
@@ -51611,6 +52061,8 @@ function runPhoto() {
       photoChapter(num("ch", 0));
     } else if (scene === "dance") {
       photoDance(num("t", 6.9));
+    } else if (scene === "fall" || scene === "defeat") {
+      photoFall(num("lv", 1), num("wave", 8), num("t", 0.9), scene === "defeat");
     } else {
       throw new Error("unknown scene: " + scene);
     }
@@ -51967,7 +52419,7 @@ function runSelftest() {
         if (!prose(lv, "victory").startsWith(L.victory + " You held with 9 defenders")) throw new Error("victory text on " + lv + ": " + $("ovSub").textContent);
         if ($("endlessBtn").style.display === "none") throw new Error("no endless offer on " + lv);
         if (Number(localStorage.getItem("hs_best_" + lv + "_" + L.era)) !== 21) throw new Error("best wave not kept on " + lv);
-        gameOver = false; waveIdx = TOTAL_WAVES - 1; lives = 0; defeat();   // a two-figure wave, the longest line
+        gameOver = false; waveIdx = TOTAL_WAVES - 1; lives = 0; defeat(); endFall();   // a two-figure wave, the longest line
         if (!/Falls/.test($("ovTitle").textContent)) throw new Error("no defeat page on " + lv);
         if (prose(lv, "defeat") !== foeName() + " forces breach the gates at wave " + (TOTAL_WAVES - 1) + " of " + TOTAL_WAVES + ". " + L.defeat + " Choose your ground and try again.") {
           throw new Error("defeat text on " + lv + ": " + $("ovSub").textContent);
@@ -51983,7 +52435,7 @@ function runSelftest() {
           [T + 3, T + 1, "at wave " + (T + 3) + ". You held 1 wave" + beyond + " on Normal, "],
           [T + 3, T, "at wave " + (T + 3) + ", before a wave" + beyond + " is cleared. "],
           [100, 99, "at wave 100. You held " + (99 - T) + " waves" + beyond + " on Normal, "]]) {
-          gameOver = false; endless = true; waveIdx = w; lastCleared = cleared; lives = 0; defeat();
+          gameOver = false; endless = true; waveIdx = w; lastCleared = cleared; lives = 0; defeat(); endFall();
           const t = prose(lv, "endless defeat");
           if ($("ovTitle").textContent !== "The Endless Stand Ends" || !t.startsWith(foeName() + " forces breach the gates " + held) ||
             t.includes(" of " + T) || t.includes(L.defeat)) throw new Error("endless defeat on " + lv + " at wave " + w + ", " + cleared + " cleared: " + t);
@@ -52049,6 +52501,174 @@ function runSelftest() {
     r = getSavedRun();
     if (r.gold !== 60 || r.towers.length !== 3 || r.cleared !== w - 1) throw new Error("bought with bounties " + [r.gold, r.towers.length, r.cleared]);
     clearRun(); resetGame();
+  });
+  // every leak is felt and booked: by role and road, in the saved run (as at the horn when it is saved mid-wave),
+  // and read back by the defeat page's debrief after the beat on the field. The citadel smokes below half its
+  // defenders and burns below a quarter (the National Assembly of 2023 only smokes, and no citadel burns through the
+  // victory dance), and the heartbeat keeps time. The field holds still in the beat, and the page always opens
+  check("leaks and the fall", () => {
+    const savedRun = localStorage.getItem("hs_run"), play = Snd.play, heard = [], vols = [], realDebrief = debriefHtml;
+    Snd.play = function (n, o) { heard.push(n); if (n === "heartbeat") vols.push((o && o.vol) || 1); };
+    const tap = (el, pointerType) => el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: pointerType || "touch" }));
+    const leakAt = (type, route) => {
+      spawnEnemy(type);
+      const e = enemies[enemies.length - 1];
+      if (e.fly) e.dist = e.fly.len + 1; else { e.route = route; e.dist = ROUTES[route].len + 1; }
+      return e;
+    };
+    const fortSprite = () => { let sp = null; for (const [k, v] of structSprites) if (k.startsWith("fort" + fortStyle() + THEME.backdrop)) sp = v; return sp; };
+    try {
+      curLevel = 3; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");   // Dvin: an upper and a lower road
+      if (Object.keys(leaks).length || fallen) throw new Error("a new stand starts with leaks booked");
+      if (roadTitle("0") !== "the upper road" || roadTitle("1") !== "the lower road" || roadName("off") !== "off the road") throw new Error("Dvin's roads: " + [roadTitle("0"), roadTitle("1"), roadName("off")]);
+      gold = 600; placeTower("archer", 0);
+      startWave();
+      const lives0 = lives;
+      leakAt("raider", 1); leakAt("ram", 0); leakAt("flyer", 0);
+      update(0.001);
+      const L = leaks;
+      if (!L.raider || L.raider.n !== 1 || L.raider.roads["1"] !== 1 || !L.ram || L.ram.lost !== 3 || L.ram.roads["0"] !== 3 ||
+        !L.flyer || L.flyer.roads.off !== 1 || lives !== lives0 - 5) throw new Error("leaks booked " + JSON.stringify(L) + ", lives " + lives);
+      if (!livesFloat || !livesFloat.el.isConnected || livesFloat.el.textContent !== "−5") throw new Error("the lives counter floated " + (livesFloat && livesFloat.el.textContent));
+      if (heard.filter(n => n === "leak").length !== 3) throw new Error("leak sounds: " + heard);
+      // saved mid-wave, the run keeps the wave as it was sent: its lives and its leaks at the horn
+      saveRun();
+      let r = getSavedRun();
+      if (r.lives !== lives0 || Object.keys(r.leaks).length) throw new Error("mid-wave save booked " + JSON.stringify(r.leaks) + " at " + r.lives);
+      enemies = []; spawnQueue = []; endWaveIfClear();
+      r = getSavedRun();
+      if (r.lives !== lives || JSON.stringify(savedLeaks(r.leaks)) !== JSON.stringify(leaks)) throw new Error("saved between waves: " + JSON.stringify(r.leaks));
+      const booked = JSON.stringify(leaks);
+      resumeRun();
+      if (JSON.stringify(leaks) !== booked || lives !== r.lives) throw new Error("resumed with " + JSON.stringify(leaks));
+      // the citadel: whole above half its defenders, smoking below, burning below a quarter
+      const fort = () => { const sp = fortSprite(), fp = proj(FORT.x, FORT.y + 32); return drawFortDamage(sp, fp.x, fp.y, fp.s * FORT_K, PHOTO_TIME); };
+      draw(PHOTO_TIME);
+      lives = 10; let d = fort();
+      if (d.smoke || d.fires) throw new Error("half the defenders, and the citadel already smokes");
+      lives = 9; d = fort();
+      if (d.smoke !== 2 || d.fires) throw new Error("below half: " + JSON.stringify(d));
+      lives = 4; syncHud(); draw(PHOTO_TIME); d = fort();
+      if (d.smoke !== 3 || d.fires !== 3) throw new Error("below a quarter: " + JSON.stringify(d));
+      if (!livesEl.parentElement.classList.contains("low")) throw new Error("the counter is not red below a quarter");
+      celebration = { start: performance.now() }; d = fort(); celebration = null;
+      if (d.smoke !== 2 || d.fires) throw new Error("the victory dance under heavy smoke: " + JSON.stringify(d));
+      if (fortSprite().hearths.some(h => !(h[0] > -98 && h[0] < 108 && h[1] > -160 && h[1] < 32))) throw new Error("hearths off the citadel: " + JSON.stringify(fortSprite().hearths));
+      // the heartbeat: below a quarter, on its own clock, quicker with the last two in a wave, slower and softer
+      // between waves
+      heard.length = 0;
+      lives = 20; dangerTick(0.1); lives = 4;
+      phase = "idle";
+      for (let i = 0; i < 50; i++) dangerTick(0.1);   // 5 s
+      if (heard.length !== 3 || vols.some(v => v !== 0.6)) throw new Error(heard.length + " heartbeats in 5 s between waves, at " + vols);
+      heard.length = 0; vols.length = 0;
+      lives = 20; dangerTick(0.1); lives = 4;
+      phase = "wave";
+      for (let i = 0; i < 40; i++) dangerTick(0.1);   // 4 s
+      const beats = heard.filter(n => n === "heartbeat").length;
+      if (beats !== 3 || vols.some(v => v !== 1)) throw new Error(beats + " heartbeats in 4 s at 4 defenders, at " + vols);
+      heard.length = 0; lives = 2;
+      for (let i = 0; i < 40; i++) dangerTick(0.1);
+      if (heard.length !== 4) throw new Error(heard.length + " heartbeats in 4 s at 2 defenders");
+      heard.length = 0; lives = 6; dangerTick(5);
+      if (heard.length) throw new Error("a heartbeat at 6 defenders of 20");
+      // the fall: the field holds still under the toll, and only then the page, with its debrief
+      lives = 1; heard.length = 0;
+      leakAt("cavalry", 1);
+      update(0.001);
+      if (!gameOver || !fallen || !overlayEl.classList.contains("hidden") || !heard.includes("toll") || heard.includes("lose")) throw new Error("no beat before the page: " + heard);
+      if (getSavedRun()) throw new Error("the run outlived the fall");
+      if (!livesEl.parentElement.classList.contains("low")) throw new Error("the counter goes dark as the last defender falls");
+      tap(document.querySelector("#shop .card")); tap($("heroBtn"));
+      if (placing || heroSelected) throw new Error("the tray or the hero answers in the beat: " + [placing, heroSelected]);
+      draw(PHOTO_TIME);
+      endFall();
+      if (fallen || overlayEl.classList.contains("hidden") || $("ovTitle").textContent !== "The Citadel Falls" || !heard.includes("lose")) throw new Error("no defeat page after the beat");
+      const db = $("ovDebrief"), txt = db.textContent;
+      if (!db.classList.contains("on") || !txt.includes("Through the gates") || !txt.includes(eraUnit("ram").name) ||
+        !/on the upper road/.test(txt) || !/on the lower road/.test(txt) || !/off the road/.test(txt) || !db.querySelector(".dbTip")) throw new Error("debrief: " + txt);
+      if (overlayEl.scrollHeight > overlayEl.clientHeight + 1) throw new Error("the debrief pushes the defeat page into a scroll");
+      const chips = [...db.querySelectorAll(".dbChip")];
+      if (chips.some(c => !/^\S.* \u00d7\d+: \d+ defenders? lost/.test(c.title))) throw new Error("chip titles: " + chips.map(c => c.title));
+      tap(chips[chips.length - 1]);
+      if (toastEl.textContent !== chips[chips.length - 1].title) throw new Error("a tap on a chip names " + toastEl.textContent);
+      selectMapLevel(0);
+      if (!db.classList.contains("past")) throw new Error("the debrief does not step back for another battlefield");
+      openCampaignMap(0);
+      if (db.classList.contains("on") || db.textContent) throw new Error("the debrief outlived its page");
+      // the tip names this battlefield's own towers and foes and suits the breach (the battlefield chosen without
+      // a fresh field: its roads are all the tip reads of it)
+      const tipFor = (lv, tally) => {
+        const L = LEVELS[lv];
+        curLevel = lv; curEra = L.era; ROUTES = (L.paths || [L.path]).map(pts => ({ pts }));
+        leaks = tally;
+        return debriefTip();
+      };
+      const one = (role, lost, road) => ({ [role]: { n: lost, lost, roads: { [road || "0"]: lost } } });
+      let t = tipFor(0, one("ram", 9));
+      if (!t.startsWith("Armour got through (<b>Siege Ram</b> \u00d79)") || !t.includes(towerName("ballista")) || !t.includes(towerName("fire"))) throw new Error("armour tip: " + t);
+      t = tipFor(8, one("shield", 6));
+      if (!t.includes("Barricade and Trench</b> slow and wear it down")) throw new Error("plural tower: " + t);
+      t = tipFor(1, one("flyer", 5, "off"));
+      if (!t.startsWith("Outflankers got through") || !t.includes(towerName("archer"))) throw new Error("outflanker tip: " + t);
+      t = tipFor(3, one("spearman", 8, "1"));
+      if (!t.startsWith("All 8 defenders lost on the roads fell on the lower road")) throw new Error("one-road tip: " + t);
+      t = tipFor(3, { raider: { n: 4, lost: 4, roads: { "1": 4 } }, spearman: { n: 4, lost: 4, roads: { "1": 4 } }, shield: { n: 1, lost: 1, roads: { "0": 1 } } });
+      if (!t.startsWith("The lower road cost you 8 of the 9")) throw new Error("road tip: " + t);
+      if (roadTitle("2") !== "a road") throw new Error("a road Dvin lacks: " + roadTitle("2"));
+      // a road from a run saved before the battlefield's roads were redrawn is dropped on resume
+      if (JSON.stringify(savedLeaks({ ram: { n: 2, lost: 6, roads: { "0": 3, "2": 3, off: 1, x: 2 } } }).ram.roads) !== '{"0":3,"off":1}') throw new Error("stale roads kept");
+      // the subject is the kind of foe, which reads the same for one or many; the foes' names come in brackets
+      t = tipFor(8, one("raider", 6));
+      if (!t.startsWith("Fast foes outran your towers (<b>" + escapeHtml(eraUnit("raider").name) + "</b> \u00d76)")) throw new Error("fast tip: " + t);
+      t = tipFor(6, one("boss", 1));
+      if (!t.startsWith("The strongest foe got through (<b>" + escapeHtml(eraUnit("boss").name) + "</b>). Every tenth wave is led by one")) throw new Error("commander tip: " + t);
+      t = tipFor(12, one("boss", 6, "off"));
+      if (!t.startsWith("Outflankers got through (<b>Harop")) throw new Error("the Harop flies: " + t);
+      // a few foot soldiers are no crowd: the lesson falls to the next kind, or to a general line
+      t = tipFor(0, one("spearman", 4));
+      if (!t.startsWith("Every foe that reaches the gates")) throw new Error("four spearmen: " + t);
+      t = tipFor(0, one("spearman", 5));
+      if (!t.startsWith("Foot soldiers came through in numbers (<b>")) throw new Error("five spearmen: " + t);
+      // an air-defence gun is never sent against armour or a commander on the ground; the 2023 ATGM team is
+      for (const [lv, kept] of [[11, false], [12, false], [13, true]]) {
+        t = tipFor(lv, one("ram", 9));
+        if (!t.startsWith("Armour got through") || t.includes(towerName("ballista")) !== kept || !t.includes(towerName("fire"))) throw new Error("armour tip on " + lv + ": " + t);
+      }
+      t = tipFor(11, one("boss", 1));
+      if (t.includes(towerName("ballista")) || !t.includes("have your towers upgraded")) throw new Error("the Grad battery: " + t);
+      t = tipFor(12, {});
+      if (t !== "" || debriefHtml() !== "") throw new Error("a debrief with nothing booked");
+      if (roadTitle("0") !== "the left road" || roadName("off") !== "by air") throw new Error("Shushi's roads: " + [roadTitle("0"), roadName("off")]);
+      // every battlefield reads a mixed tally back, its tip included
+      for (let lv = 0; lv < LEVELS.length; lv++) {
+        tipFor(lv, {});
+        leaks = { spearman: { n: 4, lost: 4, roads: { "0": 4 } }, ram: { n: 2, lost: 6, roads: { [String(ROUTES.length - 1)]: 6 } }, flyer: { n: 1, lost: 1, roads: { off: 1 } } };
+        const h = debriefHtml();
+        if (!h.includes("dbTip") || /undefined|NaN/.test(h)) throw new Error("debrief on " + lv + ": " + h);
+        for (const role of Object.keys(ENEMY_DEFS)) {
+          leaks = one(role, 6, breachKind(role) === "air" ? "off" : "0");
+          const t = debriefTip();
+          if (!/^(The strongest foe got through|Armour got through|Outflankers got through|Fast foes outran your towers|Foot soldiers came through in numbers) \(<b>|^All 6 defenders lost on the roads fell on /.test(t) ||
+            /undefined|NaN/.test(t)) throw new Error(role + " tip on " + lv + ": " + t);
+        }
+      }
+      // a debrief that cannot be read is left out, and the defeat page still opens
+      curLevel = 3; resetGame(); overlayEl.classList.add("hidden");
+      lives = 1; debriefHtml = () => { throw new Error("unreadable"); };
+      leakAt("spearman", 0); update(0.001); endFall();
+      debriefHtml = realDebrief;
+      if (fallen || overlayEl.classList.contains("hidden") || $("ovTitle").textContent !== "The Citadel Falls" || $("ovDebrief").classList.contains("on")) throw new Error("no defeat page without its debrief");
+      // and the National Assembly of 2023 smokes, but never burns
+      curLevel = 13; resetGame(); overlayEl.classList.add("hidden"); lives = 2; draw(PHOTO_TIME);
+      d = fort();
+      if (THEME.id !== "stepanakert23" || d.smoke !== 3 || d.fires) throw new Error("the National Assembly at 2 defenders: " + JSON.stringify(d));
+    } finally {
+      Snd.play = play; debriefHtml = realDebrief;
+      fallen = null; leaks = {};
+      if (savedRun === null) localStorage.removeItem("hs_run"); else localStorage.setItem("hs_run", savedRun);
+      curLevel = 0; resetGame(); overlayEl.classList.add("hidden");
+    }
   });
   check("dance", () => {
     for (const s of [0.4, 1.2, 2.4, 3.4, 3.9, 4.6, 5.4, 6.8, 8.2, 10.5, 12.9]) {
@@ -52344,14 +52964,14 @@ function runSelftest() {
     endWaveIfClear();
     if (levelRecord(0).endless[1] !== TOTAL_WAVES + 2 || localStorage.getItem("hs_best_0_0") !== "21") throw new Error("a wave held beyond the twenty: " + rows(0));
     if (getSavedRun().endlessFrom !== 0) throw new Error("the saved run lost the record its stand began from");
-    waveIdx = TOTAL_WAVES + 4; lastCleared = TOTAL_WAVES + 3; lives = 0; defeat();
+    waveIdx = TOTAL_WAVES + 4; lastCleared = TOTAL_WAVES + 3; lives = 0; defeat(); endFall();
     if ($("ovTitle").textContent !== "The Endless Stand Ends" || levelRecord(0).endless[1] !== TOTAL_WAVES + 3 ||
       $("ovRecord").textContent !== "New bestHeld to wave " + (TOTAL_WAVES + 3) + " on Normal") throw new Error("the endless record: " + $("ovRecord").textContent);
     // a later stand that falls short of it sets none, and leaves it standing
     recordedWin(0, 1, 20);
     $("endlessBtn").click();
     if (endlessFrom !== TOTAL_WAVES + 3) throw new Error("the second endless stand began from " + endlessFrom);
-    waveIdx = TOTAL_WAVES + 2; lastCleared = TOTAL_WAVES + 1; lives = 0; defeat();
+    waveIdx = TOTAL_WAVES + 2; lastCleared = TOTAL_WAVES + 1; lives = 0; defeat(); endFall();
     if ($("ovRecord").classList.contains("on") || levelRecord(0).endless[1] !== TOTAL_WAVES + 3) throw new Error("a shorter endless stand: " + rows(0));
     if (localStorage.getItem("hs_best_0_0") !== "21") throw new Error("the endless stand wrote the campaign's key");
     // the map: Erebuni's three stars, Tushpa and Avarayr one each (won, nothing recorded); chapter II reached, the rest locked
@@ -52412,7 +53032,7 @@ function runSelftest() {
       recordedWin(0, 1, 20);
       $("endlessBtn").click();
       const from = Math.max(TOTAL_WAVES, endlessFrom);
-      lastCleared = from + 2; waveIdx = from + 3; lives = 0; defeat();
+      lastCleared = from + 2; waveIdx = from + 3; lives = 0; defeat(); endFall();
       if (!$("ovRecord").classList.contains("on")) throw new Error("no ribbon for an endless record");
       leave();
       if ($("ovRecord").classList.contains("on")) throw new Error("the endless ribbon lingered over the map");
