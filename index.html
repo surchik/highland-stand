@@ -720,8 +720,9 @@
   #overlay.brief { justify-content: flex-start; }
   #overlay.brief #ovPage { margin-top: auto; }
   #overlay.brief .ovFoot { margin-bottom: auto; }
-  /* a short window (720 px and the like) sets the leaf tighter, so a 650-character page and the button still fit */
-  @media (max-height: 800px) and (min-width: 861px) {
+  /* a short window (720 px and the like, and an iPad on its side, 810 to 834 px) sets the leaf tighter, so a
+     650-character page, the Armenian line, the hero and the button still fit */
+  @media (max-height: 840px) and (min-width: 861px) {
     #overlay.brief { padding: 14px 0; gap: 6px; }
     #overlay.brief #ovPage { width: min(94vw, 1030px); grid-template-columns: 42% minmax(0, 1fr) 22px; column-gap: 26px; padding: 22px 24px 20px 26px; margin-bottom: 4px; }
     .briefHost { gap: 0; padding-left: 64px; }
@@ -744,6 +745,9 @@
   @media (max-width: 860px) {
     #overlay.brief #ovPage { display: flex; flex-direction: column; align-items: center; padding: 26px 26px 30px; }
     #overlay.brief #ovPage .briefLeft { max-width: 440px; margin-bottom: 14px; }
+    /* the miniature gives up height on a shorter screen (the host row keeps its width), so on an upright iPad
+       the button stays in view */
+    #overlay.brief #briefArt { width: min(100%, 32vh); align-self: center; }
     #overlay.brief #ovPage .sideband, #overlay.brief .crest { display: none; }
     #overlay.brief .ovRule { order: 9; }
     #overlay.brief .ovPager.on { order: 10; }
@@ -2273,15 +2277,17 @@ function levelPages(L) {
 // the place's own name (Ավարայր for "Avarayr Plain", Դվին for "Dvin Gates"), not a translation of its title.
 // The spelling is standard modern Eastern Armenian in the reformed orthography used in Armenia today. `classical`
 // keeps, unshown, the classical (Mashtotsian) spelling still used in the Western Armenian diaspora wherever it
-// differs; `byRule` marks one derived from the regular correspondences of the reform (-յան for -եան, ե for է,
-// վ for ւ, և for եւ) rather than seen in print. Names absent here stay English-only: the anonymous defenders
-// (the Captain of Shirak, the volunteers of 2020 and 2023) and the chapter titles coined for this game
-// ("Kingdoms of the Highlands", "Faith and Crown", "The Long Night"). Every spelling was checked in October 2026
-// against the sources below, numbered in each row; the list still wants a native speaker's review.
+// differs; `byRule` marks one not seen in print for that person, put together from the regular correspondences of
+// the reform (-յան for -եան, ե for է, վ for ւ, և for եւ) and from the spellings printed for other bearers of the
+// same names. Names absent here stay English-only: the anonymous defenders (the Captain of Shirak, the volunteers
+// of 2020 and 2023) and the chapter titles coined for this game ("Kingdoms of the Highlands", "Faith and Crown",
+// "The Long Night"). Every spelling was checked in October 2026 against the sources below, numbered in each row;
+// the list still wants a native speaker's review.
 //  [1] en.wikipedia.org/wiki/Erebuni_Fortress: "Էրեբունի ամրոց"
 //  [2] en.wikipedia.org/wiki/Argishti_I: "Argishti I (Armenian: Արգիշտի Ա)", "the city of Erebuni (Էրեբունի)"
 //  [3] en.wikipedia.org/wiki/Tushpa: Armenian names Տոսպ, "Տուշպա֊Վան"
-//  [4] en.wikipedia.org/wiki/Battle_of_Avarayr: "Ավարայրի ճակատամարտ"
+//  [4] en.wikipedia.org/wiki/Battle_of_Avarayr: "Ավարայրի ճակատամարտ"; hy.wikipedia.org/wiki/Ավարայրի_ճակատամարտ;
+//      classical "Աւարայրի ճակատամարտ" in asbarez.am/?p=454500 and asbarez.am/?p=122967 (exact-phrase search)
 //  [5] en.wikipedia.org/wiki/Dvin_(ancient_city): "Dvin (Armenian: Դվին)", the early authors' form Դուին;
 //      armenpress.am/hy/article/739223: "Հնագետները Դվինի պեղավայրում..."
 //  [6] en.wikipedia.org/wiki/Tashir: "Tashir (Տաշիր)"
@@ -2295,29 +2301,36 @@ function levelPages(L) {
 // [13] armenpress.am/hy/article/1030209: "Ստեփանակերտը հոսանքազրկված է"; azat.tv/stepankert-hretani/
 // [14] en.wikipedia.org/wiki/Shusha: Armenian Շուշի
 // [15] en.wikipedia.org/wiki/Artsakh_(historical_province): "Artsakh (Armenian: Արցախ)"
-// [16] arar.sci.am/publication/458543: V. Sargsyan (2025), on Urartu and Assyria under "Սարդուրի II"; the
-//      regnal number is set as a letter, as [2] sets Արգիշտի Ա and [18] Աշոտ Բ
-// [17] military-history.fandom.com/wiki/Vardan_Mamikonian: "Վարդան Մամիկոնյան"; en.wikipedia.org/wiki/
-//      Vardan_Mamikonian: classical "Վարդան Մամիկոնեան"
-// [18] en.wikipedia.org/wiki/Theodore_Rshtuni: "Թեոդորոս Ռշտունի"
-// [19] en.wikipedia.org/wiki/Ashot_II_of_Armenia: "Ashot II 'the Iron' (Armenian: Աշոտ Երկաթ)"
+// [16] hy.wikipedia.org/wiki/Սարդուրի_Բ (the article's title); arar.sci.am/publication/458543: V. Sargsyan
+//      (2025), on Urartu and Assyria, sets the regnal number in Roman, "Սարդուրի II". The letter numeral follows
+//      the usual Armenian convention, as hy.wikipedia.org/wiki/Արգիշտի_Ա and [19] set it
+// [17] hy.wikipedia.org/wiki/Վարդան_Մամիկոնյան (the article's title); en.wikipedia.org/wiki/Vardan_Mamikonian:
+//      classical "Վարդան Մամիկոնեան"
+// [18] en.wikipedia.org/wiki/Theodore_Rshtuni: "Թեոդորոս Ռշտունի". Classical Թէոդորոս by rule (medial է, as in
+//      Թէոդոս); an exact search for "Թէոդորոս Ռշտունի" finds classical-orthography pages, but search engines may
+//      fold է into ե, so it is not counted as seen in print
+// [19] hy.wikipedia.org/wiki/Աշոտ_Բ_Երկաթ (the article's title); en.wikipedia.org/wiki/Ashot_II_of_Armenia:
+//      "Ashot II 'the Iron' (Armenian: Աշոտ Երկաթ)"
 // [20] en.wikipedia.org/wiki/Davit_Bek,_Armenia: "Armenian: Դավիթ Բեկ"; Raffi's novel in classical print,
 //      goodreads.com/work/quotes/6863596: "Դաւիթ Բէկ"
 // [21] lib.armedu.am/files/resource/files/2023-05-25/9ddf426c9abdd74ad6a19a67cc966831.pdf: "Արամ Մանուկյանը
-//      ծնվել է 1879 թ."; arar.sci.am/Content/362630/43-56.pdf: "Հանրապետության հիմնադիր Արամ Մանուկյանը"
+//      ծնվել է 1879 թ."; arar.sci.am/Content/362630/43-56.pdf: "Հանրապետության հիմնադիր Արամ Մանուկյանը";
+//      classical "Արամ Մանուկեան" in asbarez.am/?p=397539 and asbarez.am/?p=306343 (exact-phrase search)
 // [22] arar.sci.am, articles on Werfel's novel and its prototypes (Content/381842/190-203.pdf, Content/176195):
 //      "Մովսես Տեր Գալուստյան", "Մովսես տեր Գալուստյանին" (written there without the hyphen that Eastern usage
-//      puts after Տեր-, as in [25]); asbarez.am/?p=466029, his son "Վազգէն Տէր Գալուստեան" in classical print
+//      puts after Տեր-, as in [25]); asbarez.am/?p=466029, his son "Վազգէն Տէր Գալուստեան" in classical print.
+//      The classical form takes Մովսէս by rule and the hyphen of the modern form
 // [23] en.wikipedia.org/wiki/Movses_Silikyan: "Armenian: Մովսես Սիլիկյան"; hhpress.am/?p=11419: "գեներալ
 //      Մովսես Սիլիկյանի գլխավորությամբ"
 // [24] armenpress.am/hy/article/1086743, on the Syunik rising, found for the exact spelling Դավիթ Բեկ
-// [25] azat.tv/naxagah-komandos/: "Արմեն Սարգսյանն այցելել է Արկադի Տեր-Թադևոսյանի տուն"
+// [25] azat.tv/naxagah-komandos/: "Արմեն Սարգսյանն այցելել է Արկադի Տեր-Թադևոսյանի տուն"; the classical
+//      surname Թադէոսեան as asbarez.am/?p=70626 prints it for another family, and Տէր as in [22]
 // Keys are the English names in LEVELS and CHAPTERS; the self-test checks that every one is still matched.
 const HY_NAMES = {
   field: {
     "Erebuni Rise":     { hy: "Էրեբունի" },                                   // [1] [2]
     "Vale of Tushpa":   { hy: "Տուշպա" },                                     // [3]
-    "Avarayr Plain":    { hy: "Ավարայր" },                                    // [4]
+    "Avarayr Plain":    { hy: "Ավարայր", classical: "Աւարայր" },              // [4]
     "Dvin Gates":       { hy: "Դվին", classical: "Դուին" },                   // [5]
     "Tashir Gates":     { hy: "Տաշիր" },                                      // [6]
     "Sevan Shores":     { hy: "Սևան", classical: "Սեւան" },                   // [7]
@@ -2337,12 +2350,12 @@ const HY_NAMES = {
     "Argishti I":            { hy: "Արգիշտի Ա" },                             // [2]
     "Sarduri II":            { hy: "Սարդուրի Բ" },                            // [16]
     "Vardan Mamikonian":     { hy: "Վարդան Մամիկոնյան", classical: "Վարդան Մամիկոնեան" },          // [17]
-    "Theodoros Rshtuni":     { hy: "Թեոդորոս Ռշտունի" },                      // [18]
+    "Theodoros Rshtuni":     { hy: "Թեոդորոս Ռշտունի", classical: "Թէոդորոս Ռշտունի", byRule: true },   // [18]
     "Ashot II":              { hy: "Աշոտ Բ" },                                // [19]
     "Ashot II Erkat":        { hy: "Աշոտ Բ Երկաթ" },                          // [19]
     "Davit Bek":             { hy: "Դավիթ Բեկ", classical: "Դաւիթ Բէկ" },     // [20] [24]
-    "Aram Manukian":         { hy: "Արամ Մանուկյան", classical: "Արամ Մանուկեան", byRule: true },  // [21]
-    "Movses Ter-Kalustian":  { hy: "Մովսես Տեր-Գալուստյան", classical: "Մովսէս Տէր Գալուստեան" },   // [22]
+    "Aram Manukian":         { hy: "Արամ Մանուկյան", classical: "Արամ Մանուկեան" },               // [21]
+    "Movses Ter-Kalustian":  { hy: "Մովսես Տեր-Գալուստյան", classical: "Մովսէս Տէր-Գալուստեան", byRule: true }, // [22]
     "Movses Silikyan":       { hy: "Մովսես Սիլիկյան", classical: "Մովսէս Սիլիկեան", byRule: true }, // [23]
     "Arkady Ter-Tadevosyan": { hy: "Արկադի Տեր-Թադևոսյան", classical: "Արկադի Տէր-Թադէոսեան", byRule: true }, // [25]
   },
@@ -45571,9 +45584,9 @@ const MAP_CHARTS = {
       ["Karkar", 46.98, 39.9, 9, "water", -0.35],
       ["Vorotan", 46.17, 39.535, 9, "water", 0.22],
     ],
-    // a town's name stands to the right of its dot, or at [dx, dy] from it: Berdzor's sits under its dot, clear of
-    // Shushi's nameplate just above
-    towns: [["Goris", 46.34, 39.51], ["Berdzor (Lachin)", 46.55, 39.63, [4, 13.5]]],
+    // a town's name stands to the right of its dot, or at [dx, dy] from it (ending there when dx is negative):
+    // Berdzor's stands to the left of its dot, clear of Shushi's nameplate on the right
+    towns: [["Goris", 46.34, 39.51], ["Berdzor (Lachin)", 46.55, 39.63, [-6, -3]]],
     routes: [[[46.34, 39.51], [46.43, 39.535], [46.5, 39.575], [46.55, 39.63], [46.64, 39.7], [46.72, 39.745], [46.75, 39.76], [46.75, 39.82]]],
   },
 };
@@ -45666,21 +45679,22 @@ function mapGeoNode(chart, lon, lat, nudge) {
   return Object.assign({ x: Math.round(p[0] + (nudge ? nudge[0] : 0)), y: Math.round(p[1] + (nudge ? nudge[1] : 0)) }, nudge && nudge[2] ? { plate: nudge[2] } : null);
 }
 
-// one entry per battlefield, in the units of its chapter's chart. plate: [dx, dy] moves the nameplate off the default spot below
+// one entry per battlefield, in the units of its chapter's chart. plate: [dx, dy] moves the nameplate off the default spot below;
+// [dx, dy, "left" | "right"] sets that edge of the plate, rather than its centre, dx from the fort
 const MAP_NODES = [
   { x: 372, y: 162 },   // 782 BC — Erebuni, the Ararat plain
   { x: 180, y: 272 },   // 714 BC — Vale of Tushpa, Lake Van
   { x: 468, y: 292 },   // 451 AD — Araxes Crossing, plain of Avarayr
   { x: 590, y: 246 },   // 640 AD — Dvin, the cathedral capital
   { x: 500, y: 64 },    // 910 AD — Lori Gates, the northern gorges
-  { x: 580, y: 150 },   // 921 AD — Sevan Shores, the Iron King's stand
+  { x: 580, y: 147 },   // 921 AD — Sevan Shores, the Iron King's stand (its plate clear of Dvin's ring when Dvin is chosen)
   { x: 134, y: 118 },   // 1579 AD — Gyumri Road, plain of Shirak
   mapGeoNode("anatolia", 46.33, 39.2, [0, 0, [0, -3]]), // 1727 — Halidzor above Kapan, Syunik (plate clear of Van's when it is chosen)
   mapGeoNode("anatolia", 43.38, 38.5),                  // 1915 — Van, on the eastern shore of its lake
   mapGeoNode("anatolia", 35.95, 36.15),                 // 1915 — Musa Dagh on the Cilician coast
   mapGeoNode("anatolia", 44.0, 40.1, [0, 0, [-100, -28]]), // 1918 — Sardarapat on the Ararat plain (plate to its west, clear of Ararat)
-  mapGeoNode("artsakh", 46.75, 39.82, [-10, -10, [-12, 0]]), // 1992 — Stepanakert (plate a little west, clear of 2023's)
-  mapGeoNode("artsakh", 46.75, 39.76, [-24, 32]),       // 2020 — Shushi, on its plateau just south of the capital
+  mapGeoNode("artsakh", 46.75, 39.82, [-10, -10, [-34, -43, "right"]]), // 1992 — Stepanakert (plate to its west, clear of Shushi and 2023)
+  mapGeoNode("artsakh", 46.75, 39.76, [-24, 32, [-40, 0, "left"]]), // 2020 — Shushi, on its plateau south of the capital (plate grows east, clear of Berdzor)
   mapGeoNode("artsakh", 46.75, 39.82, [158, -6]),       // 2023 — Stepanakert again, drawn on its eastern approaches
 ];
 // the map is painted at three times its units, so it stays sharp at full width
@@ -45705,6 +45719,8 @@ const MAP_ROADS = [
 const MAP_FORTS = ["citadel", "crag", "ford", "dome", "gorge", "isle", "tuff",
   "gorge", "crag", "crag", "ford", "citadel", "crag", "dome"];
 let mapHover = -1;
+// the nameplates as last drawn, [{ i, x, y, w, h }] in chart units, for the self-test's check that none overlaps
+let mapPlatesDrawn = [];
 
 function levelBestAnyEra(i) {
   let best = 0;
@@ -46280,9 +46296,10 @@ function buildWorldTerrain(id) {
     tc.fillStyle = "#a8322a"; tc.fill();
     tc.strokeStyle = MAP_INK; tc.lineWidth = 0.8; tc.stroke();
     tc.font = "600 9.5px " + UI_FONT;
-    tc.textAlign = "left";
+    tc.textAlign = t[3][0] < 0 ? "right" : "left";
     tc.fillStyle = "#3a2612";
     tc.fillText(t[0], t[1] + t[3][0], t[2] + t[3][1]);
+    tc.textAlign = "left";
   }
   for (const l of spec.labels) mapLabel(tc, l[0], l[1], l[2], l[3], l[4], l[5]);
 
@@ -46602,15 +46619,27 @@ function drawMapPadlock(m, x, y) {
 
 // parchment nameplate under a node: the name and one status line. An open site gets a solid plate;
 // a locked one only a faded label inside a dashed line, as a chart marks what is not yet surveyed
-// hy, the battlefield's name in Armenian letters ("" for none), takes a line of its own between name and status
+// hy, the battlefield's name in Armenian letters ("" for none), takes a line of its own between name and status.
+// cx is the plate's centre, or with look.edge "left" or "right" that edge, so a plate beside its fort, or one that
+// must keep clear of a neighbour on one side, grows away from it when it is chosen and its status lengthens.
+// The plate keeps inside the chart's frame: status may be a list of lines, longest first, and the plate takes the
+// first that fits with at most a short slide in from the edge (so a chosen plate by the frame drops its age, which
+// the subtitle still gives); one still too wide slides in as far as it must
 function drawMapPlate(m, cx, top, name, hy, status, look) {
   m.font = "700 13.5px " + UI_FONT;
   const nameW = m.measureText(name).width;
   m.font = "600 11px " + HY_FONT;
   const hyW = hy ? m.measureText(hy).width : 0, dy = hy ? 12 : 0;
   m.font = (look.sel || look.locked ? "italic 600 " : "600 ") + "10.5px " + UI_FONT;
-  const statusW = m.measureText(status).width + (look.star ? 11 : 0);
-  const w = Math.max(72, Math.ceil(Math.max(nameW, hyW, statusW)) + 18), h = 31 + dy, x = Math.round(cx - w / 2);
+  const fit = s => {
+    const sw = m.measureText(s).width + (look.star ? 11 : 0), w = Math.max(72, Math.ceil(Math.max(nameW, hyW, sw)) + 18);
+    const x0 = Math.round(look.edge === "left" ? cx : look.edge === "right" ? cx - w : cx - w / 2);
+    return { s, sw, w, x0, x: Math.min(Math.max(x0, 16), MAP_W - 16 - w) };
+  };
+  const lines = [].concat(status), P = lines.map(fit).find(p => Math.abs(p.x - p.x0) <= 12) || fit(lines[lines.length - 1]);
+  const statusW = P.sw, w = P.w, h = 31 + dy, x = P.x;
+  status = P.s;
+  if (look.edge || x !== P.x0) cx = x + w / 2;
   m.lineJoin = "miter";
   if (look.locked) {
     m.fillStyle = "#ecdfba";
@@ -46652,6 +46681,7 @@ function drawMapPlate(m, cx, top, name, hy, status, look) {
   m.fillText(status, cx + (look.star ? 5.5 : 0), top + 25.6 + dy);
   if (look.star) drawMapStar(m, cx - statusW / 2 + 4, top + 22 + dy, 4);
   m.textAlign = "left";
+  return { x, y: top, w, h };
 }
 
 // the chapter on the map's page is always the one holding the chosen battlefield
@@ -46741,17 +46771,18 @@ function renderWorldMap() {
 
   // nameplates last, so no glow or road ever runs over one; the chosen battlefield's last of all, so its longer
   // plate (date and age) is never covered by a neighbour's
+  mapPlatesDrawn = [];
   for (const i of lv.filter(i => i !== curLevel).concat(lv.includes(curLevel) ? [curLevel] : [])) {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
     const sel = i === curLevel;
     const best = levelBestAnyEra(i);
-    const status = sel ? LEVELS[i].date + " · " + ERAS[LEVELS[i].era].name
+    const status = sel ? [LEVELS[i].date + " · " + ERAS[LEVELS[i].era].name, LEVELS[i].date]
       : !unlocked ? "Locked"
       : best >= 21 ? "Conquered"
       : best > 0 ? "Best: wave " + best : "Unconquered";
-    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, hyName("field", LEVELS[i].name), status,
-      { sel, locked: !unlocked, star: !sel && best >= 21 });
+    mapPlatesDrawn.push(Object.assign({ i }, drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name,
+      hyName("field", LEVELS[i].name), status, { sel, locked: !unlocked, star: !sel && best >= 21, edge: pl[2] })));
   }
 }
 
@@ -49957,8 +49988,20 @@ function runSelftest() {
         if (!MAP_FORTS[i]) throw new Error("no map fort for " + i);
       }
     }
+    // with every battlefield chosen in turn, each plate stays inside the chart's frame and clear of every other
+    // plate and of the chosen fort's gold ring
     testUnlockAll = true;
-    for (const C of CHAPTERS) { curLevel = C.levels[C.levels.length - 1]; renderWorldMap(); }
+    for (let s = 0; s < LEVELS.length; s++) {
+      curLevel = s; renderWorldMap();
+      const P = mapPlatesDrawn, n = MAP_NODES[s];
+      if (P.length !== CHAPTERS[chapterOf(s)].levels.length) throw new Error("map: not every plate drawn with " + s + " chosen");
+      for (const a of P) {
+        if (a.x < 13 || a.y < 13 || a.x + a.w > MAP_W - 13 || a.y + a.h > MAP_H - 13) throw new Error("map: " + LEVELS[a.i].name + "'s plate crosses the frame with " + s + " chosen");
+        for (const b of P) if (b !== a && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) throw new Error("map: " + LEVELS[a.i].name + "'s plate overlaps " + LEVELS[b.i].name + "'s with " + s + " chosen");
+        const px = Math.max(a.x, Math.min(n.x, a.x + a.w)), py = Math.max(a.y, Math.min(n.y - 2, a.y + a.h));
+        if (a.i !== s && Math.hypot(px - n.x, py - (n.y - 2)) < 31) throw new Error("map: " + LEVELS[a.i].name + "'s plate covers the ring of " + LEVELS[s].name);
+      }
+    }
     testUnlockAll = false;
   });
   check("chronicle pages + chapter stories", () => {
