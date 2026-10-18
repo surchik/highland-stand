@@ -857,6 +857,121 @@
     #autoBtn, #speedBtn { display: none; }
     #waveBtn { font-size: 13.5px; padding: 0 9px; }
   }
+  /* ---------- nardi ---------- */
+  /* the village elder's board: a room of its own over the menu pages, walnut and bronze like the title page.
+     Header (the elder's strength, the rules, leave), the board's canvas, footer (pips, what to do, Undo, Roll) */
+  #nardi {
+    position: fixed; inset: 0; z-index: 38; display: flex; flex-direction: column; gap: 6px;
+    padding: calc(8px + var(--sat)) calc(16px + var(--sar)) calc(10px + var(--sab)) calc(16px + var(--sal));
+    background:
+      radial-gradient(ellipse 80% 70% at 50% 46%, rgba(120,84,44,.34), rgba(60,40,20,.1) 55%, transparent 78%),
+      radial-gradient(ellipse 92% 88% at 50% 48%, transparent 52%, rgba(6,3,1,.78)),
+      linear-gradient(180deg, #3a2819, #2b1d12 50%, #1e140b);
+    color: var(--parch); font-family: var(--face); touch-action: manipulation;
+  }
+  #nardi.ndHidden { display: none; }
+  #nardi .ndHead { flex: none; display: flex; align-items: center; gap: 10px; min-height: 52px; }
+  #nardi .ndName {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 12px; white-space: nowrap;
+    font-size: 27px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #f0cf85;
+    text-shadow: 0 2px 0 #3d280c, 0 4px 12px rgba(0,0,0,.6);
+  }
+  #nardi .ndHy { font-size: 21px; letter-spacing: .5px; text-transform: none; color: var(--parch-dk); }
+  #nardi .ndSeg { flex: none; display: inline-flex; border: 2px solid var(--bronze-sh); border-radius: 23px; overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.45), 0 2px 6px rgba(0,0,0,.5); }
+  #nardi .ndSeg button {
+    min-height: 44px; padding: 0 15px; border: 0; cursor: pointer; font-family: var(--face); font-size: 14.5px; font-weight: 700;
+    color: var(--parch-dk); background: linear-gradient(180deg, #2a1f15, #17100a);
+  }
+  #nardi .ndSeg button + button { border-left: 1px solid var(--bronze-sh); }
+  #nardi .ndSeg button[aria-checked="true"] { color: #fff3d6; background: linear-gradient(180deg, #7a4f1e, #482c10); box-shadow: inset 0 1px 0 rgba(255,235,190,.35); }
+  #nardi .ndRound {
+    flex: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; padding: 0 0 2px;
+    font-family: var(--face); font-size: 24px; font-weight: 700; line-height: 1; color: #f6dc9a;
+    border: 2px solid var(--bronze-sh); background: radial-gradient(circle at 36% 30%, #6a4a28, #3a2814 62%, #1f150b);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.55), 0 2px 6px rgba(0,0,0,.5);
+  }
+  #nardi .ndStage { flex: 1 1 0; min-height: 0; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  #nardi .ndTable { position: relative; flex: none; }
+  #nardi canvas { display: block; touch-action: none; border-radius: 12px; box-shadow: 0 0 0 1px rgba(240,207,133,.35), 0 16px 44px rgba(0,0,0,.72); }
+  #nardi .ndFoot { flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 14px; min-height: 56px; }
+  #nardi .ndPip {
+    flex: none; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px 0 8px; border-radius: 19px;
+    font-size: 15px; font-weight: 700; color: var(--parch-dk); white-space: nowrap;
+    background: linear-gradient(180deg, #17100a, #2a1f15); border: 2px solid var(--bronze-sh);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.45), inset 0 3px 6px rgba(0,0,0,.7);
+  }
+  #nardi .ndPip b { color: #fff3d6; font-variant-numeric: tabular-nums lining-nums; min-width: 2.2em; text-align: right; }
+  #nardi .ndDot { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #1c1209; box-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  #nardi .you .ndDot { background: radial-gradient(circle at 36% 32%, #fffaf0, #efdfb6 55%, #c3a26a); }
+  #nardi .elder .ndDot { background: radial-gradient(circle at 36% 32%, #8a6440, #4b301b 55%, #24150a); }
+  #nardi .ndStatus { flex: 1 1 240px; min-width: 0; text-align: center; font-size: 16px; font-style: italic; line-height: 1.3; color: var(--parch); }
+  #nardi .ndActs { flex: none; display: flex; gap: 10px; }
+  #nardi .ndBtn {
+    min-height: 44px; min-width: 104px; padding: 0 20px; border-radius: 9px; cursor: pointer;
+    font-family: var(--face); font-size: 16.5px; font-weight: 700; letter-spacing: .3px; color: var(--parch);
+    border: 2px solid var(--bronze); background: linear-gradient(180deg, #5a4630, #3a2b1b 55%, #241a11);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.3), inset 0 -3px 0 rgba(0,0,0,.3), 0 0 0 1px var(--bronze-sh), 0 4px 12px rgba(0,0,0,.5);
+    text-shadow: 0 1px 0 rgba(0,0,0,.8);
+  }
+  #nardi .ndBtn.primary {
+    color: #fff3d6; border-color: var(--bronze-hi); background: linear-gradient(180deg, #d5503f, var(--crimson) 50%, #7d211b);
+    box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 6px 16px rgba(0,0,0,.55);
+    text-shadow: 0 1px 0 rgba(70,12,6,.9);
+  }
+  #nardi .ndBtn:disabled { cursor: default; filter: saturate(.35) brightness(.6); }
+  #nardi .ndBtn.primary.lit { animation: ndLit 1.5s ease-in-out infinite alternate; }
+  @keyframes ndLit { from { box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 0 4px rgba(255,200,90,.3); }
+    to { box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 0 18px rgba(255,200,90,.75); } }
+  #nardi button:hover:not(:disabled) { filter: brightness(1.14); }
+  #nardi button:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  /* the dice call, over the middle of the board, gone again in a moment */
+  #nardi .ndCall {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; text-align: center;
+    padding: 10px 26px 12px; border-radius: 12px; background: radial-gradient(ellipse at center, rgba(20,12,6,.72), rgba(20,12,6,.45) 60%, transparent 75%);
+    opacity: 0; transition: opacity .25s; white-space: nowrap;
+  }
+  #nardi .ndCall.on { opacity: 1; }
+  #nardi .ndCall b { display: block; font-size: clamp(30px, 4.6vw, 46px); font-style: italic; letter-spacing: 1px; color: #fff3c6;
+    text-shadow: 0 2px 0 #3d280c, 0 0 18px rgba(0,0,0,.9); }
+  #nardi .ndCall i { display: block; font-size: clamp(15px, 1.8vw, 19px); color: #f0cf85; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0,0,0,.9); }
+  /* the cards: a parchment leaf over the board, framed in crimson and bronze */
+  #nardi .ndCardWrap { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 10px;
+    background: rgba(14,9,4,.55); border-radius: 12px; }
+  #nardi .ndCardWrap.on { display: flex; }
+  #nardi .ndCard {
+    position: relative; width: min(600px, 100%); max-height: 100%; overflow-y: auto; padding: 26px 30px 22px; color: var(--ink);
+    text-align: left; border-radius: 3px; font-size: 17px; line-height: 1.5;
+    background: radial-gradient(ellipse at 16% 10%, rgba(255,251,230,.6), transparent 44%), radial-gradient(ellipse at 84% 90%, rgba(150,108,50,.3), transparent 46%),
+      linear-gradient(160deg, #f3e6c2, var(--parch) 45%, #dcc894 80%, var(--parch-dk));
+    box-shadow: 0 0 0 1px #8a6a36, 0 0 0 4px var(--crimson), 0 0 0 5px var(--bronze), 0 20px 54px rgba(0,0,0,.7), inset 0 0 40px rgba(120,82,30,.35);
+  }
+  #nardi .ndCard h2 { font-size: 26px; line-height: 1.15; margin: 2px 0 10px; color: #4a2410; letter-spacing: .3px; }
+  #nardi .ndCard p { margin: 0 0 10px; }
+  #nardi .ndCard ul { margin: 0 0 10px 1.1em; }
+  #nardi .ndCard li { margin-bottom: 6px; }
+  #nardi .ndKick { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--crimson); }
+  #nardi .ndSmall { font-size: 14.5px; font-style: italic; color: #5a4222; }
+  #nardi .ndBless { padding: 8px 12px; border-left: 3px solid var(--crimson); background: rgba(255,248,222,.5); }
+  #nardi .ndBtns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
+  /* a tall screen (an iPad held upright): the line of what to do takes a row of its own above the buttons */
+  @media (max-aspect-ratio: 1/1) {
+    #nardi .ndStatus { order: -1; flex-basis: 100%; }
+    #nardi .ndHead { flex-wrap: wrap; }
+  }
+  @media (max-width: 700px) {
+    #nardi .ndName { font-size: 21px; } #nardi .ndHy { font-size: 17px; }
+    #nardi .ndSeg button { padding: 0 10px; font-size: 13px; }
+  }
+  /* the campaign map's door to the board, in the frame's top left corner (the gear keeps the right) */
+  #overlay #nardiBtn {
+    position: fixed; top: calc(26px + var(--sat)); left: calc(80px + var(--sal)); z-index: 2; height: 44px; padding: 0 16px 0 10px;
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 22px; font-size: 15px; color: #fff3d6;
+    border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #2a1f15, #17100a);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.6), inset 0 3px 6px rgba(0,0,0,.75), 0 2px 8px rgba(0,0,0,.5);
+  }
+  #overlay #nardiBtn .ic { width: 24px; height: 24px; vertical-align: 0; }
+  #overlay.brief #nardiBtn, #overlay.victory #nardiBtn { display: none; }
 </style>
 </head>
 <body>
@@ -6991,7 +7106,7 @@ function marchToNext() {
   curEra = LEVELS[n].era;
   applyEraLabels();
   const c = chapterOf(n);
-  if (c !== from && !chaptersSeen().includes(c)) { showChapterIntro(c, n); return; }
+  if (c !== from && !chaptersSeen().includes(c)) { offerNardi(c, () => showChapterIntro(c, n)); return; }
   Snd.play("mapSelect");
   showBrief();
 }
@@ -49046,6 +49161,7 @@ $("startBtn").addEventListener("click", () => {
   overlayEl.classList.add("hidden");
   resetGame();
   maybeStartTutorial();
+  nardiBlessBattle();
   if (auto && !tut) autoT = 1.5;
 });
 
@@ -49428,11 +49544,1651 @@ function coachTick() {
   placeCoach(T, S.prefer);
 }
 
+// ---------- nardi ----------
+// Nardi (Armenian նարդի), the backgammon game of the Armenian table, played between chapters against the village
+// elder. The rule set is short nardi as the Caucasus and the Levant play it: the backgammon rules with hitting and
+// the bar, no doubling cube and no triple game. A win is an "oyn" (1 point), and a mars (the loser has borne off
+// no checker) counts double. The starter is found by one die each (ties rolled again) and then throws both dice
+// afresh. Long nardi, the no-hit game of the post-Soviet yards, is not played here: one game of it runs 10-15
+// minutes. The dice calls are shown in Latin letters only, since no Armenian spelling of them was confirmed.
+// The section is self-contained; the rest of the game holds four small hooks: the campaign map's Nardi button is
+// added from here, marchToNext() calls offerNardi() before a new chapter's story, the Begin button calls
+// nardiBlessBattle(), frame() draws nothing while the board covers the screen, and runSelftest() calls
+// nardiSelftest(). Its look lives in the stylesheet's own "nardi" block.
+//
+// ND is the rules engine and the elder: plain data and arithmetic, no DOM, so tools can run it outside the page.
+// A position is an Int8Array(28) seen from one side ("me"): R[1..24] my points numbered from my home (1 the
+// deepest), my checkers positive and the other side's negative; R[25] my bar, R[0] my checkers borne off;
+// R[26] the other side's bar, R[27] its checkers borne off. I move from 24 toward 1 and off; the other side
+// moves the other way, entering from its bar on my points 1-6. The game itself is kept from the player's side.
+const ND = (() => {
+  const BAR = 25, OBAR = 26, OOFF = 27;
+
+  // the same position seen from the other side of the board
+  function flip(R) {
+    const F = new Int8Array(28);
+    for (let p = 1; p <= 24; p++) F[p] = -R[25 - p];
+    F[25] = R[26]; F[0] = R[27]; F[26] = R[25]; F[27] = R[0];
+    return F;
+  }
+  // the opening: 2 on the 24-point, 5 on the 13, 3 on the 8, 5 on the 6, for each side
+  function initial() {
+    const R = new Int8Array(28);
+    R[24] = 2; R[13] = 5; R[8] = 3; R[6] = 5;
+    R[1] = -2; R[12] = -5; R[17] = -3; R[19] = -5;
+    return R;
+  }
+  function key(R) {
+    let s = "";
+    for (let i = 0; i < 28; i++) s += String.fromCharCode(R[i] + 64);
+    return s;
+  }
+  // every checker of mine in my home board (points 1-6), none on the bar: bearing off is open
+  function allHome(R) {
+    if (R[BAR]) return false;
+    for (let p = 7; p <= 24; p++) if (R[p] > 0) return false;
+    return true;
+  }
+  // where my checker on `from` (25: the bar) lands with die d: a point 1-24, 0 when it is borne off, -1 when
+  // it may not move. A checker on the bar must come in before any other moves; a point held by two or more
+  // of the other side's checkers is closed; a lone one (a blot) is hit. A die higher than the checker's point
+  // bears it off only when no checker of mine stands on a higher point.
+  function target(R, from, d) {
+    if (from === BAR) {
+      if (R[BAR] <= 0) return -1;
+      const t = 25 - d;
+      return R[t] >= -1 ? t : -1;
+    }
+    if (R[BAR] > 0 || from < 1 || from > 24 || R[from] <= 0) return -1;
+    const t = from - d;
+    if (t >= 1) return R[t] >= -1 ? t : -1;
+    if (!allHome(R)) return -1;
+    if (t === 0) return 0;
+    for (let p = from + 1; p <= 6; p++) if (R[p] > 0) return -1;
+    return 0;
+  }
+  // play one die (it must be legal): [from, to, die, hit]
+  function step(R, from, d) {
+    const t = target(R, from, d);
+    R[from]--;
+    let hit = 0;
+    if (t === 0) R[0]++;
+    else if (R[t] === -1) { R[t] = 1; R[OBAR]++; hit = 1; }
+    else R[t]++;
+    return [from, t, d, hit];
+  }
+  function dice4(a, b) { return a === b ? [a, a, a, a] : [a, b]; }
+  // the most dice of `dice` that can be played from R. Equal dice are tried from the highest point down
+  // only (lim): any order of equal moves can be played in that order too, so nothing is missed
+  function maxDice(R, dice, lim) {
+    if (!dice.length) return 0;
+    const same = dice.every(d => d === dice[0]);
+    let best = 0;
+    for (let i = 0; i < dice.length; i++) {
+      const d = dice[i];
+      if (dice.indexOf(d) < i) continue;
+      const rest = dice.slice(0, i).concat(dice.slice(i + 1));
+      for (let f = same && lim ? lim : 25; f >= 1; f--) {
+        if (target(R, f, d) < 0) continue;
+        const R2 = R.slice();
+        step(R2, f, d);
+        const n = 1 + maxDice(R2, rest, same ? f : 0);
+        if (n > best) { best = n; if (best === dice.length) return best; }
+      }
+    }
+    return best;
+  }
+  // every legal play of a roll, one per distinct resulting position: { R, steps }. The rules: as many dice as
+  // can be played must be played; when only one of two different dice can be, it must be the higher if that
+  // one can be played. With no legal move the list holds the unchanged position and no steps.
+  function moves(R, dice) {
+    const out = new Map();
+    let best = 0;
+    const same = dice.every(d => d === dice[0]);
+    const rec = (P, rem, steps, lim) => {
+      let any = false;
+      for (let i = 0; i < rem.length; i++) {
+        const d = rem[i];
+        if (rem.indexOf(d) < i) continue;
+        const rest = rem.slice(0, i).concat(rem.slice(i + 1));
+        for (let f = lim; f >= 1; f--) {
+          if (target(P, f, d) < 0) continue;
+          any = true;
+          const P2 = P.slice();
+          const s = step(P2, f, d);
+          rec(P2, rest, steps.concat([s]), same ? f : 25);
+        }
+      }
+      if (any) return;
+      const n = steps.length;
+      if (n < best) return;
+      if (n > best) { best = n; out.clear(); }
+      const k = key(P);
+      if (!out.has(k)) out.set(k, { R: P, steps });
+    };
+    rec(R, dice, [], 25);
+    let list = Array.from(out.values());
+    if (!same && best === 1) {
+      const hi = Math.max(dice[0], dice[1]);
+      if (list.some(m => m.steps[0][2] === hi)) list = list.filter(m => m.steps[0][2] === hi);
+    }
+    return list;
+  }
+  // pips still to travel: [mine, the other side's]
+  function pips(R) {
+    let a = R[BAR] * 25, b = R[OBAR] * 25;
+    for (let p = 1; p <= 24; p++) {
+      const v = R[p];
+      if (v > 0) a += v * p; else if (v < 0) b -= v * (25 - p);
+    }
+    return [a, b];
+  }
+  // a finished game from the winner's side: 2 for a mars (the loser bore off nothing), else 1
+  function score(R) { return R[0] === 15 ? (R[OOFF] === 0 ? 2 : 1) : 0; }
+
+  // ---- the elder ----
+  // the 21 distinct rolls and their weights out of 36
+  const ROLLS = [];
+  for (let a = 1; a <= 6; a++) for (let b = a; b <= 6; b++) ROLLS.push([a, b, a === b ? 1 : 2]);
+  // HIT[n]: the rolls (as bits over ROLLS) that carry a checker exactly n pips, by one die, both, or a double
+  // played two to four times (the points between are not checked: an estimate, as a player counts shots)
+  const HIT = new Int32Array(25);
+  ROLLS.forEach(([a, b], i) => {
+    const reach = a === b ? [a, 2 * a, 3 * a, 4 * a] : [a, b, a + b];
+    for (const n of reach) if (n <= 24) HIT[n] |= 1 << i;
+  });
+  const shotsOf = m => { let w = 0; for (let i = 0; m; i++, m >>>= 1) if (m & 1) w += ROLLS[i][2]; return w; };
+  // a made point's worth by where it stands: the home board's 5 and 4 points most, the bar point, then the
+  // anchors deep in the other side's home (my 20 and 21 are its 5 and 4 points)
+  const PV = [0, 1.2, 2, 3, 4.6, 6, 6, 4.8, 2.6, 1.6, 1, 0.7, 0.5, 0.4, 0.4, 0.4, 0.4, 0.5, 0.8, 1.6, 3.4, 3.6, 2.2, 1.2, 0.8];
+  const PRIME = [0, 0, 1, 3, 6, 10, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16];
+  const W = {
+    sharp:  { pip: 1, point: 1, prime: 1, blot: 1, tempo: 3.2, bar: 4, barHome: 2.4, stack: 0.9, off: 1.5, offRace: 3, raceStack: 0.5, raceOut: 1.2 },
+    gentle: { pip: 1, point: 0.6, prime: 0.3, blot: 0.45, tempo: 2, bar: 3, barHome: 1, stack: 0.4, off: 1, offRace: 2, raceStack: 0.2, raceOut: 0.6 },
+  };
+  // the worth of a position to the side that has just moved (R is seen from that side), in pips or so
+  function evaluate(R, w) {
+    w = w || W.sharp;
+    if (R[0] === 15) return 1000 + (R[OOFF] === 0 ? 400 : 0);
+    if (R[OOFF] === 15) return -1000 - (R[0] === 0 ? 400 : 0);
+    let myPip = R[BAR] * 25, opPip = R[OBAR] * 25, myBack = R[BAR] ? 25 : 0, opBack = R[OBAR] ? 0 : 25;
+    for (let p = 1; p <= 24; p++) {
+      const v = R[p];
+      if (v > 0) { myPip += v * p; if (p > myBack) myBack = p; }
+      else if (v < 0) { opPip -= v * (25 - p); if (p < opBack) opBack = p; }
+    }
+    let s = (opPip - myPip) * w.pip;
+    if (myBack < opBack) {
+      // no contact left: a race, won by pips and by bearing off cleanly
+      let stack = 0, out = 0;
+      for (let p = 1; p <= 6; p++) if (R[p] > 3) stack += R[p] - 3;
+      for (let p = 7; p <= 24; p++) if (R[p] > 0) out += R[p];
+      return s + (R[0] - R[OOFF]) * w.offRace - stack * w.raceStack - out * w.raceOut;
+    }
+    let myHome = 0, opHome = 0, run = 0, prime = 0, stacks = 0;
+    for (let p = 1; p <= 24; p++) {
+      const v = R[p];
+      if (v >= 2) {
+        s += PV[p] * w.point;
+        if (p <= 6) myHome++;
+        if (p > opBack) { run++; if (run > prime) prime = run; } else run = 0;
+        if (v > 3) stacks += v - 3;
+      } else run = 0;
+      if (v <= -2 && p >= 19) opHome++;
+    }
+    s += PRIME[prime] * w.prime;
+    // my blots within reach of the other side's checkers behind them: the shots at each, times what a hit
+    // costs (the pips back to the bar, and the tempo of coming in against its home board)
+    for (let p = 1; p <= 24; p++) {
+      if (R[p] !== 1 || p <= opBack) continue;
+      let m = R[OBAR] && p <= 24 ? HIT[p] : 0;
+      for (let q = Math.max(1, opBack); q < p; q++) if (R[q] < 0) m |= HIT[p - q];
+      if (!m) continue;
+      s -= shotsOf(m) / 36 * ((25 - p) + w.tempo * (1 + 0.5 * opHome)) * w.blot;
+    }
+    s += R[OBAR] * (w.bar + w.barHome * myHome);
+    s -= R[BAR] * (w.bar + w.barHome * opHome);
+    s -= stacks * w.stack;
+    s += (R[0] - R[OOFF]) * w.off;
+    return s;
+  }
+  function contact(R) {
+    let myBack = R[BAR] ? 25 : 0, opBack = R[OBAR] ? 0 : 25;
+    for (let p = 1; p <= 24; p++) {
+      if (R[p] > 0 && p > myBack) myBack = p;
+      if (R[p] < 0 && p < opBack) opBack = p;
+    }
+    return myBack > opBack;
+  }
+  // the reply: the other side's best answer to each of the 21 rolls by the plain evaluation, averaged and
+  // turned back to my side. Returns NaN when the deadline passes first.
+  function replyValue(R, deadline, now) {
+    const F = flip(R);
+    let sum = 0;
+    for (const [a, b, n] of ROLLS) {
+      if (now() > deadline) return NaN;
+      const list = moves(F, dice4(a, b));
+      let best = -Infinity;
+      for (const m of list) { const v = evaluate(m.R); if (v > best) best = v; }
+      sum += n * -best;
+    }
+    return sum / 36;
+  }
+  // the elder's play for a roll: an index into moves(R, dice). Gentle weighs one ply with softer judgement
+  // and a little chance in it; sharp ranks every play, then looks one roll ahead on its best few (while the
+  // checkers still meet) within a time limit, keeping the plain ranking if the clock runs out.
+  function choose(R, dice, level, rnd, opts) {
+    opts = opts || {};
+    const list = opts.list || moves(R, dice);
+    if (list.length <= 1) return 0;
+    const now = opts.now || (() => (typeof performance !== "undefined" ? performance.now() : Date.now()));
+    const t0 = now(), budget = opts.budget || 80;
+    const w = level === "gentle" ? W.gentle : W.sharp;
+    const ranked = list.map((m, i) => ({ i, v: evaluate(m.R, w) + (level === "gentle" ? (rnd() - 0.5) * 6 : 0) }));
+    ranked.sort((a, b) => b.v - a.v);
+    if (level === "gentle" || !contact(R)) return ranked[0].i;
+    const top = ranked.slice(0, Math.min(5, ranked.length)).filter(c => c.v > ranked[0].v - 25);
+    if (top.length < 2) return ranked[0].i;
+    let bestI = ranked[0].i, bestV = -Infinity;
+    for (const c of top) {
+      const m = list[c.i];
+      const v = m.R[0] === 15 ? 1e6 : replyValue(m.R, t0 + budget, now);
+      if (isNaN(v)) return bestV > -Infinity ? bestI : ranked[0].i;
+      if (v > bestV) { bestV = v; bestI = c.i; }
+    }
+    return bestI;
+  }
+  // a seeded die: xorshift, so a game can be replayed and never shifts the page's own Math.random
+  function rng(seed) {
+    let x = (seed | 0) || 0x2545f491;
+    return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) / 4294967296; };
+  }
+  return { flip, initial, key, allHome, target, step, dice4, maxDice, moves, pips, score, evaluate, contact, choose, rng, ROLLS, W };
+})();
+// ---- end of the nardi engine ----
+
+// ---- nardi: the board on screen ----
+// One overlay of its own (#nardi) over the menu pages: a header (the elder's strength, the rules, leave), the
+// board on a canvas, and a footer (pip counts, what to do now, Undo, Roll / Done). The board is painted once per
+// size into an offscreen layer; checkers, dice and highlights are drawn over it each frame while it is open.
+// Everything that waits (a throw, a checker in flight, the elder's pause) goes through one queue that the frame
+// loop runs, so the self-test can play whole games at once (flush). The main game loop draws nothing meanwhile.
+const Nardi = (() => {
+  // the board in its own units: frame, left field, bar, right field, a gap, the bearing-off tray, frame
+  const BW = 1000, BH = 740, FR = 40, PW = 64, BARW = 60, GAP = 10, TRAYW = 82;
+  const XL = FR, XB = XL + 6 * PW, XR = XB + BARW, XT = XR + 6 * PW + GAP;
+  const YT = FR, YB = BH - FR, YM = BH / 2;
+  const CD = 56, STACK = 290, PT_LEN = 262, DIE = 46;
+  const INK = "#2c1e10";
+  const BLESS_KEY = "hs_nardi_bless", PREF_KEY = "hs_nardi", BLESS_GOLD = 40;
+  const THROW_MS = 640, FLY_MS = 230, STEP_MS = 300;
+  // the dice calls: the number words of the nardi table, the higher die first; the three doubles the research
+  // could name with some confidence, and 6-5. Other doubles go uncalled rather than guessed.
+  const CALL_NUM = [null, "yek", "du", "se", "jahar", "besh", "shesh"];
+  function diceCall(a, b) {
+    const hi = Math.max(a, b), lo = Math.min(a, b);
+    if (hi === 6 && lo === 6) return "du-shesh!";
+    if (hi === 2 && lo === 2) return "dubara!";
+    if (hi === 1 && lo === 1) return "hep-yek!";
+    if (hi === lo) return "";
+    return CALL_NUM[hi] + "-" + CALL_NUM[lo] + (hi === 6 && lo === 5 ? "!" : "");
+  }
+
+  let root = null, cv = null, cx = null, mapBtn = null;
+  const el = {};
+  let open = false, raf = 0, lastFocus = null, inertWas = false;
+  let G = ND.initial();
+  let rnd = ND.rng(HARNESS_ON ? 20261018 : (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
+  let queue = [], seq = 0;
+  let L = { k: 1, dpr: 1, w: 0, h: 0 };   // the canvas: board units to CSS px (k), device pixels per CSS px
+  let boardImg = null, sprites = null;
+  const S = {
+    phase: "idle",   // idle, invite, rolloff, roll (the player's throw awaited), throw, you, youDone, auto, pass, elder, over
+    turn: 0, dice: [], shown: [], rem: [], start: null, played: [], need: 0, hiOnly: 0,
+    sel: -1, sources: [], targets: [], busy: 0,
+    level: "gentle", reward: false, granted: false, onDone: null, chapter: -1, card: "",
+    flights: [], throwA: null, press: null, drag: null, hover: null, result: null, lastMs: 0,
+    stats: { won: 0, lost: 0 },
+  };
+  const now = () => performance.now();
+
+  // ---- what is remembered: the elder's strength and the games won and lost ----
+  function loadPref() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {};
+      if (p.level === "sharp" || p.level === "gentle") S.level = p.level;
+      S.stats = { won: p.won | 0, lost: p.lost | 0 };
+    } catch (e) {}
+  }
+  function savePref() {
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ level: S.level, won: S.stats.won, lost: S.stats.lost })); } catch (e) {}
+  }
+
+  // ---- the queue: every pause and every step of a turn ----
+  function later(ms, fn) { queue.push({ at: now() + ms, n: seq++, fn }); }
+  function runDue(t) {
+    for (let guard = 0; guard < 200; guard++) {
+      let best = -1;
+      for (let i = 0; i < queue.length; i++) if (queue[i].at <= t && (best < 0 || queue[i].at < queue[best].at || (queue[i].at === queue[best].at && queue[i].n < queue[best].n))) best = i;
+      if (best < 0) return;
+      const job = queue.splice(best, 1)[0];
+      job.fn();
+    }
+  }
+  // the self-test's fast-forward: every waiting step runs now, in order, and the animations end
+  function flush() {
+    for (let guard = 0; queue.length && guard < 20000; guard++) {
+      let best = 0;
+      for (let i = 1; i < queue.length; i++) if (queue[i].at < queue[best].at || (queue[i].at === queue[best].at && queue[i].n < queue[best].n)) best = i;
+      queue.splice(best, 1)[0].fn();
+    }
+    S.flights = []; S.throwA = null;
+  }
+
+  // ---- the sounds, in the Snd engine's own way: synthesised, nothing loaded ----
+  Object.assign(Snd.SPEC, {
+    ndDice:    { thr: 120, max: 2, g: 2.1, pri: true, rev: 0.06 },
+    ndChecker: { thr: 40, max: 4, g: 1.25, pri: true, rev: 0.05 },
+    ndWin:     { thr: 1000, max: 1, g: 0.32, pri: true, rev: 0.25 },
+    ndLose:    { thr: 1000, max: 1, g: 1.2, pri: true, rev: 0.25 },
+  });
+  Object.assign(Snd.SFX, {
+    // two bone dice thrown onto walnut: each lands, skips and settles (o.hits: [seconds, weight] per touch,
+    // the throw's own bounces), a hard click of the die's corner over the board's hollow wooden knock
+    ndDice(v, t, o) {
+      for (const [dt, g] of o.hits || [[0.2, 1], [0.32, 0.55], [0.41, 0.3], [0.47, 0.15]]) {
+        const tt = t + dt;
+        this.nz(v, { t: tt, f: this.rr(3000, 4300), q: 1.3, a: 0.0003, p: 0.32 * g, d: 0.007 });
+        this.modal(v, { t: tt, f: this.rr(560, 700), p: 0.22 * g, jit: 0.03, parts: [[1, 1, 0.045], [2.35, 0.45, 0.025], [3.9, 0.2, 0.012]] });
+        this.tn(v, { t: tt, f: this.rr(190, 230), f2: 120, gl: 0.03, p: 0.1 * g, d: 0.05 });
+      }
+    },
+    // a checker set down: the wooden clack every nardi table knows; a hit is slammed harder and brighter
+    ndChecker(v, t, o) {
+      const h = o.hit ? 1 : 0;
+      this.nz(v, { t, f: this.rr(2300, 3300) * (1 + 0.15 * h), q: 1.1, a: 0.0003, p: 0.3 + 0.18 * h, d: 0.01 });
+      this.modal(v, { t, f: this.rr(330, 430) * (1 + 0.22 * h), p: 0.36 + 0.16 * h, jit: 0.03, parts: [[1, 1, 0.07], [2.1, 0.5, 0.04], [3.3, 0.25, 0.02]] });
+      this.tn(v, { t, f: 160, f2: 100, gl: 0.04, p: 0.16 + 0.08 * h, d: 0.06 });
+    },
+    // the game won: small bronze bells climbing D F sharp A D
+    ndWin(v, t) { [587.33, 739.99, 880, 1174.66].forEach((f, i) => this.bell(v, t + i * 0.11, f, 0.2, 1.3)); },
+    // the game lost: a low bell and the board closed
+    ndLose(v, t) { this.bell(v, t, 293.66, 0.22, 1.8); this.mallet(v, t + 0.5, 300, 0.3); this.mallet(v, t + 0.62, 260, 0.22); },
+  });
+
+  // ---- geometry: points, bar and tray, in board units ----
+  function colX(p) {
+    if (p <= 6) return XR + (6 - p + 0.5) * PW;
+    if (p <= 12) return XL + (12 - p + 0.5) * PW;
+    if (p <= 18) return XL + (p - 13 + 0.5) * PW;
+    return XR + (p - 19 + 0.5) * PW;
+  }
+  // a slot is a point 1-24 (the player's numbering) or "bar0"/"bar1" (the player's, the elder's) or "off0"/"off1"
+  function slotCount(slot) {
+    if (typeof slot === "number") return Math.abs(G[slot]);
+    return slot === "bar0" ? G[25] : slot === "bar1" ? G[26] : slot === "off0" ? G[0] : G[27];
+  }
+  function slotXY(slot, k, n) {
+    if (typeof slot === "number") {
+      const sp = n > 5 ? (STACK - CD) / (n - 1) : CD;
+      return { x: colX(slot), y: slot >= 13 ? YT + 3 + CD / 2 + k * sp : YB - 3 - CD / 2 - k * sp };
+    }
+    if (slot === "bar0" || slot === "bar1") {
+      const sp = n > 4 ? (STACK - 52 - CD) / (n - 1) : CD;
+      return { x: XB + BARW / 2, y: slot === "bar0" ? YM - 50 - CD / 2 - k * sp : YM + 50 + CD / 2 + k * sp };
+    }
+    return { x: XT + TRAYW / 2, y: slot === "off0" ? YB - 14 - k * 15 : YT + 14 + k * 15 };
+  }
+  const slotOf = (side, p) => side ? (p === 25 ? "bar1" : p === 0 ? "off1" : 25 - p) : (p === 25 ? "bar0" : p === 0 ? "off0" : p);
+  function hitTest(bx, by) {
+    if (bx >= XT - GAP && bx <= BW - 6 && by >= YT - 30 && by <= YB + 30) return { kind: "off" };
+    if (bx >= XB - 2 && bx < XR + 2 && by >= YT - 30 && by <= YB + 30) return { kind: "bar" };
+    if (by < YT - 34 || by > YB + 34) return null;
+    let p;
+    if (bx >= XL - 34 && bx < XB - 2) { const c = Math.max(0, Math.min(5, Math.floor((bx - XL) / PW))); p = by < YM ? 13 + c : 12 - c; }
+    else if (bx >= XR + 2 && bx < XT - GAP) { const c = Math.max(0, Math.min(5, Math.floor((bx - XR) / PW))); p = by < YM ? 19 + c : 6 - c; }
+    else return null;
+    return { kind: "pt", p };
+  }
+
+  // ---- the rules at the table: what the player may do now ----
+  const without = (rem, d) => { const i = rem.indexOf(d), r = rem.slice(); if (i >= 0) r.splice(i, 1); return r; };
+  // one die from `from` on position R with `rem` dice left and `left` dice still owed this turn
+  function stepOk(R, rem, left, from, d, first) {
+    if (rem.indexOf(d) < 0 || (first && S.hiOnly && d !== S.hiOnly)) return false;
+    if (ND.target(R, from, d) < 0) return false;
+    const R2 = R.slice();
+    ND.step(R2, from, d);
+    return 1 + ND.maxDice(R2, without(rem, d)) === left;
+  }
+  function refreshSources() {
+    const left = S.need - S.played.length, first = S.played.length === 0, out = [];
+    if (left > 0) {
+      for (let f = 25; f >= 1; f--) {
+        if (f === 25 ? !G[25] : G[f] <= 0) continue;
+        if (S.rem.some((d, i) => S.rem.indexOf(d) === i && stepOk(G, S.rem, left, f, d, first))) out.push(f);
+      }
+    }
+    S.sources = out;
+  }
+  // where the checker on `from` may go: one die, or several in a row with the same checker. A point reached
+  // two ways takes the way with fewer dice, then the way that hits nothing on the road; bearing off takes the
+  // smallest die that does it. { to, path: [[from, die], ...] }
+  function targetsFor(from) {
+    const out = new Map();
+    const walk = (R, rem, at, path, hitsOnRoad, played) => {
+      const left = S.need - played;
+      for (let i = 0; i < rem.length; i++) {
+        const d = rem[i];
+        if (rem.indexOf(d) < i || !stepOk(R, rem, left, at, d, played === 0)) continue;
+        const R2 = R.slice();
+        const s = ND.step(R2, at, d);
+        const p2 = path.concat([[at, d]]), to = s[1];
+        const prev = out.get(to);
+        const better = !prev || p2.length < prev.path.length ||
+          (p2.length === prev.path.length && (hitsOnRoad < prev.road || (hitsOnRoad === prev.road && to === 0 && d < prev.path[prev.path.length - 1][1])));
+        if (better) out.set(to, { to, path: p2, road: hitsOnRoad });
+        if (to > 0) walk(R2, without(rem, d), to, p2, hitsOnRoad + s[3], played + 1);
+      }
+    };
+    walk(G, S.rem, from, [], 0, S.played.length);
+    return Array.from(out.values());
+  }
+  function select(f) {
+    S.sel = f;
+    S.targets = f >= 0 ? targetsFor(f) : [];
+  }
+
+  // ---- the game ----
+  function setStatus(t) { if (el.status && el.status.textContent !== t) el.status.textContent = t; }
+  function syncFoot() {
+    if (!root) return;
+    const [you, elder] = ND.pips(G);
+    el.pipYou.textContent = String(you);
+    el.pipElder.textContent = String(elder);
+    const ph = S.phase;
+    el.undo.disabled = !((ph === "you" || ph === "youDone") && S.played.length && !S.busy);
+    const main = ph === "roll" ? "Roll" : ph === "youDone" ? "Done" : ph === "over" ? "Play again" : ph === "you" ? "Done" : "Roll";
+    if (el.main.textContent !== main) el.main.textContent = main;
+    el.main.disabled = !(ph === "roll" || (ph === "youDone" && !S.busy) || ph === "over");
+    el.main.classList.toggle("lit", !el.main.disabled);
+    for (const b of el.seg) b.setAttribute("aria-checked", String(b.dataset.lvl === S.level));
+  }
+  function showCall(big, small) {
+    if (!el.call) return;
+    el.call.innerHTML = (big ? "<b>" + escapeHtml(big) + "</b>" : "") + (small ? "<i>" + escapeHtml(small) + "</i>" : "");
+    el.call.classList.add("on");
+    clearTimeout(showCall.t);
+    showCall.t = setTimeout(() => el.call.classList.remove("on"), big ? 1500 : 1900);
+  }
+  function newGame() {
+    queue = []; S.flights = []; S.throwA = null; S.drag = null; S.press = null;
+    G = ND.initial();
+    S.dice = []; S.shown = []; S.rem = []; S.played = []; S.sel = -1; S.sources = []; S.targets = []; S.busy = 0; S.result = null;
+    S.card = ""; renderCard();
+    S.phase = "rolloff";
+    setStatus("The opening throw: one die each.");
+    syncFoot();
+    later(350, rollOff);
+  }
+  // one die each, the higher begins and throws both dice afresh; a tie is thrown again
+  function rollOff() {
+    const a = 1 + Math.floor(rnd() * 6), b = 1 + Math.floor(rnd() * 6);
+    throwDice([{ v: a, side: 0 }, { v: b, side: 1 }]);
+    later(THROW_MS + 120, () => {
+      if (a === b) { showCall("", "Both threw " + a + ": again"); later(900, rollOff); return; }
+      if (a > b) {
+        showCall("", "You " + a + ", the elder " + b + ": you begin");
+        later(700, () => { S.dice = []; S.shown = []; S.phase = "roll"; setStatus("Your throw: tap Roll, or tap the board."); syncFoot(); });
+      } else {
+        showCall("", "The elder " + b + ", you " + a + ": the elder begins");
+        later(1100, elderTurn);
+      }
+    });
+    syncFoot();
+  }
+  // the throw: dice fly in from the thrower's side, touch down, skip twice and settle (THROW_MS)
+  function throwDice(list) {
+    const t0 = now(), side = list[0].side, two = list.length === 2 && list[0].side !== list[1].side;
+    const C = [0.2, 0.32, 0.41, 0.47];
+    S.throwA = { t0, dice: list.map((d, i) => {
+      const s = two ? d.side : side;
+      const rest = restXY(s, i, list.length, two);
+      const from = { x: rest.x + (s ? -60 : 60) + rnd() * 40, y: s ? YT - 10 : YB + 10 };
+      return { v: d.v, side: s, from, to: rest, spin: (rnd() < 0.5 ? -1 : 1) * (5 + rnd() * 5), lag: i * 0.03, size: list.length > 2 ? 40 : DIE };
+    }) };
+    S.shown = list.map(d => ({ v: d.v, side: two ? d.side : side, used: false }));
+    Snd.play("ndDice", { hits: C.map((c, i) => [c, [1, 0.55, 0.3, 0.15][i]]) });
+  }
+  function restXY(side, i, n, oneEach) {
+    if (oneEach) return { x: side ? XL + 3 * PW : XR + 3 * PW, y: YM };
+    const cx0 = side ? XL + 3 * PW : XR + 3 * PW, gap = n > 2 ? 48 : 70;
+    return { x: cx0 + (i - (n - 1) / 2) * gap, y: YM };
+  }
+  function playerRoll() {
+    if (S.phase !== "roll") return;
+    Snd.init();
+    S.phase = "throw"; S.turn = 0;
+    const a = 1 + Math.floor(rnd() * 6), b = 1 + Math.floor(rnd() * 6);
+    S.dice = [a, b];
+    throwDice(ND.dice4(a, b).map(v => ({ v, side: 0 })));
+    setStatus("");
+    syncFoot();
+    later(THROW_MS, () => { showCall(diceCall(a, b), Math.max(a, b) + " and " + Math.min(a, b) + (a === b ? ", played four times" : "")); beginYourTurn(); });
+  }
+  function beginYourTurn() {
+    S.rem = ND.dice4(S.dice[0], S.dice[1]);
+    S.start = G.slice();
+    S.played = [];
+    S.need = ND.maxDice(G, S.rem);
+    const [a, b] = S.dice;
+    S.hiOnly = 0;
+    if (a !== b && S.need === 1) {
+      const hi = Math.max(a, b), lo = Math.min(a, b);
+      S.hiOnly = ND.moves(G, [hi, lo]).some(m => m.steps[0][2] === hi) ? hi : lo;
+    }
+    if (S.need === 0) {
+      S.phase = "pass";
+      setStatus("No legal move: the turn passes to the elder.");
+      syncFoot();
+      later(1500, endYourTurn);
+      return;
+    }
+    const plays = ND.moves(G, S.rem);
+    if (plays.length === 1) {
+      S.phase = "auto";
+      setStatus("Only one way to play it.");
+      syncFoot();
+      later(500, () => playPath(plays[0].steps.map(s => [s[0], s[2]]), () => { if (G[0] === 15) gameOver(0); else later(450, endYourTurn); }));
+      return;
+    }
+    S.phase = "you";
+    afterStep();
+  }
+  // the player's turn goes on: nothing left (Done), one way left (played for them), or a choice
+  function afterStep() {
+    if (G[0] === 15) { gameOver(0); return; }
+    S.sel = -1; S.targets = [];
+    if (S.played.length >= S.need) {
+      S.phase = "youDone";
+      setStatus(S.played.length ? "All dice played: tap Done, or Undo to play the turn again." : "Tap Done.");
+      syncFoot();
+      return;
+    }
+    const plays = S.played.length ? ND.moves(G, S.rem) : null;
+    if (plays && plays.length === 1 && plays[0].steps.length) {
+      S.phase = "auto";
+      syncFoot();
+      later(260, () => playPath(plays[0].steps.map(s => [s[0], s[2]]), () => { S.phase = "you"; afterStep(); }));
+      return;
+    }
+    S.phase = "you";
+    refreshSources();
+    if (S.sources.length === 1) select(S.sources[0]);
+    setStatus(G[25] ? "Bring your checker in from the bar first: tap a lit point." :
+      ND.allHome(G) ? "Bearing off: tap a checker, then the tray, or a lit point." : "Your move: tap a checker, then a lit point.");
+    syncFoot();
+  }
+  // play dice one by one with the player's checker(s): [[from, die], ...]
+  function playPath(path, done, dropAt) {
+    S.busy++;
+    S.sel = -1; S.targets = []; S.sources = [];
+    path.forEach(([f, d], i) => later(i * STEP_MS, () => {
+      const s = applyStep(0, f, d, i === 0 ? dropAt : null);
+      S.played.push(s);
+      const k = S.rem.indexOf(d);
+      if (k >= 0) S.rem.splice(k, 1);
+      const sh = S.shown.find(x => x.v === d && !x.used);
+      if (sh) sh.used = true;
+      syncFoot();
+    }));
+    later((path.length - 1) * STEP_MS + FLY_MS + 30, () => { S.busy--; if (done) done(); else afterStep(); });
+  }
+  // one die played on the board, with its flight (and the flight of a checker it hits)
+  function applyStep(side, f, d, fromAt) {
+    const fromSlot = slotOf(side, f), nf = slotCount(fromSlot);
+    const fromPos = fromAt || slotXY(fromSlot, nf - 1, nf);
+    const R = side ? ND.flip(G) : G.slice();
+    const s = ND.step(R, f, d);
+    G = side ? ND.flip(R) : R;
+    const toSlot = slotOf(side, s[1]), n = slotCount(toSlot);
+    const t = now();
+    S.flights.push({ dark: !!side, from: fromPos, to: slotXY(toSlot, n - 1, n), t0: t, dur: FLY_MS, dest: toSlot });
+    if (s[3]) {
+      const bar = side ? "bar0" : "bar1", nb = slotCount(bar);
+      S.flights.push({ dark: !side, from: slotXY(toSlot, 0, 1), to: slotXY(bar, nb - 1, nb), t0: t + FLY_MS * 0.85, dur: 300, dest: bar });
+    }
+    later(FLY_MS - 10, () => Snd.play("ndChecker", { hit: s[3] }));
+    return s;
+  }
+  function undo() {
+    if (!(S.phase === "you" || S.phase === "youDone") || !S.played.length || S.busy) return;
+    G = S.start.slice();
+    S.rem = ND.dice4(S.dice[0], S.dice[1]);
+    S.played = [];
+    S.flights = [];
+    for (const sh of S.shown) sh.used = false;
+    Snd.play("uiTick");
+    S.phase = "you";
+    afterStep();
+  }
+  function endYourTurn() {
+    if (S.phase === "over") return;
+    S.phase = "elder"; S.sel = -1; S.targets = []; S.sources = [];
+    syncFoot();
+    later(380, elderTurn);
+  }
+  function elderTurn() {
+    if (S.phase === "over") return;
+    S.phase = "elder"; S.turn = 1;
+    const a = 1 + Math.floor(rnd() * 6), b = 1 + Math.floor(rnd() * 6);
+    S.dice = [a, b];
+    throwDice(ND.dice4(a, b).map(v => ({ v, side: 1 })));
+    setStatus("The elder throws.");
+    syncFoot();
+    later(THROW_MS, () => {
+      showCall(diceCall(a, b), "The elder: " + Math.max(a, b) + " and " + Math.min(a, b));
+      const E = ND.flip(G), dice = ND.dice4(a, b);
+      const list = ND.moves(E, dice);
+      if (!list[0].steps.length) {
+        setStatus("The elder cannot move.");
+        later(1400, yourThrowNext);
+        return;
+      }
+      setStatus("The elder is thinking.");
+      const t0 = now();
+      const pick = list[ND.choose(E, dice, S.level, rnd, { list })];
+      S.lastMs = now() - t0;
+      later(Math.max(120, 420 - S.lastMs), () => {
+        setStatus("The elder plays.");
+        pick.steps.forEach((st, i) => later(i * STEP_MS, () => {
+          applyStep(1, st[0], st[2]);
+          const sh = S.shown.find(x => x.v === st[2] && !x.used);
+          if (sh) sh.used = true;
+          syncFoot();
+        }));
+        later((pick.steps.length - 1) * STEP_MS + FLY_MS + 60, () => {
+          if (G[27] === 15) { gameOver(1); return; }
+          later(380, yourThrowNext);
+        });
+      });
+    });
+  }
+  function yourThrowNext() {
+    if (S.phase === "over") return;
+    S.phase = "roll"; S.turn = 0;
+    setStatus(G[25] ? "Your throw. You have a checker on the bar." : "Your throw: tap Roll, or tap the board.");
+    syncFoot();
+  }
+  function gameOver(winner) {
+    S.phase = "over"; S.sel = -1; S.targets = []; S.sources = [];
+    const mars = winner === 0 ? G[27] === 0 : G[0] === 0;
+    S.result = { winner, points: mars ? 2 : 1, mars, blessed: false };
+    if (winner === 0) S.stats.won++; else S.stats.lost++;
+    savePref();
+    if (winner === 0 && S.reward && !S.granted) {
+      S.granted = true; S.result.blessed = true;
+      try { localStorage.setItem(BLESS_KEY, String(BLESS_GOLD)); } catch (e) {}
+    }
+    Snd.play(winner === 0 ? "ndWin" : "ndLose");
+    if (mars) showCall("mars!", winner === 0 ? "A double win" : "The elder's double win");
+    setStatus(winner === 0 ? "You have borne off all fifteen." : "The elder has borne off all fifteen.");
+    syncFoot();
+    later(mars ? 1200 : 500, () => { S.card = "over"; renderCard(); });
+  }
+
+  // ---- the cards over the board: the invitation, the rules, leaving, the end of a game ----
+  function renderCard() {
+    if (!root) return;
+    const c = S.card;
+    el.cardWrap.classList.toggle("on", !!c);
+    if (!c) { el.card.innerHTML = ""; return; }
+    let h = "";
+    const btn = (id, txt, cls) => '<button type="button" class="ndBtn' + (cls ? " " + cls : "") + '" id="' + id + '">' + txt + "</button>";
+    if (c === "invite") {
+      const C = CHAPTERS[S.chapter];
+      h = '<div class="ndKick">' + escapeHtml(C ? "Before Chapter " + C.num + " · " + C.name : "Between the battles") + "</div>" +
+        "<h2>The village elder sets up the board</h2>" +
+        "<p>A game of nardi before the road goes on. Win it, and the elder's blessing goes with you: " +
+        "<b>+" + BLESS_GOLD + " gold</b> at the start of your next battle.</p>" +
+        '<p class="ndSmall">Short nardi: the backgammon rules, without a doubling cube. A mars counts double.</p>' +
+        '<div class="ndBtns">' + btn("ndPlay", "Play nardi", "primary") + btn("ndNo", "Not now") + "</div>";
+    } else if (c === "rules") {
+      h = "<h2>How nardi is played</h2>" +
+        '<p>Nardi (<span lang="hy">նարդի</span>) is the Armenian name for backgammon. This board plays short nardi: the backgammon rules with hitting, without a doubling cube.</p>' +
+        "<ul>" +
+        "<li>Each side has fifteen checkers. Yours are the light ones: you move them round to your home, the six points at the bottom right, while the elder's dark checkers travel the other way.</li>" +
+        "<li>Each die moves one checker that many points. A double is played four times. Use both dice when you can; when only one can be played, it must be the higher if that one can move.</li>" +
+        "<li>Two or more of the elder's checkers close a point. A lone checker is a blot: land on it to hit it, and it goes to the bar. A checker on the bar must come back in, through the other side's home, before anything else moves.</li>" +
+        "<li>Once all fifteen are home, bear them off: a die takes a checker off its own point, or off the highest point when the die is higher.</li>" +
+        "<li>Bear off all fifteen first to win: one point (oyn), or two for a mars, when the loser has borne off none.</li>" +
+        "<li>Tap a checker, then a lit point (or drag it there). Undo plays the turn again until you tap Done.</li>" +
+        "</ul>" +
+        '<p class="ndSmall">A Persian legend tells that when an Indian king sent chess to the court of Khosrow I as a riddle, Khosrow\'s vizier solved it and devised this game as his answer.</p>' +
+        '<div class="ndBtns">' + btn("ndBack", S.phase === "invite" ? "Back" : S.phase === "over" ? "Back" : "Back to the board", "primary") + "</div>";
+    } else if (c === "leave") {
+      h = "<h2>Leave the game?</h2><p>The elder will put the board away." + (S.reward && !S.granted ? " An unfinished game earns no blessing." : "") + "</p>" +
+        '<div class="ndBtns">' + btn("ndStay", "Keep playing", "primary") + btn("ndLeave", "Leave the board") + "</div>";
+    } else if (c === "over") {
+      const R = S.result || { winner: 1, points: 1 };
+      h = '<div class="ndKick">' + (R.mars ? "Mars" : "Oyn") + " · " + R.points + (R.points === 1 ? " point" : " points") + "</div>" +
+        "<h2>" + (R.winner === 0 ? "You win" : "The elder wins") + "</h2>" +
+        "<p>" + (R.mars ? (R.winner === 0 ? "The elder had borne off no checker: a mars, a double win." : "You had borne off no checker: a mars, a double win for the elder.")
+          : (R.winner === 0 ? "A single game, an oyn." : "A single game, an oyn, to the elder.")) + "</p>" +
+        (S.reward ? (R.blessed ? '<p class="ndBless">The elder\'s blessing goes with you: <b>+' + BLESS_GOLD + " gold</b> at the start of your next battle.</p>"
+          : S.granted ? "<p>The elder's blessing is already yours.</p>" : "<p>No blessing this time. You may try again, or go on.</p>") : "") +
+        '<p class="ndSmall">Your games against the elder: ' + S.stats.won + " won, " + S.stats.lost + " lost.</p>" +
+        '<div class="ndBtns">' + (S.reward ? btn("ndOnward", "Onward", "primary") + btn("ndAgain", "Play again") : btn("ndAgain", "Play again", "primary") + btn("ndLeave", "Leave the board")) + "</div>";
+    }
+    el.card.innerHTML = h;
+    el.card.scrollTop = 0;
+    const first = el.card.querySelector(".ndBtn.primary") || el.card.querySelector(".ndBtn");
+    if (first && open) first.focus({ preventScroll: true });
+  }
+  function onCardClick(e) {
+    const b = e.target.closest && e.target.closest(".ndBtn");
+    if (!b) return;
+    Snd.init();
+    Snd.play("uiTick");
+    const id = b.id;
+    if (id === "ndPlay") { newGame(); return; }
+    if (id === "ndNo") { close(); return; }
+    if (id === "ndBack" || id === "ndStay") {
+      S.card = id === "ndBack" && S.phase === "invite" ? "invite" : id === "ndBack" && S.phase === "over" ? "over" : "";
+      renderCard();
+      if (!S.card) el.main.focus({ preventScroll: true });
+      return;
+    }
+    if (id === "ndLeave" || id === "ndOnward") { close(); return; }
+    if (id === "ndAgain") { newGame(); return; }
+  }
+  function askLeave() {
+    if (S.card === "leave") return;
+    if (S.phase === "over" || S.phase === "invite" || S.phase === "idle") { close(); return; }
+    S.card = "leave"; renderCard();
+  }
+
+  // ---- open and close ----
+  function build() {
+    if (root) return;
+    root = document.createElement("div");
+    root.id = "nardi";
+    root.className = "ndHidden";
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-labelledby", "ndTitle");
+    root.innerHTML =
+      '<div class="ndHead">' +
+        '<div class="ndName"><span id="ndTitle">Nardi</span><span class="ndHy" lang="hy">նարդի</span></div>' +
+        '<div class="ndSeg" role="radiogroup" aria-label="The elder plays">' +
+          '<button type="button" role="radio" data-lvl="gentle">Gentle elder</button>' +
+          '<button type="button" role="radio" data-lvl="sharp">Sharp elder</button>' +
+        "</div>" +
+        '<button type="button" class="ndRound" id="ndRules" title="How nardi is played" aria-label="How nardi is played">?</button>' +
+        '<button type="button" class="ndRound" id="ndClose" title="Leave the board" aria-label="Leave the board">&#215;</button>' +
+      "</div>" +
+      '<div class="ndStage"><div class="ndTable"><canvas id="ndBoard" aria-label="The nardi board"></canvas>' +
+        '<div class="ndCall" id="ndCall" aria-live="polite"></div></div>' +
+      '<div class="ndFoot">' +
+        '<div class="ndPip you" title="Pips you still have to travel"><span class="ndDot"></span>You <b id="ndPipYou">167</b></div>' +
+        '<div class="ndStatus" id="ndStatus" aria-live="polite"></div>' +
+        '<div class="ndActs"><button type="button" class="ndBtn" id="ndUndo">Undo</button>' +
+        '<button type="button" class="ndBtn primary" id="ndMain">Roll</button></div>' +
+        '<div class="ndPip elder" title="Pips the elder still has to travel"><span class="ndDot"></span>Elder <b id="ndPipElder">167</b></div>' +
+      "</div>" +
+      '<div class="ndCardWrap"><div class="ndCard" id="ndCard"></div></div>' +
+      "</div>";
+    document.body.appendChild(root);
+    cv = root.querySelector("#ndBoard");
+    cx = cv.getContext("2d");
+    el.call = root.querySelector("#ndCall");
+    el.card = root.querySelector("#ndCard");
+    el.cardWrap = root.querySelector(".ndCardWrap");
+    el.status = root.querySelector("#ndStatus");
+    el.pipYou = root.querySelector("#ndPipYou");
+    el.pipElder = root.querySelector("#ndPipElder");
+    el.undo = root.querySelector("#ndUndo");
+    el.main = root.querySelector("#ndMain");
+    el.seg = Array.from(root.querySelectorAll(".ndSeg button"));
+    el.card.addEventListener("click", onCardClick);
+    el.undo.addEventListener("click", () => { Snd.init(); undo(); });
+    el.main.addEventListener("click", () => { Snd.init(); mainAction(); });
+    root.querySelector("#ndRules").addEventListener("click", () => {
+      Snd.init(); Snd.play("uiTick");
+      S.card = S.card === "rules" ? (S.phase === "invite" ? "invite" : S.phase === "over" ? "over" : "") : "rules";
+      renderCard();
+    });
+    root.querySelector("#ndClose").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); askLeave(); });
+    for (const b of el.seg) b.addEventListener("click", () => {
+      Snd.init(); Snd.play("uiTick");
+      S.level = b.dataset.lvl; savePref(); syncFoot();
+    });
+    // the board is fitted again whenever the stage or the footer under it changes size
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => { if (open) layout(); });
+      ro.observe(root.querySelector(".ndStage")); ro.observe(root.querySelector(".ndFoot"));
+    }
+    cv.addEventListener("pointerdown", onDown);
+    cv.addEventListener("pointermove", onMove);
+    cv.addEventListener("pointerup", onUp);
+    cv.addEventListener("pointercancel", () => { S.press = null; S.drag = null; });
+    cv.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") S.hover = null; });
+  }
+  function mainAction() {
+    if (S.phase === "roll") playerRoll();
+    else if (S.phase === "youDone" && !S.busy) { Snd.play("uiTick"); endYourTurn(); }
+    else if (S.phase === "over") newGame();
+  }
+  function openBoard() {
+    build();
+    loadPref();
+    if (!open) {
+      lastFocus = document.activeElement;
+      inertWas = overlayEl.hasAttribute("inert");
+      overlayEl.setAttribute("inert", "");
+      closeSettings();
+      root.classList.remove("ndHidden");
+      open = true;
+      layout();
+      raf = requestAnimationFrame(loop);
+    }
+    syncFoot();
+  }
+  // from the campaign map: a game for its own sake, no reward
+  function play() {
+    openBoard();
+    S.reward = false; S.granted = false; S.onDone = null; S.chapter = -1;
+    newGame();
+    el.main.focus({ preventScroll: true });
+  }
+  // at a chapter break: the invitation first; onDone runs once, however the board is left
+  function offer(chapter, onDone) {
+    openBoard();
+    queue = []; S.flights = []; S.throwA = null;
+    G = ND.initial(); S.dice = []; S.shown = []; S.rem = []; S.played = []; S.sel = -1; S.sources = []; S.targets = [];
+    S.reward = true; S.granted = false; S.onDone = onDone || null; S.chapter = chapter;
+    S.phase = "invite";
+    setStatus("");
+    S.card = "invite";
+    renderCard();
+    syncFoot();
+  }
+  function close() {
+    if (!open) return;
+    open = false;
+    cancelAnimationFrame(raf); raf = 0;
+    queue = []; S.flights = []; S.throwA = null; S.drag = null; S.press = null;
+    S.card = ""; renderCard();
+    clearTimeout(showCall.t); el.call.classList.remove("on");
+    S.phase = "idle";
+    root.classList.add("ndHidden");
+    if (!inertWas) overlayEl.removeAttribute("inert");
+    if (lastFocus && lastFocus.isConnected && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+    lastFocus = null;
+    const done = S.onDone;
+    S.onDone = null;
+    if (done) done();
+  }
+
+  // ---- input: tap a checker then a lit point, or drag; mouse and touch alike ----
+  function toBoard(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / L.k, y: (e.clientY - r.top) / L.k };
+  }
+  function onDown(e) {
+    if (!open || S.card) return;
+    Snd.init();
+    const b = toBoard(e);
+    S.press = { id: e.pointerId, x: b.x, y: b.y, h: hitTest(b.x, b.y), sx: e.clientX, sy: e.clientY };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    e.preventDefault();
+  }
+  function srcOf(h) { return !h ? -1 : h.kind === "bar" ? 25 : h.kind === "pt" ? h.p : -1; }
+  function onMove(e) {
+    const b = toBoard(e);
+    if (e.pointerType === "mouse" && !S.press) {
+      const h = hitTest(b.x, b.y);
+      const s = srcOf(h);
+      S.hover = S.phase === "you" && (S.sources.includes(s) || S.targets.some(t => t.to === (h && h.kind === "off" ? 0 : s))) ? h : null;
+      cv.style.cursor = S.hover || S.phase === "roll" ? "pointer" : "default";
+    }
+    const P = S.press;
+    if (!P || P.id !== e.pointerId) return;
+    if (!S.drag && Math.hypot(e.clientX - P.sx, e.clientY - P.sy) > 9 && S.phase === "you" && !S.busy) {
+      const f = srcOf(P.h);
+      if (S.sources.includes(f)) {
+        if (S.sel !== f) select(f);
+        S.drag = { f, x: b.x, y: b.y };
+      }
+    }
+    if (S.drag) { S.drag.x = b.x; S.drag.y = b.y; }
+  }
+  function onUp(e) {
+    const P = S.press;
+    if (!P || P.id !== e.pointerId) return;
+    S.press = null;
+    const b = toBoard(e);
+    if (S.drag) {
+      const h = hitTest(b.x, b.y), to = !h ? -1 : h.kind === "off" ? 0 : h.kind === "pt" ? h.p : -1;
+      S.drag = null;
+      const T = S.targets.find(t => t.to === to);
+      if (T) moveBy(T, { x: b.x, y: b.y });
+      return;
+    }
+    tap(P.h);
+  }
+  function tap(h) {
+    if (S.card) return;
+    if (S.phase === "roll") { playerRoll(); return; }
+    if (S.phase !== "you" || S.busy) return;
+    const to = !h ? -1 : h.kind === "off" ? 0 : h.kind === "pt" ? h.p : -2;
+    if (S.sel >= 0) {
+      const T = S.targets.find(t => t.to === to);
+      if (T) { moveBy(T); return; }
+    }
+    const f = srcOf(h);
+    if (f >= 0 && S.sources.includes(f)) {
+      if (S.sel === f && S.sources.length > 1) select(-1); else { select(f); Snd.play("uiTick"); }
+      return;
+    }
+    if (S.sources.length > 1) select(-1);
+  }
+  // a checker dropped by hand starts its flight where it was let go
+  function moveBy(T, dropAt) { playPath(T.path, null, dropAt || null); }
+  function onKey(e) {
+    if (!open) return;
+    if (e.code === "KeyM" || e.code === "KeyS") return;   // music and sound keep their keys
+    const onBtn = e.target && e.target.closest && e.target.closest("button");
+    if (e.code === "Escape") {
+      if (S.card === "rules") { S.card = S.phase === "invite" ? "invite" : S.phase === "over" ? "over" : ""; renderCard(); }
+      else if (S.card === "leave") { S.card = ""; renderCard(); }
+      else if (S.phase === "invite") close();
+      else askLeave();
+    } else if ((e.code === "Space" || e.code === "Enter") && !onBtn && !S.card) {
+      mainAction();
+      e.preventDefault();
+    } else if ((e.code === "KeyU" || e.code === "Backspace") && !S.card) {
+      undo();
+      e.preventDefault();
+    } else if (e.code.startsWith("Arrow") && !onBtn) e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+  window.addEventListener("keydown", onKey, true);
+  window.addEventListener("resize", () => { if (open) layout(); });
+
+  // ---- painting ----
+  function layout() {
+    if (!root) return;
+    // the board takes the stage less the footer under it; the two sit together in the middle of the stage
+    const stage = root.querySelector(".ndStage"), foot = root.querySelector(".ndFoot");
+    const r = stage.getBoundingClientRect();
+    const k = Math.max(0.2, Math.min((r.width - 4) / BW, (r.height - foot.offsetHeight - 14) / BH));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.round(BW * k), h = Math.round(BH * k);
+    if (w === L.w && h === L.h && dpr === L.dpr && boardImg) return;
+    L = { k, dpr, w, h };
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    boardImg = paintBoard(k * dpr);
+    sprites = { light: paintCheckerSprite(false, k * dpr), dark: paintCheckerSprite(true, k * dpr) };
+  }
+  function rr(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+    c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+    c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+    c.closePath();
+  }
+  // the eternity sign (arevakhach): arms sweeping round a hub, bronze on parchment, in ink
+  function eternity(c, x, y, r, arms) {
+    c.save();
+    c.translate(x, y);
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2);
+    c.fillStyle = "#e9d4a0"; c.fill();
+    c.lineWidth = r * 0.09; c.strokeStyle = INK; c.stroke();
+    for (let i = 0; i < arms; i++) {
+      c.rotate(Math.PI * 2 / arms);
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(r * 0.78, -r * 0.5, r * 0.84, r * 0.3);
+      c.quadraticCurveTo(r * 0.5, -r * 0.08, 0, 0);
+      c.fillStyle = i % 2 ? "#a8322a" : "#c9972f";
+      c.fill();
+      c.lineWidth = r * 0.05; c.strokeStyle = INK; c.stroke();
+    }
+    c.beginPath(); c.arc(0, 0, r * 0.14, 0, Math.PI * 2);
+    c.fillStyle = "#f0cf85"; c.fill(); c.lineWidth = r * 0.05; c.stroke();
+    c.restore();
+  }
+  // a carved pomegranate: crimson fruit, its crowned calyx, two leaves
+  function pomegranate(c, x, y, r) {
+    c.save();
+    c.lineJoin = "round";
+    for (const s of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(x + s * r * 0.3, y - r * 0.7);
+      c.quadraticCurveTo(x + s * r * 1.5, y - r * 1.4, x + s * r * 1.45, y - r * 0.45);
+      c.quadraticCurveTo(x + s * r * 0.9, y - r * 0.5, x + s * r * 0.3, y - r * 0.7);
+      c.fillStyle = "#5d7a3a"; c.fill(); c.lineWidth = r * 0.08; c.strokeStyle = INK; c.stroke();
+    }
+    const g = c.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+    g.addColorStop(0, "#e2675a"); g.addColorStop(0.6, "#a8322a"); g.addColorStop(1, "#6a1c16");
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+    c.lineWidth = r * 0.09; c.strokeStyle = INK; c.stroke();
+    c.beginPath();
+    c.moveTo(x - r * 0.36, y - r * 0.82);
+    c.lineTo(x - r * 0.42, y - r * 1.3); c.lineTo(x - r * 0.16, y - r * 1.06);
+    c.lineTo(x, y - r * 1.38); c.lineTo(x + r * 0.16, y - r * 1.06);
+    c.lineTo(x + r * 0.42, y - r * 1.3); c.lineTo(x + r * 0.36, y - r * 0.82);
+    c.closePath();
+    c.fillStyle = "#8a2620"; c.fill(); c.stroke();
+    c.beginPath(); c.arc(x - r * 0.38, y - r * 0.3, r * 0.22, 0, Math.PI * 2);
+    c.fillStyle = "rgba(255,230,200,.35)"; c.fill();
+    c.restore();
+  }
+  function grain(c, x, y, w, h, seed, col, n) {
+    const rand = mulberry32(seed);
+    c.save();
+    c.beginPath(); c.rect(x, y, w, h); c.clip();
+    c.strokeStyle = col;
+    for (let i = 0; i < n; i++) {
+      const yy = y + rand() * h, amp = 1 + rand() * 4, ph = rand() * 6, len = 60 + rand() * 160;
+      c.lineWidth = 0.6 + rand() * 1.4;
+      c.globalAlpha = 0.25 + rand() * 0.5;
+      c.beginPath();
+      for (let xx = x; xx <= x + w; xx += 8) {
+        const yv = yy + Math.sin(xx / len + ph) * amp;
+        if (xx === x) c.moveTo(xx, yv); else c.lineTo(xx, yv);
+      }
+      c.stroke();
+    }
+    c.restore();
+  }
+  // the board, once per size: a walnut box with a plaited border, eternity signs at the corners, two fields of
+  // boxwood with their inlaid points, the bar with its rosette and pomegranates, and the tray for bearing off
+  function paintBoard(px) {
+    const c0 = document.createElement("canvas");
+    c0.width = Math.round(BW * px); c0.height = Math.round(BH * px);
+    const c = c0.getContext("2d");
+    c.scale(px, px);
+    // the walnut box
+    rr(c, 0, 0, BW, BH, 22);
+    let g = c.createLinearGradient(0, 0, 0, BH);
+    g.addColorStop(0, "#56402a"); g.addColorStop(0.45, "#3e2c1b"); g.addColorStop(1, "#2a1c10");
+    c.fillStyle = g; c.fill();
+    c.save(); rr(c, 0, 0, BW, BH, 22); c.clip();
+    grain(c, 0, 0, BW, BH, 71, "rgba(20,12,6,.5)", 70);
+    grain(c, 0, 0, BW, BH, 72, "rgba(255,226,170,.08)", 40);
+    c.restore();
+    rr(c, 1.5, 1.5, BW - 3, BH - 3, 21); c.lineWidth = 3; c.strokeStyle = "#140d07"; c.stroke();
+    rr(c, 6, 6, BW - 12, BH - 12, 17); c.lineWidth = 1.6; c.strokeStyle = "#c9972f"; c.stroke();
+    // the plaited band: a parchment strip between ink rules, crimson and bronze strands plaited along it
+    const b0 = 10, b1 = 30, k = 2.3;
+    c.fillStyle = "#cfb47c";
+    c.fillRect(b0, b0, BW - 2 * b0, b1 - b0); c.fillRect(b0, BH - b1, BW - 2 * b0, b1 - b0);
+    c.fillRect(b0, b0, b1 - b0, BH - 2 * b0); c.fillRect(BW - b1, b0, b1 - b0, BH - 2 * b0);
+    c.lineWidth = 1.4; c.strokeStyle = INK;
+    c.strokeRect(b0, b0, BW - 2 * b0, BH - 2 * b0); c.strokeRect(b1, b1, BW - 2 * b1, BH - 2 * b1);
+    c.save(); c.scale(k, k);
+    const m = (b0 + b1) / 2 / k;
+    mapBraid(c, 44 / k, m, (BW - 44) / k, m);
+    mapBraid(c, (BW - 44) / k, (BH - (b0 + b1) / 2) / k, 44 / k, (BH - (b0 + b1) / 2) / k);
+    mapBraid(c, (BW - (b0 + b1) / 2) / k, 44 / k, (BW - (b0 + b1) / 2) / k, (BH - 44) / k);
+    mapBraid(c, m, (BH - 44) / k, m, 44 / k);
+    c.restore();
+    for (const [x, y] of [[20, 20], [BW - 20, 20], [20, BH - 20], [BW - 20, BH - 20]]) eternity(c, x, y, 17, 8);
+    // the two fields: boxwood, sunk a little into the box
+    for (const x0 of [XL, XR]) {
+      g = c.createLinearGradient(0, YT, 0, YB);
+      g.addColorStop(0, "#d6bb86"); g.addColorStop(0.5, "#e2caa0"); g.addColorStop(1, "#d3b680");
+      c.fillStyle = g; c.fillRect(x0, YT, 6 * PW, YB - YT);
+      grain(c, x0, YT, 6 * PW, YB - YT, x0, "rgba(120,84,40,.22)", 34);
+      // the points: bone and madder in turn, a bronze line inlaid in each, a diamond at its base
+      for (let i = 0; i < 6; i++) {
+        for (const top of [true, false]) {
+          const cxp = x0 + (i + 0.5) * PW, base = top ? YT : YB, tip = top ? YT + PT_LEN : YB - PT_LEN;
+          const p = top ? (x0 === XL ? 13 + i : 19 + i) : (x0 === XL ? 12 - i : 6 - i);
+          const light = p % 2 === 1;
+          c.beginPath();
+          c.moveTo(cxp - PW / 2 + 3, base); c.lineTo(cxp, tip); c.lineTo(cxp + PW / 2 - 3, base); c.closePath();
+          const pg = c.createLinearGradient(0, base, 0, tip);
+          if (light) { pg.addColorStop(0, "#f6ead0"); pg.addColorStop(1, "#e4d0a4"); } else { pg.addColorStop(0, "#9a4428"); pg.addColorStop(1, "#7a321e"); }
+          c.fillStyle = pg; c.fill();
+          c.lineWidth = 1.5; c.strokeStyle = INK; c.stroke();
+          c.beginPath();
+          const inset = 9, dir = top ? 1 : -1;
+          c.moveTo(cxp - PW / 2 + 3 + inset, base + dir * 5); c.lineTo(cxp, tip - dir * 22); c.lineTo(cxp + PW / 2 - 3 - inset, base + dir * 5);
+          c.lineWidth = 1.1; c.strokeStyle = light ? "rgba(168,50,42,.55)" : "rgba(240,207,133,.6)"; c.stroke();
+          c.beginPath();
+          const dy = base + dir * 14;
+          c.moveTo(cxp, dy - 5); c.lineTo(cxp + 5, dy); c.lineTo(cxp, dy + 5); c.lineTo(cxp - 5, dy); c.closePath();
+          c.fillStyle = light ? "#a8322a" : "#e2b860"; c.fill(); c.lineWidth = 0.8; c.strokeStyle = INK; c.stroke();
+        }
+      }
+      // a small rosette in the middle of each field, where the dice come to rest between the points
+      c.save(); c.globalAlpha = 0.28; eternity(c, x0 + 3 * PW, YM, 13, 6); c.restore();
+      // the field's rim: ink, and the shadow of the box's edge falling on it
+      c.lineWidth = 2; c.strokeStyle = INK; c.strokeRect(x0, YT, 6 * PW, YB - YT);
+      g = c.createLinearGradient(0, YT, 0, YT + 14);
+      g.addColorStop(0, "rgba(30,18,8,.45)"); g.addColorStop(1, "rgba(30,18,8,0)");
+      c.fillStyle = g; c.fillRect(x0, YT, 6 * PW, 14);
+    }
+    // the bar: raised walnut with bronze studs, the eternity sign at its heart, pomegranates above and below
+    g = c.createLinearGradient(XB, 0, XR, 0);
+    g.addColorStop(0, "#2e2014"); g.addColorStop(0.5, "#5a4029"); g.addColorStop(1, "#2a1c10");
+    c.fillStyle = g; c.fillRect(XB, YT - 6, BARW, YB - YT + 12);
+    grain(c, XB, YT, BARW, YB - YT, 99, "rgba(20,12,6,.45)", 12);
+    c.lineWidth = 2; c.strokeStyle = "#140d07"; c.strokeRect(XB, YT - 6, BARW, YB - YT + 12);
+    c.lineWidth = 1; c.strokeStyle = "rgba(240,207,133,.55)"; c.strokeRect(XB + 4, YT - 2, BARW - 8, YB - YT + 4);
+    eternity(c, XB + BARW / 2, YM, 23, 8);
+    pomegranate(c, XB + BARW / 2, YT + 150, 13);
+    pomegranate(c, XB + BARW / 2, YB - 140, 13);
+    for (const y of [YT + 16, YB - 16, YM - 46, YM + 46]) {
+      c.beginPath(); c.arc(XB + BARW / 2, y, 3.4, 0, Math.PI * 2);
+      c.fillStyle = "#e6bd66"; c.fill(); c.lineWidth = 1; c.strokeStyle = "#140d07"; c.stroke();
+    }
+    // the tray: a deep walnut well in two halves, the elder's above and yours below
+    for (const top of [true, false]) {
+      const y0 = top ? YT : YM + 6, h = YM - 6 - YT;
+      g = c.createLinearGradient(XT, 0, XT + TRAYW, 0);
+      g.addColorStop(0, "#160e07"); g.addColorStop(0.5, "#2a1c10"); g.addColorStop(1, "#1a1008");
+      c.fillStyle = g; c.fillRect(XT, y0, TRAYW, h);
+      c.lineWidth = 2; c.strokeStyle = "#0e0904"; c.strokeRect(XT, y0, TRAYW, h);
+      c.lineWidth = 1; c.strokeStyle = "rgba(240,207,133,.45)"; c.strokeRect(XT + 3, y0 + 3, TRAYW - 6, h - 6);
+    }
+    eternity(c, XT + TRAYW / 2, YM, 9, 6);
+    return c0;
+  }
+  // a checker seen from above: turned boxwood (light) or walnut (dark), a groove and an inlaid bronze ring
+  function paintCheckerSprite(dark, px) {
+    const R = CD / 2, pad = 6, s = Math.ceil((CD + pad * 2) * px);
+    const c0 = document.createElement("canvas");
+    c0.width = c0.height = s;
+    const c = c0.getContext("2d");
+    c.scale(px, px);
+    const x = CD / 2 + pad, y = CD / 2 + pad;
+    c.fillStyle = "rgba(14,8,3,.5)";
+    c.beginPath(); c.ellipse(x + 1.8, y + 3, R, R * 0.97, 0, 0, Math.PI * 2); c.fill();
+    const g = c.createRadialGradient(x - R * 0.4, y - R * 0.45, R * 0.08, x, y, R);
+    if (dark) { g.addColorStop(0, "#8a6440"); g.addColorStop(0.55, "#4b301b"); g.addColorStop(1, "#24150a"); }
+    else { g.addColorStop(0, "#fffaf0"); g.addColorStop(0.55, "#efdfb6"); g.addColorStop(1, "#c3a26a"); }
+    c.beginPath(); c.arc(x, y, R - 1, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+    c.lineWidth = 2.2; c.strokeStyle = "#1c1209"; c.stroke();
+    c.beginPath(); c.arc(x, y, R * 0.7, 0, Math.PI * 2);
+    c.lineWidth = 2.6; c.strokeStyle = dark ? "rgba(10,5,2,.6)" : "rgba(130,92,46,.55)"; c.stroke();
+    c.beginPath(); c.arc(x, y, R * 0.7 + 1.6, 0, Math.PI * 2);
+    c.lineWidth = 1; c.strokeStyle = dark ? "rgba(240,207,133,.75)" : "rgba(255,255,255,.7)"; c.stroke();
+    c.beginPath(); c.arc(x, y, R * 0.17, 0, Math.PI * 2);
+    c.fillStyle = dark ? "#c9972f" : "#a8322a"; c.fill(); c.lineWidth = 1; c.strokeStyle = "#1c1209"; c.stroke();
+    c.beginPath(); c.arc(x, y, R * 0.86, Math.PI * 1.08, Math.PI * 1.55);
+    c.lineWidth = 2.2; c.strokeStyle = dark ? "rgba(255,230,190,.28)" : "rgba(255,255,255,.75)"; c.stroke();
+    return c0;
+  }
+  function drawChecker(c, x, y, dark, scale) {
+    const img = dark ? sprites.dark : sprites.light, s = (CD + 12) * (scale || 1);
+    c.drawImage(img, x - s / 2, y - s / 2, s, s);
+  }
+  // a borne-off checker, seen edge on in the tray
+  function drawSlice(c, x, y, dark) {
+    rr(c, x - TRAYW / 2 + 9, y - 6.5, TRAYW - 18, 13, 5);
+    const g = c.createLinearGradient(0, y - 6.5, 0, y + 6.5);
+    if (dark) { g.addColorStop(0, "#6b4a2c"); g.addColorStop(1, "#2a190d"); } else { g.addColorStop(0, "#fbf3dc"); g.addColorStop(1, "#c9ab72"); }
+    c.fillStyle = g; c.fill();
+    c.lineWidth = 1.2; c.strokeStyle = "#1c1209"; c.stroke();
+  }
+  const PIPS = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+    5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+  function drawDie(c, x, y, s, v, ang, alpha, lift) {
+    c.save();
+    c.globalAlpha = alpha;
+    c.fillStyle = "rgba(14,8,3," + (0.45 - Math.min(0.3, lift / 200)) + ")";
+    c.beginPath(); c.ellipse(x + 3 + lift * 0.15, y + 4 + lift * 0.25, s * 0.55, s * 0.5, 0, 0, Math.PI * 2); c.fill();
+    c.translate(x, y - lift * 0.55);
+    c.rotate(ang);
+    const sc = 1 + lift / 220;
+    c.scale(sc, sc);
+    rr(c, -s / 2, -s / 2, s, s, s * 0.2);
+    const g = c.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2);
+    g.addColorStop(0, "#fffbee"); g.addColorStop(0.6, "#f0e2bf"); g.addColorStop(1, "#cdb37f");
+    c.fillStyle = g; c.fill();
+    c.lineWidth = 2; c.strokeStyle = INK; c.stroke();
+    const q = s * 0.26;
+    for (const [px, py] of PIPS[v] || []) {
+      c.beginPath(); c.arc(px * q, py * q, s * (v === 1 ? 0.12 : 0.085), 0, Math.PI * 2);
+      c.fillStyle = v === 1 ? "#a8322a" : "#22160b"; c.fill();
+    }
+    c.restore();
+  }
+  // the height of a thrown die over the board at time u seconds: falling in, then two shrinking skips
+  function dieLift(u) {
+    const C = [0.2, 0.32, 0.41, 0.47], H = [70, 16, 6, 2];
+    if (u < C[0]) return H[0] * (1 - (u / C[0]) * (u / C[0]));
+    for (let i = 0; i < 3; i++) if (u < C[i + 1]) { const s = (u - C[i]) / (C[i + 1] - C[i]); return 4 * H[i + 1] * s * (1 - s); }
+    return 0;
+  }
+  function loop() {
+    raf = open ? requestAnimationFrame(loop) : 0;
+    if (!open) return;
+    const t = now();
+    runDue(t);
+    if (!window.ResizeObserver) layout();
+    draw(t);
+  }
+  function draw(t) {
+    if (!cx || !boardImg) return;
+    const c = cx, px = L.k * L.dpr;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(boardImg, 0, 0);
+    c.setTransform(px, 0, 0, px, 0, 0);
+    // checkers still in the air are not yet counted where they land
+    S.flights = S.flights.filter(f => t < f.t0 + f.dur);
+    const inAir = {};
+    for (const f of S.flights) inAir[f.dest] = (inAir[f.dest] || 0) + 1;
+    const pulse = 0.55 + 0.45 * Math.sin(t / 260);
+    const lit = S.phase === "you" && !S.busy;
+    // the lit points: the selected checker's destinations, glowing under the checkers
+    if (lit && S.sel >= 0) {
+      for (const T of S.targets) {
+        if (T.to === 0) {
+          c.fillStyle = "rgba(255,228,150," + (0.18 + 0.14 * pulse) + ")";
+          c.fillRect(XT + 2, YM + 8, TRAYW - 4, YB - YM - 10);
+          continue;
+        }
+        const x = colX(T.to), top = T.to >= 13, base = top ? YT : YB, tip = top ? YT + PT_LEN : YB - PT_LEN;
+        c.beginPath(); c.moveTo(x - PW / 2 + 3, base); c.lineTo(x, tip); c.lineTo(x + PW / 2 - 3, base); c.closePath();
+        c.fillStyle = "rgba(255,228,150," + (0.3 + 0.2 * pulse) + ")"; c.fill();
+      }
+    }
+    // the checkers on the points, the bar and in the trays
+    const dragFrom = S.drag ? S.drag.f : -1;
+    for (let p = 1; p <= 24; p++) {
+      let n = Math.abs(G[p]) - (inAir[p] || 0);
+      const dark = G[p] < 0, full = Math.abs(G[p]);
+      if (p === dragFrom) n--;
+      for (let k = 0; k < n; k++) {
+        const q = slotXY(p, k, full);
+        const lift = lit && p === S.sel && k === n - 1 && !S.drag ? 5 : 0;
+        drawChecker(c, q.x, q.y - lift, dark, lift ? 1.06 : 1);
+      }
+      if (full > 5 && n > 0) countLabel(c, slotXY(p, n - 1, full), n, dark);
+    }
+    for (const [slot, dark] of [["bar0", false], ["bar1", true]]) {
+      const full = slotCount(slot);
+      let n = full - (inAir[slot] || 0);
+      if (slot === "bar0" && dragFrom === 25) n--;
+      for (let k = 0; k < n; k++) { const q = slotXY(slot, k, full); const lift = lit && slot === "bar0" && S.sel === 25 && k === n - 1 && !S.drag ? 5 : 0; drawChecker(c, q.x, q.y - lift, dark, lift ? 1.06 : 1); }
+      if (n > 1) countLabel(c, slotXY(slot, n - 1, full), n, dark);
+    }
+    for (const [slot, dark] of [["off0", false], ["off1", true]]) {
+      const n = slotCount(slot) - (inAir[slot] || 0);
+      for (let k = 0; k < n; k++) { const q = slotXY(slot, k, 15); drawSlice(c, q.x, q.y, dark); }
+    }
+    // the checkers that may move glow; the selected one is lifted, and its landing places are ringed
+    if (lit) {
+      for (const f of S.sources) {
+        const slot = f === 25 ? "bar0" : f, full = slotCount(slot);
+        const q = slotXY(slot, full - 1, full);
+        const sel = f === S.sel;
+        ring(c, q.x, q.y - (sel ? 5 : 0), CD / 2 + 3, sel ? "rgba(255,240,190,.95)" : "rgba(246,220,154," + (0.45 + 0.4 * pulse) + ")", sel ? 4 : 3);
+      }
+      for (const T of S.targets) {
+        if (T.to === 0) {
+          const q = slotXY("off0", G[0], 15);
+          rr(c, q.x - TRAYW / 2 + 7, q.y - 9, TRAYW - 14, 18, 6);
+          c.lineWidth = 3; c.strokeStyle = "rgba(255,240,190," + (0.6 + 0.4 * pulse) + ")"; c.stroke();
+          continue;
+        }
+        const hit = G[T.to] === -1, n = hit ? 0 : Math.abs(G[T.to]), q = slotXY(T.to, n, Math.max(n + 1, 1));
+        ring(c, q.x, q.y, CD / 2 - 2, "rgba(255,240,190," + (0.65 + 0.35 * pulse) + ")", 3.2, T.path.length > 1);
+        if (hit) ring(c, q.x, q.y, CD / 2 + 4, "rgba(214,72,52," + (0.6 + 0.4 * pulse) + ")", 2.4);
+      }
+    }
+    // flights
+    for (const f of S.flights) {
+      const u = Math.max(0, Math.min(1, (t - f.t0) / f.dur)), e = 1 - Math.pow(1 - u, 3);
+      const x = f.from.x + (f.to.x - f.from.x) * e, y = f.from.y + (f.to.y - f.from.y) * e - Math.sin(u * Math.PI) * 34;
+      drawChecker(c, x, y, f.dark, 1 + Math.sin(u * Math.PI) * 0.1);
+    }
+    if (S.drag) drawChecker(c, S.drag.x, S.drag.y, false, 1.12);
+    // the dice: thrown, or at rest with the dice already played dimmed
+    if (S.throwA) {
+      const A = S.throwA;
+      let done = true;
+      A.dice.forEach((d, i) => {
+        const u = Math.max(0, (t - A.t0) / 1000 - d.lag);
+        const prog = Math.min(1, u / (THROW_MS / 1000 - 0.04));
+        if (prog < 1) done = false;
+        const e = 1 - Math.pow(1 - prog, 2.4);
+        const x = d.from.x + (d.to.x - d.from.x) * e, y = d.from.y + (d.to.y - d.from.y) * e;
+        const face = prog < 0.7 ? 1 + Math.floor(((t / 70 | 0) * 7 + i * 3) % 6) : d.v;
+        drawDie(c, x, y, d.size, face, d.spin * (1 - e) * 0.6, 1, dieLift(u));
+      });
+      if (done) S.throwA = null;
+    } else if (S.shown.length) {
+      const oneEach = S.shown.length === 2 && S.shown[0].side !== S.shown[1].side;
+      S.shown.forEach((d, i) => {
+        const q = restXY(d.side, i, S.shown.length, oneEach);
+        drawDie(c, q.x, q.y, S.shown.length > 2 ? 40 : DIE, d.v, (i % 2 ? 0.08 : -0.06), d.used ? 0.38 : 1, 0);
+      });
+    }
+  }
+  function ring(c, x, y, r, col, w, dashed) {
+    c.save();
+    if (dashed) c.setLineDash([7, 5]);
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2);
+    c.lineWidth = w + 2.5; c.strokeStyle = "rgba(28,18,9,.7)"; c.stroke();
+    c.lineWidth = w; c.strokeStyle = col; c.stroke();
+    c.restore();
+  }
+  function countLabel(c, q, n, dark) {
+    c.save();
+    c.font = "700 22px " + UI_FONT;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.lineWidth = 3; c.strokeStyle = dark ? "#1c1209" : "#f6ead0";
+    c.fillStyle = dark ? "#f6dc9a" : "#2c1e10";
+    c.strokeText(String(n), q.x, q.y + 1);
+    c.fillText(String(n), q.x, q.y + 1);
+    c.restore();
+  }
+
+  // ---- the campaign map's door to the board ----
+  mapBtn = document.createElement("button");
+  mapBtn.type = "button";
+  mapBtn.id = "nardiBtn";
+  mapBtn.className = "btn";
+  mapBtn.title = "Play nardi with the village elder";
+  mapBtn.innerHTML = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="11" height="11" rx="2.4" fill="#f6ead0" stroke="#1c1209" stroke-width="1.3"/>' +
+    '<circle cx="5.6" cy="9.6" r="1.1" fill="#1c1209"/><circle cx="8" cy="12" r="1.1" fill="#1c1209"/><circle cx="10.4" cy="14.4" r="1.1" fill="#1c1209"/>' +
+    '<rect x="11" y="3" width="10" height="10" rx="2.2" fill="#e8d4a4" stroke="#1c1209" stroke-width="1.3" transform="rotate(14 16 8)"/>' +
+    '<circle cx="14" cy="6" r="1" fill="#a8322a"/><circle cx="18" cy="10" r="1" fill="#a8322a"/></svg><span>Nardi</span>';
+  mapBtn.addEventListener("click", () => { Snd.init(); Snd.play("mapSelect"); play(); });
+  overlayEl.appendChild(mapBtn);
+
+  // ---- what the self-test drives ----
+  const test = {
+    get G() { return G; }, set G(v) { G = v; }, S, flush, tap, hitTest, colX, slotXY,
+    layout: () => L, isOpen: () => open, rafOn: () => raf !== 0, root: () => root,
+    seed(n) { rnd = ND.rng(n); },
+    // the board point under which a slot's top checker lies, in client pixels
+    client(bx, by) { const r = cv.getBoundingClientRect(); return { x: r.left + bx * L.k, y: r.top + by * L.k }; },
+  };
+  return { play, offer, close, isOpen: () => open, covers: () => open, test, diceCall, BLESS_KEY, BLESS_GOLD };
+})();
+
+// at a chapter break: "The village elder sets up the board". A skippable game of nardi; a win sets aside a
+// blessing of +40 gold for the next battle. onDone runs once when the board is left, however it is left.
+function offerNardi(chapterIndex, onDone) { Nardi.offer(chapterIndex, onDone); }
+// at the start of a battle: the elder's blessing, if one is waiting, is paid once (not into the coached first
+// stand, whose treasury the tutorial counts on: it waits for the next battle)
+function nardiBlessBattle() {
+  let v = 0;
+  try { v = Number(localStorage.getItem(Nardi.BLESS_KEY)) || 0; } catch (e) {}
+  if (!(v > 0) || tut) return false;
+  try { localStorage.removeItem(Nardi.BLESS_KEY); } catch (e) {}
+  gold += v;
+  syncHud();
+  toast("The village elder's blessing: +" + v + " 🪙");
+  return true;
+}
+
+// ---- nardi: the self-test's checks (called from runSelftest) ----
+// The rules on known positions; random games replayed against the rules written out again from scratch, and
+// whole rolls compared with a brute force over every order of the dice; the elder against a random player; and
+// the board itself: opened from the map, a game played to the end by taps on the canvas, Undo, leaving, the
+// chapter-break invitation declined and won, and the blessing paid once at the next battle.
+function nardiSelftest(check, res) {
+  const P = spec => { const R = new Int8Array(28); for (const k in spec) R[k] = spec[k]; return R; };
+  const fifteen = R => {
+    let a = R[25] + R[0], b = R[26] + R[27];
+    for (let p = 1; p <= 24; p++) { if (R[p] > 0) a += R[p]; else b -= R[p]; }
+    return a === 15 && b === 15;
+  };
+  // the rules once more, written apart from ND: may my checker on f move d? (null: no; 0: borne off)
+  const legal = (R, f, d) => {
+    if (R[25] > 0 && f !== 25) return null;
+    if (f === 25) { const t = 25 - d; return R[25] > 0 && R[t] > -2 ? t : null; }
+    if (!(R[f] > 0)) return null;
+    const t = f - d;
+    if (t > 0) return R[t] > -2 ? t : null;
+    for (let p = 7; p <= 24; p++) if (R[p] > 0) return null;
+    if (t === 0) return 0;
+    for (let p = f + 1; p <= 6; p++) if (R[p] > 0) return null;
+    return 0;
+  };
+  const play = (R, f, d) => {
+    const t = legal(R, f, d), S2 = R.slice();
+    S2[f]--;
+    if (t === 0) S2[0]++; else if (S2[t] === -1) { S2[t] = 1; S2[26]++; } else S2[t]++;
+    return S2;
+  };
+  // every order of every die: the positions a full play can reach, and how many dice it uses
+  const brute = (R, dice) => {
+    const res2 = new Set();
+    let best = 0;
+    const rec = (Q, rem, n) => {
+      let any = false;
+      for (let i = 0; i < rem.length; i++) for (let f = 1; f <= 25; f++) {
+        if (legal(Q, f, rem[i]) === null) continue;
+        any = true;
+        rec(play(Q, f, rem[i]), rem.slice(0, i).concat(rem.slice(i + 1)), n + 1);
+      }
+      if (!any) { if (n > best) { best = n; res2.clear(); } if (n === best) res2.add(ND.key(Q)); }
+    };
+    rec(R, dice, 0);
+    if (dice.length === 2 && dice[0] !== dice[1] && best === 1) {
+      const hi = Math.max(dice[0], dice[1]), only = new Set();
+      for (let f = 1; f <= 25; f++) if (legal(R, f, hi) !== null) only.add(ND.key(play(R, f, hi)));
+      if (only.size) return { keys: only, best };
+    }
+    return { keys: res2, best };
+  };
+  const replayOk = (R, m) => {
+    let Q = R;
+    for (const [f, t, d] of m.steps) { if (legal(Q, f, d) !== t) return false; Q = play(Q, f, d); }
+    return ND.key(Q) === ND.key(m.R) && fifteen(m.R);
+  };
+
+  check("nardi rules", () => {
+    let R = ND.initial();
+    if (!fifteen(R) || ND.pips(R).join() !== "167,167") throw new Error("opening position");
+    let list = ND.moves(R, [6, 5]);
+    if (!list.length || list.some(m => m.steps.length !== 2 || !replayOk(R, m))) throw new Error("6-5 from the opening");
+    if (!list.some(m => m.R[24] === 1 && m.R[13] === 6)) throw new Error("6-5 cannot run 24/13");
+    list = ND.moves(R, [6, 6, 6, 6]);
+    if (list.some(m => m.steps.length !== 4 || !replayOk(R, m))) throw new Error("6-6 does not play four times");
+    if (!list.some(m => m.R[24] === 0 && m.R[18] === 2 && m.R[13] === 3 && m.R[7] === 2)) throw new Error("6-6 cannot play 24/18(2) 13/7(2)");
+    // one die of two can be played, not both: the higher is owed; when the higher is blocked, the lower
+    R = P({ 12: 1, 1: 14, 4: -2, 20: -13 });
+    list = ND.moves(R, [3, 5]);
+    if (ND.maxDice(R, [3, 5]) !== 1 || list.length !== 1 || list[0].steps[0][2] !== 5 || list[0].R[7] !== 1) throw new Error("the higher die was not forced");
+    R[7] = -2; R[20] = -11;
+    list = ND.moves(R, [5, 3]);
+    if (list.length !== 1 || list[0].steps[0][2] !== 3 || list[0].R[9] !== 1) throw new Error("the lower die, when the higher cannot move");
+    // a checker on the bar comes in first; a closed home board lets nothing in
+    R = P({ 25: 1, 6: 14, 19: -2, 20: -2, 21: -2, 23: -2, 24: -2, 12: -3, 13: -2 });
+    if (ND.target(R, 6, 3) !== -1) throw new Error("a checker moved while one was on the bar");
+    list = ND.moves(R, [6, 3]);
+    if (list.length !== 1 || list[0].steps[0][0] !== 25 || list[0].steps[0][1] !== 22 || list[0].R[16] !== 1) throw new Error("bar entry");
+    R[22] = -2; R[12] = -1;
+    list = ND.moves(R, [6, 3]);
+    if (!fifteen(R) || list.length !== 1 || list[0].steps.length !== 0) throw new Error("a closed board let a checker in");
+    // a blot is hit and goes to the bar
+    R = P({ 8: 1, 6: 14, 5: -1, 19: -14 });
+    list = ND.moves(R, [3, 1]);
+    if (!list.some(m => m.R[26] === 1 && m.steps.some(s => s[3]))) throw new Error("no hit");
+    // bearing off: a higher die takes the highest checker; doubles bear off from the next point down
+    R = P({ 5: 2, 1: 13, 24: -15 });
+    list = ND.moves(R, [6, 6, 6, 6]);
+    if (list.length !== 1 || list[0].R[0] !== 4 || list[0].R[5] !== 0 || list[0].R[1] !== 11) throw new Error("6-6 bearing off");
+    R = P({ 6: 1, 2: 1, 1: 13, 24: -15 });
+    if (ND.target(R, 2, 4) !== -1 || ND.target(R, 6, 6) !== 0 || ND.target(R, 1, 1) !== 0 || ND.target(R, 2, 2) !== 0) throw new Error("bearing off by the die's point");
+    R = P({ 7: 1, 1: 14, 24: -15 });
+    if (ND.target(R, 1, 1) !== -1 || ND.allHome(R)) throw new Error("bore off with a checker outside home");
+    R = P({ 6: 1, 1: 14, 24: -15 });
+    list = ND.moves(R, [5, 4]);
+    if (list.length !== 1 || list[0].R[0] !== 1 || list[0].R[1] !== 14) throw new Error("5-4: two ways to one position");
+    // the score: an oyn, or a mars when the loser has borne off none; no triple
+    if (ND.score(P({ 0: 15, 27: 3, 20: -12 })) !== 1 || ND.score(P({ 0: 15, 24: -15 })) !== 2 || ND.score(P({ 0: 14, 1: 1, 24: -15 })) !== 0) throw new Error("score");
+    const calls = [[6, 5, "shesh-besh!"], [5, 6, "shesh-besh!"], [6, 6, "du-shesh!"], [2, 2, "dubara!"], [1, 1, "hep-yek!"], [4, 3, "jahar-se"], [1, 2, "du-yek"], [3, 3, ""]];
+    for (const [a, b, s] of calls) if (Nardi.diceCall(a, b) !== s) throw new Error("dice call " + a + "-" + b);
+  });
+
+  check("nardi plays: legal, every die owed, as a brute force finds", () => {
+    const rnd = ND.rng(31);
+    let plays = 0, compared = 0;
+    for (let g = 0; g < 40; g++) {
+      let R = ND.initial(), turns = 0;
+      for (; turns < 3000; turns++) {
+        const a = 1 + Math.floor(rnd() * 6), b = 1 + Math.floor(rnd() * 6), dice = ND.dice4(a, b);
+        const list = ND.moves(R, dice), need = ND.maxDice(R, dice);
+        const keys = new Set(list.map(m => ND.key(m.R)));
+        if (keys.size !== list.length || list.some(m => m.steps.length !== need || !replayOk(R, m))) throw new Error("an illegal or short play");
+        plays += list.length;
+        if (g < 6 && turns % 7 === 3) {
+          for (const [x, y] of ND.ROLLS) {
+            const d = ND.dice4(x, y), br = brute(R, d), mine = ND.moves(R, d);
+            if (br.best !== ND.maxDice(R, d) || br.keys.size !== mine.length || mine.some(m => !br.keys.has(ND.key(m.R)))) throw new Error("not what the brute force finds for " + x + "-" + y);
+            compared++;
+          }
+        }
+        R = list[Math.floor(rnd() * list.length)].R;
+        if (R[0] === 15) break;
+        R = ND.flip(R);
+      }
+      if (turns >= 3000) throw new Error("a random game did not end");
+    }
+    res.nardi = Object.assign(res.nardi || {}, { playsChecked: plays, rollsVsBruteForce: compared });
+  });
+
+  check("nardi elder vs random", () => {
+    const rnd = ND.rng(777), out = {};
+    let maxMs = 0;
+    for (const level of ["gentle", "sharp"]) {
+      let won = 0;
+      for (let g = 0; g < 100; g++) {
+        let R = ND.initial(), side = g % 2, turns = 0;   // side 0: the elder
+        for (;;) {
+          const a = 1 + Math.floor(rnd() * 6), b = 1 + Math.floor(rnd() * 6), dice = ND.dice4(a, b);
+          const list = ND.moves(R, dice);
+          let i;
+          if (side === 0) {
+            const t0 = performance.now();
+            i = ND.choose(R, dice, level, rnd, { list });
+            maxMs = Math.max(maxMs, performance.now() - t0);
+            if (!(i >= 0 && i < list.length)) throw new Error("the elder chose no legal play");
+          } else i = Math.floor(rnd() * list.length);
+          R = list[i].R;
+          if (R[0] === 15) { if (side === 0) won++; break; }
+          R = ND.flip(R); side = 1 - side;
+          if (++turns > 3000) throw new Error("a game against the elder did not end");
+        }
+      }
+      out[level] = won + "/100";
+      if (won < 85) throw new Error("the " + level + " elder won only " + won + " of 100 against random play");
+    }
+    out.maxDecisionMs = Math.round(maxMs * 10) / 10;
+    res.nardi = Object.assign(res.nardi || {}, { vsRandom: out });
+    if (maxMs > 150) throw new Error("the elder took " + Math.round(maxMs) + " ms over a move");
+  });
+
+  check("nardi board opens and closes", () => {
+    const keys = [Nardi.BLESS_KEY, "hs_nardi"], saved = keys.map(k => localStorage.getItem(k));
+    const T = Nardi.test;
+    const tapAt = q => {
+      const c = T.client(q.x, q.y), cv = T.root().querySelector("canvas");
+      for (const type of ["pointerdown", "pointerup"]) cv.dispatchEvent(new PointerEvent(type, { clientX: c.x, clientY: c.y, pointerId: 7, bubbles: true, pointerType: "touch" }));
+    };
+    const where = slot => slot === 0 ? T.slotXY("off0", 0, 15) : T.slotXY(slot === 25 ? "bar0" : slot, 0, 1);
+    try {
+      localStorage.removeItem(Nardi.BLESS_KEY);
+      photoMenu(false);
+      const btn = $("nardiBtn");
+      if (!btn || getComputedStyle(btn).display === "none") throw new Error("no Nardi button on the map");
+      const ch = mapChapter();
+      btn.click();
+      if (!Nardi.isOpen() || T.root().classList.contains("ndHidden") || !T.rafOn()) throw new Error("the board did not open");
+      if (!overlayEl.hasAttribute("inert")) throw new Error("the map stays in reach under the board");
+      const r = T.root().querySelector("canvas").getBoundingClientRect();
+      if (r.width < 400 || r.right > innerWidth || r.bottom > innerHeight) throw new Error("the board does not fit: " + [r.width, r.right, r.bottom]);
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { code: "ArrowRight", key: "ArrowRight", bubbles: true }));
+      if (mapChapter() !== ch) throw new Error("a key reached the map under the board");
+      // a whole game by taps: Roll, a lit checker, a lit place, Done; every turn played is a legal play
+      T.seed(5);
+      let turnsYou = 0, undone = false;
+      for (let guard = 0; T.S.phase !== "over" && guard < 6000; guard++) {
+        T.flush();
+        const S = T.S;
+        if (S.phase === "roll") $("ndMain").click();
+        else if (S.phase === "youDone") {
+          const legalKeys = new Set(ND.moves(S.start, ND.dice4(S.dice[0], S.dice[1])).map(m => ND.key(m.R)));
+          if (!legalKeys.has(ND.key(T.G))) throw new Error("a turn played by taps is not a legal play");
+          if (!undone && S.played.length) {
+            $("ndUndo").click();
+            if (ND.key(T.G) !== ND.key(S.start) || S.played.length || S.phase !== "you") throw new Error("Undo did not restore the turn");
+            undone = true;
+            continue;
+          }
+          turnsYou++;
+          $("ndMain").click();
+        } else if (S.phase === "you") {
+          const f = S.sources[0];
+          if (f === undefined) throw new Error("no checker lit on the player's move");
+          if (S.sel !== f) tapAt(where(f));
+          if (S.sel !== f || !S.targets.length) throw new Error("tapping a lit checker did not light its places");
+          const before = S.played.length;
+          tapAt(where(S.targets[0].to));
+          T.flush();
+          if (T.S.played.length === before && T.S.phase === "you") throw new Error("tapping a lit place did not move");
+        }
+      }
+      if (T.S.phase !== "over" || !undone || turnsYou < 5) throw new Error("the tapped game did not finish: " + T.S.phase + ", " + turnsYou + " turns");
+      T.flush();
+      if (!$("ndAgain") || !$("ndLeave")) throw new Error("no end-of-game card");
+      $("ndLeave").click();
+      if (Nardi.isOpen() || !T.root().classList.contains("ndHidden") || T.rafOn() || overlayEl.hasAttribute("inert")) throw new Error("the board did not close cleanly");
+      // the chapter break: the invitation, declined
+      let calls = 0;
+      offerNardi(1, () => calls++);
+      if (T.S.phase !== "invite" || !$("ndPlay") || !$("ndNo")) throw new Error("no invitation");
+      $("ndNo").click();
+      if (calls !== 1 || Nardi.isOpen()) throw new Error("Not now did not leave once");
+      // and accepted and won: the blessing waits for the next battle, which pays it once
+      calls = 0;
+      offerNardi(2, () => calls++);
+      $("ndPlay").click();
+      T.flush();
+      for (let guard = 0; T.S.phase !== "roll" && guard < 50; guard++) T.flush();
+      if (T.S.phase !== "roll") throw new Error("the player's throw never came");
+      T.G = P({ 1: 1, 0: 14, 24: -15 });
+      $("ndMain").click();
+      T.flush(); T.flush();
+      if (T.S.phase !== "over" || !T.S.result || T.S.result.winner !== 0 || !T.S.result.mars || !T.S.result.blessed) throw new Error("the last checker off did not win the blessing");
+      if (localStorage.getItem(Nardi.BLESS_KEY) !== "40" || !$("ndOnward")) throw new Error("the blessing was not set aside");
+      $("ndOnward").click();
+      if (calls !== 1 || Nardi.isOpen()) throw new Error("Onward did not leave once");
+      photoMenu(true);
+      $("startBtn").click();
+      const paid = gold, words = $("toast").textContent;
+      resetGame();
+      if (paid !== gold + 40 || localStorage.getItem(Nardi.BLESS_KEY)) throw new Error("the blessing was not paid at the battle's start: " + paid + " for " + gold);
+      if (!/blessing/.test(words)) throw new Error("no word of the blessing in the battle");
+      if (nardiBlessBattle() || gold !== paid - 40) throw new Error("the blessing was paid twice");
+    } finally {
+      if (Nardi.isOpen()) Nardi.close();
+      keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+      clearRun(); gameOver = true;
+    }
+  });
+}
+
 // ---------- main loop ----------
 let last = performance.now();
 function frame(time) {
   requestAnimationFrame(frame);
   if (photo) { draw(photo.time); return; }
+  if (Nardi.covers()) { last = time; return; }
   const dt = Math.min((time - last) / 1000, 0.05);
   last = time;
   if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
@@ -50043,6 +51799,8 @@ function runSelftest() {
       if (open() !== "0,1,2,3") throw new Error("after the third: " + open());
       if (menuMode !== "victory" || $("nextBtn").style.display === "none" || !$("nextBtn").textContent.includes(LEVELS[3].name)) throw new Error("no next-battle call");
       marchToNext();
+      if (!Nardi.isOpen() || !$("ndNo")) throw new Error("no nardi invitation at the chapter break");
+      $("ndNo").click();
       if (menuMode !== "chapter" || !/Chapter II\b/.test($("ovRubric").textContent) || introThen !== 3) throw new Error("chapter II story not shown");
       $("startBtn").click();
       if (menuMode !== "brief" || curLevel !== 3 || $("ovTitle").textContent !== LEVELS[3].name) throw new Error("no chronicle of the fourth");
@@ -50177,6 +51935,7 @@ function runSelftest() {
     const px = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
     return px[3] === 255 && (px[0] + px[1] + px[2]) > 30;
   });
+  nardiSelftest(check, res);
   setTimeout(() => {
     res.errors.push(...harnessErrors);
     res.pass = res.errors.length === 0;
