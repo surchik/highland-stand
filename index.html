@@ -870,6 +870,7 @@
     color: var(--parch); font-family: var(--face); touch-action: manipulation;
   }
   #nardi.ndHidden { display: none; }
+  #nardi:focus { outline: none; }
   #nardi .ndHead { flex: none; display: flex; align-items: center; gap: 10px; min-height: 52px; }
   #nardi .ndName {
     flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 12px; white-space: nowrap;
@@ -925,6 +926,8 @@
     to { box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 0 18px rgba(255,200,90,.75); } }
   #nardi button:hover:not(:disabled) { filter: brightness(1.14); }
   #nardi button:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  /* the focus ring is for the keyboard: the board moves the focus to Roll itself, and a tap should not ring it */
+  #nardi:not(.ndKeys) button:focus-visible { outline: none; }
   /* the dice call, over the middle of the board, gone again in a moment */
   #nardi .ndCall {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; text-align: center;
@@ -940,7 +943,8 @@
     background: rgba(14,9,4,.55); border-radius: 12px; }
   #nardi .ndCardWrap.on { display: flex; }
   #nardi .ndCard {
-    position: relative; width: min(600px, 100%); max-height: 100%; overflow-y: auto; padding: 26px 30px 22px; color: var(--ink);
+    position: relative; width: min(600px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    padding: 26px 30px 22px; color: var(--ink);
     text-align: left; border-radius: 3px; font-size: 17px; line-height: 1.5;
     background: radial-gradient(ellipse at 16% 10%, rgba(255,251,230,.6), transparent 44%), radial-gradient(ellipse at 84% 90%, rgba(150,108,50,.3), transparent 46%),
       linear-gradient(160deg, #f3e6c2, var(--parch) 45%, #dcc894 80%, var(--parch-dk));
@@ -953,7 +957,10 @@
   #nardi .ndKick { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--crimson); }
   #nardi .ndSmall { font-size: 14.5px; font-style: italic; color: #5a4222; }
   #nardi .ndBless { padding: 8px 12px; border-left: 3px solid var(--crimson); background: rgba(255,248,222,.5); }
-  #nardi .ndBtns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
+  /* a long card scrolls its text; its buttons stay under it in view */
+  #nardi .ndBody { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #nardi .ndBody > :last-child { margin-bottom: 0; }
+  #nardi .ndBtns { flex: none; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
   /* a tall screen (an iPad held upright): the line of what to do takes a row of its own above the buttons */
   @media (max-aspect-ratio: 1/1) {
     #nardi .ndStatus { order: -1; flex-basis: 100%; }
@@ -962,6 +969,42 @@
   @media (max-width: 700px) {
     #nardi .ndName { font-size: 21px; } #nardi .ndHy { font-size: 17px; }
     #nardi .ndSeg button { padding: 0 10px; font-size: 13px; }
+  }
+  /* a phone held sideways: too short for a header and a footer, so they stand as two narrow columns beside the
+     board, the elder's strength, the rules and leave on the left, the pips, what to do and the buttons on the right.
+     layout() reads the stage's row direction and fits the board to the height that is left */
+  @media (max-height: 500px) and (min-width: 560px) {
+    #nardi { flex-direction: row; gap: 10px; padding: calc(6px + var(--sat)) calc(10px + var(--sar)) calc(6px + var(--sab)) calc(10px + var(--sal)); }
+    #nardi .ndHead { flex: none; width: 124px; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; align-content: center;
+      justify-items: center; gap: 10px 6px; }
+    #nardi .ndName { grid-column: 1 / -1; flex-direction: column; align-items: center; gap: 0; font-size: 19px; letter-spacing: 2px; }
+    #nardi .ndHy { font-size: 15px; }
+    #nardi .ndSeg { grid-column: 1 / -1; justify-self: stretch; flex-direction: column; border-radius: 14px; }
+    #nardi .ndSeg button { min-height: 42px; padding: 0 6px; font-size: 13px; }
+    #nardi .ndSeg button + button { border-left: 0; border-top: 1px solid var(--bronze-sh); }
+    #nardi .ndStage { flex-direction: row; min-width: 0; gap: 12px; }
+    #nardi .ndFoot { align-self: stretch; width: 142px; min-height: 0; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+    #nardi .ndPip { justify-content: space-between; height: 34px; padding: 0 10px 0 6px; font-size: 14px; }
+    #nardi .ndStatus { flex: 0 1 auto; order: 0; font-size: 14px; line-height: 1.25; overflow: hidden; }
+    #nardi .ndActs { flex-direction: column; gap: 8px; }
+    #nardi .ndBtn { min-width: 0; padding: 0 10px; }
+    #nardi .ndCall b { font-size: 30px; }
+    #nardi .ndCall i { font-size: 14px; }
+    #nardi .ndCard { padding: 14px 20px 12px; font-size: 15px; line-height: 1.4; }
+    #nardi .ndCard h2 { font-size: 21px; margin-bottom: 6px; }
+    #nardi .ndCard li { margin-bottom: 3px; }
+    #nardi .ndSmall { font-size: 13.5px; }
+    #nardi .ndBtns { margin-top: 8px; }
+  }
+  /* and a small one: narrower columns, so the board is not held back by the width */
+  @media (max-height: 500px) and (min-width: 560px) and (max-width: 760px) {
+    #nardi .ndHead { width: 100px; }
+    #nardi .ndName { font-size: 17px; letter-spacing: 1.5px; }
+    #nardi .ndSeg button { font-size: 12px; padding: 0 4px; }
+    #nardi .ndFoot { width: 114px; }
+    #nardi .ndPip { gap: 4px; padding: 0 8px 0 5px; font-size: 13px; }
+    #nardi .ndPip b { min-width: 0; }
+    #nardi .ndStatus { font-size: 13px; }
   }
   /* the campaign map's door to the board, in the frame's top left corner (the gear keeps the right) */
   #overlay #nardiBtn {
@@ -49578,10 +49621,10 @@ const ND = (() => {
     R[1] = -2; R[12] = -5; R[17] = -3; R[19] = -5;
     return R;
   }
+  const KB = new Uint8Array(28);
   function key(R) {
-    let s = "";
-    for (let i = 0; i < 28; i++) s += String.fromCharCode(R[i] + 64);
-    return s;
+    for (let i = 0; i < 28; i++) KB[i] = R[i] + 64;
+    return String.fromCharCode.apply(null, KB);
   }
   // every checker of mine in my home board (points 1-6), none on the bar: bearing off is open
   function allHome(R) {
@@ -49641,32 +49684,46 @@ const ND = (() => {
   // every legal play of a roll, one per distinct resulting position: { R, steps }. The rules: as many dice as
   // can be played must be played; when only one of two different dice can be, it must be the higher if that
   // one can be played. With no legal move the list holds the unchanged position and no steps.
+  // The search plays and takes back each die on one working copy, the dice used and the steps so far kept in
+  // small fixed arrays: only a finished play that is new gets a position and a list of steps of its own. It is
+  // the elder's inner loop (21 replies to each play it weighs), so it makes as little garbage as it can.
   function moves(R, dice) {
-    const out = new Map();
-    let best = 0;
+    const out = new Map(), P = R.slice(), n = dice.length;
     const same = dice.every(d => d === dice[0]);
-    const rec = (P, rem, steps, lim) => {
+    const used = new Uint8Array(n), SF = new Int8Array(n), ST = new Int8Array(n), SD = new Int8Array(n), SH = new Int8Array(n);
+    let best = 0;
+    const rec = (depth, lim) => {
       let any = false;
-      for (let i = 0; i < rem.length; i++) {
-        const d = rem[i];
-        if (rem.indexOf(d) < i) continue;
-        const rest = rem.slice(0, i).concat(rem.slice(i + 1));
+      for (let i = 0; i < n; i++) {
+        if (used[i]) continue;
+        const d = dice[i];
+        let dup = false;   // equal dice left: only the first of them is tried
+        for (let j = 0; j < i; j++) if (!used[j] && dice[j] === d) { dup = true; break; }
+        if (dup) continue;
+        used[i] = 1;
         for (let f = lim; f >= 1; f--) {
-          if (target(P, f, d) < 0) continue;
+          const t = target(P, f, d);
+          if (t < 0) continue;
           any = true;
-          const P2 = P.slice();
-          const s = step(P2, f, d);
-          rec(P2, rest, steps.concat([s]), same ? f : 25);
+          let hit = 0;
+          P[f]--;
+          if (t === 0) P[0]++; else if (P[t] === -1) { P[t] = 1; P[OBAR]++; hit = 1; } else P[t]++;
+          SF[depth] = f; ST[depth] = t; SD[depth] = d; SH[depth] = hit;
+          rec(depth + 1, same ? f : 25);
+          P[f]++;
+          if (t === 0) P[0]--; else if (hit) { P[t] = -1; P[OBAR]--; } else P[t]--;
         }
+        used[i] = 0;
       }
-      if (any) return;
-      const n = steps.length;
-      if (n < best) return;
-      if (n > best) { best = n; out.clear(); }
+      if (any || depth < best) return;
+      if (depth > best) { best = depth; out.clear(); }
       const k = key(P);
-      if (!out.has(k)) out.set(k, { R: P, steps });
+      if (out.has(k)) return;
+      const steps = [];
+      for (let s = 0; s < depth; s++) steps.push([SF[s], ST[s], SD[s], SH[s]]);
+      out.set(k, { R: P.slice(), steps });
     };
-    rec(R, dice, [], 25);
+    rec(0, 25);
     let list = Array.from(out.values());
     if (!same && best === 1) {
       const hi = Math.max(dice[0], dice[1]);
@@ -49761,7 +49818,8 @@ const ND = (() => {
     return myBack > opBack;
   }
   // the reply: the other side's best answer to each of the 21 rolls by the plain evaluation, averaged and
-  // turned back to my side. Returns NaN when the deadline passes first.
+  // turned back to my side. Returns NaN when the deadline passes first: the clock is read before each roll
+  // and every 64 answers weighed within one
   function replyValue(R, deadline, now) {
     const F = flip(R);
     let sum = 0;
@@ -49769,7 +49827,11 @@ const ND = (() => {
       if (now() > deadline) return NaN;
       const list = moves(F, dice4(a, b));
       let best = -Infinity;
-      for (const m of list) { const v = evaluate(m.R); if (v > best) best = v; }
+      for (let j = 0; j < list.length; j++) {
+        if ((j & 63) === 63 && now() > deadline) return NaN;
+        const v = evaluate(list[j].R);
+        if (v > best) best = v;
+      }
       sum += n * -best;
     }
     return sum / 36;
@@ -49836,10 +49898,10 @@ const Nardi = (() => {
 
   let root = null, cv = null, cx = null, mapBtn = null;
   const el = {};
-  let open = false, raf = 0, lastFocus = null, inertWas = false;
+  let open = false, raf = 0, lastFocus = null;
   let G = ND.initial();
   let rnd = ND.rng(HARNESS_ON ? 20261018 : (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
-  let queue = [], seq = 0;
+  let queue = [], seq = 0, ran = 0;
   let L = { k: 1, dpr: 1, w: 0, h: 0 };   // the canvas: board units to CSS px (k), device pixels per CSS px
   let boardImg = null, sprites = null;
   const S = {
@@ -49850,7 +49912,15 @@ const Nardi = (() => {
     flights: [], throwA: null, press: null, drag: null, hover: null, result: null, lastMs: 0,
     stats: { won: 0, lost: 0 },
   };
-  const now = () => performance.now();
+  // the board's own clock. It stands still while the rules or the leave card is up, so nothing on the board
+  // moves behind them: the elder's turn waits until the player is back. Every wait in the queue, every
+  // flight and the dice in the air are timed on it, so nothing has to be shifted when it runs on again.
+  let heldAt = -1, heldFor = 0;
+  const now = () => (heldAt >= 0 ? heldAt : performance.now()) - heldFor;
+  function hold(on) {
+    if (on && heldAt < 0) heldAt = performance.now();
+    else if (!on && heldAt >= 0) { heldFor += performance.now() - heldAt; heldAt = -1; }
+  }
 
   // ---- what is remembered: the elder's strength and the games won and lost ----
   function loadPref() {
@@ -49872,6 +49942,7 @@ const Nardi = (() => {
       for (let i = 0; i < queue.length; i++) if (queue[i].at <= t && (best < 0 || queue[i].at < queue[best].at || (queue[i].at === queue[best].at && queue[i].n < queue[best].n))) best = i;
       if (best < 0) return;
       const job = queue.splice(best, 1)[0];
+      ran++;
       job.fn();
     }
   }
@@ -50012,7 +50083,18 @@ const Nardi = (() => {
     if (el.main.textContent !== main) el.main.textContent = main;
     el.main.disabled = !(ph === "roll" || (ph === "youDone" && !S.busy) || ph === "over");
     el.main.classList.toggle("lit", !el.main.disabled);
-    for (const b of el.seg) b.setAttribute("aria-checked", String(b.dataset.lvl === S.level));
+    for (const b of el.seg) { const on = b.dataset.lvl === S.level; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; }
+    keepFocus();
+  }
+  // the keyboard's place. When the focus is lost (to the page, to a button just disabled, or with a card's
+  // buttons taken away) it comes back to Roll / Done if that can be pressed, else to the board's own dialog,
+  // from where Space still rolls; and from there to Roll as soon as Roll can be pressed
+  function keepFocus() {
+    if (!open || S.card) return;
+    const a = document.activeElement;
+    if (a && a !== root && root.contains(a) && !a.disabled) return;
+    const to = el.main.disabled ? root : el.main;
+    if (a !== to) to.focus({ preventScroll: true });
   }
   function showCall(big, small) {
     if (!el.call) return;
@@ -50039,7 +50121,7 @@ const Nardi = (() => {
       if (a === b) { showCall("", "Both threw " + a + ": again"); later(900, rollOff); return; }
       if (a > b) {
         showCall("", "You " + a + ", the elder " + b + ": you begin");
-        later(700, () => { S.dice = []; S.shown = []; S.phase = "roll"; setStatus("Your throw: tap Roll, or tap the board."); syncFoot(); });
+        later(700, () => { S.dice = []; S.shown = []; S.phase = "roll"; setStatus("Your throw: tap or click Roll, or the board."); syncFoot(); });
       } else {
         showCall("", "The elder " + b + ", you " + a + ": the elder begins");
         later(1100, elderTurn);
@@ -50111,7 +50193,7 @@ const Nardi = (() => {
     S.sel = -1; S.targets = [];
     if (S.played.length >= S.need) {
       S.phase = "youDone";
-      setStatus(S.played.length ? "All dice played: tap Done, or Undo to play the turn again." : "Tap Done.");
+      setStatus(S.played.length ? "All dice played: tap or click Done, or Undo to play the turn again." : "Tap or click Done.");
       syncFoot();
       return;
     }
@@ -50125,8 +50207,8 @@ const Nardi = (() => {
     S.phase = "you";
     refreshSources();
     if (S.sources.length === 1) select(S.sources[0]);
-    setStatus(G[25] ? "Bring your checker in from the bar first: tap a lit point." :
-      ND.allHome(G) ? "Bearing off: tap a checker, then the tray, or a lit point." : "Your move: tap a checker, then a lit point.");
+    setStatus(G[25] ? "Bring your checker" + (G[25] > 1 ? "s" : "") + " in from the bar first: tap or click a lit point." :
+      ND.allHome(G) ? "Bearing off: tap or click a checker, then the tray or a lit point." : "Your move: tap or click a checker, then a lit point.");
     syncFoot();
   }
   // play dice one by one with the player's checker(s): [[from, die], ...]
@@ -50175,6 +50257,7 @@ const Nardi = (() => {
   function endYourTurn() {
     if (S.phase === "over") return;
     S.phase = "elder"; S.sel = -1; S.targets = []; S.sources = [];
+    setStatus("The elder's turn.");
     syncFoot();
     later(380, elderTurn);
   }
@@ -50217,7 +50300,8 @@ const Nardi = (() => {
   function yourThrowNext() {
     if (S.phase === "over") return;
     S.phase = "roll"; S.turn = 0;
-    setStatus(G[25] ? "Your throw. You have a checker on the bar." : "Your throw: tap Roll, or tap the board.");
+    setStatus(G[25] > 1 ? "Your throw. You have " + G[25] + " checkers on the bar." : G[25] ? "Your throw. You have a checker on the bar." :
+      "Your throw: tap or click Roll, or the board.");
     syncFoot();
   }
   function gameOver(winner) {
@@ -50241,8 +50325,10 @@ const Nardi = (() => {
   function renderCard() {
     if (!root) return;
     const c = S.card;
+    hold(c === "rules" || c === "leave");
+    if (c) { S.press = null; S.drag = null; }
     el.cardWrap.classList.toggle("on", !!c);
-    if (!c) { el.card.innerHTML = ""; return; }
+    if (!c) { el.card.innerHTML = ""; keepFocus(); return; }
     let h = "";
     const btn = (id, txt, cls) => '<button type="button" class="ndBtn' + (cls ? " " + cls : "") + '" id="' + id + '">' + txt + "</button>";
     if (c === "invite") {
@@ -50262,9 +50348,9 @@ const Nardi = (() => {
         "<li>Two or more of the elder's checkers close a point. A lone checker is a blot: land on it to hit it, and it goes to the bar. A checker on the bar must come back in, through the other side's home, before anything else moves.</li>" +
         "<li>Once all fifteen are home, bear them off: a die takes a checker off its own point, or off the highest point when the die is higher.</li>" +
         "<li>Bear off all fifteen first to win: one point (oyn), or two for a mars, when the loser has borne off none.</li>" +
-        "<li>Tap a checker, then a lit point (or drag it there). Undo plays the turn again until you tap Done.</li>" +
+        "<li>Tap or click a checker, then a lit point (or drag it there). Undo plays the turn again until you press Done.</li>" +
         "</ul>" +
-        '<p class="ndSmall">A Persian legend tells that when an Indian king sent chess to the court of Khosrow I as a riddle, Khosrow\'s vizier solved it and devised this game as his answer.</p>' +
+        '<p class="ndSmall">A Persian legend tells that when an Indian king sent chess to the court of Khosrow I as a riddle, Khosrow\'s grand vizier solved it and sent back a game of his own, nard, as his answer.</p>' +
         '<div class="ndBtns">' + btn("ndBack", S.phase === "invite" ? "Back" : S.phase === "over" ? "Back" : "Back to the board", "primary") + "</div>";
     } else if (c === "leave") {
       h = "<h2>Leave the game?</h2><p>The elder will put the board away." + (S.reward && !S.granted ? " An unfinished game earns no blessing." : "") + "</p>" +
@@ -50280,8 +50366,11 @@ const Nardi = (() => {
         '<p class="ndSmall">Your games against the elder: ' + S.stats.won + " won, " + S.stats.lost + " lost.</p>" +
         '<div class="ndBtns">' + (S.reward ? btn("ndOnward", "Onward", "primary") + btn("ndAgain", "Play again") : btn("ndAgain", "Play again", "primary") + btn("ndLeave", "Leave the board")) + "</div>";
     }
-    el.card.innerHTML = h;
-    el.card.scrollTop = 0;
+    // the text scrolls on a short screen; the buttons under it stay in view
+    let cut = h.indexOf('<div class="ndBtns">');
+    if (cut < 0) cut = h.length;
+    el.card.innerHTML = '<div class="ndBody">' + h.slice(0, cut) + "</div>" + h.slice(cut);
+    el.card.firstChild.scrollTop = 0;
     const first = el.card.querySelector(".ndBtn.primary") || el.card.querySelector(".ndBtn");
     if (first && open) first.focus({ preventScroll: true });
   }
@@ -50296,7 +50385,6 @@ const Nardi = (() => {
     if (id === "ndBack" || id === "ndStay") {
       S.card = id === "ndBack" && S.phase === "invite" ? "invite" : id === "ndBack" && S.phase === "over" ? "over" : "";
       renderCard();
-      if (!S.card) el.main.focus({ preventScroll: true });
       return;
     }
     if (id === "ndLeave" || id === "ndOnward") { close(); return; }
@@ -50317,6 +50405,7 @@ const Nardi = (() => {
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-modal", "true");
     root.setAttribute("aria-labelledby", "ndTitle");
+    root.tabIndex = -1;
     root.innerHTML =
       '<div class="ndHead">' +
         '<div class="ndName"><span id="ndTitle">Nardi</span><span class="ndHy" lang="hy">նարդի</span></div>' +
@@ -50368,6 +50457,8 @@ const Nardi = (() => {
       const ro = new ResizeObserver(() => { if (open) layout(); });
       ro.observe(root.querySelector(".ndStage")); ro.observe(root.querySelector(".ndFoot"));
     }
+    // the focus ring shows while the keyboard is in use (onKey), and goes with the next tap or click
+    root.addEventListener("pointerdown", () => root.classList.remove("ndKeys"), true);
     cv.addEventListener("pointerdown", onDown);
     cv.addEventListener("pointermove", onMove);
     cv.addEventListener("pointerup", onUp);
@@ -50384,7 +50475,7 @@ const Nardi = (() => {
     loadPref();
     if (!open) {
       lastFocus = document.activeElement;
-      inertWas = overlayEl.hasAttribute("inert");
+      root.classList.toggle("ndKeys", !!(lastFocus && lastFocus.matches && lastFocus.matches(":focus-visible")));
       overlayEl.setAttribute("inert", "");
       closeSettings();
       root.classList.remove("ndHidden");
@@ -50399,7 +50490,7 @@ const Nardi = (() => {
     openBoard();
     S.reward = false; S.granted = false; S.onDone = null; S.chapter = -1;
     newGame();
-    el.main.focus({ preventScroll: true });
+    keepFocus();
   }
   // at a chapter break: the invitation first; onDone runs once, however the board is left
   function offer(chapter, onDone) {
@@ -50422,7 +50513,9 @@ const Nardi = (() => {
     clearTimeout(showCall.t); el.call.classList.remove("on");
     S.phase = "idle";
     root.classList.add("ndHidden");
-    if (!inertWas) overlayEl.removeAttribute("inert");
+    // the map under the board is in reach again exactly when it is on screen. Not a snapshot taken on opening:
+    // syncOverlayUp() runs from a MutationObserver, so the overlay's inert can be stale at that moment
+    overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
     if (lastFocus && lastFocus.isConnected && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
     lastFocus = null;
     const done = S.onDone;
@@ -50437,6 +50530,7 @@ const Nardi = (() => {
   }
   function onDown(e) {
     if (!open || S.card) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;   // a right or middle click is not a tap
     Snd.init();
     const b = toBoard(e);
     S.press = { id: e.pointerId, x: b.x, y: b.y, h: hitTest(b.x, b.y), sx: e.clientX, sy: e.clientY };
@@ -50498,6 +50592,7 @@ const Nardi = (() => {
   function onKey(e) {
     if (!open) return;
     if (e.code === "KeyM" || e.code === "KeyS") return;   // music and sound keep their keys
+    root.classList.add("ndKeys");
     const onBtn = e.target && e.target.closest && e.target.closest("button");
     if (e.code === "Escape") {
       if (S.card === "rules") { S.card = S.phase === "invite" ? "invite" : S.phase === "over" ? "over" : ""; renderCard(); }
@@ -50509,6 +50604,12 @@ const Nardi = (() => {
       e.preventDefault();
     } else if ((e.code === "KeyU" || e.code === "Backspace") && !S.card) {
       undo();
+      e.preventDefault();
+    } else if (e.code.startsWith("Arrow") && onBtn && el.seg.includes(onBtn)) {
+      // the elder's strength is a radio group: an arrow moves to the other choice and takes it
+      const n = el.seg.length, back = e.code === "ArrowLeft" || e.code === "ArrowUp";
+      const b = el.seg[(el.seg.indexOf(onBtn) + (back ? n - 1 : 1)) % n];
+      b.click(); b.focus();
       e.preventDefault();
     } else if (e.code.startsWith("Arrow") && !onBtn) e.preventDefault();
     e.stopImmediatePropagation();
@@ -50522,7 +50623,10 @@ const Nardi = (() => {
     // the board takes the stage less the footer under it; the two sit together in the middle of the stage
     const stage = root.querySelector(".ndStage"), foot = root.querySelector(".ndFoot");
     const r = stage.getBoundingClientRect();
-    const k = Math.max(0.2, Math.min((r.width - 4) / BW, (r.height - foot.offsetHeight - 14) / BH));
+    // a phone held sideways sets the footer beside the board (the stylesheet's short-screen block)
+    const side = getComputedStyle(stage).flexDirection === "row";
+    const k = Math.max(0.2, side ? Math.min((r.width - foot.offsetWidth - 14) / BW, (r.height - 4) / BH)
+      : Math.min((r.width - 4) / BW, (r.height - foot.offsetHeight - 14) / BH));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = Math.round(BW * k), h = Math.round(BH * k);
     if (w === L.w && h === L.h && dpr === L.dpr && boardImg) return;
@@ -50770,10 +50874,15 @@ const Nardi = (() => {
   function loop() {
     raf = open ? requestAnimationFrame(loop) : 0;
     if (!open) return;
-    const t = now();
-    runDue(t);
+    const t = advance();
     if (!window.ResizeObserver) layout();
     draw(t);
+  }
+  // a frame's worth of the game: what is due by the board's clock runs, unless a card holds the clock
+  function advance() {
+    const t = now();
+    if (heldAt < 0) runDue(t);
+    return t;
   }
   function draw(t) {
     if (!cx || !boardImg) return;
@@ -50908,7 +51017,10 @@ const Nardi = (() => {
 
   // ---- what the self-test drives ----
   const test = {
-    get G() { return G; }, set G(v) { G = v; }, S, flush, tap, hitTest, colX, slotXY,
+    get G() { return G; }, set G(v) { G = v; }, S, flush, tap, hitTest, colX, slotXY, now, advance,
+    held: () => heldAt >= 0, queued: () => queue.length, ran: () => ran,
+    // the board's clock moved on by ms at once, as if that long had passed (and not under a card)
+    skip(ms) { heldFor -= ms; },
     layout: () => L, isOpen: () => open, rafOn: () => raf !== 0, root: () => root,
     seed(n) { rnd = ND.rng(n); },
     // the board point under which a slot's top checker lies, in client pixels
@@ -50930,14 +51042,17 @@ function nardiBlessBattle() {
   gold += v;
   syncHud();
   toast("The village elder's blessing: +" + v + " 🪙");
+  saveRun();   // a battle left before anything is built resumes with the blessing in its purse
   return true;
 }
 
 // ---- nardi: the self-test's checks (called from runSelftest) ----
 // The rules on known positions; random games replayed against the rules written out again from scratch, and
-// whole rolls compared with a brute force over every order of the dice; the elder against a random player; and
-// the board itself: opened from the map, a game played to the end by taps on the canvas, Undo, leaving, the
-// chapter-break invitation declined and won, and the blessing paid once at the next battle.
+// whole rolls compared with a brute force over every order of the dice; the elder against a random player, and its
+// deadline on clocks of the test's own; and the board itself: opened from the map, a game played to the end by
+// taps on the canvas, Undo, leaving, the chapter-break invitation declined and won, the blessing paid once at the
+// next battle and kept with the run; and the board waiting behind its rules and leave cards, with the keyboard's
+// focus, the strength radios and a right click.
 function nardiSelftest(check, res) {
   const P = spec => { const R = new Int8Array(28); for (const k in spec) R[k] = spec[k]; return R; };
   const fifteen = R => {
@@ -51064,7 +51179,7 @@ function nardiSelftest(check, res) {
 
   check("nardi elder vs random", () => {
     const rnd = ND.rng(777), out = {};
-    let maxMs = 0;
+    let maxMs = 0, slowest = null;
     for (const level of ["gentle", "sharp"]) {
       let won = 0;
       for (let g = 0; g < 100; g++) {
@@ -51076,7 +51191,8 @@ function nardiSelftest(check, res) {
           if (side === 0) {
             const t0 = performance.now();
             i = ND.choose(R, dice, level, rnd, { list });
-            maxMs = Math.max(maxMs, performance.now() - t0);
+            const ms = performance.now() - t0;
+            if (ms > maxMs) { maxMs = ms; slowest = { R: R.slice(), dice, level }; }
             if (!(i >= 0 && i < list.length)) throw new Error("the elder chose no legal play");
           } else i = Math.floor(rnd() * list.length);
           R = list[i].R;
@@ -51088,9 +51204,65 @@ function nardiSelftest(check, res) {
       out[level] = won + "/100";
       if (won < 85) throw new Error("the " + level + " elder won only " + won + " of 100 against random play");
     }
+    // the elder's time is reported, not judged move by move: a pause for garbage collection or a busy machine
+    // can fall on any one move, and its deadline is tested on its own clock below. The slowest move is timed
+    // again three times: only when every one of them is slow is the search itself too slow
     out.maxDecisionMs = Math.round(maxMs * 10) / 10;
+    let again = 0;
+    if (slowest) {
+      again = Infinity;
+      for (let k = 0; k < 3; k++) {
+        const t0 = performance.now();
+        ND.choose(slowest.R, slowest.dice, slowest.level, ND.rng(k + 1));
+        again = Math.min(again, performance.now() - t0);
+      }
+      out.slowestAgainMs = Math.round(again * 10) / 10;
+    }
     res.nardi = Object.assign(res.nardi || {}, { vsRandom: out });
-    if (maxMs > 150) throw new Error("the elder took " + Math.round(maxMs) + " ms over a move");
+    if (again > 150) throw new Error("the elder's slowest move still took " + Math.round(again) + " ms the best of three times");
+  });
+
+  // the sharp elder's look-ahead stops at its deadline, tested on clocks of the test's own (no wall-clock time
+  // in it): a clock that stands still lets the whole look-ahead run, one that moves 5 ms a reading stops it in
+  // the first play weighed (the plain ranking stands), one that moves 1 ms stops it further in, and one already
+  // past the deadline keeps the plain ranking. The clock is never read more than once past the deadline.
+  check("nardi elder keeps its deadline", () => {
+    const rnd = ND.rng(4242), cases = [];
+    for (const [a, b] of ND.ROLLS) cases.push([ND.initial(), ND.dice4(a, b)]);
+    for (let g = 0; cases.length < 180 && g < 60; g++) {
+      let R = ND.initial();
+      for (let turn = 0; turn < 80; turn++) {
+        const dice = ND.dice4(1 + Math.floor(rnd() * 6), 1 + Math.floor(rnd() * 6));
+        const list = ND.moves(R, dice);
+        if (turn % 4 === 1 && list.length > 1 && ND.contact(R)) cases.push([R, dice]);
+        R = list[Math.floor(rnd() * list.length)].R;
+        if (R[0] === 15) break;
+        R = ND.flip(R);
+      }
+    }
+    const legalI = (i, list) => Number.isInteger(i) && i >= 0 && i < list.length;
+    const clock = (step, budget) => {
+      const c = { t: 0, reads: 0, late: 0 };
+      c.now = () => { c.t += step; c.reads++; if (c.t > step + budget) c.late++; return c.t; };
+      return c;
+    };
+    let cut = 0, cutLater = 0;
+    for (const [R, dice] of cases) {
+      const list = ND.moves(R, dice);
+      let plain = 0;
+      for (let i = 1; i < list.length; i++) if (ND.evaluate(list[i].R, ND.W.sharp) > ND.evaluate(list[plain].R, ND.W.sharp)) plain = i;
+      const full = ND.choose(R, dice, "sharp", ND.rng(1), { list, now: () => 0, budget: 80 });
+      if (!legalI(full, list) || ND.choose(R, dice, "sharp", ND.rng(1), { list, budget: 1e9 }) !== full) throw new Error("the whole look-ahead is not the same on every clock");
+      const c5 = clock(5, 80), mid = ND.choose(R, dice, "sharp", ND.rng(1), { list, now: c5.now, budget: 80 });
+      const c1 = clock(1, 80), late = ND.choose(R, dice, "sharp", ND.rng(1), { list, now: c1.now, budget: 80 });
+      const c0 = clock(1000, 80), none = ND.choose(R, dice, "sharp", ND.rng(1), { list, now: c0.now, budget: 80 });
+      if (!legalI(mid, list) || !legalI(late, list) || none !== plain) throw new Error("past its deadline the elder chose no legal play, or not the plain ranking");
+      if (c5.late > 1 || c1.late > 1 || c0.late > 1) throw new Error("the elder read the clock " + Math.max(c5.late, c1.late, c0.late) + " times past its deadline");
+      if (c5.late) { cut++; if (mid !== plain) throw new Error("a look-ahead cut short in its first play did not keep the plain ranking"); }
+      if (c1.late) cutLater++;
+    }
+    res.nardi = Object.assign(res.nardi || {}, { deadline: { positions: cases.length, cutAt5ms: cut, cutAt1ms: cutLater } });
+    if (cut < 20 || cutLater < 5) throw new Error("too few positions reached the deadline: " + cut + ", " + cutLater);
   });
 
   check("nardi board opens and closes", () => {
@@ -51154,6 +51326,11 @@ function nardiSelftest(check, res) {
       if (T.S.phase !== "invite" || !$("ndPlay") || !$("ndNo")) throw new Error("no invitation");
       $("ndNo").click();
       if (calls !== 1 || Nardi.isOpen()) throw new Error("Not now did not leave once");
+      // an inert left on the map by a change its MutationObserver has not answered yet is not kept by the board
+      overlayEl.setAttribute("inert", "");
+      offerNardi(1, () => calls++);
+      $("ndNo").click();
+      if (overlayEl.hasAttribute("inert")) throw new Error("the board left the map out of reach");
       // and accepted and won: the blessing waits for the next battle, which pays it once
       calls = 0;
       offerNardi(2, () => calls++);
@@ -51174,11 +51351,88 @@ function nardiSelftest(check, res) {
       resetGame();
       if (paid !== gold + 40 || localStorage.getItem(Nardi.BLESS_KEY)) throw new Error("the blessing was not paid at the battle's start: " + paid + " for " + gold);
       if (!/blessing/.test(words)) throw new Error("no word of the blessing in the battle");
+      const run = getSavedRun();
+      if (!run || run.gold !== paid) throw new Error("the blessing was not kept with the run: " + (run && run.gold) + " for " + paid);
       if (nardiBlessBattle() || gold !== paid - 40) throw new Error("the blessing was paid twice");
     } finally {
       if (Nardi.isOpen()) Nardi.close();
       keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
       clearRun(); gameOver = true;
+    }
+  });
+
+  // the board waits behind the rules and the leave card (its clock stands still, the elder's turn with it),
+  // the keyboard keeps its place in the board, the strength radios answer the arrows, and a right click is no tap
+  check("nardi waits behind its cards", () => {
+    const keys = [Nardi.BLESS_KEY, "hs_nardi"], saved = keys.map(k => localStorage.getItem(k));
+    const T = Nardi.test, S = T.S;
+    // the board's clock moved on 50 ms a frame, the player rolling and finishing turns when asked
+    const drive = (until, n) => {
+      for (let g = 0; g < (n || 3000) && !until(); g++) {
+        if (S.phase === "roll" || S.phase === "youDone") $("ndMain").click();
+        T.skip(50); T.advance();
+      }
+      return until();
+    };
+    const key = (code, on) => (on || document.body).dispatchEvent(new KeyboardEvent("keydown", { code, key: code, bubbles: true }));
+    const inBoard = () => document.activeElement && document.activeElement !== document.body && T.root().contains(document.activeElement);
+    const click = (q, button) => {
+      const c = T.client(q.x, q.y), cv = T.root().querySelector("canvas");
+      for (const type of ["pointerdown", "pointerup"]) cv.dispatchEvent(new PointerEvent(type, { clientX: c.x, clientY: c.y, pointerId: 9, bubbles: true, pointerType: "mouse", button, buttons: type === "pointerdown" ? 1 << (button === 2 ? 1 : 0) : 0 }));
+    };
+    try {
+      photoMenu(false);
+      Nardi.play();
+      let seed = 1;   // a seed with which the elder wins the opening throw
+      for (;; seed++) { const r = ND.rng(seed), a = 1 + Math.floor(r() * 6), b = 1 + Math.floor(r() * 6); if (b > a) break; }
+      T.seed(seed);
+      if (!drive(() => S.phase === "elder" && T.queued() > 0)) throw new Error("the elder's turn never came: " + S.phase);
+      // the rules card during the elder's turn: nothing moves under it, however long it stays up
+      $("ndRules").click();
+      if (S.card !== "rules" || !T.held()) throw new Error("the rules card does not hold the board");
+      const k0 = ND.key(T.G), q0 = T.queued(), r0 = T.ran(), t0 = T.now(), w0 = performance.now();
+      while (performance.now() - w0 < 12) {}
+      if (T.now() !== t0) throw new Error("the board's clock ran under the rules card");
+      T.skip(60000); T.advance();
+      if (T.ran() !== r0 || ND.key(T.G) !== k0 || T.queued() !== q0 || S.phase !== "elder") throw new Error("the elder played behind the rules card");
+      $("ndBack").click();
+      if (S.card || T.held()) throw new Error("the board stays held after the rules card");
+      if (!inBoard()) throw new Error("the focus left the board with the rules card");
+      if (!drive(() => S.phase === "roll")) throw new Error("the elder's turn did not go on after the rules card: " + S.phase);
+      if (document.activeElement !== $("ndMain")) throw new Error("the focus is not on Roll when Roll can be pressed");
+      // the leave card, by Escape, in the player's own throw: the throw waits; Escape again goes back to it
+      $("ndMain").click();
+      if (S.phase !== "throw" || !T.queued()) throw new Error("the player's throw did not start");
+      key("Escape");
+      if (S.card !== "leave" || !T.held()) throw new Error("the leave card does not hold the board");
+      const r1 = T.ran();
+      T.skip(60000); T.advance();
+      if (T.ran() !== r1 || S.phase !== "throw") throw new Error("the game went on behind the leave card");
+      key("Escape");
+      if (S.card || T.held() || !inBoard()) throw new Error("Escape did not give the board back with the focus in it");
+      // a right click on the board is not a tap: it neither lifts a checker nor plays one
+      if (!drive(() => S.phase === "you" && S.sources.length > 0 && !S.busy)) throw new Error("no move of the player's came: " + S.phase);
+      const where = slot => slot === 0 ? T.slotXY("off0", 0, 15) : T.slotXY(slot === 25 ? "bar0" : slot, 0, 1);
+      const sel = S.sel, g0 = ND.key(T.G), n0 = S.played.length;
+      const spot = sel >= 0 ? where(S.targets[0].to) : where(S.sources[0]);
+      click(spot, 2);
+      T.flush();
+      if (S.sel !== sel || ND.key(T.G) !== g0 || S.played.length !== n0) throw new Error("a right click played on the board");
+      click(spot, 0);
+      T.flush();
+      if (S.sel === sel && S.played.length === n0) throw new Error("a left click did nothing where the right click was tried");
+      // the elder's strength: one radio in the Tab order, the arrows move along the two and take the one reached
+      const seg = Array.from(T.root().querySelectorAll(".ndSeg button")), lv = S.level;
+      const cur = seg.find(b => b.dataset.lvl === lv), other = seg.find(b => b !== cur);
+      if (cur.tabIndex !== 0 || other.tabIndex !== -1) throw new Error("both strength radios are in the Tab order");
+      cur.focus();
+      key("ArrowRight", cur);
+      if (S.level === lv || document.activeElement !== other || other.getAttribute("aria-checked") !== "true" || other.tabIndex !== 0) throw new Error("an arrow did not move along the strength radios");
+      key("ArrowLeft", other);
+      if (S.level !== lv || document.activeElement !== cur) throw new Error("an arrow back did not take the first strength again");
+    } finally {
+      if (Nardi.isOpen()) Nardi.close();
+      keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
     }
   });
 }
