@@ -20,6 +20,10 @@
     --crimson: #a8322a; --green: #4f7a3a;
     --tray-h: 90px;
     --face: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    /* names in Armenian script: Palatino has no Armenian, so a face that has it (Noto Serif Armenian where it is
+       installed, Mshtakan on the Mac, Sylfaen on Windows, DejaVu on Linux; any other system, iPadOS among them,
+       falls back to its own Armenian face); mirrored by HY_FONT */
+    --hy-face: "Noto Serif Armenian", Mshtakan, Sylfaen, "Noto Sans Armenian", "Arian AMU", "DejaVu Serif", serif;
     --grain: repeating-linear-gradient(91deg, rgba(255,235,190,.024) 0 2px, rgba(0,0,0,.04) 2px 5px, rgba(255,235,190,.012) 5px 9px);
     --stud: radial-gradient(circle at 38% 36%, #f0cf85 0 1.1px, #b98a3e 1.3px 2.5px, rgba(0,0,0,.5) 2.7px 3.4px, transparent 3.7px);
     /* carved moulding, 7px tall: three bronze beads lit from above, a rivet every 28px (tile it 28px 7px) */
@@ -430,6 +434,13 @@
     filter: drop-shadow(0 2px 0 #3d280c) drop-shadow(0 6px 14px rgba(0,0,0,.6));
   }
   #overlay .ovRule { width: min(78vw, 430px); height: 12px; display: block; margin-top: -2px; }
+  /* a name in Armenian letters under the title: a battlefield's on its victory page and its chronicle, a chapter's
+     on its story. Empty (the map, a defeat, a name that stays English-only), it takes no room at all */
+  #ovHy { display: none; }
+  #overlay #ovHy:not(:empty) {
+    display: block; margin-top: -4px; font-family: var(--hy-face); font-size: clamp(19px, 2.3vw, 26px); font-weight: 700;
+    letter-spacing: 1.5px; line-height: 1.2; color: var(--bronze-hi); text-shadow: 0 2px 0 #3d280c, 0 4px 12px rgba(0,0,0,.6);
+  }
   #ovRubric, #ovPage .headpiece, #ovPage .corner, #ovPage .briefLeft, #ovPage .sideband { display: none; }
   #overlay .sub { font-size: clamp(14px, 2vw, 17px); color: var(--parch); max-width: 900px; padding: 0 28px; line-height: 1.5; }
   #overlay .sub .ic { width: 1.15em; height: 1.15em; vertical-align: -.22em; color: var(--bronze-hi); }
@@ -491,11 +502,11 @@
   #overlay.brief .chapterBar { display: none; }
   /* the leaf's page turner: arrows either side of a row of beads, the current page's bead in crimson */
   .ovPager { display: none; }
-  #overlay.brief .ovPager.on { display: flex; grid-column: 2; grid-row: 7; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+  #overlay.brief .ovPager.on { display: flex; grid-column: 2; grid-row: 8; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
   /* one "did you know" from the battlefield's facts, set small under the page turner */
   .ovFact { display: none; }
   #overlay.brief .ovFact.on {
-    display: block; grid-column: 2; grid-row: 8; max-width: 92%; margin-top: 10px; text-align: center;
+    display: block; grid-column: 2; grid-row: 9; max-width: 92%; margin-top: 10px; text-align: center;
     font-size: 14.5px; line-height: 1.4; font-style: italic; color: #5a4222;
   }
   #overlay.brief .ovFact b { font-style: normal; font-variant: small-caps; letter-spacing: .5px; color: var(--crimson); margin-right: 6px; }
@@ -597,7 +608,7 @@
   /* the chronicle: the same content block opens as an illuminated spread, a framed miniature of the
      battlefield and the invader's host on the left, the history on the right */
   #overlay.brief #ovPage {
-    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto auto auto 1fr;
+    display: grid; grid-template-columns: 46% minmax(0, 1fr) 22px; grid-template-rows: 1fr auto auto auto auto auto auto auto auto 1fr;
     column-gap: 30px; row-gap: 0; align-items: start; justify-items: center;
     width: min(94vw, 1080px); padding: 30px 30px 30px 32px; margin-bottom: 8px; color: var(--ink); border-radius: 3px;
     background:
@@ -636,6 +647,14 @@
   }
   .briefHost .foe.boss .disc { border-color: var(--crimson); box-shadow: 0 0 0 1px #5e1813, 0 2px 3px rgba(60,35,10,.45), inset 0 1px 0 rgba(255,235,190,.3); }
   .briefHost .nm { font-size: 9.300px; line-height: 1.16; font-weight: 700; letter-spacing: -.15px; text-align: center; color: #4a3318; }
+  /* under the miniature, the hero who holds the field, and his name in Armenian letters when he was a real person */
+  .briefHero { display: none; }
+  #overlay.brief .briefHero:not(:empty) {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 10px; margin: -3px 0 -5px;
+    font-size: 15.5px; line-height: 1.3; color: var(--ink);
+  }
+  .briefHero .k { font-size: 14px; font-weight: 700; font-variant: small-caps; letter-spacing: .8px; color: var(--crimson); }
+  .briefHero .hy { font-family: var(--hy-face); font-size: 15px; font-weight: 600; color: #5e4120; }
   #overlay.brief #ovPage .sideband {
     display: block; position: relative; grid-column: 3; grid-row: 1 / -1; align-self: stretch; width: 22px;
     border: 1.600px solid var(--crimson); border-radius: 2px; background: #dcc48e; box-shadow: inset 0 0 0 1px #8a6a36;
@@ -643,7 +662,7 @@
   .sideband svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
   #overlay.brief #ovPage .headpiece { display: block; grid-column: 2; grid-row: 2; width: 300px; max-width: 100%; height: 21px; margin-bottom: 14px; }
   /* the title rule moves to the foot of the text as a red tailpiece */
-  #overlay.brief .ovRule { grid-column: 2; grid-row: 6; width: 300px; max-width: 100%; margin-top: 16px; }
+  #overlay.brief .ovRule { grid-column: 2; grid-row: 7; width: 300px; max-width: 100%; margin-top: 16px; }
   #overlay.brief .ovRule path { fill: var(--crimson); stroke: none; }
   #overlay.brief .ovHead { display: contents; }
   #overlay.brief .crest {
@@ -675,8 +694,11 @@
     font-size: clamp(30px, 4.4vw, 46px); letter-spacing: .5px; text-transform: none; padding: 0;
     background: none; -webkit-text-fill-color: var(--ink); color: var(--ink); filter: none;
   }
+  #overlay.brief #ovHy:not(:empty) {
+    grid-column: 2; grid-row: 4; margin-top: 3px; font-size: 22px; font-weight: 600; letter-spacing: 1px; color: #5e4120; text-shadow: none;
+  }
   #overlay.brief #ovRubric {
-    display: block; grid-column: 2; grid-row: 4; margin-top: 6px; max-width: 100%; white-space: nowrap;
+    display: block; grid-column: 2; grid-row: 5; margin-top: 6px; max-width: 100%; white-space: nowrap;
     font-size: 16.500px; font-weight: 700; font-variant: small-caps; letter-spacing: 1.600px; color: var(--crimson);
   }
   #ovRubric::before, #ovRubric::after {
@@ -685,7 +707,7 @@
   }
   /* set ragged-right like a scribe's column: no stretched word gaps, no broken words */
   #overlay.brief .sub {
-    grid-column: 2; grid-row: 5; justify-self: stretch; max-width: none; padding: 0; margin-top: 16px;
+    grid-column: 2; grid-row: 6; justify-self: stretch; max-width: none; padding: 0; margin-top: 16px;
     font-size: 19.500px; line-height: 1.660; color: var(--ink); text-align: left; hyphens: manual; -webkit-hyphens: manual;
   }
   /* the versal stands tight against the rest of its word, which follows in small capitals */
@@ -706,6 +728,10 @@
     .briefHost .nm { font-size: 8.700px; letter-spacing: -.25px; }
     #overlay.brief h1 { font-size: 34px; }
     #overlay.brief #ovRubric { font-size: 15px; margin-top: 3px; }
+    #overlay.brief #ovHy:not(:empty) { font-size: 19px; margin-top: 1px; }
+    #overlay.brief .briefHero:not(:empty) { font-size: 14px; margin: -5px 0 -7px; }
+    .briefHero .k { font-size: 13px; }
+    .briefHero .hy { font-size: 13.5px; }
     #overlay.brief .sub { font-size: 17px; line-height: 1.56; margin-top: 10px; }
     #ovSub .versal { font-size: 68px; line-height: 50px; margin-top: 4px; }
     #overlay.brief #ovPage .headpiece { margin-bottom: 8px; }
@@ -1340,6 +1366,7 @@
     <svg class="corner c4" aria-hidden="true"><use href="#i-corner"/></svg>
     <div class="briefLeft">
       <canvas id="briefArt" width="960" height="940"></canvas>
+      <div class="briefHero" id="briefHero"></div>
       <div class="briefHost" id="briefHost"></div>
     </div>
     <div class="sideband" aria-hidden="true"><svg><rect x="1.400" y="0" width="16" height="100%" fill="url(#braidV)"/></svg></div>
@@ -1352,6 +1379,7 @@
       <div class="crest" id="ovCrest"><svg class="ic"><use href="#i-crest"/></svg></div>
       <h1 id="ovTitle">Highland Stand</h1>
     </div>
+    <div id="ovHy" lang="hy"></div>
     <svg class="ovRule" viewBox="0 0 430 12" aria-hidden="true">
       <path d="M0 6 215 4.600 430 6 215 7.400z" fill="#b98a3e"/>
       <path d="M215 .800 221 6l-6 5.200L209 6z" fill="#f0cf85" stroke="#6e4d1e" stroke-width="1"/>
@@ -2236,6 +2264,93 @@ function chapterSpan(c) {
 // the pages of a battlefield's chronicle: L.chronicle when it has one, else its single history paragraph
 function levelPages(L) {
   return L.chronicle && L.chronicle.length ? L.chronicle : [L.history || ""];
+}
+
+// ---- the names in Armenian letters ----
+// A battlefield, a chapter with an Armenian name of its own, and a hero who was a real, named person carry their
+// name in Armenian script, set under the English one on the chronicle, the campaign map's plates, the chapter's
+// story and the victory page (a hero's under his name beneath the chronicle's miniature). A battlefield gives
+// the place's own name (Ավարայր for "Avarayr Plain", Դվին for "Dvin Gates"), not a translation of its title.
+// The spelling is standard modern Eastern Armenian in the reformed orthography used in Armenia today. `classical`
+// keeps, unshown, the classical (Mashtotsian) spelling still used in the Western Armenian diaspora wherever it
+// differs; `byRule` marks one derived from the regular correspondences of the reform (-յան for -եան, ե for է,
+// վ for ւ, և for եւ) rather than seen in print. Names absent here stay English-only: the anonymous defenders
+// (the Captain of Shirak, the volunteers of 2020 and 2023) and the chapter titles coined for this game
+// ("Kingdoms of the Highlands", "Faith and Crown", "The Long Night"). Every spelling was checked in October 2026
+// against the sources below, numbered in each row; the list still wants a native speaker's review.
+//  [1] en.wikipedia.org/wiki/Erebuni_Fortress: "Էրեբունի ամրոց"
+//  [2] en.wikipedia.org/wiki/Argishti_I: "Argishti I (Armenian: Արգիշտի Ա)", "the city of Erebuni (Էրեբունի)"
+//  [3] en.wikipedia.org/wiki/Tushpa: Armenian names Տոսպ, "Տուշպա֊Վան"
+//  [4] en.wikipedia.org/wiki/Battle_of_Avarayr: "Ավարայրի ճակատամարտ"
+//  [5] en.wikipedia.org/wiki/Dvin_(ancient_city): "Dvin (Armenian: Դվին)", the early authors' form Դուին;
+//      armenpress.am/hy/article/739223: "Հնագետները Դվինի պեղավայրում..."
+//  [6] en.wikipedia.org/wiki/Tashir: "Tashir (Տաշիր)"
+//  [7] en.wikipedia.org/wiki/Lake_Sevan: "Սևանա լիճ"; en.wiktionary.org/wiki/Sevan: classical "Սեւան"
+//  [8] en.wikipedia.org/wiki/Gyumri: "Գյումրի"; haigrepository.haigazian.edu.lb/handle/123456789/1489: classical
+//      "Գիւմրի. Դասական քաղաքի արդի մշակութային կեանքի ուրուագիծ"
+//  [9] haigrepository.haigazian.edu.lb/handle/123456789/488: M. Hasratyan, "Հալիձորի բերդը" (1972)
+// [10] en.wikipedia.org/wiki/Defense_of_Van_(1915): "Vani herosamart"; with [3] "Տուշպա֊Վան"
+// [11] en.wikipedia.org/wiki/Musa_Dagh: "Armenian: Մուսա լեռ, Musa leṛ"
+// [12] en.wikipedia.org/wiki/Battle_of_Sardarabad: "Սարդարապատի ճակատամարտ"
+// [13] armenpress.am/hy/article/1030209: "Ստեփանակերտը հոսանքազրկված է"; azat.tv/stepankert-hretani/
+// [14] en.wikipedia.org/wiki/Shusha: Armenian Շուշի
+// [15] en.wikipedia.org/wiki/Artsakh_(historical_province): "Artsakh (Armenian: Արցախ)"
+// [16] arar.sci.am/publication/458543: V. Sargsyan (2025), on Urartu and Assyria under "Սարդուրի II"; the
+//      regnal number is set as a letter, as [2] sets Արգիշտի Ա and [18] Աշոտ Բ
+// [17] military-history.fandom.com/wiki/Vardan_Mamikonian: "Վարդան Մամիկոնյան"; en.wikipedia.org/wiki/
+//      Vardan_Mamikonian: classical "Վարդան Մամիկոնեան"
+// [18] en.wikipedia.org/wiki/Theodore_Rshtuni: "Թեոդորոս Ռշտունի"
+// [19] en.wikipedia.org/wiki/Ashot_II_of_Armenia: "Ashot II 'the Iron' (Armenian: Աշոտ Երկաթ)"
+// [20] en.wikipedia.org/wiki/Davit_Bek,_Armenia: "Armenian: Դավիթ Բեկ"; Raffi's novel in classical print,
+//      goodreads.com/work/quotes/6863596: "Դաւիթ Բէկ"
+// [21] lib.armedu.am/files/resource/files/2023-05-25/9ddf426c9abdd74ad6a19a67cc966831.pdf: "Արամ Մանուկյանը
+//      ծնվել է 1879 թ."; arar.sci.am/Content/362630/43-56.pdf: "Հանրապետության հիմնադիր Արամ Մանուկյանը"
+// [22] arar.sci.am, articles on Werfel's novel and its prototypes (Content/381842/190-203.pdf, Content/176195):
+//      "Մովսես Տեր Գալուստյան", "Մովսես տեր Գալուստյանին" (written there without the hyphen that Eastern usage
+//      puts after Տեր-, as in [25]); asbarez.am/?p=466029, his son "Վազգէն Տէր Գալուստեան" in classical print
+// [23] en.wikipedia.org/wiki/Movses_Silikyan: "Armenian: Մովսես Սիլիկյան"; hhpress.am/?p=11419: "գեներալ
+//      Մովսես Սիլիկյանի գլխավորությամբ"
+// [24] armenpress.am/hy/article/1086743, on the Syunik rising, found for the exact spelling Դավիթ Բեկ
+// [25] azat.tv/naxagah-komandos/: "Արմեն Սարգսյանն այցելել է Արկադի Տեր-Թադևոսյանի տուն"
+// Keys are the English names in LEVELS and CHAPTERS; the self-test checks that every one is still matched.
+const HY_NAMES = {
+  field: {
+    "Erebuni Rise":     { hy: "Էրեբունի" },                                   // [1] [2]
+    "Vale of Tushpa":   { hy: "Տուշպա" },                                     // [3]
+    "Avarayr Plain":    { hy: "Ավարայր" },                                    // [4]
+    "Dvin Gates":       { hy: "Դվին", classical: "Դուին" },                   // [5]
+    "Tashir Gates":     { hy: "Տաշիր" },                                      // [6]
+    "Sevan Shores":     { hy: "Սևան", classical: "Սեւան" },                   // [7]
+    "Gyumri Road":      { hy: "Գյումրի", classical: "Գիւմրի" },               // [8]
+    "Halidzor":         { hy: "Հալիձոր" },                                    // [9]
+    "Van":              { hy: "Վան" },                                        // [10] [3]
+    "Musa Dagh":        { hy: "Մուսա լեռ" },                                  // [11]
+    "Sardarapat":       { hy: "Սարդարապատ" },                                 // [12]
+    "Stepanakert":      { hy: "Ստեփանակերտ" },                                // [13]
+    "Shushi":           { hy: "Շուշի" },                                      // [14]
+    "Stepanakert 2023": { hy: "Ստեփանակերտ" },                                // [13]
+  },
+  chapter: {
+    "Artsakh":          { hy: "Արցախ" },                                      // [15]
+  },
+  hero: {
+    "Argishti I":            { hy: "Արգիշտի Ա" },                             // [2]
+    "Sarduri II":            { hy: "Սարդուրի Բ" },                            // [16]
+    "Vardan Mamikonian":     { hy: "Վարդան Մամիկոնյան", classical: "Վարդան Մամիկոնեան" },          // [17]
+    "Theodoros Rshtuni":     { hy: "Թեոդորոս Ռշտունի" },                      // [18]
+    "Ashot II":              { hy: "Աշոտ Բ" },                                // [19]
+    "Ashot II Erkat":        { hy: "Աշոտ Բ Երկաթ" },                          // [19]
+    "Davit Bek":             { hy: "Դավիթ Բեկ", classical: "Դաւիթ Բէկ" },     // [20] [24]
+    "Aram Manukian":         { hy: "Արամ Մանուկյան", classical: "Արամ Մանուկեան", byRule: true },  // [21]
+    "Movses Ter-Kalustian":  { hy: "Մովսես Տեր-Գալուստյան", classical: "Մովսէս Տէր Գալուստեան" },   // [22]
+    "Movses Silikyan":       { hy: "Մովսես Սիլիկյան", classical: "Մովսէս Սիլիկեան", byRule: true }, // [23]
+    "Arkady Ter-Tadevosyan": { hy: "Արկադի Տեր-Թադևոսյան", classical: "Արկադի Տէր-Թադէոսեան", byRule: true }, // [25]
+  },
+};
+// a name in Armenian letters ("" for one that stays English-only): kind is "field", "chapter" or "hero"
+function hyName(kind, en) {
+  const r = HY_NAMES[kind][en];
+  return r ? r.hy : "";
 }
 
 const DIFFS = [
@@ -6941,6 +7056,8 @@ function endCelebration() {
     (last ? "Every battlefield of the campaign, from Erebuni in 782 BC to Stepanakert in 2023, has now been held. " +
       "Return to any of them on a harder difficulty, or hold forever here." : "Your army still stands: hold forever, if you dare."),
     "Defend Again", true);
+  // under "<battlefield> Stands!" its name in Armenian letters; the campaign's closing page names no one field
+  if (!last) $("ovHy").textContent = hyName("field", L.name);
   showVictoryScreen();
 }
 
@@ -44916,6 +45033,9 @@ function serviceRecord(t) {
 // ---------- UI kit helpers ----------
 // One display face for DOM and canvas alike; it mirrors --face in the stylesheet.
 const UI_FONT = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
+// The display face has no Armenian letters, so a name in Armenian script (HY_NAMES) is set in a face that has
+// them, serif first to sit with Palatino; it mirrors --hy-face in the stylesheet.
+const HY_FONT = '"Noto Serif Armenian", Mshtakan, Sylfaen, "Noto Sans Armenian", "Arian AMU", "DejaVu Serif", serif';
 const ROLE_ICON = { raider: "r-raider", spearman: "r-spear", shield: "r-shield", cavalry: "r-horse", ram: "r-ram", boss: "r-boss", flyer: "r-scout" };
 const DIFF_SEAL = ["rshield", "swords", "flame"];
 const TEXT_ICONS = [["🪙", "coin"], ["⚔", "swords"], ["🔒", "lock"], ["▶", "play"]];
@@ -45451,7 +45571,9 @@ const MAP_CHARTS = {
       ["Karkar", 46.98, 39.9, 9, "water", -0.35],
       ["Vorotan", 46.17, 39.535, 9, "water", 0.22],
     ],
-    towns: [["Goris", 46.34, 39.51], ["Berdzor (Lachin)", 46.55, 39.63]],
+    // a town's name stands to the right of its dot, or at [dx, dy] from it: Berdzor's sits under its dot, clear of
+    // Shushi's nameplate just above
+    towns: [["Goris", 46.34, 39.51], ["Berdzor (Lachin)", 46.55, 39.63, [4, 13.5]]],
     routes: [[[46.34, 39.51], [46.43, 39.535], [46.5, 39.575], [46.55, 39.63], [46.64, 39.7], [46.72, 39.745], [46.75, 39.76], [46.75, 39.82]]],
   },
 };
@@ -45553,11 +45675,11 @@ const MAP_NODES = [
   { x: 500, y: 64 },    // 910 AD — Lori Gates, the northern gorges
   { x: 580, y: 150 },   // 921 AD — Sevan Shores, the Iron King's stand
   { x: 134, y: 118 },   // 1579 AD — Gyumri Road, plain of Shirak
-  mapGeoNode("anatolia", 46.33, 39.2),                  // 1727 — Halidzor above Kapan, Syunik
+  mapGeoNode("anatolia", 46.33, 39.2, [0, 0, [0, -3]]), // 1727 — Halidzor above Kapan, Syunik (plate clear of Van's when it is chosen)
   mapGeoNode("anatolia", 43.38, 38.5),                  // 1915 — Van, on the eastern shore of its lake
   mapGeoNode("anatolia", 35.95, 36.15),                 // 1915 — Musa Dagh on the Cilician coast
   mapGeoNode("anatolia", 44.0, 40.1, [0, 0, [-100, -28]]), // 1918 — Sardarapat on the Ararat plain (plate to its west, clear of Ararat)
-  mapGeoNode("artsakh", 46.75, 39.82, [-10, -10]),      // 1992 — Stepanakert
+  mapGeoNode("artsakh", 46.75, 39.82, [-10, -10, [-12, 0]]), // 1992 — Stepanakert (plate a little west, clear of 2023's)
   mapGeoNode("artsakh", 46.75, 39.76, [-24, 32]),       // 2020 — Shushi, on its plateau just south of the capital
   mapGeoNode("artsakh", 46.75, 39.82, [158, -6]),       // 2023 — Stepanakert again, drawn on its eastern approaches
 ];
@@ -46000,7 +46122,7 @@ function mapGeoSpec(id) {
     return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(2, Math.min(110, Math.round(area / 260 * (C.trees || 1)))), f.fir];
   }).filter(w => seen(w));
   spec.routes = (C.routes || []).map(ring);
-  spec.towns = (C.towns || []).map(t => [t[0]].concat(P(t[1], t[2])));
+  spec.towns = (C.towns || []).map(t => [t[0]].concat(P(t[1], t[2]), [t[3] || [5, 3.4]]));
   spec.labels = (C.labels || []).map(l => [l[0]].concat(P(l[1], l[2]), [l[3], l[4] === "water" ? "#1d4053" : "#3a2612", l[5] || 0]));
   return spec;
 }
@@ -46160,7 +46282,7 @@ function buildWorldTerrain(id) {
     tc.font = "600 9.5px " + UI_FONT;
     tc.textAlign = "left";
     tc.fillStyle = "#3a2612";
-    tc.fillText(t[0], t[1] + 5, t[2] + 3.4);
+    tc.fillText(t[0], t[1] + t[3][0], t[2] + t[3][1]);
   }
   for (const l of spec.labels) mapLabel(tc, l[0], l[1], l[2], l[3], l[4], l[5]);
 
@@ -46480,12 +46602,15 @@ function drawMapPadlock(m, x, y) {
 
 // parchment nameplate under a node: the name and one status line. An open site gets a solid plate;
 // a locked one only a faded label inside a dashed line, as a chart marks what is not yet surveyed
-function drawMapPlate(m, cx, top, name, status, look) {
+// hy, the battlefield's name in Armenian letters ("" for none), takes a line of its own between name and status
+function drawMapPlate(m, cx, top, name, hy, status, look) {
   m.font = "700 13.5px " + UI_FONT;
   const nameW = m.measureText(name).width;
+  m.font = "600 11px " + HY_FONT;
+  const hyW = hy ? m.measureText(hy).width : 0, dy = hy ? 12 : 0;
   m.font = (look.sel || look.locked ? "italic 600 " : "600 ") + "10.5px " + UI_FONT;
   const statusW = m.measureText(status).width + (look.star ? 11 : 0);
-  const w = Math.max(72, Math.ceil(Math.max(nameW, statusW)) + 18), h = 31, x = Math.round(cx - w / 2);
+  const w = Math.max(72, Math.ceil(Math.max(nameW, hyW, statusW)) + 18), h = 31 + dy, x = Math.round(cx - w / 2);
   m.lineJoin = "miter";
   if (look.locked) {
     m.fillStyle = "#ecdfba";
@@ -46517,10 +46642,15 @@ function drawMapPlate(m, cx, top, name, status, look) {
   m.font = "700 13.5px " + UI_FONT;
   m.fillStyle = look.locked ? "rgba(92, 68, 38, .78)" : "#2c1e10";
   m.fillText(name, cx, top + 14.2);
+  if (hy) {
+    m.font = "600 11px " + HY_FONT;
+    m.fillStyle = look.locked ? "rgba(120, 70, 44, .72)" : "#8a3524";
+    m.fillText(hy, cx, top + 26.4);
+  }
   m.font = (look.sel || look.locked ? "italic 600 " : "600 ") + "10.5px " + UI_FONT;
   m.fillStyle = look.locked ? "rgba(110, 84, 48, .8)" : look.sel ? "#5c3d10" : "#4a3318";
-  m.fillText(status, cx + (look.star ? 5.5 : 0), top + 25.6);
-  if (look.star) drawMapStar(m, cx - statusW / 2 + 4, top + 22, 4);
+  m.fillText(status, cx + (look.star ? 5.5 : 0), top + 25.6 + dy);
+  if (look.star) drawMapStar(m, cx - statusW / 2 + 4, top + 22 + dy, 4);
   m.textAlign = "left";
 }
 
@@ -46609,8 +46739,9 @@ function renderWorldMap() {
     m.restore();
   }
 
-  // nameplates last, so no glow or road ever runs over one
-  for (const i of lv) {
+  // nameplates last, so no glow or road ever runs over one; the chosen battlefield's last of all, so its longer
+  // plate (date and age) is never covered by a neighbour's
+  for (const i of lv.filter(i => i !== curLevel).concat(lv.includes(curLevel) ? [curLevel] : [])) {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
     const sel = i === curLevel;
@@ -46619,7 +46750,8 @@ function renderWorldMap() {
       : !unlocked ? "Locked"
       : best >= 21 ? "Conquered"
       : best > 0 ? "Best: wave " + best : "Unconquered";
-    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, status, { sel, locked: !unlocked, star: !sel && best >= 21 });
+    drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name, hyName("field", LEVELS[i].name), status,
+      { sel, locked: !unlocked, star: !sel && best >= 21 });
   }
 }
 
@@ -46775,6 +46907,7 @@ function showMenu(crest, title, sub, btnText, offerEndless) {
   $("ovCrest").removeAttribute("title");
   $("ovCrest").innerHTML = icon(crestIconName(crest));
   $("ovTitle").textContent = title;
+  $("ovHy").textContent = "";
   $("ovRubric").textContent = "";
   clearLeaf();
   introReturn = null;
@@ -48431,7 +48564,7 @@ function showChapterIntro(c, then) {
   $("mapBtn").style.display = "none";
   if (menuMode === "map") {
     introReturn = { crestCls: $("ovCrest").className, crest: $("ovCrest").innerHTML, crestTitle: $("ovCrest").title,
-      title: $("ovTitle").textContent, sub: $("ovSub").innerHTML, endless: $("endlessBtn").style.display };
+      title: $("ovTitle").textContent, hy: $("ovHy").textContent, sub: $("ovSub").innerHTML, endless: $("endlessBtn").style.display };
   }
   menuMode = "chapter";
   const first = LEVELS[C.levels[0]];
@@ -48444,10 +48577,12 @@ function showChapterIntro(c, then) {
   $("ovCrest").innerHTML = icon("era" + first.era);
   $("ovCrest").title = "Chapter " + C.num;
   $("ovTitle").textContent = C.name;
+  $("ovHy").textContent = hyName("chapter", C.name);
   $("ovRubric").textContent = "Chapter " + C.num + " · " + chapterSpan(c);
   fitRubric();
   setLeafPages(C.intro);
   showLeafFact(null);
+  $("briefHero").innerHTML = "";
   $("briefHost").innerHTML = C.levels.map(i => {
     const L = LEVELS[i];
     return '<div class="foe field" title="' + escapeHtml(L.name + ", " + L.date) + '"><span class="disc">' + icon("era" + L.era) +
@@ -48472,6 +48607,7 @@ function closeChapterIntro() {
     $("ovTitle").textContent = R.title;
     $("ovSub").innerHTML = R.sub;
   }
+  $("ovHy").textContent = R ? R.hy : "";
   $("ovRubric").textContent = "";
   buildMenu();
   if (R) $("endlessBtn").style.display = R.endless;
@@ -48512,10 +48648,16 @@ function showBrief() {
   $("ovCrest").innerHTML = icon("era" + L.era);
   $("ovCrest").title = E.name;
   $("ovTitle").textContent = L.name;
+  $("ovHy").textContent = hyName("field", L.name);
   $("ovRubric").textContent = L.date + " · " + E.name;
   fitRubric();
   setLeafPages(levelPages(L));
   showLeafFact(L);
+  // under the miniature, the hero who holds this field, with his name in Armenian letters when he was a real,
+  // named person (the anonymous defenders of Shirak, 2020 and 2023 stay English-only)
+  const H = L.hero || {}, hh = hyName("hero", H.name);
+  $("briefHero").innerHTML = H.name ? '<span class="k">Your hero</span><b title="' + escapeHtml(H.title || "") + '">' + escapeHtml(H.name) + "</b>" +
+    (hh ? '<span class="hy" lang="hy">' + escapeHtml(hh) + "</span>" : "") : "";
   $("briefHost").innerHTML = BRIEF_ROLES.map(role => {
     const u = Object.assign({}, ENEMY_DEFS[role], E.units[role], levelUnits(L)[role]), name = u.name;
     const fly = flyingCommander(role, u);
@@ -49832,6 +49974,41 @@ function runSelftest() {
     for (let c = 0; c < CHAPTERS.length; c++) { showChapterIntro(c); turnLeaf(1); closeChapterIntro(); }
     testUnlockAll = false;
   });
+  // the names in Armenian letters: every row still matches a battlefield, chapter or hero, every battlefield and
+  // every named hero has one, the spellings use Armenian letters only, and each page shows the right one
+  check("armenian names", () => {
+    const ANONYMOUS = ["Captain of Shirak", "Defense Army volunteer", "Civil defense volunteer"];
+    const fields = LEVELS.map(L => L.name), heroes = LEVELS.map(L => L.hero.name), chapters = CHAPTERS.map(C => C.name);
+    for (const [kind, names] of [["field", fields], ["hero", heroes], ["chapter", chapters]]) {
+      for (const [en, r] of Object.entries(HY_NAMES[kind])) {
+        if (!names.includes(en)) throw new Error("HY_NAMES." + kind + " row '" + en + "' matches no " + kind);
+        for (const t of [r.hy, r.classical]) if (t !== undefined && !/^[\u0531-\u0556\u0561-\u0587]+(?:[ -][\u0531-\u0556\u0561-\u0587]+)*$/.test(t)) throw new Error("not Armenian letters: " + en + " " + t);
+        if (r.classical === r.hy) throw new Error(en + ": a classical spelling is kept only where it differs");
+      }
+    }
+    for (const L of LEVELS) {
+      if (!hyName("field", L.name)) throw new Error(L.name + " has no name in Armenian letters");
+      if (Boolean(hyName("hero", L.hero.name)) === ANONYMOUS.includes(L.hero.name)) throw new Error(L.hero.name + ": a named hero needs his name in Armenian letters, an anonymous one none");
+    }
+    testUnlockAll = true;
+    photoMenu(false);
+    for (let i = 0; i < LEVELS.length; i++) {
+      curLevel = i; showBrief();
+      const L = LEVELS[i], hy = hyName("hero", L.hero.name), cap = $("briefHero");
+      if ($("ovHy").textContent !== hyName("field", L.name) || getComputedStyle($("ovHy")).display === "none") throw new Error("chronicle " + i + " lost its Armenian name");
+      if (!cap.textContent.includes(L.hero.name) || (hy && !cap.textContent.includes(hy)) || getComputedStyle(cap).display === "none") throw new Error("chronicle " + i + " lost its hero");
+      menuMode = "map";
+    }
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    if (getComputedStyle($("ovHy")).display !== "none") throw new Error("the map page shows an Armenian line");
+    for (let c = 0; c < CHAPTERS.length; c++) {
+      showChapterIntro(c);
+      if ($("ovHy").textContent !== hyName("chapter", CHAPTERS[c].name) || $("briefHero").textContent) throw new Error("chapter story " + c + ": wrong Armenian line or a hero");
+      closeChapterIntro();
+      if ($("ovHy").textContent) throw new Error("the map kept chapter " + c + "'s Armenian line");
+    }
+    testUnlockAll = false;
+  });
   // every battlefield's layout keeps the conventions: 14 pads, clear of the roads and of each other
   check("layouts", () => {
     const segD = (px, py, a, b) => {
@@ -49902,6 +50079,8 @@ function runSelftest() {
         waveIdx = TOTAL_WAVES; lives = 9;
         victory(); draw(PHOTO_TIME); endCelebration();
         if (!prose(lv, "victory").startsWith(L.victory + " You held with 9 defenders")) throw new Error("victory text on " + lv + ": " + $("ovSub").textContent);
+        if ($("ovHy").textContent !== (lv === LEVELS.length - 1 ? "" : hyName("field", L.name))) throw new Error("victory page of " + lv + " lost its Armenian name");
+        if (getComputedStyle($("ovHy")).display === "none" && lv < LEVELS.length - 1) throw new Error("victory page of " + lv + " hides its Armenian name");
         if ($("endlessBtn").style.display === "none") throw new Error("no endless offer on " + lv);
         if (Number(localStorage.getItem("hs_best_" + lv + "_" + L.era)) !== 21) throw new Error("best wave not kept on " + lv);
         gameOver = false; waveIdx = TOTAL_WAVES - 1; lives = 0; defeat();   // a two-figure wave, the longest line
