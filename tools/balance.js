@@ -2,7 +2,7 @@
 //
 // Usage:  NODE_PATH=$(npm root -g) node tools/balance.js [diff] [levels] [builds]
 //   diff     0 (or easy), 1 (normal, the default), 2 (hard); "1,2" or "all" runs each in turn
-//   levels   battlefield indices: "0-13" (the default, every battlefield), "3", "0,5,12", "7-13"
+//   levels   battlefields by index or id: every battlefield by default; "3", "0,5,12", "10-16", "ani,mari,sis"
 //   builds   build names from BUILDS below, comma-separated (default: all of them)
 // Environment:
 //   GAME=path     the page to play (default: the index.html beside this folder), e.g. an older copy to compare
@@ -46,13 +46,13 @@
 // has had less time to deal damage, so compare a mastery with its twin ("archer.a" with "archer.b"), not with an
 // unmastered tower.
 //
-// What the game is tuned to (EARLY_HP and each battlefield's hpTune for the rank and file, CMD_HP for the
-// commanders, all in index.html; Hard's rank and file stand as Normal's), with SEEDS=3:
+// What the game is tuned to (LEVEL_HP's rank and file and each battlefield's hpTune, LEVEL_HP's commanders,
+// all in index.html; Hard's rank and file stand as Normal's), with SEEDS=3:
 //   - Normal: the best build fells both commanders on every battlefield and every seed, so the lives it loses
-//     are the rank and file's toll: a few on battlefields 1-6 (Erebuni, the first, stays gentle), and about
-//     7-14 left on 7-13. A balanced mix holds most battlefields; all-archer and all-catapult builds hold some.
-//     Tushpa, Avarayr and Sevan are the exception for now: the mix holds them whole at any strength tried
-//     (see EARLY_HP), so the best build ends them with 20 lives
+//     are the rank and file's toll: a few on the first six (Erebuni, the first, stays gentle), and about
+//     7-14 left on the rest, Chapter III's Ani, Mari and Sis with 8-14. A balanced mix holds most battlefields;
+//     all-archer and all-catapult builds hold some. Tushpa, Avarayr and Sevan are the exception for now: the
+//     mix holds them whole at any strength tried (see LEVEL_HP), so the best build ends them with 20 lives
 //   - Hard: the best build holds at least 12 of the 14 on every seed with 3 lives or more, and the mix most of
 //     the early ones. Easy: comfortable for every sensible build.
 //
@@ -66,7 +66,9 @@
 //     knot of ground foes with the most hit points within its radius, if they hold more than 600.
 //   - It never moves its hero, never calls a wave early, never sells and never changes a tower's target.
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
-// battle for battle (GAME= the old copy). Read the table as relative movement between versions and between
+// battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
+// come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
+// no other, so the old ones play exactly the battles they played before Chapter III was inserted. Read the table as relative movement between versions and between
 // builds, not as a person's results. On 4 cores one difficulty takes about 1-2 min, or 3-5 min with SEEDS=3.
 const path = require("path");
 const os = require("os");
@@ -96,9 +98,13 @@ function parseList(s, all) {
   return out;
 }
 
+// each battlefield's seed slot, by id: the 14 first in their old order, then each new one as it was added
+const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan: 5, gyumri: 6, halidzor: 7, van: 8,
+  musadagh: 9, sardarapat: 10, stepanakert92: 11, shushi: 12, stepanakert23: 13, ani: 14, mari: 15, sis: 16 };
+
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, diff, plan, seed, pace, spells, spec, dt, probe } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe } = a;
   Math.random = mulberry32(seed);
   toast = () => {};
   curDiff = diff; curLevel = lv;
@@ -137,7 +143,7 @@ function playBattle(a) {
     const fixed = spec === "a" || spec === "b" ? spec : (spec.match(new RegExp("\\b" + t.type + "=([ab])")) || [])[1];
     if (fixed) return fixed;
     const n = specCount[t.type] = (specCount[t.type] || 0) + 1;
-    return (n + lv) % 2 ? "a" : "b";
+    return (n + slot) % 2 ? "a" : "b";
   };
   const spend = () => {
     for (let guard = 0; guard < 200; guard++) {
@@ -231,7 +237,6 @@ function playBattle(a) {
   const t0 = Date.now();
   const file = path.resolve(process.env.GAME || path.join(__dirname, "..", "index.html"));
   const diffs = parseList(process.argv[2] || "1", [0, 1, 2]).map(d => ({ easy: 0, normal: 1, hard: 2 }[d] ?? +d));
-  const levels = parseList(process.argv[3], [...Array(14).keys()]);
   for (const k in process.env) if (k.startsWith("BUILD_")) BUILDS[k.slice(6)] = process.env[k].split(",");
   const builds = parseList(process.argv[4], Object.keys(BUILDS));
   for (const b of builds) if (!BUILDS[b]) { console.error("unknown build " + b + "; builds: " + Object.keys(BUILDS).join(", ")); process.exit(2); }
@@ -256,11 +261,15 @@ function playBattle(a) {
     return page;
   }));
   const names = await pages[0].evaluate(() => LEVELS.map(L => L.name + " " + (L.year < 0 ? -L.year + " BC" : L.year)));
+  const ids = await pages[0].evaluate(() => LEVELS.map(L => L.id || ""));
+  const levels = parseList(process.argv[3], [...ids.keys()]).map(x => (typeof x === "number" ? x : ids.indexOf(x)));
+  if (levels.some(i => !(i >= 0 && i < ids.length))) { console.error("unknown battlefield in " + process.argv[3] + "; ids: " + ids.join(", ")); process.exit(2); }
+  const slotOf = i => (BOT_SLOT[ids[i]] !== undefined ? BOT_SLOT[ids[i]] : i);
 
   const queue = [];
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
-    queue.push({ lv, diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * lv, pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
+    queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
       spells, spec, dt, probe });
   }
   const results = [];
