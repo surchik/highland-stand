@@ -7121,10 +7121,10 @@ const ERAS = [
 ];
 
 // Art fallback per era: which era's painted units, fallen, outflankers and commanders an era borrows.
-// Eras 4-6 reuse the 16th-century (era 3) art until their own lands; set an entry to its own index then.
-// Eras 7 and 8 fall back on the nearest older art: the Persians' round nasal helmets and oval shields for the
-// Byzantines (1), the Caliphate's turbans and mail for the Mamluks (2). Their UNIT SECTIONs (era7, era8) set
-// them to 7 and 8 together with the rows they read (UNIT_KITS[7], [8] above all).
+// An era starts here on the nearest older art, and its UNIT SECTION sets the entry to its own index together
+// with the rows it reads (UNIT_KITS[e] above all) once its art lands; every era now has its own. Before that
+// eras 4 to 6 used the 16th-century (era 3) art, the Byzantines (7) the Persians' round nasal helmets and
+// oval shields (1), and the Mamluks (8) the Caliphate's turbans and mail (2).
 // Gameplay (stats, names, era powers) always follows the real era; only the pictures read this table.
 const ERA_ART = [0, 1, 2, 3, 3, 3, 3, 1, 2];
 // an era with painted units of its own registers its look, painter and fallen here (UNIT SECTION banners)
@@ -44021,26 +44021,34 @@ function unitPaintGabledRamEnd(front, o = GABLE_CALIPHATE) {
   }
 }
 
-// a small crewman beside an engine; turbaned pushers wear a robe and a wound turban instead of the gunner's fez
-function unitPaintCrew(x, lean, pal, fromBehind, turbaned) {
-  const C = UNIT_COLORS;
+// a small crewman beside an engine; turbaned pushers wear a robe and a wound turban instead of the gunner's fez.
+// dress is false for the gunner, true for the turbaned pusher, or another army's pusher, walking in the same robe:
+// { leg, sash, beard, hair, cap(hx) }, colors for his legs, sash and beard, hair to show from behind, and cap
+// painting his headgear over the head at hx
+function unitPaintCrew(x, lean, pal, fromBehind, dress) {
+  const C = UNIT_COLORS, turbaned = !!dress, own = dress === true ? null : dress || null;
   const step = turbaned ? Math.sin(unitPhase * 2 + x) * 1.3 : 0;
-  const leg = turbaned ? "#e9dcc0" : "#35507a";
+  const leg = own ? own.leg : turbaned ? "#e9dcc0" : "#35507a";
   uSeg(x - 1.2, -6.4, x - 1.8 - step, -1, 2.2, leg);
   uSeg(x + 1.2, -6.4, x + 1.6 + step, -1, 2.2, leg);
   uPoly([x - 2.2 - step, -1.6, x - 0.2 - step, -1.6, x + 0.6 - step, 0.4, x - 2.4 - step, 0.4], "#3d2a1a");
   uPoly([x + 0.8 + step, -1.6, x + 2.8 + step, -1.6, x + 3.6 + step, 0.4, x + 0.6 + step, 0.4], "#3d2a1a");
   uPoly([x - 3.2, turbaned ? -4.4 : -6, x - 2.6 + lean, -13.8, x + 2.8 + lean, -13.8, x + 3.2, turbaned ? -4.4 : -6], pal.base);
   uFlatPoly([x + 0.8, turbaned ? -4.6 : -6.2, x + 1.2 + lean, -13.6, x + 2.6 + lean, -13.6, x + 3, turbaned ? -4.6 : -6.2], pal.dark);
-  if (turbaned) uFlatSeg(x - 2.8 + lean * 0.6, -9.4, x + 3 + lean * 0.6, -9.4, 1.1, "#b5523a");
+  if (turbaned) uFlatSeg(x - 2.8 + lean * 0.6, -9.4, x + 3 + lean * 0.6, -9.4, 1.1, own ? own.sash : "#b5523a");
   const hx = x + lean * 1.3;
   uDisc(hx + 0.4, -16.6, 3, C.skin);
   if (!fromBehind) {
     uFlatDisc(hx + 1.2, -16.6, 0.55, C.eye);
     uFlatDisc(hx + 2.7, -16.6, 0.5, C.eye);
-    if (turbaned) uFlatPoly([hx - 0.6, -15.4, hx + 3.4, -15.5, hx + 3, -13.6, hx + 0.6, -13.2], "#2b1d13");
+    if (turbaned) uFlatPoly([hx - 0.6, -15.4, hx + 3.4, -15.5, hx + 3, -13.6, hx + 0.6, -13.2], own ? own.beard : "#2b1d13");
     else uFlatLine([hx + 1, -15.2, hx + 3.2, -15], "#24170f", 0.8);
+  } else if (own && own.hair) {
+    // the back of the head: hair cropped above the nape
+    uc.beginPath(); uc.arc(hx + 0.4, -16.6, 3, Math.PI - 0.5, 0.5); uc.closePath();
+    uc.fillStyle = C.hair; uc.fill();
   }
+  if (own) { own.cap(hx); return; }
   if (turbaned) {
     uOval(hx + 0.3, -18.9, 3.9, 2.5, 0, C.linen);
     uFlatOval(hx + 1.7, -18.5, 2, 1.7, 0, C.linenShade);
@@ -47551,7 +47559,7 @@ function e7Quilt(kit, pal, sway, mid, rear) {
   const slim = kit.slim || 1, hem = kit.hem;
   for (const fx of [-3.4, -1.2, 1, 3.2]) {
     const x0 = fx * slim, x1 = fx * slim * 1.12 + sway * 0.45;
-    uFlatLine([x0, -15.8 - Math.abs(fx) * -0.12, x1, hem + 0.4], E7.quilt, 0.5);
+    uFlatLine([x0, -15.8 + Math.abs(fx) * 0.12, x1, hem + 0.4], E7.quilt, 0.5);
     uFlatLine([x0 + 0.5, -15.6, x1 + 0.5, hem + 0.2], E7.quiltLit, 0.4);
   }
   uFlatPoly([-5.4 * slim, -10.4, 5.4 * slim, -10.4, 5.6 * slim, -9, -5.6 * slim, -9], E7.belt);
@@ -47726,9 +47734,9 @@ function e7PaintCavalry(pal) {
   e7RiderLamellar(false);
   unitPaintRiderHead(kit, pal);
   // the lance carried upright at the stirrup, the round shield on the bridle arm
-  uSeg(3.4, -11.6, 9.6, -34.4, 1.15, C.wood);
-  uPoly([10.9, -39.2, 8.5, -34.6, 11.3, -34], C.steelLit);
-  uGlint(10.3, -36.4, 1.1);
+  uSeg(3.4, -11.6, 9.2, -32.4, 1.15, C.wood);
+  uPoly([10.5, -37.2, 8.1, -32.6, 10.9, -32], C.steelLit);
+  uGlint(9.9, -34.4, 1.1);
   uSeg(2.8, -21, 5.6, -19, 2.5, pal.base);
   uDisc(5.7, -19.2, 1.45, kit.skin);
   e7RiderShield(-0.4, -18.6 + g * 0.15, pal, 3.6);
@@ -47778,33 +47786,16 @@ UNIT_HORSE_ART[7] = (p, k, dir, d) => {
 };
 
 // ---- the ram: the shed of hides, pushed by engineers in felt caps ------------------------------------
-// a small crewman beside the shed: a belted tunic, a beard and the felt cap
-function e7Crew(x, lean, pal, fromBehind) {
-  const C = UNIT_COLORS;
-  const step = Math.sin(unitPhase * 2 + x) * 1.3;
-  uSeg(x - 1.2, -6.4, x - 1.8 - step, -1, 2.2, "#b8a47e");
-  uSeg(x + 1.2, -6.4, x + 1.6 + step, -1, 2.2, "#b8a47e");
-  uPoly([x - 2.2 - step, -1.6, x - 0.2 - step, -1.6, x + 0.6 - step, 0.4, x - 2.4 - step, 0.4], "#3d2a1a");
-  uPoly([x + 0.8 + step, -1.6, x + 2.8 + step, -1.6, x + 3.6 + step, 0.4, x + 0.6 + step, 0.4], "#3d2a1a");
-  uPoly([x - 3.2, -4.8, x - 2.6 + lean, -13.8, x + 2.8 + lean, -13.8, x + 3.2, -4.8], pal.base);
-  uFlatPoly([x + 0.8, -5, x + 1.2 + lean, -13.6, x + 2.6 + lean, -13.6, x + 3, -5], pal.dark);
-  uFlatSeg(x - 2.9 + lean * 0.6, -9.2, x + 3.1 + lean * 0.6, -9.2, 1, E7.belt);
-  const hx = x + lean * 1.3;
-  uDisc(hx + 0.4, -16.6, 3, C.skin);
-  if (!fromBehind) {
-    uFlatDisc(hx + 1.2, -16.6, 0.55, C.eye);
-    uFlatDisc(hx + 2.7, -16.6, 0.5, C.eye);
-    uFlatPoly([hx - 1, -15.4, hx + 3.4, -15.5, hx + 2.8, -13.2, hx + 0.2, -12.8], "#33211a");
-  } else {
-    // the back of the head: hair cropped above the nape
-    uc.beginPath(); uc.arc(hx + 0.4, -16.6, 3, Math.PI - 0.5, 0.5); uc.closePath();
-    uc.fillStyle = C.hair; uc.fill();
-  }
-  uPoly([hx - 2.8, -17.6, hx - 2.4, -20.4, hx + 0.8, -21.8, hx + 3, -20.4, hx + 3.4, -17.6], E7.felt);
-  uFlatPoly([hx - 2.9, -18.6, hx + 3.5, -18.6, hx + 3.4, -17.5, hx - 2.8, -17.5], E7.feltShade);
-}
+// a small crewman beside the shed (unitPaintCrew's pusher): a belted tunic, a beard and the felt cap
+const E7_CREW = {
+  leg: "#b8a47e", sash: E7.belt, beard: "#33211a", hair: true,
+  cap(hx) {
+    uPoly([hx - 2.8, -17.6, hx - 2.4, -20.4, hx + 0.8, -21.8, hx + 3, -20.4, hx + 3.4, -17.6], E7.felt);
+    uFlatPoly([hx - 2.9, -18.6, hx + 3.5, -18.6, hx + 3.4, -17.5, hx - 2.8, -17.5], E7.feltShade);
+  },
+};
 const E7_GABLE = {
-  crew: e7Crew,
+  crew: (x, lean, pal, fromBehind) => unitPaintCrew(x, lean, pal, fromBehind, E7_CREW),
   crewPals: ["#7a5a3e", "#6e2a2e"],
   // one plain red pennon on the ridge pole
   ridge(flutter) {
@@ -47838,8 +47829,11 @@ UNIT_ERA_ART[7] = {
 
 // ---- the commander ---------------------------------------------------------------------------------
 UNIT_BOSS_LOOKS[7] = { f: 1.12, back: 27, front: 19, up: 41, down: 3, top: 36, barW: 44, shadow: 20, feet: 17, rate: 1 };
-UNIT_BOSS_ART[7] = (pal, walk) => {
+UNIT_BOSS_ART[7] = (boss, walk) => {
   const C = UNIT_COLORS, L = unitLit, wave = walk;
+  // his coat in the army's dark red: the boss color's purple beside the gilded helmet would read as the
+  // emperor's own (design.md: no imperial regalia)
+  const pal = unitPalette("#6e2a2e", boss.trim);
   const kit = { helm: "e7gilt", aventail: true, metal: "steel", beard: "full", brow: true, skin: "#d6a67a", leg: "#6a3a3a", boot: "#2a1a12", sash: E7.belt };
   uc.save();
   uc.translate(1.5, 0);
@@ -47856,10 +47850,10 @@ UNIT_BOSS_ART[7] = (pal, walk) => {
   uc.quadraticCurveTo(-10, -22 + wave, -15, -14.6 + wave * 1.4);
   uc.quadraticCurveTo(-9.6, -15 + wave, -3.8, -14.4);
   uc.closePath();
-  uInk(pal.base);
-  uFlatLine([-4.6, -21.6, -10.4, -18.4 + wave, -13.4, -15 + wave * 1.3], pal.deep, 0.5);
+  uInk(E7.red);
+  uFlatLine([-4.6, -21.6, -10.4, -18.4 + wave, -13.4, -15 + wave * 1.3], E7.redShade, 0.5);
   uFlatLine([-6, -15.4 + wave * 0.6, -13.6, -15 + wave * 1.3], pal.trim, 0.8);
-  unitPaintHorse(UNIT_HORSES.grey, { cloth: pal.dark, clothTrim: C.gold });
+  unitPaintHorse(UNIT_HORSES.grey, { cloth: E7.redShade, clothTrim: C.gold });
   unitPaintRiderBody(pal, kit);
   e7RiderLamellar(true);
   // the brooch that pins the cloak
@@ -48177,19 +48171,21 @@ function e8Quiver(x, y) {
 }
 // the gold band (tiraz) across the upper sleeve
 function e8Tiraz(x0, y0, x1, y1) { uFlatSeg(x0, y0, x1, y1, 1.1, UNIT_COLORS.gold); }
-// the pair of small kettle-drums slung at the saddle bow
+// one small kettle-drum, its head up: lit, or in shade on the far side
+function e8Drum(cx, y, r, lit) {
+  uc.beginPath();
+  uc.moveTo(cx - r, y);
+  uc.quadraticCurveTo(cx - r, y + r * 1.5, cx, y + r * 1.5);
+  uc.quadraticCurveTo(cx + r, y + r * 1.5, cx + r, y);
+  uc.closePath();
+  uInk(lit ? E8.copper : E8.copperShade);
+  if (lit) uFlatOval(cx - r * 0.35, y + r * 0.6, r * 0.35, r * 0.5, 0, E8.copperLit);
+  uOval(cx, y, r, r * 0.38, 0, E8.head);
+}
+// the pair of drums slung at the saddle bow, seen from the side: the far one a little behind the near one
 function e8Drums(x, y) {
-  for (const [dx, s] of [[2.6, 0.85], [0, 1]]) {
-    const cx = x + dx, r = 1.9 * s;
-    uc.beginPath();
-    uc.moveTo(cx - r, y);
-    uc.quadraticCurveTo(cx - r, y + r * 1.5, cx, y + r * 1.5);
-    uc.quadraticCurveTo(cx + r, y + r * 1.5, cx + r, y);
-    uc.closePath();
-    uInk(dx ? E8.copperShade : E8.copper);
-    if (!dx) uFlatOval(cx - r * 0.35, y + r * 0.6, r * 0.35, r * 0.5, 0, E8.copperLit);
-    uOval(cx, y, r, r * 0.38, 0, E8.head);
-  }
+  e8Drum(x + 2.6, y, 1.9 * 0.85, false);
+  e8Drum(x, y, 1.9, true);
 }
 
 function e8PaintArcher(pal) {
@@ -48309,7 +48305,8 @@ function e8PaintGuardEnd(pal, front) {
     // (the cover stops at the throat: the head goes bare)
     unitPaintHorseFace(UNIT_HORSES.dark, {});
     // the two drums hang either side of the neck
-    e8Drums(-6.4, -15.6);
+    e8Drum(-6.4, -15.6, 1.9, true);
+    e8Drum(6.4, -15.6, 1.9, false);
   }
 }
 UNIT_HORSE_ART[8] = (p, k, dir, d) => {
@@ -48327,6 +48324,10 @@ UNIT_HORSE_ART[8] = (p, k, dir, d) => {
 const E8_LOOKS = {
   sap:    { f: 0.9, back: 25, front: 20, up: 42, down: 3, top: 37, barW: 28, shadow: 21, feet: 19, rate: 0.8, bob: 0.4 },
   sapEnd: { f: 0.9, back: 16, front: 16, up: 42, down: 3, top: 37, barW: 28, shadow: 13, feet: 11, rate: 0.8, bob: 0.4, end: true },
+  // the emir's guard: one horseman baked at the siege role's radius, so f brings him back below the emir's
+  // rider, and up gives the tip of his upright lance room
+  guard:    Object.assign({}, UNIT_LOOKS.horse, { f: 1.0, up: 42 }),
+  guardEnd: Object.assign({}, UNIT_LOOKS.horseEnd, { f: 1.0 }),
 };
 const E8_SAPPER_COATS = ["#7a6440", "#6a5232", "#8a7048"];
 // a pick's haft and its head across the end of it, in a frame turned so the haft runs up -y
@@ -48383,7 +48384,7 @@ function e8Sapper(x, coat, tool, back, dig) {
   if (tool === "pick") {
     if (dig) {
       // the pick swung down at the foot of the wall ahead of him
-      const a = 0.5 + Math.sin(unitPhase * 2) * 0.55, gx = hx + 3.6, gy = -11.6;
+      const a = -0.35 + Math.sin(unitPhase * 2) * 0.5, gx = hx + 1.6, gy = -11.6;
       uc.save(); uc.translate(gx, gy); uc.rotate(a); e8Pick(10); uc.restore();
       uSeg(hx + 1.2, -12.8, gx, gy, 2.2, pal.base);
       uDisc(gx, gy, 1.3, skin);
@@ -48471,7 +48472,6 @@ function e8PaintSappersEnd(front, dig) {
       for (const x of [-8.4, -2.8, 2.8, 8.4]) uFlatDisc(x, y, 0.45, "#9a9ca8");
     }
     uFlatPoly([-2.6, -33.2, 2.6, -33.2, 2.6, -31.8, -2.6, -31.8], "#1c120a");
-    uGlint(-8.4, -22, 1);
   } else {
     // from behind: the inside of the board far off, the men under the roof, the roof's hides above
     uPoly([-10, -1.6, 10, -1.6, 10, -33, -10, -33], C.woodShade);
@@ -48481,13 +48481,14 @@ function e8PaintSappersEnd(front, dig) {
     uc.translate(-7.2, 0);
     e8Sapper(0, E8_SAPPER_COATS[2], "push", true, dig);
     uc.restore();
+    // the spoil basket on the right man's outer shoulder, half behind his head (between the heads it read as a third)
+    uOval(11.6, -14.6, 2.9, 2, -0.15, C.wicker);
+    uFlatOval(11.7, -15.7, 2.2, 0.7, -0.15, "#6e5236");
+    uFlatSeg(9.4, -13.8, 14.2, -14.6, 0.45, C.wickerShade);
     uc.save();
     uc.translate(4.6, 0.4);
     e8Sapper(0, E8_SAPPER_COATS[0], "basket", true, dig);
     uc.restore();
-    // the spoil basket on the near man's shoulder
-    uOval(3.4, -17.6, 3.2, 2.2, 0, C.wicker);
-    uFlatOval(3.4, -18.8, 2.4, 0.8, 0, "#6e5236");
     uc.beginPath();
     uc.moveTo(-12.6, -37.4);
     uc.lineTo(12.6, -37.4);
@@ -48502,6 +48503,7 @@ function e8PaintSappersEnd(front, dig) {
 }
 UNIT_ERA_ART[8] = {
   look(e, d, p) {
+    if (d.variant === "guard" && !e.fly) return unitView(p) !== "side" ? E8_LOOKS.guardEnd : E8_LOOKS.guard;
     if (d.variant !== "sappers" || e.fly) return null;
     return unitView(p) !== "side" ? E8_LOOKS.sapEnd : E8_LOOKS.sap;
   },
@@ -56371,11 +56373,24 @@ function runSelftest() {
     photoSheet("units", ERAS.length - 4); draw(PHOTO_TIME);
     document.body.classList.remove("photo-clean");
   });
+  // a baked sprite the art runs off: ink at its top or a side edge (the ground line may meet the bottom)
+  const spriteCut = c => {
+    const W = c.width, H = c.height, px = c.getContext("2d").getImageData(0, 0, W, H).data;
+    for (let x = 0; x < W; x++) if (px[x * 4 + 3] > 100) return "top";
+    for (let y = 0; y < H; y++) {
+      if (px[y * W * 4 + 3] > 100) return "left";
+      if (px[(y * W + W - 1) * 4 + 3] > 100) return "right";
+    }
+    return "";
+  };
   // every foe of every battlefield is drawn in its own age's art (the name finds the age), and shows in all four
-  // views the road can turn it to; the sappers in their digging too
+  // views the road can turn it to; the sappers in their digging too. From the ages of Chapter III on, nothing is
+  // cut off at the sprite's box at any point of the stride, baked at its size in battle on a sharp screen (older
+  // art has a few that touch it: the Sipahi's lance tip, the Dvin ladder)
   check("foes in every view", () => {
     const roles = ["raider", "spearman", "shield", "cavalry", "ram", "boss", "flyer"];
     const views = [["right", 0], ["left", Math.PI], ["front", Math.PI / 2], ["rear", -Math.PI / 2]];
+    const stride = Array.from({ length: 12 }, (_, i) => i / 12 * Math.PI * 2);
     const keep = [curLevel, curEra], light = unitLightBucket(timeOfDay());
     for (let e = 0; e < ERAS.length; e++) {
       const art = ERA_ART[e];
@@ -56398,9 +56413,49 @@ function runSelftest() {
             for (let i = 3; i < px.length && ink <= 20; i += 16) if (px[i] > 200) ink++;
             if (ink <= 20) throw new Error(L.id + ": " + d.name + " draws nothing from the " + vn);
             if (u.eraTrue !== L.era) throw new Error(L.id + ": " + d.name + " is drawn in the art of era " + u.eraTrue);
+            if (L.era < 7) continue;
+            stride.forEach((ph, f) => {
+              const fk = key + "|f" + f, q = 3 * look.f * unitDrawnSize(u, look);
+              const cut = spriteCut(unitSprite(fk, q, look, dir < 0, () => { unitPhase = ph; unitPaintPose(u, p, d, dir); }).c);
+              UNIT_SPRITES.delete(fk + "|" + light);
+              if (cut) throw new Error(L.id + ": " + d.name + " from the " + vn + (dig ? ", digging," : "") + " is cut off at the " + cut + " (frame " + f + " of 12)");
+            });
           }
         }
       });
+    } finally { curLevel = keep[0]; curEra = keep[1]; }
+  });
+  // the fire troops (naffatun) are painted for a Mamluk roster that names them, though none does yet: a foot role
+  // under that name takes the naffat's kit, and he draws whole in all four views over a stride
+  check("naffatun drawn", () => {
+    const views = [["right", 0], ["left", Math.PI], ["front", Math.PI / 2], ["rear", -Math.PI / 2]];
+    const keep = [curLevel, curEra], light = unitLightBucket(timeOfDay());
+    try {
+      curLevel = LEVELS.findIndex(L => L.era === 8); curEra = 8;
+      const archer = eraUnit("raider");
+      for (const name of ["Naffatun", "Fire troops"]) {
+        if (UNIT_KITS[8].raider.byName(name) !== E8_KITS.naffat) throw new Error(name + " does not take the naffat's kit");
+      }
+      if (UNIT_KITS[8].raider.byName(archer.name) === E8_KITS.naffat) throw new Error(archer.name + " takes the naffat's kit");
+      const d = Object.assign({}, archer, { name: "Naffatun" });
+      for (const [vn, ang] of views) {
+        const sum = [];
+        for (const [who, dd] of [["naffat", d], ["archer", archer]]) for (const ph of [0.5, 2.6, 4.7]) {
+          const u = { type: "raider", def: dd, r: dd.r, wobble: 1, hp: 1, maxHp: 1 };
+          const p = { x: 0, y: 0, ang }, look = unitLook(u, dd, p), dir = look.end || Math.cos(ang) >= -0.01 ? 1 : -1;
+          const key = "selftest|naffat|" + who + vn + ph;
+          const c = unitSprite(key, 3 * look.f * unitDrawnSize(u, look), look, dir < 0, () => { unitPhase = ph; unitPaintPose(u, p, dd, dir); }).c;
+          UNIT_SPRITES.delete(key + "|" + light);
+          const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+          let ink = 0, h = 0;
+          for (let i = 3; i < px.length; i += 4) { if (px[i] > 200) ink++; h = (h * 31 + px[i - 3] + px[i - 1] * 7) >>> 0; }
+          if (ink <= 20) throw new Error("the " + who + " draws nothing from the " + vn);
+          if (u.eraTrue !== 8) throw new Error("the " + who + " is drawn in the art of era " + u.eraTrue);
+          const cut = spriteCut(c);
+          if (cut) throw new Error("the " + who + " from the " + vn + " is cut off at the " + cut);
+          if (who === "naffat") sum.push(h); else if (sum.shift() === h) throw new Error("the naffat from the " + vn + " is drawn as the archer");
+        }
+      }
     } finally { curLevel = keep[0]; curEra = keep[1]; }
   });
   // every table indexed by era has a row for every era, and every era draws and labels
