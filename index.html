@@ -17558,6 +17558,7 @@ function terrPaintProp(c, p) {
   const q = proj(p.x, p.y), s = q.s * (TERR_BUILT_K[p.kind] || 1), r = mulberry32(p.seed);
   const crown = p.fuse ? { variant: p.variant, rim: p.rim, fuse: p.fuse.map(n => terrCrownAt(n, p)) } : null;
   if (p.kind === "broadleaf") terrBroadleaf(c, q.x, q.y, p.h * s, B.leaf, r, null, crown);
+  else if (p.kind === "apricot" && p.bloom) sisAlmondBloom(c, q.x, q.y, p.h * s, r, crown);
   else if (p.kind === "apricot") terrBroadleaf(c, q.x, q.y, p.h * s, B.leaf, r, B.fruit, crown);
   else if (p.kind === "fir") terrFir(c, q.x, q.y, p.h * s, B.leaf, r, B.snow, crown);
   else if (p.kind === "poplar") terrPoplar(c, q.x, q.y, p.h * s, B.leaf, r, crown);
@@ -25494,8 +25495,13 @@ function drawFort(time) {
 // roofline is the highest painted row in each band of columns; each point takes the lowest roof within three bands
 // of its place (the walls beside a keep, never the tip of a spire or a flagstaff), but never one down at the crag
 // the citadel stands on. In fort units
+// A citadel whose roofline would set a fire where none belongs names its own three points instead (Ani: the
+// cathedral rises behind the gate, so the fires keep to the wall-walk and a gate tower, never its roof).
+const FORT_HEARTHS_AT = { hf_ani: [[-62, -78], [-21, -92], [54, -78]] };
 function fortHearths(sp) {
   if (sp.hearths) return sp.hearths;
+  const fixed = FORT_HEARTHS_AT[fortStyle()];
+  if (fixed) return (sp.hearths = fixed.map(p => p.slice()));
   const cv = sp.cv, W = cv.width, H = cv.height, N = 30;
   let data = null;
   try { data = cv.getContext("2d").getImageData(0, 0, W, H).data; } catch (e) { /* unreadable: a fixed roofline */ }
@@ -35514,13 +35520,13 @@ function xbKettle(x, y, k, face) {
 // a man of the crew in a padded coat over mail; arms per pose, as garrisonFigure draws them
 function xbMan(x, y, F, face, coat, pose, kettle) {
   garrisonFigure(x, y, F, { tunic: coat, cap: XB.helm, pose, face });
-  // the mail showing at the collar and the coat's quilting
+  // the mail showing at the collar (unless his arms are raised across it) and the coat's quilting
   const c = sctx;
   c.save();
   c.translate(x, y);
   c.scale(F * face, F);
   c.fillStyle = XB.mail;
-  c.fillRect(-2.6, -12.2, 5.2, 1.3);
+  if (pose !== "bow" && pose !== "pull") c.fillRect(-2.6, -12.2, 5.2, 1.3);
   c.strokeStyle = "rgba(40, 26, 14, .3)";
   c.lineWidth = 0.4;
   c.beginPath();
@@ -35629,7 +35635,8 @@ function paintCrossbowPost(lvl, spec, variant) {
     xbShooter(mx + 7.5, walk + 0.4, D.F, face1, XB.coats[1], 1, field === "bows");
   } else {
     if (lvl >= 1) {
-      if (field === "sis") xbSpanner(mx - 7, walk - 0.6, D.F, face0, XB.coats[1]);
+      // the spanner stands a step up, so that his crossbow and his stooped back show over the merlons
+      if (field === "sis") xbSpanner(mx - 7, walk - 3, D.F, face0, XB.coats[1]);
       else xbMan(mx - 7, walk - 0.6, D.F, face0, XB.coats[1], "bow", false);
     }
     xbShooter(lvl >= 1 ? mx + 5.5 : mx, walk + 0.4, D.F, face0, XB.coats[0], 0, field === "bows");
@@ -52374,6 +52381,9 @@ const ANI_WALL = {
   lit: "#cc9a78", mid: "#b5845f", shade: "#86604a", top: "#dcb28e", dark: "#5c4a46", ink: "rgba(46, 26, 16, .78)",
   inner: { y: 218, h: 38, d: 12, x0: 156, x1: 1124 }, outer: { y: 236, h: 21, d: 7, x0: 132, x1: 1148 },
   gap: [548, 732], towers: [178, 290, 500, 780, 990, 1102], tr: 14, th: 46,
+  // the two outer wall pads (290 and 990, depth 200) stand lower than the two by the gate: each has a low
+  // platform built out from the outer wall at its bay, at the outer wall's height, its front at depth y
+  platforms: [{ x: 290, y: 250 }, { x: 990, y: 254 }], platHW: 32,
 };
 // stone courses on a straight face from x0 to x1 (screen), top y0 to foot y1; s is the wall's scale
 function aniCourses(c, x0, x1, y0, y1, s, rand, darkRows) {
@@ -52449,14 +52459,17 @@ function aniWallRun(c, W, x0, x1, rand, darkRows) {
   c.lineWidth = Math.max(0.5, 0.6 * s);
   c.beginPath(); c.moveTo(A.x, top + 2 * s); c.lineTo(B.x, top + 2 * s); c.stroke();
 }
-// a half-round tower standing out from the inner wall at world x
+// a half-round tower standing out from the inner wall at world x. Each run of wall is painted level from where
+// it starts (aniWallRun), so the tower drops or lifts every point by the run's offset there (dy) and stands
+// on the wall's own foot, not on the bent ground under it.
 function aniWallTower(c, x, rand) {
   const W = ANI_WALL.inner, R = ANI_WALL.tr, H = ANI_WALL.th, n = 18;
+  const ref = x < (ANI_WALL.gap[0] + ANI_WALL.gap[1]) / 2 ? W.x0 : ANI_WALL.gap[1], dy = proj(ref, W.y).y - proj(x, W.y).y;
   const foot = [], head = [];
   for (let i = 0; i <= n; i++) {
     const t = Math.PI * i / n, p = proj(x + R * Math.cos(t), W.y + R * Math.sin(t) * 0.999);
-    foot.push([p.x, p.y]);
-    head.push([p.x, p.y - H * p.s]);
+    foot.push([p.x, p.y + dy]);
+    head.push([p.x, p.y + dy - H * p.s]);
   }
   const s = proj(x, W.y).s;
   // the curved face, lit toward the west (left), its east side in shade
@@ -52508,8 +52521,8 @@ function aniWallTower(c, x, rand) {
   c.beginPath();
   c.moveTo(head[0][0], head[0][1]);
   for (const p of head) c.lineTo(p[0], p[1]);
-  c.lineTo(head[n][0], back.y - H * back.s);
-  c.lineTo(head[0][0], back.y - H * back.s);
+  c.lineTo(head[n][0], back.y + dy - H * back.s);
+  c.lineTo(head[0][0], back.y + dy - H * back.s);
   c.closePath();
   c.fill();
   for (let i = 1; i < n; i += 2) {
@@ -52523,8 +52536,8 @@ function aniWallTower(c, x, rand) {
   // two narrow loops
   c.fillStyle = "#2a1a12";
   const m = proj(x - R * 0.2, W.y + R * 0.95);
-  c.fillRect(m.x - 0.8 * s, m.y - H * 0.62 * m.s, 1.6 * s, 5 * s);
-  c.fillRect(m.x + 6 * s, m.y - H * 0.34 * m.s, 1.6 * s, 5 * s);
+  c.fillRect(m.x - 0.8 * s, m.y + dy - H * 0.62 * m.s, 1.6 * s, 5 * s);
+  c.fillRect(m.x + 6 * s, m.y + dy - H * 0.34 * m.s, 1.6 * s, 5 * s);
 }
 function aniWalls(c, p) {
   const rand = mulberry32(p.seed || 1041), G = ANI_WALL.gap;
@@ -52539,6 +52552,71 @@ function aniWalls(c, p) {
   for (const tx of ANI_WALL.towers) aniWallTower(c, tx, rand);
   aniWallRun(c, ANI_WALL.outer, ANI_WALL.outer.x0, G[0] - 6, rand, [2]);
   aniWallRun(c, ANI_WALL.outer, G[1] + 6, ANI_WALL.outer.x1, rand, [2]);
+  for (const pl of ANI_WALL.platforms) aniWallPlatform(c, pl.x, pl.y, rand);
+}
+// A low platform built out from the outer wall at a bay, as high as the outer wall and paved level with its
+// walk: the stone the tower on that wall pad stands on. Painted level with its run of outer wall (dy, as the
+// bay towers are): every depth is read at the platform's middle, so its front, flank and top share one line.
+function aniWallPlatform(c, x, yF, rand) {
+  const W = ANI_WALL.outer, hw = ANI_WALL.platHW, H = W.h, back = W.y - W.d;
+  const ref = x < (ANI_WALL.gap[0] + ANI_WALL.gap[1]) / 2 ? W.x0 : ANI_WALL.gap[1] + 6, dy = proj(ref, W.y).y - proj(x, W.y).y;
+  const Y = wy => proj(x, wy).y + dy, Sc = wy => proj(x, wy).s, X = (wx, wy) => proj(wx, wy).x;
+  const s = Sc(yF), foot = Y(yF), top = foot - H * s, topB = Y(back) - H * Sc(back);
+  const x0 = X(x - hw, yF), x1 = X(x + hw, yF), b0 = X(x - hw, back), b1 = X(x + hw, back);
+  // a soft shadow along its foot
+  c.fillStyle = "rgba(40, 24, 10, .22)";
+  c.fillRect(x0 - 1, foot - 1, x1 - x0 + 6 * s, 4 * s);
+  // the near flank, from its front back to the outer wall's face: in shade on the east (left of the view's
+  // middle), lit on the west
+  const west = (x0 + x1) / 2 > VW / 2, fx = west ? x - hw : x + hw;
+  const fa = X(fx, yF), fb = X(fx, W.y), ya = foot, yb = Y(W.y);
+  c.fillStyle = west ? ANI_WALL.mid : ANI_WALL.shade;
+  c.beginPath();
+  c.moveTo(fa, ya); c.lineTo(fa, ya - H * s); c.lineTo(fb, yb - H * Sc(W.y)); c.lineTo(fb, yb);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(0.8, 1 * s);
+  c.stroke();
+  // the paved top, back to the far side of the outer wall's walk, with its joints
+  c.fillStyle = ANI_WALL.top;
+  c.beginPath();
+  c.moveTo(x0, top); c.lineTo(x1, top); c.lineTo(b1, topB); c.lineTo(b0, topB);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = "rgba(90, 56, 36, .3)";
+  c.lineWidth = Math.max(0.5, 0.5 * s);
+  c.beginPath();
+  for (let k = 1; k < 4; k++) {
+    const u = k / 4, yy = topB + (top - topB) * u;
+    c.moveTo(b0 + (x0 - b0) * u, yy); c.lineTo(b1 + (x1 - b1) * u, yy);
+  }
+  c.stroke();
+  // the face, coursed like the walls, one dark course of black stone
+  const g = c.createLinearGradient(0, top, 0, foot);
+  g.addColorStop(0, ANI_WALL.lit);
+  g.addColorStop(0.75, ANI_WALL.mid);
+  g.addColorStop(1, ANI_WALL.shade);
+  c.fillStyle = g;
+  c.fillRect(x0, top, x1 - x0, foot - top);
+  aniCourses(c, x0, x1, top + 4 * s, foot, s, rand, [2]);
+  // a plain parapet band along its lip, the grime at its foot, the ink round it
+  c.fillStyle = ANI_WALL.lit;
+  c.fillRect(x0, top - 1.2 * s, x1 - x0, 3.2 * s);
+  c.fillStyle = "rgba(255, 238, 210, .35)";
+  c.fillRect(x0, top - 1.2 * s, x1 - x0, 0.9 * s);
+  const fg = c.createLinearGradient(0, foot - 6 * s, 0, foot);
+  fg.addColorStop(0, "rgba(50, 30, 16, 0)");
+  fg.addColorStop(1, "rgba(50, 30, 16, .3)");
+  c.fillStyle = fg;
+  c.fillRect(x0, foot - 6 * s, x1 - x0, 6 * s);
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(x0, foot); c.lineTo(x0, top - 1.2 * s); c.lineTo(x1, top - 1.2 * s); c.lineTo(x1, foot); c.closePath();
+  c.stroke();
+  c.lineWidth = Math.max(0.6, 0.8 * s);
+  c.beginPath(); c.moveTo(x0, top - 1.2 * s); c.lineTo(b0, topB); c.moveTo(x1, top - 1.2 * s); c.lineTo(b1, topB); c.stroke();
 }
 TERR_CULTURE.aniwalls = (c, p) => aniWalls(c, p);
 
@@ -52708,6 +52786,7 @@ TERR_SCENERY.ani = {
     // the double walls: one prop, sorted by the outer wall's foot; the ground under them is spoken for
     S.props.push({ kind: "aniwalls", x: 640, y: ANI_WALL.outer.y + 0.5, h: 44, hw: 500, seed: 1041 });
     for (let x = ANI_WALL.outer.x0; x <= ANI_WALL.outer.x1; x += 20) S.taken.push({ x, y: 226, r: 22 });
+    for (const pl of ANI_WALL.platforms) for (const dx of [-24, 0, 24]) S.taken.push({ x: pl.x + dx, y: pl.y - 8, r: 20 });
     // the two columns' camps at the near corners, where they came onto the plain
     for (const [sx0, sx1, hearth] of [[24, 300, 8], [990, 1250, -8]]) {
       for (let i = 0; i < 600; i++) {
@@ -52731,7 +52810,6 @@ TERR_SCENERY.ani = {
     // tuff outcrops and dark basalt boulders across the steppe
     scatter(6, "outcrop", 24, 22, () => ({ R: 12 + r() * 10 }));
     scatter(5, "basalt", 22, 20, () => ({ R: 10 + r() * 9 }));
-    scatter(3, "stump", 9, 9, () => ({ margin: 8, gap: 16, cut: 2 }));
   },
   life(k) {
     // the steppe is empty: no village, no flock; only the cross-stones by the road (the field's vishaps)
@@ -52805,7 +52883,7 @@ TERR_BIOME.mari = {
   leaf: [[34, 62, 40], [60, 92, 54], [118, 146, 84]],
   wall: [[218, 206, 182], [176, 162, 138], [116, 104, 88]], fringe: 0.9, farTrees: 1,
 };
-BACKDROP_PEAK.mari = 52;
+BACKDROP_PEAK.mari = 53;
 TERR_BANK_STYLE.mari = "ledge";
 FOOT_STONE.mari = ["#cfc6b0", "#938a76"];
 FAR_ROAD_TO.mari = 950;     // the saddle the pass road climbs to
@@ -52897,10 +52975,12 @@ function bgMari(c) {
   bdMistBand(c, by, 12, 0.22, mist, rand);
 }
 
-// A dry stream bed: the bank cut into the red earth, a floor of pale limestone gravel and rounded stones,
-// nothing running in it at the end of summer. pts in world units.
-function lcDryBed(c, pts, B, rand) {
-  const line = [];
+// A dry stream bed: a shallow channel cut into the red earth, its far bank a dark cut face, its floor the
+// earth's own khaki silt with rounded limestone cobbles lying loose in it, oleander and dry reeds along its
+// banks; nothing runs in it at the end of summer. Nothing about it is level or kerbed like a road: it widens
+// and narrows, and its stones lie in the bed, not along its edges. pts in world units.
+function lcDryBed(c, pts, B, shared) {
+  const rand = mulberry32(12665), line = [];
   let total = 0;
   for (let i = 0; i < pts.length - 1; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
   let run = 0;
@@ -52908,10 +52988,17 @@ function lcDryBed(c, pts, B, rand) {
     const a = pts[i], b = pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, n = Math.max(1, Math.round(len / 10));
     for (let j = i ? 1 : 0; j <= n; j++) {
       const d = run + len * j / n, u = d / total, p = proj(a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n);
-      line.push({ x: p.x, y: p.y, s: p.s, w: 7 + 5 * Math.sin(d * 0.03) * Math.sin(d * 0.011 + 1) , taper: Math.min(1, 0.3 + Math.min(u, 1 - u) * 6) });
+      const w = 12 + 6 * Math.sin(d * 0.021) * Math.sin(d * 0.007 + 1) + 3 * Math.sin(d * 0.067 + 2);
+      line.push({ x: p.x, y: p.y, s: p.s, w, taper: Math.min(1, 0.3 + Math.min(u, 1 - u) * 6) });
     }
     run += len;
   }
+  // the screen normal at each point, for setting things across the bed
+  line.forEach((p, i) => {
+    const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+    p.nx = -dy / l; p.ny = dx / l;
+    if (p.ny < 0) { p.nx = -p.nx; p.ny = -p.ny; }   // the normal points toward the viewer
+  });
   const pass = (grow, css, dy) => {
     c.strokeStyle = css;
     for (let i = 0; i < line.length - 1; i++) {
@@ -52920,22 +53007,55 @@ function lcDryBed(c, pts, B, rand) {
       c.beginPath(); c.moveTo(p.x, p.y + (dy || 0) * p.s); c.lineTo(q.x, q.y + (dy || 0) * q.s); c.stroke();
     }
   };
+  const silt = terrMix(B.earth, B.dry, 0.42);
   c.lineCap = "round";
-  pass(5, terrInkCss(0.45));
-  pass(4, terrCss(terrLit(B.earth, -0.38)));
-  pass(1.5, terrCss(terrLit(B.earth, 0.2)), 0.8);
-  pass(0, terrCss(terrMix(B.rock[0], B.bed, 0.4)));
-  pass(-3, terrCss(terrLit(B.rock[0], 0.15), 0.7), -0.4);
+  // a soft shadow round it, the banks cut dark into the earth (the far one, facing us, shows the most), the
+  // near lip worn a little paler, then the floor of silt
+  pass(8, "rgba(40, 24, 10, .16)", 0.4);
+  pass(5.6, terrInkCss(0.3), -1.8);
+  pass(5, terrCss(terrLit(B.earth, -0.46)), -1.6);
+  pass(2.4, terrCss(terrLit(B.earth, -0.04)), 1.4);
+  pass(-0.5, terrCss(silt), 0.6);
   c.lineCap = "butt";
-  // rounded stones and gravel along its floor, and a tuft or two on its banks
+  // the silt is uneven: paler drifts where it dried first, darker hollows
+  for (let i = 0; i < line.length; i++) {
+    const p = line[i], off = (rand() - 0.5) * p.w * 0.55 * p.s * p.taper;
+    c.fillStyle = terrCss(rand() < 0.55 ? terrLit(silt, 0.14) : terrLit(silt, -0.14), 0.6);
+    c.beginPath(); c.ellipse(p.x + p.nx * off, p.y + p.ny * off + 0.6 * p.s, (2 + rand() * 5) * p.s * p.taper, (0.8 + rand() * 1.2) * p.s * p.taper, Math.atan2(p.ny, p.nx) + Math.PI / 2, 0, Math.PI * 2); c.fill();
+  }
+  // rounded cobbles of pale limestone lying in the bed, a few boulders among them, none along the edges
   for (const p of line) {
     if (p.x < -20 || p.x > VW + 20) continue;
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < 3; k++) {
       if (rand() < 0.4) continue;
-      const rx = (1 + rand() * 1.8) * p.s, x = p.x + (rand() - 0.5) * p.w * p.s * 0.8 * p.taper, y = p.y + (rand() - 0.5) * p.w * p.s * 0.3;
-      terrInkStone(c, x, y, rx, rx * 0.6, B.rock[rand() < 0.6 ? 0 : 1], rand, 0);
+      const roll = rand(), rx = (roll < 0.06 ? 3.4 + rand() * 1.8 : roll < 0.3 ? 1.9 + rand() * 1.2 : 0.9 + rand() * 0.9) * p.s * p.taper;
+      const off = (rand() - 0.5) * p.w * 0.66 * p.s * p.taper, along = (rand() - 0.5) * 8 * p.s;
+      terrInkStone(c, p.x + p.nx * off - p.ny * along, p.y + p.ny * off + p.nx * along + 0.5 * p.s, rx, rx * 0.66, B.rock[rand() < 0.65 ? 0 : 1], rand, 0);
     }
-    if (rand() < 0.3) terrTuft(c, p.x + (rand() - 0.5) * 6 * p.s, p.y + (rand() < 0.5 ? -1 : 1) * (p.w * 0.6 + 2) * p.s, (4 + rand() * 3) * p.s, terrCss(B.blade), terrCss(B.tip));
+  }
+  // along the banks: dry reeds, and oleander in leaf and pink flower (it lines dry stream beds all round the
+  // eastern Mediterranean and flowers through the summer)
+  const oleLeaf = [[56, 82, 56], [86, 114, 74], [134, 156, 104]];
+  for (let i = 3; i < line.length - 3; i++) {
+    const p = line[i];
+    if (p.x < -10 || p.x > VW + 10 || p.taper < 0.6) continue;
+    const roll = rand();
+    if (roll > 0.26) continue;
+    const side = rand() < 0.5 ? -1 : 1, off = (p.w * 0.5 + 4 + rand() * 2) * p.s * side;
+    const x = p.x + p.nx * off, y = p.y + p.ny * off;
+    if (roll < 0.1) {
+      const r = (5.5 + rand() * 3) * p.s;
+      terrBush(c, x, y, r, oleLeaf, rand);
+      for (let f = 0; f < 6; f++) {
+        const fx = x + (rand() - 0.5) * r * 1.5, fy = y - r * (0.35 + rand() * 0.55);
+        c.fillStyle = terrInkCss(0.45);
+        c.beginPath(); c.arc(fx, fy, Math.max(0.9, 0.95 * p.s), 0, Math.PI * 2); c.fill();
+        c.fillStyle = rand() < 0.5 ? "#e888a8" : "#f4b8cc";
+        c.beginPath(); c.arc(fx, fy, Math.max(0.6, 0.7 * p.s), 0, Math.PI * 2); c.fill();
+      }
+    } else {
+      for (let t = 0; t < 2; t++) terrTuft(c, x + (rand() - 0.5) * 5 * p.s, y + (rand() - 0.5) * 1.5 * p.s, (6 + rand() * 4) * p.s, terrCss(terrLit(B.dry, -0.38)), terrCss(B.tip), 0);
+    }
   }
 }
 
@@ -52998,8 +53118,9 @@ TERR_SCENERY.mari = {
       for (const q of bed) S.taken.push({ x: q[0], y: q[1], r: 12 });
     }
     // the pines keep clear of each plot's ground and of its price board beside it (a board crowded out to the field's
-    // left edge would stand under the spell bar)
-    for (const p of plots) S.taken.push({ x: p[0], y: p[1], r: 40 }, { x: p[0] + 50, y: p[1] - 8, r: 46 });
+    // left edge would stand under the spell bar). The level's own list, not the live one: a bought plot leaves
+    // the live list, and the scene baked again after a resize must not change
+    for (const p of LEVELS[curLevel].plots || []) S.taken.push({ x: p[0], y: p[1], r: 40 }, { x: p[0] + 50, y: p[1] - 8, r: 46 });
     const mixes = [[["fir", 0.85], ["broadleaf", 0.15]], [["fir", 0.6], ["broadleaf", 0.4]], [["broadleaf", 0.7], ["fir", 0.3]]];
     for (let i = 0, made = 0; i < 500 && made < 10; i++) {
       const size = 46 + r() * 56;
@@ -53087,7 +53208,7 @@ TERR_BIOME.sis = {
   leaf: [[52, 86, 46], [92, 128, 64], [156, 186, 104]], fruit: [250, 236, 240],
   wall: [[206, 192, 166], [166, 152, 128], [106, 96, 80]], fringe: 0.9, farTrees: 0.4,
 };
-BACKDROP_PEAK.sis = 56;
+BACKDROP_PEAK.sis = 81;
 TERR_BANK_STYLE.sis = "ledge";
 FOOT_STONE.sis = ["#d0c2a4", "#958668"];
 FAR_ROAD_TO.sis = 1040;     // the castle gate, where the road leaves the field
@@ -53219,7 +53340,7 @@ function bgSis(c) {
   // the inner ward along the crown: a curtain that steps with the rock, horseshoe towers, the chapel inside
   const crest = x => skyRidgeY(rock, x);
   const air = 0.08, wLit = skyAir(SIS_STONE.lit, air), wShade = skyAir(SIS_STONE.shade, air);
-  let step = 0;
+  let step = crest(568);
   for (let x = 556; x < 846; x += 2) {
     // the curtain rises in short level runs, each a little higher or lower with the rock under it
     if (x % 24 === 0) step = crest(x + 12);
@@ -53323,9 +53444,11 @@ function sisWallRun(c, x0, x1, rand) {
   c.lineWidth = Math.max(0.5, 0.6 * s);
   c.beginPath(); c.moveTo(A.x, top + 2 * s); c.lineTo(B.x, top + 2 * s); c.stroke();
 }
-// a horseshoe tower: straight flanks out of the curtain and a round front, rusticated at its foot
+// a horseshoe tower: straight flanks out of the curtain and a round front, rusticated at its foot. The curtain
+// is one level run from W.x0 (sisWallRun), so the tower moves every point by the run's offset at x (dy) and
+// stands on the curtain's own foot, its top on the walk where the pad is.
 function sisWallTower(c, x, rand) {
-  const W = SIS_WALL, R = W.tr, L = W.flank, H = W.th, n = 18;
+  const W = SIS_WALL, R = W.tr, L = W.flank, H = W.th, n = 18, dy = proj(W.x0, W.y).y - proj(x, W.y).y;
   const foot = [], head = [];
   const ring = (i) => {
     // 0..n: from the right flank's root round the front to the left flank's root
@@ -53336,8 +53459,8 @@ function sisWallTower(c, x, rand) {
   };
   for (let i = 0; i <= n; i++) {
     const w = ring(i), p = proj(w[0], w[1]);
-    foot.push([p.x, p.y]);
-    head.push([p.x, p.y - H * p.s]);
+    foot.push([p.x, p.y + dy]);
+    head.push([p.x, p.y + dy - H * p.s]);
   }
   const s = proj(x, W.y).s;
   c.fillStyle = "rgba(40, 28, 10, .22)";
@@ -53391,8 +53514,8 @@ function sisWallTower(c, x, rand) {
   c.beginPath();
   c.moveTo(head[0][0], head[0][1]);
   for (const p of head) c.lineTo(p[0], p[1]);
-  c.lineTo(head[n][0], back.y - H * back.s);
-  c.lineTo(head[0][0], back.y - H * back.s);
+  c.lineTo(head[n][0], back.y + dy - H * back.s);
+  c.lineTo(head[0][0], back.y + dy - H * back.s);
   c.closePath();
   c.fill();
   for (let i = 1; i < n; i += 2) {
@@ -53417,11 +53540,12 @@ function sisWalls(c, p) {
   const A = proj(W.x0, W.y + 2), B = proj(W.x1, W.y + 2);
   c.fillStyle = "rgba(40, 28, 10, .2)";
   c.fillRect(A.x, A.y - 1, B.x - A.x, 4 * A.s);
-  // the rock the curtain is founded on shows along its foot, lit and in ledges
+  // the rock the curtain is founded on shows along its foot, lit and in ledges (level with the run, as its towers are)
+  const foot0 = proj(W.x0, W.y).y;
   for (let x = W.x0 - 8; x < W.x1; x += 14 + rand() * 18) {
-    const q = proj(x, W.y + 1.5), w = (8 + rand() * 14) * q.s;
+    const q = proj(x, W.y + 1.5), w = (8 + rand() * 14) * q.s, qy = q.y + foot0 - proj(x, W.y).y;
     c.fillStyle = terrCss(terrLit(TERR_BIOME.sis.rock[0], 0.05));
-    c.beginPath(); c.ellipse(q.x + w / 2, q.y, w / 2 + 2, (1.6 + rand() * 1.4) * q.s, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(q.x + w / 2, qy, w / 2 + 2, (1.6 + rand() * 1.4) * q.s, 0, 0, Math.PI * 2); c.fill();
     c.strokeStyle = terrInkCss(0.35);
     c.lineWidth = 0.7;
     c.stroke();
@@ -53437,6 +53561,36 @@ function sisWalls(c, p) {
   for (const tx of W.towers) sisWallTower(c, tx, rand);
 }
 TERR_CULTURE.siswall = (c, p) => sisWalls(c, p);
+
+// An almond in early spring (an "apricot" prop with bloom set): the blossom comes before the leaves, so the
+// crown is a cloud of white and pale pink, and the bare dark branches show through it and reach past its edge
+const SIS_BLOOM = [[214, 178, 182], [242, 224, 224], [253, 248, 244]];
+function sisAlmondBloom(c, x, y, H, rand, o) {
+  // the painter's second draw sets each crown's hue drift, which on pale blossom turns it lilac: damp it
+  let draws = 0;
+  const steady = () => { const v = rand(); return ++draws === 2 ? 0.5 + (v - 0.5) * 0.25 : v; };
+  terrBroadleaf(c, x, y, H, SIS_BLOOM, steady, null, Object.assign({}, o || {}, { variant: 4 }));
+  const cx = x, cy = y - 0.55 * H, rx = 0.3 * H, ry = 0.23 * H, fork = y - 0.36 * H;
+  c.lineCap = "round";
+  c.strokeStyle = "rgba(70, 46, 34, .8)";
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI * (1.12 + k * 0.152 + (rand() - 0.5) * 0.08), reach = 0.9 + rand() * 0.3;
+    const ex = cx + Math.cos(a) * rx * reach, ey = cy + Math.sin(a) * ry * reach * 1.2;
+    const mx = (x + ex) / 2 + (rand() - 0.5) * rx * 0.25, my = (fork + ey) / 2;
+    c.lineWidth = Math.max(0.5, H * 0.014);
+    c.beginPath(); c.moveTo(x, fork); c.lineTo(mx, my); c.lineTo(ex, ey); c.stroke();
+    // a twig or two at the tip, past the blossom
+    c.lineWidth = Math.max(0.4, H * 0.008);
+    c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex + Math.cos(a - 0.4) * rx * 0.16, ey + Math.sin(a - 0.4) * ry * 0.2); c.stroke();
+  }
+  c.lineCap = "butt";
+  // blossom laid over the branches again, so that they show through only in places
+  for (let i = 0; i < 16; i++) {
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * 0.8;
+    c.fillStyle = rand() < 0.6 ? "rgba(252, 246, 246, .9)" : "rgba(240, 200, 212, .9)";
+    c.beginPath(); c.arc(cx + Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d, Math.max(0.8, H * (0.03 + rand() * 0.03)), 0, Math.PI * 2); c.fill();
+  }
+}
 
 TERR_SCENERY.sis = {
   plan(k) {
@@ -53459,24 +53613,27 @@ TERR_SCENERY.sis = {
       if (add("hut", o.x, o.y, hut.h, hut.hw, hut)) homes.push(S.props[S.props.length - 1]);
     }
     for (const hm of homes) {
-      // a garden wall running off the house's side, and an almond or two inside it
+      // a garden wall running off the house's side, and an almond or two inside it. The wall starts by the
+      // house's wall, inside the ground the house claims, so only the other claims are checked
       const side = r() < 0.5 ? -1 : 1, len = 40 + r() * 30, y0 = hm.y + 4 + r() * 6;
       const pts = [[hm.x + side * hm.w * 0.55, y0], [hm.x + side * (hm.w * 0.55 + len * 0.5), y0 + 6 + r() * 6], [hm.x + side * (hm.w * 0.55 + len), y0 + 2 + r() * 8]];
+      const own = S.taken.find(t => t.x === hm.x && t.y === hm.y);
+      const clear = (x, y, rad) => S.taken.every(t => t === own || Math.hypot(t.x - x, (t.y - y) * 1.4) > t.r + rad);
       let ok = true;
-      for (const q of pts) ok = ok && terrClear(q[0], q[1], 10, true) && free(q[0], q[1], 6);
+      for (const q of pts) ok = ok && terrClear(q[0], q[1], 10, true) && clear(q[0], q[1], 6);
       if (ok) {
         S.props.push({ kind: "fieldwall", x: pts[1][0], y: pts[1][1], h: 8, hw: len / 2, pts, wallH: 7, seed: Math.floor(r() * 1e9) });
         for (const q of pts) S.taken.push({ x: q[0], y: q[1], r: 10 });
       }
       for (let t = 0, made = 0; t < 40 && made < 2; t++) {
         const x = hm.x + side * (hm.w * 0.6 + 8 + r() * len), y = hm.y - 14 - r() * 26;
-        if (add("apricot", x, y, 38 * (0.85 + r() * 0.3), 8, { margin: 8, gap: 12 })) made++;
+        if (add("apricot", x, y, 38 * (0.85 + r() * 0.3), 8, { margin: 8, gap: 12, bloom: true })) made++;
       }
     }
     // the slope: limestone breaking through the spring grass, scrub, a few almonds gone wild on it
     scatter(9, "outcrop", 26, 24, () => ({ R: 12 + r() * 12 }));
     scatter(10, "bush", 14, 12, () => ({ margin: 6, gap: 14 }));
-    scatter(3, "apricot", 34, 8, () => ({ margin: 8, gap: 16 }));
+    scatter(3, "apricot", 34, 8, () => ({ margin: 8, gap: 16, bloom: true }));
   },
   // hearth smoke over a few of the houses: the town has fallen, but nothing burns
   life(k) {
@@ -53581,7 +53738,7 @@ const BRIEF_CROPS = [
   { x: 642, w: 256, gate: 0.5 },    // Sevan: the island monastery
   { x: 470, w: 340, gate: 0.5, air: 0.3, mist: 0.4, ink: [1.15, 1.35, 1.3], motif: "testament" },   // Ani: the cathedral within Smbat's walls
   { x: 760, w: 360, gate: 0.56, air: 0.3, mist: 0.5, ink: [1.1, 1.3, 1.25] },   // Mari: the pass road climbing to its saddle in the Amanus crest
-  { x: 470, w: 420, gate: 0.62, air: 0.3, mist: 0.45, ink: [1.15, 1.4, 1.35], motif: "standard" },   // Sis: the inner ward on the summit of the spur, the plain and the Taurus beyond
+  { x: 545, w: 310, gate: 0.6, air: 0.3, mist: 0.45, ink: [1.15, 1.4, 1.35], motif: "standard" },   // Sis: the inner ward on the summit of the spur, the plain and the Taurus beyond
   { x: 384, w: 300, gate: 0.5 },    // Gyumri: the black-tuff city under Aragats
   { x: 596, w: 270, gate: 0.52, air: 0.3, mist: 0.5, ink: [1.15, 1.35, 1.25] },   // Halidzor: the fortress on its crag over the Voghji gorge
   { x: 680, w: 350, gate: 0.39, air: 0.3, mist: 0.5, ink: [1.2, 1.5, 1.45] },   // Van 1915: the Rock of Van over the walled old city, Lake Van beyond
