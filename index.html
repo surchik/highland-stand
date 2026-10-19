@@ -3176,9 +3176,7 @@ const bctx = bg.getContext("2d");
 // An id with neither a painter nor a stand-in still works: every switch has a default (the Tushpa look).
 // (A painter may also branch on THEME.id early, e.g. its own skyline over a borrowed biome.)
 const BACKDROP_STANDIN = {
-  // Chapter III, until its own painters land: Ani's walled city as Dvin's, the wooded Amanus pass as Tashir's
-  // forest gorges, Sis's castle spur as Halidzor's fortress ridge (none of them shows anything of a later age)
-  ani: "dvin", mari: "lori", sis: "halidzor",
+  // (empty: Chapter III's Ani, Mari and Sis have their own painters, in their BACKDROP SECTIONs)
 };
 // A battlefield with its own painter may borrow another map's ambience bed (Snd.AMB is keyed by painter)
 const BACKDROP_AMB = { halidzor: "lori", van: "urartu", musadagh: "sevan" };
@@ -3204,14 +3202,15 @@ function loadLevel(i) {
   plotsBought = 0;
   ROCKS = L.rocks; VISHAPS = L.vishaps; LAKE = L.lake; THEME = levelTheme(L); LVLSEED = L.seed;
   const polys = L.paths || [L.path];
-  ROUTES = polys.map(pts => {
+  ROUTES = polys.map((pts, ri) => {
     const sl = [];
     let len = 0;
     for (let k = 0; k < pts.length - 1; k++) {
       sl.push(Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]));
       len += sl[k];
     }
-    return { pts, segLens: sl, len };
+    // track: a road the field paints as a narrow goat track (L.track lists them: Mari's other road)
+    return { pts, segLens: sl, len, track: !!(L.track && L.track.includes(ri)) };
   });
   PATH = ROUTES[0].pts;
   segLens = ROUTES[0].segLens;
@@ -4565,6 +4564,9 @@ registerProcessor("kl-tract", KLTract);
         case "exhort":     // the semantron: the church's wooden board struck faster and faster
           [0, 0.2, 0.36, 0.48, 0.57].forEach(dt => this.mallet(v, T + dt, 760, 0.32)); break;
         case "banner": this.flap(v, T, 0.25, 0.45); this.hornNote(v, T + 0.1, 293.66, 0.35, 0.3, 0.5); break;
+        case "oath":       // Ani 1040s: the semantron struck three times, and the banner catching the wind
+          [0, 0.22, 0.38].forEach(dt => this.mallet(v, T + dt, 760, 0.3)); this.flap(v, T + 0.5, 0.2, 0.4); break;
+        case "barrier": this.ignite(v, T, 0.5, false); break;   // brushwood or pitch catching before the wall
         case "drums": this.drum(v, T, true, 0.8); this.drum(v, T + 0.27, false, 0.8); this.drum(v, T + 0.4, true, 0.7); break;
         case "musket":     // the ramrod rattles home
           this.anvil(v, T, 1650, 0.12); this.anvil(v, T + 0.12, 1820, 0.1); break;
@@ -4654,6 +4656,13 @@ registerProcessor("kl-tract", KLTract);
     // gong, and the barricade's and the minefield's masteries are blasts (novaModern, by o.skin and o.site)
     nova(v, t, o) {
       if (o.skin === "minefield" || o.skin === "barricade") return this.novaModern(v, t, o.skin === "minefield" ? "charges" : o.site);
+      if (o.skin === "barrier") {
+        // Rockfall (Cilicia): the heap goes over the edge, a heavy rumble and stones cracking as they bound down
+        this.thump(v, t, 70, 40, 0.25, 0.5, 4);
+        this.nz(v, { t, k: "pink", f: 260, q: 0.8, a: 0.02, p: 0.6, d: 0.7 });
+        for (let i = 0; i < 5; i++) this.modal(v, { t: t + 0.08 + i * this.rr(0.06, 0.12), f: this.rr(300, 520), p: 0.22, parts: [[1, 1, 0.05], [2.6, 0.5, 0.03]] });
+        return;
+      }
       this.nz(v, { t, k: "pink", ft: "lowpass", f: 200, path: [[0.12, 2800], [0.8, 500]], q: 1, a: 0.06, p: 0.8, d: 0.75 });
       if (o.skin === "cauldron") { this.lvl(v, 6); this.thump(v, t, 80, 45, 0.2, 0.45, 4); }
       else this.gong(v, t + 0.02, 146.83, 0.4, 2.2);
@@ -7174,10 +7183,9 @@ const TOWER_SKINS = {
   fire:     ["beacon",   "cauldron", "cauldron",  "cauldron",  "cauldron",  "barricade", "minefield",    "cauldron",  "barrier"],
   drums:    ["standard", "exhort",   "banner",    "drums",     "bekbanner", "bells",    "commandpost",   "oath",      "banner"],
 };
-// the skins still waiting for their painter, and the painted skin each is drawn as meanwhile (drawTower): the
-// oath on its dais as the exhortation's rostrum, the crossbowmen as the frame bolt-thrower, the barred pass and
-// gate as the pitch cauldron. Delete an entry once its SKIN SECTION lands
-const SKIN_STANDIN = { oath: "exhort", crossbow: "ballista", barrier: "cauldron" };
+// the skins still waiting for their painter, and the painted skin each is drawn as meanwhile (drawTower). Delete an
+// entry once its SKIN SECTION lands (Chapter III's oath, crossbow and barrier have all landed)
+const SKIN_STANDIN = {};
 function skinDrawn(skin) { return SKIN_ART[skin] ? skin : SKIN_STANDIN[skin] || skin; }
 const SKIN_ART = {};      // skin id -> { box, scale, paint, variant, live, footing, proj, projSpeed, sound, onFire, kickDrop }
 const PROJ_ART = {};      // projectile kind -> painter, for kinds the first arsenal lacked
@@ -14135,6 +14143,12 @@ function bgBackdrop(c, rand) {
   c.translate(0, -HORIZON);
   if (THEME.backdrop === "halidzor") {
     bgHalidzor(c);
+  } else if (THEME.backdrop === "ani") {
+    bgAni(c);
+  } else if (THEME.backdrop === "mari") {
+    bgMari(c);
+  } else if (THEME.backdrop === "sis") {
+    bgSis(c);
   } else if (THEME.backdrop === "van") {
     bgVan1915(c);
   } else if (THEME.backdrop === "musadagh") {
@@ -15698,7 +15712,10 @@ function terrGorge(c, S, rand) {
     for (let t = span; t >= 0; t -= 8) { const x = A.x + side * t; c.lineTo(x, levelAt(x, f1)); }
     c.closePath();
   };
-  const mist = [204, 216, 206], floor = [26, 38, 40], RIM = 0.27;
+  // a gorge may bring its own stone (G.rock: lit and shaded faces of the far wall and the three near tiers), air
+  // and floor, and G.bare keeps its rims treeless (Ani's gorges cut through the bare steppe)
+  const mist = G.mist || [204, 216, 206], floor = G.floor || [26, 38, 40], RIM = 0.27;
+  const RK = G.rock || [[160, 158, 148], [112, 122, 130], [182, 172, 150], [96, 106, 116], [150, 142, 124], [70, 82, 94], [116, 112, 100], [48, 60, 72]];
   c.save();
   chasm();
   c.clip();
@@ -15742,7 +15759,7 @@ function terrGorge(c, S, rand) {
 
   // the plateau beyond the gap, and the far wall under its rim, well on the way to the colour of the mist
   const plateau = terrMix(terrRgb(THEME.top), mist, 0.32);
-  tier(RIM, 0.5, [160, 158, 148], [112, 122, 130], 0.45, 4, 8, 3);
+  tier(RIM, 0.5, RK[0], RK[1], 0.45, 4, 8, 3);
   // its foot is lost in the shadow of the gap
   for (const [f0, alpha] of [[0.37, 0.3], [0.41, 0.45], [0.45, 0.92]]) {
     c.fillStyle = terrCss(floor, alpha);
@@ -15765,12 +15782,23 @@ function terrGorge(c, S, rand) {
     c.fillStyle = terrCss(terrMix(B.leaf[1], mist, air));
     c.beginPath(); c.ellipse(x - h * 0.12, y - h * 0.62, h * 0.15, h * 0.2, 0, 0, TAU); c.fill();
   };
-  for (let i = 0; i < 46; i++) {
+  // on a bare rim, low scrub in place of the trees
+  const farScrub = (x, y, h, air) => {
+    c.fillStyle = terrCss(terrMix(terrLit(B.scrub || B.leaf[0], -0.2), mist, air));
+    c.beginPath(); c.ellipse(x, y - h * 0.3, h * 0.7, h * 0.32, 0, 0, TAU); c.fill();
+  };
+  if (G.bare) {
+    for (let i = 0; i < 40; i++) {
+      const t = 30 + r() * (span - 30), x = A.x + side * t, near = Math.min(1, t / 230);
+      if (x < -6 || x > VW + 6) continue;
+      farScrub(x, levelAt(x, 0.03 + r() * (RIM - 0.08)), (2 + r() * 2) * (0.5 + 0.5 * near), 0.35);
+    }
+  } else for (let i = 0; i < 46; i++) {
     const t = 30 + r() * (span - 30), x = A.x + side * t, near = Math.min(1, t / 230);
     if (x < -6 || x > VW + 6) continue;
     farTree(x, levelAt(x, 0.03 + r() * (RIM - 0.08)), (2.4 + r() * 2.2) * (0.5 + 0.5 * near), 0.3);
   }
-  for (let t = 22 + r() * 12; t < span; t += 3.5 + r() * r() * 26) {
+  if (!G.bare) for (let t = 22 + r() * 12; t < span; t += 3.5 + r() * r() * 26) {
     const x = A.x + side * t, near = Math.min(1, t / 230), h = (3.2 + r() * 3.4) * (0.45 + 0.55 * near);
     if (x < -6 || x > VW + 6 || h < 1.6) continue;
     farTree(x, levelAt(x, RIM) + 0.8, h, 0.18);
@@ -15782,9 +15810,9 @@ function terrGorge(c, S, rand) {
     c.beginPath(); c.ellipse(x, top + drop * (0.43 + r() * 0.13), 30 + r() * 60, Math.max(1.5, drop * (0.02 + r() * 0.026)), side * 0.3, 0, TAU); c.fill();
   }
   // the nearer rock: three tiers, each standing out below the one above and darker than it
-  tier(0.6, 0.73, [182, 172, 150], [96, 106, 116], 0, 6, 14, 6);
-  tier(0.69, 0.81, [150, 142, 124], [70, 82, 94], 0, 6, 14, 6);
-  tier(0.77, 0.87, [116, 112, 100], [48, 60, 72], 0, 6, 13, 5);
+  tier(0.6, 0.73, RK[2], RK[3], 0, 6, 14, 6);
+  tier(0.69, 0.81, RK[4], RK[5], 0, 6, 14, 6);
+  tier(0.77, 0.87, RK[6], RK[7], 0, 6, 13, 5);
   for (const [f0, alpha] of [[0.71, 0.16], [0.79, 0.2], [0.85, 0.55]]) {
     c.fillStyle = terrCss(floor, alpha);
     band(f0, 0.88);
@@ -15894,7 +15922,7 @@ function terrGorge(c, S, rand) {
 
   // what stands along the lip: rocks and brush, and a few trees leaning out over the drop
   const things = [];
-  let trees = 3 + Math.floor(r() * 3);
+  let trees = G.bare ? 0 : 3 + Math.floor(r() * 3);
   for (let i = 0; i < lip.length - 1; i++) {
     const a = lip[i], b = lip[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     for (let d = 4 + r() * 10; d < len; d += 16 + r() * 16) {
@@ -15934,10 +15962,14 @@ function bgBiomeFeatures(c, rand) {
     terrBlobPath(c, q.x + 3 * q.s, q.y + 1.5 * q.s, rx, rx * 0.5, rand, 0.2);
   }
   c.fill();
-  if (S.gorge) terrGorge(c, S, rand);
+  // a field may open on a gorge at each far corner (S.gorges: Ani between the Akhurian and the Tzaghkotsadzor)
+  if (S.gorges) for (const G of S.gorges) terrGorge(c, Object.assign({}, S, { gorge: G }), rand);
+  else if (S.gorge) terrGorge(c, S, rand);
   for (const b of S.blocks) terrFieldBlock(c, b, B);
   for (const d of S.ditches) terrDitch(c, d, B, rand);
   if (S.course) terrDitch(c, S.course.pts, B, rand, { width: 9.5, source: true });
+  // a stream bed gone dry at the end of summer (Mari's defile)
+  if (S.dryBed) lcDryBed(c, S.dryBed, B, rand);
 
   // cast shadows of everything standing, as one sheet so that neighbours do not stack up:
   // as dark as the live shadows of towers and walkers, and on snow the pale blue of the sky
@@ -16521,7 +16553,7 @@ function terrRoadPlan() {
     for (let x = b.x; x <= b.x + b.w; x += 10) { hold(x, b.y, 6); hold(x, b.y + b.h, 6); }
     for (let y = b.y; y <= b.y + b.h; y += 10) { hold(b.x, y, 6); hold(b.x + b.w, y, 6); }
   }
-  for (const d of (S.ditches || []).concat(S.course ? [S.course.pts] : [])) {
+  for (const d of (S.ditches || []).concat(S.course ? [S.course.pts] : [], S.dryBed ? [S.dryBed] : [])) {
     for (let i = 0; i < d.length - 1; i++) {
       const steps = Math.max(1, Math.ceil(Math.hypot(d[i + 1][0] - d[i][0], d[i + 1][1] - d[i][1]) / 8));
       for (let k = 0; k < steps; k++) hold(d[i][0] + (d[i + 1][0] - d[i][0]) * k / steps, d[i][1] + (d[i + 1][1] - d[i][1]) * k / steps, 10);
@@ -16564,7 +16596,8 @@ function terrRoadPlan() {
     for (let i = 1; i < n - 1; i++) {
       const cn = corners[i];
       if (!cn.turn) continue;
-      for (let shrink = 1; shrink > 0.4 && !cn.sweep; shrink *= 0.86) {
+      // (a goat track turns sharp: no cart has ever swung round its corners)
+      for (let shrink = 1; shrink > 0.4 && !cn.sweep && !R.track; shrink *= 0.86) {
         const L1 = cn.before * shrink, L2 = cn.after * shrink;
         if (Math.min(L1, L2) < 30) break;
         const A = L1 - INNER, Bq = L2 - INNER, steps = Math.ceil((A + Bq) / 3.6), discs = [];
@@ -16622,10 +16655,12 @@ function terrRoadPlan() {
       if (inset > -10) wide = Math.max(wide, 0.9 * bump(Math.max(0, inset) / 72));
       const half = Math.max(14.2, Math.min(23, 18.5 + 6 * waveN(q.d / 100 + k * 7.3)));
       const drift = 6 * driftN(q.d / 90 + k * 3.1) * calm;
+      // a goat track (R.track) is half the road's width all along, its edges as ragged
+      const nar = R.track ? 0.5 : 1;
       const w = [-1, 1].map((sgn, m) => {
-        let v = Math.min(24, half + sgn * drift + 2.1 * edgeN[m](q.d / 17 + k * 5.7) + 0.8 * fineN(q.d / 7 + m * 11 + k));
-        v += Math.max(0, 27.4 - v) * wide + bulge[m];
-        return Math.max(CORE, Math.min(v, roomBeside(q.x, q.y, nx * sgn, ny * sgn)));
+        let v = Math.min(24, half + sgn * drift + 2.1 * edgeN[m](q.d / 17 + k * 5.7) + 0.8 * fineN(q.d / 7 + m * 11 + k)) * nar;
+        v += Math.max(0, 27.4 * nar - v) * wide + bulge[m] * nar;
+        return Math.max(CORE * nar, Math.min(v, roomBeside(q.x, q.y, nx * sgn, ny * sgn)));
       });
       const off = (w[1] - w[0]) / 2, x = q.x + nx * off, y = q.y + ny * off, p = proj(x, y);
       // the ruts keep nearer the walked line than the middle of the bed does
@@ -16633,7 +16668,7 @@ function terrRoadPlan() {
       list.push({
         x, y, ux: q.ux, uy: q.uy, d: q.d, seg: i, t, sx: p.x, sy: p.y, s: p.s, vs: terrVScale(y),
         r: (w[0] + w[1]) / 2, ink: 1.2 + 0.4 * (1 + inkN(q.d / 23 + k * 2.9)), shared: onEarlier(k, q.x, q.y),
-        cx: q.x, cy: q.y, wl: w[0], wr: w[1], wide, bend, inner, lx: q.x + nx * lane, ly: q.y + ny * lane,
+        cx: q.x, cy: q.y, wl: w[0], wr: w[1], wide, bend, inner, lx: q.x + nx * lane, ly: q.y + ny * lane, track: R.track,
       });
     }
     // the cart track: along the way on the straights, swinging through every bend on its own curve
@@ -16664,7 +16699,8 @@ function terrRoadPlan() {
     }
     for (const q of list) plan.stamps.push(q);
     plan.samples.push(list);
-    plan.tracks.push(track);
+    // no cart has ever run on a goat track: no ruts, and none of the hoof prints and stones laid along them
+    plan.tracks.push(R.track ? [] : track);
   });
   terrRoadCache = plan;
   return plan;
@@ -16713,7 +16749,7 @@ function bgRoad(c, rand) {
     for (const sgn of [-1, 1]) {
       let nextBite = 16 + r() * 60, nextNibble = 6 + r() * 14;
       for (const q of route) {
-        if (q.shared || q.inner === sgn) continue;
+        if (q.shared || q.inner === sgn || q.track) continue;
         const w = sgn < 0 ? q.wl : q.wr, nx = -q.uy * sgn, ny = q.ux * sgn;
         if (q.d > nextBite) {
           nextBite = q.d + (B.slush ? 30 + r() * 45 : 36 + r() * 60);
@@ -16856,6 +16892,17 @@ function bgRoad(c, rand) {
   stamps(L, 0.6, 0, 0, 0);
   L.fillStyle = bedFill(0.26, 0.4);
   stamps(L, 0.32, 0, 0, 0);
+  // a goat track is paler than the roads: dust trodden by feet and hooves, never cut by wheels
+  if (plan.stamps.some(q => q.track)) {
+    L.fillStyle = bedFill(0.38, 0.7);
+    L.beginPath();
+    for (const q of plan.stamps) {
+      if (!q.track || q.shared) continue;
+      L.moveTo(q.sx + q.r * q.s, q.sy);
+      L.ellipse(q.sx, q.sy, q.r * q.s, q.r * q.vs, 0, 0, Math.PI * 2);
+    }
+    L.fill();
+  }
   const DARK = -0.24, PALE = 0.3, RUT = B.slush || !tones.lightBed ? -0.42 : -0.3;
   // brushed along the way it is walked: short strokes and broader dabs of darker and paler earth
   L.lineCap = "round";
@@ -17298,6 +17345,11 @@ function bgFarPlain(c) {
     }
     c.stroke();
   };
+  // a battlefield may paint its own far ground in place of the fields, hedges and trees (TERR_SCENERY[id].far:
+  // the city within Ani's walls, the wooded slopes of the Amanus, the upper rocks of Sis's spur)
+  const own = TERR_SCENERY[T.name] && TERR_SCENERY[T.name].far;
+  if (own) own(c, { y0, y1, depth, r, sky, top, B, broken });
+  else {
   let landTop = y0 + 1;
   if (water) {
     // the lake of the backdrop runs on to a far shore here: a strip of water, a pale beach, then the land
@@ -17451,6 +17503,7 @@ function bgFarPlain(c) {
   };
   clumps(landTop + 3, landTop + 9, 2, 3, 0.16, Math.round(30 * plenty));
   clumps(Math.max(landTop + 11, y0 + 17), y1 - 3, 3, 6, 0, Math.round(20 * plenty));
+  }
   c.lineCap = "butt";
   // the air between here and there: the colour of the low sky, strongest at the foot of the skyline
   const veil = c.createLinearGradient(0, y0, 0, y1);
@@ -17505,6 +17558,7 @@ function terrPaintProp(c, p) {
   const q = proj(p.x, p.y), s = q.s * (TERR_BUILT_K[p.kind] || 1), r = mulberry32(p.seed);
   const crown = p.fuse ? { variant: p.variant, rim: p.rim, fuse: p.fuse.map(n => terrCrownAt(n, p)) } : null;
   if (p.kind === "broadleaf") terrBroadleaf(c, q.x, q.y, p.h * s, B.leaf, r, null, crown);
+  else if (p.kind === "apricot" && p.bloom) sisAlmondBloom(c, q.x, q.y, p.h * s, r, crown);
   else if (p.kind === "apricot") terrBroadleaf(c, q.x, q.y, p.h * s, B.leaf, r, B.fruit, crown);
   else if (p.kind === "fir") terrFir(c, q.x, q.y, p.h * s, B.leaf, r, B.snow, crown);
   else if (p.kind === "poplar") terrPoplar(c, q.x, q.y, p.h * s, B.leaf, r, crown);
@@ -25448,8 +25502,13 @@ function drawFort(time) {
 // roofline is the highest painted row in each band of columns; each point takes the lowest roof within three bands
 // of its place (the walls beside a keep, never the tip of a spire or a flagstaff), but never one down at the crag
 // the citadel stands on. In fort units
+// A citadel whose roofline would set a fire where none belongs names its own three points instead (Ani: the
+// cathedral rises behind the gate, so the fires keep to the wall-walk and a gate tower, never its roof).
+const FORT_HEARTHS_AT = { hf_ani: [[-62, -78], [-21, -92], [54, -78]] };
 function fortHearths(sp) {
   if (sp.hearths) return sp.hearths;
+  const fixed = FORT_HEARTHS_AT[fortStyle()];
+  if (fixed) return (sp.hearths = fixed.map(p => p.slice()));
   const cv = sp.cv, W = cv.width, H = cv.height, N = 30;
   let data = null;
   try { data = cv.getContext("2d").getImageData(0, 0, W, H).data; } catch (e) { /* unreadable: a fixed roofline */ }
@@ -26802,6 +26861,11 @@ function towerStone() {
     return { mid: mixHex(TUFF.mid, G[0], 0.65), side: mixHex(TUFF.side, G[1], 0.65), trim: "#b9aea6", mortar: "rgba(232, 226, 220, .3)", band: 0, urartu: false };
   }
   if (biome === "erebuni" || biome === "urartu") return { mid: "#cfa878", side: "#93704e", trim: "#ecd6b4", mortar: null, band: 13, urartu: true };
+  // Cilicia builds in its pale limestone, not the highland tuff (Mari's pass, the castle spur of Sis)
+  if (biome === "mari" || biome === "sis") {
+    const L = FOOT_STONE[biome];
+    return { mid: mixHex(L[0], L[1], 0.25), side: toneHex(L[1], -8), trim: toneHex(L[0], 12), mortar: "rgba(250, 246, 236, .26)", band: 0, urartu: false };
+  }
   return { mid: TUFF.mid, side: TUFF.side, trim: "#ecd6b4", mortar: null, band: 0, urartu: false };
 }
 // masonry options for a tower wall of the map's stone
@@ -35255,6 +35319,599 @@ SKIN_ART.barricade = {
 };
 // ====================================== END SKIN SECTION: barricade ======================================
 
+// ======================================================================================
+// SKIN SECTION: oath. Ani in the 1040s, drums slot: an oath sworn on the walls to the young king
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// The chroniclers tell how the princes and the army swore oaths at Ani to the late king's young nephew Gagik.
+// A timber dais on the walls: a cleric in a dark robe holds up a Gospel book with a small hand cross, and
+// nobles in mail and conical helmets kneel and raise their right hands on the beat. Behind them a tall pole
+// with a plain red banner under a gilt cross. None of the figures is anyone in particular: which churchmen
+// stood at the oath is not settled. Built from the exhortation's robed figure and the banner's pole; the shared
+// rally helpers live in the standard section.
+const OATH = { robe: "#2a2430", fold: "rgba(0, 0, 0, .45)", sleeve: "#3c3442", hair: "#2a2220", beard: "#7c766e",
+  mail: "#8e9196", coats: ["#7a2e26", "#3e4a6a", "#5a4a30"], helm: "#9da2aa", cloth: "#a8322a", book: "#7a2a1e", gilt: "#e3b24a" };
+// a conical helmet over a garrison figure's head at (x, y), scale k, a nasal bar down the face
+function oathHelm(x, y, k, face) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.scale(k * face, k);
+  c.beginPath();
+  c.moveTo(-3.3, -16.1);
+  c.quadraticCurveTo(-2.4, -19.2, 0.4, -23.2);
+  c.quadraticCurveTo(3.2, -19.2, 4.1, -16.1);
+  c.closePath();
+  c.fillStyle = OATH.helm;
+  c.fill();
+  inkStroke(0.9);
+  c.fillStyle = "rgba(255, 252, 240, .55)";
+  c.beginPath(); c.moveTo(-1.6, -17); c.quadraticCurveTo(-0.8, -19.8, 0.4, -22); c.lineTo(-0.2, -17.2); c.closePath(); c.fill();
+  inkRect(-3.6, -16.6, 8, 1.3, toneHex(OATH.helm, -24), 0.5);
+  inkRect(1.5, -16.2, 1, 3.6, toneHex(OATH.helm, -10), 0.4);
+  c.restore();
+}
+// a noble kneeling to swear: mail over his coat, a conical helmet, his sword at his side; the left hand rests on
+// his knee (baked), the right is left to the live pass, which raises it on the beat. Returns his right shoulder
+function oathKneeler(x, y, coat, face, off) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.scale(face, 1);
+  for (const leg of [[-1.6, -2.2, -2.6, -0.3, -6.4, -0.4], [1.9, -2.2, 5.6, -3.1, 5.8, -0.2]]) {
+    c.beginPath();
+    c.moveTo(leg[0], leg[1]); c.lineTo(leg[2], leg[3]); c.lineTo(leg[4], leg[5]);
+    c.strokeStyle = INK; c.lineWidth = 3.3; c.stroke();
+    c.strokeStyle = "#4a3a2a"; c.lineWidth = 2.1; c.stroke();
+  }
+  // the sword in its scabbard, its hilt by the hip
+  beam(-3.2, -6.4, -8.6, 0.4, 1.3, "#3a2a20");
+  inkRect(-3.9, -7.6, 1.6, 2.4, OATH.gilt, 0.4);
+  c.restore();
+  garrisonFigure(x, y + 3, 1, { tunic: OATH.mail, cap: OATH.helm, pose: "none", face, noLegs: true });
+  // the coat showing under the mail at the skirt, rings of mail on the body
+  c.save();
+  c.translate(x, y + 3);
+  c.scale(face, 1);
+  inkPoly([-3.7, -6, 3.7, -6, 4.4, -3.6, -4.4, -3.6], coat, 0.8);
+  c.fillStyle = "rgba(40, 40, 46, .35)";
+  for (let ry = -11; ry < -6.4; ry += 1.4) for (let rx = -3 + (ry % 2.8 ? 0.7 : 0); rx < 3.4; rx += 1.4) c.fillRect(rx, ry, 0.6, 0.6);
+  c.restore();
+  oathHelm(x, y + 3, 1, face);
+  // the left hand on the knee
+  rallyArm([x - 3 * face, y + 3 - 10.9, x - 4.4 * face, y + 3 - 6.4, x - 5.6 * face, y + 3 - 3.4], toneHex(OATH.mail, 10));
+  structCrown(y - 24);
+  rallyRecords().push({ kind: "swear", sh: structPoint(x + 3 * face, y + 3 - 10.9), face, off: off || 0 });
+  return structPoint(x + 3 * face, y + 3 - 10.9);
+}
+function paintRallyOath(lvl, spec) {
+  const c = sctx, st = rallyStage(lvl, spec, 191 + lvl), T = st.T, ox = st.ox, oy = st.oy, pd = st.pd, cx = st.cx;
+  const great = !!spec || lvl === 2;
+  const pw = great ? st.maxW - 1 : [22, 27][lvl], ph = great ? 15 : [10, 12.5][lvl];
+  rankMarks(0, 3.2, lvl, spec, T.urartu);
+  // the dais: a plank stage on posts, a step at its front, a cloth hung over its face
+  box3(pw, ph, pd, TIMBER, { side: "#573a1e" });
+  plankRect(-pw / 2 + 0.8, -ph + 0.8, pw - 1.6, ph - 1.6, TIMBER, true, 193 + lvl);
+  woodGrain(-pw / 2 + 0.8, -ph + 0.8, pw - 1.6, ph - 1.6, true, 195 + lvl);
+  for (const px of [-pw / 2 + 1.5, pw / 2 - 1.5]) beam(px, -0.6, px, -ph + 0.6, 2.4, toneHex(TIMBER, -18));
+  if (great) {
+    // a red cloth over the front of the dais, plain, its hem lit
+    inkPoly([-pw / 2 + 4, -ph + 1, pw / 2 - 4, -ph + 1, pw / 2 - 5, -ph * 0.42, -pw / 2 + 5, -ph * 0.42], OATH.cloth, 0.8);
+    c.fillStyle = "rgba(255, 220, 190, .25)";
+    c.fillRect(-pw / 2 + 5, -ph * 0.42 - 1.2, pw - 10, 0.9);
+  }
+  deckTop(pw, ph, pd, TIMBER);
+  if (structSnow) snowCap(-pw / 2, -ph + 0.2, pw * 0.4, 1.2);
+  wallTorch(-pw / 2 + 3.6, -ph + 6.5);
+  if (lvl > 0 || spec) wallTorch(pw / 2 - 4, -ph + 6.5);
+  // a spot on the deck: x along the front, f how far back (0 the front edge, 1 the back)
+  const at = (x, f) => [x + ox * (f - 0.5), -ph + oy * f];
+  if (spec === "b") {
+    // the Oaths of the Princes: two lesser banners at the foot of the dais
+    rallyFlank(st, 58, { fin: "cross", fr: 2.7, flag: [15, 10.5], hex: OATH.cloth });
+  }
+  if (spec === "a") {
+    // the Sworn Host: spearmen in mail stand at the foot of the dais
+    garrisonFigure(-st.base.w / 2 - 4.6, 4.6, 1, { tunic: OATH.mail, cap: OATH.helm, pose: "spear", face: 1 });
+    oathHelm(-st.base.w / 2 - 4.6, 4.6, 1, 1);
+    garrisonFigure(st.base.w / 2 + 4.2 + ox * 0.5, 1.2, 1, { tunic: OATH.mail, cap: OATH.helm, pose: "spear", face: -1 });
+    oathHelm(st.base.w / 2 + 4.2 + ox * 0.5, 1.2, 1, -1);
+  }
+  // the banner behind them, planted at the back of the dais
+  const B = at(great ? cx + 8 : cx + 6, 0.86), height = great ? 56 : [44, 50][lvl];
+  rallyPlanted(B[0], B[1], height, {
+    fin: "cross", fr: great ? 3.4 : [2.8, 3.1][lvl], flag: great ? [25, 18] : [18, 13], hex: OATH.cloth, pw: great ? 2.4 : 2.1, wood: "#6e4c2c",
+  });
+  // the nobles kneeling before him, the farthest first
+  const nobles = great ? [[-3, 0.7, 0], [-10.5, 0.44, 1], [-18, 0.18, 2]] : lvl === 1 ? [[-3.5, 0.6, 0], [-11.5, 0.28, 1]] : [[-5.5, 0.42, 0]];
+  for (const [nx, f, i] of nobles) {
+    const N = at(cx + nx, f);
+    oathKneeler(N[0], N[1] - 2.4, OATH.coats[i], 1, 0.5 + i * 0.7);
+  }
+  // the cleric at the right of the deck facing the nobles, the Gospel book lifted on the beat
+  const P = at(lvl === 0 && !spec ? cx + 6.5 : cx + 9.5, 0.4);
+  const psh = exhortRobed(P[0], P[1], { robe: OATH.robe, fold: OATH.fold, hair: OATH.hair, beard: OATH.beard, face: -1 });
+  rallyRecords().push({ kind: "book", sh: psh, face: -1, lift: great ? 4.6 : 3.8, off: 0 });
+  structCrown(P[1] - 34);
+  c.restore();
+}
+// the live pass: the book lifted, the right hands raised to swear; everything else as the other rally skins
+function oathLive(t, cx) {
+  const list = cx.fit.rally;
+  if (!list) return;
+  const k = cx.k, X0 = cx.x, Y0 = cx.y, beat = isFinite(t.beat) ? t.beat : cx.time * 0.004;
+  ctx.globalAlpha = cx.fade;
+  for (const r of list) {
+    if (r.kind === "book") {
+      // both hands hold up the Gospel book over his head, a little higher on the beat; the small cross in front
+      const up = (0.5 + 0.5 * Math.sin(beat + r.off)) * r.lift, f = r.face;
+      const hx = X0 + (r.sh[1][0] + 4.2 * f) * k, hy = Y0 + (r.sh[1][1] - 9 - up) * k;
+      rallyArmLive(X0 + r.sh[0][0] * k, Y0 + r.sh[0][1] * k, hx - 1.6 * f * k, hy + 1.2 * k, k, OATH.sleeve);
+      // the book: a red binding with a gilt cross on its board, seen a little from below
+      ctx.save();
+      ctx.translate(hx, hy - 2.4 * k);
+      ctx.rotate(-0.12 * f);
+      ctx.fillStyle = OATH.book;
+      ctx.fillRect(-3.4 * k, -2.6 * k, 6.8 * k, 5.2 * k);
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.8 * k; ctx.strokeRect(-3.4 * k, -2.6 * k, 6.8 * k, 5.2 * k);
+      ctx.fillStyle = "#f2e8d0";
+      ctx.fillRect(-3.4 * k, 2.1 * k, 6.8 * k, 0.6 * k);
+      ctx.fillStyle = OATH.gilt;
+      ctx.fillRect(-0.4 * k, -1.8 * k, 0.8 * k, 3.6 * k);
+      ctx.fillRect(-1.5 * k, -0.7 * k, 3 * k, 0.8 * k);
+      ctx.restore();
+      rallyArmLive(X0 + r.sh[1][0] * k, Y0 + r.sh[1][1] * k, hx + 1.4 * f * k, hy + 1 * k, k, OATH.sleeve);
+      // a small hand cross held out over the book
+      const qx = hx + 3.6 * f * k, qy = hy - 6.4 * k;
+      rallyFinial(ctx, "cross", qx, qy, 1.5, k);
+    } else if (r.kind === "swear") {
+      // the right hand raised, palm out, highest on the beat
+      const up = Math.max(0, Math.sin(beat + r.off)), f = r.face, sx = X0 + r.sh[0] * k, sy = Y0 + r.sh[1] * k;
+      const hx = sx + (3.2 - up * 1.4) * f * k, hy = sy - (5 + up * 6.2) * k;
+      rallyArmLive(sx, sy, hx, hy, k, toneHex(OATH.mail, 10));
+      ctx.fillStyle = RALLY_SKIN;
+      ctx.beginPath(); ctx.ellipse(hx, hy - 1.2 * k, 1.1 * k, 1.7 * k, 0.2 * f, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 0.55 * k; ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // the banners and torches go to the shared pass (the list without this skin's own records, kept on the sprite)
+  const rest = cx.fit.oathRest || (cx.fit.oathRest = { rally: list.filter(r => r.kind !== "book" && r.kind !== "swear") });
+  rallyLive(t, { fit: rest, k, x: X0, y: Y0, time: cx.time, fade: cx.fade });
+}
+SKIN_ART.oath = {
+  box: TOWER_BOX.drums,
+  scale: TOWER_SCALE.drums,
+  paint(lvl, spec, variant) { paintRallyOath(lvl, spec); },
+  live: oathLive,
+};
+// ====================================== END SKIN SECTION: oath ======================================
+
+// ======================================================================================
+// SKIN SECTION: crossbow. Cilicia (era 8), ballista slot: crossbowmen in a tower, or picked bowmen on a crag
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// Two field variants (each field's sprites are baked apart):
+//  sis: "Tower Crossbowmen". A tower of the castle's limestone with an embrasured breastwork; one man shoots
+//    (his crossbow is drawn live at the aim and kicks on the shot), another spans his with his foot in the
+//    stirrup and the cord on his belt hook; a box of quarrels on the walk. Crossbows at Sis are not documented
+//    (the Cilician army took up European ways and arms, and its castles have embrasured loops for archers):
+//    the tower's name is the fact-checked one.
+//  mari: "Crag Marksmen: picked archers posted on the rocks". The same breastwork, dry-laid on a crag, and
+//    archers drawing long composite bows; no crossbow is claimed at Mari.
+// Crews in kettle hats or round helmets, mail and padded coats. Masteries: Picked Shots, one heavy shot from
+// the tallest post; Paired Bows, two shooters each with a mark of his own.
+const XB = {
+  coats: ["#8a7656", "#6e5a40", "#7a6248"], mail: "#8e9196", helm: "#9ca1a9", stock: "#7a5230", prod: "#5a5a60",
+  string: "#efe6cc", quarrel: "#c9b48a", box: "#6e4a2c",
+};
+function xbField() { return THEME && THEME.id === "mari" ? "bows" : "sis"; }
+function xbFace(a) { return Math.cos(a) < 0 ? -1 : 1; }
+function xbAim2(t, aim) { return t && isFinite(t.xbAim2) ? t.xbAim2 : aim; }
+function xbDims(lvl, spec) {
+  if (spec === "a") return { H: 30, F: 1.18 };
+  if (spec === "b") return { H: 22, F: 1.08 };
+  return [{ H: 11, F: 1.08 }, { H: 19, F: 1.08 }, { H: 25, F: 1.1 }][lvl];
+}
+// the brim of a kettle hat over a garrison figure's head (x, y its foot), k its scale
+function xbKettle(x, y, k, face) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.scale(k * face, k);
+  inkDisc(0.4, -16.4, 5.4, 1.3, toneHex(XB.helm, -8), 0.8);
+  c.fillStyle = "rgba(255, 252, 240, .45)";
+  c.fillRect(-3.6, -16.9, 3.2, 0.5);
+  c.restore();
+}
+// a man of the crew in a padded coat over mail; arms per pose, as garrisonFigure draws them
+function xbMan(x, y, F, face, coat, pose, kettle) {
+  garrisonFigure(x, y, F, { tunic: coat, cap: XB.helm, pose, face });
+  // the mail showing at the collar (unless his arms are raised across it) and the coat's quilting
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  c.scale(F * face, F);
+  c.fillStyle = XB.mail;
+  if (pose !== "bow" && pose !== "pull") c.fillRect(-2.6, -12.2, 5.2, 1.3);
+  c.strokeStyle = "rgba(40, 26, 14, .3)";
+  c.lineWidth = 0.4;
+  c.beginPath();
+  for (let qy = -10.6; qy < -5; qy += 1.6) { c.moveTo(-3.3, qy); c.lineTo(3.3, qy); }
+  c.stroke();
+  c.restore();
+  if (kettle) xbKettle(x, y, F, face);
+}
+// the man spanning his crossbow: bent over it, the bow's stirrup under his foot, both hands drawing the cord
+// up to the hook on his belt; the crossbow stands on its nose in front of him
+function xbSpanner(x, y, F, face, coat) {
+  const c = sctx;
+  // the crossbow, nose down: stock up the front of his legs, the prod across at his feet, the stirrup
+  c.save();
+  c.translate(x, y);
+  c.scale(F * face, F);
+  beam(4.6, -0.6, 3.6, -12, 1.5, XB.stock);
+  c.beginPath();
+  c.moveTo(-1.6, -1.2); c.quadraticCurveTo(4.8, -3.2, 10.4, -0.6);
+  c.strokeStyle = INK; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = XB.prod; c.lineWidth = 1.1; c.stroke();
+  c.strokeStyle = XB.string;
+  c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(-1.6, -1.2); c.lineTo(2.4, -8); c.lineTo(10.4, -0.6); c.stroke();
+  inkDisc(4.6, 0, 1.6, 0.8, "rgba(0,0,0,0)", 0.7);
+  c.restore();
+  // the man stooped over it
+  c.save();
+  c.translate(x, y);
+  c.rotate(0.3 * face);
+  c.translate(-x, -y);
+  xbMan(x, y, F, face, coat, "pull", true);
+  c.restore();
+  // the cord from the bow to the hook at his belt
+  const hook = [x + 1.6 * F * face, y - 7 * F];
+  c.strokeStyle = XB.string;
+  c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(x + 2.4 * F * face, y - 8 * F); c.lineTo(hook[0], hook[1]); c.stroke();
+  structCrown(y - 22 * F);
+}
+// a shooter whose crossbow (or bow) is drawn live: the man is baked, a record left for the live pass
+function xbShooter(x, y, F, face, coat, n, bow) {
+  xbMan(x, y, F, face, coat, "none", !bow);
+  const sh = [structPoint(x - 3 * face * F, y - 10.9 * F), structPoint(x + 3 * face * F, y - 10.9 * F)];
+  (structFit.xb || (structFit.xb = [])).push({ sh, chest: structPoint(x + 1.6 * face * F, y - 11.6 * F), F, n, bow: !!bow });
+  structCrown(y - 24 * F);
+}
+// a box of quarrels, their fletched ends standing up out of it
+function xbQuarrelBox(x, y) {
+  const c = sctx;
+  c.save();
+  c.translate(x, y);
+  box3(6.4, 3.4, 3.4, XB.box, { side: toneHex(XB.box, -30), top: toneHex(XB.box, 18) });
+  for (let i = 0; i < 5; i++) {
+    const qx = -2.4 + i * 1.2;
+    beam(qx, -3.2, qx + 0.3, -6.4, 0.6, XB.quarrel);
+    c.fillStyle = "#e9e1cc";
+    c.fillRect(qx - 0.4, -6.8, 1.2, 1);
+  }
+  c.restore();
+}
+// a sheaf of arrows in a quiver leant on the stones
+function xbQuiver(x, y) {
+  const c = sctx;
+  inkPoly([x - 1.4, y, x + 1.4, y, x + 2.6, y - 9, x - 0.2, y - 9.4], "#6a3e24", 0.7);
+  for (let i = 0; i < 4; i++) {
+    const qx = x - 0.2 + i * 0.8;
+    beam(qx, y - 9, qx + 0.6 + i * 0.3, y - 12.6, 0.5, "#c8b088");
+    c.fillStyle = i % 2 ? "#e8e0cc" : "#a8322a";
+    c.fillRect(qx + 0.2 + i * 0.3, y - 13.2, 1.2, 1.4);
+  }
+}
+function paintCrossbowPost(lvl, spec, variant) {
+  const c = sctx, S = footStone(), field = xbField(), D = xbDims(lvl, spec);
+  const face0 = variant & 1 ? -1 : 1, face1 = variant & 2 ? -1 : 1;
+  const T = { mid: mixHex(S[0], S[1], 0.22), side: toneHex(S[1], -10), trim: toneHex(S[0], 14), mortar: "rgba(250, 246, 236, .26)", band: 0, urartu: false };
+  const base = towerBase("ballista", lvl, spec), stepped = !!spec || lvl === 2;
+  const bw = base.w - 4, bd = base.d - 4;
+  footPlinth(base.w, base.d, base.h, S, 211 + lvl + (spec ? 7 : 0), stepped);
+  c.save();
+  c.translate(-bd * OBQ.dx / 2, -base.h - bd * OBQ.dy / 2);
+  rankMarks(0, 3.2, lvl, spec, false);
+  const W = spec === "b" ? bw + 2 : spec === "a" ? bw - 8 : bw - [6, 6, 3][lvl], H = D.H, Dp = bd;
+  if (field === "sis") {
+    // the tower: cut limestone, rusticated at its foot, an embrasured loop or two
+    box3(W, H, Dp, T.mid, towerWall(T, 221 + lvl, { course: 4, block: 8.4 }));
+    lcRustic(-W / 2, -Math.min(H, 9), W, Math.min(H, 9), 4, 8.4, 223 + lvl);
+    if (H > 15) lcLoop(-W / 4, -H + 6, 7);
+    if (H > 22) lcLoop(W / 4, -H + 10, 7);
+    if (H > 15) archDoor(W / 4 + 1, 5.4, 8, T.trim);
+    wallTorch(-W / 2 + 3.4, -Math.max(8, H - 6));
+  } else {
+    // a crag of the pass, and a breastwork of dry stones laid on its top
+    e5Rock(W + 2, H, Dp, 231 + lvl, T);
+  }
+  // the walk on top: the breastwork behind the men, the men, then its near side
+  c.save();
+  c.translate(0, -H);
+  const walk = Dp * OBQ.dy * 0.45, mx = Dp * OBQ.dx * 0.45;
+  if (field === "sis") parapetBack(W, 0, Dp, T.mid, true);
+  if (spec === "a") {
+    xbShooter(mx, walk, D.F, face0, XB.coats[0], 0, field === "bows");
+    xbQuarrelBox(mx - W / 2 + 5, walk + 1);
+  } else if (spec === "b") {
+    xbShooter(mx - 7.5, walk - 0.4, D.F, face0, XB.coats[0], 0, field === "bows");
+    xbShooter(mx + 7.5, walk + 0.4, D.F, face1, XB.coats[1], 1, field === "bows");
+  } else {
+    if (lvl >= 1) {
+      // the spanner stands a step up, so that his crossbow and his stooped back show over the merlons
+      if (field === "sis") xbSpanner(mx - 7, walk - 3, D.F, face0, XB.coats[1]);
+      else xbMan(mx - 7, walk - 0.6, D.F, face0, XB.coats[1], "bow", false);
+    }
+    xbShooter(lvl >= 1 ? mx + 5.5 : mx, walk + 0.4, D.F, face0, XB.coats[0], 0, field === "bows");
+    if (lvl === 2 && field === "sis") xbQuarrelBox(mx + W / 2 - 3.5, walk - 2);
+  }
+  if (field === "sis") parapetFront(W, 0, Dp, T.mid, true);
+  else {
+    // the breastwork: a low run of dry stones along the crag's front edge, a quiver against it
+    c.save();
+    c.translate(0, Dp * OBQ.dy * 0.1);
+    e5DryStone(W - 2, 4.6, 3, 241 + lvl);
+    c.restore();
+    xbQuiver(-W / 2 + 4, 1);
+  }
+  c.restore();
+  c.restore();
+}
+function xbLive(t, cx) {
+  const list = cx.fit.xb;
+  if (!list) return;
+  const k = cx.k, e = cx.kick;
+  ctx.globalAlpha = cx.fade;
+  for (const m of list) {
+    const a = m.n === 1 ? xbAim2(t, cx.aim) : cx.aim, f = xbFace(a), u = k * m.F;
+    // the shot leaves along the screen line to the mark, held within a sensible tilt of level
+    let ang = Math.atan2(Math.sin(a) * 0.55, Math.abs(Math.cos(a)));
+    ang = Math.max(-0.65, Math.min(0.45, ang));
+    const dx = Math.cos(ang) * f, dy = Math.sin(ang);
+    const ox = cx.x + m.chest[0] * k - dx * e * 2.2 * u, oy = cx.y + m.chest[1] * k - dy * e * 2.2 * u;
+    if (m.bow) {
+      // a long composite bow held out at the mark, the string drawn to the cheek, slack just after the shot
+      const bx = ox + dx * 7.4 * u, by = oy + dy * 7.4 * u, px = -dy, py = dx;
+      const R = 7.6 * u, draw = e > 0.12 ? 0.6 : 5.6;
+      const tipA = [bx + px * R - dx * 2.4 * u, by + py * R - dy * 2.4 * u], tipB = [bx - px * R - dx * 2.4 * u, by - py * R - dy * 2.4 * u];
+      ctx.beginPath();
+      ctx.moveTo(tipA[0], tipA[1]);
+      ctx.quadraticCurveTo(bx + dx * 3.6 * u, by + dy * 3.6 * u, tipB[0], tipB[1]);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2.3 * u; ctx.stroke();
+      ctx.strokeStyle = "#8a5a2c"; ctx.lineWidth = 1.3 * u; ctx.stroke();
+      const nock = [bx - dx * draw * u, by - dy * draw * u];
+      ctx.beginPath();
+      ctx.moveTo(tipA[0], tipA[1]); ctx.lineTo(nock[0], nock[1]); ctx.lineTo(tipB[0], tipB[1]);
+      ctx.strokeStyle = XB.string; ctx.lineWidth = 0.5 * u; ctx.stroke();
+      if (e <= 0.12) {
+        ctx.beginPath(); ctx.moveTo(nock[0], nock[1]); ctx.lineTo(bx + dx * 4 * u, by + dy * 4 * u);
+        ctx.strokeStyle = "#3a2716"; ctx.lineWidth = 0.8 * u; ctx.stroke();
+      }
+      rallyArmLive(cx.x + m.sh[1][0] * k, cx.y + m.sh[1][1] * k, bx, by, u, toneHex(XB.coats[m.n], 14));
+      rallyArmLive(cx.x + m.sh[0][0] * k, cx.y + m.sh[0][1] * k, nock[0], nock[1], u, toneHex(XB.coats[m.n], 14));
+    } else {
+      // the crossbow at the shoulder: the stock along the line of the shot, the steel prod across its nose
+      const L = 12 * u, tail = [ox - dx * 2 * u, oy - dy * 2 * u], nose = [ox + dx * L, oy + dy * L], px = -dy, py = dx;
+      const heavy = cx.spec === "a" ? 1.25 : 1, pr = 4.6 * u * heavy;
+      ctx.beginPath(); ctx.moveTo(tail[0], tail[1]); ctx.lineTo(nose[0], nose[1]);
+      ctx.strokeStyle = INK; ctx.lineWidth = 2.6 * u; ctx.stroke();
+      ctx.strokeStyle = XB.stock; ctx.lineWidth = 1.5 * u; ctx.stroke();
+      const pa = [nose[0] - px * pr - dx * 1.6 * u, nose[1] - py * pr - dy * 1.6 * u], pb = [nose[0] + px * pr - dx * 1.6 * u, nose[1] + py * pr - dy * 1.6 * u];
+      ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.quadraticCurveTo(nose[0] + dx * 1.2 * u, nose[1] + dy * 1.2 * u, pb[0], pb[1]);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.9 * u; ctx.stroke();
+      ctx.strokeStyle = XB.prod; ctx.lineWidth = 1 * u; ctx.stroke();
+      // the cord: spanned to the nut, slack forward of it just after the shot
+      const nut = e > 0.12 ? [nose[0] - dx * 2.4 * u, nose[1] - dy * 2.4 * u] : [ox + dx * 3.2 * u, oy + dy * 3.2 * u];
+      ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(nut[0], nut[1]); ctx.lineTo(pb[0], pb[1]);
+      ctx.strokeStyle = XB.string; ctx.lineWidth = 0.45 * u; ctx.stroke();
+      if (e <= 0.12) {
+        ctx.beginPath(); ctx.moveTo(nut[0], nut[1]); ctx.lineTo(nose[0] + dx * 1.6 * u, nose[1] + dy * 1.6 * u);
+        ctx.strokeStyle = XB.quarrel; ctx.lineWidth = 0.9 * u; ctx.stroke();
+      }
+      rallyArmLive(cx.x + m.sh[0][0] * k, cx.y + m.sh[0][1] * k, tail[0] + dx * 1.4 * u, tail[1] + dy * 1.4 * u + 0.8 * u, u, toneHex(XB.coats[m.n], 14));
+      rallyArmLive(cx.x + m.sh[1][0] * k, cx.y + m.sh[1][1] * k, ox + dx * 6.6 * u, oy + dy * 6.6 * u + 0.9 * u, u, toneHex(XB.coats[m.n], 14));
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+SKIN_ART.crossbow = {
+  box: TOWER_BOX.ballista,
+  scale: TOWER_SCALE.ballista,
+  paint(lvl, spec, variant) { paintCrossbowPost(lvl, spec, variant); },
+  // the bake follows which way each shooter faces; the pair's second man has a mark of his own
+  variant(t, aim) { return (xbFace(aim) < 0 ? 1 : 0) + (t.spec === "b" && xbFace(xbAim2(t, aim)) < 0 ? 2 : 0); },
+  footing(lvl, spec) {
+    const b = towerBase("ballista", lvl, spec), k = STRUCT_K * TOWER_SCALE.ballista, stepped = !!spec || lvl === 2;
+    return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+  },
+  onFire(t, target) {
+    if (t.spec !== "b") return;
+    if (t.xbMark === t.cd) {
+      const p = enemyPos(target);
+      t.xbAim2 = Math.atan2(p.y - t.y, p.x - t.x);
+    } else t.xbMark = t.cd;
+  },
+  live: xbLive,
+  // Mari's picked archers loose arrows, Sis's crossbowmen quarrels (drawn as the bolt, and heard with its cord)
+  get proj() { return xbField() === "bows" ? "arrow" : "bolt"; },
+  get projSpeed() { return xbField() === "bows" ? 520 : 600; },
+  get sound() { return xbField() === "bows" ? "arrow" : "bolt"; },
+};
+// ====================================== END SKIN SECTION: crossbow ======================================
+
+// ======================================================================================
+// SKIN SECTION: barrier. Cilicia (era 8), fire slot: the road closed and fired before the defenders
+// Everything this skin needs lives between this banner and its END banner.
+// ======================================================================================
+// Two field variants (each field's sprites are baked apart):
+//  pass (Mari, "Fortified Pass"): a wall of dry stones closing the defile between two crags, a plain timber
+//    gate in it, cut brushwood burning in front, spearmen behind.
+//  gate (Sis, "Barred Gate"): a gateway of the castle's limestone blocked with baulks and stones; over it a slot
+//    machicolation, the slot machicolation being a Cilician castle trait; on the beat pitch drips through the
+//    slot and catches below.
+// Masteries: Burning Brush (the road burns before the wall) or Pitch through the Slot (the gate's pitch pours
+// thicker); Rockfall, stones piled ready on the height, that tumble down on every burst. The flames are live,
+// structFlame at each point the painter reports, as the 1915 barricade's (barrLive).
+function barrierField() { return THEME && THEME.id === "sis" ? "gate" : "pass"; }
+// a heap of stones and a man with a lever on the height, ready to send them down (Rockfall)
+function barrierRockfall(x, y, face) {
+  const c = sctx, S = footStone();
+  hurlPile(x, y, 3, 2.3, toneHex(mixHex(S[0], S[1], 0.4), -6), 261);
+  garrisonFigure(x - 7 * face, y + 0.4, 0.95, { tunic: "#6e5a40", cap: "#9ca1a9", pose: "pull", face });
+  beam(x - 3.4 * face, y - 10.2, x + 3.6 * face, y - 1.4, 1.5, TIMBER);
+  (structFit.rocks || (structFit.rocks = [])).push(structPoint(x, y - 4));
+  structCrown(y - 26);
+}
+function paintBarrierPass(lvl, spec, W, Dp) {
+  const c = sctx, A = spec === "a", B = spec === "b", S = footStone();
+  const R = { mid: mixHex(S[0], S[1], 0.3), side: toneHex(S[1], -12), trim: toneHex(S[0], 12), mortar: null, band: 0 };
+  const H = spec ? 13 : [10, 12, 13][lvl];
+  c.save();
+  c.translate((Dp - 6) * OBQ.dx, (Dp - 6) * OBQ.dy);
+  // the crags either side of the way
+  if (lvl >= 1 || spec) { c.save(); c.translate(-W / 2 + 5, 0); e5Rock(10, H + 10 + (B ? 6 : 0), 6, 271 + lvl, R); c.restore(); }
+  if (lvl >= 2 || spec) { c.save(); c.translate(W / 2 - 4.5, 0); e5Rock(9, H + 6, 6, 275 + lvl, R); c.restore(); }
+  // the spearmen behind the wall, then the wall and its gate
+  const men = lvl === 0 && !spec ? [[-4, 1]] : [[-7, 1], [5, -1]];
+  for (const [mx, f] of men) garrisonFigure(mx + 2 * OBQ.dx, -H + 9 + 2 * OBQ.dy, 1, { tunic: f > 0 ? "#7a2e26" : "#5e5a40", cap: "#9ca1a9", pose: "spear", face: f });
+  const ww = lvl >= 2 || spec ? W - 18 : lvl === 1 ? W - 12 : W - 8;
+  c.save();
+  c.translate(lvl >= 1 || spec ? 0.5 : 0, 0);
+  e5DryStone(ww, H, 5, 281 + lvl);
+  // the gate: two posts and a leaf of planks barred across, where the way goes through
+  const gx = 3;
+  beam(gx - 5, 0.4, gx - 5, -H - 4, 1.8, TIMBER_DARK);
+  beam(gx + 5, 0.4, gx + 5, -H - 4, 1.8, TIMBER_DARK);
+  plankRect(gx - 4.2, -H - 1, 8.4, H + 1, "#7a5230", true, 283 + lvl);
+  ironBand(gx - 4.2, -H * 0.66, 8.4, 0.8);
+  beam(gx - 6, -H * 0.4, gx + 6, -H * 0.4 - 0.6, 1.4, TIMBER);
+  c.restore();
+  if (B) barrierRockfall(-W / 2 + 6, -H - 16, 1);
+  c.restore();
+  // cut brushwood fired on the way below the wall
+  barrPyre(lvl === 0 && !spec ? 1 : -4, 2, A ? 12 : 9, 290 + lvl, true);
+  if (A) { barrPyre(9, 2.4, 9, 295, true); barrPyre(-14, 3, 7, 296, true); }
+  else if (lvl === 2) barrPyre(9, 2.6, 7, 297, true);
+}
+function paintBarrierGate(lvl, spec, W, Dp) {
+  const c = sctx, A = spec === "a", B = spec === "b", S = footStone();
+  const T = { mid: mixHex(S[0], S[1], 0.22), side: toneHex(S[1], -10), trim: toneHex(S[0], 14), mortar: "rgba(250, 246, 236, .26)", band: 0, urartu: false };
+  const H = spec ? 30 : [20, 26, 30][lvl], GW = W - 8, GD = Dp - 4;
+  c.save();
+  c.translate((Dp - GD) * OBQ.dx, (Dp - GD) * OBQ.dy);
+  // the gate block: cut limestone, rusticated below
+  box3(GW, H, GD, T.mid, towerWall(T, 301 + lvl, { course: 4, block: 8.4 }));
+  lcRustic(-GW / 2, -10, GW, 10, 4, 8.4, 303 + lvl);
+  // the gateway, blocked: baulks across the arch and stones heaped against it
+  const aw = 10, ah = Math.min(16, H - 9);
+  archPath(0, aw + 4, ah + 2);
+  c.fillStyle = T.trim;
+  c.fill();
+  inkStroke(0.9);
+  archPath(0, aw, ah);
+  c.fillStyle = "#1e130a";
+  c.fill();
+  c.save();
+  c.clip();
+  for (let by = -2; by > -ah; by -= 3.2) beam(-aw / 2 - 1, by, aw / 2 + 1, by - 0.8, 2.2, by % 6.4 ? TIMBER : TIMBER_DARK);
+  beam(-aw / 2, -1, aw / 2, -ah + 2, 1.6, TIMBER_DARK);
+  c.restore();
+  archPath(0, aw, ah);
+  inkStroke(1);
+  hurlPile(-1, 1.6, lvl === 0 && !spec ? 2 : 3, 2.2, toneHex(T.mid, -14), 307 + lvl);
+  // the slot machicolation over the gateway: a box carried out on corbels, open beneath
+  const my = -H + 7;
+  for (const cxp of [-4.6, 0, 4.6]) inkRect(cxp - 1, my + 4, 2, 3.4, toneHex(T.mid, -20), 0.5);
+  inkRect(-7, my - 4, 14, 8.6, toneHex(T.mid, 10), 0.9);
+  c.fillStyle = "#1e130a";
+  c.fillRect(-5.6, my + 3.6, 11.2, 1.1);
+  lcLoop(0, my - 3, 5);
+  (structFit.slots || (structFit.slots = [])).push([...structPoint(0, my + 4.6), ...structPoint(0, -1)]);
+  if (A) {
+    // Pitch through the Slot: a second slot over the flank, pitch to both
+    for (const cxp of [GW / 2 - 4]) {
+      inkRect(cxp - 3, my - 1, 6, 5, toneHex(T.mid, 6), 0.8);
+      c.fillStyle = "#1e130a";
+      c.fillRect(cxp - 2.2, my + 3.4, 4.4, 1);
+      (structFit.slots || (structFit.slots = [])).push([...structPoint(cxp, my + 4.4), ...structPoint(cxp, -1)]);
+    }
+  }
+  if (H > 22) lcLoop(-GW / 2 + 5, -H + 13, 6);
+  parapetBack(GW, H, GD, T.mid, true);
+  // a man on the walk over the gate, the pitch pot at hand
+  garrisonFigure(GD * OBQ.dx * 0.4 - 6, -H + GD * OBQ.dy * 0.4 + 0.4, 1, { tunic: "#2f4a7a", cap: "#9ca1a9", pose: "stand", face: 1 });
+  if (B) barrierRockfall(GD * OBQ.dx * 0.4 + 6, -H + GD * OBQ.dy * 0.4 + 0.6, -1);
+  parapetFront(GW, H, GD, T.mid, true);
+  c.restore();
+  // the pitch caught and burning on the stones before the gate
+  barrPyre(0, 3, A ? 11 : 8, 311 + lvl, true);
+  if (A || lvl === 2) barrPyre(GW / 2 - 2, 3.4, 6, 315 + lvl, true);
+}
+function paintBarrier(lvl, spec) {
+  const c = sctx, S = footStone();
+  const base = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 251 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const W = base.w + 4, Dp = base.d;
+  if (barrierField() === "gate") paintBarrierGate(lvl, spec, W, Dp);
+  else paintBarrierPass(lvl, spec, W, Dp);
+  c.restore();
+}
+function barrierLive(t, cx) {
+  barrLive(t, cx);
+  const f = cx.fit, k = cx.k, tm = cx.time;
+  ctx.globalAlpha = cx.fade;
+  if (f.slots) {
+    // pitch drips through each slot on the beat and falls to the fire at the gate's foot
+    const thick = cx.spec === "a" ? 1.4 : 1;
+    ctx.fillStyle = "#2a1a0e";
+    ctx.beginPath();
+    for (let i = 0; i < f.slots.length; i++) {
+      const s = f.slots[i], x = cx.x + s[0] * k, y0 = cx.y + s[1] * k, y1 = cx.y + s[3] * k;
+      for (let j = 0; j < 3; j++) {
+        const u = (tm * 0.0011 + j / 3 + i * 0.21 + t.x * 0.01) % 1, y = y0 + (y1 - y0) * u * u, r = (0.6 + 0.3 * u) * k * thick;
+        ctx.moveTo(x + r, y);
+        ctx.ellipse(x, y, r, r * (1.3 + u), 0, 0, Math.PI * 2);
+      }
+      // the string of pitch still hanging from the slot
+      ctx.moveTo(x + 0.5 * k * thick, y0);
+      ctx.ellipse(x, y0 + 1.2 * k, 0.5 * k * thick, 1.4 * k, 0, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  if (f.rocks && t.novaFx > 0) {
+    // Rockfall: the heap goes over the edge, stones bounding down
+    const p = 1 - structClamp(t.novaFx, 0, 1);
+    ctx.fillStyle = "#8c8676";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.6 * k;
+    for (const r of f.rocks) {
+      for (let j = 0; j < 4; j++) {
+        const x = cx.x + (r[0] + (j - 1.5) * 4 + p * (6 + j * 3)) * k, y = cx.y + (r[1] + p * p * 30 - Math.abs(Math.sin(p * 9 + j)) * 3) * k, rr = (1.4 + (j % 2) * 0.6) * k;
+        ctx.beginPath(); ctx.ellipse(x, y, rr, rr * 0.8, p * 4 + j, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+SKIN_ART.barrier = {
+  box: [-46, -92, 54, 24],
+  scale: 0.95,
+  paint(lvl, spec, variant) { paintBarrier(lvl, spec); },
+  live: barrierLive,
+  footing(lvl, spec) {
+    const b = towerBase("fire", lvl, spec), stepped = !!spec || lvl === 2;
+    return { w: (b.w + (stepped ? 3 : 0)) * 0.95, d: (b.d + (stepped ? 2 : 0)) * 0.95, cy: 0 };
+  },
+};
+// ====================================== END SKIN SECTION: barrier ======================================
+
 
 // ======================================================================================
 // SKIN SECTION: bells. 1915-18, drums slot: church bells calling the defenders
@@ -35594,9 +36251,15 @@ function bellBanner(c, x, y, len, hgt, kind, ph, k) {
   for (let i = 0; i <= 8; i++) { const p = at(i / 8, 0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }
   for (let i = 8; i >= 0; i--) { const p = at(i / 8, 1); c.lineTo(p[0], p[1]); }
   c.closePath();
-  c.fillStyle = kind === "church" ? "#a8322a" : "#f2efe4"; c.fill();
+  // (kind "plain": a plain red cloth with no device, as a prince's or a king's banner is painted where its arms are unknown)
+  c.fillStyle = kind === "church" || kind === "plain" ? "#a8322a" : "#f2efe4"; c.fill();
   c.strokeStyle = INK; c.lineWidth = 0.9 * k; c.stroke();
-  if (kind === "cross" || kind === "church") {
+  if (kind === "plain") {
+    // the light along the hoist
+    c.fillStyle = "rgba(255, 226, 196, .2)";
+    const a = at(0, 0), b = at(0.12, 0), d = at(0.12, 1), e = at(0, 1);
+    c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath(); c.fill();
+  } else if (kind === "cross" || kind === "church") {
     // the rescue banner's red cross on white; a church banner's gold cross on red
     const red = kind === "church" ? "#e0b44a" : "#c8322a";
     const quad = (u0, v0, u1, v1) => {
@@ -38682,8 +39345,11 @@ function hfFortSite() {
   const id = THEME && THEME.id;
   return HF_FORT_SITES.indexOf(id) >= 0 ? id : null;
 }
+// a later section may add a site of its own: its id to HF_FORT_SITES, its painter here (the Last Crowns forts)
+const HF_FORT_PAINT = {};
 function hfPaintFort(site) {
-  if (site === "halidzor") hfHalidzor();
+  if (HF_FORT_PAINT[site]) HF_FORT_PAINT[site]();
+  else if (site === "halidzor") hfHalidzor();
   else if (site === "van") hfVan();
   else if (site === "musadagh") hfMusa();
   else if (site === "sardarapat") hfSard();
@@ -39646,6 +40312,558 @@ function hfStep23() {
 }
 // ====================================== END FORT SECTION: herofort ======================================
 
+// ======================================================================================
+// FORT SECTION: lastcrowns. the defended position on the three battlefields of Chapter III
+// Everything this section needs lives between this banner and its END banner.
+// ======================================================================================
+// Painted in the same footprint (FORT_BOX) and baked the same way as the herofort sites, which this section
+// joins (HF_FORT_SITES, HF_FORT_PAINT):
+//  ani: the inner gate of Smbat II's double walls. An arched gateway in the taller inner wall between two
+//    large half-round towers, the lower outer wall before them with its own opening; both faced with
+//    fine-jointed hewn blocks of red-brown tuff laid with darker courses. Behind the gate the drum and
+//    conical dome of the cathedral rise over the walls, as they stood until 1319. Two sentries, one plain
+//    red pennant, a khachkar by the gate. The walls run on into the field's own (aniWalls) either side.
+//  mari: a generic Cilician pass fort on a crag (no gate or fort of the pass is named): one horseshoe tower
+//    of rusticated limestone ashlar, a short curtain with embrasured loops, a plain timber gate; at its foot
+//    the princes' camp, two round tents of plain cloth, and the princes' plain banner.
+//  sis: a generic Cilician castle gate at the end of the spur (the place is not named): a bent entrance
+//    through a projecting gate block between two horseshoe towers, a slot machicolation over the way in,
+//    rusticated ashlar, curtains that step with the rock, embrasured loops, the barrel-vaulted roof of the
+//    chapel in the ward behind, and the king's plain banner. No arms on any cloth.
+HF_FORT_SITES.push("ani", "mari", "sis");
+
+// ---- shared ----
+// the tuff of Ani's walls (as the field's ANI_WALL), and the Cilician limestone
+const LC_TUFF = { mid: "#b98862", side: "#86604a", trim: "#e0bc98", mortar: "rgba(244, 226, 204, .22)", band: 0, urartu: false };
+const LC_LIME = { mid: "#cdc2a6", side: "#958a72", trim: "#e8e0cc", mortar: "rgba(250, 246, 236, .28)", band: 0, urartu: false };
+// an embrasured loop: a splayed recess in the face, a slit at its heart (lit at night)
+function lcLoop(x, y, h) {
+  const c = sctx, w = h * 0.42;
+  inkPoly([x - w, y + h, x - w * 0.42, y, x + w * 0.42, y, x + w, y + h], "rgba(60, 44, 28, .3)", 0.4);
+  c.fillStyle = "rgba(255, 246, 226, .3)";
+  c.fillRect(x - w, y + h - 0.2, w * 2, 0.7);
+  slitWindow(x, y + h * 0.12, Math.max(0.9, h * 0.14), h * 0.78);
+}
+// rusticated ashlar: every block of a face from x, y (top) w by h left with a rough raised boss
+function lcRustic(x, y, w, h, course, block, seed) {
+  const c = sctx, rnd = mulberry32(seed);
+  for (let row = 0, yy = y + h - course; yy > y - 0.5; yy -= course, row++) {
+    for (let xx = x + (row % 2 ? block / 2 : 0) - block; xx < x + w; xx += block) {
+      const x0 = Math.max(x + 0.6, xx + 0.9), x1 = Math.min(x + w - 0.6, xx + block - 0.9);
+      if (x1 - x0 < 1.2) continue;
+      const y0 = Math.max(y + 0.5, yy + 0.8), y1 = yy + course - 0.8;
+      c.fillStyle = "rgba(255, 250, 236, " + (0.16 + rnd() * 0.12).toFixed(2) + ")";
+      c.fillRect(x0, y0, x1 - x0, 0.7);
+      c.fillRect(x0, y0, 0.7, y1 - y0);
+      c.fillStyle = "rgba(50, 36, 20, " + (0.16 + rnd() * 0.1).toFixed(2) + ")";
+      c.fillRect(x0, y1 - 0.7, x1 - x0, 0.7);
+      c.fillRect(x1 - 0.7, y0, 0.7, y1 - y0);
+    }
+  }
+}
+// a darker course of black stone across a face (Ani's red and black masonry)
+function lcDarkCourse(x, y, w, h) {
+  sctx.fillStyle = "rgba(64, 50, 52, .5)";
+  sctx.fillRect(x, y, w, h);
+}
+// a round work cut down to a half-round or horseshoe tower: sykCyl's body with a merlon ring; `dark` lays a
+// course of black stone round it at that height
+function lcRoundTower(x, y, rx, h, T, seed, o) {
+  const c = sctx, ry = rx * SYK_Q;
+  c.save();
+  c.translate(x, y);
+  sykCyl(rx, h, { T, seed, rough: o && o.rough });
+  if (o && o.dark) {
+    c.save();
+    sykCylPath(rx, ry, h);
+    c.clip();
+    for (const dy of o.dark) {
+      c.beginPath();
+      c.ellipse(0, -dy, rx, ry, 0, 0, Math.PI);
+      c.lineTo(-rx, -dy - 3.2);
+      c.ellipse(0, -dy - 3.2, rx, ry, 0, Math.PI, 0, true);
+      c.closePath();
+      c.fillStyle = "rgba(64, 50, 52, .45)";
+      c.fill();
+    }
+    c.restore();
+  }
+  if (o && o.boss) {
+    // a rusticated foot: rough bosses round the lowest courses
+    const rnd = mulberry32(seed + 7);
+    for (let row = 0; row < 4; row++) {
+      for (let a = 0.18 + (row % 2) * 0.2; a < Math.PI - 0.1; a += 0.42) {
+        const px = Math.cos(Math.PI - a) * rx * 0.94, py = -2.2 - row * 4.2 + Math.sin(a) * ry * 0.9;
+        c.fillStyle = a < Math.PI * 0.6 ? "rgba(255, 250, 236, " + (0.2 + rnd() * 0.12).toFixed(2) + ")" : "rgba(50, 36, 20, .18)";
+        c.beginPath(); c.ellipse(px, py, rx * 0.12, 1.3, 0, 0, Math.PI * 2); c.fill();
+      }
+    }
+  }
+  if (o && o.loops) for (const [lx, ly] of o.loops) lcLoop(lx, -ly, 6);
+  sykRingBack(rx, h, 5, T, { merlons: true, rough: o && o.rough });
+  if (o && o.men) o.men();
+  sykRingFront(rx, h, 5, T, { seed: seed + 3, rough: o && o.rough });
+  if (o && o.flag) o.flag(-h - ry * 0.5);
+  c.restore();
+}
+// a khachkar standing on a low base, as at the old citadel's gate
+function lcKhachkar(kx, ky, KH) {
+  const c = sctx;
+  inkRect(kx - 4.4, ky - 2.6, 8.8, 2.6, toneHex(KH, -30), 0.9);
+  c.beginPath();
+  c.moveTo(kx - 3.3, ky - 2.6);
+  c.lineTo(kx - 3.3, ky - 14);
+  c.quadraticCurveTo(kx, ky - 16.4, kx + 3.3, ky - 14);
+  c.lineTo(kx + 3.3, ky - 2.6);
+  c.closePath();
+  const kg = c.createLinearGradient(kx - 3.3, 0, kx + 3.3, 0);
+  kg.addColorStop(0, toneHex(KH, 28));
+  kg.addColorStop(1, toneHex(KH, -22));
+  c.fillStyle = kg;
+  c.fill();
+  inkStroke(1);
+  c.strokeStyle = "rgba(60, 26, 14, .75)";
+  c.lineWidth = 0.7;
+  c.beginPath();
+  c.moveTo(kx, ky - 13); c.lineTo(kx, ky - 5.4);
+  c.moveTo(kx - 2.1, ky - 10.4); c.lineTo(kx + 2.1, ky - 10.4);
+  c.moveTo(kx - 1.4, ky - 4.6); c.lineTo(kx + 1.4, ky - 4.6);
+  c.stroke();
+}
+// a plain timber gate under a round arch: two leaves of planks, shut, on iron straps
+function lcTimberGate(x, w, h, surround) {
+  const c = sctx;
+  archPath(x, w + 4.4, h + 2.2);
+  c.fillStyle = surround;
+  c.fill();
+  inkStroke(1);
+  archPath(x, w, h);
+  c.fillStyle = "#24170d";
+  c.fill();
+  c.save();
+  c.clip();
+  plankRect(x - w / 2, -h, w / 2, h, "#7a5230", true, 31);
+  plankRect(x, -h, w / 2, h, "#68452a", true, 37);
+  for (const by of [-h * 0.72, -h * 0.4, -h * 0.12]) ironBand(x - w / 2, by, w, 0.9);
+  c.fillStyle = "rgba(24, 14, 6, .5)";
+  c.fillRect(x - 0.4, -h, 0.8, h);
+  c.restore();
+  archPath(x, w, h);
+  inkStroke(1.1);
+}
+// a round tent of plain cloth: a low wall under a cone, its door flap tied back, guy ropes
+function lcTent(x, y, r, cloth, trim) {
+  const c = sctx, ry = r * 0.32, wall = r * 0.55, cone = r * 1.05;
+  fillBlobs("rgba(24, 14, 4, .3)", [[x + r * 0.4, y + ry * 0.4, r * 1.3, ry * 1.2]]);
+  c.beginPath();
+  c.moveTo(x - r, y - wall);
+  c.lineTo(x - r, y);
+  c.ellipse(x, y, r, ry, 0, Math.PI, 0, true);
+  c.lineTo(x + r, y - wall);
+  c.closePath();
+  const g = c.createLinearGradient(x - r, 0, x + r, 0);
+  g.addColorStop(0, toneHex(cloth, 16));
+  g.addColorStop(0.45, cloth);
+  g.addColorStop(1, toneHex(cloth, -40));
+  c.fillStyle = g;
+  c.fill();
+  inkStroke(1);
+  c.beginPath();
+  c.moveTo(x - r - 0.8, y - wall);
+  c.lineTo(x, y - wall - cone);
+  c.lineTo(x + r + 0.8, y - wall);
+  c.ellipse(x, y - wall, r + 0.8, ry, 0, 0, Math.PI);
+  c.closePath();
+  const rg = c.createLinearGradient(x - r, 0, x + r, 0);
+  rg.addColorStop(0, toneHex(cloth, 24));
+  rg.addColorStop(0.5, toneHex(cloth, 2));
+  rg.addColorStop(1, toneHex(cloth, -48));
+  c.fillStyle = rg;
+  c.fill();
+  inkStroke(1.1);
+  inkRect(x - r, y - wall + ry * 0.6, r * 2, 1.2, trim, 0);
+  // the door flap tied back, the dark of the tent within
+  inkPoly([x - r * 0.38, y + ry * 0.7, x - r * 0.38, y - wall + 0.6, x + r * 0.12, y - wall + 0.6, x + r * 0.12, y + ry * 0.85], "#2a1e14", 0.6);
+  inkPoly([x + r * 0.12, y - wall + 0.6, x + r * 0.34, y - wall + 1, x + r * 0.2, y + ry * 0.8, x + r * 0.12, y + ry * 0.85], toneHex(cloth, -20), 0.5);
+  beam(x, y - wall - cone, x, y - wall - cone - 3.2, 0.9, "#6a4a2a");
+  c.strokeStyle = "rgba(60, 46, 30, .6)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  c.moveTo(x - r * 0.7, y - wall - cone * 0.3); c.lineTo(x - r * 1.6, y + ry);
+  c.moveTo(x + r * 0.7, y - wall - cone * 0.3); c.lineTo(x + r * 1.6, y + ry);
+  c.stroke();
+  structCrown(y - wall - cone - 4);
+}
+
+// ---- Ani ----
+// The cathedral as it stood before 1319, rising over the walls: the upper part of its oblong block with its
+// slender blind arcades, a gable over the north arm, and the drum with its conical dome over the crossing.
+function hfAniCathedral(x, base) {
+  const c = sctx, ST = "#c99878", SD = "#8e6650", ROOF = "#a86a4c", H = 36, W = 58, D = 18;
+  c.save();
+  c.translate(x, base);
+  box3(W, H, D, ST, { masonry: true, side: SD, course: 4.2, block: 8.4, seed: 1021, mortar: "rgba(244, 226, 204, .2)" });
+  // slender blind arcades: tall shafts and round heads, paler than the wall
+  c.strokeStyle = "rgba(255, 236, 214, .55)";
+  c.lineWidth = 0.7;
+  c.beginPath();
+  const n = 9, step = (W - 4) / n;
+  for (let k = 0; k <= n; k++) {
+    const ax = -W / 2 + 2 + k * step;
+    c.moveTo(ax, -2); c.lineTo(ax, -H + 9);
+    if (k < n) c.arc(ax + step / 2, -H + 9, step / 2, Math.PI, 0);
+  }
+  c.stroke();
+  c.strokeStyle = "rgba(60, 34, 20, .35)";
+  c.beginPath();
+  for (let k = 0; k <= n; k++) { const ax = -W / 2 + 2.6 + k * step; c.moveTo(ax, -2); c.lineTo(ax, -H + 9); }
+  c.stroke();
+  // the two deep triangular niches of the north front, and a window over the middle
+  for (const nx of [-8.5, 8.5]) inkPoly([nx - 2.2, -H + 4, nx + 2.2, -H + 4, nx, -H + 14], "#3a2418", 0.6);
+  slitWindow(0, -H + 6, 2.2, 7);
+  // the corner roofs: low slopes either side of the north gable
+  inkPoly([-W / 2 - 1.2, -H, -W / 2 + D * OBQ.dx * 0.5, -H + D * OBQ.dy * 0.5 - 3, -11, -H + D * OBQ.dy * 0.5 - 3, -11, -H], toneHex(ROOF, 10), 0.8);
+  inkPoly([11, -H, 11, -H + D * OBQ.dy * 0.5 - 3, W / 2 + D * OBQ.dx * 0.5, -H + D * OBQ.dy * 0.5 - 3, W / 2 + 1.2, -H], toneHex(ROOF, -12), 0.8);
+  // the north arm: a gabled front of stone under a pitched roof running back to the crossing
+  box3(22, 6, D * 0.5, ST, { side: SD });
+  c.save();
+  c.translate(0, -6);
+  inkPoly([11, 0, 11 + D * 0.5 * OBQ.dx, D * 0.5 * OBQ.dy, D * 0.25 * OBQ.dx, D * 0.25 * OBQ.dy - 9.5, 0, -9.5], toneHex(ROOF, -24), 0.9);
+  inkPoly([-12, 0.4, 0, -10.4, 12, 0.4, 11, 0.4, 0, -8.8, -11, 0.4], toneHex(ROOF, 14), 0.7);
+  c.save();
+  polyPath([-11, 0, 11, 0, 0, -8.8]);
+  c.fillStyle = ST;
+  c.fill();
+  c.clip();
+  stoneCourses(-11, -8.8, 22, 8.8, toneHex(ST, 8), { course: 3.4, block: 6.6, seed: 1023 });
+  c.restore();
+  polyPath([-11, 0, 11, 0, 0, -8.8]);
+  inkStroke(1);
+  c.restore();
+  c.restore();
+  // the drum over the crossing, blind-arcaded, a band of dark stone round it, four windows; the cone
+  const dx = x + D * OBQ.dx * 0.5, dr = 11, dBase = base - H + D * OBQ.dy * 0.5 - 6, dTop = dBase - 22;
+  c.save();
+  c.beginPath();
+  c.moveTo(dx - dr, dTop);
+  c.lineTo(dx - dr, dBase);
+  c.ellipse(dx, dBase, dr, 3.4, 0, Math.PI, 0, true);
+  c.lineTo(dx + dr, dTop);
+  c.closePath();
+  c.save();
+  c.clip();
+  stoneCourses(dx - dr, dTop, dr * 2, dBase - dTop + 4, ST, { course: 3.6, block: 6, seed: 1027 });
+  c.fillStyle = "rgba(64, 50, 52, .45)";
+  c.fillRect(dx - dr, dBase - 5, dr * 2, 2.4);
+  c.strokeStyle = "rgba(255, 236, 214, .5)";
+  c.lineWidth = 0.6;
+  c.beginPath();
+  for (let k = -4; k <= 4; k++) {
+    const ax = dx + k * dr * 0.24;
+    c.moveTo(ax, dBase - 6); c.lineTo(ax, dTop + 5);
+    if (k < 4) c.arc(ax + dr * 0.12, dTop + 5, dr * 0.12, Math.PI, 0);
+  }
+  c.stroke();
+  const g = c.createLinearGradient(dx - dr, 0, dx + dr, 0);
+  g.addColorStop(0, "rgba(255, 238, 205, .28)");
+  g.addColorStop(0.3, "rgba(255, 238, 205, 0)");
+  g.addColorStop(1, "rgba(36, 20, 8, .55)");
+  c.fillStyle = g;
+  c.fillRect(dx - dr, dTop, dr * 2, dBase - dTop + 4);
+  c.restore();
+  inkStroke(1.2);
+  c.restore();
+  for (const wx of [-6.6, -2.2, 2.2]) slitWindow(dx + wx, dTop + 7, 1.5, 6.4);
+  inkRect(dx - dr - 1.2, dTop - 1.8, dr * 2 + 2.4, 2.2, toneHex(ST, 30), 0.9);
+  const apex = dTop - 22;
+  c.beginPath();
+  c.moveTo(dx - dr - 1.6, dTop - 1.8);
+  c.lineTo(dx, apex);
+  c.lineTo(dx + dr + 1.6, dTop - 1.8);
+  c.closePath();
+  const rg = c.createLinearGradient(dx - dr, 0, dx + dr, 0);
+  rg.addColorStop(0, toneHex(ROOF, 40));
+  rg.addColorStop(0.45, ROOF);
+  rg.addColorStop(1, toneHex(ROOF, -46));
+  c.fillStyle = rg;
+  c.fill();
+  c.strokeStyle = "rgba(40, 20, 10, .4)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (const fx of [-8, -4, 0.4, 4.6, 9]) { c.moveTo(dx, apex); c.lineTo(dx + fx, dTop - 1.8); }
+  c.stroke();
+  c.beginPath();
+  c.moveTo(dx - dr - 1.6, dTop - 1.8);
+  c.lineTo(dx, apex);
+  c.lineTo(dx + dr + 1.6, dTop - 1.8);
+  c.closePath();
+  inkStroke(1.3);
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(dx, apex); c.lineTo(dx, apex - 6.5);
+  c.moveTo(dx - 2.2, apex - 4.2); c.lineTo(dx + 2.2, apex - 4.2);
+  c.strokeStyle = INK; c.lineWidth = 2; c.stroke();
+  c.strokeStyle = GOLD; c.lineWidth = 1; c.stroke();
+  structCrown(apex - 7.5);
+}
+function hfAni() {
+  const c = sctx, T = LC_TUFF, gx = 3;
+  const wall = (seed) => towerWall(T, seed, { course: 4.4, block: 9.6 });
+  const sentry = (sx, sy, face) => garrisonFigure(sx, sy, 1.1, { tunic: "#a8322a", cap: "#b9bcc4", pose: "spear", face });
+  // a soft shadow under the walls
+  fillBlobs("rgba(24, 14, 4, .22)", [[6, -24, 96, 7], [6, -42, 88, 5]]);
+  // the cathedral, far behind the gate, over the walls
+  hfAniCathedral(12, -66);
+  // the taller inner wall across the gate, its wall-walk with two sentries
+  c.save();
+  c.translate(4.5, -44.5);
+  box3(162, 33, 7, T.mid, wall(1031));
+  for (const yy of [-12.6, -26]) lcDarkCourse(-81, yy, 162, 3.2);
+  parapetBack(162, 33, 7, T.mid);
+  sentry(-52, -33 + 7 * OBQ.dy * 0.4, 1);
+  sentry(62, -33 + 7 * OBQ.dy * 0.4, -1);
+  parapetFront(162, 33, 7, T.mid);
+  weatherStreaks(-78, -30, 156, 12, 1033);
+  c.restore();
+  // the inner gate: a round arch in the wall between two great half-round towers
+  c.save();
+  c.translate(gx, -44.5);
+  fortGate(15, 25, { surround: T.trim, portcullis: false });
+  c.restore();
+  lcRoundTower(gx - 24, -40, 15, 50, T, 1041, { dark: [16, 34], loops: [[-4, 30]] });
+  lcRoundTower(gx + 25, -40, 15, 52, T, 1043, {
+    dark: [16, 34], loops: [[4, 32]],
+    flag: top => pennantPole(4, top, 18, 15, 6, "#a8322a"),
+  });
+  // the lower outer wall before them, with an opening of its own on the way to the gate
+  c.save();
+  c.translate(3, -26.4);
+  box3(176, 18.6, 4, toneHex(T.mid, 4), wall(1051));
+  lcDarkCourse(-88, -8, 176, 3);
+  parapetBack(176, 18.6, 4, toneHex(T.mid, 4));
+  parapetFront(176, 18.6, 4, toneHex(T.mid, 4));
+  // the opening: a plain round-headed way through, the ground between the walls seen beyond it
+  archPath(gx - 3, 18, 15.5);
+  c.fillStyle = T.trim;
+  c.fill();
+  inkStroke(1);
+  archPath(gx - 3, 14, 13.4);
+  c.fillStyle = "#5a4232";
+  c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = "rgba(196, 160, 112, .5)";
+  c.fillRect(gx - 10, -4, 14, 4);
+  c.fillStyle = "rgba(20, 10, 4, .35)";
+  c.fillRect(gx - 10, -14, 14, 5);
+  c.restore();
+  archPath(gx - 3, 14, 13.4);
+  inkStroke(1);
+  c.restore();
+  // the way: hewn flags from the road to the opening
+  const FLAG = "#d2b48e";
+  polyPath([-6, -26.6, 7, -26.6, 12, 8, -14, 8]);
+  c.fillStyle = toneHex(FLAG, -30);
+  c.fill();
+  c.save();
+  c.clip();
+  const rnd = mulberry32(1061);
+  for (let yy = -26; yy < 8; yy += 3.4) {
+    for (let xx = -16; xx < 14; xx += 5 + rnd() * 2) {
+      c.fillStyle = stoneTint(FLAG, Math.round(rnd() * 20 - 12), rnd() < 0.5 ? 1 : -1);
+      c.fillRect(xx + 0.3, yy + 0.3, 4.4, 2.8);
+    }
+  }
+  c.restore();
+  polyPath([-6, -26.6, 7, -26.6, 12, 8, -14, 8]);
+  inkStroke(0.9);
+  cresset(-16, -24, 10);
+  cresset(20, -24, 10);
+  // a khachkar by the gate
+  lcKhachkar(-34, -18, "#b98466");
+  sykTufts([[-60, -22, 3], [40, -21, 3], [-24, 4, 2.6], [26, 6, 2.8], [70, -22, 2.4]], 1067);
+}
+HF_FORT_PAINT.ani = hfAni;
+
+// ---- Mari ----
+function hfMari() {
+  const c = sctx, T = LC_LIME;
+  const wall = seed => towerWall(T, seed, { course: 4, block: 8.4, rough: false });
+  paintFortPlinth("#aaa290");
+  c.save();
+  c.translate(0, -11);
+  // the curtain: a short run of ashlar with its loops, and the timber gate
+  box3(92, 30, 20, T.mid, wall(2011));
+  lcRustic(-46, -12, 92, 12, 4, 8.4, 2013);
+  for (const lx of [-28, 26, 38]) lcLoop(lx, -24, 7);
+  parapetBack(92, 30, 20, T.mid);
+  garrisonFigure(-16, -30 + 20 * OBQ.dy * 0.35, 1.12, { tunic: "#8a2a24", cap: "#a9adb6", pose: "bow", face: -1 });
+  garrisonFigure(28, -30 + 20 * OBQ.dy * 0.35, 1.12, { tunic: "#5e5a40", cap: "#a9adb6", pose: "spear", face: -1 });
+  parapetFront(92, 30, 20, T.mid);
+  weatherStreaks(-44, -26, 88, 10, 2015);
+  lcTimberGate(4, 14, 19, T.trim);
+  // the one horseshoe tower on the crag's shoulder, rusticated at its foot
+  lcRoundTower(-48, 4, 17, 58, T, 2021, {
+    boss: true, loops: [[-6, 40], [5, 22]],
+    men: () => garrisonFigure(2, -58 + 1.6, 1.1, { tunic: "#8a2a24", cap: "#a9adb6", pose: "stand", face: 1 }),
+  });
+  // the step of the rock under the curtain's right end
+  inkPoly([46, -2, 46 + 20 * OBQ.dx, -2 + 20 * OBQ.dy, 60, -4, 58, 4, 46, 4], toneHex("#aaa290", -20), 0.9);
+  cresset(-12, 3, 10);
+  cresset(19, 3, 10);
+  c.restore();
+  // the princes' camp at the foot: two round tents of plain cloth and their plain banner
+  lcTent(-76, 22, 13, "#e6dcc2", "#9a7c54");
+  lcTent(80, 20, 12, "#ddd2b6", "#9a7c54");
+  hfFlagPole(-50, 24, 44, "plain", 17, 12);
+  sykTufts([[-90, 20, 3], [-60, 26, 2.6], [64, 24, 3], [96, 18, 2.4]], 2031);
+}
+HF_FORT_PAINT.mari = hfMari;
+
+// ---- Sis ----
+// the barrel-vaulted roof of a chapel in the ward: a long run of stone slabs over a round vault, its west end
+// a gable wall with the vault's curve in it and a plain cross
+function lcChapelRoof(x, y, len, w) {
+  const c = sctx, ox = len * OBQ.dx, oy = len * OBQ.dy, r = w / 2;
+  // the long roof, its near half lit
+  polyPath([x - r, y, x - r + ox, y + oy, x + r + ox, y + oy, x + r, y]);
+  c.fillStyle = "#bfb294";
+  c.fill();
+  c.beginPath();
+  c.moveTo(x - r, y);
+  c.quadraticCurveTo(x - r * 0.2, y - r * 0.95, x + r, y);
+  c.lineTo(x + r + ox, y + oy);
+  c.quadraticCurveTo(x - r * 0.2 + ox, y - r * 0.95 + oy, x - r + ox, y + oy);
+  c.closePath();
+  const g = c.createLinearGradient(x - r, y - r, x + r, y);
+  g.addColorStop(0, "#e4dac2");
+  g.addColorStop(1, "#9c9076");
+  c.fillStyle = g;
+  c.fill();
+  c.strokeStyle = "rgba(60, 46, 28, .35)";
+  c.lineWidth = 0.5;
+  c.beginPath();
+  for (let t = 0.12; t < 1; t += 0.12) {
+    c.moveTo(x - r + ox * t, y + oy * t);
+    c.quadraticCurveTo(x - r * 0.2 + ox * t, y - r * 0.95 + oy * t, x + r + ox * t, y + oy * t);
+  }
+  c.stroke();
+  inkStroke(1);
+  // the west end
+  c.beginPath();
+  c.moveTo(x - r, y + 6);
+  c.lineTo(x - r, y);
+  c.quadraticCurveTo(x - r * 0.2, y - r * 0.95, x + r, y);
+  c.lineTo(x + r, y + 6);
+  c.closePath();
+  c.fillStyle = LC_LIME.mid;
+  c.fill();
+  inkStroke(1);
+  slitWindow(x - r * 0.1, y - 2.4, 1.4, 4.6);
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(x - r * 0.15, y - r * 0.72); c.lineTo(x - r * 0.15, y - r * 0.72 - 5.6);
+  c.moveTo(x - r * 0.15 - 1.9, y - r * 0.72 - 3.8); c.lineTo(x - r * 0.15 + 1.9, y - r * 0.72 - 3.8);
+  c.strokeStyle = INK; c.lineWidth = 1.8; c.stroke();
+  c.strokeStyle = "#ece4d0"; c.lineWidth = 0.8; c.stroke();
+  structCrown(y - r - 7);
+}
+function hfSis() {
+  const c = sctx, T = LC_LIME, ROCK = "#b2a88f";
+  const wall = seed => towerWall(T, seed, { course: 4, block: 8.6 });
+  paintFortPlinth(ROCK);
+  // the spur's rock rising behind the gate, the curtains founded on its ledges
+  inkPoly([-98, -20, -98, -62, -86, -66, -66, -60, -50, -48, -30, -40, 20, -40, 44, -46, 70, -42, 96, -30, 104, -16, 80, -14, -60, -14], ROCK, 1.2);
+  inkPoly([44, -46, 70, -42, 96, -30, 104, -16, 80, -14, 60, -26], "rgba(34, 22, 10, .3)", 0);
+  inkPoly([-98, -62, -86, -66, -66, -60, -76, -44, -98, -34], "rgba(255, 244, 220, .25)", 0);
+  c.strokeStyle = "rgba(38, 24, 12, .45)";
+  c.lineWidth = 0.8;
+  c.beginPath();
+  c.moveTo(-90, -40); c.lineTo(-70, -46); c.lineTo(-56, -34);
+  c.moveTo(60, -34); c.lineTo(80, -28); c.lineTo(92, -20);
+  c.stroke();
+  // the chapel's barrel vault in the ward, over the walls
+  lcChapelRoof(70, -64, 30, 20);
+  // the curtain stepping down the rock from the crest to the gate: two runs, each on its own ledge
+  c.save();
+  c.translate(-80, -60);
+  box3(34, 31, 10, T.mid, wall(3011));
+  for (const lx of [-8, 8]) lcLoop(lx, -22, 6);
+  parapetBack(34, 31, 10, T.mid);
+  parapetFront(34, 31, 10, T.mid);
+  c.restore();
+  c.save();
+  c.translate(-55, -44);
+  box3(24, 34, 10, T.mid, wall(3013));
+  lcLoop(0, -24, 6);
+  parapetBack(24, 34, 10, T.mid);
+  garrisonFigure(0, -34 + 10 * OBQ.dy * 0.4, 1.05, { tunic: "#2f4a7a", cap: "#a9adb6", pose: "spear", face: 1 });
+  parapetFront(24, 34, 10, T.mid);
+  c.restore();
+  // the curtain on the right, falling away along the spur
+  c.save();
+  c.translate(80, -34);
+  box3(40, 28, 12, T.mid, wall(3015));
+  for (const lx of [-8, 10]) lcLoop(lx, -20, 6);
+  parapetBack(40, 28, 12, T.mid);
+  parapetFront(40, 28, 12, T.mid);
+  c.restore();
+  // the two horseshoe towers
+  lcRoundTower(-34, -10, 15, 64, T, 3021, {
+    boss: true, loops: [[-5, 44], [4, 24]],
+    men: () => garrisonFigure(1, -64 + 1.6, 1.08, { tunic: "#2f4a7a", cap: "#a9adb6", pose: "bow", face: -1 }),
+  });
+  lcRoundTower(52, -12, 15, 62, T, 3023, {
+    boss: true, loops: [[4, 42], [-4, 22]],
+    flag: top => hfFlagPole(-2, top - 1, 24, "plain", 18, 13),
+  });
+  // the gate block between them, standing forward: its front blind but for the slot machicolation and a loop,
+  // the way in through its right flank, so that the road must turn to reach it (the bent entrance)
+  c.save();
+  c.translate(2, -6);
+  const GW = 30, GH = 50, GD = 18, ox = GD * OBQ.dx, oy = GD * OBQ.dy;
+  box3(GW, GH, GD, toneHex(T.mid, 4), wall(3031));
+  lcRustic(-GW / 2, -18, GW, 18, 4, 8.6, 3033);
+  // the door in the right flank: an arch on the side face, the passage dark within
+  c.save();
+  c.transform(OBQ.dx, OBQ.dy, 0, 1, GW / 2, 0);
+  archPath(GD * 0.5, 12.6, 22);
+  c.fillStyle = T.trim;
+  c.fill();
+  inkStroke(0.9);
+  archPath(GD * 0.5, 9.4, 20);
+  c.fillStyle = "#1e130a";
+  c.fill();
+  inkStroke(0.9);
+  c.restore();
+  const d0 = structPoint(GW / 2 + GD * 0.5 * OBQ.dx - 3, GD * 0.5 * OBQ.dy - 18), d1 = structPoint(GW / 2 + GD * 0.5 * OBQ.dx + 3, GD * 0.5 * OBQ.dy - 2);
+  structFit.windows.push([d0[0], d0[1], d1[0] - d0[0], d1[1] - d0[1]]);
+  // the slot machicolation: a box carried out on corbels over the way in, open beneath
+  const mx = GW / 2 - 6, my = -GH + 8;
+  for (const cx of [mx - 5, mx, mx + 5]) inkRect(cx - 1, my + 5, 2, 3.6, toneHex(T.mid, -20), 0.5);
+  inkRect(mx - 7, my - 4, 14, 9, toneHex(T.mid, 10), 0.9);
+  c.fillStyle = "#1e130a";
+  c.fillRect(mx - 5.6, my + 4.2, 11.2, 1.2);
+  lcLoop(mx, my - 2.6, 5);
+  lcLoop(-GW / 2 + 8, -GH + 14, 7);
+  parapetBack(GW, GH, GD, toneHex(T.mid, 4));
+  parapetFront(GW, GH, GD, toneHex(T.mid, 4));
+  c.restore();
+  // the way: up the ramp, then round to the right under the flank, worn into the rock
+  const FLAG = "#d6caae";
+  polyPath([8, -14, 34, -14, 40, -6, 18, -2, 10, -6]);
+  c.fillStyle = toneHex(FLAG, -16);
+  c.fill();
+  inkStroke(0.8);
+  c.strokeStyle = "rgba(52, 34, 16, .3)";
+  c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(6, -4); c.quadraticCurveTo(18, -12, 34, -10); c.stroke();
+  cresset(-14, 2, 10);
+  sykTufts([[-70, -16, 2.8], [76, -12, 2.6], [-50, 2, 2.4], [56, 6, 2.6]], 3041);
+}
+HF_FORT_PAINT.sis = hfSis;
+// ====================================== END FORT SECTION: lastcrowns ======================================
+
 // ---- ground works: tower pads and purchasable plots ----
 const PAD_BOX = [-58, -30, 62, 36];
 const PAD_OPEN = { rx: 34, ry: 13.6, cy: 6, top: 4 };
@@ -40252,7 +41470,8 @@ function plotSignSpot(plot, pp, ks) {
     if (b > VH - 96) score -= 400;
     // a plot on the very bottom row keeps its sign beside it, never with its post below the field
     if (b > VH - 3) score -= 800;
-    if (l < 70 && b > 230 && t < 480) score -= 200;
+    // (the spell bar on the left: on a 4:3 screen such as an iPad's it reaches lower down the field, to about 560)
+    if (l < 70 && b > 230 && t < 560) score -= 200;
     for (let i = 0; i < PADS.length; i++) {
       const q = proj(PADS[i][0], PADS[i][1]), t = towerAt(i);
       // the paved ring with the stones round it, and whatever tower stands on it
@@ -52081,6 +53300,1548 @@ TERR_SCENERY.musadagh = {
 };
 // ==================================== END BACKDROP SECTION: musadagh ====================================
 
+// ====================================== BACKDROP SECTION: ani ======================================
+// Ani, c. 1041-1044. The camera stands on the open plain north of the city and looks south. Across the far
+// band of the field run Smbat II's double walls: a lower outer wall before a taller inner one with a few
+// half-round towers, lower and more widely spaced than the towers standing today, faced with ashlar of
+// red-brown tuff laid with darker courses. They run from the lip of the Akhurian gorge at the left (east) to
+// the lip of the Tzaghkotsadzor gorge at the right (west), and their inner gate in the middle is the fort.
+// Beyond them lies the city: flat roofs, small churches under conical domes, the cathedral with its drum and
+// conical dome still standing (it fell only in 1319), and Midjnaberd, the citadel hill at the southern end,
+// with its own older walls and the palace of the Bagratids on its crown. Ararat's pale dome stands low on
+// the horizon beyond the dark basalt rim of the Akhurian's far bank. Not painted, because they belong to
+// later centuries or cannot be dated: the walls as they stand now (raised, thickened, more towers), the lion
+// relief, the chequer panel, any inscription, the mosque of Manuchihr, Tigran Honents, the church at
+// Kizkale, Gagik's round church (it fell soon after it was built), and the moat.
+// The field is the high steppe at the end of summer (the season is not attested): dry grass, dark basalt and
+// red-brown tuff, no trees; short strips of field wall, the two imperial columns' tents at the near corners.
+TERR_BIOME.ani = {
+  stones: 240, dry: [214, 196, 132], blade: [96, 104, 52], tip: [200, 190, 110], earth: [150, 110, 84],
+  pebble: [112, 96, 90], flowers: [[224, 204, 126]], drifts: 4, scrub: [126, 116, 68], scrubs: 18,
+  bed: [214, 190, 152], crown: [232, 212, 178], rut: [158, 122, 92], gravel: 1,
+  rock: [[176, 128, 104], [124, 86, 70], [66, 50, 48]],
+  leaf: [[86, 92, 46], [122, 126, 62], [172, 170, 98]],
+  wall: [[200, 150, 120], [160, 112, 88], [100, 70, 56]], fringe: 0.9, farTrees: 0,
+};
+BACKDROP_PEAK.ani = 80;
+TERR_BANK_STYLE.ani = "scarp";
+FOOT_STONE.ani = ["#b98a6e", "#7e5a48"];
+FAR_ROAD_TO.ani = 640;      // the gate
+
+// the city's tuff, lit and shaded, and the black stone of its darker courses
+const ANI_TUFF = { lit: [214, 164, 126], shade: [150, 106, 84], dark: [92, 74, 70], roofLit: [196, 120, 84], roofShade: [124, 76, 60] };
+
+// Ani Cathedral as it stood before 1319, for the miniature (on the field the fort shows it behind the gate):
+// an oblong block of four almost unbroken walls with slender blind arcades, a gable over each arm, and the
+// drum with its conical dome over the crossing. Stands about 62 * s tall on by.
+function bdAniCathedral(c, x, by, s, air) {
+  const lit = skyAir(ANI_TUFF.lit, air), shade = skyAir(ANI_TUFF.shade, air), roofL = skyAir(ANI_TUFF.roofLit, air), roofD = skyAir(ANI_TUFF.roofShade, air);
+  const ink = skyCss(skyAir([60, 38, 28], air), 0.85), W = 30 * s, H = 24 * s, side = 14 * s;
+  // the block, its north front lit, its east flank in shade
+  c.fillStyle = skyCss(lit);
+  c.fillRect(x - W, by - H, W * 2, H);
+  c.fillStyle = skyCss(shade);
+  c.fillRect(x + W, by - H + 1.2 * s, side, H - 1.2 * s);
+  // slender blind arcades: tall shafts and their round heads, lighter than the wall
+  c.strokeStyle = skyCss(skyMix(shade, lit, 0.35), 0.9);
+  c.lineWidth = Math.max(0.6, 0.7 * s);
+  c.beginPath();
+  for (let k = 0; k <= 12; k++) {
+    const ax = x - W + 2 * s + k * (W * 2 - 4 * s) / 12;
+    c.moveTo(ax, by - 1.5 * s); c.lineTo(ax, by - H + 6 * s);
+    if (k < 12) c.arc(ax + (W * 2 - 4 * s) / 24, by - H + 6 * s, (W * 2 - 4 * s) / 24, Math.PI, 0);
+  }
+  c.stroke();
+  // the deep triangular niches either side of the north arm
+  c.fillStyle = skyCss(skyMix(shade, [40, 26, 20], 0.35));
+  for (const nx of [-9.5, 9.5]) skyPoly(c, [[x + nx * s - 1.6 * s, by - H + 3 * s], [x + nx * s + 1.6 * s, by - H + 3 * s], [x + nx * s, by - H + 12 * s]], skyCss(skyMix(shade, [40, 26, 20], 0.35)));
+  // north door and the window over it
+  c.fillStyle = ink;
+  c.fillRect(x - 2.4 * s, by - 9 * s, 4.8 * s, 9 * s);
+  c.fillRect(x - 1 * s, by - 19 * s, 2 * s, 5 * s);
+  // the roofs: lean-to slopes over the corners, a gable over the north arm
+  skyPoly(c, [[x - W - 1.5 * s, by - H], [x - 9 * s, by - H - 6 * s], [x - 9 * s, by - H]], skyCss(roofL));
+  skyPoly(c, [[x + W + 1.5 * s, by - H], [x + 9 * s, by - H - 6 * s], [x + 9 * s, by - H]], skyCss(roofD));
+  c.fillStyle = skyCss(lit);
+  c.fillRect(x - 9 * s, by - H - 6 * s, 18 * s, 6 * s);
+  skyPoly(c, [[x - 10.5 * s, by - H - 6 * s], [x, by - H - 14 * s], [x, by - H - 6 * s]], skyCss(roofL));
+  skyPoly(c, [[x, by - H - 6 * s], [x, by - H - 14 * s], [x + 10.5 * s, by - H - 6 * s]], skyCss(roofD));
+  // the drum over the crossing, blind-arcaded, and its conical dome with the cross
+  const dTop = by - H - 26 * s, dBase = by - H - 10 * s, dr = 8.5 * s;
+  c.fillStyle = skyCss(lit);
+  c.fillRect(x - dr, dTop, dr * 1.1, dBase - dTop);
+  c.fillStyle = skyCss(shade);
+  c.fillRect(x + dr * 0.1, dTop, dr * 0.9, dBase - dTop);
+  c.strokeStyle = skyCss(skyMix(shade, lit, 0.3), 0.85);
+  c.beginPath();
+  for (let k = -3; k <= 3; k++) { const ax = x + k * dr * 0.28; c.moveTo(ax, dBase - 1 * s); c.lineTo(ax, dTop + 4 * s); }
+  c.stroke();
+  c.fillStyle = ink;
+  for (const k of [-1.5, 0.5]) c.fillRect(x + k * dr * 0.28, dTop + 4.6 * s, 1.1 * s, 4.4 * s);
+  skyPoly(c, [[x - dr - 1.4 * s, dTop], [x + 0.3 * s, dTop - 15 * s], [x + 0.3 * s, dTop]], skyCss(roofL));
+  skyPoly(c, [[x + 0.3 * s, dTop], [x + 0.3 * s, dTop - 15 * s], [x + dr + 1.4 * s, dTop]], skyCss(roofD));
+  c.strokeStyle = skyCss([250, 236, 206]);
+  c.lineWidth = Math.max(0.9, 1.1 * s);
+  c.beginPath();
+  c.moveTo(x + 0.3 * s, dTop - 14.6 * s); c.lineTo(x + 0.3 * s, dTop - 21 * s);
+  c.moveTo(x - 1.9 * s, dTop - 18.6 * s); c.lineTo(x + 2.5 * s, dTop - 18.6 * s);
+  c.stroke();
+  // a thin contour round the whole
+  c.strokeStyle = skyCss(skyAir([70, 44, 32], air), 0.45);
+  c.lineWidth = 0.8;
+  c.strokeRect(x - W, by - H, W * 2, H);
+}
+
+// a run of flat-roofed houses on a base line between x0 and x1; a few with a small domed church among them
+function bdAniHouses(c, x0, x1, base, air, size, rand, churches) {
+  const lit = ANI_TUFF.lit, shade = ANI_TUFF.shade;
+  let hx = x0;
+  while (hx < x1) {
+    const hw = (7 + rand() * 9) * size, hh = (4 + rand() * 5) * size, black = rand() < 0.16;
+    if (rand() < 0.9) {
+      skyHouse(c, hx, base, hw, hh, skyAir(black ? skyMix(ANI_TUFF.dark, lit, 0.35) : skyMix(lit, [238, 206, 168], rand() * 0.5), air),
+        skyAir(black ? ANI_TUFF.dark : shade, air), { roof: "flat", win: skyCss(skyAir([70, 46, 36], air), 0.75), rand });
+    }
+    hx += hw * (0.7 + rand() * 0.5) + (rand() < 0.12 ? 6 * size + rand() * 10 * size : 0);
+  }
+  for (const cx of churches || []) {
+    skyChurch(c, cx, base + 0.5, 0.34 * size + rand() * 0.06, {
+      lit: skyAir(skyMix(lit, [240, 210, 170], 0.2), air), shade: skyAir(shade, air),
+      roofLit: skyAir(ANI_TUFF.roofLit, air), roofShade: skyAir(ANI_TUFF.roofShade, air),
+      dark: skyAir([62, 40, 30], air), cross: [246, 232, 204],
+    });
+  }
+}
+
+function bgAni(c) {
+  const by = HORIZON, rand = mulberry32(10411), mist = skyRgb(THEME.sky[2]);
+  // the far uplands to the south, lost in haze
+  skyRange(c, -90, 1370, by, 22, 10412, {
+    lit: skyAir([184, 166, 152], 0.68), shade: skyAir([136, 128, 148], 0.64), snow: 0, rough: 0.35, fade: 0.55, ribs: 1,
+  });
+  // Ararat: one broad pale dome low over the left of the view, snow on its crown
+  skyPeak(c, [[150, by], [236, by - 24], [292, by - 44], [336, by - 60], [368, by - 68], [400, by - 64], [446, by - 50], [506, by - 30],
+    [580, by - 12], [640, by]], 4, by, {
+    lit: skyAir([206, 190, 182], 0.66), shade: skyAir([152, 152, 176], 0.62),
+    snowLit: skyAir([252, 250, 248], 0.42), snowShade: skyAir([204, 210, 228], 0.5), snow: 0.42, rough: 0.22, fade: 0.62, ribs: 2,
+  });
+  skyCloudsDriftHere(c);
+  bdMistBand(c, by, 44, 0.42, mist, rand);
+
+  // the far (east) bank of the Akhurian: a dark basalt tableland whose rim breaks off in cliffs over the gorge
+  const bankLit = skyAir([128, 112, 100], 0.26), bankShade = skyAir([74, 66, 70], 0.26);
+  const rim = skyRidgeline([[-90, by - 17], [40, by - 19], [170, by - 17], [300, by - 18], [400, by - 16], [448, by - 12]], rand, 0.12);
+  c.save();
+  c.beginPath();
+  c.moveTo(-90, by);
+  for (const p of rim) c.lineTo(p[0], p[1]);
+  c.lineTo(470, by - 4); c.lineTo(476, by);
+  c.closePath();
+  const bg = c.createLinearGradient(0, by - 19, 0, by);
+  bg.addColorStop(0, skyCss(skyMix(bankLit, [236, 214, 170], 0.25)));
+  bg.addColorStop(0.3, skyCss(bankLit));
+  bg.addColorStop(1, skyCss(skyMix(bankLit, mist, 0.35)));
+  c.fillStyle = bg;
+  c.fill();
+  c.clip();
+  // its cliff over the gorge: basalt columns in a dark band under the rim, deepest toward the gorge
+  for (let x = 180; x < 470; x += 2 + rand() * 2.5) {
+    const ry = skyRidgeY(rim, x), deep = Math.min(1, (x - 180) / 260);
+    c.fillStyle = skyCss(rand() < 0.5 ? bankShade : skyMix(bankShade, bankLit, 0.45), 0.5 + deep * 0.4);
+    c.fillRect(x, ry + 2, 1.2 + rand(), 2 + deep * (8 + rand() * 4));
+  }
+  c.restore();
+  // the gorge between the far bank and the city's plateau: a dark cleft with the river glinting in it
+  skyPoly(c, [[448, by - 12], [492, by - 9], [488, by], [470, by]], skyCss(skyAir([46, 44, 50], 0.22)));
+  skyPoly(c, [[470, by - 4], [478, by - 2], [476, by], [468, by]], skyCss(skyAir([92, 140, 150], 0.25)));
+
+  // the city's plateau and the citadel hill at its southern end, right of centre
+  const hill = skyRidgeline([[486, by - 10], [700, by - 11], [820, by - 14], [858, by - 26], [884, by - 37], [930, by - 39], [966, by - 36],
+    [996, by - 24], [1030, by - 12], [1060, by - 6], [1080, by]], rand, 0.18);
+  const plLit = skyAir([196, 162, 118], 0.2), plShade = skyAir([132, 104, 84], 0.2);
+  c.save();
+  c.beginPath();
+  c.moveTo(486, by);
+  for (const p of hill) c.lineTo(p[0], p[1]);
+  c.closePath();
+  const pg = c.createLinearGradient(0, by - 40, 0, by);
+  pg.addColorStop(0, skyCss(plLit));
+  pg.addColorStop(1, skyCss(skyMix(plLit, mist, 0.3)));
+  c.fillStyle = pg;
+  c.fill();
+  c.clip();
+  // Midjnaberd's rocky flanks: the west face toward the sun, the east in shade, ledges of tuff
+  skyPoly(c, [[858, by - 26], [884, by - 37], [890, by - 20], [866, by - 8]], skyCss(skyMix(plLit, [250, 228, 190], 0.25), 0.7));
+  skyPoly(c, [[966, by - 36], [996, by - 24], [1030, by - 12], [1000, by - 6], [970, by - 20]], skyCss(plShade, 0.7));
+  for (const ly of [by - 30, by - 22, by - 15]) skyStrata(c, 850, 1030, ly, 1.5, skyCss(plShade, 0.5), skyCss([255, 240, 214], 0.25), rand);
+  c.restore();
+  // the citadel on its crown: its own older walls with small towers, and the palace of the Bagratids
+  const cw = { lit: skyAir([206, 166, 128], 0.16), shade: skyAir([138, 100, 80], 0.16) };
+  const crown = x => skyRidgeY(hill, x);
+  c.fillStyle = skyCss(cw.lit);
+  for (let x = 880; x < 972; x += 1) c.fillRect(x, crown(x) - 3.4, 1.2, 3.6);
+  c.fillStyle = skyCss(skyMix(cw.lit, [255, 240, 210], 0.3));
+  for (let x = 880; x < 970; x += 4) c.fillRect(x, crown(x) - 5, 2.2, 1.8);
+  for (const tx of [880, 920, 968]) {
+    c.fillStyle = skyCss(cw.lit);
+    c.fillRect(tx - 2.4, crown(tx) - 7.4, 3, 7.6);
+    c.fillStyle = skyCss(cw.shade);
+    c.fillRect(tx + 0.6, crown(tx) - 7.4, 2, 7.6);
+  }
+  // the palace: a long two-storey block with arched windows and a small church beside it
+  const py = crown(935) - 3;
+  c.fillStyle = skyCss(cw.lit);
+  c.fillRect(904, py - 11, 30, 11);
+  c.fillStyle = skyCss(cw.shade);
+  c.fillRect(934, py - 11, 12, 11);
+  c.fillStyle = skyCss(skyAir([70, 46, 36], 0.16), 0.85);
+  for (let wx = 907; wx < 932; wx += 4.6) { c.fillRect(wx, py - 8.6, 1.6, 2.6); c.fillRect(wx, py - 4.2, 1.6, 2.6); }
+  c.fillStyle = skyCss(skyMix(cw.lit, [255, 240, 210], 0.3));
+  c.fillRect(903, py - 12.2, 44, 1.4);
+  skyChurch(c, 892, py + 1, 0.36, { lit: cw.lit, shade: cw.shade, roofLit: skyAir(ANI_TUFF.roofLit, 0.16), roofShade: skyAir(ANI_TUFF.roofShade, 0.16), dark: [70, 46, 36], cross: [246, 232, 204] });
+
+  // the city: rows of flat roofs filling the plateau, the far ones hazier, small churches among them; the
+  // cathedral stands over the middle of it (the miniature shows it: on the field it rises inside the fort)
+  bdAniHouses(c, 500, 850, by - 11, 0.3, 0.6, rand, [560, 752]);
+  if (briefSkyline) bdAniCathedral(c, 640, by - 5, 1, 0.12);
+  bdAniHouses(c, 492, 1010, by - 5, 0.22, 0.8, rand, [528, 820, 968]);
+  bdAniHouses(c, 486, 1040, by + 1, 0.14, 1, rand, []);
+  // hearth smoke over the roofs
+  for (const [sx, len] of [[540, 18], [706, 22], [862, 16], [996, 14]]) skySmoke(c, sx, by - 12, len, skyAir([140, 128, 122], 0.3), 0.36, 0.5);
+
+  // the Tzaghkotsadzor falling away on the right: the drop off the plateau, the valley's shade, its far bank
+  skyPoly(c, [[1040, by - 9], [1084, by - 3], [1098, by], [1040, by]], skyCss(skyAir([112, 92, 80], 0.2)));
+  skyPoly(c, [[1084, by - 3], [1120, by - 1], [1124, by], [1096, by]], skyCss(skyAir([60, 70, 62], 0.24)));
+  const west = skyRidgeline([[1110, by], [1136, by - 9], [1200, by - 12], [1290, by - 10], [1370, by - 13]], rand, 0.15);
+  c.beginPath();
+  c.moveTo(1110, by);
+  for (const p of west) c.lineTo(p[0], p[1]);
+  c.lineTo(1370, by);
+  c.closePath();
+  c.fillStyle = skyCss(skyAir([168, 146, 118], 0.32));
+  c.fill();
+  skyPoly(c, [[1110, by], [1136, by - 9], [1150, by - 8], [1132, by]], skyCss(skyAir([206, 176, 136], 0.3)));
+  bdMistBand(c, by, 10, 0.25, mist, rand);
+}
+
+// ---- the field ----
+// Smbat II's double walls, from lip to lip across the far band of the field: the inner wall at depth 218 with
+// half-round towers behind the four wall pads, the lower outer wall at 236, a gap at the middle for the gate
+// (the fort paints the gate and the stretch of wall on either side of it). Painted in screen space: each wall
+// runs at one depth, so its scale holds all along it.
+const ANI_WALL = {
+  lit: "#cc9a78", mid: "#b5845f", shade: "#86604a", top: "#dcb28e", dark: "#5c4a46", ink: "rgba(46, 26, 16, .78)",
+  inner: { y: 218, h: 38, d: 12, x0: 156, x1: 1124 }, outer: { y: 236, h: 21, d: 7, x0: 132, x1: 1148 },
+  gap: [548, 732], towers: [178, 290, 500, 780, 990, 1102], tr: 14, th: 46,
+  // the two outer wall pads (290 and 990, depth 200) stand lower than the two by the gate: each has a low
+  // platform built out from the outer wall at its bay, at the outer wall's height, its front at depth y
+  platforms: [{ x: 290, y: 250 }, { x: 990, y: 254 }], platHW: 32,
+};
+// stone courses on a straight face from x0 to x1 (screen), top y0 to foot y1; s is the wall's scale
+function aniCourses(c, x0, x1, y0, y1, s, rand, darkRows) {
+  const ch = 4.4 * s;
+  c.strokeStyle = "rgba(70, 40, 26, .32)";
+  c.lineWidth = Math.max(0.5, 0.55 * s);
+  c.beginPath();
+  let row = 0;
+  for (let y = y1 - ch; y > y0 + 0.5; y -= ch, row++) {
+    c.moveTo(x0, y); c.lineTo(x1, y);
+    for (let x = x0 + (row % 2 ? 2 : 5.5) * s + rand() * 3 * s; x < x1 - 1; x += (6 + rand() * 4) * s) { c.moveTo(x, y); c.lineTo(x, y + ch); }
+  }
+  c.stroke();
+  // the darker courses of black stone, and here and there a stone of another colour
+  row = 0;
+  for (let y = y1 - ch; y > y0 + 0.5; y -= ch, row++) {
+    if (darkRows.includes(row)) {
+      c.fillStyle = "rgba(70, 56, 56, .55)";
+      c.fillRect(x0, y, x1 - x0, ch * 0.9);
+    }
+  }
+  for (let i = 0; i < (x1 - x0) * (y1 - y0) / (50 * s * s); i++) {
+    const x = x0 + rand() * (x1 - x0), y = y0 + rand() * (y1 - y0);
+    c.fillStyle = rand() < 0.5 ? "rgba(255, 236, 206, .16)" : "rgba(60, 30, 18, .14)";
+    c.fillRect(x, y, (4 + rand() * 4) * s, ch * 0.9);
+  }
+}
+// one straight run of wall from world x0 to x1 at depth W.y
+function aniWallRun(c, W, x0, x1, rand, darkRows) {
+  const A = proj(x0, W.y), B = proj(x1, W.y), s = A.s, top = A.y - W.h * s;
+  const a = proj(x0, W.y - W.d), b = proj(x1, W.y - W.d), topB = a.y - W.h * a.s;
+  // the wall-walk, seen over the parapet
+  c.fillStyle = ANI_WALL.top;
+  c.beginPath();
+  c.moveTo(A.x, top); c.lineTo(B.x, top); c.lineTo(b.x, topB); c.lineTo(a.x, topB);
+  c.closePath();
+  c.fill();
+  c.fillStyle = "rgba(60, 34, 20, .22)";
+  c.fillRect(Math.min(a.x, A.x), topB, Math.abs(b.x - a.x), Math.max(1, (top - topB) * 0.4));
+  // the face
+  const g = c.createLinearGradient(0, top, 0, A.y);
+  g.addColorStop(0, ANI_WALL.lit);
+  g.addColorStop(0.75, ANI_WALL.mid);
+  g.addColorStop(1, ANI_WALL.shade);
+  c.fillStyle = g;
+  c.fillRect(A.x, top, B.x - A.x, A.y - top);
+  aniCourses(c, A.x, B.x, top + 4.5 * s, A.y, s, rand, darkRows);
+  // the parapet: a band and plain merlons along the front
+  c.fillStyle = ANI_WALL.lit;
+  c.fillRect(A.x, top - 1.2 * s, B.x - A.x, 3.2 * s);
+  const mw = 4.4 * s, step = 7.6 * s;
+  c.beginPath();
+  for (let x = A.x + 1.2 * s; x + mw <= B.x - 0.5; x += step) c.rect(x, top - 5.4 * s, mw, 4.4 * s);
+  c.fillStyle = ANI_WALL.lit;
+  c.fill();
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(0.6, 0.7 * s);
+  c.stroke();
+  c.fillStyle = "rgba(255, 238, 210, .35)";
+  for (let x = A.x + 1.2 * s; x + mw <= B.x - 0.5; x += step) c.fillRect(x, top - 5.4 * s, mw, 0.9 * s);
+  // grime at the foot, and the ink round the face
+  const fg = c.createLinearGradient(0, A.y - 6 * s, 0, A.y);
+  fg.addColorStop(0, "rgba(50, 30, 16, 0)");
+  fg.addColorStop(1, "rgba(50, 30, 16, .3)");
+  c.fillStyle = fg;
+  c.fillRect(A.x, A.y - 6 * s, B.x - A.x, 6 * s);
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(A.x, A.y); c.lineTo(A.x, top - 1.2 * s); c.lineTo(B.x, top - 1.2 * s); c.lineTo(B.x, A.y);
+  c.stroke();
+  c.strokeStyle = "rgba(255, 244, 222, .5)";
+  c.lineWidth = Math.max(0.5, 0.6 * s);
+  c.beginPath(); c.moveTo(A.x, top + 2 * s); c.lineTo(B.x, top + 2 * s); c.stroke();
+}
+// a half-round tower standing out from the inner wall at world x. Each run of wall is painted level from where
+// it starts (aniWallRun), so the tower drops or lifts every point by the run's offset there (dy) and stands
+// on the wall's own foot, not on the bent ground under it.
+function aniWallTower(c, x, rand) {
+  const W = ANI_WALL.inner, R = ANI_WALL.tr, H = ANI_WALL.th, n = 18;
+  const ref = x < (ANI_WALL.gap[0] + ANI_WALL.gap[1]) / 2 ? W.x0 : ANI_WALL.gap[1], dy = proj(ref, W.y).y - proj(x, W.y).y;
+  const foot = [], head = [];
+  for (let i = 0; i <= n; i++) {
+    const t = Math.PI * i / n, p = proj(x + R * Math.cos(t), W.y + R * Math.sin(t) * 0.999);
+    foot.push([p.x, p.y + dy]);
+    head.push([p.x, p.y + dy - H * p.s]);
+  }
+  const s = proj(x, W.y).s;
+  // the curved face, lit toward the west (left), its east side in shade
+  c.beginPath();
+  c.moveTo(foot[0][0], foot[0][1]);
+  for (const p of foot) c.lineTo(p[0], p[1]);
+  for (let i = n; i >= 0; i--) c.lineTo(head[i][0], head[i][1]);
+  c.closePath();
+  const xl = foot[n][0], xr = foot[0][0];
+  const g = c.createLinearGradient(xl, 0, xr, 0);
+  g.addColorStop(0, ANI_WALL.lit);
+  g.addColorStop(0.4, ANI_WALL.mid);
+  g.addColorStop(1, ANI_WALL.shade);
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  // courses follow the curve; one dark course of black stone
+  c.strokeStyle = "rgba(70, 40, 26, .32)";
+  c.lineWidth = Math.max(0.5, 0.55 * s);
+  c.beginPath();
+  for (let h = 4.4; h < H - 3; h += 4.4) {
+    for (let i = 0; i <= n; i++) {
+      const pt = [foot[i][0], foot[i][1] - h * s];
+      if (i) c.lineTo(pt[0], pt[1]); else c.moveTo(pt[0], pt[1]);
+    }
+  }
+  c.stroke();
+  c.fillStyle = "rgba(70, 56, 56, .5)";
+  c.beginPath();
+  for (let i = 0; i <= n; i++) c.lineTo(foot[i][0], foot[i][1] - 17.6 * s);
+  for (let i = n; i >= 0; i--) c.lineTo(foot[i][0], foot[i][1] - 21.6 * s);
+  c.closePath();
+  c.fill();
+  c.restore();
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(foot[0][0], foot[0][1]);
+  for (const p of foot) c.lineTo(p[0], p[1]);
+  c.moveTo(head[0][0], head[0][1]);
+  for (const p of head) c.lineTo(p[0], p[1]);
+  c.moveTo(foot[0][0], foot[0][1]); c.lineTo(head[0][0], head[0][1]);
+  c.moveTo(foot[n][0], foot[n][1]); c.lineTo(head[n][0], head[n][1]);
+  c.stroke();
+  // its top: the half disc over the wall-walk, and merlons round the curve
+  const back = proj(x, W.y - W.d);
+  c.fillStyle = ANI_WALL.top;
+  c.beginPath();
+  c.moveTo(head[0][0], head[0][1]);
+  for (const p of head) c.lineTo(p[0], p[1]);
+  c.lineTo(head[n][0], back.y + dy - H * back.s);
+  c.lineTo(head[0][0], back.y + dy - H * back.s);
+  c.closePath();
+  c.fill();
+  for (let i = 1; i < n; i += 2) {
+    const p = head[i];
+    c.fillStyle = i < n / 2 ? ANI_WALL.mid : ANI_WALL.lit;
+    c.fillRect(p[0] - 2.1 * s, p[1] - 4.6 * s, 4.2 * s, 4.6 * s);
+    c.strokeStyle = ANI_WALL.ink;
+    c.lineWidth = Math.max(0.5, 0.6 * s);
+    c.strokeRect(p[0] - 2.1 * s, p[1] - 4.6 * s, 4.2 * s, 4.6 * s);
+  }
+  // two narrow loops
+  c.fillStyle = "#2a1a12";
+  const m = proj(x - R * 0.2, W.y + R * 0.95);
+  c.fillRect(m.x - 0.8 * s, m.y + dy - H * 0.62 * m.s, 1.6 * s, 5 * s);
+  c.fillRect(m.x + 6 * s, m.y + dy - H * 0.34 * m.s, 1.6 * s, 5 * s);
+}
+function aniWalls(c, p) {
+  const rand = mulberry32(p.seed || 1041), G = ANI_WALL.gap;
+  // a soft shadow along the foot of both walls
+  for (const W of [ANI_WALL.inner, ANI_WALL.outer]) {
+    const A = proj(W.x0, W.y + 2), B = proj(W.x1, W.y + 2);
+    c.fillStyle = "rgba(40, 24, 10, .2)";
+    c.fillRect(A.x, A.y - 1, B.x - A.x, 4 * A.s);
+  }
+  aniWallRun(c, ANI_WALL.inner, ANI_WALL.inner.x0, G[0], rand, [2, 5]);
+  aniWallRun(c, ANI_WALL.inner, G[1], ANI_WALL.inner.x1, rand, [2, 5]);
+  for (const tx of ANI_WALL.towers) aniWallTower(c, tx, rand);
+  aniWallRun(c, ANI_WALL.outer, ANI_WALL.outer.x0, G[0] - 6, rand, [2]);
+  aniWallRun(c, ANI_WALL.outer, G[1] + 6, ANI_WALL.outer.x1, rand, [2]);
+  for (const pl of ANI_WALL.platforms) aniWallPlatform(c, pl.x, pl.y, rand);
+}
+// A low platform built out from the outer wall at a bay, as high as the outer wall and paved level with its
+// walk: the stone the tower on that wall pad stands on. Painted level with its run of outer wall (dy, as the
+// bay towers are): every depth is read at the platform's middle, so its front, flank and top share one line.
+function aniWallPlatform(c, x, yF, rand) {
+  const W = ANI_WALL.outer, hw = ANI_WALL.platHW, H = W.h, back = W.y - W.d;
+  const ref = x < (ANI_WALL.gap[0] + ANI_WALL.gap[1]) / 2 ? W.x0 : ANI_WALL.gap[1] + 6, dy = proj(ref, W.y).y - proj(x, W.y).y;
+  const Y = wy => proj(x, wy).y + dy, Sc = wy => proj(x, wy).s, X = (wx, wy) => proj(wx, wy).x;
+  const s = Sc(yF), foot = Y(yF), top = foot - H * s, topB = Y(back) - H * Sc(back);
+  const x0 = X(x - hw, yF), x1 = X(x + hw, yF), b0 = X(x - hw, back), b1 = X(x + hw, back);
+  // a soft shadow along its foot
+  c.fillStyle = "rgba(40, 24, 10, .22)";
+  c.fillRect(x0 - 1, foot - 1, x1 - x0 + 6 * s, 4 * s);
+  // the near flank, from its front back to the outer wall's face: in shade on the east (left of the view's
+  // middle), lit on the west
+  const west = (x0 + x1) / 2 > VW / 2, fx = west ? x - hw : x + hw;
+  const fa = X(fx, yF), fb = X(fx, W.y), ya = foot, yb = Y(W.y);
+  c.fillStyle = west ? ANI_WALL.mid : ANI_WALL.shade;
+  c.beginPath();
+  c.moveTo(fa, ya); c.lineTo(fa, ya - H * s); c.lineTo(fb, yb - H * Sc(W.y)); c.lineTo(fb, yb);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(0.8, 1 * s);
+  c.stroke();
+  // the paved top, back to the far side of the outer wall's walk, with its joints
+  c.fillStyle = ANI_WALL.top;
+  c.beginPath();
+  c.moveTo(x0, top); c.lineTo(x1, top); c.lineTo(b1, topB); c.lineTo(b0, topB);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = "rgba(90, 56, 36, .3)";
+  c.lineWidth = Math.max(0.5, 0.5 * s);
+  c.beginPath();
+  for (let k = 1; k < 4; k++) {
+    const u = k / 4, yy = topB + (top - topB) * u;
+    c.moveTo(b0 + (x0 - b0) * u, yy); c.lineTo(b1 + (x1 - b1) * u, yy);
+  }
+  c.stroke();
+  // the face, coursed like the walls, one dark course of black stone
+  const g = c.createLinearGradient(0, top, 0, foot);
+  g.addColorStop(0, ANI_WALL.lit);
+  g.addColorStop(0.75, ANI_WALL.mid);
+  g.addColorStop(1, ANI_WALL.shade);
+  c.fillStyle = g;
+  c.fillRect(x0, top, x1 - x0, foot - top);
+  aniCourses(c, x0, x1, top + 4 * s, foot, s, rand, [2]);
+  // a plain parapet band along its lip, the grime at its foot, the ink round it
+  c.fillStyle = ANI_WALL.lit;
+  c.fillRect(x0, top - 1.2 * s, x1 - x0, 3.2 * s);
+  c.fillStyle = "rgba(255, 238, 210, .35)";
+  c.fillRect(x0, top - 1.2 * s, x1 - x0, 0.9 * s);
+  const fg = c.createLinearGradient(0, foot - 6 * s, 0, foot);
+  fg.addColorStop(0, "rgba(50, 30, 16, 0)");
+  fg.addColorStop(1, "rgba(50, 30, 16, .3)");
+  c.fillStyle = fg;
+  c.fillRect(x0, foot - 6 * s, x1 - x0, 6 * s);
+  c.strokeStyle = ANI_WALL.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(x0, foot); c.lineTo(x0, top - 1.2 * s); c.lineTo(x1, top - 1.2 * s); c.lineTo(x1, foot); c.closePath();
+  c.stroke();
+  c.lineWidth = Math.max(0.6, 0.8 * s);
+  c.beginPath(); c.moveTo(x0, top - 1.2 * s); c.lineTo(b0, topB); c.moveTo(x1, top - 1.2 * s); c.lineTo(b1, topB); c.stroke();
+}
+TERR_CULTURE.aniwalls = (c, p) => aniWalls(c, p);
+
+// a low field wall of dry-laid stones along p.pts: a body of rubble about knee high, its stones outlined, a
+// ragged top of flatter capstones; lit along its top, in shade on its near face toward the east
+function lcFieldWall(c, p, q, s, B, r) {
+  const pts = p.pts.map(w => proj(w[0], w[1])), H = p.wallH || 9, rnd = mulberry32(p.seed || 7);
+  const stone = B.wall || B.rock, face = terrCss(terrMix(stone[0], stone[1], 0.55)), top = terrCss(terrLit(stone[0], 0.12));
+  // its shadow on the grass
+  c.fillStyle = "rgba(30, 18, 8, .24)";
+  c.beginPath();
+  pts.forEach((a, i) => (i ? c.lineTo(a.x + 3 * a.s, a.y + 2.4 * a.s) : c.moveTo(a.x + 3 * a.s, a.y + 2.4 * a.s)));
+  for (let i = pts.length - 1; i >= 0; i--) c.lineTo(pts[i].x - 1 * pts[i].s, pts[i].y);
+  c.fill();
+  // the body: one inked band along the line, its top uneven
+  const crest = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], n = Math.max(2, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / (3.4 * a.s)));
+    for (let k = 0; k < n; k++) {
+      const t = k / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, sc = a.s + (b.s - a.s) * t;
+      crest.push([x, y, y - (H + (rnd() - 0.5) * 2.4) * sc, sc]);
+    }
+  }
+  const z = pts[pts.length - 1];
+  crest.push([z.x, z.y, z.y - H * z.s * 0.8, z.s]);
+  c.beginPath();
+  c.moveTo(crest[0][0], crest[0][1]);
+  for (const q of crest) c.lineTo(q[0], q[2]);
+  for (let i = crest.length - 1; i >= 0; i--) c.lineTo(crest[i][0], crest[i][1]);
+  c.closePath();
+  terrInkStroke(c, 34 * z.s, 0.7);
+  c.fillStyle = face;
+  c.fill();
+  c.save();
+  c.clip();
+  // the stones of its face in courses, each its own tone, the joints dark
+  for (const q of crest) {
+    for (let row = 0; row < 3; row++) {
+      const y = q[1] - (row + 0.5) * (H / 3) * q[3], rx = (1.7 + rnd() * 0.9) * q[3], ry = (H / 7) * q[3];
+      c.fillStyle = terrCss(terrLit(stone[Math.floor(rnd() * 2)], (rnd() - 0.4) * 0.35));
+      c.beginPath(); c.ellipse(q[0] + (rnd() - 0.5) * 1.5 * q[3], y, rx, ry, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = terrInkCss(0.4);
+      c.lineWidth = Math.max(0.5, 0.45 * q[3]);
+      c.stroke();
+    }
+  }
+  c.restore();
+  // capstones along the top, catching the light
+  for (let i = 0; i < crest.length; i += 2) {
+    const q = crest[i];
+    c.fillStyle = top;
+    c.beginPath(); c.ellipse(q[0], q[2] + 0.6 * q[3], 2.2 * q[3], 1.1 * q[3], (rnd() - 0.5) * 0.3, 0, Math.PI * 2); c.fill();
+  }
+  // tufts at its foot
+  c.strokeStyle = terrCss(B.blade, 0.85);
+  c.lineWidth = Math.max(0.6, 0.7 * z.s);
+  c.beginPath();
+  for (let i = 0; i < crest.length; i += 3) {
+    const q = crest[i];
+    if (rnd() < 0.5) continue;
+    for (let k = -1; k <= 1; k++) { c.moveTo(q[0] + k * q[3], q[1] + 0.6); c.lineTo(q[0] + k * 2 * q[3], q[1] - (2 + rnd() * 2.4) * q[3]); }
+  }
+  c.stroke();
+}
+TERR_CULTURE.fieldwall = lcFieldWall;
+TERR_STANDING.fieldwall = 1;
+TERR_CAST.fieldwall = [9, 40];
+
+// A camp of plain tents on the field (no device on any cloth): o.tents lists [dx, dy, kind, scale] from the
+// prop's foot, kind "bell" a round tent under a cone, "ridge" a ridge tent; o.cloth the canvas, o.trim its hem.
+function lcCampTents(c, p, q, s, B, r) {
+  const cloth = terrRgb(p.cloth || "#e4d8bc"), trim = terrRgb(p.trim || "#9c8a6a");
+  const lit = terrCss(terrLit(cloth, 0.12)), mid = terrCss(cloth), dark = terrCss(terrLit(cloth, -0.3)), hem = terrCss(trim);
+  const tents = p.tents.slice().sort((a, b) => a[1] - b[1]);
+  for (const [dx, dy, kind, k] of tents) {
+    const t = proj(p.x + dx, p.y + dy), u = t.s * (k || 1) * 1.3, x = t.x, y = t.y;
+    c.fillStyle = "rgba(30, 18, 8, .26)";
+    c.beginPath(); c.ellipse(x + 5 * u, y + 1.2 * u, 15 * u, 3.6 * u, 0, 0, Math.PI * 2); c.fill();
+    if (kind === "ridge") {
+      // a ridge tent end-on: two pitched sides, the door flap tied back, its ridge pole proud of the cloth
+      const w = 12 * u, h = 13 * u, d = 9 * u;
+      terrInked(c, () => { c.moveTo(x - w, y); c.lineTo(x, y - h); c.lineTo(x + d * 0.66, y - h - d * 0.38); c.lineTo(x + w + d * 0.66, y - d * 0.38); c.lineTo(x + w, y); c.closePath(); }, mid, 30 * u);
+      c.fillStyle = dark;
+      terrPoly(c, [x, y - h, x + d * 0.66, y - h - d * 0.38, x + w + d * 0.66, y - d * 0.38, x + w, y]);
+      c.fillStyle = lit;
+      terrPoly(c, [x - w, y, x, y - h, x - w * 0.3, y]);
+      c.fillStyle = "#3a2a1c";
+      terrPoly(c, [x - 3 * u, y, x, y - 7.5 * u, x + 3 * u, y]);
+      c.fillStyle = hem;
+      c.fillRect(x - w, y - 1.4 * u, w * 2, 1.4 * u);
+      terrPole(c, x, y - h, x, y - h - 4 * u, 1 * u, "#6a4a2a");
+    } else {
+      // a round tent: a low wall of cloth under a cone, a pole and a little pennon-less finial
+      const R = 10 * u, wall = 6 * u, cone = 12 * u;
+      terrInked(c, () => {
+        c.moveTo(x - R, y); c.lineTo(x - R, y - wall); c.lineTo(x, y - wall - cone); c.lineTo(x + R, y - wall); c.lineTo(x + R, y);
+        c.ellipse(x, y, R, R * 0.3, 0, 0, Math.PI);
+      }, mid, 28 * u);
+      const wg = c.createLinearGradient(x - R, 0, x + R, 0);
+      wg.addColorStop(0, terrCss(terrLit(cloth, 0.15)));
+      wg.addColorStop(0.5, mid);
+      wg.addColorStop(1, dark);
+      c.fillStyle = wg;
+      c.beginPath(); c.moveTo(x - R, y - wall); c.lineTo(x + R, y - wall); c.lineTo(x + R, y); c.ellipse(x, y, R, R * 0.3, 0, 0, Math.PI); c.closePath(); c.fill();
+      c.fillStyle = lit;
+      terrPoly(c, [x - R, y - wall, x, y - wall - cone, x - R * 0.1, y - wall]);
+      c.fillStyle = dark;
+      terrPoly(c, [x + R * 0.35, y - wall, x, y - wall - cone, x + R, y - wall]);
+      c.fillStyle = hem;
+      c.beginPath(); c.moveTo(x - R, y - wall); c.lineTo(x + R, y - wall); c.lineTo(x + R, y - wall + 1.4 * u); c.lineTo(x - R, y - wall + 1.4 * u); c.fill();
+      c.fillStyle = "#3a2a1c";
+      terrPoly(c, [x - 2.6 * u, y + 0.4 * u, x - 2.6 * u, y - 6 * u, x + 1.6 * u, y - 6 * u, x + 1.6 * u, y + 0.6 * u]);
+      terrPole(c, x, y - wall - cone + 1 * u, x, y - wall - cone - 3.4 * u, 0.9 * u, "#6a4a2a");
+    }
+    // guy ropes and pegs
+    c.strokeStyle = "rgba(60, 46, 30, .55)";
+    c.lineWidth = Math.max(0.5, 0.5 * u);
+    c.beginPath();
+    c.moveTo(x - 9 * u, y - 7 * u); c.lineTo(x - 16 * u, y + 1 * u);
+    c.moveTo(x + 9 * u, y - 7 * u); c.lineTo(x + 16 * u, y + 1 * u);
+    c.stroke();
+  }
+  // a cold hearth ringed with stones before the tents, and a stack of spears
+  const h = proj(p.x + (p.hearth || 0), p.y + 10);
+  c.fillStyle = "rgba(40, 30, 24, .5)";
+  c.beginPath(); c.ellipse(h.x, h.y, 4.6 * h.s, 1.6 * h.s, 0, 0, Math.PI * 2); c.fill();
+  for (let i = 0; i < 7; i++) {
+    const a = i / 7 * Math.PI * 2;
+    c.fillStyle = terrCss(B.rock[1]);
+    c.beginPath(); c.ellipse(h.x + Math.cos(a) * 5 * h.s, h.y + Math.sin(a) * 1.8 * h.s, 1.2 * h.s, 0.8 * h.s, 0, 0, Math.PI * 2); c.fill();
+  }
+}
+TERR_CULTURE.camp = lcCampTents;
+TERR_STANDING.camp = 1;
+TERR_CAST.camp = [22, 46];
+
+// basalt boulders among the tuff: an outcrop in the dark stone
+const ANI_BASALT = [[118, 112, 112], [80, 76, 80], [44, 42, 48]];
+TERR_CULTURE.basalt = (c, p, q, s, B, r) => terrOutcrop(c, q.x, q.y, p.R * s, Object.assign({}, B, { rock: ANI_BASALT }), r());
+
+// the gorge at each far corner: everything beyond its lip is open air
+function lcGorge(side, lip, extra) {
+  return Object.assign({
+    side, lip,
+    near: (x, y) => {
+      for (let i = 0; i < lip.length - 1; i++) if (terrSegDist(x, y, lip[i], lip[i + 1]) < 44) return true;
+      for (let i = 0; i < lip.length - 1; i++) {
+        const a = lip[i], b = lip[i + 1];
+        if (y >= a[1] && y <= b[1]) return side * (x - (a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]))) > 0;
+      }
+      return false;
+    },
+  }, extra);
+}
+
+TERR_SCENERY.ani = {
+  plan(k) {
+    const { S, r, add, scatter, spot, free } = k;
+    // the Akhurian at the left (east), the Tzaghkotsadzor at the right (west): basalt and red tuff walls, no trees
+    const gorge = { bare: true, mist: [214, 208, 196], floor: [34, 30, 30],
+      rock: [[172, 150, 132], [118, 112, 118], [176, 132, 106], [100, 84, 82], [146, 108, 88], [76, 64, 66], [96, 90, 92], [46, 44, 50]] };
+    S.gorges = [
+      lcGorge(-1, [[180, 150], [160, 215], [90, 260], [-40, 300], [-200, 350], [-420, 410]], gorge),
+      lcGorge(1, [[1100, 150], [1120, 215], [1190, 260], [1320, 300], [1480, 350], [1700, 410]], gorge),
+    ];
+    S.gorge = { near: (x, y) => S.gorges.some(G => G.near(x, y)) };
+    // the double walls: one prop, sorted by the outer wall's foot; the ground under them is spoken for
+    S.props.push({ kind: "aniwalls", x: 640, y: ANI_WALL.outer.y + 0.5, h: 44, hw: 500, seed: 1041 });
+    for (let x = ANI_WALL.outer.x0; x <= ANI_WALL.outer.x1; x += 20) S.taken.push({ x, y: 226, r: 22 });
+    for (const pl of ANI_WALL.platforms) for (const dx of [-24, 0, 24]) S.taken.push({ x: pl.x + dx, y: pl.y - 8, r: 20 });
+    // the two columns' camps at the near corners, where they came onto the plain
+    for (const [sx0, sx1, hearth] of [[24, 300, 8], [990, 1250, -8]]) {
+      for (let i = 0; i < 600; i++) {
+        const o = unprojGround(sx0 + r() * (sx1 - sx0), 560 + r() * 140);
+        const tents = [[-18, -8, "bell", 1], [20, -12, "ridge", 0.95], [2, 8, r() < 0.5 ? "bell" : "ridge", 1.05]];
+        if (add("camp", o.x, o.y, 36, 44, { tents, hearth, cloth: "#eadcbc", trim: "#9a7a52", margin: 10, gap: 46 })) break;
+      }
+    }
+    // short strips of field wall near the near edge
+    for (let i = 0, made = 0; i < 300 && made < 2; i++) {
+      const o = unprojGround(160 + r() * 960, 560 + r() * 130), len = 60 + r() * 50, tilt = (r() - 0.5) * 0.25;
+      const pts = [[o.x - len / 2, o.y - tilt * len / 2], [o.x, o.y + (r() - 0.5) * 6], [o.x + len / 2, o.y + tilt * len / 2]];
+      let ok = true;
+      for (const q of pts) ok = ok && terrClear(q[0], q[1], 10, true) && free(q[0], q[1], 8);
+      for (let t = 0.25; ok && t < 1; t += 0.5) ok = terrClear(o.x + (t - 0.5) * len, o.y, 10, true);
+      if (!ok) continue;
+      S.props.push({ kind: "fieldwall", x: o.x, y: o.y, h: 8, hw: len / 2, pts, seed: Math.floor(r() * 1e9) });
+      for (const q of pts) S.taken.push({ x: q[0], y: q[1], r: 14 });
+      made++;
+    }
+    // tuff outcrops and dark basalt boulders across the steppe
+    scatter(6, "outcrop", 24, 22, () => ({ R: 12 + r() * 10 }));
+    scatter(5, "basalt", 22, 20, () => ({ R: 10 + r() * 9 }));
+  },
+  life(k) {
+    // the steppe is empty: no village, no flock; only the cross-stones by the road (the field's vishaps)
+  },
+  // the city inside the walls, between the two gorges, running back to the skyline; the far banks either side
+  far(c, o) {
+    const { y0, y1, r } = o, rand = mulberry32(10413);
+    // the two gorges run on into the distance: dark clefts narrowing toward the skyline's, the bare steppe of
+    // the far banks beyond them in the field's own dry tones, hazing toward the sky
+    const left = y => 364 + (y1 - y) / (y1 - y0) * 86, right = y => 916 + (y1 - y) / (y1 - y0) * 128;
+    const ground = terrRgb(THEME.top), B = o.B;
+    for (const [x0, edge, sgn] of [[-10, left, -1], [1290, right, 1]]) {
+      const outer = y => edge(y) + sgn * (12 + (y - y0) / (y1 - y0) * 16);
+      const g = c.createLinearGradient(0, y0, 0, y1);
+      g.addColorStop(0, terrCss(terrMix(ground, o.sky, 0.55)));
+      g.addColorStop(1, terrCss(terrMix(terrLit(ground, -0.06), o.sky, 0.2)));
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(x0, y0); c.lineTo(outer(y0), y0); c.lineTo(outer(y1 + 1), y1 + 1); c.lineTo(x0, y1 + 1);
+      c.closePath();
+      c.fill();
+      // scrub and dark stones scattered on it
+      for (let i = 0; i < 70; i++) {
+        const y = y0 + 2 + rand() * (y1 - y0), near = (y - y0) / (y1 - y0), lim = outer(y);
+        const x = sgn < 0 ? -10 + rand() * (lim + 10) : lim + rand() * (1290 - lim);
+        c.fillStyle = terrCss(terrMix(rand() < 0.5 ? B.scrub : ANI_BASALT[1], o.sky, 0.5 - near * 0.35), 0.7);
+        c.beginPath(); c.ellipse(x, y, 1 + near * 2.2, 0.5 + near * 0.9, 0, 0, Math.PI * 2); c.fill();
+      }
+      // the cleft itself: its far wall in shade, a lit ledge of tuff along its near rim
+      c.fillStyle = skyCss(skyAir([58, 50, 52], 0.18));
+      c.beginPath();
+      c.moveTo(outer(y0), y0); c.lineTo(edge(y0), y0); c.lineTo(edge(y1), y1 + 1); c.lineTo(outer(y1 + 1), y1 + 1);
+      c.closePath();
+      c.fill();
+      c.fillStyle = skyCss(skyAir([164, 128, 104], 0.2), 0.85);
+      c.beginPath();
+      c.moveTo(outer(y0), y0); c.lineTo(outer(y0) - sgn * 3, y0); c.lineTo(outer(y1 + 1) - sgn * 6, y1 + 1); c.lineTo(outer(y1 + 1), y1 + 1);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = skyCss(skyAir([96, 150, 156], 0.25), 0.8);
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo((edge(y0) + outer(y0)) / 2, y0 + 1); c.lineTo((edge(y1) + outer(y1)) / 2, y1); c.stroke();
+    }
+    // rows of flat roofs, the far ones smaller and hazier, small domed churches among them
+    const rows = [[y0 + 7, 0.36, 0.55], [y0 + 15, 0.26, 0.75], [y0 + 23, 0.16, 0.95], [y1 + 2, 0.08, 1.15]];
+    for (const [base, air, size] of rows) {
+      const x0 = left(base) + 4, x1 = right(base) - 4;
+      const churches = [];
+      for (let k = 0; k < 2; k++) if (rand() < 0.7) churches.push(x0 + 30 + rand() * (x1 - x0 - 60));
+      bdAniHouses(c, x0, x1, base, air, size, rand, churches);
+    }
+  },
+};
+// ==================================== END BACKDROP SECTION: ani ====================================
+
+// ====================================== BACKDROP SECTION: mari ======================================
+// Mari, 24 August 1266: a stylised pass in the Amanus, not any identified site (the place is unidentified,
+// and no gate or fort here is named). The camera looks north along the range: the Syrian side is to the
+// right, where the guarded road comes in, the Cilician side to the left. The long Amanus crest runs north in
+// blue haze, the pass road climbing to a saddle in it right of centre; dark pine and oak on the slopes, pale
+// limestone crags, the open slopes gold at the end of August. Far to the left a pale haze lies over the
+// Cilician plain, with a thin glint of the gulf at its edge. One small castle stands on a far crag, unnamed:
+// it is no particular fort. The field is the defile itself: pine stands and oak scrub, limestone breaking
+// through red earth, a dry stream bed along the way, and no village; the other road, which opens at wave 11,
+// is painted from the start as a narrow goat track coming down from a side valley behind the princes' camp.
+TERR_BIOME.mari = {
+  stones: 220, dry: [206, 190, 130], blade: [86, 100, 50], tip: [190, 180, 110], earth: [150, 112, 80],
+  pebble: [198, 190, 172], flowers: [[236, 228, 206]], drifts: 3, scrub: [92, 106, 60], scrubs: 24,
+  bed: [206, 184, 148], crown: [224, 206, 176], rut: [150, 122, 92], gravel: 1,
+  rock: [[214, 206, 190], [166, 158, 142], [104, 98, 90]],
+  leaf: [[34, 62, 40], [60, 92, 54], [118, 146, 84]],
+  wall: [[218, 206, 182], [176, 162, 138], [116, 104, 88]], fringe: 0.9, farTrees: 1,
+};
+BACKDROP_PEAK.mari = 53;
+TERR_BANK_STYLE.mari = "ledge";
+FOOT_STONE.mari = ["#cfc6b0", "#938a76"];
+FAR_ROAD_TO.mari = 950;     // the saddle the pass road climbs to
+
+function bgMari(c) {
+  const by = HORIZON, rand = mulberry32(1266), mist = skyRgb(THEME.sky[2]);
+  // far left: the Cilician plain under its haze, and the gulf glinting along its edge
+  const plain = c.createLinearGradient(0, by - 14, 0, by);
+  plain.addColorStop(0, skyCss(skyMix([200, 206, 196], mist, 0.55)));
+  plain.addColorStop(1, skyCss(skyMix([178, 186, 160], mist, 0.4)));
+  c.fillStyle = plain;
+  c.fillRect(-90, by - 14, 470, 14);
+  c.fillStyle = skyCss(skyMix([150, 186, 206], mist, 0.45));
+  c.fillRect(-90, by - 13, 330, 2.4);
+  c.fillStyle = "rgba(255, 255, 255, .7)";
+  for (const gx of [-40, 12, 60, 118, 170]) c.fillRect(gx, by - 12.4, 8 + rand() * 12, 0.7);
+  // the high crest of the Amanus running north, blue in the haze, its saddle where the pass crosses
+  const range = { lit: skyAir([102, 132, 146], 0.3), shade: skyAir([62, 86, 116], 0.28), snow: 0, rough: 0.5, fade: 0.55, ribs: 4 };
+  const north = [[250, by], [320, by - 34], [390, by - 58], [452, by - 72], [520, by - 70], [580, by - 82], [640, by - 90], [700, by - 84],
+    [770, by - 86], [836, by - 72], [892, by - 58], [930, by - 50], [960, by - 46]];
+  const south = [[930, by], [960, by - 46], [996, by - 50], [1040, by - 66], [1098, by - 84], [1170, by - 96], [1236, by - 90], [1300, by - 92],
+    [1370, by - 84], [1420, by]];
+  skyPeak(c, north, 6, by, range);
+  skyPeak(c, south, 5, by, range);
+  // the forest that clothes the range to near its crest: dark pine crowns in the haze, thinning upward
+  for (const keys of [north, south]) {
+    for (let i = 0; i < 260; i++) {
+      const x = keys[0][0] + rand() * (keys[keys.length - 1][0] - keys[0][0]), crest = skyRidgeY(keys, x);
+      const u = Math.pow(rand(), 0.7), y = crest + 10 + u * (by - crest - 10), h = 1.6 + u * 2.2;
+      if (y > by - 2) continue;
+      c.fillStyle = skyCss(skyAir(rand() < 0.75 ? [40, 66, 66] : [64, 92, 70], 0.36 - u * 0.1), 0.8);
+      c.beginPath(); c.moveTo(x - h * 0.55, y); c.lineTo(x, y - h * 1.3); c.lineTo(x + h * 0.55, y); c.closePath(); c.fill();
+    }
+  }
+  skyCloudsDriftHere(c);
+  bdMistBand(c, by, 52, 0.42, mist, rand);
+  // the pass road climbing the far slope to the saddle in tight bends
+  c.strokeStyle = skyCss(skyAir([226, 214, 186], 0.4), 0.8);
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(930, by - 4); c.lineTo(972, by - 12); c.lineTo(938, by - 20); c.lineTo(968, by - 30); c.lineTo(944, by - 38); c.lineTo(960, by - 46);
+  c.stroke();
+  // the wooded flanks: dark pine and oak on the upper slopes, crags of pale limestone breaking through
+  const woods = (keys, seed, air, tuft, gap) => bdWoodRidge(c, keys, by, seed, {
+    lit: skyAir([92, 120, 82], air), shade: skyAir([52, 76, 70], air), crown: skyAir([70, 104, 66], air * 0.9), crownShade: skyAir([36, 60, 52], air * 0.9),
+    mist, sink: 0.45, tuft, kind: "pine", gap,
+  });
+  const far = woods([[-90, by - 30], [40, by - 38], [150, by - 30], [260, by - 46], [380, by - 40], [480, by - 52], [600, by - 44], [700, by - 50],
+    [800, by - 38], [880, by - 28], [920, by - 18]], 12661, 0.36, 2.8);
+  // the open slopes, gold at the end of August, between the stands
+  c.save();
+  c.beginPath();
+  c.moveTo(-90, by);
+  for (const p of far) c.lineTo(p[0], p[1]);
+  c.lineTo(920, by);
+  c.closePath();
+  c.clip();
+  for (const [x, y, w] of [[90, by - 22, 34], [130, by - 18, 22], [330, by - 30, 30], [372, by - 26, 18], [560, by - 34, 26], [760, by - 30, 24], [800, by - 24, 14]]) {
+    c.fillStyle = skyCss(skyAir([196, 172, 104], 0.4), 0.5);
+    c.beginPath();
+    c.moveTo(x - w, y + 2);
+    for (let k = 0; k <= 8; k++) c.lineTo(x - w + w * 2 * k / 8, y - 2.6 * Math.sin(Math.PI * k / 8) - rand() * 1.4);
+    c.lineTo(x + w, y + 3);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+  // a small castle on a far crag, left of the pass: a curtain and a round tower on the rock, unnamed
+  const cx = 704, crag = skyRidgeY(far, cx);
+  skyPoly(c, [[cx - 18, crag + 5], [cx - 9, crag - 6], [cx + 4, crag - 9], [cx + 14, crag - 4], [cx + 20, crag + 5]], skyCss(skyAir([196, 192, 180], 0.38)));
+  skyPoly(c, [[cx + 4, crag - 9], [cx + 14, crag - 4], [cx + 20, crag + 5], [cx + 6, crag + 5]], skyCss(skyAir([120, 122, 126], 0.38)));
+  const cw = skyAir([208, 200, 184], 0.36), cs = skyAir([134, 132, 132], 0.36);
+  c.fillStyle = skyCss(cw);
+  c.fillRect(cx - 9, crag - 11.5, 15, 4);
+  for (let mx = cx - 9; mx < cx + 6; mx += 2.4) c.fillRect(mx, crag - 12.7, 1.3, 1.2);
+  c.fillRect(cx + 2, crag - 16.5, 4.4, 9);
+  c.fillStyle = skyCss(cs);
+  c.fillRect(cx + 4.6, crag - 16.5, 1.8, 9);
+  c.fillRect(cx - 9, crag - 8.6, 15, 0.9);
+  bdMistBand(c, by, 34, 0.32, mist, rand);
+  // the nearer shoulders either side of the defile: pine and oak, the Cilician side left, the Syrian right
+  woods([[-90, by - 18], [60, by - 26], [200, by - 22], [320, by - 30], [430, by - 20], [520, by - 8], [560, by]], 12662, 0.18, 3.6);
+  const right = woods([[1000, by], [1040, by - 14], [1110, by - 26], [1200, by - 34], [1290, by - 30], [1370, by - 38]], 12663, 0.16, 3.8);
+  for (const [x0, w] of [[1080, 24], [1230, 30]]) {
+    const y0 = skyRidgeY(right, x0 + w / 2) + 3;
+    skyPoly(c, [[x0, y0 + 8], [x0 + w * 0.4, y0], [x0 + w * 0.6, y0 + 2], [x0 + w, y0 + 10]], skyCss(skyAir([214, 206, 190], 0.16), 0.9));
+    skyPoly(c, [[x0 + w * 0.6, y0 + 2], [x0 + w, y0 + 10], [x0 + w * 0.7, y0 + 11]], skyCss(skyAir([128, 122, 118], 0.16), 0.9));
+  }
+  bdMistBand(c, by, 12, 0.22, mist, rand);
+}
+
+// A dry stream bed: a shallow channel cut into the red earth, its far bank a dark cut face, its floor the
+// earth's own khaki silt with rounded limestone cobbles lying loose in it, oleander and dry reeds along its
+// banks; nothing runs in it at the end of summer. Nothing about it is level or kerbed like a road: it widens
+// and narrows, and its stones lie in the bed, not along its edges. pts in world units.
+function lcDryBed(c, pts, B, shared) {
+  const rand = mulberry32(12665), line = [];
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+  let run = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, n = Math.max(1, Math.round(len / 10));
+    for (let j = i ? 1 : 0; j <= n; j++) {
+      const d = run + len * j / n, u = d / total, p = proj(a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n);
+      const w = 12 + 6 * Math.sin(d * 0.021) * Math.sin(d * 0.007 + 1) + 3 * Math.sin(d * 0.067 + 2);
+      line.push({ x: p.x, y: p.y, s: p.s, w, taper: Math.min(1, 0.3 + Math.min(u, 1 - u) * 6) });
+    }
+    run += len;
+  }
+  // the screen normal at each point, for setting things across the bed
+  line.forEach((p, i) => {
+    const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+    p.nx = -dy / l; p.ny = dx / l;
+    if (p.ny < 0) { p.nx = -p.nx; p.ny = -p.ny; }   // the normal points toward the viewer
+  });
+  const pass = (grow, css, dy) => {
+    c.strokeStyle = css;
+    for (let i = 0; i < line.length - 1; i++) {
+      const p = line[i], q = line[i + 1];
+      c.lineWidth = Math.max(0.8, (p.w + grow) * p.s * p.taper);
+      c.beginPath(); c.moveTo(p.x, p.y + (dy || 0) * p.s); c.lineTo(q.x, q.y + (dy || 0) * q.s); c.stroke();
+    }
+  };
+  const silt = terrMix(B.earth, B.dry, 0.42);
+  c.lineCap = "round";
+  // a soft shadow round it, the banks cut dark into the earth (the far one, facing us, shows the most), the
+  // near lip worn a little paler, then the floor of silt
+  pass(8, "rgba(40, 24, 10, .16)", 0.4);
+  pass(5.6, terrInkCss(0.3), -1.8);
+  pass(5, terrCss(terrLit(B.earth, -0.46)), -1.6);
+  pass(2.4, terrCss(terrLit(B.earth, -0.04)), 1.4);
+  pass(-0.5, terrCss(silt), 0.6);
+  c.lineCap = "butt";
+  // the silt is uneven: paler drifts where it dried first, darker hollows
+  for (let i = 0; i < line.length; i++) {
+    const p = line[i], off = (rand() - 0.5) * p.w * 0.55 * p.s * p.taper;
+    c.fillStyle = terrCss(rand() < 0.55 ? terrLit(silt, 0.14) : terrLit(silt, -0.14), 0.6);
+    c.beginPath(); c.ellipse(p.x + p.nx * off, p.y + p.ny * off + 0.6 * p.s, (2 + rand() * 5) * p.s * p.taper, (0.8 + rand() * 1.2) * p.s * p.taper, Math.atan2(p.ny, p.nx) + Math.PI / 2, 0, Math.PI * 2); c.fill();
+  }
+  // rounded cobbles of pale limestone lying in the bed, a few boulders among them, none along the edges
+  for (const p of line) {
+    if (p.x < -20 || p.x > VW + 20) continue;
+    for (let k = 0; k < 3; k++) {
+      if (rand() < 0.4) continue;
+      const roll = rand(), rx = (roll < 0.06 ? 3.4 + rand() * 1.8 : roll < 0.3 ? 1.9 + rand() * 1.2 : 0.9 + rand() * 0.9) * p.s * p.taper;
+      const off = (rand() - 0.5) * p.w * 0.66 * p.s * p.taper, along = (rand() - 0.5) * 8 * p.s;
+      terrInkStone(c, p.x + p.nx * off - p.ny * along, p.y + p.ny * off + p.nx * along + 0.5 * p.s, rx, rx * 0.66, B.rock[rand() < 0.65 ? 0 : 1], rand, 0);
+    }
+  }
+  // along the banks: dry reeds, and oleander in leaf and pink flower (it lines dry stream beds all round the
+  // eastern Mediterranean and flowers through the summer)
+  const oleLeaf = [[56, 82, 56], [86, 114, 74], [134, 156, 104]];
+  for (let i = 3; i < line.length - 3; i++) {
+    const p = line[i];
+    if (p.x < -10 || p.x > VW + 10 || p.taper < 0.6) continue;
+    const roll = rand();
+    if (roll > 0.26) continue;
+    const side = rand() < 0.5 ? -1 : 1, off = (p.w * 0.5 + 4 + rand() * 2) * p.s * side;
+    const x = p.x + p.nx * off, y = p.y + p.ny * off;
+    if (roll < 0.1) {
+      const r = (5.5 + rand() * 3) * p.s;
+      terrBush(c, x, y, r, oleLeaf, rand);
+      for (let f = 0; f < 6; f++) {
+        const fx = x + (rand() - 0.5) * r * 1.5, fy = y - r * (0.35 + rand() * 0.55);
+        c.fillStyle = terrInkCss(0.45);
+        c.beginPath(); c.arc(fx, fy, Math.max(0.9, 0.95 * p.s), 0, Math.PI * 2); c.fill();
+        c.fillStyle = rand() < 0.5 ? "#e888a8" : "#f4b8cc";
+        c.beginPath(); c.arc(fx, fy, Math.max(0.6, 0.7 * p.s), 0, Math.PI * 2); c.fill();
+      }
+    } else {
+      for (let t = 0; t < 2; t++) terrTuft(c, x + (rand() - 0.5) * 5 * p.s, y + (rand() - 0.5) * 1.5 * p.s, (6 + rand() * 4) * p.s, terrCss(terrLit(B.dry, -0.38)), terrCss(B.tip), 0);
+    }
+  }
+}
+
+// the cheapest course over a coarse grid of the field, clear of every road, pad, plot and stone, from cells
+// that `from` accepts to cells that `to` accepts (null if none); smoothed so that it runs in curves
+function lcCourse(r, free, from, to) {
+  const cell = 14, gx0 = -300, gy0 = HORIZON + 40, nx = Math.ceil((1600 - gx0) / cell), ny = Math.floor((VH - 4 - gy0) / cell), N = nx * ny;
+  const toll = new Float32Array(N), best = new Float32Array(N).fill(1e9), back = new Int32Array(N).fill(-1), goal = new Uint8Array(N);
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i < nx; i++) {
+      const x = gx0 + i * cell, y = gy0 + j * cell, idx = j * nx + i, q = proj(x, y);
+      if (!terrClear(x, y, 10, false) || !free(x, y, 8)) continue;
+      toll[idx] = (terrClear(x, y, 26, false) ? 1 : 2) * (0.8 + r() * 0.4);
+      if (from(q, x, y)) best[idx] = 0;
+      if (to(q, x, y)) goal[idx] = 1;
+    }
+  }
+  for (let sweep = 0, changed = true; changed && sweep < 90; sweep++) {
+    changed = false;
+    for (let n = 0; n < N; n++) {
+      const idx = sweep % 2 ? N - 1 - n : n;
+      if (!toll[idx]) continue;
+      const i = idx % nx, j = (idx - i) / nx;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const a = i + di, b = j + dj;
+          if ((!di && !dj) || a < 0 || b < 0 || a >= nx || b >= ny || !toll[b * nx + a]) continue;
+          const cost = best[b * nx + a] + toll[idx] * (di && dj ? 1.414 : 1);
+          if (cost < best[idx] - 1e-4) { best[idx] = cost; back[idx] = b * nx + a; changed = true; }
+        }
+      }
+    }
+  }
+  let end = -1;
+  for (let idx = 0; idx < N; idx++) if (goal[idx] && best[idx] < 1e8 && (end < 0 || best[idx] < best[end])) end = idx;
+  if (end < 0) return null;
+  let pts = [];
+  for (let idx = end, guard = 0; idx >= 0 && guard < 3000; idx = back[idx], guard++) pts.push([gx0 + (idx % nx) * cell, gy0 + Math.floor(idx / nx) * cell]);
+  pts = pts.filter((q, i) => i % 2 === 0 || i === pts.length - 1);
+  for (let pass = 0; pass < 2; pass++) {
+    const cut = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      cut.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    cut.push(pts[pts.length - 1]);
+    pts = cut;
+  }
+  return pts;
+}
+
+TERR_SCENERY.mari = {
+  // pine stands and oak scrub on the slopes of the defile, limestone outcrops, a dry stream bed; no village
+  plan(k) {
+    const { S, r, grove, scatter, add, spot, free } = k;
+    // the stream bed comes down from the right edge of the field and leaves it at the foot
+    const bed = lcCourse(r, free, q => q.x > VW - 4 && q.x < VW + 40 && q.y > 250 && q.y < 480, q => q.y > VH - 46 && q.x > 380 && q.x < 1060);
+    if (bed) {
+      S.dryBed = bed;
+      for (const q of bed) S.taken.push({ x: q[0], y: q[1], r: 12 });
+    }
+    // the pines keep clear of each plot's ground and of its price board beside it (a board crowded out to the field's
+    // left edge would stand under the spell bar). The level's own list, not the live one: a bought plot leaves
+    // the live list, and the scene baked again after a resize must not change
+    for (const p of LEVELS[curLevel].plots || []) S.taken.push({ x: p[0], y: p[1], r: 40 }, { x: p[0] + 50, y: p[1] - 8, r: 46 });
+    const mixes = [[["fir", 0.85], ["broadleaf", 0.15]], [["fir", 0.6], ["broadleaf", 0.4]], [["broadleaf", 0.7], ["fir", 0.3]]];
+    for (let i = 0, made = 0; i < 500 && made < 10; i++) {
+      const size = 46 + r() * 56;
+      if (grove(spot(), size, mixes[Math.floor(r() * 3)], 46, 84, Math.round(4 + size * 0.08 + r() * 4), 4)) made++;
+    }
+    for (let i = 0, made = 0; i < 600 && made < 8; i++) {
+      const o = spot(), fir = r() < 0.6, h = 44 + r() * 36;
+      if (add(fir ? "fir" : "broadleaf", o.x, o.y, h, h * (fir ? 0.25 : 0.36), { margin: 9, gap: 34, variant: fir ? Math.floor(r() * 2) : Math.floor(r() * 3) })) made++;
+    }
+    scatter(18, "bush", 14, 12, () => ({ margin: 6, gap: 14 }));
+    scatter(8, "outcrop", 26, 24, () => ({ R: 12 + r() * 12 }));
+    scatter(4, "stump", 9, 10, () => ({ margin: 6, gap: 14, cut: 2 }));
+  },
+  life(k) {
+    // nothing of village life in the pass: the princes' camp stands at the fort
+  },
+  // the wooded slopes of the defile rising to the skyline, crags in the pine, the road thread to the saddle
+  far(c, o) {
+    const { y0, y1, r, sky, B } = o, rand = mulberry32(12664), depth = y1 - y0;
+    const g = c.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, terrCss(terrMix(terrMix(B.leaf[0], B.dry, 0.25), sky, 0.55)));
+    g.addColorStop(1, terrCss(terrMix(terrMix(B.leaf[1], B.dry, 0.35), sky, 0.2)));
+    c.fillStyle = g;
+    c.fillRect(0, y0, VW, depth + 1);
+    // gold open slopes between the stands
+    for (let i = 0; i < 9; i++) {
+      const x = rand() * VW, y = y0 + 4 + rand() * (depth - 6), near = (y - y0) / depth;
+      c.fillStyle = terrCss(terrMix(B.dry, sky, 0.5 - near * 0.3), 0.8);
+      c.beginPath(); c.ellipse(x, y, 30 + rand() * 50, 2 + near * 3, 0, 0, Math.PI * 2); c.fill();
+    }
+    // limestone crags
+    for (let i = 0; i < 10; i++) {
+      const x = rand() * VW, y = y0 + 3 + rand() * (depth - 4), near = (y - y0) / depth, w = (4 + rand() * 8) * (0.6 + near);
+      c.fillStyle = terrCss(terrMix(B.rock[0], sky, 0.5 - near * 0.3));
+      c.beginPath(); c.moveTo(x - w, y); c.lineTo(x - w * 0.2, y - w * 0.7); c.lineTo(x + w * 0.4, y - w * 0.5); c.lineTo(x + w, y); c.closePath(); c.fill();
+      c.fillStyle = terrCss(terrMix(B.rock[1], sky, 0.45 - near * 0.3));
+      c.beginPath(); c.moveTo(x + w * 0.4, y - w * 0.5); c.lineTo(x + w, y); c.lineTo(x + w * 0.2, y); c.closePath(); c.fill();
+    }
+    // the road thread climbing away to the saddle
+    const to = FAR_ROAD_TO.mari, from = to + 150, ph = rand() * 6;
+    for (const [tone, alpha, grow] of [[terrMix(TERR_INK, terrRgb(THEME.top), 0.3), 0.22, 1.1], [terrMix(B.crown, sky, 0.25), 0.92, 0]]) {
+      c.strokeStyle = terrCss(tone, alpha);
+      for (let i = 0; i < 40; i++) {
+        const at = t => [from + (to - from) * t * t * (3 - 2 * t) + Math.sin(t * 9 + ph) * 18 * (1 - t), y1 + 1 - (depth - 2) * (1 - (1 - t) * (1 - t))];
+        const a = at(i / 40), b = at((i + 1) / 40);
+        c.lineWidth = 0.7 + 2.2 * Math.pow(1 - i / 40, 1.7) + grow * (1 - i / 40);
+        c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+      }
+    }
+    // pine and oak crowns crowding the slopes, small and pale high up, larger and darker low down
+    for (let i = 0; i < 520; i++) {
+      const y = y0 + 2 + Math.pow(rand(), 0.8) * (depth - 1), near = (y - y0) / depth, x = rand() * VW, h = 2 + near * 5 * (0.7 + rand() * 0.6);
+      if (Math.abs(x - (to + 60)) < 30 * (1 - near) + 8 && rand() < 0.8) continue;
+      const pine = rand() < 0.7, haze = 0.5 - near * 0.38;
+      c.fillStyle = terrCss(terrMix(terrLit(B.leaf[0], -0.25), sky, haze));
+      c.beginPath();
+      if (pine) { c.moveTo(x - h * 0.4, y); c.lineTo(x, y - h * 1.2); c.lineTo(x + h * 0.4, y); c.closePath(); }
+      else c.ellipse(x, y - h * 0.5, h * 0.5, h * 0.5, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = terrCss(terrMix(B.leaf[1], sky, haze));
+      c.beginPath(); c.ellipse(x - h * 0.12, y - h * 0.62, h * 0.16, h * 0.22, 0, 0, Math.PI * 2); c.fill();
+    }
+  },
+};
+// ==================================== END BACKDROP SECTION: mari ====================================
+
+// ====================================== BACKDROP SECTION: sis ======================================
+// Sis, 1374-1375: a generic Cilician castle on a long rock spur above a fallen town. Whether the last stand
+// was at Sis or at Gaban is not settled, so nothing here names the place or copies either castle: the art
+// keeps to the traits the Cilician castles share (horseshoe towers, finely cut and rusticated limestone
+// ashlar, curtains that step with the rock, embrasured loopholes, barrel-vaulted chapels). The camera faces
+// the spur from the town side. Beyond the crest the spur rises to a higher summit crowned by the inner ward:
+// a long line of walls and horseshoe towers following the rock, a barrel-vaulted chapel among them. Beyond
+// that lies the wide Cilician plain, green in early spring (the hold ran through the winter and ended in
+// April), and far behind it the high Taurus still under snow. The field is the slope of the spur: limestone
+// breaking through spring grass, white and red flowers, the switchbacks of the castle road, the curtain wall
+// along the crest; at its foot the town, flat-roofed stone houses and garden walls with almond trees in
+// blossom, its hearths still smoking but nothing burning (only Dardel tells of the lower town in flames);
+// the Mamluk tents pitched on the plain at both near corners.
+TERR_BIOME.sis = {
+  stones: 260, dry: [190, 190, 140], blade: [74, 112, 52], tip: [170, 190, 110], earth: [140, 110, 80],
+  pebble: [204, 196, 178], flowers: [[236, 236, 226], [214, 70, 60]], drifts: 5, scrub: [96, 112, 66], scrubs: 18,
+  bed: [206, 192, 162], crown: [226, 214, 188], rut: [148, 126, 98], gravel: 1,
+  rock: [[208, 198, 176], [160, 150, 130], [100, 92, 80]],
+  leaf: [[52, 86, 46], [92, 128, 64], [156, 186, 104]], fruit: [250, 236, 240],
+  wall: [[206, 192, 166], [166, 152, 128], [106, 96, 80]], fringe: 0.9, farTrees: 0.4,
+};
+BACKDROP_PEAK.sis = 81;
+TERR_BANK_STYLE.sis = "ledge";
+FOOT_STONE.sis = ["#d0c2a4", "#958668"];
+FAR_ROAD_TO.sis = 1040;     // the castle gate, where the road leaves the field
+
+// the castle's limestone: lit and shaded ashlar, the dark of a loop or a doorway
+const SIS_STONE = { lit: [226, 214, 188], shade: [156, 144, 124], dark: [74, 62, 54], roof: [190, 176, 150] };
+
+// a horseshoe tower in the skyline, standing on base: its rounded front lit at the left and shaded at the
+// right, a crown of merlons and a loop or two
+function bdSisTower(c, x, base, w, h, air) {
+  const lit = skyAir(SIS_STONE.lit, air), shade = skyAir(SIS_STONE.shade, air), top = base - h;
+  const g = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+  g.addColorStop(0, skyCss(skyMix(lit, [255, 250, 236], 0.2)));
+  g.addColorStop(0.45, skyCss(lit));
+  g.addColorStop(1, skyCss(shade));
+  c.fillStyle = skyCss(skyAir([70, 56, 46], air), 0.55);
+  c.fillRect(x - w / 2 - 0.6, top - 0.6, w + 1.2, h + 0.6);
+  c.fillStyle = g;
+  c.fillRect(x - w / 2, top, w, h);
+  // merlons along the head, and the curve of the front in the line of their shadow
+  for (let mx = x - w / 2; mx < x + w / 2 - 0.5; mx += 2.6) {
+    c.fillStyle = skyCss(mx < x ? lit : shade);
+    c.fillRect(mx, top - 2, 1.6, 2);
+  }
+  c.fillStyle = skyCss(shade, 0.5);
+  c.fillRect(x - w / 2, top + 1, w, 0.8);
+  c.fillStyle = skyCss(skyAir(SIS_STONE.dark, air), 0.85);
+  c.fillRect(x - 0.5, top + h * 0.3, 0.9, 2.2);
+  if (h > 10) c.fillRect(x - w * 0.25, top + h * 0.62, 0.9, 2);
+}
+// a small chapel under a barrel vault, seen from its west end: a gable of stone with the curve of the vault
+// over it, roofed in stone slabs; a plain cross on the ridge
+function bdSisChapel(c, x, base, s, air) {
+  const lit = skyAir(SIS_STONE.lit, air), shade = skyAir(SIS_STONE.shade, air), roof = skyAir(SIS_STONE.roof, air);
+  const w = 9 * s, h = 7 * s, len = 10 * s;
+  // the long flank in shade, the vault over it
+  c.fillStyle = skyCss(shade);
+  c.fillRect(x + w / 2, base - h, len, h);
+  c.fillStyle = skyCss(skyMix(roof, shade, 0.35));
+  c.beginPath(); c.moveTo(x + w / 2, base - h); c.quadraticCurveTo(x + w / 2 + len / 2, base - h - 4.4 * s, x + w / 2 + len, base - h); c.closePath(); c.fill();
+  c.fillRect(x + w / 2, base - h - 4.4 * s * 0.5, len, 4.4 * s * 0.5);
+  // the west end: walls and the round head of the vault
+  c.fillStyle = skyCss(lit);
+  c.beginPath();
+  c.moveTo(x - w / 2, base); c.lineTo(x - w / 2, base - h);
+  c.arc(x, base - h, w / 2, Math.PI, 0);
+  c.lineTo(x + w / 2, base);
+  c.closePath();
+  c.fill();
+  c.fillStyle = skyCss(skyAir(SIS_STONE.dark, air), 0.9);
+  c.fillRect(x - 1 * s, base - 4.2 * s, 2 * s, 4.2 * s);
+  c.fillRect(x - 0.4 * s, base - h - 1.8 * s, 0.8 * s, 1.6 * s);
+  c.strokeStyle = skyCss([248, 240, 222]);
+  c.lineWidth = Math.max(0.7, 0.7 * s);
+  c.beginPath();
+  c.moveTo(x, base - h - w / 2); c.lineTo(x, base - h - w / 2 - 3.4 * s);
+  c.moveTo(x - 1.2 * s, base - h - w / 2 - 2.3 * s); c.lineTo(x + 1.2 * s, base - h - w / 2 - 2.3 * s);
+  c.stroke();
+}
+
+function bgSis(c) {
+  const by = HORIZON, rand = mulberry32(1375), mist = skyRgb(THEME.sky[2]);
+  // the high Taurus far behind, its crests still white in early spring
+  skyRange(c, -90, 1370, by, 50, 13751, {
+    lit: skyAir([150, 158, 186], 0.5), shade: skyAir([104, 114, 152], 0.46),
+    snowLit: skyAir([252, 252, 252], 0.22), snowShade: skyAir([190, 202, 228], 0.4), snow: 0.6, rough: 0.4, fade: 0.55, ribs: 2, massifs: 3,
+  });
+  skyCloudsDriftHere(c);
+  bdMistBand(c, by, 40, 0.42, mist, rand);
+  // the Cilician plain, wide and green, its fields in strips, rows of trees along the water, lost in haze
+  const plain = c.createLinearGradient(0, by - 16, 0, by);
+  plain.addColorStop(0, skyCss(skyAir([150, 172, 120], 0.55)));
+  plain.addColorStop(1, skyCss(skyAir([116, 150, 86], 0.3)));
+  c.fillStyle = plain;
+  c.fillRect(-90, by - 16, VW + 180, 16);
+  for (let i = 0; i < 70; i++) {
+    const y = by - 15 + rand() * 15, near = (y - by + 16) / 16, x = -90 + rand() * (VW + 180);
+    c.fillStyle = skyCss(skyAir(rand() < 0.5 ? [176, 186, 120] : [96, 130, 72], 0.5 - near * 0.3), 0.6);
+    c.fillRect(x, y, 14 + rand() * 30, 0.8 + near * 1.2);
+  }
+  for (let i = 0; i < 40; i++) {
+    const y = by - 12 + rand() * 12, near = (y - by + 12) / 12;
+    skyTree(c, -90 + rand() * (VW + 180), y, 0.9 + near * 1.3, skyAir([110, 144, 80], 0.45 - near * 0.25), skyAir([70, 100, 62], 0.45 - near * 0.25), "round");
+  }
+  // a river winding over the plain, glinting
+  c.strokeStyle = skyCss(skyAir([170, 200, 214], 0.4), 0.85);
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(-90, by - 9);
+  for (let x = -90; x < VW + 90; x += 30) c.lineTo(x, by - 9 + Math.sin(x * 0.013) * 2.6 + (x > 600 ? (x - 600) * 0.004 : 0));
+  c.stroke();
+  bdMistBand(c, by, 18, 0.3, mist, rand);
+
+  // the summit of the spur, rising beyond the crest left of the castle gate: pale limestone, spring green in
+  // its hollows, ledges of rock
+  const rock = skyRidgeline([[400, by], [450, by - 8], [510, by - 18], [560, by - 28], [610, by - 35], [660, by - 39], [720, by - 41],
+    [780, by - 38], [830, by - 32], [880, by - 24], [940, by - 17], [1000, by - 11], [1060, by - 5], [1100, by]], rand, 0.22);
+  const rLit = skyAir([220, 208, 182], 0.1), rShade = skyAir([140, 130, 116], 0.1);
+  c.save();
+  c.beginPath();
+  c.moveTo(420, by);
+  for (const p of rock) c.lineTo(p[0], p[1]);
+  c.closePath();
+  const rg = c.createLinearGradient(0, by - 42, 0, by);
+  rg.addColorStop(0, skyCss(rLit));
+  rg.addColorStop(1, skyCss(skyMix(rLit, [130, 156, 96], 0.45)));
+  c.fillStyle = rg;
+  c.fill();
+  c.clip();
+  // the east flank in shade, the green of the hollows, the ledges
+  skyPoly(c, [[724, by - 41], [1100, by - 2], [1100, by + 2], [800, by + 2], [730, by - 22]], skyCss(rShade, 0.6));
+  for (let i = 0; i < 16; i++) {
+    const x = 440 + rand() * 640, y = skyRidgeY(rock, x) + 4 + rand() * 18;
+    c.fillStyle = skyCss(skyAir([120, 150, 86], 0.22), 0.55);
+    c.beginPath(); c.ellipse(x, y, 6 + rand() * 12, 1.4 + rand() * 1.6, -0.1, 0, Math.PI * 2); c.fill();
+  }
+  for (const ly of [by - 32, by - 25, by - 18, by - 10]) skyStrata(c, 470, 1080, ly, 2, skyCss(rShade, 0.55), skyCss([255, 248, 230], 0.35), rand);
+  for (let i = 0; i < 9; i++) {
+    const fx = 520 + i * 62 + rand() * 20, fy = skyRidgeY(rock, fx) + 2, len = (by - fy) * (0.3 + rand() * 0.4);
+    skyPoly(c, [[fx, fy], [fx + 3 + rand() * 4, fy + len], [fx + 9 + rand() * 6, fy + len * 0.8]], skyCss(rShade, 0.4));
+  }
+  c.restore();
+  c.strokeStyle = skyCss(skyMix(rShade, [50, 40, 30], 0.5), 0.45);
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(rock[0][0], rock[0][1]);
+  for (const p of rock) c.lineTo(p[0], p[1]);
+  c.stroke();
+  // the inner ward along the crown: a curtain that steps with the rock, horseshoe towers, the chapel inside
+  const crest = x => skyRidgeY(rock, x);
+  const air = 0.08, wLit = skyAir(SIS_STONE.lit, air), wShade = skyAir(SIS_STONE.shade, air);
+  let step = crest(568);
+  for (let x = 556; x < 846; x += 2) {
+    // the curtain rises in short level runs, each a little higher or lower with the rock under it
+    if (x % 24 === 0) step = crest(x + 12);
+    const y = Math.min(step, crest(x)) + 1.4;
+    c.fillStyle = skyCss([70, 56, 46], 0.5);
+    c.fillRect(x - 0.2, step - 6.4, 2.4, y - step + 6.4);
+    c.fillStyle = skyCss(x > 726 ? wShade : wLit);
+    c.fillRect(x, step - 6, 2.1, y - step + 6);
+    if (Math.floor(x / 2) % 2 === 0) c.fillRect(x, step - 7.6, 1.6, 1.6);
+  }
+  bdSisChapel(c, 694, crest(694) - 4, 1.15, air);
+  for (const [tx, w, h] of [[560, 6, 11], [606, 7, 14], [654, 8, 15], [740, 9, 18], [796, 8, 14], [842, 6, 11]]) bdSisTower(c, tx, crest(tx) + 1.6, w, h, air);
+  // a plain banner over the highest tower
+  c.strokeStyle = skyCss([70, 50, 36], 0.8);
+  c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(740, crest(740) - 18); c.lineTo(740, crest(740) - 27); c.stroke();
+  skyPoly(c, [[740.4, crest(740) - 27], [747, crest(740) - 25.4], [740.4, crest(740) - 23.4]], skyCss([176, 52, 40], 0.9));
+  // the lower slopes of the spur either side, green with the spring, under the plain's haze
+  skyFoothills(c, -90, 470, by, 10, 13752, skyAir([150, 168, 110], 0.3), skyAir([104, 124, 82], 0.3));
+  skyFoothills(c, 1040, 1370, by, 9, 13753, skyAir([150, 168, 110], 0.3), skyAir([104, 124, 82], 0.3));
+  bdMistBand(c, by, 8, 0.2, mist, rand);
+}
+
+// ---- the field ----
+// The curtain along the crest: one straight run at depth SIS_WALL.y between the left corner tower and the
+// castle's own gate works (the fort paints those), its horseshoe towers in front of the three crest pads, so
+// that the towers built there read as the wall's own. Limestone ashlar, finely cut, its quoins rusticated.
+const SIS_WALL = {
+  lit: "#ddd0b2", mid: "#c5b796", shade: "#968a72", top: "#e6dcc2", dark: "#6e6454", ink: "rgba(46, 34, 20, .78)",
+  y: 206, h: 30, d: 10, x0: 196, x1: 960, towers: [196, 380, 600, 820], tr: 17, flank: 2, th: 47,
+};
+// one straight run of the curtain from world x0 to x1
+function sisWallRun(c, x0, x1, rand) {
+  const W = SIS_WALL, A = proj(x0, W.y), B = proj(x1, W.y), s = A.s, top = A.y - W.h * s;
+  const a = proj(x0, W.y - W.d), b = proj(x1, W.y - W.d), topB = a.y - W.h * a.s;
+  c.fillStyle = W.top;
+  c.beginPath();
+  c.moveTo(A.x, top); c.lineTo(B.x, top); c.lineTo(b.x, topB); c.lineTo(a.x, topB);
+  c.closePath();
+  c.fill();
+  c.fillStyle = "rgba(60, 44, 24, .2)";
+  c.fillRect(Math.min(a.x, A.x), topB, Math.abs(b.x - a.x), Math.max(1, (top - topB) * 0.4));
+  const g = c.createLinearGradient(0, top, 0, A.y);
+  g.addColorStop(0, W.lit);
+  g.addColorStop(0.75, W.mid);
+  g.addColorStop(1, W.shade);
+  c.fillStyle = g;
+  c.fillRect(A.x, top, B.x - A.x, A.y - top);
+  // fine courses of cut stone, every block its own tone; a battered footing of rough blocks on the rock
+  const ch = 3.8 * s;
+  c.strokeStyle = "rgba(70, 54, 30, .3)";
+  c.lineWidth = Math.max(0.5, 0.5 * s);
+  c.beginPath();
+  let row = 0;
+  for (let y = A.y - ch * 1.6; y > top + 4.5 * s; y -= ch, row++) {
+    c.moveTo(A.x, y); c.lineTo(B.x, y);
+    for (let x = A.x + (row % 2 ? 2 : 5) * s + rand() * 2 * s; x < B.x - 1; x += (7 + rand() * 3) * s) { c.moveTo(x, y); c.lineTo(x, y + ch); }
+  }
+  c.stroke();
+  for (let i = 0; i < (B.x - A.x) * (A.y - top) / (40 * s * s); i++) {
+    const x = A.x + rand() * (B.x - A.x), y = top + 4 * s + rand() * (A.y - top - 4 * s);
+    c.fillStyle = rand() < 0.5 ? "rgba(255, 248, 226, .2)" : "rgba(70, 54, 30, .12)";
+    c.fillRect(x, y, (5 + rand() * 3) * s, ch * 0.85);
+  }
+  c.fillStyle = "rgba(90, 76, 56, .35)";
+  c.fillRect(A.x, A.y - ch * 1.6, B.x - A.x, ch * 1.6);
+  // the parapet: a band, merlons, and an embrasured loop in every other merlon
+  c.fillStyle = W.lit;
+  c.fillRect(A.x, top - 1.2 * s, B.x - A.x, 3.2 * s);
+  const mw = 4.6 * s, stepX = 7.8 * s;
+  c.beginPath();
+  for (let x = A.x + 1.2 * s; x + mw <= B.x - 0.5; x += stepX) c.rect(x, top - 5.6 * s, mw, 4.6 * s);
+  c.fillStyle = W.lit;
+  c.fill();
+  c.strokeStyle = W.ink;
+  c.lineWidth = Math.max(0.6, 0.7 * s);
+  c.stroke();
+  c.fillStyle = "rgba(255, 250, 232, .4)";
+  for (let x = A.x + 1.2 * s; x + mw <= B.x - 0.5; x += stepX) c.fillRect(x, top - 5.6 * s, mw, 0.9 * s);
+  c.fillStyle = "#2c2218";
+  let k = 0;
+  for (let x = A.x + 1.2 * s; x + mw <= B.x - 0.5; x += stepX, k++) if (k % 2) c.fillRect(x + mw / 2 - 0.5 * s, top - 4.4 * s, 1 * s, 2.6 * s);
+  // loops in the face below the walk, splayed: a dark slit in a paler recess
+  for (let x = A.x + 18 * s; x < B.x - 10 * s; x += 46 * s) {
+    c.fillStyle = "rgba(90, 76, 56, .4)";
+    c.fillRect(x - 1.6 * s, top + 8 * s, 3.2 * s, 7 * s);
+    c.fillStyle = "#2c2218";
+    c.fillRect(x - 0.5 * s, top + 8.6 * s, 1 * s, 5.8 * s);
+  }
+  const fg = c.createLinearGradient(0, A.y - 6 * s, 0, A.y);
+  fg.addColorStop(0, "rgba(50, 36, 16, 0)");
+  fg.addColorStop(1, "rgba(50, 36, 16, .28)");
+  c.fillStyle = fg;
+  c.fillRect(A.x, A.y - 6 * s, B.x - A.x, 6 * s);
+  c.strokeStyle = W.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(A.x, A.y); c.lineTo(A.x, top - 1.2 * s); c.lineTo(B.x, top - 1.2 * s); c.lineTo(B.x, A.y);
+  c.stroke();
+  c.strokeStyle = "rgba(255, 250, 232, .5)";
+  c.lineWidth = Math.max(0.5, 0.6 * s);
+  c.beginPath(); c.moveTo(A.x, top + 2 * s); c.lineTo(B.x, top + 2 * s); c.stroke();
+}
+// a horseshoe tower: straight flanks out of the curtain and a round front, rusticated at its foot. The curtain
+// is one level run from W.x0 (sisWallRun), so the tower moves every point by the run's offset at x (dy) and
+// stands on the curtain's own foot, its top on the walk where the pad is.
+function sisWallTower(c, x, rand) {
+  const W = SIS_WALL, R = W.tr, L = W.flank, H = W.th, n = 18, dy = proj(W.x0, W.y).y - proj(x, W.y).y;
+  const foot = [], head = [];
+  const ring = (i) => {
+    // 0..n: from the right flank's root round the front to the left flank's root
+    if (i === 0) return [x + R, W.y];
+    if (i === n) return [x - R, W.y];
+    const t = Math.PI * (i - 1) / (n - 2);
+    return [x + R * Math.cos(t), W.y + L + R * Math.sin(t)];
+  };
+  for (let i = 0; i <= n; i++) {
+    const w = ring(i), p = proj(w[0], w[1]);
+    foot.push([p.x, p.y + dy]);
+    head.push([p.x, p.y + dy - H * p.s]);
+  }
+  const s = proj(x, W.y).s;
+  c.fillStyle = "rgba(40, 28, 10, .22)";
+  c.beginPath(); c.ellipse(foot[n >> 1][0] + 3 * s, foot[n >> 1][1] + 1, R * 1.3 * s, 3 * s, 0, 0, Math.PI * 2); c.fill();
+  c.beginPath();
+  c.moveTo(foot[0][0], foot[0][1]);
+  for (const p of foot) c.lineTo(p[0], p[1]);
+  for (let i = n; i >= 0; i--) c.lineTo(head[i][0], head[i][1]);
+  c.closePath();
+  const xl = foot[n][0], xr = foot[0][0];
+  const g = c.createLinearGradient(xl, 0, xr, 0);
+  g.addColorStop(0, W.lit);
+  g.addColorStop(0.42, W.mid);
+  g.addColorStop(1, W.shade);
+  c.fillStyle = g;
+  c.fill();
+  c.save();
+  c.clip();
+  // courses following the curve; the lowest ones rusticated: each block with a raised, rough boss
+  c.strokeStyle = "rgba(70, 54, 30, .32)";
+  c.lineWidth = Math.max(0.5, 0.5 * s);
+  c.beginPath();
+  for (let h = 3.8; h < H - 3; h += 3.8) {
+    for (let i = 0; i <= n; i++) {
+      const pt = [foot[i][0], foot[i][1] - h * s];
+      if (i) c.lineTo(pt[0], pt[1]); else c.moveTo(pt[0], pt[1]);
+    }
+  }
+  c.stroke();
+  for (let row = 0; row < 3; row++) {
+    for (let i = 1 + (row % 2); i < n - 1; i += 2) {
+      const p = foot[i], q = foot[i + 1], y = p[1] - (row + 0.5) * 3.8 * s;
+      c.fillStyle = i < n / 2 ? "rgba(60, 46, 26, .2)" : "rgba(255, 248, 226, .28)";
+      c.beginPath(); c.ellipse((p[0] + q[0]) / 2, y, Math.max(0.8, Math.abs(q[0] - p[0]) * 0.36), 1.2 * s, 0, 0, Math.PI * 2); c.fill();
+    }
+  }
+  c.restore();
+  c.strokeStyle = W.ink;
+  c.lineWidth = Math.max(1, 1.3 * s);
+  c.beginPath();
+  c.moveTo(foot[0][0], foot[0][1]);
+  for (const p of foot) c.lineTo(p[0], p[1]);
+  c.moveTo(head[0][0], head[0][1]);
+  for (const p of head) c.lineTo(p[0], p[1]);
+  c.moveTo(foot[0][0], foot[0][1]); c.lineTo(head[0][0], head[0][1]);
+  c.moveTo(foot[n][0], foot[n][1]); c.lineTo(head[n][0], head[n][1]);
+  c.stroke();
+  // its top over the walk, merlons round the curve
+  const back = proj(x, W.y - W.d);
+  c.fillStyle = W.top;
+  c.beginPath();
+  c.moveTo(head[0][0], head[0][1]);
+  for (const p of head) c.lineTo(p[0], p[1]);
+  c.lineTo(head[n][0], back.y + dy - H * back.s);
+  c.lineTo(head[0][0], back.y + dy - H * back.s);
+  c.closePath();
+  c.fill();
+  for (let i = 1; i < n; i += 2) {
+    const p = head[i];
+    c.fillStyle = i > n / 2 ? W.lit : W.mid;
+    c.fillRect(p[0] - 2.1 * s, p[1] - 4.6 * s, 4.2 * s, 4.6 * s);
+    c.strokeStyle = W.ink;
+    c.lineWidth = Math.max(0.5, 0.6 * s);
+    c.strokeRect(p[0] - 2.1 * s, p[1] - 4.6 * s, 4.2 * s, 4.6 * s);
+  }
+  // embrasured loops: a splayed recess, a slit in it
+  for (const [u, hh] of [[0.36, 0.62], [0.62, 0.36]]) {
+    const p = foot[Math.round(n * u)];
+    c.fillStyle = "rgba(90, 76, 56, .4)";
+    c.fillRect(p[0] - 1.6 * s, p[1] - H * hh * s - 3.5 * s, 3.2 * s, 7 * s);
+    c.fillStyle = "#2c2218";
+    c.fillRect(p[0] - 0.5 * s, p[1] - H * hh * s - 3 * s, 1 * s, 6 * s);
+  }
+}
+function sisWalls(c, p) {
+  const rand = mulberry32(p.seed || 1375), W = SIS_WALL;
+  const A = proj(W.x0, W.y + 2), B = proj(W.x1, W.y + 2);
+  c.fillStyle = "rgba(40, 28, 10, .2)";
+  c.fillRect(A.x, A.y - 1, B.x - A.x, 4 * A.s);
+  // the rock the curtain is founded on shows along its foot, lit and in ledges (level with the run, as its towers are)
+  const foot0 = proj(W.x0, W.y).y;
+  for (let x = W.x0 - 8; x < W.x1; x += 14 + rand() * 18) {
+    const q = proj(x, W.y + 1.5), w = (8 + rand() * 14) * q.s, qy = q.y + foot0 - proj(x, W.y).y;
+    c.fillStyle = terrCss(terrLit(TERR_BIOME.sis.rock[0], 0.05));
+    c.beginPath(); c.ellipse(q.x + w / 2, qy, w / 2 + 2, (1.6 + rand() * 1.4) * q.s, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = terrInkCss(0.35);
+    c.lineWidth = 0.7;
+    c.stroke();
+  }
+  sisWallRun(c, W.x0, W.x1, rand);
+  // the left end turns back along the crest: a short return under the corner tower
+  const r0 = proj(W.x0 - 2, W.y - W.d - 14), r1 = proj(W.x0 - 2, W.y);
+  c.fillStyle = W.shade;
+  c.beginPath();
+  c.moveTo(r1.x, r1.y); c.lineTo(r0.x, r0.y); c.lineTo(r0.x, r0.y - W.h * r0.s); c.lineTo(r1.x, r1.y - W.h * r1.s);
+  c.closePath();
+  c.fill();
+  for (const tx of W.towers) sisWallTower(c, tx, rand);
+}
+TERR_CULTURE.siswall = (c, p) => sisWalls(c, p);
+
+// An almond in early spring (an "apricot" prop with bloom set): the blossom comes before the leaves, so the
+// crown is a cloud of white and pale pink, and the bare dark branches show through it and reach past its edge
+const SIS_BLOOM = [[214, 178, 182], [242, 224, 224], [253, 248, 244]];
+function sisAlmondBloom(c, x, y, H, rand, o) {
+  // the painter's second draw sets each crown's hue drift, which on pale blossom turns it lilac: damp it
+  let draws = 0;
+  const steady = () => { const v = rand(); return ++draws === 2 ? 0.5 + (v - 0.5) * 0.25 : v; };
+  terrBroadleaf(c, x, y, H, SIS_BLOOM, steady, null, Object.assign({}, o || {}, { variant: 4 }));
+  const cx = x, cy = y - 0.55 * H, rx = 0.3 * H, ry = 0.23 * H, fork = y - 0.36 * H;
+  c.lineCap = "round";
+  c.strokeStyle = "rgba(70, 46, 34, .8)";
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI * (1.12 + k * 0.152 + (rand() - 0.5) * 0.08), reach = 0.9 + rand() * 0.3;
+    const ex = cx + Math.cos(a) * rx * reach, ey = cy + Math.sin(a) * ry * reach * 1.2;
+    const mx = (x + ex) / 2 + (rand() - 0.5) * rx * 0.25, my = (fork + ey) / 2;
+    c.lineWidth = Math.max(0.5, H * 0.014);
+    c.beginPath(); c.moveTo(x, fork); c.lineTo(mx, my); c.lineTo(ex, ey); c.stroke();
+    // a twig or two at the tip, past the blossom
+    c.lineWidth = Math.max(0.4, H * 0.008);
+    c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex + Math.cos(a - 0.4) * rx * 0.16, ey + Math.sin(a - 0.4) * ry * 0.2); c.stroke();
+  }
+  c.lineCap = "butt";
+  // blossom laid over the branches again, so that they show through only in places
+  for (let i = 0; i < 16; i++) {
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * 0.8;
+    c.fillStyle = rand() < 0.6 ? "rgba(252, 246, 246, .9)" : "rgba(240, 200, 212, .9)";
+    c.beginPath(); c.arc(cx + Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d, Math.max(0.8, H * (0.03 + rand() * 0.03)), 0, Math.PI * 2); c.fill();
+  }
+}
+
+TERR_SCENERY.sis = {
+  plan(k) {
+    const { S, r, add, scatter, house, free } = k;
+    // the curtain along the crest: one prop, sorted by its towers' feet; the ground under it is spoken for
+    S.props.push({ kind: "siswall", x: 600, y: SIS_WALL.y + SIS_WALL.flank + SIS_WALL.tr + 0.5, h: 44, hw: 400, seed: 1374 });
+    for (let x = SIS_WALL.x0 - 10; x <= SIS_WALL.x1; x += 20) S.taken.push({ x, y: SIS_WALL.y, r: 20 });
+    // the Mamluk tents on the plain at both near corners
+    for (const [sx0, sx1, sy0, sy1, hearth] of [[10, 230, 560, 650, 8], [1090, 1275, 560, 715, -8]]) {
+      for (let i = 0; i < 600; i++) {
+        const o = unprojGround(sx0 + r() * (sx1 - sx0), sy0 + r() * (sy1 - sy0));
+        const tents = [[-18, -8, "bell", 1], [20, -12, "bell", 0.92], [2, 8, r() < 0.3 ? "ridge" : "bell", 1.05]];
+        if (add("camp", o.x, o.y, 36, 44, { tents, hearth, cloth: "#ece4ce", trim: "#a08860", margin: 10, gap: 46 })) break;
+      }
+    }
+    // the town at the foot of the spur: flat-roofed stone houses, their garden walls, almonds in blossom
+    const stone = house(44, 52, 28, 33, 12), homes = [];
+    for (let i = 0; i < 900 && homes.length < 6; i++) {
+      const o = unprojGround(300 + r() * 980, 585 + r() * 125), hut = stone();
+      if (add("hut", o.x, o.y, hut.h, hut.hw, hut)) homes.push(S.props[S.props.length - 1]);
+    }
+    for (const hm of homes) {
+      // a garden wall running off the house's side, and an almond or two inside it. The wall starts by the
+      // house's wall, inside the ground the house claims, so only the other claims are checked
+      const side = r() < 0.5 ? -1 : 1, len = 40 + r() * 30, y0 = hm.y + 4 + r() * 6;
+      const pts = [[hm.x + side * hm.w * 0.55, y0], [hm.x + side * (hm.w * 0.55 + len * 0.5), y0 + 6 + r() * 6], [hm.x + side * (hm.w * 0.55 + len), y0 + 2 + r() * 8]];
+      const own = S.taken.find(t => t.x === hm.x && t.y === hm.y);
+      const clear = (x, y, rad) => S.taken.every(t => t === own || Math.hypot(t.x - x, (t.y - y) * 1.4) > t.r + rad);
+      let ok = true;
+      for (const q of pts) ok = ok && terrClear(q[0], q[1], 10, true) && clear(q[0], q[1], 6);
+      if (ok) {
+        S.props.push({ kind: "fieldwall", x: pts[1][0], y: pts[1][1], h: 8, hw: len / 2, pts, wallH: 7, seed: Math.floor(r() * 1e9) });
+        for (const q of pts) S.taken.push({ x: q[0], y: q[1], r: 10 });
+      }
+      for (let t = 0, made = 0; t < 40 && made < 2; t++) {
+        const x = hm.x + side * (hm.w * 0.6 + 8 + r() * len), y = hm.y - 14 - r() * 26;
+        if (add("apricot", x, y, 38 * (0.85 + r() * 0.3), 8, { margin: 8, gap: 12, bloom: true })) made++;
+      }
+    }
+    // the slope: limestone breaking through the spring grass, scrub, a few almonds gone wild on it
+    scatter(9, "outcrop", 26, 24, () => ({ R: 12 + r() * 12 }));
+    scatter(10, "bush", 14, 12, () => ({ margin: 6, gap: 14 }));
+    scatter(3, "apricot", 34, 8, () => ({ margin: 8, gap: 16, bloom: true }));
+  },
+  // hearth smoke over a few of the houses: the town has fallen, but nothing burns
+  life(k) {
+    const { S, cr, smokeOver } = k;
+    const homes = S.props.filter(p => p.kind === "hut");
+    for (let i = 0; i < homes.length; i++) {
+      if (cr() < 0.5) continue;
+      const hm = homes[i], q = proj(hm.x, hm.y), s = q.s * TERR_BUILT_K.hut;
+      smokeOver(hm, q.x + hm.w * 0.25 * s, q.y - hm.wall * s - 2 * s, q.s, 0.7, false);
+    }
+  },
+  // the upper slopes of the spur, rising to the summit's foot; the castle road climbing on from the gate to
+  // the inner ward
+  far(c, o) {
+    const { y0, y1, sky, B } = o, rand = mulberry32(13754), depth = y1 - y0;
+    const g = c.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, terrCss(terrMix(terrMix(B.rock[0], B.blade, 0.35), sky, 0.5)));
+    g.addColorStop(1, terrCss(terrMix(terrMix(B.blade, B.rock[0], 0.3), sky, 0.18)));
+    c.fillStyle = g;
+    c.fillRect(0, y0, VW, depth + 1);
+    // spring grass in drifts, and limestone in ledges and crags, thickest under the summit
+    for (let i = 0; i < 26; i++) {
+      const x = rand() * VW, y = y0 + 3 + rand() * (depth - 4), near = (y - y0) / depth;
+      c.fillStyle = terrCss(terrMix(rand() < 0.5 ? B.blade : B.tip, sky, 0.45 - near * 0.3), 0.7);
+      c.beginPath(); c.ellipse(x, y, 20 + rand() * 40, 1.5 + near * 2.4, 0, 0, Math.PI * 2); c.fill();
+    }
+    for (let i = 0; i < 34; i++) {
+      const under = rand() < 0.6, x = under ? 420 + rand() * 600 : rand() * VW, y = y0 + 2 + rand() * (depth - 3), near = (y - y0) / depth;
+      const w = (4 + rand() * 9) * (0.6 + near);
+      c.fillStyle = terrCss(terrMix(B.rock[0], sky, 0.45 - near * 0.3));
+      c.beginPath(); c.moveTo(x - w, y); c.lineTo(x - w * 0.3, y - w * 0.55); c.lineTo(x + w * 0.4, y - w * 0.45); c.lineTo(x + w, y); c.closePath(); c.fill();
+      c.fillStyle = terrCss(terrMix(B.rock[1], sky, 0.4 - near * 0.3));
+      c.beginPath(); c.moveTo(x + w * 0.4, y - w * 0.45); c.lineTo(x + w, y); c.lineTo(x + w * 0.1, y); c.closePath(); c.fill();
+    }
+    // the castle road on up the rock from the gate to the inner ward, in tight bends
+    const gate = proj(FAR_ROAD_TO.sis, 220).x, top = 800;
+    const pts = [[gate - 40, y1 + 1], [gate - 120, y1 - depth * 0.3], [gate - 60, y1 - depth * 0.5], [gate - 150, y1 - depth * 0.75], [top, y0 + 1]];
+    for (const [tone, alpha, w] of [[terrMix(TERR_INK, terrRgb(THEME.top), 0.3), 0.25, 2.6], [terrMix(B.crown, sky, 0.25), 0.9, 1.4]]) {
+      c.strokeStyle = terrCss(tone, alpha);
+      c.lineWidth = w;
+      c.lineJoin = "round";
+      c.beginPath();
+      pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+      c.stroke();
+    }
+    // scrub and a few almonds dotted over the slope
+    for (let i = 0; i < 120; i++) {
+      const y = y0 + 2 + rand() * (depth - 1), near = (y - y0) / depth, x = rand() * VW, h = 1.6 + near * 3.6;
+      const bloom = rand() < 0.15, haze = 0.5 - near * 0.36;
+      c.fillStyle = terrCss(terrMix(bloom ? B.fruit : terrLit(B.leaf[0], -0.1), sky, haze));
+      c.beginPath(); c.ellipse(x, y - h * 0.5, h * 0.7, h * 0.5, 0, 0, Math.PI * 2); c.fill();
+    }
+  },
+};
+// ==================================== END BACKDROP SECTION: sis ====================================
+
 // the three battlefields' ground, stone and far-plain tables (see TERR_BIOME, BACKDROP_PEAK, FOOT_STONE)
 Object.assign(TERR_BIOME, {
   // late winter in the Syunik gorges: dead grass, mud on the road, basalt, snowdrops in the shade
@@ -52128,8 +54889,8 @@ const BRIEF_CROPS = [
   { x: 528, w: 290, gate: 0.36 },   // Lori: the monastery on the gorge rim
   { x: 642, w: 256, gate: 0.5 },    // Sevan: the island monastery
   { x: 470, w: 340, gate: 0.5, air: 0.3, mist: 0.4, ink: [1.15, 1.35, 1.3], motif: "testament" },   // Ani: the cathedral within Smbat's walls
-  { x: 820, w: 360, gate: 0.7, air: 0.3, mist: 0.5, ink: [1.1, 1.3, 1.25] },    // Mari: the pass over the Amanus crest
-  { x: 300, w: 420, gate: 0.78, air: 0.3, mist: 0.45, ink: [1.15, 1.4, 1.35], motif: "standard" },   // Sis: the castle on its spur over the Cilician plain
+  { x: 760, w: 360, gate: 0.56, air: 0.3, mist: 0.5, ink: [1.1, 1.3, 1.25] },   // Mari: the pass road climbing to its saddle in the Amanus crest
+  { x: 545, w: 310, gate: 0.6, air: 0.3, mist: 0.45, ink: [1.15, 1.4, 1.35], motif: "standard" },   // Sis: the inner ward on the summit of the spur, the plain and the Taurus beyond
   { x: 384, w: 300, gate: 0.5 },    // Gyumri: the black-tuff city under Aragats
   { x: 596, w: 270, gate: 0.52, air: 0.3, mist: 0.5, ink: [1.15, 1.35, 1.25] },   // Halidzor: the fortress on its crag over the Voghji gorge
   { x: 680, w: 350, gate: 0.39, air: 0.3, mist: 0.5, ink: [1.2, 1.5, 1.45] },   // Van 1915: the Rock of Van over the walled old city, Lake Van beyond
@@ -52142,6 +54903,9 @@ const BRIEF_CROPS = [
 const BRIEF_FRAME = 38;   // width of the miniature's border, in canvas pixels
 const BRIEF_ARCH = 196;   // rise of its arched head
 let briefArtLevel = -1;
+// true while the miniature's skyline is being painted: a skyline may then paint what the field shows elsewhere
+// (Ani's cathedral, which on the field rises inside the fort's sprite behind the gate)
+let briefSkyline = false;
 // Emblems the miniaturist sets in the foreground, large and in strong colour, where the field's own far
 // skyline can only hint at them: each is (ctx, w, h, horizon row, road centre/row/half-width at t, rand)
 const BRIEF_MOTIFS = {
@@ -52305,6 +55069,145 @@ const BRIEF_MOTIFS = {
     s.restore();
   },
 };
+// ---- end of BRIEF_MOTIFS ----
+
+// ====================================== MOTIF SECTION: lastcrowns ======================================
+// The emblems the miniaturist sets in the foreground of two Chapter III miniatures (BRIEF_CROPS names them).
+// Ani: the testament of 1022, a rolled parchment tied with a cord, a plain round seal hanging from it (no device
+// or legend is invented for it), laid on a ledge of the city's red tuff.
+BRIEF_MOTIFS.testament = function (s, w, h, hy, roadX, roadY, roadHalf, rand) {
+  const x = w * 0.22, base = hy + (h - hy) * 0.8, ink = "#2c1e10";
+  s.save();
+  s.translate(x, base); s.scale(2.3, 2.3); s.translate(-x, -base);
+  s.lineJoin = "round";
+  s.lineCap = "round";
+  // the ledge: a block of tuff, its top lit, its face in courses
+  const lw = 92, lh = 22, ld = 12;
+  s.beginPath();
+  s.moveTo(x - lw / 2, base); s.lineTo(x - lw / 2, base - lh); s.lineTo(x - lw / 2 + ld, base - lh - ld * 0.6);
+  s.lineTo(x + lw / 2 + ld, base - lh - ld * 0.6); s.lineTo(x + lw / 2 + ld, base - ld * 0.6); s.lineTo(x + lw / 2, base);
+  s.closePath();
+  s.fillStyle = "#b9805c";
+  s.fill();
+  s.lineWidth = 2.6; s.strokeStyle = ink; s.stroke();
+  s.fillStyle = "#d8a27c";
+  s.beginPath();
+  s.moveTo(x - lw / 2, base - lh); s.lineTo(x - lw / 2 + ld, base - lh - ld * 0.6); s.lineTo(x + lw / 2 + ld, base - lh - ld * 0.6); s.lineTo(x + lw / 2, base - lh);
+  s.closePath();
+  s.fill();
+  s.lineWidth = 1.6; s.stroke();
+  s.fillStyle = "#8a5a40";
+  s.beginPath();
+  s.moveTo(x + lw / 2, base - lh); s.lineTo(x + lw / 2 + ld, base - lh - ld * 0.6); s.lineTo(x + lw / 2 + ld, base - ld * 0.6); s.lineTo(x + lw / 2, base);
+  s.closePath();
+  s.fill();
+  s.lineWidth = 1.6; s.stroke();
+  s.strokeStyle = "rgba(60, 30, 18, .45)";
+  s.lineWidth = 1;
+  s.beginPath();
+  s.moveTo(x - lw / 2 + 2, base - lh / 2); s.lineTo(x + lw / 2 - 2, base - lh / 2);
+  for (const jx of [-30, 2, 28]) { s.moveTo(x + jx, base - lh + 1); s.lineTo(x + jx, base - lh / 2); }
+  for (const jx of [-16, 14, 38]) { s.moveTo(x + jx, base - lh / 2); s.lineTo(x + jx, base - 1); }
+  s.stroke();
+  // the parchment rolled up, lying along the ledge: a cylinder of cream skin, its end showing the turns
+  const ry = base - lh - ld * 0.3, rl = 62, rr = 8.5, rx0 = x - rl / 2 + 4;
+  s.beginPath();
+  s.moveTo(rx0, ry - rr); s.lineTo(rx0 + rl, ry - rr);
+  s.ellipse(rx0 + rl, ry, rr * 0.45, rr, 0, -Math.PI / 2, Math.PI / 2);
+  s.lineTo(rx0, ry + rr);
+  s.closePath();
+  const pg = s.createLinearGradient(0, ry - rr, 0, ry + rr);
+  pg.addColorStop(0, "#fbf0d6");
+  pg.addColorStop(0.45, "#efdcb2");
+  pg.addColorStop(1, "#b8986a");
+  s.fillStyle = pg;
+  s.fill();
+  s.lineWidth = 2.2; s.strokeStyle = ink; s.stroke();
+  s.beginPath(); s.ellipse(rx0, ry, rr * 0.45, rr, 0, 0, Math.PI * 2);
+  s.fillStyle = "#f6e8c8"; s.fill(); s.stroke();
+  s.strokeStyle = "rgba(120, 90, 50, .7)";
+  s.lineWidth = 0.9;
+  for (let k = 1; k <= 3; k++) { s.beginPath(); s.ellipse(rx0, ry, rr * 0.45 * k / 4, rr * k / 4, 0, 0, Math.PI * 2); s.stroke(); }
+  // a loose edge of the sheet lifting from the roll, ruled lines of writing too small to read
+  s.beginPath();
+  s.moveTo(rx0 + 20, ry + rr); s.quadraticCurveTo(rx0 + 30, ry + rr + 3, rx0 + 42, ry + rr + 1.6); s.lineTo(rx0 + 40, ry + rr - 1);
+  s.fillStyle = "#f3e2bc"; s.fill();
+  s.lineWidth = 1.2; s.strokeStyle = ink; s.stroke();
+  // the cord round its middle and the seal hanging on it: plain, round, red wax
+  const cx = rx0 + rl * 0.55;
+  s.strokeStyle = "#8a2a1e";
+  s.lineWidth = 2.4;
+  s.beginPath(); s.moveTo(cx, ry - rr); s.lineTo(cx + 1.6, ry + rr); s.stroke();
+  s.beginPath(); s.moveTo(cx + 3.4, ry - rr); s.lineTo(cx + 5, ry + rr); s.stroke();
+  s.lineWidth = 1.6;
+  s.beginPath(); s.moveTo(cx + 2.6, ry + rr); s.quadraticCurveTo(cx + 4, ry + rr + 7, cx + 1, ry + rr + 12); s.stroke();
+  s.beginPath(); s.moveTo(cx + 3.6, ry + rr); s.quadraticCurveTo(cx + 9, ry + rr + 6, cx + 8, ry + rr + 11); s.stroke();
+  s.beginPath(); s.arc(cx + 4.4, ry + rr + 17, 7, 0, Math.PI * 2);
+  const sg = s.createRadialGradient(cx + 2.4, ry + rr + 15, 1, cx + 4.4, ry + rr + 17, 7);
+  sg.addColorStop(0, "#d4523c");
+  sg.addColorStop(1, "#8a2216");
+  s.fillStyle = sg; s.fill();
+  s.lineWidth = 2; s.strokeStyle = ink; s.stroke();
+  s.beginPath(); s.arc(cx + 4.4, ry + rr + 17, 4.4, 0, Math.PI * 2);
+  s.strokeStyle = "rgba(255, 200, 170, .45)"; s.lineWidth = 1; s.stroke();
+  s.restore();
+};
+// Sis: the royal banner furled on its pole, plain cloth (no arms are put on it), stood in a socket of the
+// castle's limestone by the road
+BRIEF_MOTIFS.standard = function (s, w, h, hy, roadX, roadY, roadHalf, rand) {
+  const x = w * 0.18, base = hy + (h - hy) * 0.66, ink = "#2c1e10", top = base - 210;
+  s.save();
+  s.translate(x, base); s.scale(1.3, 1.3); s.translate(-x, -base);
+  s.lineJoin = "round";
+  s.lineCap = "round";
+  // the socket: a squared block of limestone
+  s.beginPath();
+  s.moveTo(x - 20, base); s.lineTo(x - 20, base - 22); s.lineTo(x - 12, base - 28); s.lineTo(x + 26, base - 28); s.lineTo(x + 26, base - 6); s.lineTo(x + 18, base);
+  s.closePath();
+  s.fillStyle = "#d8cdb2"; s.fill();
+  s.lineWidth = 2.4; s.strokeStyle = ink; s.stroke();
+  s.fillStyle = "#a89c80";
+  s.beginPath(); s.moveTo(x + 18, base); s.lineTo(x + 18, base - 22); s.lineTo(x + 26, base - 28); s.lineTo(x + 26, base - 6); s.closePath(); s.fill(); s.stroke();
+  s.beginPath(); s.moveTo(x - 20, base - 22); s.lineTo(x + 18, base - 22); s.stroke();
+  // the pole
+  const pole = s.createLinearGradient(x - 3, 0, x + 3, 0);
+  pole.addColorStop(0, "#b48a58");
+  pole.addColorStop(1, "#6a4626");
+  s.fillStyle = pole;
+  s.beginPath(); s.rect(x - 2.6, top, 5.2, base - 24 - top); s.fill();
+  s.lineWidth = 2; s.strokeStyle = ink; s.stroke();
+  // the cloth wound round the upper pole and bound, its folds spiralling down, a hem end hanging free
+  const c0 = top + 16, c1 = top + 118;
+  s.beginPath();
+  s.moveTo(x - 4, c0);
+  s.quadraticCurveTo(x - 11, (c0 + c1) / 2, x - 6, c1);
+  s.quadraticCurveTo(x, c1 + 12, x + 7, c1 + 4);
+  s.quadraticCurveTo(x + 12, (c0 + c1) / 2, x + 5, c0);
+  s.closePath();
+  const cg = s.createLinearGradient(x - 11, 0, x + 12, 0);
+  cg.addColorStop(0, "#d2483a");
+  cg.addColorStop(0.5, "#a8322a");
+  cg.addColorStop(1, "#6a1c16");
+  s.fillStyle = cg; s.fill();
+  s.lineWidth = 2.2; s.strokeStyle = ink; s.stroke();
+  s.strokeStyle = "rgba(50, 10, 6, .5)";
+  s.lineWidth = 1.4;
+  for (let yy = c0 + 12; yy < c1; yy += 15) { s.beginPath(); s.moveTo(x - 9, yy + 6); s.quadraticCurveTo(x, yy - 2, x + 10, yy + 1); s.stroke(); }
+  s.strokeStyle = "#e3c27a";
+  s.lineWidth = 2.6;
+  for (const by of [c0 + 30, c1 - 20]) { s.beginPath(); s.moveTo(x - 9.4, by + 2); s.lineTo(x + 10, by - 1); s.stroke(); }
+  s.beginPath();
+  s.moveTo(x + 6, c1 + 2); s.quadraticCurveTo(x + 14, c1 + 20, x + 9, c1 + 34); s.lineTo(x + 4, c1 + 30); s.quadraticCurveTo(x + 7, c1 + 16, x + 1, c1 + 6);
+  s.fillStyle = "#982c24"; s.fill();
+  s.lineWidth = 1.8; s.strokeStyle = ink; s.stroke();
+  // the gilt cross at the head of the pole
+  s.strokeStyle = ink; s.lineWidth = 6;
+  s.beginPath(); s.moveTo(x, top + 2); s.lineTo(x, top - 24); s.moveTo(x - 8, top - 14); s.lineTo(x + 8, top - 14); s.stroke();
+  s.strokeStyle = "#f0cf85"; s.lineWidth = 3;
+  s.stroke();
+  s.restore();
+};
+// ==================================== END MOTIF SECTION: lastcrowns ====================================
 
 // two squares turned through each other: the eight-pointed knot of the khachkar carvers
 function briefKnot(c, x, y, r) {
@@ -52400,8 +55303,10 @@ function briefScene(crop, w, h, seed) {
     t.setTransform(q, 0, 0, q, -crop.x * q, hy - HORIZON * q);
   }
   try {
+    briefSkyline = true;
     bgBackdrop(t, rand);
   } finally {
+    briefSkyline = false;
     skyAir = keepAir;
     THEME = keepTheme;
   }
@@ -56924,6 +59829,60 @@ function runSelftest() {
     } finally {
       hideEndingCard(); celebration = null; parley = null; roadCall = null;
       clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
+      curLevel = 0; curDiff = 1; resetGame();
+    }
+  });
+  // Chapter III's own art: each field paints its own skyline, far ground, scenery and fort (no stand-in), and the
+  // three new tower skins bake at every rank and mastery on the fields that man them, reporting their live parts
+  check("chapter III art", () => {
+    const want = {
+      ani: { props: ["aniwalls", "camp", "fieldwall"], gorges: 2 },
+      mari: { props: ["fir", "outcrop"], bed: true, track: 1 },   // (the princes' camp is painted at the fort's foot)
+      sis: { props: ["siswall", "hut", "camp"] },
+    };
+    try {
+      for (const id in want) {
+        const lv = levelIndexOf(id), W = want[id];
+        curLevel = lv; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+        if (THEME.backdrop !== id || BACKDROP_STANDIN[id]) throw new Error(id + " is painted as " + THEME.backdrop);
+        if (fortStyle() !== "hf_" + id || !HF_FORT_PAINT[id]) throw new Error(id + "'s fort is " + fortStyle());
+        const S = TERR_SCENERY[id];
+        if (!S || !S.plan || !S.far || BACKDROP_PEAK[id] === undefined || !TERR_BIOME[id] || FAR_ROAD_TO[id] === undefined) throw new Error(id + " lacks its scenery tables");
+        if (!terrScene || terrScene.name !== id) terrPlanScene();
+        for (const k of W.props) if (!terrScene.props.some(p => p.kind === k)) throw new Error(id + " has no " + k);
+        if (W.gorges && (terrScene.gorges || []).length !== W.gorges) throw new Error(id + "'s gorges");
+        if (W.bed && !(terrScene.dryBed && terrScene.dryBed.length > 4)) throw new Error(id + " has no dry stream bed");
+        if (W.track !== undefined && !ROUTES[W.track].track) throw new Error(id + "'s other road is not a goat track");
+        // the three slots that take the new skins, at every rank and mastery, drawn on the field
+        towers = [];
+        const ranks = [[0, null], [1, null], [2, null], [2, "a"], [2, "b"]];
+        let n = 0;
+        for (const type of ["ballista", "fire", "drums"]) for (const [level, spec] of ranks) {
+          const P = PADS[n % PADS.length], x = P[0] + (n >= PADS.length ? 36 : 0), y = P[1];
+          towers.push({ type, pad: n < PADS.length ? n : -1, level, spec, x, y, cd: 0, aim: -0.5 + n, flame: n, beat: n, novaT: 0, novaFx: 0.5, buffHaste: 0, buffMight: 0, prio: "first", kills: 0, dmgDone: 0, placedAt: -1e9 });
+          n++;
+        }
+        draw(PHOTO_TIME);
+        const fort = [...structSprites.keys()].find(k => k.startsWith("fort" + fortStyle() + THEME.backdrop));
+        if (!fort || !structSprites.get(fort).fit.pennants.length && !structSprites.get(fort).fit.flags) throw new Error(id + "'s fort did not bake with its banner");
+        const era = LEVELS[lv].era;
+        for (const type of ["ballista", "fire", "drums"]) {
+          const sk = towerSkin(type, era);
+          if (!["oath", "crossbow", "barrier"].includes(sk)) continue;
+          if (skinDrawn(sk) !== sk || !SKIN_ART[sk]) throw new Error(sk + " is still a stand-in");
+          for (const [level, spec] of ranks) {
+            const key = [...structSprites.keys()].find(k => k.startsWith(sk + level + (spec || "-")) && k.includes(THEME.backdrop));
+            if (!key) throw new Error(sk + " rank " + level + (spec || "") + " did not bake on " + id);
+            const fit = structSprites.get(key).fit;
+            const live = sk === "oath" ? fit.rally && fit.rally.some(r => r.kind === "book") && fit.rally.some(r => r.kind === "swear")
+              : sk === "crossbow" ? fit.xb && fit.xb.length : fit.e5fires && fit.e5fires.length && (id !== "sis" || fit.slots);
+            if (!live) throw new Error(sk + " rank " + level + (spec || "") + " on " + id + " left no live parts");
+          }
+        }
+      }
+      if (BRIEF_CROPS[levelIndexOf("ani")].motif !== "testament" || !BRIEF_MOTIFS.testament || !BRIEF_MOTIFS.standard) throw new Error("the miniatures' motifs");
+    } finally {
+      towers = [];
       curLevel = 0; curDiff = 1; resetGame();
     }
   });
