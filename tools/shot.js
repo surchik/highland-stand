@@ -1,5 +1,6 @@
 // Photo harness capture: node tools/shot.js "<query>" out.png [width height]
-// e.g. node tools/shot.js "shot=towers&lv=3" /tmp/t.png
+// e.g. node tools/shot.js "shot=towers&lv=3" /tmp/t.png (lv also takes a battlefield's id: lv=ani)
+// An out file named .jpg is a JPEG at quality 88 (the share picture, og.jpg)
 const path = require("path");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 (async () => {
@@ -11,7 +12,7 @@ const { chromium } = require(process.env.PW_PATH || "playwright");
   await page.goto("file://" + path.resolve(__dirname, "..", "index.html") + "?" + query);
   await page.waitForFunction(() => /^PHOTO_/.test(document.title), null, { timeout: 120000 });
   const title = await page.title();
-  await page.screenshot({ path: out });
+  await page.screenshot(/\.jpe?g$/i.test(out) ? { path: out, type: "jpeg", quality: 88 } : { path: out });
   console.log(title, errs.length ? "ERRORS: " + errs.join(" | ") : "");
   await browser.close();
   process.exit(title === "PHOTO_READY" && !errs.length ? 0 : 1);

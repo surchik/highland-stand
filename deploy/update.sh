@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pull the newest commit and publish index.html (and og.png, its share picture) if it changed. Run by cron every
+# Pull the newest commit and publish index.html (and og.jpg, its share picture) if it changed. Run by cron every
 # two minutes.
 # Before publishing, deploy/check-page.js makes sure every inline script of the page parses. A page that
 # fails is not published: the failure goes to the log once, the clone goes back to the commit that is live
@@ -15,9 +15,20 @@ WEB=${HS_WEB:-/var/www/highland}
 cd "$REPO"
 git fetch -q origin master
 NEW=$(git rev-parse origin/master)
-[ "$(git rev-parse HEAD)" = "$NEW" ] && exit 0
-# a commit already turned away is not checked and logged again every two minutes
-[ "$(cat .git/hs-rejected 2>/dev/null || true)" = "$NEW" ] && exit 0
+# the share picture (og.jpg, which the page's og:image names) goes out beside the page whenever the clone has one
+# the web root lacks or holds in another version. It is checked on every run, not only with a new commit: the run
+# that pulls a commit is still the update.sh from before it (the block is read whole first), so a picture that
+# older script did not know goes out on the run after
+publish_og() {
+  if [ -f og.jpg ] && ! cmp -s og.jpg "$WEB/og.jpg"; then
+    install -m 644 og.jpg "$WEB/og.jpg.new"
+    mv "$WEB/og.jpg.new" "$WEB/og.jpg"
+    echo "$(date -Is) published og.jpg"
+  fi
+}
+if [ "$(git rev-parse HEAD)" = "$NEW" ]; then publish_og; exit 0; fi
+# a commit already turned away is not checked and logged again every two minutes (the clone is back on the live one)
+if [ "$(cat .git/hs-rejected 2>/dev/null || true)" = "$NEW" ]; then publish_og; exit 0; fi
 PREV=$(git rev-parse HEAD)
 git reset -q --hard origin/master
 REV=$(git rev-parse --short HEAD)
@@ -51,12 +62,8 @@ else
   echo "$(date -Is) warning: no Node.js 18 or newer found${NODE:+ ($NODE: $("$NODE" -v 2>/dev/null || echo "does not run"))}, so $REV goes out without its syntax check (see deploy/README.md)"
   VER=""
 fi
-# the share picture (og.png, which the page's og:image names) goes out with the page, a moment before it, when the
-# repository has one
-if [ -f og.png ]; then
-  install -m 644 og.png "$WEB/og.png.new"
-  mv "$WEB/og.png.new" "$WEB/og.png"
-fi
+# the share picture goes out with the page, a moment before it
+publish_og
 install -m 644 index.html "$WEB/index.html.new"
 mv "$WEB/index.html.new" "$WEB/index.html"
 rm -f .git/hs-rejected

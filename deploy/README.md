@@ -7,13 +7,17 @@ command from the chat, which clones this repository to `/opt/highland-stand` and
 That script serves the game over HTTPS with the web server already on the machine (or installs nginx) and adds
 a cron job running `deploy/update.sh` every two minutes.
 
-**Updates:** push to `master`. The server publishes the new `index.html` within two minutes, with `og.png`
-beside it when the repository has one. Log: `/var/log/highland-update.log`.
+**Updates:** push to `master`. The server publishes the new `index.html` within two minutes, with `og.jpg`
+beside it when the repository has one. Log: `/var/log/highland-update.log`. The picture is checked on every run
+and copied whenever the web root lacks it or holds another version, so a commit that first brings it (or changes
+how it is published) gets it out on the run after the one that pulls it: that first run is still the old script.
 
-**The share preview:** the page's `og:` and `twitter:` tags name `https://highland.avunjian.com/og.png`, a
-1200 x 630 picture kept at the repository's root. To take it again from the game itself:
-`NODE_PATH=$(npm root -g) node tools/shot.js "shot=battle&lv=6&wave=15&zoom=1.7&cx=640&cy=300&nohud&title" og.png 1200 630`
-(`nohud` leaves out the header, the tray and the spell bar; `title` sets the game's name over the field).
+**The share preview:** the page's `og:` and `twitter:` tags name `https://highland.avunjian.com/og.jpg`, a
+1200 x 630 JPEG kept at the repository's root, under 200 KB so messengers that skip large pictures still show it.
+To take it again from the game itself:
+`NODE_PATH=$(npm root -g) node tools/shot.js "shot=battle&lv=ani&wave=15&zoom=1.7&cx=640&cy=300&nohud&title" og.jpg 1200 630`
+(`lv` takes the battlefield's id, so a battlefield inserted before it moves nothing; `nohud` leaves out the header,
+the tray and the spell bar; `title` sets the game's name over the field; a `.jpg` file is written at quality 88).
 
 Before it publishes, `update.sh` runs `node deploy/check-page.js index.html`, which makes sure every inline
 script parses as the browser will parse it (you can run the same line locally before pushing). A page that fails

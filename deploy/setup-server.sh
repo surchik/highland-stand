@@ -13,10 +13,10 @@ say() { printf '\n== %s\n' "$*"; }
 [ -d "$REPO/.git" ] || { echo "no clone at $REPO"; exit 1; }
 
 say "Publishing the game to $WEB"
-# only index.html and its share picture (og.png) are public; the repository itself (.git, tools, docs) stays out
+# only index.html and its share picture (og.jpg) are public; the repository itself (.git, tools, docs) stays out
 # of the web root
 mkdir -p "$WEB"
-if [ -f "$REPO/og.png" ]; then install -m 644 "$REPO/og.png" "$WEB/og.png"; fi
+if [ -f "$REPO/og.jpg" ]; then install -m 644 "$REPO/og.jpg" "$WEB/og.jpg"; fi
 install -m 644 "$REPO/index.html" "$WEB/index.html"
 
 say "Auto-update every two minutes"
@@ -76,6 +76,10 @@ server {
     location / {
         try_files \$uri \$uri/ /index.html;
         add_header Cache-Control "no-cache";
+    }
+    # the share picture: when it is missing, a 404, never the page served as an image
+    location = /og.jpg {
+        try_files \$uri =404;
     }
     gzip on;
     gzip_types text/html;
