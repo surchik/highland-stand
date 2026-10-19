@@ -2396,11 +2396,13 @@ const LEVELS = [
     // emir's raiders, the outflankers, ride in only from phase III, from the near-left corner. A victory plays
     // the dance and then lays the Summons card over the victory page
     phases: [{ from: 1, routes: [0] }, { from: 8, routes: [0, 1] }, { from: 15, routes: [0, 1] }],
-    flank: { from: 15, entry: [-420, 700] },
+    // cue: the sound of the first of them on the wave they first ride in (Snd ridersIn: the emir's horsemen galloping
+    // in from that corner), heard as they set out, not as the wave is called
+    flank: { from: 15, entry: [-420, 700], cue: "ridersIn" },
     power: "stones", ending: "summons",
-    // the Testament's assaults heard: the imperial drums on the plain as the second and third begin, and with the
-    // third the emir's horsemen galloping in from the near-left corner (Snd claimDrums)
-    waveCues: { 8: [["claimDrums", { x: 760 }]], 15: [["claimDrums", { x: 760 }], ["ridersIn", { x: 0 }]] },
+    // the Testament's assaults heard: the imperial drums on the plain as the second and third begin (Snd
+    // claimDrums); the third's horsemen are heard as they ride in (flank.cue)
+    waveCues: { 8: [["claimDrums", { x: 760 }]], 15: [["claimDrums", { x: 760 }]] },
   },
   {
     id: "mari",
@@ -2482,8 +2484,9 @@ const LEVELS = [
     // track: the roads the field is to paint as a narrow goat track (design.md 6.3), for the field's own painter
     // to read when it lands; until then the second road is drawn as a road
     routeOpen: { 1: 11 }, track: [1],
-    // the far horn that never arrives (Snd reliefFar) on the waves of the king's toasts, each time farther
-    waveCues: { 1: [["reliefFar", { far: 0 }]], 6: [["reliefFar", { far: 0.5 }]], 16: [["reliefFar", { far: 1 }]] },
+    // the far horn that never arrives (Snd reliefFar) on the waves of the king's toasts, each time farther: well
+    // after the wave's own call, so it is not heard as its echo, and from the left, where the king's marker stands
+    waveCues: { 1: [["reliefFar", { far: 0, x: 300, after: 8 }]], 6: [["reliefFar", { far: 0.5, x: 300, after: 8 }]], 16: [["reliefFar", { far: 1, x: 300, after: 8 }]] },
   },
   {
     id: "sis",
@@ -6764,7 +6767,7 @@ Object.assign(Snd.SPEC, {
   mine:        { thr: 300, max: 2, g: 0.36, cat: "blast", rev: 0.3, duck: [4, 0.6, 0.4] },
   parley:      { thr: 1000, max: 1, g: 0.265, pri: true, rev: 0.45, echo: 0.3, duck: [8, 4, 0.8] },
   summons:     { thr: 1000, max: 1, g: 0.36, pri: true, rev: 0.4, echo: 0.1, duck: [6, 3.5, 0.8] },
-  reliefFar:   { thr: 1000, max: 1, g: 0.14, pri: true, rev: 0.55, echo: 0.4 },
+  reliefFar:   { thr: 1000, max: 1, g: 0.176, pri: true, rev: 0.55, echo: 0.4 },
   claimDrums:  { thr: 1000, max: 1, g: 0.85, pri: true, rev: 0.35, echo: 0.25 },
   ridersIn:    { thr: 1000, max: 1, g: 5, pri: true, rev: 0.2 },
 });
@@ -6779,6 +6782,30 @@ Object.assign(Snd, {
     this.tn(v, { t, f: f * 1.52, f2: f * 1.4, gl: d * 0.5, a: 0.001, p: p * 0.2, d: d * 0.5, to });
     this.nz(v, { t, k: "pink", f: f * 2.4, q: 1.2, a: 0.0008, p: p * 0.45, d: 0.05, to });
     this.nz(v, { t, f: 2900, q: 1.3, a: 0.0004, p: p * 0.5, d: 0.018, to });
+  },
+  // a run of short noise bursts on one source: one noise, one filter and one gain, the bursts drawn on the gain
+  // (and each one's center on the filter), where nz would build three nodes a burst. o = { k, ft, q, a, d, to,
+  // hits: [[t, p, f]] }: each burst rises over a and falls 60 dB over d, cut short where the next one begins
+  nzRun(v, o) {
+    const hits = o.hits.slice().sort((x, y) => x[0] - y[0]);
+    if (!hits.length) return;
+    const c = this.ctx, a = o.a == null ? 0.002 : o.a, t0 = hits[0][0], buf = this.bufs[o.k || "white"], s = c.createBufferSource();
+    s.buffer = buf; s.loop = true;
+    const f = this.filt(v, o.ft || "bandpass", hits[0][2] || o.f, o.q == null ? 0.9 : o.q, t0);
+    const g = this.node(v, c.createGain()), P = g.gain;
+    P.value = 0;
+    let end = t0, last = -1;
+    hits.forEach(([t, p, fq], i) => {
+      if (t < last + a + 0.001) return;   // too close on the one before: heard as one
+      const nx = i + 1 < hits.length ? hits[i + 1][0] : Infinity;
+      end = Math.max(t + a + 0.001, Math.min(t + a + o.d, nx - 0.0005));
+      if (fq) f.frequency.setValueAtTime(fq, t);
+      P.setValueAtTime(0, t); P.linearRampToValueAtTime(p, t + a);
+      P.exponentialRampToValueAtTime(Math.max(1e-6, p * Math.pow(1e-3, (end - t - a) / o.d)), end);
+      last = t;
+    });
+    s.connect(f); f.connect(g); g.connect(o.to || v.out);
+    this.start(v, s, t0, end + 0.02, this.rnd() * (buf.duration - 0.05));
   },
   // the air between a far sound and the listener: a lowpass (f) on the voice, returned to play into
   farAir(v, t, f) {
@@ -6855,31 +6882,44 @@ Object.assign(Snd.SFX, {
       if (i % 2 === 1) for (let k = 1; k <= 2; k++) this.nz(v, { t: tt + 0.12 * k, f: 2300, q: 1.1, a: 0.0005, p: 0.16 * p, d: 0.04, to: air });
     }
   },
-  // Ani, with the third assault: the emir's horsemen galloping in from the near-left corner, where they enter the
-  // field: strides of four footfalls coming on, three horses a little apart
+  // Ani, with the third assault: the emir's horsemen galloping in from the near-left corner as the first of them
+  // sets out (L.flank.cue): strides of four footfalls coming on, three horses a little apart. Each horse's thuds
+  // and hoof clicks are two runs of bursts (nzRun), so the gallop builds about twenty nodes, not the six hundred
+  // a burst apiece would take, in the middle of the field's busiest wave
   ridersIn(v, t) {
-    const air = this.farAir(v, t, 1700);
-    for (let i = 0, T = t + 0.6; i < 9; i++, T += this.rr(0.36, 0.44)) {
-      const p = 0.25 + 0.09 * i;
-      for (const off of [0, 0.19, 0.31]) [[0, 0.7], [0.055, 0.8], [0.12, 0.75], [0.19, 1]].forEach(([dt, q]) => {
-        const tt = T + off + dt + this.rr(0, 0.014);
-        this.nz(v, { t: tt, k: "pink", f: this.rr(380, 520), q: 1, a: 0.002, p: 0.5 * p * q, d: 0.05, to: air });
-        this.nz(v, { t: tt, f: this.rr(1500, 2200), q: 1.2, a: 0.0005, p: 0.1 * p * q, d: 0.012, to: air });
-      });
+    const air = this.farAir(v, t, 1700), strides = [];
+    for (let i = 0, T = t + 0.6; i < 9; i++, T += this.rr(0.36, 0.44)) strides.push(T);
+    for (const off of [0, 0.19, 0.31]) {
+      const thud = [], click = [];
+      for (let i = 0; i < strides.length; i++) {
+        const p = 0.25 + 0.09 * i;
+        for (const [dt, q] of [[0, 0.7], [0.055, 0.8], [0.12, 0.75], [0.19, 1]]) {
+          const tt = strides[i] + off + dt + this.rr(0, 0.014);
+          thud.push([tt, 0.5 * p * q, this.rr(380, 520)]);
+          click.push([tt, 0.1 * p * q, this.rr(1500, 2200)]);
+        }
+      }
+      this.nzRun(v, { k: "pink", q: 1, a: 0.002, d: 0.05, hits: thud, to: air });
+      this.nzRun(v, { q: 1.2, a: 0.0005, d: 0.012, hits: click, to: air });
     }
   },
-  // Mari: the King Is Away. A horn far beyond the passes, through the air and off the far slopes: the call of
-  // the Cilician wave horn, A then D. It is heard only on the waves the king is spoken of, each time farther
-  // (o.far, 0 to 1: the lowpass closes and the level falls), and it never comes nearer
+  // Mari: the King Is Away. A horn far beyond the passes, through the air and off the far slopes, with a call of
+  // its own: D, up to the fifth and back to D, short, short and long (not the wave horn's two long calls, A to D,
+  // nor the camp's horn down the valley, D to A). It is heard only on the waves the king is spoken of, each time
+  // farther (o.far, 0 to 1: the lowpass closes and the level falls; the farthest call breaks off), and it never
+  // comes nearer
   reliefFar(v, t, o) {
     const far = Math.max(0, Math.min(1, o.far || 0)), air = this.farAir(v, t, 1100 - 520 * far);
     this.lvl(v, -7 * far);
-    this.hornNote(v, t, 110, 0.9, 0.5, 0.2, air);
-    this.hornNote(v, t + 0.97, 146.83, far < 0.9 ? 1.5 : 0.7, 0.42 - 0.12 * far, 0.2, air);
+    this.hornNote(v, t, 146.83, 0.3, 0.42, 0.2, air);
+    this.hornNote(v, t + 0.4, 220, 0.42, 0.46, 0.2, air);
+    this.hornNote(v, t + 0.92, 146.83, far < 0.9 ? 1.5 : 0.6, 0.42 - 0.12 * far, 0.2, air);
   },
 });
 // the parley's herald's horn sounds this long (s) after its drums begin, as the field's stillness ends
 const PARLEY_HORN_S = 2.6;
+// the field's music is hushed this long (s) under Ani's Summons, which sounds from 0.35 s to about 5 s
+const SUMMONS_HUSH_S = 5.5;
 Object.assign(Snd.AMBEV, {
   // the age's horn far down the valley, two calls and their echo off the slopes
   hornFar(v, t) {
@@ -6903,10 +6943,15 @@ Object.assign(Snd.AMBEV, {
     for (let i = 0; i < n; i++) this.naqqara(v, t + i * gap, i % 2 === 0, 0.0325 + 0.0052 * i, air);
     this.naqqara(v, t + n * gap + 0.12, false, 0.0715, air);
   },
-  // Ani: a horse calling in the imperial camp, far off over the plain
+  // Ani: a horse calling in the imperial camp, far off over the plain. Until the voice bank has its calls (or
+  // where it is never built) the horse blows the formant snort of a fallen horse (SFX death) instead
   horseFar(v, t) {
     const air = this.farAir(v, t, 1800);
-    if (!this.vcall(v, "whinny", t, 0.07, this.rr(0.92, 1.05), air)) this.vcall(v, "snort", t, 0.095, 1, air);
+    if (this.vcall(v, "whinny", t, 0.07, this.rr(0.92, 1.05), air) || this.vcall(v, "snort", t, 0.095, 1, air)) return;
+    const k = 0.62;   // level with the calls it stands in for
+    this.formant(v, { cons: "h", consF: 1500, t, f: this.rr(70, 90), forms: [[600, 2, 1, 900, 500], [1500, 3, 0.5]], a: 0.02, d: 0.22, p: 0.06 * k, breath: 1, jit: 80, to: air });
+    const g = this.nz(v, { t, k: "pink", f: 900, q: 1, a: 0.02, p: 0.3 * k, d: 0.2, to: air });
+    this.lfo(v, g.gain, t, t + 0.25, 27, 0.18 * k);
   },
   // Ani: the camp cutting wood: three to five axe strokes into timber, far off and unhurried
   chopFar(v, t) {
@@ -8387,6 +8432,7 @@ function resetGame() {
   confetti = [];
   parley = null;
   Snd.siegeCalm = null;
+  waveCueQ = []; flankHeard = 0;
   hideEndingCard();
   roadCall = null;
   powerTold = {};
@@ -8577,6 +8623,19 @@ function saveBest() {
 }
 
 // ---------- wave control ----------
+// a battlefield's wave cues (L.waveCues) wait this long (s, of the player's time: a faster game does not hurry
+// them) for the wave's own call to sound out, unless a cue gives its own wait (o.after). They wait while the game
+// is paused, and a stand that is left or lost takes its unheard cues with it (resetGame)
+const WAVE_CUE_AFTER_S = 3.2;
+let waveCueQ = [];   // [{ name, o, left }]
+function waveCueTick(dt) {
+  if (!waveCueQ.length) return;
+  for (const q of waveCueQ) q.left -= dt;
+  const due = waveCueQ.filter(q => q.left <= 0);
+  waveCueQ = waveCueQ.filter(q => q.left > 0);
+  for (const q of due) Snd.play(q.name, q.o);
+}
+
 function startWave() {
   if (gameOver) return;
   if (paused) { toast("Paused: " + resumeHint()); return; }
@@ -8625,9 +8684,9 @@ function startWave() {
   if (said && said.toast) msg = (early > 0 ? "Early call! +" + early + " gold. " : "") + said.toast;
   toast(msg, said && said.toast ? 4200 : 0);
   // a battlefield's own sounds on this wave, after the wave's own call (L.waveCues: { wave: [[sound, options]] }):
-  // the drums and the riders of Ani's assaults, the horn far beyond Mari's passes
+  // the drums of Ani's assaults, the horn far beyond Mari's passes
   const cues = LEVELS[curLevel].waveCues && LEVELS[curLevel].waveCues[waveIdx];
-  if (cues && Snd.ctx) for (const [name, o] of cues) Snd.play(name, Object.assign({ at: Snd.ctx.currentTime + WAVE_CUE_AFTER_S }, o));
+  if (cues) for (const [name, o] of cues) waveCueQ.push({ name, o, left: o.after != null ? o.after : WAVE_CUE_AFTER_S });
   // a road that opens on this wave: dust and glints come down it for a few seconds
   const RO = LEVELS[curLevel].routeOpen;
   if (RO) for (const k in RO) if (RO[k] === waveIdx && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S };
@@ -8637,8 +8696,6 @@ function startWave() {
 // them from the 7th century on: Dvin in 640, then the Bagratid wars and Ani), Davit Bek's horn and dhol in 1727,
 // the bugle of 1915-18, the field radio and the air-raid siren of the Artsakh wars; in the Mamluk wars two long
 // horn calls and a drum stroke
-// a battlefield's wave cue waits this long (s) for the wave's own call to sound out
-const WAVE_CUE_AFTER_S = 3.2;
 const WAVE_CALLS = [
   "the horns sound in the valley",
   "the war horns sound",
@@ -8688,6 +8745,8 @@ function levelWaveText(w) {
   const L = LEVELS[curLevel];
   return (L.phaseText && L.phaseText[w]) || (L.waveText && L.waveText[w]) || null;
 }
+// the wave a battlefield's outflankers were last heard riding in on (L.flank.cue)
+let flankHeard = 0;
 function spawnEnemy(type) {
   const d = eraUnit(type);
   const hp = foeHp(type, d, waveIdx);
@@ -8704,6 +8763,9 @@ function spawnEnemy(type) {
     // a battlefield's outflankers may ride in from a corner of their own (Ani's raiders: L.flank.entry)
     const flank = type === "flyer" && LEVELS[curLevel].flank;
     const entry = (flank && flank.entry) || ROUTES[e.route].pts[0];
+    // the first of them, on the wave they first ride in, is heard coming on from that corner (the corner lies off
+    // the field, so the sound is panned to its left edge, x 0)
+    if (flank && flank.cue && waveIdx === flank.from && flankHeard !== waveIdx) { flankHeard = waveIdx; Snd.play(flank.cue, { x: 0 }); }
     const x0 = entry[0], y0 = entry[1] + (Math.random() - 0.5) * 90;
     let x1 = FORT.x, y1 = FORT.y + 35;
     const prey = type === "flyer" && droneWar() ? droneTarget() : null;
@@ -8896,15 +8958,30 @@ function showEndingCard(C) {
 function hideEndingCard() {
   const el = $("endingCard");
   if (!el || !el.classList.contains("on")) return;
+  chimesHeld = null;
   el.classList.remove("on");
   el.setAttribute("aria-hidden", "true");
 }
 function endingCardUp() { const el = $("endingCard"); return !!el && el.classList.contains("on"); }
-// the card's own button (or Escape, Enter, Space) puts it away and hands the focus to the page's next step
+// the card's own button (or Escape, Enter, Space) puts it away, hands the focus to the page's next step and rings
+// the chimes the page held back while the card was read
 function closeEndingCard() {
+  const owed = chimesHeld;
+  chimesHeld = null;
   hideEndingCard();
   const next = [$("nextBtn"), $("mapBtn")].find(b => b && b.style.display !== "none");
   if (next) { try { next.focus({ preventScroll: true }); } catch (e) {} }
+  if (owed) for (const [name, msg] of owed) chime(name, msg);
+}
+// the chimes a victory page owes (a new road open, a new best) and the road's toast wait while an ending card is
+// read over the page, so they do not sound over the card's own cue (the Summons' seal and knar, the Terms' herald's
+// horn) or tell the road under the card; they come as the card is put away. A card put away by anything else (a
+// new stand) drops them. chimesHeld: [[sound, toast]] while held, null when they ring at once
+let chimesHeld = null;
+function chime(name, msg) {
+  if (chimesHeld) { chimesHeld.push([name, msg]); return; }
+  Snd.play(name);
+  if (msg) toast(msg);
 }
 $("ecBtn").addEventListener("click", () => { Snd.play("uiTick"); closeEndingCard(); });
 
@@ -8920,7 +8997,7 @@ function victory() {
   if (LEVELS[curLevel].ending === "terms") {
     // the music is hushed until the horn's echo has died away, and the siege's far engines and drums fall silent
     Snd.hush(PARLEY_HORN_S + 4);
-    Snd.siegeCalm = levelTheme(LEVELS[curLevel]).id;   // the key the field's bed is heard by (Snd.sceneOf)
+    Snd.siegeCalm = Snd.sceneOf().map;   // the key the field's bed is heard by
     Snd.play("parley");
     parley = { start: performance.now(), lives, best };
     hidePanel();
@@ -8945,6 +9022,7 @@ function endCelebration() {
   // a battlefield may tell its own victory (L.victory) and title its page (L.endTitle); the tally follows, and
   // the endless offer unless the battlefield ends where history did (L.noEndless: Sis, whose king yields)
   const L = LEVELS[curLevel], last = curLevel >= LEVELS.length - 1;
+  chimesHeld = L.endingCard && !last ? [] : null;   // the road's and the record's chimes wait for the card (chime)
   // a stand that ends in terms is crowned with no trophy: the page wears the game's own crest
   showMenu(L.ending === "terms" && !last ? "🛡" : "🏆", last ? "The Chronicle Is Complete" : L.endTitle || L.name + " Stands!",
     (L.victory ? L.victory + " " : foeName() + " forces break against your towers like water against the highland rocks. " +
@@ -8957,10 +9035,15 @@ function endCelebration() {
   if (!last) $("ovHy").textContent = hyName("field", L.name);
   showVictoryScreen();
   showRecord(victoryStars(heldLives, DIFFS[curDiff].lives), curDiff, best);
-  if (best) Snd.play("record");
+  if (best) chime("record");
   if (L.endingCard && !last) showEndingCard(L.endingCard);
-  // Ani's Summons interrupts the celebration: what is left of the dance fades, and the seal is broken
-  if (L.ending === "summons" && !last && Snd.ctx) { Snd.danceOut(); Snd.play("summons", { at: Snd.ctx.currentTime + 0.35 }); }
+  // Ani's Summons interrupts the celebration: what is left of the dance fades, the field's music (its tune, drums
+  // and drone) is hushed until the cue has died away, as the Terms hush it at Sis, and the seal is broken
+  if (L.ending === "summons" && !last && Snd.ctx) {
+    Snd.danceOut();
+    Snd.hush(SUMMONS_HUSH_S);
+    Snd.play("summons", { at: Snd.ctx.currentTime + 0.35 });
+  }
 }
 
 // ---- after a victory: the call to action is the battlefield it has just opened ----
@@ -50339,8 +50422,7 @@ function checkNewUnlocks() {
     // who had reached Gyumri): the road told is the first of them, where the new part of the campaign begins
     const i = levelIndexOf(fresh[0]);
     unlockFx = { i, start: performance.now() };
-    Snd.play("unlock");
-    toast("⚔ A new road opens: " + LEVELS[i].name + "!");
+    chime("unlock", "⚔ A new road opens: " + LEVELS[i].name + "!");   // held while an ending card is read
     clearInterval(unlockFxTimer);
     unlockFxTimer = setInterval(() => {
       if (!unlockFx || performance.now() - unlockFx.start > 2600 ||
@@ -52200,7 +52282,7 @@ canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); pointerCli
 canvas.addEventListener("pointerdown", (e) => {
   closeSettings();
   if (celebration) { if (performance.now() - celebration.start >= DANCE_MIN_MS) endCelebration(); return; }
-  if (parley) return;   // the horn call into silence is heard out
+  if (parley) return;   // the Terms are heard out: the besiegers' drums slowing to silence, then the herald's horn
   if (gameOver) return;
   const v = toVirtual(e);
   // a finger has no hover: the tap itself is where the pointer is, for the previews drawn under it
@@ -54925,7 +55007,7 @@ function frame(time) {
   last = time;
   if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
     for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
-    if (!gameOver) dangerTick(dt);
+    if (!gameOver) { dangerTick(dt); waveCueTick(dt); }
   }
   if (celebration && time - celebration.start > DANCE_MAX_MS) endCelebration();
   if (parley && time - parley.start > PARLEY_MS) endCelebration();
@@ -55863,13 +55945,16 @@ function runSelftest() {
     }
   });
   // Chapter III's sounds. Every cue a battlefield asks for and every event of the three new beds exists and builds
-  // its voice without an error (Snd.play swallows a sound's errors, so each is built here on a scratch offline
-  // context, sound by sound); the beds keep their characters (no water runs in Mari's dry defile, no bell rings at
-  // Sis); the appended eras' music keeps to the medieval voices; the parley's horn sounds as its page comes up,
-  // and the siege's far drums and engines fall silent after the terms until the next stand
+  // its voice without an error and sounds (Snd.play swallows a sound's errors, so each is built here on a scratch
+  // offline context, sound by sound, with no voice bank: the calls' fallbacks); the beds keep their characters (no
+  // water runs in Mari's dry defile, no bell rings at Sis); the appended eras' music keeps to the medieval voices;
+  // the parley's horn sounds as its page comes up, and the siege's far drums and engines fall silent after the
+  // terms until the next stand. A wave's cues wait out its call and go with a stand that is left; Ani's riders are
+  // heard once, as the first of them sets out; the chimes a victory page owes wait for its ending card
   check("chapter III sounds", () => {
     const named = new Set();
     for (const L of LEVELS) for (const w in (L.waveCues || {})) for (const [n] of L.waveCues[w]) named.add(n);
+    for (const L of LEVELS) if (L.flank && L.flank.cue) named.add(L.flank.cue);
     for (const n of ["stoneVolley", "kettle", "mine", "parley", "summons"]) named.add(n);
     for (const n of named) if (!Snd.SFX[n] || !Snd.SPEC[n]) throw new Error("no sound " + n);
     const evs = new Set();
@@ -55879,7 +55964,8 @@ function runSelftest() {
       for (const k of [...(P.birds || []), ...(P.nightEv || []), ...(P.rare || []), ...(P.far ? P.far.ev : [])]) { if (!Snd.AMBEV[k]) throw new Error(id + "'s bed lacks " + k); evs.add(k); }
     }
     if (Snd.AMB.mari.water || /stream|river/.test(Snd.AMB.mari.sig || "")) throw new Error("water runs in Mari's dry defile");
-    if ((Snd.AMB.sis.rare || []).includes("churchBell") || /town/.test(Snd.AMB.sis.sig || "")) throw new Error("Sis's bells or market are heard");
+    const SIS = Snd.AMB.sis, sisEv = [...(SIS.birds || []), ...(SIS.nightEv || []), ...(SIS.rare || []), ...(SIS.far ? SIS.far.ev : [])];
+    if (sisEv.some(k => /bell/i.test(k)) || /town/.test(SIS.sig || "")) throw new Error("Sis's bells or market are heard");
     for (const e of [7, 8]) for (const E of [Snd.MUS_ERA[e], Snd.MUS_ERA[e].v2, e === 8 ? Snd.MUS_MAP.sis : null, e === 8 ? Snd.MUS_MAP.sis.v2 : null]) {
       if (E && E.voice && !["knar", "duduk", "blul"].includes(E.voice)) throw new Error("era " + e + " music has a " + E.voice);
     }
@@ -55887,17 +55973,23 @@ function runSelftest() {
     // each sound built on a scratch context (the game's own context and state are put back)
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (OAC) {
-      const keep = {};
+      const keep = {}, start0 = Snd.start, bank0 = Snd.vbank, mute = [];
       for (const k of Snd.CTX_KEYS) keep[k] = Snd[k];
       try {
         Snd.voices = []; Snd.lastPlay = {}; Snd.dens = {}; Snd.amb = null; Snd.duckSt = null; Snd.stats = { voices: 0, freed: 0, dropped: 0 };
         Snd.build(new OAC(2, 4800, 48000));
-        for (const n of named) Snd.fire(n, Snd.SFX[n], { at: 0.01, x: 300, far: 0.5, era: 8 });
+        Snd.vbank = null;
+        // each one starts a source of its own (a voice's echo keep-alive does not count)
+        let started = 0;
+        Snd.start = function (v, src, t0, t1, off) { started++; return start0.call(this, v, src, t0, t1, off); };
+        const sounds = (what, fn) => { const n0 = started; fn(); if (started === n0) mute.push(what); };
+        for (const n of named) Snd.fire(n, function (v, t, o) { sounds(n, () => Snd.SFX[n].call(this, v, t, o)); }, { at: 0.01, x: 300, far: 0.5, era: 8 });
         for (const e of [7, 8]) Snd.fire("horn", Snd.SFX.horn, { at: e === 7 ? 0.01 : 0.6, era: e });
         const b = Snd.makeBed("sis", 0);
-        for (const k of evs) Snd.ambEv(b, k, 0.01, 1);
+        for (const k of evs) sounds(k, () => Snd.ambEv(b, k, 0.01, 1));
         if (Snd.stats.voices < named.size + evs.size + 2 || Snd.stats.dropped) throw new Error("the sounds built only " + Snd.stats.voices + " voices");
-      } finally { for (const k of Snd.CTX_KEYS) Snd[k] = keep[k]; }
+      } finally { Snd.start = start0; Snd.vbank = bank0; for (const k of Snd.CTX_KEYS) Snd[k] = keep[k]; }
+      if (mute.length) throw new Error("silent without the voice bank: " + mute.join(", "));
     }
     const sis = levelIndexOf("sis");
     try {
@@ -55908,6 +56000,39 @@ function runSelftest() {
       if (Snd.siegeCalm) throw new Error("the next stand at Sis is silent");
     } finally {
       hideEndingCard(); celebration = null; parley = null;
+      clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
+      curLevel = 0; curDiff = 1; resetGame();
+    }
+    const play0 = Snd.play, heard = [], ani = levelIndexOf("ani"), mari = levelIndexOf("mari");
+    const keys = [RECORDS_KEY, "hs_run", "hs_unlocked_seen"].concat(ERAS.map((_, e) => bestKey(ani, e)));
+    const saved = keys.map(k => localStorage.getItem(k));
+    const stage = lv => { curLevel = lv; curDiff = 1; resetGame(); overlayEl.classList.add("hidden"); phase = "idle"; spawnQueue = []; };
+    try {
+      Snd.play = n => { heard.push(n); };
+      // Mari's far horn: well after the wave's call, by the player's clock, and never once the stand is left
+      stage(mari); waveIdx = 0; startWave();
+      const relief = LEVELS[mari].waveCues[1][0][1].after;
+      waveCueTick(relief - 0.1);
+      if (heard.includes("reliefFar") || !(relief >= 6)) throw new Error("Mari's far horn came with the wave's call");
+      waveCueTick(0.2);
+      if (heard.filter(n => n === "reliefFar").length !== 1 || waveCueQ.length) throw new Error("Mari's far horn was not heard once");
+      stage(mari); waveIdx = 0; startWave(); stage(mari); waveCueTick(60);
+      if (heard.filter(n => n === "reliefFar").length !== 1) throw new Error("a stand left behind still sounds its far horn");
+      // Ani's riders: not with the third assault's call, but as the first of them sets out, and once
+      stage(ani); waveIdx = LEVELS[ani].flank.from - 1; startWave(); waveCueTick(30);
+      if (heard.includes("ridersIn") || !heard.includes("claimDrums")) throw new Error("Ani's riders were heard with the call");
+      spawnEnemy("spearman"); spawnEnemy("flyer"); spawnEnemy("flyer");
+      if (heard.filter(n => n === "ridersIn").length !== 1) throw new Error("Ani's riders are heard " + heard.filter(n => n === "ridersIn").length + " times");
+      // the record's and the road's chimes wait while the Summons is read, and ring as it is put away
+      stage(ani); waveIdx = TOTAL_WAVES; lives = 9; victory(); endCelebration();
+      heard.length = 0; chime("record"); chime("unlock", "x");
+      if (!endingCardUp() || heard.length) throw new Error("the page's chimes rang over the Summons: " + heard);
+      closeEndingCard();
+      if (heard.join() !== "record,unlock" || chimesHeld) throw new Error("the page's chimes were not rung after the card: " + heard);
+    } finally {
+      Snd.play = play0;
+      keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+      hideEndingCard(); celebration = null; parley = null; chimesHeld = null;
       clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
       curLevel = 0; curDiff = 1; resetGame();
     }
