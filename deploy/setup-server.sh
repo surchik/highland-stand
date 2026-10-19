@@ -13,8 +13,10 @@ say() { printf '\n== %s\n' "$*"; }
 [ -d "$REPO/.git" ] || { echo "no clone at $REPO"; exit 1; }
 
 say "Publishing the game to $WEB"
-# only index.html is public; the repository itself (.git, tools, docs) stays out of the web root
+# only index.html and its share picture (og.png) are public; the repository itself (.git, tools, docs) stays out
+# of the web root
 mkdir -p "$WEB"
+if [ -f "$REPO/og.png" ]; then install -m 644 "$REPO/og.png" "$WEB/og.png"; fi
 install -m 644 "$REPO/index.html" "$WEB/index.html"
 
 say "Auto-update every two minutes"

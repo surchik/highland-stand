@@ -7,8 +7,13 @@ command from the chat, which clones this repository to `/opt/highland-stand` and
 That script serves the game over HTTPS with the web server already on the machine (or installs nginx) and adds
 a cron job running `deploy/update.sh` every two minutes.
 
-**Updates:** push to `master`. The server publishes the new `index.html` within two minutes.
-Log: `/var/log/highland-update.log`.
+**Updates:** push to `master`. The server publishes the new `index.html` within two minutes, with `og.png`
+beside it when the repository has one. Log: `/var/log/highland-update.log`.
+
+**The share preview:** the page's `og:` and `twitter:` tags name `https://highland.avunjian.com/og.png`, a
+1200 x 630 picture kept at the repository's root. To take it again from the game itself:
+`NODE_PATH=$(npm root -g) node tools/shot.js "shot=battle&lv=6&wave=15&zoom=1.7&cx=640&cy=300&nohud&title" og.png 1200 630`
+(`nohud` leaves out the header, the tray and the spell bar; `title` sets the game's name over the field).
 
 Before it publishes, `update.sh` runs `node deploy/check-page.js index.html`, which makes sure every inline
 script parses as the browser will parse it (you can run the same line locally before pushing). A page that fails

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Pull the newest commit and publish index.html if it changed. Run by cron every two minutes.
+# Pull the newest commit and publish index.html (and og.png, its share picture) if it changed. Run by cron every
+# two minutes.
 # Before publishing, deploy/check-page.js makes sure every inline script of the page parses. A page that
 # fails is not published: the failure goes to the log once, the clone goes back to the commit that is live
 # (so a re-run of setup-server.sh publishes that same page), and the next push is tried as usual. When the
@@ -49,6 +50,12 @@ if node_ok "$NODE"; then
 else
   echo "$(date -Is) warning: no Node.js 18 or newer found${NODE:+ ($NODE: $("$NODE" -v 2>/dev/null || echo "does not run"))}, so $REV goes out without its syntax check (see deploy/README.md)"
   VER=""
+fi
+# the share picture (og.png, which the page's og:image names) goes out with the page, a moment before it, when the
+# repository has one
+if [ -f og.png ]; then
+  install -m 644 og.png "$WEB/og.png.new"
+  mv "$WEB/og.png.new" "$WEB/og.png"
 fi
 install -m 644 index.html "$WEB/index.html.new"
 mv "$WEB/index.html.new" "$WEB/index.html"
