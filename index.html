@@ -59846,7 +59846,8 @@ townRegion("text", () => { TWT = (() => {
 // and carrying (3.2, 3.3), the workers dock (3.8), training and the town center's two queues, grid A* for the
 // town's units (13.3), save, load and hash. 2b: ages and techs (5), the raiders' flow fields (13.3), raids with
 // plunder and pillage (6.5, 6.6), combat (13.4), shelter and the alarm (3.6, 6.3), trade carts (3.7), wonders
-// (7), win and loss (8.1), suggestRing (4.4). The bot is tools/town-bot.js for now. The API is 13.2's.
+// (7), win and loss (8.1), suggestRing (4.4). 2c: the bot's eight styles (TW.bot, 14.2) and the tuned DATA. The API
+// is 13.2's.
 // For the renderer and the shell (beyond 13.2):
 //   map: terr occ wdist fert hill canalPlan (1 canal, 2 fertile once Royal Canals is researched) canals bluffs
 //     [{ x, y, w, h }] entries { BL: [[x, y]...] ... } road [[x, y]...] (from the map edge to the hill: the carts'
@@ -59869,22 +59870,27 @@ townRegion("text", () => { TWT = (() => {
 //   near, q, cx, hpm }. Events beyond 13.5: driven { id, x, y } (Easy). suggestRing also returns gates: [the
 //   fields' gate, the trade road's gate]. raidInfo also returns warn: [{ id, spawnAt, zones, pts, wonder }].
 //   next(G) may return { k: "dismiss" } (8.1). Lose causes: "tc", "soft".
+//   2c: suggestRing(G, o) takes an optional o = { r: [radii], x, y (center), core: { x, y, w, h }, gateTo: [x, y] }
+//   (the bot's seal); TW.bot = { styles, create(style, opts) -> { style, S, plan, think(G) } }. Raid adds kl (its
+//   kills: villagers, carts and Easy drive-offs): at RAID.plunder.raid its light raiders take their plunder and leave
+//   and its heavies stop hunting villagers (6.5). A cord holds but never kills a villager. A shut gate still lets in a
+//   villager running to shelter. DATA additions: RAID.plunder.raid.
 townRegion("sim", () => { TW = (() => {
   const VERSION = 1, DT = 0.1, W = 64, H = 48;
 
   // ---- TW.DATA: Appendix A (the authority for every number; WP2 tunes the values, the shape is frozen) ----
   const DIFFS = [
-    { name: "Easy",   res: { f: 300, w: 200, s: 200, g: 100 }, vil: 7, gar: { spear: 3, bow: 1 }, tcHp: 3000,
-      firstRaid: 270, interval: [150, 140, 130], mult: 0.65, raiderHp: 0.85, lead: 40, wonderInterval: 95,
+    { name: "Easy",   res: { f: 300, w: 200, s: 200, g: 100 }, vil: 7, gar: { spear: 3, bow: 1 }, tcHp: 2700,
+      firstRaid: 270, interval: [140, 130, 120], mult: 0.72, raiderHp: 0.85, lead: 40, wonderInterval: 95,
       wonderMult: 1.25, retreatAt: 0.4, raidMax: 120, escalateAt: 1560, setback: 0.25,
       pillage: 0.5, pillageShare: 60, sheetHolds: true, firstTownCap: 420, driveOff: 20 },        // O4 driveOff
     { name: "Normal", res: { f: 200, w: 150, s: 150, g: 50 }, vil: 6, gar: { spear: 2, bow: 1 }, tcHp: 2400,
       firstRaid: 180, interval: [120, 110, 100], mult: 1.0, raiderHp: 1.0, lead: 30, wonderInterval: 70,
-      wonderMult: 1.4, retreatAt: 0.3, raidMax: 150, escalateAt: 1320, setback: 0.5,
+      wonderMult: 1.5, retreatAt: 0.3, raidMax: 150, escalateAt: 1320, setback: 0.5,
       pillage: 1.0, pillageShare: 120, sheetHolds: false, firstTownCap: 360, driveOff: 0 },
     { name: "Hard",   res: { f: 150, w: 120, s: 120, g: 30 }, vil: 6, gar: { spear: 1, bow: 1 }, tcHp: 2160,
-      firstRaid: 135, interval: [105, 95, 85], mult: 1.3, raiderHp: 1.1, lead: 25, wonderInterval: 55,
-      wonderMult: 1.6, retreatAt: 0.2, raidMax: 180, escalateAt: 1200, setback: 0.625,
+      firstRaid: 135, interval: [105, 95, 85], mult: 1.15, raiderHp: 1.1, lead: 25, wonderInterval: 65,
+      wonderMult: 1.4, retreatAt: 0.2, raidMax: 180, escalateAt: 1200, setback: 0.625,
       pillage: 1.25, pillageShare: 150, sheetHolds: false, firstTownCap: 360, driveOff: 0 },
   ];   // times in seconds of game time; setback = work removed per point of bdmg; pillage in food/s per raider;
        // driveOff (owner decision 4): seconds an Easy villager is driven off instead of killed (0: killable)
@@ -59923,7 +59929,7 @@ townRegion("sim", () => { TW = (() => {
     grove:    { size: [3, 3], cost: { w: 40, f: 60 }, work: 15, hp: 150, age: 3, req: "planted_groves", builders: 1 },
   };
   const UNITS = {
-    vil:   { cost: { f: 50 }, at: "tc", train: 15, hp: [40, 45, 50], spd: 1.5, build: 1, repair: 8, repairWall: 12,
+    vil:   { cost: { f: 50 }, at: "tc", train: 13, hp: [40, 45, 50], spd: 1.5, build: 1, repair: 8, repairWall: 12,
              shelter: { near: 4, reach: 14, clear: 8, calm: 5, wonderNear: 2 } },
     spear: { cost: { f: 45, g: 10 }, at: "barracks", train: 16, hp: [70, 90, 110], atk: [7, 9, 11], arm: [2, 3, 4],
              range: 0, cd: 1.5, spd: 1.3, vsMounted: 1.5 },
@@ -59947,11 +59953,11 @@ townRegion("sim", () => { TW = (() => {
     A: [1, 2, 3], B: [0.75, 0.8, 0.9], esc: 1.1, maxAlive: 45, firstWonderRaid: 45, beaconLead: 20, spawnSpread: 3,
     zones: { BL: [0.4, 0.3, 0], BC: [0.3, 0.4, 0], BR: [0, 0.1, 0], LM: [0.3, 0.2, 0.35], RM: [0, 0, 0],
              TL: [0, 0, 0.35], TR: [0, 0, 0.3] },
-    mix: [ { from: 5, heavy: "etS", heavyShare: 0.45, light: "etR" },
+    mix: [ { from: 5, heavy: "etS", heavyShare: 0.65, light: "etR" },
            { cord: "alC", cordShare: 0.25, light: "alH" },
-           { horse: "arH", horseShare: 0.2, sword: "arW", swordShare: 0.2, spear: "arS", spearShare: 0.3, light: "arR" } ],
+           { horse: "arH", horseShare: 0.2, sword: "arW", swordShare: 0.3, spear: "arS", spearShare: 0.4, light: "arR" } ],
     nearTc: 15, stuckTicks: 200, wonderHeavyShare: 0.6,
-    plunder: { kills: 2, dmg: 250, heavyNear: 10 },
+    plunder: { kills: 2, dmg: 250, heavyNear: 10, raid: 2 },   // raid: kills a raid takes before its light raiders all leave
     pillageNearWall: 10,
     firstTown: { raid1: { etR: 2 }, after: 90 },
     wallCap: null,
@@ -59980,7 +59986,7 @@ townRegion("sim", () => { TW = (() => {
     shirakatsi_tables: { age: 3, at: "tc",     cost: { f: 100, g: 150 }, time: 30, fx: { bldCost: 0.90 } },
   };   // wallHp applies to walls and gates; percent effects multiply
   const WONDERS = [
-    { age: 1, id: "haldi",     cost: { w: 350, s: 800, g: 300 }, work: 2200, startBuilders: 8, maxBuilders: 12,
+    { age: 1, id: "haldi",     cost: { w: 440, s: 1000, g: 375 }, work: 2640, startBuilders: 8, maxBuilders: 10,
       site: { nearTc: 8 }, req: { bld: ["temple"] } },
     { age: 2, id: "garni",     cost: { w: 300, s: 750, g: 300 }, work: 2000, startBuilders: 8, maxBuilders: 12,
       site: { bluff: true }, req: { bld: ["temple"], tech: ["clamped_masonry"] } },
@@ -60975,7 +60981,7 @@ townRegion("sim", () => { TW = (() => {
       while (left > 1e-9 && u.pi < u.path.length) {
         const j = u.path[u.pi], tx = j % W + 0.5, ty = (j - j % W) / W + 0.5;
         if (!P[j]) { u.st = ST.WAIT; u.path = null; u.pi = 0; break; }   // the way was built over: search again
-        if (G.nav.shut[j]) break;   // a gate stays shut while a raider is within 2 tiles
+        if (G.nav.shut[j] && !(u.task && u.task.t === "shelter")) break;   // a gate stays shut while a raider is within 2 tiles (but lets in a villager running to shelter)
         const k = terr[j] === 3 ? MAP.fordSpeed : 1, dx = tx - u.x, dy = ty - u.y, d = Math.sqrt(dx * dx + dy * dy);
         if (dx > 1e-9) u.dir = 1; else if (dx < -1e-9) u.dir = -1;
         if (d <= left * k) { u.x = tx; u.y = ty; u.pi++; left -= d / k; }
@@ -61664,7 +61670,7 @@ townRegion("sim", () => { TW = (() => {
     else if (!G.og || G.og.length) G.og = [];
   }
   // town units may walk on a tile (a gate shuts while a raider is near); raiders on open ground only
-  const walkable = (G, u, x, y) => { if (!inMap(x, y)) return false; const i = idx(x, y); if (u.side) return rfree(G, x, y); return passGrid(G)[i] > 0 && !G.nav.shut[i]; };
+  const walkable = (G, u, x, y) => { if (!inMap(x, y)) return false; const i = idx(x, y); if (u.side) return rfree(G, x, y); return passGrid(G)[i] > 0 && (!G.nav.shut[i] || (u.task && u.task.t === "shelter")); };
   function to(G, u, nx, ny) {
     if (!(nx >= 0 && ny >= 0 && nx < W && ny < H)) return false;
     const ox = Math.floor(u.x), oy = Math.floor(u.y), x = Math.floor(nx), y = Math.floor(ny);
@@ -61727,13 +61733,22 @@ townRegion("sim", () => { TW = (() => {
   }
 
   // ---- damage (13.4) ----
+  // a raider's kill (a villager, a cart, or an Easy villager driven off) counts for it and for its raid; once the
+  // raid has taken RAID.plunder.raid, all its light raiders take their plunder and leave (6.5)
+  function plunderKill(G, by) {
+    if (!by || !by.loot) return;
+    by.loot.kills++;
+    const r = G.raids.find(q => q.id === by.raid);
+    if (!r || (r.kl = (r.kl | 0) + 1) < RAID.plunder.raid) return;
+    for (const v of G.units) if (isRaider(v) && v.raid === r.id && !v.flee && role(v) !== "heavy") leave(G, v, true);
+  }
   function kill(G, u, by) {
     u.dead = true;
-    if (u.market !== undefined) { ev(G, "cartLost", { x: u.x, y: u.y }); if (by && by.loot) by.loot.kills++; return; }
+    if (u.market !== undefined) { ev(G, "cartLost", { x: u.x, y: u.y }); plunderKill(G, by); return; }
     ev(G, "fell", { id: u.id, k: u.k, side: u.side, x: u.x, y: u.y });
     const F = G.stats.fallen;
     if (u.side) { F.raiders++; const r = G.raids.find(q => q.id === u.raid); if (r) r.fell++; return; }
-    if (u.k === "vil") { F.villagers++; if (by && by.loot) by.loot.kills++; } else F.garrison++;
+    if (u.k === "vil") { F.villagers++; plunderKill(G, by); } else F.garrison++;
     unassign(G, u);
   }
   function hitUnit(G, u, raw, mult, by) {
@@ -61751,7 +61766,7 @@ townRegion("sim", () => { TW = (() => {
     u.hp = Math.max(1, Math.min(u.hp, 1));
     u.carry = { r: "", n: 0 };
     u.flee = G.tick + T(DIFFS[G.diff].driveOff);
-    if (by && by.loot) by.loot.kills++;
+    plunderKill(G, by);
     ev(G, "driven", { id: u.id, x: u.x, y: u.y });
     shelter(G, u, 2);
   }
@@ -61787,8 +61802,8 @@ townRegion("sim", () => { TW = (() => {
     for (const s of G.shots) {
       if (s.at > G.tick) { keep.push(s); continue; }
       let t = byId(G, s.tgt);
-      if (s.k === "cord") {
-        if (t && !t.dead && !t.shel) { t.held = T(RAIDERS.alC.hold); hitUnit(G, t, s.dmg, 1, null); ev(G, "held", { id: t.id }); }
+      if (s.k === "cord") {   // a cord holds; it never kills a villager (6.4: it does not drag villagers away)
+        if (t && !t.dead && !t.shel) { t.held = T(RAIDERS.alC.hold); if (!(t.k === "vil" && t.hp <= Math.max(1, s.dmg - armorOf(G, t)))) hitUnit(G, t, s.dmg, 1, null); ev(G, "held", { id: t.id }); }
         continue;
       }
       if (!t || t.dead) { t = null; let bd = 1.5; for (const r of Rd) if (!r.dead) { const d = cdist(r, s.tx, s.ty); if (d < bd) { bd = d; t = r; } } }
@@ -61968,12 +61983,14 @@ townRegion("sim", () => { TW = (() => {
   // the best target within the raider's aggro radius, on a straight line that crosses no structure; by class:
   // light: the wonder's builders > villagers > carts > fields > houses > garrison > other buildings;
   // heavy: garrison > villagers > buildings (the structure blocking them comes from the field)
+  const raidFull = (G, u) => { const r = G.raids.find(q => q.id === u.raid); return !!r && (r.kl | 0) >= RAID.plunder.raid; };
   function pickTarget(G, u, Rd, Tn, maxCls) {
     const Rr = RAIDERS[u.k], ag = Rr.aggro, heavy = Rr.role === "heavy", wd = G.wonder ? bld(G, G.wonder) : null;
+    const full = raidFull(G, u);   // its raid has its plunder: no more villagers
     let best = null, bk = 1e9;
     const consider = (o, cls, d, x, y, skip) => { const key = cls * 1000 + d; if (d <= ag && cls < maxCls && key < bk && clear(G, u.x, u.y, x, y, 1, skip)) { best = o; bk = key; } };
     for (const v of Tn) {
-      if (v.flee > G.tick && v.k === "vil") continue;
+      if (v.k === "vil" && (v.flee > G.tick || full)) continue;
       const d = cdist(v, u.x, u.y);
       if (d > ag) continue;
       if (v.k === "vil") consider(v, heavy ? 2 : wd && rectDist(v.x, v.y, wd) <= 1.5 ? 0 : 1, d, v.x, v.y);
@@ -62008,7 +62025,7 @@ townRegion("sim", () => { TW = (() => {
     let o = pickTarget(G, u, Rd, Tn, ro === "heavy" && (sieging || t.f === "wonder") ? 3 : 99);
     if (!o && u.st === RS.ENGAGE) {
       o = byId(G, u.tgt);
-      if (o && (o.dead || o.shel || (o.flee > G.tick && o.k === "vil") || o.side === 1 || (isBld(o) ? rectDist(u.x, u.y, o) : cdist(o, u.x, u.y)) > RAIDERS[u.k].aggro + 2)) o = null;
+      if (o && (o.dead || o.shel || (o.k === "vil" && (o.flee > G.tick || raidFull(G, u))) || o.side === 1 || (isBld(o) ? rectDist(u.x, u.y, o) : cdist(o, u.x, u.y)) > RAIDERS[u.k].aggro + 2)) o = null;
     }
     if (o) { u.tgt = o.id; u.st = RS.ENGAGE; u.act = "fight"; return; }
     if (sieging) return;
@@ -62084,6 +62101,7 @@ townRegion("sim", () => { TW = (() => {
         const o = byId(G, u.tgt);
         if (!o || o.dead) continue;
         if (isBld(o)) { if (rectDist(u.x, u.y, o) <= MELEE + 0.05) { hitBld(G, o, RAIDERS[u.k].bdmg, u); u.cd = cdOf(u); } }
+        else if (o.k === "vil" && raidFull(G, u)) { u.tgt = 0; u.st = RS.FOLLOW; }
         else if (cdist(u, o.x, o.y) <= MELEE) { hitUnit(G, o, RAIDERS[u.k].atk, 1, u); u.cd = cdOf(u); }
         if (lootFull(G, u)) leave(G, u, true);
         continue;
@@ -62318,22 +62336,26 @@ townRegion("sim", () => { TW = (() => {
   // ---- the walls' Ring (4.4): a loop around the town center at radius 9 (else 8, 10, 7, 11, the first that
   // closes with its gates) that obeys 4.3: an octagon whose edge pulls in past every tile that cannot take a wall
   // (nodes and buildings stand in the line); a gate toward the fields, and one where the trade road crosses it
-  // (both in gates; gate is the first) ----
-  function suggestRing(G) {
+  // (both in gates; gate is the first). o (optional, for the bot): { r: [radii to try], x, y: the center,
+  // core: { x, y, w, h } never cut, gateTo: [x, y] } ----
+  function suggestRing(G, o) {
     const tc = tcOf(G), none = { strokes: [], gate: null, gates: [] };
+    o = o || {};
     if (!tc) return none;
-    const cx = tc.x + 2, cy = tc.y + 2, occ = G.map.occ, keep = G.res, Rn = rgrid(G), L = new Int8Array(N).fill(-1);
+    const cx = o.x === undefined ? tc.x + 2 : o.x, cy = o.y === undefined ? tc.y + 2 : o.y, occ = G.map.occ, keep = G.res, Rn = rgrid(G), L = new Int8Array(N).fill(-1);
+    const K = o.core || { x: tc.x, y: tc.y, w: tc.w, h: tc.h };
     G.res = { f: 1e9, w: 1e9, s: 1e9, g: 1e9 };
     try {
       const legal = i => (L[i] < 0 ? (L[i] = canPlace(G, "wall", i % W, (i - i % W) / W, 0).ok ? 1 : 0) : L[i]) === 1;
       const solid = i => { const o = occ[i]; if (!Rn.rc[i] && !(o > 0)) return true; const b = o > 0 ? bld(G, o) : null; return !!b && b.k !== "field"; };
-      const core = i => { const x = i % W, y = (i - x) / W; return x >= tc.x - 2 && y >= tc.y - 2 && x < tc.x + 6 && y < tc.y + 6; };
+      const core = i => { const x = i % W, y = (i - x) / W; return x >= K.x - 2 && y >= K.y - 2 && x < K.x + K.w + 2 && y < K.y + K.h + 2; };
       let tx = 0, ty = 0, n = 0;
       for (const b of G.blds) if (!b.dead && b.k === "field") { tx += b.x + 1.5; ty += b.y + 1.5; n++; }
-      if (n) { tx /= n; ty /= n; }
+      if (o.gateTo) { tx = o.gateTo[0]; ty = o.gateTo[1]; }
+      else if (n) { tx /= n; ty /= n; }
       else { let bd = 1e9; for (let i = 0; i < N; i++) if (G.map.fert[i]) { const x = i % W + 0.5, y = (i - i % W) / W + 0.5, d = (x - cx) * (x - cx) + (y - cy) * (y - cy); if (d < bd) { bd = d; tx = x; ty = y; } } }
       let best = null;
-      for (const R of [9, 8, 10, 7, 11]) {
+      for (const R of o.r || [9, 8, 10, 7, 11]) {
         const inR = new Uint8Array(N), out = { strokes: [], gate: null, gates: [], r: R };
         for (let i = 0; i < N; i++) { const dx = Math.abs(i % W + 0.5 - cx), dy = Math.abs((i - i % W) / W + 0.5 - cy); if (dx <= R - 0.5 && dy <= R - 0.5 && dx + dy <= R * 1.39) inR[i] = 1; }
         const edge = i => { const x = i % W, y = (i - x) / W; for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d]; if (!inMap(nx, ny) || !inR[idx(nx, ny)]) return true; } return false; };
@@ -62345,7 +62367,7 @@ townRegion("sim", () => { TW = (() => {
         const ringT = [], isR = new Uint8Array(N);
         for (let i = 0; i < N; i++) if (inR[i] && edge(i) && !solid(i) && legal(i)) { ringT.push(i); isR[i] = 1; }
         // closed: nothing gets from the town center to the map edge past the ring and the solid tiles
-        const reach = flood(i => !isR[i] && !solid(i) && (inR[i] || true), ringTiles(tc.x, tc.y, tc.w, tc.h));
+        const reach = flood(i => !isR[i] && !solid(i), ringTiles(K.x, K.y, K.w, K.h));
         let leak = false;
         for (let i = 0; i < N && !leak; i++) if (reach[i] && !inR[i]) leak = true;
         // gate sites: two ring tiles in a straight line, the outside on one side and the inside on the other
@@ -62779,10 +62801,535 @@ townRegion("sim", () => { TW = (() => {
     return G;
   }
 
-  const bot = { create(style, opts) { return { style, opts: opts || {}, think(G) {} }; } };   // (2c, 14.2)
+  const STYLES = ["steady", "passive", "afk", "rush1", "rush2", "greedy", "turtle", "seal"];
+  // ---- the bot (14.2): TW.bot.create(style, opts) -> { think(G) }. A bot reads G and acts only through command(),
+  // as a player would (TW here is the API object below); every choice is a function of G, so it needs no rng of its
+  // own. tools/town-bot.js and selftest check 9 drive it: think(G) before each tick ----
+  function makeBot(TW, style, opts) {
+    opts = opts || {};
+    const D = TW.DATA, W = TW.W, H = TW.H, RES = ["f", "w", "s", "g"], SEC = Math.round(1 / TW.DT);
+    const is = function () { for (let i = 0; i < arguments.length; i++) if (arguments[i] === style) return true; return false; };
+    const RATE = { f: 0.34, w: 0.27, s: 0.27, g: 0.22 };   // a gatherer's rate with its walking (measured)
+    const FL = {
+      gar: is("steady", "rush1", "rush2", "turtle"),   // trains a garrison for the next raid
+      towers: !is("greedy", "seal"),
+      alarm: !!opts.alarm,   // off by default: the alarm cost more work than it saved in every policy tried (WP2 2c)
+    };
+    const tcOf = G => G.blds.find(b => !b.dead && b.k === "tc");
+    const bOf = (G, k) => G.blds.filter(b => !b.dead && b.k === k);
+    const has = (G, k, done) => G.blds.some(b => !b.dead && b.k === k && (!done || b.done >= 1));
+    const d2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
+    const rectD = (x, y, b) => { const dx = Math.max(b.x - x, 0, x - b.x - b.w), dy = Math.max(b.y - y, 0, y - b.y - b.h); return Math.sqrt(dx * dx + dy * dy); };
+    const raiders = G => G.units.filter(u => !u.dead && u.side === 1 && !u.flee);
+    const S = { log: [], st: [], keep: null, ring: null, wsite: null, postAt: -99, alarmAt: -99, repAt: 0 };
+    const L0 = () => ({ f: 0, w: 0, s: 0, g: 0 });
 
-  return { VERSION, DT, W, H, DATA, rng, mapGen, newGame, command, apply, tick, run, drain, canPlace, cost,
+    // commands are checked against the stock when sent and paid when applied, so a think keeps its own purse
+    let purse = null, placed = false;
+    const fits = (c, p) => !!c && RES.every(r => (p || purse)[r] >= (c[r] || 0));
+    const take = c => { for (const r of RES) purse[r] -= (c && c[r]) || 0; };
+    function cmd(G, c, k) {
+      if (k && !fits(k)) return false;
+      if ((c.k === "place" || c.k === "gate") && placed) return false;
+      if (!TW.command(G, c).ok) return false;
+      if (k) take(k);
+      if (c.k === "place") placed = true;
+      return true;
+    }
+    // a tile is kept free of the bot's own buildings (the ring's line, the wonder's site)
+    const kept = (x, y, w, h) => { if (!S.keep) return false; for (let yy = y - 1; yy <= y + h; yy++) for (let xx = x - 1; xx <= x + w; xx++) if (S.keep[yy * W + xx]) return true; return false; };
+    const keepAdd = (x, y, w, h) => { S.keep = S.keep || new Uint8Array(W * H); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (xx >= 0 && yy >= 0 && xx < W && yy < H) S.keep[yy * W + xx] = 1; };
+    // the nearest legal site to a point with a free margin of a tile around the footprint (so the bot never walls
+    // in its own work), by square rings out to rmax; test(x, y) on the top-left
+    function site(G, type, px, py, rmax, test) {
+      const sz = type === "wonder" ? [5, 5] : D.BLD[type].size, occ = G.map.occ;
+      const roomy = (x, y) => {
+        if (type === "field") return true;
+        for (let yy = y - 1; yy <= y + sz[1]; yy++) for (let xx = x - 1; xx <= x + sz[0]; xx++) {
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H || (xx >= x && yy >= y && xx < x + sz[0] && yy < y + sz[1])) continue;
+          const o = occ[yy * W + xx];
+          if (o > 0) { const b = G.blds.find(q => q.id === o); if (b && b.k !== "wall" && b.k !== "gate" && b.k !== "field") return false; }
+        }
+        return true;
+      };
+      const keep = G.res;
+      G.res = { f: 1e9, w: 1e9, s: 1e9, g: 1e9 };
+      try {
+        px = Math.round(px); py = Math.round(py);
+        for (let r = 0; r <= (rmax || 16); r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = px + dx - (sz[0] >> 1), y = py + dy - (sz[1] >> 1);
+          if (kept(x, y, sz[0], sz[1]) && type !== "field") continue;
+          if (type === "field" && S.keep && kept(x + 1, y + 1, 1, 1)) continue;
+          if ((!test || test(x, y)) && TW.canPlace(G, type, x, y, 0).ok && roomy(x, y)) return [x, y];
+        }
+        return null;
+      } finally { G.res = keep; }
+    }
+    // where the raids of the age come from (the weighted zones' middle)
+    function raidSide(G) {
+      let x = 0, y = 0, s = 0;
+      for (const z in D.RAID.zones) { const w = D.RAID.zones[z][G.age - 1]; if (!w) continue; const e = G.map.entries[z], m = e[e.length >> 1]; x += m[0] * w; y += m[1] * w; s += w; }
+      return [x / s, y / s];
+    }
+    const toward = (G, p, dist) => { const tc = tcOf(G), cx = tc.x + 2, cy = tc.y + 2, dx = p[0] - cx, dy = p[1] - cy, d = Math.sqrt(dx * dx + dy * dy) || 1; return [cx + dx / d * dist, cy + dy / d * dist]; };
+    // a field: on the river soil nearest the drop sites (the town center counts less), outside the kept tiles
+    function fieldSite(G, inside) {
+      const tc = tcOf(G), drops = G.blds.filter(b => !b.dead && (b.k === "tc" || b.k === "store"));
+      let best = null, bd = 1e9;
+      const keep = G.res;
+      G.res = { f: 1e9, w: 1e9, s: 1e9, g: 1e9 };
+      for (let y = 2; y < H - 4; y++) for (let x = 2; x < W - 4; x++) {
+        if (!G.map.fert[y * W + x] || (inside && !inside(x, y))) continue;
+        let dm = 1e9;
+        for (const b of drops) dm = Math.min(dm, rectD(x + 1.5, y + 1.5, b));
+        const k = dm * dm + 0.15 * d2(x + 1.5, y + 1.5, tc.x + 2, tc.y + 2);
+        if (k < bd && !kept(x + 1, y + 1, 1, 1) && TW.canPlace(G, "field", x, y, 0).ok) { bd = k; best = [x, y]; }
+      }
+      G.res = keep;
+      return best;
+    }
+    // the middle of the fields (or the fertile land nearest the palace)
+    function fieldsMid(G) {
+      const f = bOf(G, "field");
+      if (!f.length) { const tc = tcOf(G), p = fieldSite(G); return p ? [p[0] + 1.5, p[1] + 1.5] : [tc.x + 2, tc.y - 6]; }
+      let x = 0, y = 0;
+      for (const b of f) { x += b.x + 1.5; y += b.y + 1.5; }
+      return [x / f.length, y / f.length];
+    }
+    // a storehouse beside the resource of a kind nearest the palace that is not yet beside a drop site
+    function storeBy(G, k) {
+      const tc = tcOf(G), drops = G.blds.filter(b => !b.dead && (b.k === "tc" || b.k === "store"));
+      let best = null, bd = 1e9;
+      for (const n of G.nodes) {
+        if (n.dead || n.k !== k || n.left < 60) continue;
+        if (drops.some(b => rectD(n.x + 0.5, n.y + 0.5, b) <= 4)) continue;
+        const d = d2(n.x, n.y, tc.x + 2, tc.y + 2);
+        if (d < bd) { bd = d; best = n; }
+      }
+      return best ? [best.x + 0.5, best.y + 0.5] : null;
+    }
+
+    // ---- the plan: steps in order. A main step waits for its cost; a background step (bg) is taken only from what
+    // the waiting main step does not need, so it never delays the main line ----
+    const P = [];
+    const step = (k, a) => P.push(Object.assign({ k }, a || {}));
+    const placeAt = (type, at, a) => step("place", Object.assign({ type, at }, a || {}));
+    const nearTc = (dx, dy) => G => { const tc = tcOf(G); return [tc.x + 2 + dx, tc.y + 2 + dy]; };
+    const storeTrees = G => storeBy(G, "tree") || nearTc(-6, 0)(G);
+    const storeFields = G => { const m = fieldsMid(G); return [m[0], m[1]]; };
+    const raidTower = d => G => toward(G, raidSide(G), d);
+    if (is("steady", "greedy", "seal", "rush2", "turtle")) {
+      placeAt("store", storeTrees, { rmax: 5 });
+      placeAt("barracks", G => toward(G, raidSide(G), 5));
+      placeAt("smithy", nearTc(6, 1));
+      step("tech", { id: "iron_tools" });
+      placeAt("store", storeFields, { rmax: 6, bg: 1 });
+      placeAt("store", G => storeBy(G, "stone"), { rmax: 4, bg: 1 });
+      if (FL.towers) placeAt("tower", raidTower(6));
+      if (is("turtle")) { step("ring"); placeAt("tower", raidTower(8), { bg: 1 }); placeAt("tower", G => toward(G, fieldsMid(G), 8), { bg: 1 }); step("tech", { id: "buttressed_walls", bg: 1 }); }
+      else step("advance", { to: 2 });
+      if (is("steady", "rush2")) step("ring");
+      if (is("seal")) step("seal");
+      if (!is("turtle")) {
+        placeAt("market", G => { const r = G.map.road, tc = tcOf(G); let b = r[r.length - 1], bd = 1e9; for (const p of r) { const d = Math.abs(d2(p[0], p[1], tc.x + 2, tc.y + 2) - 36); if (d < bd) { bd = d; b = p; } } return [b[0], b[1]]; }, { rmax: 6 });
+        if (is("rush2")) {
+          placeAt("temple", nearTc(-5, 3));
+          step("tech", { id: "clamped_masonry" });
+          step("wsite");
+          placeAt("tower", G => S.wsite && [S.wsite[0] + 2.5, S.wsite[1] + 6.5], { rmax: 3, bg: 1, pre: "wsite" });
+          step("wonder");
+        } else {
+          placeAt("temple", nearTc(-5, 3));
+          step("tech", { id: "land_survey", bg: 1 });
+          step("tech", { id: "coinage", bg: 1 });
+          if (FL.towers) placeAt("tower", G => toward(G, fieldsMid(G), 7), { bg: 1 });
+          if (FL.gar) placeAt("stable", nearTc(5, 6), { bg: 1 });
+          placeAt("store", G => storeBy(G, "ore"), { rmax: 4, bg: 1 });
+          step("advance", { to: 3 });
+          step("tech", { id: "stone_domes" });
+          step("tech", { id: "lime_mortar", bg: 1 });
+          step("wsite");
+          step("wonder");
+          // two towers beside the site once the wonder stands (before it, or a wall around it, cost more than they saved)
+          if (FL.towers) { placeAt("tower", G => S.wsite && [S.wsite[0] - 1.5, S.wsite[1] + 2.5], { rmax: 2, bg: 1 }); placeAt("tower", G => S.wsite && [S.wsite[0] + 6.5, S.wsite[1] + 2.5], { rmax: 2, bg: 1 }); }
+        }
+      }
+    } else if (is("rush1")) {
+      step("wsite");
+      placeAt("store", storeTrees, { rmax: 5 });
+      placeAt("temple", nearTc(-5, 3));
+      placeAt("barracks", G => toward(G, raidSide(G), 5));
+      placeAt("smithy", nearTc(6, 1));
+      step("tech", { id: "iron_tools" });
+      placeAt("store", G => storeBy(G, "stone"), { rmax: 4 });
+      placeAt("store", storeFields, { rmax: 6, bg: 1 });
+      placeAt("store", G => storeBy(G, "ore"), { rmax: 4, bg: 1 });
+      placeAt("tower", raidTower(6));
+      step("wonder");
+    }
+    const costOf = (G, s) => s.k === "place" ? TW.cost(G, s.type) : s.k === "tech" ? TW.cost(G, s.id) : s.k === "advance" ? TW.cost(G, "advance")
+      : s.k === "wonder" ? TW.cost(G, "wonder") : s.k === "ring" ? { f: 0, w: 0, s: 280, g: 0 } : s.k === "seal" ? { f: 0, w: 0, s: 600, g: 0 } : L0();
+    const stepName = s => s.k + (s.type ? ":" + s.type : s.id ? ":" + s.id : s.to ? ":" + s.to : "");
+    function done(G, s, i) {
+      const t = S.st[i];
+      if (s.k === "tech") return !!G.techs[s.id] || G.blds.some(b => !b.dead && b.rq.some(q => q.tech === s.id));
+      if (s.k === "advance") return G.age >= s.to || !!(G.aging && G.aging.to === s.to);
+      if (s.k === "wonder") return !!G.wonder || !!G.over;
+      if (s.k === "place") return !!t && G.blds.some(b => !b.dead && b.k === s.type && b.x === t.x && b.y === t.y);
+      return !!t && t.ok;
+    }
+    // a step's try: 1 sent, 0 wait, 2 cannot (skipped)
+    function tryStep(G, s, i) {
+      const tc = tcOf(G);
+      switch (s.k) {
+        case "place": {
+          if (s.pre && !S[s.pre]) return 0;
+          const p0 = s.at(G);
+          if (!p0) return 2;
+          const p = site(G, s.type, p0[0], p0[1], s.rmax);
+          if (!p) return (s.miss = (s.miss | 0) + 1) > 20 ? 2 : 0;
+          if (!cmd(G, { k: "place", type: s.type, x: p[0], y: p[1], rot: 0 }, TW.cost(G, s.type))) return 0;
+          S.st[i] = { x: p[0], y: p[1], at: G.tick };
+          return 1;
+        }
+        case "tech": {
+          const X = D.TECHS[s.id];
+          if (X.age > G.age) return 0;
+          if (!G.blds.some(b => !b.dead && b.done >= 1 && b.k === X.at)) return s.bg ? 0 : 2;
+          return cmd(G, { k: "research", tech: s.id }, TW.cost(G, s.id)) ? 1 : 0;
+        }
+        case "advance": {
+          if (G.aging) return 0;
+          for (const k of D.AGES[s.to - 1].advance.req) if (!has(G, k)) {   // a building the advance needs was lost: put it up again
+            const p = site(G, k, tc.x + 2, tc.y + 6, 10);
+            if (p) cmd(G, { k: "place", type: k, x: p[0], y: p[1], rot: 0 }, TW.cost(G, k));
+            return 0;
+          }
+          return cmd(G, { k: "advance" }, TW.cost(G, "advance")) ? 1 : 0;
+        }
+        case "ring": case "seal": {   // the seal: the widest loop the rules allow (walls 3 or more tiles from water, 4.3)
+          const R = s.k === "ring" ? TW.suggestRing(G) : TW.suggestRing(G, { r: [16, 15, 14, 13, 12, 11, 10] });
+          if (!R.gate) return 2;
+          let n = 0;
+          for (const st of R.strokes) n += st.length;
+          if (purse.s < n * D.BLD.wall.cost.s + 60) return 0;
+          for (const st of R.strokes) TW.command(G, { k: "wall", tiles: st });
+          for (const g of R.gates) TW.command(G, { k: "gate", x: g.x, y: g.y, rot: g.rot });
+          purse.s -= n * D.BLD.wall.cost.s + 30 * R.gates.length;
+          S.ring = R; S.ringN = n + 2 * R.gates.length;
+          for (const st of R.strokes) for (const [x, y] of st) keepAdd(x, y, 1, 1);
+          for (const g of R.gates) keepAdd(g.x - 1, g.y - 1, 3 + (g.rot ? 0 : 1), 3 + (g.rot ? 1 : 0));
+          S.st[i] = { ok: 1 };
+          return 1;
+        }
+        case "wsite": {
+          const Wd = D.WONDERS[(s.age || (is("rush1") ? 1 : is("rush2") ? 2 : 3)) - 1];
+          const cx = tc.x + 2, cy = tc.y + 2, rs = raidSide(G);
+          let best = null, bd = 1e9;
+          const keep = G.res; G.res = { f: 1e9, w: 1e9, s: 1e9, g: 1e9 };
+          const age = G.age; G.age = Wd.age;   // the site rules of the wonder's age
+          for (let pass = 0; pass < 2 && !best; pass++) for (let y = 3; y < H - 8; y++) for (let x = 3; x < W - 8; x++) {
+            const dd = d2(x + 2.5, y + 2.5, cx, cy), far = pass ? 18 : 15.5;
+            if (Wd.site.nearTc && dd > Wd.site.nearTc * Wd.site.nearTc) continue;
+            if (Wd.site.farFromTc && (dd < Wd.site.farFromTc * Wd.site.farFromTc || dd > far * far)) continue;
+            const ok = Wd.site.bluff ? G.map.bluffs.some(b => b.x === x && b.y === y) : true;
+            if (!ok) continue;
+            let free = true;
+            for (let yy = y; yy < y + 5 && free; yy++) for (let xx = x; xx < x + 5; xx++) { const i = yy * W + xx, o = G.map.occ[i], t = G.map.terr[i]; if (o || t === 2 || t === 3 || t === 5 || t === 6 || t === 7 || t === 9 || (t === 8) !== !!Wd.site.bluff || (G.map.wdist[i] >= 1 && G.map.wdist[i] <= 2)) { free = false; break; } }
+            if (!free || (pass ? kept(x, y, 5, 5) : kept(x - 1, y - 1, 7, 7))) continue;
+            const k = (Wd.site.nearTc ? dd : dd) - 0.25 * d2(x + 2.5, y + 2.5, rs[0], rs[1]);
+            if (k < bd) { bd = k; best = [x, y]; }
+          }
+          G.res = keep; G.age = age;
+          if (!best) return 0;
+          S.wsite = best;
+          keepAdd(best[0] - 1, best[1] - 1, 7, 7);
+          S.st[i] = { ok: 1 };
+          return 1;
+        }
+        case "wonder": {
+          if (!S.wsite) { const k = P.findIndex(q => q.k === "wsite"); if (k >= 0) tryStep(G, P[k], k); if (!S.wsite) return 0; }
+          let p = S.wsite;
+          if (!TW.canPlace(G, "wonder", p[0], p[1], 0).ok) {
+            const c = TW.canPlace(G, "wonder", p[0], p[1], 0);
+            if (c.err === "cost" || c.err === "req") return 0;
+            S.keep = null; if (S.ring) { for (const st of S.ring.strokes) for (const [x, y] of st) keepAdd(x, y, 1, 1); }
+            S.wsite = null; const k = P.findIndex(q => q.k === "wsite"); if (k >= 0) tryStep(G, P[k], k);
+            return 0;
+          }
+          placed = false;
+          return cmd(G, { k: "place", type: "wonder", x: p[0], y: p[1], rot: 0 }, TW.cost(G, "wonder")) ? 1 : 0;
+        }
+      }
+      return 2;
+    }
+    // the plan's think: the first main step not done, and the background steps before the next main one beyond it
+    function runPlan(G) {
+      let main = -1, reserve = L0();
+      for (let i = 0; i < P.length; i++) {
+        const s = P[i];
+        if (S.st[i] === "x" || S.st[i] === "done") continue;
+        if (done(G, s, i)) { S.st[i] = "done"; S.log.push([Math.round(G.tick / SEC), stepName(s)]); continue; }
+        if (S.st[i] && S.st[i].at && G.tick - S.st[i].at < 4 * SEC) { if (!s.bg && main < 0) main = i; continue; }   // sent: wait for it
+        if (s.bg) {
+          if (main >= 0) {   // only from what the main step does not need
+            const c = costOf(G, s), spare = {};
+            for (const r of RES) spare[r] = purse[r] - reserve[r];
+            if (!fits(c, spare)) continue;
+          }
+          const r = tryStep(G, s, i);
+          if (r === 2) { S.st[i] = "x"; S.log.push([Math.round(G.tick / SEC), stepName(s) + "/skip"]); }
+          continue;
+        }
+        if (main >= 0) break;
+        main = i;
+        const c = costOf(G, s);
+        const r = fits(c) ? tryStep(G, s, i) : 0;
+        if (r === 2) { S.st[i] = "x"; S.log.push([Math.round(G.tick / SEC), stepName(s) + "/skip"]); main = -1; continue; }
+        if (r === 0) for (const k of RES) reserve[k] = Math.min(purse[k], c[k] || 0);
+      }
+      S.main = main;
+    }
+
+    // ---- labor (3.8): workers in proportion to what the next goals still need, in gathering time, plus the steady
+    // drain of villager training and houses; one or two dock moves a think ----
+    function needs(G) {
+      const near = L0(), far = L0();
+      let n = 0;
+      for (let i = 0; i < P.length && n < 3; i++) {
+        const s = P[i];
+        if (S.st[i] === "x" || S.st[i] === "done" || done(G, s, i)) continue;
+        const c = costOf(G, s);
+        if (!c) continue;
+        const w = s.bg ? 0.6 : 1;
+        for (const r of RES) near[r] += (c[r] || 0) * w;
+        if (!s.bg) n++;
+      }
+      // what lies beyond: the age's wonder (stockpile stone and goods ahead of it)
+      const wa = is("rush1") ? 1 : is("rush2") ? 2 : 3;
+      if (!G.wonder && !is("passive", "turtle") && G.age >= wa - 1) { const c = D.WONDERS[wa - 1].cost, k = G.age === wa ? 1 : 0.5; for (const r of RES) far[r] += (c[r] || 0) * k; }
+      return { near, far };
+    }
+    // two tiers: first the gatherers the drains need (training, houses, fields), then the rest by the deficits of
+    // the next steps, and a part of the stockpile beyond them
+    function labor(G, N) {
+      const cnt = L0(), near = N.near, far = N.far;
+      let V = 0, idle = 0;
+      for (const u of G.units) {
+        if (u.dead || u.k !== "vil") continue;
+        let t = u.task;
+        if (t && t.t === "shelter") t = t.ret;
+        if (!t) { idle++; V++; continue; }
+        if (t.t === "gather" || t.t === "farm") { cnt[t.res]++; V++; }
+      }
+      const tc = tcOf(G), Lb = TW.labor(G), grow = tc && tc.auto && (G.popCap - Lb.pop > 0 || G.blds.some(b => !b.dead && b.k === "house" && b.done < 1));
+      const drain = { f: grow ? D.UNITS.vil.cost.f / D.UNITS.vil.train : 0, w: grow ? 0.2 : 0.05, s: grow ? 0.27 : 0.05, g: 0 };
+      if (grow) drain.w += 0.4 * D.BLD.field.cost.w / D.UNITS.vil.train;
+      if (FL.gar) { const gw = Math.min(16, 3 + Math.floor(nextPts(G) / 3)) - G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil").length; if (gw > 0) { near.f += gw * 45; near.g += gw * 8; near.w += gw * 6; } }
+      if (S.room && S.want && S.want.f > S.room.f - 1) near.w += 25 * Math.min(3, S.want.f - S.room.f + 1);
+      // the room each kind has (a node takes 2, a flock 3, an orchard tree, a field and a grove 1), so no one is sent
+      // where there is no work; what a capped kind cannot take goes to the others
+      const room = L0(), KR = { tree: "w", stone: "s", ore: "g", flock: "f", orchard: "f", dye: "g" };
+      for (const n of G.nodes) if (!n.dead && n.left > 15 && (n.k !== "dye" || G.techs.vordan_karmir)) room[KR[n.k]] += n.k === "flock" ? 3 : n.k === "orchard" || n.k === "dye" ? 1 : 2;
+      for (const b of G.blds) if (!b.dead && b.done >= 1 && (b.k === "field" || b.k === "grove")) room[b.k === "field" ? "f" : "w"]++;
+      const want = L0(), dem = L0(), fw = 0.35;
+      let sd = 0;
+      for (const r of RES) { want[r] = drain[r] / RATE[r]; sd += want[r]; }
+      if (sd > V) for (const r of RES) want[r] *= V / sd;
+      const Vr = Math.max(0, V - Math.min(sd, V));
+      let s2 = 0;
+      for (const r of RES) { const nd = Math.max(0, near[r] - G.res[r]); dem[r] = (nd + fw * Math.max(0, far[r] - Math.max(0, G.res[r] - near[r]))) / RATE[r]; if (room[r] > 0) s2 += dem[r]; }
+      for (const r of RES) want[r] += s2 > 0 ? (room[r] > 0 ? Vr * dem[r] / s2 : 0) : Vr / 4;
+      const fd = want.f;
+      // caps by room, the excess shared out among the kinds with room left
+      for (let it = 0; it < 4; it++) {
+        let ex = 0, base = 0;
+        for (const r of RES) if (want[r] > room[r]) { ex += want[r] - room[r]; want[r] = room[r]; }
+        if (ex < 1e-6) break;
+        for (const r of RES) if (want[r] < room[r]) base += want[r] + 0.01;
+        if (base <= 0) break;
+        for (const r of RES) if (want[r] < room[r]) want[r] += ex * (want[r] + 0.01) / base;
+      }
+      if (room.f) want.f = Math.max(want.f, Math.min(4, V * 0.2, room.f));
+      if (room.w) want.w = Math.max(want.w, Math.min(2, room.w));
+      S.want = want; S.room = room; S.dem = { f: fd };
+      // idle first, to the largest gap
+      const gap = r => want[r] - cnt[r];
+      for (let k = 0; k < Math.min(idle, 6); k++) {
+        for (const r of RES.slice().sort((a, b) => gap(b) - gap(a))) if (room[r] > cnt[r] && TW.command(G, { k: "labor", res: r, delta: 1 }).ok) { cnt[r]++; break; }
+      }
+      for (let m = 0; m < 2; m++) {
+        const o = RES.slice().sort((a, b) => gap(b) - gap(a)), hi = o[0], lo = o[3];
+        if (gap(hi) < 0.9 || gap(lo) > -0.9 || cnt[lo] <= 0) break;
+        const L = TW.labor(G);
+        if (!L[lo]) break;
+        TW.command(G, { k: "labor", res: lo, delta: -1 });
+        TW.command(G, { k: "labor", res: hi, delta: 1 });
+        cnt[lo]--; cnt[hi]++;
+      }
+      return cnt;
+    }
+    // food room: herders on the flocks and orchards, a farmer a field; a field more while the food workers wanted
+    // exceed it
+    function fields(G, cnt, inside) {
+      let room = 0;
+      for (const n of G.nodes) if (!n.dead && n.left > 25 && (n.k === "flock" || n.k === "orchard")) room += n.k === "flock" ? 3 : 1;
+      const fl = bOf(G, "field");
+      room += fl.length;
+      // short of wood, or raiders about (they would burn it again): a field only when two farmers wait
+    const want = Math.max(cnt.f, (S.want && S.dem ? S.dem.f : 0)), thrift = treeWood(G) < 1300 || raiders(G).length ? 1 : 0;
+      if (want + 1 - thrift > room && !fl.some(b => b.done < 1) && fits(TW.cost(G, "field"))) {
+        const p = fieldSite(G, inside);
+        if (p) cmd(G, { k: "place", type: "field", x: p[0], y: p[1], rot: 0 }, TW.cost(G, "field"));
+      }
+    }
+    // a storehouse among the fields: once three fields stand more than 5 tiles from every drop site, one beside
+    // them (a drop site for the farmers and a shelter at hand when riders come)
+    function fieldStores(G) {
+      if (G.blds.some(b => !b.dead && b.k === "store" && b.done < 1) || bOf(G, "store").length >= 8 || treeWood(G) < 1500) return;
+      const drops = G.blds.filter(b => !b.dead && (b.k === "tc" || b.k === "store")), far = [];
+      for (const f of bOf(G, "field")) if (!drops.some(b => rectD(f.x + 1.5, f.y + 1.5, b) <= 5)) far.push(f);
+      if (far.length < 3) return;
+      const c = TW.cost(G, "store");
+      if (!fits(c)) return;
+      let best = null, bn = 0;
+      for (const f of far) { const n = far.filter(g => d2(g.x, g.y, f.x, f.y) <= 36).length; if (n > bn) { bn = n; best = f; } }
+      const p = site(G, "store", best.x + 1.5, best.y + 1.5, 5);
+      if (p) cmd(G, { k: "place", type: "store", x: p[0], y: p[1], rot: 0 }, c);
+    }
+    const treeWood = G => { let n = 0; for (const t of G.nodes) if (!t.dead && t.k === "tree") n += t.left; return n; };
+    function houses(G) {
+      const tc = tcOf(G), L = TW.labor(G);
+      if (G.popCap >= D.POP.max || G.popCap - L.pop > 2 + Math.floor(L.pop / 12) || G.blds.some(b => !b.dead && b.k === "house" && b.done < 1)) return;
+      const c = TW.cost(G, "house");
+      if (!fits(c)) return;
+      const p = site(G, "house", tc.x + 2, tc.y + 2, 9, (x, y) => d2(x + 1, y + 1, tc.x + 2, tc.y + 2) <= 7.5 * 7.5) || site(G, "house", tc.x + 2, tc.y + 2, 12);
+      if (p) cmd(G, { k: "place", type: "house", x: p[0], y: p[1], rot: 0 }, c);
+    }
+    function upkeep(G) {
+      // a foundation nobody builds gets its builders again; the wonder all it may take
+      if (G.tick % (10 * SEC) === 3) for (const b of G.blds) if (!b.dead && b.done < 1 && !b.builders.length && b.k !== "wall") TW.command(G, { k: "builders", bld: b.id, n: b.k === "wonder" ? 14 : b.k === "gate" ? 1 : 2 });
+      if (G.wonder) { const w = G.blds.find(b => b.id === G.wonder), mx = D.WONDERS[G.age - 1].maxBuilders; if (w && w.builders.length < mx) TW.command(G, { k: "builders", bld: w.id, n: mx }); }
+      // repairs once the raiders are gone: two workers to the most damaged building (every wall for the seal)
+      if (!raiders(G).length && G.tick - S.repAt > 5 * SEC) {
+        S.repAt = G.tick;
+        const b = G.blds.filter(q => !q.dead && q.done >= 1 && q.k !== "wonder" && q.k !== "field" && q.hp < q.hpMax * (is("seal") ? 0.9 : 0.7) && !q.builders.length)
+          .sort((a, c) => a.hp / a.hpMax - c.hp / c.hpMax || a.id - c.id)[0];
+        if (b) {
+          const vs = G.units.filter(u => !u.dead && u.k === "vil" && u.task && (u.task.t === "gather" || u.task.t === "farm")).sort((a, c) => d2(a.x, a.y, b.x, b.y) - d2(c.x, c.y, b.x, b.y) || a.id - c.id).slice(0, 2);
+          if (vs.length) TW.command(G, { k: "task", ids: vs.map(u => u.id), target: b.id });
+        }
+      }
+    }
+    // the market: when the main step waits on goods only and another stock is well over what is needed, sell it;
+    // when it waits on stone or wood and goods are spare, buy
+    function trade(G, need) {
+      if (!has(G, "market", true) || S.main < 0) return;
+      const c = costOf(G, P[S.main]), short = RES.filter(r => purse[r] < (c[r] || 0));
+      if (short.length !== 1) return;
+      const r = short[0];
+      if (r === "g") {
+        const o = ["f", "w", "s"].filter(k => purse[k] - Math.max(need[k] || 0, c[k] || 0) >= 250).sort((a, b) => purse[b] - purse[a])[0];
+        if (o && TW.command(G, { k: "trade", op: "sell", res: o }).ok) purse[o] -= 100;
+      } else if (purse.g - Math.max(need.g || 0, c.g || 0) >= 150 && TW.command(G, { k: "trade", op: "buy", res: r }).ok) purse.g -= 100;
+    }
+
+    // ---- the garrison and the defense (6.3) ----
+    function nextPts(G) {
+      const ri = TW.raidInfo(G);
+      if (ri.warn.length) return Math.max.apply(null, ri.warn.map(w => w.pts));
+      const Df = D.DIFFS[G.diff], m = ri.nextSpawn * TW.DT / 60, a = G.age - 1;
+      let p = Math.round(Df.mult * (D.RAID.A[a] + D.RAID.B[a] * m));
+      if (G.wonder) p = Math.round(p * Df.wonderMult);
+      return p;
+    }
+    function garrison(G) {
+      const gar = G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil"), want = Math.min(16, 3 + Math.floor(nextPts(G) / 3));
+      if (gar.length >= want || G.popCap - TW.labor(G).pop <= 0) return;
+      const n = k => gar.filter(u => u.k === k).length;
+      const stable = G.age >= 2 && has(G, "stable", true);
+      const k = n("spear") * 2 < want ? "spear" : n("bow") * 3 < want ? "bow" : stable ? "horse" : "spear";
+      const at = G.blds.filter(b => !b.dead && b.done >= 1 && b.k === (k === "horse" ? "stable" : "barracks")).sort((a, b) => a.q.length - b.q.length || a.id - b.id)[0];
+      if (at && at.q.length < 2) cmd(G, { k: "train", bld: at.id, unit: k, n: 1 }, TW.cost(G, k));
+    }
+    function defend(G) {
+      const ri = TW.raidInfo(G), tc = tcOf(G), cx = tc.x + 2, cy = tc.y + 2, Rd = raiders(G);
+      const gar = G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil");
+      // the post: the raiders' middle while they are near the town or its fields, else the gate (or the way) facing
+      // the warned raid, else home
+      const mine = G.blds.filter(b => !b.dead && b.k !== "wall" && b.k !== "gate");
+      const near = Rd.filter(u => mine.some(b => rectD(u.x, u.y, b) <= 8));
+      let p = null;
+      if (near.length) { let x = 0, y = 0; for (const u of near) { x += u.x; y += u.y; } p = [x / near.length, y / near.length]; }
+      else if (ri.warn.length || Rd.length) {
+        const z = ri.warn.length ? ri.warn[0].zones[0] : null, e = z ? G.map.entries[z] : null, m = e ? e[e.length >> 1] : Rd.length ? [Rd[0].x, Rd[0].y] : null;
+        if (m) {
+          p = toward(G, m, 5);
+          if (S.ring && S.ring.gates.length) { const g = S.ring.gates.slice().sort((a, b) => d2(a.x, a.y, m[0], m[1]) - d2(b.x, b.y, m[0], m[1]))[0]; p = [g.x + (g.rot ? 0 : 0.5), g.y + (g.rot ? 0.5 : 0)]; }
+        }
+      } else p = [cx, cy + 3];
+      if (p && G.tick - S.postAt >= 3 * SEC) {
+        p = [Math.max(0, Math.min(W - 1, Math.round(p[0]))), Math.max(0, Math.min(H - 1, Math.round(p[1])))];
+        if (p[0] !== G.post.x || p[1] !== G.post.y) TW.command(G, { k: "post", x: p[0], y: p[1], hold: false });
+        S.postAt = G.tick;
+      }
+      if (!FL.alarm) return;
+      // the alarm (one tap) when a raid larger than the garrison nears a villager at work; all clear once none is near
+      const vil = G.units.filter(u => !u.dead && u.k === "vil" && !u.shel);
+      const close = Rd.filter(r => vil.some(v => Math.abs(v.x - r.x) < 14 && Math.abs(v.y - r.y) < 14));
+      if (!G.alarm.on && close.length > gar.length) { if (TW.command(G, { k: "alarm", on: true, all: false }).ok) S.alarmAt = G.tick; }
+      else if (G.alarm.on && G.tick - S.alarmAt > 8 * SEC && !close.length) TW.command(G, { k: "alarm", on: false, all: false });
+    }
+
+    // ---- the styles ----
+    function think(G) {
+      if (G.over || G.tick % SEC !== 3) return;
+      purse = Object.assign({}, G.res); placed = false;
+      if (style === "afk") return;
+      const tc = tcOf(G);
+      if (!tc) return;
+      const gar = G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil").length, vil = G.units.filter(u => !u.dead && u.k === "vil").length;
+      // villagers while the town has room for them beside the garrison it wants (none once the wonder stands: they
+      // would not pay back). Pausing them for an age's food, or for the garrison, cost more than it saved (WP2 2c)
+      const gw = Math.min(16, 3 + Math.floor(nextPts(G) / 3)), on = vil < D.POP.max - (FL.gar ? gw : gar) && !G.wonder;
+      if (tc.auto !== on) TW.command(G, { k: "auto", bld: tc.id, on });
+      if (P[0] && P[0].k === "wsite" && !S.wsite) tryStep(G, P[0], 0);   // the rush styles keep their site free from the start
+      houses(G);
+      if (style === "passive") {
+        const L = TW.labor(G);
+        fields(G, { f: L.f });
+        if (L.idle) TW.command(G, { k: "labor", res: L.f <= L.w * 1.5 ? "f" : "w", delta: 1 });
+        return;
+      }
+      if (FL.gar) garrison(G);
+      runPlan(G);
+      const need = needs(G);
+      const cnt = labor(G, need);
+      fields(G, cnt, is("seal") && S.ring ? (x, y) => inRing(G, x + 1, y + 1) : null);
+      fieldStores(G);
+      trade(G, need.near);
+      upkeep(G);
+      defend(G);
+    }
+    // inside the bot's ring (the seal's), by a flood from the palace
+    function inRing(G, x, y) {
+      if (!S.inside || S.insideAt !== S.ringN) {
+        const tc = tcOf(G), m = new Uint8Array(W * H), q = [];
+        const wall = i => S.keep[i] || (G.map.occ[i] > 0 && G.blds.some(b => b.id === G.map.occ[i] && (b.k === "wall" || b.k === "gate")));
+        q.push((tc.y + 2) * W + tc.x + 2); m[q[0]] = 1;
+        while (q.length) { const i = q.pop(), x0 = i % W, y0 = (i - x0) / W; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x0 + dx, ny = y0 + dy, j = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || m[j] || wall(j)) continue; m[j] = 1; q.push(j); } }
+        S.inside = m; S.insideAt = S.ringN;
+      }
+      return !!S.inside[y * W + x];
+    }
+    return { style, S, plan: P, think };
+  }
+  const bot = { styles: STYLES, create(style, opts) { if (STYLES.indexOf(style) < 0) throw new Error("bot style " + style); return makeBot(API, style, opts); } };
+
+  const API = { VERSION, DT, W, H, DATA, rng, mapGen, newGame, command, apply, tick, run, drain, canPlace, cost,
            afford, labor, next, suggestRing, at, raidInfo, save, load, hash, stage, bot };
+  return API;
 })(); });
 // ==== TOWN SIM END ====
 
@@ -63884,8 +64431,7 @@ function townSelftest(check, res) {
   });
 
   // -- WP2 checks (2 to 9) --
-  // 2 (map), 3 (rules), 4 (ages), 5 (walls), 6 (raids), 7 (wonder), 8 (save). Each runs on TW alone. (9, the bot,
-  // comes with 2c: the bot is tools/town-bot.js for now.)
+  // 2 (map), 3 (rules), 4 (ages), 5 (walls), 6 (raids), 7 (wonder), 8 (save), 9 (the bot). Each runs on TW alone.
   {
     const S = 64, SEED = 20261025, DT = TW.DT;
     const fail = m => { throw new Error(m); };
@@ -64089,16 +64635,17 @@ function townSelftest(check, res) {
       until(G, () => b3.hp >= b3.hpMax, 600);
       const paidS = s0 - G.res.s, paidW = w0 - G.res.w + 0;
       if (b3.hp !== b3.hpMax || paidS < 4 || paidS > 6) fail("repairing 175 HP of 350 did not cost about 5 stone: " + paidS + " " + paidW);
-      // training: 15 s for a villager; the palace trains and researches at once; the population cap stops it
+      // training: a villager in its DATA time; the palace trains and researches at once; the population cap stops it
       const G2 = TW.newGame({ seed: SEED, diff: 1 }), tc2 = tcOf(G2);
       G2.res = { f: 2000, w: 2000, s: 2000, g: 2000 };
       cmd(G2, { k: "auto", bld: tc2.id, on: false });
       cmd(G2, { k: "train", bld: tc2.id, unit: "vil", n: 1 });
       cmd(G2, { k: "research", tech: "royal_canals" });
       const v0 = vils(G2).length, nT = until(G2, () => vils(G2).length > v0, 400);
-      if (nT !== 150) fail("a villager took " + nT + " ticks, not 150");
-      if (!tc2.rq.length || tc2.rq[0].left !== 400 - 150) fail("the palace's research waited for its training");
-      ticks(G2, 250);
+      const vT = Math.round(TW.DATA.UNITS.vil.train / DT);
+      if (nT !== vT) fail("a villager took " + nT + " ticks, not " + vT);
+      if (!tc2.rq.length || tc2.rq[0].left !== 400 - vT) fail("the palace's research waited for its training");
+      ticks(G2, 400 - vT);
       if (!G2.techs.royal_canals || G2.map.canals !== true || !G2.map.terr.some(t => t === 7)) fail("Royal Canals did not open the canals");
       // the cap: 10, all used (6 villagers, 3 soldiers, 1 trained)
       cmd(G2, { k: "train", bld: tc2.id, unit: "vil", n: 2 });
@@ -64352,8 +64899,9 @@ function townSelftest(check, res) {
           G.age = age;
           G.tick = want - 1; ticks(G, 35);
           const ks = R(G).map(u => u.k).sort().join(), pts = Math.round(Df.mult * at(want, age));
-          const comp = age === 1 ? (pts < 5 ? Array(pts).fill("etR") : Array(Math.floor((pts + 1) * 0.45 / 2)).fill("etS").concat(Array(pts - 2 * Math.floor((pts + 1) * 0.45 / 2)).fill("etR")))
-            : Array(Math.floor(pts * 0.25 / 2)).fill("alC").concat(Array(Math.ceil((pts - 2 * Math.floor(pts * 0.25 / 2)) / 2)).fill("alH"));
+          const M = TW.DATA.RAID.mix, hv = Math.floor((pts + 1) * M[0].heavyShare / 2), cd = Math.floor(pts * M[1].cordShare / 2);
+          const comp = age === 1 ? (pts < M[0].from ? Array(pts).fill("etR") : Array(hv).fill("etS").concat(Array(pts - 2 * hv).fill("etR")))
+            : Array(cd).fill("alC").concat(Array(Math.ceil((pts - 2 * cd) / 2)).fill("alH"));
           if (ks !== comp.sort().join()) fail(Df.name + " raid " + (k + 1) + " at " + want / 10 + " s: " + ks + ", not " + pts + " points (" + comp.join() + ")");
           got.push(want / 10 + ":" + pts);
           for (const u of R(G)) u.dead = true;
@@ -64423,7 +64971,7 @@ function townSelftest(check, res) {
     // 7: wonders (7), win and loss (8.1)
     check("town wonder", () => {
       // site rules per age, builder caps
-      const caps = [12, 12, 14];
+      const caps = TW.DATA.WONDERS.map(w => w.maxBuilders);
       for (let a = 1; a <= 3; a++) {
         const G = TW.stage("wonder" + a), w = G.blds.find(b => b.k === "wonder"), tc = tcOf(G);
         const ok = (x, y) => TW.canPlace(G, "wonder", x, y, 0).err;
@@ -64531,6 +65079,40 @@ function townSelftest(check, res) {
       // a reference to something that is gone is cleared, not fatal (13.9)
       const gone = dam(o => { o.blds.forEach(b => { b[11] = b[11].concat([o.nextId + 5]); }); });
       if (!gone || gone.blds.some(b => b.builders.indexOf(gone.nextId + 5) >= 0)) fail("a builder that is gone was not cleared on load");
+    });
+
+    // 9: the bot (14.2): steady on Normal wins with 3 stars in 15:00 to 20:00 and loses at most 2 villagers to any
+    // raid (each death put to the raid whose kill count rose in that tick); passive loses before 25:00; afk keeps
+    // at least half its villagers through raid 1
+    check("town bot", () => {
+      const play = (style, stopAt, each) => {
+        const G = TW.newGame({ seed: SEED, diff: 1 }), bot = TW.bot.create(style, { seed: SEED });
+        while (!G.over && G.tick < stopAt) {
+          bot.think(G);
+          const kl = new Map(G.raids.map(r => [r.id, r.kl | 0]));
+          TW.tick(G);
+          if (each && each(G, TW.drain(G), kl) === false) break;
+        }
+        return G;
+      };
+      const lost = new Map();
+      const st = play("steady", 20 * 600 + 1, (G, ev, kl) => {
+        const up = [];
+        for (const r of G.raids) for (let k = kl.get(r.id) || 0; k < (r.kl | 0); k++) up.push(r.id);
+        for (const e of ev) if (e.e === "fell" && e.k === "vil") { const id = up.shift() || 0; lost.set(id, (lost.get(id) || 0) + 1); }
+      });
+      if (!st.over || !st.over.win || st.over.stars !== 3 || st.over.tick < 15 * 600 || st.over.tick > 20 * 600) fail("steady on Normal: " + JSON.stringify(st.over) + " at tick " + st.tick + ", not a 3-star win in 15:00 to 20:00");
+      for (const [id, n] of lost) if (n > 2) fail("steady on Normal lost " + n + " villagers to raid " + id);
+      const pa = play("passive", 25 * 600);
+      if (!pa.over || pa.over.win) fail("passive on Normal did not lose before 25:00");
+      let r1 = 0, v1 = 0, vEnd = -1;
+      play("afk", 10 * 600, (G, ev) => {
+        for (const e of ev) {
+          if (e.e === "raidSpawn" && !r1) { r1 = e.raid; v1 = vils(G).length; }
+          if (r1 && e.raid === r1 && (e.e === "raidRepelled" || e.e === "raidPlunder" || e.e === "raidLeft")) { vEnd = vils(G).length; return false; }
+        }
+      });
+      if (!r1 || vEnd < 0 || vEnd * 2 < v1) fail("afk on Normal kept " + vEnd + " of " + v1 + " villagers through raid 1");
     });
   }
   // -- WP3 checks (12) --
