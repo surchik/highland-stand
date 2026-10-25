@@ -1354,6 +1354,148 @@
   }
   #overlay #nardiBtn .ic { width: 24px; height: 24px; vertical-align: 0; }
   #overlay.brief #nardiBtn, #overlay.victory #nardiBtn { display: none; }
+  /* ---------- town ---------- */
+  /* Under Ararat, the town builder: a room of its own over the menu pages (z 38, as Nardi's), the map on a canvas
+     under a DOM HUD, and the cards. Everything is scoped under #town or #overlay #townBtn (WP4 owns this block;
+     WP1-A's stub). The layout follows the root's own size: JS sets .twTall (portrait), .twCompact (under 1100 px)
+     and --twTop (the top bar's height) */
+  #town {
+    position: fixed; inset: 0; z-index: 38; overflow: hidden; background: var(--walnut-deep); color: var(--parch);
+    font-family: var(--face); touch-action: none; -webkit-user-select: none; user-select: none; --twTop: 56px;
+  }
+  #town.twHidden { display: none; }
+  #town:focus { outline: none; }
+  #town .twSr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #town #twMap { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+  #town button { font-family: var(--face); cursor: pointer; }
+  #town button:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  #town:not(.twKeys) button:focus-visible { outline: none; }
+  #town .ic { width: 22px; height: 22px; flex: none; }
+  /* the top bar: age badge, resources, population, raid chip; speed, pause and leave at the right */
+  #town .twTop {
+    position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;
+    min-height: 56px; padding: calc(6px + var(--sat)) calc(10px + var(--sar)) 6px calc(10px + var(--sal));
+    background: linear-gradient(180deg, rgba(23,16,10,.94), rgba(23,16,10,.78)); box-shadow: 0 2px 10px rgba(0,0,0,.5);
+  }
+  #town .twRes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #town .twGrow { flex: 1 1 0; }
+  #town .twStat, #town .twChip, #town .twAge {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 22px;
+    font-size: 15px; font-weight: 700; color: #fff3d6; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums;
+    background: linear-gradient(180deg, #17100a, #2a1f15); border: 2px solid var(--bronze-sh);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.4), inset 0 3px 6px rgba(0,0,0,.6);
+  }
+  #town .twStat { min-width: 92px; }
+  #town .twStat b { min-width: 2.6em; text-align: right; }
+  #town .twAge { min-width: 150px; justify-content: center; letter-spacing: .4px; }
+  #town .twChip { min-width: 112px; color: var(--parch-dk); }
+  #town .twPop.warn b { color: #f2c14e; }
+  #town .twPop.full b { color: #ff8a7a; }
+  #town .twRound {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; padding: 0 0 2px;
+    font-size: 20px; font-weight: 700; line-height: 1; color: #f6dc9a;
+    border: 2px solid var(--bronze-sh); background: radial-gradient(circle at 36% 30%, #6a4a28, #3a2814 62%, #1f150b);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.55), 0 2px 6px rgba(0,0,0,.5);
+  }
+  #town .twRound:disabled { filter: saturate(.3) brightness(.6); cursor: default; }
+  #town .twRound .ic { width: 20px; height: 20px; }
+  /* the Next line under the age badge, the call line in the middle */
+  #town .twNext {
+    position: absolute; z-index: 2; left: calc(10px + var(--sal)); top: calc(var(--twTop) + 8px); max-width: 320px; min-height: 44px;
+    padding: 4px 14px; border-radius: 8px; text-align: left; font-size: 15px; font-weight: 700; color: var(--ink);
+    border: 2px solid var(--bronze); background: linear-gradient(160deg, #f3e6c2, var(--parch) 60%, var(--parch-dk));
+    box-shadow: 0 2px 8px rgba(0,0,0,.5);
+  }
+  #town .twNext:empty { display: none; }
+  #town .twCall {
+    position: absolute; z-index: 2; left: 50%; top: calc(var(--twTop) + 8px); transform: translateX(-50%); max-width: min(520px, 46vw);
+    padding: 8px 18px; border-radius: 10px; text-align: center; font-size: 16px; font-style: italic; color: #fff3c6;
+    background: rgba(20,12,6,.78); box-shadow: 0 2px 8px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  #town .twCall.on { opacity: 1; }
+  /* the minimap, the zoom buttons under it (beside it in portrait) */
+  #town #twMini {
+    position: absolute; z-index: 2; right: calc(10px + var(--sar)); top: calc(var(--twTop) + 8px); width: 176px; height: 132px;
+    border: 2px solid var(--bronze-sh); border-radius: 6px; background: #1c140d; box-shadow: 0 2px 10px rgba(0,0,0,.6); touch-action: none;
+  }
+  #town .twZoom { position: absolute; z-index: 2; right: calc(10px + var(--sar)); top: calc(var(--twTop) + 152px); display: flex; flex-direction: column; gap: 10px; }
+  /* portrait: the age badge, the raid chip and the three round buttons on the first row, the counters on the second */
+  #town.twTall .twAge { order: 0; } #town.twTall .twChip { order: 1; } #town.twTall .twGrow { order: 2; }
+  #town.twTall .twRound { order: 3; } #town.twTall .twRes { order: 4; flex-basis: 100%; }
+  #town.twTall #twMini { width: 150px; height: 112px; }
+  #town.twTall .twZoom { top: calc(var(--twTop) + 8px); right: calc(172px + var(--sar)); }
+  #town.twTall .twCall { top: calc(var(--twTop) + 60px); }
+  #town.twCompact .twStat { min-width: 80px; padding: 0 9px; }
+  #town.twCompact .twAge { min-width: 120px; }
+  /* plan while paused: a banner over the map */
+  #town .twPlan {
+    position: absolute; z-index: 4; left: 50%; bottom: calc(18px + var(--sab)); transform: translateX(-50%); display: none;
+    align-items: center; gap: 14px; padding: 8px 10px 8px 18px; border-radius: 12px; font-size: 16px; color: var(--ink);
+    background: linear-gradient(160deg, #f3e6c2, var(--parch)); box-shadow: 0 0 0 2px var(--crimson), 0 4px 16px rgba(0,0,0,.6);
+  }
+  #town.twPlanning .twPlan { display: flex; }
+  #town.twNoUi .twTop, #town.twNoUi .twNext, #town.twNoUi .twCall, #town.twNoUi #twMini, #town.twNoUi .twZoom, #town.twNoUi .twPlan { display: none; }
+  /* buttons, as Nardi's */
+  #town .twBtn {
+    min-height: 44px; min-width: 104px; padding: 0 20px; border-radius: 9px; font-size: 16.5px; font-weight: 700; letter-spacing: .3px;
+    color: var(--parch); border: 2px solid var(--bronze); background: linear-gradient(180deg, #5a4630, #3a2b1b 55%, #241a11);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.3), inset 0 -3px 0 rgba(0,0,0,.3), 0 0 0 1px var(--bronze-sh), 0 4px 12px rgba(0,0,0,.5);
+    text-shadow: 0 1px 0 rgba(0,0,0,.8);
+  }
+  #town .twBtn.primary {
+    color: #fff3d6; border-color: var(--bronze-hi); background: linear-gradient(180deg, #d5503f, var(--crimson) 50%, #7d211b);
+    box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 6px 16px rgba(0,0,0,.55);
+    text-shadow: 0 1px 0 rgba(70,12,6,.9);
+  }
+  #town button:hover:not(:disabled) { filter: brightness(1.12); }
+  /* the cards: a parchment leaf over a dim scrim, framed in crimson and bronze */
+  #town .twCardWrap { position: absolute; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center;
+    padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal)); background: rgba(14,9,4,.6); }
+  #town .twCardWrap.on { display: flex; }
+  #town .twCard {
+    position: relative; width: min(620px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    padding: 24px 30px 20px; color: var(--ink); text-align: left; border-radius: 3px; font-size: 17px; line-height: 1.5;
+    -webkit-user-select: text; user-select: text;
+    background: radial-gradient(ellipse at 16% 10%, rgba(255,251,230,.6), transparent 44%), radial-gradient(ellipse at 84% 90%, rgba(150,108,50,.3), transparent 46%),
+      linear-gradient(160deg, #f3e6c2, var(--parch) 45%, #dcc894 80%, var(--parch-dk));
+    box-shadow: 0 0 0 1px #8a6a36, 0 0 0 4px var(--crimson), 0 0 0 5px var(--bronze), 0 20px 54px rgba(0,0,0,.7), inset 0 0 40px rgba(120,82,30,.35);
+  }
+  #town .twCard h2 { font-size: 26px; line-height: 1.15; margin: 2px 0 10px; color: #4a2410; letter-spacing: .3px; }
+  #town .twCard p { margin: 0 0 10px; }
+  #town .twKick { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--crimson); }
+  #town .twSmall { font-size: 14.5px; font-style: italic; color: #5a4222; }
+  #town .twTownName { margin-top: -6px; font-size: 18px; font-weight: 700; color: #6a4a22; }
+  #town .twHy { font-family: var(--hy-face); font-size: 21px; color: #6a4a22; }
+  #town .twBless { padding: 8px 12px; border-left: 3px solid var(--crimson); background: rgba(255,248,222,.5); }
+  #town .twStars { margin: 0 0 4px; display: flex; gap: 6px; }
+  #town .twStars .ic { width: 34px; height: 34px; }
+  #town .twBody { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #town .twBtns { flex: none; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
+  #town .twSeg { display: inline-flex; align-self: flex-start; margin: 4px 8px 8px 0; border: 2px solid var(--bronze-sh); border-radius: 23px; overflow: hidden; }
+  #town .twSeg button { min-height: 44px; padding: 0 15px; border: 0; font-size: 15px; font-weight: 700; color: var(--parch-dk); background: linear-gradient(180deg, #2a1f15, #17100a); }
+  #town .twSeg button + button { border-left: 1px solid var(--bronze-sh); }
+  #town .twSeg button[aria-checked="true"] { color: #fff3d6; background: linear-gradient(180deg, #7a4f1e, #482c10); }
+  #town .twToggle { display: flex; align-self: flex-start; align-items: center; gap: 10px; min-height: 44px; margin: 4px 0; padding: 0 14px 0 10px; border-radius: 9px;
+    font-size: 15px; font-weight: 700; color: var(--ink); border: 2px solid var(--bronze); background: rgba(255,248,222,.55); }
+  #town .twToggle::before { content: ""; width: 20px; height: 20px; border-radius: 4px; border: 2px solid #6e4d1e; background: #fff8e6; }
+  #town .twToggle[aria-pressed="true"]::before { background: var(--crimson); box-shadow: inset 0 0 0 3px #fff8e6; }
+  @media (max-height: 500px) and (min-width: 560px) {
+    #town .twCard { padding: 14px 20px 12px; font-size: 15px; line-height: 1.4; }
+    #town .twCard h2 { font-size: 21px; margin-bottom: 6px; }
+    #town #twMini { display: none; }
+    #town .twZoom { top: calc(var(--twTop) + 8px); }
+  }
+  /* the campaign map's door to the town: under Nardi's in landscape, left of it on a tall screen (measured in
+     integration.md 4: clear of the title and every subtitle at every size) */
+  #overlay #townBtn {
+    position: fixed; top: calc(80px + var(--sat)); right: calc(136px + var(--sar)); z-index: 2; height: 44px; padding: 0 16px 0 10px;
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 22px; font-size: 15px; color: #fff3d6;
+    border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #2a1f15, #17100a);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.6), inset 0 3px 6px rgba(0,0,0,.75), 0 2px 8px rgba(0,0,0,.5);
+  }
+  #overlay #townBtn .ic { width: 24px; height: 24px; vertical-align: 0; }
+  #overlay.brief #townBtn, #overlay.victory #townBtn { display: none; }
+  @media (max-aspect-ratio: 1/1) { #overlay #townBtn { top: calc(26px + var(--sat)); right: calc(248px + var(--sar)); } }
 </style>
 </head>
 <body>
@@ -1724,6 +1866,29 @@
     <path d="M12 8 16 12l-4 4-4-4z" fill="#a8322a"/>
     <circle cx="12" cy="12" r="1.500" fill="#f6dc9a"/>
   </symbol>
+  <!-- town icons BEGIN (WP3 owns them; WP1-A's plain stand-ins, viewBox 0 0 24 24) -->
+  <symbol id="i-tw-food" viewBox="0 0 24 24"><path d="M12 3c-1.6 2.6-1.6 5 0 7.4 1.6-2.4 1.6-4.8 0-7.4zM12 10.4V21M8.2 6.6c.2 2.8 1.4 4.4 3.8 5M15.8 6.6c-.2 2.8-1.4 4.4-3.8 5M8.4 11.4c.2 2.8 1.4 4.4 3.6 5M15.6 11.4c-.2 2.8-1.4 4.4-3.6 5" fill="#e8c35e" stroke="#2c1e10" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-tw-wood" viewBox="0 0 24 24"><path d="M3.5 14.5l13-6.5 2.6 5.2-13 6.5z" fill="#a8743e" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><ellipse cx="17.8" cy="10.6" rx="1.6" ry="2.9" transform="rotate(-27 17.8 10.6)" fill="#e2b77a" stroke="#2c1e10" stroke-width="1.2"/></symbol>
+  <symbol id="i-tw-stone" viewBox="0 0 24 24"><path d="M3.5 18l2.4-7 6-3.4 6.2 2.2 2.4 8.2z" fill="#9a968c" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.9 11l6 2.2 6.2-3M11.9 13.2V18" fill="none" stroke="#2c1e10" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-goods1" viewBox="0 0 24 24"><path d="M6 20c-1.8-4.4-.6-9 2.4-11.4h7.2C18.6 11 19.8 15.6 18 20z" fill="#b5653a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8.4 8.6c0-2 1.4-3 3.6-3s3.6 1 3.6 3" fill="none" stroke="#2c1e10" stroke-width="1.3"/></symbol>
+  <symbol id="i-tw-goods2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#f2c14e" stroke="#2c1e10" stroke-width="1.3"/><circle cx="12" cy="12" r="5" fill="none" stroke="#8a5a17" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-goods3" viewBox="0 0 24 24"><path d="M5 19c0-5 3-9.5 7-12 4 2.5 7 7 7 12z" fill="#a8322a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 19c.4-3 1.4-5.4 3-7.2" fill="none" stroke="#f6dc9a" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-house" viewBox="0 0 24 24"><path d="M4 11.5L12 5l8 6.5V20H4z" fill="#d8b47a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M10 20v-5h4v5" fill="#6e4d1e" stroke="#2c1e10" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-field" viewBox="0 0 24 24"><path d="M3 17l4-9h10l4 9z" fill="#c9a53e" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8.6 8l-1.6 9M12 8v9M15.4 8l1.6 9" fill="none" stroke="#6e4d1e" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-store" viewBox="0 0 24 24"><path d="M4 9.5h16V20H4z" fill="#b08654" stroke="#2c1e10" stroke-width="1.3"/><path d="M3 9.5L12 4l9 5.5z" fill="#8a5a2a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 13h8v7H8z" fill="#5e3e1e" stroke="#2c1e10" stroke-width="1.1"/></symbol>
+  <symbol id="i-tw-barracks" viewBox="0 0 24 24"><path d="M3.5 10h17v10h-17z" fill="#9a7a50" stroke="#2c1e10" stroke-width="1.3"/><path d="M3.5 10V7h3v3M10.5 10V7h3v3M17.5 10V7h3v3" fill="#9a7a50" stroke="#2c1e10" stroke-width="1.3"/><path d="M12 12.5v6M10 14.5h4" stroke="#2c1e10" stroke-width="1.3"/></symbol>
+  <symbol id="i-tw-smithy" viewBox="0 0 24 24"><path d="M4 12h12l-2 3H8l-1 5H5l1-5z" fill="#55545a" stroke="#1c1209" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 12c2 0 4-1 4-3h-8" fill="#55545a" stroke="#1c1209" stroke-width="1.3"/></symbol>
+  <symbol id="i-tw-market" viewBox="0 0 24 24"><path d="M4 10h16v10H4z" fill="#c9a66b" stroke="#2c1e10" stroke-width="1.3"/><path d="M3 10l2-5h14l2 5z" fill="#a8322a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5v5M12 5v5M17 5v5" stroke="#f6dc9a" stroke-width="1.2"/></symbol>
+  <symbol id="i-tw-temple" viewBox="0 0 24 24"><path d="M3 9l9-5 9 5z" fill="#d8c9a0" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 9.5v8M9.7 9.5v8M14.3 9.5v8M19 9.5v8" stroke="#2c1e10" stroke-width="1.6"/><path d="M3 18h18v2.5H3z" fill="#d8c9a0" stroke="#2c1e10" stroke-width="1.3"/></symbol>
+  <symbol id="i-tw-stable" viewBox="0 0 24 24"><path d="M5 20v-6c0-3 2-5 5-5l3-4 1 3c3 1 5 3 5 6v6h-3v-5h-8v5z" fill="#8a6440" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-tw-tower" viewBox="0 0 24 24"><path d="M7 21V8h10v13z" fill="#b5ad9a" stroke="#2c1e10" stroke-width="1.3"/><path d="M6 8V4.5h2.4V6h2.2V4.5h2.8V6h2.2V4.5H18V8z" fill="#b5ad9a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M11 21v-4h2v4M11 11h2v2.4h-2z" fill="#3a2814"/></symbol>
+  <symbol id="i-tw-wall" viewBox="0 0 24 24"><path d="M2.5 20v-9h3V8.5h3V11h7V8.5h3V11h3v9z" fill="#a39b88" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.5 15.5h19M8 11v4.5M14 15.5V20M17 11v4.5" stroke="#2c1e10" stroke-width="1"/></symbol>
+  <symbol id="i-tw-gate" viewBox="0 0 24 24"><path d="M3 21V7h18v14h-5v-6a4 4 0 0 0-8 0v6z" fill="#a39b88" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 21v-6a4 4 0 0 1 8 0v6z" fill="#6e4d1e"/></symbol>
+  <symbol id="i-tw-wonder" viewBox="0 0 24 24"><path d="M12 3l3 4H9z" fill="#f2c14e" stroke="#2c1e10" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 21v-9l6-5 6 5v9z" fill="#e8d4a4" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M10 21v-4h4v4" fill="#6e4d1e"/></symbol>
+  <symbol id="i-tw-villager" viewBox="0 0 24 24"><circle cx="12" cy="6.5" r="3" fill="#e8c69a" stroke="#2c1e10" stroke-width="1.3"/><path d="M6.5 21l1.5-8.5c.4-2 2-3 4-3s3.6 1 4 3l1.5 8.5z" fill="#8a6a40" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-tw-idle" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3" fill="#e8c69a" stroke="#2c1e10" stroke-width="1.3"/><path d="M4 21l1.5-7.5c.4-2 2-3 4-3s3.6 1 4 3L15 21z" fill="#8a6a40" stroke="#2c1e10" stroke-width="1.3"/><path d="M16 4h4l-4 4h4" fill="none" stroke="#f0cf85" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  <symbol id="i-tw-age" viewBox="0 0 24 24"><path d="M5 3.5h14v17H5z" fill="#ead9b0" stroke="#2c1e10" stroke-width="1.3"/><path d="M8 8h8M8 11.5h8M8 15h5" stroke="#6e4d1e" stroke-width="1.3"/></symbol>
+  <!-- town icons END -->
 </svg>
 <canvas id="game"></canvas>
 
@@ -57209,7 +57374,9 @@ $("startBtn").addEventListener("click", () => {
   overlayEl.classList.add("hidden");
   resetGame();
   maybeStartTutorial();
+  const purse = gold;
   nardiBlessBattle();
+  townBlessBattle(gold - purse);   // both gifts pay in the same battle (the toast tells both)
   if (auto && !tut) autoT = 1.5;
 });
 
@@ -59444,6 +59611,2507 @@ function nardiSelftest(check, res) {
   });
 }
 
+// ---------- town ----------
+// Under Ararat: a town builder with raids on the Ararat plain, opened from the campaign map's "Town" door beside
+// Nardi's. One town through three ages (it stands for Erebuni, then Artashat, then Dvin); finish the age's
+// wonder to win; a win leaves a gift of gold for the next battle. Six work packages build it, each in its own
+// region below (spec 13.1, 15.1). Nothing here may stop the campaign: every region evaluates inside a guard.
+//
+// ==== TOWN INTERFACES (frozen by WP1-A; a change goes through WP1 as a one-line note here) ====
+// Regions, in order, each inside townRegion(name, fn); a throw clears TWT/TW/TWA/TWS, sets Town = TOWN_OFF and
+//   TOWN_FAIL = "<region>: <message>", skips the later regions and leaves no door; the campaign runs as before:
+//   guard (WP1) | text: TWT (WP6) | sim: TW (WP2) | art: TWA (WP3) | sound: TWS (WP5) | shell: Town (WP4, the
+//   door last) | hooks: townBlessBattle (WP1, top level) | townSelftest (WP1's frame, a sub-region per WP).
+//   ?notown hides the town on purpose (TOWN_KILL); ?towntest=throw:<text|sim|art|sound|shell> (harness only)
+//   throws at the start of that region. Shared tables (UNIT_KITS, Snd.SPEC, Snd.SFX, Snd.AMB, #uiSprite) are
+//   only appended to, with new tw-prefixed keys, last in the owning region, after everything that can throw.
+// TW, pure (no DOM, no page globals; tools/town-extract.js runs it in Node). Determinism rules of 13.2.
+//   VERSION, DT = 0.1, W = 64, H = 48, DATA = { DIFFS AGES GATHER BUILD POP MARKET CART PLACE BLD UNITS POST
+//     RAIDERS RAID TECHS WONDERS WONDER_FLOORS BLESS MAP NAV } (Appendix A; WP2 tunes values, the shape is frozen;
+//     added: DIFFS[d].driveOff, seconds an Easy villager is driven off instead of killed, 0 = killable, owner 4)
+//   rng(seed) -> { next() in [0, 1), int(n), state (get, set) }   mapGen(seed) -> map (2.3)
+//   newGame({ seed, diff, firstTown }) -> G   command(G, c) -> { ok: true } | { ok: false, err, res? }
+//   apply(G) (step 1 only, G.tick unchanged)   tick(G)   run(G, seconds, each)   drain(G) -> events
+//   canPlace(G, type, x, y, rot) -> { ok, err, res?, tiles }   cost(G, what) -> { f, w, s, g } | null
+//   afford(G, c)   labor(G)   next(G) -> goal   suggestRing(G) -> { strokes: [[[x, y]...]...], gate: { x, y, rot } | null }
+//   at(G, x, y) -> { unit, bld, node, terr }   raidInfo(G) -> { nextWarn, nextSpawn, live, wonder, held } (ticks)
+//   save(G) -> plain object   load(obj) -> G | null   hash(G) -> uint32   stage(name, seed, diff, opts) -> G
+//   bot.create(style, opts) -> { think(G) }
+//   G.diff: 0 Easy, 1 Normal, 2 Hard. Every time in G is in ticks (tick, clock.*, aging.left, q[].left, rq[].left,
+//   alarm.until, craftsmenUntil, over.tick, hitAt). One id counter (G.nextId) for nodes, buildings, units, carts and
+//   raids; G.nodes get the lowest ids, in mapGen order, so load() can rebuild them from the seed.
+//   G.map also carries river (center row per column) and start = { tc: [x, y], nodes: [{ k, x, y, left }] }.
+//   Bld.done: built share 0..1; Bld.work: work done; Bld.builders: villager ids; Bld.shel: sheltering unit ids;
+//   Bld.k "wonder" is the current age's wonder (WONDERS[G.age - 1]; no advance while one stands).
+//   cost(G, what): what is a BLD key, "wonder", a UNITS key, a TECHS key or "advance".
+//   Place types: house field store barracks smithy market temple stable tower grove wonder (wall and gate have
+//   their own commands). Gate rot 0 is 2 x 1, rot 1 is 1 x 2.
+//   Commands carry integers (tiles, ids, counts), booleans and string ids; the shape table is CMDS in TW.
+//   Events: { e: "<name>", t: <tick>, ...fields } (13.5; `k` is a field of several events, so the name is `e`).
+//   Goals from next(G), worded by TWT.next: { k: "open", step: "house" | "field" | "store" | "move" } |
+//     { k: "build", type } | { k: "tech", tech } | { k: "res", res, have, need } | { k: "advance", to } |
+//     { k: "aging", to, left } (left in s) | { k: "wonder", age } | { k: "wonderPct", age, pct } | { k: "over" }
+//   Stages (14.4): start first age1 age1raid age1wall age2 age2raid age3 wonder1 wonder2 wonder3 (opts.p, percent)
+//     age3wonder plan, and win1 win2 win3: the age's wonder finishes within 30 ticks with no command (check 11).
+// TWT, pure data and wording (no page globals): title, door, doorTitle, intro[], res { f, w, s, g: [3] },
+//   diffs[3], ages[3] { name, town, numeral, hy, dateline, lines[], license[] }, name(kind, id, age) and
+//   hy(kind, id, age) (kind: bld unit raider tech wonder; name also takes "res"), err(code, info) (info: the
+//   command's { res, need, age }), next(goal), mmss(seconds) -> "m:ss", ui { ... }, hints[].
+// TWA: init(canvas, mini) free() layout(cssW, cssH, dpr) setAge(age) prebake(G, view) invalidate(x0, y0, x1, y1)
+//   draw(G, view, alpha, nowMs) drawMini(G, view) ghost(spec) fx(events, G) pick(G, view, sx, sy, rPx)
+//   toWorld(view, sx, sy) -> { x, y } toScreen(view, x, y) -> { x, y } stats() zoomSteps groundSteps bakeBudgetMs.
+//   view = { x, y, zoom }: the world point (tiles) at the canvas's top left; sx = (x - view.x) * 40 * zoom,
+//   sy = (y - view.y) * 40 * zoom * 0.72, in CSS px. Rows -6 to -1 are the skyline band.
+// TWS: open(G) (sets Snd.sceneOverride for G.age) close() (Snd.sceneOverride = null, always)
+//   onEvents(events, G, view, canvasW) tick(G, view)
+// Town: open() close() isOpen() covers() photo(opts) test BLESS_KEY BLESS_GOLD BLESS_BY_STARS (13.7, 13.11).
+//   photo opts: { stage, card, ui, zoom, cx, cy, p }. Cards: start resume pause leave age win lose error.
+//   test.button(name): top bar and map controls by name (age raid speed pause leave zoomIn zoomOut planResume),
+//   a card's buttons as "card:<act>" (begin cont resume newGame keep leave back again newMap plan startOver ...).
+// Keys: hs_town (prefs), hs_town_run (snapshot, 13.9), hs_town_bless ("20" | "30" | "40").
+// The blessing (owner decision 3, both pay): a win stores max(pending, BLESS_BY_STARS[stars]), never more than 40;
+//   #startBtn (H4) runs nardiBlessBattle() then townBlessBattle(gold the elder paid): both pay in the same battle
+//   (up to +80), one toast tells both. Hooks: H2 frame(), H3 recoverToMap(), H5 runSelftest(), H6 runPhoto's
+//   shot=town (&stage &card &noui &tz &tx &ty &p), H7 the CSS block, H8 the icons in #uiSprite.
+// ==== END TOWN INTERFACES ====
+//
+// ---- town: guard ----   (WP1)
+const TOWN_OFF = Object.freeze({ open() {}, close() {}, isOpen: () => false, covers: () => false, photo() {},
+  test: null, BLESS_KEY: "hs_town_bless", BLESS_GOLD: 40, BLESS_BY_STARS: Object.freeze([0, 20, 30, 40]) });
+let TWT = null, TW = null, TWA = null, TWS = null, Town = TOWN_OFF, TOWN_FAIL = "";
+const TOWN_KILL = /[?&]notown\b/.test(location.search);          // the kill switch: hides the door
+// the harness's test switch: ?towntest=throw:<region> throws at the start of that region, to prove the campaign
+// survives a broken town (selftest check 13, tools/town-isolation.js)
+const TOWN_THROW = HARNESS_ON ? ((/[?&]towntest=throw:(\w+)/.exec(location.search) || [])[1] || "") : "";
+function townRegion(name, fn) {
+  if (TOWN_FAIL || TOWN_KILL) return;                              // a failed region skips all later ones
+  try {
+    if (TOWN_THROW === name) throw new Error("towntest: the " + name + " region was told to throw");
+    fn();
+  } catch (e) {
+    TOWN_FAIL = name + ": " + (e && e.message);
+    TWT = TW = TWA = TWS = null; Town = TOWN_OFF;
+    try { console.error(e); } catch (e2) {}
+    if (HARNESS_ON) setTimeout(() => { throw e; });                // the tools count it
+  }
+}
+
+// ---- TEXT BEGIN town ----   (WP6)  pure data and wording, no page globals; tools/town-extract.js loads it in Node
+// TWT: every player-facing string of the town (spec 12). WP1-A STUB: names for every id of TW.DATA, the start,
+// age, pause, leave, resume, end and error cards and the Next line, drawn from the spec's drafts (12.3, 12.4);
+// WP6 replaces it with the full set, its cites and the help page. The text rules of 12.1 hold for every string.
+townRegion("text", () => { TWT = (() => {
+  const AGES = [
+    { id: "biainili", name: "Age of Biainili", town: "Erebuni", numeral: "I", hy: "Էրեբունի",
+      dateline: "Erebuni, 8th century BC.",
+      lines: ["Argishti I founded Erebuni in 782 BC, by the usual dating.",
+        "The kings of Urartu called their land Biainili.",
+        "From Erebuni, Argishti struck north toward Etiuni and Lake Sevan."],
+      license: ["No siege of Erebuni is recorded. The raids on your town are the game's invention."] },
+    { id: "artashat", name: "Age of Artashat", town: "Artashat", numeral: "II", hy: "Արտաշատ",
+      dateline: "66 to 77 AD.",
+      lines: ["Centuries pass. Your town now stands for Artashat, the capital on the Araxes.",
+        "From the lands of Urartu rose Armenia.",
+        "King Artaxias I founded Artashat on the Araxes, about 176 BC.",
+        "In 58 or 59 AD Roman legions under Corbulo reached Artashat. Its people surrendered, and the Romans burned the city.",
+        "Nero crowned Tiridates I in Rome in 66 AD. Tiridates came home with craftsmen to rebuild his capital."],
+      license: ["Craftsmen arrive. Your builders work faster for a while.",
+        "Alan horsemen raided Armenia around 72 AD, but Josephus names no town they attacked. Their raids on your town are the game's invention."] },
+    { id: "dvin", name: "Age of Dvin", town: "Dvin", numeral: "III", hy: "Դվին",
+      dateline: "The 640s.",
+      lines: ["Centuries pass. Your town now stands for Dvin, built just north of old Artashat.",
+        "Armenia had taken Christianity as its faith early in the fourth century.",
+        "Tradition credits King Khosrov III with building Dvin around 335.",
+        "By the sixth century Dvin was also the seat of the catholicos, head of the Armenian Church.",
+        "In the 640s armies of the Rashidun Caliphate raided Armenia."],
+      license: [] },
+  ];
+  // names per age: one string for every age, or three
+  const BLD = {
+    tc: ["Royal Palace", "Royal Citadel", "Catholicos' Palace"], house: "House", field: "Field",
+    store: ["Storeroom", "Storehouse", "Storehouse"], barracks: ["Garrison Quarters", "Barracks", "Barracks"],
+    smithy: ["Smithy", "Workshop", "Smithy"], market: ["Wine Cellar", "Customs House", "Merchants' Quarter"],
+    temple: ["Susi Temple", "Temple", "Church"], stable: "Stables", tower: "Tower", wall: "Wall", gate: "Gate",
+    grove: "Royal Grove", wonder: ["Temple of Haldi", "Temple of Garni", "Zvartnots"],
+  };
+  const UNITS = {
+    vil: "Villager", spear: ["Erebuni Spearmen", "Artashat Spearmen", "Nakharar Spearmen"],
+    bow: ["Biainili Bowmen", "Artashat Bowmen", "Nakharar Bowmen"],
+    horse: ["Royal Horsemen", "Armored Horsemen", "Nakharar Horsemen"],
+  };
+  const RAIDERS = { etR: "Etiuni Raiders", etS: "Etiuni Spearmen", alH: "Alan Horsemen", alC: "Alan Lasso Riders",
+    arR: "Arab Raiders", arS: "Arab Spearmen", arW: "Mailed Swordsmen", arH: "Arab Horsemen" };
+  const TECHS = {
+    iron_tools: "Iron Tools", royal_canals: "Royal Canals", bronze_armor: "Bronze Armor", horse_breeding: "Horse Breeding",
+    buttressed_walls: "Buttressed Walls", fire_beacons: "Fire Beacons", karas_jars: "Karas Jars",
+    land_survey: "Land Survey", coinage: "Coinage", armored_cavalry: "Armored Cavalry",
+    trench_palisade: "Trench and Palisade", clamped_masonry: "Clamped Masonry", nesaean_horses: "Nesaean Horses",
+    bathhouses: "Bathhouses", lime_mortar: "Lime Mortar", stone_domes: "Stone Domes",
+    armenian_letters: "Armenian Letters", planted_groves: "Planted Groves", vordan_karmir: "Worm's Red",
+    noble_levy: "Noble Levy", shirakatsi_tables: "Shirakatsi's Tables",
+  };
+  const WONDERS = { haldi: "Temple of Haldi", garni: "Temple of Garni", zvartnots: "Zvartnots" };
+  const HY = { wonder: ["Խալդի", "Գառնի", "Զուարթնոց"] };
+  const RES = { f: "Food", w: "Wood", s: "Stone", g: ["Goods", "Coin", "Goods"] };
+  const pickAge = (v, age) => (Array.isArray(v) ? v[Math.max(0, Math.min(v.length - 1, (age | 0) - 1))] : v);
+  const TABLE = { bld: BLD, unit: UNITS, raider: RAIDERS, tech: TECHS, wonder: WONDERS };
+  function name(kind, id, age) {
+    if (kind === "res") return pickAge(RES[id], age) || "";
+    const t = TABLE[kind];
+    return (t && t[id] !== undefined) ? pickAge(t[id], age) : "";
+  }
+  function hy(kind, id, age) { const t = HY[kind]; return t && kind === "wonder" && id === "wonder" ? pickAge(t, age) : ""; }
+  const ERR = {
+    bounds: "Out of the map.", edge: "Too close to the edge of the map.",
+    bank: "The banks flood. Build farther from the water.", blocked: "Something is in the way.",
+    fertile: "Fields need the dark river soil.", units: "Units are in the way.",
+    pop: "Build a house. The town is full.", cap: "The town has all the wall it can build in this age.",
+    bad: "That cannot be done.", busy: "That building is busy.", done: "That is done already.",
+    wonder: "Finish the wonder or remove it first.",
+  };
+  const SITE = ["Build it within 8 tiles of the palace.", "Build it on a bluff.", "Build it at least 10 tiles from the palace."];
+  function err(code, info) {
+    info = info || {};
+    if (code === "cost") return "Not enough " + (name("res", info.res, info.age) || "goods").toLowerCase() + ".";
+    if (code === "site") return SITE[Math.max(0, Math.min(2, (info.age | 0) - 1))];
+    if (code === "age") return "Comes in the " + AGES[Math.max(0, Math.min(2, (info.age | 0) - 1))].name + ".";
+    if (code === "req") return info.need ? "Needs " + info.need + "." : "Something it needs is missing.";
+    return ERR[code] || ERR.bad;
+  }
+  const OPEN = { house: "Next: build a House.", field: "Next: place a Field on the dark river soil.",
+    store: "Next: build a Storehouse near the trees or fields.", move: "Next: move a worker with + and -." };
+  const the = n => (n === "Zvartnots" ? n : "The " + n);   // Zvartnots takes no article
+  const mmss = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  // the Next line (9.3): one goal at a time, from TW.next(G)
+  function next(g) {
+    if (!g) return "";
+    const age = g.age || 1;
+    switch (g.k) {
+      case "open": return OPEN[g.step] || "";
+      case "build": return "Next: " + name("bld", g.type, g.age || age);
+      case "tech": return "Next: research " + name("tech", g.tech);
+      case "res": return "Next: " + name("res", g.res, age) + " " + g.have + " of " + g.need;
+      case "advance": return "Next: advance to the " + AGES[Math.max(0, Math.min(2, g.to - 1))].name;
+      case "aging": return "Advancing: " + mmss(g.left);
+      case "wonder": { const n = name("bld", "wonder", g.age); return "Next: build " + (n === "Zvartnots" ? n : "the " + n) + " to win"; }
+      case "wonderPct": return name("bld", "wonder", g.age) + " " + g.pct + "%. Keep the garrison at the site.";
+      default: return "";
+    }
+  }
+  const ui = {
+    begin: "Begin", resume: "Resume", newGame: "New game", keep: "Keep playing", leave: "Leave", back: "Back to map",
+    reload: "Reload", playAgain: "Play again", newMap: "New map", cont: "Continue", plan: "Plan while paused",
+    startOver: "Start over", yes: "Yes", no: "No", hints: "Hints", music: "Music", sound: "Sound",
+    firstTown: "First town: coached start and hints", mapNew: "New map", mapAgain: n => "Map " + n + " again",
+    map: n => "Map " + n, kicker: "A town on the Ararat plain",
+    paused: "Paused", notSaved: "Not saved",
+    leaveSaved: "Leave the town? It is saved, and you can come back to it.",
+    leaveUnsaved: "Leave the town? Your town could not be saved on this device.",
+    resumeLine: (age, time, diff) => "Your town is waiting. " + age + ", " + time + ", " + diff + ".",
+    resumeCrash: time => "Your town was saved at " + time + ", just before an error.",
+    cannotResume: "This town could not be resumed.",
+    older: "This town was saved by an older version of the game and cannot be resumed.",
+    startOverAsk: "Start over? This town will be lost.", newGameAsk: "Start over? Your saved town will be lost.",
+    errorHead: "Something went wrong in the town.",
+    errorSaved: time => "Your town was saved at " + time + ".", errorUnsaved: "Your town could not be saved.",
+    winHead: age => the(name("bld", "wonder", age)) + " is finished.",
+    loseHead: age => the(name("bld", "tc", age)) + " has fallen.",
+    softLock: "No villagers are left, and none can be trained.",
+    stars: n => n + (n === 1 ? " star" : " stars"),
+    blessNew: n => "Your next battle begins with +" + n + " gold.",
+    blessWaiting: "A gift for your next battle is already waiting.",
+    planBanner: "Paused. Plan your town, then tap Resume.",
+    raidIn: t => "Raid in " + t, raidsWait: "Raids wait", raidNow: "Raid!",
+    pop: (n, cap) => "Population " + n + " of " + cap,
+    zoomIn: "Zoom in", zoomOut: "Zoom out", speed: "Speed", pause: "Pause", leaveTown: "Leave the town",
+    ageSheet: "Age and techs", map_: "Town map",
+    built: n => the(n) + " is finished.", researched: n => n + " researched.",
+    advancing: n => "Advancing to the " + n + ".",
+  };
+  return {
+    v: 1, title: "Under Ararat", door: "Town", doorTitle: "Build a town on the Ararat plain",
+    intro: ["Raise one town through three ages on the Ararat plain.",
+      "This town is not one real place. It stands for three towns of the Ararat plain, one in each age: Erebuni, then Artashat, then Dvin.",
+      "All three stood on the Ararat plain, with Mount Ararat to the south.",
+      "Gather, build and wall your town. Raiders come on a clock. Finish your age's wonder to win. A later wonder earns more stars."],
+    diffs: ["Easy", "Normal", "Hard"], res: RES, ages: AGES, name, hy, err, next, mmss, ui, hints: [],
+  };
+})(); });
+// ---- TEXT END town ----
+
+// ==== TOWN SIM BEGIN ====   (WP2)  pure, no DOM, no page globals; tools/town-extract.js loads it in Node
+// TW: the town's simulation. A fixed 10 Hz tick, deterministic from a seed: its own rng, + - * / and the Math
+// functions of spec 13.2 (Math.imul for the hashes), every per-entity loop in ascending id order.
+// WP1-A STUB: the frozen API with real DATA, a flat map with the river, validating commands, placement,
+// construction, training, research, advancing, wonders and win, save, load and hash. WP2 replaces the inside
+// (the generator of 2.3, gathering, walls and navigation, combat, shelter, raids, the bot) and keeps the API.
+townRegion("sim", () => { TW = (() => {
+  const VERSION = 1, DT = 0.1, W = 64, H = 48;
+
+  // ---- TW.DATA: Appendix A (the authority for every number; WP2 tunes the values, the shape is frozen) ----
+  const DIFFS = [
+    { name: "Easy",   res: { f: 300, w: 200, s: 200, g: 100 }, vil: 7, gar: { spear: 3, bow: 1 }, tcHp: 3000,
+      firstRaid: 270, interval: [150, 140, 130], mult: 0.65, raiderHp: 0.85, lead: 40, wonderInterval: 95,
+      wonderMult: 1.25, retreatAt: 0.4, raidMax: 120, escalateAt: 1560, setback: 0.25,
+      pillage: 0.5, pillageShare: 60, sheetHolds: true, firstTownCap: 420, driveOff: 20 },        // O4 driveOff
+    { name: "Normal", res: { f: 200, w: 150, s: 150, g: 50 }, vil: 6, gar: { spear: 2, bow: 1 }, tcHp: 2400,
+      firstRaid: 180, interval: [120, 110, 100], mult: 1.0, raiderHp: 1.0, lead: 30, wonderInterval: 70,
+      wonderMult: 1.4, retreatAt: 0.3, raidMax: 150, escalateAt: 1320, setback: 0.5,
+      pillage: 1.0, pillageShare: 120, sheetHolds: false, firstTownCap: 360, driveOff: 0 },
+    { name: "Hard",   res: { f: 150, w: 120, s: 120, g: 30 }, vil: 6, gar: { spear: 1, bow: 1 }, tcHp: 2160,
+      firstRaid: 135, interval: [105, 95, 85], mult: 1.3, raiderHp: 1.1, lead: 25, wonderInterval: 55,
+      wonderMult: 1.6, retreatAt: 0.2, raidMax: 180, escalateAt: 1200, setback: 0.625,
+      pillage: 1.25, pillageShare: 150, sheetHolds: false, firstTownCap: 360, driveOff: 0 },
+  ];   // times in seconds of game time; setback = work removed per point of bdmg; pillage in food/s per raider;
+       // driveOff (owner decision 4): seconds an Easy villager is driven off instead of killed (0: killable)
+  const AGES = [
+    { id: "biainili", art: "erebuni", era: 0, map: "erebuni", hpMult: 1.0 },
+    { id: "artashat", art: "avarayr", era: 1, map: "ararat", hpMult: 1.25,
+      advance: { cost: { f: 350, g: 80 }, time: 45, req: ["store", "barracks"] }, craftsmen: { mult: 1.5, time: 90 } },
+    { id: "dvin", art: "dvin", era: 2, map: "twDvin", hpMult: 1.5,
+      advance: { cost: { f: 550, s: 200, g: 200 }, time: 60, req: ["market", "temple"] } },
+  ];
+  const GATHER = { flock: 0.66, orchard: 0.53, field: 0.44, tree: 0.40, grove: 0.33, stone: 0.40, ore: 0.34,
+                   dye: 0.34, carry: 10 };
+  const BUILD = { rate: n => 1 + 0.75 * (n - 1), maxBuilders: 6, wonderRate: n => n, refundStarted: 0.5,
+                  repairCost: 0.5, hitSlow: { within: 3, rate: 0.5 } };
+  const POP = { max: 60 };
+  const MARKET = { lot: 100, sell: { f: 35, w: 40, s: 30 }, buy: { f: 70, w: 80, s: 90 } };
+  const CART = { every: 45, pay: [12, 20, 26], perTile: 1 / 40, hp: 80, spd: 1.2, maxMarkets: 1 };
+  const PLACE = { edgeMargin: 2, bankMargin: 2 };
+  const BLD = {
+    tc:       { size: [4, 4], hp: null /* DIFFS.tcHp */, pop: 10, drop: true, shelter: 15, trains: ["vil"],
+                queues: ["train", "research"], healGarrison: { r: 3, hps: 1 },
+                arrows: { range: 6, hillBonus: 1, dmg: [5, 6, 7], cd: 2.0, perShelter: 5, max: 4 } },
+    house:    { size: [2, 2], cost: { w: 15, s: 20 }, work: 18, hp: 350, pop: 5, builders: 1 },
+    field:    { size: [3, 3], cost: { w: 25 }, work: 12, hp: 150, fertile: true, builders: 1 },
+    store:    { size: [2, 2], cost: { w: 60 }, work: 25, hp: 500, drop: true, shelter: 4, builders: 2 },
+    barracks: { size: [3, 3], cost: { w: 100, s: 50 }, work: 35, hp: 900, trains: ["spear", "bow"], builders: 3 },
+    smithy:   { size: [2, 2], cost: { w: 80, s: 40 }, work: 30, hp: 700, builders: 3 },
+    market:   { size: [3, 3], cost: { w: 120, s: 60 }, work: 40, hp: 900, builders: 3 },
+    temple:   { size: [3, 3], cost: { w: 50, s: 120 }, work: 40, hp: 900, builders: 3, heal: { r: 5, hps: 1 } },
+    stable:   { size: [3, 3], cost: { w: 120, s: 60 }, work: 40, hp: 900, builders: 3, trains: ["horse"],
+                reqAge1: "horse_breeding" },
+    tower:    { size: [2, 2], cost: { w: 25, s: 100 }, work: 35, hp: 900, builders: 2, shelter: 4,
+                arrows: { range: 6.5, hillBonus: 1, dmg: [6, 7, 8], cd: 1.8, perShelter: 2, max: 3 } },
+    wall:     { size: [1, 1], cost: { s: 5 }, work: 6, hp: [500, 750, 1000], builders: 1 },
+    gate:     { size: [2, 1], cost: { s: 30 }, work: 20, hp: [1100, 1650, 2200], builders: 1 },
+    grove:    { size: [3, 3], cost: { w: 40, f: 60 }, work: 15, hp: 150, age: 3, req: "planted_groves", builders: 1 },
+  };
+  const UNITS = {
+    vil:   { cost: { f: 50 }, at: "tc", train: 15, hp: [40, 45, 50], spd: 1.5, build: 1, repair: 8, repairWall: 12,
+             shelter: { near: 4, reach: 14, clear: 8, calm: 5, wonderNear: 2 } },
+    spear: { cost: { f: 45, g: 10 }, at: "barracks", train: 16, hp: [70, 90, 110], atk: [7, 9, 11], arm: [2, 3, 4],
+             range: 0, cd: 1.5, spd: 1.3, vsMounted: 1.5 },
+    bow:   { cost: { f: 30, w: 25 }, at: "barracks", train: 18, hp: [40, 50, 60], atk: [5, 6, 7], arm: [0, 1, 1],
+             range: [5, 5.5, 6], cd: 2.0, spd: 1.3, keepAway: 4 },
+    horse: { cost: { f: 70, g: 40 }, at: "stable", train: 22, hp: [100, 130, 160], atk: [9, 11, 13], arm: [1, 2, 3],
+             range: 0, cd: 1.8, spd: 2.4 },
+  };
+  const POST = { guard: 7, chase: 12, hold: 2, ring: 1.2, alarmRadius: 15, alarmDoubleTap: 3, alarmAutoClear: 10 };
+  const RAIDERS = {
+    etR: { age: 1, pts: 1, hp: 45,  atk: 5,  arm: 0, range: 0, cd: 1.5, spd: 1.6, bdmg: 3,  aggro: 6, role: "light" },
+    etS: { age: 1, pts: 2, hp: 80,  atk: 8,  arm: 2, range: 0, cd: 1.7, spd: 1.2, bdmg: 14, aggro: 3, role: "heavy" },
+    alH: { age: 2, pts: 2, hp: 85,  atk: 8,  arm: 1, range: 0, cd: 1.6, spd: 2.6, bdmg: 4,  aggro: 7, role: "light", mounted: true },
+    alC: { age: 2, pts: 2, hp: 60,  atk: 2,  arm: 0, range: 3, cd: 6.0, spd: 2.5, bdmg: 1,  aggro: 6, role: "cord", mounted: true, hold: 2.5 },
+    arR: { age: 3, pts: 1, hp: 60,  atk: 7,  arm: 1, range: 0, cd: 1.5, spd: 1.6, bdmg: 4,  aggro: 6, role: "light" },
+    arS: { age: 3, pts: 2, hp: 100, atk: 9,  arm: 2, range: 0, cd: 1.7, spd: 1.3, bdmg: 12, aggro: 3, role: "heavy" },
+    arW: { age: 3, pts: 3, hp: 150, atk: 11, arm: 4, range: 0, cd: 1.6, spd: 1.1, bdmg: 22, aggro: 3, role: "heavy" },
+    arH: { age: 3, pts: 3, hp: 120, atk: 10, arm: 2, range: 0, cd: 1.6, spd: 2.6, bdmg: 6,  aggro: 7, role: "light", mounted: true },
+  };
+  const RAID = {
+    A: [1, 2, 3], B: [0.75, 0.8, 0.9], esc: 1.1, maxAlive: 45, firstWonderRaid: 45, beaconLead: 20, spawnSpread: 3,
+    zones: { BL: [0.4, 0.3, 0], BC: [0.3, 0.4, 0], BR: [0, 0.1, 0], LM: [0.3, 0.2, 0.35], RM: [0, 0, 0],
+             TL: [0, 0, 0.35], TR: [0, 0, 0.3] },
+    mix: [ { from: 5, heavy: "etS", heavyShare: 0.45, light: "etR" },
+           { cord: "alC", cordShare: 0.25, light: "alH" },
+           { horse: "arH", horseShare: 0.2, sword: "arW", swordShare: 0.2, spear: "arS", spearShare: 0.3, light: "arR" } ],
+    nearTc: 15, stuckTicks: 200, wonderHeavyShare: 0.6,
+    plunder: { kills: 2, dmg: 250, heavyNear: 10 },
+    pillageNearWall: 10,
+    firstTown: { raid1: { etR: 2 }, after: 90 },
+    wallCap: null,
+  };
+  const TECHS = {
+    iron_tools:        { age: 1, at: "smithy", cost: { f: 100, w: 50 },  time: 30, fx: { gather: 1.15 } },
+    royal_canals:      { age: 1, at: "tc",     cost: { f: 150, w: 60 },  time: 40, fx: { canals: true, field: 1.10 } },
+    bronze_armor:      { age: 1, at: "smithy", cost: { f: 120, g: 60 },  time: 35, fx: { garArm: 1, garHp: 1.10 } },
+    horse_breeding:    { age: 1, at: "tc",     cost: { f: 150, g: 50 },  time: 40, fx: { stableAge1: true, horseFood: 0.85 } },
+    buttressed_walls:  { age: 1, at: "smithy", cost: { s: 150, f: 50 },  time: 35, fx: { wallHp: 1.25, towerHp: 1.25 } },
+    fire_beacons:      { age: 1, at: "tower",  cost: { w: 80, s: 60 },   time: 25, fx: { lead: 20, towerRange: 1 } },
+    karas_jars:        { age: 1, at: "market", cost: { f: 100, s: 50 },  time: 30, fx: { cart: 1.40 } },
+    land_survey:       { age: 2, at: "tc",     cost: { f: 200, w: 100 }, time: 40, fx: { field: 1.15, fieldCost: { w: 20 } } },
+    coinage:           { age: 2, at: "market", cost: { f: 150, s: 100 }, time: 35, fx: { sell: 1.20, buy: 0.85, cart: 1.25 } },
+    armored_cavalry:   { age: 2, at: "stable", cost: { f: 200, g: 120 }, time: 45, fx: { horseArm: 2, horseHp: 1.20 } },
+    trench_palisade:   { age: 2, at: "tc",     cost: { w: 80, s: 150 },  time: 40, fx: { trench: 0.65, wallHp: 1.15 } },
+    clamped_masonry:   { age: 2, at: "smithy", cost: { s: 150, g: 150 }, time: 45, fx: { towerHp: 1.20, wonderRate: 1.15 } },
+    nesaean_horses:    { age: 2, at: "stable", cost: { f: 150, g: 50 },  time: 30, fx: { horseFood: 0.80, horseTrain: 0.75 } },
+    bathhouses:        { age: 2, at: "temple", cost: { w: 120, s: 80 },  time: 30, fx: { heal: 2, vilHp: 10 } },
+    lime_mortar:       { age: 3, at: "smithy", cost: { s: 200, g: 100 }, time: 40, fx: { wallHp: 1.30, towerHp: 1.30 } },
+    stone_domes:       { age: 3, at: "temple", cost: { s: 200, g: 150 }, time: 45, fx: { heal: 1.5 } },
+    armenian_letters:  { age: 3, at: "temple", cost: { f: 150, g: 100 }, time: 40, fx: { researchCost: 0.85, researchTime: 0.75 } },
+    planted_groves:    { age: 3, at: "tc",     cost: { f: 100, w: 100 }, time: 30, fx: { grove: true } },
+    vordan_karmir:     { age: 3, at: "market", cost: { f: 150, w: 100 }, time: 35, fx: { dye: true, cart: 1.20 } },
+    noble_levy:        { age: 3, at: "stable", cost: { f: 200, g: 100 }, time: 40, fx: { horseTrain: 0.70, horseAtk: 1 } },
+    shirakatsi_tables: { age: 3, at: "tc",     cost: { f: 100, g: 150 }, time: 30, fx: { bldCost: 0.90 } },
+  };   // wallHp applies to walls and gates; percent effects multiply
+  const WONDERS = [
+    { age: 1, id: "haldi",     cost: { w: 350, s: 800, g: 300 }, work: 2200, startBuilders: 8, maxBuilders: 12,
+      site: { nearTc: 8 }, req: { bld: ["temple"] } },
+    { age: 2, id: "garni",     cost: { w: 300, s: 750, g: 300 }, work: 2000, startBuilders: 8, maxBuilders: 12,
+      site: { bluff: true }, req: { bld: ["temple"], tech: ["clamped_masonry"] } },
+    { age: 3, id: "zvartnots", cost: { w: 300, s: 900, g: 450 }, work: 1800, startBuilders: 8, maxBuilders: 14,
+      site: { farFromTc: 10 }, req: { bld: ["temple"], tech: ["stone_domes"] } },
+  ];
+  const WONDER_FLOORS = [0.25, 0.5, 0.75];
+  const BLESS = { byStars: [0, 20, 30, 40], max: 40 };   // owner decision 3: both pay; the town's never stacks with itself
+  const MAP = {
+    W: 64, H: 48, sky: 6, river: { xs: [-1, 16, 32, 48, 65], y: [6, 12], bendDown: [13, 15], bendUp: [3, 5], width: 2 },
+    fords: [[8, 24], [40, 56]], fordWidth: 3, fordSpeed: 0.6, hill: { c: [32, 26], jitter: 2, r: [7, 5] },
+    fertile: [2, 7], fieldsMin: 28, canals: { offset: 10, toRow: 32, fertileEach: 3 },
+    bluffs: { size: 5, minFromTc: 14, minFromEdge: 3, y: [26, 34] },
+    stone: { n: 4, tiles: 7, per: 150, near: [8, 12], far: [14, 20] }, ore: { n: 3, tiles: 3, per: 200, near: [10, 13], far: [15, 22] },
+    trees: { n: 52, per: 60, river: 20, riverAt: 1, groves: [14, 18], groveAt: [12, 20] },
+    flocks: { n: 4, per: 125, animals: 5, at: [4, 7] }, orchards: { n: 2, trees: 6, per: 40, at: [7, 10] },
+    salt: { patches: 2, tiles: 5, per: 120, wdist: [1, 3], fromFord: 6, side: "far" },
+    nodeMinEdge: 2, nodeMinWdist: 3,
+    zones: { BL: [4, 10, 47], BC: [29, 35, 47], BR: [54, 60, 47], LM: [0, 24, 30], RM: [63, 24, 30], TL: [6, 12, 0], TR: [52, 58, 0] },
+    retries: 30,
+  };
+  const NAV = { structCost: hp => 10 * (4 + 4 * Math.floor(hp / 240)) };
+  const DATA = { DIFFS, AGES, GATHER, BUILD, POP, MARKET, CART, PLACE, BLD, UNITS, POST, RAIDERS, RAID, TECHS,
+    WONDERS, WONDER_FLOORS, BLESS, MAP, NAV };
+
+  // ---- small helpers ----
+  const RES = ["f", "w", "s", "g"];
+  const T = s => Math.round(s / DT);                       // seconds to ticks
+  const idx = (x, y) => y * W + x;
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+  const isInt = v => typeof v === "number" && Math.floor(v) === v && v >= -4294967296 && v <= 4294967296;
+  const zero = () => ({ f: 0, w: 0, s: 0, g: 0 });
+  const cp = v => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
+  const PLACE_TYPES = ["house", "field", "store", "barracks", "smithy", "market", "temple", "stable", "tower", "grove", "wonder"];
+  const NODE_KINDS = ["tree", "stone", "ore", "flock", "orchard", "dye"];
+  const NODE_RES = { tree: "w", stone: "s", ore: "g", flock: "f", orchard: "f", dye: "g" };
+  const ev = (G, e, f) => { const o = { e, t: G.tick }; if (f) for (const k in f) o[k] = f[k]; G.ev.push(o); };
+
+  // ---- rng: mulberry32 with its state exposed (saved as G.rngState) ----
+  function rng(seed) {
+    let a = seed >>> 0;
+    const r = {
+      next() {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      },
+      int(n) { return Math.floor(r.next() * n); },
+      get state() { return a; },
+      set state(v) { a = v >>> 0; },
+    };
+    return r;
+  }
+
+  // ---- the map (2.3). STUB: a flat plain with the river, its fords and banks, the hill, the fertile band, the
+  // bluffs, the road, the salt meadows, the entry zones and the resource nodes, without the validation pass ----
+  function mapGen(seed) {
+    const r = rng(((seed | 0) * 2654435761) >>> 0 ^ 0x9e3779b9);
+    const N = W * H, terr = new Uint8Array(N), occ = new Int32Array(N), wdist = new Uint8Array(N),
+      fert = new Uint8Array(N), hill = new Uint8Array(N), canalPlan = new Uint8Array(N);
+    // 1. the river: a Catmull-Rom curve through five points, one pulled down toward the hill, one up
+    const xs = MAP.river.xs, ys = xs.map(() => MAP.river.y[0] + r.int(MAP.river.y[1] - MAP.river.y[0] + 1));
+    const down = 1 + r.int(3), up = 1 + ((down - 1 + 1 + r.int(2)) % 3);
+    ys[down] = MAP.river.bendDown[0] + r.int(MAP.river.bendDown[1] - MAP.river.bendDown[0] + 1);
+    ys[up] = MAP.river.bendUp[0] + r.int(MAP.river.bendUp[1] - MAP.river.bendUp[0] + 1);
+    const river = [];
+    for (let x = 0; x < W; x++) {
+      let i = 0;
+      while (i < xs.length - 2 && x >= xs[i + 1]) i++;
+      const t = (x - xs[i]) / (xs[i + 1] - xs[i]);
+      const p0 = ys[Math.max(0, i - 1)], p1 = ys[i], p2 = ys[i + 1], p3 = ys[Math.min(ys.length - 1, i + 2)];
+      const y = 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+      river.push(Math.round(y * 100) / 100);
+      const wide = Math.abs(x - xs[down]) <= 3 ? 3 : MAP.river.width, top = Math.round(y - wide / 2);
+      for (let k = 0; k < wide; k++) if (inMap(x, top + k)) terr[idx(x, top + k)] = 2;
+    }
+    // 2. the fords: three columns of shallow water each
+    const fords = MAP.fords.map(([a, b]) => a + r.int(b - a - MAP.fordWidth + 2));
+    for (const fx of fords) for (let x = fx; x < fx + MAP.fordWidth; x++) for (let y = 0; y < H; y++) if (terr[idx(x, y)] === 2) terr[idx(x, y)] = 3;
+    // distance from water (8 neighbors, capped at 15); the fords count as river
+    wdist.fill(255);
+    let q = [];
+    for (let i = 0; i < N; i++) if (terr[i] === 2 || terr[i] === 3) { wdist[i] = 0; q.push(i); }
+    while (q.length) {
+      const nq = [];
+      for (const i of q) {
+        const x = i % W, y = (i - x) / W, d = wdist[i] + 1;
+        if (d > 15) continue;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if ((dx || dy) && inMap(nx, ny) && wdist[idx(nx, ny)] > d) { wdist[idx(nx, ny)] = d; nq.push(idx(nx, ny)); }
+        }
+      }
+      q = nq;
+    }
+    for (let i = 0; i < N; i++) if (wdist[i] === 255) wdist[i] = 15;
+    const townSide = (x, y) => y > river[x];
+    // 3. the town hill
+    const hc = [MAP.hill.c[0] - MAP.hill.jitter + r.int(2 * MAP.hill.jitter + 1), MAP.hill.c[1] - MAP.hill.jitter + r.int(2 * MAP.hill.jitter + 1)];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = (x + 0.5 - hc[0]) / MAP.hill.r[0], dy = (y + 0.5 - hc[1]) / MAP.hill.r[1];
+      if (dx * dx + dy * dy <= 1 && terr[idx(x, y)] === 0) { hill[idx(x, y)] = 1; terr[idx(x, y)] = 4; }
+    }
+    // 4. the dark river soil: the town side, 2 to 7 tiles from the water
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = idx(x, y), d = wdist[i];
+      if (terr[i] === 0 && townSide(x, y) && d >= MAP.fertile[0] && d <= MAP.fertile[1]) { terr[i] = 1; fert[i] = 1; }
+    }
+    // 6. two bluffs for Garni, near the left and right edges
+    const by = MAP.bluffs.y[0] + r.int(MAP.bluffs.y[1] - MAP.bluffs.y[0] - MAP.bluffs.size + 2);
+    const bluffs = [{ x: MAP.bluffs.minFromEdge, y: by, w: MAP.bluffs.size, h: MAP.bluffs.size },
+      { x: W - MAP.bluffs.minFromEdge - MAP.bluffs.size, y: by, w: MAP.bluffs.size, h: MAP.bluffs.size }];
+    for (const b of bluffs) for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { terr[idx(x, y)] = 8; fert[idx(x, y)] = 0; }
+    // the town center's footprint on the hill's middle
+    const tc = [hc[0] - 2, hc[1] - 2];
+    // 13. the trade road: from the palace to the left or right edge, two rows below it
+    const road = [], ry = Math.max(tc[1] + 5, MAP.bluffs.y[1] + 1), right = r.int(2) === 1;
+    for (let k = 0; k < W; k++) {
+      const x = right ? tc[0] + 1 + k : tc[0] + 2 - k;
+      if (x < 0 || x >= W) break;
+      if (terr[idx(x, ry)] !== 2 && terr[idx(x, ry)] !== 3 && terr[idx(x, ry)] !== 8) { terr[idx(x, ry)] = 6; fert[idx(x, ry)] = 0; road.push([x, ry]); }
+    }
+    for (let y = tc[1] + 4; y < ry; y++) { const x = tc[0] + 1; terr[idx(x, y)] = 6; road.unshift([x, y]); }
+    // 14. the raid entry zones
+    const entries = {};
+    for (const z in MAP.zones) {
+      const [a, b, c] = MAP.zones[z], list = [];
+      if (z === "LM" || z === "RM") for (let y = b; y <= c; y++) list.push([a, y]);
+      else for (let x = a; x <= b; x++) list.push([x, c]);
+      entries[z] = list;
+    }
+    // the resource nodes, in a fixed order (their ids follow it)
+    const nodes = [], used = new Uint8Array(N);
+    for (let y = tc[1] - 2; y < tc[1] + 6; y++) for (let x = tc[0] - 2; x < tc[0] + 6; x++) if (inMap(x, y)) used[idx(x, y)] = 1;
+    for (const [x, y] of road) used[idx(x, y)] = 1;
+    const free = (x, y, wmin) => inMap(x, y) && x >= MAP.nodeMinEdge && y >= MAP.nodeMinEdge && x < W - MAP.nodeMinEdge &&
+      y < H - MAP.nodeMinEdge && !used[idx(x, y)] && (terr[idx(x, y)] === 0 || terr[idx(x, y)] === 4) && wdist[idx(x, y)] >= wmin;
+    const put = (k, x, y, left) => { used[idx(x, y)] = 1; nodes.push({ k, x, y, left }); };
+    const cx = tc[0] + 2, cy = tc[1] + 2;
+    const spot = (dmin, dmax, wmin) => {
+      for (let tries = 0; tries < 400; tries++) {
+        const dx = r.int(2 * dmax + 1) - dmax, dy = r.int(2 * dmax + 1) - dmax, d = Math.sqrt(dx * dx + dy * dy);
+        const x = cx + dx, y = cy + dy;
+        if (d >= dmin && d <= dmax && townSide(x, y) && free(x, y, wmin)) return [x, y];
+      }
+      return null;
+    };
+    const blob = (k, n, dmin, dmax, per, wmin) => {
+      const s = spot(dmin, dmax, wmin);
+      if (!s) return;
+      put(k, s[0], s[1], per);
+      const ring = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [0, 2], [-2, 0], [0, -2]];
+      let m = 1;
+      for (const [dx, dy] of ring) { if (m >= n) break; if (free(s[0] + dx, s[1] + dy, wmin)) { put(k, s[0] + dx, s[1] + dy, per); m++; } }
+    };
+    // trees on the town-side bank, two apart, then two groves on the low ground 12 to 20 tiles away
+    for (let x = 2, n = 0; x < W - 2 && n < MAP.trees.river; x += 3) {
+      for (let y = 0; y < H; y++) {
+        const i = idx(x, y);
+        if (wdist[i] === MAP.trees.riverAt && townSide(x, y) && terr[i] === 0 && !used[i] && y >= 2) { put("tree", x, y, MAP.trees.per); n++; break; }
+      }
+    }
+    for (let g = 0; g < 2; g++) blob("tree", MAP.trees.groves[0] + r.int(MAP.trees.groves[1] - MAP.trees.groves[0] + 1), MAP.trees.groveAt[0], MAP.trees.groveAt[1], MAP.trees.per, MAP.nodeMinWdist);
+    for (let k = 0; k < MAP.stone.n; k++) { const R = k < 2 ? MAP.stone.near : MAP.stone.far; blob("stone", MAP.stone.tiles, R[0], R[1], MAP.stone.per, MAP.nodeMinWdist); }
+    for (let k = 0; k < MAP.ore.n; k++) { const R = k < 1 ? MAP.ore.near : MAP.ore.far; blob("ore", MAP.ore.tiles, R[0], R[1], MAP.ore.per, MAP.nodeMinWdist); }
+    for (let k = 0; k < MAP.flocks.n; k++) { const s = spot(MAP.flocks.at[0], MAP.flocks.at[1], MAP.nodeMinWdist); if (s) put("flock", s[0], s[1], MAP.flocks.per); }
+    for (let k = 0; k < MAP.orchards.n; k++) blob("orchard", MAP.orchards.trees, MAP.orchards.at[0], MAP.orchards.at[1], MAP.orchards.per, MAP.nodeMinWdist);
+    // 12. the salt meadows on the far bank, beside each ford's far end: dye nodes, passable ground
+    const salt = [];
+    for (const fx of fords) {
+      const patch = [], fy = Math.round(river[fx + 1]) - 2;
+      for (let rad = 0; rad <= MAP.salt.fromFord && patch.length < MAP.salt.tiles; rad++) {
+        for (let y = fy - rad; y <= fy + rad && patch.length < MAP.salt.tiles; y++) for (let x = fx - rad; x <= fx + 2 + rad && patch.length < MAP.salt.tiles; x++) {
+          if (!inMap(x, y) || y < MAP.nodeMinEdge || x < MAP.nodeMinEdge || x >= W - MAP.nodeMinEdge) continue;
+          const i = idx(x, y);
+          if (terr[i] === 0 && !townSide(x, y) && wdist[i] >= MAP.salt.wdist[0] && wdist[i] <= MAP.salt.wdist[1] && !used[i]) { terr[i] = 9; patch.push([x, y]); put("dye", x, y, MAP.salt.per); }
+        }
+      }
+      salt.push(patch);
+    }
+    return { terr, occ, wdist, fert, hill, canalPlan, canals: false, bluffs, entries, road, salt, fords,
+      river, start: { tc, nodes } };
+  }
+
+  // ---- state ----
+  const passable = t => t !== 2 && t !== 5;
+  function hpMaxOf(G, k) {
+    const age = G.age - 1, fx = techFx(G);
+    if (k === "tc") return Math.round(DIFFS[G.diff].tcHp * AGES[age].hpMult);
+    if (k === "wonder") return 1000;   // the wonder cannot be destroyed (7.4); raiders set its work back instead
+    if (k === "wall" || k === "gate") return Math.round(BLD[k].hp[age] * fx.wallHp);
+    return Math.round(BLD[k].hp * AGES[age].hpMult * (k === "tower" ? fx.towerHp : 1));
+  }
+  function techFx(G) {
+    const f = { wallHp: 1, towerHp: 1, bldCost: 1, researchCost: 1, researchTime: 1, horseFood: 1, horseTrain: 1, wonderRate: 1, fieldCost: null };
+    for (const id in TECHS) if (G.techs[id]) {
+      const x = TECHS[id].fx;
+      for (const k of ["wallHp", "towerHp", "bldCost", "researchCost", "researchTime", "horseFood", "horseTrain", "wonderRate"]) if (x[k]) f[k] *= x[k];
+      if (x.fieldCost) f.fieldCost = x.fieldCost;
+    }
+    return f;
+  }
+  function sizeOf(type, rot) {
+    if (type === "wonder") return [5, 5];
+    const s = BLD[type].size;
+    return rot === 1 ? [s[1], s[0]] : [s[0], s[1]];
+  }
+  function workOf(G, b) { return b.k === "wonder" ? WONDERS[G.age - 1].work : BLD[b.k].work; }
+  function mkBld(G, k, x, y, rot, done) {
+    const [w, h] = sizeOf(k, rot);
+    const b = { id: G.nextId++, k, x, y, w, h, rot: rot | 0, hp: 1, hpMax: 1, done: done ? 1 : 0, work: 0, builders: [],
+      q: [], rq: [], rally: null, shel: [], farmer: 0, auto: k === "tc", cd: 0, hitAt: -1, rep: zero(), dead: false };
+    b.hpMax = hpMaxOf(G, k);
+    b.hp = done ? b.hpMax : 1;
+    if (done) b.work = k === "tc" ? 0 : workOf(G, b);
+    occupy(G, b, b.id);
+    G.blds.push(b);
+    return b;
+  }
+  function occupy(G, b, v) { for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) G.map.occ[idx(x, y)] = v; }
+  function mkUnit(G, k, x, y) {
+    const raider = RAIDERS[k], hpMax = raider ? Math.round(raider.hp * DIFFS[G.diff].raiderHp) : UNITS[k].hp[G.age - 1];
+    const u = { id: G.nextId++, k, side: raider ? 1 : 0, x, y, px: x, py: y, hp: hpMax, hpMax, st: 0, act: "idle", tgt: 0,
+      task: null, carry: { r: "", n: 0 }, path: null, pi: 0, cd: 0, held: 0, raid: 0, flee: 0, shel: 0, calm: 0, dir: 1,
+      dead: false, loot: raider ? { kills: 0, dmg: 0, food: 0 } : null };
+    G.units.push(u);
+    return u;
+  }
+  const byId = (G, id) => {
+    if (!id) return null;
+    for (const a of [G.blds, G.units, G.nodes]) for (const o of a) if (o.id === id && !o.dead) return o;
+    return null;
+  };
+  const bld = (G, id) => { for (const b of G.blds) if (b.id === id && !b.dead) return b; return null; };
+  const town = G => G.units.filter(u => !u.dead && u.side === 0);
+  const hasDone = (G, k) => G.blds.some(b => !b.dead && b.k === k && b.done >= 1);
+  const tcOf = G => G.blds.find(b => !b.dead && b.k === "tc") || null;
+  function popCapOf(G) {
+    let n = 0;
+    for (const b of G.blds) if (!b.dead && b.done >= 1 && BLD[b.k] && BLD[b.k].pop) n += BLD[b.k].pop;
+    return Math.min(POP.max, n);
+  }
+  // a free tile nearest the middle of a building's front (lower) edge
+  function freeNear(G, x0, y0) {
+    for (let rad = 0; rad < 12; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+      const x = x0 + dx, y = y0 + dy;
+      if (inMap(x, y) && passable(G.map.terr[idx(x, y)]) && G.map.occ[idx(x, y)] === 0) return [x, y];
+    }
+    return [x0, y0];
+  }
+
+  function newGame(o) {
+    o = o || {};
+    const seed = Math.max(1, Math.floor(Math.abs(Number(o.seed) || 1))) % 2147483647 || 1;
+    const diff = o.diff === 0 || o.diff === 2 ? o.diff : 1, D = DIFFS[diff];
+    const map = mapGen(seed);
+    const G = {
+      v: 1, seed, diff, tick: 0, rngState: rng((seed * 7919 + 17) >>> 0).state,
+      age: 1, aging: null, res: { f: D.res.f, w: D.res.w, s: D.res.s, g: D.res.g }, popCap: 0, techs: {}, map,
+      units: [], blds: [], nodes: [], carts: [], shots: [], raids: [], nextId: 1,
+      alarm: { on: false, all: false, until: 0, tappedAt: -1 }, post: { x: 0, y: 0, hold: false }, autoFarm: true,
+      firstTown: !!o.firstTown, opening: { house: 0, field: 0, store: 0, moved: 0 },
+      clock: { nextRaid: T(D.firstRaid), raidN: 0, wonderNext: 0, held: !!o.firstTown },
+      cartMarket: 0, wonder: 0, craftsmenUntil: 0, over: null,
+      stats: { gathered: zero(), spentBld: 0, techs: 0, fallen: { raiders: 0, villagers: 0, garrison: 0 }, raids: 0 },
+      nav: { ver: 0, dirty: true, fields: { core: null, wonder: null, open: null, edge: null } },
+      cmdq: [], ev: [],
+    };
+    for (const n of map.start.nodes) {
+      const node = { id: G.nextId++, k: n.k, x: n.x, y: n.y, left: n.left, max: n.left, workers: 0, dead: false };
+      G.nodes.push(node);
+      map.occ[idx(n.x, n.y)] = -node.id;
+    }
+    const tc = mkBld(G, "tc", map.start.tc[0], map.start.tc[1], 0, true);
+    for (let i = 0; i < D.vil; i++) { const [x, y] = freeNear(G, tc.x + 1 + (i % 4) - 1, tc.y + 4 + Math.floor(i / 4)); mkUnit(G, "vil", x + 0.5, y + 0.5); }
+    let g = 0;
+    for (const k of ["spear", "bow"]) for (let i = 0; i < (D.gar[k] || 0); i++, g++) { const [x, y] = freeNear(G, tc.x + 4 + (g % 2), tc.y + 1 + Math.floor(g / 2)); mkUnit(G, k, x + 0.5, y + 0.5); }
+    G.post = { x: tc.x + 2, y: tc.y + 6, hold: false };
+    G.popCap = popCapOf(G);
+    return G;
+  }
+
+  // ---- costs ----
+  function cost(G, what) {
+    const fx = techFx(G), out = zero();
+    let c = null, mult = 1, foodMult = 1;
+    if (what === "wonder") { c = WONDERS[G.age - 1].cost; mult = fx.bldCost; }
+    else if (what === "advance") { if (G.age >= 3) return null; c = AGES[G.age].advance.cost; }
+    else if (BLD[what] && what !== "tc") { c = what === "field" && fx.fieldCost ? fx.fieldCost : BLD[what].cost; mult = fx.bldCost; }
+    else if (UNITS[what]) { c = UNITS[what].cost; if (what === "horse") foodMult = fx.horseFood; }
+    else if (TECHS[what]) { c = TECHS[what].cost; if (what !== "armenian_letters") mult = fx.researchCost; }
+    if (!c) return null;
+    for (const r of RES) out[r] = Math.round((c[r] || 0) * mult * (r === "f" ? foodMult : 1));
+    return out;
+  }
+  const afford = (G, c) => !!c && RES.every(r => G.res[r] >= (c[r] || 0));
+  const missing = (G, c) => RES.find(r => G.res[r] < (c[r] || 0)) || "";
+  function pay(G, c, k) { for (const r of RES) G.res[r] -= (c[r] || 0) * (k === undefined ? 1 : k); }
+  function refund(G, c, k) { for (const r of RES) G.res[r] += Math.floor((c[r] || 0) * k); }
+
+  // ---- placement (4.3): availability, bounds, edge, terrain, bank, fertile soil, the wonder's site, cost ----
+  function wonderReq(G) {
+    const Wd = WONDERS[G.age - 1];
+    for (const b of Wd.req.bld) if (!hasDone(G, b)) return { bld: b };
+    for (const t of Wd.req.tech || []) if (!G.techs[t]) return { tech: t };
+    return null;
+  }
+  function canPlace(G, type, x, y, rot) {
+    const out = (err, extra) => Object.assign({ ok: !err, err: err || "", tiles: [] }, extra || {});
+    if (PLACE_TYPES.indexOf(type) < 0 && type !== "wall" && type !== "gate") return out("bad");
+    if (type === "stable" && G.age === 1 && !G.techs.horse_breeding) return out("req", { need: "horse_breeding" });
+    if (type === "grove" && (G.age < 3 || !G.techs.planted_groves)) return out(G.age < 3 ? "age" : "req", { need: "planted_groves", age: 3 });
+    if (type === "wonder") {
+      if (G.wonder) return out("blocked");
+      const m = wonderReq(G);
+      if (m) return out("req", { need: m.bld || m.tech });
+    }
+    if (!isInt(x) || !isInt(y)) return out("bounds");
+    const [w, h] = sizeOf(type, rot === 1 ? 1 : 0), tiles = [];
+    for (let ty = y; ty < y + h; ty++) for (let tx = x; tx < x + w; tx++) tiles.push([tx, ty]);
+    if (x < 0 || y < 0 || x + w > W || y + h > H) return out("bounds", { tiles });
+    const e = PLACE.edgeMargin;
+    if (x < e || y < e || x + w > W - e || y + h > H - e) return out("edge", { tiles });
+    for (const [tx, ty] of tiles) {
+      const i = idx(tx, ty), t = G.map.terr[i];
+      if (t === 2 || t === 3 || t === 5 || t === 7 || t === 9 || G.map.occ[i] !== 0) return out("blocked", { tiles });
+      if (t === 6 && type !== "wall" && type !== "gate") return out("blocked", { tiles });
+      if (t === 8 && !(type === "wonder" && G.age === 2)) return out("blocked", { tiles });
+    }
+    if (type !== "field") for (const [tx, ty] of tiles) { const d = G.map.wdist[idx(tx, ty)]; if (d >= 1 && d <= PLACE.bankMargin) return out("bank", { tiles }); }
+    if (type === "field") for (const [tx, ty] of tiles) if (!G.map.fert[idx(tx, ty)]) return out("fertile", { tiles });
+    if (type === "wonder") {
+      const site = WONDERS[G.age - 1].site, tc = tcOf(G);
+      const ddx = x + 2.5 - (tc ? tc.x + 2 : 0), ddy = y + 2.5 - (tc ? tc.y + 2 : 0), d = tc ? Math.sqrt(ddx * ddx + ddy * ddy) : 0;
+      if (site.nearTc && d > site.nearTc) return out("site", { tiles, age: G.age });
+      if (site.farFromTc && d < site.farFromTc) return out("site", { tiles, age: G.age });
+      if (site.bluff && !tiles.every(([tx, ty]) => G.map.terr[idx(tx, ty)] === 8)) return out("site", { tiles, age: G.age });
+    }
+    const c = cost(G, type);
+    if (!afford(G, c)) return out("cost", { tiles, res: missing(G, c) });
+    return out("", { tiles });
+  }
+
+  // ---- commands (13.5): validated now, queued for the next tick, validated again when applied ----
+  const CMDS = {
+    place: { type: "ptype", x: "int", y: "int", rot: "rot" }, wall: { tiles: "tiles" }, gate: { x: "int", y: "int", rot: "rot" },
+    cancel: { bld: "bld" }, demolish: { bld: "bld" }, builders: { bld: "bld", n: "count" }, labor: { res: "res", delta: "pm1" },
+    task: { ids: "ids", target: "id" }, move: { ids: "ids", x: "int", y: "int" }, attack: { ids: "ids", target: "id" },
+    post: { x: "int", y: "int", hold: "bool" }, train: { bld: "bld", unit: "unit", n: "count" }, untrain: { bld: "bld", i: "count" },
+    auto: { bld: "bld", on: "bool" }, rally: { bld: "bld" }, research: { tech: "tech" }, advance: {},
+    alarm: { on: "bool", all: "bool" }, trade: { op: "op", res: "res" }, autoFarm: { on: "bool" }, dismiss: { ids: "ids" },
+  };
+  function shapeErr(G, c) {
+    if (!c || typeof c !== "object" || !CMDS[c.k]) return "bad";
+    const S = CMDS[c.k];
+    for (const f in S) {
+      const v = c[f], t = S[f];
+      if (t === "int" && !isInt(v)) return "bad";
+      if (t === "rot" && v !== 0 && v !== 1) return "bad";
+      if (t === "count" && !(isInt(v) && v >= 0 && v <= 99)) return "bad";
+      if (t === "pm1" && v !== 1 && v !== -1) return "bad";
+      if (t === "bool" && typeof v !== "boolean") return "bad";
+      if (t === "res" && RES.indexOf(v) < 0) return "bad";
+      if (t === "ptype" && PLACE_TYPES.indexOf(v) < 0) return "bad";
+      if (t === "unit" && !UNITS[v]) return "bad";
+      if (t === "tech" && !TECHS[v]) return "bad";
+      if (t === "op" && v !== "sell" && v !== "buy") return "bad";
+      if (t === "bld" && !(isInt(v) && bld(G, v))) return "bad";
+      if (t === "id" && !(isInt(v) && byId(G, v))) return "bad";
+      if (t === "ids") {
+        if (!Array.isArray(v) || !v.length || v.length > 200) return "bad";
+        for (const id of v) { const u = byId(G, id); if (!isInt(id) || !u || u.side !== 0 || !UNITS[u.k]) return "bad"; }
+      }
+      if (t === "tiles") {
+        if (!Array.isArray(v) || !v.length || v.length > 400) return "bad";
+        for (const p of v) if (!Array.isArray(p) || !isInt(p[0]) || !isInt(p[1]) || !inMap(p[0], p[1])) return "bad";
+      }
+    }
+    if (c.k === "rally" && !((isInt(c.x) && isInt(c.y) && inMap(c.x, c.y)) || RES.indexOf(c.res) >= 0)) return "bad";
+    if ((c.k === "move" || c.k === "post") && !inMap(c.x, c.y)) return "bad";
+    return "";
+  }
+  // what a command would do now: "" when it can, else its error (and res for a cost)
+  function check(G, c) {
+    const S = shapeErr(G, c);
+    if (S) return { err: S };
+    if (G.over) return { err: "bad" };
+    const tc = tcOf(G);
+    switch (c.k) {
+      case "place": { const p = canPlace(G, c.type, c.x, c.y, c.rot); return p.ok ? { err: "" } : p; }
+      case "gate": { const p = canPlace(G, "gate", c.x, c.y, c.rot); return p.ok ? { err: "" } : p; }
+      case "wall": return afford(G, cost(G, "wall")) ? { err: "" } : { err: "cost", res: "s" };
+      case "cancel": { const b = bld(G, c.bld); return b && b.done < 1 ? { err: "" } : { err: "bad" }; }
+      case "demolish": { const b = bld(G, c.bld); return b && b.done >= 1 && b.k !== "tc" && b.k !== "wonder" ? { err: "" } : { err: "bad" }; }
+      case "builders": { const b = bld(G, c.bld); return b && b.done < 1 ? { err: "" } : { err: "bad" }; }
+      case "train": {
+        const b = bld(G, c.bld);
+        if (!b || b.done < 1 || !BLD[b.k] || !(BLD[b.k].trains || []).includes(c.unit)) return { err: "bad" };
+        if (c.n < 1 || b.q.length + c.n > 5) return { err: "busy" };
+        const k = cost(G, c.unit), all = zero();
+        for (const r of RES) all[r] = k[r] * c.n;
+        return afford(G, all) ? { err: "" } : { err: "cost", res: missing(G, all) };
+      }
+      case "untrain": { const b = bld(G, c.bld); return b && c.i < b.q.length ? { err: "" } : { err: "bad" }; }
+      case "auto": { const b = bld(G, c.bld); return b && b.k === "tc" ? { err: "" } : { err: "bad" }; }
+      case "research": {
+        const X = TECHS[c.tech];
+        if (G.techs[c.tech] || G.blds.some(b => !b.dead && b.rq.some(q => q.tech === c.tech))) return { err: "done" };
+        if (X.age > G.age) return { err: "age", age: X.age };
+        if (!G.blds.some(b => !b.dead && b.done >= 1 && b.k === X.at)) return { err: "req", need: X.at };
+        const k = cost(G, c.tech);
+        return afford(G, k) ? { err: "" } : { err: "cost", res: missing(G, k) };
+      }
+      case "advance": {
+        if (G.age >= 3 || G.aging || !tc) return { err: "bad" };
+        if (G.wonder) return { err: "wonder" };
+        for (const k of AGES[G.age].advance.req) if (!hasDone(G, k)) return { err: "req", need: k };
+        const k = cost(G, "advance");
+        return afford(G, k) ? { err: "" } : { err: "cost", res: missing(G, k) };
+      }
+      case "trade": {
+        if (!hasDone(G, "market")) return { err: "req", need: "market" };
+        if (c.res === "g") return { err: "bad" };
+        if (c.op === "sell") return G.res[c.res] >= MARKET.lot ? { err: "" } : { err: "cost", res: c.res };
+        return G.res.g >= MARKET.buy[c.res] ? { err: "" } : { err: "cost", res: "g" };
+      }
+      case "dismiss": return c.ids.every(id => { const u = byId(G, id); return u && u.k !== "vil"; }) ? { err: "" } : { err: "bad" };
+      default: return { err: "" };
+    }
+  }
+  function command(G, c) {
+    const r = check(G, c);
+    if (r.err) { const o = { ok: false, err: r.err }; if (r.res) o.res = r.res; if (r.need) o.need = r.need; if (r.age) o.age = r.age; return o; }
+    G.cmdq.push(cp(c));
+    return { ok: true };
+  }
+
+  // builders: idle villagers first, then the lowest ids not already building; each returns to its old task after
+  function setBuilders(G, b, n) {
+    b.builders = b.builders.filter(id => { const u = byId(G, id); return u && !u.dead; });
+    const max = b.k === "wonder" ? WONDERS[G.age - 1].maxBuilders : BUILD.maxBuilders;
+    n = Math.max(0, Math.min(max, n));
+    const vils = G.units.filter(u => !u.dead && u.k === "vil" && !(u.task && u.task.t === "build"));
+    vils.sort((a, c) => (a.task ? 1 : 0) - (c.task ? 1 : 0) || a.id - c.id);
+    while (b.builders.length < n && vils.length) {
+      const u = vils.shift();
+      u.task = { t: "build", bld: b.id, prev: u.task ? cp(u.task) : null };
+      u.act = "build";
+      b.builders.push(u.id);
+    }
+    while (b.builders.length > n) release(G, b.builders.pop());
+  }
+  function release(G, id) {
+    const u = byId(G, id);
+    if (!u) return;
+    u.task = u.task && u.task.prev ? u.task.prev : null;
+    u.act = u.task ? (u.task.t === "gather" ? "gather" : "walk") : "idle";
+  }
+  function finish(G, b) {
+    b.done = 1; b.work = workOf(G, b); b.hp = b.hpMax;
+    const ids = b.builders.slice();
+    b.builders = [];
+    // a stroke's builder walks on to the next unfinished wall or gate with nobody on it
+    const nextWall = (b.k === "wall" || b.k === "gate") ? G.blds.find(o => !o.dead && o.done < 1 && (o.k === "wall" || o.k === "gate") && !o.builders.length) : null;
+    for (const id of ids) {
+      const u = byId(G, id);
+      if (nextWall && u) { u.task.bld = nextWall.id; nextWall.builders.push(id); } else release(G, id);
+    }
+    G.popCap = popCapOf(G);
+    ev(G, "built", { bld: b.id, k: b.k });
+    if (b.k === "wonder") win(G);
+  }
+  function remove(G, b) {
+    b.dead = true;
+    occupy(G, b, 0);
+    for (const id of b.builders) release(G, id);
+    b.builders = [];
+    if (G.wonder === b.id) G.wonder = 0;
+    G.popCap = popCapOf(G);
+    G.nav.dirty = true;
+  }
+  function win(G) {
+    if (G.over) return;
+    G.over = { win: true, stars: G.age, cause: "wonder", tick: G.tick };
+    ev(G, "win", { age: G.age, stars: G.age });
+  }
+  function lose(G, cause) {
+    if (G.over) return;
+    G.over = { win: false, stars: 0, cause, tick: G.tick };
+    ev(G, "lose", { cause });
+  }
+  function exec(G, c) {
+    const r = check(G, c);
+    if (r.err) { ev(G, "cmdDropped", { k: c.k, err: r.err }); return; }
+    switch (c.k) {
+      case "place": {
+        const k = cost(G, c.type);
+        pay(G, k); G.stats.spentBld += k.f + k.w + k.s + k.g;
+        const b = mkBld(G, c.type, c.x, c.y, c.rot, false);
+        setBuilders(G, b, c.type === "wonder" ? WONDERS[G.age - 1].startBuilders : BLD[c.type].builders);
+        if (G.opening[c.type] === 0) G.opening[c.type] = 1;
+        G.nav.dirty = true;
+        ev(G, "placed", { bld: b.id });
+        if (c.type === "wonder") { G.wonder = b.id; G.clock.wonderNext = G.tick + T(RAID.firstWonderRaid); ev(G, "wonderBegin", { bld: b.id }); }
+        break;
+      }
+      case "wall": {
+        let first = null;
+        for (const [x, y] of c.tiles) {
+          if (!canPlace(G, "wall", x, y, 0).ok) continue;
+          const k = cost(G, "wall");
+          pay(G, k); G.stats.spentBld += k.s;
+          const b = mkBld(G, "wall", x, y, 0, false);
+          ev(G, "placed", { bld: b.id });
+          if (!first) { first = b; setBuilders(G, b, 1); }
+        }
+        G.nav.dirty = true;
+        break;
+      }
+      case "gate": {
+        const k = cost(G, "gate");
+        pay(G, k); G.stats.spentBld += k.s;
+        const b = mkBld(G, "gate", c.x, c.y, c.rot, false);
+        setBuilders(G, b, 1);
+        G.nav.dirty = true;
+        ev(G, "placed", { bld: b.id });
+        break;
+      }
+      case "cancel": {
+        const b = bld(G, c.bld), k = b.k === "wonder" ? WONDERS[G.age - 1].cost : (b.k === "field" ? cost(G, "field") : BLD[b.k].cost);
+        refund(G, k, b.work > 0 || b.k === "wonder" ? BUILD.refundStarted : 1);
+        remove(G, b);
+        ev(G, "canceled", { bld: b.id });
+        break;
+      }
+      case "demolish": { const b = bld(G, c.bld); remove(G, b); ev(G, "destroyed", { bld: b.id, k: b.k, x: b.x, y: b.y }); break; }
+      case "builders": setBuilders(G, bld(G, c.bld), c.n); break;
+      case "labor": {
+        const vils = G.units.filter(u => !u.dead && u.k === "vil" && !(u.task && u.task.t === "build"));
+        if (c.delta > 0) {
+          const counts = {};
+          for (const u of vils) if (u.task && u.task.t === "gather") counts[u.task.res] = (counts[u.task.res] || 0) + 1;
+          let u = vils.find(v => !v.task);
+          if (!u) {
+            let best = "";
+            for (const r of RES) if (r !== c.res && (counts[r] || 0) > (counts[best] || 0)) best = r;
+            u = best ? vils.find(v => v.task && v.task.t === "gather" && v.task.res === best) : null;
+          }
+          if (u) { u.task = { t: "gather", res: c.res, node: 0, prev: null }; u.act = "gather"; }
+        } else {
+          const u = vils.slice().reverse().find(v => v.task && v.task.t === "gather" && v.task.res === c.res);
+          if (u) { u.task = null; u.act = "idle"; }
+        }
+        G.opening.moved = 1;
+        break;
+      }
+      case "task": {
+        const tgt = byId(G, c.target);
+        for (const id of c.ids) {
+          const u = byId(G, id);
+          if (u.k !== "vil") continue;
+          if (tgt && NODE_KINDS.indexOf(tgt.k) >= 0) { u.task = { t: "gather", res: NODE_RES[tgt.k], node: tgt.id, prev: null }; u.act = "gather"; }
+          else if (tgt && tgt.blds === undefined && tgt.done !== undefined && tgt.done < 1) setBuilders(G, tgt, tgt.builders.length + 1);
+        }
+        break;
+      }
+      case "move":
+        for (const id of c.ids) { const u = byId(G, id); u.task = { t: "move", x: c.x, y: c.y, prev: null }; u.act = "walk"; }
+        if (c.ids.some(id => byId(G, id).k !== "vil")) G.post = { x: c.x, y: c.y, hold: G.post.hold };
+        break;
+      case "attack": for (const id of c.ids) { const u = byId(G, id); if (u.k !== "vil") u.tgt = c.target; } break;
+      case "post": G.post = { x: c.x, y: c.y, hold: c.hold }; break;
+      case "train": {
+        const b = bld(G, c.bld), k = cost(G, c.unit), fx = techFx(G);
+        const t = UNITS[c.unit].train * (c.unit === "horse" ? fx.horseTrain : 1);
+        for (let i = 0; i < c.n; i++) { pay(G, k); b.q.push({ k: c.unit, left: T(t), paid: cp(k) }); }
+        break;
+      }
+      case "untrain": { const b = bld(G, c.bld), q = b.q.splice(c.i, 1)[0]; refund(G, q.paid || cost(G, q.k), 1); break; }
+      case "auto": bld(G, c.bld).auto = c.on; break;
+      case "rally": { const b = bld(G, c.bld); b.rally = RES.indexOf(c.res) >= 0 ? { res: c.res } : { x: c.x, y: c.y }; break; }
+      case "research": {
+        const X = TECHS[c.tech], k = cost(G, c.tech), fx = techFx(G);
+        const at = G.blds.filter(b => !b.dead && b.done >= 1 && b.k === X.at).sort((a, b) => a.rq.length - b.rq.length || a.id - b.id)[0];
+        if (at.rq.length >= 3) { ev(G, "cmdDropped", { k: c.k, err: "busy" }); break; }
+        pay(G, k);
+        at.rq.push({ tech: c.tech, left: T(X.time * (c.tech === "armenian_letters" ? 1 : fx.researchTime)) });
+        break;
+      }
+      case "advance": {
+        pay(G, cost(G, "advance"));
+        G.aging = { to: G.age + 1, left: T(AGES[G.age].advance.time) };
+        ev(G, "ageStart", { to: G.age + 1 });
+        break;
+      }
+      case "alarm":
+        G.alarm = { on: c.on, all: c.on && c.all, until: c.on ? G.tick + T(POST.alarmAutoClear) : 0, tappedAt: G.tick };
+        ev(G, "alarm", { on: c.on, all: G.alarm.all });
+        break;
+      case "trade": {
+        const fx = { sell: G.techs.coinage ? 1.2 : 1, buy: G.techs.coinage ? 0.85 : 1 };
+        if (c.op === "sell") { G.res[c.res] -= MARKET.lot; G.res.g += Math.round(MARKET.sell[c.res] * fx.sell); ev(G, "trade", { op: c.op, res: c.res, n: MARKET.lot }); }
+        else { const p = Math.round(MARKET.buy[c.res] * fx.buy); if (G.res.g >= p) { G.res.g -= p; G.res[c.res] += MARKET.lot; ev(G, "trade", { op: c.op, res: c.res, n: MARKET.lot }); } }
+        break;
+      }
+      case "autoFarm": G.autoFarm = c.on; break;
+      case "dismiss": for (const id of c.ids) { const u = byId(G, id); u.dead = true; } break;
+      default: break;
+    }
+  }
+  // step 1 of a tick, alone: the plan-while-paused mode applies commands at once without time passing
+  function apply(G) {
+    const q = G.cmdq;
+    G.cmdq = [];
+    for (const c of q) exec(G, c);
+    compact(G);
+  }
+
+  // ---- the tick (13.2's order; STUB: steps 3 to 8 are WP2's) ----
+  function setAge(G, to) {
+    const share = G.blds.map(b => b.hp / b.hpMax), ushare = G.units.map(u => u.hp / u.hpMax);
+    G.age = to;
+    G.blds.forEach((b, i) => { b.hpMax = hpMaxOf(G, b.k); b.hp = Math.max(1, Math.round(b.hpMax * share[i])); });
+    G.units.forEach((u, i) => { if (UNITS[u.k]) { u.hpMax = UNITS[u.k].hp[to - 1]; u.hp = Math.max(1, Math.round(u.hpMax * ushare[i])); } });
+  }
+  function tick(G) {
+    if (G.over) return;
+    for (const u of G.units) { u.px = u.x; u.py = u.y; }
+    // 1. commands
+    apply(G);
+    // 2. timers: the age advance, research and training queues, construction, the Craftsmen
+    if (G.aging && --G.aging.left <= 0) {
+      const to = G.aging.to;
+      G.aging = null;
+      setAge(G, to);
+      if (AGES[to - 1].craftsmen) { G.craftsmenUntil = G.tick + T(AGES[to - 1].craftsmen.time); ev(G, "craftsmen", { until: G.craftsmenUntil }); }
+      ev(G, "ageDone", { age: to });
+    }
+    const pop = town(G).length;
+    let room = G.popCap - pop;
+    for (const b of G.blds) {
+      if (b.dead || b.done < 1) continue;
+      const busy = b.k === "tc" && G.aging;
+      if (b.rq.length && !busy && --b.rq[0].left <= 0) {
+        const id = b.rq.shift().tech;
+        G.techs[id] = true; G.stats.techs++;
+        if (TECHS[id].fx.canals) G.map.canals = true;
+        if (TECHS[id].fx.wallHp || TECHS[id].fx.towerHp) for (const o of G.blds) if (!o.dead && (o.k === "wall" || o.k === "gate" || o.k === "tower")) { const s = o.hp / o.hpMax; o.hpMax = hpMaxOf(G, o.k); o.hp = Math.max(1, Math.round(o.hpMax * s)); }
+        ev(G, "researched", { tech: id });
+      }
+      if (b.k === "tc" && b.auto && !busy && !b.q.length && room > 0 && afford(G, cost(G, "vil"))) {
+        const k = cost(G, "vil");
+        pay(G, k);
+        b.q.push({ k: "vil", left: T(UNITS.vil.train), paid: cp(k) });
+      }
+      if (b.q.length && !busy) {
+        if (room <= 0) { if (!b.q[0].np) { b.q[0].np = 1; ev(G, "noPop"); } continue; }
+        if (--b.q[0].left <= 0) {
+          const q = b.q.shift(), [x, y] = freeNear(G, b.x + (b.w >> 1), b.y + b.h);
+          const u = mkUnit(G, q.k, x + 0.5, y + 0.5);
+          if (b.rally && b.rally.res && q.k === "vil") { u.task = { t: "gather", res: b.rally.res, node: 0, prev: null }; u.act = "gather"; }
+          room--;
+          ev(G, "trained", { id: u.id, k: u.k });
+        }
+      }
+    }
+    const crafts = G.tick < G.craftsmenUntil ? AGES[1].craftsmen.mult : 1, fx = techFx(G);
+    for (const b of G.blds) {
+      if (b.dead || b.done >= 1) continue;
+      const n = b.builders.length;
+      if (!n) continue;
+      const total = workOf(G, b), was = b.done;
+      const rate = b.k === "wonder" ? BUILD.wonderRate(Math.min(n, WONDERS[G.age - 1].maxBuilders)) * fx.wonderRate : BUILD.rate(Math.min(n, BUILD.maxBuilders));
+      b.work = Math.min(total, b.work + rate * crafts * DT);
+      b.done = b.work / total;
+      b.hp = Math.max(1, Math.round(b.hpMax * b.done));
+      if (b.k === "wonder") for (const p of [0.25, 0.5, 0.75]) if (was < p && b.done >= p) ev(G, "wonderStage", { pct: Math.round(p * 100) });
+      if (b.work >= total) finish(G, b);
+    }
+    // the first-town wait (6.6): the clock starts once the four opening steps are done, or at the cap
+    if (G.clock.held) {
+      const o = G.opening;
+      if ((o.house && o.field && o.store && o.moved) || G.tick >= T(DIFFS[G.diff].firstTownCap)) {
+        G.clock.held = false;
+        G.clock.nextRaid = G.tick + T(RAID.firstTown.after);
+        ev(G, "clockStart", { nextRaid: G.clock.nextRaid });
+      }
+    }
+    // 6. move (STUB: straight lines, no paths)
+    for (const u of G.units) {
+      if (u.dead || !u.task || u.task.t !== "move") continue;
+      const tx = u.task.x + 0.5, ty = u.task.y + 0.5, dx = tx - u.x, dy = ty - u.y, d = Math.sqrt(dx * dx + dy * dy);
+      const step = (UNITS[u.k] ? UNITS[u.k].spd : 1.5) * DT;
+      if (d <= step) { u.x = tx; u.y = ty; u.task = null; u.act = "idle"; }
+      else { u.x += dx / d * step; u.y += dy / d * step; u.dir = dx < 0 ? -1 : 1; }
+    }
+    // 9. deaths and compaction; 10. win and loss
+    compact(G);
+    const tc = tcOf(G);
+    if (!tc || tc.hp <= 0) lose(G, "tc");
+    G.tick++;
+  }
+  function compact(G) {
+    if (G.units.some(u => u.dead)) G.units = G.units.filter(u => !u.dead);
+    if (G.blds.some(b => b.dead)) G.blds = G.blds.filter(b => !b.dead);
+    if (G.nodes.some(n => n.dead)) G.nodes = G.nodes.filter(n => !n.dead);
+  }
+  function run(G, seconds, each) {
+    const n = Math.round(seconds / DT);
+    for (let i = 0; i < n && !G.over; i++) { tick(G); if (each) each(G); }
+    return G;
+  }
+  function drain(G) { const e = G.ev; G.ev = []; return e; }
+
+  // ---- what the HUD reads ----
+  function labor(G) {
+    const L = { f: 0, w: 0, s: 0, g: 0, build: 0, idle: 0, sheltered: 0, nodes: { flock: 0, orchard: 0, field: 0, tree: 0, grove: 0, stone: 0, ore: 0, dye: 0 } };
+    for (const u of G.units) {
+      if (u.dead || u.k !== "vil") continue;
+      if (u.shel) L.sheltered++;
+      else if (!u.task) L.idle++;
+      else if (u.task.t === "build" || u.task.t === "repair") L.build++;
+      else if (u.task.t === "gather") {
+        L[u.task.res]++;
+        const n = u.task.node ? byId(G, u.task.node) : null;
+        if (n && L.nodes[n.k] !== undefined) L.nodes[n.k]++;
+      } else L.idle++;
+    }
+    return L;
+  }
+  // the one goal of the Next line (9.3)
+  function next(G) {
+    if (G.over) return { k: "over" };
+    if (G.firstTown) {
+      const o = G.opening;
+      if (!o.house) return { k: "open", step: "house" };
+      if (!o.field) return { k: "open", step: "field" };
+      if (!o.store) return { k: "open", step: "store" };
+      if (!o.moved) return { k: "open", step: "move" };
+    }
+    if (G.wonder) { const b = bld(G, G.wonder); return { k: "wonderPct", age: G.age, pct: b ? Math.floor(b.done * 100) : 0 }; }
+    if (G.aging) return { k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) };
+    const res = c => { for (const r of RES) if ((c[r] || 0) > G.res[r]) return { k: "res", res: r, have: Math.floor(G.res[r]), need: c[r] }; return null; };
+    if (!wonderReq(G) && afford(G, cost(G, "wonder"))) return { k: "wonder", age: G.age };
+    if (G.age < 3) {
+      for (const k of AGES[G.age].advance.req) if (!hasDone(G, k)) return { k: "build", type: k, age: G.age };
+      return res(cost(G, "advance")) || { k: "advance", to: G.age + 1 };
+    }
+    const m = wonderReq(G);
+    if (m) return m.bld ? { k: "build", type: m.bld, age: G.age } : { k: "tech", tech: m.tech };
+    return res(cost(G, "wonder")) || { k: "wonder", age: G.age };
+  }
+  function suggestRing(G) { return { strokes: [], gate: null }; }   // STUB: an empty ring (WP2, 4.4)
+  function at(G, x, y) {
+    let unit = null, bd = null, node = null, best = 0.7;
+    for (const u of G.units) { if (u.dead) continue; const d = Math.max(Math.abs(u.x - x), Math.abs(u.y - y)); if (d < best) { best = d; unit = u; } }
+    const tx = Math.floor(x), ty = Math.floor(y);
+    if (inMap(tx, ty)) {
+      const o = G.map.occ[idx(tx, ty)];
+      if (o > 0) bd = bld(G, o);
+      else if (o < 0) node = byId(G, -o);
+    }
+    return { unit, bld: bd, node, terr: inMap(tx, ty) ? G.map.terr[idx(tx, ty)] : -1 };
+  }
+  function raidInfo(G) {
+    const lead = T(DIFFS[G.diff].lead + (G.techs.fire_beacons ? RAID.beaconLead : 0));
+    return { nextWarn: G.clock.nextRaid - lead, nextSpawn: G.clock.nextRaid, live: [], wonder: !!G.wonder, held: !!G.clock.held };
+  }
+
+  // ---- save, load, hash (13.9). Units, buildings, carts and shots are saved as arrays in these field orders;
+  // nodes as [id, left]; the map is rebuilt from the seed ----
+  const UF = ["id", "k", "side", "x", "y", "hp", "hpMax", "st", "act", "tgt", "task", "carry", "cd", "held", "raid", "flee", "shel", "calm", "dir", "loot"];
+  const BF = ["id", "k", "x", "y", "w", "h", "rot", "hp", "hpMax", "done", "work", "builders", "q", "rq", "rally", "shel", "farmer", "auto", "cd", "hitAt", "rep"];
+  const CF = ["id", "x", "y", "hp", "i", "market"];
+  const SF = ["k", "fx", "fy", "tx", "ty", "tgt", "dmg", "at"];
+  const row = (o, F) => F.map(f => cp(o[f]));
+  function save(G) {
+    return {
+      v: VERSION, seed: G.seed, diff: G.diff, tick: G.tick, rng: G.rngState, age: G.age, aging: cp(G.aging), res: cp(G.res),
+      popCap: G.popCap, techs: cp(G.techs), units: G.units.filter(u => !u.dead).map(u => row(u, UF)),
+      blds: G.blds.filter(b => !b.dead).map(b => row(b, BF)), nodes: G.nodes.filter(n => !n.dead).map(n => [n.id, n.left]),
+      carts: G.carts.filter(c => !c.dead).map(c => row(c, CF)), shots: G.shots.map(s => row(s, SF)), raids: cp(G.raids),
+      clock: cp(G.clock), wonder: G.wonder, craftsmenUntil: G.craftsmenUntil, alarm: cp(G.alarm), post: cp(G.post),
+      autoFarm: G.autoFarm, firstTown: G.firstTown, opening: cp(G.opening), cartMarket: G.cartMarket, stats: cp(G.stats),
+      nextId: G.nextId, canals: G.map.canals, over: cp(G.over),
+    };
+  }
+  const fin = v => typeof v === "number" && isFinite(v);
+  function load(o) {
+    try {
+      if (!o || typeof o !== "object" || o.v !== VERSION) return null;
+      if (!isInt(o.seed) || o.seed < 1 || (o.diff !== 0 && o.diff !== 1 && o.diff !== 2) || !isInt(o.tick) || o.tick < 0) return null;
+      if (!isInt(o.age) || o.age < 1 || o.age > 3 || !isInt(o.nextId) || !isInt(o.rng)) return null;
+      if (!o.res || !RES.every(r => fin(o.res[r]) && o.res[r] >= 0)) return null;
+      if (!Array.isArray(o.units) || !Array.isArray(o.blds) || !Array.isArray(o.nodes)) return null;
+      const G = newGame({ seed: o.seed, diff: o.diff, firstTown: !!o.firstTown });
+      if (G.seed !== o.seed) return null;
+      // the generator's nodes, by id: those saved keep what is left, the others are used up
+      const keep = new Map();
+      for (const n of o.nodes) { if (!Array.isArray(n) || !isInt(n[0]) || !fin(n[1]) || n[1] < 0 || keep.has(n[0])) return null; keep.set(n[0], n[1]); }
+      for (const n of G.nodes) { if (keep.has(n.id)) { n.left = keep.get(n.id); keep.delete(n.id); } else { n.dead = true; G.map.occ[idx(n.x, n.y)] = 0; } }
+      if (keep.size) return null;
+      G.nodes = G.nodes.filter(n => !n.dead);
+      for (const b of G.blds) occupy(G, b, 0);
+      G.blds = []; G.units = [];
+      G.age = o.age; G.tick = o.tick; G.rngState = o.rng >>> 0; G.res = cp(o.res); G.techs = {};
+      for (const t in o.techs || {}) { if (!TECHS[t]) return null; G.techs[t] = true; }
+      const ids = new Set(G.nodes.map(n => n.id));
+      const uniq = id => { if (!isInt(id) || id < 1 || id >= o.nextId || ids.has(id)) return false; ids.add(id); return true; };
+      for (const a of o.blds) {
+        if (!Array.isArray(a) || a.length !== BF.length) return null;
+        const b = {}; BF.forEach((f, i) => { b[f] = a[i]; });
+        if (!uniq(b.id) || !(BLD[b.k] || b.k === "wonder") || !isInt(b.x) || !isInt(b.y) || !isInt(b.w) || !isInt(b.h)) return null;
+        if (b.x < 0 || b.y < 0 || b.x + b.w > W || b.y + b.h > H || !fin(b.hp) || !fin(b.hpMax) || !(b.hp > 0 && b.hp <= b.hpMax)) return null;
+        if (!fin(b.done) || b.done < 0 || b.done > 1 || !fin(b.work) || !Array.isArray(b.builders) || !Array.isArray(b.q) || !Array.isArray(b.rq)) return null;
+        if (b.q.some(q => !q || !UNITS[q.k] || !isInt(q.left)) || b.rq.some(q => !q || !TECHS[q.tech] || !isInt(q.left))) return null;
+        if (!Array.isArray(b.shel)) b.shel = [];
+        b.rep = b.rep && RES.every(r => fin(b.rep[r])) ? b.rep : zero();
+        b.dead = false;
+        G.blds.push(b);
+      }
+      for (const a of o.units) {
+        if (!Array.isArray(a) || a.length !== UF.length) return null;
+        const u = {}; UF.forEach((f, i) => { u[f] = a[i]; });
+        if (!uniq(u.id) || !(UNITS[u.k] || RAIDERS[u.k]) || (u.side !== 0 && u.side !== 1) || (u.side === 1) !== !!RAIDERS[u.k]) return null;
+        if (!fin(u.x) || !fin(u.y) || u.x < 0 || u.y < 0 || u.x >= W || u.y >= H || !fin(u.hp) || !fin(u.hpMax) || !(u.hp > 0 && u.hp <= u.hpMax)) return null;
+        u.px = u.x; u.py = u.y; u.path = null; u.pi = 0; u.dead = false;
+        if (!u.carry || typeof u.carry !== "object") u.carry = { r: "", n: 0 };
+        G.units.push(u);
+      }
+      G.blds.sort((a, b) => a.id - b.id); G.units.sort((a, b) => a.id - b.id);
+      // references that point at nothing are cleared
+      const live = id => ids.has(id);
+      for (const b of G.blds) {
+        b.builders = b.builders.filter(id => live(id) && G.units.some(u => u.id === id && u.k === "vil"));
+        b.shel = b.shel.filter(live);
+        if (!live(b.farmer)) b.farmer = 0;
+        occupy(G, b, b.id);
+      }
+      for (const u of G.units) {
+        if (!live(u.tgt)) u.tgt = 0;
+        if (!live(u.shel)) u.shel = 0;
+        if (u.task && (typeof u.task !== "object" || (u.task.bld && !live(u.task.bld)) || (u.task.node && !live(u.task.node)))) { u.task = null; u.act = "idle"; }
+      }
+      G.carts = (o.carts || []).map(a => { const c = {}; CF.forEach((f, i) => { c[f] = a[i]; }); c.px = c.x; c.py = c.y; c.dead = false; return c; });
+      G.shots = (o.shots || []).map(a => { const s = {}; SF.forEach((f, i) => { s[f] = a[i]; }); return s; });
+      G.raids = cp(o.raids || []);
+      for (const k of ["clock", "alarm", "post", "opening", "stats"]) if (o[k] && typeof o[k] === "object") G[k] = cp(o[k]);
+      G.aging = o.aging && isInt(o.aging.to) && isInt(o.aging.left) ? cp(o.aging) : null;
+      G.wonder = live(o.wonder) && G.blds.some(b => b.id === o.wonder && b.k === "wonder") ? o.wonder : 0;
+      G.craftsmenUntil = isInt(o.craftsmenUntil) ? o.craftsmenUntil : 0;
+      G.autoFarm = o.autoFarm !== false; G.cartMarket = live(o.cartMarket) ? o.cartMarket : 0;
+      G.popCap = popCapOf(G); G.nextId = o.nextId; G.map.canals = !!o.canals; G.over = o.over ? cp(o.over) : null;
+      G.nav = { ver: 0, dirty: true, fields: { core: null, wonder: null, open: null, edge: null } };
+      G.cmdq = []; G.ev = [];
+      return G;
+    } catch (e) { return null; }
+  }
+  // FNV-1a over a canonical walk of the saved fields, every number rounded to 1/1024
+  function hash(G) {
+    let h = 0x811c9dc5;
+    const byte = b => { h = Math.imul(h ^ (b & 255), 0x01000193) >>> 0; };
+    const word = v => { byte(v); byte(v >>> 8); byte(v >>> 16); byte(v >>> 24); };
+    const walk = v => {
+      if (v === null || v === undefined) { byte(0); return; }
+      if (v === true || v === false) { byte(v ? 2 : 1); return; }
+      if (typeof v === "number") {
+        const n = Math.round(v * 1024), hi = Math.floor(n / 4294967296);
+        byte(3); word(n - hi * 4294967296); word(hi);
+        return;
+      }
+      if (typeof v === "string") { byte(4); for (let i = 0; i < v.length; i++) { const c = v.charCodeAt(i); byte(c); byte(c >>> 8); } byte(0); return; }
+      if (Array.isArray(v)) { byte(5); word(v.length); for (const x of v) walk(x); return; }
+      byte(6);
+      for (const k of Object.keys(v)) { walk(k); walk(v[k]); }
+      byte(7);
+    };
+    walk(save(G));
+    return h >>> 0;
+  }
+
+  // ---- stages for screenshots and tests (14.4): a fixed game, then fixed edits; deterministic ----
+  function stage(name, seed, diff, opts) {
+    const nm = String(name || "start"), p = opts && opts.p >= 0 ? Math.min(100, opts.p) : 60;
+    const G = newGame({ seed: seed || 20261025, diff: diff === 0 || diff === 2 ? diff : 1, firstTown: nm === "first" });
+    if (nm === "start") return G;
+    if (nm === "first") { run(G, 60); return G; }
+    const tc = tcOf(G), ox = tc.x + 2, oy = tc.y + 2;
+    // a building put up at once on the nearest legal site to a point (fixed edits, not play)
+    const put = (type, px, py, dmin) => {
+      const keep = cp(G.res);
+      G.res = { f: 1e6, w: 1e6, s: 1e6, g: 1e6 };
+      let done = null;
+      for (let rad = 0; rad < 40 && !done; rad++) for (let dy = -rad; dy <= rad && !done; dy++) for (let dx = -rad; dx <= rad && !done; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+        const x = px + dx, y = py + dy;
+        if (dmin && Math.sqrt((x - ox) * (x - ox) + (y - oy) * (y - oy)) < dmin) continue;
+        if (canPlace(G, type, x, y, 0).ok) { exec(G, { k: "place", type, x, y, rot: 0 }); done = G.blds[G.blds.length - 1]; }
+      }
+      G.res = keep;
+      return done;
+    };
+    const now = b => { if (b && b.done < 1) finish(G, b); return b; };
+    const ageTo = n => {
+      if (n >= 2) { now(put("store", ox - 6, oy + 1)); now(put("barracks", ox + 6, oy + 1)); }
+      if (n >= 3) { now(put("market", ox - 7, oy + 6)); now(put("temple", ox + 7, oy + 6)); }
+      if (n > G.age) setAge(G, n);
+    };
+    const town1 = () => {
+      now(put("house", ox - 4, oy + 4)); now(put("house", ox + 3, oy + 4));
+      now(put("field", ox - 2, oy - 9)); now(put("field", ox + 2, oy - 9));
+      now(put("store", ox - 6, oy - 2)); now(put("tower", ox + 1, oy - 5));
+    };
+    G.res = { f: 400, w: 300, s: 300, g: 120 };
+    G.opening = { house: 1, field: 1, store: 1, moved: 1 };
+    if (/^age1|^plan$/.test(nm)) { town1(); G.tick = T(270); return G; }
+    if (/^age2/.test(nm)) { town1(); ageTo(2); G.tick = T(600); return G; }
+    if (/^age3$/.test(nm)) { town1(); ageTo(3); G.tick = T(840); return G; }
+    const m = /^(wonder|win)([123])$/.exec(nm) || (nm === "age3wonder" ? [nm, "wonder", "3"] : null);
+    if (m) {
+      const age = +m[2];
+      town1(); ageTo(age);
+      now(put("temple", ox + 6, oy - 4));
+      for (const t of WONDERS[age - 1].req.tech || []) G.techs[t] = true;
+      const b = age === 2 ? put("wonder", G.map.bluffs[0].x, G.map.bluffs[0].y) : put("wonder", ox + (age === 3 ? 12 : 4), oy + (age === 3 ? 4 : -7), age === 3 ? 10 : 0);
+      if (b) {
+        const total = WONDERS[age - 1].work;
+        b.work = m[1] === "win" ? total - 0.5 : total * p / 100;
+        b.done = b.work / total;
+        b.hp = Math.max(1, Math.round(b.hpMax * b.done));
+        G.tick = T(age === 1 ? 900 : age === 2 ? 960 : 1000);
+      }
+      drain(G);
+      return G;
+    }
+    return G;
+  }
+
+  const bot = { create(style, opts) { return { style, opts: opts || {}, think(G) {} }; } };   // STUB (WP2, 14.2)
+
+  return { VERSION, DT, W, H, DATA, rng, mapGen, newGame, command, apply, tick, run, drain, canPlace, cost,
+           afford, labor, next, suggestRing, at, raidInfo, save, load, hash, stage, bot };
+})(); });
+// ==== TOWN SIM END ====
+
+// ---- town: art ----   (WP3)  painters, sprite caches, ground chunks, draw()
+// TWA: draws the town on its own canvas (#twMap) and the minimap (#twMini); never through the battle's ctx.
+// WP1-A STUB, the gray box's look: a plain tile grid in flat colors, buildings and units as labeled boxes, the
+// placement ghost, a flat skyline band. WP3 replaces the inside (chunks, sprites, skyline, the governor) and keeps
+// the API. Only visible tiles are drawn, so a frame costs a few hundred fills.
+townRegion("art", () => { TWA = (() => {
+  const PPT = 40, SQ = 0.72;
+  const zoomSteps = [0.55, 0.7, 0.85, 1.0, 1.2, 1.45], groundSteps = [0.7, 1.0, 1.45], bakeBudgetMs = 6;
+  // terrain: grass, fertile, water, ford, hill, cliff, road, canal, bluff, salt
+  const TERR = ["#7f8a4c", "#5b4a2e", "#3f6f8e", "#79a1b2", "#938a58", "#5a5048", "#b49c6a", "#4f84a0", "#8e7f5a", "#d4cbb0"];
+  const NODE = { tree: "#2f5a2a", stone: "#8d8d88", ore: "#9a5a32", flock: "#f3ecd8", orchard: "#4f7a2e", dye: "#a8322a" };
+  const BLDC = { tc: "#b98a3e", house: "#c9a66b", field: "#a88d3c", store: "#a07a4a", barracks: "#7a5a3a", smithy: "#6b5b4b",
+    market: "#b0703a", temple: "#d8c9a0", stable: "#8a6a40", tower: "#9a9488", wall: "#6e6458", gate: "#5e4e3a",
+    grove: "#3f6a32", wonder: "#e2c35e" };
+  const UNITC = { vil: "#f0dcae", spear: "#3f6aa8", bow: "#3f8a6a", horse: "#6a4aa0" };
+  let cv = null, c = null, mini = null, mc = null, miniImg = null, miniKey = "";
+  let L = { w: 0, h: 0, dpr: 1 }, age = 1, ghostSpec = null;
+  const S = { blits: 0, chunks: 0, bakes: 0, bakeMs: 0, px: 0, ms: 0, governor: 1 };
+  const label = (k, a) => (TWT && TWT.name ? TWT.name("bld", k, a) : k) || k;
+  const short = { vil: "V", spear: "S", bow: "B", horse: "H", etR: "R", etS: "S", alH: "H", alC: "L", arR: "R", arS: "S", arW: "W", arH: "H" };
+
+  function init(canvas, miniCanvas) {
+    cv = canvas; c = cv.getContext("2d");
+    mini = miniCanvas || null; mc = mini ? mini.getContext("2d") : null;
+  }
+  // big layers are freed on close: Safari counts every canvas's memory
+  function free() {
+    if (cv) { cv.width = 0; cv.height = 0; }
+    if (mini) { mini.width = 0; mini.height = 0; }
+    miniImg = null; miniKey = ""; L = { w: 0, h: 0, dpr: 1 };
+  }
+  function layout(w, h, dpr) {
+    if (!cv) return;
+    // never more than 16 M device pixels (iOS fails silently above that)
+    let d = Math.max(1, Math.min(2, dpr || 1));
+    while (w * h * d * d > 16e6 && d > 1) d -= 0.25;
+    L = { w, h, dpr: d };
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    const W2 = Math.round(w * d), H2 = Math.round(h * d);
+    if (cv.width !== W2) cv.width = W2;
+    if (cv.height !== H2) cv.height = H2;
+    if (mini) {
+      const mw = mini.clientWidth || 176, mh = mini.clientHeight || 132, mW = Math.round(mw * d), mH = Math.round(mh * d);
+      if (mini.width !== mW) mini.width = mW;
+      if (mini.height !== mH) mini.height = mH;
+    }
+  }
+  function setAge(a) { age = a | 0 || 1; miniKey = ""; }
+  function prebake(G, view) {}
+  function invalidate(x0, y0, x1, y1) { miniKey = ""; }
+  function ghost(spec) { ghostSpec = spec || null; }
+  function fx(events, G) { for (const e of events) if (e.e === "placed" || e.e === "built" || e.e === "destroyed" || e.e === "researched") miniKey = ""; }
+  const toScreen = (view, x, y) => ({ x: (x - view.x) * PPT * view.zoom, y: (y - view.y) * PPT * view.zoom * SQ });
+  const toWorld = (view, sx, sy) => ({ x: view.x + sx / (PPT * view.zoom), y: view.y + sy / (PPT * view.zoom * SQ) });
+
+  function draw(G, view, alpha, nowMs) {
+    if (!c || !L.w) return;
+    const t0 = performance.now(), d = L.dpr, pw = PPT * view.zoom, ph = pw * SQ;
+    c.setTransform(d, 0, 0, d, 0, 0);
+    c.fillStyle = "#1c140d";
+    c.fillRect(0, 0, L.w, L.h);
+    const x0 = Math.max(0, Math.floor(view.x)), x1 = Math.min(63, Math.ceil(view.x + L.w / pw));
+    const y0 = Math.floor(view.y), y1 = Math.min(47, Math.ceil(view.y + L.h / ph));
+    // the skyline band above row 0: sky, the far plain and Ararat's two peaks, flat
+    if (y0 < 0) {
+      const top = toScreen(view, 0, -6), bot = toScreen(view, 64, 0);
+      c.fillStyle = "#a9c2d2"; c.fillRect(top.x, top.y, bot.x - top.x, bot.y - top.y);
+      const m = toScreen(view, 38, -5.4), m2 = toScreen(view, 46, -3.6), b0 = toScreen(view, 26, 0), b1 = toScreen(view, 54, 0);
+      c.fillStyle = "#8a96a6";
+      c.beginPath(); c.moveTo(b0.x, b0.y); c.lineTo(m.x, m.y); c.lineTo(m2.x, m2.y + ph * 0.6); c.lineTo(m2.x + pw * 1.5, m2.y); c.lineTo(b1.x, b1.y); c.closePath(); c.fill();
+      c.fillStyle = "#eef2f4";
+      c.beginPath(); c.moveTo(m.x - pw * 2.2, m.y + ph * 1.6); c.lineTo(m.x, m.y); c.lineTo(m.x + pw * 2.1, m.y + ph * 1.5); c.closePath(); c.fill();
+      c.fillStyle = "#9aa58a"; c.fillRect(top.x, bot.y - ph * 0.8, bot.x - top.x, ph * 0.8);
+    }
+    if (!G || !G.map) { S.ms = performance.now() - t0; return; }
+    const M = G.map;
+    // the ground: one fill per visible tile, by terrain (canals once Royal Canals is researched)
+    for (let y = Math.max(0, y0); y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const i = y * 64 + x;
+        let t = M.terr[i];
+        if (M.canals && M.canalPlan[i] === 1) t = 7;
+        c.fillStyle = TERR[t] || "#000";
+        const p = toScreen(view, x, y);
+        c.fillRect(Math.floor(p.x), Math.floor(p.y), Math.ceil(pw) + 1, Math.ceil(ph) + 1);
+      }
+    }
+    // the grid, faint
+    c.strokeStyle = "rgba(20,12,4,.16)"; c.lineWidth = 1;
+    c.beginPath();
+    for (let x = x0; x <= x1 + 1; x++) { const a = toScreen(view, x, Math.max(0, y0)), b = toScreen(view, x, y1 + 1); c.moveTo(Math.round(a.x) + 0.5, a.y); c.lineTo(Math.round(b.x) + 0.5, b.y); }
+    for (let y = Math.max(0, y0); y <= y1 + 1; y++) { const a = toScreen(view, x0, y), b = toScreen(view, x1 + 1, y); c.moveTo(a.x, Math.round(a.y) + 0.5); c.lineTo(b.x, Math.round(b.y) + 0.5); }
+    c.stroke();
+    const vis = (x, y, w, h) => x + w >= view.x - 1 && y + h >= view.y - 1 && x <= view.x + L.w / pw + 1 && y <= view.y + L.h / ph + 1;
+    // nodes
+    for (const n of G.nodes) {
+      if (n.dead || !vis(n.x, n.y, 1, 1)) continue;
+      const p = toScreen(view, n.x, n.y);
+      c.fillStyle = NODE[n.k] || "#fff";
+      if (n.k === "tree" || n.k === "orchard") { c.beginPath(); c.arc(p.x + pw / 2, p.y + ph / 2, Math.min(pw, ph) * 0.42, 0, Math.PI * 2); c.fill(); }
+      else if (n.k === "flock") { for (let k = 0; k < 5; k++) c.fillRect(p.x + pw * (0.12 + 0.17 * k), p.y + ph * (0.3 + 0.25 * (k % 2)), pw * 0.16, ph * 0.22); }
+      else if (n.k === "dye") { c.globalAlpha = 0.55; c.fillRect(p.x + 2, p.y + 2, pw - 4, ph - 4); c.globalAlpha = 1; }
+      else c.fillRect(p.x + pw * 0.12, p.y + ph * 0.12, pw * 0.76, ph * 0.76);
+    }
+    // buildings and foundations, back to front by their front edge
+    const blds = G.blds.filter(b => !b.dead && vis(b.x, b.y, b.w, b.h)).sort((a, b) => (a.y + a.h) - (b.y + b.h) || a.id - b.id);
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (const b of blds) {
+      const p = toScreen(view, b.x, b.y), w = b.w * pw, h = b.h * ph;
+      c.fillStyle = BLDC[b.k] || "#ccc";
+      c.globalAlpha = b.done >= 1 ? 1 : 0.45 + 0.4 * b.done;
+      c.fillRect(p.x + 1, p.y + 1, w - 2, h - 2);
+      c.globalAlpha = 1;
+      c.strokeStyle = "rgba(38,24,12,.9)"; c.lineWidth = 2;
+      c.strokeRect(p.x + 1, p.y + 1, w - 2, h - 2);
+      if (b.done < 1) {
+        // a foundation: hatched, with its progress
+        c.save(); c.beginPath(); c.rect(p.x + 1, p.y + 1, w - 2, h - 2); c.clip();
+        c.strokeStyle = "rgba(38,24,12,.35)"; c.lineWidth = 1; c.beginPath();
+        for (let k = -h; k < w; k += 8) { c.moveTo(p.x + k, p.y + h); c.lineTo(p.x + k + h, p.y); }
+        c.stroke(); c.restore();
+        c.fillStyle = "#1c140d"; c.fillRect(p.x + 3, p.y + h - 7, w - 6, 4);
+        c.fillStyle = "#f0cf85"; c.fillRect(p.x + 3, p.y + h - 7, (w - 6) * b.done, 4);
+      }
+      if (b.w * pw >= 44 && b.k !== "wall") {
+        c.font = "600 " + Math.max(13, Math.min(16, pw * 0.36)) + "px " + (typeof UI_FONT === "string" ? UI_FONT : "serif");
+        c.fillStyle = "#1c120a";
+        c.fillText(label(b.k, G.age), p.x + w / 2, p.y + h / 2, w - 6);
+      }
+      if (b.hp < b.hpMax && b.done >= 1) { c.fillStyle = "#300"; c.fillRect(p.x + 3, p.y - 6, w - 6, 4); c.fillStyle = "#c33"; c.fillRect(p.x + 3, p.y - 6, (w - 6) * b.hp / b.hpMax, 4); }
+    }
+    // units, interpolated between ticks
+    const a = Math.max(0, Math.min(1, alpha || 0));
+    const units = G.units.filter(u => !u.dead).sort((u, v) => u.y - v.y || u.id - v.id);
+    for (const u of units) {
+      const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a;
+      if (!vis(x - 0.5, y - 0.5, 1, 1)) continue;
+      const p = toScreen(view, x, y), r = Math.max(5, pw * 0.22);
+      c.fillStyle = u.side ? "#c8463a" : (UNITC[u.k] || "#eee");
+      c.fillRect(p.x - r, p.y - r * 1.6, r * 2, r * 2);
+      c.strokeStyle = u.side ? "#5a0c06" : "#1c140d"; c.lineWidth = u.side ? 2.5 : 1.5;
+      c.strokeRect(p.x - r, p.y - r * 1.6, r * 2, r * 2);
+      if (r >= 7) { c.font = "700 " + Math.round(r * 1.3) + "px sans-serif"; c.fillStyle = u.side || u.k !== "vil" ? "#fff" : "#2c1e10"; c.fillText(short[u.k] || "?", p.x, p.y - r * 0.6); }
+    }
+    // the placement ghost: green, or red with a hatch (never color alone); a wall stroke's blocked tiles get an X
+    if (ghostSpec) {
+      const g = ghostSpec, cells = [];
+      if (g.wall) for (const q of g.wall) cells.push({ x: q.x, y: q.y, w: 1, h: 1, ok: q.ok, x_: true });
+      else if (g.type) {
+        const sz = g.type === "wonder" ? [5, 5] : (TW.DATA.BLD[g.type] ? TW.DATA.BLD[g.type].size : [1, 1]);
+        cells.push({ x: g.x, y: g.y, w: g.rot === 1 ? sz[1] : sz[0], h: g.rot === 1 ? sz[0] : sz[1], ok: g.ok });
+      }
+      for (const q of cells) {
+        const p = toScreen(view, q.x, q.y), w = q.w * pw, h = q.h * ph;
+        c.fillStyle = q.ok ? "rgba(90,200,90,.4)" : "rgba(210,60,50,.4)";
+        c.fillRect(p.x, p.y, w, h);
+        c.strokeStyle = q.ok ? "#bff5b0" : "#ffb0a8"; c.lineWidth = 2; c.strokeRect(p.x, p.y, w, h);
+        if (!q.ok) {
+          c.save(); c.beginPath(); c.rect(p.x, p.y, w, h); c.clip(); c.beginPath();
+          if (q.x_) { c.moveTo(p.x + 4, p.y + 4); c.lineTo(p.x + w - 4, p.y + h - 4); c.moveTo(p.x + w - 4, p.y + 4); c.lineTo(p.x + 4, p.y + h - 4); }
+          else for (let k = -h; k < w; k += 10) { c.moveTo(p.x + k, p.y + h); c.lineTo(p.x + k + h, p.y); }
+          c.stroke(); c.restore();
+        }
+      }
+    }
+    S.ms = performance.now() - t0;
+    S.px = (cv.width * cv.height) + (mini ? mini.width * mini.height : 0);
+  }
+  // the minimap: the terrain cached as a 64 x 48 image, then buildings, units and the camera's frame
+  function drawMini(G, view) {
+    if (!mc || !mini.width || !G || !G.map) return;
+    const key = age + "|" + G.map.canals + "|" + G.seed;
+    if (miniKey !== key || !miniImg) {
+      miniImg = document.createElement("canvas"); miniImg.width = 64; miniImg.height = 48;
+      const ic = miniImg.getContext("2d"), im = ic.createImageData(64, 48);
+      for (let i = 0; i < 64 * 48; i++) {
+        const col = TERR[G.map.terr[i]] || "#000";
+        im.data[i * 4] = parseInt(col.slice(1, 3), 16); im.data[i * 4 + 1] = parseInt(col.slice(3, 5), 16); im.data[i * 4 + 2] = parseInt(col.slice(5, 7), 16); im.data[i * 4 + 3] = 255;
+      }
+      ic.putImageData(im, 0, 0);
+      miniKey = key;
+    }
+    const w = mini.width, h = mini.height, kx = w / 64, ky = h / 48;
+    mc.setTransform(1, 0, 0, 1, 0, 0);
+    mc.imageSmoothingEnabled = false;
+    mc.drawImage(miniImg, 0, 0, w, h);
+    for (const b of G.blds) { if (b.dead) continue; mc.fillStyle = b.k === "wonder" ? "#f2c14e" : b.k === "wall" || b.k === "gate" ? "#6e4d1e" : "#b98a3e"; mc.fillRect(b.x * kx, b.y * ky, b.w * kx, b.h * ky); }
+    for (const u of G.units) { if (u.dead) continue; mc.fillStyle = u.side ? "#e0402f" : "#fff3d6"; const s = u.side ? 3 : 2; mc.fillRect(u.x * kx - s / 2, u.y * ky - s / 2, s, s); }
+    const tl = { x: view.x, y: view.y }, br = toWorld(view, L.w, L.h);
+    mc.strokeStyle = "#fff"; mc.lineWidth = 1.5;
+    mc.strokeRect(tl.x * kx, Math.max(0, tl.y) * ky, (br.x - tl.x) * kx, (br.y - Math.max(0, tl.y)) * ky);
+  }
+  // what is under a point: own units first, then raiders, buildings, nodes, ground
+  function pick(G, view, sx, sy, rPx) {
+    const w = toWorld(view, sx, sy), r = rPx || 22;
+    let best = null, bd = r * r;
+    for (const side of [0, 1]) {
+      for (const u of G.units) {
+        if (u.dead || u.side !== side) continue;
+        const p = toScreen(view, u.x, u.y), dx = p.x - sx, dy = p.y - sy, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = u; }
+      }
+      if (best) return { kind: "unit", id: best.id, tx: Math.floor(w.x), ty: Math.floor(w.y) };
+    }
+    const tx = Math.floor(w.x), ty = Math.floor(w.y);
+    if (tx >= 0 && ty >= 0 && tx < 64 && ty < 48) {
+      const o = G.map.occ[ty * 64 + tx];
+      if (o > 0) return { kind: "bld", id: o, tx, ty };
+      if (o < 0) return { kind: "node", id: -o, tx, ty };
+    }
+    return { kind: "ground", id: 0, tx, ty };
+  }
+  function stats() { return Object.assign({}, S); }
+  return { init, free, layout, setAge, prebake, invalidate, draw, drawMini, ghost, fx, pick, toWorld, toScreen, stats,
+    zoomSteps, groundSteps, bakeBudgetMs };
+})(); });
+
+// ---- town: sound ----   (WP5)  SPEC/SFX registration, event-to-sound, scene override
+// TWS: the town's sound through the campaign's Snd engine. While the town is open, Snd.sceneOverride sets the
+// age's music and ambience; close() always clears it. WP1-A STUB: the scene override and a few of the campaign's
+// own sounds for town events; WP5 adds the tw SPEC and SFX (appended last in this region), Snd.AMB.twDvin, view
+// culling and throttles.
+townRegion("sound", () => { TWS = (() => {
+  // the age's music and ambience (5.1); A3's own bed, twDvin (the Dvin bed without its bell), is WP5's: until it
+  // exists the plain's bed stands in, never a bed with a church bell
+  const SCENE = [{ map: "erebuni", era: 0 }, { map: "ararat", era: 1 }, { map: "twDvin", era: 2 }];
+  function open(G) {
+    const a = SCENE[Math.max(0, Math.min(2, ((G && G.age) || 1) - 1))];
+    const map = a.map === "twDvin" && !(Snd.AMB && Snd.AMB.twDvin) ? "ararat" : a.map;
+    Snd.sceneOverride = { map, era: a.era, night: 0, units: null };
+  }
+  function close() { Snd.sceneOverride = null; }
+  const SOUND = { placed: "plot", researched: "upgrade", win: "win", lose: "lose" };
+  function onEvents(events, G, view, canvasW) {
+    for (const e of events) {
+      if (e.e === "ageDone") open(G);
+      else if (e.e === "raidWarn") Snd.play("horn", { era: SCENE[Math.max(0, Math.min(2, G.age - 1))].era });
+      else if (SOUND[e.e]) Snd.play(SOUND[e.e]);
+    }
+  }
+  function tick(G, view) {}
+  return { open, close, onEvents, tick };
+})(); });
+
+// ---- town: the game on screen ----   (WP4)  root, HUD, cards, input, camera, clock, loop, door
+// Town: one room of its own (#town) over the menu pages, as Nardi's: the map canvas, a DOM HUD over it and the
+// cards. Its own clock holds behind every card, while the page is hidden and in plan mode; a fixed 10 Hz sim runs
+// under an accumulator (at most 8 ticks a frame). Saving is honest: every snapshot is read back. The loop body and
+// every handler run inside guard(): an error stops the town, not the page, and shows the town's own error card.
+// WP1-A STUB: the root, top bar, Next and call lines, zoom buttons, minimap, start, resume, age, pause (with plan
+// mode), leave, end and error cards, pan and pinch, keys, visibility, the back swipe and Town.test. WP4 adds the
+// build bar, placement, walls, the dock, the garrison and every panel, and keeps the API.
+townRegion("shell", () => { Town = (() => {
+  const BLESS_KEY = "hs_town_bless", BLESS_GOLD = 40, BLESS_BY_STARS = Object.freeze([0, 20, 30, 40]),
+        PREF_KEY = "hs_town", RUN_KEY = "hs_town_run";
+  const DT = TW.DT, PPT = 40, SQ = 0.72;
+  // the History API (one entry pushed while open, for Safari's back swipe); the harness never touches history,
+  // test.back() runs the handler instead
+  const HIST_ON = !HARNESS_ON;
+  let root = null, cv = null, mini = null, mapBtn = null;
+  const el = {};
+  let open = false, raf = 0, G = null, live = false, view = { x: 0, y: 0, zoom: 1 }, speed = 1, acc = 0, last = 0;
+  let cssW = 0, cssH = 0, dpr = 1, hudAt = 0, miniAt = 0, lastSnapTick = 0, lastSaved = 0, savedTick = -1;
+  const held = new Set();
+  let sel = null, mode = "none", card = "", cardData = {}, lastFocus = null, saveOk = true, resumedAt = -1, fromCrash = false;
+  let histPushed = false, ignorePop = false, broken = null, failW = false, nextSeed = 0, pinch = null, simMs = 0, callT = 0;
+  const ptrs = new Map();
+  let pref = null;
+
+  // ---- the clock: held for reasons (card, hidden, page, error, plan, sheet); now() as Nardi's ----
+  let heldAt = -1, heldFor = 0;
+  const now = () => (heldAt >= 0 ? heldAt : performance.now()) - heldFor;
+  function hold(reason, on) {
+    const was = held.size > 0;
+    if (on) held.add(reason); else held.delete(reason);
+    const is = held.size > 0;
+    if (is && !was) heldAt = performance.now();
+    else if (!is && was) { heldFor += performance.now() - heldAt; heldAt = -1; acc = 0; }
+  }
+
+  // ---- prefs (hs_town, 13.9) ----
+  function loadPref() {
+    let p = {};
+    try { p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; } catch (e) { p = {}; }
+    const n3 = a => (Array.isArray(a) && a.length === 3 ? a.map(v => Math.max(0, v | 0)) : [0, 0, 0]);
+    pref = {
+      v: 1, diff: p.diff === 0 || p.diff === 1 || p.diff === 2 ? p.diff : -1, speed: p.speed === 2 ? 2 : 1,
+      firstTown: p.firstTown !== false, hints: p.hints !== false, hintStep: p.hintStep | 0, played: p.played | 0,
+      won: n3(p.won), best: Array.isArray(p.best) && p.best.length === 3 ? p.best.map(b => ({ stars: (b && b.stars) | 0, timeS: (b && b.timeS) | 0, score: (b && b.score) | 0 })) : [0, 1, 2].map(() => ({ stars: 0, timeS: 0, score: 0 })),
+      lastSeed: p.lastSeed | 0, droppedOld: !!p.droppedOld,
+    };
+  }
+  function savePref() { try { localStorage.setItem(PREF_KEY, JSON.stringify(pref)); } catch (e) {} }
+
+  // ---- saving (8.4): a snapshot is written, read back and compared; saveOk says whether it stuck ----
+  function writeRun(obj) {
+    let ok = false, back = null;
+    try {
+      if (!failW) localStorage.setItem(RUN_KEY, JSON.stringify(obj));
+      back = JSON.parse(localStorage.getItem(RUN_KEY) || "null");
+      ok = !!back && back.saved === obj.saved;
+    } catch (e) { ok = false; }
+    saveOk = ok;
+    if (ok) savedTick = obj.state.tick;
+    return ok ? back : null;
+  }
+  function snapshot(crashed) {
+    if (!G || !live || G.over) return null;
+    lastSnapTick = G.tick;
+    const saved = Math.max(Date.now(), lastSaved + 1);
+    lastSaved = saved;
+    return writeRun({ v: 1, tw: TW.VERSION, saved, crashed: !!crashed,
+      ui: { view: { x: view.x, y: view.y, zoom: view.zoom }, speed: speed === 4 ? 2 : speed, hintStep: pref.hintStep },
+      state: TW.save(G) });
+  }
+  function removeRun() { try { localStorage.removeItem(RUN_KEY); } catch (e) {} }
+  function readRun() {
+    let o = null;
+    try { o = JSON.parse(localStorage.getItem(RUN_KEY) || "null"); } catch (e) { removeRun(); return null; }
+    if (!o || typeof o !== "object") return null;
+    if (o.v !== 1 || o.tw !== TW.VERSION) { removeRun(); pref.droppedOld = true; savePref(); return null; }
+    const g = TW.load(o.state);
+    if (!g) { removeRun(); return null; }
+    return { o, g };
+  }
+
+  // ---- the blessing (8.3, owner decision 3): the larger of the waiting gift and this win's, never more than 40 ----
+  function grantBlessing(stars) {
+    const n = Math.min(BLESS_GOLD, BLESS_BY_STARS[Math.max(0, Math.min(3, stars | 0))] || 0);
+    let cur = 0;
+    try { cur = Math.min(BLESS_GOLD, Math.floor(Number(localStorage.getItem(BLESS_KEY)) || 0)); } catch (e) { cur = 0; }
+    if (n > cur) { try { localStorage.setItem(BLESS_KEY, String(n)); } catch (e) {} return { n, waiting: false }; }
+    return { n: cur, waiting: n > 0 };
+  }
+
+  // ---- errors: the town stops, keeps what it safely can, and says so (13.7) ----
+  function fail(err) {
+    if (broken) return;
+    broken = err || new Error("error");
+    cancelAnimationFrame(raf); raf = 0;
+    let line = "";
+    try {
+      if (G && live && !G.over) {
+        if (fromCrash && G.tick - resumedAt < Math.round(60 / DT)) { removeRun(); line = "cannot"; }
+        else {
+          const S = TW.save(G), G2 = TW.load(JSON.parse(JSON.stringify(S)));
+          if (G2 && TW.hash(G2) === TW.hash(G)) snapshot(true);
+        }
+      }
+    } catch (e) {}
+    try { hold("error", true); showCard("error", { line, at: savedTick }); } catch (e) {}
+    try { console.error(err); } catch (e) {}
+    if (HARNESS_ON) setTimeout(() => { throw err; });   // the harness's tools count it
+  }
+  const guard = fn => function (...a) {
+    if (broken) return undefined;
+    try { return fn.apply(this, a); } catch (err) { fail(err); return undefined; }
+  };
+
+  // ---- build the room, once, on the first open ----
+  const ui = () => TWT.ui;
+  function build() {
+    if (root) return;
+    root = document.createElement("div");
+    root.id = "town";
+    root.className = "twHidden";
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-labelledby", "twTitle");
+    root.tabIndex = -1;
+    const U = ui(), stat = (r, label) => '<span class="twStat" id="twR' + r + '" role="img" aria-label="' + label + '"><svg class="ic" aria-hidden="true"><use href="#i-tw-' + (r === "g" ? "goods1" : { f: "food", w: "wood", s: "stone" }[r]) + '"/></svg><b>0</b></span>';
+    root.innerHTML =
+      '<h1 class="twSr" id="twTitle">' + escapeHtml(TWT.title) + "</h1>" +
+      '<canvas id="twMap" role="application" aria-label="' + escapeHtml(U.map_) + '"></canvas>' +
+      '<div class="twTop" id="twTop">' +
+        '<button type="button" class="twAge" id="twAge" aria-label="' + escapeHtml(U.ageSheet) + '"><b></b></button>' +
+        '<span class="twRes">' + stat("f", TWT.res.f) + stat("w", TWT.res.w) + stat("s", TWT.res.s) + stat("g", TWT.res.g[0]) +
+        '<span class="twStat twPop" id="twPop" role="img"><svg class="ic" aria-hidden="true"><use href="#i-tw-house"/></svg><b>0</b></span></span>' +
+        '<button type="button" class="twChip" id="twRaid"><svg class="ic" aria-hidden="true"><use href="#i-horn"/></svg><b></b></button>' +
+        '<span class="twGrow"></span>' +
+        '<button type="button" class="twRound" id="twSpeed" aria-label="' + escapeHtml(U.speed) + '">1x</button>' +
+        '<button type="button" class="twRound" id="twPause" aria-label="' + escapeHtml(U.pause) + '"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>' +
+        '<button type="button" class="twRound" id="twLeave" aria-label="' + escapeHtml(U.leaveTown) + '">&#215;</button>' +
+      "</div>" +
+      '<button type="button" class="twNext" id="twNext"></button>' +
+      '<div class="twCall" id="twCall" aria-live="polite"></div>' +
+      '<canvas id="twMini" aria-hidden="true"></canvas>' +
+      '<div class="twZoom"><button type="button" class="twRound" id="twZoomIn" aria-label="' + escapeHtml(U.zoomIn) + '">+</button>' +
+        '<button type="button" class="twRound" id="twZoomOut" aria-label="' + escapeHtml(U.zoomOut) + '">&#8722;</button></div>' +
+      '<div class="twPlan" id="twPlan"><span>' + escapeHtml(U.planBanner) + '</span><button type="button" class="twBtn primary" id="twPlanGo">' + escapeHtml(U.resume) + "</button></div>" +
+      '<div class="twCardWrap" id="twCardWrap"><div class="twCard" id="twCard" role="document"></div></div>';
+    document.body.appendChild(root);
+    cv = root.querySelector("#twMap");
+    mini = root.querySelector("#twMini");
+    for (const [k, id] of [["top", "twTop"], ["age", "twAge"], ["pop", "twPop"], ["raid", "twRaid"], ["speed", "twSpeed"],
+      ["pause", "twPause"], ["leave", "twLeave"], ["next", "twNext"], ["call", "twCall"], ["zoomIn", "twZoomIn"],
+      ["zoomOut", "twZoomOut"], ["plan", "twPlan"], ["planGo", "twPlanGo"], ["cardWrap", "twCardWrap"], ["card", "twCard"]]) el[k] = root.querySelector("#" + id);
+    el.res = {};
+    for (const r of ["f", "w", "s", "g"]) el.res[r] = root.querySelector("#twR" + r);
+    // the cards' buttons work on the error card too (Back to map, Reload), when everything else stands still
+    el.card.addEventListener("click", e => {
+      if (broken && card !== "error") return;
+      try { onCardClick(e); } catch (err) { if (!broken) fail(err); else try { console.error(err); } catch (x) {} }
+    });
+    el.pause.addEventListener("click", guard(() => { Snd.init(); Snd.play("uiTick"); if (held.has("plan")) plan(false); else showCard("pause"); }));
+    el.leave.addEventListener("click", guard(() => { Snd.init(); Snd.play("uiTick"); askLeave(); }));
+    el.zoomIn.addEventListener("click", guard(() => { Snd.init(); zoomStep(1, cssW / 2, cssH / 2); }));
+    el.zoomOut.addEventListener("click", guard(() => { Snd.init(); zoomStep(-1, cssW / 2, cssH / 2); }));
+    el.planGo.addEventListener("click", guard(() => { Snd.init(); plan(false); }));
+    el.raid.addEventListener("click", guard(() => { Snd.init(); const tc = G && G.blds.find(b => b.k === "tc"); if (tc) centerOn(tc.x + 2, tc.y + 2); }));
+    el.age.addEventListener("click", guard(() => { Snd.init(); say(TWT.next(TW.next(G))); }));
+    el.next.addEventListener("click", guard(() => { Snd.init(); say(TWT.next(TW.next(G))); }));
+    let speedDown = 0;
+    el.speed.addEventListener("pointerdown", () => { speedDown = performance.now(); });
+    el.speed.addEventListener("click", guard(e => {
+      Snd.init();
+      if (held.has("plan")) return;
+      const long = speedDown && performance.now() - speedDown >= 800;
+      speedDown = 0;
+      setSpeed(e.shiftKey || long ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1));
+    }));
+    if (window.ResizeObserver) new ResizeObserver(guard(() => { if (open) layoutNow(); })).observe(root);
+    root.addEventListener("pointerdown", () => root.classList.remove("twKeys"), true);
+    cv.addEventListener("pointerdown", guard(onDown));
+    cv.addEventListener("pointermove", guard(onMove));
+    cv.addEventListener("pointerup", guard(onUp));
+    cv.addEventListener("pointercancel", guard(e => { ptrs.delete(e.pointerId); if (!ptrs.size) { mode = "none"; pinch = null; } }));
+    cv.addEventListener("wheel", guard(e => { e.preventDefault(); zoomStep(e.deltaY < 0 ? 1 : -1, e.offsetX, e.offsetY); }), { passive: false });
+    mini.addEventListener("pointerdown", guard(e => {
+      const r = mini.getBoundingClientRect();
+      centerOn((e.clientX - r.left) / r.width * TW.W, (e.clientY - r.top) / r.height * TW.H);
+    }));
+  }
+  function setSpeed(s) { speed = s; if (s !== 4) { pref.speed = s; savePref(); } hud(true); }
+
+  // ---- open and close (9.1) ----
+  function defaultZoom() { return cssH > cssW ? 0.85 : cssW >= 1400 ? 1.2 : 1.0; }
+  function openTown() {
+    if (open) return;
+    build();
+    loadPref();
+    lastFocus = document.activeElement;
+    root.classList.toggle("twKeys", !!(lastFocus && lastFocus.matches && lastFocus.matches(":focus-visible")));
+    overlayEl.setAttribute("inert", "");
+    closeSettings();
+    root.classList.remove("twHidden");
+    open = true; broken = null; held.clear(); heldAt = -1; heldFor = 0;
+    TWA.init(cv, mini);
+    layoutNow();
+    if (HIST_ON && !histPushed) { try { history.pushState({ hsTown: 1 }, ""); histPushed = true; } catch (e) {} }
+    speed = pref.speed;
+    // the game in memory, a saved town, or a new one
+    if (G && live && !G.over) { showCard("resume", { mem: true }); }
+    else {
+      const R = readRun();
+      if (R) { G = R.g; live = false; cardData = {}; showCard("resume", { snap: R.o }); }
+      else { G = TW.newGame({ seed: pref.lastSeed || 20261025, diff: pref.diff >= 0 ? pref.diff : prefDiff, firstTown: false }); live = false; showCard("start"); }
+    }
+    if (G) { TWA.setAge(G.age); TWS.open(G); }
+    view.zoom = defaultZoom();
+    if (G) centerOnTc();
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+    paint(last);
+  }
+  function close(fromPop) {
+    if (!open) return;
+    if (G && live && !G.over && !broken) snapshot();
+    // after an error the game in memory is not trusted: a reopening reads the crash-safe snapshot instead
+    if (broken) { G = null; live = false; broken = null; }
+    open = false;
+    cancelAnimationFrame(raf); raf = 0;
+    ptrs.clear(); pinch = null; mode = "none"; sel = null;
+    held.clear(); heldAt = -1; heldFor = 0;
+    card = ""; cardData = {}; renderCard();
+    root.classList.add("twHidden");
+    root.classList.remove("twNoUi", "twPlanning");
+    try { TWS.close(); } finally { Snd.sceneOverride = null; }
+    TWA.free();
+    // the map under the room is in reach again exactly when it is on screen (not a snapshot from opening)
+    overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
+    if (lastFocus && lastFocus.isConnected && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+    lastFocus = null;
+    if (histPushed) {
+      histPushed = false;
+      if (!fromPop && HIST_ON) { ignorePop = true; try { history.back(); } catch (e) { ignorePop = false; } }
+    }
+  }
+  function askLeave() {
+    if (!G || !live || G.over) { close(); return; }
+    snapshot();
+    showCard("leave");
+  }
+  function layoutNow() {
+    if (!root || !open) return;
+    cssW = root.clientWidth || window.innerWidth; cssH = root.clientHeight || window.innerHeight;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    root.classList.toggle("twTall", cssH > cssW);
+    root.classList.toggle("twCompact", cssW < 1100);
+    root.style.setProperty("--twTop", el.top.offsetHeight + "px");
+    TWA.layout(cssW, cssH, dpr);
+    clampView();
+  }
+
+  // ---- the camera (2.4) ----
+  function clampView() {
+    const pw = PPT * view.zoom, vw = cssW / pw, vh = cssH / (pw * SQ);
+    const minX = -2, maxX = TW.W + 2 - vw, minY = -6, maxY = TW.H + 2 - vh;
+    view.x = maxX < minX ? (minX + maxX) / 2 : Math.max(minX, Math.min(maxX, view.x));
+    view.y = maxY < minY ? (minY + maxY) / 2 : Math.max(minY, Math.min(maxY, view.y));
+  }
+  function centerOn(x, y) { const pw = PPT * view.zoom; view.x = x - cssW / pw / 2; view.y = y - cssH / (pw * SQ) / 2; clampView(); }
+  function centerOnTc() { const tc = G.blds.find(b => b.k === "tc"); if (tc) centerOn(tc.x + 2, tc.y + 2); }
+  function zoomTo(z, sx, sy) {
+    const w = TWA.toWorld(view, sx, sy);
+    view.zoom = z;
+    view.x = w.x - sx / (PPT * z); view.y = w.y - sy / (PPT * z * SQ);
+    clampView();
+  }
+  function nearestStep(z) { const Z = TWA.zoomSteps; let b = 0; for (let i = 1; i < Z.length; i++) if (Math.abs(Z[i] - z) < Math.abs(Z[b] - z)) b = i; return b; }
+  function zoomStep(dir, sx, sy) {
+    const Z = TWA.zoomSteps, i = Math.max(0, Math.min(Z.length - 1, nearestStep(view.zoom) + dir));
+    zoomTo(Z[i], sx, sy);
+  }
+
+  // ---- input: pan with one finger (never from the left 24 px), pinch with two, tap to select ----
+  function onDown(e) {
+    if (!open || card || !G) return;
+    if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    const r = cv.getBoundingClientRect();
+    ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(),
+      touch: e.pointerType !== "mouse", btn: e.button, moved: false, edge: e.clientX - r.left < 24 });
+    if (ptrs.size === 2) {
+      const [a, b] = Array.from(ptrs.values());
+      a.moved = b.moved = true;
+      pinch = { d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom };
+      mode = "pinch";
+    }
+  }
+  function onMove(e) {
+    const p = ptrs.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    const r = cv.getBoundingClientRect();
+    if (mode === "pinch" && pinch && ptrs.size >= 2) {
+      const [a, b] = Array.from(ptrs.values()), Z = TWA.zoomSteps;
+      const z = Math.max(Z[0], Math.min(Z[Z.length - 1], pinch.z0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
+      zoomTo(z, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      return;
+    }
+    if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > (p.touch ? 9 : 4) && !p.edge) { p.moved = true; mode = "pan"; }
+    if (p.moved && mode === "pan") {
+      const pw = PPT * view.zoom;
+      view.x -= dx / pw; view.y -= dy / (pw * SQ);
+      clampView();
+    }
+  }
+  function onUp(e) {
+    const p = ptrs.get(e.pointerId);
+    if (!p) return;
+    ptrs.delete(e.pointerId);
+    if (mode === "pinch") {
+      if (ptrs.size < 2) { const r = cv.getBoundingClientRect(); zoomTo(TWA.zoomSteps[nearestStep(view.zoom)], p.x - r.left, p.y - r.top); pinch = null; }
+      if (!ptrs.size) mode = "none";
+      return;
+    }
+    if (!ptrs.size) mode = "none";
+    if (p.moved || (!p.touch && p.btn !== 0)) return;
+    const r = cv.getBoundingClientRect(), hit = TWA.pick(G, view, p.x - r.left, p.y - r.top, p.touch ? 22 : 6);
+    const long = p.touch && performance.now() - p.t0 >= 420;
+    if (hit.kind === "ground") { sel = null; if (long) say(""); return; }
+    sel = hit;
+    const o = hit.kind === "bld" ? G.blds.find(b => b.id === hit.id) : hit.kind === "unit" ? G.units.find(u => u.id === hit.id) : G.nodes.find(n => n.id === hit.id);
+    if (o) say(hit.kind === "bld" ? TWT.name("bld", o.k, G.age) : hit.kind === "unit" ? (TWT.name(o.side ? "raider" : "unit", o.k, G.age) || o.k) : o.k + " " + Math.floor(o.left));
+  }
+  function say(s) {
+    el.call.textContent = s || "";
+    el.call.classList.toggle("on", !!s);
+    clearTimeout(callT);
+    if (s) callT = setTimeout(() => { if (el.call.textContent === s) el.call.classList.remove("on"); }, 4000);
+  }
+
+  // ---- keys (9.14): a capture-phase listener that keeps every key from the map and the battle ----
+  function onKey(e) {
+    if (!open) return;
+    if (e.code === "KeyM" || e.code === "KeyS") return;   // music and sound keep the main handler's keys
+    root.classList.add("twKeys");
+    const onBtn = e.target && e.target.closest && e.target.closest("button");
+    guard(() => {
+      if (e.code === "Escape") {
+        if (card) cardBack();
+        else if (held.has("plan")) plan(false);
+        else askLeave();
+      } else if (e.code === "Space" && !onBtn) {
+        if (held.has("plan")) plan(false);
+        else if (!card) showCard("pause");
+        else if (card === "pause") showCard("");
+        e.preventDefault();
+      } else if (!card && G) {
+        const step = e.shiftKey ? 2 : 1;
+        if (e.code === "KeyP") plan(!held.has("plan"));
+        else if (e.code === "KeyF" && !held.has("plan")) setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1));
+        else if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") zoomStep(1, cssW / 2, cssH / 2);
+        else if (e.key === "-" || e.code === "NumpadSubtract") zoomStep(-1, cssW / 2, cssH / 2);
+        else if (e.code === "KeyH") centerOnTc();
+        else if (e.code.startsWith("Arrow")) {
+          if (e.code === "ArrowLeft") view.x -= step; else if (e.code === "ArrowRight") view.x += step;
+          else if (e.code === "ArrowUp") view.y -= step; else view.y += step;
+          clampView(); e.preventDefault();
+        }
+      } else if (e.code.startsWith("Arrow") && !onBtn) e.preventDefault();
+    })();
+    e.stopImmediatePropagation();
+  }
+
+  // ---- cards (9.11): each holds the clock and keeps the focus; Escape goes back ----
+  function showCard(name, data) {
+    card = name || "";
+    cardData = data || {};
+    hold("card", !!card);
+    if (card === "pause" || card === "age") snapshot();
+    renderCard();
+    hud(true);
+  }
+  function cardBack() {
+    if (cardData.ask) { cardData.ask = ""; renderCard(); return; }
+    if (card === "start" || card === "resume" || card === "win" || card === "lose") close();
+    else if (card === "pause" || card === "leave" || card === "age") showCard("");
+  }
+  const mmss = t => TWT.mmss(t * DT);
+  function renderCard() {
+    if (!root) return;
+    el.cardWrap.classList.toggle("on", !!card);
+    if (!card) { el.card.innerHTML = ""; return; }
+    const U = ui(), esc = escapeHtml, B = (act, label, primary) => '<button type="button" class="twBtn' + (primary ? " primary" : "") + '" data-act="' + act + '">' + esc(label) + "</button>";
+    const A = G ? TWT.ages[G.age - 1] : TWT.ages[0];
+    let h = "", btns = "";
+    if (cardData.ask) {
+      h = "<p>" + esc(cardData.ask === "newGame" ? U.newGameAsk : U.startOverAsk) + "</p>";
+      btns = B(cardData.ask + "Yes", U.yes, true) + B("askNo", U.no);
+    } else if (card === "start") {
+      const d = pref.diff >= 0 ? pref.diff : prefDiff;
+      cardData.diff = cardData.diff === undefined ? d : cardData.diff;
+      cardData.again = cardData.again === undefined ? false : cardData.again;
+      cardData.ft = cardData.ft === undefined ? pref.firstTown : cardData.ft;
+      const best = pref.best[cardData.diff];
+      h = '<p class="twKick">' + esc(U.kicker) + "</p><h2>" + esc(TWT.title) + "</h2>" +
+        '<div class="twBody">' + TWT.intro.map(s => "<p>" + esc(s) + "</p>").join("") +
+        (pref.droppedOld ? '<p class="twSmall">' + esc(U.older) + "</p>" : "") + "</div>" +
+        '<div class="twSeg" role="radiogroup" aria-label="Difficulty">' + TWT.diffs.map((n, i) => '<button type="button" role="radio" data-diff="' + i + '" aria-checked="' + (cardData.diff === i) + '">' + esc(n) + "</button>").join("") + "</div>" +
+        (pref.lastSeed ? '<div class="twSeg" role="radiogroup" aria-label="Map"><button type="button" role="radio" data-map="new" aria-checked="' + !cardData.again + '">' + esc(U.mapNew) + '</button><button type="button" role="radio" data-map="again" aria-checked="' + cardData.again + '">' + esc(U.mapAgain(pref.lastSeed)) + "</button></div>" : "") +
+        '<button type="button" class="twToggle" data-ft="1" aria-pressed="' + !!cardData.ft + '">' + esc(U.firstTown) + "</button>" +
+        (best.stars ? '<p class="twSmall">' + esc(U.stars(best.stars) + ", " + TWT.mmss(best.timeS)) + "</p>" : "");
+      if (pref.droppedOld) { pref.droppedOld = false; savePref(); }
+      btns = B("begin", U.begin, true);
+    } else if (card === "resume") {
+      const g = G, line = cardData.snap && cardData.snap.crashed ? U.resumeCrash(mmss(g.tick)) : U.resumeLine(TWT.ages[g.age - 1].name, mmss(g.tick), TWT.diffs[g.diff]);
+      h = '<p class="twKick">' + esc(TWT.title) + "</p><p>" + esc(line) + "</p>";
+      btns = B("resume", U.resume, true) + B("newGame", U.newGame);
+    } else if (card === "pause") {
+      h = "<h2>" + esc(U.paused) + "</h2>" + (saveOk ? "" : '<p class="twSmall">' + esc(U.notSaved) + "</p>");
+      btns = B("resume", U.resume, true) + B("plan", U.plan) + B("music", U.music + (Snd.musicOn ? "" : " (off)")) + B("sound", U.sound + (Snd.sfxOn ? "" : " (off)")) + B("startOver", U.startOver) + B("leave", U.leave);
+    } else if (card === "leave") {
+      h = "<p>" + esc(saveOk ? U.leaveSaved : U.leaveUnsaved) + "</p>";
+      btns = B("keep", U.keep, true) + B("leave", U.leave);
+    } else if (card === "age") {
+      h = '<p class="twKick">' + esc(A.numeral + " · " + A.dateline) + "</p><h2>" + esc(A.name) + "</h2>" +
+        '<p class="twTownName">' + esc(A.town) + (A.hy ? ' <span class="twHy" lang="hy">' + esc(A.hy) + "</span>" : "") + "</p>" +
+        '<div class="twBody">' + A.lines.map(s => "<p>" + esc(s) + "</p>").join("") + A.license.map(s => '<p class="twSmall">' + esc(s) + "</p>").join("") + "</div>";
+      btns = B("cont", U.cont, true);
+    } else if (card === "win" || card === "lose") {
+      const win = card === "win", st = cardData.stars | 0;
+      h = (win ? '<p class="twStars" aria-label="' + esc(U.stars(st)) + '">' + '<svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>'.repeat(st) + "</p>" : "") +
+        "<h2>" + esc(win ? U.winHead(cardData.age) : cardData.cause === "soft" ? U.softLock : U.loseHead(cardData.age)) + "</h2>" +
+        '<p class="twSmall">' + esc(U.map(G ? G.seed : 0) + " · " + mmss(G ? G.tick : 0)) + "</p>" +
+        (win && cardData.bless ? '<p class="twBless">' + esc(cardData.bless.waiting ? U.blessWaiting : U.blessNew(cardData.bless.n)) + "</p>" : "");
+      btns = B("back", U.back, true) + B("again", U.playAgain) + B("newMap", U.newMap);
+    } else if (card === "error") {
+      h = "<h2>" + esc(U.errorHead) + "</h2><p>" + esc(cardData.line === "cannot" ? U.cannotResume : saveOk && cardData.at >= 0 ? U.errorSaved(mmss(cardData.at)) : U.errorUnsaved) + "</p>";
+      btns = B("back", U.back, true) + B("reload", U.reload);
+    }
+    el.card.innerHTML = h + '<div class="twBtns">' + btns + "</div>";
+    const p = el.card.querySelector(".primary");
+    if (p) { try { p.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  function onCardClick(e) {
+    const b = e.target && e.target.closest && e.target.closest("button");
+    if (!b || !el.card.contains(b)) return;
+    Snd.init(); Snd.play("uiTick");
+    if (b.dataset.diff !== undefined) { cardData.diff = +b.dataset.diff; renderCard(); return; }
+    if (b.dataset.map) { cardData.again = b.dataset.map === "again"; renderCard(); return; }
+    if (b.dataset.ft) { cardData.ft = !cardData.ft; renderCard(); return; }
+    act(b.dataset.act);
+  }
+  function act(a) {
+    switch (a) {
+      case "begin": startGame(cardData.again && pref.lastSeed ? pref.lastSeed : newSeed(), cardData.diff, !!cardData.ft); break;
+      case "resume":
+        if (card === "resume") {
+          if (cardData.snap) {
+            const S = cardData.snap;
+            fromCrash = !!S.crashed; resumedAt = G.tick; live = true;
+            if (S.ui && S.ui.view) { view.zoom = TWA.zoomSteps.includes(S.ui.view.zoom) ? S.ui.view.zoom : view.zoom; view.x = +S.ui.view.x || 0; view.y = +S.ui.view.y || 0; clampView(); }
+            speed = S.ui && S.ui.speed === 2 ? 2 : 1;
+          }
+          live = true; TWA.setAge(G.age); TWS.open(G);
+          showCard("pause");                       // resuming opens on the pause card (8.4)
+        } else showCard("");
+        break;
+      case "newGame": cardData.ask = "newGame"; renderCard(); break;
+      case "newGameYes": removeRun(); G = TW.newGame({ seed: pref.lastSeed || 20261025, diff: G ? G.diff : 1, firstTown: false }); live = false; showCard("start"); break;
+      case "startOver": cardData.ask = "startOver"; renderCard(); break;
+      case "startOverYes": startGame(G.seed, G.diff, G.firstTown); break;
+      case "askNo": cardData.ask = ""; renderCard(); break;
+      case "keep": case "cont": showCard(""); break;
+      case "leave": case "back": close(); break;
+      case "plan": plan(true); break;
+      case "music": toggleMusic(); renderCard(); break;
+      case "sound": toggleSfx(); renderCard(); break;
+      case "again": startGame(G.seed, G.diff, pref.firstTown); break;
+      case "newMap": startGame(newSeed(), G.diff, pref.firstTown); break;
+      case "reload": location.reload(); break;
+      default: break;
+    }
+  }
+  function newSeed() {
+    if (nextSeed) { const s = nextSeed; nextSeed = 0; return s; }
+    return HARNESS_ON ? 20261025 : ((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0) % 99999 + 1;
+  }
+  function startGame(seed, diff, firstTown) {
+    removeRun();
+    G = TW.newGame({ seed, diff, firstTown });
+    live = true; acc = 0; sel = null; fromCrash = false; resumedAt = -1; lastSnapTick = 0; savedTick = -1;
+    pref.lastSeed = seed; pref.diff = G.diff; pref.firstTown = !!firstTown; pref.played++;
+    savePref();
+    view.zoom = defaultZoom();
+    centerOnTc();
+    TWA.setAge(G.age); TWS.open(G);
+    showCard("age");
+  }
+  // plan while paused (9.12): the clock stays held; each command applies at once through TW.apply
+  function plan(on) {
+    if (!G || !live || G.over) return;
+    if (on) { showCard(""); hold("plan", true); }
+    else hold("plan", false);
+    root.classList.toggle("twPlanning", held.has("plan"));
+    hud(true);
+  }
+  function send(c) {
+    if (!G || !live || G.over) return { ok: false, err: "bad" };
+    const r = TW.command(G, c);
+    if (r.ok && held.has("plan")) { TW.apply(G); route(TW.drain(G)); hud(true); }
+    else if (!r.ok) say(TWT.err(r.err, Object.assign({ age: G.age }, r)));
+    return r;
+  }
+
+  // ---- events from the sim to the screen, the art and the sound ----
+  function route(evs) {
+    if (!evs.length) return;
+    TWA.fx(evs, G);
+    TWS.onEvents(evs, G, view, cssW);
+    for (const e of evs) {
+      if (e.e === "ageDone") { TWA.setAge(G.age); showCard("age"); }
+      else if (e.e === "ageStart") say(ui().advancing(TWT.ages[e.to - 1].name));
+      else if (e.e === "built") say(ui().built(TWT.name("bld", e.k, G.age)));
+      else if (e.e === "researched") say(ui().researched(TWT.name("tech", e.tech)));
+      else if (e.e === "noPop") say(TWT.err("pop"));
+      else if (e.e === "win" || e.e === "lose") endGame(e);
+    }
+  }
+  function endGame(e) {
+    removeRun();
+    const d = G.diff, win = e.e === "win";
+    let bless = null;
+    if (win) {
+      bless = grantBlessing(e.stars);
+      pref.won[d]++;
+      pref.firstTown = false;
+      const b = pref.best[d], t = Math.floor(G.tick * DT);
+      if (e.stars > b.stars || (e.stars === b.stars && (!b.timeS || t < b.timeS))) { b.stars = e.stars; b.timeS = t; }
+    }
+    savePref();
+    showCard(win ? "win" : "lose", { stars: e.stars | 0, age: win ? e.age : G.age, cause: e.cause, bless });
+  }
+
+  // ---- the frame ----
+  function loop(t) {
+    raf = open && !broken ? requestAnimationFrame(loop) : 0;
+    if (!open || broken) return;
+    frameBody(t);
+  }
+  const frameBody = guard(t => {
+    const dt = Math.min(Math.max(0, (t - last) / 1000), 0.25);
+    last = t;
+    if (G && live && !G.over) {
+      if (!held.size) {
+        const t0 = performance.now();
+        acc += dt * speed;
+        let n = 0;
+        while (acc >= DT && n < 8 && !held.size && !G.over) { TW.tick(G); acc -= DT; n++; route(TW.drain(G)); }
+        if (n >= 8 || held.size) acc = 0;              // a long frame drops the rest (no spiral)
+        simMs = performance.now() - t0;
+        if (G.tick - lastSnapTick >= Math.round(30 / DT)) snapshot();
+      } else route(TW.drain(G));
+    }
+    paint(t);
+  });
+  function paint(t) {
+    if (!G) return;
+    TWA.draw(G, view, held.size ? 0 : acc / DT, t);
+    if (t - miniAt >= 250 || t < miniAt) { miniAt = t; TWA.drawMini(G, view); }
+    if (t - hudAt >= 100 || t < hudAt) { hudAt = t; hud(); }
+  }
+  const setT = (e, s) => { if (e && e.textContent !== s) e.textContent = s; };
+  function hud(force) {
+    if (!G || !root) return;
+    const A = TWT.ages[G.age - 1], wb = G.wonder ? G.blds.find(b => b.id === G.wonder) : null;
+    setT(el.age.firstChild, A.numeral + " " + A.town + (wb ? " " + Math.floor(wb.done * 100) + "%" : ""));
+    for (const r of ["f", "w", "s", "g"]) {
+      const n = String(Math.floor(G.res[r]));
+      setT(el.res[r].lastChild, n);
+      const lab = TWT.name("res", r, G.age) + " " + n;
+      if (el.res[r].getAttribute("aria-label") !== lab) el.res[r].setAttribute("aria-label", lab);
+    }
+    const pop = G.units.filter(u => !u.dead && u.side === 0).length;
+    setT(el.pop.lastChild, pop + "/" + G.popCap);
+    el.pop.classList.toggle("warn", G.popCap - pop <= 2 && G.popCap - pop > 0);
+    el.pop.classList.toggle("full", G.popCap - pop <= 0);
+    const ri = TW.raidInfo(G), U = ui();
+    setT(el.raid.lastChild, ri.live.length ? U.raidNow : ri.held ? U.raidsWait : TWT.mmss(Math.max(0, ri.nextWarn - G.tick) * DT));
+    setT(el.next, TWT.next(TW.next(G)));
+    setT(el.speed, speed + "x");
+    el.speed.disabled = held.has("plan");
+  }
+
+  // ---- leaving the app (13.7): hold and save when hidden, the pause card when back; Safari's back swipe ----
+  function onVis(hidden) {
+    if (!open) return;
+    if (hidden) { hold("hidden", true); snapshot(); }
+    else {
+      hold("hidden", false);
+      if (G && live && !G.over && !card && !broken) { if (held.has("plan")) plan(false); showCard("pause"); }
+    }
+  }
+  function onPop() {
+    if (ignorePop) { ignorePop = false; return; }
+    if (!open) return;
+    histPushed = false;
+    close(true);
+  }
+
+  // ---- a picture for the harness (H6): synchronous, deterministic ----
+  function photo(o) {
+    o = o || {};
+    build(); loadPref();
+    open = true;
+    overlayEl.setAttribute("inert", "");
+    root.classList.remove("twHidden");
+    root.classList.toggle("twNoUi", o.ui === false);
+    TWA.init(cv, mini);
+    layoutNow();
+    G = TW.stage(o.stage || "age1", 20261025, 1, { p: o.p });
+    live = true;
+    TWA.setAge(G.age);
+    view.zoom = o.zoom > 0 ? o.zoom : defaultZoom();
+    if (o.cx >= 0 && o.cy >= 0) centerOn(o.cx, o.cy); else centerOnTc();
+    const c = String(o.card || ""), m = /^(win|lose)([123])$/.exec(c);
+    if (m) showCard(m[1], { stars: m[1] === "win" ? +m[2] : 0, age: +m[2], bless: { n: BLESS_BY_STARS[+m[2]], waiting: false } });
+    else if (/^age[123]$/.test(c)) showCard("age");
+    else if (c === "resumeCrash") showCard("resume", { snap: { crashed: true } });
+    else if (["start", "resume", "pause", "leave", "error"].includes(c)) showCard(c, c === "error" ? { at: G.tick } : {});
+    else showCard("");
+    TWA.draw(G, view, 0, 0);
+    TWA.drawMini(G, view);
+    hud(true);
+  }
+
+  // ---- what the self-test drives (13.11) ----
+  const client = (tx, ty) => { const r = cv.getBoundingClientRect(), p = TWA.toScreen(view, tx + 0.5, ty + 0.5); return { x: r.left + p.x, y: r.top + p.y }; };
+  const ptr = (type, x, y, id, kind) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, bubbles: true, isPrimary: id === 31, pointerType: kind || "touch", button: 0, buttons: type === "pointerup" ? 0 : 1 }));
+  const BUTTONS = { age: "twAge", raid: "twRaid", speed: "twSpeed", pause: "twPause", leave: "twLeave", zoomIn: "twZoomIn", zoomOut: "twZoomOut", planResume: "twPlanGo", next: "twNext" };
+  const test = {
+    get G() { return G; }, set G(v) { G = v; live = !!v; acc = 0; },
+    step(n) { for (let i = 0; i < (n | 0) && G && !G.over; i++) { TW.tick(G); route(TW.drain(G)); } if (G) route(TW.drain(G)); hud(true); },
+    cmd: c => send(c),
+    client,
+    tap(tx, ty, type) { const p = client(tx, ty); ptr("pointerdown", p.x, p.y, 31, type); ptr("pointerup", p.x, p.y, 31, type); },
+    drag(path, type) {
+      const pts = path.map(([x, y]) => client(x, y));
+      ptr("pointerdown", pts[0].x, pts[0].y, 31, type);
+      for (const p of pts.slice(1)) ptr("pointermove", p.x, p.y, 31, type);
+      const e = pts[pts.length - 1]; ptr("pointerup", e.x, e.y, 31, type);
+    },
+    pinch(cx, cy, scale) {
+      ptr("pointerdown", cx - 60, cy, 31); ptr("pointerdown", cx + 60, cy, 32);
+      ptr("pointermove", cx - 60 * scale, cy, 31); ptr("pointermove", cx + 60 * scale, cy, 32);
+      ptr("pointerup", cx - 60 * scale, cy, 31); ptr("pointerup", cx + 60 * scale, cy, 32);
+    },
+    key(code, opts) { root.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ code, key: code, bubbles: true }, opts || {}))); },
+    view: () => view, layout: () => ({ w: cssW, h: cssH, dpr }), isOpen: () => open, rafOn: () => raf !== 0, root: () => root,
+    held: () => new Set(held), card: () => card, sheet: () => "", sel: () => sel, mode: () => mode,
+    callLine: () => (el.call ? el.call.textContent : ""), nextLine: () => (el.next ? el.next.textContent : ""),
+    button(name) {
+      if (!root) return null;
+      if (name.startsWith("card:")) return el.card.querySelector('[data-act="' + name.slice(5) + '"]');
+      return BUTTONS[name] ? root.querySelector("#" + BUTTONS[name]) : null;
+    },
+    plan: on => plan(!!on),
+    // the clock as if ms had passed (nothing moves under a hold)
+    skip(ms) {
+      if (held.size || !G || !live) return;
+      acc += ms / 1000 * speed;
+      while (acc >= DT && !G.over && !held.size) { TW.tick(G); acc -= DT; route(TW.drain(G)); }
+      hud(true);
+    },
+    hide: on => onVis(!!on), back: () => onPop(),
+    snapshot: () => snapshot(), saveOk: () => saveOk, failWrites(on) { failW = !!on; },
+    seed(n) { nextSeed = n | 0; },
+    perf: () => Object.assign(TWA.stats(), { simMs }),
+  };
+
+  // ---- the page's listeners, then the door, last: it exists only when every town region loaded ----
+  window.addEventListener("keydown", onKey, true);
+  window.addEventListener("resize", () => { if (open) guard(layoutNow)(); });
+  document.addEventListener("visibilitychange", () => guard(() => onVis(document.hidden))());
+  window.addEventListener("pagehide", () => guard(() => { if (open) { hold("page", true); snapshot(); } })());
+  window.addEventListener("pageshow", () => guard(() => { if (open) hold("page", false); })());
+  window.addEventListener("popstate", () => guard(onPop)());
+  // the focus stays inside the room while it is open
+  document.addEventListener("focusin", e => {
+    if (!open || !root || root.contains(e.target)) return;
+    const p = el.card && card ? el.card.querySelector(".primary") : null;
+    try { (p || root).focus({ preventScroll: true }); } catch (x) {}
+  });
+  mapBtn = document.createElement("button");
+  mapBtn.type = "button";
+  mapBtn.id = "townBtn";
+  mapBtn.className = "btn";
+  mapBtn.title = TWT.doorTitle;
+  mapBtn.innerHTML = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M4 21V9.5h2.4V7h2.2v2.5h2V7h2.8v2.5h2V7h2.2v2.5H20V21z" fill="#cdb586" stroke="#1c1209" stroke-width="1.3" stroke-linejoin="round"/>' +
+    '<path d="M10 21v-5.2a2 2 0 0 1 4 0V21z" fill="#3a2814" stroke="#1c1209" stroke-width="1.1"/>' +
+    '<path d="M6.5 12.5h2M15.5 12.5h2" stroke="#6e4d1e" stroke-width="1.4" stroke-linecap="round"/>' +
+    '<path d="M12 2.6v4.2" stroke="#1c1209" stroke-width="1.2"/><path d="M12 2.8l4 1.2-4 1.2z" fill="#a8322a"/></svg><span>' + escapeHtml(TWT.door) + "</span>";
+  mapBtn.addEventListener("click", () => { Snd.init(); Snd.play("mapSelect"); guard(openTown)(); });
+  overlayEl.appendChild(mapBtn);
+  return { open: () => guard(openTown)(), close: () => close(), isOpen: () => open, covers: () => open, photo, test,
+    BLESS_KEY, BLESS_GOLD, BLESS_BY_STARS };
+})(); });
+
+// ---- town: hooks ----   (WP1)  top level, outside every guard: they must work even when the town failed
+// at the start of a battle: the town's gift, if one is waiting, is paid once. Both pay (owner decision 3): it is
+// paid in the same battle as a waiting Nardi blessing, and one toast tells both (elder: the gold the elder's
+// blessing paid a moment ago, 0 when none). The gift is 20, 30 or 40 by the stars of the win, never more than 40.
+// Not into the coached first stand, whose treasury the tutorial counts on: the gift waits for the next battle.
+// It reads only Town.BLESS_KEY and Town.BLESS_GOLD, which TOWN_OFF has too, so a gift is paid even if the town
+// failed to load.
+function townBlessBattle(elder) {
+  let v = 0;
+  try { v = Number(localStorage.getItem(Town.BLESS_KEY)) || 0; } catch (e) {}
+  if (!(v > 0) || tut) return false;
+  v = Math.min(Math.floor(v), Town.BLESS_GOLD);
+  try { localStorage.removeItem(Town.BLESS_KEY); } catch (e) {}
+  if (!(v > 0)) return false;
+  gold += v;
+  syncHud();
+  const gift = "A gift from the town: +" + v + " 🪙";
+  if (elder > 0) toast("The village elder's blessing: +" + elder + " 🪙. " + gift, 3200);
+  else toast(gift);
+  saveRun();   // a battle left before anything is built resumes with the gift in its purse
+  return true;
+}
+
+// ---- town: the self-test's checks (called from runSelftest after nardiSelftest) ----
+// Synchronous, at most 14 s in all (spec 14.1). Each package owns a sub-region below. If a town region failed to
+// load, one failing check, "town loaded", says which, and the rest are skipped. Every check saves and restores
+// the town's keys (and the elder's) in finally: a gift left behind would break Nardi's "+40 exactly" check.
+function townSelftest(check, res) {
+  if (TOWN_FAIL) { check("town loaded", () => { throw new Error(TOWN_FAIL); }); return; }
+  const TKEYS = ["hs_town", "hs_town_run", "hs_town_bless", "hs_nardi_bless"];
+  const keepKeys = () => TKEYS.map(k => localStorage.getItem(k));
+  const putKeys = saved => TKEYS.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
+
+  // -- WP1 checks (11, 13) --
+  // 13: the stand-in has every member the hooks use; with it, frame() draws, recoverToMap() and the gift run;
+  // the door exists only when every region loaded; the real town makes frame() stand aside while it is open
+  check("town isolation", () => {
+    for (const k of ["open", "close", "isOpen", "covers", "photo", "BLESS_KEY", "BLESS_GOLD", "BLESS_BY_STARS"]) if (!(k in TOWN_OFF)) throw new Error("TOWN_OFF has no " + k);
+    if (TOWN_OFF.isOpen() || TOWN_OFF.covers() || TOWN_OFF.BLESS_KEY !== "hs_town_bless" || TOWN_OFF.BLESS_GOLD !== 40 || TOWN_OFF.BLESS_BY_STARS[3] !== 40) throw new Error("TOWN_OFF is not the stand-in it must be");
+    if (!!$("townBtn") !== (!TOWN_FAIL && !TOWN_KILL)) throw new Error("the door exists without a town, or a loaded town has none");
+    const keep = Town, raf0 = window.requestAnimationFrame, draw0 = draw, photo0 = photo, saved = keepKeys();
+    let draws = 0, dummy = null;
+    const frameOnce = () => { draws = 0; frame(performance.now()); return draws; };
+    try {
+      window.requestAnimationFrame = () => 0;   // frame() asks for its next frame first: not this time
+      draw = () => { draws++; };
+      photo = null;
+      Town = TOWN_OFF;
+      if (frameOnce() !== 1) throw new Error("frame() does not draw with the town off");
+      if (!$("crashCard")) { dummy = document.createElement("div"); dummy.id = "crashCard"; document.body.appendChild(dummy); }
+      recoverToMap();
+      Town = keep;
+      if (keep !== TOWN_OFF) {
+        keep.open();
+        if (!keep.isOpen() || frameOnce() !== 0) throw new Error("the battle still draws under the open town");
+        recoverToMap();
+        if (keep.isOpen() || overlayEl.hasAttribute("inert") !== overlayEl.classList.contains("hidden")) throw new Error("recoverToMap() did not close the town cleanly");
+        if (frameOnce() !== 1) throw new Error("frame() does not draw again once the town is closed");
+      }
+      // the gift with the town off: paid, from TOWN_OFF's key and cap (check 11 pays it through #startBtn)
+      localStorage.setItem("hs_town_bless", "30");
+      Town = TOWN_OFF;
+      const g0 = gold, paid = townBlessBattle(0), got = gold - g0;
+      Town = keep;
+      gold = g0;
+      if (!paid || got !== 30 || localStorage.getItem("hs_town_bless") !== null) throw new Error("the gift was not paid with the town off: " + got);
+    } finally {
+      window.requestAnimationFrame = raf0; draw = draw0; photo = photo0; Town = keep;
+      if (dummy) dummy.remove();
+      if (Town.isOpen()) Town.close();
+      putKeys(saved);
+      clearRun(); gameOver = true;
+    }
+  });
+  if (TOWN_KILL) return;
+  const T = Town.test;
+
+  // 11: the gift (owner decision 3, both pay): staged wins store 20, 30, 40 by the stars and never lower a larger
+  // gift; #startBtn pays it once, says so and keeps it with the run; with the elder's blessing also waiting both
+  // are paid in that battle, in one toast; never more than 40; not into the coached first stand; paid with the
+  // town swapped for TOWN_OFF
+  check("town blessing", () => {
+    const keep = Town, saved = keepKeys();
+    try {
+      TKEYS.forEach(k => localStorage.removeItem(k));
+      photoMenu(false);
+      Town.open();
+      for (const [stage, want, fresh] of [["win1", "20", 1], ["win2", "30", 1], ["win1", "30", 0], ["win3", "40", 1], ["win2", "40", 0]]) {
+        T.G = TW.stage(stage, 20261025, 1);
+        T.step(30);
+        if (!T.G.over || !T.G.over.win || T.G.over.stars !== +stage[3] || T.card() !== "win") throw new Error(stage + " did not end in a win");
+        if (localStorage.getItem(Town.BLESS_KEY) !== want) throw new Error(stage + " left the gift at " + localStorage.getItem(Town.BLESS_KEY) + ", not " + want);
+        const line = (T.root().querySelector(".twBless") || {}).textContent || "";
+        if (fresh ? !line.includes("+" + want + " gold") : !/already waiting/.test(line)) throw new Error(stage + "'s card says: " + line);
+        if (localStorage.getItem("hs_town_run")) throw new Error("a won town is still saved to resume");
+      }
+      T.button("card:back").click();
+      if (Town.isOpen()) throw new Error("Back to map did not leave the town");
+      photoMenu(true);
+      $("startBtn").click();
+      let paid = gold, words = $("toast").textContent;
+      resetGame();
+      if (paid !== gold + 40 || localStorage.getItem(Town.BLESS_KEY) !== null) throw new Error("the gift was not paid at the battle's start: " + paid + " for " + gold);
+      if (!/gift from the town: \+40/.test(words) || /blessing/.test(words)) throw new Error("the toast says: " + words);
+      const run = getSavedRun();
+      if (!run || run.gold !== paid) throw new Error("the gift was not kept with the run");
+      if (townBlessBattle() || gold !== paid - 40) throw new Error("the gift was paid twice");
+      // both pay: the elder's blessing and the town's gift in the same battle, one toast for both
+      localStorage.setItem("hs_nardi_bless", "40");
+      localStorage.setItem(Town.BLESS_KEY, "30");
+      photoMenu(true);
+      $("startBtn").click();
+      paid = gold; words = $("toast").textContent;
+      resetGame();
+      if (paid !== gold + 70 || localStorage.getItem(Town.BLESS_KEY) !== null || localStorage.getItem("hs_nardi_bless") !== null) throw new Error("both were not paid: " + paid + " for " + gold);
+      if (!/blessing: \+40/.test(words) || !/gift from the town: \+30/.test(words)) throw new Error("the toast does not tell both: " + words);
+      // the town's gift is never more than 40, whatever the key holds
+      localStorage.setItem(Town.BLESS_KEY, "75");
+      photoMenu(true);
+      $("startBtn").click();
+      paid = gold;
+      resetGame();
+      if (paid !== gold + 40) throw new Error("a gift of more than 40 was paid: " + (paid - gold));
+      // not into the coached first stand: the gift waits
+      localStorage.setItem(Town.BLESS_KEY, "20");
+      tut = { i: 0, ev: {}, pad: -1, shown: "" };
+      const g0 = gold, r = townBlessBattle();
+      tut = null;
+      if (r || gold !== g0 || localStorage.getItem(Town.BLESS_KEY) !== "20") throw new Error("the gift went into the coached first stand");
+      // and paid with the town swapped for its stand-in
+      Town = TOWN_OFF;
+      photoMenu(true);
+      $("startBtn").click();
+      paid = gold;
+      Town = keep;
+      resetGame();
+      if (paid !== gold + 20) throw new Error("the gift was not paid with the town off");
+    } finally {
+      Town = keep; tut = null;
+      if (Town.isOpen()) Town.close();
+      putKeys(saved);
+      clearRun(); gameOver = true;
+    }
+  });
+
+  // -- WP2 checks (2 to 9) --
+  // -- WP3 checks (12) --
+
+  // -- WP4 checks (10) --
+  // 10 (WP1-A's basic form; WP4 adds the touch flows): the door on the map, hidden on the chronicle and the
+  // victory page and clear of the title, the subtitle and the other buttons; opening it; keys kept from the map;
+  // the start and age cards; the Next line; the zoom buttons; the pause card and plan mode hold the clock; hidden
+  // and shown again; the back swipe; the resume card; an honest leave card when a save did not stick; a clean close
+  check("town door and shell", () => {
+    const saved = keepKeys();
+    try {
+      TKEYS.forEach(k => localStorage.removeItem(k));
+      photoMenu(false);
+      const btn = $("townBtn");
+      if (!btn || getComputedStyle(btn).display === "none") throw new Error("no Town door on the map");
+      const r = btn.getBoundingClientRect();
+      const hit = q => !(r.right <= q.left || q.right <= r.left || r.bottom <= q.top || q.bottom <= r.top);
+      for (const id of ["ovTitle", "nardiBtn", "ovGear", "ovStars"]) {
+        const e = $(id);
+        if (e && getComputedStyle(e).display !== "none" && hit(e.getBoundingClientRect())) throw new Error("the door overlaps #" + id);
+      }
+      const sub = $("ovSub");
+      if (sub) { const rg = document.createRange(); rg.selectNodeContents(sub); for (const q of rg.getClientRects()) if (hit(q)) throw new Error("the door overlaps the subtitle"); }
+      overlayEl.classList.add("victory");
+      const offV = getComputedStyle(btn).display === "none";
+      overlayEl.classList.remove("victory");
+      photoMenu(true);
+      const offB = getComputedStyle(btn).display === "none";
+      photoMenu(false);
+      if (!offV || !offB) throw new Error("the door shows on the victory page or the chronicle");
+      const ch = mapChapter();
+      btn.focus();
+      btn.click();
+      if (!Town.isOpen() || T.root().classList.contains("twHidden") || !T.rafOn()) throw new Error("the town did not open");
+      if (!overlayEl.hasAttribute("inert")) throw new Error("the map stays in reach under the town");
+      const cr = T.root().querySelector("#twMap").getBoundingClientRect();
+      if (cr.width < 400 || cr.right > innerWidth + 0.5 || cr.bottom > innerHeight + 0.5) throw new Error("the map canvas does not fit: " + [cr.width, cr.right, cr.bottom]);
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { code: "ArrowRight", key: "ArrowRight", bubbles: true }));
+      if (mapChapter() !== ch) throw new Error("a key reached the map under the town");
+      if (T.card() !== "start" || !T.held().has("card")) throw new Error("no start card holding the clock");
+      if (!Snd.sceneOverride || Snd.sceneOverride.era !== 0) throw new Error("the town's music is not set");
+      T.seed(4821);
+      T.button("card:begin").click();
+      if (T.card() !== "age" || !/Biainili/.test(T.root().querySelector("#twCard").textContent)) throw new Error("no Age 1 card after Begin");
+      T.button("card:cont").click();
+      const G = T.G;
+      if (T.card() || T.held().size || !G || G.seed !== 4821 || G.tick !== 0) throw new Error("Begin did not start a game on map 4821");
+      if (!/House/.test(T.nextLine())) throw new Error("the Next line does not ask for a House: " + T.nextLine());
+      T.step(10);
+      if (G.tick !== 10) throw new Error("step did not run the sim");
+      const z0 = T.view().zoom;
+      T.button("zoomIn").click();
+      const z1 = T.view().zoom;
+      T.button("zoomOut").click();
+      if (!(z1 > z0) || T.view().zoom !== z0) throw new Error("the zoom buttons do not step the zoom: " + [z0, z1, T.view().zoom]);
+      T.button("pause").click();
+      const t1 = G.tick;
+      T.skip(60000);
+      if (T.card() !== "pause" || G.tick !== t1) throw new Error("the pause card does not hold the clock");
+      // plan while paused: the clock stays held, and a foundation appears at once
+      T.button("card:plan").click();
+      if (T.card() || !T.held().has("plan")) throw new Error("plan mode did not open");
+      let site = null;
+      const tc = G.blds.find(b => b.k === "tc");
+      for (let d = 3; d < 14 && !site; d++) for (let dy = -d; dy <= d && !site; dy++) for (let dx = -d; dx <= d && !site; dx++) if (TW.canPlace(G, "house", tc.x + dx, tc.y + dy, 0).ok) site = [tc.x + dx, tc.y + dy];
+      const n0 = G.blds.length, placed = site && T.cmd({ k: "place", type: "house", x: site[0], y: site[1], rot: 0 });
+      if (!placed || !placed.ok || G.blds.length !== n0 + 1 || G.tick !== t1) throw new Error("a foundation placed in plan mode did not appear at once");
+      T.skip(60000);
+      if (G.tick !== t1) throw new Error("plan mode does not hold the clock");
+      if (!/Field/.test(T.nextLine())) throw new Error("the Next line did not move on to a Field: " + T.nextLine());
+      T.button("planResume").click();
+      if (T.held().size) throw new Error("Resume did not release plan mode");
+      T.skip(1000);
+      if (G.tick !== t1 + 10) throw new Error("the clock does not run at 1x: " + (G.tick - t1));
+      // the page hidden: held and saved; shown again: the pause card
+      T.hide(true);
+      const snap = JSON.parse(localStorage.getItem("hs_town_run") || "null");
+      if (!T.held().has("hidden") || !snap || !snap.state || snap.state.tick !== G.tick || !T.saveOk()) throw new Error("hiding the page did not hold and save");
+      T.hide(false);
+      if (T.card() !== "pause") throw new Error("no pause card on coming back");
+      T.button("card:resume").click();
+      // Safari's back swipe leaves to the map, cleanly
+      T.back();
+      if (Town.isOpen() || T.rafOn() || overlayEl.hasAttribute("inert") || Snd.sceneOverride !== null) throw new Error("the back swipe did not close the town cleanly");
+      if (document.activeElement !== btn) throw new Error("the focus did not come back to the door");
+      // reopened: the resume card, which opens on the pause card
+      btn.click();
+      if (T.card() !== "resume") throw new Error("no resume card on reopening");
+      T.button("card:resume").click();
+      if (T.card() !== "pause") throw new Error("resuming does not open on the pause card");
+      T.button("card:resume").click();
+      // a save that did not stick is told on the leave card
+      T.failWrites(true);
+      T.snapshot();
+      if (T.saveOk()) throw new Error("a failed write was taken as saved");
+      T.button("leave").click();
+      if (T.card() !== "leave" || !/could not be saved/.test(T.root().querySelector("#twCard").textContent)) throw new Error("the leave card does not say the town could not be saved");
+      T.failWrites(false);
+      T.button("card:leave").click();
+      if (Town.isOpen() || T.rafOn() || overlayEl.hasAttribute("inert") || Snd.sceneOverride !== null) throw new Error("leaving did not close the town cleanly");
+      if (!localStorage.getItem("hs_town_run")) throw new Error("leaving did not save the town");
+    } finally {
+      T.failWrites(false);
+      if (Town.isOpen()) Town.close();
+      putKeys(saved);
+    }
+  });
+
+  // -- WP6 checks (1) --
+}
+
 // ---------- main loop ----------
 let last = performance.now();
 // An error inside the frame stops the loop's work, not the page: a card (crashCard) offers a reload, or the
@@ -59454,7 +62122,7 @@ function frame(time) {
   if (crashed) { last = time; return; }
   try {
     if (photo) { draw(photo.time); return; }
-    if (Nardi.covers()) { last = time; return; }
+    if (Nardi.covers() || Town.covers()) { last = time; return; }
     const dt = Math.min((time - last) / 1000, 0.05);
     last = time;
     if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
@@ -59515,6 +62183,7 @@ function recoverToMap() {
     gameOver = true;
     celebration = null; fallen = null; parley = null; paused = false;
     try { if (Nardi.isOpen()) Nardi.close(); } catch (e) {}
+    try { if (Town.isOpen()) Town.close(); } catch (e) {}
     curLevel = furthestOpen();
     curDiff = prefDiff;
     showMenu("🏔️", "Highland Stand", "", "Take Command");
@@ -59922,6 +62591,10 @@ function runPhoto() {
       photoVictory();
     } else if (scene === "fall" || scene === "defeat") {
       photoFall(harnessLv(1), num("wave", 8), num("t", 0.9), scene === "defeat");
+    } else if (scene === "town") {
+      // &stage=: a TW.stage (age1 when none), &card=: a card over it, &noui: the map alone, &tz, &tx, &ty: zoom and center (tiles), &p=: a wonder's percent
+      photoMenu(false);
+      Town.photo({ stage: HARNESS.get("stage") || "age1", card: HARNESS.get("card") || "", ui: !HARNESS.has("noui"), zoom: num("tz", 0), cx: num("tx", -1), cy: num("ty", -1), p: num("p", -1) });
     } else {
       throw new Error("unknown scene: " + scene);
     }
@@ -61586,6 +64259,7 @@ function runSelftest() {
     return px[3] === 255 && (px[0] + px[1] + px[2]) > 30;
   });
   nardiSelftest(check, res);
+  townSelftest(check, res);
   setTimeout(() => {
     res.errors.push(...harnessErrors);
     res.pass = res.errors.length === 0;
