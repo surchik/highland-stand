@@ -59821,6 +59821,17 @@ function nardiSelftest(check, res) {
 //   #startBtn (H4) runs nardiBlessBattle() then townBlessBattle(gold the elder paid): both pay in the same battle
 //   (up to +80), one toast tells both. Hooks: H2 frame(), H3 recoverToMap(), H5 runSelftest(), H6 runPhoto's
 //   shot=town (&stage &card &noui &tz &tx &ty &p), H7 the CSS block, H8 the icons in #uiSprite.
+// Additions, merged at the gray box (one line each, from the packages' reports):
+//   TW (2c): suggestRing(G, o) takes o = { r: [radii], x, y, core: { x, y, w, h }, gateTo: [x, y] } and also returns
+//     gates: [...]; TW.bot = { styles, create(style, opts) -> { think(G) } }; Raid.kl counts its kills and at
+//     DATA.RAID.plunder.raid its light raiders leave; next(G) may return { k: "dismiss" }; event driven { id, x, y }.
+//   TWT: hints[] = { id, on, ctl, line }; also introLines resTip win lose softLose site nodes help HY hyc role hist
+//     effect costWords needs num; ui.terr[terrain code], ui.wallRun(n, cost, age), ui.ringNone.
+//   TWA: view.sel (a pick result or a list) draws selection rings, footprints, ranges and rally lines;
+//     stats().arrows (the raid arrows' screen boxes, for taps); TWA.test (tests and tools only).
+//   Town.test also: down move up cancel later(ms) gesture ghost strokes wall garOpen hint coached hud frame;
+//     button() also takes card: info: gar: sheet: wall: build: res:<r> dock<Res>+/- ghostOk ghostX ghostRot again
+//     alarm idle shield pop; photo() also card=tech|labor|help and stage=plan.
 // ==== END TOWN INTERFACES ====
 //
 // ---- town: guard ----   (WP1)
@@ -60184,6 +60195,7 @@ townRegion("text", () => { TWT = (() => {
       case "aging": return "Advancing: " + mmss(g.left);
       case "wonder": return "Next: build " + (age === 3 ? "" : "the ") + name("bld", "wonder", age) + " to win";
       case "wonderPct": return name("bld", "wonder", age) + " " + g.pct + "%. Keep the garrison at the site.";
+      case "dismiss": return ui.softLockCall;
       default: return "";
     }
   }
@@ -60337,12 +60349,16 @@ townRegion("text", () => { TWT = (() => {
     buildAria: (n, cost) => n + ". " + cost + ".", ageBtn: "Age", place: "Place it here", cancel: "Cancel",
     placeAnother: "Place another", rotate: "Turn the gate",
     wallHint: (c, age) => "Drag to draw a wall. " + costWords(c, age) + " a tile.",
-    undoStroke: "Undo stroke", ring: "Ring", wallBuild: (n, c, age) => "Build (" + n + (n === 1 ? " tile" : " tiles") + ", " + costWords(c, age) + ")",
+    undoStroke: "Undo stroke", ring: "Ring", wallBuild: (n, c, age) => "Build (" + n + (n === 1 ? " tile" : " tiles") + (n ? ", " + costWords(c, age) : "") + ")",
+    wallRun: (n, c, age) => n + (n === 1 ? " tile" : " tiles") + (n ? ", " + costWords(c, age) : ""),
+    ringNone: "No ring fits around the town here.",
     wallCap: (n, cap) => "Walls " + n + " of " + cap,
     wallShort: (n, r, age) => "Not enough " + resL(r, age) + " for " + n + (n === 1 ? " tile." : " tiles."),
     gateHint: "Tap where the gate goes. It can replace two wall tiles in a straight line.",
     siteHint: age => SITE[ix(age)].text,
-    // the info panel (9.7)
+    // the info panel (9.7); terr: the inspect line for a ground tile, by TW's terrain code (0 grass ... 9 salt)
+    terr: ["Grass.", "Dark river soil. Fields grow here.", "The river.", "A ford.", "The town hill.", "A cliff.",
+      "The trade road.", "A canal.", "A bluff.", "A salt meadow."],
     hp: (n, max) => "Hit points " + num(n) + " of " + num(max),
     task: (k, carry, cap) => (k ? k + (cap ? ", " + carry + " of " + cap : "") : "Idle"),
     building: "Building", repairing: "Repairing", sheltering: "Sheltering", walking: "Walking", heldByLasso: "Held by a lasso",
@@ -65498,7 +65514,7 @@ townRegion("sound", () => { TWS = (() => {
 // the map area's edge while dragging; no box select on touch; a pen is a finger. Saving is honest: every snapshot
 // is read back. The loop body and every handler run inside guard(): an error stops the town, not the page.
 // WP4 pre-P (gate P): all of the above, with the info panel and the age sheet plain but complete enough to play
-// whole games. Every string is TWT's; TODO-TEXT stand-ins fill the keys the TEXT stub does not have yet.
+// whole games. Every string is TWT's (WP6).
 townRegion("shell", () => { Town = (() => {
   const BLESS_KEY = "hs_town_bless", BLESS_GOLD = 40, BLESS_BY_STARS = Object.freeze([0, 20, 30, 40]),
         PREF_KEY = "hs_town", RUN_KEY = "hs_town_run";
@@ -65518,80 +65534,17 @@ townRegion("shell", () => { Town = (() => {
   let tOff = 0;
   const pnow = () => performance.now() + tOff;          // gesture time (the self-test moves it with test.later)
 
-  // ---- words: TWT's (WP6). TODO-TEXT: the TEXT stub on this branch lacks the keys below; these stand-ins (the
-  // spec's drafts of 9 and 12.4) fill in until WP6's TWT is merged, and TWT's own key always wins ----
+  // ---- words: every string is TWT's (WP6) ----
   const ageOf = () => (G ? G.age : 1);
   const rn = r => TWT.name("res", r, ageOf());
   const rl = r => rn(r).toLowerCase();
-  const cw = c => (TWT.costWords ? TWT.costWords(c, ageOf()) : RES.filter(r => c && c[r] > 0).map(r => Math.ceil(c[r]) + " " + rl(r)).join(", "));
+  const cw = c => TWT.costWords(c, ageOf());
   const nm = (kind, id) => TWT.name(kind, id, ageOf(), G && G.techs) || String(id);
-  const needW = list => { list = [].concat(list || []); return TWT.needs ? TWT.needs(list, ageOf()) : list.map(id => nm(D.BLD[id] ? "bld" : "tech", id)).join(" and "); };
-  const errW = (code, info) => TWT.err(code, Object.assign({ age: ageOf() }, info || {}, info && info.need && !TWT.needs ? { need: needW(info.need) } : {}));
-  const NODE0 = { flock: ["Flock", "Tending the flock", "flocks"], orchard: ["Orchard", "Picking fruit", "orchards"], field: ["Field", "Farming", "fields"],
-    tree: ["Tree", "Cutting wood", "trees"], grove: ["Royal Grove", "Cutting wood", "groves"], stone: ["Stone", "Quarrying stone", "stone"],
-    ore: ["Ore", "Mining ore", "ore"], dye: ["Salt Meadow", "Gathering the red dye", "dye"] };            // TODO-TEXT
-  const nodeW = (k, i) => (TWT.nodes && TWT.nodes[k] ? [TWT.nodes[k].n, TWT.nodes[k].act, TWT.nodes[k].many][i] : (NODE0[k] || [k, k, k])[i]);
-  const TODO = {   // TODO-TEXT
-    howTo: "How to play", on: "on", off: "off", close: "Close", difficulty: "Difficulty", mapChoice: "Map",
-    mini: "Minimap. Tap to move the view.", popFull: "Build a house to grow the town.", newBest: "New best",
-    score: n => "Score " + n, best: (s, t) => "Best: " + s + (s === 1 ? " star" : " stars") + ", " + t,
-    dockLess: r => "Fewer on " + rl(r), dockMore: r => "More on " + rl(r), dockInfo: r => rn(r) + " workers",
-    labor: (r, n, parts) => rn(r) + " " + n + (parts && Object.keys(parts).length ? ": " + Object.keys(parts).map(k => nodeW(k, 2) + " " + parts[k]).join(", ") : ""),
-    alarm: "Alarm", allClearBtn: "All clear", alarmAria: "Ring the alarm", allClearAria: "Sound the all clear",
-    idle: n => "Idle " + n, idleAria: n => n + (n === 1 ? " idle villager" : " idle villagers") + ". Tap for the next one. Hold to select all.",
-    shield: n => String(n), shieldAria: n => "Garrison: " + n + ". Tap to command it.", garrisonHead: "Garrison",
-    trainSpear: "Spearmen", trainBow: "Bowmen", trainHorse: "Horsemen", ret: "Return", hold: "Hold", dismissHold: "Dismiss (hold)",
-    ageBtn: "Age", place: "Place it here", cancel: "Cancel", placeAnother: "Place another", rotate: "Turn the gate",
-    buildAria: (n, c) => n + ". " + c + ".", wallHint: c => "Drag to draw a wall. " + cw(c) + " a tile.", undoStroke: "Undo stroke", ring: "Ring",
-    wallBuild: (n, c) => "Build (" + n + (n === 1 ? " tile" : " tiles") + (n ? ", " + cw(c) : "") + ")",
-    wallShort: (n, r) => "Not enough " + rl(r) + " for " + n + (n === 1 ? " tile." : " tiles."),
-    gateHint: "Tap where the gate goes. It can replace two wall tiles in a straight line.",
-    hp: (n, m) => "Hit points " + Math.floor(n) + " of " + Math.floor(m), task: (k, c, cap) => (k ? k + (cap ? ", " + c + " of " + cap : "") : "Idle"),
-    building: "Building", repairing: "Repairing", sheltering: "Sheltering", walking: "Walking", heldByLasso: "Held by a lasso",
-    drivenOff: "Driven off", trainVil: "Train a villager", autoTrain: "Auto-train villagers", train: n => "Train " + n, queue: "In training",
-    rally: "Rally", rallyPoint: "A point on the map", advance: "Advance", research: "Research", researched_: "Researched", inQueue: "In the queue",
-    sell: (r, n, get) => "Sell " + n + " " + rl(r) + " for " + get + " " + rl("g"), buy: (r, n, pay) => "Buy " + n + " " + rl(r) + " for " + pay + " " + rl("g"),
-    exchangeOnly: "Only one market draws trade carts. This one offers the exchange.",
-    builders: n => "Builders: " + n, fewerBuilders: "Fewer builders", moreBuilders: "More builders", cancelBld: "Cancel building",
-    repair: c => "Repair (" + cw(c) + " per 100 hit points)", stop: "Stop", shelter: "Shelter", demolish: "Demolish", keepIt: "Keep it",
-    demolishAsk: n => "Demolish the " + n + "? Nothing is refunded.",
-    nodeLeft: (n, r) => Math.floor(n) + " " + rl(r) + " left", nodeWorkers: n => n + " at work", sendVil: "Send a villager",
-    advanceTo: n => "Advance to the " + n, costL: "Cost", timeL: "Time", needsL: "Needs", techsAt: n => "At the " + n,
-    raidComing: (a, w) => (w ? "Raiders are coming for the building site." : TWT.name("raider", ["etR", "alH", "arR"][Math.max(0, Math.min(2, a - 1))]) + " are coming."),
-    raidAtWalls: "Raiders at the walls.", raidRepelled: "The raiders fall back.", raidPlunder: "The raiders leave with their plunder.",
-    pillage: "Raiders outside the walls are taking food from the fields.",
-    alarmOn: "Alarm! Villagers near the raiders take shelter.", alarmAll: "Everyone inside.", allClear: "All clear.",
-    shelterCall: "Villagers run for shelter.", idleCall: n => n + (n === 1 ? " villager is idle." : " villagers are idle."),
-    depleted: k => ({ flock: "The flock has gone to summer pasture.", ore: "The ore is worked out.", dye: "The dye of this meadow is gathered." })[k] || "",
-    destroyed: n => "The " + n + " was destroyed.", craftsmen: "Craftsmen arrive. Your builders work faster for a while.",
-    clockHint: "Well done. Raiders will come soon. The horn at the top will count down.",
-    repairStop: r => "Not enough " + rl(r) + " to repair.", repairAfter: "Some buildings are damaged. Tap one, then Repair.",
-    softLockCall: "No villagers are left. Dismiss a soldier to make room.", setback: "The raiders set the work back.",
-    stage: (p, a) => (p >= 75 ? (a === 3 ? "The dome is going on." : "The roof is going on.") : p >= 50 ? "The columns are up." : p >= 25 ? "The walls are rising." : ""),
-    underAttack: n => "The " + n + " is under attack.", tcHurt: (a, p) => "The " + nm("bld", "tc") + (p <= 25 ? " is close to falling." : " is badly damaged."),
-    cartArrive: n => "A trade cart brings " + n + " " + rl("g") + ".", cartLost: "A trade cart was lost.",
-    sold: (r, n, get) => "Sold " + n + " " + rl(r) + " for " + get + " " + rl("g") + ".", bought: (r, n, pay) => "Bought " + n + " " + rl(r) + " for " + pay + " " + rl("g") + ".",
-    vilFell: "A villager has fallen.", unitFell: n => "One of your " + n + " has fallen.",
-    drivenCall: "Raiders drove a villager off. The villager will be back at work soon.", planNoSpeed: "Speed and the alarm wait until you resume.",
-    // WP4's own, not in WP6's table yet (asked of WP6 in the report)
-    wallRun: (n, c) => n + (n === 1 ? " tile" : " tiles") + (n ? ", " + cw(c) : ""), ringNone: "No ring fits around the town here.",
-    terr: ["Grass.", "Dark river soil. Fields grow here.", "The river.", "A ford.", "The town hill.", "A cliff.", "The trade road.", "A canal.", "A bluff.", "A salt meadow."],
-  };
-  const U = (k, ...a) => { const t = TWT.ui && TWT.ui[k] !== undefined ? TWT.ui[k] : TODO[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
-  const HINTS0 = [   // TODO-TEXT: 9.13's hints, until WP6's TWT.hints is merged
-    ["dock", "start", "dock", "Your villagers work on their own. Use + and - on the left to move workers."],
-    ["house", "popLow", "build:house", "The town is nearly full. Tap House, then place it."],
-    ["field", "flocksHalf", "build:field", "Fields grow food. Place them on the dark river soil."],
-    ["horn", "firstWarn", "raid", "Raiders come on a clock. The horn at the top counts down."],
-    ["alarm", "firstSpawn", "alarm", "Villagers run inside when raiders come near. Ring the alarm to call in everyone nearby."],
-    ["shield", "firstSpawn", "shield", "Tap the shield to train soldiers or move their post."],
-    ["wall", "firstRaidOver", "build:wall", "Tap Wall, then drag along the ground to draw a wall. Ring proposes one."],
-    ["gate", "wallNoGate", "build:gate", "Walls block your villagers too. Put a Gate in the wall."],
-    ["repair", "damaged", "info", "Tap a damaged building, then Repair."],
-    ["age", "advanceReady", "age", "Ready for a new age? Tap the age badge."],
-    ["wonder", "wonderTime", "build:wonder", "Build the wonder to win. Raiders will come for the building site."],
-  ].map(([id, on, ctl, line]) => ({ id, on, ctl, line }));
-  const hintList = () => (TWT.hints && TWT.hints.length ? TWT.hints : HINTS0);
+  const needW = list => TWT.needs([].concat(list || []), ageOf());
+  const errW = (code, info) => TWT.err(code, Object.assign({ age: ageOf() }, info || {}));
+  const nodeW = (k, i) => (TWT.nodes[k] ? [TWT.nodes[k].n, TWT.nodes[k].act, TWT.nodes[k].many][i] : k);
+  const U = (k, ...a) => { const t = TWT.ui[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
+  const hintList = () => TWT.hints;
 
   let root = null, cv = null, mini = null, mapBtn = null;
   const el = {};
@@ -66307,7 +66260,7 @@ townRegion("shell", () => { Town = (() => {
   const wallN = () => wallCells.filter(c => c.ok).length;
   function floatAt(sx, sy) {
     const n = wallN(), c = TW.cost(G, "wall");
-    setT(el.float, U("wallRun", n, { f: c.f * n, w: c.w * n, s: c.s * n, g: c.g * n }));
+    setT(el.float, U("wallRun", n, { f: c.f * n, w: c.w * n, s: c.s * n, g: c.g * n }, ageOf()));
     el.float.style.transform = "translate(" + Math.round(sx) + "px," + Math.round(Math.max(area.t + 20, sy - 70)) + "px)";
     el.float.classList.add("on");
   }
