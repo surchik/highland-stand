@@ -8,6 +8,8 @@
 //   seeds   a count (default 10, seeds 1..n) or a list "4821,77"
 // Env:  JSON=1 (one line per game: milestones, raids, losses, timings)  PATCH='TW.DATA.GATHER.tree = 0.4'
 //       MAX_MIN=40 (stop a game at this game time)  GAME=path (another index.html)
+//       MAPS=n (instead of games: generate the maps of seeds 1..n and report how many were valid, the attempts
+//       the generator needed, the fields that fit and the time per map)
 // All bots play with firstTown off. A bot acts only through TW.command, as a player would.
 const path = require("path");
 const townExtract = require("./town-extract.js");
@@ -27,6 +29,21 @@ const MAX_MIN = +(process.env.MAX_MIN || 40);
 const { TW } = townExtract(process.env.GAME ? path.resolve(process.env.GAME) : undefined);
 if (process.env.PATCH) new Function("TW", process.env.PATCH)(TW);
 const DT = TW.DT, SEC = Math.round(1 / DT);
+if (process.env.MAPS) {
+  const n = +process.env.MAPS, tries = {}, fields = [], bad = [];
+  const t0 = process.hrtime.bigint();
+  for (let seed = 1; seed <= n; seed++) {
+    const m = TW.mapGen(seed);
+    if (!m.valid) bad.push(seed);
+    tries[m.attempt + 1] = (tries[m.attempt + 1] || 0) + 1;
+    fields.push(m.fields);
+  }
+  fields.sort((a, b) => a - b);
+  console.log("maps " + n + ": valid " + (n - bad.length) + (bad.length ? " (invalid: " + bad.slice(0, 20).join(",") + ")" : "") +
+    "; attempts " + JSON.stringify(tries) + "; fields min " + fields[0] + ", median " + fields[n >> 1] + ", max " + fields[n - 1] +
+    "; " + (Number(process.hrtime.bigint() - t0) / 1e6 / n).toFixed(2) + " ms a map");
+  process.exit(bad.length ? 1 : 0);
+}
 
 function play(diff, style, seed) {
   const t0 = process.hrtime.bigint();
@@ -84,7 +101,7 @@ for (const d of diffs) for (const s of styles) {
     repelled: median(games.map(g => g.repelled)), bldLost: median(games.map(g => g.bldLost)),
     lostRaid: lost.length ? median(lost) + "/" + Math.max(...lost) : "-",
     shelS: median(games.map(g => g.shelteredS)), idleS: median(games.map(g => g.idleS)),
-    wood: median(games.map(g => g.woodLeft)), pillaged: median(games.map(g => g.pillaged)), stuck: "-",
+    wood: Math.round(median(games.map(g => g.woodLeft))), pillaged: median(games.map(g => g.pillaged)), stuck: "-",
     ms: Math.round(median(games.map(g => g.ms))),
   });
 }
