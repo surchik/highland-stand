@@ -1355,90 +1355,225 @@
   #overlay #nardiBtn .ic { width: 24px; height: 24px; vertical-align: 0; }
   #overlay.brief #nardiBtn, #overlay.victory #nardiBtn { display: none; }
   /* ---------- town ---------- */
-  /* Under Ararat, the town builder: a room of its own over the menu pages (z 38, as Nardi's), the map on a canvas
-     under a DOM HUD, and the cards. Everything is scoped under #town or #overlay #townBtn (WP4 owns this block;
-     WP1-A's stub). The layout follows the root's own size: JS sets .twTall (portrait), .twCompact (under 1100 px)
-     and --twTop (the top bar's height) */
+  /* Under Ararat (WP4): all scoped under #town or #overlay #townBtn. JS sets .twTall .twCompact .twWide .twShort and --twTop --twBar --twDk (9.2) */
   #town {
     position: fixed; inset: 0; z-index: 38; overflow: hidden; background: var(--walnut-deep); color: var(--parch);
-    font-family: var(--face); touch-action: none; -webkit-user-select: none; user-select: none; --twTop: 56px;
+    font-family: var(--face); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    --twTop: 56px; --twBar: 84px; --twDk: 0px; --twCol: 148px;
+    --twKnob: radial-gradient(circle at 36% 30%, #6a4a28, #3a2814 62%, #1f150b); --twLeaf: linear-gradient(160deg, #f3e6c2, var(--parch) 55%, var(--parch-dk));
+    --twWood: linear-gradient(180deg, #5a4630, #3a2b1b 55%, #241a11); --twRim: inset 0 0 0 1px rgba(240,207,133,.4);
   }
   #town.twHidden { display: none; }
   #town:focus { outline: none; }
   #town .twSr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   #town #twMap { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
-  #town button { font-family: var(--face); cursor: pointer; }
+  #town button { font-family: var(--face); cursor: pointer; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
   #town button:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
   #town:not(.twKeys) button:focus-visible { outline: none; }
   #town .ic { width: 22px; height: 22px; flex: none; }
-  /* the top bar: age badge, resources, population, raid chip; speed, pause and leave at the right */
+  #town .off { filter: saturate(.25) brightness(.72); cursor: default; }
+  #town button:hover:not(.off):not(:disabled) { filter: brightness(1.12); }
+  /* the top bar */
   #town .twTop {
     position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;
     min-height: 56px; padding: calc(6px + var(--sat)) calc(10px + var(--sar)) 6px calc(10px + var(--sal));
-    background: linear-gradient(180deg, rgba(23,16,10,.94), rgba(23,16,10,.78)); box-shadow: 0 2px 10px rgba(0,0,0,.5);
+    background: linear-gradient(180deg, rgba(23,16,10,.94), rgba(23,16,10,.8)); box-shadow: 0 2px 10px rgba(0,0,0,.5);
   }
-  #town .twRes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #town .twRes { display: flex; align-items: center; gap: 6px; }
   #town .twGrow { flex: 1 1 0; }
-  #town .twStat, #town .twChip, #town .twAge {
+  #town .twStat, #town .twChip, #town .twAge, #town .twChip2 {
     display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 22px;
     font-size: 15px; font-weight: 700; color: #fff3d6; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums;
     background: linear-gradient(180deg, #17100a, #2a1f15); border: 2px solid var(--bronze-sh);
     box-shadow: inset 0 0 0 1px rgba(240,207,133,.4), inset 0 3px 6px rgba(0,0,0,.6);
   }
-  #town .twStat { min-width: 92px; }
-  #town .twStat b { min-width: 2.6em; text-align: right; }
-  #town .twAge { min-width: 150px; justify-content: center; letter-spacing: .4px; }
-  #town .twChip { min-width: 112px; color: var(--parch-dk); }
+  #town .twStat { width: 96px; padding: 0 10px; }
+  #town .twStat b { flex: 1; text-align: right; }
+  #town .twPop { width: 92px; }
+  #town .twAge { width: 190px; justify-content: center; letter-spacing: .4px; }
+  #town .twChip { width: 128px; justify-content: center; }
+  #town .twChip.dim { color: var(--parch-dk); }
+  #town .twChip.warn { color: #ffe08a; border-color: var(--bronze-hi); }
+  #town .twChip.live { color: #fff; border-color: var(--crimson); background: linear-gradient(180deg, #5a1610, #2a0d08); }
   #town .twPop.warn b { color: #f2c14e; }
   #town .twPop.full b { color: #ff8a7a; }
+  #town .twStat.twLack { border-color: #e0402f; box-shadow: 0 0 0 2px rgba(224,64,47,.6), inset 0 3px 6px rgba(0,0,0,.6); }
+  #town .twStat.twLack b { color: #ff8a7a; }
+  #town .twStat.twPil { border-color: #f2a03a; }
+  #town .twStat.twPil b { color: #ffc070; }
   #town .twRound {
-    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; padding: 0 0 2px;
+    width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; padding: 0 0 2px; flex: none;
     font-size: 20px; font-weight: 700; line-height: 1; color: #f6dc9a;
-    border: 2px solid var(--bronze-sh); background: radial-gradient(circle at 36% 30%, #6a4a28, #3a2814 62%, #1f150b);
+    border: 2px solid var(--bronze-sh); background: var(--twKnob);
     box-shadow: inset 0 0 0 1px rgba(240,207,133,.55), 0 2px 6px rgba(0,0,0,.5);
   }
-  #town .twRound:disabled { filter: saturate(.3) brightness(.6); cursor: default; }
   #town .twRound .ic { width: 20px; height: 20px; }
-  /* the Next line under the age badge, the call line in the middle */
+  #town.twCompact .twStat { width: 92px; padding: 0 8px; }
+  #town.twCompact .twPop { width: 80px; }
+  #town.twCompact .twAge { width: 150px; }
+  #town.twCompact .twChip { width: 112px; }
+  #town.twCompact .twRound, #town.twTall .twRound { width: 44px; height: 44px; }
+  #town.twCompact .twTop { gap: 6px; }
+  /* portrait: two rows */
+  #town.twTall .twTop { padding-top: calc(4px + var(--sat)); }
+  #town.twTall .twAge { order: 0; width: 150px; } #town.twTall .g1 { order: 1; } #town.twTall .twChip { order: 2; width: 112px; }
+  #town.twTall .g2 { order: 3; } #town.twTall .twRound { order: 4; }
+  #town.twTall .twRes { order: 5; flex-basis: 100%; justify-content: flex-start; }
+  #town.twTall .twStat { width: 92px; padding: 0 8px; } #town.twTall .twPop { width: 84px; }
+  /* the Next line, the call line */
   #town .twNext {
     position: absolute; z-index: 2; left: calc(10px + var(--sal)); top: calc(var(--twTop) + 8px); max-width: 320px; min-height: 44px;
-    padding: 4px 14px; border-radius: 8px; text-align: left; font-size: 15px; font-weight: 700; color: var(--ink);
-    border: 2px solid var(--bronze); background: linear-gradient(160deg, #f3e6c2, var(--parch) 60%, var(--parch-dk));
-    box-shadow: 0 2px 8px rgba(0,0,0,.5);
+    padding: 4px 14px; border-radius: 8px; text-align: left; font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.25;
+    border: 2px solid var(--bronze); background: var(--twLeaf); box-shadow: 0 2px 8px rgba(0,0,0,.5);
   }
   #town .twNext:empty { display: none; }
   #town .twCall {
-    position: absolute; z-index: 2; left: 50%; top: calc(var(--twTop) + 8px); transform: translateX(-50%); max-width: min(520px, 46vw);
-    padding: 8px 18px; border-radius: 10px; text-align: center; font-size: 16px; font-style: italic; color: #fff3c6;
-    background: rgba(20,12,6,.78); box-shadow: 0 2px 8px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s;
+    position: absolute; z-index: 2; top: calc(var(--twTop) + 8px); left: calc(340px + var(--sal)); right: calc(196px + var(--sar)); margin: 0 auto;
+    width: max-content; max-width: min(520px, calc(100% - 536px)); padding: 8px 18px; border-radius: 10px; text-align: center; font-size: 16px; line-height: 1.3;
+    font-style: italic; color: #fff3c6; background: rgba(20,12,6,.82); box-shadow: 0 2px 8px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s;
   }
   #town .twCall.on { opacity: 1; }
-  /* the minimap, the zoom buttons under it (beside it in portrait) */
+  #town .twCall.twHintOn { font-style: normal; color: var(--ink); background: linear-gradient(160deg, #fbf1d4, var(--parch)); border: 2px solid #f2c14e; }
+  #town.twPlanning .twCall { top: calc(var(--twTop) + 72px); }
+  #town.twTall .twNext { right: calc(10px + var(--sar)); max-width: none; }
+  #town.twTall .twCall { top: calc(var(--twTop) + 60px); left: calc(10px + var(--sal)); right: calc(232px + var(--sar)); max-width: min(520px, calc(100% - 242px)); }
+  /* the minimap and zoom */
   #town #twMini {
     position: absolute; z-index: 2; right: calc(10px + var(--sar)); top: calc(var(--twTop) + 8px); width: 176px; height: 132px;
     border: 2px solid var(--bronze-sh); border-radius: 6px; background: #1c140d; box-shadow: 0 2px 10px rgba(0,0,0,.6); touch-action: none;
   }
   #town .twZoom { position: absolute; z-index: 2; right: calc(10px + var(--sar)); top: calc(var(--twTop) + 152px); display: flex; flex-direction: column; gap: 10px; }
-  /* portrait: the age badge, the raid chip and the three round buttons on the first row, the counters on the second */
-  #town.twTall .twAge { order: 0; } #town.twTall .twChip { order: 1; } #town.twTall .twGrow { order: 2; }
-  #town.twTall .twRound { order: 3; } #town.twTall .twRes { order: 4; flex-basis: 100%; }
-  #town.twTall #twMini { width: 150px; height: 112px; }
-  #town.twTall .twZoom { top: calc(var(--twTop) + 8px); right: calc(172px + var(--sar)); }
-  #town.twTall .twCall { top: calc(var(--twTop) + 60px); }
-  #town.twCompact .twStat { min-width: 80px; padding: 0 9px; }
-  #town.twCompact .twAge { min-width: 120px; }
-  /* plan while paused: a banner over the map */
+  #town.twTall #twMini { width: 150px; height: 112px; top: calc(var(--twTop) + 60px); }
+  #town.twTall .twZoom { top: calc(var(--twTop) + 60px); right: calc(172px + var(--sar)); }
+  /* the dock and the chips (portrait: the dock is a row above the bar) */
+  #town .twDock { position: absolute; z-index: 2; left: calc(10px + var(--sal)); bottom: calc(var(--twBar) + 176px); display: flex; flex-direction: column; gap: 6px; }
+  #town .twDkR { display: flex; align-items: center; width: var(--twCol); height: 48px; border-radius: 24px; padding: 2px;
+    background: linear-gradient(180deg, rgba(23,16,10,.9), rgba(42,31,21,.9)); border: 2px solid var(--bronze-sh); box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+  #town .twDkB { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; padding: 0 0 2px; font-size: 24px; font-weight: 700; line-height: 1; color: #f6dc9a;
+    background: var(--twKnob); box-shadow: inset 0 0 0 1px rgba(240,207,133,.5); }
+  #town .twDkI { flex: 1; min-width: 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; border: 0; padding: 0;
+    background: none; color: #fff3d6; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #town .twDock, #town .twChips, #town .twZoom, #town .twGB { pointer-events: none; }   /* their gaps are map */
+  #town .twDock > *, #town .twChips > *, #town .twZoom > *, #town .twGB > * { pointer-events: auto; }
+  #town .twChips { position: absolute; z-index: 2; left: calc(10px + var(--sal)); bottom: calc(var(--twBar) + 10px); display: flex; flex-direction: column; gap: 8px; }
+  #town .twChip2 { width: var(--twCol); padding: 0 12px; justify-content: flex-start; }
+  #town .twChip2.twNone { display: none; }
+  #town .twChip2.on, #town .twChip2.lit { border-color: var(--bronze-hi); background: linear-gradient(180deg, #6a4a28, #3a2814); }
+  #town .twChip2.ring { animation: twRing 1s ease-in-out infinite; }
+  @keyframes twRing { 50% { box-shadow: 0 0 0 4px rgba(242,193,78,.85), inset 0 3px 6px rgba(0,0,0,.6); } }
+  #town.twTall .twDock { flex-direction: row; justify-content: space-between; left: calc(8px + var(--sal)); right: calc(8px + var(--sar)); bottom: var(--twBar);
+    padding: 4px 0; gap: 4px; }
+  #town.twTall .twDkR { width: auto; flex: 1 1 0; max-width: 150px; }
+  #town.twTall .twChips, #town.twTall .twGar { bottom: calc(var(--twBar) + var(--twDk) + 10px); }
+  #town.twTall.twInfoOn .twChips, #town.twTall.twInfoOn .twGar { bottom: calc(var(--twBar) + var(--twDk) + 160px); }
+  /* the coached outline (9.13) */
+  #town .twCoach { box-shadow: 0 0 0 3px #f2c14e, 0 0 14px 3px rgba(242,193,78,.75) !important; animation: twPulse 1.4s ease-in-out infinite; }
+  @keyframes twPulse { 50% { box-shadow: 0 0 0 3px #f2c14e, 0 0 4px 1px rgba(242,193,78,.4); } }
+  #town.twRM .twCoach, #town.twRM .twChip2.ring { animation: none; }
+  @media (prefers-reduced-motion: reduce) { #town .twCoach, #town .twChip2.ring { animation: none; } }
+  /* panels: garrison, info (portrait: a bottom sheet), the age sheet */
+  #town .twPanel, #town .twSheet { position: absolute; z-index: 4; display: none; color: var(--ink); font-size: 15px; line-height: 1.35;
+    background: var(--twLeaf); border: 2px solid var(--bronze); border-radius: 8px;
+    box-shadow: 0 0 0 1px var(--bronze-sh), 0 6px 18px rgba(0,0,0,.55); overflow-y: auto; overscroll-behavior: contain; -webkit-user-select: text; user-select: text; }
+  #town .twPanel.on, #town .twSheet.on { display: block; }
+  #town .twInfo { right: calc(10px + var(--sar)); bottom: calc(var(--twBar) + 10px); width: 320px; max-height: min(260px, calc(100% - var(--twTop) - var(--twBar) - 330px)); min-height: 110px; padding: 0 10px 10px; }
+  #town.twWide .twInfo { width: 360px; }
+  #town .twGar { left: calc(var(--twCol) + 20px + var(--sal)); bottom: calc(var(--twBar) + 10px); width: 300px; max-width: calc(100% - var(--twCol) - 40px); padding: 0 10px 10px; }
+  #town.twTall .twInfo { left: 0; right: 0; width: auto; bottom: calc(var(--twBar) + var(--twDk)); height: 150px; max-height: none; min-height: 0; border-radius: 10px 10px 0 0;
+    padding: 0 calc(12px + var(--sar)) 8px calc(12px + var(--sal)); }
+  #town.twTall .twInfo .twIH { margin: 0 calc(-12px - var(--sar)) 0 calc(-12px - var(--sal)); padding: 2px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
+  #town .twIH { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; min-height: 36px; margin: 0 -10px; padding: 4px 10px 0;
+    background: linear-gradient(180deg, #f3e6c2 80%, rgba(243,230,194,0)); }
+  #town .twSheet .twIH { margin: 0 -16px; padding: 6px 16px 0; }
+  #town .twIH b { font-size: 17px; color: #4a2410; flex: 1; }
+  #town .twIH .twKick { flex: 1; }
+  #town .twX { margin-left: auto; width: 44px; height: 44px; margin-top: -6px; margin-right: -6px; flex: none; border: 0; background: none; font-size: 26px; color: #5a3a1a; }
+  #town .twHp { position: relative; height: 18px; margin: 2px 0 4px; border-radius: 9px; background: rgba(60,36,14,.25); overflow: hidden; }
+  #town .twHp i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #7fbf5a, #4f8a32); }
+  #town .twHp i.low { background: linear-gradient(180deg, #e0763a, #a8322a); }
+  #town .twHp span { position: relative; display: block; text-align: center; font-size: 12.5px; font-weight: 700; line-height: 18px; color: #1c1209; }
+  #town .twIS { margin: 2px 0; font-size: 14.5px; }
+  #town .twHist { margin: 2px 0 4px; font-size: 14px; font-style: italic; color: #5a4222; }
+  #town .twQ, #town .twActs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+  #town .twA, #town .twQi { min-height: 44px; min-width: 44px; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--parch);
+    border: 2px solid var(--bronze); background: var(--twWood); display: inline-flex; align-items: center; gap: 6px; line-height: 1.15; text-align: left; }
+  #town .twA.sym { justify-content: center; font-size: 24px; padding: 0 14px 2px; }
+  #town .twA.on { border-color: #f2c14e; background: linear-gradient(180deg, #8a5a22, #5a3a14); color: #fff3d6; }
+  #town .twA[data-hold] { position: relative; overflow: hidden; }
+  #town .twA[data-hold]::after { content: ""; position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: #f2c14e; }
+  #town .twA.twHolding::after { width: 100%; transition: width .8s linear; }
+  #town .twQi { color: #fff3d6; font-weight: 600; }
+  #town .twCo { display: inline-flex; flex-wrap: wrap; gap: 2px 6px; font-size: 12.5px; font-weight: 600; color: #f3e6c2; }
+  #town .twCo span { display: inline-flex; align-items: center; gap: 1px; }
+  #town .twCo .ic { width: 14px; height: 14px; }
+  #town .twCo .lack, #town .twBc .lack { color: #ff8a7a; }
+  #town .twCo .lack::before, #town .twBc .lack::before { content: "\2212"; }
+  #town .twSheet { left: 50%; transform: translateX(-50%); top: calc(var(--twTop) + 8px); bottom: calc(var(--twBar) + var(--twDk) + 8px); width: min(600px, calc(100% - 24px)); padding: 0 16px 14px; }
+  #town .twSB h2 { font-size: 24px; margin: 0 0 6px; color: #4a2410; }
+  #town .twSB h3 { font-size: 16px; margin: 12px 0 4px; color: #6a3a14; border-bottom: 1px solid rgba(110,77,30,.4); }
+  #town .twRow { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 2px 0; }
+  #town .twRt { flex: 1; min-width: 0; }
+  #town .twRt small { display: block; font-size: 13px; color: #5a4222; }
+  #town .twSheet .twCo { color: #3a2814; } #town .twSheet .twCo .lack { color: #b02a1c; }
+  #town .twTm { font-size: 13.5px; color: #5a4222; white-space: nowrap; }
+  #town .twOk { display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; border: 2px solid #6e4d1e; }
+  #town .twOk.y { background: #4f8a32; border-color: #2f5a1a; box-shadow: inset 0 0 0 2px #e8f5d8; }
+  /* the build bar and the wall bar */
+  #town .twBar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; min-height: 84px; display: flex; align-items: center; justify-content: center;
+    padding: 6px calc(8px + var(--sar)) calc(6px + var(--sab)) calc(8px + var(--sal)); background: linear-gradient(0deg, rgba(23,16,10,.95), rgba(23,16,10,.82)); box-shadow: 0 -2px 10px rgba(0,0,0,.5); }
+  #town .twBuild { display: flex; gap: 6px; justify-content: center; max-width: 100%; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-x; }
+  #town .twB { position: relative; flex: none; width: 64px; height: 64px; padding: 4px 1px 2px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px;
+    border-radius: 9px; color: #fff3d6; border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #3a2b1b, #241a11 60%, #17100a); box-shadow: inset 0 0 0 1px rgba(240,207,133,.35); }
+  #town .twB > .ic { width: 28px; height: 28px; }
+  #town .twBc { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 3px; font-size: 10.5px; font-weight: 700; line-height: 13px; }
+  #town .twBc span { display: inline-flex; align-items: center; }
+  #town .twBc .ic { width: 11px; height: 11px; }
+  #town .twB .twLk { display: none; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; }
+  #town .twB.lock > .ic:first-child, #town .twB.lock .twBc { opacity: .45; }
+  #town .twB.lock .twLk { display: block; }
+  #town .twB.poor > .ic:first-child { opacity: .6; }
+  #town .twB.on { border-color: #f2c14e; background: linear-gradient(180deg, #6a4a28, #3a2814); }
+  #town .twBAge .twBc { font-size: 12px; }
+  #town .twWall { display: none; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  #town .twWallHint { font-size: 15px; font-style: italic; color: #fff3c6; max-width: 360px; }
+  #town.twWalling .twBuild { display: none; }
+  #town.twWalling .twWall { display: flex; }
+  #town.twTall .twBar { min-height: 150px; }
+  #town.twTall .twBuild { flex-wrap: wrap; max-width: 560px; row-gap: 8px; }
+  #town.twCompact .twB { width: 60px; height: 60px; }
+  /* placing: ghost buttons, Place another, stroke count, bubble, box */
+  #town .twGB { position: absolute; z-index: 3; left: 0; top: 0; display: none; flex-direction: column; gap: 8px; }
+  #town .twGB.on { display: flex; }
+  #town:not(.twGating) #twGhostRot { display: none; }
+  #town .twGo { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; line-height: 1; padding: 0 0 2px;
+    color: #fff3d6; border: 2px solid var(--bronze-hi); background: var(--twKnob); box-shadow: 0 3px 10px rgba(0,0,0,.6); }
+  #town .twGo.ok { background: radial-gradient(circle at 36% 30%, #6fae4e, #3f7a2a 62%, #24501a); }
+  #town .twGo.ok .ic { width: 26px; height: 26px; }
+  #town .twGo.no { background: radial-gradient(circle at 36% 30%, #d5503f, var(--crimson) 62%, #6d1d17); }
+  #town .twAgain { position: absolute; z-index: 3; left: 0; top: 0; display: none; min-width: 0; padding: 0 14px; min-height: 48px; font-size: 15px; }
+  #town .twAgain.on { display: block; }
+  #town .twFloat { position: absolute; z-index: 3; left: 0; top: 0; display: none; width: 140px; margin-left: -70px; padding: 4px 8px; border-radius: 8px; text-align: center;
+    font-size: 14px; font-weight: 700; color: #fff3d6; background: rgba(20,12,6,.85); pointer-events: none; }
+  #town .twFloat.on { display: block; }
+  #town .twBubble { position: absolute; z-index: 5; display: none; max-width: 260px; padding: 6px 12px; border-radius: 8px; transform: translateY(-100%); font-size: 14px;
+    color: var(--ink); background: #fbf1d4; border: 2px solid var(--crimson); box-shadow: 0 3px 10px rgba(0,0,0,.5); pointer-events: none; }
+  #town .twBubble.on { display: block; }
+  #town .twBox { position: absolute; z-index: 2; left: 0; top: 0; display: none; border: 2px dashed #fff3c6; background: rgba(255,243,198,.12); pointer-events: none; }
+  #town .twBox.on { display: block; }
+  /* plan while paused */
   #town .twPlan {
-    position: absolute; z-index: 4; left: 50%; bottom: calc(18px + var(--sab)); transform: translateX(-50%); display: none;
-    align-items: center; gap: 14px; padding: 8px 10px 8px 18px; border-radius: 12px; font-size: 16px; color: var(--ink);
+    position: absolute; z-index: 4; left: 50%; top: calc(var(--twTop) + 8px); transform: translateX(-50%); display: none; max-width: calc(100% - 24px);
+    align-items: center; gap: 14px; padding: 6px 8px 6px 16px; border-radius: 12px; font-size: 16px; color: var(--ink);
     background: linear-gradient(160deg, #f3e6c2, var(--parch)); box-shadow: 0 0 0 2px var(--crimson), 0 4px 16px rgba(0,0,0,.6);
   }
   #town.twPlanning .twPlan { display: flex; }
-  #town.twNoUi .twTop, #town.twNoUi .twNext, #town.twNoUi .twCall, #town.twNoUi #twMini, #town.twNoUi .twZoom, #town.twNoUi .twPlan { display: none; }
-  /* buttons, as Nardi's */
+  #town.twTall .twPlan { top: calc(var(--twTop) + 104px); }
+  #town.twNoUi .twTop, #town.twNoUi .twNext, #town.twNoUi .twCall, #town.twNoUi #twMini, #town.twNoUi .twZoom, #town.twNoUi .twPlan, #town.twNoUi .twDock,
+  #town.twNoUi .twChips, #town.twNoUi .twBar, #town.twNoUi .twPanel, #town.twNoUi .twGB { display: none; }
+
   #town .twBtn {
     min-height: 44px; min-width: 104px; padding: 0 20px; border-radius: 9px; font-size: 16.5px; font-weight: 700; letter-spacing: .3px;
-    color: var(--parch); border: 2px solid var(--bronze); background: linear-gradient(180deg, #5a4630, #3a2b1b 55%, #241a11);
+    color: var(--parch); border: 2px solid var(--bronze); background: var(--twWood);
     box-shadow: inset 0 1px 0 rgba(255,235,190,.3), inset 0 -3px 0 rgba(0,0,0,.3), 0 0 0 1px var(--bronze-sh), 0 4px 12px rgba(0,0,0,.5);
     text-shadow: 0 1px 0 rgba(0,0,0,.8);
   }
@@ -1447,8 +1582,8 @@
     box-shadow: inset 0 2px 0 rgba(255,218,195,.5), inset 0 -4px 0 rgba(0,0,0,.28), 0 0 0 1px var(--bronze-sh), 0 6px 16px rgba(0,0,0,.55);
     text-shadow: 0 1px 0 rgba(70,12,6,.9);
   }
-  #town button:hover:not(:disabled) { filter: brightness(1.12); }
-  /* the cards: a parchment leaf over a dim scrim, framed in crimson and bronze */
+  #town .twWall .twBtn { min-width: 0; padding: 0 14px; font-size: 15px; }
+  /* the cards */
   #town .twCardWrap { position: absolute; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center;
     padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal)); background: rgba(14,9,4,.6); }
   #town .twCardWrap.on { display: flex; }
@@ -1461,16 +1596,23 @@
     box-shadow: 0 0 0 1px #8a6a36, 0 0 0 4px var(--crimson), 0 0 0 5px var(--bronze), 0 20px 54px rgba(0,0,0,.7), inset 0 0 40px rgba(120,82,30,.35);
   }
   #town .twCard h2 { font-size: 26px; line-height: 1.15; margin: 2px 0 10px; color: #4a2410; letter-spacing: .3px; }
-  #town .twCard p { margin: 0 0 10px; }
+  #town .twCard h3 { font-size: 17px; margin: 10px 0 4px; color: #6a3a14; }
+  #town .twCard p, #town .twCard ul { margin: 0 0 10px; }
+  #town .twCard li { margin-bottom: 4px; }
+  #town .twKeysL { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; margin: 0; font-size: 15px; }
+  #town .twKeysL dt { font-weight: 700; }
+  #town .twKeysL dd { margin: 0; }
   #town .twKick { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--crimson); }
   #town .twSmall { font-size: 14.5px; font-style: italic; color: #5a4222; }
   #town .twTownName { margin-top: -6px; font-size: 18px; font-weight: 700; color: #6a4a22; }
   #town .twHy { font-family: var(--hy-face); font-size: 21px; color: #6a4a22; }
+  #town .twIH .twHy { font-size: 17px; }
   #town .twBless { padding: 8px 12px; border-left: 3px solid var(--crimson); background: rgba(255,248,222,.5); }
   #town .twStars { margin: 0 0 4px; display: flex; gap: 6px; }
   #town .twStars .ic { width: 34px; height: 34px; }
   #town .twBody { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   #town .twBtns { flex: none; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
+  #town .twTogs { display: flex; flex-wrap: wrap; gap: 8px; }
   #town .twSeg { display: inline-flex; align-self: flex-start; margin: 4px 8px 8px 0; border: 2px solid var(--bronze-sh); border-radius: 23px; overflow: hidden; }
   #town .twSeg button { min-height: 44px; padding: 0 15px; border: 0; font-size: 15px; font-weight: 700; color: var(--parch-dk); background: linear-gradient(180deg, #2a1f15, #17100a); }
   #town .twSeg button + button { border-left: 1px solid var(--bronze-sh); }
@@ -1479,14 +1621,20 @@
     font-size: 15px; font-weight: 700; color: var(--ink); border: 2px solid var(--bronze); background: rgba(255,248,222,.55); }
   #town .twToggle::before { content: ""; width: 20px; height: 20px; border-radius: 4px; border: 2px solid #6e4d1e; background: #fff8e6; }
   #town .twToggle[aria-pressed="true"]::before { background: var(--crimson); box-shadow: inset 0 0 0 3px #fff8e6; }
-  @media (max-height: 500px) and (min-width: 560px) {
-    #town .twCard { padding: 14px 20px 12px; font-size: 15px; line-height: 1.4; }
-    #town .twCard h2 { font-size: 21px; margin-bottom: 6px; }
-    #town #twMini { display: none; }
-    #town .twZoom { top: calc(var(--twTop) + 8px); }
-  }
-  /* the campaign map's door to the town: under Nardi's in landscape, left of it on a tall screen (measured in
-     integration.md 4: clear of the title and every subtitle at every size) */
+  /* short landscape: only usable */
+  #town.twShort { --twTop: 48px; }
+  #town.twShort .twTop { min-height: 48px; padding-top: calc(2px + var(--sat)); padding-bottom: 2px; }
+  #town.twShort #twMini, #town.twShort .twNext { display: none; }
+  #town.twShort .twZoom { top: calc(var(--twTop) + 8px); }
+  #town.twShort .twBar { min-height: 0; }
+  #town.twShort .twBuild { justify-content: flex-start; }
+  #town.twShort .twB { width: 56px; height: 56px; }
+  #town.twShort .twB > .ic { width: 22px; height: 22px; }
+  #town.twShort .twDock { bottom: auto; top: calc(var(--twTop) + 6px); }
+  #town.twShort .twDkR { height: 44px; }
+  #town.twShort .twCard { padding: 14px 20px 12px; font-size: 15px; line-height: 1.4; }
+  #town.twShort .twCard h2 { font-size: 21px; margin-bottom: 6px; }
+  /* the map's door (integration.md 4) */
   #overlay #townBtn {
     position: fixed; top: calc(80px + var(--sat)); right: calc(136px + var(--sar)); z-index: 2; height: 44px; padding: 0 16px 0 10px;
     display: inline-flex; align-items: center; gap: 8px; border-radius: 22px; font-size: 15px; color: #fff3d6;
@@ -64383,29 +64531,124 @@ townRegion("sound", () => { TWS = (() => {
 })(); });
 
 // ---- town: the game on screen ----   (WP4)  root, HUD, cards, input, camera, clock, loop, door
-// Town: one room of its own (#town) over the menu pages, as Nardi's: the map canvas, a DOM HUD over it and the
-// cards. Its own clock holds behind every card, while the page is hidden and in plan mode; a fixed 10 Hz sim runs
-// under an accumulator (at most 8 ticks a frame). Saving is honest: every snapshot is read back. The loop body and
-// every handler run inside guard(): an error stops the town, not the page, and shows the town's own error card.
-// WP1-A STUB: the root, top bar, Next and call lines, zoom buttons, minimap, start, resume, age, pause (with plan
-// mode), leave, end and error cards, pan and pinch, keys, visibility, the back swipe and Town.test. WP4 adds the
-// build bar, placement, walls, the dock, the garrison and every panel, and keeps the API.
+// Town: one room of its own (#town) over the menu pages, as Nardi's: the map canvas under a DOM HUD (the top bar,
+// the Next and call lines, the workers dock, the alarm, idle and shield chips with the garrison panel, the minimap
+// and the zoom buttons, the build bar with its wall bar, the info panel and the age sheet) and the cards. Its own
+// clock holds behind every card, while the page is hidden and in plan mode; a fixed 10 Hz sim runs under an
+// accumulator (at most 8 ticks a frame). Input is pointer events on the canvas (9.5, 9.6): pan with inertia,
+// pinch, tap to select and command, placement ghosts lifted above the finger, walls drawn by finger, scrolling at
+// the map area's edge while dragging; no box select on touch; a pen is a finger. Saving is honest: every snapshot
+// is read back. The loop body and every handler run inside guard(): an error stops the town, not the page.
+// WP4 pre-P (gate P): all of the above, with the info panel and the age sheet plain but complete enough to play
+// whole games. Every string is TWT's; TODO-TEXT stand-ins fill the keys the TEXT stub does not have yet.
 townRegion("shell", () => { Town = (() => {
   const BLESS_KEY = "hs_town_bless", BLESS_GOLD = 40, BLESS_BY_STARS = Object.freeze([0, 20, 30, 40]),
         PREF_KEY = "hs_town", RUN_KEY = "hs_town_run";
-  const DT = TW.DT, PPT = 40, SQ = 0.72;
-  // the History API (one entry pushed while open, for Safari's back swipe); the harness never touches history,
-  // test.back() runs the handler instead
+  const DT = TW.DT, PPT = 40, SQ = 0.72, D = TW.DATA, RES = ["f", "w", "s", "g"];
+  // the History API (one entry pushed while open, for Safari's back swipe, owner decision 15); the harness never
+  // touches history, test.back() runs the handler instead
   const HIST_ON = !HARNESS_ON;
+  const BAR = ["house", "field", "grove", "store", "barracks", "smithy", "market", "temple", "stable", "tower", "wall", "gate", "wonder"];
+  const KEYB = { Digit1: "house", Digit2: "field", Digit3: "store", Digit4: "barracks", Digit5: "smithy", Digit6: "market",
+    Digit7: "temple", Digit8: "stable", Digit9: "tower", Digit0: "wonder" };
+  const SHEL = { tc: 1, tower: 1, store: 1 }, TRAINS = { vil: "tc", spear: "barracks", bow: "barracks", horse: "stable" };
+  const RIC = { f: "food", w: "wood", s: "stone" };
+  const ricon = (r, a) => "i-tw-" + (r === "g" ? "goods" + Math.max(1, Math.min(3, a | 0)) : RIC[r]);
+  const svg = (id, cls) => '<svg class="' + (cls || "ic") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+  const CHECK = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const esc = escapeHtml;
+  let tOff = 0;
+  const pnow = () => performance.now() + tOff;          // gesture time (the self-test moves it with test.later)
+
+  // ---- words: TWT's (WP6). TODO-TEXT: the TEXT stub on this branch lacks the keys below; these stand-ins (the
+  // spec's drafts of 9 and 12.4) fill in until WP6's TWT is merged, and TWT's own key always wins ----
+  const ageOf = () => (G ? G.age : 1);
+  const rn = r => TWT.name("res", r, ageOf());
+  const rl = r => rn(r).toLowerCase();
+  const cw = c => (TWT.costWords ? TWT.costWords(c, ageOf()) : RES.filter(r => c && c[r] > 0).map(r => Math.ceil(c[r]) + " " + rl(r)).join(", "));
+  const nm = (kind, id) => TWT.name(kind, id, ageOf(), G && G.techs) || String(id);
+  const needW = list => { list = [].concat(list || []); return TWT.needs ? TWT.needs(list, ageOf()) : list.map(id => nm(D.BLD[id] ? "bld" : "tech", id)).join(" and "); };
+  const errW = (code, info) => TWT.err(code, Object.assign({ age: ageOf() }, info || {}, info && info.need && !TWT.needs ? { need: needW(info.need) } : {}));
+  const NODE0 = { flock: ["Flock", "Tending the flock", "flocks"], orchard: ["Orchard", "Picking fruit", "orchards"], field: ["Field", "Farming", "fields"],
+    tree: ["Tree", "Cutting wood", "trees"], grove: ["Royal Grove", "Cutting wood", "groves"], stone: ["Stone", "Quarrying stone", "stone"],
+    ore: ["Ore", "Mining ore", "ore"], dye: ["Salt Meadow", "Gathering the red dye", "dye"] };            // TODO-TEXT
+  const nodeW = (k, i) => (TWT.nodes && TWT.nodes[k] ? [TWT.nodes[k].n, TWT.nodes[k].act, TWT.nodes[k].many][i] : (NODE0[k] || [k, k, k])[i]);
+  const TODO = {   // TODO-TEXT
+    howTo: "How to play", on: "on", off: "off", close: "Close", difficulty: "Difficulty", mapChoice: "Map",
+    mini: "Minimap. Tap to move the view.", popFull: "Build a house to grow the town.", newBest: "New best",
+    score: n => "Score " + n, best: (s, t) => "Best: " + s + (s === 1 ? " star" : " stars") + ", " + t,
+    dockLess: r => "Fewer on " + rl(r), dockMore: r => "More on " + rl(r), dockInfo: r => rn(r) + " workers",
+    labor: (r, n, parts) => rn(r) + " " + n + (parts && Object.keys(parts).length ? ": " + Object.keys(parts).map(k => nodeW(k, 2) + " " + parts[k]).join(", ") : ""),
+    alarm: "Alarm", allClearBtn: "All clear", alarmAria: "Ring the alarm", allClearAria: "Sound the all clear",
+    idle: n => "Idle " + n, idleAria: n => n + (n === 1 ? " idle villager" : " idle villagers") + ". Tap for the next one. Hold to select all.",
+    shield: n => String(n), shieldAria: n => "Garrison: " + n + ". Tap to command it.", garrisonHead: "Garrison",
+    trainSpear: "Spearmen", trainBow: "Bowmen", trainHorse: "Horsemen", ret: "Return", hold: "Hold", dismissHold: "Dismiss (hold)",
+    ageBtn: "Age", place: "Place it here", cancel: "Cancel", placeAnother: "Place another", rotate: "Turn the gate",
+    buildAria: (n, c) => n + ". " + c + ".", wallHint: c => "Drag to draw a wall. " + cw(c) + " a tile.", undoStroke: "Undo stroke", ring: "Ring",
+    wallBuild: (n, c) => "Build (" + n + (n === 1 ? " tile" : " tiles") + (n ? ", " + cw(c) : "") + ")",
+    wallShort: (n, r) => "Not enough " + rl(r) + " for " + n + (n === 1 ? " tile." : " tiles."),
+    gateHint: "Tap where the gate goes. It can replace two wall tiles in a straight line.",
+    hp: (n, m) => "Hit points " + Math.floor(n) + " of " + Math.floor(m), task: (k, c, cap) => (k ? k + (cap ? ", " + c + " of " + cap : "") : "Idle"),
+    building: "Building", repairing: "Repairing", sheltering: "Sheltering", walking: "Walking", heldByLasso: "Held by a lasso",
+    drivenOff: "Driven off", trainVil: "Train a villager", autoTrain: "Auto-train villagers", train: n => "Train " + n, queue: "In training",
+    rally: "Rally", rallyPoint: "A point on the map", advance: "Advance", research: "Research", researched_: "Researched", inQueue: "In the queue",
+    sell: (r, n, get) => "Sell " + n + " " + rl(r) + " for " + get + " " + rl("g"), buy: (r, n, pay) => "Buy " + n + " " + rl(r) + " for " + pay + " " + rl("g"),
+    exchangeOnly: "Only one market draws trade carts. This one offers the exchange.",
+    builders: n => "Builders: " + n, fewerBuilders: "Fewer builders", moreBuilders: "More builders", cancelBld: "Cancel building",
+    repair: c => "Repair (" + cw(c) + " per 100 hit points)", stop: "Stop", shelter: "Shelter", demolish: "Demolish", keepIt: "Keep it",
+    demolishAsk: n => "Demolish the " + n + "? Nothing is refunded.",
+    nodeLeft: (n, r) => Math.floor(n) + " " + rl(r) + " left", nodeWorkers: n => n + " at work", sendVil: "Send a villager",
+    advanceTo: n => "Advance to the " + n, costL: "Cost", timeL: "Time", needsL: "Needs", techsAt: n => "At the " + n,
+    raidComing: (a, w) => (w ? "Raiders are coming for the building site." : TWT.name("raider", ["etR", "alH", "arR"][Math.max(0, Math.min(2, a - 1))]) + " are coming."),
+    raidAtWalls: "Raiders at the walls.", raidRepelled: "The raiders fall back.", raidPlunder: "The raiders leave with their plunder.",
+    pillage: "Raiders outside the walls are taking food from the fields.",
+    alarmOn: "Alarm! Villagers near the raiders take shelter.", alarmAll: "Everyone inside.", allClear: "All clear.",
+    shelterCall: "Villagers run for shelter.", idleCall: n => n + (n === 1 ? " villager is idle." : " villagers are idle."),
+    depleted: k => ({ flock: "The flock has gone to summer pasture.", ore: "The ore is worked out.", dye: "The dye of this meadow is gathered." })[k] || "",
+    destroyed: n => "The " + n + " was destroyed.", craftsmen: "Craftsmen arrive. Your builders work faster for a while.",
+    clockHint: "Well done. Raiders will come soon. The horn at the top will count down.",
+    repairStop: r => "Not enough " + rl(r) + " to repair.", repairAfter: "Some buildings are damaged. Tap one, then Repair.",
+    softLockCall: "No villagers are left. Dismiss a soldier to make room.", setback: "The raiders set the work back.",
+    stage: (p, a) => (p >= 75 ? (a === 3 ? "The dome is going on." : "The roof is going on.") : p >= 50 ? "The columns are up." : p >= 25 ? "The walls are rising." : ""),
+    underAttack: n => "The " + n + " is under attack.", tcHurt: (a, p) => "The " + nm("bld", "tc") + (p <= 25 ? " is close to falling." : " is badly damaged."),
+    cartArrive: n => "A trade cart brings " + n + " " + rl("g") + ".", cartLost: "A trade cart was lost.",
+    sold: (r, n, get) => "Sold " + n + " " + rl(r) + " for " + get + " " + rl("g") + ".", bought: (r, n, pay) => "Bought " + n + " " + rl(r) + " for " + pay + " " + rl("g") + ".",
+    vilFell: "A villager has fallen.", unitFell: n => "One of your " + n + " has fallen.",
+    drivenCall: "Raiders drove a villager off. The villager will be back at work soon.", planNoSpeed: "Speed and the alarm wait until you resume.",
+    // WP4's own, not in WP6's table yet (asked of WP6 in the report)
+    wallRun: (n, c) => n + (n === 1 ? " tile" : " tiles") + (n ? ", " + cw(c) : ""), ringNone: "No ring fits around the town here.",
+    terr: ["Grass.", "Dark river soil. Fields grow here.", "The river.", "A ford.", "The town hill.", "A cliff.", "The trade road.", "A canal.", "A bluff.", "A salt meadow."],
+  };
+  const U = (k, ...a) => { const t = TWT.ui && TWT.ui[k] !== undefined ? TWT.ui[k] : TODO[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
+  const HINTS0 = [   // TODO-TEXT: 9.13's hints, until WP6's TWT.hints is merged
+    ["dock", "start", "dock", "Your villagers work on their own. Use + and - on the left to move workers."],
+    ["house", "popLow", "build:house", "The town is nearly full. Tap House, then place it."],
+    ["field", "flocksHalf", "build:field", "Fields grow food. Place them on the dark river soil."],
+    ["horn", "firstWarn", "raid", "Raiders come on a clock. The horn at the top counts down."],
+    ["alarm", "firstSpawn", "alarm", "Villagers run inside when raiders come near. Ring the alarm to call in everyone nearby."],
+    ["shield", "firstSpawn", "shield", "Tap the shield to train soldiers or move their post."],
+    ["wall", "firstRaidOver", "build:wall", "Tap Wall, then drag along the ground to draw a wall. Ring proposes one."],
+    ["gate", "wallNoGate", "build:gate", "Walls block your villagers too. Put a Gate in the wall."],
+    ["repair", "damaged", "info", "Tap a damaged building, then Repair."],
+    ["age", "advanceReady", "age", "Ready for a new age? Tap the age badge."],
+    ["wonder", "wonderTime", "build:wonder", "Build the wonder to win. Raiders will come for the building site."],
+  ].map(([id, on, ctl, line]) => ({ id, on, ctl, line }));
+  const hintList = () => (TWT.hints && TWT.hints.length ? TWT.hints : HINTS0);
+
   let root = null, cv = null, mini = null, mapBtn = null;
   const el = {};
-  let open = false, raf = 0, G = null, live = false, view = { x: 0, y: 0, zoom: 1 }, speed = 1, acc = 0, last = 0;
+  let open = false, raf = 0, G = null, live = false, speed = 1, acc = 0, last = 0;
+  const view = { x: 0, y: 0, zoom: 1, sel: null };
   let cssW = 0, cssH = 0, dpr = 1, hudAt = 0, miniAt = 0, lastSnapTick = 0, lastSaved = 0, savedTick = -1;
   const held = new Set();
-  let sel = null, mode = "none", card = "", cardData = {}, lastFocus = null, saveOk = true, resumedAt = -1, fromCrash = false;
-  let histPushed = false, ignorePop = false, broken = null, failW = false, nextSeed = 0, pinch = null, simMs = 0, callT = 0;
-  const ptrs = new Map();
-  let pref = null;
+  let sel = null, mode = "none", gest = "", card = "", cardData = {}, lastFocus = null, saveOk = true, resumedAt = -1, fromCrash = false;
+  let histPushed = false, ignorePop = false, broken = null, failW = false, nextSeed = 0, simMs = 0;
+  const ptrs = new Map(), timers = [];
+  let pref = null, area = { l: 0, t: 0, r: 0, b: 0 }, pinch = null, inertia = null, ease = null, box = null, hover = null, lastTap = null;
+  let ghost = null, gstart = null, strokes = [], stroke = null, wcur = null, again = null, rallyPick = 0, garOpen = false, sheet = false;
+  let infoKey = "", garKey = "", sheetKey = "", barKey = "", holdBtn = null, idleI = 0;
+  // per game: the hints shown (a bitmask, saved with the run), their queue, the one showing; one-time calls
+  let hintDone = 0, hintQ = [], hintCur = null, ui1 = {};
 
   // ---- the clock: held for reasons (card, hidden, page, error, plan, sheet); now() as Nardi's ----
   let heldAt = -1, heldFor = 0;
@@ -64450,7 +64693,7 @@ townRegion("shell", () => { Town = (() => {
     const saved = Math.max(Date.now(), lastSaved + 1);
     lastSaved = saved;
     return writeRun({ v: 1, tw: TW.VERSION, saved, crashed: !!crashed,
-      ui: { view: { x: view.x, y: view.y, zoom: view.zoom }, speed: speed === 4 ? 2 : speed, hintStep: pref.hintStep },
+      ui: { view: { x: view.x, y: view.y, zoom: view.zoom }, speed: speed === 4 ? 2 : speed, hintStep: hintDone },
       state: TW.save(G) });
   }
   function removeRun() { try { localStorage.removeItem(RUN_KEY); } catch (e) {} }
@@ -64464,7 +64707,8 @@ townRegion("shell", () => { Town = (() => {
     return { o, g };
   }
 
-  // ---- the blessing (8.3, owner decision 3): the larger of the waiting gift and this win's, never more than 40 ----
+  // ---- the blessing (8.3, owner decision 3: both pay): a win stores the larger of the waiting gift and its own,
+  // never more than 40; a waiting Nardi blessing does not hold it back (both are paid in the next battle) ----
   function grantBlessing(stars) {
     const n = Math.min(BLESS_GOLD, BLESS_BY_STARS[Math.max(0, Math.min(3, stars | 0))] || 0);
     let cur = 0;
@@ -64478,6 +64722,7 @@ townRegion("shell", () => { Town = (() => {
     if (broken) return;
     broken = err || new Error("error");
     cancelAnimationFrame(raf); raf = 0;
+    stopTimers();
     let line = "";
     try {
       if (G && live && !G.over) {
@@ -64496,9 +64741,20 @@ townRegion("shell", () => { Town = (() => {
     if (broken) return undefined;
     try { return fn.apply(this, a); } catch (err) { fail(err); return undefined; }
   };
+  const on = (e, type, fn, opt) => e.addEventListener(type, guard(fn), opt);
+  function stopTimers() { for (const f of timers) f(); if (holdBtn) { clearTimeout(holdBtn.t); holdBtn.b.classList.remove("twHolding"); holdBtn = null; } }
+  // a button that also acts on a long press: once (long) or repeating every 250 ms (rep); its click is then eaten
+  function press(b, tap, long, rep) {
+    let t1 = 0, t2 = 0, ate = false;
+    const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = 0; };
+    on(b, "pointerdown", () => { stop(); ate = false; t1 = setTimeout(guard(() => { ate = true; long(); if (rep) t2 = setInterval(guard(long), 250); }), rep ? 420 : 800); });
+    for (const t of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(t, stop);
+    on(b, "click", e => { stop(); if (ate) { ate = false; return; } tap(e); });
+    timers.push(stop);
+  }
+  const tick1 = () => { Snd.init(); Snd.play("uiTick"); };
 
   // ---- build the room, once, on the first open ----
-  const ui = () => TWT.ui;
   function build() {
     if (root) return;
     root = document.createElement("div");
@@ -64508,68 +64764,108 @@ townRegion("shell", () => { Town = (() => {
     root.setAttribute("aria-modal", "true");
     root.setAttribute("aria-labelledby", "twTitle");
     root.tabIndex = -1;
-    const U = ui(), stat = (r, label) => '<span class="twStat" id="twR' + r + '" role="img" aria-label="' + label + '"><svg class="ic" aria-hidden="true"><use href="#i-tw-' + (r === "g" ? "goods1" : { f: "food", w: "wood", s: "stone" }[r]) + '"/></svg><b>0</b></span>';
+    const btn = (id, cls, inner, data) => '<button type="button"' + (id ? ' id="' + id + '"' : "") + ' class="' + cls + '"' + (data || "") + ">" + inner + "</button>";
     root.innerHTML =
-      '<h1 class="twSr" id="twTitle">' + escapeHtml(TWT.title) + "</h1>" +
-      '<canvas id="twMap" role="application" aria-label="' + escapeHtml(U.map_) + '"></canvas>' +
-      '<div class="twTop" id="twTop">' +
-        '<button type="button" class="twAge" id="twAge" aria-label="' + escapeHtml(U.ageSheet) + '"><b></b></button>' +
-        '<span class="twRes">' + stat("f", TWT.res.f) + stat("w", TWT.res.w) + stat("s", TWT.res.s) + stat("g", TWT.res.g[0]) +
-        '<span class="twStat twPop" id="twPop" role="img"><svg class="ic" aria-hidden="true"><use href="#i-tw-house"/></svg><b>0</b></span></span>' +
-        '<button type="button" class="twChip" id="twRaid"><svg class="ic" aria-hidden="true"><use href="#i-horn"/></svg><b></b></button>' +
-        '<span class="twGrow"></span>' +
-        '<button type="button" class="twRound" id="twSpeed" aria-label="' + escapeHtml(U.speed) + '">1x</button>' +
-        '<button type="button" class="twRound" id="twPause" aria-label="' + escapeHtml(U.pause) + '"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>' +
-        '<button type="button" class="twRound" id="twLeave" aria-label="' + escapeHtml(U.leaveTown) + '">&#215;</button>' +
-      "</div>" +
-      '<button type="button" class="twNext" id="twNext"></button>' +
-      '<div class="twCall" id="twCall" aria-live="polite"></div>' +
-      '<canvas id="twMini" aria-hidden="true"></canvas>' +
-      '<div class="twZoom"><button type="button" class="twRound" id="twZoomIn" aria-label="' + escapeHtml(U.zoomIn) + '">+</button>' +
-        '<button type="button" class="twRound" id="twZoomOut" aria-label="' + escapeHtml(U.zoomOut) + '">&#8722;</button></div>' +
-      '<div class="twPlan" id="twPlan"><span>' + escapeHtml(U.planBanner) + '</span><button type="button" class="twBtn primary" id="twPlanGo">' + escapeHtml(U.resume) + "</button></div>" +
+      '<h1 class="twSr" id="twTitle">' + esc(TWT.title) + '</h1><canvas id="twMap" role="application"></canvas>' +
+      '<div class="twTop" id="twTop">' + btn("twAge", "twAge", "<b></b>") +
+        '<span class="twRes">' + RES.map(r => btn("twR" + r, "twStat", svg(ricon(r, 1)) + "<b>0</b>", ' data-res="' + r + '"')).join("") +
+        btn("twPop", "twStat twPop", svg("i-tw-villager") + "<b>0</b>") + "</span>" +
+        '<span class="twGrow g1"></span>' + btn("twRaid", "twChip", svg("i-horn") + "<b></b>") + '<span class="twGrow g2"></span>' +
+        btn("twSpeed", "twRound", "1x") + btn("twPause", "twRound", svg("i-pause")) + btn("twLeave", "twRound", "&#215;") + "</div>" +
+      btn("twNext", "twNext", "") + '<div class="twCall" id="twCall" aria-live="polite"></div>' +
+      '<div class="twPlan" id="twPlan"><span></span>' + btn("twPlanGo", "twBtn primary", "") + "</div>" +
+      '<canvas id="twMini"></canvas><div class="twZoom">' + btn("twZoomIn", "twRound", "+") + btn("twZoomOut", "twRound", "&#8722;") + "</div>" +
+      '<div class="twDock" id="twDock">' + RES.map(r => '<div class="twDkR">' + btn("", "twDkB", "&#8722;", ' data-dock="' + r + '" data-d="-1"') +
+        btn("", "twDkI", svg(ricon(r, 1)) + "<b>0</b>", ' data-dock="' + r + '" data-d="0"') + btn("", "twDkB", "+", ' data-dock="' + r + '" data-d="1"') + "</div>").join("") + "</div>" +
+      '<div class="twChips" id="twChips">' + btn("twAlarm", "twChip2", svg("i-horn") + "<span></span>") + btn("twIdle", "twChip2", svg("i-tw-idle") + "<span></span>") +
+        btn("twShield", "twChip2", svg("i-shield") + "<span></span>") + "</div>" +
+      '<div class="twGar twPanel" id="twGar"></div><div class="twInfo twPanel" id="twInfo"></div><div class="twSheet" id="twSheet"></div>' +
+      '<div class="twBar" id="twBar"><div class="twBuild" id="twBuild"></div><div class="twWall" id="twWall"><span class="twWallHint" id="twWallHint"></span>' +
+        ["undo", "ring", "cancel", "build"].map(w => btn("", "twBtn" + (w === "build" ? " primary" : ""), "", ' data-w="' + w + '"')).join("") + "</div></div>" +
+      '<div class="twGB" id="twGb">' + btn("twGhostOk", "twGo ok", CHECK) + btn("twGhostRot", "twGo", "&#8635;") + btn("twGhostX", "twGo no", "&#215;") + "</div>" +
+      btn("twAgain", "twBtn primary twAgain", "") + '<div class="twFloat" id="twFloat"></div><div class="twBubble" id="twBubble"></div><div class="twBox" id="twBox"></div>' +
       '<div class="twCardWrap" id="twCardWrap"><div class="twCard" id="twCard" role="document"></div></div>';
     document.body.appendChild(root);
-    cv = root.querySelector("#twMap");
-    mini = root.querySelector("#twMini");
-    for (const [k, id] of [["top", "twTop"], ["age", "twAge"], ["pop", "twPop"], ["raid", "twRaid"], ["speed", "twSpeed"],
-      ["pause", "twPause"], ["leave", "twLeave"], ["next", "twNext"], ["call", "twCall"], ["zoomIn", "twZoomIn"],
-      ["zoomOut", "twZoomOut"], ["plan", "twPlan"], ["planGo", "twPlanGo"], ["cardWrap", "twCardWrap"], ["card", "twCard"]]) el[k] = root.querySelector("#" + id);
+    const $q = s => root.querySelector(s);
+    cv = $q("#twMap"); mini = $q("#twMini");
+    for (const id of ["Top", "Age", "Pop", "Raid", "Speed", "Pause", "Leave", "Next", "Call", "Plan", "PlanGo", "ZoomIn", "ZoomOut", "Dock", "Chips",
+      "Alarm", "Idle", "Shield", "Gar", "Info", "Sheet", "Bar", "Build", "Wall", "WallHint", "Gb", "GhostOk", "GhostRot", "GhostX", "Again", "Float",
+      "Bubble", "Box", "CardWrap", "Card"]) el[id[0].toLowerCase() + id.slice(1)] = $q("#tw" + id);
     el.res = {};
-    for (const r of ["f", "w", "s", "g"]) el.res[r] = root.querySelector("#twR" + r);
+    for (const r of RES) el.res[r] = $q("#twR" + r);
+    el.dk = {};
+    for (const b of el.dock.querySelectorAll("button")) el.dk[b.dataset.dock + b.dataset.d] = b;
+    el.w = {};
+    for (const b of el.wall.querySelectorAll("button")) el.w[b.dataset.w] = b;
+    el.planGo.textContent = U("resume");
+    el.plan.firstChild.textContent = U("planBanner");
     // the cards' buttons work on the error card too (Back to map, Reload), when everything else stands still
     el.card.addEventListener("click", e => {
       if (broken && card !== "error") return;
       try { onCardClick(e); } catch (err) { if (!broken) fail(err); else try { console.error(err); } catch (x) {} }
     });
-    el.pause.addEventListener("click", guard(() => { Snd.init(); Snd.play("uiTick"); if (held.has("plan")) plan(false); else showCard("pause"); }));
-    el.leave.addEventListener("click", guard(() => { Snd.init(); Snd.play("uiTick"); askLeave(); }));
-    el.zoomIn.addEventListener("click", guard(() => { Snd.init(); zoomStep(1, cssW / 2, cssH / 2); }));
-    el.zoomOut.addEventListener("click", guard(() => { Snd.init(); zoomStep(-1, cssW / 2, cssH / 2); }));
-    el.planGo.addEventListener("click", guard(() => { Snd.init(); plan(false); }));
-    el.raid.addEventListener("click", guard(() => { Snd.init(); const tc = G && G.blds.find(b => b.k === "tc"); if (tc) centerOn(tc.x + 2, tc.y + 2); }));
-    el.age.addEventListener("click", guard(() => { Snd.init(); say(TWT.next(TW.next(G))); }));
-    el.next.addEventListener("click", guard(() => { Snd.init(); say(TWT.next(TW.next(G))); }));
-    let speedDown = 0;
-    el.speed.addEventListener("pointerdown", () => { speedDown = performance.now(); });
-    el.speed.addEventListener("click", guard(e => {
-      Snd.init();
-      if (held.has("plan")) return;
-      const long = speedDown && performance.now() - speedDown >= 800;
-      speedDown = 0;
-      setSpeed(e.shiftKey || long ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1));
-    }));
+    on(el.pause, "click", () => { tick1(); if (held.has("plan")) plan(false); else showCard("pause"); });
+    on(el.leave, "click", () => { tick1(); askLeave(); });
+    on(el.zoomIn, "click", () => { Snd.init(); zoomStep(1, cssW / 2, cssH / 2); });
+    on(el.zoomOut, "click", () => { Snd.init(); zoomStep(-1, cssW / 2, cssH / 2); });
+    on(el.planGo, "click", () => { Snd.init(); plan(false); });
+    on(el.raid, "click", () => { tick1(); hintEnd("horn"); toRaid(); });
+    on(el.age, "click", () => { tick1(); openSheet(!sheet); });
+    on(el.next, "click", () => { tick1(); openSheet(true); });
+    press(el.speed, e => { Snd.init(); if (held.has("plan")) { say(U("planNoSpeed")); return; } setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1)); },
+      () => { if (!held.has("plan")) setSpeed(speed === 4 ? 1 : 4); });
+    for (const r of RES) on(el.res[r], "click", () => { tick1(); laborLine(r); });
+    on(el.pop, "click", () => { tick1(); const ids = idleVils().map(u => u.id); if (ids.length) setSel({ kind: "units", ids }); else say(U("popFull")); });
+    for (const k in el.dk) {
+      const b = el.dk[k], r = b.dataset.dock, d = +b.dataset.d;
+      if (!d) on(b, "click", () => { tick1(); laborLine(r); });
+      else press(b, () => { tick1(); dock(r, d); }, () => dock(r, d), true);
+    }
+    on(el.alarm, "click", () => { tick1(); alarmTap(); });
+    press(el.idle, () => { tick1(); nextIdle(); }, () => { const ids = idleVils().map(u => u.id); if (ids.length) setSel({ kind: "units", ids }); });
+    on(el.shield, "click", () => { tick1(); hintEnd("shield"); garPanel(!garOpen); });
+    // panels and the sheet: one listener each; a hold button (demolish, dismiss) acts after 0.8 s
+    for (const p of [el.gar, el.info, el.sheet]) {
+      on(p, "click", e => { const b = e.target.closest && e.target.closest("button[data-a]"); if (b && p.contains(b) && !b.dataset.hold) { tick1(); doAct(b.dataset.a, b); } else if (b && b.dataset.hold && !e.detail) askAct(b.dataset.a); });
+      on(p, "pointerdown", e => { const b = e.target.closest && e.target.closest("button[data-hold]"); if (b) holdStart(b); });
+      for (const t of ["pointerup", "pointercancel", "pointerout"]) p.addEventListener(t, holdStop);
+    }
+    on(el.build, "click", e => { const b = e.target.closest && e.target.closest("button[data-b]"); if (b) { tick1(); buildTap(b.dataset.b, b); } });
+    on(el.wall, "click", e => { const b = e.target.closest && e.target.closest("button[data-w]"); if (b) { tick1(); wallAct(b.dataset.w, e.shiftKey); } });
+    on(el.ghostOk, "click", e => { tick1(); placeGhost(e.shiftKey); });
+    on(el.ghostX, "click", () => { tick1(); setMode("none"); });
+    on(el.ghostRot, "click", () => { tick1(); rotGate(); });
+    on(el.again, "click", () => { tick1(); placeAgain(); });
     if (window.ResizeObserver) new ResizeObserver(guard(() => { if (open) layoutNow(); })).observe(root);
     root.addEventListener("pointerdown", () => root.classList.remove("twKeys"), true);
-    cv.addEventListener("pointerdown", guard(onDown));
-    cv.addEventListener("pointermove", guard(onMove));
-    cv.addEventListener("pointerup", guard(onUp));
-    cv.addEventListener("pointercancel", guard(e => { ptrs.delete(e.pointerId); if (!ptrs.size) { mode = "none"; pinch = null; } }));
-    cv.addEventListener("wheel", guard(e => { e.preventDefault(); zoomStep(e.deltaY < 0 ? 1 : -1, e.offsetX, e.offsetY); }), { passive: false });
-    mini.addEventListener("pointerdown", guard(e => {
-      const r = mini.getBoundingClientRect();
-      centerOn((e.clientX - r.left) / r.width * TW.W, (e.clientY - r.top) / r.height * TW.H);
-    }));
+    on(cv, "pointerdown", onDown);
+    on(cv, "pointermove", onMove);
+    on(cv, "pointerup", onUp);
+    on(cv, "pointercancel", onCancel);
+    on(cv, "pointerleave", () => { hover = null; });
+    on(cv, "wheel", e => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomStep(e.deltaY < 0 ? 1 : -1, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+    // the minimap moves the camera in every mode, by tap or drag
+    const miniAt_ = e => { const r = mini.getBoundingClientRect(); centerOn((e.clientX - r.left) / r.width * TW.W, (e.clientY - r.top) / r.height * TW.H); };
+    let miniDown = -1;
+    on(mini, "pointerdown", e => { miniDown = e.pointerId; try { mini.setPointerCapture(e.pointerId); } catch (x) {} inertia = null; miniAt_(e); });
+    on(mini, "pointermove", e => { if (e.pointerId === miniDown) miniAt_(e); });
+    for (const t of ["pointerup", "pointercancel"]) mini.addEventListener(t, () => { miniDown = -1; });
+    labels();
+  }
+  // the labels that follow the age (the goods' name, the dock's words)
+  function labels() {
+    const lab = (e, s) => { if (e && e.getAttribute("aria-label") !== s) e.setAttribute("aria-label", s); };
+    const a = ageOf();
+    cv.setAttribute("aria-label", U("map_"));
+    lab(mini, U("mini"));
+    for (const [e, k] of [[el.speed, "speed"], [el.pause, "pause"], [el.leave, "leaveTown"], [el.zoomIn, "zoomIn"], [el.zoomOut, "zoomOut"], [el.age, "ageSheet"],
+      [el.ghostOk, "place"], [el.ghostX, "cancel"], [el.ghostRot, "rotate"]]) lab(e, U(k));
+    for (const r of RES) {
+      lab(el.dk[r + "-1"], U("dockLess", r, a)); lab(el.dk[r + "1"], U("dockMore", r, a)); lab(el.dk[r + "0"], U("dockInfo", r, a));
+      if (r === "g") for (const b of [el.res.g, el.dk.g0]) b.querySelector("use").setAttribute("href", "#" + ricon("g", a));
+    }
+    for (const w in el.w) if (w !== "build") el.w[w].textContent = U({ undo: "undoStroke", ring: "ring", cancel: "cancel" }[w]);
+    el.again.textContent = U("placeAnother");
   }
   function setSpeed(s) { speed = s; if (s !== 4) { pref.speed = s; savePref(); } hud(true); }
 
@@ -64599,6 +64895,7 @@ townRegion("shell", () => { Town = (() => {
     if (G) { TWA.setAge(G.age); TWS.open(G); }
     view.zoom = defaultZoom();
     if (G) centerOnTc();
+    labels();
     last = performance.now();
     raf = requestAnimationFrame(loop);
     paint(last);
@@ -64610,7 +64907,9 @@ townRegion("shell", () => { Town = (() => {
     if (broken) { G = null; live = false; broken = null; }
     open = false;
     cancelAnimationFrame(raf); raf = 0;
-    ptrs.clear(); pinch = null; mode = "none"; sel = null;
+    stopTimers();
+    ptrs.clear(); pinch = null; gest = ""; inertia = ease = box = hover = null;
+    setMode("none"); setSel(null); garPanel(false); openSheet(false);
     held.clear(); heldAt = -1; heldFor = 0;
     card = ""; cardData = {}; renderCard();
     root.classList.add("twHidden");
@@ -64631,26 +64930,40 @@ townRegion("shell", () => { Town = (() => {
     snapshot();
     showCard("leave");
   }
+  // the layout follows the root's own box (9.2): classes for portrait, the compact bar and the desktop width, and
+  // the heights of the bars as CSS variables; the camera keeps its center through a resize or a turn
   function layoutNow() {
     if (!root || !open) return;
-    cssW = root.clientWidth || window.innerWidth; cssH = root.clientHeight || window.innerHeight;
+    const w = root.clientWidth || window.innerWidth, h = root.clientHeight || window.innerHeight;
+    const c0 = cssW ? TWA.toWorld(view, cssW / 2, (area.t + area.b) / 2) : null;
+    cssW = w; cssH = h;
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    root.classList.toggle("twTall", cssH > cssW);
-    root.classList.toggle("twCompact", cssW < 1100);
-    root.style.setProperty("--twTop", el.top.offsetHeight + "px");
+    const tall = h > w;
+    root.classList.toggle("twTall", tall);
+    root.classList.toggle("twCompact", !tall && w < 1100);
+    root.classList.toggle("twWide", !tall && w >= 1500);
+    root.classList.toggle("twShort", !tall && h <= 500);
+    const top = el.top.offsetHeight, bar = el.bar.offsetHeight, dk = tall ? el.dock.offsetHeight : 0;
+    root.style.setProperty("--twTop", top + "px");
+    root.style.setProperty("--twBar", bar + "px");
+    root.style.setProperty("--twDk", dk + "px");
+    area = { l: 0, t: top, r: w, b: h - bar - dk };
     TWA.layout(cssW, cssH, dpr);
-    clampView();
+    if (c0) centerOn(c0.x, c0.y); else clampView();
   }
 
   // ---- the camera (2.4) ----
+  // the map plus a 2-tile margin (6 tiles of skyline above row 0) may come to the edges of the map area, the space
+  // between the top bar and the bottom bars; a map smaller than the area is centered in it
   function clampView() {
-    const pw = PPT * view.zoom, vw = cssW / pw, vh = cssH / (pw * SQ);
-    const minX = -2, maxX = TW.W + 2 - vw, minY = -6, maxY = TW.H + 2 - vh;
+    const pw = PPT * view.zoom, ph = pw * SQ;
+    const minX = -2 - area.l / pw, maxX = TW.W + 2 - area.r / pw, minY = -6 - area.t / ph, maxY = TW.H + 2 - area.b / ph;
     view.x = maxX < minX ? (minX + maxX) / 2 : Math.max(minX, Math.min(maxX, view.x));
     view.y = maxY < minY ? (minY + maxY) / 2 : Math.max(minY, Math.min(maxY, view.y));
   }
-  function centerOn(x, y) { const pw = PPT * view.zoom; view.x = x - cssW / pw / 2; view.y = y - cssH / (pw * SQ) / 2; clampView(); }
-  function centerOnTc() { const tc = G.blds.find(b => b.k === "tc"); if (tc) centerOn(tc.x + 2, tc.y + 2); }
+  function centerOn(x, y) { const pw = PPT * view.zoom; view.x = x - cssW / pw / 2; view.y = y - (area.t + area.b) / 2 / (pw * SQ); inertia = null; clampView(); }
+  const tcOf = () => G && G.blds.find(b => b.k === "tc" && !b.dead);
+  function centerOnTc() { const tc = tcOf(); if (tc) centerOn(tc.x + 2, tc.y + 2); }
   function zoomTo(z, sx, sy) {
     const w = TWA.toWorld(view, sx, sy);
     view.zoom = z;
@@ -64660,66 +64973,949 @@ townRegion("shell", () => { Town = (() => {
   function nearestStep(z) { const Z = TWA.zoomSteps; let b = 0; for (let i = 1; i < Z.length; i++) if (Math.abs(Z[i] - z) < Math.abs(Z[b] - z)) b = i; return b; }
   function zoomStep(dir, sx, sy) {
     const Z = TWA.zoomSteps, i = Math.max(0, Math.min(Z.length - 1, nearestStep(view.zoom) + dir));
+    ease = null;
     zoomTo(Z[i], sx, sy);
   }
+  const toRaidXY = () => {
+    const rs = G.units.filter(u => !u.dead && u.side === 1);
+    if (rs.length) return [rs.reduce((s, u) => s + u.x, 0) / rs.length, rs.reduce((s, u) => s + u.y, 0) / rs.length];
+    const w = TW.raidInfo(G).warn[0], e = w && w.zones && G.map.entries[w.zones[0]];
+    return e && e.length ? [e[e.length >> 1][0] + 0.5, e[e.length >> 1][1] + 0.5] : null;
+  };
+  function toRaid() { const p = G && toRaidXY(); if (p) centerOn(p[0], p[1]); }
 
-  // ---- input: pan with one finger (never from the left 24 px), pinch with two, tap to select ----
+  // ---- input (9.5, 9.6, 13.7): pointer events on the canvas only. A finger pans (never from the left 24 px,
+  // where Safari's back swipe starts), two pinch, a tap selects or commands, a finger held still inspects; in wall
+  // mode a finger draws, in placing modes it drags the ghost (lifted 56 px) or pans. A pen is a finger. A second
+  // finger or a pointercancel ends any one-finger action without acting. With a mouse: left drag box-selects,
+  // right or middle drag pans, right click commands (undoes a stroke, cancels a placement) ----
+  const local = p => { const r = cv.getBoundingClientRect(); return { x: p.x - r.left, y: p.y - r.top }; };
+  const tileAt = (sx, sy) => { const w = TWA.toWorld(view, sx, sy); return { x: Math.floor(w.x), y: Math.floor(w.y) }; };
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < TW.W && y < TW.H;
   function onDown(e) {
-    if (!open || card || !G) return;
-    if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+    if (!open || card || !G || !live) return;
+    const touch = e.pointerType !== "mouse";
+    if (!touch && e.button > 2) return;
     try { cv.setPointerCapture(e.pointerId); } catch (x) {}
-    const r = cv.getBoundingClientRect();
-    ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(),
-      touch: e.pointerType !== "mouse", btn: e.button, moved: false, edge: e.clientX - r.left < 24 });
-    if (ptrs.size === 2) {
-      const [a, b] = Array.from(ptrs.values());
-      a.moved = b.moved = true;
-      pinch = { d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom };
-      mode = "pinch";
+    const r = cv.getBoundingClientRect(), t = pnow();
+    const p = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: t, tm: t, vx: 0, vy: 0, touch, btn: e.button,
+      shift: e.shiftKey, moved: false, edge: e.clientX - r.left < 24, long: false };
+    ptrs.set(e.pointerId, p);
+    inertia = null; hover = null;
+    if (ptrs.size >= 2) {
+      // a second finger: what one finger was doing ends without acting, and a pinch starts
+      dropGesture();
+      const [a, b] = Array.from(ptrs.values()).slice(-2), m = local({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+      for (const q of ptrs.values()) q.moved = true;
+      pinch = { a: a.id, b: b.id, d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.zoom, w0: TWA.toWorld(view, m.x, m.y), m };
+      gest = "pinch"; ease = null;
+      return;
     }
+    const L = local(p);
+    if (mode === "wall" && (touch || p.btn === 0)) { gest = "stroke"; strokeStart(L.x, L.y); }
+    else if ((mode === "place" || mode === "gate") && touch && onGhost(L.x, L.y)) { gest = "ghost"; gstart = { x: ghost.x, y: ghost.y }; }
+    else gest = "";
   }
   function onMove(e) {
     const p = ptrs.get(e.pointerId);
-    if (!p) return;
-    const dx = e.clientX - p.x, dy = e.clientY - p.y;
-    p.x = e.clientX; p.y = e.clientY;
-    const r = cv.getBoundingClientRect();
-    if (mode === "pinch" && pinch && ptrs.size >= 2) {
-      const [a, b] = Array.from(ptrs.values()), Z = TWA.zoomSteps;
-      const z = Math.max(Z[0], Math.min(Z[Z.length - 1], pinch.z0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
-      zoomTo(z, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+    if (!p) {   // a mouse with no button down: the ghost follows it; held still for 600 ms, it inspects
+      if (e.pointerType === "mouse" && !ptrs.size && G && live && !card) {
+        const L = local({ x: e.clientX, y: e.clientY });
+        if (ghost) ghostAt(L.x, L.y);
+        hover = { x: L.x, y: L.y, t: pnow(), done: false };
+      }
       return;
     }
-    if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > (p.touch ? 9 : 4) && !p.edge) { p.moved = true; mode = "pan"; }
-    if (p.moved && mode === "pan") {
-      const pw = PPT * view.zoom;
-      view.x -= dx / pw; view.y -= dy / (pw * SQ);
-      clampView();
+    const t = pnow(), dt = Math.max(1, t - p.tm), dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.vx = 0.5 * p.vx + 0.5 * dx / dt * 1000; p.vy = 0.5 * p.vy + 0.5 * dy / dt * 1000; p.tm = t;
+    p.x = e.clientX; p.y = e.clientY;
+    if (gest === "pinch") { pinchMove(); return; }
+    if (gest === "done") return;
+    if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > (p.touch ? 9 : 4)) {
+      p.moved = true;
+      if (!gest) gest = p.touch ? (p.edge ? "none" : "pan") : p.btn !== 0 ? "pan" : ghost ? "follow" : "box";
     }
+    if (!p.moved) return;
+    const L = local(p);
+    if (gest === "stroke") strokeMove(L.x, L.y);
+    else if (gest === "ghost") ghostAt(L.x, L.y - 56);
+    else if (gest === "follow") ghostAt(L.x, L.y);
+    else if (gest === "pan") panBy(dx, dy);
+    else if (gest === "box") boxMove(p);
   }
   function onUp(e) {
     const p = ptrs.get(e.pointerId);
     if (!p) return;
     ptrs.delete(e.pointerId);
-    if (mode === "pinch") {
-      if (ptrs.size < 2) { const r = cv.getBoundingClientRect(); zoomTo(TWA.zoomSteps[nearestStep(view.zoom)], p.x - r.left, p.y - r.top); pinch = null; }
-      if (!ptrs.size) mode = "none";
+    if (gest === "pinch" || gest === "done") {
+      if (gest === "pinch" && ptrs.size < 2) { settleZoom(); gest = "done"; }
+      if (!ptrs.size) gest = "";
       return;
     }
-    if (!ptrs.size) mode = "none";
-    if (p.moved || (!p.touch && p.btn !== 0)) return;
-    const r = cv.getBoundingClientRect(), hit = TWA.pick(G, view, p.x - r.left, p.y - r.top, p.touch ? 22 : 6);
-    const long = p.touch && performance.now() - p.t0 >= 420;
-    if (hit.kind === "ground") { sel = null; if (long) say(""); return; }
-    sel = hit;
-    const o = hit.kind === "bld" ? G.blds.find(b => b.id === hit.id) : hit.kind === "unit" ? G.units.find(u => u.id === hit.id) : G.nodes.find(n => n.id === hit.id);
-    if (o) say(hit.kind === "bld" ? TWT.name("bld", o.k, G.age) : hit.kind === "unit" ? (TWT.name(o.side ? "raider" : "unit", o.k, G.age) || o.k) : o.k + " " + Math.floor(o.left));
+    const g = gest, L = local(p);
+    gest = "";
+    if (g === "pan") { if (p.touch && !reducedMotion() && Math.hypot(p.vx, p.vy) > 60) inertia = { vx: p.vx, vy: p.vy }; return; }
+    if (p.long) return;                         // the long press inspected; its click is eaten (a pan after it pans)
+    if (g === "stroke") { strokeEnd(); return; }
+    if (g === "ghost") { gstart = null; if (!p.moved) ghostAt(L.x, L.y); return; }   // a tap on the ghost moves it too
+    if (g === "box") { boxEnd(p); return; }
+    if (g === "follow") { placeGhost(p.shift); return; }
+    if (p.moved || (!p.touch && p.btn === 1)) return;
+    if (!p.touch && p.btn === 2) { rightClick(L); return; }
+    tap(L, p);
   }
-  function say(s) {
-    el.call.textContent = s || "";
-    el.call.classList.toggle("on", !!s);
-    clearTimeout(callT);
-    if (s) callT = setTimeout(() => { if (el.call.textContent === s) el.call.classList.remove("on"); }, 4000);
+  function onCancel(e) {
+    ptrs.delete(e.pointerId);
+    if (gest === "pinch") settleZoom();
+    dropGesture();
+    gest = ptrs.size ? "done" : "";
+  }
+  function dropGesture() {
+    if (gest === "stroke") { stroke = null; floatOff(); wallGhost(); }
+    if (gest === "ghost" && gstart && ghost) { ghost.x = gstart.x; ghost.y = gstart.y; check(); }
+    if (gest === "box") boxOff();
+    gstart = null; gest = ""; pinch = null;
+  }
+  function panBy(dx, dy) { const pw = PPT * view.zoom; view.x -= dx / pw; view.y -= dy / (pw * SQ); clampView(); }
+  function pinchMove() {
+    const a = ptrs.get(pinch.a), b = ptrs.get(pinch.b);
+    if (!a || !b) return;
+    const Z = TWA.zoomSteps, m = local({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const z = Math.max(Z[0], Math.min(Z[Z.length - 1], pinch.z0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
+    // the ground under the fingers' midpoint stays under it: zoom and pan in one
+    view.zoom = z; view.x = pinch.w0.x - m.x / (PPT * z); view.y = pinch.w0.y - m.y / (PPT * z * SQ);
+    pinch.m = m;
+    clampView();
+  }
+  // a pinch ends on the nearest zoom step, eased over 120 ms (at once under reduced motion)
+  function settleZoom() {
+    const m = pinch ? pinch.m : { x: cssW / 2, y: cssH / 2 }, z1 = TWA.zoomSteps[nearestStep(view.zoom)];
+    pinch = null;
+    if (reducedMotion()) zoomTo(z1, m.x, m.y); else ease = { z0: view.zoom, z1, t0: pnow(), m };
+  }
+  // what runs every frame for the gestures: the long press, edge scrolling, inertia, the zoom easing, hover
+  function gestures(dt) {
+    if (ptrs.size === 1 && !gest) {
+      const p = ptrs.values().next().value;
+      if (p.touch && !p.moved && !p.long && pnow() - p.t0 >= 420) { p.long = true; inspect(local(p)); }
+    }
+    if ((gest === "stroke" || gest === "ghost") && ptrs.size === 1) {
+      const p = ptrs.values().next().value, L = local(p), y = gest === "ghost" ? L.y - 56 : L.y, E = 48;
+      const ex = L.x < area.l + E ? -1 : L.x > area.r - E ? 1 : 0, ey = y < area.t + E ? -1 : y > area.b - E ? 1 : 0;
+      if (ex || ey) {
+        const x0 = view.x, y0 = view.y;
+        view.x += ex * 10 * dt; view.y += ey * 10 * dt / SQ * SQ; clampView();
+        if (view.x !== x0 || view.y !== y0) { if (gest === "stroke") strokeMove(L.x, L.y); else ghostAt(L.x, y); }
+      }
+    }
+    if (inertia) {
+      panBy(inertia.vx * dt, inertia.vy * dt);
+      inertia.vx *= 0.9; inertia.vy *= 0.9;
+      if (Math.hypot(inertia.vx, inertia.vy) < 20) inertia = null;
+    }
+    if (ease) {
+      const k = Math.min(1, (pnow() - ease.t0) / 120);
+      zoomTo(ease.z0 + (ease.z1 - ease.z0) * k, ease.m.x, ease.m.y);
+      if (k >= 1) ease = null;
+    }
+    if (hover && !hover.done && !ptrs.size && mode === "none" && pnow() - hover.t >= 600) { hover.done = true; inspect(hover, true); }
+  }
+  // the mouse's box (9.6): the town's units inside it
+  function boxMove(p) {
+    const a = local({ x: p.x0, y: p.y0 }), b = local(p);
+    box = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+    const s = el.box.style;
+    s.transform = "translate(" + box.x0 + "px," + box.y0 + "px)"; s.width = box.x1 - box.x0 + "px"; s.height = box.y1 - box.y0 + "px";
+    el.box.classList.add("on");
+  }
+  function boxOff() { box = null; el.box.classList.remove("on"); }
+  function boxEnd() {
+    const b = box;
+    boxOff();
+    if (!b) return;
+    const ids = G.units.filter(u => { if (u.dead || u.side || u.shel) return false; const s = TWA.toScreen(view, u.x, u.y); return s.x >= b.x0 && s.x <= b.x1 && s.y >= b.y0 && s.y <= b.y1 + 10; }).map(u => u.id);
+    setSel(ids.length ? { kind: "units", ids } : null);
+  }
+
+  // ---- what a tap does (9.6): a screen-edge raid arrow; in placing modes, the ghost; else select or command ----
+  const unitOf = id => G.units.find(u => u.id === id && !u.dead) || null;
+  const bldOf = id => G.blds.find(b => b.id === id && !b.dead) || null;
+  const nodeOf = id => G.nodes.find(n => n.id === id && !n.dead) || null;
+  const objOf = h => (h.kind === "unit" ? unitOf(h.id) : h.kind === "bld" ? bldOf(h.id) : h.kind === "node" ? nodeOf(h.id) : null);
+  const NODE_RES = { tree: "w", stone: "s", ore: "g", flock: "f", orchard: "f", dye: "g" };
+  const hasDone = k => G.blds.some(b => !b.dead && b.k === k && b.done >= 1);
+  const trains = b => b.done >= 1 && !!(D.BLD[b.k] && D.BLD[b.k].trains);
+  // what a villager can be sent to: a node, a free field or grove, a foundation, a shelter, a damaged building
+  const vilTarget = o => o.done < 1 || ((o.k === "field" || o.k === "grove") && !o.farmer) || !!SHEL[o.k] || (o.hp < o.hpMax && o.k !== "wonder");
+  function tap(L, p) {
+    for (const a of TWA.stats().arrows || []) if (Math.hypot(L.x - a.x, L.y - a.y) <= a.r + 8) { centerOn(a.tx, a.ty); return; }
+    if (sheet) { openSheet(false); return; }
+    if (ghost) { if (p.touch) ghostAt(L.x, L.y); else placeGhost(p.shift); return; }
+    const hit = TWA.pick(G, view, L.x, L.y, p.touch ? 22 : 6), t = pnow();
+    const dbl = !!lastTap && hit.kind === "unit" && lastTap.id === hit.id && t - lastTap.t < 300 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 20;
+    lastTap = dbl ? null : { t, x: p.x, y: p.y, id: hit.kind === "unit" ? hit.id : 0 };
+    if (dbl) { sameKind(hit.id); return; }
+    use(hit, p.touch, false);
+  }
+  function rightClick(L) {
+    if (ghost) { setMode("none"); return; }
+    if (mode === "wall") { wallAct("undo"); return; }
+    if (sel) use(TWA.pick(G, view, L.x, L.y, 6), false, true);
+  }
+  function use(hit, touch, right) {
+    const o = objOf(hit), S = sel, us = S && S.kind === "units" ? S.ids.map(unitOf).filter(Boolean) : [];
+    const vils = us.filter(u => u.k === "vil").map(u => u.id), gar = us.filter(u => u.k !== "vil").map(u => u.id);
+    let c = null;
+    if (rallyPick && hit.kind !== "unit") {
+      const b = bldOf(rallyPick);
+      rallyPick = 0;
+      if (b && inMap(hit.tx, hit.ty)) send({ k: "rally", bld: b.id, x: hit.tx, y: hit.ty });
+      return;
+    }
+    if (us.length) {
+      if (o && hit.kind === "unit" && o.side === 1 && gar.length) c = { k: "attack", ids: gar, target: o.id };
+      else if (o && hit.kind === "node" && vils.length) c = { k: "task", ids: vils, target: o.id };
+      else if (o && hit.kind === "bld" && vils.length && vilTarget(o)) c = { k: "task", ids: vils, target: o.id };
+      else if ((hit.kind === "ground" || (right && hit.kind !== "unit")) && inMap(hit.tx, hit.ty)) c = { k: "move", ids: us.map(u => u.id), x: hit.tx, y: hit.ty };
+    } else if (S && S.kind === "bld" && hit.kind === "ground" && inMap(hit.tx, hit.ty)) {
+      const b = bldOf(S.id);
+      if (b && trains(b)) c = { k: "rally", bld: b.id, x: hit.tx, y: hit.ty };
+    }
+    if (c) {
+      const r = send(c);
+      if (r.ok && c.k === "task" && o && o.done >= 1 && o.hp < o.hpMax) hintEnd("repair");
+      // on touch a villager selection is one-shot: after one command it clears (a garrison's stays)
+      if (r.ok && touch && vils.length) setSel(gar.length ? { kind: "units", ids: gar } : null);
+      return;
+    }
+    if (right) return;
+    if (!o) { setSel(null); return; }
+    const k = hit.kind === "unit" ? (o.side ? "raider" : "units") : hit.kind;
+    const same = sel && sel.kind === k && (k === "units" ? sel.ids.length === 1 && sel.ids[0] === o.id : sel.id === o.id);
+    setSel(same ? null : k === "units" ? { kind: "units", ids: [o.id] } : { kind: k, id: o.id });
+  }
+  // a double tap on a unit: every town unit of its kind on screen
+  function sameKind(id) {
+    const u0 = unitOf(id);
+    if (!u0 || u0.side) return;
+    const ids = G.units.filter(u => { if (u.dead || u.side || u.shel || u.k !== u0.k) return false; const s = TWA.toScreen(view, u.x, u.y); return s.x >= 0 && s.x <= cssW && s.y >= area.t && s.y <= area.b; }).map(u => u.id);
+    setSel({ kind: "units", ids: ids.length ? ids : [id] });
+  }
+  // a long press (or a still mouse): what is there, in the call line; nothing is selected or started
+  function inspect(L, quiet) {
+    const hit = TWA.pick(G, view, L.x, L.y, quiet ? 6 : 22), o = objOf(hit);
+    let s = "";
+    if (o && hit.kind === "unit") s = nm(o.side ? "raider" : "unit", o.k) + ". " + U("hp", o.hp, o.hpMax) + ".";
+    else if (o && hit.kind === "bld") s = nm("bld", o.k) + ". " + (o.done < 1 ? U("building") + " " + Math.floor(o.done * 100) + "%" : U("hp", o.hp, o.hpMax)) + ".";
+    else if (o && hit.kind === "node") s = nodeW(o.k, 0) + ". " + U("nodeLeft", o.left, NODE_RES[o.k], ageOf()) + ".";
+    else if (inMap(hit.tx, hit.ty)) {
+      const i = hit.ty * TW.W + hit.tx, tr = G.map.terr[i], wd = G.map.wdist[i];
+      s = (U("terr")[tr] || "") + (wd >= 1 && wd <= 2 && tr !== 2 && tr !== 3 ? " " + errW("bank") : "");
+    }
+    if (s && !(quiet && el.call.textContent === s)) say(s);
+  }
+
+  // ---- placing a building or a gate (9.5) ----
+  const sizeOf = (type, rot) => { const s = type === "wonder" ? [5, 5] : D.BLD[type].size; return rot ? [s[1], s[0]] : s.slice(); };
+  function enterPlace(type) {
+    setMode(type === "gate" ? "gate" : "place");
+    const [w, h] = sizeOf(type, 0), c = TWA.toWorld(view, cssW / 2, (area.t + area.b) / 2);
+    ghost = { type, x: snap(c.x, w), y: snap(c.y, h), rot: 0, ok: false, err: "", why: "" };
+    check(true);
+    say(type === "gate" ? U("gateHint") : nm("bld", type) + ". " + cw(TW.cost(G, type)) + ".");
+  }
+  // the ghost on the tile under a screen point: that tile is its middle one (for an even size, the one left of and
+  // above the middle), so the boundary between two positions is always a tile's edge
+  const snap = (v, n) => Math.floor(v) - Math.floor((n - 1) / 2);
+  function ghostAt(sx, sy) {
+    if (!ghost) return;
+    const [w, h] = sizeOf(ghost.type, ghost.rot), c = TWA.toWorld(view, sx, sy);
+    const x = snap(c.x, w), y = snap(c.y, h);
+    if (x !== ghost.x || y !== ghost.y) { ghost.x = x; ghost.y = y; check(); }
+  }
+  function onGhost(sx, sy) {
+    const [w, h] = sizeOf(ghost.type, ghost.rot), a = TWA.toScreen(view, ghost.x, ghost.y), b = TWA.toScreen(view, ghost.x + w, ghost.y + h);
+    return sx >= a.x - 16 && sx <= b.x + 16 && sy >= a.y - 16 - 40 * view.zoom && sy <= b.y + 16;
+  }
+  // whether the ghost can stand where it is; a red ghost's check is off and the call line says why
+  function check(quiet) {
+    if (!ghost) return;
+    const r = TW.canPlace(G, ghost.type, ghost.x, ghost.y, ghost.rot), was = ghost.why;
+    ghost.ok = r.ok; ghost.err = r.err; ghost.res = r.res || "";
+    ghost.why = r.ok ? "" : errW(r.err, r);
+    if (!quiet && ghost.why && ghost.why !== was) say(ghost.why);
+    else if (!ghost.why && was && callMsg === was) { callMsg = ""; showCall(); }   // a red ghost's reason goes when it turns green
+    offBtn(el.ghostOk, ghost.why);
+  }
+  function offBtn(b, why) { tog(b, "off", !!why); b.setAttribute("aria-disabled", String(!!why)); b.dataset.off = why || ""; }
+  function placeGhost(keep) {
+    if (!ghost) return;
+    check(true);
+    if (!ghost.ok) { say(ghost.why); if (ghost.res) flash(ghost.res); return; }
+    const g = ghost, r = send(g.type === "gate" ? { k: "gate", x: g.x, y: g.y, rot: g.rot } : { k: "place", type: g.type, x: g.x, y: g.y, rot: g.rot });
+    if (!r.ok) return;
+    if (keep) { check(true); return; }
+    const gb = el.gb.getBoundingClientRect(), rr = root.getBoundingClientRect(), dir = again && again.type === g.type ? [g.x - again.x, g.y - again.y] : null;
+    setMode("none");
+    // fields and houses: Place another, for 3 s, where the check was (a row of fields is check, check, check)
+    if (g.type === "field" || g.type === "house") {
+      again = { type: g.type, x: g.x, y: g.y, dir, until: pnow() + 3000 };
+      el.again.style.transform = "translate(" + Math.round(gb.left - rr.left - 4) + "px," + Math.round(gb.top - rr.top) + "px)";
+      el.again.classList.add("on");
+    }
+  }
+  // Place another: the next ghost on the nearest site touching the last one (along the row, if there is one)
+  function placeAgain() {
+    const a = again;
+    again = null; el.again.classList.remove("on");
+    if (!a || !G || !live) return;
+    enterPlace(a.type);
+    const [w, h] = sizeOf(a.type, 0), cands = [];
+    for (let dy = -h; dy <= h; dy++) for (let dx = -w; dx <= w; dx++) {
+      const x = a.x + dx, y = a.y + dy, ox = Math.min(a.x, x) + w - Math.max(a.x, x), oy = Math.min(a.y, y) + h - Math.max(a.y, y);
+      if (ox < 0 || oy < 0 || (ox > 0 && oy > 0)) continue;   // apart, or overlapping
+      const along = a.dir && Math.sign(dx) === Math.sign(a.dir[0]) && Math.sign(dy) === Math.sign(a.dir[1]) ? -50 : 0;
+      cands.push({ x, y, d: dx * dx + dy * dy + (ox === 0 && oy === 0 ? 100 : 0) + along });
+    }
+    cands.sort((p, q) => p.d - q.d || p.y - q.y || p.x - q.x);
+    for (const c of cands) { const r = TW.canPlace(G, a.type, c.x, c.y, 0); if (r.ok || r.err === "cost") { ghost.x = c.x; ghost.y = c.y; break; } }
+    again = { type: a.type, x: a.x, y: a.y, until: 0 };   // remembers the row's direction for the next check
+    check();
+  }
+  function rotGate() { if (ghost && ghost.type === "gate") { ghost.rot ^= 1; check(); } }
+  // the ghost's check and X sit beside it, kept inside the map area
+  let gbAt = "";
+  function placeGB() {
+    if (!ghost) { if (gbAt) { gbAt = ""; el.gb.classList.remove("on"); } return; }
+    const [w, h] = sizeOf(ghost.type, ghost.rot), a = TWA.toScreen(view, ghost.x, ghost.y), b = TWA.toScreen(view, ghost.x + w, ghost.y + h);
+    const n = ghost.type === "gate" ? 3 : 2, H = n * 48 + (n - 1) * 8;
+    let x = b.x + 12;
+    if (x + 48 > area.r - 8) x = a.x - 60;
+    x = Math.max(area.l + 8, Math.min(area.r - 56, x));
+    const y = Math.max(area.t + 8, Math.min(area.b - H - 8, (a.y + b.y) / 2 - H / 2));
+    const k = Math.round(x) + "," + Math.round(y);
+    if (k !== gbAt) { gbAt = k; el.gb.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)"; el.gb.classList.add("on"); }
+  }
+
+  // ---- walls by finger (4.4): strokes snap to 8 directions from their start; pending strokes wait for Build ----
+  function strokeStart(sx, sy) {
+    let t = tileAt(sx, sy);
+    const lt = strokes.length && strokes[strokes.length - 1].tiles.length ? strokes[strokes.length - 1].tiles.slice(-1)[0] : null;
+    if (lt && Math.max(Math.abs(lt[0] - t.x), Math.abs(lt[1] - t.y)) <= 1) t = { x: lt[0], y: lt[1] };   // it starts on the last one's end
+    stroke = { s: [t.x, t.y], tiles: [[t.x, t.y]] };
+    wallGhost(); floatAt(sx, sy);
+  }
+  function strokeMove(sx, sy) {
+    if (!stroke) return;
+    const t = tileAt(sx, sy), L = line(stroke.s, [t.x, t.y]);
+    if (L.length !== stroke.tiles.length || L[L.length - 1][0] !== stroke.tiles[stroke.tiles.length - 1][0] || L[L.length - 1][1] !== stroke.tiles[stroke.tiles.length - 1][1]) { stroke.tiles = L; wallGhost(); }
+    floatAt(sx, sy);
+  }
+  function strokeEnd() { if (stroke) strokes.push({ tiles: stroke.tiles }); stroke = null; floatOff(); wallGhost(); }
+  function line(s, e) {
+    const dx = e[0] - s[0], dy = e[1] - s[1], ax = Math.abs(dx), ay = Math.abs(dy), out = [];
+    let ux = Math.sign(dx), uy = Math.sign(dy), n = Math.round((ax + ay) / 2);
+    if (ay <= ax * 0.414) { uy = 0; n = ax; } else if (ax <= ay * 0.414) { ux = 0; n = ay; }
+    for (let i = 0; i <= n && i < 80; i++) out.push([s[0] + ux * i, s[1] + uy * i]);
+    return out;
+  }
+  // the tiles a Build would place, in stroke order, each once, without those that hold a wall or gate already;
+  // ok when only the cost stands in the way (the Build pays for what it can)
+  let wallCells = [];
+  function wallTiles() {
+    const seen = new Set(), out = [];
+    for (const s of stroke ? strokes.concat([stroke]) : strokes) for (const [x, y] of s.tiles) {
+      const k = y * TW.W + x;
+      if (!inMap(x, y) || seen.has(k)) continue;
+      seen.add(k);
+      const o = G.map.occ[k], b = o > 0 ? bldOf(o) : null;
+      if (b && (b.k === "wall" || b.k === "gate")) continue;
+      const r = TW.canPlace(G, "wall", x, y, 0);
+      out.push({ x, y, ok: r.ok || r.err === "cost" });
+    }
+    return out;
+  }
+  function wallGhost() {
+    if (mode !== "wall") { wallCells = []; return; }
+    wallCells = wallTiles();
+    for (const s of strokes) if (s.gate) {
+      const g = s.gate, r = TW.canPlace(G, "gate", g.x, g.y, g.rot), ok = r.ok || r.err === "cost";
+      wallCells.push({ x: g.x, y: g.y, ok }, g.rot ? { x: g.x, y: g.y + 1, ok } : { x: g.x + 1, y: g.y, ok });
+    }
+    // the keyboard's tile cursor shows as one more cell until Space starts a stroke there
+    if (wcur && !stroke) wallCells.push({ x: wcur.x, y: wcur.y, ok: TW.canPlace(G, "wall", wcur.x, wcur.y, 0).ok });
+    wallBar();
+  }
+  const wallN = () => wallCells.filter(c => c.ok).length;
+  function floatAt(sx, sy) {
+    const n = wallN(), c = TW.cost(G, "wall");
+    setT(el.float, U("wallRun", n, { f: c.f * n, w: c.w * n, s: c.s * n, g: c.g * n }));
+    el.float.style.transform = "translate(" + Math.round(sx) + "px," + Math.round(Math.max(area.t + 20, sy - 70)) + "px)";
+    el.float.classList.add("on");
+  }
+  function floatOff() { el.float.classList.remove("on"); }
+  function wallBar() {
+    if (!G || !el.w) return;
+    const n = wallN(), c = TW.cost(G, "wall"), all = { f: c.f * n, w: c.w * n, s: c.s * n, g: c.g * n }, a = ageOf();
+    setT(el.wallHint, U("wallHint", c, a));
+    setT(el.w.build, U("wallBuild", n, all, a));
+    offBtn(el.w.build, n || strokes.some(s => s.gate) ? "" : U("wallHint", c, a));
+    offBtn(el.w.undo, strokes.length ? "" : " ");
+  }
+  function wallAct(w, keep) {
+    if (mode !== "wall") return;
+    if (w === "undo") { if (strokes.length) strokes.pop(); wallGhost(); }
+    else if (w === "cancel") setMode("none");
+    else if (w === "ring") {
+      const R = TW.suggestRing(G);
+      if (!R || !R.strokes || !R.strokes.length) { say(U("ringNone")); return; }
+      for (const t of R.strokes) strokes.push({ tiles: t.map(q => [q[0], q[1]]) });
+      for (const g of R.gates && R.gates.length ? R.gates : R.gate ? [R.gate] : []) strokes.push({ gate: { x: g.x, y: g.y, rot: g.rot | 0 }, tiles: [] });
+      wallGhost();
+    } else if (w === "build") {
+      const tiles = wallTiles().filter(t => t.ok).map(t => [t.x, t.y]).slice(0, 400), gates = strokes.filter(s => s.gate).map(s => s.gate);
+      if (!tiles.length && !gates.length) { say(U("wallHint", TW.cost(G, "wall"), ageOf())); return; }
+      let any = false;
+      if (tiles.length) any = send({ k: "wall", tiles }).ok;
+      for (const g of gates) any = send({ k: "gate", x: g.x, y: g.y, rot: g.rot }).ok || any;
+      if (!any) return;
+      strokes = []; stroke = null;
+      if (keep) wallGhost(); else setMode("none");
+    }
+  }
+  // keys in wall mode: the arrows move a tile cursor, Space starts and ends a stroke, Enter builds
+  function wallKey() {
+    const c = wcur || (wcur = tileAt(cssW / 2, (area.t + area.b) / 2));
+    if (stroke) strokeEnd();
+    else { stroke = { s: [c.x, c.y], tiles: [[c.x, c.y]] }; wallGhost(); }
+  }
+
+  function setMode(m) {
+    mode = m;
+    if (again && !again.until) again = null;   // the row's direction is kept only from one Place another to its check
+    if (m !== "place" && m !== "gate") ghost = null;
+    if (m !== "wall") { strokes = []; stroke = null; wcur = null; }
+    if (m !== "none") { setSel(null); garPanel(false); openSheet(false); again = null; el.again.classList.remove("on"); }
+    tog(root, "twWalling", m === "wall"); tog(root, "twPlacing", m === "place" || m === "gate"); tog(root, "twGating", m === "gate");
+    floatOff(); wallGhost(); placeGB();
+    if (G) barState();
+  }
+  function ghostSpec() {
+    if (ghost) return { type: ghost.type, x: ghost.x, y: ghost.y, rot: ghost.rot, ok: ghost.ok, err: ghost.err };
+    return mode === "wall" && wallCells.length ? { wall: wallCells } : null;
+  }
+
+  // ---- the selection (9.6): units (villagers, the garrison, or both by a mouse box), a building, a node, a raider ----
+  function setSel(s) {
+    sel = s && (s.kind !== "units" || s.ids.length) ? s : null;
+    rallyPick = 0;
+    if (garOpen && !(sel && sel.gar)) { garOpen = false; tog(el.shield, "on", false); }
+    panels();
+  }
+  const selView = () => (!sel ? null : sel.kind === "units" ? sel.ids.map(id => ({ kind: "unit", id })) : { kind: sel.kind === "raider" ? "unit" : sel.kind, id: sel.id });
+  function pruneSel() {
+    if (!sel) return;
+    if (sel.kind === "units") { const ids = sel.ids.filter(id => unitOf(id)); if (ids.length !== sel.ids.length) { if (ids.length) sel.ids = ids; else setSel(null); } }
+    else if (!objOf({ kind: sel.kind === "raider" ? "unit" : sel.kind, id: sel.id })) setSel(null);
+  }
+  const garUnits = () => G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil");
+  const idleVils = () => (G ? G.units.filter(u => !u.dead && u.side === 0 && u.k === "vil" && !u.shel && !u.task) : []);
+  // the shield chip (6.3): the whole garrison selected, and the panel beside the chip
+  function garPanel(on) {
+    garOpen = !!on && !!G && live;
+    if (garOpen) { const ids = garUnits().map(u => u.id); sel = ids.length ? { kind: "units", ids, gar: true } : null; }
+    else if (sel && sel.gar) sel = null;
+    tog(el.shield, "on", garOpen);
+    panels();
+  }
+  function nextIdle() {
+    const L = idleVils();
+    if (!L.length) return;
+    idleI = (idleI + 1) % L.length;
+    const u = L[idleI];
+    setSel({ kind: "units", ids: [u.id] });
+    centerOn(u.x, u.y);
+  }
+  function dock(r, d) { send({ k: "labor", res: r, delta: d }); }
+  function laborLine(r) {
+    const L = TW.labor(G), parts = {};
+    for (const k of { f: ["flock", "orchard", "field"], w: ["tree", "grove"], s: ["stone"], g: ["ore", "dye"] }[r]) if (L.nodes[k]) parts[k] = L.nodes[k];
+    say(U("labor", r, L[r], parts, ageOf()));
+  }
+  // the alarm (6.3): one tap shelters those near raiders; a second within 3 s, everyone; then All clear
+  let alarmAt = -1e9;
+  const raidOn = () => !!G && (G.units.some(u => !u.dead && u.side === 1) || G.raids.some(r => r.st === "warn"));
+  function alarmTap() {
+    if (held.has("plan")) { say(U("planNoSpeed")); return; }
+    const A = G.alarm, t = now();
+    if (!A.on && !(t - alarmAt < 3000)) { if (!raidOn()) return; if (send({ k: "alarm", on: true, all: false }).ok) alarmAt = t; }
+    else if (!A.all && t - alarmAt < 3000) send({ k: "alarm", on: true, all: true });
+    else { send({ k: "alarm", on: false, all: false }); alarmAt = -1e9; }
+  }
+
+  // ---- the build bar (9.4): every building of the age, locked or poor ones with their reason; then Age ----
+  const lack = c => RES.filter(r => G.res[r] < ((c && c[r]) || 0));
+  const wonderMiss = () => { const W = D.WONDERS[G.age - 1]; return W.req.bld.filter(k => !hasDone(k)).concat((W.req.tech || []).filter(t => !G.techs[t])); };
+  function buildState(k) {
+    if (k === "stable" && G.age === 1 && !G.techs.horse_breeding) return { lock: errW("req", { need: ["horse_breeding"] }) };
+    if (k === "grove" && !G.techs.planted_groves) return { lock: errW("req", { need: ["planted_groves"] }) };
+    if (k === "wonder") { if (G.wonder) return { lock: errW("blocked") }; const m = wonderMiss(); if (m.length) return { lock: errW("req", { need: m }) }; }
+    const L = lack(TW.cost(G, k));
+    return { poor: L.length ? errW("cost", { res: L[0] }) : "", lack: L };
+  }
+  const costIcons = c => RES.filter(r => c && c[r] > 0).map(r => '<span data-r="' + r + '">' + c[r] + svg(ricon(r, ageOf())) + "</span>").join("");
+  function barRender() {
+    const key = G.age + "|" + Object.keys(G.techs).sort().join(",");
+    if (key === barKey) return;
+    barKey = key;
+    el.build.innerHTML = BAR.filter(k => k !== "grove" || G.techs.planted_groves).map(k => '<button type="button" class="twB" data-b="' + k + '">' +
+      svg("i-tw-" + (k === "grove" ? "field" : k)) + '<span class="twBc">' + costIcons(TW.cost(G, k)) + "</span>" + svg("i-lock", "ic twLk") + "</button>").join("") +
+      '<button type="button" class="twB twBAge" data-b="age">' + svg("i-tw-age") + '<span class="twBc">' + esc(U("ageBtn")) + "</span></button>";
+    for (const b of el.build.children) {
+      const k = b.dataset.b;
+      b.setAttribute("aria-label", k === "age" ? U("ageSheet") : U("buildAria", nm("bld", k), cw(TW.cost(G, k)), ageOf()));
+      b.title = b.getAttribute("aria-label") + (KEYB_OF[k] ? " (" + KEYB_OF[k] + ")" : "");
+    }
+    coachEl = null;
+  }
+  const KEYB_OF = { house: "1", field: "2", store: "3", barracks: "4", smithy: "5", market: "6", temple: "7", stable: "8", tower: "9", wonder: "0", grove: "Shift+2", wall: "W", gate: "E", age: "T" };
+  function barState() {
+    barRender();
+    for (const b of el.build.children) {
+      const k = b.dataset.b;
+      if (k === "age") { tog(b, "on", sheet); continue; }
+      const st = buildState(k);
+      tog(b, "lock", !!st.lock); tog(b, "poor", !st.lock && !!st.poor);
+      for (const s of b.querySelectorAll("[data-r]")) tog(s, "lack", !st.lock && (st.lack || []).includes(s.dataset.r));
+      tog(b, "on", (ghost && ghost.type === k) || (mode === "wall" && k === "wall"));
+    }
+  }
+  // a small bubble right above the tapped button, for 2 s (9.4)
+  let bubbleT = 0;
+  function bubble(b, s) {
+    const r = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
+    setT(el.bubble, s);
+    el.bubble.classList.add("on");
+    const w = el.bubble.offsetWidth;
+    el.bubble.style.left = Math.round(Math.max(8, Math.min(cssW - w - 8, r.left - rr.left + r.width / 2 - w / 2))) + "px";
+    el.bubble.style.top = Math.round(r.top - rr.top - 8) + "px";
+    bubbleT = performance.now() + 2000;
+  }
+  function buildTap(k, b) {
+    if (!G || !live || card) return;
+    if (k === "age") { openSheet(!sheet); return; }
+    b = b || el.build.querySelector('[data-b="' + k + '"]');
+    if (!b) return;
+    const st = buildState(k);
+    if (st.lock) { bubble(b, st.lock); say(st.lock); return; }
+    if (k === "wall") { setMode("wall"); say(U("wallHint", TW.cost(G, "wall"), ageOf())); }
+    else enterPlace(k);
+    if (st.poor) { bubble(b, st.poor); say(st.poor); flash(st.lack[0]); }
+  }
+
+  // ---- panels: the info panel (9.7), the garrison panel (6.3) and the age sheet (9.9). Each is rebuilt only when
+  // its structure (its key) changes, so a finger on one of its buttons is never lost; its numbers update in place.
+  // A button that cannot act is marked, and a tap on it says why ----
+  const A_ = (a, t, off, o) => Object.assign({ a, t, off: off || "" }, o || {});
+  const ck = c => (c ? RES.map(r => (c[r] || 0) + (G.res[r] < (c[r] || 0) ? "!" : "")).join(".") : "");
+  const panelKey = m => JSON.stringify(m, (k, v) => (k === "cost" ? ck(v) : k === "hp" ? !!v : k === "sub" ? v.length : k === "qt" || k === "dyn" ? undefined : v));
+  function costHtml(c) { return '<span class="twCo">' + RES.filter(r => c[r] > 0).map(r => '<span class="' + (G.res[r] < c[r] ? "lack" : "") + '">' + c[r] + svg(ricon(r, ageOf())) + "</span>").join("") + "</span>"; }
+  function actHtml(a) {
+    return '<button type="button" class="twA' + (a.off ? " off" : "") + (a.on ? " on" : "") + (a.t.length === 1 ? " sym" : "") + '" data-a="' + a.a + '"' + (a.hold ? ' data-hold="1"' : "") +
+      (a.off ? ' aria-disabled="true" data-off="' + esc(a.off) + '"' : "") + (a.aria ? ' aria-label="' + esc(a.aria) + '"' : "") +
+      (a.on !== undefined ? ' aria-pressed="' + !!a.on + '"' : "") + ">" + esc(a.t) + (a.cost ? costHtml(a.cost) : "") + "</button>";
+  }
+  const headHtml = (kick, head, hy) => '<div class="twIH">' + (kick ? '<span class="twKick">' + esc(kick) + "</span>" : "<b>" + esc(head) + "</b>" + (hy ? ' <span class="twHy" lang="hy">' + esc(hy) + "</span>" : "")) +
+    '<button type="button" class="twX" data-a="close" aria-label="' + esc(U("close")) + '">&#215;</button></div>';
+  function panelHtml(m) {
+    let h = headHtml("", m.head, m.hy);
+    if (m.hp) h += '<div class="twHp"><i data-v="bar"></i><span data-v="hp"></span></div>';
+    m.sub.forEach((s, i) => { h += '<p class="twIS" data-v="s' + i + '"></p>'; });
+    if (m.hist) h += '<p class="twHist">' + esc(m.hist) + "</p>";
+    if (m.q.length) h += '<div class="twQ">' + m.q.map((q, i) => '<button type="button" class="twQi"' + (q.a ? ' data-a="' + q.a + '"' : " disabled") + '><span data-v="q' + i + '"></span>' + (q.a ? " &#215;" : "") + "</button>").join("") + "</div>";
+    if (m.acts.length) h += '<div class="twActs">' + m.acts.map(actHtml).join("") + "</div>";
+    return h;
+  }
+  function panelSet(e, m) {
+    if (m.hp) {
+      const f = e.querySelector('[data-v="bar"]'), k = Math.max(0, Math.min(1, m.hp[0] / m.hp[1])), w = (k * 100).toFixed(1) + "%";
+      if (f && f.style.width !== w) { f.style.width = w; tog(f, "low", k < 0.5); }
+      setT(e.querySelector('[data-v="hp"]'), U("hp", Math.floor(m.hp[0]), Math.floor(m.hp[1])));
+    }
+    (m.sub || []).forEach((s, i) => setT(e.querySelector('[data-v="s' + i + '"]'), s));
+    (m.q || []).forEach((q, i) => setT(e.querySelector('[data-v="q' + i + '"]'), q.qt));
+    if (m.dyn !== undefined) setT(e.querySelector('[data-v="dyn"]'), m.dyn);
+  }
+  function panel(e, m, k0, html) {
+    const key = m ? panelKey(m) : "";
+    if (key !== k0) { e.innerHTML = m ? (html || panelHtml)(m) : ""; tog(e, "on", !!m); }
+    if (m) panelSet(e, m);
+    return key;
+  }
+  function panels() {
+    if (!G || !root) return;
+    pruneSel();
+    infoKey = panel(el.info, infoModel(), infoKey);
+    garKey = panel(el.gar, garOpen ? garModel() : null, garKey);
+    sheetKey = panel(el.sheet, sheet ? sheetModel() : null, sheetKey, sheetHtml);
+    tog(root, "twInfoOn", !!infoKey);
+  }
+  const roleHist = (m, kind, id) => {
+    const r = TWT.role ? TWT.role(kind, id) : "", h = TWT.hist ? TWT.hist(kind, id, ageOf()) : [];
+    if (r) m.sub.push(r);
+    if (h && h[0]) m.hist = h[0].text || String(h[0]);
+  };
+  function taskWords(u) {
+    if (u.held) return U("heldByLasso");
+    if (u.k === "vil" && G.diff === 0 && u.flee > G.tick) return U("drivenOff");
+    if (u.shel || (u.task && u.task.t === "shelter")) return U("sheltering");
+    const t = u.task;
+    if (!t) return U("task", "", 0, 0);
+    if (t.t === "build") return U("building");
+    if (t.t === "repair") return U("repairing");
+    if (t.t === "move") return U("walking");
+    if (t.t === "gather" || t.t === "farm") return U("task", nodeW(t.t === "farm" ? ((bldOf(t.bld) || {}).k || "field") : t.kind, 1), u.carry ? u.carry.n | 0 : 0, D.GATHER.carry);
+    return U("task", "", 0, 0);
+  }
+  function techOff(id, sheetRow) {
+    const X = D.TECHS[id];
+    if (G.techs[id]) return U("researched_");
+    if (G.blds.some(b => !b.dead && b.rq.some(q => q.tech === id))) return U("inQueue");
+    if (sheetRow && !hasDone(X.at)) return errW("req", { need: [X.at] });
+    if (G.aging && X.at === "tc") return errW("busy");
+    const L = lack(TW.cost(G, id));
+    return L.length ? errW("cost", { res: L[0] }) : "";
+  }
+  function advanceOff() {
+    if (G.age >= 3) return errW("bad");
+    if (G.aging) return errW("busy");
+    if (G.wonder) return errW("wonder");
+    const m = D.AGES[G.age].advance.req.filter(k => !hasDone(k));
+    if (m.length) return errW("req", { need: m });
+    const L = lack(TW.cost(G, "advance"));
+    return L.length ? errW("cost", { res: L[0] }) : "";
+  }
+  function trainAt(unit) {
+    let best = null;
+    for (const b of G.blds) if (!b.dead && b.k === TRAINS[unit] && b.done >= 1 && (!best || b.q.length < best.q.length)) best = b;
+    return best;
+  }
+  function trainOff(unit, b) {
+    if (!b) return errW("req", { need: [TRAINS[unit]] });
+    if (G.aging && b.k === "tc") return errW("busy");
+    if (b.q.length >= 5) return errW("busy");
+    const L = lack(TW.cost(G, unit));
+    return L.length ? errW("cost", { res: L[0] }) : "";
+  }
+  // the market's fixed rates (3.7): goods for 100 sold, goods paid for 100 bought (Coinage: +20% and -15%)
+  const gain = r => Math.floor(D.MARKET.sell[r] * (G.techs.coinage ? D.TECHS.coinage.fx.sell : 1));
+  const price = r => Math.floor(D.MARKET.buy[r] * (G.techs.coinage ? D.TECHS.coinage.fx.buy : 1));
+  const qPct = (left, total) => Math.max(0, Math.min(99, Math.floor((1 - left / Math.max(1, total)) * 100))) + "%";
+  function infoModel() {
+    const s = sel;
+    if (!s || garOpen || !G) return null;
+    const m = { head: "", hy: "", sub: [], acts: [], q: [] };
+    if (s.kind === "units") {
+      const us = s.ids.map(unitOf).filter(Boolean);
+      if (!us.length) return null;
+      const u = us[0], vil = us.every(v => v.k === "vil");
+      m.head = (us.every(v => v.k === u.k) ? nm("unit", u.k) : U("garrisonHead")) + (us.length > 1 ? " · " + us.length : "");
+      if (us.length === 1) { m.hp = [u.hp, u.hpMax]; if (vil) m.sub.push(taskWords(u)); else roleHist(m, "unit", u.k); }
+      if (vil) m.acts.push(A_("vShelter", U("shelter")), A_("vStop", U("stop")));
+      else m.acts.push(A_("gRet", U("ret")), A_("gHold", U("hold"), "", { on: !!G.post.hold }), A_("gDismiss", U("dismissHold"), "", { hold: 1 }));
+      return m;
+    }
+    if (s.kind === "raider") { const u = unitOf(s.id); if (!u) return null; m.head = nm("raider", u.k); m.hp = [u.hp, u.hpMax]; roleHist(m, "raider", u.k); return m; }
+    if (s.kind === "node") {
+      const n = nodeOf(s.id);
+      if (!n) return null;
+      m.head = nodeW(n.k, 0);
+      m.sub.push(U("nodeLeft", n.left, NODE_RES[n.k], ageOf()), U("nodeWorkers", n.workers | 0));
+      roleHist(m, "node", n.k);
+      m.acts.push(A_("send", U("sendVil"), n.k === "dye" && !G.techs.vordan_karmir ? errW("req", { need: ["vordan_karmir"] }) : ""));
+      return m;
+    }
+    const b = bldOf(s.id);
+    if (!b) return null;
+    m.head = nm("bld", b.k);
+    m.hy = TWT.hy ? TWT.hy("bld", b.k, ageOf()) : "";
+    if (b.done < 1) {
+      const mx = b.k === "wonder" ? D.WONDERS[G.age - 1].maxBuilders : D.BUILD.maxBuilders;
+      m.sub.push(U("building") + " " + Math.floor(b.done * 100) + "%", U("builders", b.builders.length));
+      m.acts.push(A_("bld:-1", "−", b.builders.length ? "" : errW("bad"), { aria: U("fewerBuilders") }),
+        A_("bld:1", "+", b.builders.length >= mx ? errW("bad") : "", { aria: U("moreBuilders") }), A_("cancel", U("cancelBld")));
+      return m;
+    }
+    m.hp = [b.hp, b.hpMax];
+    roleHist(m, "bld", b.k);
+    const fx = { horse: G.techs.nesaean_horses ? 0.75 : 1 };
+    b.q.forEach((q, i) => m.q.push({ a: "untrain:" + i, qt: U("queue") + ": " + nm("unit", q.k) + " " + qPct(q.left, D.UNITS[q.k].train / DT * (fx[q.k] || 1)) }));
+    b.rq.forEach(q => m.q.push({ qt: nm("tech", q.tech) + " " + qPct(q.left, D.TECHS[q.tech].time / DT) }));
+    if (b.k === "tc") {
+      m.acts.push(A_("train:vil", U("trainVil"), trainOff("vil", b), { cost: TW.cost(G, "vil") }), A_("auto", U("autoTrain"), "", { on: !!b.auto }));
+      for (const r of RES) m.acts.push(A_("rally:" + r, U("rally") + ": " + rn(r), "", { on: !!(b.rally && b.rally.res === r) }));
+      m.acts.push(A_("rally:pt", U("rallyPoint"), "", { on: !!(b.rally && b.rally.x !== undefined) }));
+      if (G.age < 3) m.acts.push(A_("advance", U("advance"), advanceOff(), { cost: TW.cost(G, "advance") }));
+    } else if (trains(b)) {
+      for (const u of D.BLD[b.k].trains) m.acts.push(A_("train:" + u, U("train", nm("unit", u)), trainOff(u, b), { cost: TW.cost(G, u) }));
+      m.acts.push(A_("rally:pt", U("rallyPoint"), "", { on: !!(b.rally && b.rally.x !== undefined) }));
+    }
+    for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.at === b.k && X.age <= G.age && !G.techs[id]) m.acts.push(A_("tech:" + id, nm("tech", id), techOff(id), { cost: TW.cost(G, id) })); }
+    if (b.k === "market") {
+      const lot = D.MARKET.lot;
+      for (const r of ["f", "w", "s"]) m.acts.push(A_("trade:sell:" + r, U("sell", r, lot, gain(r), ageOf()), G.res[r] < lot ? errW("cost", { res: r }) : ""), A_("trade:buy:" + r, U("buy", r, lot, price(r), ageOf()), G.res.g < price(r) ? errW("cost", { res: "g" }) : ""));
+      if (G.cartMarket && G.cartMarket !== b.id) m.sub.push(U("exchangeOnly"));
+    }
+    if (b.hp < b.hpMax && b.k !== "wonder") {
+      const c = TW.cost(G, b.k) || {}, rc = {};
+      for (const r of RES) rc[r] = c[r] ? Math.max(1, Math.ceil(c[r] * D.BUILD.repairCost * 100 / b.hpMax)) : 0;
+      m.acts.push(A_("repair", U("repair", rc, ageOf())));
+    }
+    if (b.k !== "tc" && b.k !== "wonder") m.acts.push(A_("demolish", U("demolish"), "", { hold: 1 }));
+    return m;
+  }
+  function garModel() {
+    const gs = garUnits(), m = { head: U("garrisonHead") + " · " + gs.length, sub: [], acts: [], q: [] };
+    for (const [u, k] of [["spear", "trainSpear"], ["bow", "trainBow"], ["horse", "trainHorse"]]) m.acts.push(A_("gtrain:" + u, U(k), trainOff(u, trainAt(u)), { cost: TW.cost(G, u) }));
+    m.acts.push(A_("gRet", U("ret")), A_("gHold", U("hold"), "", { on: !!G.post.hold }), A_("gDismiss", U("dismissHold"), gs.length ? "" : errW("bad"), { hold: 1 }));
+    return m;
+  }
+  function sheetModel() {
+    const a = G.age, A = TWT.ages[a - 1], m = { kick: A.numeral + " · " + A.dateline, head: A.name, blocks: [] };
+    if (a < 3) {
+      const adv = D.AGES[a].advance, rows = [{ t: U("costL"), cost: TW.cost(G, "advance") }, { t: U("timeL"), time: TWT.mmss(adv.time) }];
+      for (const k of adv.req) rows.push({ t: U("needsL") + ": " + nm("bld", k), ok: hasDone(k) });
+      m.blocks.push({ h: U("advanceTo", TWT.ages[a].name), rows, act: A_("advance", U("advance"), advanceOff()) });
+      m.dyn = G.aging ? TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) }) : "";
+    }
+    const groups = {};
+    for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.age <= a) (groups[X.at] = groups[X.at] || []).push(id); }
+    for (const at of ["tc", "smithy", "temple", "market", "stable", "tower"]) if (groups[at]) m.blocks.push({ h: U("techsAt", nm("bld", at)), rows: groups[at].map(id => ({
+      t: nm("tech", id), d: TWT.effect ? TWT.effect(id, D, a) : "", cost: G.techs[id] ? null : TW.cost(G, id), time: TWT.mmss(D.TECHS[id].time), ok: G.techs[id] ? true : undefined, tech: 1,
+      act: G.techs[id] ? null : A_("tech:" + id, U("research"), techOff(id, true)) })) });
+    const miss = wonderMiss();
+    m.blocks.push({ h: nm("bld", "wonder"), rows: [{ t: U("costL"), cost: TW.cost(G, "wonder") }].concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss) : errW("req", { need: miss }) }] : []) });
+    return m;
+  }
+  function sheetHtml(m) {
+    const row = r => '<div class="twRow"><span class="twRt">' + (r.ok !== undefined ? '<i class="twOk' + (r.ok ? " y" : "") + '" aria-hidden="true"></i>' : "") + esc(r.t) +
+      (r.d ? "<small>" + esc(r.d) + "</small>" : "") + "</span>" + (r.cost ? costHtml(r.cost) : "") + (r.time ? '<span class="twTm">' + esc(r.time) + "</span>" : "") +
+      (r.act ? actHtml(r.act) : r.tech && r.ok ? '<span class="twTm">' + esc(U("researched_")) + "</span>" : "") + "</div>";
+    return headHtml(m.kick) + '<div class="twSB"><h2>' + esc(m.head) + "</h2>" + m.blocks.map((B, i) => "<section><h3>" + esc(B.h) + "</h3>" + B.rows.map(row).join("") +
+      (B.act ? '<div class="twActs">' + actHtml(B.act) + (i === 0 && m.dyn !== undefined ? '<span class="twIS" data-v="dyn"></span>' : "") + "</div>" : "") + "</section>").join("") + "</div>";
+  }
+  function openSheet(on) {
+    on = !!on && !!G && live && !card;
+    if (on === sheet) { if (on) panels(); return; }
+    sheet = on;
+    if (on) { setMode("none"); garPanel(false); setSel(null); hintEnd("age"); }
+    hold("sheet", on && !!D.DIFFS[G.diff].sheetHolds);   // Easy: the sheet holds the clock
+    panels();
+    if (G) barState();
+  }
+  // the 2 villagers nearest to a target who are free to go (idle first, never a builder)
+  function nearVils(o, n) {
+    const x = o.x + (o.w || 1) / 2, y = o.y + (o.h || 1) / 2;
+    return G.units.filter(u => !u.dead && u.side === 0 && u.k === "vil" && !u.shel && !(u.task && /build|repair|shelter/.test(u.task.t)))
+      .map(u => [u, (u.task ? 1e4 : 0) + (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y)]).sort((p, q) => p[1] - q[1] || p[0].id - q[0].id).slice(0, n).map(p => p[0].id);
+  }
+  function doAct(a, b) {
+    if (b && b.classList.contains("off")) { if (b.dataset.off && b.dataset.off.trim()) say(b.dataset.off); return; }
+    const [k, v, w] = a.split(":"), bd = sel && sel.kind === "bld" ? bldOf(sel.id) : null, us = sel && sel.kind === "units" ? sel.ids.map(unitOf).filter(Boolean) : [];
+    const tc = tcOf();
+    switch (k) {
+      case "close": if (b && el.sheet.contains(b)) openSheet(false); else if (garOpen) garPanel(false); else setSel(null); break;
+      case "train": if (bd) send({ k: "train", bld: bd.id, unit: v, n: 1 }); break;
+      case "gtrain": { const t = trainAt(v); if (t) send({ k: "train", bld: t.id, unit: v, n: 1 }); break; }
+      case "untrain": if (bd) send({ k: "untrain", bld: bd.id, i: +v }); break;
+      case "auto": if (bd) send({ k: "auto", bld: bd.id, on: !bd.auto }); break;
+      case "rally": if (!bd) break; if (v === "pt") { rallyPick = bd.id; say(U("rallyPoint")); } else send({ k: "rally", bld: bd.id, res: v }); break;
+      case "advance": send({ k: "advance" }); break;
+      case "tech": send({ k: "research", tech: v }); break;
+      case "trade": send({ k: "trade", op: v, res: w }); break;
+      case "bld": if (bd) send({ k: "builders", bld: bd.id, n: Math.max(0, bd.builders.length + +v) }); break;
+      case "cancel": if (bd && send({ k: "cancel", bld: bd.id }).ok) setSel(null); break;
+      case "repair": { const ids = bd ? nearVils(bd, 2) : []; if (ids.length && send({ k: "task", ids, target: bd.id }).ok) hintEnd("repair"); break; }
+      case "demolish": if (bd && send({ k: "demolish", bld: bd.id }).ok) setSel(null); break;
+      case "vShelter": {
+        const by = new Map();
+        for (const u of us) {
+          let best = null, bdd = 1e9;
+          for (const o of G.blds) if (!o.dead && o.done >= 1 && SHEL[o.k]) { const d = (o.x + o.w / 2 - u.x) ** 2 + (o.y + o.h / 2 - u.y) ** 2; if (d < bdd) { bdd = d; best = o; } }
+          if (best) by.set(best.id, (by.get(best.id) || []).concat(u.id));
+        }
+        for (const [id, ids] of by) send({ k: "task", ids, target: id });
+        break;
+      }
+      case "vStop": for (const u of us) send({ k: "move", ids: [u.id], x: Math.floor(u.x), y: Math.floor(u.y) }); break;
+      case "gRet": if (tc) send({ k: "post", x: tc.x + 2, y: Math.min(TW.H - 1, tc.y + 6), hold: !!G.post.hold }); break;
+      case "gHold": send({ k: "post", x: Math.floor(G.post.x), y: Math.floor(G.post.y), hold: !G.post.hold }); break;
+      case "gDismiss": { const gs = us.filter(u => u.k !== "vil"), L = gs.length ? gs : garUnits(), u = L[L.length - 1]; if (u) send({ k: "dismiss", ids: [u.id] }); break; }
+      case "send": { const n = sel && sel.kind === "node" ? nodeOf(sel.id) : null, ids = n ? nearVils(n, 1) : []; if (ids.length) send({ k: "task", ids, target: n.id }); break; }
+      default: break;
+    }
+    panels();
+  }
+  // a hold button (Demolish, Dismiss) acts after 0.8 s; from the keyboard, Demolish asks first
+  function holdStart(b) {
+    holdStop();
+    if (b.classList.contains("off")) return;
+    b.classList.add("twHolding");
+    holdBtn = { b, t: setTimeout(guard(() => { const a = b.dataset.a; holdStop(); tick1(); doAct(a, null); }), 800) };
+  }
+  function holdStop() { if (holdBtn) { clearTimeout(holdBtn.t); holdBtn.b.classList.remove("twHolding"); holdBtn = null; } }
+  function askAct(a) { if (a === "demolish" && sel && sel.kind === "bld") showCard("ask", { ask: "demolish", bld: sel.id }); else doAct(a, null); }
+
+  // ---- commands go through here: errors to the call line, hints ended, plan mode applies at once (9.12) ----
+  const flashUntil = {};
+  let pilUntil = 0;
+  function flash(r) { if (r) flashUntil[r] = performance.now() + 600; }
+  function send(c) {
+    if (!G || !live || G.over) return { ok: false, err: "bad" };
+    const r = TW.command(G, c);
+    if (r.ok) {
+      const he = { labor: "dock", advance: "age", wall: "wall", gate: "gate", alarm: "alarm" }[c.k] || (c.k === "place" ? c.type : "");
+      if (he) hintEnd(he);
+      if (held.has("plan") || held.has("sheet")) { TW.apply(G); route(TW.drain(G)); }
+      hud(true);
+    } else { say(errW(r.err, r)); if (r.err === "cost" && r.res) flash(r.res); }
+    return r;
+  }
+
+  // ---- the call line (9.10): one line at a time; a line from the sim waits a moment behind a fresh one; the
+  // current hint shows when nothing else does ----
+  let callMsg = "", callAt = 0, callUntil = 0;
+  const callQ = [];
+  function say(s, q) {
+    if (!s || !el.call) return;
+    const t = performance.now();
+    if (q && callMsg && t - callAt < 1500) { if (callQ.length < 3 && s !== callMsg && !callQ.includes(s)) callQ.push(s); return; }
+    callMsg = s; callAt = t; callUntil = t + 4000;
+    showCall();
+  }
+  function showCall() {
+    const t = performance.now();
+    if (callMsg && t >= callUntil) callMsg = "";
+    if (!callMsg && callQ.length) { callMsg = callQ.shift(); callAt = t; callUntil = t + 4000; }
+    const h = hintCur ? hintList()[hintCur.i].line : "", s = callMsg || h;
+    setT(el.call, s); tog(el.call, "on", !!s); tog(el.call, "twHintOn", !!s && !callMsg);
+  }
+  // ---- the first town's hints (9.13): one at a time, each with an outline on its control, until its action
+  // happens or 40 s pass; never pausing the game ----
+  const hintsOn = () => !!(G && G.firstTown && pref.hints);
+  function hint(moment) {
+    if (!hintsOn()) return;
+    hintList().forEach((h, i) => { if (h.on === moment && !(hintDone & (1 << i)) && !hintQ.includes(i) && !(hintCur && hintCur.i === i)) hintQ.push(i); });
+  }
+  function hintEnd(id) {
+    const L = hintList(), i = L.findIndex(h => h.id === id);
+    if (i < 0) return;
+    hintQ = hintQ.filter(j => j !== i);
+    if (hintCur && hintCur.i === i) hintCur = null;
+    hintDone |= 1 << i;
+    showCall();
+  }
+  function hints() {
+    if (!hintsOn()) { if (hintCur) { hintCur = null; showCall(); } return; }
+    const L = TW.labor(G), fl = n => n.k === "flock";
+    if (G.popCap - L.pop <= 2 && G.popCap < D.POP.max) hint("popLow");
+    const f0 = G.map.start.nodes.filter(fl).reduce((s, n) => s + n.left, 0), f1 = G.nodes.filter(n => !n.dead && fl(n)).reduce((s, n) => s + n.left, 0);
+    if (f0 && f1 <= f0 / 2) hint("flocksHalf");
+    if (!advanceOff()) hint("advanceReady");
+    if (G.age === 3 || (G.tick * DT >= 600 && !wonderMiss().length)) hint("wonderTime");
+    if (hintCur && now() >= hintCur.until) { hintCur = null; showCall(); }
+    if (!hintCur && hintQ.length && !card) { const i = hintQ.shift(); hintDone |= 1 << i; hintCur = { i, until: now() + 40000 }; showCall(); }
+  }
+  // the soft outline: the hint's control, else the coached step's (the Next line's first-town steps)
+  let coachEl = null;
+  function coach() {
+    let c = hintCur ? hintList()[hintCur.i].ctl : "";
+    if (!c && G.firstTown) { const n = TW.next(G); if (n.k === "open") c = n.step === "move" ? "dock" : "build:" + n.step; }
+    const e = !c ? null : c.startsWith("build:") ? el.build.querySelector('[data-b="' + c.slice(6) + '"]') : { dock: el.dock, raid: el.raid, alarm: el.alarm, shield: el.shield, age: el.age }[c] || null;
+    if (e !== coachEl) { if (coachEl) coachEl.classList.remove("twCoach"); coachEl = e; if (e) e.classList.add("twCoach"); }
+  }
+
+  // ---- events from the sim to the screen, the art and the sound ----
+  function route(evs) {
+    if (!evs.length) return;
+    TWA.fx(evs, G);
+    TWS.onEvents(evs, G, view, cssW);
+    for (const e of evs) onEvent(e);
+  }
+  function raidOver() {
+    hintEnd("alarm"); hint("firstRaidOver");
+    if (G.blds.some(b => !b.dead && b.done >= 1 && b.hp < b.hpMax && b.k !== "wonder")) say(U("repairAfter"), 1);
+  }
+  function onEvent(e) {
+    const a = G.age, q = 1;
+    switch (e.e) {
+      case "ageDone": TWA.setAge(G.age); labels(); barKey = ""; showCard("age"); break;
+      case "ageStart": say(U("advancing", TWT.ages[e.to - 1].name), q); break;
+      case "built": if (e.k !== "wall") say(U("built", nm("bld", e.k)), q); else if (!G.blds.some(b => !b.dead && b.k === "gate")) hint("wallNoGate"); break;
+      case "researched": say(U("researched", nm("tech", e.tech)), q); barKey = ""; break;
+      case "noPop": say(errW("pop"), q); break;
+      case "raidWarn": say(U("raidComing", a, !!e.wonder), q); hint("firstWarn"); break;
+      case "raidSpawn": hintEnd("horn"); hint("firstSpawn"); ui1.shel = 0; break;
+      case "raidNear": say(U("raidAtWalls"), q); break;
+      case "raidRepelled": say(U("raidRepelled"), q); raidOver(); break;
+      case "raidPlunder": say(U("raidPlunder"), q); raidOver(); break;
+      case "raidLeft": raidOver(); break;
+      case "pillage": pilUntil = performance.now() + 3000; if (now() - (ui1.pil || -1e9) > 10000) { ui1.pil = now(); say(U("pillage"), q); } break;
+      case "sheltered": if (!ui1.shel && G.units.some(u => !u.dead && u.side === 1)) { ui1.shel = 1; say(U("shelterCall"), q); } break;
+      case "alarm": say(e.on ? (e.all ? U("alarmAll") : U("alarmOn")) : U("allClear")); break;
+      case "idle": if (now() - (ui1.idle || -1e9) > 30000) { const n = idleVils().length; if (n) { ui1.idle = now(); say(U("idleCall", n), q); } } break;
+      case "depleted": { const s = U("depleted", e.k); if (s) say(s, q); break; }
+      case "destroyed": if (e.k !== "wall") say(U("destroyed", nm("bld", e.k)), q); break;
+      case "craftsmen": say(U("craftsmen"), q); break;
+      case "clockStart": say(U("clockHint"), q); break;
+      case "repairStop": if (now() - (ui1.rep || -1e9) > 20000) { ui1.rep = now(); say(U("repairStop", e.res, a), q); } break;
+      case "hit": if (e.bld) hitCall(e); break;
+      case "fell": if (!e.side) say(e.k === "vil" ? U("vilFell") : U("unitFell", nm("unit", e.k)), q); break;
+      case "driven": say(U("drivenCall"), q); break;
+      case "cartArrive": say(U("cartArrive", e.n, a), q); break;
+      case "cartLost": say(U("cartLost"), q); break;
+      case "trade": say(U(e.op === "sell" ? "sold" : "bought", e.res, e.n, e.op === "sell" ? gain(e.res) : price(e.res), a)); break;
+      case "wonderBegin": hintEnd("wonder"); break;
+      case "wonderStage": { const s = U("stage", e.pct, a); if (s) say(s, q); break; }
+      case "wonderSetback": say(U("setback"), q); break;
+      case "cmdDropped": if (e.k === "wall" && e.err === "cost" && e.n) say(U("wallShort", e.n, e.res || "s", a)); else if (e.err && e.err !== "bad") say(errW(e.err, e), q); break;
+      case "win": case "lose": endGame(e); break;
+      default: break;
+    }
+  }
+  function hitCall(e) {
+    const b = bldOf(e.bld);
+    if (!b) return;
+    hint("damaged");
+    if (b.k === "tc") {   // the palace under 50% and under 25%: once each
+      const p = b.hp / b.hpMax * 100, t = p <= 25 && !ui1.tc25 ? 25 : p <= 50 && !ui1.tc50 ? 50 : 0;
+      if (t) { ui1.tc50 = 1; if (t === 25) ui1.tc25 = 1; say(U("tcHurt", G.age, t), 1); return; }
+    }
+    const s = TWA.toScreen(view, e.x, e.y);
+    if (b.k !== "wall" && (s.x < 0 || s.y < area.t || s.x > cssW || s.y > area.b) && now() - (ui1.hit || -1e9) > 10000) { ui1.hit = now(); say(U("underAttack", nm("bld", b.k)), 1); }
+  }
+  // the score of 8.2
+  function score(win, stars) {
+    const S = G.stats, g = S.gathered || {}, vil = G.units.filter(u => !u.dead && u.side === 0 && u.k === "vil").length;
+    return Math.floor(((g.f || 0) + (g.w || 0) + (g.s || 0) + (g.g || 0)) / 10) + Math.floor((S.spentBld || 0) / 10) + 40 * (S.techs || 0) + 300 * (G.age - 1) +
+      3 * ((S.fallen && S.fallen.raiders) || 0) + 5 * vil + (win ? 1000 * stars + 40 * Math.max(0, 25 - Math.floor(G.tick * DT / 60)) : 0);
+  }
+  function endGame(e) {
+    removeRun();
+    setMode("none"); setSel(null); garPanel(false); openSheet(false);
+    if (held.has("plan")) { hold("plan", false); tog(root, "twPlanning", false); }
+    const d = G.diff, win = e.e === "win", sc = score(win, e.stars | 0), B = pref.best[d];
+    let bless = null, best = false;
+    if (win) {
+      bless = grantBlessing(e.stars);
+      pref.won[d]++;
+      pref.firstTown = false;
+      const t = Math.floor(G.tick * DT);
+      if (e.stars > B.stars || (e.stars === B.stars && (!B.timeS || t < B.timeS))) { B.stars = e.stars; B.timeS = t; best = true; }
+    }
+    if (sc > B.score) { B.score = sc; best = true; }
+    savePref();
+    showCard(win ? "win" : "lose", { stars: e.stars | 0, age: win ? e.age : G.age, cause: e.cause, bless, score: sc, best });
   }
 
   // ---- keys (9.14): a capture-phase listener that keeps every key from the map and the battle ----
@@ -64727,30 +65923,47 @@ townRegion("shell", () => { Town = (() => {
     if (!open) return;
     if (e.code === "KeyM" || e.code === "KeyS") return;   // music and sound keep the main handler's keys
     root.classList.add("twKeys");
-    const onBtn = e.target && e.target.closest && e.target.closest("button");
+    const onBtn = e.target && e.target.closest && e.target.closest("button"), k = e.code;
     guard(() => {
-      if (e.code === "Escape") {
-        if (card) cardBack();
-        else if (held.has("plan")) plan(false);
-        else askLeave();
-      } else if (e.code === "Space" && !onBtn) {
-        if (held.has("plan")) plan(false);
-        else if (!card) showCard("pause");
-        else if (card === "pause") showCard("");
+      if (card) { if (k === "Escape") cardBack(); else if (k === "Space" && !onBtn && card === "pause") { e.preventDefault(); showCard(""); } return; }
+      if (k === "Escape") {
+        if (mode !== "none") setMode("none"); else if (sheet) openSheet(false); else if (garOpen) garPanel(false);
+        else if (sel) setSel(null); else if (held.has("plan")) plan(false); else askLeave();
+        return;
+      }
+      if (!G || !live || G.over) return;
+      if (k.startsWith("Arrow")) {
         e.preventDefault();
-      } else if (!card && G) {
-        const step = e.shiftKey ? 2 : 1;
-        if (e.code === "KeyP") plan(!held.has("plan"));
-        else if (e.code === "KeyF" && !held.has("plan")) setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1));
-        else if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") zoomStep(1, cssW / 2, cssH / 2);
-        else if (e.key === "-" || e.code === "NumpadSubtract") zoomStep(-1, cssW / 2, cssH / 2);
-        else if (e.code === "KeyH") centerOnTc();
-        else if (e.code.startsWith("Arrow")) {
-          if (e.code === "ArrowLeft") view.x -= step; else if (e.code === "ArrowRight") view.x += step;
-          else if (e.code === "ArrowUp") view.y -= step; else view.y += step;
-          clampView(); e.preventDefault();
-        }
-      } else if (e.code.startsWith("Arrow") && !onBtn) e.preventDefault();
+        const dx = k === "ArrowLeft" ? -1 : k === "ArrowRight" ? 1 : 0, dy = k === "ArrowUp" ? -1 : k === "ArrowDown" ? 1 : 0;
+        if (ghost) { ghost.x += dx; ghost.y += dy; check(); }
+        else if (mode === "wall") {
+          wcur = wcur || tileAt(cssW / 2, (area.t + area.b) / 2);
+          wcur = { x: Math.max(0, Math.min(TW.W - 1, wcur.x + dx)), y: Math.max(0, Math.min(TW.H - 1, wcur.y + dy)) };
+          if (stroke) stroke.tiles = line(stroke.s, [wcur.x, wcur.y]);
+          wallGhost();
+        } else { const s = e.shiftKey ? 0.8 : 0.4; view.x += dx * s / view.zoom * 2; view.y += dy * s / view.zoom * 2; inertia = null; clampView(); }
+        return;
+      }
+      if (k === "Space" && !onBtn) { e.preventDefault(); if (mode === "wall") wallKey(); else if (held.has("plan")) plan(false); else showCard("pause"); return; }
+      if (k === "Enter" && !onBtn) { if (ghost) placeGhost(e.shiftKey); else if (mode === "wall") wallAct("build", e.shiftKey); return; }
+      if (k === "Digit2" && e.shiftKey) { buildTap("grove"); return; }
+      if (KEYB[k]) { buildTap(KEYB[k]); return; }
+      if (e.key === "+" || e.key === "=" || k === "NumpadAdd") { zoomStep(1, cssW / 2, cssH / 2); return; }
+      if (e.key === "-" || k === "NumpadSubtract") { zoomStep(-1, cssW / 2, cssH / 2); return; }
+      switch (k) {
+        case "KeyW": buildTap("wall"); break;
+        case "KeyE": buildTap("gate"); break;
+        case "KeyT": openSheet(!sheet); break;
+        case "KeyH": { const tc = tcOf(); if (tc) { setMode("none"); setSel({ kind: "bld", id: tc.id }); centerOnTc(); } break; }
+        case "Period": nextIdle(); break;
+        case "KeyG": garPanel(true); break;
+        case "KeyA": alarmTap(); break;
+        case "KeyR": rotGate(); break;
+        case "KeyP": plan(!held.has("plan")); break;
+        case "KeyF": if (held.has("plan")) say(U("planNoSpeed")); else setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1)); break;
+        case "Delete": case "Backspace": if (sel && sel.kind === "bld") { const b = bldOf(sel.id); if (b && b.done >= 1 && b.k !== "tc" && b.k !== "wonder") showCard("ask", { ask: "demolish", bld: b.id }); } break;
+        default: break;
+      }
     })();
     e.stopImmediatePropagation();
   }
@@ -64761,65 +65974,83 @@ townRegion("shell", () => { Town = (() => {
     cardData = data || {};
     hold("card", !!card);
     if (card === "pause" || card === "age") snapshot();
+    if (card) { holdStop(); ptrs.clear(); gest = ""; inertia = null; boxOff(); }
     renderCard();
     hud(true);
   }
   function cardBack() {
-    if (cardData.ask) { cardData.ask = ""; renderCard(); return; }
+    if (cardData.ask && card !== "ask") { cardData.ask = ""; renderCard(); return; }
     if (card === "start" || card === "resume" || card === "win" || card === "lose") close();
-    else if (card === "pause" || card === "leave" || card === "age") showCard("");
+    else if (card === "help") showCard("pause");
+    else if (card === "pause" || card === "leave" || card === "age" || card === "ask") showCard("");
   }
   const mmss = t => TWT.mmss(t * DT);
   function renderCard() {
     if (!root) return;
     el.cardWrap.classList.toggle("on", !!card);
     if (!card) { el.card.innerHTML = ""; return; }
-    const U = ui(), esc = escapeHtml, B = (act, label, primary) => '<button type="button" class="twBtn' + (primary ? " primary" : "") + '" data-act="' + act + '">' + esc(label) + "</button>";
+    const B = (act, label, primary) => '<button type="button" class="twBtn' + (primary ? " primary" : "") + '" data-act="' + act + '">' + esc(label) + "</button>";
+    const T = (act, label, on) => '<button type="button" class="twToggle" data-act="' + act + '" aria-pressed="' + !!on + '">' + esc(label) + "</button>";
+    const P = s => "<p>" + esc(s) + "</p>", S = s => '<p class="twSmall">' + esc(s) + "</p>";
     const A = G ? TWT.ages[G.age - 1] : TWT.ages[0];
     let h = "", btns = "";
     if (cardData.ask) {
-      h = "<p>" + esc(cardData.ask === "newGame" ? U.newGameAsk : U.startOverAsk) + "</p>";
-      btns = B(cardData.ask + "Yes", U.yes, true) + B("askNo", U.no);
+      const b = cardData.ask === "demolish" ? bldOf(cardData.bld) : null;
+      h = P(cardData.ask === "newGame" ? U("newGameAsk") : cardData.ask === "demolish" ? U("demolishAsk", b ? nm("bld", b.k) : "") : U("startOverAsk"));
+      btns = B(cardData.ask + "Yes", cardData.ask === "demolish" ? U("demolish") : U("yes"), true) + B("askNo", cardData.ask === "demolish" ? U("keepIt") : U("no"));
     } else if (card === "start") {
       const d = pref.diff >= 0 ? pref.diff : prefDiff;
-      cardData.diff = cardData.diff === undefined ? d : cardData.diff;
-      cardData.again = cardData.again === undefined ? false : cardData.again;
-      cardData.ft = cardData.ft === undefined ? pref.firstTown : cardData.ft;
-      const best = pref.best[cardData.diff];
-      h = '<p class="twKick">' + esc(U.kicker) + "</p><h2>" + esc(TWT.title) + "</h2>" +
-        '<div class="twBody">' + TWT.intro.map(s => "<p>" + esc(s) + "</p>").join("") +
-        (pref.droppedOld ? '<p class="twSmall">' + esc(U.older) + "</p>" : "") + "</div>" +
-        '<div class="twSeg" role="radiogroup" aria-label="Difficulty">' + TWT.diffs.map((n, i) => '<button type="button" role="radio" data-diff="' + i + '" aria-checked="' + (cardData.diff === i) + '">' + esc(n) + "</button>").join("") + "</div>" +
-        (pref.lastSeed ? '<div class="twSeg" role="radiogroup" aria-label="Map"><button type="button" role="radio" data-map="new" aria-checked="' + !cardData.again + '">' + esc(U.mapNew) + '</button><button type="button" role="radio" data-map="again" aria-checked="' + cardData.again + '">' + esc(U.mapAgain(pref.lastSeed)) + "</button></div>" : "") +
-        '<button type="button" class="twToggle" data-ft="1" aria-pressed="' + !!cardData.ft + '">' + esc(U.firstTown) + "</button>" +
-        (best.stars ? '<p class="twSmall">' + esc(U.stars(best.stars) + ", " + TWT.mmss(best.timeS)) + "</p>" : "");
+      if (cardData.diff === undefined) cardData.diff = d;
+      if (cardData.again === undefined) cardData.again = false;
+      if (cardData.ft === undefined) cardData.ft = pref.firstTown;
+      const best = pref.best[cardData.diff], dh = TWT.ui && TWT.ui.diffHelp;
+      h = '<p class="twKick">' + esc(U("kicker")) + "</p><h2>" + esc(TWT.title) + "</h2>" +
+        '<div class="twBody">' + TWT.intro.map(P).join("") + (pref.droppedOld ? S(U("older")) : "") + "</div>" +
+        '<div class="twSeg" role="radiogroup" aria-label="' + esc(U("difficulty")) + '">' + TWT.diffs.map((n, i) => '<button type="button" role="radio" data-diff="' + i + '" aria-checked="' + (cardData.diff === i) + '">' + esc(n) + "</button>").join("") + "</div>" +
+        (dh ? S(dh[cardData.diff]) : "") +
+        (pref.lastSeed ? '<div class="twSeg" role="radiogroup" aria-label="' + esc(U("mapChoice")) + '"><button type="button" role="radio" data-map="new" aria-checked="' + !cardData.again + '">' + esc(U("mapNew")) + '</button><button type="button" role="radio" data-map="again" aria-checked="' + cardData.again + '">' + esc(U("mapAgain", pref.lastSeed)) + "</button></div>" : "") +
+        '<button type="button" class="twToggle" data-ft="1" aria-pressed="' + !!cardData.ft + '">' + esc(U("firstTown")) + "</button>" +
+        (best.stars ? S(U("best", best.stars, TWT.mmss(best.timeS))) : "");
       if (pref.droppedOld) { pref.droppedOld = false; savePref(); }
-      btns = B("begin", U.begin, true);
+      btns = B("begin", U("begin"), true);
     } else if (card === "resume") {
-      const g = G, line = cardData.snap && cardData.snap.crashed ? U.resumeCrash(mmss(g.tick)) : U.resumeLine(TWT.ages[g.age - 1].name, mmss(g.tick), TWT.diffs[g.diff]);
-      h = '<p class="twKick">' + esc(TWT.title) + "</p><p>" + esc(line) + "</p>";
-      btns = B("resume", U.resume, true) + B("newGame", U.newGame);
+      const g = G, line = cardData.snap && cardData.snap.crashed ? U("resumeCrash", mmss(g.tick)) : U("resumeLine", TWT.ages[g.age - 1].name, mmss(g.tick), TWT.diffs[g.diff]);
+      h = '<p class="twKick">' + esc(TWT.title) + "</p>" + P(line);
+      btns = B("resume", U("resume"), true) + B("newGame", U("newGame"));
     } else if (card === "pause") {
-      h = "<h2>" + esc(U.paused) + "</h2>" + (saveOk ? "" : '<p class="twSmall">' + esc(U.notSaved) + "</p>");
-      btns = B("resume", U.resume, true) + B("plan", U.plan) + B("music", U.music + (Snd.musicOn ? "" : " (off)")) + B("sound", U.sound + (Snd.sfxOn ? "" : " (off)")) + B("startOver", U.startOver) + B("leave", U.leave);
+      h = "<h2>" + esc(U("paused")) + "</h2>" + (saveOk ? "" : S(U("notSaved"))) +
+        '<div class="twTogs">' + T("hints", U("hints"), pref.hints) + T("music", U("music"), Snd.musicOn) + T("sound", U("sound"), Snd.sfxOn) + "</div>";
+      btns = B("resume", U("resume"), true) + B("plan", U("plan")) + B("howTo", U("howTo")) + B("startOver", U("startOver")) + B("leave", U("leave"));
+    } else if (card === "help") {
+      const H = TWT.help;
+      h = "<h2>" + esc(H ? H.title : U("howTo")) + '</h2><div class="twBody">' +
+        (H ? H.sections.map(s => "<h3>" + esc(s.head) + "</h3>" + s.lines.map(P).join("")).join("") : "") +
+        "<h3>" + esc(H ? H.hintsHead : U("hints")) + "</h3><ul>" + hintList().map(x => "<li>" + esc(x.line) + "</li>").join("") + "</ul>" +
+        (H && H.keys ? "<h3>" + esc(H.keysHead) + '</h3><dl class="twKeysL">' + H.keys.map(([a, b]) => "<dt>" + esc(a) + "</dt><dd>" + esc(b) + "</dd>").join("") + "</dl>" : "") + "</div>";
+      btns = B("helpBack", U("close"), true);
     } else if (card === "leave") {
-      h = "<p>" + esc(saveOk ? U.leaveSaved : U.leaveUnsaved) + "</p>";
-      btns = B("keep", U.keep, true) + B("leave", U.leave);
+      h = P(saveOk ? U("leaveSaved") : U("leaveUnsaved"));
+      btns = B("keep", U("keep"), true) + B("leave", U("leave"));
     } else if (card === "age") {
       h = '<p class="twKick">' + esc(A.numeral + " · " + A.dateline) + "</p><h2>" + esc(A.name) + "</h2>" +
         '<p class="twTownName">' + esc(A.town) + (A.hy ? ' <span class="twHy" lang="hy">' + esc(A.hy) + "</span>" : "") + "</p>" +
-        '<div class="twBody">' + A.lines.map(s => "<p>" + esc(s) + "</p>").join("") + A.license.map(s => '<p class="twSmall">' + esc(s) + "</p>").join("") + "</div>";
-      btns = B("cont", U.cont, true);
+        '<div class="twBody">' + A.lines.map(P).join("") + A.license.map(S).join("") + "</div>";
+      btns = B("cont", U("cont"), true);
     } else if (card === "win" || card === "lose") {
-      const win = card === "win", st = cardData.stars | 0;
-      h = (win ? '<p class="twStars" aria-label="' + esc(U.stars(st)) + '">' + '<svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>'.repeat(st) + "</p>" : "") +
-        "<h2>" + esc(win ? U.winHead(cardData.age) : cardData.cause === "soft" ? U.softLock : U.loseHead(cardData.age)) + "</h2>" +
-        '<p class="twSmall">' + esc(U.map(G ? G.seed : 0) + " · " + mmss(G ? G.tick : 0)) + "</p>" +
-        (win && cardData.bless ? '<p class="twBless">' + esc(cardData.bless.waiting ? U.blessWaiting : U.blessNew(cardData.bless.n)) + "</p>" : "");
-      btns = B("back", U.back, true) + B("again", U.playAgain) + B("newMap", U.newMap);
+      const win = card === "win", st = cardData.stars | 0, ix = Math.max(0, Math.min(2, (cardData.age | 0) - 1));
+      const W = win ? TWT.win && TWT.win[ix] : cardData.cause === "soft" ? TWT.softLose : TWT.lose && TWT.lose[ix];
+      const B0 = G ? pref.best[G.diff] : null, txt = x => (x && x.text) || String(x);
+      h = (win ? '<p class="twStars" role="img" aria-label="' + esc(U("stars", st)) + '">' + svg("i-star").repeat(st) + "</p>" : "") +
+        '<h2 id="twEndHead" aria-live="polite">' + esc(win ? U("winHead", cardData.age) : cardData.cause === "soft" ? U("softLock") : U("loseHead", cardData.age)) + "</h2>" +
+        '<div class="twBody">' + (W && W.lines ? W.lines.map(x => P(txt(x))).join("") : "") +
+        (win && cardData.bless ? '<p class="twBless">' + esc(cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n)) + "</p>" : "") +
+        (W && W.lic ? W.lic.map(x => S(txt(x))).join("") : "") + "</div>" +
+        S(U("map", G ? G.seed : 0) + " · " + TWT.mmss(G ? Math.floor(G.tick * DT) : 0) + (cardData.score !== undefined ? " · " + U("score", cardData.score) : "") + (cardData.best ? " · " + U("newBest") : "")) +
+        (B0 && B0.stars ? S(U("best", B0.stars, TWT.mmss(B0.timeS))) : "");
+      btns = B("back", U("back"), true) + B("again", U("playAgain")) + B("newMap", U("newMap"));
     } else if (card === "error") {
-      h = "<h2>" + esc(U.errorHead) + "</h2><p>" + esc(cardData.line === "cannot" ? U.cannotResume : saveOk && cardData.at >= 0 ? U.errorSaved(mmss(cardData.at)) : U.errorUnsaved) + "</p>";
-      btns = B("back", U.back, true) + B("reload", U.reload);
+      h = "<h2>" + esc(U("errorHead")) + "</h2>" + P(cardData.line === "cannot" ? U("cannotResume") : saveOk && cardData.at >= 0 ? U("errorSaved", mmss(cardData.at)) : U("errorUnsaved"));
+      btns = B("back", U("back"), true) + B("reload", U("reload"));
     }
     el.card.innerHTML = h + '<div class="twBtns">' + btns + "</div>";
     const p = el.card.querySelector(".primary");
@@ -64828,7 +66059,7 @@ townRegion("shell", () => { Town = (() => {
   function onCardClick(e) {
     const b = e.target && e.target.closest && e.target.closest("button");
     if (!b || !el.card.contains(b)) return;
-    Snd.init(); Snd.play("uiTick");
+    tick1();
     if (b.dataset.diff !== undefined) { cardData.diff = +b.dataset.diff; renderCard(); return; }
     if (b.dataset.map) { cardData.again = b.dataset.map === "again"; renderCard(); return; }
     if (b.dataset.ft) { cardData.ft = !cardData.ft; renderCard(); return; }
@@ -64841,11 +66072,12 @@ townRegion("shell", () => { Town = (() => {
         if (card === "resume") {
           if (cardData.snap) {
             const S = cardData.snap;
-            fromCrash = !!S.crashed; resumedAt = G.tick; live = true;
+            fromCrash = !!S.crashed; resumedAt = G.tick;
             if (S.ui && S.ui.view) { view.zoom = TWA.zoomSteps.includes(S.ui.view.zoom) ? S.ui.view.zoom : view.zoom; view.x = +S.ui.view.x || 0; view.y = +S.ui.view.y || 0; clampView(); }
             speed = S.ui && S.ui.speed === 2 ? 2 : 1;
+            hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {};
           }
-          live = true; TWA.setAge(G.age); TWS.open(G);
+          live = true; TWA.setAge(G.age); TWS.open(G); labels(); barKey = "";
           showCard("pause");                       // resuming opens on the pause card (8.4)
         } else showCard("");
         break;
@@ -64853,10 +66085,14 @@ townRegion("shell", () => { Town = (() => {
       case "newGameYes": removeRun(); G = TW.newGame({ seed: pref.lastSeed || 20261025, diff: G ? G.diff : 1, firstTown: false }); live = false; showCard("start"); break;
       case "startOver": cardData.ask = "startOver"; renderCard(); break;
       case "startOverYes": startGame(G.seed, G.diff, G.firstTown); break;
-      case "askNo": cardData.ask = ""; renderCard(); break;
+      case "demolishYes": { const b = bldOf(cardData.bld); showCard(""); if (b) { send({ k: "demolish", bld: b.id }); setSel(null); } break; }
+      case "askNo": if (card === "ask") showCard(""); else { cardData.ask = ""; renderCard(); } break;
       case "keep": case "cont": showCard(""); break;
       case "leave": case "back": close(); break;
       case "plan": plan(true); break;
+      case "howTo": showCard("help"); break;
+      case "helpBack": showCard("pause"); break;
+      case "hints": pref.hints = !pref.hints; savePref(); renderCard(); break;
       case "music": toggleMusic(); renderCard(); break;
       case "sound": toggleSfx(); renderCard(); break;
       case "again": startGame(G.seed, G.diff, pref.firstTown); break;
@@ -64872,12 +66108,15 @@ townRegion("shell", () => { Town = (() => {
   function startGame(seed, diff, firstTown) {
     removeRun();
     G = TW.newGame({ seed, diff, firstTown });
-    live = true; acc = 0; sel = null; fromCrash = false; resumedAt = -1; lastSnapTick = 0; savedTick = -1;
+    live = true; acc = 0; fromCrash = false; resumedAt = -1; lastSnapTick = 0; savedTick = -1;
+    setMode("none"); setSel(null); garPanel(false); openSheet(false);
+    hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; callQ.length = 0; callMsg = ""; alarmAt = -1e9; barKey = "";
     pref.lastSeed = seed; pref.diff = G.diff; pref.firstTown = !!firstTown; pref.played++;
     savePref();
     view.zoom = defaultZoom();
     centerOnTc();
-    TWA.setAge(G.age); TWS.open(G);
+    TWA.setAge(G.age); TWS.open(G); labels();
+    hint("start");
     showCard("age");
   }
   // plan while paused (9.12): the clock stays held; each command applies at once through TW.apply
@@ -64885,44 +66124,8 @@ townRegion("shell", () => { Town = (() => {
     if (!G || !live || G.over) return;
     if (on) { showCard(""); hold("plan", true); }
     else hold("plan", false);
-    root.classList.toggle("twPlanning", held.has("plan"));
+    tog(root, "twPlanning", held.has("plan"));
     hud(true);
-  }
-  function send(c) {
-    if (!G || !live || G.over) return { ok: false, err: "bad" };
-    const r = TW.command(G, c);
-    if (r.ok && held.has("plan")) { TW.apply(G); route(TW.drain(G)); hud(true); }
-    else if (!r.ok) say(TWT.err(r.err, Object.assign({ age: G.age }, r)));
-    return r;
-  }
-
-  // ---- events from the sim to the screen, the art and the sound ----
-  function route(evs) {
-    if (!evs.length) return;
-    TWA.fx(evs, G);
-    TWS.onEvents(evs, G, view, cssW);
-    for (const e of evs) {
-      if (e.e === "ageDone") { TWA.setAge(G.age); showCard("age"); }
-      else if (e.e === "ageStart") say(ui().advancing(TWT.ages[e.to - 1].name));
-      else if (e.e === "built") say(ui().built(TWT.name("bld", e.k, G.age)));
-      else if (e.e === "researched") say(ui().researched(TWT.name("tech", e.tech)));
-      else if (e.e === "noPop") say(TWT.err("pop"));
-      else if (e.e === "win" || e.e === "lose") endGame(e);
-    }
-  }
-  function endGame(e) {
-    removeRun();
-    const d = G.diff, win = e.e === "win";
-    let bless = null;
-    if (win) {
-      bless = grantBlessing(e.stars);
-      pref.won[d]++;
-      pref.firstTown = false;
-      const b = pref.best[d], t = Math.floor(G.tick * DT);
-      if (e.stars > b.stars || (e.stars === b.stars && (!b.timeS || t < b.timeS))) { b.stars = e.stars; b.timeS = t; }
-    }
-    savePref();
-    showCard(win ? "win" : "lose", { stars: e.stars | 0, age: win ? e.age : G.age, cause: e.cause, bless });
   }
 
   // ---- the frame ----
@@ -64931,9 +66134,11 @@ townRegion("shell", () => { Town = (() => {
     if (!open || broken) return;
     frameBody(t);
   }
+  let twsAt = 0;
   const frameBody = guard(t => {
     const dt = Math.min(Math.max(0, (t - last) / 1000), 0.25);
     last = t;
+    if (G && live) gestures(dt);
     if (G && live && !G.over) {
       if (!held.size) {
         const t0 = performance.now();
@@ -64945,34 +66150,63 @@ townRegion("shell", () => { Town = (() => {
         if (G.tick - lastSnapTick >= Math.round(30 / DT)) snapshot();
       } else route(TW.drain(G));
     }
+    if (card === "age" && G) TWA.prebake(G, view);    // the new age's ground bakes while its card is read
+    if (G && t - twsAt >= 500) { twsAt = t; TWS.tick(G, view); }
     paint(t);
   });
   function paint(t) {
     if (!G) return;
+    view.sel = selView();
+    TWA.ghost(ghostSpec());
     TWA.draw(G, view, held.size ? 0 : acc / DT, t);
     if (t - miniAt >= 250 || t < miniAt) { miniAt = t; TWA.drawMini(G, view); }
     if (t - hudAt >= 100 || t < hudAt) { hudAt = t; hud(); }
+    placeGB();
   }
   const setT = (e, s) => { if (e && e.textContent !== s) e.textContent = s; };
-  function hud(force) {
+  const tog = (e, c, v) => { if (e && e.classList.contains(c) !== !!v) e.classList.toggle(c, !!v); };
+  const lab = (e, s) => { if (e && e.getAttribute("aria-label") !== s) e.setAttribute("aria-label", s); };
+  const nextText = () => { const n = TW.next(G); return n.k === "dismiss" ? U("softLockCall") : n.k === "over" ? "" : TWT.next(n); };
+  function hud() {
     if (!G || !root) return;
-    const A = TWT.ages[G.age - 1], wb = G.wonder ? G.blds.find(b => b.id === G.wonder) : null;
+    const a = G.age, A = TWT.ages[a - 1], wb = G.wonder ? bldOf(G.wonder) : null, t = performance.now(), L = TW.labor(G);
     setT(el.age.firstChild, A.numeral + " " + A.town + (wb ? " " + Math.floor(wb.done * 100) + "%" : ""));
-    for (const r of ["f", "w", "s", "g"]) {
-      const n = String(Math.floor(G.res[r]));
-      setT(el.res[r].lastChild, n);
-      const lab = TWT.name("res", r, G.age) + " " + n;
-      if (el.res[r].getAttribute("aria-label") !== lab) el.res[r].setAttribute("aria-label", lab);
+    for (const r of RES) {
+      const n = Math.floor(G.res[r]);
+      setT(el.res[r].lastChild, String(n));
+      lab(el.res[r], TWT.name("res", r, a) + " " + n);
+      tog(el.res[r], "twLack", (flashUntil[r] || 0) > t);
+      setT(el.dk[r + "0"].lastChild, String(L[r]));
     }
-    const pop = G.units.filter(u => !u.dead && u.side === 0).length;
-    setT(el.pop.lastChild, pop + "/" + G.popCap);
-    el.pop.classList.toggle("warn", G.popCap - pop <= 2 && G.popCap - pop > 0);
-    el.pop.classList.toggle("full", G.popCap - pop <= 0);
-    const ri = TW.raidInfo(G), U = ui();
-    setT(el.raid.lastChild, ri.live.length ? U.raidNow : ri.held ? U.raidsWait : TWT.mmss(Math.max(0, ri.nextWarn - G.tick) * DT));
-    setT(el.next, TWT.next(TW.next(G)));
+    tog(el.res.f, "twPil", pilUntil > t);
+    const room = G.popCap - L.pop;
+    setT(el.pop.lastChild, L.pop + "/" + G.popCap);
+    tog(el.pop, "warn", room <= 2 && room > 0); tog(el.pop, "full", room <= 0);
+    lab(el.pop, U("pop", L.pop, G.popCap));
+    const ri = TW.raidInfo(G), on = G.units.some(u => !u.dead && u.side === 1), w = ri.warn[0];
+    const rt = on ? U("raidNow") : ri.held ? U("raidsWait") : TWT.mmss(Math.max(0, (w ? w.spawnAt : ri.nextWarn) - G.tick) * DT);
+    setT(el.raid.lastChild, rt);
+    tog(el.raid, "warn", !!w && !on); tog(el.raid, "live", on); tog(el.raid, "dim", !w && !on);
+    lab(el.raid, TWT.ui && TWT.ui.raidChipAria ? U("raidChipAria", a, rt, on, ri.held) : on ? U("raidNow") : U("raidIn", rt));
+    setT(el.next, nextText());
     setT(el.speed, speed + "x");
-    el.speed.disabled = held.has("plan");
+    tog(el.speed, "off", held.has("plan"));
+    const idle = idleVils().length, gn = garUnits().length;
+    setT(el.idle.lastChild, U("idle", idle)); tog(el.idle, "twNone", !idle); lab(el.idle, U("idleAria", idle));
+    setT(el.shield.lastChild, U("shield", gn)); lab(el.shield, U("shieldAria", gn));
+    setT(el.alarm.lastChild, G.alarm.on ? U("allClearBtn") : U("alarm"));
+    tog(el.alarm, "ring", !!G.alarm.on && !reducedMotion()); tog(el.alarm, "lit", !!G.alarm.on);
+    tog(el.alarm, "off", (!G.alarm.on && !raidOn()) || held.has("plan"));
+    lab(el.alarm, G.alarm.on ? U("allClearAria") : U("alarmAria"));
+    if (ghost) check(true);
+    else if (mode === "wall") wallGhost();
+    barState();
+    panels();
+    hints(); showCall(); coach();
+    if (again && again.until && pnow() > again.until) { again = null; el.again.classList.remove("on"); }
+    if (bubbleT && t > bubbleT) { bubbleT = 0; el.bubble.classList.remove("on"); }
+    tog(root, "twPlanning", held.has("plan"));
+    tog(root, "twRM", reducedMotion());
   }
 
   // ---- leaving the app (13.7): hold and save when hidden, the pause card when back; Safari's back swipe ----
@@ -65001,50 +66235,77 @@ townRegion("shell", () => { Town = (() => {
     root.classList.toggle("twNoUi", o.ui === false);
     TWA.init(cv, mini);
     layoutNow();
-    G = TW.stage(o.stage || "age1", 20261025, 1, { p: o.p });
-    live = true;
-    TWA.setAge(G.age);
+    const st = o.stage || "age1";
+    G = TW.stage(st, 20261025, 1, { p: o.p });
+    live = true; hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; barKey = "";
+    TWA.setAge(G.age); labels();
     view.zoom = o.zoom > 0 ? o.zoom : defaultZoom();
     if (o.cx >= 0 && o.cy >= 0) centerOn(o.cx, o.cy); else centerOnTc();
+    if (st === "first") hint("start");
     const c = String(o.card || ""), m = /^(win|lose)([123])$/.exec(c);
-    if (m) showCard(m[1], { stars: m[1] === "win" ? +m[2] : 0, age: +m[2], bless: { n: BLESS_BY_STARS[+m[2]], waiting: false } });
+    if (m) showCard(m[1], { stars: m[1] === "win" ? +m[2] : 0, age: +m[2], bless: { n: BLESS_BY_STARS[+m[2]], waiting: false }, score: score(m[1] === "win", +m[2]) });
     else if (/^age[123]$/.test(c)) showCard("age");
     else if (c === "resumeCrash") showCard("resume", { snap: { crashed: true } });
-    else if (["start", "resume", "pause", "leave", "error"].includes(c)) showCard(c, c === "error" ? { at: G.tick } : {});
+    else if (["start", "resume", "pause", "leave", "error", "help"].includes(c)) showCard(c, c === "error" ? { at: G.tick } : {});
     else showCard("");
-    TWA.draw(G, view, 0, 0);
+    if (c === "tech") openSheet(true);
+    if (c === "labor") laborLine("f");
+    if (st === "plan" && !card) plan(true);
+    hud();
+    view.sel = selView();
+    TWA.ghost(ghostSpec());
+    TWA.draw(G, view, 0, 0);      // nowMs 0: the harness's picture is baked whole
     TWA.drawMini(G, view);
-    hud(true);
+    placeGB();
   }
 
-  // ---- what the self-test drives (13.11) ----
+  // ---- what the self-test and the tools drive (13.11) ----
   const client = (tx, ty) => { const r = cv.getBoundingClientRect(), p = TWA.toScreen(view, tx + 0.5, ty + 0.5); return { x: r.left + p.x, y: r.top + p.y }; };
-  const ptr = (type, x, y, id, kind) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, bubbles: true, isPrimary: id === 31, pointerType: kind || "touch", button: 0, buttons: type === "pointerup" ? 0 : 1 }));
-  const BUTTONS = { age: "twAge", raid: "twRaid", speed: "twSpeed", pause: "twPause", leave: "twLeave", zoomIn: "twZoomIn", zoomOut: "twZoomOut", planResume: "twPlanGo", next: "twNext" };
+  const ptr = (type, x, y, id, kind, btn) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: id, bubbles: true, isPrimary: id === 31,
+    pointerType: kind || "touch", button: type === "pointermove" ? -1 : btn || 0, buttons: type === "pointerup" || type === "pointercancel" ? 0 : 1 << (btn || 0) }));
+  const at_ = (tx, ty, dy) => { const p = client(tx, ty); return [p.x, p.y + (dy || 0)]; };
+  const BUTTONS = { age: "twAge", raid: "twRaid", speed: "twSpeed", pause: "twPause", leave: "twLeave", zoomIn: "twZoomIn", zoomOut: "twZoomOut", planResume: "twPlanGo",
+    next: "twNext", alarm: "twAlarm", idle: "twIdle", shield: "twShield", pop: "twPop", ghostOk: "twGhostOk", ghostX: "twGhostX", ghostRot: "twGhostRot", again: "twAgain" };
+  const DOCK = { Food: "f", Wood: "w", Stone: "s", Goods: "g" };
   const test = {
-    get G() { return G; }, set G(v) { G = v; live = !!v; acc = 0; },
-    step(n) { for (let i = 0; i < (n | 0) && G && !G.over; i++) { TW.tick(G); route(TW.drain(G)); } if (G) route(TW.drain(G)); hud(true); },
+    get G() { return G; }, set G(v) { G = v; live = !!v; acc = 0; setMode("none"); setSel(null); barKey = ""; if (v) { TWA.setAge(v.age); labels(); } hud(); },
+    step(n) { for (let i = 0; i < (n | 0) && G && !G.over; i++) { TW.tick(G); route(TW.drain(G)); } if (G) route(TW.drain(G)); hud(); },
     cmd: c => send(c),
     client,
-    tap(tx, ty, type) { const p = client(tx, ty); ptr("pointerdown", p.x, p.y, 31, type); ptr("pointerup", p.x, p.y, 31, type); },
-    drag(path, type) {
-      const pts = path.map(([x, y]) => client(x, y));
-      ptr("pointerdown", pts[0].x, pts[0].y, 31, type);
-      for (const p of pts.slice(1)) ptr("pointermove", p.x, p.y, 31, type);
-      const e = pts[pts.length - 1]; ptr("pointerup", e.x, e.y, 31, type);
+    tap(tx, ty, type) { const [x, y] = at_(tx, ty); ptr("pointerdown", x, y, 31, type); ptr("pointerup", x, y, 31, type); },
+    drag(path, type, dy) {
+      const pts = path.map(([x, y]) => at_(x, y, dy));
+      ptr("pointerdown", pts[0][0], pts[0][1], 31, type);
+      for (const p of pts.slice(1)) ptr("pointermove", p[0], p[1], 31, type);
+      const e = pts[pts.length - 1]; ptr("pointerup", e[0], e[1], 31, type);
     },
+    // one pointer at a time, at a tile (dy: CSS px below its center): down, move, up, cancel
+    down(tx, ty, id, type, dy, btn) { const [x, y] = at_(tx, ty, dy); ptr("pointerdown", x, y, id || 31, type, btn); },
+    move(tx, ty, id, type, dy) { const [x, y] = at_(tx, ty, dy); ptr("pointermove", x, y, id || 31, type); },
+    up(tx, ty, id, type, dy, btn) { const [x, y] = at_(tx, ty, dy); ptr("pointerup", x, y, id || 31, type, btn); },
+    cancel(id) { ptr("pointercancel", 0, 0, id || 31); },
     pinch(cx, cy, scale) {
       ptr("pointerdown", cx - 60, cy, 31); ptr("pointerdown", cx + 60, cy, 32);
       ptr("pointermove", cx - 60 * scale, cy, 31); ptr("pointermove", cx + 60 * scale, cy, 32);
       ptr("pointerup", cx - 60 * scale, cy, 31); ptr("pointerup", cx + 60 * scale, cy, 32);
+      ease = null; zoomTo(TWA.zoomSteps[nearestStep(view.zoom)], cx, cy);
     },
+    later(ms) { tOff += ms; gestures(0); },   // gesture time passes (a long press, the double-tap window)
     key(code, opts) { root.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ code, key: code, bubbles: true }, opts || {}))); },
-    view: () => view, layout: () => ({ w: cssW, h: cssH, dpr }), isOpen: () => open, rafOn: () => raf !== 0, root: () => root,
-    held: () => new Set(held), card: () => card, sheet: () => "", sel: () => sel, mode: () => mode,
-    callLine: () => (el.call ? el.call.textContent : ""), nextLine: () => (el.next ? el.next.textContent : ""),
+    view: () => view, layout: () => ({ w: cssW, h: cssH, dpr, area: Object.assign({}, area) }), isOpen: () => open, rafOn: () => raf !== 0, root: () => root,
+    held: () => new Set(held), card: () => card, sheet: () => (sheet ? "age" : ""), sel: () => sel, mode: () => (gest === "pinch" || gest === "box" ? gest : mode),
+    gesture: () => gest, ghost: () => ghost && Object.assign({}, ghost), strokes: () => strokes.length, wall: () => wallCells.slice(), garOpen: () => garOpen,
+    callLine: () => (el.call ? el.call.textContent : ""), nextLine: () => (el.next ? el.next.textContent : ""), hint: () => (hintCur ? hintList()[hintCur.i].id : ""),
+    coached: () => (coachEl ? coachEl.id || coachEl.dataset.b || "" : ""),
     button(name) {
       if (!root) return null;
-      if (name.startsWith("card:")) return el.card.querySelector('[data-act="' + name.slice(5) + '"]');
+      const m = /^(card|info|gar|sheet|wall|build|dock(Food|Wood|Stone|Goods)):?(.*)$/.exec(name);
+      if (m && m[1] === "card") return el.card.querySelector('[data-act="' + m[3] + '"]');
+      if (m && (m[1] === "info" || m[1] === "gar" || m[1] === "sheet")) return el[m[1]].querySelector('[data-a="' + m[3] + '"]');
+      if (m && m[1] === "wall") return el.w[m[3]] || null;
+      if (m && m[1] === "build") return el.build.querySelector('[data-b="' + m[3] + '"]');
+      if (m && m[2]) return el.dk[DOCK[m[2]] + (m[3] === "+" ? "1" : m[3] === "-" ? "-1" : "0")] || null;
+      if (/^res:[fwsg]$/.test(name)) return el.res[name[4]];
       return BUTTONS[name] ? root.querySelector("#" + BUTTONS[name]) : null;
     },
     plan: on => plan(!!on),
@@ -65053,12 +66314,13 @@ townRegion("shell", () => { Town = (() => {
       if (held.size || !G || !live) return;
       acc += ms / 1000 * speed;
       while (acc >= DT && !G.over && !held.size) { TW.tick(G); acc -= DT; route(TW.drain(G)); }
-      hud(true);
+      hud();
     },
     hide: on => onVis(!!on), back: () => onPop(),
     snapshot: () => snapshot(), saveOk: () => saveOk, failWrites(on) { failW = !!on; },
     seed(n) { nextSeed = n | 0; },
     perf: () => Object.assign(TWA.stats(), { simMs }),
+    hud: () => hud(), frame: t => frameBody(t === undefined ? last + 16 : t),
   };
 
   // ---- the page's listeners, then the door, last: it exists only when every town region loaded ----
@@ -65959,10 +67221,13 @@ function townSelftest(check, res) {
   });
 
   // -- WP4 checks (10) --
-  // 10 (WP1-A's basic form; WP4 adds the touch flows): the door on the map, hidden on the chronicle and the
-  // victory page and clear of the title, the subtitle and the other buttons; opening it; keys kept from the map;
-  // the start and age cards; the Next line; the zoom buttons; the pause card and plan mode hold the clock; hidden
-  // and shown again; the back swipe; the resume card; an honest leave card when a save did not stick; a clean close
+  // 10: the door on the map, hidden on the chronicle and the victory page and clear of the title, the subtitle and
+  // the other buttons; opening it; keys kept from the map; the start and age cards; the Next line; the zoom
+  // buttons; by synthetic touch: a House placed by its button, a dragged ghost and the check, with its builder;
+  // the workers dock; a one-shot villager selection; a long press that inspects and starts no box; a wall stroke
+  // and a second finger that cancels the next one, then Build; the pause card and plan mode hold the clock; the
+  // shield chip's Spearmen; hidden and shown again; the back swipe; the resume card; an honest leave card when a
+  // save did not stick; a clean close
   check("town door and shell", () => {
     const saved = keepKeys();
     try {
@@ -66000,8 +67265,8 @@ function townSelftest(check, res) {
       T.button("card:begin").click();
       if (T.card() !== "age" || !/Biainili/.test(T.root().querySelector("#twCard").textContent)) throw new Error("no Age 1 card after Begin");
       T.button("card:cont").click();
-      const G = T.G;
-      if (T.card() || T.held().size || !G || G.seed !== 4821 || G.tick !== 0) throw new Error("Begin did not start a game on map 4821");
+      const G = T.G, tc = G.blds.find(b => b.k === "tc");
+      if (T.card() || T.held().size || !G || G.seed !== 4821 || G.tick !== 0 || !G.firstTown) throw new Error("Begin did not start a first town on map 4821");
       if (!/House/.test(T.nextLine())) throw new Error("the Next line does not ask for a House: " + T.nextLine());
       T.step(10);
       if (G.tick !== 10) throw new Error("step did not run the sim");
@@ -66010,29 +67275,97 @@ function townSelftest(check, res) {
       const z1 = T.view().zoom;
       T.button("zoomOut").click();
       if (!(z1 > z0) || T.view().zoom !== z0) throw new Error("the zoom buttons do not step the zoom: " + [z0, z1, T.view().zoom]);
+      const near = (ok, from) => { for (let d = from; d < 16; d++) for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue; const x = tc.x + dx, y = tc.y + dy; if (ok(x, y)) return [x, y]; } return null; };
+      const clear = (x, y, r) => !G.units.some(u => !u.dead && Math.abs(u.x - x - 0.5) < r && Math.abs(u.y - y - 0.5) < r);
+      // a House by touch: its button, the ghost dragged (it rides 56 px above the finger), the check
+      T.button("build:house").click();
+      const g0 = T.ghost(), hs = near((x, y) => TW.canPlace(G, "house", x, y, 0).ok && (x !== g0.x || y !== g0.y) && clear(x + 0.5, y + 0.5, 2), 3);
+      if (T.mode() !== "place" || !g0 || !hs) throw new Error("the House button did not bring a ghost");
+      T.down(g0.x + 0.5, g0.y + 0.5);
+      T.move(hs[0], hs[1], 31, "touch", 56);
+      T.up(hs[0], hs[1], 31, "touch", 56);
+      const g1 = T.ghost();
+      if (!g1 || g1.x !== hs[0] || g1.y !== hs[1] || !g1.ok) throw new Error("the dragged ghost is not where the finger put it: " + JSON.stringify([g1, hs]));
+      T.button("ghostOk").click();
+      T.step(1);
+      const house = G.blds.find(b => b.k === "house" && b.x === hs[0] && b.y === hs[1]);
+      if (T.mode() !== "none" || !house || house.done >= 1 || !house.builders.length) throw new Error("no House foundation with a builder");
+      if (!T.button("again").classList.contains("on")) throw new Error("no Place another after a House");
+      if (!/Field/.test(T.nextLine())) throw new Error("the Next line did not move on to a Field: " + T.nextLine());
+      // the workers dock: "-" on Food idles one, "+" on Wood sends an idle villager; "-" then "+" moves one from wood to stone
+      const L0 = TW.labor(G);
+      T.button("dockFood-").click(); T.step(1);
+      const L1 = TW.labor(G);
+      T.button("dockWood+").click(); T.step(1);
+      const L2 = TW.labor(G);
+      T.button("dockWood-").click(); T.button("dockStone+").click(); T.step(1);
+      const L3 = TW.labor(G);
+      if (L1.f !== L0.f - 1 || L1.idle !== L0.idle + 1 || L2.w !== L1.w + 1 || L2.idle !== L1.idle - 1 || L3.w !== L2.w - 1 || L3.s !== L2.s + 1)
+        throw new Error("the dock did not move workers: " + JSON.stringify([L0, L1, L2, L3].map(L => [L.f, L.w, L.s, L.idle])));
+      // a villager selection is one-shot on touch: a villager, then a tree, and the selection is gone
+      T.later(400);
+      T.step(150);   // the villagers spread out to their work
+      const v = G.units.find(u => !u.dead && u.k === "vil" && !u.shel && u.task && u.task.t === "gather" && G.units.filter(o => !o.dead && Math.abs(o.x - u.x) < 0.8 && Math.abs(o.y - u.y) < 0.8).length === 1);
+      const tree = v && G.nodes.filter(n => !n.dead && n.k === "tree" && !n.workers && clear(n.x, n.y, 1.6)).sort((a, b) => Math.abs(a.x - v.x) + Math.abs(a.y - v.y) - Math.abs(b.x - v.x) - Math.abs(b.y - v.y))[0];
+      if (!v || !tree) throw new Error("no lone villager and free tree to try");
+      T.tap(v.x - 0.5, v.y - 0.5);
+      if (!T.sel() || T.sel().kind !== "units" || T.sel().ids[0] !== v.id) throw new Error("a tap did not select the villager");
+      T.later(400);
+      T.tap(tree.x, tree.y);
+      T.step(1);
+      if (T.sel() || !v.task || v.task.node !== tree.id) throw new Error("the villager selection stayed, or the villager was not sent: " + JSON.stringify(T.sel()));
+      // a long press on empty ground inspects, and selects nothing and starts no box
+      T.later(400);
+      const open3 = (x, y) => { for (let dy = 0; dy <= 2; dy++) for (let dx = -1; dx <= 1; dx++) { const i = (y + dy) * TW.W + x + dx; if (G.map.terr[i] !== 0 || G.map.occ[i] || G.map.wdist[i] <= 2) return false; } return true; };
+      const gr = near((x, y) => open3(x, y) && clear(x, y, 2.5), 2);
+      T.down(gr[0], gr[1]);
+      T.later(450);
+      const said = T.callLine();
+      T.up(gr[0], gr[1]);
+      if (!/Grass/.test(said) || T.sel() || T.mode() !== "none" || T.gesture()) throw new Error("the long press did not just inspect: " + said);
+      // a wall by finger: a 5-tile stroke; a second finger cancels the next stroke; Build places the five
+      T.button("build:wall").click();
+      const run = near((x, y) => [0, 1, 2, 3, 4].every(i => TW.canPlace(G, "wall", x + i, y, 0).ok && clear(x + i, y, 1)) && [0, 1, 2, 3, 4].every(i => TW.canPlace(G, "wall", x + i, y + 3, 0).ok), 4);
+      if (T.mode() !== "wall" || !run) throw new Error("no wall mode, or no room for a wall");
+      T.drag([[run[0], run[1]], [run[0] + 2, run[1]], [run[0] + 4, run[1]]]);
+      if (T.strokes() !== 1 || T.wall().filter(c => c.ok).length !== 5) throw new Error("the stroke is not 5 tiles: " + T.wall().length);
+      T.down(run[0], run[1] + 3); T.move(run[0] + 4, run[1] + 3); T.down(run[0] + 2, run[1] + 6, 32);
+      const pin = T.mode();
+      T.up(run[0] + 4, run[1] + 3); T.up(run[0] + 2, run[1] + 6, 32);
+      if (pin !== "pinch" || T.strokes() !== 1 || T.wall().length !== 5) throw new Error("a second finger did not cancel the stroke");
+      T.button("wall:build").click();
+      T.step(1);
+      if (T.mode() !== "none" || G.blds.filter(b => b.k === "wall" && b.y === run[1] && b.x >= run[0] && b.x < run[0] + 5).length !== 5) throw new Error("Build did not place the 5 wall tiles");
+      // the pause card holds the clock; plan while paused: the clock stays, a foundation appears at once
       T.button("pause").click();
       const t1 = G.tick;
       T.skip(60000);
       if (T.card() !== "pause" || G.tick !== t1) throw new Error("the pause card does not hold the clock");
-      // plan while paused: the clock stays held, and a foundation appears at once
       T.button("card:plan").click();
       if (T.card() || !T.held().has("plan")) throw new Error("plan mode did not open");
-      let site = null;
-      const tc = G.blds.find(b => b.k === "tc");
-      for (let d = 3; d < 14 && !site; d++) for (let dy = -d; dy <= d && !site; dy++) for (let dx = -d; dx <= d && !site; dx++) if (TW.canPlace(G, "house", tc.x + dx, tc.y + dy, 0).ok) site = [tc.x + dx, tc.y + dy];
-      const n0 = G.blds.length, placed = site && T.cmd({ k: "place", type: "house", x: site[0], y: site[1], rot: 0 });
+      let fs = null;
+      for (let i = 0; i < TW.W * TW.H && !fs; i++) if (G.map.fert[i] && TW.canPlace(G, "field", i % TW.W, (i - i % TW.W) / TW.W, 0).ok) fs = [i % TW.W, (i - i % TW.W) / TW.W];
+      const n0 = G.blds.length, placed = fs && T.cmd({ k: "place", type: "field", x: fs[0], y: fs[1], rot: 0 });
       if (!placed || !placed.ok || G.blds.length !== n0 + 1 || G.tick !== t1) throw new Error("a foundation placed in plan mode did not appear at once");
       T.skip(60000);
       if (G.tick !== t1) throw new Error("plan mode does not hold the clock");
-      if (!/Field/.test(T.nextLine())) throw new Error("the Next line did not move on to a Field: " + T.nextLine());
+      if (!/Storehouse/.test(T.nextLine())) throw new Error("the Next line did not move on to a Storehouse: " + T.nextLine());
       T.button("planResume").click();
       if (T.held().size) throw new Error("Resume did not release plan mode");
       T.skip(1000);
       if (G.tick !== t1 + 10) throw new Error("the clock does not run at 1x: " + (G.tick - t1));
+      // the shield chip: the garrison selected and its panel; Spearmen queues one at the barracks (a staged Age 2 town)
+      T.G = TW.stage("age2", 4821, 1);
+      const S2 = T.G, bk = S2.blds.find(b => b.k === "barracks" && b.done >= 1), q0 = bk ? bk.q.length : -1;
+      T.button("shield").click();
+      if (!T.garOpen() || !T.sel() || T.sel().ids.length !== S2.units.filter(u => !u.dead && !u.side && u.k !== "vil").length) throw new Error("the shield chip did not select the garrison");
+      T.button("gar:gtrain:spear").click();
+      T.step(1);
+      if (!bk || bk.q.length !== q0 + 1 || bk.q[bk.q.length - 1].k !== "spear") throw new Error("the shield chip's Spearmen did not queue one at the barracks");
       // the page hidden: held and saved; shown again: the pause card
       T.hide(true);
       const snap = JSON.parse(localStorage.getItem("hs_town_run") || "null");
-      if (!T.held().has("hidden") || !snap || !snap.state || snap.state.tick !== G.tick || !T.saveOk()) throw new Error("hiding the page did not hold and save");
+      if (!T.held().has("hidden") || !snap || !snap.state || snap.state.tick !== S2.tick || !T.saveOk()) throw new Error("hiding the page did not hold and save");
       T.hide(false);
       if (T.card() !== "pause") throw new Error("no pause card on coming back");
       T.button("card:resume").click();
