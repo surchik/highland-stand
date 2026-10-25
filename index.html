@@ -59697,70 +59697,312 @@ function townRegion(name, fn) {
 }
 
 // ---- TEXT BEGIN town ----   (WP6)  pure data and wording, no page globals; tools/town-extract.js loads it in Node
-// TWT: every player-facing string of the town (spec 12). WP1-A STUB: names for every id of TW.DATA, the start,
-// age, pause, leave, resume, end and error cards and the Next line, drawn from the spec's drafts (12.3, 12.4);
-// WP6 replaces it with the full set, its cites and the help page. The text rules of 12.1 hold for every string.
+// TWT: every player-facing string of the town (spec 12), pure data and wording (no page globals, no DOM).
+// A history line is { text, cite }. cite is "game" (game text or license), a path into
+// docs/history/town-history.json ("age1.safe_lines[3]" is ages[0].safe_lines[3]; setting.* and design_handoff.*
+// are top level), "GAME:<id>" (a campaign sentence the history file carries as an item), or a list of them.
+// tools/town-text-check.js applies the rules of 12.1 to every string, resolves every cite and checks every number
+// of a line against its items; the selftest's "town text" check (14.1 check 1) repeats what needs no history file.
+// Game numbers (costs, times, raid sizes, wonder work) never appear in history lines: UI strings take them from
+// TW.DATA at run time (effect(), costWords()), so tuning never touches text.
 townRegion("text", () => { TWT = (() => {
-  const AGES = [
-    { id: "biainili", name: "Age of Biainili", town: "Erebuni", numeral: "I", hy: "Էրեբունի",
-      dateline: "Erebuni, 8th century BC.",
-      lines: ["Argishti I founded Erebuni in 782 BC, by the usual dating.",
-        "The kings of Urartu called their land Biainili.",
-        "From Erebuni, Argishti struck north toward Etiuni and Lake Sevan."],
-      license: ["No siege of Erebuni is recorded. The raids on your town are the game's invention."] },
-    { id: "artashat", name: "Age of Artashat", town: "Artashat", numeral: "II", hy: "Արտաշատ",
-      dateline: "66 to 77 AD.",
-      lines: ["Centuries pass. Your town now stands for Artashat, the capital on the Araxes.",
-        "From the lands of Urartu rose Armenia.",
-        "King Artaxias I founded Artashat on the Araxes, about 176 BC.",
-        "In 58 or 59 AD Roman legions under Corbulo reached Artashat. Its people surrendered, and the Romans burned the city.",
-        "Nero crowned Tiridates I in Rome in 66 AD. Tiridates came home with craftsmen to rebuild his capital."],
-      license: ["Craftsmen arrive. Your builders work faster for a while.",
-        "Alan horsemen raided Armenia around 72 AD, but Josephus names no town they attacked. Their raids on your town are the game's invention."] },
-    { id: "dvin", name: "Age of Dvin", town: "Dvin", numeral: "III", hy: "Դվին",
-      dateline: "The 640s.",
-      lines: ["Centuries pass. Your town now stands for Dvin, built just north of old Artashat.",
-        "Armenia had taken Christianity as its faith early in the fourth century.",
-        "Tradition credits King Khosrov III with building Dvin around 335.",
-        "By the sixth century Dvin was also the seat of the catholicos, head of the Armenian Church.",
-        "In the 640s armies of the Rashidun Caliphate raided Armenia."],
-      license: [] },
+  const h = (text, cite) => ({ text, cite }), G = "game";
+  const LIC = "design_handoff.license_flags";
+  const txt = a => a.map(x => x.text);
+  const ix = age => Math.max(0, Math.min(2, (age | 0) - 1));
+  const pickAge = (v, age) => (Array.isArray(v) ? v[Math.min(v.length - 1, ix(age))] : v);
+
+  // ---- 1, 2: the start card's intro, with the composite-town disclosure (said once, plainly) ----
+  const INTRO = [
+    h("Raise one town through three ages on the Ararat plain.", G),
+    h("This town is not one real place. It stands for three towns of the Ararat plain, one in each age: Erebuni, then Artashat, then Dvin.",
+      [LIC + "[0]", "setting.recommendation", "setting.why[1]", "setting.why[2]", "GAME:tushpa.erebuni"]),
+    h("All three stood on the Ararat plain, with Mount Ararat to the south.",
+      ["setting.recommendation", "setting.why[0]", "setting.why[1]", "GAME:tushpa.erebuni"]),
+    h("Gather, build and wall your town. Raiders come on a clock. Finish your age's wonder to win. A later wonder earns more stars.", G),
   ];
-  // names per age: one string for every age, or three
+  const ALL_LIC = h("Your town and its raids are the game's invention.", [LIC + "[0]", LIC + "[1]"]);
+
+  // ---- 3: the ages and their cards (12.3); hy and hyClassical are the Armenian forms of 12.3 ----
+  const AGES = [
+    { id: "biainili", name: "Age of Biainili", town: "Erebuni", numeral: "I", hy: "Էրեբունի", hyClassical: "",
+      tc: "palace", date: h("Erebuni, 8th century BC.", "age1.dateline"),
+      card: [h("Argishti I founded Erebuni in 782 BC, by the usual dating.", "age1.safe_lines[0]"),
+        h("The kings of Urartu called their land Biainili.", "age1.safe_lines[1]"),
+        h("From Erebuni, Argishti struck north toward Etiuni and Lake Sevan.", "GAME:erebuni.north")],
+      lic: [h("No siege of Erebuni is recorded. The raids on your town are the game's invention.", ["age1.safe_lines[7]", LIC + "[1]"])] },
+    { id: "artashat", name: "Age of Artashat", town: "Artashat", numeral: "II", hy: "Արտաշատ", hyClassical: "",
+      tc: "citadel", date: h("66 to 77 AD.", "age2.dateline"),
+      card: [h("Centuries pass. Your town now stands for Artashat, the capital on the Araxes.", ["age2.core_claims[0]", "age2.safe_lines[0]"]),
+        h("From the lands of Urartu rose Armenia.", "GAME:chapter1.intro"),
+        h("King Artaxias I founded Artashat on the Araxes, about 176 BC.", "age2.safe_lines[0]"),
+        h("In 58 or 59 AD Roman legions under Corbulo reached Artashat. Its people surrendered, and the Romans burned the city.", "age2.safe_lines[3]"),
+        h("Nero crowned Tiridates I in Rome in 66 AD. Tiridates came home with craftsmen to rebuild his capital.", "age2.safe_lines[4]")],
+      lic: [h("Craftsmen arrive. Your builders work faster for a while.", [G, "age2.techs[9]"]),
+        h("Alan horsemen raided Armenia around 72 AD, but Josephus names no town they attacked. Their raids on your town are the game's invention.", ["age2.safe_lines[5]", "age2.do_not_claim[5]"])] },
+    { id: "dvin", name: "Age of Dvin", town: "Dvin", numeral: "III", hy: "Դվին", hyClassical: "Դուին",
+      tc: "palace", date: h("The 640s.", "age3.dateline"),
+      card: [h("Centuries pass. Your town now stands for Dvin, built just north of old Artashat.", ["age3.core_claims[0]", "setting.why[2]"]),
+        h("Armenia had taken Christianity as its faith early in the fourth century.", "GAME:avarayr.faith"),
+        h("Tradition credits King Khosrov III with building Dvin around 335.", "age3.safe_lines[0]"),
+        h("By the sixth century Dvin was also the seat of the catholicos, head of the Armenian Church.", "GAME:dvin.catholicos"),
+        h("In the 640s armies of the Rashidun Caliphate raided Armenia.", "age3.raiders[0]")],
+      lic: [h("The raids on your town are the game's invention.", LIC + "[1]")] },
+  ];
+  for (const A of AGES) { A.dateline = A.date.text; A.lines = txt(A.card); A.license = txt(A.lic); }
+
+  // ---- 9: end cards. A win card: heading, lines, the blessing line (ui.blessNew), then the license lines ----
+  const WIN = [
+    { head: h("The Temple of Haldi stands.", G),
+      lines: [h("A painting in Erebuni's temple shows the god Haldi standing on a lion.", "age1.safe_lines[4]"),
+        h("History was quieter. No siege of Erebuni is recorded. Late in Urartian times its garrison seems to have left it without a fight.", "age1.safe_lines[7]")],
+      lic: [ALL_LIC] },
+    { head: h("The temple at Garni stands.", G),
+      lines: [h("The temple at Garni is usually dated to 77 AD. Some scholars think it is a tomb from a century later.", "age2.safe_lines[6]"),
+        h("Garni stands on a cliff above the Azat gorge, not in Artashat.", ["age2.wonder.location", "age2.do_not_claim[3]"]),
+        h("Around 72 AD Alan horsemen raided Armenia. Tiridates fought them and was nearly captured when an enemy threw a cord over him from a distance.", "age2.safe_lines[5]")],
+      lic: [ALL_LIC] },
+    { head: h("Zvartnots stands.", G),
+      lines: [h("Catholicos Nerses III began Zvartnots in the 640s, the years of the first Arab raids.", "age3.safe_lines[3]"),
+        h("Zvartnots is usually said to have been consecrated in 652.", ["age3.safe_lines[4]", "age3.wonder"]),
+        h("History was harder. In 640, by Sebeos's account, an Arab raid took Dvin. In 643 Theodoros Rshtuni defeated an Arab army that had ravaged Ayrarat.", ["age3.events[6]", "age3.safe_lines[6]"]),
+        h("Zvartnots fell in the 10th century. Whether an earthquake or raids brought it down is still debated.", "age3.events[13]"),
+        h("The tiers you see follow one reconstruction, made in 1905. Some scholars dispute it.", ["age3.wonder.description", "age3.do_not_claim[4]"])],
+      lic: [h("Raids on Zvartnots are the game's invention.", ["age3.do_not_claim[3]", LIC + "[1]"]), ALL_LIC] },
+  ];
+  const LOSE = [
+    { head: h("The palace has fallen.", G),
+      lines: [h("No siege of Erebuni is recorded. This raid was the game's invention.", ["age1.safe_lines[7]", LIC + "[1]"])], lic: [] },
+    { head: h("The citadel has fallen.", G),
+      lines: [h("Artashat was taken more than once. In 58 or 59 AD its people surrendered to Corbulo's legions, and the city was burned.",
+        ["age2.events[3]", "age2.events[5]", "age2.events[6]", "age2.safe_lines[3]"])], lic: [ALL_LIC] },
+    { head: h("The palace has fallen.", G),
+      lines: [h("In 640, by Sebeos's account, an Arab raid took Dvin.", "age3.events[6]")], lic: [ALL_LIC] },
+  ];
+  const SOFT = { head: h("No villagers are left, and the town cannot train more.", G), lines: [], lic: [] };
+
+  // ---- 4: buildings: names per age, the role line (game) and the history lines per age (12.3) ----
+  // n: one name or [A1, A2, A3]; hist: [[A1 lines], [A2 lines], [A3 lines]] (an empty list shows no line)
   const BLD = {
-    tc: ["Royal Palace", "Royal Citadel", "Catholicos' Palace"], house: "House", field: "Field",
-    store: ["Storeroom", "Storehouse", "Storehouse"], barracks: ["Garrison Quarters", "Barracks", "Barracks"],
-    smithy: ["Smithy", "Workshop", "Smithy"], market: ["Wine Cellar", "Customs House", "Merchants' Quarter"],
-    temple: ["Susi Temple", "Temple", "Church"], stable: "Stables", tower: "Tower", wall: "Wall", gate: "Gate",
-    grove: "Royal Grove", wonder: ["Temple of Haldi", "Temple of Garni", "Zvartnots"],
+    tc: { n: ["Royal Palace", "Royal Citadel", "Catholicos' Palace"],
+      role: "The heart of the town. It trains villagers and researches at the same time, shelters villagers and shoots arrows. If it falls, the town is lost.",
+      hist: [[h("Argishti I built a palace at Erebuni with a hall of columns.", "age1.buildings[2]")],
+        [h("Artaxias I built Artashat's citadel on the hill later called Khor Virap.", "age2.buildings[0]")],
+        [h("Palace halls of this age had wooden roofs on stone columns.", "age3.buildings[2]")]] },
+    house: { n: "House", role: "A home for more of your people. Each house raises the population cap.",
+      hist: [[h("A crowded town of houses lay at the foot of Erebuni's hill.", "age1.buildings[9]")],
+        [h("Movses Khorenatsi says Artaxias I moved people from Yervandashat and Armavir to his new capital.", "age2.core_claims[3]")],
+        [h("Dvin had three parts: a citadel, a main town and a suburb.", "age3.buildings[0]")]] },
+    field: { n: "Field", role: "Grows food without end for one farmer. Fields stand only on the dark river soil.",
+      hist: [[h("Urartian farmers grew wheat, barley, millet and sesame.", "age1.economy[0]")],
+        [h("Strabo called the Araxes plain very fertile.", "age2.economy[0]")],
+        [h("Wine presses were found at Zvartnots and near the church of Saint Hripsime.", "age3.buildings[4]")]] },
+    store: { n: ["Storeroom", "Storehouse", "Storehouse"], role: "A drop site for every resource. It shelters villagers in a raid.",
+      hist: [[h("Erebuni's storerooms held grain, oil and wine. Inscriptions at the doors told how much each held.", "age1.safe_lines[2]")],
+        [h("Artashat sat on trade roads linking Persia and Mesopotamia with the Caucasus and the Black Sea.", "age2.economy[2]")],
+        [h("Dvin had water supply, drainage and public buildings.", "age3.buildings[0]")]] },
+    barracks: { n: ["Garrison Quarters", "Barracks", "Barracks"], role: "Trains spearmen and bowmen.",
+      hist: [[h("The guards of Argishti I and the fortress garrison held ceremonies in Erebuni's central yard.", "age1.buildings[3]")], [],
+        [h("In 641 Emperor Constans II gave Theodoros Rshtuni command of the Armenian troops.", "GAME:dvin.constans")]] },
+    smithy: { n: ["Smithy", "Workshop", "Smithy"], role: "Researches techs for tools, armor and walls.",
+      hist: [[h("At Argishtikhinili, west of Erebuni, archaeologists found stone and clay molds for casting metal.", ["age1.buildings[12]", "age1.events[2]"])],
+        [h("Armenians, Greeks, Jews and Syrians worked in Artashat as artisans, craftsmen and merchants.", "age2.economy[2]")], []] },
+    market: { n: ["Wine Cellar", "Customs House", "Merchants' Quarter"], role: "Trades at fixed rates. The first market also draws trade carts along the road.",
+      hist: [[h("Great jars were sunk halfway into the ground to keep wine cool. Urartu traded by barter. It had no coins.", ["age1.safe_lines[3]", "age1.safe_lines[6]"])],
+        [h("Artashat had its own treasury, mint and customs house.", "age2.buildings[5]")],
+        [h("Procopius wrote of many merchants in the land of Dvin. They traded goods from India, Iberia, Persia and some Roman lands.", ["GAME:dvin.procopius", "age3.safe_lines[1]"])]] },
+    temple: { n: ["Susi Temple", "Temple", "Church"], role: "Heals your people nearby and researches techs. Your wonder needs one.",
+      hist: [[h("Erebuni also had a smaller temple of a type called susi.", ["age1.buildings[8]", "age1.names[6]"])],
+        [h("Movses Khorenatsi writes that Artaxias I brought statues of the gods from Bagaran to Artashat.", "age2.buildings[7]")],
+        [h("Dvin's cathedral of St. Gregory was rebuilt as a domed church by the middle of the 7th century.", "age3.safe_lines[2]")]] },
+    stable: { n: "Stables", role: "Trains horsemen.",
+      hist: [[h("Urartu bred horses better than nearby lands did, thanks to its alpine meadows.", "age1.economy[3]")],
+        [h("Strabo says that in Persian times Armenia's satrap sent the king 20,000 foals every year.", "age2.economy[1]")], []] },
+    tower: { n: "Tower", role: "Shoots arrows at raiders. Villagers who shelter inside add arrows.",
+      hist: [[h("Teishebaini, a later Urartian fortress, had towered and buttressed walls and massive gates.", ["age1.buildings[1]", "age1.events[6]"])],
+        [h("Garni's walls were strong and towered.", "age2.buildings[10]")],
+        [h("Sebeos wrote that an Arab army fought against the fortress of Erevan and could not take it.", "age3.safe_lines[7]")]] },
+    wall: { n: "Wall", role: "Blocks raiders, and your villagers too. Draw it with a finger, and leave a gate.",
+      hist: [[h("Erebuni's walls mixed basalt, tuff, wood and mud brick.", "age1.buildings[0]")],
+        [h("Artashat's walls linked nine hills. Their lower courses were 2.2 to 4.4 meters thick.", ["age2.buildings[1]", "age2.core_claims[1]"])],
+        [h("Builders of this age bound stone with lime mortar.", "age3.techs[1]")]] },
+    gate: { n: "Gate", role: "A wall that opens for your people and never for raiders.",
+      hist: [[h("Erebuni's main gate was on the gentler southeastern slope.", "age1.buildings[0]")],
+        [h("A bridge crossed the Araxes by Artashat's walls.", "age2.buildings[3]")], []] },
+    grove: { n: "Royal Grove", role: "Grows wood without end for one woodcutter.",
+      hist: [[], [], [h("Woods were planted around Dvin to improve its climate.", "age3.buildings[8]")]] },
+    wonder: { n: ["Temple of Haldi", "Temple of Garni", "Zvartnots"],
+      role: "Finish it to win. Raiders cannot destroy it, but they can set the work back.",
+      hist: [[h("Erebuni's temple of Haldi had a tower and a portico of twelve columns.", "age1.wonder")],
+        [h("Garni's builders laid basalt without mortar and joined the blocks with iron and bronze clamps.", "age2.safe_lines[7]")],
+        [h("From a distance Zvartnots looked round. Its outer wall had 32 sides.", "age3.safe_lines[5]")]] },
   };
-  const UNITS = {
-    vil: "Villager", spear: ["Erebuni Spearmen", "Artashat Spearmen", "Nakharar Spearmen"],
-    bow: ["Biainili Bowmen", "Artashat Bowmen", "Nakharar Bowmen"],
-    horse: ["Royal Horsemen", "Armored Horsemen", "Nakharar Horsemen"],
+  const BEACON = "Beacon Tower";   // the Age 1 tower after Fire Beacons (4.1)
+  const PLURAL = /Quarters$|Barracks$|Stables$/;
+  // where each wonder may stand (license, grounded; 7.1)
+  const SITE = [h("Build it inside your citadel, near the palace.", [G, "age1.wonder.location"]),
+    h("Build it on a bluff. Garni stands on a cliff, away from Artashat.", [G, "age2.wonder.location", "age2.do_not_claim[3]"]),
+    h("Build it out on the plain. Zvartnots rose near Vagharshapat, not in Dvin.", [G, "age3.wonder.location"])];
+  const WONDER_IDS = { haldi: 1, garni: 2, zvartnots: 3 };
+
+  // ---- resource nodes (3.2): name, what a villager there is doing, the history line ----
+  const NODE = {
+    flock: { n: "Flock", act: "Tending the flock", many: "flocks", gone: "The flock has gone to summer pasture." },
+    orchard: { n: "Orchard", act: "Picking fruit", many: "orchards", gone: "The orchard is picked clean." },
+    field: { n: "Field", act: "Farming", many: "fields", gone: "" },
+    tree: { n: "Tree", act: "Cutting wood", many: "trees", gone: "" },
+    grove: { n: "Royal Grove", act: "Cutting wood", many: "groves", gone: "" },
+    stone: { n: "Stone", act: "Quarrying stone", many: "stone", gone: "The stone here is quarried out." },
+    ore: { n: "Ore", act: "Mining ore", many: "ore", gone: "The ore is worked out." },
+    dye: { n: "Salt Meadow", act: "Gathering the red dye", many: "dye", gone: "The dye of this meadow is gathered.",
+      hist: [h("The dye insect feeds on the roots of grasses that grow in salty soil on the Ararat plain.", "age3.economy[1]")] },
   };
-  const RAIDERS = { etR: "Etiuni Raiders", etS: "Etiuni Spearmen", alH: "Alan Horsemen", alC: "Alan Lasso Riders",
-    arR: "Arab Raiders", arS: "Arab Spearmen", arW: "Mailed Swordsmen", arH: "Arab Horsemen" };
+
+  // ---- 5: techs: name and history line (12.3); the effect line is built from TW.DATA by effect() ----
   const TECHS = {
-    iron_tools: "Iron Tools", royal_canals: "Royal Canals", bronze_armor: "Bronze Armor", horse_breeding: "Horse Breeding",
-    buttressed_walls: "Buttressed Walls", fire_beacons: "Fire Beacons", karas_jars: "Karas Jars",
-    land_survey: "Land Survey", coinage: "Coinage", armored_cavalry: "Armored Cavalry",
-    trench_palisade: "Trench and Palisade", clamped_masonry: "Clamped Masonry", nesaean_horses: "Nesaean Horses",
-    bathhouses: "Bathhouses", lime_mortar: "Lime Mortar", stone_domes: "Stone Domes",
-    armenian_letters: "Armenian Letters", planted_groves: "Planted Groves", vordan_karmir: "Worm's Red",
-    noble_levy: "Noble Levy", shirakatsi_tables: "Shirakatsi's Tables",
+    iron_tools: ["Iron Tools", h("Most of Urartu's farm tools were made of iron.", "age1.techs[4]")],
+    royal_canals: ["Royal Canals", h("Urartian kings dug canals to water the Ararat plain. Argishti I's canals ran between the Araxes and the Kasakh.", ["age1.safe_lines[5]", "age1.buildings[11]"])],
+    bronze_armor: ["Bronze Armor", h("Urartian smiths made wide bronze belts, about a meter long, to protect archers.", "age1.troops_own[1]")],
+    horse_breeding: ["Horse Breeding", h("Horse breeding was a major occupation in Urartu.", "age1.techs[3]")],
+    buttressed_walls: ["Buttressed Walls", h("At Argishtikhinili the walls were mud brick on massive basalt footings, with buttresses and a tower at each corner.", "age1.techs[8]")],
+    fire_beacons: ["Fire Beacons", h("In 714 BC Sargon II of Assyria wrote of Urartian watchtowers on the mountain peaks. Their men saw signal fires and passed the news on.", "GAME:tushpa.sargon")],
+    karas_jars: ["Karas Jars", h("Great jars were sunk halfway into the ground to keep wine cool. Armenians call such a jar a karas.", ["age1.safe_lines[3]", "age1.names[7]"])],
+    land_survey: ["Land Survey", h("Movses Khorenatsi says Artaxias I had villages and farmland marked out. Boundary stones with Aramaic inscriptions confirm it.", ["age2.techs[0]", "age2.buildings[9]"])],
+    coinage: ["Coinage", h("Armenian coins first appeared under the Orontid kings. Artashat had its own mint.", "age2.economy[3]")],
+    armored_cavalry: ["Armored Cavalry", h("Strabo wrote of six thousand horses drawn up in full armor in Armenia.", "age2.techs[5]")],
+    trench_palisade: ["Trench and Palisade", h("Strabo wrote that the river guarded Artashat on every side but one. There a trench and a palisade closed the way.", "age2.safe_lines[1]")],
+    clamped_masonry: ["Clamped Masonry", h("Garni's builders laid basalt without mortar and joined the blocks with iron and bronze clamps.", "age2.safe_lines[7]")],
+    nesaean_horses: ["Nesaean Horses", h("Strabo says the Nesaean horses of the Persian kings were also bred in Armenia.", "age2.safe_lines[8]")],
+    bathhouses: ["Bathhouses", h("Excavations at Artashat found paved streets, bathhouses, markets and workshops.", "age2.buildings[4]")],
+    lime_mortar: ["Lime Mortar", h("Builders of this age bound stone with lime mortar, which let them raise stone domes.", "age3.safe_lines[9]")],
+    stone_domes: ["Stone Domes", h("Catholicos Ezra I built Saint Gayane in 630, a basilica with a dome.", ["age3.techs[2]", "age3.safe_lines[2]"])],
+    armenian_letters: ["Armenian Letters", h("Mesrop Mashtots created the Armenian alphabet around 405. It first had 36 letters.", "age3.safe_lines[8]")],
+    planted_groves: ["Planted Groves", h("Faustus of Byzantium tells of two fenced forests between Garni, Artashat and Dvin. King Khosrov III founded them.", ["age3.techs[5]", "age3.buildings[8]"])],
+    vordan_karmir: ["Worm's Red", h("The historians Ghazar Parpetsi and Movses Khorenatsi wrote of a red dye made from a worm of the Ararat region.", ["age3.economy[1]", "age3.names[10]"])],
+    noble_levy: ["Noble Levy", h("In 652 or 653 Theodoros Rshtuni accepted the overlordship of Muawiya, governor of Syria. Armenia was to have no Arab garrison or official.", "GAME:dvin.pact")],
+    shirakatsi_tables: ["Shirakatsi's Tables", h("Anania Shirakatsi wrote arithmetic tables in the 7th century. Most scholars also credit him with the Armenian Geography.", "age3.techs[8]")],
   };
-  const WONDERS = { haldi: "Temple of Haldi", garni: "Temple of Garni", zvartnots: "Zvartnots" };
-  const HY = { wonder: ["Խալդի", "Գառնի", "Զուարթնոց"] };
+
+  // ---- 6: the garrison's three lines and the raiders (6.2, 6.4); role lines are game text ----
+  const UNITS = {
+    vil: { n: "Villager", role: "Gathers, builds and repairs. Runs to shelter when raiders come near.", hist: [[], [], []] },
+    spear: { n: ["Erebuni Spearmen", "Artashat Spearmen", "Nakharar Spearmen"], role: "Sturdy foot. Strong against horsemen.",
+      hist: [[h("More than 20 helmets were found at Teishebaini, a later Urartian fortress.", ["age1.troops_own[2]", "age1.events[6]"])], [],
+        [h("The great noble houses, the nakharars, kept their own lands and their own troops.", "GAME:avarayr.nakharars")]] },
+    bow: { n: ["Biainili Bowmen", "Artashat Bowmen", "Nakharar Bowmen"], role: "Shoots from range.",
+      hist: [[h("Only three royal Urartian quivers are known. They are bronze, with images of warriors.", "age1.troops_own[1]")], [],
+        [h("A nakharar was the lord of a great noble house of Armenia.", "age3.names[6]")]] },
+    horse: { n: ["Royal Horsemen", "Armored Horsemen", "Nakharar Horsemen"], role: "Fast, and strong in the open.",
+      hist: [[h("In Urartu, horses mattered for war. They drew its chariots.", "age1.economy[3]")],
+        [h("At Tigranocerta in 69 BC, Plutarch says, the mail-clad horsemen of Tigranes II fought with long spears.", "age2.troops_own[0]")],
+        [h("Under a pact of 652 or 653, Armenia kept 15,000 horsemen of its own.", "age3.techs[9]")]] },
+  };
+  const ETIUNI = h("Etiuni was a confederation of the lands north of the Araxes. Its people seem to have risen and invaded Urartu during Argishti I's reign.", ["age1.raiders[0]", "age1.events[1]"]);
+  const ARAB = h("In the 640s armies of the Rashidun Caliphate raided Armenia.", "age3.raiders[0]");
+  const RAIDERS = {
+    etR: ["Etiuni Raiders", "Light raiders. They go for villagers and fields outside your walls.", ETIUNI],
+    etS: ["Etiuni Spearmen", "Heavy foot. They break walls and buildings.", ETIUNI],
+    alH: ["Alan Horsemen", "Fast riders. They hunt anything outside your walls.",
+      h("Josephus tells how the Alans raided Media and then Armenia. The raid is usually dated around 72 AD.", "age2.raiders[0]")],
+    alC: ["Alan Lasso Riders", "Their lassos hold a soldier or a villager in place for a moment.",
+      h("By Josephus' account, an enemy threw a cord over Tiridates from a distance. He was nearly taken, but cut the cord with his sword.", ["age2.raiders[0]", "age2.safe_lines[5]"])],
+    arR: ["Arab Raiders", "Light raiders. They hunt the fields and the villagers outside.", ARAB],
+    arS: ["Arab Spearmen", "Heavy foot. They break walls and buildings.", ARAB],
+    arW: ["Mailed Swordsmen", "Heavy foot in mail. They break walls fastest.", ARAB],
+    arH: ["Arab Horsemen", "Fast riders. They hunt the fields.", ARAB],
+  };
+  const RAID_NAME = ["etR", "alH", "arR"];   // the raiders a warning names, by age
+
+  // ---- 13: resources: labels by age and the tooltips of 3.1 ----
   const RES = { f: "Food", w: "Wood", s: "Stone", g: ["Goods", "Coin", "Goods"] };
-  const pickAge = (v, age) => (Array.isArray(v) ? v[Math.max(0, Math.min(v.length - 1, (age | 0) - 1))] : v);
-  const TABLE = { bld: BLD, unit: UNITS, raider: RAIDERS, tech: TECHS, wonder: WONDERS };
-  function name(kind, id, age) {
+  const RES_TIP = {
+    f: [h("Food: grain, vines and herds.", "design_handoff.resources.food")],
+    w: [h("Wood is scarce. Armenia has few forests.", ["age1.economy[6]", "age3.economy[3]"])],
+    s: [h("Stone is plentiful: basalt and tuff.", "design_handoff.resources.stone")],
+    g: [h("Trade goods: wine, metal, livestock. Urartu traded by barter. It had no coins.", ["age1.economy[5]", "age1.safe_lines[6]"]),
+      h("Coin. Artashat had its own mint.", "age2.economy[3]"),
+      h("Trade goods. Merchants traded in the land of Dvin.", ["age3.safe_lines[1]", "GAME:dvin.procopius"])],
+  };
+
+  // ---- the Armenian forms shown (12.3), each with its cite; nothing else gets one. same: the HY_NAMES row
+  // that must agree (the selftest compares) ----
+  const HY = [
+    { en: "Erebuni", hy: "Էրեբունի", cite: "age1.names[1]", same: "Erebuni Rise" },
+    { en: "Artashat", hy: "Արտաշատ", cite: "age2.names[0]" },
+    { en: "Dvin", hy: "Դվին", classical: "Դուին", cite: "age3.names[0]", same: "Dvin Gates" },
+    { en: "Haldi", hy: "Խալդի", cite: "age1.names[5]" },
+    { en: "Garni", hy: "Գառնի", cite: "age2.names[4]" },
+    { en: "Zvartnots", hy: "Զվարթնոց", classical: "Զուարթնոց", byRule: true, cite: "age3.names[1]" },
+    { en: "karas", hy: "կարաս", cite: "age1.names[7]" },
+    { en: "nakharar", hy: "նախարար", cite: "age3.names[6]" },
+    { en: "catholicos", hy: "կաթողիկոս", cite: "age3.names[4]" },
+  ];
+  const HYF = en => HY.find(r => r.en === en);
+  // which thing shows which form: kind.id -> [A1, A2, A3] (or one for every age), the English term of HY
+  const HY_OF = { "bld.wonder": ["Haldi", "Garni", "Zvartnots"], "bld.tc": ["", "", "catholicos"], "tech.karas_jars": "karas",
+    "unit.spear": ["", "", "nakharar"], "unit.bow": ["", "", "nakharar"], "unit.horse": ["", "", "nakharar"],
+    "wonder.haldi": "Haldi", "wonder.garni": "Garni", "wonder.zvartnots": "Zvartnots",
+    "age.1": "Erebuni", "age.2": "Artashat", "age.3": "Dvin" };
+
+  // ---- names, forms, roles and history lines by kind (kind: bld unit raider tech wonder node res age) ----
+  function name(kind, id, age, techs) {
     if (kind === "res") return pickAge(RES[id], age) || "";
-    const t = TABLE[kind];
-    return (t && t[id] !== undefined) ? pickAge(t[id], age) : "";
+    if (kind === "bld") {
+      const b = BLD[id];
+      if (!b) return "";
+      if (id === "tower" && (age | 0) <= 1 && techs && techs.fire_beacons) return BEACON;
+      return pickAge(b.n, age);
+    }
+    if (kind === "unit") return UNITS[id] ? pickAge(UNITS[id].n, age) : "";
+    if (kind === "raider") return RAIDERS[id] ? RAIDERS[id][0] : "";
+    if (kind === "tech") return TECHS[id] ? TECHS[id][0] : "";
+    if (kind === "wonder") return WONDER_IDS[id] ? BLD.wonder.n[WONDER_IDS[id] - 1] : "";
+    if (kind === "node") return NODE[id] ? NODE[id].n : "";
+    if (kind === "age") return AGES[ix(id || age)].name;
+    return "";
   }
-  function hy(kind, id, age) { const t = HY[kind]; return t && kind === "wonder" && id === "wonder" ? pickAge(t, age) : ""; }
+  const hyRow = (kind, id, age) => { const v = HY_OF[kind + "." + id]; const en = v === undefined ? "" : pickAge(v, age); return en ? HYF(en) : null; };
+  function hy(kind, id, age) { const r = hyRow(kind, id, age); return r ? r.hy : ""; }
+  function hyc(kind, id, age) { const r = hyRow(kind, id, age); return r && r.classical ? r.classical : ""; }
+  function role(kind, id) {
+    if (kind === "bld") return BLD[id] ? BLD[id].role : "";
+    if (kind === "unit") return UNITS[id] ? UNITS[id].role : "";
+    if (kind === "raider") return RAIDERS[id] ? RAIDERS[id][1] : "";
+    if (kind === "wonder") return BLD.wonder.role;
+    return "";
+  }
+  // the history lines of a thing in an age, as [{ text, cite }] (the info panel shows the first; "i" shows all)
+  function hist(kind, id, age) {
+    if (kind === "bld") return BLD[id] ? BLD[id].hist[ix(age)] : [];
+    if (kind === "unit") return UNITS[id] ? UNITS[id].hist[ix(age)] : [];
+    if (kind === "raider") return RAIDERS[id] ? [RAIDERS[id][2]] : [];
+    if (kind === "tech") return TECHS[id] ? [TECHS[id][1]] : [];
+    if (kind === "wonder") return WONDER_IDS[id] ? BLD.wonder.hist[WONDER_IDS[id] - 1] : [];
+    if (kind === "node") return NODE[id] && NODE[id].hist ? NODE[id].hist : [];
+    if (kind === "res") return RES_TIP[id] ? [pickAge(RES_TIP[id], age)] : [];
+    return [];
+  }
+  const isAre = n => (PLURAL.test(n) ? " are " : " is ");
+  const theN = n => (n === "Zvartnots" ? n : "The " + n);   // Zvartnots takes no article
+  const aN = n => (PLURAL.test(n) ? n : (/^[AEIOU]/.test(n) ? "an " : "a ") + n);
+  const low = s => s.toLowerCase();
+  const resL = (r, age) => low(name("res", r, age));
+  // "15 wood, 20 stone" from a cost object (numbers from TW.DATA)
+  function costWords(c, age) {
+    const out = [];
+    for (const r of ["f", "w", "s", "g"]) if (c && c[r] > 0) out.push(Math.ceil(c[r]) + " " + resL(r, age));
+    return out.join(", ");
+  }
+  // "a Temple and Clamped Masonry": what a placement, a tech or the wonder still needs (ids of BLD or TECHS)
+  function needs(list, age) {
+    const ws = [].concat(list || []).map(id => (BLD[id] ? aN(name("bld", id, age)) : TECHS[id] ? TECHS[id][0] : String(id)));
+    return ws.length < 2 ? ws.join("") : ws.slice(0, -1).join(", ") + " and " + ws[ws.length - 1];
+  }
+  const mmss = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  const num = n => String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const pct = m => Math.round(Math.abs(m - 1) * 100) + "%";
+
+  // ---- 10: call-line errors (12.4): err(code, info), info = the command's { res, need, age } ----
   const ERR = {
     bounds: "Out of the map.", edge: "Too close to the edge of the map.",
     bank: "The banks flood. Build farther from the water.", blocked: "Something is in the way.",
@@ -59769,41 +60011,144 @@ townRegion("text", () => { TWT = (() => {
     bad: "That cannot be done.", busy: "That building is busy.", done: "That is done already.",
     wonder: "Finish the wonder or remove it first.",
   };
-  const SITE = ["Build it within 8 tiles of the palace.", "Build it on a bluff.", "Build it at least 10 tiles from the palace."];
+  const SITE_ERR = ["Build it within 8 tiles of the palace.", "Build it on a bluff.", "Build it at least 10 tiles from the palace."];
   function err(code, info) {
     info = info || {};
-    if (code === "cost") return "Not enough " + (name("res", info.res, info.age) || "goods").toLowerCase() + ".";
-    if (code === "site") return SITE[Math.max(0, Math.min(2, (info.age | 0) - 1))];
-    if (code === "age") return "Comes in the " + AGES[Math.max(0, Math.min(2, (info.age | 0) - 1))].name + ".";
-    if (code === "req") return info.need ? "Needs " + info.need + "." : "Something it needs is missing.";
+    if (code === "cost") return "Not enough " + (resL(info.res, info.age) || "goods") + ".";
+    if (code === "site") return SITE_ERR[ix(info.age)];
+    if (code === "age") return "Comes in the " + AGES[ix(info.age)].name + ".";
+    if (code === "req") return info.need ? "Needs " + needs(info.need, info.age) + "." : "Something it needs is missing.";
     return ERR[code] || ERR.bad;
   }
+
+  // ---- 16: the Next line (9.3): one goal at a time, from TW.next(G) ----
   const OPEN = { house: "Next: build a House.", field: "Next: place a Field on the dark river soil.",
-    store: "Next: build a Storehouse near the trees or fields.", move: "Next: move a worker with + and -." };
-  const the = n => (n === "Zvartnots" ? n : "The " + n);   // Zvartnots takes no article
-  const mmss = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  // the Next line (9.3): one goal at a time, from TW.next(G)
+    store: "Next: build a Storehouse near the trees or fields.", move: "Next: move a worker with + and −." };
   function next(g) {
     if (!g) return "";
     const age = g.age || 1;
     switch (g.k) {
       case "open": return OPEN[g.step] || "";
-      case "build": return "Next: " + name("bld", g.type, g.age || age);
+      case "build": return "Next: " + name("bld", g.type, age);
       case "tech": return "Next: research " + name("tech", g.tech);
-      case "res": return "Next: " + name("res", g.res, age) + " " + g.have + " of " + g.need;
-      case "advance": return "Next: advance to the " + AGES[Math.max(0, Math.min(2, g.to - 1))].name;
+      case "res": return "Next: " + name("res", g.res, age) + " " + num(g.have) + " of " + num(g.need);
+      case "advance": return "Next: advance to the " + AGES[ix(g.to)].name;
       case "aging": return "Advancing: " + mmss(g.left);
-      case "wonder": { const n = name("bld", "wonder", g.age); return "Next: build " + (n === "Zvartnots" ? n : "the " + n) + " to win"; }
-      case "wonderPct": return name("bld", "wonder", g.age) + " " + g.pct + "%. Keep the garrison at the site.";
+      case "wonder": return "Next: build " + (age === 3 ? "" : "the ") + name("bld", "wonder", age) + " to win";
+      case "wonderPct": return name("bld", "wonder", age) + " " + g.pct + "%. Keep the garrison at the site.";
       default: return "";
     }
   }
+
+  // ---- 5: a tech's effect line, built from its fx in TW.DATA (5.3), so tuning never touches text ----
+  function effect(id, D, age) {
+    const T = D && D.TECHS && D.TECHS[id];
+    if (!T) return "";
+    const fx = T.fx || {}, out = [], g = resL("g", age || T.age), temple = low(name("bld", "temple", age || T.age));
+    const tiles = n => n + (n === 1 ? " tile" : " tiles");
+    if (fx.gather) out.push("Villagers gather " + pct(fx.gather) + " faster.");
+    if (fx.canals) out.push("Canals open new fertile land.");
+    if (fx.field || fx.fieldCost) out.push("Fields " + [fx.field ? "yield " + pct(fx.field) + " more" : "", fx.fieldCost ? "cost " + costWords(fx.fieldCost, age || T.age) : ""].filter(Boolean).join(" and ") + ".");
+    const and = a => (a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]);
+    const gar = [], hor = [];
+    if (fx.garArm) gar.push("+" + fx.garArm + " armor");
+    if (fx.garHp) gar.push(pct(fx.garHp) + " more hit points");
+    if (gar.length) out.push("The garrison gets " + and(gar) + ".");
+    if (fx.stableAge1 && (age || T.age) <= 1) out.push("Unlocks the Stables.");
+    if (fx.grove) out.push("Unlocks the Royal Grove.");
+    if (fx.dye) out.push("Villagers can gather the red dye in the salt meadows.");
+    if (fx.horseFood) hor.push("cost " + pct(fx.horseFood) + " less food");
+    if (fx.horseTrain) hor.push("train " + pct(fx.horseTrain) + " faster");
+    if (fx.horseArm) hor.push("get +" + fx.horseArm + " armor");
+    if (fx.horseHp) hor.push((fx.horseArm ? "" : "get ") + pct(fx.horseHp) + " more hit points");
+    if (fx.horseAtk) hor.push("get +" + fx.horseAtk + " attack");
+    if (hor.length) out.push("Horsemen " + and(hor) + ".");
+    if (fx.wallHp && fx.towerHp && fx.wallHp === fx.towerHp) out.push("Walls, gates and towers get " + pct(fx.wallHp) + " more hit points.");
+    else {
+      if (fx.wallHp) out.push("Walls and gates get " + pct(fx.wallHp) + " more hit points.");
+      if (fx.towerHp) out.push("Towers get " + pct(fx.towerHp) + " more hit points.");
+    }
+    if (fx.lead) out.push("Raid warnings come " + fx.lead + " seconds earlier.");
+    if (fx.towerRange) out.push("Towers reach " + tiles(fx.towerRange) + " farther.");
+    if (fx.trench) out.push("Raiders move " + pct(fx.trench) + " slower beside your walls.");
+    if (fx.sell) out.push("Market sales bring " + pct(fx.sell) + " more " + g + ".");
+    if (fx.buy) out.push("Buying costs " + pct(fx.buy) + " less.");
+    if (fx.cart) out.push("Trade carts bring " + pct(fx.cart) + " more " + g + ".");
+    if (fx.wonderRate) out.push("Wonders build " + pct(fx.wonderRate) + " faster.");
+    if (fx.heal) out.push("The " + temple + " heals " + (fx.heal === 2 ? "twice as fast" : pct(fx.heal) + " faster") + ".");
+    if (fx.vilHp) out.push("Villagers get " + fx.vilHp + " more hit points.");
+    const rs = [];
+    if (fx.researchCost) rs.push("costs " + pct(fx.researchCost) + " less");
+    if (fx.researchTime) rs.push("takes " + pct(fx.researchTime) + " less time");
+    if (rs.length) out.push("Research " + and(rs) + ".");
+    if (fx.bldCost) out.push("Buildings cost " + pct(fx.bldCost) + " less.");
+    for (const W of (D.WONDERS || [])) if (W.req && [].concat(W.req.tech || []).includes(id)) out.push(theN(BLD.wonder.n[W.age - 1]) + " needs it.");
+    return out.join(" ");
+  }
+
+  // ---- 11: hints (9.13): one at a time in the call line, each with the control it outlines (ctl) and the
+  // moment it shows (on); also listed on the How to play page ----
+  const HINTS = [
+    { id: "dock", on: "start", ctl: "dock", line: "Your villagers work on their own. Use + and − on the left to move workers." },
+    { id: "house", on: "popLow", ctl: "build:house", line: "The town is nearly full. Tap House, then place it." },
+    { id: "field", on: "flocksHalf", ctl: "build:field", line: "Fields grow food. Place them on the dark river soil." },
+    { id: "horn", on: "firstWarn", ctl: "raid", line: "Raiders come on a clock. The horn at the top counts down." },
+    { id: "alarm", on: "firstSpawn", ctl: "alarm", line: "Villagers run inside when raiders come near. Ring the alarm to call in everyone nearby." },
+    { id: "shield", on: "firstSpawn", ctl: "shield", line: "Tap the shield to train soldiers or move their post." },
+    { id: "wall", on: "firstRaidOver", ctl: "build:wall", line: "Tap Wall, then drag along the ground to draw a wall. Ring proposes one." },
+    { id: "gate", on: "wallNoGate", ctl: "build:gate", line: "Walls block your villagers too. Put a Gate in the wall." },
+    { id: "repair", on: "damaged", ctl: "info", line: "Tap a damaged building, then Repair." },
+    { id: "age", on: "advanceReady", ctl: "age", line: "Ready for a new age? Tap the age badge." },
+    { id: "wonder", on: "wonderTime", ctl: "build:wonder", line: "Build the wonder to win. Raiders will come for the building site." },
+  ];
+  const CLOCK_HINT = "Well done. Raiders will come soon. The horn at the top will count down.";
+
+  // ---- 12: the How to play page (9.11): sections, the hints, the keys (9.14) ----
+  const HELP = {
+    title: "How to play",
+    sections: [
+      { head: "Your goal", lines: ["Raise your town through the ages. Finish the wonder of the age you are in to win.",
+        "A later wonder earns more stars. If your palace or citadel falls, the town is lost."] },
+      { head: "Workers", lines: ["Villagers gather, build and repair on their own. They drop their loads at your palace or citadel, or at a storehouse.",
+        "Use + and − on the left to move workers between food, wood, stone and goods. The idle button finds a villager with nothing to do."] },
+      { head: "Building", lines: ["Tap a building below, drag its outline, then tap the check mark. Red means it cannot stand there, and the line at the top says why.",
+        "Fields need the dark river soil. Nothing but fields may stand on the river banks, because the banks flood."] },
+      { head: "Walls and gates", lines: ["Tap Wall, drag along the ground, then tap Build. Ring proposes a whole ring for you.",
+        "Walls block your villagers too, so put a Gate in the wall. Raiders who reach nothing take food from the fields."] },
+      { head: "Raids", lines: ["Raiders come on a clock. The horn at the top counts down to the next raid.",
+        "Villagers run inside by themselves when raiders come near. Ring the alarm to call in everyone nearby.",
+        "Tap the shield to train soldiers, or to move the post where they stand guard."] },
+      { head: "Ages and wonders", lines: ["Tap the age badge to see the next age, what it costs and its techs.",
+        "Each age changes your buildings, troops and raiders. Only the wonder of your own age can be built."] },
+      { head: "Pause and plan", lines: ["Pause at any time. Plan while paused lets you place buildings and give orders while the clock stands still."] },
+      { head: "Easy", lines: ["On Easy, raiders drive villagers off instead of killing them. A villager driven off comes back to work after a while.",
+        "On Easy the age sheet also stops the clock while it is open."] },
+      { head: "The gift", lines: ["A won town sends a gift of gold to your next battle. A later wonder sends more."] },
+      { head: "About this town", lines: txt(INTRO.slice(1, 3)).concat([ALL_LIC.text,
+        "Every building, tech and raider comes with a short line of history. The end card tells what really happened."]) },
+    ],
+    hintsHead: "Hints", keysHead: "Keys",
+    keys: [["Arrows", "Pan the map. Shift pans faster. While placing, move the outline."],
+      ["+ and −, the wheel", "Zoom in and out."], ["1 to 9, 0", "Build: House, Field, Storehouse, Barracks, Smithy, Market, Temple, Stables, Tower, Wonder."],
+      ["Shift+2", "Royal Grove."], ["W", "Draw a wall."], ["E", "Place a gate."], ["R", "Turn a gate."], ["T", "The age and techs."],
+      ["H", "Find the palace or citadel."], [".", "The next idle villager."], ["G", "Select the garrison."], ["A", "Ring the alarm, or all clear."],
+      ["Delete", "Demolish the selected building."], ["Space", "Pause and resume."], ["P", "Plan while paused."],
+      ["F, Shift+F", "Speed."], ["Escape", "Cancel, close, or leave."], ["M, S", "Music and sound."]],
+  };
+
+  // ---- 1, 7, 8, 9, 12, 14, 15, 16: labels, cards, calls and aria labels ----
   const ui = {
+    // cards and buttons
     begin: "Begin", resume: "Resume", newGame: "New game", keep: "Keep playing", leave: "Leave", back: "Back to map",
     reload: "Reload", playAgain: "Play again", newMap: "New map", cont: "Continue", plan: "Plan while paused",
-    startOver: "Start over", yes: "Yes", no: "No", hints: "Hints", music: "Music", sound: "Sound",
+    startOver: "Start over", yes: "Yes", no: "No", hints: "Hints", music: "Music", sound: "Sound", howTo: "How to play",
+    on: "on", off: "off", close: "Close", demolish: "Demolish", keepIt: "Keep it",
     firstTown: "First town: coached start and hints", mapNew: "New map", mapAgain: n => "Map " + n + " again",
-    map: n => "Map " + n, kicker: "A town on the Ararat plain",
+    map: n => "Map " + n, kicker: "A town on the Ararat plain", difficulty: "Difficulty", mapChoice: "Map",
+    diffHelp: ["For families. Lighter raids and more time. Raiders drive villagers off instead of killing them.",
+      "Steady raids that grow with each age.", "Stronger raids that come sooner and stay longer."],
+    best: (stars, time) => "Best: " + stars + (stars === 1 ? " star" : " stars") + ", " + time,
+    bestScore: n => "Best score " + num(n), score: n => "Score " + num(n), newBest: "New best",
     paused: "Paused", notSaved: "Not saved",
     leaveSaved: "Leave the town? It is saved, and you can come back to it.",
     leaveUnsaved: "Leave the town? Your town could not be saved on this device.",
@@ -59812,30 +60157,96 @@ townRegion("text", () => { TWT = (() => {
     cannotResume: "This town could not be resumed.",
     older: "This town was saved by an older version of the game and cannot be resumed.",
     startOverAsk: "Start over? This town will be lost.", newGameAsk: "Start over? Your saved town will be lost.",
+    demolishAsk: n => "Demolish the " + n + "? Nothing is refunded.",
     errorHead: "Something went wrong in the town.",
     errorSaved: time => "Your town was saved at " + time + ".", errorUnsaved: "Your town could not be saved.",
-    winHead: age => the(name("bld", "wonder", age)) + " is finished.",
-    loseHead: age => the(name("bld", "tc", age)) + " has fallen.",
-    softLock: "No villagers are left, and none can be trained.",
+    // end cards (the lines are TWT.win, TWT.lose, TWT.softLose)
+    winHead: age => WIN[ix(age)].head.text, loseHead: age => LOSE[ix(age)].head.text, softLock: SOFT.head.text,
     stars: n => n + (n === 1 ? " star" : " stars"),
     blessNew: n => "Your next battle begins with +" + n + " gold.",
     blessWaiting: "A gift for your next battle is already waiting.",
-    planBanner: "Paused. Plan your town, then tap Resume.",
+    blessToast: n => "A gift from the town: +" + n + " 🪙",   // the battle's toast (the hooks region words its own copy)
+    // top bar, dock, chips, minimap and map controls (aria labels where the button shows only an icon)
+    map_: "Town map", mini: "Minimap. Tap to move the view.", ageSheet: "Age and techs",
+    resCount: (r, n, age) => name("res", r, age) + " " + num(n),
+    pop: (n, cap) => "Population " + n + " of " + cap, popShort: (n, cap) => n + "/" + cap,
+    popFull: "Build a house to grow the town.",
     raidIn: t => "Raid in " + t, raidsWait: "Raids wait", raidNow: "Raid!",
-    pop: (n, cap) => "Population " + n + " of " + cap,
-    zoomIn: "Zoom in", zoomOut: "Zoom out", speed: "Speed", pause: "Pause", leaveTown: "Leave the town",
-    ageSheet: "Age and techs", map_: "Town map",
-    built: n => the(n) + " is finished.", researched: n => n + " researched.",
-    advancing: n => "Advancing to the " + n + ".",
+    raidChip: (age, t) => name("raider", RAID_NAME[ix(age)]) + " " + t,
+    raidChipAria: (age, t, live, held) => (live ? "Raiders are on the map. Tap to see them." : held ? "The raids wait for your town to grow." : name("raider", RAID_NAME[ix(age)]) + " come in " + t + "."),
+    speed: "Speed", pause: "Pause", leaveTown: "Leave the town", zoomIn: "Zoom in", zoomOut: "Zoom out",
+    dockLess: (r, age) => "Fewer on " + resL(r, age), dockMore: (r, age) => "More on " + resL(r, age),
+    dockInfo: (r, age) => name("res", r, age) + " workers",
+    // "Food 8: flocks 3, fields 5" (parts: { flock: 3, field: 5 }, in the order given)
+    labor: (r, n, parts, age) => name("res", r, age) + " " + n + (parts && Object.keys(parts).length ? ": " + Object.keys(parts).map(k => (NODE[k] ? NODE[k].many : k) + " " + parts[k]).join(", ") : ""),
+    alarm: "Alarm", allClearBtn: "All clear", alarmAria: "Ring the alarm", allClearAria: "Sound the all clear",
+    idle: n => "Idle " + n, idleAria: n => n + (n === 1 ? " idle villager" : " idle villagers") + ". Tap for the next one. Hold to select all.",
+    shield: n => String(n), shieldAria: n => "Garrison: " + n + ". Tap to command it.",
+    // the garrison panel (6.3)
+    trainSpear: "Spearmen", trainBow: "Bowmen", trainHorse: "Horsemen", ret: "Return", hold: "Hold", dismiss: "Dismiss",
+    dismissHold: "Dismiss (hold)", garrisonHead: "Garrison",
+    // build bar, placement, walls and gates (4.4, 9.4, 9.5)
+    buildAria: (n, cost) => n + ". " + cost + ".", ageBtn: "Age", place: "Place it here", cancel: "Cancel",
+    placeAnother: "Place another", rotate: "Turn the gate",
+    wallHint: (c, age) => "Drag to draw a wall. " + costWords(c, age) + " a tile.",
+    undoStroke: "Undo stroke", ring: "Ring", wallBuild: (n, c, age) => "Build (" + n + (n === 1 ? " tile" : " tiles") + ", " + costWords(c, age) + ")",
+    wallCap: (n, cap) => "Walls " + n + " of " + cap,
+    wallShort: (n, r, age) => "Not enough " + resL(r, age) + " for " + n + (n === 1 ? " tile." : " tiles."),
+    gateHint: "Tap where the gate goes. It can replace two wall tiles in a straight line.",
+    siteHint: age => SITE[ix(age)].text,
+    // the info panel (9.7)
+    hp: (n, max) => "Hit points " + num(n) + " of " + num(max),
+    task: (k, carry, cap) => (k ? k + (cap ? ", " + carry + " of " + cap : "") : "Idle"),
+    building: "Building", repairing: "Repairing", sheltering: "Sheltering", walking: "Walking", heldByLasso: "Held by a lasso",
+    drivenOff: "Driven off", carrying: (r, age) => "Carrying " + resL(r, age),
+    trainVil: "Train a villager", autoTrain: "Auto-train villagers", train: n => "Train " + n, queue: "In training",
+    rally: "Rally", rallyPoint: "A point on the map", advance: "Advance", research: "Research", researched_: "Researched", inQueue: "In the queue",
+    sell: (r, n, get, age) => "Sell " + n + " " + resL(r, age) + " for " + get + " " + resL("g", age),
+    buy: (r, n, pay, age) => "Buy " + n + " " + resL(r, age) + " for " + pay + " " + resL("g", age),
+    exchangeOnly: "Only one market draws trade carts. This one offers the exchange.",
+    builders: n => "Builders: " + n, fewerBuilders: "Fewer builders", moreBuilders: "More builders", cancelBld: "Cancel building",
+    repair: (c, age) => "Repair (" + costWords(c, age) + " per 100 hit points)", stop: "Stop", shelter: "Shelter",
+    nodeLeft: (n, r, age) => num(n) + " " + resL(r, age) + " left", nodeWorkers: n => n + " at work", sendVil: "Send a villager",
+    // the age and tech sheet (9.9)
+    advanceTo: n => "Advance to the " + n, costL: "Cost", timeL: "Time", needsL: "Needs", secs: s => mmss(s),
+    wonderNeeds: (age, list) => theN(BLD.wonder.n[ix(age)]) + " needs " + needs(list, age) + ".",
+    techsAt: n => "At the " + n,
+    // 7, 8, 16: the call line
+    raidComing: (age, wonder) => (wonder ? "Raiders are coming for the building site." : name("raider", RAID_NAME[ix(age)]) + " are coming."),
+    raidAtWalls: "Raiders at the walls.", raidOver: "The raid is over.", raidRepelled: "The raiders fall back.",
+    raidPlunder: "The raiders leave with their plunder.", pillage: "Raiders outside the walls are taking food from the fields.",
+    alarmOn: "Alarm! Villagers near the raiders take shelter.", alarmAll: "Everyone inside.", allClear: "All clear.",
+    shelterCall: "Villagers run for shelter.",
+    idleCall: n => n + (n === 1 ? " villager is idle." : " villagers are idle."),
+    depleted: k => (NODE[k] ? NODE[k].gone : ""),
+    built: n => theN(n) + isAre(n) + "finished.", destroyed: n => theN(n) + (PLURAL.test(n) ? " were" : " was") + " destroyed.",
+    researched: n => n + " researched.", advancing: n => "Advancing to the " + n + ".",
+    craftsmen: AGES[1].lic[0].text, clockHint: CLOCK_HINT,
+    repairStop: (r, age) => "Not enough " + resL(r, age) + " to repair.",
+    repairAfter: "Some buildings are damaged. Tap one, then Repair.",
+    softLockCall: "No villagers are left. Dismiss a soldier to make room.",
+    noPop: ERR.pop,
+    wonderPct: (age, p) => name("bld", "wonder", age) + ": " + p + "%",
+    stage: (p, age) => (p >= 75 ? (ix(age) === 2 ? "The dome is going on." : "The roof is going on.") : p >= 50 ? "The columns are up." : p >= 25 ? "The walls are rising." : ""),
+    setback: "The raiders set the work back.",
+    underAttack: n => theN(n) + isAre(n) + "under attack.",
+    tcHurt: (age, p) => "The " + AGES[ix(age)].tc + (p <= 25 ? " is close to falling." : " is badly damaged."),
+    cartArrive: (n, age) => "A trade cart brings " + n + " " + resL("g", age) + ".", cartLost: "A trade cart was lost.",
+    sold: (r, n, get, age) => "Sold " + n + " " + resL(r, age) + " for " + get + " " + resL("g", age) + ".",
+    bought: (r, n, pay, age) => "Bought " + n + " " + resL(r, age) + " for " + pay + " " + resL("g", age) + ".",
+    vilFell: "A villager has fallen.", unitFell: n => "One of your " + n + " has fallen.",
+    drivenCall: "Raiders drove a villager off. The villager will be back at work soon.",
+    trainedVil: "A new villager is ready.",
+    planBanner: "Paused. Plan your town, then tap Resume.", planNoSpeed: "Speed and the alarm wait until you resume.",
   };
-  return {
+
+  const TWT_ = {
     v: 1, title: "Under Ararat", door: "Town", doorTitle: "Build a town on the Ararat plain",
-    intro: ["Raise one town through three ages on the Ararat plain.",
-      "This town is not one real place. It stands for three towns of the Ararat plain, one in each age: Erebuni, then Artashat, then Dvin.",
-      "All three stood on the Ararat plain, with Mount Ararat to the south.",
-      "Gather, build and wall your town. Raiders come on a clock. Finish your age's wonder to win. A later wonder earns more stars."],
-    diffs: ["Easy", "Normal", "Hard"], res: RES, ages: AGES, name, hy, err, next, mmss, ui, hints: [],
+    intro: txt(INTRO), introLines: INTRO, diffs: ["Easy", "Normal", "Hard"], res: RES, resTip: RES_TIP, ages: AGES,
+    win: WIN, lose: LOSE, softLose: SOFT, site: SITE, nodes: NODE, hints: HINTS, help: HELP, HY,
+    name, hy, hyc, role, hist, effect, costWords, needs, err, next, mmss, num, ui,
   };
+  return TWT_;
 })(); });
 // ---- TEXT END town ----
 
@@ -62110,6 +62521,69 @@ function townSelftest(check, res) {
   });
 
   // -- WP6 checks (1) --
+  // 1: the town's text (12.1): every id of TW.DATA has a name and a role line in every age it exists in; no long
+  // dashes, banned words (with "sparapet" and "Azerbaijan") or British spellings in any string; the era after the
+  // number ("66 AD"); sentences of at most 22 words; every history line cited in a known form; Armenian forms only
+  // for the terms of 12.3, and the same as HY_NAMES where both name a place. tools/town-text-check.js does all of
+  // this too, with every ui function called on real arguments, and resolves every cite in the history file
+  check("town text", () => {
+    const D = TW.DATA, bad = [], all = [];
+    const BANNED = /barbar|horde|infidel|saracen|savage|heathen|pagan|primitive|tribe of|sparapet|azerbaijan/i;
+    const BRITISH = /\b(colour|armour|defence|centre|honour|favour|harbour|metre|theatre|grey|plough|storey|travelled|kerb|programme|organise|realise|recognise|civilise)/i;
+    const CITE = /^(game|(age[123]|setting|design_handoff)(\.[a-z_]+(\[\d+\])?)+|GAME:[a-z0-9]+\.[a-z0-9]+)$/;
+    const walk = (v, k, d) => {
+      if (d > 9 || v === null || v === undefined || k === "TWT.HY") return;
+      if (typeof v === "string") { all.push([k, v]); return; }
+      if (typeof v === "function") { if (k.startsWith("TWT.ui.")) all.push([k + "()", String(v(2, 3))]); return; }
+      if (typeof v !== "object") return;
+      if ("text" in v) {
+        all.push([k, v.text]);
+        const c = [].concat(v.cite === undefined ? [] : v.cite);
+        if (!c.length || c.some(x => !CITE.test(x))) bad.push(k + ": no cite of a known form");
+      }
+      for (const j of Object.keys(v)) if (j !== "text" && j !== "cite" && !(/^TWT\.ages\[\d\]$/.test(k) && /^hy/.test(j))) walk(v[j], k + (Array.isArray(v) ? "[" + j + "]" : "." + j), d + 1);
+    };
+    walk(TWT, "TWT", 0);
+    // names, role lines and history lines of every id, in every age it exists in (the tables are TWT's own)
+    const item = (kind, id, age, k) => {
+      all.push([k, TWT.name(kind, id, age)]);
+      if (kind !== "tech" && kind !== "res") all.push([k + ".role", TWT.role(kind, id)]);
+      TWT.hist(kind, id, age).forEach((x, i) => { all.push([k + ".hist[" + i + "]", x.text]); if (![].concat(x.cite === undefined ? [] : x.cite).every(c => CITE.test(c)) || x.cite === undefined) bad.push(k + ": no cite of a known form"); });
+    };
+    for (let age = 1; age <= 3; age++) {
+      for (const id of Object.keys(D.BLD).concat(["wonder"])) if (!(D.BLD[id] && D.BLD[id].age > age)) item("bld", id, age, "bld." + id + "@" + age);
+      for (const id of Object.keys(D.UNITS)) item("unit", id, age, "unit." + id + "@" + age);
+      for (const r of ["f", "w", "s", "g"]) item("res", r, age, "res." + r + "@" + age);
+      for (const id of Object.keys(D.TECHS)) if (D.TECHS[id].age <= age) all.push(["effect." + id + "@" + age, TWT.effect(id, D, age)]);
+    }
+    for (const id of Object.keys(D.RAIDERS)) { item("raider", id, D.RAIDERS[id].age, "raider." + id); if (!TWT.hist("raider", id).length) bad.push("raider." + id + ": no history line"); }
+    for (const id of Object.keys(D.TECHS)) { item("tech", id, D.TECHS[id].age, "tech." + id); if (!TWT.hist("tech", id).length) bad.push("tech." + id + ": no history line"); }
+    for (const [k, t] of all) {
+      if (typeof t !== "string") { bad.push(k + ": missing"); continue; }
+      if (!t) { if (!/\(\)$|\.gone$/.test(k)) bad.push(k + ": missing"); continue; }
+      if (/[–—]/.test(t) || / - /.test(t)) bad.push(k + ": a dash: " + t);
+      if (BANNED.test(t)) bad.push(k + ": a banned word: " + t);
+      if (BRITISH.test(t)) bad.push(k + ": a British spelling: " + t);
+      if (/\bAD \d/.test(t)) bad.push(k + ": the era goes after the number: " + t);
+      if (/[Ա-֏]/.test(t)) bad.push(k + ": Armenian letters outside the forms of 12.3: " + t);
+      for (const s of t.split(/(?<=[.!?])\s+/)) if (s.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length > 22) bad.push(k + ": a sentence over 22 words: " + s);
+    }
+    // the Armenian forms: exactly the terms of 12.3, agreeing with HY_NAMES (Erebuni, Dvin) and the age cards
+    const HYL = TWT.HY || [], forms = new Set();
+    if (HYL.map(r => r.en).sort().join() !== "Artashat,Dvin,Erebuni,Garni,Haldi,Zvartnots,catholicos,karas,nakharar") bad.push("TWT.HY is not the list of 12.3: " + HYL.map(r => r.en));
+    for (const r of HYL) {
+      forms.add(r.hy); if (r.classical) forms.add(r.classical);
+      if (!/^[Ա-֏]+$/.test(r.hy) || (r.classical && !/^[Ա-֏]+$/.test(r.classical)) || !CITE.test(r.cite)) bad.push("TWT.HY." + r.en + " is not one cited Armenian word");
+      const row = r.same && HY_NAMES.field[r.same];
+      if (r.same && (!row || row.hy !== r.hy || (row.classical || "") !== (r.classical || ""))) bad.push("TWT.HY." + r.en + " differs from HY_NAMES.field[\"" + r.same + "\"]");
+    }
+    TWT.ages.forEach((A, i) => { const r = HYL.find(x => x.en === A.town); if (!r || r.hy !== A.hy || (r.classical || "") !== (A.hyClassical || "")) bad.push("TWT.ages[" + i + "].hy is not the form of " + A.town); });
+    for (let age = 1; age <= 3; age++) for (const [kind, ids] of [["bld", Object.keys(D.BLD).concat(["wonder"])], ["unit", Object.keys(D.UNITS)], ["tech", Object.keys(D.TECHS)]]) {
+      for (const id of ids) for (const f of [TWT.hy(kind, id, age), TWT.hyc(kind, id, age)]) if (f && !forms.has(f)) bad.push("hy(" + kind + ", " + id + ", " + age + ") is not a form of 12.3: " + f);
+    }
+    if (TWT.hy("bld", "wonder", 3) !== "Զվարթնոց" || TWT.hyc("bld", "wonder", 3) !== "Զուարթնոց" || TWT.name("raider", "alC") !== "Alan Lasso Riders") bad.push("Zvartnots' forms or the Alan Lasso Riders' name");
+    if (bad.length) throw new Error(bad.length + " problems: " + bad.slice(0, 6).join(" | "));
+  });
 }
 
 // ---------- main loop ----------
