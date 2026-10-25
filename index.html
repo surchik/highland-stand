@@ -1534,6 +1534,7 @@
   #town .twB.poor > .ic:first-child { opacity: .6; }
   #town .twB.on { border-color: #f2c14e; background: linear-gradient(180deg, #6a4a28, #3a2814); }
   #town .twBAge .twBc { font-size: 12px; }
+  #town .twB:has(.twBc > span:nth-child(3)) { width: 82px; }   /* three costs (the Temple of Haldi's 440, 1000, 375) on two lines */
   #town .twWall { display: none; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
   #town .twWallHint { font-size: 15px; font-style: italic; color: #fff3c6; max-width: 360px; }
   #town.twWalling .twBuild { display: none; }
@@ -1541,6 +1542,7 @@
   #town.twTall .twBar { min-height: 150px; }
   #town.twTall .twBuild { flex-wrap: wrap; max-width: 560px; row-gap: 8px; }
   #town.twCompact .twB { width: 60px; height: 60px; }
+  #town.twCompact .twB > .ic { width: 26px; height: 26px; }
   /* placing: ghost buttons, Place another, stroke count, bubble, box */
   #town .twGB { position: absolute; z-index: 3; left: 0; top: 0; display: none; flex-direction: column; gap: 8px; }
   #town .twGB.on { display: flex; }
@@ -66442,9 +66444,11 @@ townRegion("shell", () => { Town = (() => {
     let h = headHtml("", m.head, m.hy);
     if (m.hp) h += '<div class="twHp"><i data-v="bar"></i><span data-v="hp"></span></div>';
     m.sub.forEach((s, i) => { h += '<p class="twIS" data-v="s' + i + '"></p>'; });
-    if (m.hist) h += '<p class="twHist">' + esc(m.hist) + "</p>";
     if (m.q.length) h += '<div class="twQ">' + m.q.map((q, i) => '<button type="button" class="twQi"' + (q.a ? ' data-a="' + q.a + '"' : " disabled") + '><span data-v="q' + i + '"></span>' + (q.a ? " &#215;" : "") + "</button>").join("") + "</div>";
     if (m.acts.length) h += '<div class="twActs">' + m.acts.map(actHtml).join("") + "</div>";
+    // the role and history lines come last, so that the panel's buttons stay in view above them (gray box)
+    if (m.role) h += '<p class="twIS">' + esc(m.role) + "</p>";
+    if (m.hist) h += '<p class="twHist">' + esc(m.hist) + "</p>";
     return h;
   }
   function panelSet(e, m) {
@@ -66473,7 +66477,7 @@ townRegion("shell", () => { Town = (() => {
   }
   const roleHist = (m, kind, id) => {
     const r = TWT.role ? TWT.role(kind, id) : "", h = TWT.hist ? TWT.hist(kind, id, ageOf()) : [];
-    if (r) m.sub.push(r);
+    if (r) m.role = r;
     if (h && h[0]) m.hist = h[0].text || String(h[0]);
   };
   function taskWords(u) {
