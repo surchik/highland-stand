@@ -62788,41 +62788,1045 @@ townRegion("sim", () => { TW = (() => {
 
 // ---- town: art ----   (WP3)  painters, sprite caches, ground chunks, draw()
 // TWA: draws the town on its own canvas (#twMap) and the minimap (#twMini); never through the battle's ctx.
-// WP1-A STUB, the gray box's look: a plain tile grid in flat colors, buildings and units as labeled boxes, the
-// placement ghost, a flat skyline band. WP3 replaces the inside (chunks, sprites, skyline, the governor) and keeps
-// the API. Only visible tiles are drawn, so a frame costs a few hundred fills.
+// The gray box (gate P): the ground is real and painted in the game's style (the river with its banks and fords,
+// the dark river soil, the hill and the bluffs by shading, cliffs, the trade road, the salt meadows, the groves'
+// floor, gravel by the stone and ore), baked in 8 x 8-tile chunks at three densities, in passes, under one bake
+// budget per frame (10.4). Trees, stone, ore, flocks, fields and stumps are sprites over the ground, never baked
+// into it. The skyline is Ararat (bgRidge, bgArarat, skyCloudsDriftHere; bgOrchards only in Age 3). Buildings and
+// units are plain labeled boxes. A DPR governor copies the battle's governDensity (10.5).
+// Beyond the frozen API of 13.6 (for WP1 and WP4):
+//   draw(G, view, ...): view.sel (optional) is a pick() result or an array of them: what is selected gets a ring
+//     or its footprint, its HP bar, a tower's range and a building's rally line.
+//   stats().arrows: the screen-edge raid arrows of the last frame [{ x, y, r, raid, tx, ty, n }] in CSS px.
+//   TWA.test: hooks for the self-test and the tools (bake budget, governor, the town's canvases); not for play.
 townRegion("art", () => { TWA = (() => {
-  const PPT = 40, SQ = 0.72;
+  const PPT = 40, SQ = 0.72, CT = 8, MW = TW.W, MH = TW.H, NCX = Math.ceil(MW / CT), NCY = Math.ceil(MH / CT);
+  const MG = 2, TP = 4;                        // the terrain image: a 2-tile margin, 4 px a tile
   const zoomSteps = [0.55, 0.7, 0.85, 1.0, 1.2, 1.45], groundSteps = [0.7, 1.0, 1.45], bakeBudgetMs = 6;
-  // terrain: grass, fertile, water, ford, hill, cliff, road, canal, bluff, salt
-  const TERR = ["#7f8a4c", "#5b4a2e", "#3f6f8e", "#79a1b2", "#938a58", "#5a5048", "#b49c6a", "#4f84a0", "#8e7f5a", "#d4cbb0"];
-  const NODE = { tree: "#2f5a2a", stone: "#8d8d88", ore: "#9a5a32", flock: "#f3ecd8", orchard: "#4f7a2e", dye: "#a8322a" };
-  const BLDC = { tc: "#b98a3e", house: "#c9a66b", field: "#a88d3c", store: "#a07a4a", barracks: "#7a5a3a", smithy: "#6b5b4b",
-    market: "#b0703a", temple: "#d8c9a0", stable: "#8a6a40", tower: "#9a9488", wall: "#6e6458", gate: "#5e4e3a",
-    grove: "#3f6a32", wonder: "#e2c35e" };
-  const UNITC = { vil: "#f0dcae", spear: "#3f6aa8", bow: "#3f8a6a", horse: "#6a4aa0" };
-  let cv = null, c = null, mini = null, mc = null, miniImg = null, miniKey = "";
-  let L = { w: 0, h: 0, dpr: 1 }, age = 1, ghostSpec = null;
-  const S = { blits: 0, chunks: 0, bakes: 0, bakeMs: 0, px: 0, ms: 0, governor: 1 };
-  const label = (k, a) => (TWT && TWT.name ? TWT.name("bld", k, a) : k) || k;
-  const short = { vil: "V", spear: "S", bow: "B", horse: "H", etR: "R", etS: "S", alH: "H", alC: "L", arR: "R", arS: "S", arW: "W", arH: "H" };
+  const GROUND_OF = [0, 0, 1, 1, 2, 2];        // the ground density each zoom step draws (the next larger one)
+  const CHUNK_BUDGET = 10e6, SPRITE_BUDGET = 4e6;
+  const SKY_U = 0.03, SKY_HZ = -1.1, SKY_X0 = 8.3, SKY_TOP = -7, SKY_BOT = 0.6;   // the skyline's frame (tiles)
+  const DATA = TW.DATA, BLDD = DATA.BLD, INK = "rgba(38, 24, 12, .9)";
+  const tnow = () => performance.now();
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const sm = t => t * t * (3 - 2 * t);
+  const mk = (w, h) => { const k = document.createElement("canvas"); k.width = Math.max(1, Math.ceil(w)); k.height = Math.max(1, Math.ceil(h)); return k; };
+  const kill = k => { if (k) { k.width = 0; k.height = 0; } };
+  const font = (px, w) => (w || 600) + " " + Math.round(px * 10) / 10 + "px " + UI_FONT;
+  const nearestStep = z => { let b = 0; for (let i = 1; i < zoomSteps.length; i++) if (Math.abs(zoomSteps[i] - z) < Math.abs(zoomSteps[b] - z)) b = i; return b; };
 
+  let cv = null, c = null, mini = null, mc = null;
+  let L = { w: 0, h: 0, dpr: 1, dpr0: 1 }, age = 1, ghostSpec = null, lastNow = 0, testBudget = null;
+  const S = { blits: 0, chunks: 0, bakes: 0, bakeMs: 0, px: 0, ms: 0, governor: 2, chunkPx: 0, spritePx: 0, skyPx: 0,
+    arrows: [], fallback: 0, totBakes: 0, totBakeMs: 0, maxStep: 0 };
+
+  // ---- one bake budget per frame (10.4): every bake step is timed; when 6 ms are spent, the rest wait ----
+  let spent = 0, budget = bakeBudgetMs;
+  const canBake = () => spent < budget;
+  function bakeStep(fn) {
+    const t = tnow();
+    try { return fn(); } finally {
+      const d = tnow() - t;
+      spent += d; S.bakeMs += d; S.bakes++; S.totBakes++; S.totBakeMs += d;
+      if (d > S.maxStep) S.maxStep = d;
+    }
+  }
+
+  // ---- each age's look: its battlefield's ground and sky (A1 Erebuni, A2 Avarayr's plain, A3 Dvin, 10.1) ----
+  const AGE_TINT = [[214, 176, 126], [150, 150, 154], [214, 162, 150]];   // mud brick, basalt, tuff
+  const looks = [];
+  function look(a) {
+    const i = clamp((a | 0) - 1, 0, 2);
+    if (looks[i]) return looks[i];
+    const A = DATA.AGES[i], Lv = LEVELS[Math.max(0, levelIndexOf(A.art))], T = Lv.theme;
+    // copies: the painting kit caches its rock tones on a biome, and the battle's own biomes stay untouched
+    const B = Object.assign({}, TERR_BIOME[T.backdrop] || TERR_BIOME.erebuni, { rockCss: null });
+    const base = terrRgb(T.mid), patch = T.patch.split(",").map(Number);
+    const lush = terrValueTone(terrMix(patch, B.blade, 0.2), base, 0.8, B.stones > 300 ? 1.04 : 1.2);
+    const dry = terrValueTone(terrMix(B.dry, B.earth, 0.3), base, 1.15, 1.1);
+    const earth = terrValueTone(terrMix(B.bed, B.earth, 0.4), base, terrLum(B.bed) > terrLum(base) ? 1.15 : 0.8, 1);
+    const soil = terrMix(terrLit(B.earth, -0.4), [96, 72, 44], 0.3);
+    const mud = terrMix(terrLit(B.earth, -0.4), [64, 72, 66], 0.3);
+    const marks = tone => {
+      const q = (rgb, limit) => terrCss(terrQuietTone(rgb, tone, 1, limit));
+      return { bladeA: q(B.blade, 0.25), bladeB: q(terrLit(B.blade, -0.28), 0.32), tip: q(terrLit(B.tip, 0.1), 0.24),
+        hum: terrCss(terrLit(tone, -0.3), 0.55), humLit: terrCss(terrLit(tone, 0.3), 0.6) };
+    };
+    const rock = (r, moss) => Object.assign({}, B, { rock: r, rockMoss: moss || null, rockCss: null, capCss: null, mossCss: null, snow: null });
+    looks[i] = {
+      lv: A.art, T, B, base, lush, dry, earth, soil, mud, hill: terrMix(base, dry, 0.35),
+      water: [72, 118, 132], deep: [50, 94, 116], shallow: [132, 170, 170], crust: [236, 232, 216],
+      basalt: rock([[132, 130, 134], [86, 84, 92], [44, 42, 50]]), tuff: rock([[216, 168, 152], [180, 126, 112], [120, 82, 72]]),
+      ore: rock([[170, 106, 74], [128, 72, 50], [76, 42, 32]], [86, 152, 122]),
+      marks: [marks(base), marks(lush), marks(dry)], soilMarks: marks(soil), tint: AGE_TINT[i],
+      flowers: (B.flowers && B.flowers.length ? B.flowers : [[230, 220, 120]]).map(f => terrCss(f)),
+    };
+    return looks[i];
+  }
+
+  // ---- what the renderer derives from a map, once per map (noise, the river's outline, the road, masks) ----
+  let MD = null;
+  const trng = (x, y, k) => mulberry32((Math.imul(x + 101, 73856093) ^ Math.imul(y + 211, 19349663) ^ Math.imul(k + 7, 83492791) ^ (MD ? MD.salt : 0)) | 0);
+  function mapData(G) {
+    const M = G.map;
+    if (MD && MD.map === M) return MD;
+    if (!MD || MD.seed !== G.seed) flushMap();
+    const terr = M.terr, N = MW * MH, salt = (Math.imul(G.seed | 0, -1640531535) ^ 0x2545f491) | 0;
+    // smooth value noise in two octaves: where the grass runs lush and where it runs dry
+    const noise = new Float32Array(N);
+    for (const [cell, amp, k] of [[5.5, 0.7, 1], [2.5, 0.3, 2]]) {
+      const r = mulberry32(salt ^ Math.imul(k, 0x9e3779b9)), NX = Math.ceil(MW / cell) + 3, NY = Math.ceil(MH / cell) + 3;
+      const lat = new Float32Array(NX * NY);
+      for (let i = 0; i < lat.length; i++) lat[i] = r() * 2 - 1;
+      for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+        const u = (x + 0.5) / cell + 1, v = (y + 0.5) / cell + 1, i0 = Math.floor(u), j0 = Math.floor(v), fu = sm(u - i0), fv = sm(v - j0);
+        const a = lat[j0 * NX + i0], b = lat[j0 * NX + i0 + 1], e = lat[(j0 + 1) * NX + i0], f = lat[(j0 + 1) * NX + i0 + 1];
+        noise[y * MW + x] += amp * (a + (b - a) * fu + (e - a) * fv + (a - b - e + f) * fu * fv);
+      }
+    }
+    // the river's two banks, column by column (a ford is river too)
+    const top = new Float32Array(MW), bot = new Float32Array(MW);
+    let rTop = MH, rBot = 0;
+    for (let x = 0; x < MW; x++) {
+      let a = -1, b = -1;
+      for (let y = 0; y < MH; y++) { const t = terr[y * MW + x]; if (t === 2 || t === 3) { if (a < 0) a = y; b = y; } }
+      if (a < 0) a = b = Math.round(M.river ? M.river[x] : 8);
+      top[x] = a; bot[x] = b + 1;
+      rTop = Math.min(rTop, a); rBot = Math.max(rBot, b + 1);
+    }
+    const col = x => clamp(Math.floor(x), 0, MW - 1);
+    const edge = (arr, d) => { const p = []; for (let x = -4; x <= MW + 3; x++) p.push([x + 0.5, arr[col(x)] + d]); return p; };
+    const curve = (path, p, move) => {
+      if (move) path.moveTo(p[0][0], p[0][1]); else path.lineTo(p[0][0], p[0][1]);
+      for (let i = 1; i < p.length - 1; i++) path.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
+      path.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+    };
+    const water = new Path2D(), deep = new Path2D(), bankTop = new Path2D(), bankBot = new Path2D(), flow = new Path2D();
+    curve(water, edge(top, 0), true); curve(water, edge(bot, 0).reverse(), false); water.closePath();
+    const mid = Array.from(top, (t, x) => (t + bot[x]) / 2);
+    curve(deep, edge(top, 0).map((p, i) => [p[0], Math.min(p[1] + 0.45, mid[col(p[0] - 0.5)])]), true);
+    curve(deep, edge(bot, 0).map(p => [p[0], Math.max(p[1] - 0.45, mid[col(p[0] - 0.5)])]).reverse(), false); deep.closePath();
+    curve(bankTop, edge(top, 0), true); curve(bankBot, edge(bot, 0), true);
+    // light on the water: broken streaks along the current
+    const fr = mulberry32(salt ^ 0x51ed);
+    for (let x = -2; x < MW + 2; x += 2 + fr() * 2.5) {
+      const len = 0.8 + fr() * 1.6, off = (fr() - 0.5) * 0.7, x2 = x + len;
+      const y1 = mid[col(x)] + off, y2 = mid[col(x2)] + off;
+      flow.moveTo(x, y1); flow.lineTo(x2, y2);
+    }
+    // the trade road: from the map's edge to the palace
+    const road = new Path2D();
+    let rb = [MW, MH, 0, 0];
+    (M.road || []).forEach(([x, y], k) => {
+      if (k) road.lineTo(x + 0.5, y + 0.5); else road.moveTo(x + 0.5 + (x === 0 ? -3 : x === MW - 1 ? 3 : 0), y + 0.5);
+      if (!k) road.lineTo(x + 0.5, y + 0.5);
+      rb = [Math.min(rb[0], x), Math.min(rb[1], y), Math.max(rb[2], x), Math.max(rb[3], y)];
+    });
+    if (M.road && M.road.length) { const e = M.road[M.road.length - 1]; road.lineTo(e[0] + 0.5, e[1] - 0.6); }
+    // the groves' floor and the gravel by the stone and ore, from the map as it was made
+    const grove = new Uint8Array(N), dep = new Uint8Array(N);
+    for (const n of M.start.nodes) {
+      const i = n.y * MW + n.x;
+      if (n.k === "tree" && M.wdist[i] > 1) grove[i] = 1;
+      else if (n.k === "stone" || n.k === "ore") dep[i] = n.k === "stone" ? 1 : 2;
+    }
+    const hx = M.start.tc[0] + 2, hy = M.start.tc[1] + 2;
+    const hillH = (x, y) => { const dx = (x + 0.5 - hx) / 8, dy = (y + 0.5 - hy) / 6; return Math.max(0, 1 - dx * dx - dy * dy); };
+    const bluffH = (x, y) => {
+      let h = 0;
+      for (const b of M.bluffs) {
+        const dx = Math.max(b.x - (x + 0.5), 0, x + 0.5 - (b.x + b.w)), dy = Math.max(b.y - (y + 0.5), 0, y + 0.5 - (b.y + b.h));
+        h = Math.max(h, 1 - Math.sqrt(dx * dx + dy * dy) / 1.8);
+      }
+      return Math.max(0, h);
+    };
+    // the tile masks the placement overlays draw (built once per map; canals re-make them)
+    MD = { map: M, seed: G.seed, salt, noise, top, bot, rTop, rBot, water, deep, bankTop, bankBot, flow, road, roadBox: rb,
+      grove, dep, hx, hy, hillH, bluffH, canals: !!M.canals, masks: null, alive: null, aliveN: -1 };
+    return MD;
+  }
+  // tile masks as paths in tile units (runs of a row joined), for the placement overlays
+  function maskPath(test) {
+    const p = new Path2D();
+    for (let y = 0; y < MH; y++) {
+      let x0 = -1;
+      for (let x = 0; x <= MW; x++) {
+        const on = x < MW && test(x, y, y * MW + x);
+        if (on && x0 < 0) x0 = x;
+        if (!on && x0 >= 0) { p.rect(x0, y, x - x0, 1); x0 = -1; }
+      }
+    }
+    return p;
+  }
+  function masks(G) {
+    if (MD.masks && MD.masks.canals === G.map.canals) return MD.masks;
+    const M = G.map, E = DATA.PLACE ? DATA.PLACE.edgeMargin : 2, BK = DATA.PLACE ? DATA.PLACE.bankMargin : 2;
+    const edge = (x, y) => x < E || y < E || x >= MW - E || y >= MH - E;
+    const wet = i => M.terr[i] === 2 || M.terr[i] === 3;
+    MD.masks = {
+      canals: M.canals,
+      edge: maskPath(edge),
+      bank: maskPath((x, y, i) => !edge(x, y) && !wet(i) && M.wdist[i] <= BK),
+      fertile: maskPath((x, y, i) => M.terr[i] === 1),
+      bluff: maskPath((x, y, i) => M.terr[i] === 8),
+    };
+    return MD.masks;
+  }
+
+  // ---- the terrain image: one smoothed color per tile, 4 px a tile with a 2-tile margin. The ground chunks are
+  // laid on it, the minimap shows it, and it stands in for any chunk not baked yet ----
+  const timgs = new Map();
+  function tileRGB(M, K, x, y) {
+    const xx = clamp(x, 0, MW - 1), yy = clamp(y, 0, MH - 1), i = yy * MW + xx, t = M.terr[i], n = MD.noise[i];
+    const grass = n >= 0 ? terrMix(K.base, K.lush, sm(Math.min(1, n * 1.7))) : terrMix(K.base, K.dry, sm(Math.min(1, -n * 1.7)));
+    let col;
+    switch (t) {
+      case 1: col = terrMix(K.soil, terrLit(K.soil, 0.18), (n + 1) * 0.3); break;
+      case 2: case 3: case 7: col = terrMix(K.mud, K.water, 0.55); break;
+      case 5: col = terrMix(K.basalt.rock[1], grass, 0.25); break;
+      case 6: col = terrMix(grass, K.earth, 0.55); break;
+      case 9: col = terrMix(grass, K.crust, 0.22); break;
+      case 4: case 8: col = terrMix(grass, K.dry, 0.3); break;
+      default: col = grass;
+    }
+    if (t === 0 && M.wdist[i] === 1) col = terrMix(col, K.mud, 0.3);
+    if (MD.grove[i]) col = terrMix(col, terrLit(K.lush, -0.18), 0.45);
+    if (MD.dep[i]) col = terrMix(col, K.B.pebble, 0.3);
+    // the hill and the bluffs are shading only, lit from the upper left (no height offset, so picking stays flat)
+    if (t === 0 || t === 4 || t === 5 || t === 6 || t === 8) {
+      const sh = (MD.hillH(xx - 1, yy - 1) - MD.hillH(xx + 1, yy + 1)) * 1.4 + (MD.bluffH(xx - 1, yy - 1) - MD.bluffH(xx + 1, yy + 1)) * 0.45;
+      if (sh < 0) col = terrMix(col, [255, 240, 200], clamp(-sh, 0, 0.3));
+      else if (sh > 0) col = terrLit(col, -clamp(sh, 0, 0.3));
+    }
+    return col;
+  }
+  function terrImage(G) {
+    const key = age + "|" + (G.map.canals ? 1 : 0);
+    let im = timgs.get(key);
+    if (im) return im;
+    const M = G.map, K = look(age), TW2 = MW + 2 * MG, TH2 = MH + 2 * MG, tc = new Float32Array(TW2 * TH2 * 3);
+    for (let y = 0; y < TH2; y++) for (let x = 0; x < TW2; x++) {
+      const col = tileRGB(M, K, x - MG, y - MG), j = (y * TW2 + x) * 3;
+      tc[j] = col[0]; tc[j + 1] = col[1]; tc[j + 2] = col[2];
+    }
+    // smoothstep between tile centers: soft edges for free, without bilinear's creases
+    im = mk(TW2 * TP, TH2 * TP);
+    const g = im.getContext("2d"), id = g.createImageData(im.width, im.height), px = id.data;
+    const wx = new Int16Array(im.width), fx = new Float32Array(im.width);
+    for (let p = 0; p < im.width; p++) { const u = (p + 0.5) / TP - 0.5, a = Math.floor(u); wx[p] = a; fx[p] = sm(u - a); }
+    for (let q = 0; q < im.height; q++) {
+      const v = (q + 0.5) / TP - 0.5, b0 = Math.floor(v), fy = sm(v - b0), y0 = clamp(b0, 0, TH2 - 1), y1 = clamp(b0 + 1, 0, TH2 - 1);
+      for (let p = 0; p < im.width; p++) {
+        const x0 = clamp(wx[p], 0, TW2 - 1), x1 = clamp(wx[p] + 1, 0, TW2 - 1), f = fx[p], o = (q * im.width + p) * 4;
+        const a = (y0 * TW2 + x0) * 3, b = (y0 * TW2 + x1) * 3, e = (y1 * TW2 + x0) * 3, h = (y1 * TW2 + x1) * 3;
+        for (let k = 0; k < 3; k++) {
+          const top = tc[a + k] + (tc[b + k] - tc[a + k]) * f, bo = tc[e + k] + (tc[h + k] - tc[e + k]) * f;
+          px[o + k] = top + (bo - top) * fy;
+        }
+        px[o + 3] = 255;
+      }
+    }
+    g.putImageData(id, 0, 0);
+    timgs.set(key, im);
+    return im;
+  }
+
+  // ---- ground chunks: 8 x 8 tiles at three densities, in passes, LRU within 10 M device px (10.4) ----
+  const chunks = new Map(), cellRecs = [];
+  const cellVer = new Int32Array(NCX * NCY);
+  for (let i = 0; i < NCX * NCY; i++) cellRecs.push([]);
+  let chunkPx = 0;
+  function chunkRec(cell, di) {
+    const key = cell + "|" + di + "|" + L.dpr + "|" + age + "|" + cellVer[cell];
+    let r = chunks.get(key);
+    if (r) { chunks.delete(key); chunks.set(key, r); return r; }
+    const g = groundSteps[di], TX = PPT * g * L.dpr;
+    r = { key, cell, cx: cell % NCX, cy: Math.floor(cell / NCX), di, g, d: L.dpr, age, ver: cellVer[cell], TX, TY: TX * SQ,
+      s: g * L.dpr, cv: null, c: null, pass: 0, done: false, px: 0 };
+    chunks.set(key, r);
+    cellRecs[cell].push(r);
+    return r;
+  }
+  function dropChunk(r) {
+    chunks.delete(r.key);
+    const l = cellRecs[r.cell], k = l.indexOf(r);
+    if (k >= 0) l.splice(k, 1);
+    chunkPx -= r.px;
+    kill(r.cv); r.cv = r.c = null;
+  }
+  // A pass is timed with its raster: a canvas records its drawing and rasterizes it later, when it is first drawn
+  // or read, which would bill the bake's real cost to whichever frame shows the chunk. Reading one pixel back makes
+  // the pass pay its own way, and the chunk canvases are kept in memory (willReadFrequently) so the read is cheap.
+  const passMs = [];
+  const passFits = r => { const e = passMs[r.di * PASSES.length + r.pass]; return spent === 0 || spent + (e === undefined ? 2 : e) <= budget; };
+  function runPass(r, G) {
+    terrImage(G);
+    bakeStep(() => {
+      const t = tnow();
+      if (!r.cv) {
+        r.cv = mk(CT * r.TX + 1, CT * r.TY + 1);
+        r.c = r.cv.getContext("2d", { willReadFrequently: true });
+        r.px = r.cv.width * r.cv.height; chunkPx += r.px;
+      }
+      const g = r.c;
+      g.save();
+      try { PASSES[r.pass](r, G, g); } finally { g.restore(); }
+      g.getImageData(0, 0, 1, 1);
+      const k = r.di * PASSES.length + r.pass;
+      const dt = tnow() - t;
+      passMs[k] = passMs[k] === undefined ? dt : passMs[k] * 0.7 + dt * 0.3;
+      r.pass++;
+      r.done = r.pass >= PASSES.length;
+    });
+  }
+
+  // pass 0: the terrain image, smoothed and scaled (one source pixel past each side, so the smoothing never stops
+  // short at the chunk's edge)
+  function passBase(r, G, g) {
+    const im = terrImage(G);
+    g.imageSmoothingEnabled = true;
+    const sx = (r.cx * CT + MG) * TP - 1, sy = (r.cy * CT + MG) * TP - 1, sw = CT * TP + 2;
+    g.drawImage(im, sx, sy, sw, sw, -r.TX / TP, -r.TY / TP, (CT + 2 / TP) * r.TX, (CT + 2 / TP) * r.TY);
+  }
+  // pass 1: cut shapes of lush and dry turf, the groves' floor, dry-brush dabs, clods on the river soil, gravel
+  function passPatches(r, G, g) {
+    const M = G.map, K = look(r.age), s = r.s, TX = r.TX, TY = r.TY, ox = r.cx * CT, oy = r.cy * CT;
+    const dry = [], lush = [], floor = [], soilL = [], soilH = [];
+    const dabD = new Path2D(), dabL = new Path2D(), clodD = new Path2D(), clodL = new Path2D(), grav = new Path2D(), gravL = new Path2D();
+    const ell = (p, x, y, rx, ry, rot) => { p.moveTo(x + rx, y); p.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2); };
+    for (let y = oy - 2; y < oy + CT + 2; y++) for (let x = ox - 2; x < ox + CT + 2; x++) {
+      if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+      const i = y * MW + x, t = M.terr[i], w = M.wdist[i], n = MD.noise[i], R = trng(x, y, 1);
+      const px = (x + 0.2 + R() * 0.6 - ox) * TX, py = (y + 0.2 + R() * 0.6 - oy) * TY, big = R();
+      if (MD.grove[i]) floor.push([px, py, (0.75 + big * 0.5) * TX, R]);
+      if (t === 1) (n > 0.05 ? soilH : soilL).push([(x + 0.5 - ox) * TX, (y + 0.5 - oy) * TY, (0.66 + big * 0.2) * TX, R, 0.72]);
+      const turf = (t === 0 || t === 4 || t === 8) && w >= 2 && !MD.grove[i];
+      if (turf && n > 0.15 && big < 0.62) lush.push([px, py, (0.32 + R() * 0.55) * TX, R]);
+      else if (turf && n < -0.12 && big < 0.5) dry.push([px, py, (0.3 + R() * 0.5) * TX, R]);
+      if (t === 0 || t === 4 || t === 8 || t === 6) {
+        for (let k = 0; k < 2; k++) {
+          const len = (0.18 + R() * 0.3) * TX, th = (1.1 + R() * 1.2) * s;
+          ell(R() < 0.55 ? dabD : dabL, (x + R() - ox) * TX, (y + R() - oy) * TY, len / 2, th, (R() - 0.5) * 0.14);
+        }
+      } else if (t === 1) {
+        for (let k = 0; k < 6; k++) ell(R() < 0.6 ? clodD : clodL, (x + R() - ox) * TX, (y + R() - oy) * TY, (0.8 + R() * 1.6) * s, (0.5 + R() * 0.8) * s);
+      }
+      if (MD.dep[i] || (x > 0 && MD.dep[i - 1]) || (x < MW - 1 && MD.dep[i + 1])) {
+        for (let k = 0; k < 7; k++) {
+          const gx = (x + R() * 1.2 - 0.1 - ox) * TX, gy = (y + R() - oy) * TY, gr = (0.6 + R() * 1.1) * s;
+          ell(grav, gx, gy, gr, gr * 0.7); ell(gravL, gx - gr * 0.25, gy - gr * 0.25, gr * 0.45, gr * 0.3);
+        }
+      }
+    }
+    // each tone a set of cut shapes with no halo: a dark rim under the lower right, a pale lip on the upper left
+    const shapes = (list, tone, dark, light, rimA) => {
+      if (!list.length) return;
+      const f = list.map(p => terrCutShape(p[3], 9, 0.22)), a = rimA || 0.85;
+      const path = (dx, dy) => { g.beginPath(); list.forEach((p, k) => terrShapePath(g, p[0] + dx, p[1] + dy, p[2], p[2] * (p[4] || 0.62), f[k], 1)); };
+      g.fillStyle = terrCss(dark, a); path(1.2 * s, 1.3 * s); g.fill();
+      g.fillStyle = terrCss(light, a); path(-1 * s, -1.1 * s); g.fill();
+      g.fillStyle = terrCss(tone); path(0, 0); g.fill();
+    };
+    shapes(soilL, K.soil, terrLit(K.soil, -0.3), terrLit(K.soil, 0.16));
+    shapes(soilH, terrLit(K.soil, 0.1), terrLit(K.soil, -0.18), terrLit(K.soil, 0.24), 0.5);
+    shapes(dry, K.dry, terrLit(K.base, -0.18), terrLit(K.dry, 0.2));
+    shapes(lush, K.lush, terrLit(K.lush, -0.26), terrLit(K.base, 0.22));
+    shapes(floor, terrLit(K.lush, -0.14), terrLit(K.lush, -0.38), terrLit(K.lush, 0.08));
+    g.fillStyle = "rgba(48, 34, 14, .1)"; g.fill(dabD);
+    g.fillStyle = "rgba(255, 248, 222, .13)"; g.fill(dabL);
+    g.fillStyle = terrCss(terrLit(K.soil, -0.38), 0.6); g.fill(clodD);
+    g.fillStyle = terrCss(terrLit(K.soil, 0.26), 0.5); g.fill(clodL);
+    g.fillStyle = terrCss(terrLit(K.B.pebble, -0.25), 0.8); g.fill(grav);
+    g.fillStyle = terrCss(terrLit(K.B.pebble, 0.35), 0.8); g.fill(gravL);
+  }
+  // pass 2: the road, the salt crust, the river (banks, water, fords), the canals, the cliffs
+  function passFeatures(r, G, g) {
+    const M = G.map, K = look(r.age), s = r.s, TX = r.TX, TY = r.TY, ox = r.cx * CT, oy = r.cy * CT;
+    const near = (x0, y0, x1, y1) => x1 >= ox - 2 && x0 <= ox + CT + 2 && y1 >= oy - 2 && y0 <= oy + CT + 2;
+    const tiles = () => g.setTransform(TX, 0, 0, TY, -ox * TX, -oy * TY);
+    const px = () => g.setTransform(1, 0, 0, 1, 0, 0);
+    g.lineJoin = "round"; g.lineCap = "round";
+    // the trade road: a worn verge, the bed, two ruts and a pale crown
+    const rb = MD.roadBox;
+    if (near(rb[0] - 1, rb[1] - 1, rb[2] + 1, rb[3] + 2)) {
+      tiles();
+      for (const [css, lw] of [[terrCss(terrLit(K.earth, -0.25), 0.45), 1.05], [terrCss(K.earth), 0.8], [terrCss(terrLit(K.earth, -0.3), 0.75), 0.5],
+        [terrCss(K.earth), 0.4], [terrCss(terrLit(K.earth, 0.18), 0.6), 0.12]]) {
+        g.strokeStyle = css; g.lineWidth = lw; g.stroke(MD.road);
+      }
+    }
+    // the salt meadows: a pale crust under low grass, the dye insect's ground (12.3)
+    px();
+    const crust = [];
+    for (let y = oy - 1; y <= oy + CT; y++) for (let x = ox - 1; x <= ox + CT; x++) {
+      if (x < 0 || y < 0 || x >= MW || y >= MH || M.terr[y * MW + x] !== 9) continue;
+      const R = trng(x, y, 3);
+      for (let k = 0; k < 3; k++) crust.push([(x + 0.15 + R() * 0.7 - ox) * TX, (y + 0.2 + R() * 0.6 - oy) * TY, (0.18 + R() * 0.2) * TX, R]);
+    }
+    if (crust.length) {
+      const f = crust.map(p => terrCutShape(p[3], 8, 0.25));
+      const path = (dx, dy) => { g.beginPath(); crust.forEach((p, k) => terrShapePath(g, p[0] + dx, p[1] + dy, p[2], p[2] * 0.6, f[k], 1)); };
+      const cr = terrMix(K.crust, K.dry, 0.55);
+      g.fillStyle = terrCss(terrLit(cr, -0.25), 0.4); path(1 * s, 1.1 * s); g.fill();
+      g.fillStyle = terrCss(cr, 0.65); path(0, 0); g.fill();
+    }
+    // the river: wet banks, the water with its deep middle, the shallows of the fords, light on the current, and the
+    // cut edges (the far bank shows its face, the near one only its lip)
+    if (near(0, MD.rTop - 1, MW, MD.rBot + 1)) {
+      tiles();
+      g.strokeStyle = terrCss(K.mud, 0.75); g.lineWidth = 0.6; g.stroke(MD.bankTop); g.stroke(MD.bankBot);
+      g.fillStyle = terrCss(K.water); g.fill(MD.water);
+      g.fillStyle = terrCss(K.deep, 0.85); g.fill(MD.deep);
+      for (const fx of M.fords || []) {
+        const t0 = MD.top[fx], t2 = MD.top[Math.min(MW - 1, fx + 2)], b0 = MD.bot[fx], b2 = MD.bot[Math.min(MW - 1, fx + 2)];
+        const mt = (t0 + t2) / 2, mb = (b0 + b2) / 2;
+        g.beginPath();
+        g.moveTo(fx - 0.3, t0 + 0.1);
+        g.quadraticCurveTo(fx + 1.5, mt - 0.25, fx + 3.3, t2 + 0.1);
+        g.quadraticCurveTo(fx + 3.9, (mt + mb) / 2, fx + 3.3, b2 - 0.1);
+        g.quadraticCurveTo(fx + 1.5, mb + 0.25, fx - 0.3, b0 - 0.1);
+        g.quadraticCurveTo(fx - 0.9, (mt + mb) / 2, fx - 0.3, t0 + 0.1);
+        g.closePath();
+        g.save(); g.clip(MD.water);
+        g.fillStyle = terrCss(K.shallow, 0.4); g.fill();
+        g.strokeStyle = terrCss(K.shallow, 0.3); g.lineWidth = 0.5; g.stroke();
+        g.restore();
+      }
+      g.strokeStyle = "rgba(226, 240, 240, .38)"; g.lineWidth = 0.06; g.stroke(MD.flow);
+      g.save(); g.translate(0, -0.12);
+      g.strokeStyle = terrCss(terrLit(K.mud, 0.12), 0.9); g.lineWidth = 0.22; g.stroke(MD.bankTop);
+      g.restore();
+      g.strokeStyle = terrCss(terrLit(K.base, 0.25), 0.55); g.lineWidth = 0.1;
+      g.save(); g.translate(0, 0.05); g.stroke(MD.bankBot); g.restore();
+      g.strokeStyle = "rgba(38, 24, 12, .5)"; g.lineWidth = 0.05; g.stroke(MD.bankTop); g.stroke(MD.bankBot);
+      // stepping stones across each ford
+      px();
+      for (const fx of M.fords || []) {
+        if (!near(fx, MD.top[fx], fx + 3, MD.bot[fx])) continue;
+        const R = trng(fx, 0, 9);
+        for (let x = fx + 0.3; x < fx + 3; x += 0.55 + R() * 0.3) {
+          const y = (MD.top[Math.min(MW - 1, Math.floor(x))] + MD.bot[Math.min(MW - 1, Math.floor(x))]) / 2 + (R() - 0.5) * 0.9;
+          terrInkStone(g, (x - ox) * TX, (y - oy) * TY, (2.4 + R() * 1.6) * s, (1.6 + R()) * s, K.B.pebble, R, R() - 0.5);
+        }
+      }
+    }
+    // the canals (after Royal Canals): a channel down each canal tile, joined to the river
+    if (M.canals) {
+      const path = new Path2D();
+      let any = false;
+      for (let y = oy - 1; y <= oy + CT; y++) for (let x = ox - 1; x <= ox + CT; x++) {
+        if (x < 0 || y < 0 || x >= MW || y >= MH || M.terr[y * MW + x] !== 7) continue;
+        const up = y > 0 ? M.terr[(y - 1) * MW + x] : 0;
+        path.moveTo(x + 0.5, up === 2 || up === 3 ? y - 0.7 : y - 0.05); path.lineTo(x + 0.5, y + 1.05);
+        any = true;
+      }
+      if (any) {
+        tiles();
+        g.lineCap = "butt";
+        for (const [css, lw] of [[terrCss(K.mud, 0.8), 0.62], ["rgba(38, 24, 12, .5)", 0.46], [terrCss(K.water), 0.4], [terrCss(K.deep, 0.7), 0.16]]) {
+          g.strokeStyle = css; g.lineWidth = lw; g.stroke(path);
+        }
+      }
+    }
+    // cliffs: inked rock heaped along the bluffs' outer edges
+    px();
+    for (let y = oy - 1; y <= oy + CT; y++) for (let x = ox - 1; x <= ox + CT; x++) {
+      if (x < 0 || y < 0 || x >= MW || y >= MH || M.terr[y * MW + x] !== 5) continue;
+      const R = trng(x, y, 4);
+      for (let k = 0; k < 3; k++) {
+        const rx = (0.2 + R() * 0.16) * TX;
+        terrInkStone(g, (x + 0.2 + k * 0.3 - ox) * TX, (y + 0.35 + R() * 0.4 - oy) * TY, rx, rx * 0.72, K.basalt.rock[k === 1 ? 0 : 1], R, R() - 0.5);
+      }
+    }
+  }
+  // passes 3 to 6: the marks, in rows of two tiles: grass blades, tussocks, pebbles, flowers, reeds, scrub, stones.
+  // Each mark is placed by its own tile's seed, so a mark that crosses into the next chunk is painted there alike.
+  function passDetail(r, G, g, band) {
+    const M = G.map, K = look(r.age), s = r.s, TX = r.TX, TY = r.TY, ox = r.cx * CT, oy = r.cy * CT;
+    const strokes = new Map(), dots = new Map(), props = [];
+    const ink = (css, w) => { const k = css + "|" + w.toFixed(1); let b = strokes.get(k); if (!b) strokes.set(k, b = { css, w, p: new Path2D() }); return b.p; };
+    const dot = css => { let p = dots.get(css); if (!p) dots.set(css, p = new Path2D()); return p; };
+    const disc = (p, x, y, rx, ry) => { p.moveTo(x + rx, y); p.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); };
+    const blades = (R, x, y, P, k) => {
+      const n = 5 + Math.floor(R() * 7), u0 = R(), h = (3 + 2.6 * u0) * s * k, spread = h * (0.7 + R() * 0.5), lw = (0.85 + 0.35 * u0) * s * 0.8;
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1) - 0.5, len = h * (0.62 + 0.42 * (1 - Math.abs(u) * 1.3) + R() * 0.3);
+        const bx = x + u * spread * 1.6 + (R() - 0.5) * s, by = y + (R() - 0.5) * s;
+        const tx = bx + u * len * 1.1 + (R() - 0.5) * len * 0.3, ty = by - len * (1 - Math.abs(u) * 0.3), mx = bx + (tx - bx) * 0.25, my = by - len * 0.6;
+        const b = ink(i % 2 ? P.bladeA : P.bladeB, lw);
+        b.moveTo(bx, by); b.quadraticCurveTo(mx, my, tx, ty);
+        if (i % 3 === 1) continue;
+        const t = ink(P.tip, lw * 0.9);
+        t.moveTo(0.16 * bx + 0.48 * mx + 0.36 * tx, 0.16 * by + 0.48 * my + 0.36 * ty); t.lineTo(tx, ty);
+      }
+    };
+    const tussock = (R, x, y, P) => {
+      const w = (3 + R() * 3) * s, a = ink(P.hum, 1.1 * s), b = ink(P.humLit, 0.9 * s);
+      a.moveTo(x - w, y); a.quadraticCurveTo(x, y - w * 0.5, x + w, y);
+      b.moveTo(x - w * 0.8, y - 0.8 * s); b.quadraticCurveTo(x - w * 0.1, y - w * 0.55, x + w * 0.5, y - 0.6 * s);
+    };
+    const pebble = (R, x, y, rgb) => {
+      const rx = (0.9 + R() * 1.3) * s, ry = rx * 0.66;
+      disc(dot("rgba(26, 18, 8, .3)"), x + rx * 0.35, y + ry * 0.45, rx, ry);
+      disc(dot(terrCss(rgb)), x, y, rx, ry);
+      disc(dot(terrCss(terrLit(rgb, 0.36), 0.9)), x - rx * 0.3, y - ry * 0.3, rx * 0.5, ry * 0.45);
+    };
+    const y0 = oy + band * 2 - (band === 0 ? 1 : 0), y1 = oy + band * 2 + 2 + (band === 3 ? 1 : 0);
+    for (let y = y0; y < y1; y++) for (let x = ox - 1; x <= ox + CT; x++) {
+      if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+      const i = y * MW + x, t = M.terr[i], w = M.wdist[i], n = MD.noise[i], R = trng(x, y, 2);
+      const at = () => [(x + 0.08 + R() * 0.84 - ox) * TX, (y + 0.15 + R() * 0.8 - oy) * TY];
+      if ((t === 0 || t === 4 || t === 8) && w >= 2) {
+        const kind = n > 0.15 ? 1 : n < -0.12 ? 2 : 0, P = K.marks[kind];
+        const nb = 1 + Math.floor(R() * 2) + (kind === 1 ? 1 : 0) - (t === 4 ? 1 : 0);
+        for (let k = 0; k < nb; k++) { const p = at(); blades(R, p[0], p[1], P, kind === 2 ? 0.8 : 1); }
+        if (R() < 0.22) { const p = at(); tussock(R, p[0], p[1], P); }
+        if (R() < (t === 0 ? 0.16 : 0.34)) { const p = at(); pebble(R, p[0], p[1], K.B.pebble); }
+        if (kind === 1 && R() < 0.16) {
+          const p = at(), fl = K.flowers[Math.floor(R() * K.flowers.length)];
+          for (let k = 0; k < 4; k++) { const fx = p[0] + (R() - 0.5) * 7 * s, fy = p[1] + (R() - 0.5) * 3 * s; disc(dot(fl), fx, fy, 1.1 * s, 0.9 * s); disc(dot("rgba(255, 250, 220, .8)"), fx - 0.3 * s, fy - 0.3 * s, 0.4 * s, 0.4 * s); }
+        }
+        if (R() < 0.05) { const p = at(); props.push([p[1], () => terrInkStone(g, p[0], p[1], (2.6 + R() * 2) * s, (1.8 + R() * 1.2) * s, K.B.rock[1], R, R() - 0.5)]); }
+        if (t === 0 && kind !== 2 && R() < 0.03) { const p = at(); props.push([p[1], () => terrScrub(g, p[0], p[1], (2.6 + R() * 1.4) * s, K.B.scrub)]); }
+      } else if (t === 0 || t === 4) {
+        // the bank: reeds and rough tufts by the water
+        if (R() < 0.4) { const p = at(); props.push([p[1], () => terrReeds(g, p[0], p[1], 0.62 * s, R)]); }
+        else { const p = at(); blades(R, p[0], p[1], K.marks[1], 1.1); }
+        if (R() < 0.5) { const p = at(); blades(R, p[0], p[1], K.marks[0], 0.9); }
+      } else if (t === 1) {
+        if (R() < 0.3) { const p = at(); blades(R, p[0], p[1], K.soilMarks, 0.7); }
+        if (R() < 0.12) { const p = at(); pebble(R, p[0], p[1], terrLit(K.soil, 0.35)); }
+      } else if (t === 9) {
+        if (R() < 0.45) { const p = at(); props.push([p[1], () => terrReeds(g, p[0], p[1], 0.5 * s, R)]); }
+        for (let k = 0; k < 2; k++) { const p = at(); blades(R, p[0], p[1], K.marks[2], 0.75); }
+        for (let k = 0; k < 3; k++) { const p = at(); disc(dot("rgba(250, 248, 236, .5)"), p[0], p[1], 0.7 * s, 0.45 * s); }
+      } else if (t === 6) {
+        if (R() < 0.3) { const p = at(); pebble(R, p[0], p[1], terrLit(K.earth, -0.1)); }
+      }
+    }
+    g.lineCap = "round";
+    for (const [css, p] of dots) { g.fillStyle = css; g.fill(p); }
+    for (const b of strokes.values()) { g.strokeStyle = b.css; g.lineWidth = b.w; g.stroke(b.p); }
+    g.lineCap = "butt";
+    props.sort((a, b) => a[0] - b[0]);
+    for (const p of props) p[1]();
+  }
+  const PASSES = [passBase, passPatches, passFeatures, (r, G, g) => passDetail(r, G, g, 0), (r, G, g) => passDetail(r, G, g, 1),
+    (r, G, g) => passDetail(r, G, g, 2), (r, G, g) => passDetail(r, G, g, 3)];
+
+  // the cells in view, nearest the middle first
+  function cellsInView(view) {
+    const pw = PPT * view.zoom, ph = pw * SQ, out = [];
+    const x1w = view.x + L.w / pw, y1w = view.y + L.h / ph;
+    if (y1w <= 0 || view.y >= MH || x1w <= 0 || view.x >= MW) return out;
+    const cx0 = clamp(Math.floor(view.x / CT), 0, NCX - 1), cx1 = clamp(Math.floor(x1w / CT), 0, NCX - 1);
+    const cy0 = clamp(Math.floor(view.y / CT), 0, NCY - 1), cy1 = clamp(Math.floor(y1w / CT), 0, NCY - 1);
+    const mx = (view.x + x1w) / 2, my = (view.y + y1w) / 2;
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) out.push(cy * NCX + cx);
+    const dd = k => { const dx = (k % NCX + 0.5) * CT - mx, dy = (Math.floor(k / NCX) + 0.5) * CT - my; return dx * dx + dy * dy; };
+    return out.sort((a, b) => dd(a) - dd(b));
+  }
+  function bakeGround(G, view, di) {
+    const cells = cellsInView(view), need = cells.map(k => chunkRec(k, di));
+    // every cell's base first (cheap), then each cell to the end, the middle of the view first
+    for (const r of need) if (r.pass === 0 && canBake() && passFits(r)) runPass(r, G);
+    for (const r of need) while (!r.done && canBake() && passFits(r)) runPass(r, G);
+    // keep what is in view; drop the oldest of the rest past the budget
+    let vis = 0;
+    for (const r of need) vis += r.px;
+    const cap = Math.max(CHUNK_BUDGET, vis * 1.05), keep = new Set(need);
+    if (chunkPx > cap) for (const r of Array.from(chunks.values())) { if (chunkPx <= cap) break; if (!keep.has(r)) dropChunk(r); }
+    return need;
+  }
+  // a cell's best picture: finished at this density, else finished at another (scaled), else half-baked, else none
+  function drawable(r) {
+    if (r.done) return r;
+    let best = null;
+    for (const o of cellRecs[r.cell]) {
+      if (!o.done || o === r || o.derived) continue;
+      const score = (o.age === r.age ? 4 : 0) + (o.ver === r.ver ? 2 : 0) + (o.d === r.d ? 1 : 0) - Math.abs(o.di - r.di) * 0.1;
+      if (!best || score > best.score) best = { o, score };
+    }
+    if (best && best.o.ver === r.ver) return best.o;
+    return r.pass >= 1 ? r : best ? best.o : null;
+  }
+  // A finished chunk resampled once for a zoom step that lies between the densities, so that the layer is laid 1:1
+  // (the step still draws the next larger density scaled down, 10.4; the scaling is kept instead of done each time)
+  function derivedOf(p, zi) {
+    const z = zoomSteps[zi];
+    if (!p || !p.done || p.derived || Math.abs(z - p.g) < 1e-6 || p.d !== L.dpr) return p;
+    const key = p.key + "|z" + zi;
+    let r = chunks.get(key);
+    if (r) { chunks.delete(key); chunks.set(key, r); return r; }
+    if (!canBake()) return p;
+    bakeStep(() => {
+      const sc = z / p.g, w = Math.ceil(p.cv.width * sc), h = Math.ceil(p.cv.height * sc);
+      const k = mk(w, h), g = k.getContext("2d", { willReadFrequently: true });
+      g.imageSmoothingEnabled = true;
+      g.drawImage(p.cv, 0, 0, p.cv.width * sc, p.cv.height * sc);
+      g.getImageData(0, 0, 1, 1);
+      r = { key, cell: p.cell, cx: p.cx, cy: p.cy, di: -1, g: z, d: p.d, age: p.age, ver: p.ver, cv: k, c: null, pass: PASSES.length,
+        done: true, px: w * h, derived: true };
+      chunks.set(key, r); cellRecs[p.cell].push(r); chunkPx += r.px;
+    });
+    return r || p;
+  }
+  // The back layer: the ground chunks (or the terrain image under what is not baked yet), the dimmed margin and the
+  // skyline, composed on a canvas of the screen's size only when the view or a chunk changes, then drawn whole.
+  // A frame that does not move the camera draws the ground with one opaque blit.
+  const back = { cv: null, c: null, key: "", cells: new Map(), view: null };
+  function drawGround(G, view, zi) {
+    // between steps (a pinch, the ease after it) the layer of the last step is drawn scaled, and nothing is baked
+    if (back.view && back.key && Math.abs(view.zoom - zoomSteps[zi]) > 1e-6 && back.cv && back.cv.width === cv.width && back.cv.height === cv.height) {
+      const v0 = back.view, d = L.dpr, k = view.zoom / v0.zoom, pw = PPT * view.zoom * d;
+      const ox = (v0.x - view.x) * pw, oy = (v0.y - view.y) * pw * SQ;
+      if (k < 1 || ox > 0 || oy > 0) {
+        const im = terrImage(G);
+        c.drawImage(im, MG * TP, MG * TP, MW * TP, MH * TP, -view.x * pw, -view.y * pw * SQ, MW * pw, MH * pw * SQ);
+      }
+      c.drawImage(back.cv, ox, oy, back.cv.width * k, back.cv.height * k);
+      S.blits += 2; S.transient = true;
+      return;
+    }
+    S.transient = false;
+    // a frame that lays the whole layer again (the camera moved) bakes on half the budget: laying it costs too
+    const vkey = view.x + "|" + view.y + "|" + view.zoom + "|" + L.dpr + "|" + age + "|" + (G.map.canals ? 1 : 0);
+    if (!back.key.startsWith(vkey + "|") && budget < 1e6) budget = Math.min(budget, bakeBudgetMs / 2);
+    const sk = view.y < SKY_BOT ? bakeSky(G) : null;   // the skyline first: three steps, and it fills the top of the screen
+    const need = bakeGround(G, view, GROUND_OF[zi]), d = L.dpr, pw = PPT * view.zoom, ph = pw * SQ;
+    const pics = need.map(r => derivedOf(drawable(r), zi));
+    S.chunks = chunks.size; S.fallback = pics.filter(p => !p).length;
+    const key = vkey + "|" + (sk ? sk.step : -1);
+    if (!back.cv || back.cv.width !== cv.width || back.cv.height !== cv.height) {
+      kill(back.cv);
+      back.cv = mk(cv.width, cv.height); back.c = back.cv.getContext("2d", { alpha: false }); back.key = "";
+    }
+    const im = terrImage(G), X = wx => (wx - view.x) * pw * d, Y = wy => (wy - view.y) * ph * d;
+    const pk = p => (p ? p.key + ":" + p.pass : "-");
+    const cell = (r, p) => {
+      if (!p) { c.drawImage(im, (r.cx * CT + MG) * TP, (r.cy * CT + MG) * TP, CT * TP, CT * TP, X(r.cx * CT), Y(r.cy * CT), CT * pw * d, CT * ph * d); return; }
+      const sc = view.zoom * d / (p.g * p.d), x0 = X(p.cx * CT), y0 = Y(p.cy * CT);
+      if (Math.abs(sc - 1) < 1e-6) c.drawImage(p.cv, Math.round(x0), Math.round(y0));
+      else {
+        // scaled only until its resampled copy is made (a few frames): the cheap filter will do meanwhile
+        c.imageSmoothingEnabled = false;
+        c.drawImage(p.cv, x0, y0, p.cv.width * sc, p.cv.height * sc);
+        c.imageSmoothingEnabled = true;
+      }
+      S.blits++;
+    };
+    const main = c;
+    c = back.c;
+    try {
+      if (key !== back.key) {
+        // the view moved: the whole layer again
+        c.setTransform(1, 0, 0, 1, 0, 0);
+        c.imageSmoothingEnabled = true;
+        c.fillStyle = "#1c140d"; c.fillRect(0, 0, cv.width, cv.height);
+        if (S.fallback) { c.drawImage(im, MG * TP, MG * TP, MW * TP, MH * TP, X(0), Y(0), MW * pw * d, MH * ph * d); S.blits++; }
+        back.cells.clear();
+        need.forEach((r, k) => { if (pics[k]) cell(r, pics[k]); back.cells.set(r.cell, pk(pics[k])); });
+        // the margin round the map, dimmed: the ground goes on, but nothing can be done there
+        const strip = (wx0, wy0, wx1, wy1) => {
+          const sx0 = X(wx0), sy0 = Y(wy0), sx1 = X(wx1), sy1 = Y(wy1);
+          if (sx1 <= 0 || sy1 <= 0 || sx0 >= cv.width || sy0 >= cv.height) return;
+          c.drawImage(im, (wx0 + MG) * TP, (wy0 + MG) * TP, (wx1 - wx0) * TP, (wy1 - wy0) * TP, sx0, sy0, sx1 - sx0, sy1 - sy0);
+          c.fillStyle = "rgba(28, 20, 13, .6)"; c.fillRect(sx0, sy0, sx1 - sx0, sy1 - sy0);
+        };
+        strip(-MG, 0, 0, MH + MG); strip(MW, 0, MW + MG, MH + MG); strip(0, MH, MW, MH + MG);
+        if (sk) drawSky(G, view, sk);
+        back.key = key; back.view = { x: view.x, y: view.y, zoom: view.zoom };
+        S.recomposed = (S.recomposed || 0) + 1;
+      } else {
+        // the same view: only the cells whose picture changed (a pass finished), each over its old self
+        need.forEach((r, k) => { const q = pk(pics[k]); if (back.cells.get(r.cell) !== q) { cell(r, pics[k]); back.cells.set(r.cell, q); } });
+      }
+    } finally { c = main; }
+    c.drawImage(back.cv, 0, 0);
+    S.blits++;
+  }
+
+  // ---- the skyline band (above row 0): the age's sky over Ararat, the far plain down to the map (10.1) ----
+  const skies = [null, null, null];
+  function skyFrame() {
+    const q = 1.2 * Math.min(L.dpr, 1.5);                  // device px per painter unit (soft, far away)
+    const unitsW = (MW + 2 * MG) / SKY_U, unitsH = (SKY_BOT - SKY_TOP) * SQ / SKY_U;
+    return { q, w: Math.ceil(unitsW * q), h: Math.ceil(unitsH * q), ex: (SKY_X0 + MG) / SKY_U * q, ey: ((SKY_HZ - SKY_TOP) * SQ / SKY_U - HORIZON) * q };
+  }
+  function bakeSky(G) {
+    const i = clamp(age - 1, 0, 2), K = look(age), F = skyFrame();
+    let sk = skies[i];
+    if (sk && (sk.q !== F.q)) { kill(sk.cv); sk = skies[i] = null; }
+    if (!sk) sk = skies[i] = { q: F.q, cv: null, step: 0, done: false };
+    while (!sk.done && canBake()) bakeStep(() => {
+      if (!sk.cv) sk.cv = mk(F.w, F.h);
+      const g = sk.cv.getContext("2d"), skyC = K.T.sky, x0 = -F.ex / F.q, x1 = (F.w - F.ex) / F.q, y0 = -F.ey / F.q;
+      g.setTransform(F.q, 0, 0, F.q, F.ex, F.ey);
+      if (sk.step === 0) {
+        const gr = g.createLinearGradient(0, y0, 0, HORIZON);
+        gr.addColorStop(0, skyC[0]); gr.addColorStop(0.72, skyC[1]); gr.addColorStop(1, skyC[2]);
+        g.fillStyle = gr; g.fillRect(x0, y0, x1 - x0, HORIZON - y0 + 1);
+        const R = mulberry32(4801 + i * 17), lit = [255, 253, 246], under = skyMix([198, 184, 174], skyRgb(skyC[1]), 0.3);
+        for (let k = 0; k < 5; k++) {
+          const w = 70 + R() * 110, h = Math.min(34, w * (0.23 + R() * 0.08));
+          g.globalAlpha = 0.78 + R() * 0.18;
+          g.drawImage(skyCloudSprite(R, w, h, lit, under), x0 + (k + 0.15 + R() * 0.6) * (x1 - x0) / 5, 20 + R() * 40, w, h);
+        }
+        g.globalAlpha = 1;
+      } else if (sk.step === 1) {
+        // Ararat as the ararat backdrop paints it, without its last call (bgOrchards: a church on the horizon of
+        // 782 BC and of the first century), with the age's sky borrowed for the haze; far ridges either side
+        withLevel(K.lv, () => {
+          g.fillStyle = "rgba(190, 130, 105, .4)";
+          bgRidge(g, -80, HORIZON, 800, 34, 0.45);
+          g.fillStyle = "rgba(176, 132, 110, .38)";
+          bgRidge(g, x0 - 20, HORIZON, -x0 + 60, 30, 0.6);
+          bgRidge(g, 1230, HORIZON, x1 - 1210, 38, 0.35);
+          bgArarat(g);
+          skyCloudsDriftHere(g);
+          if (age >= 3) bgOrchards(g);
+        });
+      } else {
+        // the valley haze past the painter's frame, the foot haze, then the far plain fading into the map's first row
+        const low = terrRgb(skyC[2]);
+        const veil = g.createLinearGradient(0, HORIZON - 34, 0, HORIZON);
+        veil.addColorStop(0, terrCss(low, 0)); veil.addColorStop(1, terrCss(low, 0.82));
+        g.fillStyle = veil; g.fillRect(x0, HORIZON - 34, -x0, 34); g.fillRect(VW, HORIZON - 34, x1 - VW, 34);
+        const hz = g.createLinearGradient(0, HORIZON - 26, 0, HORIZON + 6);
+        hz.addColorStop(0, terrCss(low, 0)); hz.addColorStop(1, terrCss(low, 0.55));
+        g.fillStyle = hz; g.fillRect(x0, HORIZON - 26, x1 - x0, 32);
+        const yRow0 = HORIZON + (0 - SKY_HZ) * SQ / SKY_U, yEnd = HORIZON + (SKY_BOT - SKY_HZ) * SQ / SKY_U;
+        const plain = g.createLinearGradient(0, HORIZON - 1, 0, yEnd);
+        const far = terrMix(K.base, low, 0.45);
+        plain.addColorStop(0, terrCss(far)); plain.addColorStop((yRow0 - HORIZON + 1) / (yEnd - HORIZON + 1), terrCss(K.base));
+        plain.addColorStop(1, terrCss(K.base, 0));
+        g.fillStyle = plain; g.fillRect(x0, HORIZON - 1, x1 - x0, yEnd - HORIZON + 2);
+        // a line of far trees and fields along the horizon
+        const R = mulberry32(911 + i);
+        g.fillStyle = terrCss(terrMix(terrLit(K.lush, -0.2), low, 0.45));
+        for (let x = x0; x < x1; x += 6 + R() * 22) {
+          const r = 1.6 + R() * 2.4;
+          g.beginPath(); g.ellipse(x, HORIZON + 1.5 + R() * 3, r * 1.4, r, 0, 0, Math.PI * 2); g.fill();
+        }
+        g.fillStyle = terrCss(terrMix(K.dry, low, 0.4), 0.7);
+        for (let x = x0; x < x1; x += 30 + R() * 60) g.fillRect(x, HORIZON + 4 + R() * 6, 14 + R() * 30, 1.6);
+      }
+      sk.step++;
+      sk.done = sk.step >= 3;
+    });
+    return sk;
+  }
+  // borrow a battlefield's look for one synchronous bake, always restored (integration.md 5.3)
+  function withLevel(id, fn) {
+    const Lv = LEVELS[levelIndexOf(id)], keep = [THEME, curEra];
+    THEME = levelTheme(Lv); curEra = Lv.era;
+    try { return fn(Lv); } finally { THEME = keep[0]; curEra = keep[1]; }
+  }
+  function drawSky(G, view, sk) {
+    const pw = PPT * view.zoom, ph = pw * SQ, d = L.dpr;
+    const X = wx => (wx - view.x) * pw * d, Y = wy => (wy - view.y) * ph * d;
+    const x0 = X(-MG), x1 = X(MW + MG), y0 = Y(SKY_TOP), y1 = Y(SKY_BOT);
+    if (sk.done) { c.drawImage(sk.cv, x0, y0, x1 - x0, y1 - y0); S.blits++; return; }
+    // not ready: the sky's color and a flat Ararat
+    const K = look(age);
+    c.fillStyle = K.T.sky[1]; c.fillRect(x0, y0, x1 - x0, Y(SKY_HZ) - y0);
+    const m = [X(SKY_X0 + 990 * SKY_U), Y(SKY_HZ - 99 * SKY_U / SQ)];
+    c.fillStyle = "rgba(150, 120, 140, .9)";
+    c.beginPath(); c.moveTo(X(SKY_X0 + 430 * SKY_U), Y(SKY_HZ)); c.lineTo(m[0], m[1]); c.lineTo(X(SKY_X0 + 1340 * SKY_U), Y(SKY_HZ)); c.closePath(); c.fill();
+    c.fillStyle = terrCss(K.base); c.fillRect(x0, Y(SKY_HZ), x1 - x0, Y(0.05) - Y(SKY_HZ));
+  }
+
+  // ---- sprites: nodes, fields, stumps and the gray box's buildings and units, per zoom step, LRU in 4 M px ----
+  const sprites = new Map();
+  let spritePx = 0;
+  // key: what it shows; box: [w, h, ox, oy] in CSS px at zoom 1 (ox, oy: the anchor inside the box)
+  function sprite(key, zi, box, paint) {
+    const full = key + "|" + zi + "|" + L.dpr;
+    let sp = sprites.get(full);
+    if (sp) { sprites.delete(full); sprites.set(full, sp); return sp; }
+    if (!canBake()) return null;
+    return bakeStep(() => {
+      const s = zoomSteps[zi] * L.dpr, k = mk(box[0] * s + 2, box[1] * s + 2), g = k.getContext("2d", { willReadFrequently: true });
+      g.setTransform(s, 0, 0, s, box[2] * s + 1, box[3] * s + 1);
+      g.lineJoin = "round";
+      paint(g, s);
+      g.getImageData(0, 0, 1, 1);
+      sp = { cv: k, ox: box[2] * s + 1, oy: box[3] * s + 1, s, px: k.width * k.height, key };
+      k.twKey = full;
+      sprites.set(full, sp);
+      spritePx += sp.px;
+      if (spritePx > SPRITE_BUDGET) {
+        for (const [kk, o] of sprites) { if (spritePx <= SPRITE_BUDGET * 0.8) break; sprites.delete(kk); spritePx -= o.px; kill(o.cv); }
+      }
+      return sp;
+    });
+  }
+  // the sprite at this step, else the nearest step already baked (drawn scaled)
+  function spriteAny(key, zi, box, paint) {
+    const sp = sprite(key, zi, box, paint);
+    if (sp) return sp;
+    for (let k = 1; k < zoomSteps.length; k++) for (const j of [zi + k, zi - k]) {
+      const o = j >= 0 && j < zoomSteps.length ? sprites.get(key + "|" + j + "|" + L.dpr) : null;
+      if (o) return o;
+    }
+    return null;
+  }
+  // a sprite with its anchor at device px (x, y), at the view's zoom
+  function blit(sp, x, y, zoom, alpha) {
+    const sc = zoom * L.dpr / sp.s;
+    if (alpha !== undefined) c.globalAlpha = alpha;
+    if (Math.abs(sc - 1) < 1e-6) c.drawImage(sp.cv, Math.round(x - sp.ox), Math.round(y - sp.oy));
+    else c.drawImage(sp.cv, x - sp.ox * sc, y - sp.oy * sc, sp.cv.width * sc, sp.cv.height * sc);
+    if (alpha !== undefined) c.globalAlpha = 1;
+    S.blits++;
+  }
+
+  // nodes: river poplars, grove trees, orchard trees, stone and ore, flocks; what is left when they are used up
+  const NODE_BOX = { poplar: [36, 74, 18, 68], tree: [52, 62, 26, 56], orchard: [42, 44, 21, 39], stone: [52, 44, 26, 34],
+    ore: [46, 38, 23, 30], flock: [84, 50, 42, 34], stump: [30, 20, 13, 15], bare: [36, 18, 18, 12], dye: [30, 16, 15, 12] };
+  function paintNode(g, kind, v, K) {
+    const R = mulberry32(7001 + v * 131 + kind.length * 977);
+    if (kind === "poplar") terrPoplar(g, 0, 0, 52 + (v % 4) * 3, K.B.leaf, R);
+    else if (kind === "tree") terrBroadleaf(g, 0, 0, 40 + (v % 4) * 3, K.B.leaf, R, null, { variant: v % 3 });
+    else if (kind === "orchard") terrBroadleaf(g, 0, 0, 31 + (v % 3) * 2, K.B.leaf, R, K.B.fruit || [232, 150, 52]);
+    else if (kind === "stone") terrOutcrop(g, 0, -1, 14 + (v % 3), v % 4 === 1 ? K.tuff : K.basalt, ((v * 0.618) % 1 + 1) % 1);
+    else if (kind === "ore") terrOutcrop(g, 0, -1, 12 + (v % 2), K.ore, ((v * 0.414) % 1 + 1) % 1);
+    else if (kind === "stump") terrStump(g, 0, 0, 0.8, v % 5 === 3 ? 1 : 0, K.B.leaf, R);
+    else if (kind === "bare") {
+      for (let k = 0; k < 3; k++) terrInkStone(g, (k - 1) * 8 + (R() - 0.5) * 3, -2 + R() * 3, 3 + R() * 2, 2 + R(), K.basalt.rock[1], R, R() - 0.5);
+    } else if (kind === "flock") {
+      // sheep and a goat or two, grazing: inked wool, dark heads, short legs
+      const spots = [[-24, -16], [-4, -20], [16, -14], [-14, -3], [8, -1], [28, -2]].slice(0, 5 + (v % 2));
+      spots.forEach(([x, y], k) => {
+        const goat = (k + v) % 4 === 3, fl = (k + v) % 2 ? 1 : -1, wool = goat ? "#8a6a4a" : k % 3 === 2 ? "#e6dcc8" : "#f4eedf";
+        g.strokeStyle = "#2c1e10"; g.lineWidth = 1.6;
+        g.beginPath(); g.moveTo(x - 4, y + 2); g.lineTo(x - 4, y + 6); g.moveTo(x + 3, y + 2); g.lineTo(x + 3, y + 6); g.stroke();
+        g.fillStyle = "rgba(26, 18, 8, .22)"; g.beginPath(); g.ellipse(x + 2, y + 6, 8, 2, 0, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.ellipse(x, y, 7, 4.6, 0, 0, Math.PI * 2); terrInkStroke(g, 26); g.fillStyle = wool; g.fill();
+        g.fillStyle = "rgba(255, 255, 255, .5)"; g.beginPath(); g.ellipse(x - 2, y - 1.8, 3.6, 1.8, 0, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.ellipse(x + fl * 7.5, y - 1.5, 2.6, 2, fl * 0.3, 0, Math.PI * 2); g.fillStyle = goat ? "#4a3624" : "#3a2c22"; g.fill();
+      });
+    } else if (kind === "dye") {
+      // the dye insect's sign: red specks at the roots of the salt grass (the gatherer kneels here)
+      g.fillStyle = "#a8322a";
+      for (let k = 0; k < 7; k++) { g.beginPath(); g.arc((R() - 0.5) * 20, -1 - R() * 6, 1.2 + R(), 0, Math.PI * 2); g.fill(); }
+    }
+  }
+  const nodeKind = n => (n.k === "tree" ? (MD.grove[n.y * MW + n.x] ? "tree" : "poplar") : n.k);
+
+  // fields: tilled soil inside a low bund, furrows, barley in three looks (sown, green, ripe), by the field's seed
+  function paintField(g, look3, K, v) {
+    const W = 3 * PPT, H = 3 * PPT * SQ, R = mulberry32(5003 + v * 7);
+    const pts = [[5, 4], [W / 2, 3 + R() * 3], [W - 5, 4], [W - 3, H / 2], [W - 5, H - 4], [W / 2, H - 3 - R() * 2], [5, H - 4], [3, H / 2]];
+    const outline = () => {
+      g.beginPath(); g.moveTo((pts[0][0] + pts[7][0]) / 2, (pts[0][1] + pts[7][1]) / 2);
+      for (let i = 0; i < 8; i++) { const p = pts[i], q = pts[(i + 1) % 8]; g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
+      g.closePath();
+    };
+    const soil = terrLit(K.soil, -0.05);
+    g.save(); g.translate(0, -H);
+    outline(); g.strokeStyle = terrCss(terrLit(K.earth, -0.1), 0.85); g.lineWidth = 5; g.stroke();
+    g.fillStyle = terrCss(soil); g.fill();
+    g.strokeStyle = terrCss(terrLit(K.earth, 0.15), 0.7); g.lineWidth = 1.6; g.stroke();
+    g.save(); outline(); g.clip();
+    const crop = [[[96, 132, 52], [150, 182, 80]], [[78, 118, 40], [132, 168, 64]], [[176, 140, 58], [230, 200, 110]]][look3];
+    for (let y = 10, row = 0; y < H - 4; y += 8.4, row++) {
+      g.strokeStyle = terrCss(terrLit(soil, -0.38), 0.7); g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(6, y + 1.6); g.lineTo(W - 6, y + 1.6); g.stroke();
+      g.strokeStyle = terrCss(terrLit(soil, 0.22), 0.5); g.lineWidth = 1;
+      g.beginPath(); g.moveTo(6, y - 1.2); g.lineTo(W - 6, y - 1.2); g.stroke();
+      for (let x = 8 + (row % 2) * 4 + R() * 2; x < W - 6; x += 7 + R() * 2) {
+        if (look3 === 0) { g.fillStyle = terrCss(crop[1]); g.fillRect(x - 0.8, y - 2.4, 1.6, 2.4); }
+        else terrTuft(g, x, y + 0.5, look3 === 2 ? 4.6 : 4, terrCss(crop[0]), terrCss(crop[1]), look3 === 2 ? 3 : 0);
+      }
+    }
+    g.restore(); g.restore();
+  }
+
+  // the gray box: a building is a block standing on its footprint (a top face over a front face), in the age's
+  // material, with its name; a unit is a small box with its line's letter
+  const BLD_COL = { tc: "#c9a25c", house: "#dcc79e", store: "#bf9460", barracks: "#ad7a6c", smithy: "#8f887c", market: "#cf944e",
+    temple: "#e6dab8", stable: "#ae8f62", tower: "#b4ac9c", wall: "#9c9182", gate: "#82705a", grove: "#7a9a52", wonder: "#ecca6a", field: "#a88d3c" };
+  const BLD_H = { tc: 2.6, house: 1.1, store: 1.1, barracks: 1.4, smithy: 1.25, market: 1.3, temple: 1.8, stable: 1.25, tower: 2.7,
+    wall: 0.85, gate: 1.2, grove: 0.7, wonder: 3.2, field: 0 };
+  const boxH = k => (BLD_H[k] === undefined ? 1.2 : BLD_H[k]) * PPT * SQ;   // CSS px at zoom 1
+  const ageRgb = (k, a) => terrMix(terrRgb(BLD_COL[k] || "#bbbbbb"), AGE_TINT[clamp(a - 1, 0, 2)], k === "wonder" || k === "grove" ? 0.1 : 0.28);
+  const bName = (k, a) => (TWT && TWT.name ? TWT.name("bld", k, a) : "") || k;
+  // the label's lines and size: one line if it fits, else two, shrinking to 9 px at the least
+  function fitLabel(g, text, maxW, size) {
+    for (let f = size; f >= 9; f -= 1) {
+      g.font = font(f);
+      if (g.measureText(text).width <= maxW) return { f, lines: [text] };
+      const sp = text.split(" ");
+      if (sp.length > 1) {
+        let best = null;
+        for (let k = 1; k < sp.length; k++) {
+          const a = sp.slice(0, k).join(" "), b = sp.slice(k).join(" "), w = Math.max(g.measureText(a).width, g.measureText(b).width);
+          if (!best || w < best.w) best = { w, lines: [a, b] };
+        }
+        if (best.w <= maxW) return { f, lines: best.lines };
+      }
+    }
+    return { f: 9, lines: [text] };
+  }
+  function paintBox(g, k, w, h, a, rot) {
+    const Wp = w * PPT, Dp = h * PPT * SQ, Hp = boxH(k), rgb = ageRgb(k, a);
+    // the shadow it throws to the lower right
+    g.fillStyle = "rgba(26, 18, 8, .2)";
+    g.beginPath(); g.moveTo(Wp, -Hp - Dp + 4); g.lineTo(Wp + Hp * 0.35, -Dp * 0.3); g.lineTo(Wp + Hp * 0.35, 2); g.lineTo(Wp, 0); g.closePath(); g.fill();
+    // the top face lit, the front face in the material, a darker foot, the roof's edge catching the light
+    g.fillStyle = terrCss(terrLit(rgb, 0.2)); g.fillRect(0, -Hp - Dp, Wp, Dp);
+    g.fillStyle = terrCss(rgb); g.fillRect(0, -Hp, Wp, Hp);
+    const foot = Math.min(4, Hp * 0.2);
+    g.fillStyle = terrCss(terrLit(rgb, -0.14)); g.fillRect(0, -foot, Wp, foot);
+    g.fillStyle = "rgba(255, 252, 236, .55)"; g.fillRect(0, -Hp - 1.2, Wp, 1.6);
+    if (k === "gate") {
+      // the way through: an arch on the front when the gate runs across, a slot on top when it runs down
+      g.fillStyle = "#2c1e10";
+      if (rot === 1) g.fillRect(Wp * 0.3, -Hp - Dp + 3, Wp * 0.4, Dp - 4);
+      else { g.beginPath(); g.moveTo(Wp * 0.3, 0); g.lineTo(Wp * 0.3, -Hp * 0.55); g.quadraticCurveTo(Wp * 0.5, -Hp * 0.95, Wp * 0.7, -Hp * 0.55); g.lineTo(Wp * 0.7, 0); g.closePath(); g.fill(); }
+    } else if (k !== "wall" && k !== "grove" && Hp > 0) {
+      g.fillStyle = "rgba(44, 30, 16, .85)";
+      const dw = Math.min(14, Wp * 0.16), dh = Math.min(Hp * 0.62, 22);
+      g.fillRect(Wp / 2 - dw / 2, -dh, dw, dh);
+    }
+    g.strokeStyle = INK; g.lineWidth = 1.6;
+    g.strokeRect(0.8, -Hp - Dp + 0.8, Wp - 1.6, Hp + Dp - 1.6);
+    g.beginPath(); g.moveTo(0.8, -Hp); g.lineTo(Wp - 0.8, -Hp); g.stroke();
+    if (k === "wall" || (k === "gate" && rot === 1)) return;
+    // the name on the top face, two lines if it must
+    const text = bName(k, a), lab = fitLabel(g, text, Wp - 8, k === "tc" || k === "wonder" ? 15 : 13);
+    g.font = font(lab.f); g.textAlign = "center"; g.textBaseline = "middle";
+    const cy = -Hp - Dp / 2, lh = lab.f * 1.08;
+    lab.lines.forEach((t, j) => {
+      const y = cy + (j - (lab.lines.length - 1) / 2) * lh;
+      g.fillStyle = "rgba(255, 248, 228, .65)"; g.fillText(t, Wp / 2 + 0.7, y + 0.7);
+      g.fillStyle = "#24170b"; g.fillText(t, Wp / 2, y);
+    });
+  }
+  // units: [w, h, fill, ink, letter color]
+  const UNIT_LOOK = {
+    vil: [12, 18, "#efdcae", "#2c1e10", "#2c1e10"], spear: [14, 22, "#3f6aa8", "#14202e", "#fff"], bow: [14, 22, "#3f8a5a", "#122a18", "#fff"],
+    horse: [24, 20, "#6a4aa0", "#20142e", "#fff"], cart: [22, 14, "#8a6238", "#2c1e10", "#fff"],
+  };
+  const RAIDER_LOOK = { light: "#c0392b", heavy: "#8e2a20", cord: "#c0392b" };
+  const LETTER = { vil: "V", spear: "S", bow: "B", horse: "H", cart: "C", etR: "R", etS: "S", alH: "H", alC: "L", arR: "R", arS: "S", arW: "W", arH: "H" };
+  function unitBox(u) {
+    if (u.side) {
+      const R = DATA.RAIDERS[u.k] || {}, mount = R.mounted;
+      return [mount ? 24 : 14, mount ? 20 : 22, RAIDER_LOOK[R.role] || "#c0392b", "#3a0a04", "#fff"];
+    }
+    return UNIT_LOOK[u.k] || UNIT_LOOK.vil;
+  }
+  function paintUnit(g, k, lk, side) {
+    const [w, h, fill, ink, lc] = lk;
+    g.fillStyle = "rgba(26, 18, 8, .28)"; g.beginPath(); g.ellipse(2, 0, w * 0.62, 2.6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = fill; g.fillRect(-w / 2, -h, w, h);
+    g.fillStyle = "rgba(255, 252, 236, .35)"; g.fillRect(-w / 2, -h, w, Math.min(4, h * 0.2));
+    g.strokeStyle = ink; g.lineWidth = side ? 2.2 : 1.5; g.strokeRect(-w / 2, -h, w, h);
+    if (side) { g.strokeStyle = "rgba(255, 220, 200, .55)"; g.lineWidth = 0.8; g.strokeRect(-w / 2 + 2, -h + 2, w - 4, h - 4); }
+    g.font = font(Math.min(13, h * 0.62), 700); g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = lc; g.fillText(LETTER[k] || "?", 0, -h / 2 + 0.5);
+  }
+
+  // ---- the governor (10.5): a copy of governDensity's rules for the town's canvas ----
+  const GOV_STEPS = [2, 1.5, 1.25, 1];
+  const gov = { cap: 2, gaps: [], last: 0, calmUntil: 0, before: 0, prevCap: 0, retired: false, lastTick: -1, tickAt: 0, force: false, log: [] };
+  function govern(G, t) {
+    if (HARNESS_ON && !gov.force) return;
+    const dt = t - gov.last;
+    gov.last = t;
+    if (G && G.tick !== gov.lastTick) { gov.lastTick = G.tick; gov.tickAt = t; }
+    // it judges only while a town game is live: the page shown and the clock moving (not held, not over)
+    const live = !document.hidden && !!G && !G.over && t - gov.tickAt < 600;
+    if (gov.retired || !live || dt > 250 || t < gov.calmUntil) { gov.gaps.length = 0; return; }
+    gov.gaps.push(dt);
+    if (gov.gaps.length < 90) return;
+    const med = gov.gaps.slice().sort((a, b) => a - b)[45];
+    gov.gaps.length = 0;
+    const cur = Math.min(L.dpr0, gov.cap);
+    // a step that bought less than 10% (rAF held at 30 fps in Low Power Mode) is taken back, for good
+    if (gov.before && med > gov.before * 0.9) { gov.cap = gov.prevCap; gov.retired = true; gov.log.push(["back", med, gov.cap]); relayout(); return; }
+    gov.before = 0;
+    if (med > 22 && cur > 1) {
+      gov.before = med; gov.prevCap = gov.cap;
+      gov.cap = GOV_STEPS.find(v => v < cur - 0.01) || 1;
+      gov.log.push(["down", med, gov.cap]);
+      relayout();
+      gov.calmUntil = t + 2000;             // let the caches rebuild at the new density before judging again
+    }
+  }
+  function relayout() { if (L.w) layout(L.w, L.h, L.dpr0, true); }
+
+  // ---- for check 12: the battle's forts and its era 0 to 2 foes, baked fresh under keys of their own (and dropped
+  // again), as pixel hashes. The first is taken when the town is first set up, before it has baked anything ----
+  let artRound = 0, pristine = null;
+  function pixHash(k) {
+    const px = k.getContext("2d").getImageData(0, 0, k.width, k.height).data;
+    let h = 2166136261;
+    for (let i = 0; i < px.length; i += 3) h = Math.imul(h ^ px[i], 16777619);
+    return k.width + "x" + k.height + ":" + (h >>> 0).toString(16);
+  }
+  function battleArt() {
+    const out = [], tag = "tw12|" + (artRound++) + "|", keep = [THEME, curEra, waveIdx, endless];
+    try {
+      waveIdx = 0; endless = false;
+      for (const [id, paint] of [["erebuni", () => paintFortUrartu()], ["dvin", () => paintFortTuff(false)]]) {
+        const Lv = LEVELS[levelIndexOf(id)];
+        THEME = levelTheme(Lv); curEra = Lv.era;
+        const sp = structSprite(tag + id, 0.8, FORT_BOX, paint, 0);
+        out.push(id + " " + pixHash(sp.cv));
+        if (structSprites.get(tag + id) === sp) { structSprites.delete(tag + id); structSpritePixels -= sp.px; }
+      }
+      THEME = keep[0]; curEra = keep[1];
+      for (const era of [0, 1, 2]) for (const role of ["raider", "spearman", "shield", "cavalry"]) {
+        const d = Object.assign({}, ENEMY_DEFS[role], ERAS[era].units[role]);
+        const e = { type: role, def: d, r: d.r, wobble: 0, stunT: 0, flash: 0, hp: 1, maxHp: 1, eraVis: artEra(era), eraTrue: era };
+        const p = { x: 0, y: 0, ang: 0 }, lk = unitLook(e, d, p), key = tag + era + role;
+        const sp = unitSprite(key, 1.2, lk, false, () => { unitPhase = 0; unitPaintPose(e, p, d, 1); });
+        out.push(era + role + " " + pixHash(sp.c));
+        for (const k of Array.from(UNIT_SPRITES.keys())) if (k.startsWith(key)) UNIT_SPRITES.delete(k);
+      }
+    } finally { THEME = keep[0]; curEra = keep[1]; waveIdx = keep[2]; endless = keep[3]; }
+    return out;
+  }
+
+  // ---- the API ----
   function init(canvas, miniCanvas) {
+    if (HARNESS_ON && !pristine) pristine = battleArt();
     cv = canvas; c = cv.getContext("2d");
     mini = miniCanvas || null; mc = mini ? mini.getContext("2d") : null;
   }
-  // big layers are freed on close: Safari counts every canvas's memory
+  function flushMap() {
+    for (const r of Array.from(chunks.values())) dropChunk(r);
+    for (const im of timgs.values()) kill(im);
+    timgs.clear();
+    cellVer.fill(0);
+    MD = null;
+  }
+  // big layers are freed on close: Safari counts every canvas's memory (10.4)
   function free() {
+    flushMap();
+    for (const sp of sprites.values()) kill(sp.cv);
+    sprites.clear(); spritePx = 0;
+    for (let i = 0; i < 3; i++) { if (skies[i]) kill(skies[i].cv); skies[i] = null; }
+    kill(miniBg.cv); miniBg.cv = null; miniBg.key = "";
+    kill(back.cv); back.cv = back.c = null; back.key = ""; back.view = null;
     if (cv) { cv.width = 0; cv.height = 0; }
     if (mini) { mini.width = 0; mini.height = 0; }
-    miniImg = null; miniKey = ""; L = { w: 0, h: 0, dpr: 1 };
+    fxList.length = 0; ghostSpec = null;
+    L = { w: 0, h: 0, dpr: 1, dpr0: L.dpr0 || 1 };
   }
-  function layout(w, h, dpr) {
+  function layout(w, h, dpr, fromGov) {
     if (!cv) return;
+    const resized = w !== L.w || h !== L.h;
+    if (resized && !fromGov && L.w) { gov.cap = 2; gov.before = 0; gov.gaps.length = 0; }   // a new size may step back up
+    L.dpr0 = Math.max(1, Math.min(2, dpr || 1));
+    let d = Math.min(L.dpr0, gov.cap);
     // never more than 16 M device pixels (iOS fails silently above that)
-    let d = Math.max(1, Math.min(2, dpr || 1));
     while (w * h * d * d > 16e6 && d > 1) d -= 0.25;
-    L = { w, h, dpr: d };
+    L.w = w; L.h = h; L.dpr = d;
+    S.governor = gov.cap;
     cv.style.width = w + "px"; cv.style.height = h + "px";
     const W2 = Math.round(w * d), H2 = Math.round(h * d);
     if (cv.width !== W2) cv.width = W2;
@@ -62833,174 +63837,522 @@ townRegion("art", () => { TWA = (() => {
       if (mini.height !== mH) mini.height = mH;
     }
   }
-  function setAge(a) { age = a | 0 || 1; miniKey = ""; }
-  function prebake(G, view) {}
-  function invalidate(x0, y0, x1, y1) { miniKey = ""; }
+  // a new age: its own skyline from now on (the old one is freed at once); its ground bakes as it is seen, the old
+  // age's chunks standing in meanwhile
+  function setAge(a) {
+    age = clamp(a | 0 || 1, 1, 3);
+    for (let i = 0; i < 3; i++) if (i !== age - 1 && skies[i]) { kill(skies[i].cv); skies[i] = null; }
+  }
+  function invalidate(x0, y0, x1, y1) {
+    for (let cy = clamp(Math.floor((y0 - 2) / CT), 0, NCY - 1); cy <= clamp(Math.floor((y1 + 2) / CT), 0, NCY - 1); cy++)
+      for (let cx = clamp(Math.floor((x0 - 2) / CT), 0, NCX - 1); cx <= clamp(Math.floor((x1 + 2) / CT), 0, NCX - 1); cx++) cellVer[cy * NCX + cx]++;
+    for (const im of timgs.values()) kill(im);
+    timgs.clear();
+    miniBg.key = ""; back.key = "";
+  }
   function ghost(spec) { ghostSpec = spec || null; }
-  function fx(events, G) { for (const e of events) if (e.e === "placed" || e.e === "built" || e.e === "destroyed" || e.e === "researched") miniKey = ""; }
+  // effects from the sim's events: sparks where a hit lands, dust where something is built or falls
+  const fxList = [];
+  function fx(events, G) {
+    for (const e of events || []) {
+      if (e.e === "placed" || e.e === "built" || e.e === "destroyed" || e.e === "canceled") miniBg.dirty = true;
+      let f = null;
+      if (e.e === "hit" && e.x !== undefined) f = { k: "hit", x: e.x, y: e.y, life: 260 };
+      else if (e.e === "destroyed" && e.x !== undefined) f = { k: "dust", x: e.x + 0.5, y: e.y + 0.5, life: 900, r: 1.6 };
+      else if (e.e === "built" && G) { const b = G.blds.find(o => o.id === e.bld); if (b) f = { k: "dust", x: b.x + b.w / 2, y: b.y + b.h, life: 600, r: b.w * 0.6 }; }
+      else if (e.e === "fell" && e.x !== undefined) f = { k: "fell", x: e.x, y: e.y, life: 700 };
+      if (f) { f.at = lastNow; fxList.push(f); if (fxList.length > 60) fxList.shift(); }
+    }
+  }
+  function prebake(G, view) {
+    if (!G || !G.map || !L.w) return;
+    spent = 0; budget = testBudget !== null ? testBudget : bakeBudgetMs;
+    mapData(G); terrImage(G);
+    const zi = nearestStep(view.zoom);
+    bakeGround(G, view, GROUND_OF[zi]);
+    if (view.y < SKY_BOT) bakeSky(G);
+  }
   const toScreen = (view, x, y) => ({ x: (x - view.x) * PPT * view.zoom, y: (y - view.y) * PPT * view.zoom * SQ });
   const toWorld = (view, sx, sy) => ({ x: view.x + sx / (PPT * view.zoom), y: view.y + sy / (PPT * view.zoom * SQ) });
 
+  // which start nodes are gone (a stump, a bare outcrop): node i of the map has id i + 1 (WP2)
+  function aliveNodes(G) {
+    const n = G.map.start.nodes.length;
+    if (!MD.alive || MD.alive.length !== n) MD.alive = new Uint8Array(n);
+    MD.alive.fill(0);
+    for (const o of G.nodes) if (!o.dead && o.id >= 1 && o.id <= n) MD.alive[o.id - 1] = 1;
+    return MD.alive;
+  }
+  const selList = view => { const s = view && view.sel; return !s ? [] : Array.isArray(s) ? s : [s]; };
+
   function draw(G, view, alpha, nowMs) {
     if (!c || !L.w) return;
-    const t0 = performance.now(), d = L.dpr, pw = PPT * view.zoom, ph = pw * SQ;
-    c.setTransform(d, 0, 0, d, 0, 0);
+    const t0 = tnow();
+    spent = 0; S.bakes = 0; S.bakeMs = 0; S.blits = 0; S.maxStep = 0;
+    // the harness's town picture is painted whole in one call; everywhere else the frame's budget holds
+    budget = testBudget !== null ? testBudget : !nowMs && HARNESS_ON && HARNESS.get("shot") === "town" ? Infinity : bakeBudgetMs;
+    if (nowMs) { lastNow = nowMs; govern(G, nowMs); }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1;
+    c.imageSmoothingEnabled = true;
+    if (!G || !G.map) { c.fillStyle = "#1c140d"; c.fillRect(0, 0, cv.width, cv.height); S.ms = tnow() - t0; return; }
+    mapData(G);
+    if (!!G.map.canals !== MD.canals) {
+      MD.canals = !!G.map.canals;
+      let x0 = MW, y0 = MH, x1 = 0, y1 = 0;
+      for (let i = 0; i < MW * MH; i++) if (G.map.canalPlan[i]) { const x = i % MW, y = (i - x) / MW; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      if (x1 >= x0) invalidate(x0, y0, x1, y1);
+    }
+    const d = L.dpr, z = view.zoom, pw = PPT * z, ph = pw * SQ, zi = nearestStep(z), K = look(age);
+    const X = wx => (wx - view.x) * pw * d, Y = wy => (wy - view.y) * ph * d;
+    const a = clamp(alpha || 0, 0, 1);
+    const vx0 = view.x - 3, vx1 = view.x + L.w / pw + 3, vy0 = view.y - 2, vy1 = view.y + L.h / ph + 6;
+    const inView = (x, y, w, h) => x + w >= vx0 && x <= vx1 && y + h >= vy0 && y <= vy1;
+
+    // 1. the ground, and what lies outside the map: the margin dimmed, then the walnut beyond. The frame starts with
+    // one opaque fill of the whole canvas, which tells the browser the last frame's pixels need not be kept
     c.fillStyle = "#1c140d";
-    c.fillRect(0, 0, L.w, L.h);
-    const x0 = Math.max(0, Math.floor(view.x)), x1 = Math.min(63, Math.ceil(view.x + L.w / pw));
-    const y0 = Math.floor(view.y), y1 = Math.min(47, Math.ceil(view.y + L.h / ph));
-    // the skyline band above row 0: sky, the far plain and Ararat's two peaks, flat
-    if (y0 < 0) {
-      const top = toScreen(view, 0, -6), bot = toScreen(view, 64, 0);
-      c.fillStyle = "#a9c2d2"; c.fillRect(top.x, top.y, bot.x - top.x, bot.y - top.y);
-      const m = toScreen(view, 38, -5.4), m2 = toScreen(view, 46, -3.6), b0 = toScreen(view, 26, 0), b1 = toScreen(view, 54, 0);
-      c.fillStyle = "#8a96a6";
-      c.beginPath(); c.moveTo(b0.x, b0.y); c.lineTo(m.x, m.y); c.lineTo(m2.x, m2.y + ph * 0.6); c.lineTo(m2.x + pw * 1.5, m2.y); c.lineTo(b1.x, b1.y); c.closePath(); c.fill();
-      c.fillStyle = "#eef2f4";
-      c.beginPath(); c.moveTo(m.x - pw * 2.2, m.y + ph * 1.6); c.lineTo(m.x, m.y); c.lineTo(m.x + pw * 2.1, m.y + ph * 1.5); c.closePath(); c.fill();
-      c.fillStyle = "#9aa58a"; c.fillRect(top.x, bot.y - ph * 0.8, bot.x - top.x, ph * 0.8);
+    c.fillRect(0, 0, cv.width, cv.height);
+    // 2. the skyline band (in the back layer)
+    drawGround(G, view, zi);
+
+    // 3. ground overlays: fields, what the placement rules forbid, the selection's footprints and rings, rallies
+    const alive = aliveNodes(G), sel = selList(view);
+    for (const b of G.blds) {
+      if (b.dead || b.k !== "field" || !inView(b.x, b.y, b.w, b.h)) continue;
+      const v = (b.x * 7 + b.y * 13) >>> 0, l3 = v % 3;
+      const sp = spriteAny("field|" + l3 + "|" + age + "|" + (v % 5), zi, [3 * PPT + 4, 3 * PPT * SQ + 4, 2, 3 * PPT * SQ + 2], g => paintField(g, l3, K, v % 5));
+      if (sp) blit(sp, X(b.x), Y(b.y + b.h), z, b.done >= 1 ? undefined : 0.35 + 0.5 * b.done);
+      else { c.fillStyle = terrCss(K.soil); c.fillRect(X(b.x) + 3, Y(b.y) + 3, 3 * pw * d - 6, 3 * ph * d - 6); }
     }
-    if (!G || !G.map) { S.ms = performance.now() - t0; return; }
-    const M = G.map;
-    // the ground: one fill per visible tile, by terrain (canals once Royal Canals is researched)
-    for (let y = Math.max(0, y0); y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        const i = y * 64 + x;
-        let t = M.terr[i];
-        if (M.canals && M.canalPlan[i] === 1) t = 7;
-        c.fillStyle = TERR[t] || "#000";
-        const p = toScreen(view, x, y);
-        c.fillRect(Math.floor(p.x), Math.floor(p.y), Math.ceil(pw) + 1, Math.ceil(ph) + 1);
-      }
-    }
-    // the grid, faint
-    c.strokeStyle = "rgba(20,12,4,.16)"; c.lineWidth = 1;
-    c.beginPath();
-    for (let x = x0; x <= x1 + 1; x++) { const a = toScreen(view, x, Math.max(0, y0)), b = toScreen(view, x, y1 + 1); c.moveTo(Math.round(a.x) + 0.5, a.y); c.lineTo(Math.round(b.x) + 0.5, b.y); }
-    for (let y = Math.max(0, y0); y <= y1 + 1; y++) { const a = toScreen(view, x0, y), b = toScreen(view, x1 + 1, y); c.moveTo(a.x, Math.round(a.y) + 0.5); c.lineTo(b.x, Math.round(b.y) + 0.5); }
-    c.stroke();
-    const vis = (x, y, w, h) => x + w >= view.x - 1 && y + h >= view.y - 1 && x <= view.x + L.w / pw + 1 && y <= view.y + L.h / ph + 1;
-    // nodes
-    for (const n of G.nodes) {
-      if (n.dead || !vis(n.x, n.y, 1, 1)) continue;
-      const p = toScreen(view, n.x, n.y);
-      c.fillStyle = NODE[n.k] || "#fff";
-      if (n.k === "tree" || n.k === "orchard") { c.beginPath(); c.arc(p.x + pw / 2, p.y + ph / 2, Math.min(pw, ph) * 0.42, 0, Math.PI * 2); c.fill(); }
-      else if (n.k === "flock") { for (let k = 0; k < 5; k++) c.fillRect(p.x + pw * (0.12 + 0.17 * k), p.y + ph * (0.3 + 0.25 * (k % 2)), pw * 0.16, ph * 0.22); }
-      else if (n.k === "dye") { c.globalAlpha = 0.55; c.fillRect(p.x + 2, p.y + 2, pw - 4, ph - 4); c.globalAlpha = 1; }
-      else c.fillRect(p.x + pw * 0.12, p.y + ph * 0.12, pw * 0.76, ph * 0.76);
-    }
-    // buildings and foundations, back to front by their front edge
-    const blds = G.blds.filter(b => !b.dead && vis(b.x, b.y, b.w, b.h)).sort((a, b) => (a.y + a.h) - (b.y + b.h) || a.id - b.id);
-    c.textAlign = "center"; c.textBaseline = "middle";
-    for (const b of blds) {
-      const p = toScreen(view, b.x, b.y), w = b.w * pw, h = b.h * ph;
-      c.fillStyle = BLDC[b.k] || "#ccc";
-      c.globalAlpha = b.done >= 1 ? 1 : 0.45 + 0.4 * b.done;
-      c.fillRect(p.x + 1, p.y + 1, w - 2, h - 2);
-      c.globalAlpha = 1;
-      c.strokeStyle = "rgba(38,24,12,.9)"; c.lineWidth = 2;
-      c.strokeRect(p.x + 1, p.y + 1, w - 2, h - 2);
-      if (b.done < 1) {
-        // a foundation: hatched, with its progress
-        c.save(); c.beginPath(); c.rect(p.x + 1, p.y + 1, w - 2, h - 2); c.clip();
-        c.strokeStyle = "rgba(38,24,12,.35)"; c.lineWidth = 1; c.beginPath();
-        for (let k = -h; k < w; k += 8) { c.moveTo(p.x + k, p.y + h); c.lineTo(p.x + k + h, p.y); }
-        c.stroke(); c.restore();
-        c.fillStyle = "#1c140d"; c.fillRect(p.x + 3, p.y + h - 7, w - 6, 4);
-        c.fillStyle = "#f0cf85"; c.fillRect(p.x + 3, p.y + h - 7, (w - 6) * b.done, 4);
-      }
-      if (b.w * pw >= 44 && b.k !== "wall") {
-        c.font = "600 " + Math.max(13, Math.min(16, pw * 0.36)) + "px " + (typeof UI_FONT === "string" ? UI_FONT : "serif");
-        c.fillStyle = "#1c120a";
-        c.fillText(label(b.k, G.age), p.x + w / 2, p.y + h / 2, w - 6);
-      }
-      if (b.hp < b.hpMax && b.done >= 1) { c.fillStyle = "#300"; c.fillRect(p.x + 3, p.y - 6, w - 6, 4); c.fillStyle = "#c33"; c.fillRect(p.x + 3, p.y - 6, (w - 6) * b.hp / b.hpMax, 4); }
-    }
-    // units, interpolated between ticks
-    const a = Math.max(0, Math.min(1, alpha || 0));
-    const units = G.units.filter(u => !u.dead).sort((u, v) => u.y - v.y || u.id - v.id);
-    for (const u of units) {
-      const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a;
-      if (!vis(x - 0.5, y - 0.5, 1, 1)) continue;
-      const p = toScreen(view, x, y), r = Math.max(5, pw * 0.22);
-      c.fillStyle = u.side ? "#c8463a" : (UNITC[u.k] || "#eee");
-      c.fillRect(p.x - r, p.y - r * 1.6, r * 2, r * 2);
-      c.strokeStyle = u.side ? "#5a0c06" : "#1c140d"; c.lineWidth = u.side ? 2.5 : 1.5;
-      c.strokeRect(p.x - r, p.y - r * 1.6, r * 2, r * 2);
-      if (r >= 7) { c.font = "700 " + Math.round(r * 1.3) + "px sans-serif"; c.fillStyle = u.side || u.k !== "vil" ? "#fff" : "#2c1e10"; c.fillText(short[u.k] || "?", p.x, p.y - r * 0.6); }
-    }
-    // the placement ghost: green, or red with a hatch (never color alone); a wall stroke's blocked tiles get an X
-    if (ghostSpec) {
-      const g = ghostSpec, cells = [];
-      if (g.wall) for (const q of g.wall) cells.push({ x: q.x, y: q.y, w: 1, h: 1, ok: q.ok, x_: true });
-      else if (g.type) {
-        const sz = g.type === "wonder" ? [5, 5] : (TW.DATA.BLD[g.type] ? TW.DATA.BLD[g.type].size : [1, 1]);
-        cells.push({ x: g.x, y: g.y, w: g.rot === 1 ? sz[1] : sz[0], h: g.rot === 1 ? sz[0] : sz[1], ok: g.ok });
-      }
-      for (const q of cells) {
-        const p = toScreen(view, q.x, q.y), w = q.w * pw, h = q.h * ph;
-        c.fillStyle = q.ok ? "rgba(90,200,90,.4)" : "rgba(210,60,50,.4)";
-        c.fillRect(p.x, p.y, w, h);
-        c.strokeStyle = q.ok ? "#bff5b0" : "#ffb0a8"; c.lineWidth = 2; c.strokeRect(p.x, p.y, w, h);
-        if (!q.ok) {
-          c.save(); c.beginPath(); c.rect(p.x, p.y, w, h); c.clip(); c.beginPath();
-          if (q.x_) { c.moveTo(p.x + 4, p.y + 4); c.lineTo(p.x + w - 4, p.y + h - 4); c.moveTo(p.x + w - 4, p.y + 4); c.lineTo(p.x + 4, p.y + h - 4); }
-          else for (let k = -h; k < w; k += 10) { c.moveTo(p.x + k, p.y + h); c.lineTo(p.x + k + h, p.y); }
-          c.stroke(); c.restore();
+    if (ghostSpec) drawPlaceShading(G, view, X, Y);
+    c.lineWidth = 2 * d;
+    for (const s of sel) {
+      if (s.kind === "unit") {
+        const u = G.units.find(o => o.id === s.id && !o.dead);
+        if (!u) continue;
+        const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a, rw = unitBox(u)[0] * 0.75 * z * d;
+        c.strokeStyle = u.side ? "rgba(255, 120, 100, .95)" : "rgba(255, 236, 160, .95)";
+        c.beginPath(); c.ellipse(X(x), Y(y), rw, rw * 0.45, 0, 0, Math.PI * 2); c.stroke();
+      } else if (s.kind === "bld" || s.kind === "node") {
+        const o = s.kind === "bld" ? G.blds.find(b => b.id === s.id && !b.dead) : G.nodes.find(n => n.id === s.id && !n.dead);
+        if (!o) continue;
+        const w = o.w || (o.k === "flock" ? 2 : 1), h = o.h || (o.k === "flock" ? 2 : 1);
+        c.strokeStyle = "rgba(255, 236, 160, .95)"; c.setLineDash([6 * d, 4 * d]);
+        c.strokeRect(X(o.x), Y(o.y), w * pw * d, h * ph * d);
+        c.setLineDash([]);
+        const rng = s.kind === "bld" ? rangeOf(G, o) : 0;
+        if (rng) ring(X(o.x + w / 2), Y(o.y + h / 2), rng * pw * d, rng * ph * d, "rgba(255, 236, 160, .7)");
+        if (s.kind === "bld" && o.rally && o.rally.x !== undefined) {
+          c.strokeStyle = "rgba(255, 244, 214, .85)"; c.setLineDash([5 * d, 5 * d]);
+          c.beginPath(); c.moveTo(X(o.x + w / 2), Y(o.y + h)); c.lineTo(X(o.rally.x + 0.5), Y(o.rally.y + 0.5)); c.stroke(); c.setLineDash([]);
+          c.fillStyle = "#a8322a"; c.fillRect(X(o.rally.x + 0.5), Y(o.rally.y + 0.5) - 14 * d, 8 * d, 6 * d);
+          c.fillStyle = INK; c.fillRect(X(o.rally.x + 0.5) - 1 * d, Y(o.rally.y + 0.5) - 14 * d, 1.6 * d, 14 * d);
         }
       }
     }
-    S.ms = performance.now() - t0;
-    S.px = (cv.width * cv.height) + (mini ? mini.width * mini.height : 0);
+
+    // 4. the world, back to front by the front edge: nodes and stumps, buildings, wall rows, units, carts
+    const items = [];
+    const start = G.map.start.nodes;
+    for (let i = 0; i < start.length; i++) {
+      const n = start[i];
+      if (!inView(n.x, n.y, 2, 2)) continue;
+      if (alive[i]) continue;
+      if (n.k === "tree" || n.k === "orchard") items.push({ y: n.y + 0.86, x: n.x, o: 0, f: () => nodeSprite("stump", i, n.x + 0.5, n.y + 0.86) });
+      else if (n.k === "stone" || n.k === "ore") items.push({ y: n.y + 0.8, x: n.x, o: 0, f: () => nodeSprite("bare", i, n.x + 0.5, n.y + 0.8) });
+    }
+    const dyeOn = !!(G.techs && G.techs.vordan_karmir);
+    for (const n of G.nodes) {
+      if (n.dead || !inView(n.x, n.y, 2, 2)) continue;
+      if (n.k === "dye") { if (dyeOn) items.push({ y: n.y + 0.7, x: n.x, o: 0, f: () => nodeSprite("dye", n.id, n.x + 0.5, n.y + 0.7) }); continue; }
+      const k = nodeKind(n), fy = n.k === "flock" ? n.y + 1.75 : n.y + (n.k === "stone" || n.k === "ore" ? 0.8 : 0.86), fx0 = n.k === "flock" ? n.x + 1 : n.x + 0.5;
+      items.push({ y: fy, x: n.x, o: 0, f: () => nodeSprite(k, n.id, fx0, fy) });
+    }
+    const wallRows = new Map();
+    for (const b of G.blds) {
+      if (b.dead || b.k === "field" || !inView(b.x, b.y, b.w, b.h)) continue;
+      if (b.k === "wall") { const r = wallRows.get(b.y) || []; r.push(b); wallRows.set(b.y, r); continue; }
+      items.push({ y: b.y + b.h, x: b.x, o: 1, f: () => drawBld(G, b, X, Y, zi, sel) });
+    }
+    for (const [y, row] of wallRows) items.push({ y: y + 1, x: 0, o: 1, f: () => drawWalls(row, X, Y, pw, ph, d) });
+    for (const u of G.units) {
+      if (u.dead || u.shel) continue;
+      const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a;
+      if (!inView(x - 1, y - 2, 2, 2)) continue;
+      items.push({ y, x, o: 2, f: () => drawUnit(G, u, X(x), Y(y), zi, sel) });
+    }
+    for (const t of G.carts || []) {
+      if (t.dead) continue;
+      const x = (t.px === undefined ? t.x : t.px + (t.x - t.px) * a), y = (t.py === undefined ? t.y : t.py + (t.y - t.py) * a);
+      if (!inView(x - 1, y - 2, 2, 2)) continue;
+      items.push({ y, x, o: 2, f: () => drawUnit(G, { k: "cart", side: 0, hp: t.hp, hpMax: DATA.CART ? DATA.CART.hp : t.hp }, X(x), Y(y), zi, []) });
+    }
+    items.sort((p, q) => p.y - q.y || p.o - q.o || p.x - q.x);
+    for (const it of items) it.f();
+
+    // 5. shots in flight and effects
+    drawShots(G, X, Y, a, d);
+    drawFx(X, Y, pw, ph, d, nowMs || lastNow);
+    // 7. the ghost, 8. the screen-edge raid arrows
+    if (ghostSpec) drawGhost(G, view, X, Y, zi, pw, ph, d);
+    drawArrows(G, view, X, Y, d);
+    S.ms = tnow() - t0;
+    S.chunkPx = chunkPx; S.spritePx = spritePx;
+    S.skyPx = skies.reduce((n, k) => n + (k && k.cv ? k.cv.width * k.cv.height : 0), 0);
+    let tim = 0;
+    for (const im of timgs.values()) tim += im.width * im.height;
+    S.px = cv.width * cv.height + (back.cv ? back.cv.width * back.cv.height : 0) + (mini ? mini.width * mini.height : 0) + chunkPx + spritePx + S.skyPx + tim + (miniBg.cv ? miniBg.cv.width * miniBg.cv.height : 0);
   }
-  // the minimap: the terrain cached as a 64 x 48 image, then buildings, units and the camera's frame
+
+  function ring(x, y, rx, ry, css) {
+    c.strokeStyle = css;
+    c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.stroke();
+  }
+  function rangeOf(G, b) {
+    const A = BLDD[b.k] && BLDD[b.k].arrows;
+    if (!A) return 0;
+    const onHill = G.map.hill && G.map.hill[(b.y + (b.h >> 1)) * MW + b.x + (b.w >> 1)];
+    return A.range + (onHill ? A.hillBonus || 0 : 0) + (b.k === "tower" && G.techs && G.techs.fire_beacons ? 1 : 0);
+  }
+  function nodeSprite(kind, v, wx, wy) {
+    const zi = nearestStep(viewZ), K = look(age), box = NODE_BOX[kind];
+    const sp = spriteAny("node|" + kind + "|" + (v % 8) + "|" + age, zi, box, g => paintNode(g, kind, v % 8, K));
+    const x = curX(wx), y = curY(wy);
+    if (sp) { blit(sp, x, y, viewZ); return; }
+    // not baked yet: a mark of its color
+    c.fillStyle = kind === "stone" || kind === "bare" ? "#7c7a80" : kind === "ore" ? "#8a4a30" : kind === "flock" ? "#efe6d2" : kind === "dye" ? "#a8322a" : kind === "stump" ? "#5f452e" : "#4a6a2e";
+    const r = (kind === "poplar" || kind === "tree" ? 9 : 6) * viewZ * L.dpr;
+    c.beginPath(); c.ellipse(x, y - r, r, r, 0, 0, Math.PI * 2); c.fill();
+  }
+  // the transform of the frame being drawn (set by draw before the world pass)
+  let viewZ = 1, curX = x => x, curY = y => y;
+  function drawBld(G, b, X, Y, zi, sel) {
+    const x = X(b.x), y = Y(b.y + b.h), z = viewZ, d = L.dpr, pw = PPT * z * d, ph = pw * SQ;
+    const key = "box|" + b.k + "|" + b.w + "x" + b.h + "|" + (b.rot | 0) + "|" + age;
+    const Hp = boxH(b.k), box = [b.w * PPT + 12 + Hp * 0.4, b.h * PPT * SQ + Hp + 6, 2, b.h * PPT * SQ + Hp + 3];
+    const sp = spriteAny(key, zi, [box[0], box[1], 2, box[1] - 3], g => paintBox(g, b.k, b.w, b.h, age, b.rot | 0));
+    const done = b.done >= 1;
+    if (!done) {
+      // a foundation: the footprint hatched, the block rising, its progress under it
+      c.save();
+      c.beginPath(); c.rect(x, Y(b.y), b.w * pw, b.h * ph); c.clip();
+      c.fillStyle = "rgba(44, 30, 16, .25)"; c.fillRect(x, Y(b.y), b.w * pw, b.h * ph);
+      c.strokeStyle = "rgba(44, 30, 16, .55)"; c.lineWidth = 1.5 * d; c.beginPath();
+      for (let k = -b.h * ph; k < b.w * pw; k += 9 * d) { c.moveTo(x + k, y); c.lineTo(x + k + b.h * ph, Y(b.y)); }
+      c.stroke(); c.restore();
+      c.strokeStyle = "rgba(255, 244, 214, .8)"; c.lineWidth = 1.5 * d; c.setLineDash([5 * d, 4 * d]);
+      c.strokeRect(x + 0.75 * d, Y(b.y) + 0.75 * d, b.w * pw - 1.5 * d, b.h * ph - 1.5 * d); c.setLineDash([]);
+    }
+    if (sp) blit(sp, x, y, z, done ? undefined : 0.3 + 0.45 * b.done);
+    else { c.fillStyle = BLD_COL[b.k] || "#bbb"; c.fillRect(x, y - (b.h * PPT * SQ + boxH(b.k)) * z * d, b.w * pw, (b.h * PPT * SQ + boxH(b.k)) * z * d); }
+    const topY = y - (b.h * PPT * SQ + boxH(b.k)) * z * d;
+    if (!done) bar(x + 4 * d, y + 3 * d, b.w * pw - 8 * d, 5 * d, b.done, "#f0cf85");
+    const selected = sel.some(s => s.kind === "bld" && s.id === b.id);
+    if (done && (b.hp < b.hpMax || selected) && b.k !== "field") bar(x + 4 * d, topY - 9 * d, b.w * pw - 8 * d, 5 * d, b.hp / b.hpMax, b.hp / b.hpMax > 0.5 ? "#7ec850" : b.hp / b.hpMax > 0.25 ? "#e8b84a" : "#d04a3a");
+    // the queue: a dot for each unit or tech waiting
+    const q = (b.q ? b.q.length : 0) + (b.rq ? b.rq.length : 0);
+    for (let k = 0; k < Math.min(6, q); k++) { c.fillStyle = k === 0 ? "#f0cf85" : "rgba(255, 244, 214, .8)"; c.fillRect(x + (4 + k * 8) * d, topY - 18 * d, 5 * d, 5 * d); }
+    if (b.k === "wonder") {
+      // the wonder's progress, in words: the one floating number besides the counts (10.5)
+      const pct = Math.floor(clamp(b.done, 0, 1) * 100) + "%";
+      c.font = font(14 * d, 700); c.textAlign = "center"; c.textBaseline = "bottom";
+      c.fillStyle = "rgba(28, 20, 13, .75)"; c.fillRect(x + b.w * pw / 2 - 26 * d, topY - 34 * d, 52 * d, 18 * d);
+      c.fillStyle = "#f2c14e"; c.fillText(pct, x + b.w * pw / 2, topY - 17 * d);
+    }
+  }
+  // a row of wall tiles in a few fills: front faces, top faces, ink; foundations hatched and pale
+  function drawWalls(row, X, Y, pw, ph, d) {
+    const H = boxH("wall") * viewZ * d, rgb = ageRgb("wall", age), top = new Path2D(), front = new Path2D(), part = new Path2D(), hurt = [];
+    for (const b of row) {
+      const x = X(b.x), y = Y(b.y + 1), w = pw * d, h = ph * d;
+      const p = b.done >= 1 ? null : part;
+      (p || front).rect(x, y - H, w, H);
+      (p || top).rect(x, y - H - h, w, h);
+      if (b.done >= 1 && b.hp < b.hpMax) hurt.push(b);
+    }
+    c.fillStyle = terrCss(rgb); c.fill(front);
+    c.fillStyle = terrCss(terrLit(rgb, 0.2)); c.fill(top);
+    c.fillStyle = "rgba(255, 244, 214, .35)"; c.fill(part);
+    c.strokeStyle = INK; c.lineWidth = 1.4 * d; c.stroke(front); c.stroke(top);
+    c.strokeStyle = "rgba(255, 244, 214, .85)"; c.setLineDash([4 * d, 3 * d]); c.stroke(part); c.setLineDash([]);
+    for (const b of hurt) bar(X(b.x) + 3 * d, Y(b.y + 1) - H - ph * d - 7 * d, pw * d - 6 * d, 4 * d, b.hp / b.hpMax, "#e8b84a");
+  }
+  function bar(x, y, w, h, f, css) {
+    c.fillStyle = "rgba(20, 12, 6, .85)"; c.fillRect(x - 1, y - 1, w + 2, h + 2);
+    c.fillStyle = css; c.fillRect(x, y, w * clamp(f, 0, 1), h);
+  }
+  const RES_COL = { f: "#d9a441", w: "#8a6238", s: "#a9a9b0", g: "#c9972f" };
+  function drawUnit(G, u, x, y, zi, sel) {
+    const lk = unitBox(u), d = L.dpr, z = viewZ;
+    const sp = spriteAny("unit|" + u.k + "|" + (u.side | 0), zi, [lk[0] + 12, lk[1] + 8, lk[0] / 2 + 6, lk[1] + 4], g => paintUnit(g, u.k, lk, u.side | 0));
+    if (sp) blit(sp, x, y, z);
+    else { c.fillStyle = lk[2]; c.fillRect(x - lk[0] / 2 * z * d, y - lk[1] * z * d, lk[0] * z * d, lk[1] * z * d); }
+    const top = y - (lk[1] + 3) * z * d;
+    if (u.carry && u.carry.n > 0) {
+      c.fillStyle = RES_COL[u.carry.r] || "#ccc"; c.strokeStyle = INK; c.lineWidth = 1 * d;
+      const s = 6 * z * d;
+      c.fillRect(x + lk[0] / 2 * z * d - s * 0.4, y - lk[1] * 0.55 * z * d, s, s); c.strokeRect(x + lk[0] / 2 * z * d - s * 0.4, y - lk[1] * 0.55 * z * d, s, s);
+    }
+    const selected = u.id && sel.some(s => s.kind === "unit" && s.id === u.id);
+    if (u.hpMax && (u.hp < u.hpMax || selected)) bar(x - 10 * z * d, top - 5 * d, 20 * z * d, 3.5 * d, u.hp / u.hpMax, u.side ? "#d04a3a" : "#7ec850");
+    if (u.held) { c.strokeStyle = "#c9a06a"; c.lineWidth = 1.5 * d; c.beginPath(); c.ellipse(x, y - lk[1] * 0.5 * z * d, lk[0] * 0.7 * z * d, 4 * z * d, 0, 0, Math.PI * 2); c.stroke(); }
+  }
+  // arrows and cords in flight: a shaft along the path, at the share of the flight done
+  function drawShots(G, X, Y, a, d) {
+    if (!G.shots || !G.shots.length) return;
+    c.lineCap = "round";
+    for (const s of G.shots) {
+      const dist = Math.sqrt((s.tx - s.fx) * (s.tx - s.fx) + (s.ty - s.fy) * (s.ty - s.fy)), flight = Math.max(1, Math.ceil(dist / 12 / TW.DT));
+      const f = clamp(1 - (s.at - (G.tick + a)) / flight, 0, 1), x = s.fx + (s.tx - s.fx) * f, y = s.fy + (s.ty - s.fy) * f;
+      const lift = Math.sin(f * Math.PI) * dist * 0.18;
+      const ux = (s.tx - s.fx) / (dist || 1), uy = (s.ty - s.fy) / (dist || 1);
+      const x1 = X(x), y1 = Y(y) - lift * PPT * viewZ * d * SQ, x0 = x1 - ux * 15 * viewZ * d, y0 = y1 - uy * 15 * viewZ * d * SQ;
+      c.strokeStyle = s.k === "cord" ? "#c9a06a" : INK; c.lineWidth = 2.2 * d; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      c.strokeStyle = s.k === "cord" ? "#e8d2a0" : "#e8d8b0"; c.lineWidth = 1 * d; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    }
+    c.lineCap = "butt";
+  }
+  function drawFx(X, Y, pw, ph, d, t) {
+    for (let i = fxList.length - 1; i >= 0; i--) {
+      const f = fxList[i], age2 = t - f.at;
+      if (age2 > f.life || age2 < -1000) { fxList.splice(i, 1); continue; }
+      const u = clamp(age2 / f.life, 0, 1), x = X(f.x), y = Y(f.y);
+      c.globalAlpha = 1 - u;
+      if (f.k === "hit") { c.strokeStyle = "#ffe6a0"; c.lineWidth = 2 * d; ring(x, y - 10 * viewZ * d, (4 + 10 * u) * viewZ * d, (4 + 10 * u) * viewZ * d, "#ffe6a0"); }
+      else if (f.k === "dust") { c.fillStyle = "rgba(196, 170, 128, .6)"; c.beginPath(); c.ellipse(x, y, (0.4 + u) * f.r * pw * d, (0.4 + u) * f.r * ph * d * 0.6, 0, 0, Math.PI * 2); c.fill(); }
+      else { c.strokeStyle = "rgba(60, 40, 20, .8)"; c.lineWidth = 2 * d; c.beginPath(); c.moveTo(x - 6 * d, y - 6 * d); c.lineTo(x + 6 * d, y + 2 * d); c.moveTo(x + 6 * d, y - 6 * d); c.lineTo(x - 6 * d, y + 2 * d); c.stroke(); }
+    }
+    c.globalAlpha = 1;
+  }
+  // while any ghost is out: the banks and the edge band shaded and hatched; fertile soil tinted for a field, the
+  // bluffs for Garni; the ring the Haldi and Zvartnots rules draw round the palace (9.5)
+  function drawPlaceShading(G, view, X, Y) {
+    const m = masks(G), d = L.dpr, pw = PPT * view.zoom * d, ph = pw * SQ, g = ghostSpec, type = g.type || (g.wall ? "wall" : "");
+    c.setTransform(pw, 0, 0, ph, -view.x * pw, -view.y * ph);
+    const shade = new Path2D();
+    shade.addPath(m.edge);
+    if (type !== "field") shade.addPath(m.bank);
+    c.fillStyle = "rgba(40, 20, 12, .3)"; c.fill(shade);
+    if (type === "field") { c.fillStyle = "rgba(255, 226, 140, .2)"; c.fill(m.fertile); }
+    if (type === "wonder" && age === 2) { c.fillStyle = "rgba(255, 226, 140, .3)"; c.fill(m.bluff); }
+    c.save(); c.clip(shade);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.strokeStyle = "rgba(40, 20, 12, .35)"; c.lineWidth = 1.5 * d; c.beginPath();
+    for (let k = -cv.height; k < cv.width; k += 14 * d) { c.moveTo(k, cv.height); c.lineTo(k + cv.height, 0); }
+    c.stroke(); c.restore();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (type === "wonder" && age !== 2) {
+      const tc = G.blds.find(b => b.k === "tc" && !b.dead), W = DATA.WONDERS[age - 1].site, r = W.nearTc || W.farFromTc;
+      if (tc && r) {
+        c.lineWidth = 2.5 * d; c.setLineDash([8 * d, 6 * d]);
+        ring(X(tc.x + tc.w / 2), Y(tc.y + tc.h / 2), r * pw, r * ph, W.nearTc ? "rgba(140, 230, 140, .9)" : "rgba(255, 200, 120, .9)");
+        c.setLineDash([]);
+      }
+    }
+  }
+  // the ghost: green, or red with a diagonal hatch (never color alone), the building at 60%; a wall stroke's tiles,
+  // with an X on each that cannot be built
+  function drawGhost(G, view, X, Y, zi, pw, ph, d) {
+    const g = ghostSpec, cells = [];
+    if (g.wall) for (const q of g.wall) cells.push({ x: q.x, y: q.y, w: 1, h: 1, ok: q.ok, k: "wall" });
+    else if (g.type) {
+      const sz = g.type === "wonder" ? [5, 5] : (BLDD[g.type] ? BLDD[g.type].size : [1, 1]), rot = g.rot === 1;
+      cells.push({ x: g.x, y: g.y, w: rot ? sz[1] : sz[0], h: rot ? sz[0] : sz[1], ok: g.ok, k: g.type, rot: g.rot | 0 });
+    }
+    for (const q of cells) {
+      const x = X(q.x), y = Y(q.y), w = q.w * pw * d, h = q.h * ph * d;
+      c.fillStyle = q.ok ? "rgba(90, 200, 90, .35)" : "rgba(210, 60, 50, .4)";
+      c.fillRect(x, y, w, h);
+      c.strokeStyle = q.ok ? "#c4f5b4" : "#ffb0a8"; c.lineWidth = 2 * d; c.strokeRect(x + d, y + d, w - 2 * d, h - 2 * d);
+      if (!q.ok) {
+        c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.beginPath(); c.lineWidth = 2 * d; c.strokeStyle = "#ffd0c8";
+        if (q.k === "wall") { c.moveTo(x + 5 * d, y + 4 * d); c.lineTo(x + w - 5 * d, y + h - 4 * d); c.moveTo(x + w - 5 * d, y + 4 * d); c.lineTo(x + 5 * d, y + h - 4 * d); }
+        else for (let k = -h; k < w; k += 10 * d) { c.moveTo(x + k, y + h); c.lineTo(x + k + h, y); }
+        c.stroke(); c.restore();
+      }
+      if (q.k === "wall") {
+        if (q.ok) { const H = boxH("wall") * viewZ * d; c.fillStyle = "rgba(156, 145, 130, .6)"; c.fillRect(x, y + h - H, w, H); }
+        continue;
+      }
+      if (q.k !== "field") {
+        const Hp = boxH(q.k), bw = q.w * PPT + 12 + Hp * 0.4, bh = q.h * PPT * SQ + Hp + 6;
+        const sp = spriteAny("box|" + q.k + "|" + q.w + "x" + q.h + "|" + q.rot + "|" + age, zi, [bw, bh, 2, bh - 3], gg => paintBox(gg, q.k, q.w, q.h, age, q.rot));
+        if (sp) blit(sp, x, y + h, viewZ, 0.6);
+      }
+      const rng = q.k === "tower" ? rangeOf(G, { k: "tower", x: q.x, y: q.y, w: q.w, h: q.h }) : 0;
+      if (rng) { c.lineWidth = 2 * d; ring(x + w / 2, y + h / 2, rng * pw * d, rng * ph * d, q.ok ? "rgba(200, 255, 190, .85)" : "rgba(255, 190, 180, .85)"); }
+    }
+  }
+  // a bronze arrow at the screen's edge toward each raid off screen (warning or live), with its count (9.10)
+  function drawArrows(G, view, X, Y, d) {
+    S.arrows = [];
+    const groups = new Map();
+    for (const u of G.units) {
+      if (u.dead || !u.side) continue;
+      const k = u.raid || 0, gr = groups.get(k) || { n: 0, x: 0, y: 0, on: false };
+      gr.n++; gr.x += u.x; gr.y += u.y;
+      const sx = X(u.x) / d, sy = Y(u.y) / d;
+      if (sx >= 0 && sy >= 0 && sx <= L.w && sy <= L.h) gr.on = true;
+      groups.set(k, gr);
+    }
+    const targets = [];
+    for (const [k, gr] of groups) if (!gr.on) targets.push({ raid: k, x: gr.x / gr.n, y: gr.y / gr.n, n: gr.n });
+    for (const r of G.raids || []) {
+      if (r.st !== "warn") continue;
+      for (const z of r.zones || []) {
+        const e = G.map.entries && G.map.entries[z];
+        if (!e || !e.length) continue;
+        const m = e[e.length >> 1];
+        targets.push({ raid: r.id, x: m[0] + 0.5, y: m[1] + 0.5, n: r.n0 || 0, warn: true });
+      }
+    }
+    const inset = 34, cxs = L.w / 2, cys = L.h / 2;
+    for (const t of targets) {
+      const sx = X(t.x) / d, sy = Y(t.y) / d;
+      if (sx >= 0 && sy >= 0 && sx <= L.w && sy <= L.h) continue;
+      const dx = sx - cxs, dy = sy - cys, k = Math.min((cxs - inset) / Math.max(1e-6, Math.abs(dx)), (cys - inset) / Math.max(1e-6, Math.abs(dy)));
+      const ax = cxs + dx * k, ay = cys + dy * k, ang = Math.atan2(dy, dx);
+      c.save(); c.setTransform(d, 0, 0, d, 0, 0); c.translate(ax, ay); c.rotate(ang);
+      c.fillStyle = t.warn ? "rgba(185, 138, 62, .92)" : "#b98a3e"; c.strokeStyle = "#1c1209"; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(18, 0); c.lineTo(-8, -13); c.lineTo(-3, 0); c.lineTo(-8, 13); c.closePath(); c.fill(); c.stroke();
+      c.restore();
+      if (t.n) {
+        c.setTransform(d, 0, 0, d, 0, 0);
+        c.font = font(13, 700); c.textAlign = "center"; c.textBaseline = "middle";
+        const lx = ax - Math.cos(ang) * 24, ly = ay - Math.sin(ang) * 24;
+        c.fillStyle = "rgba(28, 20, 13, .85)"; c.beginPath(); c.arc(lx, ly, 11, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#fff3d6"; c.fillText(String(t.n), lx, ly + 0.5);
+        c.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      S.arrows.push({ x: ax, y: ay, r: 24, raid: t.raid, tx: t.x, ty: t.y, n: t.n });
+    }
+  }
+
+  // ---- the minimap (9.8): the terrain image and the river, then buildings, nodes, people and the camera ----
+  const miniBg = { cv: null, key: "", dirty: false };
   function drawMini(G, view) {
     if (!mc || !mini.width || !G || !G.map) return;
-    const key = age + "|" + G.map.canals + "|" + G.seed;
-    if (miniKey !== key || !miniImg) {
-      miniImg = document.createElement("canvas"); miniImg.width = 64; miniImg.height = 48;
-      const ic = miniImg.getContext("2d"), im = ic.createImageData(64, 48);
-      for (let i = 0; i < 64 * 48; i++) {
-        const col = TERR[G.map.terr[i]] || "#000";
-        im.data[i * 4] = parseInt(col.slice(1, 3), 16); im.data[i * 4 + 1] = parseInt(col.slice(3, 5), 16); im.data[i * 4 + 2] = parseInt(col.slice(5, 7), 16); im.data[i * 4 + 3] = 255;
-      }
-      ic.putImageData(im, 0, 0);
-      miniKey = key;
+    mapData(G);
+    const w = mini.width, h = mini.height, kx = w / MW, ky = h / MH, dd = w / Math.max(1, mini.clientWidth || w);
+    const key = age + "|" + G.map.canals + "|" + G.seed + "|" + w + "x" + h;
+    if (miniBg.key !== key || !miniBg.cv) {
+      const im = terrImage(G);
+      if (!miniBg.cv || miniBg.cv.width !== w || miniBg.cv.height !== h) { kill(miniBg.cv); miniBg.cv = mk(w, h); }
+      const g = miniBg.cv.getContext("2d"), K = look(age);
+      g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
+      g.drawImage(im, MG * TP, MG * TP, MW * TP, MH * TP, 0, 0, w, h);
+      g.setTransform(kx, 0, 0, ky, 0, 0);
+      g.fillStyle = terrCss(K.water); g.fill(MD.water);
+      if (G.map.canals) { g.strokeStyle = terrCss(K.water); g.lineWidth = 0.6; g.beginPath(); for (let i = 0; i < MW * MH; i++) if (G.map.terr[i] === 7) { const x = i % MW, y = (i - x) / MW; g.moveTo(x + 0.5, y); g.lineTo(x + 0.5, y + 1); } g.stroke(); }
+      miniBg.key = key;
     }
-    const w = mini.width, h = mini.height, kx = w / 64, ky = h / 48;
     mc.setTransform(1, 0, 0, 1, 0, 0);
-    mc.imageSmoothingEnabled = false;
-    mc.drawImage(miniImg, 0, 0, w, h);
-    for (const b of G.blds) { if (b.dead) continue; mc.fillStyle = b.k === "wonder" ? "#f2c14e" : b.k === "wall" || b.k === "gate" ? "#6e4d1e" : "#b98a3e"; mc.fillRect(b.x * kx, b.y * ky, b.w * kx, b.h * ky); }
-    for (const u of G.units) { if (u.dead) continue; mc.fillStyle = u.side ? "#e0402f" : "#fff3d6"; const s = u.side ? 3 : 2; mc.fillRect(u.x * kx - s / 2, u.y * ky - s / 2, s, s); }
-    const tl = { x: view.x, y: view.y }, br = toWorld(view, L.w, L.h);
-    mc.strokeStyle = "#fff"; mc.lineWidth = 1.5;
-    mc.strokeRect(tl.x * kx, Math.max(0, tl.y) * ky, (br.x - tl.x) * kx, (br.y - Math.max(0, tl.y)) * ky);
-  }
-  // what is under a point: own units first, then raiders, buildings, nodes, ground
-  function pick(G, view, sx, sy, rPx) {
-    const w = toWorld(view, sx, sy), r = rPx || 22;
-    let best = null, bd = r * r;
-    for (const side of [0, 1]) {
-      for (const u of G.units) {
-        if (u.dead || u.side !== side) continue;
-        const p = toScreen(view, u.x, u.y), dx = p.x - sx, dy = p.y - sy, d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; best = u; }
+    mc.drawImage(miniBg.cv, 0, 0);
+    // resources: trees, stone and ore, as small dots of their color
+    for (const n of G.nodes) {
+      if (n.dead || n.k === "dye" || n.k === "flock") continue;
+      mc.fillStyle = n.k === "tree" ? "#2f4a22" : n.k === "orchard" ? "#4f6a2a" : n.k === "stone" ? "#6e6c72" : "#8a4a30";
+      mc.fillRect(n.x * kx, n.y * ky, Math.max(1, kx), Math.max(1, ky));
+    }
+    for (const b of G.blds) {
+      if (b.dead) continue;
+      mc.fillStyle = b.k === "wonder" ? "#f2c14e" : b.k === "wall" || b.k === "gate" ? "#6e4d1e" : b.k === "field" ? "#a88d3c" : "#b98a3e";
+      mc.globalAlpha = b.done >= 1 ? 1 : 0.55;
+      mc.fillRect(b.x * kx, b.y * ky, b.w * kx, b.h * ky);
+      if (b.k === "wonder") { mc.strokeStyle = "#1c1209"; mc.lineWidth = 1.2 * dd; mc.strokeRect(b.x * kx, b.y * ky, b.w * kx, b.h * ky); }
+    }
+    mc.globalAlpha = 1;
+    for (const u of G.units) {
+      if (u.dead || u.side || u.shel) continue;
+      const s = (u.k === "vil" ? 2 : 2.6) * dd;
+      mc.fillStyle = u.k === "vil" ? "#fff3d6" : "#cfe0ff";
+      mc.fillRect(u.x * kx - s / 2, u.y * ky - s / 2, s, s);
+    }
+    // raiders: red squares with a dark outline (2 px), above everything else
+    for (const u of G.units) {
+      if (u.dead || !u.side) continue;
+      const s = 3.4 * dd;
+      mc.fillStyle = "#1c0804"; mc.fillRect(u.x * kx - s / 2 - dd, u.y * ky - s / 2 - dd, s + 2 * dd, s + 2 * dd);
+      mc.fillStyle = "#e0402f"; mc.fillRect(u.x * kx - s / 2, u.y * ky - s / 2, s, s);
+    }
+    // a raid's warning: a horn marker that pulses at its zone (not color alone)
+    const pulse = 0.6 + 0.4 * Math.sin(tnow() / 180);
+    for (const r of G.raids || []) {
+      if (r.st !== "warn") continue;
+      for (const z of r.zones || []) {
+        const e = G.map.entries && G.map.entries[z];
+        if (!e || !e.length) continue;
+        const m = e[e.length >> 1], x = clamp((m[0] + 0.5) * kx, 8 * dd, w - 8 * dd), y = clamp((m[1] + 0.5) * ky, 8 * dd, h - 8 * dd);
+        mc.save(); mc.translate(x, y); mc.scale(dd * (0.9 + 0.25 * pulse), dd * (0.9 + 0.25 * pulse));
+        mc.fillStyle = "#f0cf85"; mc.strokeStyle = "#1c1209"; mc.lineWidth = 1.5;
+        mc.beginPath(); mc.moveTo(-7, -2); mc.quadraticCurveTo(0, -6, 7, -5); mc.lineTo(7, 5); mc.quadraticCurveTo(0, 2, -7, 2); mc.closePath(); mc.fill(); mc.stroke();
+        mc.restore();
       }
-      if (best) return { kind: "unit", id: best.id, tx: Math.floor(w.x), ty: Math.floor(w.y) };
     }
-    const tx = Math.floor(w.x), ty = Math.floor(w.y);
-    if (tx >= 0 && ty >= 0 && tx < 64 && ty < 48) {
-      const o = G.map.occ[ty * 64 + tx];
-      if (o > 0) return { kind: "bld", id: o, tx, ty };
-      if (o < 0) return { kind: "node", id: -o, tx, ty };
+    // the camera
+    const br = toWorld(view, L.w, L.h);
+    mc.strokeStyle = "#fff"; mc.lineWidth = 1.5 * dd;
+    const ty0 = Math.max(0, view.y);
+    mc.strokeRect(view.x * kx, ty0 * ky, (br.x - view.x) * kx, (br.y - ty0) * ky);
+  }
+
+  // ---- what is under a point (9.6): town units, then raiders, then buildings (footprint, and the block drawn above
+  // it), then nodes (the tile, and the sprite above it), then ground ----
+  function pick(G, view, sx, sy, rPx) {
+    const w = toWorld(view, sx, sy), r = rPx || 22, tx = Math.floor(w.x), ty = Math.floor(w.y);
+    if (!G || !G.map) return { kind: "ground", id: 0, tx, ty };
+    const z = view.zoom, pw = PPT * z, ph = pw * SQ;
+    for (const side of [0, 1]) {
+      let best = null, bd = r * r;
+      for (const u of G.units) {
+        if (u.dead || (u.side | 0) !== side || u.shel) continue;
+        const p = toScreen(view, u.x, u.y), hh = unitBox(u)[1] * z, hw = unitBox(u)[0] * z / 2;
+        // the distance from the point to the unit's box
+        const dx = Math.max(0, Math.abs(sx - p.x) - hw), dy = sy > p.y ? sy - p.y : sy < p.y - hh ? p.y - hh - sy : 0, dist = dx * dx + dy * dy;
+        if (dist < bd || (dist === bd && best && u.y > best.y)) { bd = dist; best = u; }
+      }
+      if (best) return { kind: "unit", id: best.id, tx, ty };
     }
+    let hit = null, hy = -1e9;
+    for (const b of G.blds) {
+      if (b.dead) continue;
+      const a = toScreen(view, b.x, b.y), e = toScreen(view, b.x + b.w, b.y + b.h), rise = b.k === "field" ? 0 : boxH(b.k) * z;
+      if (sx >= a.x && sx <= e.x && sy >= a.y - rise && sy <= e.y && b.y + b.h > hy) { hy = b.y + b.h; hit = b; }
+    }
+    if (hit) return { kind: "bld", id: hit.id, tx, ty };
+    let nh = null, ny = -1e9;
+    for (const n of G.nodes) {
+      if (n.dead) continue;
+      const big = n.k === "flock" ? 2 : 1, a = toScreen(view, n.x, n.y), e = toScreen(view, n.x + big, n.y + big);
+      const rise = n.k === "tree" ? 48 * z : n.k === "orchard" ? 28 * z : n.k === "dye" ? 0 : 14 * z;
+      if (sx >= a.x - 4 && sx <= e.x + 4 && sy >= a.y - rise && sy <= e.y && n.y + big > ny) { ny = n.y + big; nh = n; }
+    }
+    if (nh) return { kind: "node", id: nh.id, tx, ty };
     return { kind: "ground", id: 0, tx, ty };
   }
-  function stats() { return Object.assign({}, S); }
-  return { init, free, layout, setAge, prebake, invalidate, draw, drawMini, ghost, fx, pick, toWorld, toScreen, stats,
-    zoomSteps, groundSteps, bakeBudgetMs };
+  function stats() { return Object.assign({}, S, { arrows: S.arrows.slice() }); }
+
+  // the frame's transform for the world pass's helpers
+  const draw0 = draw;
+  function drawFrame(G, view, alpha, nowMs) {
+    viewZ = view.zoom;
+    const pw = PPT * view.zoom * L.dpr, ph = pw * SQ;
+    curX = wx => (wx - view.x) * pw; curY = wy => (wy - view.y) * ph;
+    return draw0(G, view, alpha, nowMs);
+  }
+  // for the self-test and the tools only
+  const test = {
+    budget(ms) { testBudget = ms === undefined || ms === null ? null : ms; },
+    governor(on, cap) { gov.force = !!on; if (cap) gov.cap = cap; return { cap: gov.cap, retired: gov.retired, log: gov.log.slice() }; },
+    govReset() { Object.assign(gov, { cap: 2, gaps: [], last: 0, calmUntil: 0, before: 0, prevCap: 0, retired: false, lastTick: -1, tickAt: 0, log: [] }); relayout(); },
+    govern: (G, t) => govern(G, t),
+    canvases: () => ({ chunks: chunks.size, sprites: sprites.size, skies: skies.filter(k => k && k.cv && k.cv.width).length, timgs: timgs.size, mini: !!(miniBg.cv && miniBg.cv.width) }),
+    look, dpr: () => L.dpr, passMs: () => passMs.slice(),
+    battleArt, pristine: () => pristine,
+  };
+  return { init, free, layout: (w, h, dpr) => layout(w, h, dpr, false), setAge, prebake, invalidate, draw: drawFrame, drawMini, ghost, fx, pick,
+    toWorld, toScreen, stats, zoomSteps, groundSteps, bakeBudgetMs, test };
 })(); });
 
 // ---- town: sound ----   (WP5)  SPEC/SFX registration, event-to-sound, scene override
@@ -64534,6 +65886,77 @@ function townSelftest(check, res) {
     });
   }
   // -- WP3 checks (12) --
+  // 12: the town leaves the battle alone. A staged town is played and drawn (three ages, every kind of view: zoom
+  // steps, a pinch between them, the skyline, a ghost, the minimap, a pick) while Math.random and the battle's
+  // canvas are watched: no town module may touch either. After it closes, frame() draws again, the borrowed
+  // globals hold their old values, the town's canvases are freed, the battle's forts and its era 0 to 2 foes
+  // (baked fresh) hash the same as before the town baked anything, and the Dvin bed keeps its own rare list.
+  check("town leaves the battle alone", () => {
+    const saved = keepKeys(), was = [THEME, curEra, waveIdx, endless], rnd = Math.random, inert0 = overlayEl.hasAttribute("inert");
+    const watch = ["fillRect", "drawImage", "fill", "stroke", "fillText", "strokeRect", "clearRect", "putImageData", "setTransform", "beginPath"];
+    let randoms = 0, ctxCalls = 0;
+    const fail = m => { throw new Error(m); };
+    try {
+      if (!TWA.test.pristine()) fail("the battle's art was not hashed before the town first drew");
+      Math.random = function () { randoms++; return rnd.apply(this, arguments); };
+      for (const m of watch) ctx[m] = function () { ctxCalls++; return CanvasRenderingContext2D.prototype[m].apply(this, arguments); };
+      Town.open();
+      const cvs = $("twMap");
+      if (!Town.isOpen() || !cvs || !cvs.width) fail("the town did not open with a canvas");
+      TWA.test.budget(10);
+      const G = TW.stage("age3", 20261025, 1), tc = G.blds.find(b => b.k === "tc");
+      Town.test.G = G;
+      TWA.setAge(1);
+      TW.run(G, 20);
+      const W = cvs.clientWidth || 1600, H = cvs.clientHeight || 900;
+      const at = (z, x, y) => ({ zoom: z, x: x - W / (40 * z) / 2, y: y - H / (40 * z * 0.72) / 2 });
+      let t = 1000;
+      const paint = v => { TWA.draw(Town.test.G, v, 0.5, t += 17); TWA.drawMini(Town.test.G, v); };
+      for (const z of [1.0, 0.7, 1.45]) paint(at(z, tc.x + 2, tc.y + 2));
+      paint(at(1.13, tc.x + 2, tc.y + 2));                                   // a pinch, between two steps
+      for (let k = 0; k < 3; k++) paint({ zoom: 0.85, x: tc.x - 10, y: -6 });   // the skyline (baked in three steps)
+      TWA.ghost({ type: "tower", x: tc.x + 6, y: tc.y, rot: 0, ok: false, err: "edge" });
+      paint(at(1.0, tc.x + 2, tc.y + 2));
+      TWA.ghost({ wall: [{ x: tc.x + 6, y: tc.y + 6, ok: true }, { x: tc.x + 7, y: tc.y + 6, ok: false }] });
+      paint(at(1.0, tc.x + 2, tc.y + 2));
+      TWA.ghost(null);
+      TWA.fx([{ e: "hit", x: tc.x, y: tc.y + 5 }, { e: "destroyed", bld: 0, k: "house", x: tc.x - 3, y: tc.y + 4 }], G);
+      const v1 = at(1.0, tc.x + 2, tc.y + 2), p = TWA.toScreen(v1, tc.x + 2, tc.y + 3.5);
+      if (TWA.pick(G, v1, p.x, p.y, 22).kind !== "bld") fail("a tap on the palace did not pick it");
+      for (const age of [2, 3]) { TWA.setAge(age); TWA.prebake(G, v1); paint(v1); }
+      if (randoms) fail("the town called Math.random " + randoms + " times");
+      if (ctxCalls) fail("the town drew through the battle's canvas " + ctxCalls + " times");
+      TWA.test.budget(null);
+      Town.test.G = null;                    // the staged game is not the player's: nothing to keep or resume
+      Town.close();
+      for (const m of watch) delete ctx[m];
+      Math.random = rnd;
+      const k = TWA.test.canvases();
+      if (k.chunks || k.sprites || k.skies || k.timgs || k.mini || (cvs && cvs.width)) fail("closing left the town's canvases alive " + JSON.stringify(k));
+      if (Town.covers() || Town.isOpen()) fail("the town still covers the map after closing");
+      const raf0 = window.requestAnimationFrame, draw0 = draw, photo0 = photo;
+      let draws = 0;
+      try {
+        window.requestAnimationFrame = () => 0; draw = () => { draws++; }; photo = null;
+        frame(performance.now());
+      } finally { window.requestAnimationFrame = raf0; draw = draw0; photo = photo0; }
+      if (draws !== 1) fail("frame() does not draw the battle again after the town");
+      if (THEME !== was[0] || curEra !== was[1] || waveIdx !== was[2] || endless !== was[3]) fail("the town left THEME, curEra, waveIdx or endless changed");
+      const now = TWA.test.battleArt(), before = TWA.test.pristine();
+      const diff = now.filter((h, i) => h !== before[i]);
+      if (now.length !== before.length || diff.length) fail("the battle's sprites changed: " + diff.join(", "));
+      const A = Snd.AMB || {};
+      if (!A.dvin || !Array.isArray(A.dvin.rare) || A.dvin.rare.indexOf("churchBell") < 0) fail("the Dvin bed lost its own rare list");
+      if (A.twDvin && (A.twDvin.rare === A.dvin.rare || (A.twDvin.rare || []).indexOf("churchBell") >= 0)) fail("the town's Dvin bed shares the battle's rare list or rings its bell");
+    } finally {
+      Math.random = rnd;
+      for (const m of watch) delete ctx[m];
+      TWA.test.budget(null);
+      if (Town.isOpen()) { Town.test.G = null; Town.close(); }
+      overlayEl.toggleAttribute("inert", inert0);     // the page as the earlier checks left it, whatever close() decided
+      putKeys(saved);
+    }
+  });
 
   // -- WP4 checks (10) --
   // 10 (WP1-A's basic form; WP4 adds the touch flows): the door on the map, hidden on the chronicle and the
