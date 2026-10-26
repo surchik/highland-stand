@@ -60098,8 +60098,16 @@ function nardiSelftest(check, res) {
 //     ghost(spec).bad: tiles [[x, y]...] that block a placement (outlined with an X). view.mark { x, y, t, foe }:
 //     a map command's target (a ring that closes in 0.6 s; red on a raider).
 //     Town.photo also card=sel-<what>[-i] (a selection's panel, -i with its history open) and card=tech-i;
-//     Town.test.button also info:hist, sheet:th:tech:<id>, info:rally:<r>. The shell's TODO-TEXT block (TX, SRC)
-//     holds the post-P strings and the source table until they move into TWT (U() and srcLine() read TWT first).
+//     Town.test.button also info:hist, sheet:th:tech:<id>, info:rally:<r>.
+//   Paint fix (after the art, play and code reviews of town/paint): TW.next(G) also returns { k: "build", type, re: 1 }
+//     (a kind the raiders destroyed, kept in G.calls.lost until one is placed), { k: "fields", n } (no free food
+//     work), { k: "repairTc", pct } (the palace under 70% and no raid on), { k: "researching", tech, left }, and any
+//     goal may carry house: 1 (the town full: TWT adds "a House lets it grow"); res goals carry age. Event destroyed
+//     carries raid: 1 when raiders did it. A food worker with no food work goes to the Next goal's resource or stands
+//     idle; soldiers claim free population before the palace; raiders leave untouched foundations alone. TWT now
+//     holds the shell's former TODO-TEXT strings in ui, the source table (TWT.sources) and TWT.source(cite);
+//     TWT.needs(list, age, from) and err("req", { need, from }) name a tech's building ("from a Workshop"). TWA:
+//     view.lost [{ x, y, k, t }] draws a red X on the minimap per destroyed building not yet rebuilt.
 // ==== END TOWN INTERFACES ====
 //
 // ---- town: guard ----   (WP1)
@@ -71147,7 +71155,7 @@ townRegion("shell", () => { Town = (() => {
             fromCrash = !!S.crashed; resumedAt = G.tick;
             if (S.ui && S.ui.view) { view.zoom = TWA.zoomSteps.includes(S.ui.view.zoom) ? S.ui.view.zoom : view.zoom; view.x = +S.ui.view.x || 0; view.y = +S.ui.view.y || 0; clampView(); }
             speed = S.ui && S.ui.speed === 2 ? 2 : 1;
-            hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {}; saving = !!(S.ui && S.ui.saving);
+            hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {}; lostMarks = []; saving = !!(S.ui && S.ui.saving);
           }
           live = true; TWA.setAge(G.age); TWS.open(G); labels(); barKey = "";
           // the resume card held the clock until this tap (8.4: nothing moves before the player is ready); a
@@ -71331,7 +71339,7 @@ townRegion("shell", () => { Town = (() => {
     layoutNow();
     const st = o.stage || "age1";
     G = TW.stage(st, 20261025, 1, { p: o.p });
-    live = true; hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; barKey = "";
+    live = true; hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; lostMarks = []; barKey = "";
     TWA.setAge(G.age); labels();
     view.zoom = o.zoom > 0 ? o.zoom : defaultZoom();
     if (o.cx >= 0 && o.cy >= 0) centerOn(o.cx, o.cy); else centerOnTc();
