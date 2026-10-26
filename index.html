@@ -60079,6 +60079,18 @@ function nardiSelftest(check, res) {
 //     warned or live; bot opts { pace, careless }. TWA: view.area { l, t, r, b } and view.hud [rects] (CSS px) keep
 //     the raid arrows in the free map area; view.pulse { x, y, t } (the raid chip's rings); ghost(spec).sites (a
 //     flag per tile: legal wonder sites); stats().miss (sprites not baked this frame). Town.test.memStore(on).
+//   Post-P, merged at WP1-B (town/paint: audio, art2, ui2): TWS.test = { sink(fn) frame(view, w) inView(F, view, x, y)
+//     state(G) SPEC SFX } (tests and tools only); the scene's bed is Snd.AMB.twDvin in Age 3 (the Dvin bed without
+//     its bell). TWA.test also: cost(kind, age, s, nb, stage) canvases() look dpr() passMs() pose(P, q) measure
+//     hooks (tools only); ?twperf=1 shows TWA's frame panel; ?twlow (or the sessionStorage markers hs_town_open and
+//     hs_town_lowmem of a tab whose page died with the town open) starts the 3 GB iPad profile; the town's unit
+//     poses live in UNIT_SPRITES under "tw|" keys and are freed by TWA.free(). The tw kits are appended to
+//     UNIT_KITS[0..2] and to the unit art tables (helms, shields, shield spots) last in the art region.
+//     ghost(spec).bad: tiles [[x, y]...] that block a placement (outlined with an X). view.mark { x, y, t, foe }:
+//     a map command's target (a ring that closes in 0.6 s; red on a raider).
+//     Town.photo also card=sel-<what>[-i] (a selection's panel, -i with its history open) and card=tech-i;
+//     Town.test.button also info:hist, sheet:th:tech:<id>, info:rally:<r>. The shell's TODO-TEXT block (TX, SRC)
+//     holds the post-P strings and the source table until they move into TWT (U() and srcLine() read TWT first).
 // ==== END TOWN INTERFACES ====
 //
 // ---- town: guard ----   (WP1)
@@ -60492,7 +60504,8 @@ townRegion("text", () => { TWT = (() => {
     if (fx.researchTime) rs.push("takes " + pct(fx.researchTime) + " less time");
     if (rs.length) out.push("Research " + and(rs) + ".");
     if (fx.bldCost) out.push("Buildings cost " + pct(fx.bldCost) + " less.");
-    for (const W of (D.WONDERS || [])) if (W.req && [].concat(W.req.tech || []).includes(id)) out.push(theN(BLD.wonder.n[W.age - 1]) + " needs it.");
+    // only the wonder of the age in play (a later age's sheet does not say "Garni needs it", WP1-B)
+    for (const W of (D.WONDERS || [])) if (W.req && (!age || W.age === age) && [].concat(W.req.tech || []).includes(id)) out.push(theN(BLD.wonder.n[W.age - 1]) + " needs it.");
     return out.join(" ");
   }
 
@@ -67678,6 +67691,16 @@ townRegion("art", () => { const TWK = { kits: [], helms: {}, shields: {}, spots:
       }
       c.globalAlpha = 1;
     }
+    // a map command's target (WP1-B): a ring that closes on it in 0.6 s, bronze, or red on a raider (view.mark)
+    const MK = view.mark;
+    if (MK && tp - MK.t >= 0 && tp - MK.t < 600) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      const f = (tp - MK.t) / 600, r = (0.35 + 0.75 * (1 - f)) * pw * d;
+      c.globalAlpha = 1 - f * f;
+      c.lineWidth = 3.6 * d; ring(X(MK.x), Y(MK.y), r, r * SQ, "rgba(28, 18, 8, .7)");
+      c.lineWidth = 1.8 * d; ring(X(MK.x), Y(MK.y), r, r * SQ, MK.foe ? "#ff8a70" : "#f0cf85");
+      c.globalAlpha = 1;
+    }
     S.ms = tnow() - t0;
     S.chunkPx = chunkPx; S.spritePx = spritePx; S.unitPx = upxTotal; S.units = upx.size;
     S.skyPx = skies.reduce((n, k) => n + (k && k.cv ? k.cv.width * k.cv.height : 0), 0);
@@ -68081,6 +68104,15 @@ townRegion("art", () => { const TWK = { kits: [], helms: {}, shields: {}, spots:
         if (q.k === "wall") { c.moveTo(x + 5 * d, y + 4 * d); c.lineTo(x + w - 5 * d, y + h - 4 * d); c.moveTo(x + w - 5 * d, y + 4 * d); c.lineTo(x + 5 * d, y + h - 4 * d); }
         else for (let k = -h; k < w; k += 10 * d) { c.moveTo(x + k, y + h); c.lineTo(x + k + h, y); }
         c.stroke(); c.restore();
+      }
+      // the tiles to blame (spec .bad, from the shell): each outlined, crossed, darker (WP1-B)
+      if (!q.ok && g.bad && q.k !== "wall") for (const [bx, by] of g.bad) {
+        const tx = X(bx), ty = Y(by), tw = pw * d, th = ph * d;
+        c.fillStyle = "rgba(120, 20, 10, .35)"; c.fillRect(tx, ty, tw, th);
+        c.beginPath(); c.moveTo(tx + 6 * d, ty + 4 * d); c.lineTo(tx + tw - 6 * d, ty + th - 4 * d); c.moveTo(tx + tw - 6 * d, ty + 4 * d); c.lineTo(tx + 6 * d, ty + th - 4 * d);
+        c.lineWidth = 4 * d; c.strokeStyle = "rgba(38, 24, 12, .8)"; c.stroke();
+        c.lineWidth = 2 * d; c.strokeStyle = "#ffe2d8"; c.stroke();
+        c.lineWidth = 1.6 * d; c.strokeRect(tx + d, ty + d, tw - 2 * d, th - 2 * d);
       }
       const rng = q.k === "tower" ? rangeOf(G, { k: "tower", x: q.x, y: q.y, w: q.w, h: q.h }) : 0;
       if (rng) {
@@ -69600,6 +69632,13 @@ townRegion("shell", () => { Town = (() => {
     }
     if (c) {
       const r = send(c);
+      // the command heard (WP1-B): the shell's tick and a ring at its target (view.mark), as a HUD button gets
+      if (r.ok) {
+        tick1();
+        const at = c.k === "move" || c.k === "rally" ? [c.x + 0.5, c.y + 0.5] : !o ? null : hit.kind === "bld" ? [o.x + o.w / 2, o.y + o.h / 2]
+          : hit.kind === "node" ? (o.k === "flock" ? [o.x + 1, o.y + 1] : [o.x + 0.5, o.y + 0.5]) : [o.x, o.y];
+        if (at) view.mark = { x: at[0], y: at[1], t: performance.now(), foe: c.k === "attack" };
+      }
       if (r.ok && c.k === "task" && o && o.done >= 1 && o.hp < o.hpMax) hintEnd("repair");
       // on touch a villager selection is one-shot: after one command it clears (a garrison's stays)
       if (r.ok && touch && vils.length) setSel(gar.length ? { kind: "units", ids: gar } : null);
@@ -69692,6 +69731,7 @@ townRegion("shell", () => { Town = (() => {
     const r = TW.canPlace(G, ghost.type, ghost.x, ghost.y, ghost.rot), was = ghost.why;
     ghost.ok = r.ok; ghost.err = r.err; ghost.res = r.res || "";
     ghost.why = r.ok ? "" : r.err === "blocked" ? blockedWhy(r.tiles, ghost.type) : errW(r.err, r);
+    ghost.bad = r.ok ? null : badTiles(r, ghost.type);
     if (!quiet && ghost.why && ghost.why !== was) say(ghost.why);
     else if (!ghost.why && was && callMsg === was) { callMsg = ""; showCall(); }   // a red ghost's reason goes when it turns green
     offBtn(el.ghostOk, ghost.why);
@@ -69699,15 +69739,30 @@ townRegion("shell", () => { Town = (() => {
   // what stands in the way of a "blocked" ghost, in TW.canPlace's order, named (the gray box review: "Something is in
   // the way." never said what): a building, a resource, or the ground itself
   function blockedWhy(tiles, type) {
-    for (const [x, y] of tiles || []) {
-      if (!inMap(x, y)) continue;
-      const i = y * TW.W + x, t = G.map.terr[i], o = G.map.occ[i];
-      if (t === 2 || t === 3 || t === 5 || t === 7 || t === 9) return U("blockedTerr", U("terr")[t]);
-      if (o > 0) { const b = bldOf(o); if (b && !(type === "gate" && b.k === "wall")) return U("blockedBld", nm("bld", b.k), b.k); }
-      if (o < 0) { const n = nodeOf(-o); if (n) return U("blockedNode", n.k); }
-      if ((t === 6 && type !== "wall" && type !== "gate") || (t === 8 && !(type === "wonder" && G.age === 2)) || (type === "grove" && t > 1)) return U("blockedTerr", U("terr")[t]);
-    }
+    for (const [x, y] of tiles || []) { const why = inMap(x, y) ? blocks(x, y, type) : ""; if (why) return why; }
     return errW("blocked");
+  }
+  // what one tile holds that stands in the way, named, or ""
+  function blocks(x, y, type) {
+    const i = y * TW.W + x, t = G.map.terr[i], o = G.map.occ[i];
+    if (t === 2 || t === 3 || t === 5 || t === 7 || t === 9) return U("blockedTerr", U("terr")[t]);
+    if (o > 0) { const b = bldOf(o); if (b && !(type === "gate" && b.k === "wall")) return U("blockedBld", nm("bld", b.k), b.k); }
+    if (o < 0) { const n = nodeOf(-o); if (n) return U("blockedNode", n.k); }
+    if ((t === 6 && type !== "wall" && type !== "gate") || (t === 8 && !(type === "wonder" && G.age === 2)) || (type === "grove" && t > 1)) return U("blockedTerr", U("terr")[t]);
+    return "";
+  }
+  // the tiles of a red ghost that are to blame (WP1-B, the gray box review's "which tiles?"): what blocks it, the
+  // bank's margin, or a field's tiles off the dark river soil; TWA outlines them with an X (ghost spec .bad)
+  function badTiles(r, type) {
+    const out = [], PL = TW.DATA.PLACE || {};
+    for (const [x, y] of (r && r.tiles) || []) {
+      if (!inMap(x, y)) continue;
+      const i = y * TW.W + x;
+      if (r.err === "blocked" ? blocks(x, y, type)
+        : r.err === "bank" ? G.map.wdist[i] >= 1 && G.map.wdist[i] <= (PL.bankMargin || 0)
+        : r.err === "fertile" ? !G.map.fert[i] || G.map.terr[i] !== 1 : false) out.push([x, y]);
+    }
+    return out.length ? out : null;
   }
   function offBtn(b, why) { tog(b, "off", !!why); b.setAttribute("aria-disabled", String(!!why)); b.dataset.off = why || ""; }
   function placeGhost(keep) {
@@ -69872,7 +69927,7 @@ townRegion("shell", () => { Town = (() => {
     if (G) barState();
   }
   function ghostSpec() {
-    if (ghost) return { type: ghost.type, x: ghost.x, y: ghost.y, rot: ghost.rot, ok: ghost.ok, err: ghost.err, sites: ghost.sites || null };
+    if (ghost) return { type: ghost.type, x: ghost.x, y: ghost.y, rot: ghost.rot, ok: ghost.ok, err: ghost.err, sites: ghost.sites || null, bad: ghost.bad || null };
     return mode === "wall" && wallCells.length ? { wall: wallCells } : null;
   }
 
@@ -70994,7 +71049,7 @@ function townBlessBattle(elder) {
   gold += v;
   syncHud();
   const gift = "A gift from the town: +" + v + " 🪙";
-  if (elder > 0) toast("The village elder's blessing: +" + elder + " 🪙. " + gift, 3200);
+  if (elder > 0) toast("The village elder's blessing: +" + elder + " 🪙 · " + gift, 3200);   // no period after the coin (it drew as " .")
   else toast(gift);
   saveRun();   // a battle left before anything is built resumes with the gift in its purse
   return true;
