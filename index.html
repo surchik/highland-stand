@@ -1494,8 +1494,31 @@
   #town .twHp span { position: relative; display: block; text-align: center; font-size: 12.5px; font-weight: 700; line-height: 18px; color: #1c1209; }
   #town .twIS { margin: 2px 0; font-size: 14.5px; }
   #town .twHist { margin: 2px 0 4px; font-size: 14px; font-style: italic; color: #5a4222; }
+  /* history: the line, its "i" (all lines and their sources); the sheet's rows open the same way */
+  #town .twHB { display: flex; align-items: flex-start; gap: 6px; }
+  #town .twHB .twHist { flex: 1; min-width: 0; margin-top: 6px; }
+  #town .twI { flex: none; width: 44px; height: 44px; margin: 0 -6px 0 0; border-radius: 50%; border: 0; padding: 0; background: none; display: grid; place-items: center;
+    font: italic 700 19px/1 Georgia, var(--face); color: #6a3a14; }
+  #town .twI::before { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #8a6a36; background: rgba(255,248,222,.7); z-index: -1; }
+  #town .twI { position: relative; z-index: 0; }
+  #town .twI[aria-expanded="true"]::before { background: #6a3a14; border-color: #4a2410; }
+  #town .twI[aria-expanded="true"] { color: #fff3d6; }
+  #town .twSrc { margin: -2px 0 6px; font-size: 12.5px; color: #6e5434; }
+  #town .twHL { font-style: normal; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: #8a4a1a; }
+  #town .twRtB { display: block; min-height: 44px; padding: 2px 0; border: 0; background: none; text-align: left; font-size: 15px; line-height: 1.3; color: var(--ink); }
+  #town .twIm { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; border: 1.5px solid #8a6a36;
+    font: italic 700 12px/1 Georgia, var(--face); color: #6a3a14; }
+  #town .twRtB[aria-expanded="true"] .twIm { background: #6a3a14; border-color: #4a2410; color: #fff3d6; }
+  #town .twTH { margin: -2px 0 6px; padding: 2px 10px 2px 12px; border-left: 3px solid rgba(138,106,54,.6); }
+  #town .twPop { position: relative; }
+  #town .twPop .twLoop { display: none; position: absolute; left: 21px; bottom: 5px; width: 15px; height: 15px; }
+  #town .twPop.twAuto .twLoop { display: block; }
   #town .twQ, #town .twActs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
   #town .twActs.twCols { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
+  #town .twRally { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+  #town .twRally > span { flex: 1; font-size: 14px; font-weight: 700; color: #5a3a1a; }
+  #town .twA.twRI { width: 44px; padding: 0; justify-content: center; }
+  #town .twA.twRI .ic { width: 24px; height: 24px; }
   #town .twAge.twHurt { border-color: #d04a3a !important; box-shadow: 0 0 0 2px #d04a3a, 0 0 12px 2px rgba(208,74,58,.7) !important; color: #ffd0c8; }
   #town .twActs.twCols .twA.sym { grid-column: span 1; }
   #town .twPanel.twMore::after, #town .twSheet.twMore::after { content: "\2304"; position: sticky; bottom: -10px; display: block; height: 30px;
@@ -1578,7 +1601,11 @@
     background: linear-gradient(160deg, #f3e6c2, var(--parch)); box-shadow: 0 0 0 2px var(--crimson), 0 4px 16px rgba(0,0,0,.6);
   }
   #town.twPlanning .twPlan { display: flex; }
-  #town.twTall .twPlan { top: calc(var(--twTop) + 104px); }
+  /* portrait: the banner stands left of the zoom buttons and the minimap (the audit found its Resume over zoom-out at
+     820 wide), and the call line steps below it */
+  #town.twTall .twPlan { top: calc(var(--twTop) + 60px); left: calc(10px + var(--sal)); right: calc(232px + var(--sar)); transform: none; max-width: none;
+    justify-content: space-between; }
+  #town.twTall.twPlanning .twCall { top: calc(var(--twTop) + 136px); }
   #town.twNoUi .twTop, #town.twNoUi .twNext, #town.twNoUi .twCall, #town.twNoUi #twMini, #town.twNoUi .twZoom, #town.twNoUi .twPlan, #town.twNoUi .twDock,
   #town.twNoUi .twChips, #town.twNoUi .twBar, #town.twNoUi .twPanel, #town.twNoUi .twGB { display: none; }
 
@@ -1618,9 +1645,11 @@
   #town .twTownName { margin-top: -6px; font-size: 18px; font-weight: 700; color: #6a4a22; }
   #town .twHy { font-family: var(--hy-face); font-size: 21px; color: #6a4a22; }
   #town .twIH .twHy { font-size: 17px; }
+  #town .twRtB .twHy { font-size: 16px; }
   #town .twBless { padding: 8px 12px; border-left: 3px solid var(--crimson); background: rgba(255,248,222,.5); }
   #town .twStars { margin: 0 0 4px; display: flex; gap: 6px; }
-  #town .twStars .ic { width: 34px; height: 34px; }
+  #town .twStars .ic { width: 34px; height: 34px; filter: drop-shadow(0 0 .5px #4a2410) drop-shadow(0 1px 0 #4a2410) drop-shadow(0 2px 2px rgba(74,36,16,.35)); }
+  #town .twStars .twStar0 { opacity: .5; filter: grayscale(1) brightness(.75) drop-shadow(0 0 .5px #4a2410); }
   #town .twBody { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   #town .twBtns { flex: none; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
   #town .twTogs { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2025,28 +2054,226 @@
     <path d="M12 8 16 12l-4 4-4-4z" fill="#a8322a"/>
     <circle cx="12" cy="12" r="1.500" fill="#f6dc9a"/>
   </symbol>
-  <!-- town icons BEGIN (WP3 owns them; WP1-A's plain stand-ins, viewBox 0 0 24 24) -->
-  <symbol id="i-tw-food" viewBox="0 0 24 24"><path d="M12 3c-1.6 2.6-1.6 5 0 7.4 1.6-2.4 1.6-4.8 0-7.4zM12 10.4V21M8.2 6.6c.2 2.8 1.4 4.4 3.8 5M15.8 6.6c-.2 2.8-1.4 4.4-3.8 5M8.4 11.4c.2 2.8 1.4 4.4 3.6 5M15.6 11.4c-.2 2.8-1.4 4.4-3.6 5" fill="#e8c35e" stroke="#2c1e10" stroke-width="1.3" stroke-linecap="round"/></symbol>
-  <symbol id="i-tw-wood" viewBox="0 0 24 24"><path d="M3.5 14.5l13-6.5 2.6 5.2-13 6.5z" fill="#a8743e" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><ellipse cx="17.8" cy="10.6" rx="1.6" ry="2.9" transform="rotate(-27 17.8 10.6)" fill="#e2b77a" stroke="#2c1e10" stroke-width="1.2"/></symbol>
-  <symbol id="i-tw-stone" viewBox="0 0 24 24"><path d="M3.5 18l2.4-7 6-3.4 6.2 2.2 2.4 8.2z" fill="#9a968c" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.9 11l6 2.2 6.2-3M11.9 13.2V18" fill="none" stroke="#2c1e10" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-goods1" viewBox="0 0 24 24"><path d="M6 20c-1.8-4.4-.6-9 2.4-11.4h7.2C18.6 11 19.8 15.6 18 20z" fill="#b5653a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8.4 8.6c0-2 1.4-3 3.6-3s3.6 1 3.6 3" fill="none" stroke="#2c1e10" stroke-width="1.3"/></symbol>
-  <symbol id="i-tw-goods2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#f2c14e" stroke="#2c1e10" stroke-width="1.3"/><circle cx="12" cy="12" r="5" fill="none" stroke="#8a5a17" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-goods3" viewBox="0 0 24 24"><path d="M5 19c0-5 3-9.5 7-12 4 2.5 7 7 7 12z" fill="#a8322a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 19c.4-3 1.4-5.4 3-7.2" fill="none" stroke="#f6dc9a" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-house" viewBox="0 0 24 24"><path d="M4 11.5L12 5l8 6.5V20H4z" fill="#d8b47a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M10 20v-5h4v5" fill="#6e4d1e" stroke="#2c1e10" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-field" viewBox="0 0 24 24"><path d="M3 17l4-9h10l4 9z" fill="#c9a53e" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8.6 8l-1.6 9M12 8v9M15.4 8l1.6 9" fill="none" stroke="#6e4d1e" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-store" viewBox="0 0 24 24"><path d="M4 9.5h16V20H4z" fill="#b08654" stroke="#2c1e10" stroke-width="1.3"/><path d="M3 9.5L12 4l9 5.5z" fill="#8a5a2a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 13h8v7H8z" fill="#5e3e1e" stroke="#2c1e10" stroke-width="1.1"/></symbol>
-  <symbol id="i-tw-barracks" viewBox="0 0 24 24"><path d="M3.5 10h17v10h-17z" fill="#9a7a50" stroke="#2c1e10" stroke-width="1.3"/><path d="M3.5 10V7h3v3M10.5 10V7h3v3M17.5 10V7h3v3" fill="#9a7a50" stroke="#2c1e10" stroke-width="1.3"/><path d="M12 12.5v6M10 14.5h4" stroke="#2c1e10" stroke-width="1.3"/></symbol>
-  <symbol id="i-tw-smithy" viewBox="0 0 24 24"><path d="M4 12h12l-2 3H8l-1 5H5l1-5z" fill="#55545a" stroke="#1c1209" stroke-width="1.3" stroke-linejoin="round"/><path d="M16 12c2 0 4-1 4-3h-8" fill="#55545a" stroke="#1c1209" stroke-width="1.3"/></symbol>
-  <symbol id="i-tw-market" viewBox="0 0 24 24"><path d="M4 10h16v10H4z" fill="#c9a66b" stroke="#2c1e10" stroke-width="1.3"/><path d="M3 10l2-5h14l2 5z" fill="#a8322a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5v5M12 5v5M17 5v5" stroke="#f6dc9a" stroke-width="1.2"/></symbol>
-  <symbol id="i-tw-temple" viewBox="0 0 24 24"><path d="M3 9l9-5 9 5z" fill="#d8c9a0" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 9.5v8M9.7 9.5v8M14.3 9.5v8M19 9.5v8" stroke="#2c1e10" stroke-width="1.6"/><path d="M3 18h18v2.5H3z" fill="#d8c9a0" stroke="#2c1e10" stroke-width="1.3"/></symbol>
-  <symbol id="i-tw-stable" viewBox="0 0 24 24"><path d="M5 20v-6c0-3 2-5 5-5l3-4 1 3c3 1 5 3 5 6v6h-3v-5h-8v5z" fill="#8a6440" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/></symbol>
-  <symbol id="i-tw-tower" viewBox="0 0 24 24"><path d="M7 21V8h10v13z" fill="#b5ad9a" stroke="#2c1e10" stroke-width="1.3"/><path d="M6 8V4.5h2.4V6h2.2V4.5h2.8V6h2.2V4.5H18V8z" fill="#b5ad9a" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M11 21v-4h2v4M11 11h2v2.4h-2z" fill="#3a2814"/></symbol>
-  <symbol id="i-tw-wall" viewBox="0 0 24 24"><path d="M2.5 20v-9h3V8.5h3V11h7V8.5h3V11h3v9z" fill="#a39b88" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.5 15.5h19M8 11v4.5M14 15.5V20M17 11v4.5" stroke="#2c1e10" stroke-width="1"/></symbol>
-  <symbol id="i-tw-gate" viewBox="0 0 24 24"><path d="M3 21V7h18v14h-5v-6a4 4 0 0 0-8 0v6z" fill="#a39b88" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 21v-6a4 4 0 0 1 8 0v6z" fill="#6e4d1e"/></symbol>
-  <symbol id="i-tw-wonder" viewBox="0 0 24 24"><path d="M12 3l3 4H9z" fill="#f2c14e" stroke="#2c1e10" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 21v-9l6-5 6 5v9z" fill="#e8d4a4" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/><path d="M10 21v-4h4v4" fill="#6e4d1e"/></symbol>
-  <symbol id="i-tw-villager" viewBox="0 0 24 24"><circle cx="12" cy="6.5" r="3" fill="#e8c69a" stroke="#2c1e10" stroke-width="1.3"/><path d="M6.5 21l1.5-8.5c.4-2 2-3 4-3s3.6 1 4 3l1.5 8.5z" fill="#8a6a40" stroke="#2c1e10" stroke-width="1.3" stroke-linejoin="round"/></symbol>
-  <symbol id="i-tw-idle" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3" fill="#e8c69a" stroke="#2c1e10" stroke-width="1.3"/><path d="M4 21l1.5-7.5c.4-2 2-3 4-3s3.6 1 4 3L15 21z" fill="#8a6a40" stroke="#2c1e10" stroke-width="1.3"/><path d="M16 4h4l-4 4h4" fill="none" stroke="#f0cf85" stroke-width="1.4" stroke-linejoin="round"/></symbol>
-  <symbol id="i-tw-age" viewBox="0 0 24 24"><path d="M5 3.5h14v17H5z" fill="#ead9b0" stroke="#2c1e10" stroke-width="1.3"/><path d="M8 8h8M8 11.5h8M8 15h5" stroke="#6e4d1e" stroke-width="1.3"/></symbol>
+  <!-- town icons BEGIN (WP3 owns them; drawn in the game's icon style by WP4's post-P step in place of WP1-A's plain
+       stand-ins, since WP3 had none: lit left halves, dark ink outlines, viewBox 0 0 24 24. temple1, temple3, wonder1,
+       wonder3 are the age variants the shell uses where they exist; grove is the Royal Grove) -->
+  <symbol id="i-tw-food" viewBox="0 0 24 24">
+    <path d="M12 22.4V12.6M12 22.4 8.3 14.2M12 22.4l3.7-8.2M12 22.4 5.6 16.6M12 22.4l6.4-5.8" fill="none" stroke="#1c140d" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M12 22.4V12.6M12 22.4 8.3 14.2M12 22.4l3.7-8.2M12 22.4 5.6 16.6M12 22.4l6.4-5.8" fill="none" stroke="#c9972f" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M12 1.4c2.3 2.2 2.8 6.6 0 10.6-2.8-4-2.3-8.4 0-10.6zM5.1 4.8c2.9.8 4.9 4.4 3.8 9.2-3.6-2.5-4.7-6.5-3.8-9.2zM18.9 4.8c-2.9.8-4.9 4.4-3.8 9.2 3.6-2.5 4.7-6.5 3.8-9.2zM1.9 10.4c2.8-.2 5.4 2 5.5 6-3.3-.8-5.3-3.4-5.5-6zM22.1 10.4c-2.8-.2-5.4 2-5.5 6 3.3-.8 5.3-3.4 5.5-6z" fill="#f0cf85" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M12 1.4c2.3 2.2 2.8 6.6 0 10.6zM18.9 4.8c-2.9.8-4.9 4.4-3.8 9.2zM22.1 10.4c-2.8-.2-5.4 2-5.5 6zM5.1 4.8c-.5 1.6-.4 3.6.4 5.4M1.9 10.4c.4 1.4 1.2 2.7 2.4 3.7" fill="#c9972f"/>
+    <path d="M9.4 18.2h5.2" stroke="#1c140d" stroke-width="3.4" stroke-linecap="round"/><path d="M9.4 18.2h5.2" stroke="#a8322a" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-wood" viewBox="0 0 24 24">
+    <path d="M5.2 6.6h13a3.6 3.6 0 0 1 0 7.2h-13z" fill="#8a5a2a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M5.2 6.6h13a3.6 3.6 0 0 1 3.4 2.4H5.2z" fill="#b5803f"/>
+    <path d="M2.4 14.2h13a3.6 3.6 0 0 1 0 7.2h-13z" fill="#8a5a2a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M2.4 14.2h13a3.6 3.6 0 0 1 3.4 2.4H2.4z" fill="#b5803f"/>
+    <ellipse cx="5.2" cy="10.2" rx="3" ry="3.6" fill="#f0cf85" stroke="#1c140d" stroke-width="1.1"/>
+    <ellipse cx="2.9" cy="17.8" rx="2.5" ry="3.6" fill="#f0cf85" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M5.2 8.4a1.6 1.8 0 1 0 .01 0M2.9 16.1a1.3 1.7 0 1 0 .01 0" fill="none" stroke="#b5803f" stroke-width="1"/>
+  </symbol>
+  <symbol id="i-tw-stone" viewBox="0 0 24 24">
+    <path d="M1.8 14.2l4.4-2.6h9.6l-4.4 2.6z" fill="#e3ddd0" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.8 14.2h9.6v7.6H1.8z" fill="#a7a194" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M11.4 14.2l4.4-2.6v7.6l-4.4 2.6z" fill="#6e6a62" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M9.2 6.4l3.8-2.2h8.4l-3.8 2.2z" fill="#d8d0bf" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M9.2 6.4h8.4v6.4H9.2z" fill="#8f897d" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M17.6 6.4l3.8-2.2v6.4l-3.8 2.2z" fill="#5a564f" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M3.2 16.6l2.6 1.2M12.4 8.6l2.2 1" stroke="#ece6da" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-goods1" viewBox="0 0 24 24">
+    <path d="M8.8 2.4h6.4v2.2c3.3 1.5 5 4.6 5 8.4 0 4.6-3 8.6-8.2 8.6s-8.2-4-8.2-8.6c0-3.8 1.7-6.9 5-8.4z" fill="#b5653a" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M8.8 4.6c-3.3 1.5-5 4.6-5 8.4 0 4.6 3 8.6 8.2 8.6V4.6z" fill="#d9895a"/>
+    <path d="M8.8 4.6c-3.3 1.5-5 4.6-5 8.4 0 4.6 3 8.6 8.2 8.6s8.2-4 8.2-8.6c0-3.8-1.7-6.9-5-8.4z" fill="none" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M7.6 2.4h8.8" stroke="#1c140d" stroke-width="2.6" stroke-linecap="round"/><path d="M7.6 2.4h8.8" stroke="#e8a77a" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M4.6 10.2c4.6 1.4 10.2 1.4 14.8 0" fill="none" stroke="#6e3418" stroke-width="1.3"/>
+    <path d="M6.6 6.8c-1.2 1.2-1.8 2.6-2 3.8" fill="none" stroke="#f6c9a2" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-goods2" viewBox="0 0 24 24">
+    <circle cx="12" cy="13.2" r="9.4" fill="#4f5458"/>
+    <circle cx="12" cy="12" r="9.4" fill="#cfd5d8"/>
+    <circle cx="12" cy="12" r="7" fill="#9aa3a8"/>
+    <circle cx="12" cy="12" r="6" fill="#dfe4e6"/>
+    <path d="M13.8 7.6c-2.6-.4-4.4 1.6-4.4 4 0 1.6.8 2.6 1.6 3.2l-.8 1.8h4.4c-.4-1-.4-1.8.2-2.6 1.2-.4 1.8-1.4 1.6-2.4l-.8-.4c.4-1.6-.4-3.2-1.8-3.6z" fill="#7d878d"/>
+    <path d="M4.6 8.2A8.4 8.4 0 0 1 10.4 3.6" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-goods3" viewBox="0 0 24 24">
+    <path d="M3 9.4h13.6v11H3z" fill="#8a1f18" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M3 9.4h13.6v3.2H3z" fill="#d4574a"/>
+    <path d="M3 14.6h13.6M3 17.6h13.6" stroke="#5e130e" stroke-width="1"/>
+    <ellipse cx="16.6" cy="14.9" rx="4" ry="5.5" fill="#c23b2e" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M16.6 11.6c1.8 0 2.4 1.6 2.4 3.3s-.8 3-2 3-1.6-1-1.6-2.2.6-1.8 1.4-1.8" fill="none" stroke="#f6dc9a" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M7.4 9.4v11M12.4 9.4v11" stroke="#1c140d" stroke-width="2.6"/><path d="M7.4 9.4v11M12.4 9.4v11" stroke="#c9972f" stroke-width="1.1"/>
+  </symbol>
+  <symbol id="i-tw-house" viewBox="0 0 24 24">
+    <path d="M2.6 9.2h15.2v12H2.6z" fill="#d8b47a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M17.8 9.2l3.6-2.6v12l-3.6 2.6z" fill="#a37a48" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M2.6 9.2l3.6-2.6h15.2l-3.6 2.6z" fill="#8a5a2a" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.6 9.2h17.2" stroke="#1c140d" stroke-width="2.2" stroke-linecap="round"/><path d="M1.6 9.2h17.2" stroke="#6e4d1e" stroke-width=".9" stroke-linecap="round"/>
+    <path d="M7.4 21.2v-6.4a2.8 2.8 0 0 1 5.6 0v6.4z" fill="#3a2814" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M4.4 12.4h2.2v2.2H4.4zM14.6 12.4h1.8v2.2h-1.8z" fill="#3a2814"/>
+    <path d="M3.8 11v8.6" stroke="#f0d9a8" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-field" viewBox="0 0 24 24">
+    <path d="M1.4 21.6l3.8-11h13.6l3.8 11z" fill="#6e4d1e" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M7.6 10.6l-2.4 11M12 10.6v11M16.4 10.6l2.4 11" stroke="#3a2814" stroke-width="1.2"/>
+    <path d="M5.4 10.6c.4-2.6 1.4-4.4 2.2-5.4.8 1 1.2 3 1 5.4M10.4 10.6c.2-3 1-5.2 1.6-6.4.6 1.2 1.4 3.4 1.6 6.4M15.4 10.6c-.2-2.4.2-4.4 1-5.4.8 1 1.8 2.8 2.2 5.4" fill="#f0cf85" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M3.6 16.2h2.2M8.6 18.6h2M13.6 16.2h2M18 18.6h2.2" stroke="#9ec26a" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-grove" viewBox="0 0 24 24">
+    <path d="M7.4 15.4v6M16.6 15.4v6" stroke="#1c140d" stroke-width="3" stroke-linecap="round"/><path d="M7.4 15.4v6M16.6 15.4v6" stroke="#8a5a2a" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="16.6" cy="9.4" r="6" fill="#3f6a2a" stroke="#1c140d" stroke-width="1.1"/>
+    <circle cx="7.4" cy="11" r="6" fill="#4f8a32" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M3.4 9.6a4.4 4.4 0 0 1 5.4-3.2M13 7.4a4 4 0 0 1 4-2.6" fill="none" stroke="#a7d27a" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M1.6 21.6h20.8" stroke="#6e4d1e" stroke-width="1.4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-store" viewBox="0 0 24 24">
+    <path d="M1.8 9.6h15v11.6h-15z" fill="#b08654" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M1.8 9.6l3.4-3h15l-3.4 3z" fill="#7a4f24" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M16.8 9.6l3.4-3v11.6l-3.4 3z" fill="#7d5a32" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M5.4 21.2v-7.6h7.6v7.6z" fill="#3a2814" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M9.2 13.6v7.6" stroke="#6e4d1e" stroke-width="1"/>
+    <path d="M18.6 12.2c2 0 3.4 1.8 3.4 4.6s-1.4 4.6-3.4 4.6-3.4-1.8-3.4-4.6 1.4-4.6 3.4-4.6z" fill="#c4753e" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M17.2 11.4h2.8" stroke="#1c140d" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M17 14.4c-.4.8-.6 1.6-.6 2.6" fill="none" stroke="#f0b48a" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-barracks" viewBox="0 0 24 24">
+    <path d="M4.2 21.4 18.8 2.6M19.8 21.4 5.2 2.6" stroke="#1c140d" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M4.2 21.4 18.8 2.6M19.8 21.4 5.2 2.6" stroke="#c9972f" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M18.8 2.6l.6 3.6-2.6-.9zM5.2 2.6l-.6 3.6 2.6-.9z" fill="#e3e8ea" stroke="#1c140d" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="12" cy="13.6" r="6.4" fill="#a8322a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M12 7.2a6.4 6.4 0 0 0 0 12.8z" fill="#d4574a"/>
+    <circle cx="12" cy="13.6" r="2.2" fill="#f0cf85" stroke="#1c140d" stroke-width="1"/>
+  </symbol>
+  <symbol id="i-tw-smithy" viewBox="0 0 24 24">
+    <path d="M2.6 9.4h13.2c0 2.4 1.8 3.2 4.6 3.4v1.6h-6l-1.4 2.4 1.6 3.2H6.2l1.6-3.2-1.6-2.4H5c-1.6-1-2.4-2.8-2.4-5z" fill="#55545a" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M2.6 9.4h13.2c0 .8.2 1.4.6 1.9H3.1c-.3-.6-.5-1.2-.5-1.9z" fill="#8e8d94"/>
+    <path d="M17.2 1.8l3.4 3.4" stroke="#1c140d" stroke-width="4.4" stroke-linecap="round"/><path d="M17.2 1.8l3.4 3.4" stroke="#9aa3a8" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M18.9 3.5 13 9.4" stroke="#1c140d" stroke-width="2.4" stroke-linecap="round"/><path d="M18.9 3.5 13 9.4" stroke="#b5803f" stroke-width="1" stroke-linecap="round"/>
+    <path d="M10 5.6l1 1.4M7.6 5.2l-.2 1.6M12.4 3.8l.6 1.2" stroke="#f2c14e" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-market" viewBox="0 0 24 24">
+    <path d="M3.4 11.6h17.2v9.8H3.4z" fill="#c9a66b" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M3.4 15.2h17.2" stroke="#8a6a36" stroke-width="1.1"/>
+    <path d="M1.6 11.6l2.4-7.4h16l2.4 7.4z" fill="#f3e6c2" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M6.6 4.2l-1.2 7.4h3.4l.8-7.4zM12 4.2v7.4h3.4l-.8-7.4z" fill="#a8322a"/>
+    <path d="M17.4 4.2l1.2 7.4h3.4l-2.4-7.4z" fill="#a8322a"/>
+    <path d="M1.6 11.6l2.4-7.4h16l2.4 7.4z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M6.6 21.4c-1.4 0-2-1.2-2-2.4s.8-2.2 2-2.2 2 1 2 2.2-.6 2.4-2 2.4zM12.6 21.4c-1.2 0-1.8-1-1.8-2.2s.6-2 1.8-2 1.8.8 1.8 2-.6 2.2-1.8 2.2z" fill="#b5653a" stroke="#1c140d" stroke-width="1"/>
+    <path d="M16.4 17.4h3v4h-3z" fill="#8a5a2a" stroke="#1c140d" stroke-width="1"/>
+  </symbol>
+  <symbol id="i-tw-temple1" viewBox="0 0 24 24">
+    <path d="M5.2 6.2h13.6v15.2H5.2z" fill="#c9a66b" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M5.2 6.2h4.4v15.2H5.2z" fill="#e0c08a"/>
+    <path d="M4.2 6.2V3.4h2.6v1.4h2.4V3.4h2.4v1.4h2.4V3.4h2.4v1.4h2.4V3.4h2.6v2.8z" fill="#a37a48" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M9.6 21.4v-7.2h4.8v7.2z" fill="#3a2814" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M5.2 10.4h13.6" stroke="#8a6a36" stroke-width="1"/>
+    <path d="M3.4 21.4h17.2" stroke="#1c140d" stroke-width="2.2" stroke-linecap="round"/><path d="M3.4 21.4h17.2" stroke="#6e6a62" stroke-width=".9" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-temple" viewBox="0 0 24 24">
+    <path d="M1.8 8.2 12 2.6l10.2 5.6z" fill="#e8dcc0" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M12 2.6 1.8 8.2H12z" fill="#fbf1d4"/>
+    <path d="M1.8 8.2 12 2.6l10.2 5.6z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M2.6 8.2h18.8v1.8H2.6z" fill="#c9bb98" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M4.6 10v8.6M9.2 10v8.6M14.8 10v8.6M19.4 10v8.6" stroke="#1c140d" stroke-width="2.8"/>
+    <path d="M4.6 10v8.6M9.2 10v8.6M14.8 10v8.6M19.4 10v8.6" stroke="#ece2c8" stroke-width="1.4"/>
+    <path d="M1.4 18.6h21.2v1.6H1.4zM.8 20.2h22.4v1.6H.8z" fill="#b5ad9a" stroke="#1c140d" stroke-width="1.1"/>
+  </symbol>
+  <symbol id="i-tw-temple3" viewBox="0 0 24 24">
+    <path d="M12 .8v3.6M10.4 2h3.2" stroke="#1c140d" stroke-width="2.4" stroke-linecap="round"/><path d="M12 .8v3.6M10.4 2h3.2" stroke="#f0cf85" stroke-width="1" stroke-linecap="round"/>
+    <path d="M8.2 9.4l.6-3.4L12 4.4l3.2 1.6.6 3.4z" fill="#8a6a50" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M8 9.4h8v3.4H8z" fill="#c98a6a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M2.6 12.8 7 10h10l4.4 2.8z" fill="#8a6a50" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M3.6 12.8h16.8v8.6H3.6z" fill="#c98a6a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M3.6 12.8h5v8.6h-5z" fill="#dca487"/>
+    <path d="M10 21.4v-4.6a2 2 0 0 1 4 0v4.6z" fill="#3a2814" stroke="#1c140d" stroke-width="1"/>
+    <path d="M5.6 15.2v2.4M18.4 15.2v2.4" stroke="#3a2814" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-stable" viewBox="0 0 24 24">
+    <path d="M6.4 22c-.6-3 .2-5.6 2.2-7.2-1.4-.4-2.6-.2-3.8.6-1.2.8-2.6.4-3-.8-.4-1 .2-2 1.4-2.8l5.6-4.4c.8-2.4 2.4-4 4.6-4.6l.2-1.8 1.8 1.4c3.4.6 5.8 3.4 6.4 7.6.4 3.4-.4 8.4-2.2 12z" fill="#8a5a2a" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M13.6 4.4c3.4.6 5.8 3.4 6.4 7.6.4 3.4-.4 8.4-2.2 12h-3.4c1.4-3.6 1.8-7.6.8-10.8-.6-2-1.6-3.6-3-4.6z" fill="#5e3a1a"/>
+    <path d="M13.8 4.6c2.4 1.2 3.4 3.4 3.8 6.2M15.4 4.2c2.6 1.2 4 3.6 4.4 6.4" fill="none" stroke="#2c1e10" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="9.6" cy="8.8" r=".9" fill="#1c140d"/>
+    <path d="M4.2 11.8c.8.4 1.6.4 2.2 0" fill="none" stroke="#c4935e" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-tower" viewBox="0 0 24 24">
+    <path d="M6.4 21.6l.8-13.2h9.6l.8 13.2z" fill="#b5ad9a" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M6.4 21.6l.8-13.2h4.4v13.2z" fill="#d3ccba"/>
+    <path d="M5.2 8.4V3.2h2.8v1.8h2.4V3.2h3.2v1.8h2.4V3.2h2.8v5.2z" fill="#9a9280" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M6.4 21.6l.8-13.2h9.6l.8 13.2z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M10.6 21.6v-4a1.4 1.4 0 0 1 2.8 0v4zM11.2 10.6h1.6v3h-1.6z" fill="#3a2814"/>
+    <path d="M7 13.2h10M6.8 17h10.4" stroke="#8a8270" stroke-width=".9"/>
+  </symbol>
+  <symbol id="i-tw-wall" viewBox="0 0 24 24">
+    <path d="M1.2 21.6V9.8h3V7.2h3.6v2.6h2.6V7.2H14v2.6h2.6V7.2h3.6v2.6h2.6v11.8z" fill="#a39b88" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.2 9.8h3V7.2h3.6v2.6h2.6V7.2H14v2.6h2.6V7.2h3.6v2.6h2.6v2.2H1.2z" fill="#cfc7b2"/>
+    <path d="M1.2 21.6V9.8h3V7.2h3.6v2.6h2.6V7.2H14v2.6h2.6V7.2h3.6v2.6h2.6v11.8z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.2 15.8h21.6M7 12v3.8M15.4 12v3.8M4 15.8v5.8M11.2 15.8v5.8M18.6 15.8v5.8" stroke="#6e6656" stroke-width="1"/>
+  </symbol>
+  <symbol id="i-tw-gate" viewBox="0 0 24 24">
+    <path d="M1.4 21.6V5.4h2.4V3.6h2v1.8h2V3.6h2v1.8h4.4V3.6h2v1.8h2V3.6h2v1.8h2.4v16.2z" fill="#a39b88" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.4 5.4h21.2v2.2H1.4z" fill="#cfc7b2"/>
+    <path d="M1.4 21.6V5.4h2.4V3.6h2v1.8h2V3.6h2v1.8h4.4V3.6h2v1.8h2V3.6h2v1.8h2.4v16.2z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M6.6 21.6v-7.4a5.4 5.4 0 0 1 10.8 0v7.4z" fill="#6e4d1e" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M9.4 21.6v-8.4M12 21.6v-9.2M14.6 21.6v-8.4" stroke="#3a2814" stroke-width="1"/>
+    <path d="M6.6 17.4h10.8" stroke="#2c1e10" stroke-width="1.2"/>
+  </symbol>
+  <symbol id="i-tw-wonder1" viewBox="0 0 24 24">
+    <path d="M7.6 2.6h8.8v18.8H7.6z" fill="#c9a66b" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M7.6 2.6h3.6v18.8H7.6z" fill="#e0c08a"/>
+    <path d="M6.8 2.6h10.4" stroke="#1c140d" stroke-width="2.2" stroke-linecap="round"/><path d="M6.8 2.6h10.4" stroke="#a37a48" stroke-width="1" stroke-linecap="round"/>
+    <path d="M2.2 12.8h19.6v1.6H2.2z" fill="#a37a48" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M3.6 14.4v7M6.2 14.4v7M17.8 14.4v7M20.4 14.4v7" stroke="#1c140d" stroke-width="2.4"/>
+    <path d="M3.6 14.4v7M6.2 14.4v7M17.8 14.4v7M20.4 14.4v7" stroke="#ecd8a8" stroke-width="1.1"/>
+    <path d="M10.4 21.4v-5.6h3.2v5.6z" fill="#3a2814"/>
+    <path d="M12 6.2l1.2 2.4-1.2 2.4-1.2-2.4z" fill="#f2c14e" stroke="#1c140d" stroke-width=".8"/>
+    <path d="M1.4 21.6h21.2" stroke="#1c140d" stroke-width="2" stroke-linecap="round"/><path d="M1.4 21.6h21.2" stroke="#8a8270" stroke-width=".8" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-wonder" viewBox="0 0 24 24">
+    <path d="M3 9.2 12 4.2l9 5z" fill="#d8ccb0" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M12 4.2 3 9.2h9z" fill="#ece2c8"/>
+    <path d="M3 9.2 12 4.2l9 5z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M3.6 9.2h16.8v1.6H3.6z" fill="#8f897d" stroke="#1c140d" stroke-width="1"/>
+    <path d="M5 10.8v6.4M8.4 10.8v6.4M12 10.8v6.4M15.6 10.8v6.4M19 10.8v6.4" stroke="#1c140d" stroke-width="2.4"/>
+    <path d="M5 10.8v6.4M8.4 10.8v6.4M12 10.8v6.4M15.6 10.8v6.4M19 10.8v6.4" stroke="#9a968c" stroke-width="1.1"/>
+    <path d="M2.4 17.2h19.2v1.6H2.4zM1.4 18.8h21.2v1.4H1.4zM.6 20.2h22.8v1.4H.6z" fill="#6e6a62" stroke="#1c140d" stroke-width="1"/>
+    <circle cx="12" cy="7.4" r="1.1" fill="#f2c14e"/>
+  </symbol>
+  <symbol id="i-tw-wonder3" viewBox="0 0 24 24">
+    <path d="M12 .6v3M10.6 1.6h2.8" stroke="#1c140d" stroke-width="2.2" stroke-linecap="round"/><path d="M12 .6v3M10.6 1.6h2.8" stroke="#f0cf85" stroke-width=".9" stroke-linecap="round"/>
+    <path d="M9.4 7.2c0-2 1.2-3.4 2.6-3.4s2.6 1.4 2.6 3.4z" fill="#7a5a44" stroke="#1c140d" stroke-width="1"/>
+    <path d="M9 7.2h6v3.6H9z" fill="#e8dcc8" stroke="#1c140d" stroke-width="1"/>
+    <path d="M5.8 10.8h12.4v4.4H5.8z" fill="#e8dcc8" stroke="#1c140d" stroke-width="1"/>
+    <path d="M2.4 15.2h19.2v6.2H2.4z" fill="#e8dcc8" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M2.4 15.2h6v6.2h-6zM5.8 10.8h4v4.4h-4zM9 7.2h2.4v3.6H9z" fill="#fbf4e4"/>
+    <path d="M2.4 15.2h19.2v6.2H2.4zM5.8 10.8h12.4v4.4H5.8zM9 7.2h6v3.6H9z" fill="none" stroke="#1c140d" stroke-width="1"/>
+    <path d="M5 16.6v3.4M8.2 16.6v3.4M11.4 16.6v3.4M14.6 16.6v3.4M17.8 16.6v3.4M8.2 12v2M11 12v2M13.8 12v2M12 8.2v1.6" stroke="#5a4a3a" stroke-width="1.1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-villager" viewBox="0 0 24 24">
+    <path d="M4.6 22.4c.4-5.4 2-8.4 4-9.6h6.8c2 1.2 3.6 4.2 4 9.6z" fill="#a37a48" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M4.6 22.4c.4-5.4 2-8.4 4-9.6H12v9.6z" fill="#c9a66b"/>
+    <path d="M4.6 22.4c.4-5.4 2-8.4 4-9.6h6.8c2 1.2 3.6 4.2 4 9.6z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M8.4 16.6h7.2" stroke="#6e3418" stroke-width="1.6"/>
+    <circle cx="12" cy="8" r="4.2" fill="#e8c69a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M7.6 7.4c.2-3 2-4.8 4.4-4.8s4.2 1.8 4.4 4.8c-1.4-1-2.8-1.4-4.4-1.4s-3 .4-4.4 1.4z" fill="#7a3a22" stroke="#1c140d" stroke-width="1" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-tw-idle" viewBox="0 0 24 24">
+    <path d="M1.8 22.4c.4-5 1.8-7.8 3.6-9h6c1.8 1.2 3.2 4 3.6 9z" fill="#a37a48" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M1.8 22.4c.4-5 1.8-7.8 3.6-9h3v9z" fill="#c9a66b"/>
+    <path d="M1.8 22.4c.4-5 1.8-7.8 3.6-9h6c1.8 1.2 3.2 4 3.6 9z" fill="none" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <circle cx="8.4" cy="9" r="3.8" fill="#e8c69a" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M4.4 8.4c.2-2.6 1.8-4.2 4-4.2s3.8 1.6 4 4.2c-1.2-.8-2.6-1.2-4-1.2s-2.8.4-4 1.2z" fill="#7a3a22" stroke="#1c140d" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M15.4 2.6h4.4l-4.4 4.6h4.4M18.4 9.2h3l-3 3.2h3" fill="none" stroke="#1c140d" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M15.4 2.6h4.4l-4.4 4.6h4.4M18.4 9.2h3l-3 3.2h3" fill="none" stroke="#f6dc9a" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-tw-age" viewBox="0 0 24 24">
+    <path d="M5.4 3.6h12.6c1.4 0 2.2 1 2.2 2.2v14.4H7.6c-1.2 0-2.2-1-2.2-2.2z" fill="#ead9b0" stroke="#1c140d" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M5.4 3.6c-1.4 0-2.4 1-2.4 2.2s1 2.2 2.4 2.2h2.2V5.8c0-1.2-1-2.2-2.2-2.2z" fill="#c9a66b" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M20.2 20.2c1.2 0 2-1 2-2.2s-.8-2.2-2-2.2h-2.2v2.2c0 1.2 1 2.2 2.2 2.2z" fill="#c9a66b" stroke="#1c140d" stroke-width="1.1"/>
+    <path d="M10 8.4h6.6M10 11.4h6.6M10 14.4h4.6" stroke="#6e4d1e" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="16.4" cy="16.6" r="2.4" fill="#a8322a" stroke="#1c140d" stroke-width="1"/>
+  </symbol>
   <!-- town icons END -->
 </svg>
 <canvas id="game"></canvas>
@@ -68737,6 +68964,10 @@ townRegion("shell", () => { Town = (() => {
   const ricon = (r, a) => "i-tw-" + (r === "g" ? "goods" + Math.max(1, Math.min(3, a | 0)) : RIC[r]);
   const svg = (id, cls) => '<svg class="' + (cls || "ic") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
   const CHECK = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // auto-train's mark on the population counter (a badge on the villager: the palace trains them by itself)
+  const LOOP = '<svg class="twLoop" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#2c1e10"/>' +
+    '<path d="M17.6 9.2A6 6 0 0 0 6.6 9.6M6.4 14.8a6 6 0 0 0 11 .4" fill="none" stroke="#f2c14e" stroke-width="2.6" stroke-linecap="round"/>' +
+    '<path d="M18.9 4.6l-.3 5.6-5.3-1.4zM5.1 19.4l.3-5.6 5.3 1.4z" fill="#f2c14e"/></svg>';
   const esc = escapeHtml;
   let tOff = 0;
   const pnow = () => performance.now() + tOff;          // gesture time (the self-test moves it with test.later)
@@ -68750,8 +68981,49 @@ townRegion("shell", () => { Town = (() => {
   const needW = list => TWT.needs([].concat(list || []), ageOf());
   const errW = (code, info) => TWT.err(code, Object.assign({ age: ageOf() }, info || {}));
   const nodeW = (k, i) => (TWT.nodes[k] ? [TWT.nodes[k].n, TWT.nodes[k].act, TWT.nodes[k].many][i] : k);
-  const U = (k, ...a) => { const t = TWT.ui[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
+  const U = (k, ...a) => { const t = TWT.ui[k] !== undefined ? TWT.ui[k] : TX[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
   const hintList = () => TWT.hints;
+  // ---- TODO-TEXT (for WP6 and the integrator): the post-P shell's new strings, read only where TWT has no word of
+  // its own (U() reads TWT.ui first, srcLine() reads TWT.source first); they move into TWT, then this block goes.
+  // The source table (SRC) is printed by tools/town-sources.js from docs/history/town-history.json: for each
+  // cite of a history line, the works the history file read for it (a GAME or dossier item: the works its campaign
+  // check read). Wikipedia means the English text of 1 June 2023 the historian read. ----
+  const PLUR = /Quarters$|Barracks$|Stables$/;
+  const TX = {
+    histMore: "History and sources",
+    source: (n, list) => (n > 1 ? "Sources: " : "Source: ") + list,
+    popAuto: tc => "Auto-train is on: the " + tc + " trains villagers by itself.",
+    blockedBld: (n, k) => (k === "wall" ? "A wall is" : k === "gate" ? "A gate is" : "The " + n + (PLUR.test(n) ? " are" : " is")) + " in the way.",
+    blockedNode: k => ({ tree: "A tree is", flock: "A flock is", orchard: "An orchard is", stone: "Stone is", ore: "Ore is", dye: "A salt meadow is" }[k] || "Something is") + " in the way.",
+    blockedTerr: s => String(s || "Something").replace(/\.$/, "") + " is in the way.",
+    elderToo: "The village elder's blessing waits too. That battle gets both.",
+    pauseLine: (age, time, diff) => age + ", " + time + ", " + diff + ".",
+    helpSources: "Tap the i beside a history line to read more and see its sources. In the age sheet, tap a tech's name.",
+  };
+  const SRC = {
+    works: {"0":"Wikipedia, “Nakharar”","1":"Wikipedia, “Theodore Rshtuni”","2":"Wikipedia, “Arminiya”","3":"Procopius, Wars","4":"Sargon II, Letter to the god Ashur","5":"Wikipedia, “Erebuni Fortress”","6":"Wikipedia, “Argishtikhinili (ancient city)”","7":"Wikipedia, “Yerevan”","8":"Armenian Wikipedia, “Teishebaini”","9":"Wikipedia, “Teishebaini”","10":"H. F. B. Lynch, Armenia (1901)","11":"Wikipedia, “Vagharshapat”","12":"Wikipedia, “Anania Shirakatsi”","a":"Armenian Wikipedia, “Erebuni Fortress”","b":"Wikipedia, “Economy of Urartu”","c":"Wikipedia, “Etiuni”","d":"Wikipedia, “Scythians”","e":"Wikipedia, “Art of Urartu”","f":"Wikipedia, “Artaxata”","g":"Wikipedia, “Garni”","h":"Wikipedia, “Temple of Garni”","i":"Armenian Wikipedia, “Armenian architecture”","j":"Tacitus, Annals","k":"Wikipedia, “Artaxiad dynasty”","l":"Wikipedia, “Artaxias I”","m":"Strabo, Geography","n":"Josephus, The Jewish War","o":"Wikipedia, “Tiridates I of Armenia”","p":"Plutarch, Life of Lucullus","q":"Wikipedia, “Zvartnots Cathedral”","r":"Wikipedia, “Khosrov III the Small”","s":"Wikipedia, “Khosrov Forest State Reserve”","t":"Wikipedia, “Armenian cochineal”","u":"Armenian Wikipedia, “Armenia in the early Middle Ages”","v":"Wikipedia, “Dvin (ancient city)”","w":"Wikipedia, “Muslim conquest of Armenia”","x":"Armenian Wikipedia, “Yerevan”","y":"Wikipedia, “Armenian alphabet”","z":"Wikipedia, “Armenian architecture”"},
+    cites: {"GAME:avarayr.nakharars":"0","GAME:dvin.constans":"1","GAME:dvin.pact":"2","GAME:dvin.procopius":"3","GAME:tushpa.sargon":"4","age1.buildings[0]":"5","age1.buildings[11]":"6 7 8","age1.buildings[12]":"6","age1.buildings[1]":"6 9","age1.buildings[2]":"5 a","age1.buildings[3]":"5","age1.buildings[8]":"a","age1.buildings[9]":"5","age1.economy[0]":"b 9","age1.economy[3]":"b","age1.events[1]":"c","age1.events[2]":"6","age1.events[6]":"d","age1.names[6]":"a","age1.names[7]":"6","age1.raiders[0]":"c","age1.safe_lines[2]":"5","age1.safe_lines[3]":"5","age1.safe_lines[5]":"6 7","age1.safe_lines[6]":"b","age1.techs[3]":"b","age1.techs[4]":"b","age1.techs[8]":"6","age1.troops_own[1]":"e","age1.troops_own[2]":"e","age1.wonder":"5 6 a","age2.buildings[0]":"f","age2.buildings[10]":"g h i","age2.buildings[1]":"i","age2.buildings[3]":"j","age2.buildings[4]":"f","age2.buildings[5]":"f k","age2.buildings[7]":"f l","age2.buildings[9]":"l","age2.core_claims[1]":"f i","age2.core_claims[3]":"l f","age2.economy[0]":"m","age2.economy[1]":"m","age2.economy[2]":"f","age2.economy[3]":"k f","age2.raiders[0]":"n o","age2.safe_lines[1]":"m","age2.safe_lines[5]":"n o","age2.safe_lines[7]":"h","age2.safe_lines[8]":"m","age2.techs[0]":"l","age2.techs[5]":"m","age2.troops_own[0]":"m p","age3.buildings[0]":"i","age3.buildings[2]":"i","age3.buildings[4]":"q i","age3.buildings[8]":"r s i","age3.economy[1]":"t","age3.names[10]":"t","age3.names[6]":"u","age3.raiders[0]":"v w","age3.safe_lines[1]":"3","age3.safe_lines[2]":"v","age3.safe_lines[5]":"q","age3.safe_lines[7]":"x","age3.safe_lines[8]":"y","age3.safe_lines[9]":"i z","age3.techs[1]":"i z","age3.techs[2]":"10 11","age3.techs[5]":"s","age3.techs[8]":"12","age3.techs[9]":"2"},
+  };
+  // a history line's source line ("Source: Strabo, Geography"), from its cite or list of cites; "" for game text
+  function srcLine(line) {
+    if (!line || !line.cite) return "";
+    if (TWT.source) return TWT.source(line.cite) || "";
+    const ws = [];
+    for (const c of [].concat(line.cite)) for (const id of (SRC.cites[c] || "").split(" ")) { const w = id && SRC.works[id]; if (w && !ws.includes(w)) ws.push(w); }
+    return ws.length ? U("source", ws.length, ws.join("; ")) : "";
+  }
+  // the history of a thing, as the info panel and the sheet show it: the line of the age in play first (or, if it
+  // has none, of the latest age reached), then the lines of the earlier ages, each with its source line
+  function histOf(kind, id) {
+    const out = [], seen = new Set(), a0 = ageOf();
+    for (let a = a0; a >= 1; a--) for (const l of (TWT.hist ? TWT.hist(kind, id, a) : null) || []) {
+      const text = (l && l.text) || String(l || "");
+      if (!text || seen.has(text)) continue;
+      seen.add(text);
+      out.push({ text, src: srcLine(l), lab: a !== a0 ? TWT.ages[a - 1].town : "" });
+    }
+    return out;
+  }
 
   let root = null, cv = null, mini = null, mapBtn = null;
   const el = {};
@@ -68768,6 +69040,7 @@ townRegion("shell", () => { Town = (() => {
   // per game: the hints shown (a bitmask, saved with the run), their queue, the one showing; one-time calls
   let hintDone = 0, hintQ = [], hintCur = null, ui1 = {};
   let saving = false;   // auto-train paused by the sheet's "Save food" until the advance starts
+  let histOpen = false; const thOpen = new Set();   // the info panel's history opened by its "i"; the sheet's rows opened
 
   // ---- the clock: held for reasons (card, hidden, page, error, plan, sheet); now() as Nardi's ----
   let heldAt = -1, heldFor = 0;
@@ -68835,8 +69108,11 @@ townRegion("shell", () => { Town = (() => {
     const n = Math.min(BLESS_GOLD, BLESS_BY_STARS[Math.max(0, Math.min(3, stars | 0))] || 0);
     let cur = 0;
     try { cur = Math.min(BLESS_GOLD, Math.floor(Number(localStorage.getItem(BLESS_KEY)) || 0)); } catch (e) { cur = 0; }
-    if (n > cur) { try { localStorage.setItem(BLESS_KEY, String(n)); } catch (e) {} return { n, waiting: false }; }
-    return { n: cur, waiting: n > 0 };
+    // both pay (owner decision 3): a waiting blessing of the village elder is paid in the same battle, and the card says so
+    let elder = false;
+    try { elder = Number(localStorage.getItem("hs_nardi_bless")) > 0; } catch (e) {}
+    if (n > cur) { try { localStorage.setItem(BLESS_KEY, String(n)); } catch (e) {} return { n, waiting: false, elder }; }
+    return { n: cur, waiting: n > 0, elder };
   }
 
   // ---- errors: the town stops, keeps what it safely can, and says so (13.7) ----
@@ -68891,7 +69167,7 @@ townRegion("shell", () => { Town = (() => {
       '<h1 class="twSr" id="twTitle">' + esc(TWT.title) + '</h1><canvas id="twMap" role="application"></canvas>' +
       '<div class="twTop" id="twTop">' + btn("twAge", "twAge", "<b></b>") +
         '<span class="twRes">' + RES.map(r => btn("twR" + r, "twStat", svg(ricon(r, 1)) + "<b>0</b>", ' data-res="' + r + '"')).join("") +
-        btn("twPop", "twStat twPop", svg("i-tw-villager") + "<b>0</b>") + "</span>" +
+        btn("twPop", "twStat twPop", svg("i-tw-villager") + LOOP + "<b>0</b>") + "</span>" +
         '<span class="twGrow g1"></span>' + btn("twRaid", "twChip", svg("i-horn") + "<b></b>") + '<span class="twGrow g2"></span>' +
         btn("twSpeed", "twRound", "1x") + btn("twPause", "twRound", svg("i-pause")) + btn("twLeave", "twRound", "&#215;") + "</div>" +
       btn("twNext", "twNext", "") + '<div class="twCall" id="twCall" aria-live="polite"></div>' +
@@ -69415,10 +69691,23 @@ townRegion("shell", () => { Town = (() => {
     if (!ghost) return;
     const r = TW.canPlace(G, ghost.type, ghost.x, ghost.y, ghost.rot), was = ghost.why;
     ghost.ok = r.ok; ghost.err = r.err; ghost.res = r.res || "";
-    ghost.why = r.ok ? "" : errW(r.err, r);
+    ghost.why = r.ok ? "" : r.err === "blocked" ? blockedWhy(r.tiles, ghost.type) : errW(r.err, r);
     if (!quiet && ghost.why && ghost.why !== was) say(ghost.why);
     else if (!ghost.why && was && callMsg === was) { callMsg = ""; showCall(); }   // a red ghost's reason goes when it turns green
     offBtn(el.ghostOk, ghost.why);
+  }
+  // what stands in the way of a "blocked" ghost, in TW.canPlace's order, named (the gray box review: "Something is in
+  // the way." never said what): a building, a resource, or the ground itself
+  function blockedWhy(tiles, type) {
+    for (const [x, y] of tiles || []) {
+      if (!inMap(x, y)) continue;
+      const i = y * TW.W + x, t = G.map.terr[i], o = G.map.occ[i];
+      if (t === 2 || t === 3 || t === 5 || t === 7 || t === 9) return U("blockedTerr", U("terr")[t]);
+      if (o > 0) { const b = bldOf(o); if (b && !(type === "gate" && b.k === "wall")) return U("blockedBld", nm("bld", b.k), b.k); }
+      if (o < 0) { const n = nodeOf(-o); if (n) return U("blockedNode", n.k); }
+      if ((t === 6 && type !== "wall" && type !== "gate") || (t === 8 && !(type === "wonder" && G.age === 2)) || (type === "grove" && t > 1)) return U("blockedTerr", U("terr")[t]);
+    }
+    return errW("blocked");
   }
   function offBtn(b, why) { tog(b, "off", !!why); b.setAttribute("aria-disabled", String(!!why)); b.dataset.off = why || ""; }
   function placeGhost(keep) {
@@ -69579,7 +69868,7 @@ townRegion("shell", () => { Town = (() => {
     if (m !== "wall") { strokes = []; stroke = null; wcur = null; }
     if (m !== "none") { setSel(null); garPanel(false); openSheet(false); again = null; el.again.classList.remove("on"); }
     tog(root, "twWalling", m === "wall"); tog(root, "twPlacing", m === "place" || m === "gate"); tog(root, "twGating", m === "gate");
-    floatOff(); wallGhost(); placeGB();
+    floatOff(); wallGhost(); remeasure(); placeGB();
     if (G) barState();
   }
   function ghostSpec() {
@@ -69589,7 +69878,9 @@ townRegion("shell", () => { Town = (() => {
 
   // ---- the selection (9.6): units (villagers, the garrison, or both by a mouse box), a building, a node, a raider ----
   function setSel(s) {
+    const k0 = sel ? sel.kind + ":" + (sel.ids ? sel.ids.join(",") : sel.id) : "";
     sel = s && (s.kind !== "units" || s.ids.length) ? s : null;
+    if ((sel ? sel.kind + ":" + (sel.ids ? sel.ids.join(",") : sel.id) : "") !== k0) histOpen = false;   // a new selection opens closed
     rallyPick = 0;
     if (garOpen && !(sel && sel.gar)) { garOpen = false; tog(el.shield, "on", false); }
     panels();
@@ -69651,7 +69942,7 @@ townRegion("shell", () => { Town = (() => {
     if (key === barKey) return;
     barKey = key;
     el.build.innerHTML = BAR.filter(k => k !== "grove" || G.techs.planted_groves).map(k => '<button type="button" class="twB" data-b="' + k + '">' +
-      svg("i-tw-" + (k === "grove" ? "field" : k)) + '<span class="twBc">' + costIcons(TW.cost(G, k)) + "</span>" + svg("i-lock", "ic twLk") + "</button>").join("") +
+      svg(bic(k)) + '<span class="twBc">' + costIcons(TW.cost(G, k)) + "</span>" + svg("i-lock", "ic twLk") + "</button>").join("") +
       '<button type="button" class="twB twBAge" data-b="age">' + svg("i-tw-age") + '<span class="twBc">' + esc(U("ageBtn")) + "</span></button>";
     for (const b of el.build.children) {
       const k = b.dataset.b;
@@ -69660,6 +69951,8 @@ townRegion("shell", () => { Town = (() => {
     }
     coachEl = null;
   }
+  // a building's icon: the age's own where one is drawn (the temple and the wonder change with the ages)
+  const bic = k => { const id = "i-tw-" + k, a = ageOf(); return document.getElementById(id + a) ? id + a : document.getElementById(id) ? id : "i-tw-house"; };
   const KEYB_OF = { house: "1", field: "2", store: "3", barracks: "4", smithy: "5", market: "6", temple: "7", stable: "8", tower: "9", wonder: "0", grove: "Shift+2", wall: "W", gate: "E", age: "T" };
   function barState() {
     barRender();
@@ -69718,10 +70011,14 @@ townRegion("shell", () => { Town = (() => {
     if (m.hp) h += '<div class="twHp"><i data-v="bar"></i><span data-v="hp"></span></div>';
     m.sub.forEach((s, i) => { h += '<p class="twIS" data-v="s' + i + '"></p>'; });
     if (m.q.length) h += '<div class="twQ">' + m.q.map((q, i) => '<button type="button" class="twQi"' + (q.a ? ' data-a="' + q.a + '"' : " disabled") + '><span data-v="q' + i + '"></span>' + (q.a ? " &#215;" : "") + "</button>").join("") + "</div>";
-    if (m.acts.length) h += '<div class="twActs' + (m.acts.length >= 5 ? " twCols" : "") + '">' + m.acts.map(actHtml).join("") + "</div>";
+    const acts = L => '<div class="twActs' + (L.length >= 5 || m.acts2 ? " twCols" : "") + '">' + L.map(actHtml).join("") + "</div>";
+    if (m.acts.length) h += acts(m.acts);
+    if (m.rally) h += '<div class="twRally"><span>' + esc(U("rally")) + "</span>" + m.rally.map(r => '<button type="button" class="twA twRI' + (r.on ? " on" : "") + '" data-a="' + r.a +
+      '" aria-pressed="' + !!r.on + '" aria-label="' + esc(r.aria) + '" title="' + esc(r.aria) + '">' + svg(r.ic) + "</button>").join("") + "</div>";
+    if (m.acts2 && m.acts2.length) h += acts(m.acts2);
     // the role and history lines come last, so that the panel's buttons stay in view above them (gray box)
     if (m.role) h += '<p class="twIS">' + esc(m.role) + "</p>";
-    if (m.hist) h += '<p class="twHist">' + esc(m.hist) + "</p>";
+    if (m.hist) h += histHtml(m.hist, m.hio, "hist");
     return h;
   }
   function panelSet(e, m) {
@@ -69754,11 +70051,21 @@ townRegion("shell", () => { Town = (() => {
   }
   // a scrollable panel shows a fade and a chevron at its lower edge while more lies below (gray box review)
   function moreCue(e) { if (e) tog(e, "twMore", e.classList.contains("on") && e.scrollHeight - e.scrollTop - e.clientHeight > 6); }
+  // the role line, and the history: one line in italic; the "i" button opens every line of the ages reached, each
+  // with its source line (9.7)
   const roleHist = (m, kind, id) => {
-    const r = TWT.role ? TWT.role(kind, id) : "", h = TWT.hist ? TWT.hist(kind, id, ageOf()) : [];
+    const r = TWT.role ? TWT.role(kind, id) : "", H = histOf(kind, id);
     if (r) m.role = r;
-    if (h && h[0]) m.hist = h[0].text || String(h[0]);
+    if (H.length) { m.hist = H; m.hio = histOpen; }
   };
+  function histHtml(H, open, act) {
+    const one = x => (x.lab ? '<b class="twHL">' + esc(x.lab) + "</b> " : "") + esc(x.text);
+    let h = '<div class="twHB"><p class="twHist">' + one(H[0]) + "</p>" + (H[0].src || H.length > 1 ?
+      '<button type="button" class="twI" data-a="' + act + '" aria-expanded="' + !!open + '" aria-label="' + esc(U("histMore")) + '">i</button>' : "") + "</div>";
+    if (open) h += (H[0].src ? '<p class="twSrc">' + esc(H[0].src) + "</p>" : "") +
+      H.slice(1).map(x => '<p class="twHist">' + one(x) + "</p>" + (x.src ? '<p class="twSrc">' + esc(x.src) + "</p>" : "")).join("");
+    return h;
+  }
   function taskWords(u) {
     if (u.held) return U("heldByLasso");
     if (u.k === "vil" && G.diff === 0 && u.flee > G.tick) return U("drivenOff");
@@ -69814,7 +70121,7 @@ townRegion("shell", () => { Town = (() => {
       if (!us.length) return null;
       const u = us[0], vil = us.every(v => v.k === "vil");
       m.head = (us.every(v => v.k === u.k) ? nm("unit", u.k) : U("garrisonHead")) + (us.length > 1 ? " · " + us.length : "");
-      if (us.length === 1) { m.hp = [u.hp, u.hpMax]; if (vil) m.sub.push(taskWords(u)); else roleHist(m, "unit", u.k); }
+      if (us.length === 1) { m.hp = [u.hp, u.hpMax]; if (vil) m.sub.push(taskWords(u)); roleHist(m, "unit", u.k); m.hy = TWT.hy ? TWT.hy("unit", u.k, ageOf()) : ""; }
       if (vil) m.acts.push(A_("vShelter", U("shelter")), A_("vStop", U("stop")));
       else m.acts.push(A_("gRet", U("ret")), A_("gHold", U("hold"), "", { on: !!G.post.hold }), A_("gDismiss", U("dismissHold"), "", { hold: 1 }));
       return m;
@@ -69836,6 +70143,7 @@ townRegion("shell", () => { Town = (() => {
     if (b.done < 1) {
       const mx = b.k === "wonder" ? D.WONDERS[G.age - 1].maxBuilders : D.BUILD.maxBuilders;
       m.sub.push(U("building") + " " + Math.floor(b.done * 100) + "%", U("builders", b.builders.length));
+      if (TWT.role) m.role = TWT.role("bld", b.k);   // what it will be
       m.acts.push(A_("bld:-1", "−", b.builders.length ? "" : U("noBuilders"), { aria: U("fewerBuilders") }),
         A_("bld:1", "+", b.builders.length >= mx ? U("buildersMax", nm("bld", b.k), mx) : "", { aria: U("moreBuilders") }), A_("cancel", U("cancelBld")));
       return m;
@@ -69845,27 +70153,31 @@ townRegion("shell", () => { Town = (() => {
     const fx = { horse: G.techs.nesaean_horses ? 0.75 : 1 };
     b.q.forEach((q, i) => m.q.push({ a: "untrain:" + i, qt: U("queue") + ": " + nm("unit", q.k) + " " + qPct(q.left, D.UNITS[q.k].train / DT * (fx[q.k] || 1)) }));
     b.rq.forEach(q => m.q.push({ qt: nm("tech", q.tech) + " " + qPct(q.left, D.TECHS[q.tech].time / DT) }));
+    // the training buttons first, then the rally as one row of icons (resources, a point on the map), then the rest
+    let A2 = m.acts;
+    const pt = { a: "rally:pt", ic: "i-flag", on: !!(b.rally && b.rally.x !== undefined), aria: U("rally") + ": " + U("rallyPoint") };
     if (b.k === "tc") {
       m.acts.push(A_("train:vil", U("trainVil"), trainOff("vil", b), { cost: TW.cost(G, "vil") }), A_("auto", U("autoTrain"), "", { on: !!b.auto }));
-      for (const r of RES) m.acts.push(A_("rally:" + r, U("rally") + ": " + rn(r), "", { on: !!(b.rally && b.rally.res === r) }));
-      m.acts.push(A_("rally:pt", U("rallyPoint"), "", { on: !!(b.rally && b.rally.x !== undefined) }));
-      if (G.age < 3) m.acts.push(A_("advance", U("advance"), advanceOff(), { cost: TW.cost(G, "advance") }));
+      m.rally = RES.map(r => ({ a: "rally:" + r, ic: ricon(r, ageOf()), on: !!(b.rally && b.rally.res === r), aria: U("rally") + ": " + rn(r) })).concat([pt]);
+      A2 = m.acts2 = [];
+      if (G.age < 3) A2.push(A_("advance", U("advance"), advanceOff(), { cost: TW.cost(G, "advance") }));
     } else if (trains(b)) {
       for (const u of D.BLD[b.k].trains) m.acts.push(A_("train:" + u, U("train", nm("unit", u)), trainOff(u, b), { cost: TW.cost(G, u) }));
-      m.acts.push(A_("rally:pt", U("rallyPoint"), "", { on: !!(b.rally && b.rally.x !== undefined) }));
+      m.rally = [pt];
+      A2 = m.acts2 = [];
     }
-    for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.at === b.k && X.age <= G.age && !G.techs[id]) m.acts.push(A_("tech:" + id, nm("tech", id), techOff(id), { cost: TW.cost(G, id) })); }
+    for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.at === b.k && X.age <= G.age && !G.techs[id]) A2.push(A_("tech:" + id, nm("tech", id), techOff(id), { cost: TW.cost(G, id) })); }
     if (b.k === "market") {
       const lot = D.MARKET.lot;
-      for (const r of ["f", "w", "s"]) m.acts.push(A_("trade:sell:" + r, U("sell", r, lot, gain(r), ageOf()), G.res[r] < lot ? errW("cost", { res: r }) : ""), A_("trade:buy:" + r, U("buy", r, lot, price(r), ageOf()), G.res.g < price(r) ? errW("cost", { res: "g" }) : ""));
+      for (const r of ["f", "w", "s"]) A2.push(A_("trade:sell:" + r, U("sell", r, lot, gain(r), ageOf()), G.res[r] < lot ? errW("cost", { res: r }) : ""), A_("trade:buy:" + r, U("buy", r, lot, price(r), ageOf()), G.res.g < price(r) ? errW("cost", { res: "g" }) : ""));
       if (G.cartMarket && G.cartMarket !== b.id) m.sub.push(U("exchangeOnly"));
     }
     if (b.hp < b.hpMax && b.k !== "wonder") {
       const c = TW.cost(G, b.k) || {}, rc = {};
       for (const r of RES) rc[r] = c[r] ? Math.max(1, Math.ceil(c[r] * D.BUILD.repairCost * 100 / b.hpMax)) : 0;
-      m.acts.push(A_("repair", RES.some(r => rc[r]) ? U("repair", rc, ageOf()) : U("repairBtn")));
+      A2.push(A_("repair", RES.some(r => rc[r]) ? U("repair", rc, ageOf()) : U("repairBtn")));
     }
-    if (b.k !== "tc" && b.k !== "wonder") m.acts.push(A_("demolish", U("demolish"), "", { hold: 1 }));
+    if (b.k !== "tc" && b.k !== "wonder") A2.push(A_("demolish", U("demolish"), "", { hold: 1 }));
     return m;
   }
   function garModel() {
@@ -69882,22 +70194,32 @@ townRegion("shell", () => { Town = (() => {
       // short of food for it while the palace trains villagers: one tap pauses auto-train until the advance starts
       const tc = tcOf(), short = lack(TW.cost(G, "advance")).includes("f") && !G.aging;
       m.blocks.push({ h: U("advanceTo", TWT.ages[a].name), rows, act: A_("advance", U("advance"), advanceOff()), act2: short && tc && tc.auto && TWT.ui.saveFood ? A_("saveAdv", U("saveFood")) : null });
-      m.dyn = G.aging ? TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) }) : saving && tc && !tc.auto ? U("saving") : "";
+      // under the button: the advance under way, auto-train saving food, or why the button is off (9.9)
+      m.dyn = G.aging ? TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) }) : saving && tc && !tc.auto ? U("saving") : advanceOff();
     }
+    // a row's name opens its history line and source (the techs, the wonder)
+    const hrow = (r, kind, id) => { r.hk = kind + ":" + id; r.open = thOpen.has(r.hk); if (r.open) r.hist = histOf(kind, id); return r; };
     const groups = {};
     for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.age <= a) (groups[X.at] = groups[X.at] || []).push(id); }
-    for (const at of ["tc", "smithy", "temple", "market", "stable", "tower"]) if (groups[at]) m.blocks.push({ h: U("techsAt", nm("bld", at)), rows: groups[at].map(id => ({
-      t: nm("tech", id), d: TWT.effect ? TWT.effect(id, D, a) : "", cost: G.techs[id] ? null : TW.cost(G, id), time: TWT.mmss(D.TECHS[id].time), ok: G.techs[id] ? true : undefined, tech: 1,
+    for (const at of ["tc", "smithy", "temple", "market", "stable", "tower"]) if (groups[at]) m.blocks.push({ h: U("techsAt", nm("bld", at)), rows: groups[at].map(id => hrow({
+      t: nm("tech", id), hy: TWT.hy ? TWT.hy("tech", id, a) : "", d: TWT.effect ? TWT.effect(id, D, a) : "", cost: G.techs[id] ? null : TW.cost(G, id), time: TWT.mmss(D.TECHS[id].time), ok: G.techs[id] ? true : undefined, tech: 1,
       act: G.techs[id] ? null : A_("tech:" + id, U("research"), techOff(id, true)),
-      w: !G.techs[id] && !hasDone(D.TECHS[id].at) ? errW("req", { need: [D.TECHS[id].at] }) : "" })) });
+      w: !G.techs[id] && !hasDone(D.TECHS[id].at) ? errW("req", { need: [D.TECHS[id].at] }) : "" }, "tech", id)) });
     const miss = wonderMiss();
-    m.blocks.push({ h: nm("bld", "wonder"), rows: [{ t: U("costL"), cost: TW.cost(G, "wonder") }].concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss) : errW("req", { need: miss }) }] : []) });
+    m.blocks.push({ h: nm("bld", "wonder"), rows: [hrow({ t: nm("bld", "wonder"), hy: TWT.hy ? TWT.hy("bld", "wonder", a) : "", d: TWT.ui.siteHint ? U("siteHint", a) : "" }, "bld", "wonder"), { t: U("costL"), cost: TW.cost(G, "wonder") }]
+      .concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss) : errW("req", { need: miss }) }] : []) });
     return m;
   }
   function sheetHtml(m) {
-    const row = r => '<div class="twRow"><span class="twRt">' + (r.ok !== undefined ? '<i class="twOk' + (r.ok ? " y" : "") + '" aria-hidden="true"></i>' : "") + esc(r.t) +
-      (r.d ? "<small>" + esc(r.d) + "</small>" : "") + (r.w ? '<small class="twWhy">' + esc(r.w) + "</small>" : "") + "</span>" + (r.cost ? costHtml(r.cost) : "") + (r.time ? '<span class="twTm">' + esc(r.time) + "</span>" : "") +
-      (r.act ? actHtml(r.act) : r.tech && r.ok ? '<span class="twTm">' + esc(U("researched_")) + "</span>" : "") + "</div>";
+    const row = r => {
+      const head = (r.ok !== undefined ? '<i class="twOk' + (r.ok ? " y" : "") + '" aria-hidden="true"></i>' : "") + esc(r.t) + (r.hy ? ' <span class="twHy" lang="hy">' + esc(r.hy) + "</span>" : "") + (r.hk ? '<i class="twIm" aria-hidden="true">i</i>' : "") +
+        (r.d ? "<small>" + esc(r.d) + "</small>" : "") + (r.w ? '<small class="twWhy">' + esc(r.w) + "</small>" : "");
+      return '<div class="twRow">' + (r.hk ? '<button type="button" class="twRt twRtB" data-a="th:' + r.hk + '" aria-expanded="' + !!r.open + '">' + head + "</button>" : '<span class="twRt">' + head + "</span>") +
+        (r.cost ? costHtml(r.cost) : "") + (r.time ? '<span class="twTm">' + esc(r.time) + "</span>" : "") +
+        (r.act ? actHtml(r.act) : r.tech && r.ok ? '<span class="twTm">' + esc(U("researched_")) + "</span>" : "") + "</div>" +
+        (r.open && r.hist && r.hist.length ? '<div class="twTH">' + r.hist.map(x => '<p class="twHist">' + (x.lab ? '<b class="twHL">' + esc(x.lab) + "</b> " : "") + esc(x.text) + "</p>" +
+          (x.src ? '<p class="twSrc">' + esc(x.src) + "</p>" : "")).join("") + "</div>" : "");
+    };
     return headHtml(m.kick) + '<div class="twSB"><h2>' + esc(m.head) + "</h2>" + m.blocks.map((B, i) => "<section><h3>" + esc(B.h) + "</h3>" + B.rows.map(row).join("") +
       (B.act ? '<div class="twActs">' + actHtml(B.act) + (B.act2 ? actHtml(B.act2) : "") + (i === 0 && m.dyn !== undefined ? '<span class="twIS" data-v="dyn"></span>' : "") + "</div>" : "") + "</section>").join("") + "</div>";
   }
@@ -69936,11 +70258,13 @@ townRegion("shell", () => { Town = (() => {
     const tc = tcOf();
     switch (k) {
       case "close": if (b && el.sheet.contains(b)) openSheet(false); else if (garOpen) garPanel(false); else setSel(null); break;
+      case "hist": histOpen = !histOpen; break;
+      case "th": { const key = v + ":" + w; if (thOpen.has(key)) thOpen.delete(key); else thOpen.add(key); break; }
       case "train": if (bd) send({ k: "train", bld: bd.id, unit: v, n: 1 }); break;
       case "gtrain": { const t = trainAt(v); if (t) send({ k: "train", bld: t.id, unit: v, n: 1 }); break; }
       case "untrain": if (bd) send({ k: "untrain", bld: bd.id, i: +v }); break;
       case "auto": if (bd) { send({ k: "auto", bld: bd.id, on: !bd.auto }); saving = false; } break;
-      case "rally": if (!bd) break; if (v === "pt") { rallyPick = bd.id; say(U("rallyPoint")); } else send({ k: "rally", bld: bd.id, res: v }); break;
+      case "rally": if (!bd) break; if (v === "pt") { rallyPick = bd.id; say(U("rallyPoint")); } else if (send({ k: "rally", bld: bd.id, res: v }).ok) say(U("rally") + ": " + rn(v)); break;
       case "advance": send({ k: "advance" }); break;
       case "saveAdv": { const t = tcOf(); if (t && t.auto && send({ k: "auto", bld: t.id, on: false }).ok) { saving = true; say(U("saving")); } break; }
       case "tech": send({ k: "research", tech: v }); break;
@@ -69967,6 +70291,11 @@ townRegion("shell", () => { Town = (() => {
       default: break;
     }
     panels();
+    // a panel rebuilt under a keyboard's focus: the focus goes to the same button in the new one
+    if (b && !b.isConnected && (!document.activeElement || document.activeElement === document.body)) {
+      const nb = root.querySelector('button[data-a="' + a + '"]');
+      try { (nb || root).focus({ preventScroll: true }); } catch (e) {}
+    }
   }
   // a hold button (Demolish, Dismiss) acts after 0.8 s; from the keyboard, Demolish asks first
   function holdStart(b) {
@@ -70165,6 +70494,7 @@ townRegion("shell", () => { Town = (() => {
     root.classList.add("twKeys");
     const onBtn = e.target && e.target.closest && e.target.closest("button"), k = e.code;
     guard(() => {
+      if (k === "Tab") { tabTrap(e); return; }
       if (card) { if (k === "Escape") cardBack(); else if (k === "Space" && !onBtn && card === "pause") { e.preventDefault(); showCard(""); } return; }
       if (k === "Escape") {
         if (mode !== "none") setMode("none"); else if (sheet) openSheet(false); else if (garOpen) garPanel(false);
@@ -70208,6 +70538,14 @@ townRegion("shell", () => { Town = (() => {
     e.stopImmediatePropagation();
   }
 
+  // Tab and Shift+Tab go round the open card, else round the room's controls, and never out to the page (9.1, 9.11)
+  function tabTrap(e) {
+    const scope = card ? el.card : root;
+    const L = Array.from(scope.querySelectorAll("button, [tabindex]")).filter(b => b.tabIndex >= 0 && !b.disabled && b.offsetParent !== null && !b.closest("[inert]"));
+    if (!L.length) { e.preventDefault(); try { root.focus({ preventScroll: true }); } catch (x) {} return; }
+    const i = L.indexOf(document.activeElement), n = L.length;
+    if (i < 0 || (e.shiftKey ? i === 0 : i === n - 1)) { e.preventDefault(); L[i < 0 ? (e.shiftKey ? n - 1 : 0) : e.shiftKey ? n - 1 : 0].focus({ preventScroll: false }); }
+  }
   // ---- cards (9.11): each holds the clock and keeps the focus; Escape goes back ----
   function showCard(name, data) {
     card = name || "";
@@ -70228,7 +70566,13 @@ townRegion("shell", () => { Town = (() => {
   function renderCard() {
     if (!root) return;
     el.cardWrap.classList.toggle("on", !!card);
-    if (!card) { el.card.innerHTML = ""; return; }
+    // under a card the room's other controls are out of reach (the focus stays in the card, 9.11)
+    for (const c of root.children) if (c !== el.cardWrap && c.id !== "twTitle" && c.hasAttribute("inert") !== !!card) c.toggleAttribute("inert", !!card);
+    if (!card) {
+      el.card.innerHTML = "";
+      if (open && (!document.activeElement || document.activeElement === document.body)) { try { root.focus({ preventScroll: true }); } catch (e) {} }
+      return;
+    }
     const B = (act, label, primary) => '<button type="button" class="twBtn' + (primary ? " primary" : "") + '" data-act="' + act + '">' + esc(label) + "</button>";
     const T = (act, label, on) => '<button type="button" class="twToggle" data-act="' + act + '" aria-pressed="' + !!on + '">' + esc(label) + "</button>";
     const P = s => "<p>" + esc(s) + "</p>", S = s => '<p class="twSmall">' + esc(s) + "</p>";
@@ -70250,7 +70594,7 @@ townRegion("shell", () => { Town = (() => {
         (dh ? S(dh[cardData.diff]) : "") +
         (pref.lastSeed ? '<div class="twSeg" role="radiogroup" aria-label="' + esc(U("mapChoice")) + '"><button type="button" role="radio" data-map="new" aria-checked="' + !cardData.again + '">' + esc(U("mapNew")) + '</button><button type="button" role="radio" data-map="again" aria-checked="' + cardData.again + '">' + esc(U("mapAgain", pref.lastSeed)) + "</button></div>" : "") +
         '<button type="button" class="twToggle" data-ft="1" aria-pressed="' + !!cardData.ft + '">' + esc(U("firstTown")) + "</button>" +
-        (best.stars ? S(U("best", best.stars, TWT.mmss(best.timeS))) : "");
+        (best.stars || best.score ? S([best.stars ? U("best", best.stars, TWT.mmss(best.timeS)) : "", best.score ? U("bestScore", best.score) : ""].filter(Boolean).join(" · ")) : "");
       if (pref.droppedOld) { pref.droppedOld = false; savePref(); }
       btns = B("begin", U("begin"), true);
     } else if (card === "resume") {
@@ -70258,13 +70602,13 @@ townRegion("shell", () => { Town = (() => {
       h = '<p class="twKick">' + esc(TWT.title) + "</p>" + P(line);
       btns = B("resume", U("resume"), true) + B("newGame", U("newGame"));
     } else if (card === "pause") {
-      h = "<h2>" + esc(U("paused")) + "</h2>" + (!saveOk ? S(U("notSaved")) : memStore ? S(U("memOnly")) : "") +
+      h = "<h2>" + esc(U("paused")) + "</h2>" + (G ? S(U("pauseLine", A.name, mmss(G.tick), TWT.diffs[G.diff])) : "") + (!saveOk ? S(U("notSaved")) : memStore ? S(U("memOnly")) : "") +
         '<div class="twTogs">' + T("hints", U("hints"), pref.hints) + T("music", U("music"), Snd.musicOn) + T("sound", U("sound"), Snd.sfxOn) + "</div>";
       btns = B("resume", U("resume"), true) + B("plan", U("plan")) + B("howTo", U("howTo")) + B("startOver", U("startOver")) + B("leave", U("leave"));
     } else if (card === "help") {
       const H = TWT.help;
       h = "<h2>" + esc(H ? H.title : U("howTo")) + '</h2><div class="twBody">' +
-        (H ? H.sections.map(s => "<h3>" + esc(s.head) + "</h3>" + s.lines.map(P).join("")).join("") : "") +
+        (H ? H.sections.map(s => "<h3>" + esc(s.head) + "</h3>" + s.lines.map(P).join("")).join("") : "") + P(U("helpSources")) +
         "<h3>" + esc(H ? H.hintsHead : U("hints")) + "</h3><ul>" + hintList().map(x => "<li>" + esc(x.line) + "</li>").join("") + "</ul>" +
         (H && H.keys ? "<h3>" + esc(H.keysHead) + '</h3><dl class="twKeysL">' + H.keys.map(([a, b]) => "<dt>" + esc(a) + "</dt><dd>" + esc(b) + "</dd>").join("") + "</dl>" : "") + "</div>";
       btns = B("helpBack", U("close"), true);
@@ -70280,12 +70624,13 @@ townRegion("shell", () => { Town = (() => {
       const win = card === "win", st = cardData.stars | 0, ix = Math.max(0, Math.min(2, (cardData.age | 0) - 1));
       const W = win ? TWT.win && TWT.win[ix] : cardData.cause === "soft" ? TWT.softLose : TWT.lose && TWT.lose[ix];
       const B0 = G ? pref.best[G.diff] : null, txt = x => (x && x.text) || String(x);
-      h = (win ? '<p class="twStars" role="img" aria-label="' + esc(U("stars", st)) + '">' + svg("i-star").repeat(st) + "</p>" : "") +
+      // the stars won, and the ones a later wonder would have earned, dim (the campaign's plaque does the same)
+      h = (win ? '<p class="twStars" role="img" aria-label="' + esc(U("stars", st)) + '">' + [1, 2, 3].map(i => svg("i-star", i <= st ? "ic" : "ic twStar0")).join("") + "</p>" : "") +
         '<h2 id="twEndHead" aria-live="polite">' + esc(win ? U("winHead", cardData.age) : cardData.cause === "soft" ? U("softLock") : U("loseHead", cardData.age)) + "</h2>" +
         '<div class="twBody">' + (!win && cardData.cause === "tc" && TWT.ui.loseTip ? P(U("loseTip", cardData.age)) : "") + (W && W.lines ? W.lines.map(x => P(txt(x))).join("") : "") +
-        (win && cardData.bless ? '<p class="twBless">' + esc(cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n)) + "</p>" : "") +
+        (win && cardData.bless ? '<p class="twBless">' + esc((cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n)) + (cardData.bless.elder ? " " + U("elderToo") : "")) + "</p>" : "") +
         (W && W.lic ? W.lic.map(x => S(txt(x))).join("") : "") + "</div>" +
-        S(U("map", G ? G.seed : 0) + " · " + TWT.mmss(G ? Math.floor(G.tick * DT) : 0) + (cardData.score !== undefined ? " · " + U("score", cardData.score) : "") + (cardData.best ? " · " + U("newBest") : "")) +
+        S(U("map", G ? G.seed : 0) + " · " + U("timeL") + " " + TWT.mmss(G ? Math.floor(G.tick * DT) : 0) + (cardData.score !== undefined ? " · " + U("score", cardData.score) : "") + (cardData.best ? " · " + U("newBest") : "")) +
         (B0 && B0.stars ? S(U("best", B0.stars, TWT.mmss(B0.timeS))) : "");
       btns = B("back", U("back"), true) + B("again", U("playAgain")) + B("newMap", U("newMap"));
     } else if (card === "error") {
@@ -70366,6 +70711,7 @@ townRegion("shell", () => { Town = (() => {
     else hold("plan", false);
     tog(root, "twPlanning", held.has("plan"));
     hud(true);
+    remeasure();   // the banner came or went: the ghost's buttons place themselves around it now, not half a second late
   }
 
   // ---- the frame ----
@@ -70396,11 +70742,12 @@ townRegion("shell", () => { Town = (() => {
   });
   // the HUD's blocks over the map (CSS px in the room), measured twice a second: the raid arrows keep clear of them
   let hudRects = [], hudRectAt = -1e9;
+  function remeasure() { if (root && open) { hudRectAt = -1e9; measureHud(performance.now()); } }
   function measureHud(t) {
     if (t - hudRectAt < 500 && t >= hudRectAt) return;
     hudRectAt = t;
     const r0 = root.getBoundingClientRect();
-    hudRects = [el.next, el.dock, el.chips, mini, root.querySelector(".twZoom"), el.gar, el.info].filter(e => e && e.offsetParent !== null).map(e => {
+    hudRects = [el.next, el.dock, el.chips, mini, root.querySelector(".twZoom"), el.gar, el.info, el.plan].filter(e => e && e.offsetParent !== null).map(e => {
       const r = e.getBoundingClientRect();
       return { l: r.left - r0.left, t: r.top - r0.top, r: r.right - r0.left, b: r.bottom - r0.top };
     }).filter(r => r.r - r.l > 2 && r.b - r.t > 2);
@@ -70418,7 +70765,16 @@ townRegion("shell", () => { Town = (() => {
   const setT = (e, s) => { if (e && e.textContent !== s) e.textContent = s; };
   const tog = (e, c, v) => { if (e && e.classList.contains(c) !== !!v) e.classList.toggle(c, !!v); };
   const lab = (e, s) => { if (e && e.getAttribute("aria-label") !== s) e.setAttribute("aria-label", s); };
-  const nextText = () => { const n = TW.next(G); return n.k === "dismiss" ? U("softLockCall") : n.k === "over" ? "" : TWT.next(n); };
+  // the Next line's goal: TW.next's, except that a town with room for one villager or none asks for a House first
+  // (the gray box review: "Next: Storeroom" at 9 of 10 while training stopped; WP2 may move this into TW.next)
+  function nextGoal() {
+    const n = TW.next(G);
+    if (!/^(build|res|tech|advance|wonder)$/.test(n.k) || (n.k === "build" && n.type === "house") || G.aging || G.wonder) return n;
+    const L = TW.labor(G);
+    if (G.popCap - L.pop > 1 || G.popCap >= D.POP.max || G.blds.some(b => !b.dead && b.k === "house" && b.done < 1)) return n;
+    return { k: "build", type: "house", age: G.age };
+  }
+  const nextText = () => { const n = nextGoal(); return n.k === "dismiss" ? U("softLockCall") : n.k === "over" ? "" : TWT.next(n); };
   function hud() {
     if (!G || !root) return;
     const a = G.age, A = TWT.ages[a - 1], wb = G.wonder ? bldOf(G.wonder) : null, t = performance.now(), L = TW.labor(G);
@@ -70435,7 +70791,7 @@ townRegion("shell", () => { Town = (() => {
     const room = G.popCap - L.pop;
     setT(el.pop.lastChild, L.pop + "/" + G.popCap);
     tog(el.pop, "warn", room <= 2 && room > 0); tog(el.pop, "full", room <= 0);
-    lab(el.pop, U("pop", L.pop, G.popCap));
+    { const tb = tcOf(), au = !!(tb && tb.auto); tog(el.pop, "twAuto", au); lab(el.pop, U("pop", L.pop, G.popCap) + (au ? ". " + U("popAuto", TWT.ages[G.age - 1].tc) : "")); }
     const ri = TW.raidInfo(G), on = G.units.some(u => !u.dead && u.side === 1), w = ri.warn[0];
     const rt = on ? U("raidNow") : ri.held ? U("raidsWait") : TWT.mmss(Math.max(0, (w ? w.spawnAt : ri.nextWarn) - G.tick) * DT);
     setT(el.raid.lastChild, rt);
@@ -70503,6 +70859,20 @@ townRegion("shell", () => { Town = (() => {
     else if (["start", "resume", "pause", "leave", "error", "help"].includes(c)) showCard(c, c === "error" ? { at: G.tick } : {});
     else showCard("");
     if (c === "tech") openSheet(true);
+    // card=tech-i: the sheet with its first tech row and the wonder opened; card=sel-<what>[-i]: the info panel of the
+    // first such thing on the map (tc house store barracks market temple wonder, vil gar raider tree flock), "-i" opened
+    if (c === "tech-i") { thOpen.clear(); thOpen.add("bld:wonder"); const t = Object.keys(D.TECHS).find(id => D.TECHS[id].age <= G.age); if (t) thOpen.add("tech:" + t); openSheet(true); }
+    const ms = /^sel-(\w+?)(-i)?$/.exec(c);
+    if (ms) {
+      const w = ms[1], u = w === "vil" ? G.units.find(x => !x.dead && !x.side && x.k === "vil" && !x.shel) : w === "gar" ? G.units.find(x => !x.dead && !x.side && x.k !== "vil")
+        : w === "raider" ? G.units.find(x => !x.dead && x.side === 1) : null;
+      const b = !u ? G.blds.find(x => !x.dead && x.k === w) : null, n = !u && !b ? G.nodes.find(x => !x.dead && x.k === w) : null;
+      if (u) setSel(u.side ? { kind: "raider", id: u.id } : { kind: "units", ids: [u.id] });
+      else if (b) setSel({ kind: "bld", id: b.id });
+      else if (n) setSel({ kind: "node", id: n.id });
+      histOpen = !!ms[2];
+      panels();
+    }
     if (c === "labor") laborLine("f");
     if (st === "plan" && !card) plan(true);
     hud();
@@ -71599,6 +71969,7 @@ function townSelftest(check, res) {
       photoMenu(false);
       if (!offV || !offB) throw new Error("the door shows on the victory page or the chronicle");
       const ch = mapChapter();
+      localStorage.setItem("hs_town_run", JSON.stringify({ v: 1, tw: -1, saved: 1, crashed: false, state: {} }));   // a save of an older version
       btn.focus();
       btn.click();
       if (!Town.isOpen() || T.root().classList.contains("twHidden") || !T.rafOn()) throw new Error("the town did not open");
@@ -71608,6 +71979,7 @@ function townSelftest(check, res) {
       document.body.dispatchEvent(new KeyboardEvent("keydown", { code: "ArrowRight", key: "ArrowRight", bubbles: true }));
       if (mapChapter() !== ch) throw new Error("a key reached the map under the town");
       if (T.card() !== "start" || !T.held().has("card")) throw new Error("no start card holding the clock");
+      if (!T.root().querySelector("#twCard").textContent.includes(TWT.ui.older) || localStorage.getItem("hs_town_run")) throw new Error("an older version's save was not dropped and told (8.4)");
       if (!Snd.sceneOverride || Snd.sceneOverride.era !== 0) throw new Error("the town's music is not set");
       T.seed(4821);
       T.button("card:begin").click();
@@ -71710,10 +72082,48 @@ function townSelftest(check, res) {
       T.button("gar:gtrain:spear").click();
       T.step(1);
       if (!bk || bk.q.length !== q0 + 1 || bk.q[bk.q.length - 1].k !== "spear") throw new Error("the shield chip's Spearmen did not queue one at the barracks");
+      // the info panel (9.7): a building's name, hit points, rally row, its history line; "i" opens every line of the
+      // ages reached with its source line
+      T.button("shield").click();
+      const tcb = S2.blds.find(b => b.k === "tc");
+      T.key("KeyH");
+      const info = T.root().querySelector("#twInfo");
+      if (!T.sel() || T.sel().id !== tcb.id || !info.classList.contains("on") || !info.querySelector(".twHp") || !info.querySelector('[data-a="rally:pt"]')) throw new Error("H did not open the palace's info panel");
+      if (!info.querySelector(".twHist") || info.querySelector(".twSrc")) throw new Error("the info panel shows no history line, or shows its source before i");
+      T.button("info:hist").click();
+      const src = info.querySelector(".twSrc"), ib = T.button("info:hist");
+      if (!src || !/^Sources?: /.test(src.textContent) || !ib || ib.getAttribute("aria-expanded") !== "true") throw new Error("i did not open the source line: " + (src && src.textContent));
+      if (![...info.querySelectorAll(".twHL")].some(e => e.textContent === TWT.ages[0].town)) throw new Error("i did not show the earlier age's line");
+      // the age sheet: a tech row opens its history and source; on Easy the sheet holds the clock, on Normal not (9.9)
+      T.key("KeyT");
+      if (T.sheet() !== "age" || T.held().has("sheet")) throw new Error("T did not open the sheet, or it holds the clock on Normal");
+      T.button("sheet:th:tech:iron_tools").click();
+      const th = T.root().querySelector("#twSheet .twTH");
+      if (!th || !/Source/.test(th.textContent)) throw new Error("a tech row did not open its history and source");
+      T.key("Escape");
+      if (T.sheet()) throw new Error("Escape did not close the sheet");
+      T.G = TW.newGame({ seed: 4821, diff: 0, firstTown: false });
+      T.button("age").click();
+      if (!T.held().has("sheet")) throw new Error("the sheet does not hold the clock on Easy");
+      T.button("age").click();
+      if (T.held().size) throw new Error("closing the sheet left the clock held");
+      // the end card (9.11, 8.3 with both pay): stars, the blessing stored and said, the elder's waiting too; under a
+      // card the room is out of reach
+      localStorage.removeItem("hs_town_bless"); localStorage.setItem("hs_nardi_bless", "40");
+      T.G = TW.stage("win2", 4821, 1);
+      T.step(40);
+      const endc = T.root().querySelector("#twCard");
+      if (T.card() !== "win" || endc.querySelectorAll(".twStars .ic:not(.twStar0)").length !== 2 || localStorage.getItem("hs_town_bless") !== "30") throw new Error("no 2-star win card with the gift of 30 stored");
+      if (!/\+30 gold/.test(endc.textContent) || !endc.textContent.includes(TWT.ui.elderToo || "both")) throw new Error("the win card does not tell the gift and the elder's blessing: " + endc.querySelector(".twBless").textContent);
+      if (![...T.root().children].every(c => c.id === "twCardWrap" || c.id === "twTitle" || c.inert)) throw new Error("the room is in reach under a card");
+      T.button("card:again").click(); T.button("card:cont").click();
+      if (T.card() || [...T.root().children].some(c => c.inert)) throw new Error("the room stayed inert after the cards");
+      localStorage.removeItem("hs_nardi_bless"); localStorage.removeItem("hs_town_bless");
+      T.G = TW.stage("age2", 4821, 1);
       // the page hidden: held and saved; shown again: the pause card
       T.hide(true);
       const snap = JSON.parse(localStorage.getItem("hs_town_run") || "null");
-      if (!T.held().has("hidden") || !snap || !snap.state || snap.state.tick !== S2.tick || !T.saveOk()) throw new Error("hiding the page did not hold and save");
+      if (!T.held().has("hidden") || !snap || !snap.state || snap.state.tick !== T.G.tick || !T.saveOk()) throw new Error("hiding the page did not hold and save");
       T.hide(false);
       if (T.card() !== "pause") throw new Error("no pause card on coming back");
       T.button("card:resume").click();
