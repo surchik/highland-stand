@@ -65657,30 +65657,608 @@ townRegion("art", () => { TWA = (() => {
 })(); });
 
 // ---- town: sound ----   (WP5)  SPEC/SFX registration, event-to-sound, scene override
-// TWS: the town's sound through the campaign's Snd engine. While the town is open, Snd.sceneOverride sets the
-// age's music and ambience; close() always clears it. WP1-A STUB: the scene override and a few of the campaign's
-// own sounds for town events; WP5 adds the tw SPEC and SFX (appended last in this region), Snd.AMB.twDvin, view
-// culling and throttles.
+// TWS: the town's sound, all of it through the campaign's Snd engine (integration.md 7, spec 11): nothing loaded,
+// every sound synthesised from Snd's own gestures, silent until a gesture opens the audio context and whenever the
+// Sound toggle is off (Snd.play returns at once). While the town is open, Snd.sceneOverride gives the age's music
+// and ambience: the campaign's era voicings (era 0 for Erebuni, era 1 for Artashat, the Dvin era 2) over the beds
+// erebuni, ararat (owner decision 13) and twDvin, the Dvin bed without its cathedral bell (Armenian churches of the
+// 640s called to prayer with the wooden semantron; bells came only in the 10th century). close() always clears it.
+// No bell in the alarm, the raid calls or the end calls of any age: Erebuni and Artashat call with their horns, Dvin
+// knocks the semantron. The only bronze is a small chime, high and short (an age reached in Erebuni or Artashat, a
+// quarter of the wonder), never a church bell's low toll. The campaign's win and lose strike low bronze bells (lose
+// tolls one), so the town has end calls of its own.
+// onEvents maps the sim's events (13.5) to sounds: positional ones pan by the source's place on screen and play only
+// when it is in view (a 2-tile margin); the town's work (chopping, quarrying, harvesting, drop-offs) is budgeted to
+// 3 a second in all and scaled by zoom; hits, shots and falls have budgets of their own, so a wonder raid stays
+// clear and under the engine's 40 voices. tick (twice a second) sets the scene's horses: mounted raiders and the
+// horse line moving in view (at most 8) give the campaign's hoofbeats. Levels were set by offline renders
+// (Snd.renderOffline, K-weighted momentary maximum, tools/town-audio.js): the work at least 12 dB under build, the
+// age calls near the wave horn, the alarm 2 to 3 dB under it, variants within half a dB.
+// Beyond 13.8: TWS.test (tests and tools only) = { sink(fn) (records plays instead of sounding them; null ends it),
+// frame(view, w), inView(F, view, x, y), state(G), SPEC, SFX }.
 townRegion("sound", () => { TWS = (() => {
-  // the age's music and ambience (5.1); A3's own bed, twDvin (the Dvin bed without its bell), is WP5's: until it
-  // exists the plain's bed stands in, never a bed with a church bell
   const SCENE = [{ map: "erebuni", era: 0 }, { map: "ararat", era: 1 }, { map: "twDvin", era: 2 }];
+  const ERA = [0, 1, 2], SKIN = ["standard", undefined, "banner"];   // build skins: Haldi's standard, none, the banner
+  const ix = G => Math.max(0, Math.min(2, ((G && G.age) || 1) - 1));
+  const PPT = 40, SQ = 0.72, DT = 0.1;
+  let cur = null, sink = null, lastW = 0, lastView = null;
+  const play = (name, o, dt) => {
+    o = o || {};
+    if (sink) { sink(name, Object.assign({ dt: dt || 0 }, o)); return; }
+    if (dt && Snd.ctx) o.at = Snd.ctx.currentTime + 0.004 + dt;
+    Snd.play(name, o);
+  };
+  const live = () => !!sink || !!(Snd.ctx && Snd.sfxOn);
+
+  // ---- the scene: the age's music and bed; the horses in view ----
   function open(G) {
-    const a = SCENE[Math.max(0, Math.min(2, ((G && G.age) || 1) - 1))];
-    const map = a.map === "twDvin" && !(Snd.AMB && Snd.AMB.twDvin) ? "ararat" : a.map;
-    Snd.sceneOverride = { map, era: a.era, night: 0, units: null };
+    const a = SCENE[ix(G)];
+    cur = { map: Snd.AMB && Snd.AMB[a.map] ? a.map : "ararat", era: a.era, night: 0, units: null };
+    Snd.sceneOverride = cur;
+    seen.clear();
   }
-  function close() { Snd.sceneOverride = null; }
-  const SOUND = { placed: "plot", researched: "upgrade", win: "win", lose: "lose" };
+  function close() {
+    cur = null; Snd.sceneOverride = null;
+    seen.clear(); lastView = null;
+  }
+  // horses moving in view: mounted raiders and the horse line; a horse standing at a wall or a post makes no gallop
+  const seen = new Map();
+  function tick(G, view) {
+    if (!cur || Snd.sceneOverride !== cur) return;          // only ever edits the override this module set
+    if (!G || !view) { cur.units = null; return; }
+    const F = frame(view, lastW), RA = TW.DATA.RAIDERS, next = new Map();
+    let n = 0;
+    for (const u of G.units) {
+      if (u.dead || u.shel || !(u.side ? RA[u.k] && RA[u.k].mounted : u.k === "horse")) continue;
+      const p = seen.get(u.id);
+      next.set(u.id, [u.x, u.y]);
+      if (!p || !inView(F, view, u.x, u.y)) continue;
+      const dx = u.x - p[0], dy = u.y - p[1];
+      if (dx * dx + dy * dy >= 0.09) n++;
+    }
+    seen.clear();
+    for (const [k, v] of next) seen.set(k, v);
+    n = Math.min(8, n);
+    cur.units = n ? { horse: n } : null;
+  }
+
+  // ---- the view: what is on screen, and where ----
+  function frame(view, w) {
+    const z = view.zoom || 1, a = view.area, W = w || (a && a.r) || 1194, m = 2 * PPT * z;
+    const top = a ? a.t : 0, bot = a ? a.b : W * 0.7;
+    return { z, W, l: -m, r: W + m, t: top - m * SQ, b: bot + m * SQ };
+  }
+  const sx = (view, x) => (x - view.x) * PPT * (view.zoom || 1);
+  const sy = (view, y) => (y - view.y) * PPT * (view.zoom || 1) * SQ;
+  function inView(F, view, x, y) { const a = sx(view, x), b = sy(view, y); return a >= F.l && a <= F.r && b >= F.t && b <= F.b; }
+  const panX = (F, view, x) => Math.max(0, Math.min(1, sx(view, x) / F.W)) * VW;
+  // gathering is quieter zoomed out: 0.7 at the smallest step, 1 at 1.0 and above
+  const zoomGain = z => 0.7 + 0.3 * Math.max(0, Math.min(1, (z - 0.55) / 0.45));
+
+  // ---- budgets: tokens per second of audio time, shared by a kind of sound ----
+  const RATES = { work: [3, 2], drop: [2, 2], hitB: [3, 2], hitU: [2.5, 2], shot: [5, 3], fall: [4, 2], door: [3, 2], small: [2, 2] };
+  let buckets = {};
+  const resetBuckets = () => { buckets = {}; for (const k in RATES) buckets[k] = { n: RATES[k][1], t: -1 }; };
+  resetBuckets();
+  function take(k, now) {
+    const b = buckets[k], R = RATES[k];
+    if (b.t < 0 || now < b.t) b.t = now;
+    b.n = Math.min(R[1], b.n + (now - b.t) * R[0]); b.t = now;
+    if (b.n < 1) return false;
+    b.n -= 1;
+    return true;
+  }
+  // per game: the palace's thresholds called, the last shelter call, the raids' approach
+  const games = new WeakMap();
+  const stOf = G => { let s = games.get(G); if (!s) { s = { tc: 100, tcCalled: 0, shelAt: -1e9, flockAt: -1e9, near: {} }; games.set(G, s); } return s; };
+
+  // ---- lookups ----
+  const byId = (G, id) => {
+    const m = G.nav && G.nav.ids, o = m && m.get ? m.get(id) : null;
+    if (o) return o;
+    return G.units.find(u => u.id === id) || G.blds.find(b => b.id === id) || G.nodes.find(n => n.id === id) || null;
+  };
+  const WOOD = { gate: 1, store: 1, field: 1, grove: 1 };          // timber (a knock); the rest are brick and stone
+  const FOOT = { etS: "shield", arS: "shield", arW: "shield" };   // kinds for the campaign's death sound
+  const ZONE_X = { L: 0, C: 32, R: 64 };
+
   function onEvents(events, G, view, canvasW) {
+    if (!events || !events.length || !G) return;
+    if (canvasW) lastW = canvasW;
+    if (view) lastView = view;
+    for (const e of events) if (e.e === "ageDone") { open(G); break; }   // the scene follows the age even with sound off
+    if (!live()) return;
+    const V = view || lastView || { x: 0, y: 0, zoom: 1 }, F = frame(V, lastW), S = stOf(G), a = G.age, age = ix(G) + 1;
+    const now = Snd.ctx && !sink ? Snd.ctx.currentTime : G.tick * DT, zg = zoomGain(F.z);
+    const at = (x, y) => (x == null ? null : inView(F, V, x, y) ? panX(F, V, x) : null);
+    const side = (x, y) => (x == null ? undefined : panX(F, V, x));           // pan even off screen (not culled)
+    const offVol = (x, y) => (x == null || inView(F, V, x, y) ? 1 : 0.6);
+    let walls = 0, wallX, volleys = null;
     for (const e of events) {
-      if (e.e === "ageDone") open(G);
-      else if (e.e === "raidWarn") Snd.play("horn", { era: SCENE[Math.max(0, Math.min(2, G.age - 1))].era });
-      else if (SOUND[e.e]) Snd.play(SOUND[e.e]);
+      switch (e.e) {
+        case "placed": {
+          const b = byId(G, e.bld);
+          if (b && b.k === "wall") { walls++; if (wallX === undefined) wallX = side(b.x + 0.5, b.y + 0.5); }
+          else play("plot", { x: b ? side(b.x + b.w / 2, b.y + b.h / 2) : undefined });
+          break;
+        }
+        case "built": {
+          const b = byId(G, e.bld), x = b ? b.x + b.w / 2 : null, y = b ? b.y + b.h / 2 : null;
+          if (e.k === "wall") { const p = at(x, y); if (p != null) play("twWall", { x: p, n: 1, vol: 0.7 }); }
+          else if (e.k === "gate") play("twGate", { x: side(x, y), vol: offVol(x, y), age });
+          else if (e.k !== "wonder") play("build", { x: side(x, y), vol: offVol(x, y), skin: SKIN[age - 1] });
+          break;
+        }
+        case "destroyed": {
+          const x = e.x + 1, y = e.y + 1;
+          play("twCollapse", { x: side(x, y), far: inView(F, V, x, y) ? 0 : 1, k: e.k });
+          break;
+        }
+        case "trained": {
+          const u = byId(G, e.id);
+          play("twTrain", { k: e.k, x: u ? side(u.x, u.y) : undefined, vol: u ? offVol(u.x, u.y) : 1 });
+          break;
+        }
+        case "researched": play("upgrade"); break;
+        case "ageStart": play("upgrade", { vol: 0.7 }); break;
+        case "ageDone": play("twAgeUp", { age }); break;
+        case "gathered": {
+          const p = at(e.x, e.y);
+          if (p == null) break;
+          const u = byId(G, e.id), t = u && u.task, n = t && t.t === "gather" ? byId(G, t.node) : null, f = t && t.t === "farm" ? byId(G, t.bld) : null;
+          const k = n ? n.k : f ? f.k : e.res === "w" ? "tree" : e.res === "s" ? "stone" : e.res === "g" ? "ore" : "field";
+          if (k === "flock" && now - S.flockAt < 4) break;           // a flock bleats once in four seconds at most
+          if (!take("work", now)) break;
+          if (k === "flock") S.flockAt = now;
+          if (k === "tree") play("twChop", { x: p, vol: zg });
+          else if (k === "stone" || k === "ore") play("twPick", { x: p, vol: zg, ore: k === "ore" });
+          else if (k === "flock") play("twFlock", { x: p, vol: zg });
+          else play("twHarvest", { x: p, vol: zg, k });
+          break;
+        }
+        case "dropped": { const p = at(e.x, e.y); if (p != null && take("drop", now)) play("twDrop", { x: p, vol: zg, res: e.res }); break; }
+        case "depleted": if (e.k === "tree") { const n = byId(G, e.node); const p = n ? at(n.x + 0.5, n.y + 0.5) : null; if (p != null && take("small", now)) play("twTreeFall", { x: p, vol: zg }); } break;
+        case "noPop": play("twDeny"); break;
+        case "cmdDropped": if (e.err !== "bad") play("twDeny"); break;
+        case "raidWarn": play("horn", { era: ERA[age - 1] }); break;
+        case "raidSpawn": case "raidNear": {
+          const r = G.raids.find(q => q.id === e.raid), z = r && r.zones && r.zones[0] ? String(r.zones[0]) : "C";
+          const near = e.e === "raidNear";
+          if (near && S.near[e.raid] && now - S.near[e.raid] < 8) break;
+          S.near[e.raid] = now;
+          const mounted = age === 2 ? 3 : age === 3 ? 1 : 0;
+          play("twApproach", { age, near: near ? 1 : 0, horses: mounted, x: side(ZONE_X[z[1]] !== undefined ? ZONE_X[z[1]] : ZONE_X[z[0]] !== undefined ? ZONE_X[z[0]] : 32, 24) });
+          break;
+        }
+        case "raidRepelled": play("repelled", { era: ERA[age - 1] }); break;
+        case "raidPlunder": play("twPlunder", { age }); break;
+        case "pillage": {
+          let x = 0, y = 0, c = 0;
+          for (const u of G.units) if (!u.dead && u.raid === e.raid) { x += u.x; y += u.y; c++; }
+          play("twPillage", c ? { x: side(x / c, y / c), vol: offVol(x / c, y / c), age } : { age });
+          break;
+        }
+        case "sheltered": {
+          const b = byId(G, e.bld);
+          if (b) { const p = at(b.x + b.w / 2, b.y + b.h / 2); if (p != null && take("door", now)) play("twDoor", { x: p }); }
+          // the townsfolk's own call when villagers run in by themselves (no alarm rung), once a raid at most
+          if (!(G.alarm && G.alarm.on) && now - S.shelAt > 25 && G.units.some(u => !u.dead && u.side === 1)) { S.shelAt = now; play("twAlarm", { age, soft: 1, vol: 0.75 }); }
+          break;
+        }
+        case "alarm": if (e.on) { S.shelAt = now; play("twAlarm", { age, all: e.all ? 1 : 0 }); } else play("twAllClear", { age }); break;
+        case "hit": {
+          if (e.bld) {
+            const b = byId(G, e.bld);
+            if (b && b.k === "tc" && b.hpMax > 0) {
+              const pct = b.hp / b.hpMax * 100, was = S.tc;
+              S.tc = pct;
+              if (pct > 60) S.tcCalled = 0;
+              const mark = pct <= 25 && was > 25 ? 25 : pct <= 50 && was > 50 ? 50 : 0;
+              if (mark && !(S.tcCalled & (mark === 25 ? 2 : 1))) { S.tcCalled |= mark === 25 ? 3 : 1; play("twAlarm", { age, all: 1, urgent: 1 }); }
+            }
+            if (b && b.k === "wonder") break;                       // the wonder's setbacks have their own sound
+            const p = at(e.x, e.y);
+            if (p == null || !take("hitB", now)) break;
+            if (b && WOOD[b.k]) play("impact", { x: p, armor: 5, vol: 0.5 });
+            else play("stoneHit", { x: p, vol: 0.32 });
+          } else {
+            const p = at(e.x, e.y);
+            if (p != null && take("hitU", now)) play("impact", { x: p, armor: 5, vol: 0.5 });   // a shield's knock, never flesh
+          }
+          break;
+        }
+        case "shot": {
+          if (e.k === "cord") { const p = at(e.fx, e.fy); if (p != null && take("shot", now)) play("twCord", { x: p }); break; }
+          const key = e.k + "," + e.fx + "," + e.fy;
+          if (!volleys) volleys = new Map();
+          let s = volleys.get(key);
+          if (!s) { s = { k: e.k, x: e.fx, y: e.fy, tx: e.tx, ty: e.ty, n: 0 }; volleys.set(key, s); }
+          s.n++;
+          break;
+        }
+        case "fell": {
+          const p = at(e.x, e.y);
+          if (p == null || !take("fall", now)) break;
+          if (e.side) play("death", { x: p, vol: 0.5, era: ERA[age - 1], kind: TW.DATA.RAIDERS[e.k] && TW.DATA.RAIDERS[e.k].mounted ? "cavalry" : FOOT[e.k] || "raider" });
+          else if (e.k === "vil") play("twFall", { x: p });
+          else play("death", { x: p, vol: 0.5, era: ERA[age - 1], kind: e.k === "horse" ? "cavalry" : e.k === "spear" ? "spearman" : "raider" });
+          break;
+        }
+        case "driven": { const p = at(e.x, e.y); if (p != null && take("fall", now)) play("twDriven", { x: p }); break; }
+        case "cartArrive": play("coin", { x: side(e.x, e.y), vol: offVol(e.x, e.y) * 0.9 }); break;
+        case "cartLost": play("twCartLost", { x: side(e.x, e.y), far: inView(F, V, e.x, e.y) ? 0 : 1 }); break;
+        case "trade": play("coin"); break;
+        case "wonderStage": play("twWonderStage", { pct: e.pct, age }); break;
+        case "wonderSetback": play("twSetback"); break;
+        case "win": play("twWonderDone", { age }); play("twWin", { age }, 1.1); break;
+        case "lose": play("twLose", { age }); break;
+        default: break;
+      }
+    }
+    if (walls) play("twWall", { x: wallX, n: Math.min(5, walls) });
+    // a tower's or the palace's volley is one sound, its arrows a little apart; a bowman's shot is its own
+    if (volleys) for (const s of volleys.values()) {
+      const p = at(s.x, s.y) != null ? at(s.x, s.y) : at(s.tx, s.ty);
+      if (p == null || !take("shot", now)) continue;
+      const n = s.k === "tc" ? Math.min(3, s.n) : Math.min(2, s.n);
+      for (let i = 0; i < n; i++) play("arrow", { x: p, vol: s.k === "tc" ? 0.42 : 0.36 }, i * 0.075);
     }
   }
-  function tick(G, view) {}
-  return { open, close, onEvents, tick };
+
+  // ---- the sounds' shared gestures (each takes Snd as S; `to` plays into a node of the voice, as a far lowpass) ----
+  // a wooden knock: the mallet's struck board and click, with a destination
+  const knock = (S, v, t, f, p, to) => {
+    S.modal(v, { t, f, p, parts: [[1, 1, 0.07], [2.76, 0.45, 0.035], [5.4, 0.25, 0.018]], to });
+    S.nz(v, { t, f: f * 2.4, q: 1, a: 0.0004, p: p * 0.8, d: 0.012, to });
+  };
+  // the semantron: a long board of maple struck with a wooden mallet, the plank's low body under the knock
+  const board = (S, v, t, f, p) => {
+    knock(S, v, t, f * S.rr(0.98, 1.02), p);
+    S.modal(v, { t, f: f * 0.47, p: p * 0.4, parts: [[1, 1, 0.1], [2.31, 0.45, 0.05]] });
+  };
+  // footfalls of a party on dry ground: n walkers, from t over dur, swelling (rise > 0) or fading (rise < 0)
+  const tramp = (S, v, t, n, dur, p, to, rise) => {
+    for (let w = 0; w < n; w++) {          // each walker his own run of steps (a shared run would cut steps short)
+      const gap = S.rr(0.42, 0.55), thud = [], grit = [];
+      for (let tt = t + S.rr(0, gap); tt < t + dur; tt += gap * S.rr(0.95, 1.05)) {
+        const k = (tt - t) / dur, g = p * (rise > 0 ? 0.35 + 0.65 * k : rise < 0 ? 1 - 0.8 * k : 1);
+        thud.push([tt, 2.2 * g, S.rr(250, 360)]); grit.push([tt + 0.01, 0.52 * g, S.rr(1800, 2600)]);
+      }
+      S.nzRun(v, { k: "pink", q: 1, a: 0.004, d: 0.07, hits: thud, to });
+      S.nzRun(v, { k: "white", q: 1.2, a: 0.002, d: 0.025, hits: grit, to });
+    }
+  };
+  // a gallop: strides of four footfalls, h horses a little apart, swelling or fading (rise as tramp)
+  const gallop = (S, v, t, h, strides, p, to, rise) => {
+    const offs = [0, 0.19, 0.31, 0.12].slice(0, Math.max(1, h)), st = [];
+    for (let i = 0, T = t; i < strides; i++, T += S.rr(0.36, 0.44)) st.push(T);
+    for (const off of offs) {
+      const thud = [], click = [];
+      st.forEach((T, i) => {
+        const k = i / Math.max(1, strides - 1), g = p * (rise > 0 ? 0.3 + 0.7 * k : rise < 0 ? 1 - 0.85 * k : 1);
+        for (const [dt, q] of [[0, 0.7], [0.055, 0.8], [0.12, 0.75], [0.19, 1]]) {
+          const tt = T + off + dt + S.rr(0, 0.014);
+          thud.push([tt, 2.8 * g * q, S.rr(380, 520)]); click.push([tt, 0.56 * g * q, S.rr(1500, 2200)]);
+        }
+      });
+      S.nzRun(v, { k: "pink", q: 1, a: 0.002, d: 0.05, hits: thud, to });
+      S.nzRun(v, { q: 1.2, a: 0.0005, d: 0.012, hits: click, to });
+    }
+  };
+  // the blul, Urartu's end-blown shepherd's flute (the campaign's voice for era 0): a breathy triangle and its octave
+  const blul = (S, v, t, f, d, p) => {
+    const s = S.tn(v, { t, type: "triangle", f, lp: 2600, a: Math.min(0.12, d * 0.25), hold: d * 0.5, d: d * 0.45, p });
+    S.lfo(v, s.detune, t + 0.1, t + d + 0.1, 5.4, 7);
+    S.tn(v, { t, f: f * 2, a: Math.min(0.12, d * 0.25), hold: d * 0.4, d: d * 0.4, p: p * 0.22 });
+    S.nz(v, { t, k: "pink", f: f * 2.3, q: 1.4, a: d * 0.15, hold: d * 0.5, p: p * 0.4, d: d * 0.4 });
+  };
+  // a stone set down or knocked: a short clack of stone on stone and a little grit
+  const clack = (S, v, t, f, p, to) => {
+    S.modal(v, { t, f, p, jit: 0.04, parts: [[1, 1, 0.035], [1.73, 0.6, 0.025], [2.9, 0.35, 0.015]], to });
+    S.nz(v, { t, k: "pink", f: f * 0.45, q: 1, a: 0.001, p: p * 0.8, d: 0.06, to });
+    S.nz(v, { t, f: f * 2, q: 1, a: 0.0004, p: p * 0.5, d: 0.012, to });
+  };
+  // the town's horn calls, by age: Erebuni's raw ram's horn, Artashat's long war horn, Dvin's princes' horn
+  const HORN = [{ f: 440, raw: 1 }, { f: 220, raw: 0.45 }, { f: 220, raw: 0.6 }];
+
+  const SPEC = {
+    // the work of the town, heard near the camera only (3 a second in all, scaled by zoom)
+    twChop:        { thr: 400, max: 2, g: 0.495 },
+    twPick:        { thr: 400, max: 2, g: 0.497 },
+    twHarvest:     { thr: 600, max: 1, g: 0.41 },
+    twFlock:       { thr: 4000, max: 1, g: 1.27 },
+    twDrop:        { thr: 350, max: 2, g: 0.424 },
+    twDoor:        { thr: 300, max: 2, g: 0.238 },
+    // the town's own events
+    twTrain:       { thr: 200, max: 2, g: 0.942, pri: true },
+    twWall:        { thr: 250, max: 2, g: 0.6, rev: 0.12 },
+    twGate:        { thr: 400, max: 1, g: 0.912, pri: true, rev: 0.15 },
+    twAgeUp:       { thr: 2000, max: 1, g: 0.198, pri: true, rev: 0.3, duck: [6, 2, 1.5] },
+    twAlarm:       { thr: 1000, max: 1, g: 0.251, pri: true, rev: 0.2, echo: 0.1 },
+    twAllClear:    { thr: 1000, max: 1, g: 1.0, pri: true, rev: 0.15 },
+    twWonderStage: { thr: 1500, max: 1, g: 0.6, pri: true, rev: 0.25 },
+    twSetback:     { thr: 1500, max: 1, g: 0.88 },
+    twWonderDone:  { thr: 3000, max: 1, g: 0.8, pri: true, rev: 0.3, echo: 0.1 },
+    twWin:         { thr: 3000, max: 1, g: 0.235, pri: true, rev: 0.35, echo: 0.1, duck: [6, 3, 0.8] },
+    twLose:        { thr: 3000, max: 1, g: 0.388, pri: true, rev: 0.35, duck: [12, 4.5, 0.8] },
+    twDeny:        { thr: 500, max: 1, g: 0.83, pri: true, rev: 0.05 },
+    // the raids
+    twApproach:    { thr: 3000, max: 1, g: 1.03, pri: true, rev: 0.2, echo: 0.15 },
+    twPlunder:     { thr: 3000, max: 1, g: 0.6, pri: true, rev: 0.2, echo: 0.15 },
+    twPillage:     { thr: 2000, max: 1, g: 3.0, pri: true, rev: 0.1 },
+    twCord:        { thr: 300, max: 2, g: 0.45 },
+    twCollapse:    { thr: 300, max: 2, g: 0.7, cat: "blast", rev: 0.2 },
+    twFall:        { thr: 150, max: 3, g: 0.69, cat: "death", rev: 0.1 },
+    twDriven:      { thr: 300, max: 2, g: 3.3, rev: 0.05 },
+    twTreeFall:    { thr: 1000, max: 1, g: 0.315, rev: 0.15 },
+    twCartLost:    { thr: 1000, max: 1, g: 0.6, rev: 0.15 },
+  };
+
+  const SFX = {
+    // an axe into timber: the bite, the wood's hollow knock and a split of fibers (three strokes, level-matched)
+    twChop(v, t) {
+      const n = this.rrIdx("twChop", 3), k = [1, 0.9, 1.1][n] * this.rr(0.96, 1.04);
+      this.lvl(v, [0, 0.1, 0.1][n]);
+      this.thump(v, t, 150 * k, 95, 0.12, 0.07, 2);
+      this.nz(v, { t, f: 2100 * k, q: 1.1, a: 0.0004, p: 0.5, d: 0.018 });
+      this.modal(v, { t, f: 330 * k, p: 0.45, jit: 0.03, parts: [[1, 1, 0.06], [2.3, 0.5, 0.035], [3.9, 0.25, 0.02]] });
+      this.nz(v, { t: t + 0.01, k: "crackle", rate: 0.8, f: 1700, q: 0.7, a: 0.003, p: 0.35, d: 0.07 });
+    },
+    // a pick on stone (a dull clink and chips falling), or on ore (o.ore: a brighter ring of the iron)
+    twPick(v, t, o) {
+      const n = this.rrIdx("twPick", 3), k = [1, 0.92, 1.08][n] * this.rr(0.96, 1.04), ore = o.ore ? 1 : 0;
+      this.lvl(v, ore ? -5.2 + [0, 0.35, -0.3][n] : [0, 0.1, -0.1][n]);
+      this.modal(v, { t, f: (ore ? 2400 : 1500) * k, p: 0.32, jit: 0.03, parts: ore ? [[1, 1, 0.12], [2.08, 0.5, 0.08], [3.5, 0.3, 0.04]] : [[1, 1, 0.04], [1.7, 0.6, 0.03], [2.9, 0.3, 0.02]] });
+      this.nz(v, { t, ft: "highpass", f: 3000, a: 0.0003, p: 0.5, d: 0.012 });
+      this.nz(v, { t, k: "pink", f: 700 * k, q: 0.9, a: 0.001, p: 0.45, d: 0.05 });
+      this.nz(v, { t: t + 0.03, k: "crackle", rate: 0.9, f: 2600, q: 0.7, a: 0.004, p: 0.18, d: 0.12 });
+    },
+    // the harvest: a sickle through stalks (fields), a branch shaken and fruit into the basket (orchards, groves), or
+    // a root drawn from the meadow (the red dye)
+    twHarvest(v, t, o) {
+      if (o.k === "orchard" || o.k === "grove") {
+        this.lvl(v, -4);
+        this.nz(v, { t, k: "pink", ft: "highpass", f: 2600, a: 0.04, hold: 0.08, p: 0.35, d: 0.2 });
+        this.nz(v, { t: t + 0.22, k: "pink", f: 260, q: 0.9, a: 0.003, p: 0.6, d: 0.08 });
+        this.nz(v, { t: t + 0.36, k: "pink", f: 300, q: 0.9, a: 0.003, p: 0.45, d: 0.07 });
+      } else if (o.k === "dye") {
+        this.lvl(v, 11.2);
+        this.nz(v, { t, k: "crackle", rate: 0.6, f: 1400, q: 0.8, a: 0.02, p: 0.4, d: 0.15 });
+        this.nz(v, { t: t + 0.12, k: "pink", f: 220, q: 0.8, a: 0.01, p: 0.5, d: 0.12 });
+      } else {
+        const k = this.rr(0.92, 1.08);
+        this.nz(v, { t, f: 1500 * k, path: [[0.07, 4200 * k], [0.16, 2000]], q: 1.4, a: 0.03, p: 0.5, d: 0.12 });
+        this.nz(v, { t: t + 0.04, k: "crackle", rate: 1.1, f: 3000, q: 0.7, a: 0.01, p: 0.4, d: 0.14 });
+      }
+    },
+    // a flock on its pasture: one of the campaign's sheep
+    twFlock(v, t) { this.lvl(v, 6); this.AMBEV.sheep.call(this, v, t); },
+    // a load set down at the storehouse or the palace: logs stacked, stones set, a basket, goods in a jar
+    twDrop(v, t, o) {
+      const r = o.res;
+      if (r === "w") { this.lvl(v, -1.5); knock(this, v, t, this.rr(200, 240), 0.4); knock(this, v, t + 0.09, this.rr(170, 200), 0.3); this.nz(v, { t, k: "pink", f: 300, q: 0.8, a: 0.002, p: 0.4, d: 0.09 }); }
+      else if (r === "s") { this.lvl(v, 2.3); clack(this, v, t, this.rr(950, 1150), 0.3); clack(this, v, t + 0.07, this.rr(800, 950), 0.22); }
+      else if (r === "g") { this.lvl(v, 2); this.modal(v, { t, f: this.rr(1900, 2300), p: 0.25, jit: 0.02, parts: [[1, 1, 0.08], [2.4, 0.5, 0.05]] }); this.nz(v, { t, k: "pink", f: 500, q: 1, a: 0.002, p: 0.4, d: 0.06 }); }
+      else { this.lvl(v, 17.3); this.nz(v, { t, k: "pink", f: 240, q: 0.8, a: 0.004, p: 0.7, d: 0.1 }); this.nz(v, { t, k: "crackle", rate: 0.7, f: 1600, q: 0.8, a: 0.01, p: 0.25, d: 0.1 }); }
+    },
+    // villagers shelter: the door pulled to and its bar dropped
+    twDoor(v, t) {
+      this.creak(v, t, 0.16, this.rr(700, 900), 0.18);
+      knock(this, v, t + 0.17, this.rr(240, 290), 0.45);
+      this.thump(v, t + 0.17, 120, 80, 0.06, 0.08, 2);
+    },
+    // a unit trained, or a villager come out to work: a mallet's tick and a note; the soldiers' kit, the horse's snort
+    twTrain(v, t, o) {
+      const k = o.k;
+      knock(this, v, t, 560, 0.3);
+      if (k === "vil" || !k) { this.lvl(v, 0.8); this.tn(v, { t: t + 0.06, f: 587.33, f2: 659.25, gl: 0.08, a: 0.01, p: 0.12, d: 0.18 }); return; }
+      this.lvl(v, k === "spear" ? 0.2 : 0.5);
+      this.tn(v, { t: t + 0.06, f: 440, a: 0.01, p: 0.1, d: 0.16 });
+      if (k === "bow") this.tn(v, { t: t + 0.14, type: "sawtooth", f: 230, f2: 210, gl: 0.06, lp: 1500, lp2: 320, lpt: 0.12, a: 0.0015, p: 0.12, d: 0.16 });
+      else this.nz(v, { t: t + 0.12, k: "crackle", ft: "highpass", f: 3800, a: 0.01, p: 0.22, d: 0.16 });
+      if (k === "spear") this.thump(v, t + 0.22, 160, 110, 0.1, 0.06, 2);
+      if (k === "horse") {
+        if (!this.vcall(v, "snort", t + 0.15, 0.06)) { const g = this.nz(v, { t: t + 0.15, k: "pink", f: 900, q: 1, a: 0.02, p: 0.18, d: 0.18 }); this.lfo(v, g.gain, t + 0.15, t + 0.4, 27, 0.1); }
+        [0.38, 0.5].forEach(dt => this.nz(v, { t: t + dt, k: "pink", f: this.rr(400, 500), q: 1, a: 0.002, p: 0.3, d: 0.05 }));
+      }
+    },
+    // walls laid: o.n stones set in a line (1 to 5) and the trowel's scrape of mortar
+    twWall(v, t, o) {
+      const n = Math.max(1, Math.min(5, o.n | 0 || 1));
+      this.lvl(v, -1.2 * (n - 1) / 4 * 3);
+      for (let i = 0; i < n; i++) clack(this, v, t + i * this.rr(0.08, 0.11), this.rr(700, 900), 0.4);
+      this.nz(v, { t: t + n * 0.09, k: "pink", ft: "highpass", f: 2200, path: [[0.18, 3400]], a: 0.04, p: 0.12, d: 0.16 });
+    },
+    // a gate hung: the leaf set down on its pivot, the iron strap's creak, two pins driven home
+    twGate(v, t) {
+      this.thump(v, t, 95, 58, 0.22, 0.2, 3);
+      this.modal(v, { t, f: 190, p: 0.45, parts: [[1, 1, 0.14], [2.76, 0.5, 0.07], [5.4, 0.3, 0.035]] });
+      this.creak(v, t + 0.15, 0.35, this.rr(800, 950), 0.2);
+      knock(this, v, t + 0.55, 560, 0.3); knock(this, v, t + 0.7, 600, 0.26);
+    },
+    // a new age: Artashat (and Erebuni) by the age's horn over a bronze chime, and Artashat's craftsmen at their
+    // chisels; Dvin by the knar's rising figure under a duduk phrase. No bells
+    twAgeUp(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1));
+      if (a === 3) {
+        this.lvl(v, 3.6);
+        [[0, 293.66], [0.2, 369.99], [0.4, 440], [0.6, 587.33]].forEach(([dt, f]) => this.knarPluck(v, t + dt, f, 0.3));
+        this.drum(v, t, true, 0.45);
+        let tt = t + 0.75;
+        for (const [f, d] of [[369.99, 0.4], [392, 0.4], [440, 1.5]]) { this.duduk(v, tt, f, d, 0.3); tt += d * 0.95; }
+        this.knarPluck(v, t + 1.75, 146.83, 0.22);
+        return;
+      }
+      const H = HORN[a - 1];
+      this.lvl(v, a === 1 ? -2.2 : -0.4);
+      this.hornNote(v, t, H.f * (2 / 3), 0.4, 0.5, H.raw);
+      this.hornNote(v, t + 0.47, H.f, 1.1, 0.55, H.raw);
+      this.anvil(v, t + 0.3, 1150, 0.22);
+      [587.33, 739.99, 880].forEach((f, i) => this.bell(v, t + 0.5 + i * 0.075, f, 0.11, 0.7));
+      if (a === 2) [1.9, 2.1, 2.24].forEach(dt => this.anvil(v, t + dt, this.rr(2000, 2300), 0.06));
+    },
+    // the alarm: Erebuni's ram's horn in short blasts, Artashat's war horn lower, Dvin's semantron knocked faster and
+    // faster (o.all: everyone inside, the call longer and quicker; o.soft: a single call, when villagers run in by
+    // themselves; o.urgent: the palace under attack). No bells in any age
+    twAlarm(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1)), all = o.all ? 1 : 0;
+      if (a === 3) {
+        const gaps = o.soft ? [0, 0.24, 0.42] : all ? [0, 0.18, 0.33, 0.45, 0.55, 0.63, 0.7, 0.76, 0.81] : [0, 0.2, 0.36, 0.48, 0.57, 0.64];
+        this.lvl(v, 11.6 + (o.soft ? 3.2 : all ? -3.2 : 0));
+        gaps.forEach((dt, i) => board(this, v, t + dt, 760, 0.34 + 0.02 * i));
+        if (o.urgent) gaps.forEach(dt => board(this, v, t + 1.1 + dt * 0.8, 700, 0.3));
+        return;
+      }
+      const H = HORN[a - 1], n = o.soft ? 1 : all ? 5 : 3, d = all ? 0.16 : 0.22, gap = all ? 0.26 : 0.36;
+      this.lvl(v, [-5.4, -1][a - 1] + (all ? [-0.5, 0.9][a - 1] : 0));
+      for (let i = 0; i < n; i++) this.hornNote(v, t + i * gap, H.f, i === n - 1 ? d * 2.2 : d, 0.5, H.raw);
+      if (o.urgent) for (let i = 0; i < 3; i++) this.hornNote(v, t + n * gap + 0.25 + i * gap, H.f * 2 / 3, d, 0.45, H.raw);
+    },
+    // all clear: two soft mallet notes, falling
+    twAllClear(v, t) {
+      knock(this, v, t, 520, 0.4);
+      knock(this, v, t + 0.22, 390, 0.36);
+      this.modal(v, { t: t + 0.22, f: 195, p: 0.12, parts: [[1, 1, 0.12], [2.3, 0.4, 0.05]] });
+    },
+    // the wonder rises a quarter: a bronze chime (higher with each quarter) over two mallets on the scaffold
+    twWonderStage(v, t, o) {
+      const q = Math.max(0, Math.min(2, Math.round((o.pct || 25) / 25) - 1)), f = [587.33, 739.99, 880][q];
+      knock(this, v, t, 560, 0.32); knock(this, v, t + 0.14, 600, 0.28);
+      this.anvil(v, t + 0.3, 1150, 0.2);
+      this.bell(v, t + 0.42, f, 0.14, 1.1); this.bell(v, t + 0.5, f * 1.5, 0.08, 0.9);
+    },
+    // a setback on the wonder: a dull blow to the scaffold and stones sliding off it
+    twSetback(v, t) {
+      this.thump(v, t, 85, 50, 0.2, 0.3, 3);
+      this.nz(v, { t, k: "pink", f: 380, q: 0.8, a: 0.003, p: 0.5, d: 0.3 });
+      this.nz(v, { t: t + 0.08, k: "crackle", rate: 0.6, f: 1500, q: 0.6, p: 0.35, d: 0.5 });
+    },
+    // the wonder done: the last stone set in its place, a deep settling thud, and the builders' mallets
+    twWonderDone(v, t) {
+      this.thump(v, t, 75, 42, 0.3, 0.45, 3);
+      this.nz(v, { t, k: "brown", ft: "lowpass", f: 300, a: 0.01, p: 0.4, d: 0.5 });
+      this.nz(v, { t: t + 0.02, k: "pink", ft: "highpass", f: 1800, path: [[0.3, 3000]], a: 0.03, p: 0.1, d: 0.3 });
+      [0.45, 0.62, 0.79].forEach((dt, i) => knock(this, v, t + dt, 560 + 40 * i, 0.32));
+    },
+    // the win: the age's own fanfare (Erebuni's ram's horn alone, as the campaign's Urartu has no drum; Artashat's war
+    // horn and drum; Dvin's princes' horn, dhol and knar) and the town's wordless cheer. No bells
+    twWin(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1)), H = HORN[a - 1];
+      this.lvl(v, [-1.4, -0.5, 0][a - 1]);
+      const notes = a === 1 ? [[293.66, 0.22], [440, 0.22], [587.33, 1.1]] : [[110, 0.3], [146.83, 0.32], [220, 1.2]];
+      let tt = t;
+      for (const [f, d] of notes) { this.hornNote(v, tt, a === 3 ? f * 2 : f * (a === 2 ? 2 : 1), d, 0.55, H.raw); tt += d + 0.06; }
+      if (a > 1) { this.drum(v, t, true, 0.8); this.drum(v, t + 0.27, true, 0.7); this.drum(v, tt - 0.2, true, 0.85); }
+      if (a === 3) [[tt, 293.66], [tt + 0.12, 369.99], [tt + 0.24, 440], [tt + 0.36, 587.33]].forEach(([T, f]) => this.knarPluck(v, T, f, 0.3));
+      this.cheer(v, tt - 0.4, 5, 0.9);
+    },
+    // the town lost: the age's horn falls away over a low drone and its lament walks down to D: the blul in
+    // Erebuni, the duduk in Artashat; Dvin's semantron knocked three times, slow, before the duduk. No bell tolls
+    twLose(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1)), H = HORN[a - 1];
+      this.tn(v, { t, type: "sawtooth", f: 73.42, lp: 300, a: 0.8, hold: 2.6, p: 0.08, d: 1.6 });
+      this.tn(v, { t, type: "sawtooth", f: 110, lp: 300, a: 0.8, hold: 2.6, p: 0.05, d: 1.6 });
+      if (a === 3) [0, 0.75, 1.5].forEach(dt => board(this, v, t + dt, 700, 0.3));
+      else { this.hornNote(v, t, H.f, 0.5, 0.42, H.raw * 0.6); this.hornNote(v, t + 0.56, H.f * 2 / 3, 1.0, 0.38, H.raw * 0.6); }
+      let tt = t + (a === 3 ? 1.9 : 1.6);
+      for (const [f, d] of [[440, 0.5], [392, 0.42], [369.99, 0.42], [311.13, 0.62], [293.66, 1.9]]) {
+        if (a === 1) blul(this, v, tt, f * 2, d, 0.16); else this.duduk(v, tt, f, d, 0.3);
+        tt += d * 0.92;
+      }
+    },
+    // not now: a dull double knock on wood
+    twDeny(v, t) {
+      this.tn(v, { t, f: 150, f2: 90, gl: 0.06, p: 0.35, d: 0.09 });
+      knock(this, v, t, 240, 0.3); knock(this, v, t + 0.11, 210, 0.26);
+    },
+    // raiders come: far off at first (o.near 0), then at the walls (1). Erebuni's Etiuni on foot, their kit rattling;
+    // the Alan riders' gallop; the raiders of 640 on foot, a few horses with them. No drums: none is known for them
+    twApproach(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1)), near = o.near ? 1 : 0, air = this.farAir(v, t, near ? 2600 : 1000);
+      this.lvl(v, near ? 0 : -5);
+      if (a === 2) { gallop(this, v, t, 3, 8, 0.5, air, 1); return; }
+      this.lvl(v, a === 3 ? -1 : 0);
+      tramp(this, v, t, a === 3 ? 10 : 8, 2.6, 0.55, air, 1);
+      for (let i = 0; i < 5; i++) this.nz(v, { t: t + 0.4 + i * this.rr(0.35, 0.5), k: "crackle", rate: 0.8, f: this.rr(2400, 3200), q: 0.8, a: 0.01, p: 0.12 + 0.03 * i, d: 0.12, to: air });
+      if (a === 3 && o.horses) gallop(this, v, t + 0.8, 1, 4, 0.35, air, 1);
+    },
+    // a raid goes off with its plunder: the raiders fading away down the road, a far horn of theirs falling
+    twPlunder(v, t, o) {
+      const a = Math.max(1, Math.min(3, o.age | 0 || 1)), air = this.farAir(v, t, 1400);
+      if (a === 2) { this.lvl(v, 4); gallop(this, v, t, 3, 8, 0.5, air, -1); }
+      else tramp(this, v, t, 4, 2.4, 0.5, air, -1);
+      if (a !== 2) { this.hornNote(v, t + 0.3, 196, 0.5, 0.08, 0.7, air); this.hornNote(v, t + 0.86, 146.83, 0.9, 0.07, 0.7, air); }
+    },
+    // pillage: sheaves torn from the fields, baskets filled and carried off, an axle creaking under the load
+    twPillage(v, t) {
+      for (let i = 0; i < 4; i++) this.nz(v, { t: t + i * this.rr(0.18, 0.26), k: "crackle", rate: 0.7, f: this.rr(1200, 1800), q: 0.7, a: 0.02, p: 0.4, d: 0.18 });
+      [0.3, 0.75].forEach(dt => this.nz(v, { t: t + dt, k: "pink", f: 240, q: 0.8, a: 0.004, p: 0.6, d: 0.1 }));
+      this.creak(v, t + 1, 0.6, this.rr(450, 600), 0.16);
+    },
+    // a lasso rider: the cord whirled overhead, thrown, and drawn tight
+    twCord(v, t) {
+      const g = this.nz(v, { t, k: "pink", f: 900, q: 1.2, a: 0.08, hold: 0.35, p: 0.4, d: 0.12 });
+      this.lfo(v, g.gain, t, t + 0.6, 5.5, 0.3);
+      this.nz(v, { t: t + 0.5, k: "pink", f: 600, path: [[0.12, 2200], [0.25, 900]], q: 1.1, a: 0.02, p: 0.6, d: 0.2 });
+      this.creak(v, t + 0.78, 0.18, this.rr(900, 1100), 0.18);
+    },
+    // a building falls: timbers and brick come down, rubble settles (a wall: a smaller fall; a field: its crop
+    // trampled flat); o.far: out of view, heard through the air
+    twCollapse(v, t, o) {
+      const air = o.far ? this.farAir(v, t, 900) : null, small = o.k === "wall" || o.k === "gate", soft = o.k === "field" || o.k === "grove";
+      if (o.far) this.lvl(v, -6);
+      if (soft) {
+        this.lvl(v, 5.1);
+        this.nz(v, { t, k: "crackle", rate: 0.6, f: 1200, q: 0.6, a: 0.05, hold: 0.2, p: 0.5, d: 0.4, to: air });
+        this.thump(v, t, 90, 60, 0.1, 0.2, 3, air);
+        return;
+      }
+      const s = small ? 0.7 : 1;
+      this.thump(v, t, 80 / s, 42, 0.3 * s, 0.5 * s, 4, air);
+      this.nz(v, { t, k: "pink", f: 420, q: 0.8, a: 0.004, p: 0.6 * s, d: 0.5 * s, to: air });
+      this.nz(v, { t: t + 0.03, k: "crackle", rate: 0.6, f: 1700, q: 0.6, a: 0.02, hold: 0.2 * s, p: 0.55, d: 0.9 * s, to: air });
+      for (let i = 0; i < (small ? 2 : 4); i++) this.modal(v, { t: t + 0.08 + i * this.rr(0.07, 0.14), f: this.rr(280, 480), p: 0.25, parts: [[1, 1, 0.05], [2.6, 0.5, 0.03]], to: air });
+    },
+    // a villager falls (Normal and Hard): the tools let go, a soft fall on the earth. No cry
+    twFall(v, t) {
+      knock(this, v, t, this.rr(420, 520), 0.3);
+      knock(this, v, t + 0.07, this.rr(300, 380), 0.24);
+      this.thump(v, t + 0.12, 110, 70, 0.1, 0.12, 2);
+      this.nz(v, { t: t + 0.12, k: "pink", f: 320, q: 0.8, a: 0.004, p: 0.5, d: 0.14 });
+    },
+    // a villager driven off (Easy): the basket dropped and quick steps away
+    twDriven(v, t) {
+      this.nz(v, { t, k: "pink", f: 260, q: 0.8, a: 0.003, p: 0.5, d: 0.1 });
+      this.nz(v, { t, k: "crackle", rate: 0.8, f: 1700, q: 0.8, a: 0.005, p: 0.25, d: 0.12 });
+      for (let i = 0; i < 5; i++) this.nz(v, { t: t + 0.15 + i * 0.17, k: "pink", f: this.rr(320, 420), q: 1, a: 0.003, p: 0.4 * (1 - i * 0.15), d: 0.05 });
+    },
+    // the last of a tree comes down: the trunk's creak and the crown crashing through its branches
+    twTreeFall(v, t) {
+      this.creak(v, t, 0.5, this.rr(380, 480), 0.2);
+      this.nz(v, { t: t + 0.5, k: "crackle", rate: 0.7, f: 1600, q: 0.6, a: 0.05, hold: 0.25, p: 0.5, d: 0.6 });
+      this.nz(v, { t: t + 0.5, k: "pink", ft: "highpass", f: 1800, a: 0.08, hold: 0.2, p: 0.25, d: 0.5 });
+      this.thump(v, t + 0.75, 90, 55, 0.15, 0.3, 3);
+    },
+    // a trade cart lost: the cart goes over, its boards and wheel clattering
+    twCartLost(v, t, o) {
+      const air = o.far ? this.farAir(v, t, 900) : null;
+      if (o.far) this.lvl(v, -6);
+      this.thump(v, t, 100, 60, 0.15, 0.25, 3, air);
+      for (let i = 0; i < 4; i++) this.modal(v, { t: t + i * this.rr(0.05, 0.1), f: this.rr(220, 400), p: 0.3, parts: [[1, 1, 0.1], [2.76, 0.5, 0.05]], to: air });
+      this.nz(v, { t, k: "crackle", rate: 0.7, f: 2000, q: 0.6, a: 0.005, p: 0.5, d: 0.4, to: air });
+    },
+  };
+
+  const API = { open, close, onEvents, tick, test: {
+    sink(fn) { sink = typeof fn === "function" ? fn : null; resetBuckets(); },
+    frame, state: G => stOf(G), inView, SPEC, SFX,
+  } };
+  // the shared tables, appended last (after everything above that could throw), with new tw keys only: the town's
+  // sounds, and the Dvin bed without its cathedral bell (the campaign's own Dvin keeps its bell)
+  Object.assign(Snd.SPEC, SPEC);
+  Object.assign(Snd.SFX, SFX);
+  Snd.AMB.twDvin = Object.assign({}, Snd.AMB.dvin, { rare: Snd.AMB.dvin.rare.filter(k => k !== "churchBell") });
+  return API;
 })(); });
 
 // ---- town: the game on screen ----   (WP4)  root, HUD, cards, input, camera, clock, loop, door
@@ -68704,6 +69282,131 @@ function townSelftest(check, res) {
       if (Town.isOpen()) Town.close();
       putKeys(saved);
     }
+  });
+
+  // -- WP5 checks (sound) --
+  // the town's sound (spec 11, 15.2 WP5), with no audio device (the harness opens none): the tw tables are whole and
+  // tw-only; every tw sound runs in every age on a recording stand-in for Snd's gestures, within a node budget, and
+  // rings no bell in Erebuni's or Artashat's calls and no church bell (a low or long bronze) in any age; the Dvin bed
+  // has lost its bell and the campaign's has not; the scene by age; the event map through TWS.test.sink: the age's
+  // horn, a volley as one sound, walls placed as one, the work budgeted and culled to the view, the town's own end
+  // calls (never the campaign's win, lose or toll); the horses moving in view, at most 8; close() clears the scene
+  // and tick() never sets it again. Levels, voices and the ways out are measured by tools/town-audio.js
+  check("town sound", () => {
+    const T = TWS.test, names = Object.keys(T.SFX);
+    if (names.length < 20 || names.some(n => !/^tw[A-Z]/.test(n) || Snd.SFX[n] !== T.SFX[n] || Snd.SPEC[n] !== T.SPEC[n])) throw new Error("the tw sounds are not registered as they must be");
+    if (Object.keys(T.SPEC).some(n => !T.SFX[n])) throw new Error("a tw SPEC without its sound");
+    const A = Snd.AMB, tw = A.twDvin;
+    if (!tw || tw.rare.includes("churchBell") || !A.dvin.rare.includes("churchBell") || tw.trim !== A.dvin.trim || tw.sig !== A.dvin.sig || "twDvin" in Snd.MUS_MAP) throw new Error("the Dvin bed without its bell is not as it must be");
+    for (const k of ["erebuni", "ararat"]) if ((A[k].rare || []).includes("churchBell")) throw new Error("a bell in the " + k + " bed");
+    // the recording stand-in: every gesture that would touch an audio context records instead
+    const P = () => ({ value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
+    const N = () => ({ gain: P(), frequency: P(), detune: P(), Q: P(), connect() {}, disconnect() {} });
+    const rec = { src: 0, bells: [], horns: 0 };
+    const S = Object.create(Snd);
+    Object.assign(S, {
+      nz() { rec.src++; return N(); }, tn() { rec.src++; return N(); }, thump() { rec.src++; }, formant() { rec.src++; return N(); },
+      lfo() { rec.src++; }, loopSrc() { rec.src++; return N(); }, filt: () => N(), node: (v, n) => n, vcall: () => 0, farAir: () => N(),
+      nzRun() { rec.src++; }, hornNote() { rec.src += 3; rec.horns++; }, start() {},
+      bell(v, t, f, p, d) { rec.bells.push([f, d]); Snd.bell.call(this, v, t, f, p, d); },
+      seed: 12345, rrN: {},
+    });
+    const OPTS = [{}, { all: 1 }, { soft: 1 }, { all: 1, urgent: 1 }, { near: 1, horses: 3 }, { k: "spear" }, { k: "horse" }, { k: "bow" }, { k: "orchard" }, { k: "dye" },
+      { res: "w" }, { res: "s" }, { res: "g" }, { n: 5 }, { ore: true }, { far: 1, k: "house" }, { k: "wall" }, { k: "field" }, { pct: 75 }];
+    const NOBELL = /^tw(Alarm|AllClear|Win|Lose|Approach|Plunder|Pillage|Deny|Gate|Wall)$/;
+    let most = 0, mostName = "";
+    for (const n of names) for (let age = 1; age <= 3; age++) for (const o of OPTS) {
+      rec.src = 0; rec.bells = []; rec.horns = 0;
+      const v = { out: { gain: { value: 1 } }, nodes: [] };
+      T.SFX[n].call(S, v, 0, Object.assign({ age }, o));
+      if (!(rec.src > 0)) throw new Error(n + " (age " + age + ") made no sound");
+      if (rec.src > most) { most = rec.src; mostName = n; }
+      if (!isFinite(v.out.gain.value) || v.out.gain.value <= 0) throw new Error(n + ": its level is " + v.out.gain.value);
+      if (rec.bells.some(([f, d]) => f < 400 || d > 2)) throw new Error(n + " (age " + age + ") strikes a church bell's register: " + JSON.stringify(rec.bells));
+      if (NOBELL.test(n) && rec.bells.length) throw new Error(n + " (age " + age + ") rings a bell");
+      if (n === "twAlarm" && age < 3 && !rec.horns) throw new Error("the alarm of age " + age + " is not its horn");
+      if (n === "twAlarm" && age === 3 && rec.horns) throw new Error("Dvin's alarm is the semantron, not a horn");
+    }
+    if (most > 260) throw new Error(mostName + " builds about " + most + " sources");
+    // the scene, by age; tick edits only the override TWS set; close always clears it
+    const keepO = Snd.sceneOverride, G = TW.newGame({ seed: 20261025, diff: 1, firstTown: false }), keepAge = G.age;
+    const view = { x: 0, y: 0, zoom: 1, area: { l: 0, t: 0, r: 1194, b: 700 } }, plays = [];
+    try {
+      for (const [age, map, era] of [[1, "erebuni", 0], [2, "ararat", 1], [3, "twDvin", 2]]) {
+        G.age = age; TWS.open(G);
+        const o = Snd.sceneOverride;
+        if (!o || o.map !== map || o.era !== era || o.night !== 0 || o.units !== null) throw new Error("the scene of age " + age + ": " + JSON.stringify(o));
+      }
+      // horses: mounted raiders moving in view gallop; standing still, or out of view, they do not; at most 8
+      const ids = [], mk = (k, x, y) => { const u = { id: 900000 + ids.length, k, side: 1, x, y, raid: 0, hp: 50, task: null }; ids.push(u.id); G.units.push(u); return u; };
+      const riders = [];
+      for (let i = 0; i < 10; i++) riders.push(mk("alH", 5 + i, 10));
+      const far = mk("alH", 60, 45);
+      TWS.tick(G, view);
+      if (Snd.sceneOverride.units !== null) throw new Error("horses heard before they moved");
+      riders.forEach(u => { u.x += 1; }); far.x -= 1;
+      TWS.tick(G, view);
+      if (!Snd.sceneOverride.units || Snd.sceneOverride.units.horse !== 8) throw new Error("ten riders moving in view gave " + JSON.stringify(Snd.sceneOverride.units));
+      TWS.tick(G, view);
+      if (Snd.sceneOverride.units !== null) throw new Error("horses still galloping standing still");
+      riders.slice(0, 2).forEach(u => { u.x -= 1; });
+      TWS.tick(G, view);
+      if (!Snd.sceneOverride.units || Snd.sceneOverride.units.horse !== 2) throw new Error("two riders moving gave " + JSON.stringify(Snd.sceneOverride.units));
+      G.units = G.units.filter(u => !ids.includes(u.id));
+      // the event map, through the sink (it also stands in for an audio device)
+      T.sink((n, o) => plays.push([n, o]));
+      const run = (evs, age) => { plays.length = 0; G.age = age || 1; G.tick += 100; TWS.onEvents(evs.map(e => Object.assign({ t: G.tick }, e)), G, view, 1194); return plays.map(p => p[0]); };
+      for (const [age, era] of [[1, 0], [2, 1], [3, 2]]) {
+        const p = run([{ e: "raidWarn", raid: 1, zones: ["BL"], spawnAt: 0, pts: 3, wonder: false }], age);
+        if (p.join() !== "horn" || plays[0][1].era !== era) throw new Error("the raid warning of age " + age + ": " + JSON.stringify(plays));
+      }
+      // the work: in view, at most the budget's burst in one moment; out of view, nothing
+      if (run(Array.from({ length: 30 }, (_, i) => ({ e: "gathered", id: 0, res: "w", x: 5 + i % 10, y: 8 }))).length !== 2) throw new Error("thirty strokes in view at once gave " + plays.length + " sounds");
+      if (run(Array.from({ length: 10 }, () => ({ e: "gathered", id: 0, res: "s", x: 50, y: 40 }))).length) throw new Error("work out of view was heard");
+      if (run([{ e: "gathered", id: 0, res: "s", x: 6, y: 8 }]).join() !== "twPick" || !(plays[0][1].x > 0 && plays[0][1].x < VW / 2)) throw new Error("a stroke on the left was not panned left: " + JSON.stringify(plays));
+      // a tower's volley is one sound of two arrows; the palace's three
+      const volley = (k, n) => Array.from({ length: n }, () => ({ e: "shot", k, fx: 8, fy: 8, tx: 10, ty: 9, at: G.tick + 3 }));
+      if (run(volley("arrow", 3)).join() !== "arrow,arrow" || run(volley("tc", 4)).join() !== "arrow,arrow,arrow") throw new Error("volleys: " + JSON.stringify(plays.map(p => p[0])));
+      // walls placed in one stroke: one sound
+      const keepBlds = G.blds;
+      G.blds = keepBlds.concat(Array.from({ length: 12 }, (_, i) => ({ id: 800000 + i, k: "wall", x: 5 + i, y: 12, w: 1, h: 1, done: 0, hp: 1, hpMax: 1 })));
+      G.nav.ids = null;
+      const pw = run(Array.from({ length: 12 }, (_, i) => ({ e: "placed", bld: 800000 + i })));
+      G.blds = keepBlds; G.nav.dirty = true;
+      if (pw.join() !== "twWall" || plays[0][1].n !== 5) throw new Error("a wall stroke placed gave " + JSON.stringify(plays));
+      // the town's own calls; never the campaign's bell-struck win, lose or toll
+      const all = [];
+      for (let age = 1; age <= 3; age++) {
+        all.push(...run([{ e: "alarm", on: true, all: false }, { e: "raidRepelled", raid: 1 }, { e: "wonderStage", pct: 50 }, { e: "ageDone", age }, { e: "researched", tech: "iron_tools" }], age));
+        all.push(...run([{ e: "alarm", on: false, all: false }, { e: "win", age, stars: age }], age));
+        if (!plays.some(p => p[0] === "twWin" && p[1].dt > 0.5) || !plays.some(p => p[0] === "twWonderDone")) throw new Error("the win of age " + age + ": " + JSON.stringify(plays.map(p => p[0])));
+        all.push(...run([{ e: "lose", cause: "tc" }, { e: "raidPlunder", raid: 1 }, { e: "pillage", raid: 1, n: 30 }, { e: "noPop" }], age));
+      }
+      for (const n of ["twAlarm", "twAllClear", "repelled", "twWonderStage", "twAgeUp", "upgrade", "twLose", "twPlunder", "twPillage", "twDeny"]) if (!all.includes(n)) throw new Error("no " + n + " among the calls");
+      if (all.some(n => n === "win" || n === "lose" || n === "toll")) throw new Error("a campaign end call in the town: " + all);
+      // the age changes the scene even with no sound to play
+      T.sink(null);
+      G.age = 2; TWS.onEvents([{ e: "ageDone", t: G.tick, age: 2 }], G, view, 1194);
+      if (!Snd.sceneOverride || Snd.sceneOverride.map !== "ararat") throw new Error("the age's scene did not follow the age");
+      // every event of 13.5 is taken without a throw, with the sound on and off
+      const ALL = ["placed", "built", "canceled", "destroyed", "trained", "researched", "ageStart", "ageDone", "craftsmen", "gathered", "dropped", "depleted", "idle",
+        "noPop", "raidWarn", "raidSpawn", "raidNear", "raidRepelled", "raidPlunder", "raidLeft", "clockStart", "sheltered", "unsheltered", "pillage", "repairStop", "hit", "shot",
+        "held", "fell", "alarm", "cartArrive", "cartLost", "trade", "wonderBegin", "wonderStage", "wonderSetback", "win", "lose", "cmdDropped", "driven", "autoWait"];
+      const tc = G.blds.find(b => b.k === "tc"), u0 = G.units[0], n0 = G.nodes[0];
+      const evs = ALL.map(e => ({ e, t: G.tick, bld: tc.id, id: u0.id, node: n0.id, k: e === "fell" ? "vil" : e === "shot" ? "arrow" : "house", x: tc.x, y: tc.y, fx: tc.x, fy: tc.y, tx: 3, ty: 3,
+        raid: 1, res: "w", n: 3, on: true, age: 1, pct: 25, cause: "tc", op: "sell", zones: ["TR"], side: 1, dmg: 5, err: "cost", tech: "iron_tools", to: 2 }));
+      TWS.onEvents(evs, G, view, 1194);
+      T.sink(() => {});
+      TWS.onEvents(evs, G, view, 1194);
+    } finally {
+      T.sink(null);
+      G.age = keepAge;
+      TWS.close();
+    }
+    if (Snd.sceneOverride !== null) throw new Error("close() left the scene set");
+    TWS.tick(G, view);
+    if (Snd.sceneOverride !== null) throw new Error("tick() after close() set the scene again");
+    Snd.sceneOverride = keepO;
   });
 
   // -- WP6 checks (1) --
