@@ -1539,7 +1539,9 @@
   #town .twCo span { display: inline-flex; align-items: center; gap: 1px; }
   #town .twCo .ic { width: 14px; height: 14px; }
   #town .twCo .lack, #town .twBc .lack { color: #ff8a7a; }
-  #town .twCo .lack::before, #town .twBc .lack::before { content: "\2212"; }
+  /* a cost the stock cannot pay: red with a small ring before it (not a minus, which read as a negative cost) */
+  #town .twCo .lack::before, #town .twBc .lack::before { content: ""; display: inline-block; width: 4px; height: 4px; margin: 0 2px 1px 0;
+    border: 1.5px solid currentColor; border-radius: 50%; vertical-align: middle; }
   #town .twSheet { left: 50%; transform: translateX(-50%); top: calc(var(--twTop) + 8px); bottom: calc(var(--twBar) + var(--twDk) + 8px); width: min(600px, calc(100% - 24px)); padding: 0 16px 14px; }
   #town .twSB h2 { font-size: 24px; margin: 0 0 6px; color: #4a2410; }
   #town .twSB h3 { font-size: 16px; margin: 12px 0 4px; color: #6a3a14; border-bottom: 1px solid rgba(110,77,30,.4); }
@@ -60412,8 +60414,9 @@ townRegion("text", () => { TWT = (() => {
     return out.join(", ");
   }
   // "a Temple and Clamped Masonry": what a placement, a tech or the wonder still needs (ids of BLD or TECHS)
-  function needs(list, age) {
-    const ws = [].concat(list || []).map(id => (BLD[id] ? aN(name("bld", id, age)) : TECHS[id] ? TECHS[id][0] : String(id)));
+  // from: { techId: buildingId } for a tech whose building is not built yet ("Clamped Masonry from a Workshop")
+  function needs(list, age, from) {
+    const ws = [].concat(list || []).map(id => (BLD[id] ? aN(name("bld", id, age)) : TECHS[id] ? TECHS[id][0] + (from && from[id] ? " from " + aN(name("bld", from[id], age)) : "") : String(id)));
     return ws.length < 2 ? ws.join("") : ws.slice(0, -1).join(", ") + " and " + ws[ws.length - 1];
   }
   const mmss = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
@@ -60435,7 +60438,7 @@ townRegion("text", () => { TWT = (() => {
     if (code === "cost") return "Not enough " + (resL(info.res, info.age) || "goods") + ".";
     if (code === "site") return SITE_ERR[ix(info.age)];
     if (code === "age") return "Comes in the " + AGES[ix(info.age)].name + ".";
-    if (code === "req") return info.need ? "Needs " + needs(info.need, info.age) + "." : "Something it needs is missing.";
+    if (code === "req") return info.need ? "Needs " + needs(info.need, info.age, info.from) + "." : "Something it needs is missing.";
     if (code === "nowork") return info.res === "f" ? "No food work is free. Place a field." : "No " + (resL(info.res, info.age) || "goods") + " is left to gather.";
     return ERR[code] || ERR.bad;
   }
@@ -60445,18 +60448,21 @@ townRegion("text", () => { TWT = (() => {
     store: () => "Next: build a " + name("bld", "store", 1) + " near the trees or fields.", move: "Next: move a worker with + and −." };
   function next(g) {
     if (!g) return "";
-    const age = g.age || 1;
+    const age = g.age || 1, also = g.house ? " The town is full: a House lets it grow." : "";
     switch (g.k) {
       case "open": return (typeof OPEN[g.step] === "function" ? OPEN[g.step]() : OPEN[g.step]) || "";
-      case "build": return "Next: " + name("bld", g.type, age);
-      case "rising": return name("bld", g.type, age) + " is going up: " + g.pct + "%.";
-      case "tech": return "Next: research " + name("tech", g.tech);
-      case "res": return "Next: " + name("res", g.res, age) + " " + num(g.have) + " of " + num(g.need);
-      case "advance": return "Next: advance to the " + AGES[ix(g.to)].name;
+      case "build": return g.re ? "Rebuild the " + name("bld", g.type, age) + ". Raiders destroyed it." : "Next: " + name("bld", g.type, age) + (also ? "." + also : "");
+      case "rising": return name("bld", g.type, age) + " is going up: " + g.pct + "%." + also;
+      case "tech": return "Next: research " + name("tech", g.tech) + (also ? "." + also : "");
+      case "researching": return name("tech", g.tech) + ": researching, " + mmss(g.left) + "." + also;
+      case "res": return "Next: " + name("res", g.res, age) + " " + num(g.have) + " of " + num(g.need) + (also ? "." + also : "");
+      case "advance": return "Next: advance to the " + AGES[ix(g.to)].name + (also ? "." + also : "");
       case "aging": return "Advancing: " + mmss(g.left);
-      case "wonder": return "Next: build " + (age === 3 ? "" : "the ") + name("bld", "wonder", age) + " to win";
+      case "wonder": return "Next: build " + (age === 3 ? "" : "the ") + name("bld", "wonder", age) + " to win" + (also ? "." + also : "");
       case "wonderPct": return name("bld", "wonder", age) + " " + g.pct + "%. Keep the garrison at the site.";
       case "palace": return "The " + AGES[ix(age)].tc + " is under attack. Ring the alarm or move the post back.";
+      case "repairTc": return "Repair the " + AGES[ix(age)].tc + ". It is at " + g.pct + "%.";
+      case "fields": return "Next: Fields. " + (g.n ? (g.n === 1 ? "A villager has" : g.n + " villagers have") + " no food work." : "Food is running low.");
       case "dismiss": return ui.softLockCall;
       default: return "";
     }
@@ -60588,7 +60594,7 @@ townRegion("text", () => { TWT = (() => {
     // end cards (the lines are TWT.win, TWT.lose, TWT.softLose)
     winHead: age => WIN[ix(age)].head.text, loseHead: age => LOSE[ix(age)].head.text, softLock: SOFT.head.text,
     stars: n => n + (n === 1 ? " star" : " stars"),
-    blessNew: n => "Your next battle begins with +" + n + " gold.",
+    blessNew: (n, tut) => "Your next battle " + (tut ? "after the first lesson " : "") + "begins with +" + n + " gold.",
     blessWaiting: "A gift for your next battle is already waiting.",
     blessToast: n => "A gift from the town: +" + n + " 🪙",   // the battle's toast (the hooks region words its own copy)
     // top bar, dock, chips, minimap and map controls (aria labels where the button shows only an icon)
@@ -60640,7 +60646,7 @@ townRegion("text", () => { TWT = (() => {
     nodeLeft: (n, r, age) => num(n) + " " + resL(r, age) + " left", nodeWorkers: n => n + " at work", sendVil: "Send a villager",
     // the age and tech sheet (9.9)
     advanceTo: n => "Advance to the " + n, costL: "Cost", timeL: "Time", needsL: "Needs", secs: s => mmss(s),
-    wonderNeeds: (age, list) => theN(BLD.wonder.n[ix(age)]) + " needs " + needs(list, age) + ".",
+    wonderNeeds: (age, list, from) => theN(BLD.wonder.n[ix(age)]) + " needs " + needs(list, age, from) + ".",
     techsAt: n => "At the " + n,
     // 7, 8, 16: the call line
     raidComing: (age, wonder) => (wonder ? "Raiders are coming for the building site." : name("raider", RAID_NAME[ix(age)]) + " are coming."),
@@ -60675,13 +60681,43 @@ townRegion("text", () => { TWT = (() => {
     drivenCall: "Raiders drove a villager off. The villager will be back at work soon.",
     trainedVil: "A new villager is ready.",
     planBanner: "Paused. Plan your town, then tap Resume.", planNoSpeed: "Speed and the alarm wait until you resume.",
+    // the shell's post-P strings (they stood in the shell's TODO-TEXT block until the paint fix)
+    histMore: "History and sources",
+    source: (n, list) => (n > 1 ? "Sources: " : "Source: ") + list,
+    popAuto: tc => "Auto-train is on: the " + tc + " trains villagers by itself.",
+    blockedBld: (n, k) => (k === "wall" ? "A wall is" : k === "gate" ? "A gate is" : "The " + n + (PLUR_.test(n) ? " are" : " is")) + " in the way.",
+    blockedNode: k => ({ tree: "A tree is", flock: "A flock is", orchard: "An orchard is", stone: "Stone is", ore: "Ore is", dye: "A salt meadow is" }[k] || "Something is") + " in the way.",
+    blockedTerr: s => String(s || "Something").replace(/\.$/, "") + " is in the way.",
+    elderToo: "The village elder's blessing waits too. That battle gets both.",
+    pauseLine: (age, time, diff) => age + ", " + time + ", " + diff + ".",
+    helpSources: "Tap the i beside a history line to read more and see its sources. In the age sheet, tap a tech's name.",
+  
+    // the paint fix: food, the palace, the garrison panel
+    foodOut: "The orchards and flocks are used up. Build Fields to keep food coming.",
+    palaceSlow: tc => "The " + tc + " is under attack. The speed is back to 1x.",
+    garPost: "Tap the map to move their post.",
+    garFull: "The town is full. Build a House to train them.",
   };
+  const PLUR_ = /Quarters$|Barracks$|Stables$/;
+  // ---- 17: the source lines of the history (9.7): for each cite, the works the history file read for it, printed
+  // by tools/town-sources.js from docs/history/town-history.json (a GAME or dossier item: the works its campaign
+  // check read). Wikipedia means the English text of 1 June 2023 the historian read. ----
+  const SRC = {
+    works: {"0":"Wikipedia, “Nakharar”","1":"Wikipedia, “Theodore Rshtuni”","2":"Wikipedia, “Arminiya”","3":"Procopius, Wars","4":"Sargon II, Letter to the god Ashur","5":"Wikipedia, “Erebuni Fortress”","6":"Wikipedia, “Argishtikhinili (ancient city)”","7":"Wikipedia, “Yerevan”","8":"Armenian Wikipedia, “Teishebaini”","9":"Wikipedia, “Teishebaini”","10":"H. F. B. Lynch, Armenia (1901)","11":"Wikipedia, “Vagharshapat”","12":"Wikipedia, “Anania Shirakatsi”","a":"Armenian Wikipedia, “Erebuni Fortress”","b":"Wikipedia, “Economy of Urartu”","c":"Wikipedia, “Etiuni”","d":"Wikipedia, “Scythians”","e":"Wikipedia, “Art of Urartu”","f":"Wikipedia, “Artaxata”","g":"Wikipedia, “Garni”","h":"Wikipedia, “Temple of Garni”","i":"Armenian Wikipedia, “Armenian architecture”","j":"Tacitus, Annals","k":"Wikipedia, “Artaxiad dynasty”","l":"Wikipedia, “Artaxias I”","m":"Strabo, Geography","n":"Josephus, The Jewish War","o":"Wikipedia, “Tiridates I of Armenia”","p":"Plutarch, Life of Lucullus","q":"Wikipedia, “Zvartnots Cathedral”","r":"Wikipedia, “Khosrov III the Small”","s":"Wikipedia, “Khosrov Forest State Reserve”","t":"Wikipedia, “Armenian cochineal”","u":"Armenian Wikipedia, “Armenia in the early Middle Ages”","v":"Wikipedia, “Dvin (ancient city)”","w":"Wikipedia, “Muslim conquest of Armenia”","x":"Armenian Wikipedia, “Yerevan”","y":"Wikipedia, “Armenian alphabet”","z":"Wikipedia, “Armenian architecture”"},
+    cites: {"GAME:avarayr.nakharars":"0","GAME:dvin.constans":"1","GAME:dvin.pact":"2","GAME:dvin.procopius":"3","GAME:tushpa.sargon":"4","age1.buildings[0]":"5","age1.buildings[11]":"6 7 8","age1.buildings[12]":"6","age1.buildings[1]":"6 9","age1.buildings[2]":"5 a","age1.buildings[3]":"5","age1.buildings[8]":"a","age1.buildings[9]":"5","age1.economy[0]":"b 9","age1.economy[3]":"b","age1.events[1]":"c","age1.events[2]":"6","age1.events[6]":"d","age1.names[6]":"a","age1.names[7]":"6","age1.raiders[0]":"c","age1.safe_lines[2]":"5","age1.safe_lines[3]":"5","age1.safe_lines[5]":"6 7","age1.safe_lines[6]":"b","age1.techs[3]":"b","age1.techs[4]":"b","age1.techs[8]":"6","age1.troops_own[1]":"e","age1.troops_own[2]":"e","age1.wonder":"5 6 a","age2.buildings[0]":"f","age2.buildings[10]":"g h i","age2.buildings[1]":"i","age2.buildings[3]":"j","age2.buildings[4]":"f","age2.buildings[5]":"f k","age2.buildings[7]":"f l","age2.buildings[9]":"l","age2.core_claims[1]":"f i","age2.core_claims[3]":"l f","age2.economy[0]":"m","age2.economy[1]":"m","age2.economy[2]":"f","age2.economy[3]":"k f","age2.raiders[0]":"n o","age2.safe_lines[1]":"m","age2.safe_lines[5]":"n o","age2.safe_lines[7]":"h","age2.safe_lines[8]":"m","age2.techs[0]":"l","age2.techs[5]":"m","age2.troops_own[0]":"m p","age3.buildings[0]":"i","age3.buildings[2]":"i","age3.buildings[4]":"q i","age3.buildings[8]":"r s i","age3.economy[1]":"t","age3.names[10]":"t","age3.names[6]":"u","age3.raiders[0]":"v w","age3.safe_lines[1]":"3","age3.safe_lines[2]":"v","age3.safe_lines[5]":"q","age3.safe_lines[7]":"x","age3.safe_lines[8]":"y","age3.safe_lines[9]":"i z","age3.techs[1]":"i z","age3.techs[2]":"10 11","age3.techs[5]":"s","age3.techs[8]":"12","age3.techs[9]":"2"},
+  
+  };
+  function source(cite) {
+    const ws = [];
+    for (const c of [].concat(cite || [])) for (const id of (SRC.cites[c] || "").split(" ")) { const w = id && SRC.works[id]; if (w && !ws.includes(w)) ws.push(w); }
+    return ws.length ? ui.source(ws.length, ws.join("; ")) : "";
+  }
 
   const TWT_ = {
     v: 1, title: "Under Ararat", door: "Town", doorTitle: "Build a town on the Ararat plain",
     intro: txt(INTRO), introLines: INTRO, diffs: ["Easy", "Normal", "Hard"], res: RES, resTip: RES_TIP, ages: AGES,
     win: WIN, lose: LOSE, softLose: SOFT, site: SITE, nodes: NODE, hints: HINTS, help: HELP, HY,
-    name, hy, hyc, role, hist, effect, costWords, needs, err, next, mmss, num, ui,
+    name, hy, hyc, role, hist, effect, costWords, needs, err, next, mmss, num, ui, source, sources: SRC,
   };
   return TWT_;
 })(); });
@@ -60787,7 +60823,7 @@ townRegion("sim", () => { TW = (() => {
     horse: { cost: { f: 70, g: 40 }, at: "stable", train: 22, hp: [100, 130, 160], atk: [9, 11, 13], arm: [1, 2, 3],
              range: 0, cd: 1.8, spd: 2.4 },
   };
-  const POST = { guard: 7, chase: 12, hold: 2, ring: 1.2, alarmRadius: 15, alarmDoubleTap: 3, alarmAutoClear: 10 };
+  const POST = { guard: 9, chase: 13, hold: 2, ring: 1.2, alarmRadius: 15, alarmDoubleTap: 3, alarmAutoClear: 10 };
   const RAIDERS = {
     etR: { age: 1, pts: 1, hp: 45,  atk: 5,  arm: 0, range: 0, cd: 1.5, spd: 1.6, bdmg: 3,  aggro: 6, role: "light" },
     etS: { age: 1, pts: 2, hp: 80,  atk: 8,  arm: 2, range: 0, cd: 1.7, spd: 1.2, bdmg: 14, aggro: 3, role: "heavy" },
@@ -61651,13 +61687,17 @@ townRegion("sim", () => { TW = (() => {
     return best;
   }
   // when its work runs out (gray box review): any work for the same resource (another kind of node, a free field),
-  // else work for the resource the Next goal needs, else for the one the town holds least of; null only when the
-  // map has no work left at all. The villager never stands idle while there is something to gather.
+  // else work for the resource the Next goal needs, else for the one the town holds least of (goods weighed as
+  // scarcer stock, so a town is not left with a thousand goods and no food); null only when the map has no work
+  // left at all. A food worker is the exception (paint review): with no food work it goes to the Next goal's
+  // resource or stands idle, so the idle count, auto-train's pause and the Next line ("build Fields") say why.
+  const SCARCE = { f: 1, w: 1, s: 0.8, g: 0.4 };
   function moveOn(G, u, res, bad) {
     const o = pickWork(G, u, res, bad);
     if (o) return o;
     const g = next(G), want = g && g.k === "res" ? g.res : "";
-    const order = RES.filter(r => r !== res).sort((a, b) => (b === want) - (a === want) || G.res[a] - G.res[b] || RES.indexOf(a) - RES.indexOf(b));
+    if (res === "f") return want && want !== "f" ? pickWork(G, u, want) : null;
+    const order = RES.filter(r => r !== res).sort((a, b) => (b === want) - (a === want) || G.res[a] / SCARCE[a] - G.res[b] / SCARCE[b] || RES.indexOf(a) - RES.indexOf(b));
     for (const r of order) { const w = pickWork(G, u, r); if (w) return w; }
     return null;
   }
@@ -62139,6 +62179,7 @@ townRegion("sim", () => { TW = (() => {
         const b = foundation(G, c.type, c.x, c.y, c.rot);
         addBuilders(G, b, c.type === "wonder" ? WONDERS[G.age - 1].startBuilders : BLD[c.type].builders);
         if (G.opening[c.type] === 0) G.opening[c.type] = 1;
+        if (G.calls.lost) G.calls.lost = G.calls.lost.filter(k => k !== c.type);
         if (c.type === "wonder") { G.wonder = b.id; G.clock.wonderNext = G.tick + T(RAID.firstWonderRaid); ev(G, "wonderBegin", { bld: b.id }); }
         break;
       }
@@ -62292,12 +62333,16 @@ townRegion("sim", () => { TW = (() => {
     // into villagers who only stood about); the dock's own idle ones (parked) do not count
     let idle = 0;
     for (const u of G.units) if (isVil(u) && !u.task && !u.shel && (u.st === ST.IDLE || u.st === ST.STUCK)) idle++;
-    for (const b of G.blds) {
-      if (b.dead || b.done < 1) continue;
+    // soldiers come first (paint review: auto-train took every free place, so soldiers paid for in a raid never
+    // trained): the other buildings claim the free places before the palace, and auto-train waits while a soldier
+    // waits for room
+    let waiting = false;
+    for (let pass = 0; pass < 2; pass++) for (const b of G.blds) {
+      if (b.dead || b.done < 1 || (b.k === "tc") !== (pass === 1)) continue;
       const busy = b.k === "tc" && !!G.aging;
       if (b.rq.length && !busy && --b.rq[0].left <= 0) researched(G, b.rq.shift().tech);
       if (b.k === "tc" && b.auto && !busy && !b.q.length && idle >= 3 && G.tick - G.calls.noPop >= T(60) && G.tick - (G.calls.autoWait === undefined ? -9999 : G.calls.autoWait) >= T(60)) { G.calls.autoWait = G.tick; ev(G, "autoWait", { n: idle }); }
-      if (b.k === "tc" && b.auto && !busy && !b.q.length && idle < 3 && G.popCap - pop > 0 && afford(G, cost(G, "vil"))) {
+      if (b.k === "tc" && b.auto && !busy && !b.q.length && idle < 3 && !waiting && G.popCap - pop > 0 && afford(G, cost(G, "vil"))) {
         const k = cost(G, "vil");
         pay(G, k);
         b.q.push({ k: "vil", left: T(UNITS.vil.train), paid: cp(k), on: 0 });
@@ -62305,7 +62350,8 @@ townRegion("sim", () => { TW = (() => {
       if (!b.q.length || busy) continue;
       const q = b.q[0];
       if (!q.on) {
-        if (G.popCap - pop <= 0) {
+        if (G.popCap - pop <= 0 || (b.k === "tc" && waiting)) {
+          if (b.k !== "tc") waiting = true;
           if (G.tick - G.calls.noPop >= T(60)) { G.calls.noPop = G.tick; ev(G, "noPop"); }
           continue;
         }
@@ -62636,6 +62682,8 @@ townRegion("sim", () => { TW = (() => {
     ev(G, "driven", { id: u.id, x: u.x, y: u.y });
     if (!u.shel) shelter(G, u, 2);
   }
+  // the kinds the Next line asks to rebuild after a raid destroyed one (G.calls.lost, cleared by placing one)
+  const LOST_K = { store: 1, barracks: 1, smithy: 1, market: 1, temple: 1, stable: 1 };
   function hitBld(G, b, dmg, by) {
     if (b.dead) return;
     if (by && by.loot) by.loot.dmg += dmg;
@@ -62646,7 +62694,8 @@ townRegion("sim", () => { TW = (() => {
     if (b.hp > 0) return;
     if (b.k === "tc") { b.hp = 0; lose(G, "tc"); return; }
     remove(G, b);
-    ev(G, "destroyed", { bld: b.id, k: b.k, x: b.x, y: b.y });
+    if (LOST_K[b.k] && b.done > 0) { const L = G.calls.lost || (G.calls.lost = []); if (L.indexOf(b.k) < 0) L.push(b.k); }
+    ev(G, "destroyed", { bld: b.id, k: b.k, x: b.x, y: b.y, raid: 1 });
   }
   // the wonder cannot fall: a hit removes work, never below the last quarter reached (7.4)
   function setback(G, b, w) {
@@ -62792,7 +62841,7 @@ townRegion("sim", () => { TW = (() => {
     ev(G, "alarm", { on, all: G.alarm.all });
   }
 
-  // ---- the garrison (6.3): stand by the post, take raiders within 7 tiles of it, chase up to 12, come back ----
+  // ---- the garrison (6.3): stand by the post, take raiders within 9 tiles of it, chase up to 13, come back ----
   const SPIRAL = [];
   for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) SPIRAL.push([dx, dy, dx * dx + dy * dy]);
   SPIRAL.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
@@ -62871,7 +62920,8 @@ townRegion("sim", () => { TW = (() => {
     }
     if (!heavy) for (const c of G.carts) if (!c.dead) consider(c, 2, cdist(c, u.x, u.y), c.x, c.y);
     for (const b of G.blds) {
-      if (b.dead || b.k === "wall" || b.k === "gate" || b.k === "wonder" || (heavy && b.k === "field")) continue;
+      // an untouched foundation (no work done on it yet) is only a marked plot: raiders leave it be (paint review)
+      if (b.dead || b.k === "wall" || b.k === "gate" || b.k === "wonder" || b.done <= 0 || (heavy && b.k === "field")) continue;
       const d = rectDist(u.x, u.y, b);
       if (d > ag) continue;
       const p = ptIn(u, b);
@@ -63364,20 +63414,49 @@ townRegion("sim", () => { TW = (() => {
       if (!o.store) return { k: "open", step: "store" };
       if (!o.moved) return { k: "open", step: "move" };
     }
+    // (paint review) a building the raiders destroyed, until a new one of its kind is placed: "Rebuild ..."
+    const raid = G.units.some(isRaider);
+    const lost = (G.calls.lost || []).find(k => !G.blds.some(b => !b.dead && b.k === k));
+    if (lost) return { k: "build", type: lost, age: G.age, re: 1 };
+    // food workers with no food work left (the orchards and flocks picked clean, every field taken): Fields
+    if (!G.wonder && !freeFood(G) && !G.blds.some(b => !b.dead && b.k === "field" && b.done < 1)) {
+      let n = 0;
+      for (const u of G.units) if (isVil(u) && !u.task && !u.shel) n++;
+      if (n || G.res.f < 100) return { k: "fields", age: G.age, n };
+    }
+    // the palace hurt and no raid on: repair it before it is hit again (it fell quietly in the paint review)
+    { const tc = tcOf(G); if (tc && !raid && tc.hp < tc.hpMax * 0.7 && !tc.builders.length) return { k: "repairTc", age: G.age, pct: Math.max(1, Math.floor(tc.hp / tc.hpMax * 100)) }; }
     if (G.wonder) { const b = bld(G, G.wonder); return { k: "wonderPct", age: G.age, pct: b ? Math.floor(b.done * 100) : 0 }; }
     if (G.aging) return { k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) };
-    // a full town grows no more: a House first (none rising); a building the goal needs and already rising says so
-    if (popOf(G) >= G.popCap && G.popCap < POP.max && !G.blds.some(b => !b.dead && b.k === "house" && b.done < 1)) return { k: "build", type: "house", age: G.age };
+    // a full town (or one place short) grows no more: the goal says "a House too" (house: 1), and a House is the
+    // goal itself only while the town is small; a building the goal needs and already rising says so; a tech
+    // already in a queue says how long it has left (paint review: the Next line looped on "House" to 60 and asked
+    // for a tech that was researching)
+    const full = popOf(G) >= G.popCap - 1 && G.popCap < POP.max && !G.blds.some(b => !b.dead && b.k === "house" && b.done < 1);
+    if (full && G.popCap < 20) return { k: "build", type: "house", age: G.age };
+    const g = goal(G);
+    if (full && !(g.k === "build" && g.type === "house")) g.house = 1;
+    return g;
+  }
+  function goal(G) {
     const rising = k => { const b = G.blds.find(o => !o.dead && o.k === k && o.done < 1); return b ? { k: "rising", type: k, age: G.age, pct: Math.floor(b.done * 100) } : null; };
-    const res = c => { for (const r of RES) if ((c[r] || 0) > G.res[r]) return { k: "res", res: r, have: Math.floor(G.res[r]), need: c[r] }; return null; };
+    const res = c => { for (const r of RES) if ((c[r] || 0) > G.res[r]) return { k: "res", res: r, have: Math.floor(G.res[r]), need: c[r], age: G.age }; return null; };
+    const tech = id => { for (const b of G.blds) if (!b.dead) for (let i = 0; i < b.rq.length; i++) if (b.rq[i].tech === id) { let s = 0; for (let j = 0; j <= i; j++) s += b.rq[j].left; return { k: "researching", tech: id, left: Math.ceil(s * DT) }; } return { k: "tech", tech: id }; };
     if (!wonderReq(G) && afford(G, cost(G, "wonder"))) return { k: "wonder", age: G.age };
     if (G.age < 3) {
       for (const k of AGES[G.age].advance.req) if (!hasDone(G, k)) return rising(k) || { k: "build", type: k, age: G.age };
       return res(cost(G, "advance")) || { k: "advance", to: G.age + 1 };
     }
     const m = wonderReq(G);
-    if (m) return m.bld ? rising(m.bld) || { k: "build", type: m.bld, age: G.age } : { k: "tech", tech: m.tech };
+    if (m) return m.bld ? rising(m.bld) || { k: "build", type: m.bld, age: G.age } : tech(m.tech);
     return res(cost(G, "wonder")) || { k: "wonder", age: G.age };
+  }
+  // is there food work a villager could take: a flock or orchard with room, or a finished field with no farmer
+  function freeFood(G) {
+    const cnt = counts(G);
+    for (const n of G.nodes) if (NODE_RES[n.k] === "f" && gatherable(G, n) && (cnt.get(n.id) || 0) < roomOf(G, n)) return true;
+    for (const b of G.blds) if (!b.dead && b.k === "field" && b.done >= 1 && !b.farmer) return true;
+    return false;
   }
   function at(G, x, y) {
     let un = null, bd = null, nd = null, best = 0.7;
@@ -68224,6 +68303,15 @@ townRegion("art", () => { const TWK = { kits: [], helms: {}, shields: {}, spots:
       if (b.k === "wonder") { mc.strokeStyle = "#1c1209"; mc.lineWidth = 1.2 * dd; mc.strokeRect(b.x * kx, b.y * ky, b.w * kx, b.h * ky); }
     }
     mc.globalAlpha = 1;
+    // a building the raiders destroyed, not yet rebuilt (the shell's view.lost): a red X with a dark edge
+    for (const m of view.lost || []) {
+      const x = (m.x + 1) * kx, y = (m.y + 1) * ky, r = 3.2 * dd;
+      mc.lineCap = "round";
+      for (const [c, lw] of [["#1c0804", 3.2 * dd], ["#e0402f", 1.6 * dd]]) {
+        mc.strokeStyle = c; mc.lineWidth = lw;
+        mc.beginPath(); mc.moveTo(x - r, y - r); mc.lineTo(x + r, y + r); mc.moveTo(x + r, y - r); mc.lineTo(x - r, y + r); mc.stroke();
+      }
+    }
     for (const u of G.units) {
       if (u.dead || u.side || u.shel) continue;
       const s = (u.k === "vil" ? 2 : 2.6) * dd;
@@ -69013,36 +69101,12 @@ townRegion("shell", () => { Town = (() => {
   const needW = list => TWT.needs([].concat(list || []), ageOf());
   const errW = (code, info) => TWT.err(code, Object.assign({ age: ageOf() }, info || {}));
   const nodeW = (k, i) => (TWT.nodes[k] ? [TWT.nodes[k].n, TWT.nodes[k].act, TWT.nodes[k].many][i] : k);
-  const U = (k, ...a) => { const t = TWT.ui[k] !== undefined ? TWT.ui[k] : TX[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
+  const U = (k, ...a) => { const t = TWT.ui[k]; return typeof t === "function" ? t(...a) : t === undefined ? "" : t; };
   const hintList = () => TWT.hints;
-  // ---- TODO-TEXT (for WP6 and the integrator): the post-P shell's new strings, read only where TWT has no word of
-  // its own (U() reads TWT.ui first, srcLine() reads TWT.source first); they move into TWT, then this block goes.
-  // The source table (SRC) is printed by tools/town-sources.js from docs/history/town-history.json: for each
-  // cite of a history line, the works the history file read for it (a GAME or dossier item: the works its campaign
-  // check read). Wikipedia means the English text of 1 June 2023 the historian read. ----
-  const PLUR = /Quarters$|Barracks$|Stables$/;
-  const TX = {
-    histMore: "History and sources",
-    source: (n, list) => (n > 1 ? "Sources: " : "Source: ") + list,
-    popAuto: tc => "Auto-train is on: the " + tc + " trains villagers by itself.",
-    blockedBld: (n, k) => (k === "wall" ? "A wall is" : k === "gate" ? "A gate is" : "The " + n + (PLUR.test(n) ? " are" : " is")) + " in the way.",
-    blockedNode: k => ({ tree: "A tree is", flock: "A flock is", orchard: "An orchard is", stone: "Stone is", ore: "Ore is", dye: "A salt meadow is" }[k] || "Something is") + " in the way.",
-    blockedTerr: s => String(s || "Something").replace(/\.$/, "") + " is in the way.",
-    elderToo: "The village elder's blessing waits too. That battle gets both.",
-    pauseLine: (age, time, diff) => age + ", " + time + ", " + diff + ".",
-    helpSources: "Tap the i beside a history line to read more and see its sources. In the age sheet, tap a tech's name.",
-  };
-  const SRC = {
-    works: {"0":"Wikipedia, “Nakharar”","1":"Wikipedia, “Theodore Rshtuni”","2":"Wikipedia, “Arminiya”","3":"Procopius, Wars","4":"Sargon II, Letter to the god Ashur","5":"Wikipedia, “Erebuni Fortress”","6":"Wikipedia, “Argishtikhinili (ancient city)”","7":"Wikipedia, “Yerevan”","8":"Armenian Wikipedia, “Teishebaini”","9":"Wikipedia, “Teishebaini”","10":"H. F. B. Lynch, Armenia (1901)","11":"Wikipedia, “Vagharshapat”","12":"Wikipedia, “Anania Shirakatsi”","a":"Armenian Wikipedia, “Erebuni Fortress”","b":"Wikipedia, “Economy of Urartu”","c":"Wikipedia, “Etiuni”","d":"Wikipedia, “Scythians”","e":"Wikipedia, “Art of Urartu”","f":"Wikipedia, “Artaxata”","g":"Wikipedia, “Garni”","h":"Wikipedia, “Temple of Garni”","i":"Armenian Wikipedia, “Armenian architecture”","j":"Tacitus, Annals","k":"Wikipedia, “Artaxiad dynasty”","l":"Wikipedia, “Artaxias I”","m":"Strabo, Geography","n":"Josephus, The Jewish War","o":"Wikipedia, “Tiridates I of Armenia”","p":"Plutarch, Life of Lucullus","q":"Wikipedia, “Zvartnots Cathedral”","r":"Wikipedia, “Khosrov III the Small”","s":"Wikipedia, “Khosrov Forest State Reserve”","t":"Wikipedia, “Armenian cochineal”","u":"Armenian Wikipedia, “Armenia in the early Middle Ages”","v":"Wikipedia, “Dvin (ancient city)”","w":"Wikipedia, “Muslim conquest of Armenia”","x":"Armenian Wikipedia, “Yerevan”","y":"Wikipedia, “Armenian alphabet”","z":"Wikipedia, “Armenian architecture”"},
-    cites: {"GAME:avarayr.nakharars":"0","GAME:dvin.constans":"1","GAME:dvin.pact":"2","GAME:dvin.procopius":"3","GAME:tushpa.sargon":"4","age1.buildings[0]":"5","age1.buildings[11]":"6 7 8","age1.buildings[12]":"6","age1.buildings[1]":"6 9","age1.buildings[2]":"5 a","age1.buildings[3]":"5","age1.buildings[8]":"a","age1.buildings[9]":"5","age1.economy[0]":"b 9","age1.economy[3]":"b","age1.events[1]":"c","age1.events[2]":"6","age1.events[6]":"d","age1.names[6]":"a","age1.names[7]":"6","age1.raiders[0]":"c","age1.safe_lines[2]":"5","age1.safe_lines[3]":"5","age1.safe_lines[5]":"6 7","age1.safe_lines[6]":"b","age1.techs[3]":"b","age1.techs[4]":"b","age1.techs[8]":"6","age1.troops_own[1]":"e","age1.troops_own[2]":"e","age1.wonder":"5 6 a","age2.buildings[0]":"f","age2.buildings[10]":"g h i","age2.buildings[1]":"i","age2.buildings[3]":"j","age2.buildings[4]":"f","age2.buildings[5]":"f k","age2.buildings[7]":"f l","age2.buildings[9]":"l","age2.core_claims[1]":"f i","age2.core_claims[3]":"l f","age2.economy[0]":"m","age2.economy[1]":"m","age2.economy[2]":"f","age2.economy[3]":"k f","age2.raiders[0]":"n o","age2.safe_lines[1]":"m","age2.safe_lines[5]":"n o","age2.safe_lines[7]":"h","age2.safe_lines[8]":"m","age2.techs[0]":"l","age2.techs[5]":"m","age2.troops_own[0]":"m p","age3.buildings[0]":"i","age3.buildings[2]":"i","age3.buildings[4]":"q i","age3.buildings[8]":"r s i","age3.economy[1]":"t","age3.names[10]":"t","age3.names[6]":"u","age3.raiders[0]":"v w","age3.safe_lines[1]":"3","age3.safe_lines[2]":"v","age3.safe_lines[5]":"q","age3.safe_lines[7]":"x","age3.safe_lines[8]":"y","age3.safe_lines[9]":"i z","age3.techs[1]":"i z","age3.techs[2]":"10 11","age3.techs[5]":"s","age3.techs[8]":"12","age3.techs[9]":"2"},
-  };
   // a history line's source line ("Source: Strabo, Geography"), from its cite or list of cites; "" for game text
   function srcLine(line) {
     if (!line || !line.cite) return "";
-    if (TWT.source) return TWT.source(line.cite) || "";
-    const ws = [];
-    for (const c of [].concat(line.cite)) for (const id of (SRC.cites[c] || "").split(" ")) { const w = id && SRC.works[id]; if (w && !ws.includes(w)) ws.push(w); }
-    return ws.length ? U("source", ws.length, ws.join("; ")) : "";
+    return TWT.source ? TWT.source(line.cite) || "" : "";
   }
   // the history of a thing, as the info panel and the sheet show it: the line of the age in play first (or, if it
   // has none, of the latest age reached), then the lines of the earlier ages, each with its source line
@@ -69071,6 +69135,8 @@ townRegion("shell", () => { Town = (() => {
   let infoKey = "", garKey = "", sheetKey = "", barKey = "", holdBtn = null, idleI = 0;
   // per game: the hints shown (a bitmask, saved with the run), their queue, the one showing; one-time calls
   let hintDone = 0, hintQ = [], hintCur = null, ui1 = {};
+  // buildings the raiders destroyed: a red X on the minimap until one of the kind stands again (paint review)
+  let lostMarks = [];
   let saving = false;   // auto-train paused by the sheet's "Save food" until the advance starts
   let histOpen = false; const thOpen = new Set();   // the info panel's history opened by its "i"; the sheet's rows opened
 
@@ -69143,8 +69209,11 @@ townRegion("shell", () => { Town = (() => {
     // both pay (owner decision 3): a waiting blessing of the village elder is paid in the same battle, and the card says so
     let elder = false;
     try { elder = Number(localStorage.getItem("hs_nardi_bless")) > 0; } catch (e) {}
-    if (n > cur) { try { localStorage.setItem(BLESS_KEY, String(n)); } catch (e) {} return { n, waiting: false, elder }; }
-    return { n: cur, waiting: n > 0, elder };
+    // on a fresh save the next battle is the coached first stand, which pays no gift (it waits for the one after)
+    let tut = false;
+    try { tut = typeof tutorialPending === "function" && !!tutorialPending(); } catch (e) {}
+    if (n > cur) { try { localStorage.setItem(BLESS_KEY, String(n)); } catch (e) {} return { n, waiting: false, elder, tut }; }
+    return { n: cur, waiting: n > 0, elder, tut };
   }
 
   // ---- errors: the town stops, keeps what it safely can, and says so (13.7) ----
@@ -69241,7 +69310,7 @@ townRegion("shell", () => { Town = (() => {
     on(el.planGo, "click", () => { Snd.init(); plan(false); });
     on(el.raid, "click", () => { tick1(); hintEnd("horn"); toRaid(); });
     on(el.age, "click", () => { tick1(); openSheet(!sheet); });
-    on(el.next, "click", () => { tick1(); const n = G && TW.next(G); if (n && n.k === "palace") centerOnTc(); else openSheet(true, true); });
+    on(el.next, "click", () => { tick1(); nextTap(); });
     press(el.speed, e => { Snd.init(); if (held.has("plan")) { say(U("planNoSpeed")); return; } setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1)); },
       () => { if (!held.has("plan")) setSpeed(speed === 4 ? 1 : 4); });
     for (const r of RES) on(el.res[r], "click", () => { tick1(); laborLine(r); });
@@ -69299,6 +69368,24 @@ townRegion("shell", () => { Town = (() => {
     el.again.textContent = U("placeAnother");
   }
   function setSpeed(s) { speed = s; if (s !== 4) { pref.speed = s; savePref(); } hud(true); }
+  // a tap on the Next line acts on its goal (paint review): the palace under attack: the camera there; hurt: the
+  // palace selected with Repair in reach; a building to rebuild, or Fields: that building's outline on its best
+  // site; anything else opens the age sheet at the row it names
+  function nextTap() {
+    const n = G && live && !G.over ? TW.next(G) : null;
+    if (!n) return;
+    if (n.k === "palace") { centerOnTc(); return; }
+    if (n.k === "repairTc") {
+      const tc = tcOf();
+      if (!tc) return;
+      setMode("none"); setSel({ kind: "bld", id: tc.id }); centerOnTc();
+      const b = el.info.querySelector('[data-a="repair"]');
+      if (b) { b.classList.add("twFlash"); try { b.focus({ preventScroll: true }); } catch (e) {} setTimeout(() => b.classList.remove("twFlash"), 1600); }
+      return;
+    }
+    if ((n.k === "build" && n.re) || n.k === "fields") { buildTap(n.k === "fields" ? "field" : n.type); return; }
+    openSheet(true, true);
+  }
 
   // ---- open and close (9.1) ----
   function defaultZoom() { return cssH > cssW ? 0.85 : cssW >= 1400 ? 1.2 : 1.0; }
@@ -69456,7 +69543,7 @@ townRegion("shell", () => { Town = (() => {
     }
     const L = local(p);
     if (mode === "wall" && (touch || p.btn === 0)) { gest = "stroke"; strokeStart(L.x, L.y); }
-    else if ((mode === "place" || mode === "gate") && touch && onGhost(L.x, L.y)) { gest = "ghost"; gstart = { x: ghost.x, y: ghost.y }; }
+    else if ((mode === "place" || mode === "gate") && touch && onGhost(L.x, L.y)) { gest = "ghost"; gstart = { x: ghost.x, y: ghost.y, w0: TWA.toWorld(view, L.x, L.y) }; }
     else gest = "";
   }
   function onMove(e) {
@@ -69481,7 +69568,7 @@ townRegion("shell", () => { Town = (() => {
     if (!p.moved) return;
     const L = local(p);
     if (gest === "stroke") strokeMove(L.x, L.y);
-    else if (gest === "ghost") ghostAt(L.x, L.y - 56);
+    else if (gest === "ghost") ghostDrag(L.x, L.y);
     else if (gest === "follow") ghostAt(L.x, L.y);
     else if (gest === "pan") panBy(dx, dy);
     else if (gest === "box") boxMove(p);
@@ -69547,12 +69634,12 @@ townRegion("shell", () => { Town = (() => {
       if (p.touch && !p.moved && !p.long && pnow() - p.t0 >= 420) { p.long = true; inspect(local(p)); }
     }
     if ((gest === "stroke" || gest === "ghost") && ptrs.size === 1 && ptrs.values().next().value.moved) {   // a still press (a tap) never scrolls
-      const p = ptrs.values().next().value, L = local(p), y = gest === "ghost" ? L.y - 56 : L.y, E = 48;
+      const p = ptrs.values().next().value, L = local(p), y = L.y, E = 48;
       const ex = L.x < area.l + E ? -1 : L.x > area.r - E ? 1 : 0, ey = y < area.t + E ? -1 : y > area.b - E ? 1 : 0;
       if (ex || ey) {
         const x0 = view.x, y0 = view.y;
         view.x += ex * 10 * dt; view.y += ey * 10 * dt / SQ * SQ; clampView();
-        if (view.x !== x0 || view.y !== y0) { if (gest === "stroke") strokeMove(L.x, L.y); else ghostAt(L.x, y); }
+        if (view.x !== x0 || view.y !== y0) { if (gest === "stroke") strokeMove(L.x, L.y); else ghostDrag(L.x, y); }
       }
     }
     if (inertia) {
@@ -69595,6 +69682,7 @@ townRegion("shell", () => { Town = (() => {
   // what a villager can be sent to: a node, a free field or grove, a foundation, a shelter, a damaged building
   const vilTarget = o => o.done < 1 || ((o.k === "field" || o.k === "grove") && !o.farmer) || !!SHEL[o.k] || (o.hp < o.hpMax && o.k !== "wonder");
   function tap(L, p) {
+    if (again && again.until) { again = null; el.again.classList.remove("on"); }   // Place another goes with a map tap
     // a raid arrow jumps the camera, except under a ghost: there a tap moves the ghost (now that the arrows stand
     // inside the map area, one could sit right where a building is meant to go)
     if (!ghost) for (const a of TWA.stats().arrows || []) if (Math.hypot(L.x - a.x, L.y - a.y) <= a.r + 8) { centerOn(a.tx, a.ty); return; }
@@ -69690,16 +69778,67 @@ townRegion("shell", () => { Town = (() => {
         if (a.x < area.l + 20 || b.x > area.r - 80 || a.y < area.t + 20 || b.y > area.b - 20) centerOn(best[0] + 2.5, best[1] + 2.5);
       }
     } else if (type !== "gate") {
-      // any other building starts on the nearest place it may stand (cost aside), not red on the palace
+      // any other building starts on the nearest place it may stand (cost aside), not red on the palace; while the
+      // view is on the palace, from the best site for its kind (paint review: a Storeroom started beside the palace
+      // on the raid side, far from the work): a storehouse by the busiest work far from a drop site, a tower
+      // between the palace and the raids, the other buildings on the palace's side away from them
+      const tc = tcOf(), best = tc && Math.hypot(c.x - tc.x - 2, c.y - tc.y - 2) <= 8 ? siteFor(type, tc) : null;
+      if (best) { ghost.x = snap(best[0], w); ghost.y = snap(best[1], h); }
       const R = type === "field" ? 16 : 10;
       found: for (let r = 0; r <= R; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const q = TW.canPlace(G, type, ghost.x + dx, ghost.y + dy, 0);
         if (q.ok || q.err === "cost") { ghost.x += dx; ghost.y += dy; break found; }
       }
+      if (best) {
+        const A = TWA.toScreen(view, ghost.x, ghost.y), B = TWA.toScreen(view, ghost.x + w, ghost.y + h);
+        if (A.x < area.l + 20 || B.x > area.r - 80 || A.y < area.t + 20 || B.y > area.b - 20) centerOn(ghost.x + w / 2, ghost.y + h / 2);
+      }
     }
     check(true);
     say(type === "gate" ? U("gateHint") : nm("bld", type) + ". " + cw(TW.cost(G, type)) + ".");
+  }
+  // where the raids of this age come from, as a unit vector from the palace (the zones' weights of TW.DATA.RAID)
+  function raidDir(tc) {
+    let x = 0, y = 0, n = 0;
+    const Z = (D.RAID && D.RAID.zones) || {};
+    for (const z in Z) {
+      const wt = Z[z][G.age - 1], e = G.map.entries && G.map.entries[z];
+      if (!wt || !e || !e.length) continue;
+      const m = e[e.length >> 1];
+      x += (m[0] + 0.5 - tc.x - 2) * wt; y += (m[1] + 0.5 - tc.y - 2) * wt; n += wt;
+    }
+    const d = Math.hypot(x, y);
+    return n && d > 0.5 ? [x / d, y / d] : [0, 1];
+  }
+  // the tile a new building's outline is searched from (enterPlace), or null for the view's middle
+  function siteFor(type, tc) {
+    const cx = tc.x + 2, cy = tc.y + 2, rd = raidDir(tc);
+    if (type === "store") {
+      // the gatherers' work (their nodes), weighed by how many work near it and how far it lies from a drop site
+      const drops = G.blds.filter(b => !b.dead && (b.k === "tc" || b.k === "store"));
+      const dd = (x, y) => drops.reduce((m, b) => Math.min(m, Math.max(0, Math.abs(x - b.x - b.w / 2) - b.w / 2, Math.abs(y - b.y - b.h / 2) - b.h / 2)), 1e9);
+      const pts = [];
+      for (const u of G.units) {
+        if (u.dead || u.side || u.k !== "vil" || !u.task || (u.task.t !== "gather" && u.task.t !== "farm")) continue;
+        const o = u.task.t === "farm" ? bldOf(u.task.bld) : nodeOf(u.task.node);
+        if (o) pts.push([o.x + (o.w || 1) / 2, o.y + (o.h || 1) / 2]);
+      }
+      let bp = null, bs = 0;
+      for (const p of pts) {
+        const d = dd(p[0], p[1]);
+        if (d < 5) continue;
+        const sc = pts.filter(q => Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) <= 5).length * Math.min(d, 15);
+        if (sc > bs) { bs = sc; bp = p; }
+      }
+      // beside the work, on the side toward the palace (away from the open land beyond it)
+      if (bp) { const vx = cx - bp[0], vy = cy - bp[1], v = Math.hypot(vx, vy) || 1; return [bp[0] + vx / v * 2.5, bp[1] + vy / v * 2.5]; }
+      return null;
+    }
+    if (type === "field" || type === "grove") return null;
+    if (type === "tower") return [cx + rd[0] * 6, cy + rd[1] * 6];
+    const sz = (D.BLD[type] && D.BLD[type].size) || [2, 2], k = 2 + Math.max(sz[0], sz[1]) + 1.5;
+    return [cx - rd[0] * k, cy - rd[1] * k];
   }
   // every top-left where the age's wonder may stand (cost aside), and the tiles they cover
   function wonderSites() {
@@ -69721,6 +69860,13 @@ townRegion("shell", () => { Town = (() => {
     const x = snap(c.x, w), y = snap(c.y, h);
     if (x !== ghost.x || y !== ghost.y) { ghost.x = x; ghost.y = y; check(); }
   }
+  // a ghost dragged by touch moves with the finger from where it was grabbed (paint review: it jumped two tiles
+  // up, to 56 px above the finger, on the first move)
+  function ghostDrag(sx, sy) {
+    if (!ghost || !gstart) return;
+    const c = TWA.toWorld(view, sx, sy), x = gstart.x + Math.round(c.x - gstart.w0.x), y = gstart.y + Math.round(c.y - gstart.w0.y);
+    if (x !== ghost.x || y !== ghost.y) { ghost.x = x; ghost.y = y; check(); }
+  }
   function onGhost(sx, sy) {
     const [w, h] = sizeOf(ghost.type, ghost.rot), a = TWA.toScreen(view, ghost.x, ghost.y), b = TWA.toScreen(view, ghost.x + w, ghost.y + h);
     return sx >= a.x - 16 && sx <= b.x + 16 && sy >= a.y - 16 - 40 * view.zoom && sy <= b.y + 16;
@@ -69739,8 +69885,16 @@ townRegion("shell", () => { Town = (() => {
   // what stands in the way of a "blocked" ghost, in TW.canPlace's order, named (the gray box review: "Something is in
   // the way." never said what): a building, a resource, or the ground itself
   function blockedWhy(tiles, type) {
-    for (const [x, y] of tiles || []) { const why = inMap(x, y) ? blocks(x, y, type) : ""; if (why) return why; }
-    return errW("blocked");
+    // a building first, then a resource, then the ground (paint review: a House in the way was "A flock")
+    let node = "", ground = "";
+    for (const [x, y] of tiles || []) {
+      if (!inMap(x, y)) continue;
+      const why = blocks(x, y, type), o = G.map.occ[y * TW.W + x];
+      if (!why) continue;
+      if (o > 0) return why;
+      if (o < 0) node = node || why; else ground = ground || why;
+    }
+    return node || ground || errW("blocked");
   }
   // what one tile holds that stands in the way, named, or ""
   function blocks(x, y, type) {
@@ -69775,10 +69929,18 @@ townRegion("shell", () => { Town = (() => {
     const gb = el.gb.getBoundingClientRect(), rr = root.getBoundingClientRect(), dir = again && again.type === g.type ? [g.x - again.x, g.y - again.y] : null;
     setMode("none");
     // fields and houses: Place another, for 3 s, where the check was (a row of fields is check, check, check)
+    // (paint review) kept inside the map area clear of the HUD and the call line, for 6 s or until a tap on the map
     if (g.type === "field" || g.type === "house") {
-      again = { type: g.type, x: g.x, y: g.y, dir, until: pnow() + 3000 };
-      el.again.style.transform = "translate(" + Math.round(gb.left - rr.left - 4) + "px," + Math.round(gb.top - rr.top) + "px)";
+      again = { type: g.type, x: g.x, y: g.y, dir, until: pnow() + 6000 };
       el.again.classList.add("on");
+      const w = el.again.offsetWidth || 150, h = el.again.offsetHeight || 48, x0 = gb.left - rr.left - 4, y0 = gb.top - rr.top;
+      const fit = (x, y) => [Math.max(area.l + 8, Math.min(area.r - w - 8, x)), Math.max(area.t + 8, Math.min(area.b - h - 8, y))];
+      const cr = el.call && el.call.classList.contains("on") ? el.call.getBoundingClientRect() : null;
+      const R = hudRects.concat(cr ? [{ l: cr.left - rr.left, t: cr.top - rr.top, r: cr.right - rr.left, b: cr.bottom - rr.top }] : []);
+      const hits = (x, y) => R.some(r => x < r.r + 4 && x + w > r.l - 4 && y < r.b + 4 && y + h > r.t - 4);
+      const cands = [[x0, y0], [x0 - w + 48, y0], [x0, y0 + 60], [x0 - w + 48, y0 + 60], [x0, y0 - h - 12], [x0 - w + 48, y0 - h - 12]].map(q => fit(q[0], q[1]));
+      const [x, y] = cands.find(q => !hits(q[0], q[1])) || cands[0];
+      el.again.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
     }
   }
   // Place another: the next ghost on the nearest site touching the last one (along the row, if there is one)
@@ -69950,8 +70112,10 @@ townRegion("shell", () => { Town = (() => {
   const idleVils = () => (G ? G.units.filter(u => !u.dead && u.side === 0 && u.k === "vil" && !u.shel && !u.task) : []);
   // the shield chip (6.3): the whole garrison selected, and the panel beside the chip
   function garPanel(on) {
+    const was = garOpen;
     garOpen = !!on && !!G && live;
     if (garOpen) { const ids = garUnits().map(u => u.id); sel = ids.length ? { kind: "units", ids, gar: true } : null; }
+    if (garOpen && !was && G) view.mark = { x: G.post.x + 0.5, y: G.post.y + 0.5, t: performance.now(), foe: false };   // where the post is
     else if (sel && sel.gar) sel = null;
     tog(el.shield, "on", garOpen);
     panels();
@@ -69984,10 +70148,12 @@ townRegion("shell", () => { Town = (() => {
   // ---- the build bar (9.4): every building of the age, locked or poor ones with their reason; then Age ----
   const lack = c => RES.filter(r => G.res[r] < ((c && c[r]) || 0));
   const wonderMiss = () => { const W = D.WONDERS[G.age - 1]; return W.req.bld.filter(k => !hasDone(k)).concat((W.req.tech || []).filter(t => !G.techs[t])); };
+  // the building each missing tech comes from, while that building is not built ("Clamped Masonry from a Workshop")
+  const missFrom = m => { const o = {}; for (const id of m) if (D.TECHS[id] && !hasDone(D.TECHS[id].at)) o[id] = D.TECHS[id].at; return o; };
   function buildState(k) {
     if (k === "stable" && G.age === 1 && !G.techs.horse_breeding) return { lock: errW("req", { need: ["horse_breeding"] }) };
     if (k === "grove" && !G.techs.planted_groves) return { lock: errW("req", { need: ["planted_groves"] }) };
-    if (k === "wonder") { if (G.wonder) return { lock: errW("blocked") }; const m = wonderMiss(); if (m.length) return { lock: errW("req", { need: m }) }; }
+    if (k === "wonder") { if (G.wonder) return { lock: errW("blocked") }; const m = wonderMiss(); if (m.length) return { lock: errW("req", { need: m, from: missFrom(m) }) }; }
     const L = lack(TW.cost(G, k));
     return { poor: L.length ? errW("cost", { res: L[0] }) : "", lack: L };
   }
@@ -70144,7 +70310,7 @@ townRegion("shell", () => { Town = (() => {
   }
   function advanceOff() {
     if (G.age >= 3) return errW("bad");
-    if (G.aging) return errW("busy");
+    if (G.aging) return TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) });
     if (G.wonder) return errW("wonder");
     const m = D.AGES[G.age].advance.req.filter(k => !hasDone(k));
     if (m.length) return errW("req", { need: m });
@@ -70236,7 +70402,9 @@ townRegion("shell", () => { Town = (() => {
     return m;
   }
   function garModel() {
-    const gs = garUnits(), m = { head: U("garrisonHead") + " · " + gs.length, sub: [], acts: [], q: [] };
+    const gs = garUnits(), m = { head: U("garrisonHead") + " · " + gs.length, sub: [U("garPost")], acts: [], q: [] };
+    // soldiers paid for and waiting for room (paint review: they sat in the queue with nothing said)
+    if (G.blds.some(b => !b.dead && b.k !== "tc" && b.q.length && !b.q[0].on)) m.sub.push(U("garFull"));
     for (const [u, k] of [["spear", "trainSpear"], ["bow", "trainBow"], ["horse", "trainHorse"]]) m.acts.push(A_("gtrain:" + u, U(k), trainOff(u, trainAt(u)), { cost: TW.cost(G, u) }));
     m.acts.push(A_("gRet", U("ret")), A_("gHold", U("hold"), "", { on: !!G.post.hold }), A_("gDismiss", U("dismissHold"), gs.length ? "" : errW("bad"), { hold: 1 }));
     return m;
@@ -70262,7 +70430,7 @@ townRegion("shell", () => { Town = (() => {
       w: !G.techs[id] && !hasDone(D.TECHS[id].at) ? errW("req", { need: [D.TECHS[id].at] }) : "" }, "tech", id)) });
     const miss = wonderMiss();
     m.blocks.push({ h: nm("bld", "wonder"), rows: [hrow({ t: nm("bld", "wonder"), hy: TWT.hy ? TWT.hy("bld", "wonder", a) : "", d: TWT.ui.siteHint ? U("siteHint", a) : "" }, "bld", "wonder"), { t: U("costL"), cost: TW.cost(G, "wonder") }]
-      .concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss) : errW("req", { need: miss }) }] : []) });
+      .concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss, missFrom(miss)) : errW("req", { need: miss, from: missFrom(miss) }) }] : []) });
     return m;
   }
   function sheetHtml(m) {
@@ -70380,20 +70548,39 @@ townRegion("shell", () => { Town = (() => {
 
   // ---- the call line (9.10): one line at a time; a line from the sim waits a moment behind a fresh one; the
   // current hint shows when nothing else does ----
-  let callMsg = "", callAt = 0, callUntil = 0;
+  // (paint review) a queued line keeps for 8 s of game time (20 s for a loss), so nothing shows a minute late at
+  // 4x; a line with a tag (the wonder's stages) replaces a queued one with the same tag, never showing out of
+  // order; a loss (pri: destroyed, fallen, the palace) goes before the chatter and is shown at once over it
+  let callMsg = "", callAt = 0, callUntil = 0, callPri = 0;
   const callQ = [];
-  function say(s, q) {
+  const gt = () => (G ? G.tick : 0);
+  function say(s, q, pri, tag) {
     if (!s || !el.call) return;
     const t = performance.now();
-    if (q && callMsg && t - callAt < 1500) { if (callQ.length < 3 && s !== callMsg && !callQ.includes(s)) callQ.push(s); return; }
-    callMsg = s; callAt = t; callUntil = t + 4000;
+    if (q && callMsg && t - callAt < 1500 && (!pri || callPri)) {
+      if (s === callMsg || callQ.some(e => e.s === s)) return;
+      if (tag) for (let i = callQ.length - 1; i >= 0; i--) if (callQ[i].tag === tag) callQ.splice(i, 1);
+      const e = { s, at: gt(), pri: pri ? 1 : 0, tag: tag || "" };
+      if (pri) { let i = 0; while (i < callQ.length && callQ[i].pri) i++; callQ.splice(i, 0, e); } else callQ.push(e);
+      while (callQ.length > 4) { const j = callQ.map(x => x.pri).lastIndexOf(0); callQ.splice(j >= 0 ? j : callQ.length - 1, 1); }
+      return;
+    }
+    if (tag) for (let i = callQ.length - 1; i >= 0; i--) if (callQ[i].tag === tag) callQ.splice(i, 1);
+    callMsg = s; callAt = t; callUntil = t + (pri ? 5000 : 4000); callPri = pri ? 1 : 0;
     showCall();
   }
   function showCall() {
     const t = performance.now();
-    if (callMsg && t >= callUntil) callMsg = "";
-    if (!callMsg && callQ.length) { callMsg = callQ.shift(); callAt = t; callUntil = t + 4000; }
-    const h = hintCur ? hintList()[hintCur.i].line : "", s = callMsg || h;
+    if (callMsg && t >= callUntil) { callMsg = ""; callPri = 0; }
+    while (!callMsg && callQ.length) {
+      const e = callQ.shift();
+      if (gt() - e.at > Math.round((e.pri ? 20 : 8) / DT)) continue;   // stale: dropped
+      callMsg = e.s; callAt = t; callUntil = t + (e.pri ? 5000 : 4000); callPri = e.pri;
+    }
+    // a hint that asks for what the player is doing already (its building's ghost is out) waits
+    let h = hintCur ? hintList()[hintCur.i] : null;
+    if (h && ghost && h.ctl === "build:" + ghost.type) h = null;
+    const s = callMsg || (h ? h.line : "");
     setT(el.call, s); tog(el.call, "on", !!s); tog(el.call, "twHintOn", !!s && !callMsg);
   }
   // ---- the first town's hints (9.13): one at a time, each with an outline on its control, until its action
@@ -70444,10 +70631,21 @@ townRegion("shell", () => { Town = (() => {
   }
 
   // ---- events from the sim to the screen, the art and the sound ----
+  // the effects and the sound are cosmetic: a throw in either is logged once and that module stops for the
+  // session (the sound scene handed back to the map); the town plays on (paint review: it ended the game)
+  let fxOff = false, sndOff = false;
+  function soft(which, fn) {
+    if (which === "fx" ? fxOff : sndOff) return;
+    try { fn(); } catch (e) {
+      if (which === "fx") fxOff = true;
+      else { sndOff = true; try { TWS.close(); } catch (x) {} Snd.sceneOverride = null; }
+      try { console.error(e); } catch (x) {}
+    }
+  }
   function route(evs) {
     if (!evs.length) return;
-    TWA.fx(evs, G);
-    TWS.onEvents(evs, G, view, cssW);
+    soft("fx", () => TWA.fx(evs, G));
+    soft("snd", () => TWS.onEvents(evs, G, view, cssW));
     for (const e of evs) onEvent(e);
   }
   function raidOver() {
@@ -70465,7 +70663,7 @@ townRegion("shell", () => { Town = (() => {
       case "built": if (e.k !== "wall") say(U("built", nm("bld", e.k)), q); else if (!G.blds.some(b => !b.dead && b.k === "gate")) hint("wallNoGate"); break;
       case "researched": say(U("researched", nm("tech", e.tech)), q); barKey = ""; break;
       case "noPop": say(errW("pop"), q); break;
-      case "raidWarn": say(U("raidComing", a, !!e.wonder), q); hint("firstWarn"); break;
+      case "raidWarn": say(U("raidComing", a, !!e.wonder), q, 1); hint("firstWarn"); break;
       case "raidSpawn": hintEnd("horn"); hint("firstSpawn"); ui1.shel = 0; break;
       case "raidNear": say(U("raidAtWalls"), q); break;
       case "raidRepelled": say(U("raidRepelled"), q); raidOver(); break;
@@ -70476,22 +70674,30 @@ townRegion("shell", () => { Town = (() => {
       case "alarm": say(e.on ? (e.all ? U("alarmAll") : U("alarmOn")) : U("allClear")); break;
       case "idle": if (now() - (ui1.idle || -1e9) > 30000) { const n = idleVils().length; if (n) { ui1.idle = now(); say(U("idleCall", n) + " " + idleWhy(), q); } } break;
       case "autoWait": say(U("autoWait", e.n), q); break;
-      case "depleted": { const s = U("depleted", e.k); if (s) say(s, q); break; }
+      case "depleted": {
+        // one call per kind a minute of game time at most (paint review: "quarried out" six times in six minutes);
+        // the last orchard or flock gone: Fields, once a game
+        const dep = ui1.dep || (ui1.dep = {}), s = U("depleted", e.k);
+        if ((e.k === "orchard" || e.k === "flock") && !ui1.foodOut && !G.nodes.some(n => !n.dead && n.left > 0 && (n.k === "orchard" || n.k === "flock"))) { ui1.foodOut = 1; say(U("foodOut"), q, 1); break; }
+        if (s && !(G.tick - (dep[e.k] === undefined ? -1e9 : dep[e.k]) < Math.round(60 / DT))) { dep[e.k] = G.tick; say(s, q); }
+        break;
+      }
       case "destroyed":
-        if (e.k !== "wall") say(U("destroyed", nm("bld", e.k)), q);
+        if (e.raid && e.k !== "wall" && e.k !== "gate") { lostMarks = lostMarks.filter(m => !(m.x === e.x && m.y === e.y)); lostMarks.push({ x: e.x, y: e.y, k: e.k, t: G.tick }); }
+        if (e.k !== "wall") say(U("destroyed", nm("bld", e.k)), q, e.raid ? 1 : 0);
         if (e.k === "house" && TW.labor(G).pop > G.popCap && now() - (ui1.houses || -1e9) > 60000) { ui1.houses = now(); say(U("housesLost"), q); }
         break;
       case "craftsmen": say(U("craftsmen"), q); break;
       case "clockStart": say(U("clockHint"), q); break;
       case "repairStop": if (now() - (ui1.rep || -1e9) > 20000) { ui1.rep = now(); say(U("repairStop", e.res, a), q); } break;
       case "hit": if (e.bld) hitCall(e); break;
-      case "fell": if (!e.side) say(e.k === "vil" ? U("vilFell") : U("unitFell", nm("unit", e.k)), q); break;
+      case "fell": if (!e.side) say(e.k === "vil" ? U("vilFell") : U("unitFell", nm("unit", e.k)), q, 1); break;
       case "driven": say(U("drivenCall"), q); break;
       case "cartArrive": say(U("cartArrive", e.n, a), q); break;
       case "cartLost": say(U("cartLost"), q); break;
       case "trade": say(U(e.op === "sell" ? "sold" : "bought", e.res, e.n, e.op === "sell" ? gain(e.res) : price(e.res), a)); break;
       case "wonderBegin": hintEnd("wonder"); break;
-      case "wonderStage": { const s = U("stage", e.pct, a); if (s) say(s, q); break; }
+      case "wonderStage": { const s = U("stage", e.pct, a); if (s) say(s, q, 0, "stage"); break; }
       case "wonderSetback": say(U("setback"), q); break;
       case "cmdDropped": if (e.k === "wall" && e.err === "cost" && e.n) say(U("wallShort", e.n, e.res || "s", a)); else if (e.err && e.err !== "bad") say(errW(e.err, e), q); break;
       case "win": case "lose": endGame(e); break;
@@ -70511,9 +70717,13 @@ townRegion("shell", () => { Town = (() => {
     const b = bldOf(e.bld);
     if (!b) return;
     hint("damaged");
-    if (b.k === "tc") {   // the palace under 50% and under 25%: once each
+    if (b.k === "tc") {
+      // raiders at the palace: the speed drops to 1x, once a minute of game time at most (paint review: it fell
+      // 12 real seconds after the warning at 4x)
+      if (speed > 1 && G.tick - (ui1.slow === undefined ? -1e9 : ui1.slow) >= Math.round(60 / DT)) { ui1.slow = G.tick; setSpeed(1); say(U("palaceSlow", TWT.ages[G.age - 1].tc), 1, 1); return; }
+      // the palace under 50% and under 25%: once each
       const p = b.hp / b.hpMax * 100, t = p <= 25 && !ui1.tc25 ? 25 : p <= 50 && !ui1.tc50 ? 50 : 0;
-      if (t) { ui1.tc50 = 1; if (t === 25) ui1.tc25 = 1; say(U("tcHurt", G.age, t), 1); return; }
+      if (t) { ui1.tc50 = 1; if (t === 25) ui1.tc25 = 1; say(U("tcHurt", G.age, t), 1, 1); return; }
     }
     const s = TWA.toScreen(view, e.x, e.y);
     if (b.k !== "wall" && (s.x < 0 || s.y < area.t || s.x > cssW || s.y > area.b) && now() - (ui1.hit || -1e9) > 10000) { ui1.hit = now(); say(U("underAttack", nm("bld", b.k)), 1); }
@@ -70531,6 +70741,8 @@ townRegion("shell", () => { Town = (() => {
     const d = G.diff, win = e.e === "win", sc = score(win, e.stars | 0), B = pref.best[d];
     let bless = null, best = false;
     if (win) {
+      const wb = G.blds.find(b => !b.dead && b.k === "wonder");
+      if (wb) centerOn(wb.x + wb.w / 2, wb.y + wb.h / 2);   // the reward: the finished wonder behind the card
       bless = grantBlessing(e.stars);
       pref.won[d]++;
       pref.firstTown = false;
@@ -70683,7 +70895,7 @@ townRegion("shell", () => { Town = (() => {
       h = (win ? '<p class="twStars" role="img" aria-label="' + esc(U("stars", st)) + '">' + [1, 2, 3].map(i => svg("i-star", i <= st ? "ic" : "ic twStar0")).join("") + "</p>" : "") +
         '<h2 id="twEndHead" aria-live="polite">' + esc(win ? U("winHead", cardData.age) : cardData.cause === "soft" ? U("softLock") : U("loseHead", cardData.age)) + "</h2>" +
         '<div class="twBody">' + (!win && cardData.cause === "tc" && TWT.ui.loseTip ? P(U("loseTip", cardData.age)) : "") + (W && W.lines ? W.lines.map(x => P(txt(x))).join("") : "") +
-        (win && cardData.bless ? '<p class="twBless">' + esc((cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n)) + (cardData.bless.elder ? " " + U("elderToo") : "")) + "</p>" : "") +
+        (win && cardData.bless ? '<p class="twBless">' + esc((cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n, !!cardData.bless.tut)) + (cardData.bless.elder ? " " + U("elderToo") : "")) + "</p>" : "") +
         (W && W.lic ? W.lic.map(x => S(txt(x))).join("") : "") + "</div>" +
         S(U("map", G ? G.seed : 0) + " · " + U("timeL") + " " + TWT.mmss(G ? Math.floor(G.tick * DT) : 0) + (cardData.score !== undefined ? " · " + U("score", cardData.score) : "") + (cardData.best ? " · " + U("newBest") : "")) +
         (B0 && B0.stars ? S(U("best", B0.stars, TWT.mmss(B0.timeS))) : "");
@@ -70718,7 +70930,9 @@ townRegion("shell", () => { Town = (() => {
             hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {}; saving = !!(S.ui && S.ui.saving);
           }
           live = true; TWA.setAge(G.age); TWS.open(G); labels(); barKey = "";
-          showCard("pause");                       // resuming opens on the pause card (8.4)
+          // the resume card held the clock until this tap (8.4: nothing moves before the player is ready); a
+          // second card asking the same was one tap too many (paint review)
+          showCard("");
         } else showCard("");
         break;
       case "newGame": cardData.ask = "newGame"; renderCard(); break;
@@ -70750,7 +70964,7 @@ townRegion("shell", () => { Town = (() => {
     G = TW.newGame({ seed, diff, firstTown });
     live = true; acc = 0; fromCrash = false; resumedAt = -1; lastSnapTick = 0; savedTick = -1;
     setMode("none"); setSel(null); garPanel(false); openSheet(false);
-    hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; callQ.length = 0; callMsg = ""; alarmAt = -1e9; barKey = ""; saving = false;
+    hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; callQ.length = 0; callMsg = ""; alarmAt = -1e9; barKey = ""; saving = false; lostMarks = [];
     pref.lastSeed = seed; pref.diff = G.diff; pref.firstTown = !!firstTown; pref.played++;
     savePref();
     view.zoom = defaultZoom();
@@ -70792,7 +71006,7 @@ townRegion("shell", () => { Town = (() => {
       } else route(TW.drain(G));
     }
     if (card === "age" && G) TWA.prebake(G, view);    // the new age's ground bakes while its card is read
-    if (G && t - twsAt >= 500) { twsAt = t; TWS.tick(G, view); }
+    if (G && t - twsAt >= 500) { twsAt = t; soft("snd", () => TWS.tick(G, view)); }
     paint(t);
   });
   // the HUD's blocks over the map (CSS px in the room), measured twice a second: the raid arrows keep clear of them
@@ -70811,6 +71025,8 @@ townRegion("shell", () => { Town = (() => {
     if (!G) return;
     view.sel = selView();
     view.area = area; view.hud = hudRects;
+    if (lostMarks.length) lostMarks = lostMarks.filter(m => G.tick - m.t < Math.round(240 / DT) && !G.blds.some(b => !b.dead && b.k === m.k));
+    view.lost = lostMarks;
     TWA.ghost(ghostSpec());
     TWA.draw(G, view, held.size ? 0 : acc / DT, t);
     if (t - miniAt >= 250 || t < miniAt) { miniAt = t; TWA.drawMini(G, view); }
@@ -70820,15 +71036,8 @@ townRegion("shell", () => { Town = (() => {
   const setT = (e, s) => { if (e && e.textContent !== s) e.textContent = s; };
   const tog = (e, c, v) => { if (e && e.classList.contains(c) !== !!v) e.classList.toggle(c, !!v); };
   const lab = (e, s) => { if (e && e.getAttribute("aria-label") !== s) e.setAttribute("aria-label", s); };
-  // the Next line's goal: TW.next's, except that a town with room for one villager or none asks for a House first
-  // (the gray box review: "Next: Storeroom" at 9 of 10 while training stopped; WP2 may move this into TW.next)
-  function nextGoal() {
-    const n = TW.next(G);
-    if (!/^(build|res|tech|advance|wonder)$/.test(n.k) || (n.k === "build" && n.type === "house") || G.aging || G.wonder) return n;
-    const L = TW.labor(G);
-    if (G.popCap - L.pop > 1 || G.popCap >= D.POP.max || G.blds.some(b => !b.dead && b.k === "house" && b.done < 1)) return n;
-    return { k: "build", type: "house", age: G.age };
-  }
+  // the Next line's goal: TW.next's (it now says "a House too" itself when the town is full, paint review)
+  const nextGoal = () => TW.next(G);
   const nextText = () => { const n = nextGoal(); return n.k === "dismiss" ? U("softLockCall") : n.k === "over" ? "" : TWT.next(n); };
   function hud() {
     if (!G || !root) return;
@@ -70848,9 +71057,9 @@ townRegion("shell", () => { Town = (() => {
     tog(el.pop, "warn", room <= 2 && room > 0); tog(el.pop, "full", room <= 0);
     { const tb = tcOf(), au = !!(tb && tb.auto); tog(el.pop, "twAuto", au); lab(el.pop, U("pop", L.pop, G.popCap) + (au ? ". " + U("popAuto", TWT.ages[G.age - 1].tc) : "")); }
     const ri = TW.raidInfo(G), on = G.units.some(u => !u.dead && u.side === 1), w = ri.warn[0];
-    const rt = on ? U("raidNow") : ri.held ? U("raidsWait") : TWT.mmss(Math.max(0, (w ? w.spawnAt : ri.nextWarn) - G.tick) * DT);
+    const rt = G.over ? "" : on ? U("raidNow") : ri.held ? U("raidsWait") : TWT.mmss(Math.max(0, (w ? w.spawnAt : ri.nextWarn) - G.tick) * DT);
     setT(el.raid.lastChild, rt);
-    tog(el.raid, "warn", !!w && !on); tog(el.raid, "live", on); tog(el.raid, "dim", !w && !on);
+    tog(el.raid, "warn", !!w && !on && !G.over); tog(el.raid, "live", on && !G.over); tog(el.raid, "dim", G.over || (!w && !on));
     lab(el.raid, TWT.ui && TWT.ui.raidChipAria ? U("raidChipAria", a, rt, on, ri.held) : on ? U("raidNow") : U("raidIn", rt));
     setT(el.next, nextText());
     setT(el.speed, speed + "x");
@@ -71535,6 +71744,40 @@ function townSelftest(check, res) {
       TW.command(G3, { k: "place", type: "house", x: hs[0], y: hs[1], rot: 0 });
       TW.apply(G3);
       if (G3.tick !== t0 || G3.blds.length !== n0 + 1) fail("apply() did not place at once, or moved the clock");
+      // (paint review) the food used up: food workers stand idle (none sent to goods) and the Next line asks for Fields
+      {
+        const F = TW.newGame({ seed: SEED, diff: 1 }), g0 = TW.labor(F).g;
+        for (const n of F.nodes) if (n.k === "orchard" || n.k === "flock") n.left = 0;
+        ticks(F, 40);
+        if (TW.labor(F).f || TW.labor(F).g > g0) fail("food workers with no food work kept food or went to goods: " + JSON.stringify(TW.labor(F)));
+        const n = TW.next(F);
+        if (n.k !== "fields" || !n.n) fail("the Next line does not ask for Fields with no food work left: " + JSON.stringify(n));
+      }
+      // soldiers first: one place free, a spearman waiting and the palace's villager waiting: the spearman takes it
+      {
+        const P = TW.stage("age2"), tc = tcOf(P), b = P.blds.find(o => o.k === "barracks" && o.done >= 1);
+        P.res = { f: 9000, w: 9000, s: 9000, g: 9000 };
+        TW.command(P, { k: "train", bld: b.id, unit: "spear", n: 1 }); TW.apply(P);
+        tc.q = [{ k: "vil", left: 130, paid: { f: 50 }, on: 0 }];
+        P.popCap = P.units.filter(u => !u.dead && u.side === 0).length + P.blds.filter(o => !o.dead && o.q.length && o.q[0].on).length + 1;
+        TW.tick(P);
+        if (!b.q.length || !b.q[0].on || tc.q[0].on) fail("the palace's villager took the free place before a waiting spearman");
+      }
+      // a building the raiders destroyed is asked for again ("Rebuild") until one of its kind is placed; a hurt
+      // palace with no raid on asks for Repair
+      {
+        const Q = TW.stage("age2"), st = Q.blds.find(o => o.k === "store");
+        Q.blds.filter(o => o.k === "store").forEach(o => { o.dead = true; });
+        Q.calls.lost = ["store"];
+        const n1 = TW.next(Q);
+        if (n1.k !== "build" || n1.type !== "store" || !n1.re) fail("no Rebuild goal for a destroyed storehouse: " + JSON.stringify(n1));
+        Q.blds.filter(o => o.k === "store").forEach(o => { o.dead = false; });
+        if (TW.next(Q).re) fail("a Rebuild goal while a storehouse stands");
+        const tq = tcOf(Q);
+        tq.hp = tq.hpMax * 0.5;
+        if (TW.next(Q).k !== "repairTc") fail("no Repair goal for a palace at half its hit points: " + JSON.stringify(TW.next(Q)));
+        if (!st) fail("no storehouse in the age2 stage");
+      }
     });
 
     // 4: ages and techs (5)
@@ -72052,13 +72295,13 @@ function townSelftest(check, res) {
       if (!(z1 > z0) || T.view().zoom !== z0) throw new Error("the zoom buttons do not step the zoom: " + [z0, z1, T.view().zoom]);
       const near = (ok, from) => { for (let d = from; d < 16; d++) for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue; const x = tc.x + dx, y = tc.y + dy; if (ok(x, y)) return [x, y]; } return null; };
       const clear = (x, y, r) => !G.units.some(u => !u.dead && Math.abs(u.x - x - 0.5) < r && Math.abs(u.y - y - 0.5) < r);
-      // a House by touch: its button, the ghost dragged (it rides 56 px above the finger), the check
+      // a House by touch: its button, the ghost dragged (it moves with the finger from where it was grabbed), the check
       T.button("build:house").click();
       const g0 = T.ghost(), hs = near((x, y) => TW.canPlace(G, "house", x, y, 0).ok && (x !== g0.x || y !== g0.y) && clear(x + 0.5, y + 0.5, 2), 3);
       if (T.mode() !== "place" || !g0 || !hs) throw new Error("the House button did not bring a ghost");
-      T.down(g0.x + 0.5, g0.y + 0.5);
-      T.move(hs[0], hs[1], 31, "touch", 56);
-      T.up(hs[0], hs[1], 31, "touch", 56);
+      T.down(g0.x, g0.y);
+      T.move(hs[0], hs[1]);
+      T.up(hs[0], hs[1]);
       const g1 = T.ghost();
       if (!g1 || g1.x !== hs[0] || g1.y !== hs[1] || !g1.ok) throw new Error("the dragged ghost is not where the finger put it: " + JSON.stringify([g1, hs]));
       T.button("ghostOk").click();
@@ -72186,12 +72429,12 @@ function townSelftest(check, res) {
       T.back();
       if (Town.isOpen() || T.rafOn() || overlayEl.hasAttribute("inert") || Snd.sceneOverride !== null) throw new Error("the back swipe did not close the town cleanly");
       if (document.activeElement !== btn) throw new Error("the focus did not come back to the door");
-      // reopened: the resume card, which opens on the pause card
+      // reopened: the resume card, which holds the clock until its Resume, and then plays (one tap, paint review)
       btn.click();
       if (T.card() !== "resume") throw new Error("no resume card on reopening");
+      { const k0 = T.G.tick; T.skip(5000); if (T.G.tick !== k0) throw new Error("the clock ran under the resume card"); }
       T.button("card:resume").click();
-      if (T.card() !== "pause") throw new Error("resuming does not open on the pause card");
-      T.button("card:resume").click();
+      if (T.card() !== "" || T.held().size) throw new Error("resuming does not go straight back to the town: " + T.card());
       // a save that did not stick is told on the leave card
       T.failWrites(true);
       T.snapshot();

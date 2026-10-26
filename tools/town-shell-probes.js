@@ -6,11 +6,13 @@
 //   closethrow  TWA.free() and then TWS.close() throw while leaving: the map is given back, not left inert
 //   pagehide    a pagehide, then the page shown again by visibilitychange alone: the clock runs after Resume
 //   nostore     site storage blocked: the leave card does not promise a save, and says the town lasts the page
+//   softthrow   TWS.onEvents, TWS.tick and TWA.fx each throw (from their 3rd call): the town plays on, no error
+//               card, and the sound scene goes back to the map (paint review issue 6)
 // Prints one line per scenario and "RESULT {...}"; exits 1 on any failure.
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const path = require("path");
 const FILE = path.resolve(process.env.GAME || path.join(__dirname, "..", "index.html"));
-const ALL = ["errback", "closethrow", "pagehide", "nostore"];
+const ALL = ["errback", "closethrow", "pagehide", "nostore", "softthrow"];
 const want = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 (async () => {
   const b = await chromium.launch();
@@ -62,6 +64,29 @@ const want = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
         await wait(1500);
         const t1 = await ev(() => Town.test.G.tick), held = await ev(() => Array.from(Town.test.held()));
         ok(t1 > t0 && !held.length, "the clock stayed held after Resume: " + JSON.stringify(held));
+      } else if (sc === "softthrow") {
+        let first = true;
+        for (const [mod, fn] of [["TWS", "onEvents"], ["TWS", "tick"], ["TWA", "fx"]]) {
+          if (!first) {   // each module on a fresh page (a module that threw stays off for the page's life)
+            await page.goto("about:blank"); await page.goto("file://" + FILE); await wait(1500);
+            await ev(() => { try { for (const k of ["hs_town", "hs_town_run"]) localStorage.removeItem(k); } catch (e) {} if (menuMode === "chapter") $("startBtn").click(); });
+            await wait(300);
+            await click("#townBtn"); await click("@card:begin"); await click("@card:cont"); await wait(400);
+          }
+          first = false;
+          await ev(([mod, fn]) => {
+            const M = mod === "TWA" ? TWA : TWS, f = M[fn];
+            let n = 0;
+            window["__" + fn] = f;
+            M[fn] = function () { if (++n >= 3) throw new TypeError("probe: " + fn + " threw"); return f.apply(this, arguments); };
+          }, [mod, fn]);
+          const t0 = await ev(() => { Town.test.button("speed").click(); return Town.test.G.tick; });
+          await wait(2500);
+          const s = await ev(() => ({ card: Town.test.card(), tick: Town.test.G.tick, over: Snd.sceneOverride }));
+          await ev(([mod, fn]) => { (mod === "TWA" ? TWA : TWS)[fn] = window["__" + fn]; }, [mod, fn]);
+          ok(s.card === "" && s.tick > t0 + 10, "a throw in " + mod + "." + fn + "() stopped the town: " + JSON.stringify(s));
+          if (mod === "TWS") ok(s.over === null, "a throw in TWS." + fn + "() left the town's sound scene on: " + JSON.stringify(s));
+        }
       } else if (sc === "nostore") {
         await click("@leave");
         const [line, want] = await ev(() => [document.querySelector("#twCard p").textContent, TWT.ui.leaveMem]);

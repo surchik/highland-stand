@@ -1,7 +1,7 @@
 // Under Ararat (WP4 post-P): the source lines of the info panel's and the age sheet's history lines. Every cite that
 // TWT's hist() uses is resolved through docs/history/town-history.json to the works the history file read for it, and
-// printed as the shell's SRC table (works and cites) to paste into the TODO-TEXT block (or into TWT.source when WP6
-// takes it over). A GAME item or a dossier-only item maps to the works its campaign check read (GAMEW, DOSS below).
+// printed as TWT's SRC table (works and cites; the TEXT region, beside TWT.source) to paste in when the cites change.
+// A GAME item or a dossier-only item maps to the works its campaign check read (GAMEW, DOSS below).
 // Usage: node tools/town-sources.js [index.html]      (exit 1 if a cite has no work)
 const fs = require("fs");
 const path = require("path");
