@@ -1465,7 +1465,7 @@
     padding: 4px 0; gap: 4px; }
   #town.twTall .twDkR { width: auto; flex: 1 1 0; max-width: 150px; }
   #town.twTall .twChips, #town.twTall .twGar { bottom: calc(var(--twBar) + var(--twDk) + 10px); }
-  #town.twTall.twInfoOn .twChips, #town.twTall.twInfoOn .twGar { bottom: calc(var(--twBar) + var(--twDk) + 160px); }
+  #town.twTall.twInfoOn .twChips, #town.twTall.twInfoOn .twGar { bottom: calc(var(--twBar) + var(--twDk) + var(--twInfoH, 150px) + 10px); }
   /* the coached outline (9.13) */
   #town .twCoach { box-shadow: 0 0 0 3px #f2c14e, 0 0 14px 3px rgba(242,193,78,.75) !important; animation: twPulse 1.4s ease-in-out infinite; }
   @keyframes twPulse { 50% { box-shadow: 0 0 0 3px #f2c14e, 0 0 4px 1px rgba(242,193,78,.4); } }
@@ -1476,10 +1476,10 @@
     background: var(--twLeaf); border: 2px solid var(--bronze); border-radius: 8px;
     box-shadow: 0 0 0 1px var(--bronze-sh), 0 6px 18px rgba(0,0,0,.55); overflow-y: auto; overscroll-behavior: contain; -webkit-user-select: text; user-select: text; }
   #town .twPanel.on, #town .twSheet.on { display: block; }
-  #town .twInfo { right: calc(10px + var(--sar)); bottom: calc(var(--twBar) + 10px); width: 320px; max-height: min(260px, calc(100% - var(--twTop) - var(--twBar) - 330px)); min-height: 110px; padding: 0 10px 10px; }
+  #town .twInfo { right: calc(10px + var(--sar)); bottom: calc(var(--twBar) + 10px); width: 320px; max-height: min(400px, calc(100% - var(--twTop) - var(--twBar) - 330px)); min-height: 110px; padding: 0 10px 10px; }
   #town.twWide .twInfo { width: 360px; }
   #town .twGar { left: calc(var(--twCol) + 20px + var(--sal)); bottom: calc(var(--twBar) + 10px); width: 300px; max-width: calc(100% - var(--twCol) - 40px); padding: 0 10px 10px; }
-  #town.twTall .twInfo { left: 0; right: 0; width: auto; bottom: calc(var(--twBar) + var(--twDk)); height: 150px; max-height: none; min-height: 0; border-radius: 10px 10px 0 0;
+  #town.twTall .twInfo { left: 0; right: 0; width: auto; bottom: calc(var(--twBar) + var(--twDk)); height: auto; max-height: 40%; min-height: 150px; border-radius: 10px 10px 0 0;
     padding: 0 calc(12px + var(--sar)) 8px calc(12px + var(--sal)); }
   #town.twTall .twInfo .twIH { margin: 0 calc(-12px - var(--sar)) 0 calc(-12px - var(--sal)); padding: 2px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
   #town .twIH { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; min-height: 36px; margin: 0 -10px; padding: 4px 10px 0;
@@ -1495,6 +1495,15 @@
   #town .twIS { margin: 2px 0; font-size: 14.5px; }
   #town .twHist { margin: 2px 0 4px; font-size: 14px; font-style: italic; color: #5a4222; }
   #town .twQ, #town .twActs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+  #town .twActs.twCols { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
+  #town .twAge.twHurt { border-color: #d04a3a !important; box-shadow: 0 0 0 2px #d04a3a, 0 0 12px 2px rgba(208,74,58,.7) !important; color: #ffd0c8; }
+  #town .twActs.twCols .twA.sym { grid-column: span 1; }
+  #town .twPanel.twMore::after, #town .twSheet.twMore::after { content: "\2304"; position: sticky; bottom: -10px; display: block; height: 30px;
+    margin: 0 -10px -10px; font-size: 26px; line-height: 22px; text-align: center; color: #6a3a14; pointer-events: none;
+    background: linear-gradient(180deg, rgba(243,230,194,0), #f3e6c2 65%); }
+  #town .twSheet.twMore::after { margin: 0 -16px -14px; bottom: -14px; }
+  #town .twRt small.twWhy { color: #a8322a; font-weight: 700; }
+  #town .twFlash { background: rgba(242,193,78,.45); border-radius: 6px; transition: background .3s; }
   #town .twA, #town .twQi { min-height: 44px; min-width: 44px; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--parch);
     border: 2px solid var(--bronze); background: var(--twWood); display: inline-flex; align-items: center; gap: 6px; line-height: 1.15; text-align: left; }
   #town .twA.sym { justify-content: center; font-size: 24px; padding: 0 14px 2px; }
@@ -59800,7 +59809,8 @@ function nardiSelftest(check, res) {
 //   Events: { e: "<name>", t: <tick>, ...fields } (13.5; `k` is a field of several events, so the name is `e`).
 //   Goals from next(G), worded by TWT.next: { k: "open", step: "house" | "field" | "store" | "move" } |
 //     { k: "build", type } | { k: "tech", tech } | { k: "res", res, have, need } | { k: "advance", to } |
-//     { k: "aging", to, left } (left in s) | { k: "wonder", age } | { k: "wonderPct", age, pct } | { k: "over" }
+//     { k: "aging", to, left } (left in s) | { k: "wonder", age } | { k: "wonderPct", age, pct } | { k: "over" } |
+//     (gray box fix) { k: "rising", type, age, pct } (the goal's building is going up) | { k: "palace", age, pct } (under attack)
 //   Stages (14.4): start first age1 age1raid age1wall age2 age2raid age3 wonder1 wonder2 wonder3 (opts.p, percent)
 //     age3wonder plan, and win1 win2 win3: the age's wonder finishes within 30 ticks with no command (check 11).
 // TWT, pure data and wording (no page globals): title, door, doorTitle, intro[], res { f, w, s, g: [3] },
@@ -59834,6 +59844,14 @@ function nardiSelftest(check, res) {
 //   Town.test also: down move up cancel later(ms) gesture ghost strokes wall garOpen hint coached hud frame;
 //     button() also takes card: info: gar: sheet: wall: build: res:<r> dock<Res>+/- ghostOk ghostX ghostRot again
 //     alarm idle shield pop; photo() also card=tech|labor|help and stage=plan.
+//   Gray box fix (after the play and code reviews): TW: a villager whose work runs out moves on to any work of the
+//     same resource, then of the Next goal's or the scarcest one (idle only with no work on the map; 3.3 said idle);
+//     auto-train waits while 3+ villagers stand idle (event autoWait { n }); command err "nowork" (info.res) for the
+//     dock's + with no work; DIFFS[d].houses (Houses standing at the start: Easy 1); UNITS.vil.shelter.mounted and
+//     wonderMounted (a rider is run from at 6 and 3 tiles); a wonder raid waits 45 s past a regular raid still
+//     warned or live; bot opts { pace, careless }. TWA: view.area { l, t, r, b } and view.hud [rects] (CSS px) keep
+//     the raid arrows in the free map area; view.pulse { x, y, t } (the raid chip's rings); ghost(spec).sites (a
+//     flag per tile: legal wonder sites); stats().miss (sprites not baked this frame). Town.test.memStore(on).
 // ==== END TOWN INTERFACES ====
 //
 // ---- town: guard ----   (WP1)
@@ -59921,7 +59939,7 @@ townRegion("text", () => { TWT = (() => {
     { head: h("The temple at Garni stands.", G),
       lines: [h("The temple at Garni is usually dated to 77 AD. Some scholars think it is a tomb from a century later.", "age2.safe_lines[6]"),
         h("Garni stands on a cliff above the Azat gorge, not in Artashat.", ["age2.wonder.location", "age2.do_not_claim[3]"]),
-        h("Around 72 AD Alan horsemen raided Armenia. Tiridates fought them and was nearly captured when an enemy threw a cord over him from a distance.", "age2.safe_lines[5]")],
+        h("Around 72 AD Alan horsemen raided Armenia. Josephus writes that Tiridates fought them. He was nearly captured when an enemy threw a cord over him from a distance.", "age2.safe_lines[5]")],
       lic: [ALL_LIC] },
     { head: h("Zvartnots stands.", G),
       lines: [h("Catholicos Nerses III began Zvartnots in the 640s, the years of the first Arab raids.", "age3.safe_lines[3]"),
@@ -60179,24 +60197,27 @@ townRegion("text", () => { TWT = (() => {
     if (code === "site") return SITE_ERR[ix(info.age)];
     if (code === "age") return "Comes in the " + AGES[ix(info.age)].name + ".";
     if (code === "req") return info.need ? "Needs " + needs(info.need, info.age) + "." : "Something it needs is missing.";
+    if (code === "nowork") return info.res === "f" ? "No food work is free. Place a field." : "No " + (resL(info.res, info.age) || "goods") + " is left to gather.";
     return ERR[code] || ERR.bad;
   }
 
   // ---- 16: the Next line (9.3): one goal at a time, from TW.next(G) ----
   const OPEN = { house: "Next: build a House.", field: "Next: place a Field on the dark river soil.",
-    store: "Next: build a Storehouse near the trees or fields.", move: "Next: move a worker with + and −." };
+    store: () => "Next: build a " + name("bld", "store", 1) + " near the trees or fields.", move: "Next: move a worker with + and −." };
   function next(g) {
     if (!g) return "";
     const age = g.age || 1;
     switch (g.k) {
-      case "open": return OPEN[g.step] || "";
+      case "open": return (typeof OPEN[g.step] === "function" ? OPEN[g.step]() : OPEN[g.step]) || "";
       case "build": return "Next: " + name("bld", g.type, age);
+      case "rising": return name("bld", g.type, age) + " is going up: " + g.pct + "%.";
       case "tech": return "Next: research " + name("tech", g.tech);
       case "res": return "Next: " + name("res", g.res, age) + " " + num(g.have) + " of " + num(g.need);
       case "advance": return "Next: advance to the " + AGES[ix(g.to)].name;
       case "aging": return "Advancing: " + mmss(g.left);
       case "wonder": return "Next: build " + (age === 3 ? "" : "the ") + name("bld", "wonder", age) + " to win";
       case "wonderPct": return name("bld", "wonder", age) + " " + g.pct + "%. Keep the garrison at the site.";
+      case "palace": return "The " + AGES[ix(age)].tc + " is under attack. Ring the alarm or move the post back.";
       case "dismiss": return ui.softLockCall;
       default: return "";
     }
@@ -60251,7 +60272,7 @@ townRegion("text", () => { TWT = (() => {
   // ---- 11: hints (9.13): one at a time in the call line, each with the control it outlines (ctl) and the
   // moment it shows (on); also listed on the How to play page ----
   const HINTS = [
-    { id: "dock", on: "start", ctl: "dock", line: "Your villagers work on their own. Use + and − on the left to move workers." },
+    { id: "dock", on: "opened", ctl: "dock", line: "Your villagers work on their own. Use + and − to move workers." },
     { id: "house", on: "popLow", ctl: "build:house", line: "The town is nearly full. Tap House, then place it." },
     { id: "field", on: "flocksHalf", ctl: "build:field", line: "Fields grow food. Place them on the dark river soil." },
     { id: "horn", on: "firstWarn", ctl: "raid", line: "Raiders come on a clock. The horn at the top counts down." },
@@ -60314,6 +60335,8 @@ townRegion("text", () => { TWT = (() => {
     paused: "Paused", notSaved: "Not saved",
     leaveSaved: "Leave the town? It is saved, and you can come back to it.",
     leaveUnsaved: "Leave the town? Your town could not be saved on this device.",
+    leaveMem: "Leave the town? This browser does not let the game save. The town is kept only while this page is open.",
+    memOnly: "This browser does not let the game save. The town is kept only while this page stays open.",
     resumeLine: (age, time, diff) => "Your town is waiting. " + age + ", " + time + ", " + diff + ".",
     resumeCrash: time => "Your town was saved at " + time + ", just before an error.",
     cannotResume: "This town could not be resumed.",
@@ -60350,7 +60373,8 @@ townRegion("text", () => { TWT = (() => {
     // build bar, placement, walls and gates (4.4, 9.4, 9.5)
     buildAria: (n, cost) => n + ". " + cost + ".", ageBtn: "Age", place: "Place it here", cancel: "Cancel",
     placeAnother: "Place another", rotate: "Turn the gate",
-    wallHint: (c, age) => "Drag to draw a wall. " + costWords(c, age) + " a tile.",
+    wallHint: (c, age) => "Drag to draw a wall. Lift your finger to turn a corner. " + costWords(c, age) + " a tile.",
+    wallAfford: (n, all) => "You can pay for " + n + " of these " + all + " tiles. Build lays those first.",
     undoStroke: "Undo stroke", ring: "Ring", wallBuild: (n, c, age) => "Build (" + n + (n === 1 ? " tile" : " tiles") + (n ? ", " + costWords(c, age) : "") + ")",
     wallRun: (n, c, age) => n + (n === 1 ? " tile" : " tiles") + (n ? ", " + costWords(c, age) : ""),
     ringNone: "No ring fits around the town here.",
@@ -60371,7 +60395,8 @@ townRegion("text", () => { TWT = (() => {
     buy: (r, n, pay, age) => "Buy " + n + " " + resL(r, age) + " for " + pay + " " + resL("g", age),
     exchangeOnly: "Only one market draws trade carts. This one offers the exchange.",
     builders: n => "Builders: " + n, fewerBuilders: "Fewer builders", moreBuilders: "More builders", cancelBld: "Cancel building",
-    repair: (c, age) => "Repair (" + costWords(c, age) + " per 100 hit points)", stop: "Stop", shelter: "Shelter",
+    repair: (c, age) => "Repair (" + costWords(c, age) + " per 100 hit points)", repairBtn: "Repair", stop: "Stop", shelter: "Shelter",
+    buildersMax: (n, max) => n + " has " + max + " builders, the most it can take.", noBuilders: "No one is building it yet.",
     nodeLeft: (n, r, age) => num(n) + " " + resL(r, age) + " left", nodeWorkers: n => n + " at work", sendVil: "Send a villager",
     // the age and tech sheet (9.9)
     advanceTo: n => "Advance to the " + n, costL: "Cost", timeL: "Time", needsL: "Needs", secs: s => mmss(s),
@@ -60384,6 +60409,12 @@ townRegion("text", () => { TWT = (() => {
     alarmOn: "Alarm! Villagers near the raiders take shelter.", alarmAll: "Everyone inside.", allClear: "All clear.",
     shelterCall: "Villagers run for shelter.",
     idleCall: n => n + (n === 1 ? " villager is idle." : " villagers are idle."),
+    idleWhy: { stuck: "A wall shuts them in. Put a gate in it.", none: "No work is free. Place a field.", tap: "Tap Idle, then tap work for them." },
+    autoWait: n => "Auto-train waits while " + n + " villagers are idle.",
+    autoHint: "Training villagers uses food. Tap the Next line to save food for the advance.",
+    saveFood: "Save food: pause auto-train", saving: "Auto-train is paused to save food.", autoBack: "Auto-train is on again.",
+    housesLost: "Houses were lost. Build houses to grow the town.",
+    loseTip: age => "Raiders reached the " + AGES[ix(age)].tc + ". Keep the garrison near it, and ring the alarm when they come.",
     depleted: k => (NODE[k] ? NODE[k].gone : ""),
     built: n => theN(n) + isAre(n) + "finished.", destroyed: n => theN(n) + (PLURAL.test(n) ? " were" : " was") + " destroyed.",
     researched: n => n + " researched.", advancing: n => "Advancing to the " + n + ".",
@@ -60458,9 +60489,9 @@ townRegion("sim", () => { TW = (() => {
   // ---- TW.DATA: Appendix A (the authority for every number; WP2 tunes the values, the shape is frozen) ----
   const DIFFS = [
     { name: "Easy",   res: { f: 300, w: 200, s: 200, g: 100 }, vil: 7, gar: { spear: 3, bow: 1 }, tcHp: 2700,
-      firstRaid: 270, interval: [140, 130, 120], mult: 0.72, raiderHp: 0.85, lead: 40, wonderInterval: 95,
-      wonderMult: 1.25, retreatAt: 0.4, raidMax: 120, escalateAt: 1560, setback: 0.25,
-      pillage: 0.5, pillageShare: 60, sheetHolds: true, firstTownCap: 420, driveOff: 20 },        // O4 driveOff
+      firstRaid: 270, interval: [140, 130, 120], mult: 0.78, raiderHp: 0.85, lead: 40, wonderInterval: 95,
+      wonderMult: 1.25, retreatAt: 0.4, raidMax: 120, escalateAt: 1320, setback: 0.25,
+      pillage: 0.5, pillageShare: 60, sheetHolds: true, firstTownCap: 420, driveOff: 20, houses: 1 },   // O4 driveOff
     { name: "Normal", res: { f: 200, w: 150, s: 150, g: 50 }, vil: 6, gar: { spear: 2, bow: 1 }, tcHp: 2400,
       firstRaid: 180, interval: [120, 110, 100], mult: 1.0, raiderHp: 1.0, lead: 30, wonderInterval: 70,
       wonderMult: 1.5, retreatAt: 0.3, raidMax: 150, escalateAt: 1320, setback: 0.5,
@@ -60470,7 +60501,8 @@ townRegion("sim", () => { TW = (() => {
       wonderMult: 1.4, retreatAt: 0.2, raidMax: 180, escalateAt: 1200, setback: 0.625,
       pillage: 1.25, pillageShare: 150, sheetHolds: false, firstTownCap: 360, driveOff: 0 },
   ];   // times in seconds of game time; setback = work removed per point of bdmg; pillage in food/s per raider;
-       // driveOff (owner decision 4): seconds an Easy villager is driven off instead of killed (0: killable)
+       // driveOff (owner decision 4): seconds an Easy villager is driven off instead of killed (0: killable);
+       // houses: Houses standing at the start (Easy's 7 villagers and 4 soldiers would not fit the palace's 10)
   const AGES = [
     { id: "biainili", art: "erebuni", era: 0, map: "erebuni", hpMult: 1.0 },
     { id: "artashat", art: "avarayr", era: 1, map: "ararat", hpMult: 1.25,
@@ -60507,7 +60539,7 @@ townRegion("sim", () => { TW = (() => {
   };
   const UNITS = {
     vil:   { cost: { f: 50 }, at: "tc", train: 13, hp: [40, 45, 50], spd: 1.5, build: 1, repair: 8, repairWall: 12,
-             shelter: { near: 4, reach: 14, clear: 8, calm: 5, wonderNear: 2 } },
+             shelter: { near: 4, reach: 14, clear: 8, calm: 5, wonderNear: 2, mounted: 6, wonderMounted: 3 } },   // mounted: a rider is seen sooner
     spear: { cost: { f: 45, g: 10 }, at: "barracks", train: 16, hp: [70, 90, 110], atk: [7, 9, 11], arm: [2, 3, 4],
              range: 0, cd: 1.5, spd: 1.3, vsMounted: 1.5 },
     bow:   { cost: { f: 30, w: 25 }, at: "barracks", train: 18, hp: [40, 50, 60], atk: [5, 6, 7], arm: [0, 1, 1],
@@ -61378,6 +61410,17 @@ townRegion("sim", () => { TW = (() => {
     }
     return best;
   }
+  // when its work runs out (gray box review): any work for the same resource (another kind of node, a free field),
+  // else work for the resource the Next goal needs, else for the one the town holds least of; null only when the
+  // map has no work left at all. The villager never stands idle while there is something to gather.
+  function moveOn(G, u, res, bad) {
+    const o = pickWork(G, u, res, bad);
+    if (o) return o;
+    const g = next(G), want = g && g.k === "res" ? g.res : "";
+    const order = RES.filter(r => r !== res).sort((a, b) => (b === want) - (a === want) || G.res[a] - G.res[b] || RES.indexOf(a) - RES.indexOf(b));
+    for (const r of order) { const w = pickWork(G, u, r); if (w) return w; }
+    return null;
+  }
   function workTask(o) { return isNode(o) ? gatherTask(o) : farmTask(o); }
 
   // ---- a villager's plan (3.3, 3.8): what to walk to next, from its task and its load ----
@@ -61458,7 +61501,7 @@ townRegion("sim", () => { TW = (() => {
       case "farm": {
         const f = bld(G, t.bld);
         if (!f || f.done < 1 || (f.farmer && f.farmer !== u.id)) {
-          const o = pickWork(G, u, t.res, [t.bld]);
+          const o = moveOn(G, u, t.res, [t.bld]);
           if (o) assign(G, u, workTask(o)); else idleNow(G, u);
           return;
         }
@@ -61472,9 +61515,9 @@ townRegion("sim", () => { TW = (() => {
         let n = node(G, t.node);
         if (!gatherable(G, n)) n = null;
         if (!n) {
-          const o = t.node ? nextNode(G, t, t.bad) : pickWork(G, u, t.res, t.bad);
-          if (o && isNode(o)) { t.node = o.id; t.kind = o.k; t.nx = o.x; t.ny = o.y; n = o; }
-          else if (o) { assign(G, u, farmTask(o)); return; }
+          const o = (t.node ? nextNode(G, t, t.bad) : null) || moveOn(G, u, t.res, t.bad);
+          if (o && isNode(o) && NODE_RES[o.k] === t.res) { t.node = o.id; t.kind = o.k; t.nx = o.x; t.ny = o.y; n = o; }
+          else if (o) { const nt = workTask(o); if (isNode(o) && t.bad) nt.bad = t.bad; assign(G, u, nt); return; }
           else if (u.carry.n > 0) { t.end = 1; goDrop(G, u); return; }
           else { idleNow(G, u); return; }
         }
@@ -61697,7 +61740,7 @@ townRegion("sim", () => { TW = (() => {
         if (c.delta > 0) {
           const any = G.nodes.some(n => NODE_RES[n.k] === c.res && gatherable(G, n)) ||
             G.blds.some(b => !b.dead && b.done >= 1 && ((c.res === "f" && b.k === "field") || (c.res === "w" && b.k === "grove")) && !b.farmer);
-          return any ? { err: "" } : { err: "bad" };
+          return any ? { err: "" } : { err: "nowork", res: c.res };
         }
         return { err: "" };
       }
@@ -61986,7 +62029,7 @@ townRegion("sim", () => { TW = (() => {
     const u = mkUnit(G, k, p[0] + 0.5, p[1] + 0.5);
     if (k === "vil") {
       const R = b.rally || { res: "f" };
-      if (R.res) { const o = pickWork(G, u, R.res); if (o) assign(G, u, workTask(o)); else ev(G, "idle", { id: u.id }); }
+      if (R.res) { const o = moveOn(G, u, R.res); if (o) assign(G, u, workTask(o)); else ev(G, "idle", { id: u.id }); }
       else assign(G, u, { t: "move", x: R.x, y: R.y });
     } else {
       const R = b.rally && !b.rally.res ? b.rally : G.post, j = (u.id % 9) - 4;
@@ -62005,11 +62048,16 @@ townRegion("sim", () => { TW = (() => {
     }
     // research and training; the town center runs both queues at once, and neither while the age advances
     let pop = popOf(G);
+    // auto-train waits while 3 or more villagers stand idle with nothing to do (gray box review: the food went
+    // into villagers who only stood about); the dock's own idle ones (parked) do not count
+    let idle = 0;
+    for (const u of G.units) if (isVil(u) && !u.task && !u.shel && (u.st === ST.IDLE || u.st === ST.STUCK)) idle++;
     for (const b of G.blds) {
       if (b.dead || b.done < 1) continue;
       const busy = b.k === "tc" && !!G.aging;
       if (b.rq.length && !busy && --b.rq[0].left <= 0) researched(G, b.rq.shift().tech);
-      if (b.k === "tc" && b.auto && !busy && !b.q.length && G.popCap - pop > 0 && afford(G, cost(G, "vil"))) {
+      if (b.k === "tc" && b.auto && !busy && !b.q.length && idle >= 3 && G.tick - G.calls.noPop >= T(60) && G.tick - (G.calls.autoWait === undefined ? -9999 : G.calls.autoWait) >= T(60)) { G.calls.autoWait = G.tick; ev(G, "autoWait", { n: idle }); }
+      if (b.k === "tc" && b.auto && !busy && !b.q.length && idle < 3 && G.popCap - pop > 0 && afford(G, cost(G, "vil"))) {
         const k = cost(G, "vil");
         pay(G, k);
         b.q.push({ k: "vil", left: T(UNITS.vil.train), paid: cp(k), on: 0 });
@@ -62326,6 +62374,7 @@ townRegion("sim", () => { TW = (() => {
     const F = G.stats.fallen;
     if (u.side) { F.raiders++; const r = G.raids.find(q => q.id === u.raid); if (r) r.fell++; return; }
     if (u.k === "vil") { F.villagers++; plunderKill(G, by); } else F.garrison++;
+    if (u.shel) { const b = bld(G, u.shel); if (b) b.shel = b.shel.filter(i => i !== u.id); u.shel = 0; }   // never left on a shelter's list
     unassign(G, u);
   }
   function hitUnit(G, u, raw, mult, by) {
@@ -62345,7 +62394,7 @@ townRegion("sim", () => { TW = (() => {
     u.flee = G.tick + T(DIFFS[G.diff].driveOff);
     plunderKill(G, by);
     ev(G, "driven", { id: u.id, x: u.x, y: u.y });
-    shelter(G, u, 2);
+    if (!u.shel) shelter(G, u, 2);
   }
   function hitBld(G, b, dmg, by) {
     if (b.dead) return;
@@ -62383,6 +62432,7 @@ townRegion("sim", () => { TW = (() => {
         if (t && !t.dead && !t.shel) { t.held = T(RAIDERS.alC.hold); if (!(t.k === "vil" && t.hp <= Math.max(1, s.dmg - armorOf(G, t)))) hitUnit(G, t, s.dmg, 1, null); ev(G, "held", { id: t.id }); }
         continue;
       }
+      if (t && !t.dead && t.shel && !isBld(t)) continue;   // the target went inside a shelter: the shot misses
       if (!t || t.dead) { t = null; let bd = 1.5; for (const r of Rd) if (!r.dead) { const d = cdist(r, s.tx, s.ty); if (d < bd) { bd = d; t = r; } } }
       if (t) hitUnit(G, t, s.dmg, 1, null);
     }
@@ -62415,6 +62465,8 @@ townRegion("sim", () => { TW = (() => {
   }
   function enter(G, u, b) {
     u.path = null; u.pi = 0; u.st = ST.SHEL; u.act = "shelter";
+    if (u.shel === b.id) return;   // already inside (never listed twice)
+    if (u.shel) { const o = bld(G, u.shel); if (o) o.shel = o.shel.filter(i => i !== u.id); u.shel = 0; }
     if (b.shel.length < BLD[b.k].shelter) { u.shel = b.id; b.shel.push(u.id); ev(G, "sheltered", { id: u.id, bld: b.id }); }
   }
   // back out, to the remembered task (a builder only if the site still needs it and has room)
@@ -62443,6 +62495,9 @@ townRegion("sim", () => { TW = (() => {
   function shelterStep(G, Rd) {
     const A = G.alarm, S = UNITS.vil.shelter, near8 = new Map();
     Rd = Rd.filter(v => !v.flee);
+    // riders close a gap twice as fast as a raider on foot, so a villager runs from one sooner (gray box review:
+    // the Alan and Arab horsemen caught villagers on their way in)
+    const RdM = Rd.filter(v => RAIDERS[v.k].mounted);
     for (const u of G.units) {
       if (!isVil(u)) continue;
       const t = u.task;
@@ -62450,7 +62505,7 @@ townRegion("sim", () => { TW = (() => {
         const b = t.bld ? bld(G, t.bld) : null, wb = t.ret && (t.ret.t === "build" || t.ret.t === "repair") && t.ret.bld === G.wonder && t.why === 0;
         const wd = wb ? bld(G, G.wonder) : null;
         let hot;
-        if (wb) hot = nearRaider(Rd, u.x, u.y, S.wonderNear) || (wd && Rd.some(v => !v.flee && rectDist(v.x, v.y, wd) <= S.wonderNear));
+        if (wb) hot = nearRaider(Rd, u.x, u.y, S.wonderNear) || nearRaider(RdM, u.x, u.y, S.wonderMounted) || (wd && Rd.some(v => !v.flee && rectDist(v.x, v.y, wd) <= (RAIDERS[v.k].mounted ? S.wonderMounted : S.wonderNear)));
         else if (b && u.shel) { if (!near8.has(b.id)) near8.set(b.id, !!nearRaider(Rd, b.x + b.w / 2, b.y + b.h / 2, S.clear + b.w / 2, G, b.id)); hot = near8.get(b.id); }
         else hot = nearRaider(Rd, u.x, u.y, S.clear, G);
         u.calm = hot ? 0 : u.calm + 1;
@@ -62462,6 +62517,7 @@ townRegion("sim", () => { TW = (() => {
       const wb = isWonderJob(G, u);
       const r = A.on && (A.all || !wb) ? (A.all ? 999 : POST.alarmRadius) : wb ? S.wonderNear : S.near;
       if (nearRaider(Rd, u.x, u.y, r, r > S.near ? null : G)) shelter(G, u, A.on && r > S.near ? 1 : 0);
+      else if (RdM.length && r <= S.near && nearRaider(RdM, u.x, u.y, wb ? S.wonderMounted : S.mounted, G)) shelter(G, u, 0);
     }
   }
   // the alarm moves the garrison's post to the threatened point: the building under attack nearest the town
@@ -62678,7 +62734,7 @@ townRegion("sim", () => { TW = (() => {
         const o = byId(G, u.tgt);
         if (!o || o.dead) continue;
         if (isBld(o)) { if (rectDist(u.x, u.y, o) <= MELEE + 0.05) { hitBld(G, o, RAIDERS[u.k].bdmg, u); u.cd = cdOf(u); } }
-        else if (o.k === "vil" && raidFull(G, u)) { u.tgt = 0; u.st = RS.FOLLOW; }
+        else if (o.shel || (o.k === "vil" && raidFull(G, u))) { u.tgt = 0; u.st = RS.FOLLOW; }   // inside a shelter: out of reach
         else if (cdist(u, o.x, o.y) <= MELEE) { hitUnit(G, o, RAIDERS[u.k].atk, 1, u); u.cd = cdOf(u); }
         if (lootFull(G, u)) leave(G, u, true);
         continue;
@@ -62833,6 +62889,9 @@ townRegion("sim", () => { TW = (() => {
         ev(G, "clockStart", { nextRaid: C.nextRaid });
       }
     }
+    // a wonder raid never joins a regular raid still coming or on the map: it comes 45 s after that one is over
+    // (gray box review: a wonder placed during a raid drew both at once)
+    if (G.wonder && C.wonderNext && G.raids.some(r => !r.wonder && (r.st === "warn" || r.st === "live"))) C.wonderNext = Math.max(C.wonderNext, G.tick + T(RAID.firstWonderRaid));
     if (!C.held && !G.over) {
       const lead = T(D.lead + techFx(G).lead), due = G.wonder ? C.wonderNext : C.nextRaid, k = G.wonder ? "ww" : "rw";
       if (due && G.tick >= due - lead && C[k] !== due) { C[k] = due; warnRaid(G, Math.max(due, G.tick), !!G.wonder); }
@@ -63000,7 +63059,7 @@ townRegion("sim", () => { TW = (() => {
       alarm: { on: false, all: false, until: 0, tappedAt: -1 }, post: { x: 0, y: 0, hold: false }, autoFarm: true,
       firstTown: !!o.firstTown, opening: { house: 0, field: 0, store: 0, moved: 0 },
       clock: { nextRaid: T(D.firstRaid), raidN: 0, wonderNext: 0, held: !!o.firstTown, esc: 0, cart: 0, wf: 0, sb: 0 },
-      cartMarket: 0, wonder: 0, craftsmenUntil: 0, over: null, calls: { noPop: -9999, repair: -9999 }, og: [],
+      cartMarket: 0, wonder: 0, craftsmenUntil: 0, over: null, calls: { noPop: -9999, repair: -9999, autoWait: -9999 }, og: [],
       stats: { gathered: zero(), spentBld: 0, techs: 0, fallen: { raiders: 0, villagers: 0, garrison: 0 }, raids: 0, stuck: 0, pillaged: 0 },
       nav: newNav(), cmdq: [], ev: [],
     };
@@ -63012,6 +63071,11 @@ townRegion("sim", () => { TW = (() => {
     }
     const tc = mkBld(G, "tc", map.start.tc[0], map.start.tc[1], 0, true);
     G.post = { x: tc.x + 2, y: tc.y + 6, hold: false };
+    // Houses already standing (Easy): beside the palace, west then east, clear of the villagers' first rows
+    for (let i = 0, rad = 0; i < (D.houses | 0) && rad < 12; rad++) for (let dy = -rad; dy <= rad && i < (D.houses | 0); dy++) for (const dx of [-rad, rad]) {
+      const x = tc.x - 3 + dx, y = tc.y + 1 + dy, p = canPlace(G, "house", x, y, 0);
+      if (i < (D.houses | 0) && (p.ok || p.err === "cost")) { mkBld(G, "house", x, y, 0, true); i++; }
+    }
     // the villagers start at work by themselves: four on food, then wood, then stone
     const jobs = ["f", "f", "f", "f", "w", "w", "s", "w", "f"];
     for (let i = 0; i < D.vil; i++) {
@@ -63051,6 +63115,8 @@ townRegion("sim", () => { TW = (() => {
   function next(G) {
     if (G.over) return { k: "over" };
     if (!G.units.some(isVil) && popOf(G) >= G.popCap) return { k: "dismiss" };
+    // the palace under attack comes before every other goal (gray box review: the wonder line sent the garrison away)
+    { const tc = tcOf(G); if (tc && tc.hitAt >= 0 && G.tick - tc.hitAt < T(6) && tc.hp < tc.hpMax * 0.8 && G.units.some(isRaider)) return { k: "palace", age: G.age, pct: Math.max(1, Math.floor(tc.hp / tc.hpMax * 100)) }; }
     if (G.firstTown) {
       const o = G.opening;
       if (!o.house) return { k: "open", step: "house" };
@@ -63060,14 +63126,17 @@ townRegion("sim", () => { TW = (() => {
     }
     if (G.wonder) { const b = bld(G, G.wonder); return { k: "wonderPct", age: G.age, pct: b ? Math.floor(b.done * 100) : 0 }; }
     if (G.aging) return { k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) };
+    // a full town grows no more: a House first (none rising); a building the goal needs and already rising says so
+    if (popOf(G) >= G.popCap && G.popCap < POP.max && !G.blds.some(b => !b.dead && b.k === "house" && b.done < 1)) return { k: "build", type: "house", age: G.age };
+    const rising = k => { const b = G.blds.find(o => !o.dead && o.k === k && o.done < 1); return b ? { k: "rising", type: k, age: G.age, pct: Math.floor(b.done * 100) } : null; };
     const res = c => { for (const r of RES) if ((c[r] || 0) > G.res[r]) return { k: "res", res: r, have: Math.floor(G.res[r]), need: c[r] }; return null; };
     if (!wonderReq(G) && afford(G, cost(G, "wonder"))) return { k: "wonder", age: G.age };
     if (G.age < 3) {
-      for (const k of AGES[G.age].advance.req) if (!hasDone(G, k)) return { k: "build", type: k, age: G.age };
+      for (const k of AGES[G.age].advance.req) if (!hasDone(G, k)) return rising(k) || { k: "build", type: k, age: G.age };
       return res(cost(G, "advance")) || { k: "advance", to: G.age + 1 };
     }
     const m = wonderReq(G);
-    if (m) return m.bld ? { k: "build", type: m.bld, age: G.age } : { k: "tech", tech: m.tech };
+    if (m) return m.bld ? rising(m.bld) || { k: "build", type: m.bld, age: G.age } : { k: "tech", tech: m.tech };
     return res(cost(G, "wonder")) || { k: "wonder", age: G.age };
   }
   function at(G, x, y) {
@@ -63169,6 +63238,13 @@ townRegion("sim", () => { TW = (() => {
         G.nav.ids.set(u.id, u);
       }
       G.blds.sort((a, b) => a.id - b.id); G.units.sort((a, b) => a.id - b.id);
+      G.carts = [];   // before the references: a raider may be after a cart
+      for (const a of o.carts || []) {
+        const c = {}; CF.forEach((f, i) => { c[f] = a[i]; });
+        if (!uniq(c.id) || !fin(c.x) || !fin(c.y) || !(c.hp > 0) || !isInt(c.i) || c.i < 0 || c.i >= G.map.road.length) return null;
+        c.px = c.x; c.py = c.y; c.dead = false;
+        G.carts.push(c); G.nav.ids.set(c.id, c);
+      }
       // references that point at nothing are cleared; a reference to the wrong kind of thing is damage
       for (const b of G.blds) {
         for (const id of b.builders) if (id && byId(G, id) && !(unit(G, id) && unit(G, id).k === "vil")) return null;
@@ -63183,13 +63259,6 @@ townRegion("sim", () => { TW = (() => {
         if (!t) continue;
         if ((t.node && byId(G, t.node) && !node(G, t.node)) || (t.bld && byId(G, t.bld) && !bld(G, t.bld))) return null;
         if ((t.t === "farm" || t.t === "build" || t.t === "repair") && !bld(G, t.bld)) { u.task = t.prev && typeof t.prev === "object" ? t.prev : null; u.path = null; u.st = u.task ? ST.PLAN : ST.IDLE; }
-      }
-      G.carts = [];
-      for (const a of o.carts || []) {
-        const c = {}; CF.forEach((f, i) => { c[f] = a[i]; });
-        if (!uniq(c.id) || !fin(c.x) || !fin(c.y) || !(c.hp > 0) || !isInt(c.i) || c.i < 0 || c.i >= G.map.road.length) return null;
-        c.px = c.x; c.py = c.y; c.dead = false;
-        G.carts.push(c); G.nav.ids.set(c.id, c);
       }
       G.shots = (o.shots || []).map(a => { const s = {}; SF.forEach((f, i) => { s[f] = a[i]; }); return s; });
       if (G.shots.some(s => !isInt(s.at) || !fin(s.tx) || !fin(s.ty) || !fin(s.dmg))) return null;
@@ -63387,9 +63456,12 @@ townRegion("sim", () => { TW = (() => {
     const D = TW.DATA, W = TW.W, H = TW.H, RES = ["f", "w", "s", "g"], SEC = Math.round(1 / TW.DT);
     const is = function () { for (let i = 0; i < arguments.length; i++) if (arguments[i] === style) return true; return false; };
     const RATE = { f: 0.34, w: 0.27, s: 0.27, g: 0.22 };   // a gatherer's rate with its walking (measured)
+    // opts.pace: seconds between thinks (1; 3 plays at about a human's pace); opts.careless: no towers, no ring, the
+    // post left at the palace (the gray box's "careless human" rows, reported only)
+    const pace = Math.max(1, Math.floor(opts.pace || 1));
     const FL = {
       gar: is("steady", "rush1", "rush2", "turtle"),   // trains a garrison for the next raid
-      towers: !is("greedy", "seal"),
+      towers: !is("greedy", "seal") && !opts.careless,
       alarm: !!opts.alarm,   // off by default: the alarm cost more work than it saved in every policy tried (WP2 2c)
     };
     const tcOf = G => G.blds.find(b => !b.dead && b.k === "tc");
@@ -63506,7 +63578,7 @@ townRegion("sim", () => { TW = (() => {
       if (FL.towers) placeAt("tower", raidTower(6));
       if (is("turtle")) { step("ring"); placeAt("tower", raidTower(8), { bg: 1 }); placeAt("tower", G => toward(G, fieldsMid(G), 8), { bg: 1 }); step("tech", { id: "buttressed_walls", bg: 1 }); }
       else step("advance", { to: 2 });
-      if (is("steady", "rush2")) step("ring");
+      if (is("steady", "rush2") && !opts.careless) step("ring");
       if (is("seal")) step("seal");
       if (!is("turtle")) {
         placeAt("market", G => { const r = G.map.road, tc = tcOf(G); let b = r[r.length - 1], bd = 1e9; for (const p of r) { const d = Math.abs(d2(p[0], p[1], tc.x + 2, tc.y + 2) - 36); if (d < bd) { bd = d; b = p; } } return [b[0], b[1]]; }, { rmax: 6 });
@@ -63831,6 +63903,7 @@ townRegion("sim", () => { TW = (() => {
       if (at && at.q.length < 2) cmd(G, { k: "train", bld: at.id, unit: k, n: 1 }, TW.cost(G, k));
     }
     function defend(G) {
+      if (opts.careless) return;   // a careless player leaves the post at the palace and never rings the alarm
       const ri = TW.raidInfo(G), tc = tcOf(G), cx = tc.x + 2, cy = tc.y + 2, Rd = raiders(G);
       const gar = G.units.filter(u => !u.dead && u.side === 0 && u.k !== "vil");
       // the post: the raiders' middle while they are near the town or its fields, else the gate (or the way) facing
@@ -63861,7 +63934,7 @@ townRegion("sim", () => { TW = (() => {
 
     // ---- the styles ----
     function think(G) {
-      if (G.over || G.tick % SEC !== 3) return;
+      if (G.over || G.tick % (SEC * pace) !== 3) return;
       purse = Object.assign({}, G.res); placed = false;
       if (style === "afk") return;
       const tc = tcOf(G);
@@ -64082,6 +64155,18 @@ townRegion("art", () => { TWA = (() => {
     }
     return p;
   }
+  // the outline of a mask: the tile edges between in and out
+  function edgePath(test) {
+    const p = new Path2D(), on = (x, y) => x >= 0 && y >= 0 && x < MW && y < MH && test(x, y, y * MW + x);
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+      if (!on(x, y)) continue;
+      if (!on(x, y - 1)) { p.moveTo(x, y); p.lineTo(x + 1, y); }
+      if (!on(x, y + 1)) { p.moveTo(x, y + 1); p.lineTo(x + 1, y + 1); }
+      if (!on(x - 1, y)) { p.moveTo(x, y); p.lineTo(x, y + 1); }
+      if (!on(x + 1, y)) { p.moveTo(x + 1, y); p.lineTo(x + 1, y + 1); }
+    }
+    return p;
+  }
   function masks(G) {
     if (MD.masks && MD.masks.canals === G.map.canals) return MD.masks;
     const M = G.map, E = DATA.PLACE ? DATA.PLACE.edgeMargin : 2, BK = DATA.PLACE ? DATA.PLACE.bankMargin : 2;
@@ -64092,6 +64177,7 @@ townRegion("art", () => { TWA = (() => {
       edge: maskPath(edge),
       bank: maskPath((x, y, i) => !edge(x, y) && !wet(i) && M.wdist[i] <= BK),
       fertile: maskPath((x, y, i) => M.terr[i] === 1),
+      fertileEdge: edgePath((x, y, i) => M.terr[i] === 1),
       bluff: maskPath((x, y, i) => M.terr[i] === 8),
     };
     return MD.masks;
@@ -64160,8 +64246,9 @@ townRegion("art", () => { TWA = (() => {
   const cellVer = new Int32Array(NCX * NCY);
   for (let i = 0; i < NCX * NCY; i++) cellRecs.push([]);
   let chunkPx = 0;
+  const chunkKey = (cell, di) => cell + "|" + di + "|" + L.dpr + "|" + age + "|" + cellVer[cell];
   function chunkRec(cell, di) {
-    const key = cell + "|" + di + "|" + L.dpr + "|" + age + "|" + cellVer[cell];
+    const key = chunkKey(cell, di);
     let r = chunks.get(key);
     if (r) { chunks.delete(key); chunks.set(key, r); return r; }
     const g = groundSteps[di], TX = PPT * g * L.dpr;
@@ -64450,25 +64537,41 @@ townRegion("art", () => { TWA = (() => {
     const dd = k => { const dx = (k % NCX + 0.5) * CT - mx, dy = (Math.floor(k / NCX) + 0.5) * CT - my; return dx * dx + dy * dy; };
     return out.sort((a, b) => dd(a) - dd(b));
   }
-  function bakeGround(G, view, di) {
-    const cells = cellsInView(view), need = cells.map(k => chunkRec(k, di));
+  // the cells in view: at a zoom step between two densities, a cell whose resampled copy for this step is made
+  // needs nothing more (its full-density chunk was dropped once the copy was made: the gray box review found the
+  // two together over the chunk budget, so the copies were dropped and made again every frame, and the bake budget
+  // never came free for the buildings' and trees' sprites); else its chunk at the density, baked in passes
+  function bakeGround(G, view, di, zi) {
+    const between = zi !== undefined && Math.abs(zoomSteps[zi] - groundSteps[di]) > 1e-6, need = [];
+    for (const k of cellsInView(view)) {
+      const dk = between ? chunkKey(k, di) + "|z" + zi : "", dv = dk ? chunks.get(dk) : null;
+      if (dv) { chunks.delete(dk); chunks.set(dk, dv); need.push({ cell: k, cx: dv.cx, cy: dv.cy, pic: dv }); }
+      else need.push(chunkRec(k, di));
+    }
+    const base = need.filter(r => !r.pic);
     // every cell's base first (cheap), then each cell to the end, the middle of the view first
-    for (const r of need) if (r.pass === 0 && canBake() && passFits(r)) runPass(r, G);
-    for (const r of need) while (!r.done && canBake() && passFits(r)) runPass(r, G);
-    // keep what is in view; drop the oldest of the rest past the budget
-    let vis = 0;
-    for (const r of need) vis += r.px;
-    const cap = Math.max(CHUNK_BUDGET, vis * 1.05), keep = new Set(need);
-    if (chunkPx > cap) for (const r of Array.from(chunks.values())) { if (chunkPx <= cap) break; if (!keep.has(r)) dropChunk(r); }
+    for (const r of base) if (r.pass === 0 && canBake() && passFits(r)) runPass(r, G);
+    for (const r of base) while (!r.done && canBake() && passFits(r)) runPass(r, G);
     return need;
+  }
+  // keep what the view draws (its chunks, their copies and stand-ins); past the budget drop the oldest of the rest,
+  // and only then the full-density chunks behind the copies in view (optional: kept while there is room, so a step
+  // back to that density is sharp at once)
+  function trimChunks(keepList, optList) {
+    const keep = new Set();
+    let vis = 0;
+    for (const o of keepList) if (o && o.key && chunks.get(o.key) === o && !keep.has(o)) { keep.add(o); vis += o.px; }
+    const opt = new Set((optList || []).filter(o => o && !keep.has(o)));
+    const cap = Math.max(CHUNK_BUDGET, vis * 1.05);
+    for (const pass of [0, 1]) if (chunkPx > cap) for (const r of Array.from(chunks.values())) { if (chunkPx <= cap) break; if (!keep.has(r) && opt.has(r) === !!pass) dropChunk(r); }
   }
   // a cell's best picture: finished at this density, else finished at another (scaled), else half-baked, else none
   function drawable(r) {
     if (r.done) return r;
     let best = null;
     for (const o of cellRecs[r.cell]) {
-      if (!o.done || o === r || o.derived) continue;
-      const score = (o.age === r.age ? 4 : 0) + (o.ver === r.ver ? 2 : 0) + (o.d === r.d ? 1 : 0) - Math.abs(o.di - r.di) * 0.1;
+      if (!o.done || o === r) continue;   // a resampled copy may stand in too (it is the same ground, scaled)
+      const score = (o.age === r.age ? 4 : 0) + (o.ver === r.ver ? 2 : 0) + (o.d === r.d ? 1 : 0) - Math.abs(o.g - r.g) * 0.1 - (o.derived ? 0.05 : 0);
       if (!best || score > best.score) best = { o, score };
     }
     if (best && best.o.ver === r.ver) return best.o;
@@ -64517,8 +64620,15 @@ townRegion("art", () => { TWA = (() => {
     const vkey = view.x + "|" + view.y + "|" + view.zoom + "|" + L.dpr + "|" + age + "|" + (G.map.canals ? 1 : 0);
     if (!back.key.startsWith(vkey + "|") && budget < 1e6) budget = Math.min(budget, bakeBudgetMs / 2);
     const sk = view.y < SKY_BOT ? bakeSky(G) : null;   // the skyline first: three steps, and it fills the top of the screen
-    const need = bakeGround(G, view, GROUND_OF[zi]), d = L.dpr, pw = PPT * view.zoom, ph = pw * SQ;
-    const pics = need.map(r => derivedOf(drawable(r), zi));
+    const need = bakeGround(G, view, GROUND_OF[zi], zi), d = L.dpr, pw = PPT * view.zoom, ph = pw * SQ;
+    const opt = [];
+    const pics = need.map(r => {
+      if (r.pic) { opt.push(chunks.get(r.pic.key.slice(0, r.pic.key.lastIndexOf("|z")))); return r.pic; }
+      const p = drawable(r), q = derivedOf(p, zi);
+      if (q && q !== p && p === r && q.derived && r.done) { opt.push(r); return q; }   // its copy for this step is all it needs now
+      return q;
+    });
+    trimChunks(need.filter(r => !r.pic && !opt.includes(r)).concat(pics), opt);
     S.chunks = chunks.size; S.fallback = pics.filter(p => !p).length;
     const key = vkey + "|" + (sk ? sk.step : -1);
     if (!back.cv || back.cv.width !== cv.width || back.cv.height !== cv.height) {
@@ -64664,11 +64774,14 @@ townRegion("art", () => { TWA = (() => {
   const sprites = new Map();
   let spritePx = 0;
   // key: what it shows; box: [w, h, ox, oy] in CSS px at zoom 1 (ox, oy: the anchor inside the box)
+  // sprites the last frames wanted and could not bake: the next frame bakes them first, before the ground, on up
+  // to half its budget (labels and trees never wait behind a long ground bake, as after an age's change)
+  let wantSp = new Map();
   function sprite(key, zi, box, paint) {
     const full = key + "|" + zi + "|" + L.dpr;
     let sp = sprites.get(full);
     if (sp) { sprites.delete(full); sprites.set(full, sp); return sp; }
-    if (!canBake()) return null;
+    if (!canBake()) { if (wantSp.size < 200 && !wantSp.has(full)) wantSp.set(full, { key, zi, box, paint }); return null; }
     return bakeStep(() => {
       const s = zoomSteps[zi] * L.dpr, k = mk(box[0] * s + 2, box[1] * s + 2), g = k.getContext("2d", { willReadFrequently: true });
       g.setTransform(s, 0, 0, s, box[2] * s + 1, box[3] * s + 1);
@@ -64685,12 +64798,24 @@ townRegion("art", () => { TWA = (() => {
       return sp;
     });
   }
-  // the sprite at this step, else the nearest step already baked (drawn scaled)
-  function spriteAny(key, zi, box, paint) {
+  function bakeWanted() {
+    if (!wantSp.size) return;
+    const want = wantSp, cap = budget / 2;
+    wantSp = new Map();
+    for (const [full, w] of want) {
+      if (spent >= cap || !canBake()) { wantSp.set(full, w); continue; }
+      if (w.zi === nearestStep(viewZ) && L.dpr === +full.slice(full.lastIndexOf("|") + 1)) sprite(w.key, w.zi, w.box, w.paint);
+    }
+  }
+  // the sprite at this step, else the nearest step already baked (drawn scaled), else (alt: the same thing in
+  // another age, by age) the last age's look until this age's is baked
+  function spriteAny(key, zi, box, paint, alt) {
     const sp = sprite(key, zi, box, paint);
     if (sp) return sp;
-    for (let k = 1; k < zoomSteps.length; k++) for (const j of [zi + k, zi - k]) {
-      const o = j >= 0 && j < zoomSteps.length ? sprites.get(key + "|" + j + "|" + L.dpr) : null;
+    const keys = [key];
+    if (alt) for (const a of [age - 1, age + 1, age - 2, age + 2]) if (a >= 1 && a <= 3) keys.push(alt(a));
+    for (const kk of keys) for (let k = kk === key ? 1 : 0; k < zoomSteps.length; k++) for (const j of k ? [zi + k, zi - k] : [zi]) {
+      const o = j >= 0 && j < zoomSteps.length ? sprites.get(kk + "|" + j + "|" + L.dpr) : null;
       if (o) return o;
     }
     return null;
@@ -64938,7 +65063,7 @@ townRegion("art", () => { TWA = (() => {
     kill(back.cv); back.cv = back.c = null; back.key = ""; back.view = null;
     if (cv) { cv.width = 0; cv.height = 0; }
     if (mini) { mini.width = 0; mini.height = 0; }
-    fxList.length = 0; ghostSpec = null;
+    fxList.length = 0; ghostSpec = null; wantSp = new Map();
     L = { w: 0, h: 0, dpr: 1, dpr0: L.dpr0 || 1 };
   }
   function layout(w, h, dpr, fromGov) {
@@ -64947,8 +65072,11 @@ townRegion("art", () => { TWA = (() => {
     if (resized && !fromGov && L.w) { gov.cap = 2; gov.before = 0; gov.gaps.length = 0; }   // a new size may step back up
     L.dpr0 = Math.max(1, Math.min(2, dpr || 1));
     let d = Math.min(L.dpr0, gov.cap);
-    // never more than 16 M device pixels (iOS fails silently above that)
+    // never more than 16 M device pixels (iOS fails silently above that); and at most about 4.5 M for the map
+    // canvas (and its back layer) where a step down allows it, so the town's canvases stay within 24 M device px
+    // on the largest iPads too (the gray box review measured 26 M on a 12.9-inch iPad Pro at dpr 2)
     while (w * h * d * d > 16e6 && d > 1) d -= 0.25;
+    while (w * h * d * d > 4.5e6 && d > 1.5) d -= 0.25;
     L.w = w; L.h = h; L.dpr = d;
     S.governor = gov.cap;
     cv.style.width = w + "px"; cv.style.height = h + "px";
@@ -64993,7 +65121,7 @@ townRegion("art", () => { TWA = (() => {
     spent = 0; budget = testBudget !== null ? testBudget : bakeBudgetMs;
     mapData(G); terrImage(G);
     const zi = nearestStep(view.zoom);
-    bakeGround(G, view, GROUND_OF[zi]);
+    bakeGround(G, view, GROUND_OF[zi], zi);
     if (view.y < SKY_BOT) bakeSky(G);
   }
   const toScreen = (view, x, y) => ({ x: (x - view.x) * PPT * view.zoom, y: (y - view.y) * PPT * view.zoom * SQ });
@@ -65012,7 +65140,7 @@ townRegion("art", () => { TWA = (() => {
   function draw(G, view, alpha, nowMs) {
     if (!c || !L.w) return;
     const t0 = tnow();
-    spent = 0; S.bakes = 0; S.bakeMs = 0; S.blits = 0; S.maxStep = 0;
+    spent = 0; S.bakes = 0; S.bakeMs = 0; S.blits = 0; S.maxStep = 0; S.miss = 0;
     // the harness's town picture is painted whole in one call; everywhere else the frame's budget holds
     budget = testBudget !== null ? testBudget : !nowMs && HARNESS_ON && HARNESS.get("shot") === "town" ? Infinity : bakeBudgetMs;
     if (nowMs) { lastNow = nowMs; govern(G, nowMs); }
@@ -65037,6 +65165,7 @@ townRegion("art", () => { TWA = (() => {
     // one opaque fill of the whole canvas, which tells the browser the last frame's pixels need not be kept
     c.fillStyle = "#1c140d";
     c.fillRect(0, 0, cv.width, cv.height);
+    bakeWanted();
     // 2. the skyline band (in the back layer)
     drawGround(G, view, zi);
 
@@ -65045,9 +65174,9 @@ townRegion("art", () => { TWA = (() => {
     for (const b of G.blds) {
       if (b.dead || b.k !== "field" || !inView(b.x, b.y, b.w, b.h)) continue;
       const v = (b.x * 7 + b.y * 13) >>> 0, l3 = v % 3;
-      const sp = spriteAny("field|" + l3 + "|" + age + "|" + (v % 5), zi, [3 * PPT + 4, 3 * PPT * SQ + 4, 2, 3 * PPT * SQ + 2], g => paintField(g, l3, K, v % 5));
+      const sp = spriteAny("field|" + l3 + "|" + age + "|" + (v % 5), zi, [3 * PPT + 4, 3 * PPT * SQ + 4, 2, 3 * PPT * SQ + 2], g => paintField(g, l3, K, v % 5), a => "field|" + l3 + "|" + a + "|" + (v % 5));
       if (sp) blit(sp, X(b.x), Y(b.y + b.h), z, b.done >= 1 ? undefined : 0.35 + 0.5 * b.done);
-      else { c.fillStyle = terrCss(K.soil); c.fillRect(X(b.x) + 3, Y(b.y) + 3, 3 * pw * d - 6, 3 * ph * d - 6); }
+      else { S.miss++; c.fillStyle = terrCss(K.soil); c.fillRect(X(b.x) + 3, Y(b.y) + 3, 3 * pw * d - 6, 3 * ph * d - 6); }
     }
     if (ghostSpec) drawPlaceShading(G, view, X, Y);
     c.lineWidth = 2 * d;
@@ -65121,6 +65250,16 @@ townRegion("art", () => { TWA = (() => {
     // 7. the ghost, 8. the screen-edge raid arrows
     if (ghostSpec) drawGhost(G, view, X, Y, zi, pw, ph, d);
     drawArrows(G, view, X, Y, d);
+    // the raid chip's tap: rings spread from where the raid is, for 2 s (view.pulse = { x, y, t })
+    const P = view.pulse, tp = nowMs || lastNow;
+    if (P && tp - P.t >= 0 && tp - P.t < 2000) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      for (let k = 0; k < 2; k++) {
+        const f = ((tp - P.t) / 1000 + k * 0.5) % 1, r = (1 + f * 5) * pw * d;
+        c.globalAlpha = 1 - f; c.lineWidth = 3 * d; ring(X(P.x), Y(P.y), r, r * SQ, "#e8513a");
+      }
+      c.globalAlpha = 1;
+    }
     S.ms = tnow() - t0;
     S.chunkPx = chunkPx; S.spritePx = spritePx;
     S.skyPx = skies.reduce((n, k) => n + (k && k.cv ? k.cv.width * k.cv.height : 0), 0);
@@ -65141,9 +65280,10 @@ townRegion("art", () => { TWA = (() => {
   }
   function nodeSprite(kind, v, wx, wy) {
     const zi = nearestStep(viewZ), K = look(age), box = NODE_BOX[kind];
-    const sp = spriteAny("node|" + kind + "|" + (v % 8) + "|" + age, zi, box, g => paintNode(g, kind, v % 8, K));
+    const sp = spriteAny("node|" + kind + "|" + (v % 8) + "|" + age, zi, box, g => paintNode(g, kind, v % 8, K), a => "node|" + kind + "|" + (v % 8) + "|" + a);
     const x = curX(wx), y = curY(wy);
     if (sp) { blit(sp, x, y, viewZ); return; }
+    S.miss++;
     // not baked yet: a mark of its color
     c.fillStyle = kind === "stone" || kind === "bare" ? "#7c7a80" : kind === "ore" ? "#8a4a30" : kind === "flock" ? "#efe6d2" : kind === "dye" ? "#a8322a" : kind === "stump" ? "#5f452e" : "#4a6a2e";
     const r = (kind === "poplar" || kind === "tree" ? 9 : 6) * viewZ * L.dpr;
@@ -65153,9 +65293,9 @@ townRegion("art", () => { TWA = (() => {
   let viewZ = 1, curX = x => x, curY = y => y;
   function drawBld(G, b, X, Y, zi, sel) {
     const x = X(b.x), y = Y(b.y + b.h), z = viewZ, d = L.dpr, pw = PPT * z * d, ph = pw * SQ;
-    const key = "box|" + b.k + "|" + b.w + "x" + b.h + "|" + (b.rot | 0) + "|" + age;
+    const key0 = "box|" + b.k + "|" + b.w + "x" + b.h + "|" + (b.rot | 0) + "|", key = key0 + age;
     const Hp = boxH(b.k), box = [b.w * PPT + 12 + Hp * 0.4, b.h * PPT * SQ + Hp + 6, 2, b.h * PPT * SQ + Hp + 3];
-    const sp = spriteAny(key, zi, [box[0], box[1], 2, box[1] - 3], g => paintBox(g, b.k, b.w, b.h, age, b.rot | 0));
+    const sp = spriteAny(key, zi, [box[0], box[1], 2, box[1] - 3], g => paintBox(g, b.k, b.w, b.h, age, b.rot | 0), a => key0 + a);
     const done = b.done >= 1;
     if (!done) {
       // a foundation: the footprint hatched, the block rising, its progress under it
@@ -65169,8 +65309,16 @@ townRegion("art", () => { TWA = (() => {
       c.strokeRect(x + 0.75 * d, Y(b.y) + 0.75 * d, b.w * pw - 1.5 * d, b.h * ph - 1.5 * d); c.setLineDash([]);
     }
     if (sp) blit(sp, x, y, z, done ? undefined : 0.3 + 0.45 * b.done);
-    else { c.fillStyle = BLD_COL[b.k] || "#bbb"; c.fillRect(x, y - (b.h * PPT * SQ + boxH(b.k)) * z * d, b.w * pw, (b.h * PPT * SQ + boxH(b.k)) * z * d); }
+    else { S.miss++; c.fillStyle = BLD_COL[b.k] || "#bbb"; c.fillRect(x, y - (b.h * PPT * SQ + boxH(b.k)) * z * d, b.w * pw, (b.h * PPT * SQ + boxH(b.k)) * z * d); }
     const topY = y - (b.h * PPT * SQ + boxH(b.k)) * z * d;
+    // a foundation (and a box not baked yet) says what it is at full strength: the faded block's own label is faint
+    if ((!done || !sp) && b.k !== "gate") {
+      const t = bName(b.k, age), f = Math.max(10, Math.min(15, 13 * z)) * d, cx = x + b.w * pw / 2, ly = topY + (b.h * ph) / 2;
+      c.font = font(f, 700); c.textAlign = "center"; c.textBaseline = "middle";
+      const tw = Math.min(c.measureText(t).width, b.w * pw + 40 * d);
+      c.fillStyle = "rgba(28, 20, 13, .72)"; c.fillRect(cx - tw / 2 - 5 * d, ly - f * 0.7, tw + 10 * d, f * 1.4);
+      c.fillStyle = "#fff3d6"; c.fillText(t, cx, ly + 0.5 * d, b.w * pw + 40 * d);
+    }
     if (!done) bar(x + 4 * d, y + 3 * d, b.w * pw - 8 * d, 5 * d, b.done, "#f0cf85");
     const selected = sel.some(s => s.kind === "bld" && s.id === b.id);
     if (done && (b.hp < b.hpMax || selected) && b.k !== "field") bar(x + 4 * d, topY - 9 * d, b.w * pw - 8 * d, 5 * d, b.hp / b.hpMax, b.hp / b.hpMax > 0.5 ? "#7ec850" : b.hp / b.hpMax > 0.25 ? "#e8b84a" : "#d04a3a");
@@ -65211,7 +65359,7 @@ townRegion("art", () => { TWA = (() => {
     const lk = unitBox(u), d = L.dpr, z = viewZ;
     const sp = spriteAny("unit|" + u.k + "|" + (u.side | 0), zi, [lk[0] + 12, lk[1] + 8, lk[0] / 2 + 6, lk[1] + 4], g => paintUnit(g, u.k, lk, u.side | 0));
     if (sp) blit(sp, x, y, z);
-    else { c.fillStyle = lk[2]; c.fillRect(x - lk[0] / 2 * z * d, y - lk[1] * z * d, lk[0] * z * d, lk[1] * z * d); }
+    else { S.miss++; c.fillStyle = lk[2]; c.fillRect(x - lk[0] / 2 * z * d, y - lk[1] * z * d, lk[0] * z * d, lk[1] * z * d); }
     const top = y - (lk[1] + 3) * z * d;
     if (u.carry && u.carry.n > 0) {
       c.fillStyle = RES_COL[u.carry.r] || "#ccc"; c.strokeStyle = INK; c.lineWidth = 1 * d;
@@ -65251,6 +65399,7 @@ townRegion("art", () => { TWA = (() => {
   }
   // while any ghost is out: the banks and the edge band shaded and hatched; fertile soil tinted for a field, the
   // bluffs for Garni; the ring the Haldi and Zvartnots rules draw round the palace (9.5)
+  let sitesFor = null, sitesPath = null, sitesEdge = null;
   function drawPlaceShading(G, view, X, Y) {
     const m = masks(G), d = L.dpr, pw = PPT * view.zoom * d, ph = pw * SQ, g = ghostSpec, type = g.type || (g.wall ? "wall" : "");
     c.setTransform(pw, 0, 0, ph, -view.x * pw, -view.y * ph);
@@ -65258,8 +65407,17 @@ townRegion("art", () => { TWA = (() => {
     shade.addPath(m.edge);
     if (type !== "field") shade.addPath(m.bank);
     c.fillStyle = "rgba(40, 20, 12, .3)"; c.fill(shade);
-    if (type === "field") { c.fillStyle = "rgba(255, 226, 140, .2)"; c.fill(m.fertile); }
+    if (type === "field") {   // the river soil, clearly (the gray box review found the faint tint hard to see)
+      c.fillStyle = "rgba(255, 226, 140, .34)"; c.fill(m.fertile);
+      c.strokeStyle = "rgba(255, 236, 170, .95)"; c.lineWidth = 2.2 * d / pw; c.stroke(m.fertileEdge);
+    }
     if (type === "wonder" && age === 2) { c.fillStyle = "rgba(255, 226, 140, .3)"; c.fill(m.bluff); }
+    // where the wonder may stand (ghost.sites: a flag per tile, from the shell), tinted green
+    if (g.sites && g.sites.length === MW * MH) {
+      if (sitesFor !== g.sites) { sitesFor = g.sites; sitesPath = maskPath((x, y, i) => g.sites[i]); sitesEdge = edgePath((x, y, i) => g.sites[i]); }
+      c.fillStyle = "rgba(120, 220, 120, .22)"; c.fill(sitesPath);
+      c.strokeStyle = "rgba(170, 245, 160, .9)"; c.lineWidth = 2 * d / pw; c.stroke(sitesEdge);
+    }
     c.save(); c.clip(shade);
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.strokeStyle = "rgba(40, 20, 12, .35)"; c.lineWidth = 1.5 * d; c.beginPath();
@@ -65309,15 +65467,18 @@ townRegion("art", () => { TWA = (() => {
     }
   }
   // a bronze arrow at the screen's edge toward each raid off screen (warning or live), with its count (9.10)
+  // They stay inside the map area the HUD leaves free (view.area, CSS px), clear of the HUD's blocks over it
+  // (view.hud: the dock, the chips, the minimap; the gray box review found them drawn under the bottom bars)
   function drawArrows(G, view, X, Y, d) {
     S.arrows = [];
+    const A = view.area || { l: 0, t: 0, r: L.w, b: L.h }, hud = view.hud || [];
     const groups = new Map();
     for (const u of G.units) {
       if (u.dead || !u.side) continue;
       const k = u.raid || 0, gr = groups.get(k) || { n: 0, x: 0, y: 0, on: false };
       gr.n++; gr.x += u.x; gr.y += u.y;
       const sx = X(u.x) / d, sy = Y(u.y) / d;
-      if (sx >= 0 && sy >= 0 && sx <= L.w && sy <= L.h) gr.on = true;
+      if (sx >= A.l && sy >= A.t && sx <= A.r && sy <= A.b && !hud.some(h => sx >= h.l && sx <= h.r && sy >= h.t && sy <= h.b)) gr.on = true;
       groups.set(k, gr);
     }
     const targets = [];
@@ -65331,12 +65492,28 @@ townRegion("art", () => { TWA = (() => {
         targets.push({ raid: r.id, x: m[0] + 0.5, y: m[1] + 0.5, n: r.n0 || 0, warn: true });
       }
     }
-    const inset = 34, cxs = L.w / 2, cys = L.h / 2;
+    const inset = 34, cxs = (A.l + A.r) / 2, cys = (A.t + A.b) / 2, hw = (A.r - A.l) / 2 - inset, hh = (A.b - A.t) / 2 - inset;
+    const blocked = (x, y) => hud.some(h => x + 26 > h.l && x - 26 < h.r && y + 26 > h.t && y - 26 < h.b) || S.arrows.some(o => Math.abs(o.x - x) < 44 && Math.abs(o.y - y) < 44);
     for (const t of targets) {
       const sx = X(t.x) / d, sy = Y(t.y) / d;
-      if (sx >= 0 && sy >= 0 && sx <= L.w && sy <= L.h) continue;
-      const dx = sx - cxs, dy = sy - cys, k = Math.min((cxs - inset) / Math.max(1e-6, Math.abs(dx)), (cys - inset) / Math.max(1e-6, Math.abs(dy)));
-      const ax = cxs + dx * k, ay = cys + dy * k, ang = Math.atan2(dy, dx);
+      if (sx >= A.l && sy >= A.t && sx <= A.r && sy <= A.b && !hud.some(h => sx >= h.l && sx <= h.r && sy >= h.t && sy <= h.b)) continue;
+      const dx = sx - cxs, dy = sy - cys, k = Math.min(Math.max(1, hw) / Math.max(1e-6, Math.abs(dx)), Math.max(1, hh) / Math.max(1e-6, Math.abs(dy)));
+      let ax = cxs + dx * k, ay = cys + dy * k;
+      // slid along its edge to the nearest free place, if a HUD block covers it
+      if (blocked(ax, ay)) {
+        const side = Math.abs(Math.abs(ax - cxs) - hw) < 1 ? "v" : "h";
+        let best = null;
+        for (let s = 8; s < 900 && !best; s += 8) for (const sg of [1, -1]) {
+          const nx = side === "h" ? clamp(ax + sg * s, cxs - hw, cxs + hw) : ax, ny = side === "v" ? clamp(ay + sg * s, cys - hh, cys + hh) : ay;
+          if (!blocked(nx, ny)) { best = [nx, ny]; break; }
+        }
+        if (!best) for (let s = 8; s < 400 && !best; s += 8) {   // a block across the whole edge: step inward past it
+          const k2 = Math.max(0, 1 - s / Math.max(1, Math.hypot(ax - cxs, ay - cys))), nx = cxs + (ax - cxs) * k2, ny = cys + (ay - cys) * k2;
+          if (!blocked(nx, ny)) best = [nx, ny];
+        }
+        if (best) { ax = best[0]; ay = best[1]; }
+      }
+      const ang = Math.atan2(sy - ay, sx - ax);
       c.save(); c.setTransform(d, 0, 0, d, 0, 0); c.translate(ax, ay); c.rotate(ang);
       c.fillStyle = t.warn ? "rgba(185, 138, 62, .92)" : "#b98a3e"; c.strokeStyle = "#1c1209"; c.lineWidth = 2;
       c.beginPath(); c.moveTo(18, 0); c.lineTo(-8, -13); c.lineTo(-3, 0); c.lineTo(-8, 13); c.closePath(); c.fill(); c.stroke();
@@ -65562,6 +65739,7 @@ townRegion("shell", () => { Town = (() => {
   let infoKey = "", garKey = "", sheetKey = "", barKey = "", holdBtn = null, idleI = 0;
   // per game: the hints shown (a bitmask, saved with the run), their queue, the one showing; one-time calls
   let hintDone = 0, hintQ = [], hintCur = null, ui1 = {};
+  let saving = false;   // auto-train paused by the sheet's "Save food" until the advance starts
 
   // ---- the clock: held for reasons (card, hidden, page, error, plan, sheet); now() as Nardi's ----
   let heldAt = -1, heldFor = 0;
@@ -65588,6 +65766,9 @@ townRegion("shell", () => { Town = (() => {
   }
   function savePref() { try { localStorage.setItem(PREF_KEY, JSON.stringify(pref)); } catch (e) {} }
 
+  // storage that does not outlive the page: blocked site data gives the page an in-memory store (2316), which reads
+  // back fine; the leave and pause cards say so instead of promising a save (gray box review, owner decision 2)
+  let memStore = (() => { if (HARNESS_ON) return false; try { return typeof Storage !== "undefined" && !(window.localStorage instanceof Storage); } catch (e) { return true; } })();
   // ---- saving (8.4): a snapshot is written, read back and compared; saveOk says whether it stuck ----
   function writeRun(obj) {
     let ok = false, back = null;
@@ -65606,7 +65787,7 @@ townRegion("shell", () => { Town = (() => {
     const saved = Math.max(Date.now(), lastSaved + 1);
     lastSaved = saved;
     return writeRun({ v: 1, tw: TW.VERSION, saved, crashed: !!crashed,
-      ui: { view: { x: view.x, y: view.y, zoom: view.zoom }, speed: speed === 4 ? 2 : speed, hintStep: hintDone },
+      ui: { view: { x: view.x, y: view.y, zoom: view.zoom }, speed: speed === 4 ? 2 : speed, hintStep: hintDone, saving },
       state: TW.save(G) });
   }
   function removeRun() { try { localStorage.removeItem(RUN_KEY); } catch (e) {} }
@@ -65724,7 +65905,7 @@ townRegion("shell", () => { Town = (() => {
     on(el.planGo, "click", () => { Snd.init(); plan(false); });
     on(el.raid, "click", () => { tick1(); hintEnd("horn"); toRaid(); });
     on(el.age, "click", () => { tick1(); openSheet(!sheet); });
-    on(el.next, "click", () => { tick1(); openSheet(true); });
+    on(el.next, "click", () => { tick1(); const n = G && TW.next(G); if (n && n.k === "palace") centerOnTc(); else openSheet(true, true); });
     press(el.speed, e => { Snd.init(); if (held.has("plan")) { say(U("planNoSpeed")); return; } setSpeed(e.shiftKey ? (speed === 4 ? 1 : 4) : (speed === 1 ? 2 : 1)); },
       () => { if (!held.has("plan")) setSpeed(speed === 4 ? 1 : 4); });
     for (const r of RES) on(el.res[r], "click", () => { tick1(); laborLine(r); });
@@ -65739,6 +65920,7 @@ townRegion("shell", () => { Town = (() => {
     on(el.shield, "click", () => { tick1(); hintEnd("shield"); garPanel(!garOpen); });
     // panels and the sheet: one listener each; a hold button (demolish, dismiss) acts after 0.8 s
     for (const p of [el.gar, el.info, el.sheet]) {
+      p.addEventListener("scroll", () => moreCue(p), { passive: true });
       on(p, "click", e => { const b = e.target.closest && e.target.closest("button[data-a]"); if (b && p.contains(b) && !b.dataset.hold) { tick1(); doAct(b.dataset.a, b); } else if (b && b.dataset.hold && !e.detail) askAct(b.dataset.a); });
       on(p, "pointerdown", e => { const b = e.target.closest && e.target.closest("button[data-hold]"); if (b) holdStart(b); });
       for (const t of ["pointerup", "pointercancel", "pointerout"]) p.addEventListener(t, holdStop);
@@ -65813,29 +65995,41 @@ townRegion("shell", () => { Town = (() => {
     raf = requestAnimationFrame(loop);
     paint(last);
   }
+  // Every step of the teardown runs on its own, and the map is given back in a finally: a throw in the sound or
+  // the renderer (gray box review) must never leave the map inert under a hidden town
   function close(fromPop) {
     if (!open) return;
-    if (G && live && !G.over && !broken) snapshot();
+    const step = f => { try { f(); } catch (e) { try { console.error(e); } catch (x) {} } };
+    step(() => { if (G && live && !G.over && !broken) snapshot(); });
     // after an error the game in memory is not trusted: a reopening reads the crash-safe snapshot instead
     if (broken) { G = null; live = false; broken = null; }
     open = false;
-    cancelAnimationFrame(raf); raf = 0;
-    stopTimers();
-    ptrs.clear(); pinch = null; gest = ""; inertia = ease = box = hover = null;
-    setMode("none"); setSel(null); garPanel(false); openSheet(false);
-    held.clear(); heldAt = -1; heldFor = 0;
-    card = ""; cardData = {}; renderCard();
-    root.classList.add("twHidden");
-    root.classList.remove("twNoUi", "twPlanning");
-    try { TWS.close(); } finally { Snd.sceneOverride = null; }
-    TWA.free();
-    // the map under the room is in reach again exactly when it is on screen (not a snapshot from opening)
-    overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
-    if (lastFocus && lastFocus.isConnected && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
-    lastFocus = null;
-    if (histPushed) {
-      histPushed = false;
-      if (!fromPop && HIST_ON) { ignorePop = true; try { history.back(); } catch (e) { ignorePop = false; } }
+    try {
+      step(() => { cancelAnimationFrame(raf); });
+      raf = 0;
+      step(stopTimers);
+      step(() => { ptrs.clear(); pinch = null; gest = ""; inertia = ease = box = hover = null; });
+      step(() => { setMode("none"); setSel(null); garPanel(false); openSheet(false); });
+      held.clear(); heldAt = -1; heldFor = 0;
+      step(() => { card = ""; cardData = {}; renderCard(); });
+      step(() => { root.classList.add("twHidden"); root.classList.remove("twNoUi", "twPlanning"); });
+      step(() => TWS.close());
+      step(() => TWA.free());
+    } finally {
+      Snd.sceneOverride = null;
+      if (root) root.classList.add("twHidden");
+      // the map under the room is in reach again exactly when it is on screen (not a snapshot from opening)
+      overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
+      if (lastFocus && lastFocus.isConnected && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+      lastFocus = null;
+      if (histPushed) {
+        histPushed = false;
+        // back over our own entry only: after a back swipe the page's own entry is current, and one more back
+        // would leave the game (gray box review)
+        let ours = false;
+        try { ours = !!(history.state && history.state.hsTown); } catch (e) {}
+        if (!fromPop && HIST_ON && ours) { ignorePop = true; try { history.back(); } catch (e) { ignorePop = false; } }
+      }
     }
   }
   function askLeave() {
@@ -65895,7 +66089,7 @@ townRegion("shell", () => { Town = (() => {
     const w = TW.raidInfo(G).warn[0], e = w && w.zones && G.map.entries[w.zones[0]];
     return e && e.length ? [e[e.length >> 1][0] + 0.5, e[e.length >> 1][1] + 0.5] : null;
   };
-  function toRaid() { const p = G && toRaidXY(); if (p) centerOn(p[0], p[1]); }
+  function toRaid() { const p = G && toRaidXY(); if (p) { centerOn(p[0], p[1]); view.pulse = { x: p[0], y: p[1], t: performance.now() }; } }
 
   // ---- input (9.5, 9.6, 13.7): pointer events on the canvas only. A finger pans (never from the left 24 px,
   // where Safari's back swipe starts), two pinch, a tap selects or commands, a finger held still inspects; in wall
@@ -66001,8 +66195,12 @@ townRegion("shell", () => { Town = (() => {
     clampView();
   }
   // a pinch ends on the nearest zoom step, eased over 120 ms (at once under reduced motion)
+  // and never more than one step from where it began (gray box review: a small spread jumped two steps)
   function settleZoom() {
-    const m = pinch ? pinch.m : { x: cssW / 2, y: cssH / 2 }, z1 = TWA.zoomSteps[nearestStep(view.zoom)];
+    const Z = TWA.zoomSteps, m = pinch ? pinch.m : { x: cssW / 2, y: cssH / 2 };
+    let i = nearestStep(view.zoom);
+    if (pinch) { const i0 = nearestStep(pinch.z0), r = view.zoom / pinch.z0; i = r > 1.08 ? Math.min(i0 + 1, Z.length - 1) : r < 0.92 ? Math.max(i0 - 1, 0) : i0; }
+    const z1 = Z[i];
     pinch = null;
     if (reducedMotion()) zoomTo(z1, m.x, m.y); else ease = { z0: view.zoom, z1, t0: pnow(), m };
   }
@@ -66012,7 +66210,7 @@ townRegion("shell", () => { Town = (() => {
       const p = ptrs.values().next().value;
       if (p.touch && !p.moved && !p.long && pnow() - p.t0 >= 420) { p.long = true; inspect(local(p)); }
     }
-    if ((gest === "stroke" || gest === "ghost") && ptrs.size === 1) {
+    if ((gest === "stroke" || gest === "ghost") && ptrs.size === 1 && ptrs.values().next().value.moved) {   // a still press (a tap) never scrolls
       const p = ptrs.values().next().value, L = local(p), y = gest === "ghost" ? L.y - 56 : L.y, E = 48;
       const ex = L.x < area.l + E ? -1 : L.x > area.r - E ? 1 : 0, ey = y < area.t + E ? -1 : y > area.b - E ? 1 : 0;
       if (ex || ey) {
@@ -66061,7 +66259,9 @@ townRegion("shell", () => { Town = (() => {
   // what a villager can be sent to: a node, a free field or grove, a foundation, a shelter, a damaged building
   const vilTarget = o => o.done < 1 || ((o.k === "field" || o.k === "grove") && !o.farmer) || !!SHEL[o.k] || (o.hp < o.hpMax && o.k !== "wonder");
   function tap(L, p) {
-    for (const a of TWA.stats().arrows || []) if (Math.hypot(L.x - a.x, L.y - a.y) <= a.r + 8) { centerOn(a.tx, a.ty); return; }
+    // a raid arrow jumps the camera, except under a ghost: there a tap moves the ghost (now that the arrows stand
+    // inside the map area, one could sit right where a building is meant to go)
+    if (!ghost) for (const a of TWA.stats().arrows || []) if (Math.hypot(L.x - a.x, L.y - a.y) <= a.r + 8) { centerOn(a.tx, a.ty); return; }
     if (sheet) { openSheet(false); return; }
     if (ghost) { if (p.touch) ghostAt(L.x, L.y); else placeGhost(p.shift); return; }
     const hit = TWA.pick(G, view, L.x, L.y, p.touch ? 22 : 6), t = pnow();
@@ -66134,8 +66334,40 @@ townRegion("shell", () => { Town = (() => {
     setMode(type === "gate" ? "gate" : "place");
     const [w, h] = sizeOf(type, 0), c = TWA.toWorld(view, cssW / 2, (area.t + area.b) / 2);
     ghost = { type, x: snap(c.x, w), y: snap(c.y, h), rot: 0, ok: false, err: "", why: "" };
+    // a wonder starts on the legal site nearest the view's middle, the camera on it, every legal site tinted (the
+    // gray box review: it started red on the palace, and Garni's bluff lay off screen)
+    if (type === "wonder") {
+      const S = wonderSites();
+      ghost.sites = S.mask;
+      let best = null, bd = 1e9;
+      for (const [x, y] of S.list) { const d = (x + 2.5 - c.x) ** 2 + (y + 2.5 - c.y) ** 2; if (d < bd) { bd = d; best = [x, y]; } }
+      if (best) {
+        ghost.x = best[0]; ghost.y = best[1];
+        const a = TWA.toScreen(view, best[0], best[1]), b = TWA.toScreen(view, best[0] + 5, best[1] + 5);
+        if (a.x < area.l + 20 || b.x > area.r - 80 || a.y < area.t + 20 || b.y > area.b - 20) centerOn(best[0] + 2.5, best[1] + 2.5);
+      }
+    } else if (type !== "gate") {
+      // any other building starts on the nearest place it may stand (cost aside), not red on the palace
+      const R = type === "field" ? 16 : 10;
+      found: for (let r = 0; r <= R; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const q = TW.canPlace(G, type, ghost.x + dx, ghost.y + dy, 0);
+        if (q.ok || q.err === "cost") { ghost.x += dx; ghost.y += dy; break found; }
+      }
+    }
     check(true);
     say(type === "gate" ? U("gateHint") : nm("bld", type) + ". " + cw(TW.cost(G, type)) + ".");
+  }
+  // every top-left where the age's wonder may stand (cost aside), and the tiles they cover
+  function wonderSites() {
+    const W = TW.W, H = TW.H, mask = new Uint8Array(W * H), list = [];
+    for (let y = 0; y <= H - 5; y++) for (let x = 0; x <= W - 5; x++) {
+      const r = TW.canPlace(G, "wonder", x, y, 0);
+      if (!(r.ok || r.err === "cost")) continue;
+      list.push([x, y]);
+      for (let yy = y; yy < y + 5; yy++) for (let xx = x; xx < x + 5; xx++) mask[yy * W + xx] = 1;
+    }
+    return { mask, list };
   }
   // the ghost on the tile under a screen point: that tile is its middle one (for an even size, the one left of and
   // above the middle), so the boundary between two positions is always a tile's edge
@@ -66197,15 +66429,21 @@ townRegion("shell", () => { Town = (() => {
   }
   function rotGate() { if (ghost && ghost.type === "gate") { ghost.rot ^= 1; check(); } }
   // the ghost's check and X sit beside it, kept inside the map area
-  let gbAt = "";
+  let gbAt = "", gbPos = null;
   function placeGB() {
     if (!ghost) { if (gbAt) { gbAt = ""; el.gb.classList.remove("on"); } return; }
     const [w, h] = sizeOf(ghost.type, ghost.rot), a = TWA.toScreen(view, ghost.x, ghost.y), b = TWA.toScreen(view, ghost.x + w, ghost.y + h);
     const n = ghost.type === "gate" ? 3 : 2, H = n * 48 + (n - 1) * 8;
-    let x = b.x + 12;
-    if (x + 48 > area.r - 8) x = a.x - 60;
-    x = Math.max(area.l + 8, Math.min(area.r - 56, x));
-    const y = Math.max(area.t + 8, Math.min(area.b - H - 8, (a.y + b.y) / 2 - H / 2));
+    // beside the ghost, right or left, else under or over it; never on the minimap, the chips or the dock (gray box)
+    const fit = (x, y) => [Math.max(area.l + 8, Math.min(area.r - 56, x)), Math.max(area.t + 8, Math.min(area.b - H - 8, y))];
+    const hits = (x, y) => hudRects.some(r => x < r.r + 4 && x + 48 > r.l - 4 && y < r.b + 4 && y + H > r.t - 4);
+    const my = (a.y + b.y) / 2 - H / 2, mx = (a.x + b.x) / 2 - 24;
+    const cands = [[b.x + 12, my], [a.x - 60, my], [b.x + 12, b.y - H], [a.x - 60, a.y], [mx + 60, b.y + 10], [mx + 60, a.y - H - 10]].map(p => fit(p[0], p[1]));
+    // the place it had stays while the ghost stands still and nothing covers it (no jumping as the Next line's
+    // width changes under a finger on its way to the check)
+    const kept = gbPos && gbPos.gx === ghost.x && gbPos.gy === ghost.y && gbPos.vx === view.x && gbPos.vy === view.y && gbPos.z === view.zoom && !hits(gbPos.x, gbPos.y) ? [gbPos.x, gbPos.y] : null;
+    let [x, y] = kept || cands.find(p => !hits(p[0], p[1])) || cands[0];
+    gbPos = { x, y, gx: ghost.x, gy: ghost.y, vx: view.x, vy: view.y, z: view.zoom };
     const k = Math.round(x) + "," + Math.round(y);
     if (k !== gbAt) { gbAt = k; el.gb.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)"; el.gb.classList.add("on"); }
   }
@@ -66285,6 +66523,9 @@ townRegion("shell", () => { Town = (() => {
       for (const t of R.strokes) strokes.push({ tiles: t.map(q => [q[0], q[1]]) });
       for (const g of R.gates && R.gates.length ? R.gates : R.gate ? [R.gate] : []) strokes.push({ gate: { x: g.x, y: g.y, rot: g.rot | 0 }, tiles: [] });
       wallGhost();
+      // more than the stock pays for: say how much will be laid (gray box review)
+      const c = TW.cost(G, "wall"), all = wallN(), can = RES.reduce((m, r) => (c[r] ? Math.min(m, Math.floor(G.res[r] / c[r])) : m), all);
+      if (can < all && TWT.ui.wallAfford) say(U("wallAfford", can, all));
     } else if (w === "build") {
       const tiles = wallTiles().filter(t => t.ok).map(t => [t.x, t.y]).slice(0, 400), gates = strokes.filter(s => s.gate).map(s => s.gate);
       if (!tiles.length && !gates.length) { say(U("wallHint", TW.cost(G, "wall"), ageOf())); return; }
@@ -66314,7 +66555,7 @@ townRegion("shell", () => { Town = (() => {
     if (G) barState();
   }
   function ghostSpec() {
-    if (ghost) return { type: ghost.type, x: ghost.x, y: ghost.y, rot: ghost.rot, ok: ghost.ok, err: ghost.err };
+    if (ghost) return { type: ghost.type, x: ghost.x, y: ghost.y, rot: ghost.rot, ok: ghost.ok, err: ghost.err, sites: ghost.sites || null };
     return mode === "wall" && wallCells.length ? { wall: wallCells } : null;
   }
 
@@ -66405,6 +66646,7 @@ townRegion("shell", () => { Town = (() => {
   }
   // a small bubble right above the tapped button, for 2 s (9.4)
   let bubbleT = 0;
+  const bubbleN = {};
   function bubble(b, s) {
     const r = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
     setT(el.bubble, s);
@@ -66423,7 +66665,10 @@ townRegion("shell", () => { Town = (() => {
     if (st.lock) { bubble(b, st.lock); say(st.lock); return; }
     if (k === "wall") { setMode("wall"); say(U("wallHint", TW.cost(G, "wall"), ageOf())); }
     else enterPlace(k);
-    if (st.poor) { bubble(b, st.poor); say(st.poor); flash(st.lack[0]); }
+    // the button shows an icon and a cost only: its name rises above it (gray box review)
+    // (the first three taps of each kind in a session: after that the bubble would only cover the dock)
+    if (st.poor) { bubble(b, nm("bld", k) + ". " + st.poor); say(st.poor); flash(st.lack[0]); }
+    else if ((bubbleN[k] = (bubbleN[k] || 0) + 1) <= 3) bubble(b, nm("bld", k));
   }
 
   // ---- panels: the info panel (9.7), the garrison panel (6.3) and the age sheet (9.9). Each is rebuilt only when
@@ -66445,7 +66690,7 @@ townRegion("shell", () => { Town = (() => {
     if (m.hp) h += '<div class="twHp"><i data-v="bar"></i><span data-v="hp"></span></div>';
     m.sub.forEach((s, i) => { h += '<p class="twIS" data-v="s' + i + '"></p>'; });
     if (m.q.length) h += '<div class="twQ">' + m.q.map((q, i) => '<button type="button" class="twQi"' + (q.a ? ' data-a="' + q.a + '"' : " disabled") + '><span data-v="q' + i + '"></span>' + (q.a ? " &#215;" : "") + "</button>").join("") + "</div>";
-    if (m.acts.length) h += '<div class="twActs">' + m.acts.map(actHtml).join("") + "</div>";
+    if (m.acts.length) h += '<div class="twActs' + (m.acts.length >= 5 ? " twCols" : "") + '">' + m.acts.map(actHtml).join("") + "</div>";
     // the role and history lines come last, so that the panel's buttons stay in view above them (gray box)
     if (m.role) h += '<p class="twIS">' + esc(m.role) + "</p>";
     if (m.hist) h += '<p class="twHist">' + esc(m.hist) + "</p>";
@@ -66470,11 +66715,17 @@ townRegion("shell", () => { Town = (() => {
   function panels() {
     if (!G || !root) return;
     pruneSel();
+    const k0 = infoKey, s0 = sheetKey;
     infoKey = panel(el.info, infoModel(), infoKey);
     garKey = panel(el.gar, garOpen ? garModel() : null, garKey);
     sheetKey = panel(el.sheet, sheet ? sheetModel() : null, sheetKey, sheetHtml);
     tog(root, "twInfoOn", !!infoKey);
+    if (infoKey !== k0) { if (infoKey) root.style.setProperty("--twInfoH", el.info.offsetHeight + "px"); moreCue(el.info); }
+    if (sheetKey !== s0) moreCue(el.sheet);
+    moreCue(el.gar);
   }
+  // a scrollable panel shows a fade and a chevron at its lower edge while more lies below (gray box review)
+  function moreCue(e) { if (e) tog(e, "twMore", e.classList.contains("on") && e.scrollHeight - e.scrollTop - e.clientHeight > 6); }
   const roleHist = (m, kind, id) => {
     const r = TWT.role ? TWT.role(kind, id) : "", h = TWT.hist ? TWT.hist(kind, id, ageOf()) : [];
     if (r) m.role = r;
@@ -66557,8 +66808,8 @@ townRegion("shell", () => { Town = (() => {
     if (b.done < 1) {
       const mx = b.k === "wonder" ? D.WONDERS[G.age - 1].maxBuilders : D.BUILD.maxBuilders;
       m.sub.push(U("building") + " " + Math.floor(b.done * 100) + "%", U("builders", b.builders.length));
-      m.acts.push(A_("bld:-1", "−", b.builders.length ? "" : errW("bad"), { aria: U("fewerBuilders") }),
-        A_("bld:1", "+", b.builders.length >= mx ? errW("bad") : "", { aria: U("moreBuilders") }), A_("cancel", U("cancelBld")));
+      m.acts.push(A_("bld:-1", "−", b.builders.length ? "" : U("noBuilders"), { aria: U("fewerBuilders") }),
+        A_("bld:1", "+", b.builders.length >= mx ? U("buildersMax", nm("bld", b.k), mx) : "", { aria: U("moreBuilders") }), A_("cancel", U("cancelBld")));
       return m;
     }
     m.hp = [b.hp, b.hpMax];
@@ -66584,7 +66835,7 @@ townRegion("shell", () => { Town = (() => {
     if (b.hp < b.hpMax && b.k !== "wonder") {
       const c = TW.cost(G, b.k) || {}, rc = {};
       for (const r of RES) rc[r] = c[r] ? Math.max(1, Math.ceil(c[r] * D.BUILD.repairCost * 100 / b.hpMax)) : 0;
-      m.acts.push(A_("repair", U("repair", rc, ageOf())));
+      m.acts.push(A_("repair", RES.some(r => rc[r]) ? U("repair", rc, ageOf()) : U("repairBtn")));
     }
     if (b.k !== "tc" && b.k !== "wonder") m.acts.push(A_("demolish", U("demolish"), "", { hold: 1 }));
     return m;
@@ -66600,33 +66851,50 @@ townRegion("shell", () => { Town = (() => {
     if (a < 3) {
       const adv = D.AGES[a].advance, rows = [{ t: U("costL"), cost: TW.cost(G, "advance") }, { t: U("timeL"), time: TWT.mmss(adv.time) }];
       for (const k of adv.req) rows.push({ t: U("needsL") + ": " + nm("bld", k), ok: hasDone(k) });
-      m.blocks.push({ h: U("advanceTo", TWT.ages[a].name), rows, act: A_("advance", U("advance"), advanceOff()) });
-      m.dyn = G.aging ? TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) }) : "";
+      // short of food for it while the palace trains villagers: one tap pauses auto-train until the advance starts
+      const tc = tcOf(), short = lack(TW.cost(G, "advance")).includes("f") && !G.aging;
+      m.blocks.push({ h: U("advanceTo", TWT.ages[a].name), rows, act: A_("advance", U("advance"), advanceOff()), act2: short && tc && tc.auto && TWT.ui.saveFood ? A_("saveAdv", U("saveFood")) : null });
+      m.dyn = G.aging ? TWT.next({ k: "aging", to: G.aging.to, left: Math.ceil(G.aging.left * DT) }) : saving && tc && !tc.auto ? U("saving") : "";
     }
     const groups = {};
     for (const id in D.TECHS) { const X = D.TECHS[id]; if (X.age <= a) (groups[X.at] = groups[X.at] || []).push(id); }
     for (const at of ["tc", "smithy", "temple", "market", "stable", "tower"]) if (groups[at]) m.blocks.push({ h: U("techsAt", nm("bld", at)), rows: groups[at].map(id => ({
       t: nm("tech", id), d: TWT.effect ? TWT.effect(id, D, a) : "", cost: G.techs[id] ? null : TW.cost(G, id), time: TWT.mmss(D.TECHS[id].time), ok: G.techs[id] ? true : undefined, tech: 1,
-      act: G.techs[id] ? null : A_("tech:" + id, U("research"), techOff(id, true)) })) });
+      act: G.techs[id] ? null : A_("tech:" + id, U("research"), techOff(id, true)),
+      w: !G.techs[id] && !hasDone(D.TECHS[id].at) ? errW("req", { need: [D.TECHS[id].at] }) : "" })) });
     const miss = wonderMiss();
     m.blocks.push({ h: nm("bld", "wonder"), rows: [{ t: U("costL"), cost: TW.cost(G, "wonder") }].concat(miss.length ? [{ t: TWT.ui && TWT.ui.wonderNeeds ? U("wonderNeeds", a, miss) : errW("req", { need: miss }) }] : []) });
     return m;
   }
   function sheetHtml(m) {
     const row = r => '<div class="twRow"><span class="twRt">' + (r.ok !== undefined ? '<i class="twOk' + (r.ok ? " y" : "") + '" aria-hidden="true"></i>' : "") + esc(r.t) +
-      (r.d ? "<small>" + esc(r.d) + "</small>" : "") + "</span>" + (r.cost ? costHtml(r.cost) : "") + (r.time ? '<span class="twTm">' + esc(r.time) + "</span>" : "") +
+      (r.d ? "<small>" + esc(r.d) + "</small>" : "") + (r.w ? '<small class="twWhy">' + esc(r.w) + "</small>" : "") + "</span>" + (r.cost ? costHtml(r.cost) : "") + (r.time ? '<span class="twTm">' + esc(r.time) + "</span>" : "") +
       (r.act ? actHtml(r.act) : r.tech && r.ok ? '<span class="twTm">' + esc(U("researched_")) + "</span>" : "") + "</div>";
     return headHtml(m.kick) + '<div class="twSB"><h2>' + esc(m.head) + "</h2>" + m.blocks.map((B, i) => "<section><h3>" + esc(B.h) + "</h3>" + B.rows.map(row).join("") +
-      (B.act ? '<div class="twActs">' + actHtml(B.act) + (i === 0 && m.dyn !== undefined ? '<span class="twIS" data-v="dyn"></span>' : "") + "</div>" : "") + "</section>").join("") + "</div>";
+      (B.act ? '<div class="twActs">' + actHtml(B.act) + (B.act2 ? actHtml(B.act2) : "") + (i === 0 && m.dyn !== undefined ? '<span class="twIS" data-v="dyn"></span>' : "") + "</div>" : "") + "</section>").join("") + "</div>";
   }
-  function openSheet(on) {
+  function openSheet(on, toNext) {
     on = !!on && !!G && live && !card;
-    if (on === sheet) { if (on) panels(); return; }
+    if (on === sheet) { if (on) { panels(); sheetTo(toNext); } return; }
     sheet = on;
     if (on) { setMode("none"); garPanel(false); setSel(null); hintEnd("age"); }
     hold("sheet", on && !!D.DIFFS[G.diff].sheetHolds);   // Easy: the sheet holds the clock
     panels();
+    if (on) sheetTo(toNext);
     if (G) barState();
+  }
+  // the sheet opens at its top (the advance), or at the row the Next line names, marked for a moment (the gray box
+  // review found it reopened at its old scroll, the Advance button under the sticky head)
+  function sheetTo(toNext) {
+    const g = toNext ? TW.next(G) : null;
+    let row = g && g.k === "tech" ? el.sheet.querySelector('[data-a="tech:' + g.tech + '"]') : null;
+    row = row && row.closest(".twRow");
+    if (!row && g && (g.k === "wonder" || g.k === "wonderPct")) { const S = el.sheet.querySelectorAll("section"); row = S.length ? S[S.length - 1] : null; }
+    const head = el.sheet.querySelector(".twIH"), hh = head ? head.offsetHeight : 0;
+    el.sheet.scrollTop = row ? Math.max(0, row.offsetTop - hh - 8) : 0;
+    for (const o of el.sheet.querySelectorAll(".twFlash")) o.classList.remove("twFlash");
+    if (row && !reducedMotion()) { row.classList.add("twFlash"); setTimeout(() => row.classList.remove("twFlash"), 1600); }
+    moreCue(el.sheet);
   }
   // the 2 villagers nearest to a target who are free to go (idle first, never a builder)
   function nearVils(o, n) {
@@ -66643,9 +66911,10 @@ townRegion("shell", () => { Town = (() => {
       case "train": if (bd) send({ k: "train", bld: bd.id, unit: v, n: 1 }); break;
       case "gtrain": { const t = trainAt(v); if (t) send({ k: "train", bld: t.id, unit: v, n: 1 }); break; }
       case "untrain": if (bd) send({ k: "untrain", bld: bd.id, i: +v }); break;
-      case "auto": if (bd) send({ k: "auto", bld: bd.id, on: !bd.auto }); break;
+      case "auto": if (bd) { send({ k: "auto", bld: bd.id, on: !bd.auto }); saving = false; } break;
       case "rally": if (!bd) break; if (v === "pt") { rallyPick = bd.id; say(U("rallyPoint")); } else send({ k: "rally", bld: bd.id, res: v }); break;
       case "advance": send({ k: "advance" }); break;
+      case "saveAdv": { const t = tcOf(); if (t && t.auto && send({ k: "auto", bld: t.id, on: false }).ok) { saving = true; say(U("saving")); } break; }
       case "tech": send({ k: "research", tech: v }); break;
       case "trade": send({ k: "trade", op: v, res: w }); break;
       case "bld": if (bd) send({ k: "builders", bld: bd.id, n: Math.max(0, bd.builders.length + +v) }); break;
@@ -66732,7 +67001,8 @@ townRegion("shell", () => { Town = (() => {
   }
   function hints() {
     if (!hintsOn()) { if (hintCur) { hintCur = null; showCall(); } return; }
-    const L = TW.labor(G), fl = n => n.k === "flock";
+    const L = TW.labor(G), fl = n => n.k === "flock", O = G.opening;
+    if (O.house && O.field && O.store && O.moved) hint("opened");
     if (G.popCap - L.pop <= 2 && G.popCap < D.POP.max) hint("popLow");
     const f0 = G.map.start.nodes.filter(fl).reduce((s, n) => s + n.left, 0), f1 = G.nodes.filter(n => !n.dead && fl(n)).reduce((s, n) => s + n.left, 0);
     if (f0 && f1 <= f0 / 2) hint("flocksHalf");
@@ -66741,11 +67011,22 @@ townRegion("shell", () => { Town = (() => {
     if (hintCur && now() >= hintCur.until) { hintCur = null; showCall(); }
     if (!hintCur && hintQ.length && !card) { const i = hintQ.shift(); hintDone |= 1 << i; hintCur = { i, until: now() + 40000 }; showCall(); }
   }
+  // once a game: the Next line has waited on food for the advance a minute of game time while the palace trains
+  // villagers (the gray box review: nothing told the player that auto-train eats the food)
+  function autoNote() {
+    if (ui1.autoNote || saving || G.age >= 3 || G.aging) return;
+    const n = TW.next(G), t = tcOf();
+    if (!(n.k === "res" && n.res === "f" && t && t.auto)) { ui1.fWait = 0; return; }
+    if (!ui1.fWait) ui1.fWait = G.tick;
+    else if (G.tick - ui1.fWait >= 600) { ui1.autoNote = 1; say(U("autoHint"), 1); }
+  }
   // the soft outline: the hint's control, else the coached step's (the Next line's first-town steps)
   let coachEl = null;
   function coach() {
-    let c = hintCur ? hintList()[hintCur.i].ctl : "";
-    if (!c && G.firstTown) { const n = TW.next(G); if (n.k === "open") c = n.step === "move" ? "dock" : "build:" + n.step; }
+    // a coached step's control comes first: one instruction at a time (gray box review)
+    let c = "";
+    if (G.firstTown) { const n = TW.next(G); if (n.k === "open") c = n.step === "move" ? "dock" : "build:" + n.step; }
+    if (!c && hintCur) c = hintList()[hintCur.i].ctl;
     const e = !c ? null : c.startsWith("build:") ? el.build.querySelector('[data-b="' + c.slice(6) + '"]') : { dock: el.dock, raid: el.raid, alarm: el.alarm, shield: el.shield, age: el.age }[c] || null;
     if (e !== coachEl) { if (coachEl) coachEl.classList.remove("twCoach"); coachEl = e; if (e) e.classList.add("twCoach"); }
   }
@@ -66765,7 +67046,10 @@ townRegion("shell", () => { Town = (() => {
     const a = G.age, q = 1;
     switch (e.e) {
       case "ageDone": TWA.setAge(G.age); labels(); barKey = ""; showCard("age"); break;
-      case "ageStart": say(U("advancing", TWT.ages[e.to - 1].name), q); break;
+      case "ageStart":
+        say(U("advancing", TWT.ages[e.to - 1].name), q);
+        if (saving) { saving = false; const t = tcOf(); if (t && !t.auto && TW.command(G, { k: "auto", bld: t.id, on: true }).ok) say(U("autoBack"), q); }
+        break;
       case "built": if (e.k !== "wall") say(U("built", nm("bld", e.k)), q); else if (!G.blds.some(b => !b.dead && b.k === "gate")) hint("wallNoGate"); break;
       case "researched": say(U("researched", nm("tech", e.tech)), q); barKey = ""; break;
       case "noPop": say(errW("pop"), q); break;
@@ -66778,9 +67062,13 @@ townRegion("shell", () => { Town = (() => {
       case "pillage": pilUntil = performance.now() + 3000; if (now() - (ui1.pil || -1e9) > 10000) { ui1.pil = now(); say(U("pillage"), q); } break;
       case "sheltered": if (!ui1.shel && G.units.some(u => !u.dead && u.side === 1)) { ui1.shel = 1; say(U("shelterCall"), q); } break;
       case "alarm": say(e.on ? (e.all ? U("alarmAll") : U("alarmOn")) : U("allClear")); break;
-      case "idle": if (now() - (ui1.idle || -1e9) > 30000) { const n = idleVils().length; if (n) { ui1.idle = now(); say(U("idleCall", n), q); } } break;
+      case "idle": if (now() - (ui1.idle || -1e9) > 30000) { const n = idleVils().length; if (n) { ui1.idle = now(); say(U("idleCall", n) + " " + idleWhy(), q); } } break;
+      case "autoWait": say(U("autoWait", e.n), q); break;
       case "depleted": { const s = U("depleted", e.k); if (s) say(s, q); break; }
-      case "destroyed": if (e.k !== "wall") say(U("destroyed", nm("bld", e.k)), q); break;
+      case "destroyed":
+        if (e.k !== "wall") say(U("destroyed", nm("bld", e.k)), q);
+        if (e.k === "house" && TW.labor(G).pop > G.popCap && now() - (ui1.houses || -1e9) > 60000) { ui1.houses = now(); say(U("housesLost"), q); }
+        break;
       case "craftsmen": say(U("craftsmen"), q); break;
       case "clockStart": say(U("clockHint"), q); break;
       case "repairStop": if (now() - (ui1.rep || -1e9) > 20000) { ui1.rep = now(); say(U("repairStop", e.res, a), q); } break;
@@ -66797,6 +67085,15 @@ townRegion("shell", () => { Town = (() => {
       case "win": case "lose": endGame(e); break;
       default: break;
     }
+  }
+  // why villagers stand idle: walled in, no work anywhere, or simply waiting for orders (parked by the dock or done
+  // building): the call line says which (the gray box review: it never said why)
+  function idleWhy() {
+    const W = TWT.ui.idleWhy || {}, L = idleVils();
+    if (L.some(u => u.st === 6)) return W.stuck || "";
+    const any = ["f", "w", "s", "g"].some(r => G.nodes.some(n => !n.dead && n.left > 0 && NODE_RES[n.k] === r && (n.k !== "dye" || G.techs.vordan_karmir))) ||
+      G.blds.some(b => !b.dead && b.done >= 1 && (b.k === "field" || b.k === "grove") && !b.farmer);
+    return (any ? W.tap : W.none) || "";
   }
   function hitCall(e) {
     const b = bldOf(e.bld);
@@ -66933,7 +67230,7 @@ townRegion("shell", () => { Town = (() => {
       h = '<p class="twKick">' + esc(TWT.title) + "</p>" + P(line);
       btns = B("resume", U("resume"), true) + B("newGame", U("newGame"));
     } else if (card === "pause") {
-      h = "<h2>" + esc(U("paused")) + "</h2>" + (saveOk ? "" : S(U("notSaved"))) +
+      h = "<h2>" + esc(U("paused")) + "</h2>" + (!saveOk ? S(U("notSaved")) : memStore ? S(U("memOnly")) : "") +
         '<div class="twTogs">' + T("hints", U("hints"), pref.hints) + T("music", U("music"), Snd.musicOn) + T("sound", U("sound"), Snd.sfxOn) + "</div>";
       btns = B("resume", U("resume"), true) + B("plan", U("plan")) + B("howTo", U("howTo")) + B("startOver", U("startOver")) + B("leave", U("leave"));
     } else if (card === "help") {
@@ -66944,7 +67241,7 @@ townRegion("shell", () => { Town = (() => {
         (H && H.keys ? "<h3>" + esc(H.keysHead) + '</h3><dl class="twKeysL">' + H.keys.map(([a, b]) => "<dt>" + esc(a) + "</dt><dd>" + esc(b) + "</dd>").join("") + "</dl>" : "") + "</div>";
       btns = B("helpBack", U("close"), true);
     } else if (card === "leave") {
-      h = P(saveOk ? U("leaveSaved") : U("leaveUnsaved"));
+      h = P(!saveOk ? U("leaveUnsaved") : memStore ? U("leaveMem") : U("leaveSaved"));
       btns = B("keep", U("keep"), true) + B("leave", U("leave"));
     } else if (card === "age") {
       h = '<p class="twKick">' + esc(A.numeral + " · " + A.dateline) + "</p><h2>" + esc(A.name) + "</h2>" +
@@ -66957,7 +67254,7 @@ townRegion("shell", () => { Town = (() => {
       const B0 = G ? pref.best[G.diff] : null, txt = x => (x && x.text) || String(x);
       h = (win ? '<p class="twStars" role="img" aria-label="' + esc(U("stars", st)) + '">' + svg("i-star").repeat(st) + "</p>" : "") +
         '<h2 id="twEndHead" aria-live="polite">' + esc(win ? U("winHead", cardData.age) : cardData.cause === "soft" ? U("softLock") : U("loseHead", cardData.age)) + "</h2>" +
-        '<div class="twBody">' + (W && W.lines ? W.lines.map(x => P(txt(x))).join("") : "") +
+        '<div class="twBody">' + (!win && cardData.cause === "tc" && TWT.ui.loseTip ? P(U("loseTip", cardData.age)) : "") + (W && W.lines ? W.lines.map(x => P(txt(x))).join("") : "") +
         (win && cardData.bless ? '<p class="twBless">' + esc(cardData.bless.waiting ? U("blessWaiting") : U("blessNew", cardData.bless.n)) + "</p>" : "") +
         (W && W.lic ? W.lic.map(x => S(txt(x))).join("") : "") + "</div>" +
         S(U("map", G ? G.seed : 0) + " · " + TWT.mmss(G ? Math.floor(G.tick * DT) : 0) + (cardData.score !== undefined ? " · " + U("score", cardData.score) : "") + (cardData.best ? " · " + U("newBest") : "")) +
@@ -66990,7 +67287,7 @@ townRegion("shell", () => { Town = (() => {
             fromCrash = !!S.crashed; resumedAt = G.tick;
             if (S.ui && S.ui.view) { view.zoom = TWA.zoomSteps.includes(S.ui.view.zoom) ? S.ui.view.zoom : view.zoom; view.x = +S.ui.view.x || 0; view.y = +S.ui.view.y || 0; clampView(); }
             speed = S.ui && S.ui.speed === 2 ? 2 : 1;
-            hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {};
+            hintDone = (S.ui && S.ui.hintStep) | 0; hintQ = []; hintCur = null; ui1 = {}; saving = !!(S.ui && S.ui.saving);
           }
           live = true; TWA.setAge(G.age); TWS.open(G); labels(); barKey = "";
           showCard("pause");                       // resuming opens on the pause card (8.4)
@@ -67025,7 +67322,7 @@ townRegion("shell", () => { Town = (() => {
     G = TW.newGame({ seed, diff, firstTown });
     live = true; acc = 0; fromCrash = false; resumedAt = -1; lastSnapTick = 0; savedTick = -1;
     setMode("none"); setSel(null); garPanel(false); openSheet(false);
-    hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; callQ.length = 0; callMsg = ""; alarmAt = -1e9; barKey = "";
+    hintDone = 0; hintQ = []; hintCur = null; ui1 = {}; callQ.length = 0; callMsg = ""; alarmAt = -1e9; barKey = ""; saving = false;
     pref.lastSeed = seed; pref.diff = G.diff; pref.firstTown = !!firstTown; pref.played++;
     savePref();
     view.zoom = defaultZoom();
@@ -67069,13 +67366,25 @@ townRegion("shell", () => { Town = (() => {
     if (G && t - twsAt >= 500) { twsAt = t; TWS.tick(G, view); }
     paint(t);
   });
+  // the HUD's blocks over the map (CSS px in the room), measured twice a second: the raid arrows keep clear of them
+  let hudRects = [], hudRectAt = -1e9;
+  function measureHud(t) {
+    if (t - hudRectAt < 500 && t >= hudRectAt) return;
+    hudRectAt = t;
+    const r0 = root.getBoundingClientRect();
+    hudRects = [el.next, el.dock, el.chips, mini, root.querySelector(".twZoom"), el.gar, el.info].filter(e => e && e.offsetParent !== null).map(e => {
+      const r = e.getBoundingClientRect();
+      return { l: r.left - r0.left, t: r.top - r0.top, r: r.right - r0.left, b: r.bottom - r0.top };
+    }).filter(r => r.r - r.l > 2 && r.b - r.t > 2);
+  }
   function paint(t) {
     if (!G) return;
     view.sel = selView();
+    view.area = area; view.hud = hudRects;
     TWA.ghost(ghostSpec());
     TWA.draw(G, view, held.size ? 0 : acc / DT, t);
     if (t - miniAt >= 250 || t < miniAt) { miniAt = t; TWA.drawMini(G, view); }
-    if (t - hudAt >= 100 || t < hudAt) { hudAt = t; hud(); }
+    if (t - hudAt >= 100 || t < hudAt) { hudAt = t; hud(); measureHud(t); }
     placeGB();
   }
   const setT = (e, s) => { if (e && e.textContent !== s) e.textContent = s; };
@@ -67094,6 +67403,7 @@ townRegion("shell", () => { Town = (() => {
       setT(el.dk[r + "0"].lastChild, String(L[r]));
     }
     tog(el.res.f, "twPil", pilUntil > t);
+    { const tb = tcOf(); tog(el.age, "twHurt", !!tb && tb.hp < tb.hpMax * 0.5 && G.units.some(u => !u.dead && u.side === 1)); }   // the palace under attack
     const room = G.popCap - L.pop;
     setT(el.pop.lastChild, L.pop + "/" + G.popCap);
     tog(el.pop, "warn", room <= 2 && room > 0); tog(el.pop, "full", room <= 0);
@@ -67117,7 +67427,7 @@ townRegion("shell", () => { Town = (() => {
     else if (mode === "wall") wallGhost();
     barState();
     panels();
-    hints(); showCall(); coach();
+    hints(); if (live && !G.over) autoNote(); showCall(); coach();
     if (again && again.until && pnow() > again.until) { again = null; el.again.classList.remove("on"); }
     if (bubbleT && t > bubbleT) { bubbleT = 0; el.bubble.classList.remove("on"); }
     tog(root, "twPlanning", held.has("plan"));
@@ -67130,6 +67440,7 @@ townRegion("shell", () => { Town = (() => {
     if (hidden) { hold("hidden", true); snapshot(); }
     else {
       hold("hidden", false);
+      hold("page", false);   // back by visibilitychange alone (no pageshow after a pagehide): never left frozen
       if (G && live && !G.over && !card && !broken) { if (held.has("plan")) plan(false); showCard("pause"); }
     }
   }
@@ -67232,7 +67543,7 @@ townRegion("shell", () => { Town = (() => {
       hud();
     },
     hide: on => onVis(!!on), back: () => onPop(),
-    snapshot: () => snapshot(), saveOk: () => saveOk, failWrites(on) { failW = !!on; },
+    snapshot: () => snapshot(), saveOk: () => saveOk, failWrites(on) { failW = !!on; }, memStore(on) { if (on !== undefined) memStore = !!on; return memStore; },
     seed(n) { nextSeed = n | 0; },
     perf: () => Object.assign(TWA.stats(), { simMs }),
     hud: () => hud(), frame: t => frameBody(t === undefined ? last + 16 : t),
@@ -67244,7 +67555,8 @@ townRegion("shell", () => { Town = (() => {
   document.addEventListener("visibilitychange", () => guard(() => onVis(document.hidden))());
   window.addEventListener("pagehide", () => guard(() => { if (open) { hold("page", true); snapshot(); } })());
   window.addEventListener("pageshow", () => guard(() => { if (open) hold("page", false); })());
-  window.addEventListener("popstate", () => guard(onPop)());
+  // the back swipe is handled even after an error (the guard would swallow it, and the entry would be counted twice)
+  window.addEventListener("popstate", () => { try { onPop(); } catch (e) { try { console.error(e); } catch (x) {} } });
   // the focus stays inside the room while it is open
   document.addEventListener("focusin", e => {
     if (!open || !root || root.contains(e.target)) return;
@@ -67325,6 +67637,16 @@ function townSelftest(check, res) {
         recoverToMap();
         if (keep.isOpen() || overlayEl.hasAttribute("inert") !== overlayEl.classList.contains("hidden")) throw new Error("recoverToMap() did not close the town cleanly");
         if (frameOnce() !== 1) throw new Error("frame() does not draw again once the town is closed");
+        // a throw while the town tears down (the sound, the renderer) still gives the map back (gray box review)
+        for (const [mod, fn] of [[TWA, "free"], [TWS, "close"]]) {
+          const f0 = mod[fn];
+          keep.open();
+          mod[fn] = () => { throw new Error("towntest: " + fn + " threw"); };
+          const ce = console.error;
+          try { console.error = () => {}; keep.close(); } finally { mod[fn] = f0; console.error = ce; }
+          if (keep.isOpen() || overlayEl.hasAttribute("inert") !== overlayEl.classList.contains("hidden") || !$("town").classList.contains("twHidden") || Snd.sceneOverride)
+            throw new Error("a throw in " + fn + "() left the town half open or the map inert");
+        }
       }
       // the gift with the town off: paid, from TOWN_OFF's key and cap (check 11 pays it through #startBtn)
       localStorage.setItem("hs_town_bless", "30");
@@ -67675,15 +67997,27 @@ function townSelftest(check, res) {
       ticks(G3, 3);
       const evs = TW.drain(G3);
       if (!evs.some(e => e.e === "depleted" && e.node === tr.id) || !cut.task || cut.task.t !== "gather" || cut.task.node === tr.id || cut.task.res !== "w") fail("a woodcutter did not move on to the next tree");
-      // with no tree left within 10 tiles, the woodcutter drops its load and goes idle
+      // with no tree left within 10 tiles, the woodcutter moves on to any other tree (the gray box review: villagers
+      // stood idle with work still on the map); with no wood work at all, to another resource, dropping its wood
       const tr2 = G3.nodes.find(n => n.id === cut.task.node), hid = G3.nodes.filter(n => n !== tr2 && n.k === "tree" && (n.x - tr2.x) ** 2 + (n.y - tr2.y) ** 2 <= 121);
       hid.forEach(n => { n.k = "ore"; });
       if (until(G3, () => cut.st === 3 && cut.task.node === tr2.id, 800) < 0) fail("the woodcutter never reached the next tree");
       tr2.left = 0.03;
       TW.drain(G3);
-      until(G3, () => !cut.task, 600);
+      ticks(G3, 3);
+      const far = cut.task && G3.nodes.find(n => n.id === cut.task.node);
+      if (!cut.task || cut.task.res !== "w" || !far || far.k !== "tree" || far === tr2) fail("a woodcutter with no tree near did not move on to another tree");
       hid.forEach(n => { n.k = "tree"; });
-      if (cut.task || cut.carry.n || !TW.drain(G3).some(e => e.e === "idle" && e.id === cut.id)) fail("a woodcutter with no tree near did not drop its load and go idle");
+      if (until(G3, () => cut.st === 3 && cut.task.node === far.id, 1200) < 0) fail("the woodcutter never reached the far tree");
+      const trees = G3.nodes.filter(n => n.k === "tree" && n !== far);
+      trees.forEach(n => { n.k = "stone"; });
+      far.left = 0.03;
+      TW.drain(G3);
+      ticks(G3, 3);
+      const moved = cut.task && cut.task.res !== "w" && cut.task.t === "gather";
+      trees.forEach(n => { n.k = "tree"; });
+      if (!moved || TW.drain(G3).some(e => e.e === "idle" && e.id === cut.id)) fail("a woodcutter with no wood work left did not move on to another resource");
+      if (until(G3, () => cut.carry.n === 0 || cut.carry.r !== "w", 900) < 0) fail("the woodcutter never dropped its wood");
       const flock = G3.nodes.filter(n => n.k === "flock");
       const herd = vils(G3).filter(v => v.task && v.task.t === "gather" && v.task.res === "f");
       // the dock: "-" sends the latest worker to idle, "+" takes an idle villager first (3.8)
@@ -67714,6 +68048,12 @@ function townSelftest(check, res) {
         put(r, p39[0], p39[1]); ticks(G, 1);
         if (v.task.t !== "shelter" || v.task.bld !== tc.id) fail("a villager did not run to the palace from a raider at 3.9 tiles");
         if (until(G, () => v.shel === tc.id, 600) < 0 || !tc.shel.includes(v.id)) fail("the villager did not get into the palace");
+        // a raider still set on it cannot strike it inside, and the shelter's list stays exact through a save and load
+        { const hp0 = v.hp, t0 = r.tgt, s0 = r.st, h0 = r.held; put(r, v.x + 0.4, v.y); r.tgt = v.id; r.st = 11; r.cd = 0; r.held = 0; ticks(G, 1);
+          if (v.hp < hp0 || v.dead || r.tgt === v.id) fail("a raider struck a villager inside a shelter");
+          const G2 = TW.load(JSON.parse(JSON.stringify(TW.save(G))));
+          if (!G2 || TW.hash(G2) !== TW.hash(G)) fail("a game with a sheltered villager did not save and load exactly");
+          r.tgt = t0; r.st = s0; r.held = h0; }
         put(r, r.x < 32 ? 1.5 : 62.5, r.y); r.x = r.px = Math.max(0.5, Math.min(63.5, r.x));
         const out = until(G, () => !v.shel, 200);
         if (out < 49 || out > 52 || v.task.t !== "gather" || v.task.node !== node0) fail("the villager came out after " + out + " ticks, or not to its work");
@@ -68078,11 +68418,19 @@ function townSelftest(check, res) {
         return G;
       };
       const lost = new Map();
+      let trips = 0, tripBad = "";
       const st = play("steady", 20 * 600 + 1, (G, ev, kl) => {
         const up = [];
         for (const r of G.raids) for (let k = kl.get(r.id) || 0; k < (r.kl | 0); k++) up.push(r.id);
         for (const e of ev) if (e.e === "fell" && e.k === "vil") { const id = up.shift() || 0; lost.set(id, (lost.get(id) || 0) + 1); }
+        // the whole game saves and loads exactly, every 300 ticks (8.4, 13.9; the gray box review found stale ids)
+        if (!tripBad && !G.over && G.tick % 300 === 0) {
+          trips++;
+          const G2 = TW.load(JSON.parse(JSON.stringify(TW.save(G))));
+          if (!G2 || TW.hash(G2) !== TW.hash(G)) tripBad = "tick " + G.tick + (G2 ? "" : " (load refused it)");
+        }
       });
+      if (tripBad || trips < 30) fail("steady on Normal did not save and load exactly at " + (tripBad || "every 300 ticks (" + trips + " tries)"));
       if (!st.over || !st.over.win || st.over.stars !== 3 || st.over.tick < 15 * 600 || st.over.tick > 20 * 600) fail("steady on Normal: " + JSON.stringify(st.over) + " at tick " + st.tick + ", not a 3-star win in 15:00 to 20:00");
       for (const [id, n] of lost) if (n > 2) fail("steady on Normal lost " + n + " villagers to raid " + id);
       const pa = play("passive", 25 * 600);
@@ -68136,6 +68484,18 @@ function townSelftest(check, res) {
       const v1 = at(1.0, tc.x + 2, tc.y + 2), p = TWA.toScreen(v1, tc.x + 2, tc.y + 3.5);
       if (TWA.pick(G, v1, p.x, p.y, 22).kind !== "bld") fail("a tap on the palace did not pick it");
       for (const age of [2, 3]) { TWA.setAge(age); TWA.prebake(G, v1); paint(v1); }
+      // the renderer settles: at an iPad's size and dpr 2, after an age's change at a zoom step between two ground
+      // densities, the frames bake what the view needs and then nothing more, with every sprite in place (the gray
+      // box review found it baking forever there, its buildings' labels and its trees never baked)
+      {
+        TWA.layout(1194, 834, 2);
+        const vz = { zoom: 0.85, x: tc.x + 2 - 1194 / (40 * 0.85) / 2, y: tc.y + 2 - 834 / (40 * 0.85 * 0.72) / 2 };
+        TWA.test.budget(Infinity); paint(vz); paint(vz);
+        TWA.test.budget(10);
+        const after = [];
+        for (let k = 0; k < 3; k++) { paint(vz); const st = TWA.stats(); after.push(st.bakes + "/" + (st.miss | 0) + "/" + (st.fallback | 0)); }
+        if (after.some(a => a !== "0/0/0")) fail("the renderer did not settle after an age's change at zoom 0.85 (bakes/missing sprites/missing chunks: " + after.join(" ") + ")");
+      }
       if (randoms) fail("the town called Math.random " + randoms + " times");
       if (ctxCalls) fail("the town drew through the battle's canvas " + ctxCalls + " times");
       TWA.test.budget(null);
@@ -68299,7 +68659,7 @@ function townSelftest(check, res) {
       if (!placed || !placed.ok || G.blds.length !== n0 + 1 || G.tick !== t1) throw new Error("a foundation placed in plan mode did not appear at once");
       T.skip(60000);
       if (G.tick !== t1) throw new Error("plan mode does not hold the clock");
-      if (!/Storehouse/.test(T.nextLine())) throw new Error("the Next line did not move on to a Storehouse: " + T.nextLine());
+      if (!new RegExp(TWT.name("bld", "store", 1)).test(T.nextLine())) throw new Error("the Next line did not move on to a Storehouse: " + T.nextLine());
       T.button("planResume").click();
       if (T.held().size) throw new Error("Resume did not release plan mode");
       T.skip(1000);

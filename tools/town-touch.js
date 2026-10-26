@@ -112,7 +112,8 @@ const note = s => { const l = "[" + ((Date.now() - t0) / 1000).toFixed(0).padSta
   // ghost buttons will fit; returns the tile to tap and the ghost's top-left
   const findSite = (type, ax, ay, rmin, rmax, extra) => ev(([type, ax, ay, rmin, rmax, extra]) => {
     const T = Town.test, g = T.G, sz = type === "wonder" ? [5, 5] : TW.DATA.BLD[type].size, cv = document.querySelector("#twMap");
-    const hits = (x, y) => { const e = document.elementFromPoint(x, y); return e === cv; };
+    const arrows = (T.perf().arrows || []).map(o => { const r = cv.getBoundingClientRect(); return { x: r.left + o.x, y: r.top + o.y }; });
+    const hits = (x, y) => { const e = document.elementFromPoint(x, y); return e === cv && !arrows.some(o => Math.hypot(o.x - x, o.y - y) < 40); };   // a raid arrow on the canvas takes taps too
     const out = [];
     for (let d = rmin; d <= rmax; d++) for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue;

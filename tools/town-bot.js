@@ -8,6 +8,7 @@
 //   seeds   a count (default 10, seeds 1..n) or a list "4821,77"
 // Env:  JSON=1 (one line per game: milestones, raids, losses, timings)  PATCH='TW.DATA.GATHER.tree = 0.4'
 //       MAX_MIN=40 (stop a game at this game time)  GAME=path (another index.html)
+//       BOT='{"pace":3,"careless":true}' (bot options: think every 3 s; no towers, no ring, the post left at home)
 //       MAPS=n (instead of games: generate the maps of seeds 1..n and report how many were valid, the attempts
 //       the generator needed, the fields that fit and the time per map)
 // All bots play with firstTown off. A bot acts only through TW.command, as a player would.
@@ -26,6 +27,8 @@ for (const s of styles) if (!STYLES.includes(s)) { console.error("unknown style:
 const seeds = !aSeeds ? [...Array(10).keys()].map(i => i + 1)
   : /^\d+$/.test(aSeeds) ? [...Array(+aSeeds).keys()].map(i => i + 1) : aSeeds.split(",").map(Number);
 const MAX_MIN = +(process.env.MAX_MIN || 40);
+const BOT = process.env.BOT ? JSON.parse(process.env.BOT) : {};   // bot options, e.g. BOT='{"pace":3,"careless":true}'
+
 
 const { TW } = townExtract(process.env.GAME ? path.resolve(process.env.GAME) : undefined);
 if (process.env.PATCH) new Function("TW", process.env.PATCH)(TW);
@@ -49,7 +52,7 @@ if (process.env.MAPS) {
 function play(diff, style, seed) {
   const t0 = process.hrtime.bigint();
   const G = TW.newGame({ seed, diff, firstTown: false });
-  const bot = TW.bot.create(style, { seed });
+  const bot = TW.bot.create(style, Object.assign({ seed }, BOT));
   const m = { seed, diff: DIFFS[diff], style, win: false, stars: 0, endS: null, cause: "", age: 1, peakVil: 0, peakGar: 0,
     raids: 0, repelled: 0, bldLost: 0, vilLostPerRaid: [], shelteredS: 0, idleS: 0, vilS: 0, woodLeft: 0, pillaged: 0,
     stuck: null, milestones: {}, tickMs: [] };
