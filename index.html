@@ -63992,7 +63992,9 @@ townRegion("sim", () => { TW = (() => {
 // into it. The skyline is Ararat (bgRidge, bgArarat, skyCloudsDriftHere; bgOrchards only in Age 3). Every place is
 // painted (WP3 post-P, part A: PLACES): the buildings of each age with their sites, scaffolds, damage and fire, the
 // walls and gates by their neighbours, the three wonders in five stages; their sprites bake at the three ground
-// densities in bands across frames. Units are still the gray box's lettered blocks (part B paints them). A DPR
+// densities in bands across frames. Every unit is painted with the battle's unit-kit system (part B, PEOPLE: the
+// villagers of each age at their work, the garrison's lines, the Etiuni, the Alans, the Arab raiders of 640, carts,
+// flocks), with arrows, dust, rubble, the fallen fading, the shelter badges and a modest victory. A DPR
 // governor copies the battle's governDensity (10.5). ?twperf=1 shows the frame, draw, sim, blit and bake numbers;
 // ?twlow forces the 3 GB iPad profile, which also starts when this tab's sessionStorage still holds the open-town
 // marker of a page that died with the town open (keys hs_town_open, hs_town_lowmem: sessionStorage, never saved).
@@ -64002,7 +64004,7 @@ townRegion("sim", () => { TW = (() => {
 //   stats().arrows: the screen-edge raid arrows of the last frame [{ x, y, r, raid, tx, ty, n }] in CSS px.
 //   TWA.test: hooks for the self-test and the tools (bake budget, governor, the town's canvases, measure and cost of
 //     a place, slow bake steps); not for play.
-townRegion("art", () => { TWA = (() => {
+townRegion("art", () => { const TWK = { kits: [], helms: {}, shields: {}, spots: {}, big: {}, overs: {} }; TWA = (() => {
   const PPT = 40, SQ = 0.72, CT = 8, MW = TW.W, MH = TW.H, NCX = Math.ceil(MW / CT), NCY = Math.ceil(MH / CT);
   const MG = 2, TP = 4;                        // the terrain image: a 2-tile margin, 4 px a tile
   const zoomSteps = [0.55, 0.7, 0.85, 1.0, 1.2, 1.45], groundSteps = [0.7, 1.0, 1.45], bakeBudgetMs = 6;
@@ -64927,7 +64929,7 @@ townRegion("art", () => { TWA = (() => {
   // nodes: river poplars, grove trees, orchard trees, stone and ore, flocks; what is left when they are used up
   const NODE_BOX = { poplar: [36, 74, 18, 68], tree: [52, 62, 26, 56], orchard: [42, 44, 21, 39], stone: [52, 44, 26, 34],
     ore: [46, 38, 23, 30], flock: [84, 50, 42, 34], stump: [30, 20, 13, 15], bare: [36, 18, 18, 12], dye: [36, 20, 18, 14] };
-  function paintNode(g, kind, v, K) {
+  function paintNode(g, kind, v, K, f) {
     const R = mulberry32(7001 + v * 131 + kind.length * 977);
     if (kind === "poplar") terrPoplar(g, 0, 0, 52 + (v % 4) * 3, K.B.leaf, R);
     else if (kind === "tree") terrBroadleaf(g, 0, 0, 40 + (v % 4) * 3, K.B.leaf, R, null, { variant: v % 3 });
@@ -64938,17 +64940,10 @@ townRegion("art", () => { TWA = (() => {
     else if (kind === "bare") {
       for (let k = 0; k < 3; k++) terrInkStone(g, (k - 1) * 8 + (R() - 0.5) * 3, -2 + R() * 3, 3 + R() * 2, 2 + R(), K.basalt.rock[1], R, R() - 0.5);
     } else if (kind === "flock") {
-      // sheep and a goat or two, grazing: inked wool, dark heads, short legs
-      const spots = [[-24, -16], [-4, -20], [16, -14], [-14, -3], [8, -1], [28, -2]].slice(0, 5 + (v % 2));
-      spots.forEach(([x, y], k) => {
-        const goat = (k + v) % 4 === 3, fl = (k + v) % 2 ? 1 : -1, wool = goat ? "#8a6a4a" : k % 3 === 2 ? "#e6dcc8" : "#f4eedf";
-        g.strokeStyle = "#2c1e10"; g.lineWidth = 1.6;
-        g.beginPath(); g.moveTo(x - 4, y + 2); g.lineTo(x - 4, y + 6); g.moveTo(x + 3, y + 2); g.lineTo(x + 3, y + 6); g.stroke();
-        g.fillStyle = "rgba(26, 18, 8, .22)"; g.beginPath(); g.ellipse(x + 2, y + 6, 8, 2, 0, 0, Math.PI * 2); g.fill();
-        g.beginPath(); g.ellipse(x, y, 7, 4.6, 0, 0, Math.PI * 2); terrInkStroke(g, 26); g.fillStyle = wool; g.fill();
-        g.fillStyle = "rgba(255, 255, 255, .5)"; g.beginPath(); g.ellipse(x - 2, y - 1.8, 3.6, 1.8, 0, 0, Math.PI * 2); g.fill();
-        g.beginPath(); g.ellipse(x + fl * 7.5, y - 1.5, 2.6, 2, fl * 0.3, 0, Math.PI * 2); g.fillStyle = goat ? "#4a3624" : "#3a2c22"; g.fill();
-      });
+      // sheep and a goat or two, grazing (frame 1: some heads up), painted with the battle's unit line and light
+      const keep = [uc, unitInkW, unitLit];
+      uc = g; unitInkW = 1.5; g.lineJoin = "round"; g.lineCap = "round";
+      try { paintFlockAnimals(v, f | 0); } finally { uc = keep[0]; unitInkW = keep[1]; unitLit = keep[2]; }
     } else if (kind === "dye") {
       // a worked tile of the salt meadow: the turf lifted where the gatherer kneels, red specks of the dye insect at
       // the grass roots, a small basket for them
@@ -66271,29 +66266,863 @@ townRegion("art", () => { TWA = (() => {
     }
     return { f: 9, lines: [text] };
   }
-  // units: [w, h, fill, ink, letter color]
-  const UNIT_LOOK = {
-    vil: [12, 18, "#efdcae", "#2c1e10", "#2c1e10"], spear: [14, 22, "#3f6aa8", "#14202e", "#fff"], bow: [14, 22, "#3f8a5a", "#122a18", "#fff"],
-    horse: [24, 20, "#6a4aa0", "#20142e", "#fff"], cart: [22, 14, "#8a6238", "#2c1e10", "#fff"],
+  // ---- people (WP3 post-P, part B): every unit painted with the battle's unit-kit system ----
+  // The town's kits are new tw keys on the battle's kit rows (Age 1 on the Urartian age's row 0, Age 2 on late
+  // antiquity's row 1, Age 3 on the Caliphate age's row 2), with their headgear, tools and shields as new tw entries
+  // of the battle's art tables; TWK carries them out, and the region appends them last (15.4), so no campaign row
+  // is edited. Villagers are put together from the battle's own parts (legs, tunic, head) with arms and tools of
+  // their own; the garrison and the Etiuni walk and strike through unitPaintInfantry; riders are unitPaintHorse with
+  // the rider's parts; the Arab raiders of 640 are the campaign's Dvin sprites exactly (unitPaintPose). Every pose
+  // is baked by unitSprite (lit by day) at the three ground densities, under the frame's bake budget; until a pose
+  // is baked the nearest ready one stands in. Nobody bleeds: the fallen lie down and fade, as the campaign's foes do.
+  const UF = 1.05, WALK_N = 8, TAU = Math.PI * 2;
+  const UPX_BUDGET = LOWMEM ? 2.5e6 : 6e6;          // device px of the town's poses kept in the shared unit cache
+  const UBAKES_FRAME = 3;                           // poses baked in one frame at most (outside a photo)
+  const C0 = UNIT_COLORS;
+  const KIT = {};                                   // key -> [row, kit]
+  const kit = (row, key, k) => { KIT[key] = [row, k]; TWK.kits.push([row, key, k]); return k; };
+  const kitOf = key => UNIT_KITS[KIT[key][0]][key] || KIT[key][1];
+
+  // the Biainili archers' wide bronze belt (kit.over, drawn over the tunic)
+  TWK.overs = {
+    twBelt: (k, pal, sway, mid, rear) => {
+      uPoly([-5.6, -11.6, 5.6, -11.6, 5.8, -8.2, -5.8, -8.2], C0.bronze);
+      uFlatPoly([-5.4, -11.3, 5.4, -11.3, 5.4, -10.4, -5.4, -10.4], C0.bronzeLit);
+      uFlatSeg(-5.6, -9.9, 5.6, -9.9, 0.4, C0.bronzeShade);
+      if (!rear) uGlint(-unitLit * 2.4, -10.6, 1);
+    },
   };
-  const RAIDER_LOOK = { light: "#c0392b", heavy: "#8e2a20", cord: "#c0392b" };
-  const LETTER = { vil: "V", spear: "S", bow: "B", horse: "H", cart: "C", etR: "R", etS: "S", alH: "H", alC: "L", arR: "R", arS: "S", arW: "W", arH: "H" };
-  function unitBox(u) {
-    if (u.side) {
-      const R = DATA.RAIDERS[u.k] || {}, mount = R.mounted;
-      return [mount ? 24 : 14, mount ? 20 : 22, RAIDER_LOOK[R.role] || "#c0392b", "#3a0a04", "#fff"];
+
+  // Age 1, Erebuni (782 BC): undyed wool, ochre and madder, felt caps or bare heads; Urartian bronze helmets and
+  // round bronze shields, archers with the wide bronze belt (no mail of any kind)
+  kit(0, "twVil1a", { helm: "twFelt", cap: "#c9b083", capShade: "#94784e", beard: "full", skin: "#d8a574", hem: -6.4, hemW: 5.6, slim: 0.92,
+    leg: "#c99464", boot: "#6e4a2c", color: "#b07a3e", trim: "#ead09a" });
+  kit(0, "twVil1b", { helm: "twHair", hair: "#4a2e1a", beard: "pointed", skin: "#cf9a68", hem: -6.6, hemW: 5.4, slim: 0.9,
+    leg: "#c08a5a", boot: "#5e3e24", color: "#94402e", trim: "#e2c08a" });
+  kit(0, "twVil1w", { helm: "twScarf", scarf: "#dccaa0", scarfShade: "#a8936a", beard: "none", skin: "#e0b088", hem: -1.4, hemW: 6.4, slim: 0.86,
+    leg: "#6e4a2c", boot: "#5a3a22", color: "#4f6a8a", trim: "#e6cc92", woman: true });
+  kit(0, "twSpear1", { helm: "cone", metal: "bronze", beard: "full", skin: "#d4a070", hem: -7, hemW: 5.6, leg: "#d4a070", boot: "#6e4a2c",
+    weapon: "spear", tilt: 0.16, reach: -38, shield: "roundSmall", strap: true, color: "#9a2f22", trim: "#e8b84a", top: 33 });
+  kit(0, "twBow1", { helm: "cone", metal: "bronze", beard: "full", skin: "#cf9a68", hem: -6.6, hemW: 5.6, leg: "#cf9a68", boot: "#6e4a2c",
+    weapon: "bow", back: "quiver", over: TWK.overs.twBelt, color: "#a0522d", trim: "#e8c060", top: 33 });
+  kit(0, "twHorse1", { helm: "cone", metal: "bronze", beard: "full", skin: "#d4a070", leg: "#7a4a2a", boot: "#4a2e18", color: "#9a2f22", trim: "#e8b84a" });
+  // the Etiuni: one kit family, generic highland Iron Age (felt cap, a natural beard, a cloak, a plain tunic), no
+  // cone helmet, no Assyrian beard bands or fringes, no Urartian or Assyrian insignia; the land's own people
+  kit(0, "twEtiuniRaider", { helm: "felt", cap: "#8a3a26", capShade: "#5a2216", beard: "full", skin: "#d0a070", hem: -6.8, hemW: 5.6, slim: 0.86,
+    lean: 0.2, hunch: true, leg: "#7a5a3a", boot: "#3d2a1a", weapon: "axe", tilt: 0.34, hold: [0.9, -8.6], back: "cloak", cloak: "#3e3426",
+    color: "#b09060", trim: "#e0c890", top: 31 });
+  kit(0, "twEtiuniSpear", { helm: "felt", cap: "#7a3222", capShade: "#4e1e14", beard: "full", skin: "#c99668", hem: -6.8, hemW: 5.6,
+    leg: "#6e5236", boot: "#3d2a1a", weapon: "spear", tilt: 0.16, reach: -37, shield: "twHide", back: "cloak", cloak: "#3a3a2a",
+    color: "#9a7a4e", trim: "#d8c088", top: 33 });
+
+  // Age 2, Artashat (AD 66 to 77): soft caps, trousers under the tunic; the garrison in basalt-gray mail with a
+  // plain oval shield and a Phrygian-style helmet (no Sasanian gear, no cross on any shield)
+  kit(1, "twVil2a", { helm: "twCap", cap: "#a8895c", capShade: "#76603c", beard: "full", skin: "#dcaa7a", hem: -6, hemW: 5.8, slim: 0.92,
+    leg: "#5e4e3c", boot: "#3e2a1a", color: "#8a3a2e", trim: "#e2d1a0" });
+  kit(1, "twVil2b", { helm: "twHair", hair: "#3a2414", beard: "pointed", skin: "#d2a072", hem: -6.2, hemW: 5.6, slim: 0.9,
+    leg: "#7a6248", boot: "#4a3220", color: "#56687a", trim: "#f0e0b0" });
+  kit(1, "twVil2w", { helm: "twScarf", scarf: "#ece0c4", scarfShade: "#b8a682", beard: "none", skin: "#e4b68c", hem: -1.4, hemW: 6.4, slim: 0.86,
+    leg: "#5a3a22", boot: "#4a2e18", color: "#8a3f52", trim: "#e8c98a", woman: true });
+  kit(1, "twSpear2", { helm: "twHelm2", beard: "full", skin: "#d4a274", hem: -6.2, hemW: 5.8, armor: "mail", leg: "#5a4a3a", boot: "#3a2a1a",
+    weapon: "spear", tilt: 0.16, reach: -38, shield: "twThureos", color: "#7a2f2a", trim: "#d8c8a0", top: 33 });
+  kit(1, "twBow2", { helm: "twCap", cap: "#6a5038", capShade: "#46321e", beard: "full", skin: "#d8a678", hem: -6, hemW: 5.8, leg: "#5a4a3a", boot: "#3a2a1a",
+    weapon: "bow", back: "quiver", color: "#5d7a40", trim: "#e2d1a0", top: 32 });
+  kit(1, "twHorse2", { helm: "twHelm2", beard: "full", skin: "#d4a274", leg: "#5a4a3a", boot: "#3a2a1a", armor: "mail", color: "#7a2f2a", trim: "#d8c8a0" });
+  // the Alans (about AD 72): steppe horsemen in long belted coats and felt hoods, a lance or a coiled lasso
+  kit(1, "twAlan", { helm: "twAlanHood", cap: "#7a5a3a", capShade: "#4e3a24", beard: "full", skin: "#e0b088", leg: "#6a5a44", boot: "#3a2a1a",
+    coat: "#8a6a3e", color: "#8a6a3e", trim: "#d8b878" });
+  kit(1, "twAlanLasso", { helm: "twAlanHood", cap: "#5a5a46", capShade: "#3a3a2c", beard: "full", skin: "#dcaa7e", leg: "#5e5040", boot: "#3a2a1a",
+    coat: "#6a6a48", color: "#6a6a48", trim: "#d8c890" });
+
+  // Age 3, Dvin (the 640s): hoods and veils, the red of the dye trade; the garrison in mail under conical helmets
+  // and red cloaks
+  kit(2, "twVil3a", { helm: "twHood", cap: "#a08258", capShade: "#6e5636", beard: "full", skin: "#d6a476", hem: -5.6, hemW: 6, slim: 0.92,
+    leg: "#6a5038", boot: "#3a2618", color: "#56677a", trim: "#e2d6b0" });
+  kit(2, "twVil3b", { helm: "twHair", hair: "#1e140c", beard: "round", skin: "#cf9c6c", hem: -6, hemW: 5.8, slim: 0.9,
+    leg: "#5e4a36", boot: "#3a2618", color: "#9a3a2a", trim: "#ecd6a0" });
+  kit(2, "twVil3w", { helm: "twScarf", scarf: "#f0e8d6", scarfShade: "#c2b698", beard: "none", skin: "#e2b48a", hem: -1.4, hemW: 6.4, slim: 0.86,
+    leg: "#4a3220", boot: "#3a2618", color: "#2f5a52", trim: "#e8c870", woman: true });
+  kit(2, "twSpear3", { helm: "cone", metal: "steel", aventail: true, beard: "full", skin: "#d2a072", hem: -5.8, hemW: 6, armor: "mail", leg: "#5a4a3a",
+    boot: "#3a2618", weapon: "spear", tilt: 0.16, reach: -38, shield: "roundRed", back: "cloak", cloak: "#a8322a", color: "#6a3a2a", trim: "#e8d0a0", top: 34 });
+  kit(2, "twBow3", { helm: "cone", metal: "steel", beard: "full", skin: "#d0a070", hem: -5.8, hemW: 6, leg: "#5a4a3a", boot: "#3a2618",
+    weapon: "bow", back: "quiver", color: "#8e2a22", trim: "#ecd6a0", top: 34 });
+  kit(2, "twHorse3", { helm: "cone", metal: "steel", aventail: true, beard: "full", skin: "#d2a072", leg: "#5a4a3a", boot: "#3a2618", armor: "mail",
+    color: "#a8322a", trim: "#f0d890" });
+
+  const VIL_KITS = [["twVil1a", "twVil1b", "twVil1w"], ["twVil2a", "twVil2b", "twVil2w"], ["twVil3a", "twVil3b", "twVil3w"]];
+  const LINE_KITS = { spear: ["twSpear1", "twSpear2", "twSpear3"], bow: ["twBow1", "twBow2", "twBow3"], horse: ["twHorse1", "twHorse2", "twHorse3"] };
+  // the town's horses: a bay for the Urartian riders, a dark horse in bronze scale for Artashat's armored horsemen,
+  // a gray with a red saddle cloth for the nakharar's; the Alans ride dun and gray steppe horses
+  const HORSES = {
+    twHorse1: [UNIT_HORSES.bay, { cloth: "#7a2a1e", clothTrim: "#e8b84a" }],
+    twHorse2: [UNIT_HORSES.dark, { barding: "#b98538", bardingLit: "#e6c070", bardingTrim: "#6e4d1e" }],
+    twHorse3: [UNIT_HORSES.grey, { cloth: "#a8322a", clothTrim: "#f0d890" }],
+    twAlan: [{ coat: "#b8955a", coatLit: "#d8b67c", coatShade: "#7a5e34", mane: "#3a2a18", tack: "#5a3a22" }, { cloth: "#7a3a2a", clothTrim: "#d8b878" }],
+    twAlanLasso: [{ coat: "#8f8a7e", coatLit: "#b8b2a4", coatShade: "#5a564c", mane: "#2a2420", tack: "#5a3a22" }, { cloth: "#4e5a3a", clothTrim: "#d8c890" }],
+  };
+
+  // ---- the town's headgear (UNIT_HELM_ART entries, in the head's frame: the head's centre at (0, 1), radius 4.5;
+  // v is 0 in profile, 1 seen from the front, -1 from behind) ----
+  const HA = TWK.helms;
+  HA.twHair = (k, pal, v) => {
+    const hair = k.hair || C0.hair;
+    if (!v) {
+      uc.beginPath(); uc.moveTo(-3.2, 3.2); uc.quadraticCurveTo(-5.4, -0.6, -3, -2.8); uc.quadraticCurveTo(0.4, -4.6, 4.2, -2.4);
+      uc.quadraticCurveTo(2.6, -2.6, 1, -2); uc.quadraticCurveTo(-1.2, -1.2, -1.4, 1.8); uc.closePath(); uInk(hair);
+      uFlatDisc(-0.9, 1.7, 0.95, shade(k.skin, -40));
+      uFlatLine([-3, -2.2, 0, -3.6, 2.8, -2.6], "rgba(255, 236, 200, .25)", 0.5);
+    } else if (v > 0) {
+      uc.beginPath(); uc.moveTo(-4.6, 0.6); uc.quadraticCurveTo(-4.8, -3.8, 0, -4); uc.quadraticCurveTo(4.8, -3.8, 4.6, 0.6);
+      uc.quadraticCurveTo(3.4, -2, 0, -2.2); uc.quadraticCurveTo(-3.4, -2, -4.6, 0.6); uc.closePath(); uInk(hair);
+    } else {
+      uc.beginPath(); uc.arc(0, 1, 4.6, Math.PI * 0.92, Math.PI * 0.08); uc.quadraticCurveTo(3.4, 5.2, 0, 5.6); uc.quadraticCurveTo(-3.4, 5.2, -4.55, 1.6);
+      uc.closePath(); uInk(hair);
     }
-    return UNIT_LOOK[u.k] || UNIT_LOOK.vil;
+  };
+  // a low felt cap with a rolled brim (Age 1's working men)
+  HA.twFelt = (k, pal, v) => {
+    const cl = k.cap, sh = k.capShade;
+    uc.beginPath(); uc.moveTo(-4.9, -0.8); uc.quadraticCurveTo(-5.2, -6.4, v ? 0 : 0.4, -6.6); uc.quadraticCurveTo(5.2, -6.4, 4.9, -0.8); uc.closePath(); uInk(cl);
+    uFlatPoly(v ? [1.6, -6.2, 4.4, -4.2, 4.8, -1.4, 2, -1.4] : [unitLit * 1.8, -6, unitLit * 4.6, -3.8, unitLit * 4.8, -1.4, unitLit * 2.2, -1.4], sh);
+    uPoly([-5.2, -2.4, 5.2, -2.4, 5.4, -0.6, -5.4, -0.6], sh);
+    uFlatLine([-3.6, -2.6, -2.6, -4.6, 0, -5.2], "rgba(255, 240, 214, .3)", 0.6);
+  };
+  // a woman's head cloth: over the hair and down behind the neck to the shoulders, the face left clear
+  HA.twScarf = (k, pal, v) => {
+    const cl = k.scarf, sh = k.scarfShade;
+    if (!v) {
+      uc.beginPath(); uc.moveTo(4.6, -1.4); uc.quadraticCurveTo(3.6, -4.8, -0.6, -4.6); uc.quadraticCurveTo(-5.8, -4, -5.8, 1.6);
+      uc.quadraticCurveTo(-6.4, 6, -7.2, 9.6); uc.lineTo(-2.4, 9.4); uc.quadraticCurveTo(-1.6, 6.2, -0.6, 4.8); uc.quadraticCurveTo(-1.8, 2.2, -0.4, -0.2);
+      uc.quadraticCurveTo(2, -1.8, 4.6, -1.4); uc.closePath(); uInk(cl);
+      uFlatPoly([-5.2, 2, -6.2, 8.8, -4.2, 9.2, -3.2, 4], sh);
+      uFlatLine([4.2, -1.6, 1, -1.2, -0.6, 1.4], "rgba(70, 50, 30, .35)", 0.5);
+    } else if (v > 0) {
+      uc.beginPath(); uc.moveTo(-5.6, 8.6); uc.quadraticCurveTo(-6.4, -4.4, 0, -4.8); uc.quadraticCurveTo(6.4, -4.4, 5.6, 8.6); uc.lineTo(3.6, 8.4);
+      uc.quadraticCurveTo(4.2, 1.6, 3.6, -0.6); uc.quadraticCurveTo(0, -2.6, -3.6, -0.6); uc.quadraticCurveTo(-4.2, 1.6, -3.6, 8.4); uc.closePath(); uInk(cl);
+      uFlatPoly([3.8, -0.2, 5.4, -1, 5.5, 8.4, 3.8, 8.3], sh);
+    } else {
+      uc.beginPath(); uc.moveTo(-5.6, 8.8); uc.quadraticCurveTo(-6.4, -4.4, 0, -4.8); uc.quadraticCurveTo(6.4, -4.4, 5.6, 8.8); uc.quadraticCurveTo(0, 10, -5.6, 8.8);
+      uc.closePath(); uInk(cl);
+      uFlatPoly([1.6, -4.2, 5.4, -1.4, 5.5, 8.6, 1.8, 9.2], sh);
+      uFlatLine([0, -3.6, 0.4, 8.6], "rgba(70, 50, 30, .3)", 0.5);
+    }
+  };
+  // a cloth hood (Age 3), its cowl over the shoulders
+  HA.twHood = (k, pal, v) => {
+    const cl = k.cap, sh = k.capShade;
+    if (!v) {
+      uc.beginPath(); uc.moveTo(4.4, -0.8); uc.quadraticCurveTo(4.6, -5.6, -0.6, -5.8); uc.quadraticCurveTo(-6.2, -5.2, -6, 1.2);
+      uc.quadraticCurveTo(-6.2, 5.4, -4.6, 7.4); uc.lineTo(1.2, 7.6); uc.quadraticCurveTo(-0.4, 4.6, -0.8, 2.6); uc.quadraticCurveTo(-0.6, -0.6, 4.4, -0.8);
+      uc.closePath(); uInk(cl);
+      uFlatPoly([-4.8, -3, -5.6, 3.6, -4.2, 6.8, -2.2, 4.6, -2.4, -1], sh);
+      uFlatLine([4, -1, 0, -0.4, -0.8, 3], "rgba(40, 24, 10, .45)", 0.55);
+    } else if (v > 0) {
+      uc.beginPath(); uc.moveTo(-6, 7.4); uc.quadraticCurveTo(-6.6, -5.4, 0, -5.8); uc.quadraticCurveTo(6.6, -5.4, 6, 7.4); uc.lineTo(3.8, 7.2);
+      uc.quadraticCurveTo(4.6, 0.4, 0, -1.6); uc.quadraticCurveTo(-4.6, 0.4, -3.8, 7.2); uc.closePath(); uInk(cl);
+      uFlatPoly([3.6, 0.4, 5.8, -1.6, 5.8, 7.2, 3.8, 7.1], sh);
+    } else {
+      uc.beginPath(); uc.moveTo(-6, 7.6); uc.quadraticCurveTo(-6.6, -5.4, 0, -5.8); uc.quadraticCurveTo(6.6, -5.4, 6, 7.6); uc.quadraticCurveTo(0, 8.8, -6, 7.6);
+      uc.closePath(); uInk(cl);
+      uFlatPoly([1.4, -5.2, 5.8, -2, 5.8, 7.4, 1.6, 8.2], sh);
+    }
+  };
+  // a soft cap whose crown falls forward (Age 2): the Phrygian cap of classical pictures of Armenians
+  HA.twCap = (k, pal, v) => {
+    const cl = k.cap, sh = k.capShade;
+    if (!v) {
+      uc.beginPath(); uc.moveTo(-4.8, 0.6); uc.quadraticCurveTo(-5.4, -5.4, 0.4, -5.8); uc.quadraticCurveTo(4.6, -6, 5.6, -3.6);
+      uc.quadraticCurveTo(4.4, -3.8, 3.6, -2.8); uc.quadraticCurveTo(4.6, -1.8, 4.8, -0.6); uc.closePath(); uInk(cl);
+      uFlatPoly([-4.4, 0, -4.6, -4, -1.8, -6, -2.2, -1], sh);
+      uFlatSeg(-4.6, -0.2, 4.6, -0.6, 1, sh);
+    } else {
+      uc.beginPath(); uc.moveTo(-4.9, 0.4); uc.quadraticCurveTo(-5.4, -6, 0, -6.6); uc.quadraticCurveTo(5.4, -6, 4.9, 0.4); uc.closePath(); uInk(cl);
+      if (v > 0) uOval(0, -5.4, 2.2, 1.6, 0, cl);
+      uFlatPoly([1.6, -6.2, 4.6, -4, 4.9, 0.2, 2, 0.2], sh);
+      uFlatSeg(-4.8, 0, 4.8, 0, 1, sh);
+    }
+  };
+  // Artashat's helmet: a bronze-trimmed iron bowl drawn forward at the crown, cheek guards and a short crest
+  HA.twHelm2 = (k, pal, v) => {
+    const L = v ? 1 : unitLit;
+    if (!v) {
+      uPoly([-3.6, -0.6, -0.6, -0.6, -0.2, 4.6, -2.2, 5.6, -3.8, 3.8], C0.steelShade);
+      uc.beginPath(); uc.moveTo(-5, 0); uc.quadraticCurveTo(-5.6, -6.4, 0, -6.8); uc.quadraticCurveTo(3.6, -7.2, 4.6, -5.6);
+      uc.quadraticCurveTo(4, -4.8, 4.4, -3.4); uc.lineTo(5.2, -0.2); uc.closePath(); uInk(C0.steel);
+      uFlatPoly([L * 2.2, -0.6, L * 5, -0.4, L * 4.2, -3.4, L * 1.8, -5.6], C0.steelShade);
+      uFlatLine([-3.8, -1.6, -3.2, -4.8, 0, -6.2], "rgba(255, 252, 236, .6)", 0.6);
+      uFlatSeg(-5, -0.4, 5.2, -0.4, 1.1, C0.bronze);
+      uFlatLine([-4.6, -2.8, 0.2, -6.4, 4.2, -5.4], C0.bronze, 0.8);
+      uGlint(-2.6, -4, 1.3);
+    } else {
+      uc.beginPath(); uc.moveTo(-5, 0.2); uc.quadraticCurveTo(-5.4, -7.6, 0, -7.6); uc.quadraticCurveTo(5.4, -7.6, 5, 0.2); uc.closePath(); uInk(C0.steel);
+      uCrescent(0, -2.6, 5, 1, C0.steelShade);
+      for (const s of [-1, 1]) uPoly([s * 4.9, -0.2, s * 3.2, -0.2, s * 3, 4.4, s * 4.4, 5.2], C0.steelShade);
+      uFlatSeg(-5, -0.3, 5, -0.3, 1.1, C0.bronze);
+      uFlatSeg(0, -7.4, 0, -0.6, 0.8, C0.bronze);
+      uGlint(-2.2, -4.4, 1.2);
+    }
+  };
+  // the Alans' felt hood: it covers the neck and rises to a soft point leaning back
+  HA.twAlanHood = (k, pal, v) => {
+    const cl = k.cap, sh = k.capShade;
+    if (!v) {
+      uc.beginPath(); uc.moveTo(4.6, -0.6); uc.quadraticCurveTo(4.4, -5.6, -0.4, -6.4); uc.quadraticCurveTo(-3.6, -7.4, -7.2, -8.6);
+      uc.quadraticCurveTo(-5.4, -5.4, -5.8, -2.4); uc.quadraticCurveTo(-6.2, 4, -4.4, 6.6); uc.lineTo(0.6, 6.6); uc.quadraticCurveTo(-0.8, 3.8, -0.6, 1.6);
+      uc.quadraticCurveTo(-0.2, -0.6, 4.6, -0.6); uc.closePath(); uInk(cl);
+      uFlatPoly([-4.6, -3.4, -5.4, 2.8, -4, 6, -2, 4, -2.2, -2], sh);
+      uFlatLine([4.2, -0.8, 0, -0.2, -0.6, 2.6], "rgba(40, 24, 10, .45)", 0.55);
+    } else {
+      uc.beginPath(); uc.moveTo(-5.8, 6.6); uc.quadraticCurveTo(-6.4, -5, -1, -6.6); uc.quadraticCurveTo(1.8, -8.6, 3.2, -8.8);
+      uc.quadraticCurveTo(2.8, -7, 4.4, -5.4); uc.quadraticCurveTo(6.6, -2, 5.8, 6.6);
+      if (v > 0) { uc.lineTo(3.8, 6.4); uc.quadraticCurveTo(4.4, 0.2, 0, -1.4); uc.quadraticCurveTo(-4.4, 0.2, -3.8, 6.4); }
+      uc.closePath(); uInk(cl);
+      uFlatPoly([2.6, -6, 5.6, -1.6, 5.6, 6.4, 3.8, 6.3, 4, 0], sh);
+    }
+  };
+
+  // ---- shields (UNIT_SHIELD_ART entries, face-on round their centre; inside: the back) ----
+  const SA = TWK.shields;
+  // the Etiuni spearman's small hide shield: rawhide on a wooden hoop, laced round the rim, no metal
+  SA.twHide = (pal, inside) => {
+    uc.beginPath(); uc.ellipse(0, 0, 4.4, 4.9, 0, 0, TAU);
+    if (inside) { uInk(C0.woodShade); uFlatLine([-2.6, -0.4, 2.6, 0.4], C0.leatherLit, 0.9); return; }
+    uInk(C0.hide);
+    uCrescent(0, 0, 4.4, -unitLit, C0.hideLit);
+    uCrescent(0, 0, 4.4, unitLit, C0.hideShade);
+    uc.beginPath(); uc.ellipse(0, 0, 3.5, 4, 0, 0, TAU); uc.lineWidth = 0.5; uc.setLineDash([0.8, 0.9]); uc.strokeStyle = C0.leatherShade; uc.stroke(); uc.setLineDash([]);
+    uFlatOval(0.4, 0.6, 1.4, 1.1, 0.4, "rgba(110, 76, 40, .45)");
+  };
+  // Artashat's plain oval shield (a thureos): a wooden spine and a boss, painted in the line's own colour
+  SA.twThureos = (pal, inside) => {
+    uc.beginPath(); uc.ellipse(0, 0, 5.6, 9.6, 0, 0, TAU);
+    if (inside) { uInk(C0.woodShade); uFlatLine([-2.4, -1.6, 2.4, -1.6], C0.leatherLit, 0.9); uFlatLine([-2.4, 1.4, 2.4, 1.4], C0.leatherLit, 0.9); return; }
+    uInk(pal.base);
+    uc.beginPath(); uc.ellipse(0, 0, 5.6, 9.6, 0, unitLit > 0 ? -1 : Math.PI - 1, unitLit > 0 ? 1 : Math.PI + 1); uc.closePath(); uc.fillStyle = pal.dark; uc.fill();
+    uc.beginPath(); uc.ellipse(0, 0, 4.6, 8.4, 0, 0, TAU); uc.lineWidth = 0.7; uc.strokeStyle = pal.trim; uc.stroke();
+    uFlatSeg(0, -8.2, 0, 8.2, 1.2, C0.wood);
+    uOval(0, 0, 1.6, 2.6, 0, C0.steel);
+    uGlint(-unitLit * 0.5, -0.7, 1.2);
+  };
+  TWK.spots = { twHide: [5.2, -11.2], twThureos: [6.3, -10.4] };
+  TWK.big = { twThureos: true };
+
+
+  // ---- painting a villager from the battle's parts: legs, tunic and head; arms and tools of the town's own ----
+  // an arm from shoulder to hand, bent at the elbow (bend: how far the elbow stands out, + below the line)
+  function arm(sx, sy, hx, hy, col, skin, bend) {
+    const dx = hx - sx, dy = hy - sy, l = Math.sqrt(dx * dx + dy * dy) || 1, b = bend === undefined ? 1.4 : bend;
+    uLine([sx, sy, (sx + hx) / 2 - dy / l * b, (sy + hy) / 2 + dx / l * b, hx, hy], col, 2.4);
+    uDisc(hx, hy, 1.4, skin);
   }
-  function paintUnit(g, k, lk, side) {
-    const [w, h, fill, ink, lc] = lk;
-    g.fillStyle = "rgba(26, 18, 8, .28)"; g.beginPath(); g.ellipse(2, 0, w * 0.62, 2.6, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = fill; g.fillRect(-w / 2, -h, w, h);
-    g.fillStyle = "rgba(255, 252, 236, .35)"; g.fillRect(-w / 2, -h, w, Math.min(4, h * 0.2));
-    g.strokeStyle = ink; g.lineWidth = side ? 2.2 : 1.5; g.strokeRect(-w / 2, -h, w, h);
-    if (side) { g.strokeStyle = "rgba(255, 220, 200, .55)"; g.lineWidth = 0.8; g.strokeRect(-w / 2 + 2, -h + 2, w - 4, h - 4); }
-    g.font = font(Math.min(13, h * 0.62), 700); g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillStyle = lc; g.fillText(LETTER[k] || "?", 0, -h / 2 + 0.5);
+  // a leg from the hip by the knee to the foot, its shoe turned along the ground
+  function leg(hx, hy, kx, ky, fx, fy, k, far, rot) {
+    const lg = far ? shade(k.leg, -36) : k.leg, bt = far ? shade(k.boot, -28) : k.boot;
+    uLine([hx, hy, kx, ky, fx, fy - 2.1], lg, 2.7);
+    uc.save(); uc.translate(fx, fy); uc.rotate(rot || 0);
+    uc.beginPath(); uc.moveTo(-1.6, -3.2); uc.lineTo(1.5, -3.2); uc.quadraticCurveTo(3.8, -1.6, 3.3, 0.3); uc.lineTo(-1.7, 0.3); uc.closePath(); uInk(bt);
+    uc.restore();
+  }
+  // the head over the shoulders (low and forward when bent to the work)
+  function headAt(k, pal, x, y) { uc.save(); uc.translate(x, y); unitPaintHead(k, pal); uc.restore(); }
+  // a tool in two hands: the haft from its butt through the hands to the head, at angle a from upright (+ forward)
+  const TOOLS = {
+    axe: { len: 11, butt: 3, head(c0) { uc.beginPath(); uc.moveTo(-0.6, -1.4); uc.quadraticCurveTo(4.6, -2.6, 4.4, 2.2); uc.quadraticCurveTo(2.6, 0.4, -0.6, 1.2); uc.closePath(); uInk(C0.steelLit); uGlint(2.6, -0.6, 1.1); } },
+    pick: { len: 10, butt: 3, head() { uc.beginPath(); uc.moveTo(-5.4, 1.6); uc.quadraticCurveTo(0, -2.6, 5.6, 1.4); uc.lineTo(5.4, 2.2); uc.quadraticCurveTo(0, -0.8, -5.2, 2.4); uc.closePath(); uInk(C0.steel); uGlint(2, -0.2, 1); } },
+    hoe: { len: 11, butt: 2.5, head() { uPoly([-0.6, -0.8, 3.8, 1.2, 3.4, 4.6, -0.8, 1.6], C0.iron); uFlatSeg(0.2, 0.4, 3.2, 1.8, 0.5, "#7a7c88"); } },
+    mallet: { len: 9, butt: 2, head() { uPoly([-2.8, -2.4, 2.8, -2.4, 2.8, 2.4, -2.8, 2.4], C0.woodLit); uFlatPoly([0.6, -2.2, 2.6, -2.2, 2.6, 2.2, 0.6, 2.2], C0.woodShade); } },
+    crook: { len: 14, butt: 2, head() { uc.beginPath(); uc.arc(-1.6, 0, 1.8, 0, Math.PI * 1.2, true); uStroke(C0.woodLit, 0.9); } },
+  };
+  function toolAt(kind, hx, hy, a) {
+    const T = TOOLS[kind], ux = Math.sin(a), uy = -Math.cos(a);
+    uSeg(hx - ux * T.butt, hy - uy * T.butt, hx + ux * T.len, hy + uy * T.len, 1.1, C0.wood);
+    uc.save(); uc.translate(hx + ux * T.len, hy + uy * T.len); uc.rotate(a); T.head(); uc.restore();
+    return [hx - ux * 3.6, hy - uy * 3.6];          // where the second hand holds, down the haft
+  }
+  // what a villager carries, round its own centre: a sack of grain, a basket of fruit or of ore or of dye, a milk
+  // jar, a bundle of logs, a dressed block of stone
+  const LOAD_LOOK = { f: 1, back: 7, front: 7, up: 8, down: 7, top: 7, shadow: 4, feet: 0, air: true };
+  function paintLoad(kind) {
+    if (kind === "sack") {
+      uc.beginPath(); uc.moveTo(-3.8, 4.4); uc.quadraticCurveTo(-5.2, -1, -2, -3.4); uc.lineTo(2, -3.4); uc.quadraticCurveTo(5.2, -1, 3.8, 4.4); uc.closePath(); uInk("#d8c08a");
+      uFlatPoly([unitLit * 1.2, -3, unitLit * 4.4, 0, unitLit * 3.6, 4.2, unitLit * 1.4, 4.2], "#a8905c");
+      uPoly([-1.6, -3.4, 1.6, -3.4, 1, -5.4, -1, -5.4], "#c8ae78"); uFlatSeg(-1.8, -3.6, 1.8, -3.6, 0.7, "#6e4a2c");
+    } else if (kind === "fruit" || kind === "ore" || kind === "dye") {
+      const fill = kind === "fruit" ? ["#e8902e", "#c8401e", "#f2c14e"] : kind === "ore" ? ["#8a4a30", "#5f9a7a", "#6e3a26"] : ["#b8322a", "#8a1e18", "#d8584a"];
+      for (let i = 0; i < 6; i++) uDisc(-3 + (i % 3) * 3 + (i > 2 ? 1.4 : 0), -1.2 - (i > 2 ? 1.6 : 0), 1.4, fill[i % 3]);
+      uc.beginPath(); uc.moveTo(-4.8, -1); uc.lineTo(4.8, -1); uc.quadraticCurveTo(4.6, 4.6, 0, 4.8); uc.quadraticCurveTo(-4.6, 4.6, -4.8, -1); uc.closePath(); uInk(C0.wicker);
+      uc.lineWidth = 0.45; uc.strokeStyle = C0.wickerShade;
+      for (const y of [0.6, 2.2, 3.6]) { uc.beginPath(); uc.moveTo(-4.4, y); uc.lineTo(4.4, y); uc.stroke(); }
+    } else if (kind === "jar") {
+      uc.beginPath(); uc.moveTo(-1.6, -4.8); uc.lineTo(1.6, -4.8); uc.quadraticCurveTo(4.8, -2.4, 3.8, 2.2); uc.quadraticCurveTo(2.6, 5, 0, 5);
+      uc.quadraticCurveTo(-2.6, 5, -3.8, 2.2); uc.quadraticCurveTo(-4.8, -2.4, -1.6, -4.8); uc.closePath(); uInk("#c0703e");
+      uFlatPoly([unitLit * 1, -4, unitLit * 3.8, -1.4, unitLit * 3, 3.6, unitLit * 1, 4.4], "#8a4a28");
+      uFlatSeg(-3.4, -1, 3.4, -1, 0.6, "#e8b080"); uPoly([-1.9, -5.8, 1.9, -5.8, 1.6, -4.6, -1.6, -4.6], "#c0703e");
+    } else if (kind === "logs") {
+      for (const [y, x] of [[1.6, 0], [-1, 1.4], [-1, -1.6]]) {
+        uSeg(-6 + x, y + 0.6, 5 + x, y - 0.4, 2.8, "#8a6238");
+        uOval(5 + x, y - 0.4, 1.1, 1.4, 0, "#d8b480"); uFlatDisc(5 + x, y - 0.4, 0.45, "#a07a4a");
+      }
+    } else if (kind === "block") {
+      uPoly([-4.6, -2.2, 3.4, -2.2, 3.4, 4.2, -4.6, 4.2], "#8e8a90");
+      uPoly([-4.6, -2.2, -2.6, -4.4, 5.4, -4.4, 3.4, -2.2], "#b8b4ba");
+      uPoly([3.4, -2.2, 5.4, -4.4, 5.4, 2, 3.4, 4.2], "#5e5a64");
+      uFlatLine([-3.6, 0.4, 2.4, 0.2], "rgba(40, 36, 44, .35)", 0.5);
+    }
+  }
+  const LOAD_AT = { side: [-4.4, -19.6], front: [3.4, -22.6], rear: [-0.4, -17.4] };   // where a load rides (unit space)
+
+  // a villager in profile, facing +x. o: { legs: "walk" | "stand" | "kneel", lean, front: [x, y] | null (front hand),
+  // back: [x, y] | null, tool: [kind, x, y, a] }; walk: the stride's sway
+  function vilSide(k, pal, o, walk) {
+    const skin = k.skin || C0.skin, slim = k.slim || 1, low = o.legs === "kneel" ? 3.4 : 0;
+    if (o.legs === "kneel") {
+      leg(0, -6.2, 4.4, -6, 4, 0, k, true);
+      leg(-0.2, -6.2, 1.6, -1.6, -4.2, -0.4, k, false, -1.2);
+    } else if (o.legs === "stand") {
+      leg(0.4, -9.6, 1.6, -5.2, 2.6, 0, k, true);
+      leg(-0.4, -9.6, -0.8, -5, -1.8, 0, k, false);
+    } else {
+      unitPaintLeg(0.5, unitPhase + Math.PI, k, true);
+      unitPaintLeg(-0.5, unitPhase, k, false);
+    }
+    uc.save();
+    uc.translate(0, low - 9); uc.rotate(o.lean || 0.06); uc.translate(0, 9);
+    unitPaintTunic(k, pal, walk * 0.7, 0.4, false);
+    headAt(k, pal, 0.8 + (o.lean > 0.25 ? 1.4 : 0), -20.8 + (o.lean > 0.25 ? 0.8 : 0));
+    let hand2 = null;
+    if (o.tool) hand2 = toolAt(o.tool[0], o.tool[1], o.tool[2], o.tool[3]);
+    const fh = o.front || (o.tool ? [o.tool[1], o.tool[2]] : [3.6 + walk * 1.6, -9.6]);
+    const bh = o.back || hand2 || [-3.8 * slim - walk * 1.6, -9.6];
+    arm(-3.2 * slim, -15, bh[0], bh[1], pal.lit, skin, o.backBend);
+    arm(3.2 * slim, -15, fh[0], fh[1], pal.base, skin, o.frontBend);
+    uc.restore();
+  }
+  // a villager walking straight at the eye (front) or away: the battle's end-on legs, tunic and head
+  function vilEnd(k, pal, front, walk, carry) {
+    const skin = k.skin || C0.skin, slim = k.slim || 1, sh = 5.2 * slim, sway = walk * 0.5;
+    const lead = Math.sin(unitPhase) > 0;
+    if (lead === front) { unitPaintLegEnd(1, unitPhase + Math.PI, k, front); unitPaintLegEnd(-1, unitPhase, k, front); }
+    else { unitPaintLegEnd(-1, unitPhase, k, front); unitPaintLegEnd(1, unitPhase + Math.PI, k, front); }
+    unitPaintTunic(k, pal, sway, 0, !front);
+    if (!front) uFlatLine([0, -16.4, sway * 0.3, -10.8], "rgba(30, 16, 22, .3)", 0.55);
+    uc.save(); uc.translate(0, -20.8); unitPaintHeadEnd(k, pal, front); uc.restore();
+    const hy = -9 - walk * 1.2;
+    // the load's hand is up at the shoulder (the load itself is drawn over or under the figure)
+    if (carry) arm(front ? sh - 0.4 : -sh + 0.4, -15, front ? sh - 0.6 : -sh + 1, -19.6, front ? pal.base : pal.lit, skin, front ? -1.6 : 1.6);
+    else arm(sh - 0.4, -15, sh + 1, hy, front ? pal.base : pal.lit, skin, -0.8);
+    arm(-sh + 0.4, -15, -sh - 1, -9 + walk * 1.2, front ? pal.lit : pal.base, skin, 0.8);
+  }
+  // each working pose: frames of [legs, lean, tool, front hand, back hand]; they cycle at the pose's own pace
+  const WORK = {
+    chop:  { ms: 900, legs: "stand", f: [[0.1, ["axe", 0.6, -25, -2.1]], [0.12, ["axe", 4.6, -21.6, 0.2]], [0.16, ["axe", 7.4, -13.6, 1.5]]] },
+    pick:  { ms: 1000, legs: "stand", f: [[0.14, ["pick", 1.4, -24.4, -1.5]], [0.2, ["pick", 5.6, -18.4, 0.8]], [0.32, ["pick", 7.2, -11, 2.2]]] },
+    hoe:   { ms: 1100, legs: "stand", f: [[0.28, ["hoe", 4.4, -20.4, 0.15]], [0.34, ["hoe", 6.4, -15, 1.3]], [0.4, ["hoe", 6.8, -10.4, 2.5]]] },
+    build: { ms: 700, legs: "stand", f: [[0.18, ["mallet", 2.6, -23.4, -0.7]], [0.26, ["mallet", 7.4, -12.6, 1.9]]] },
+    reach: { ms: 1200, legs: "stand", f: [[0.02, null, [5.4, -27.4], [2.4, -24.4]], [0.04, null, [4.4, -24.6], [3.6, -28.2]]] },
+    tend:  { ms: 1300, legs: "kneel", f: [[0.12, null, [7.2, -9.4], [5.4, -8.6]], [0.16, null, [7.6, -8.2], [6, -9.8]]] },
+    dig:   { ms: 900, legs: "kneel", f: [[0.18, null, [8.4, -7.2], [4.8, -10.2]], [0.22, null, [7, -5.8], [4.6, -9.6]]] },
+    cheer: { ms: 700, legs: "stand", f: [[0.02, null, [4, -29.4], [-3.4, -29]], [0.02, null, [4.6, -27], [-2.6, -30.6]]] },
+  };
+
+  // ---- the poses each kind of unit has, and how each is painted (the caller has scaled uc to unit space) ----
+  // look boxes in unit space (feet at 0, facing +x before mirroring): the sprite's canvas is cut to them
+  const LOOK = {
+    vil:     { back: 11, front: 13, up: 34, down: 3, top: 30, shadow: 7, feet: 5, foot: true },
+    vilWork: { back: 13, front: 22, up: 38, down: 3, top: 30, shadow: 7, feet: 5, foot: true },
+    vilEnd:  { back: 10, front: 10, up: 34, down: 3, top: 30, shadow: 7, feet: 5, foot: true },
+    foot:    { back: 13, front: 20, up: 46, down: 3, top: 33, shadow: 8, feet: 6, foot: true },
+    footHit: { back: 13, front: 46, up: 46, down: 3, top: 33, shadow: 8, feet: 6, foot: true },
+    footEnd: { back: 14, front: 14, up: 46, down: 3, top: 33, shadow: 8, feet: 6, foot: true },
+    horse:   { back: 22, front: 34, up: 50, down: 3, top: 38, shadow: 14, feet: 12 },
+    horseEnd: { back: 18, front: 18, up: 58, down: 3, top: 42, shadow: 11, feet: 8, end: true },
+    cart:    { back: 36, front: 50, up: 40, down: 3, top: 34, shadow: 24, feet: 22 },
+  };
+  // what a unit k is drawn as: its class and its kit
+  function unitKind(u, a) {
+    const k = u.k;
+    if (k === "vil") return { cls: "vil", kit: VIL_KITS[a - 1][(u.id * 7 + (u.id >> 2)) % 3] };
+    if (LINE_KITS[k]) return { cls: k === "horse" ? "horse" : "foot", kit: LINE_KITS[k][a - 1], bow: k === "bow" };
+    if (k === "etR") return { cls: "foot", kit: "twEtiuniRaider" };
+    if (k === "etS") return { cls: "foot", kit: "twEtiuniSpear" };
+    if (k === "alH") return { cls: "horse", kit: "twAlan" };
+    if (k === "alC") return { cls: "horse", kit: "twAlanLasso", lasso: true };
+    return { cls: "arab", kit: ARAB_ROLE[k] || "raider" };
+  }
+  // the Arab raiders of 640: the campaign's era 2 foot and horse with the Dvin battlefield's own names and colours
+  const ARAB_ROLE = { arR: "raider", arS: "spearman", arW: "shield", arH: "cavalry" };
+  const arabDefs = {};
+  function arabDef(role) {
+    if (arabDefs[role]) return arabDefs[role];
+    const Lv = LEVELS[levelIndexOf("dvin")], own = Lv && Lv.era === 2 && Lv.units ? Lv.units[role] : null;
+    const d = Object.assign({}, ENEMY_DEFS[role], ERAS[2].units[role], own);
+    const e = { type: role, def: d, r: d.r, wobble: 0, stunT: 0, flash: 0, hp: 1, maxHp: 1, eraVis: artEra(2), eraTrue: 2 };
+    return (arabDefs[role] = { d, e });
+  }
+  const viewAng = v => (v === "front" ? Math.PI / 2 : v === "rear" ? -Math.PI / 2 : 0);
+
+  // a soldier of the town's lines or an Etiuni raider: walking, standing, striking (windup, blow) or shooting
+  function footPose(k, pal, view, pose, f) {
+    if (view !== "side") { unitLit = 1; unitPaintInfantryEnd(k, pal, pose === "walk" ? Math.sin(unitPhase) : 0, view === "front"); return; }
+    if (pose === "shoot") { bowSide(k, pal, f); return; }
+    let kk = k;
+    if (pose === "wind") kk = Object.assign({}, k, k.weapon === "spear" ? { tilt: -0.5, hold: [-2.6, -1.4] } : { tilt: k.tilt - 0.9, hold: [-1.4, -9.6] });
+    else if (pose === "blow") kk = Object.assign({}, k, k.weapon === "spear" ? { tilt: 1.42, hold: [3.4, 1.2] } : { tilt: 1.7, hold: [3, -1.4] });
+    unitPaintInfantry(kk, pal, pose === "walk" ? Math.sin(unitPhase) : 0);
+  }
+  // an archer drawing (f 0) and loosing (f 1): the stave upright before him, the string at his cheek or straight
+  function bowSide(k, pal, f) {
+    const skin = k.skin || C0.skin;
+    vilSideBody(k, pal, () => {
+      const bx = 10.6, top = -24.6, bot = -7.4, pull = f ? 0 : 6.2;
+      if (k.back === "quiver") { uPoly([-6.8, -18.6, -4.2, -19.4, -2, -9.4, -4.6, -8.6], C0.leather); uFlatSeg(-6.2, -19.8, -6.6, -22.2, 0.7, C0.linen); uFlatSeg(-5, -20, -4.8, -22.8, 0.7, C0.linen); }
+      uc.beginPath(); uc.moveTo(bx - 1.2, top); uc.quadraticCurveTo(bx + 5.4, (top + bot) / 2, bx - 1.2, bot); uStroke(C0.woodLit, 1.1);
+      uFlatLine([bx - 1.2, top, bx - 1.2 - pull, (top + bot) / 2 - 1, bx - 1.2, bot], C0.linen, 0.45);
+      if (!f) { uFlatSeg(bx - 1.2 - pull, -17, bx + 6, -17, 0.6, C0.woodShade); uFlatPoly([bx + 5.8, -17.8, bx + 7.6, -17, bx + 5.8, -16.2], C0.steelLit); }
+      arm(3.2, -15, bx + 1.2, -16, pal.base, skin, -0.6);
+      arm(-3.2, -15, bx - 1.2 - pull + (f ? -3 : 0), f ? -15.4 : -17.2, pal.lit, skin, f ? 1.6 : -1.8);
+    });
+  }
+  // the body of a standing figure (legs planted, tunic, head) with a hook for what the hands do
+  function vilSideBody(k, pal, hands) {
+    leg(0.4, -9.6, 1.6, -5.2, 2.6, 0, k, true);
+    leg(-0.4, -9.6, -0.8, -5, -1.8, 0, k, false);
+    uc.save(); uc.translate(0, -9); uc.rotate(0.06); uc.translate(0, 9);
+    if (k.back === "cloak") { uc.beginPath(); uc.moveTo(-3.4, -16.6); uc.quadraticCurveTo(-9.4, -11, -7.6, -3.2); uc.lineTo(-2.6, -5.6); uc.closePath(); uInk(k.cloak); }
+    unitPaintTunic(k, pal, 0, 0.4, false);
+    headAt(k, pal, 0.8, -20.8);
+    hands();
+    uc.restore();
+  }
+
+  // a rider: the battle's horse and seated rider, with the town's arms. weapon: spear upright (the Urartian
+  // riders), long spear couched (Artashat's armored horsemen), lance with a pennon (the nakharar's), the Alans'
+  // lance, or the lasso; pose: walk, stand, wind, blow (or for the lasso: swing, throw)
+  function riderSide(key, k, pal, pose) {
+    const [h, o] = HORSES[key], skin = k.skin || C0.skin, cloak = key === "twHorse3" ? k.color : null;
+    if (cloak) { uc.beginPath(); uc.moveTo(-3.6, -22.4); uc.quadraticCurveTo(-10.4, -18, -11, -11.8); uc.lineTo(-4.4, -13.8); uc.closePath(); uInk(shade(cloak, -10)); }
+    unitPaintHorse(h, o);
+    if (k.coat) {
+      // the long coat's skirt over the horse's flank, split at the side
+      uc.beginPath(); uc.moveTo(-4.2, -16.8); uc.lineTo(4.6, -16.8); uc.quadraticCurveTo(6.6, -12.6, 5.4, -8.6); uc.lineTo(-1.4, -8.2); uc.quadraticCurveTo(-5.6, -11.4, -4.2, -16.8);
+      uc.closePath(); uInk(k.coat);
+      uFlatLine([1.2, -15.6, 1.8, -8.6], "rgba(30, 16, 8, .35)", 0.5);
+    }
+    unitPaintRiderBody(pal, k);
+    if (k.armor === "mail") for (const y of [-21.2, -19.4, -17.6]) uFlatLine([-3.6, y, 4, y], "rgba(36, 42, 56, .6)", 0.45);
+    if (k.coat) { uFlatPoly([-4, -17.4, 4.4, -17.4, 4.4, -15.8, -4, -15.8], pal.trim); uFlatLine([0.6, -23.6, 1.2, -17.6], "rgba(30, 16, 8, .4)", 0.5); }
+    unitPaintRiderHead(k, pal);
+    const hold = (hx, hy) => { uSeg(2.8, -21, hx, hy, 2.5, pal.base); uDisc(hx, hy, 1.45, skin); };
+    const bridle = () => { uLine([-2.6, -21.4, -0.6, -18.6, 3.4, -17.6], pal.lit, 2.4); uDisc(3.6, -17.6, 1.4, skin); };
+    if (k === kitOf("twAlanLasso")) {
+      // the lasso: a coil at the saddle, swung in a loop over the head, then thrown out ahead
+      if (pose === "swing" || pose === "throw") {
+        const thr = pose === "throw";
+        uc.beginPath(); thr ? uc.moveTo(5.6, -30) : uc.moveTo(4.4, -33);
+        if (thr) uc.quadraticCurveTo(14, -34, 22, -27); else uc.ellipse(1.6, -37, 6.4, 2.4, -0.2, 0.6, TAU + 0.6);
+        uStroke("#c9a06a", 0.75);
+        if (thr) { uc.beginPath(); uc.ellipse(24.4, -26.4, 3.2, 2.2, 0.3, 0, TAU); uStroke("#c9a06a", 0.75); }
+        uLine([3, -21.4, 5.4, -26.6, thr ? 6 : 4.4, thr ? -30 : -33], pal.base, 2.5); uDisc(thr ? 6 : 4.4, thr ? -30 : -33, 1.45, skin);
+      } else {
+        for (let i = 0; i < 3; i++) { uc.beginPath(); uc.ellipse(5.6, -15.6, 2.6 - i * 0.4, 1.8 - i * 0.2, 0.3, 0, TAU); uStroke("#c9a06a", 0.7); }
+        hold(5.2, -17.2);
+      }
+      bridle();
+      return;
+    }
+    const lance = key === "twAlan" || key === "twHorse3", couched = key === "twHorse2";
+    if (pose === "blow" || (couched && pose !== "wind")) {
+      // levelled for the charge
+      const tx = pose === "blow" ? 30 : 25, ty = pose === "blow" ? -19.6 : -20.6;
+      uSeg(-9.5, -17.6, tx - 4.4, ty, 1.15, C0.wood);
+      uPoly([tx, ty - 0.6, tx - 4.8, ty - 1.6, tx - 4.6, ty + 1.2], C0.steelLit);
+      if (lance) uPoly([tx - 6.8, ty, tx - 12, ty - 2.1 + Math.sin(unitPhase) * 0.7, tx - 11.4, ty + 0.6], key === "twAlan" ? "#7a3a2a" : C0.crimson);
+      hold(3.8, -18.7);
+    } else {
+      const lean = pose === "wind" ? -0.5 : 0, top = lance ? -38 : -36;
+      uSeg(3.4 + lean * 4, -11.6, 9.6 + lean * 9, top, 1.15, C0.wood);
+      uPoly([10.8 + lean * 9, top - 4.6, 8.4 + lean * 9, top - 0.2, 11.2 + lean * 9, top + 0.4], C0.steelLit);
+      uGlint(10.2 + lean * 9, top - 2, 1.1);
+      if (lance) uPoly([9.3 + lean * 9, top + 0.6, 3 + lean * 9, top + 0.8 + Math.sin(unitPhase) * 0.8, 8.5 + lean * 9, top + 3.6], key === "twAlan" ? "#7a3a2a" : C0.crimson);
+      hold(5.6 + lean * 4, -19.2);
+    }
+    if (key === "twHorse3") { uDisc(-0.6, -18.4, 3.3, C0.crimson); uFlatDisc(-0.6, -18.4, 0.9, C0.gold); uGlint(-0.6 - unitLit * 0.5, -18.9, 1); }
+    else bridle();
+  }
+  function riderEnd(key, k, pal, front) {
+    const [h, o] = HORSES[key], side = front ? -1 : 1, rise = 4.5;
+    unitPaintHorseEnd(h, o, front);
+    unitPaintRiderLegsEnd(k, 0);
+    uc.save(); uc.translate(0, -rise);
+    unitPaintRiderEnd(pal, k, front, key === "twHorse3" ? k.color : k.coat ? shade(k.coat, -12) : null);
+    if (k === kitOf("twAlanLasso")) {
+      for (let i = 0; i < 3; i++) { uc.beginPath(); uc.ellipse(side * 7, -15, 2.2 - i * 0.4, 1.6, 0, 0, TAU); uStroke("#c9a06a", 0.7); }
+      uLine([side * 3.6, -21.6, side * 6.8, -18.4, side * 7, -16.2], front ? pal.lit : pal.base, 2.5); uDisc(side * 7, -16.2, 1.45, k.skin);
+    } else {
+      uc.save(); uc.translate(0, rise);
+      unitPaintLanceEnd(side, -47, key === "twAlan" ? "#7a3a2a" : key === "twHorse3" ? C0.crimson : null);
+      uc.restore();
+      uLine([side * 3.6, -21.6, side * 6.8, -18.4, side * 9.3, -17], front ? pal.lit : pal.base, 2.5); uDisc(side * 9.3, -17, 1.45, k.skin);
+    }
+    uLine([-side * 3.6, -21.6, -side * 5.6, -18.4, -side * 3.2, -15.6], front ? pal.base : pal.lit, 2.4); uDisc(-side * 3.2, -15.6, 1.4, k.skin);
+    uc.restore();
+    if (front) unitPaintHorseFace(h, o);
+  }
+
+  // a trade cart: an ox in the yoke, a two-wheeled cart with the age's goods, the driver walking at the ox's head
+  const OXEN = { coat: "#8a6a4a", lit: "#b08e66", shade: "#5a4430", horn: "#e8dcc0" };
+  function cartSide(a, f) {
+    const g = Math.sin(unitPhase), g2 = Math.sin(unitPhase + Math.PI / 2);
+    uc.save(); uc.scale(1.4, 1.4);
+    // the cart behind, the wheel turning with the road
+    uPoly([-24, -9, -4, -9, -4, -14, -24, -14], C0.wood);
+    uFlatPoly([-23.6, -13.6, -4.4, -13.6, -4.4, -12.4, -23.6, -12.4], C0.woodLit);
+    if (a === 1) for (let i = 0; i < 3; i++) paintLoadAt("jar", -20 + i * 5.4, -18.6, 1);
+    else if (a === 2) { paintLoadAt("sack", -19, -18, 1); paintLoadAt("jar", -13.6, -18.4, 1); paintLoadAt("sack", -8.6, -18, 1); }
+    else { uPoly([-22, -14, -6, -14, -7, -21, -21, -21], "#a8322a"); uFlatLine([-14, -21, -14, -14], "rgba(40, 10, 8, .4)", 0.6); uPoly([-20, -21, -8, -21, -9, -24.6, -19, -24.6], "#d8c08a"); }
+    uSeg(-4, -11, 6, -10, 1.3, C0.woodShade);
+    uc.save(); uc.translate(-14, -6.6); uc.rotate(unitPhase * 0.5);
+    uDisc(0, 0, 6.4, C0.wood); uc.beginPath(); uc.arc(0, 0, 4.8, 0, TAU); uc.lineWidth = 0.6; uc.strokeStyle = C0.woodShade; uc.stroke();
+    for (let i = 0; i < 4; i++) uFlatSeg(0, 0, Math.cos(i * Math.PI / 4) * 5, Math.sin(i * Math.PI / 4) * 5, 0.9, C0.woodShade);
+    uDisc(0, 0, 1.4, C0.woodShade);
+    uc.restore();
+    // the ox
+    const legOx = (x, s, col) => { uLine([x, -8, x + s * 1, -4, x + s * 2, -0.6], col, 2.6); uPoly([x + s * 2 - 1.4, -1.4, x + s * 2 + 1.4, -1.4, x + s * 2 + 1.6, 0.4, x + s * 2 - 1.6, 0.4], C0.hoof); };
+    legOx(9, -g, OXEN.shade); legOx(20, -g2, OXEN.shade);
+    uc.beginPath(); uc.moveTo(6, -9); uc.quadraticCurveTo(5.4, -16.4, 11, -16.6); uc.quadraticCurveTo(17, -17.4, 21, -15.6); uc.quadraticCurveTo(24, -12, 22, -7.4);
+    uc.quadraticCurveTo(14, -6, 7, -7); uc.closePath(); uInk(OXEN.coat);
+    uFlatOval(14 + unitLit, -8.4, 7, 1.8, 0, OXEN.shade);
+    legOx(7.6, g, OXEN.coat); legOx(21, g2, OXEN.coat);
+    uc.beginPath(); uc.moveTo(20.6, -15.6); uc.quadraticCurveTo(25, -17, 27.4, -13.4); uc.quadraticCurveTo(27.6, -10.6, 25.4, -10.4); uc.quadraticCurveTo(23, -11.4, 21.4, -11); uc.closePath(); uInk(OXEN.coat);
+    uFlatDisc(24.8, -14.2, 0.6, C0.eye);
+    uLine([23.4, -16.2, 22.6, -18.6, 24.2, -19.6], OXEN.horn, 1.1);
+    uSeg(18.6, -17.4, 20.4, -13.6, 1.8, C0.woodLit);                 // the yoke over the neck
+    uc.restore();
+    // the driver at the ox's head with his goad
+    uc.save(); uc.translate(45, 0); uc.scale(0.92, 0.92);
+    vilSide(kitOf(VIL_KITS[a - 1][a === 2 ? 1 : 0]), unitPalette(kitOf(VIL_KITS[a - 1][a === 2 ? 1 : 0]).color, kitOf(VIL_KITS[a - 1][a === 2 ? 1 : 0]).trim),
+      { legs: "walk", front: [-4.6, -13.4], back: null, tool: ["crook", -4, -13, -0.5] }, Math.sin(unitPhase));
+    uc.restore();
+  }
+  function paintLoadAt(kind, x, y, s) { uc.save(); uc.translate(x, y); uc.scale(s, s); paintLoad(kind); uc.restore(); }
+
+  // sheep and goats of a flock, for the flock's own sprite (2 frames: heads down to the grass, some heads up)
+  function paintFlockAnimals(v, f) {
+    const spots = [[-24, -16], [-4, -20], [16, -14], [-14, -3], [8, -1], [28, -2]].slice(0, 5 + (v % 2));
+    spots.forEach(([x, y], k) => {
+      const goat = (k + v) % 4 === 3, fl = (k + v) % 2 ? 1 : -1, up = f && (k + v) % 3 === 0;
+      const wool = goat ? "#8a6a4a" : k % 3 === 2 ? "#e6dcc8" : "#f4eedf", head = goat ? "#4a3624" : "#3a2c22";
+      uc.save(); uc.translate(x, y + 5); uc.scale(fl, 1); unitLit = fl;
+      for (const lx of [-3.6, 3.2]) { uSeg(lx, -2.4, lx + 0.3, 0, 1.1, head); }
+      uFlatOval(1.6, 0.4, 7, 1.6, 0, "rgba(26, 18, 8, .22)");
+      if (goat) { uOval(0, -5.2, 6.4, 3.6, 0, wool); uFlatOval(1.4, -4, 4.6, 1.6, 0, shade(wool, -30)); }
+      else { uOval(0, -5.4, 6.8, 4.4, 0, wool); uFlatOval(-1.6, -7.6, 3.6, 1.7, 0, "rgba(255, 255, 255, .55)"); uFlatOval(1.6, -3.4, 4.8, 1.4, 0, "rgba(120, 100, 70, .3)"); }
+      const hx = 6.6, hy = up ? -8.8 : -3.2;
+      uOval(hx, hy, 2.5, 1.9, up ? -0.3 : 0.5, head);
+      if (goat) uLine([hx - 0.8, hy - 1.4, hx - 2.6, hy - 3.8], "#d8c8a0", 0.7);
+      uc.restore();
+    });
+    unitLit = 1;
+  }
+
+  // ---- the poses' sprites: unitSprite (the shared unit cache, keys "tw|..."), lit by day, at the three ground
+  // densities, every bake inside the frame's budget; the town's share of the cache is held to UPX_BUDGET ----
+  const upx = new Map();                 // our keys in UNIT_SPRITES (bake order) -> device px
+  let upxTotal = 0, upxCheck = 0;
+  const readyAny = new Map();            // kit|class|view -> [a sprite per density]: what stands in while a pose bakes
+  const uq = di => UF * groundSteps[di] * L.dpr;
+  function paintPose(P) {
+    const side = P.view === "R" || P.view === "L", dir = P.view === "L" ? -1 : 1;
+    unitPhase = P.frame / WALK_N * TAU;
+    if (P.cls === "arab") {
+      const A = arabDef(P.kit), p = { x: 0, y: 0, ang: side ? (dir > 0 ? 0 : Math.PI) : viewAng(P.view === "F" ? "front" : "rear") };
+      unitPaintPose(A.e, p, A.d, dir);
+      return;
+    }
+    if (side) unitFace(dir); else unitLit = 1;
+    if (P.cls === "load") { paintLoad(P.kit); return; }
+    if (P.cls === "cart") { cartSide(P.age, P.frame); return; }
+    const k = kitOf(P.kit), pal = unitPalette(k.color, k.trim);
+    if (P.cls === "horse") {
+      if (P.pose === "stand") unitPhase = 0.6;
+      if (side) riderSide(P.kit, k, pal, P.pose); else riderEnd(P.kit, k, pal, P.view === "F");
+    } else if (P.cls === "foot") {
+      if (P.pose !== "walk") unitPhase = side ? Math.PI : Math.PI / 2;
+      footPose(k, pal, side ? "side" : P.view === "F" ? "front" : "rear", P.pose, P.frame);
+    } else {
+      const W = WORK[P.pose];
+      if (W) { const f = W.f[P.frame % W.f.length]; vilSide(k, pal, { legs: W.legs, lean: f[0], tool: f[1], front: f[2], back: f[3] }, 0); }
+      else if (!side) { if (P.pose !== "walk" && P.pose !== "carry") unitPhase = Math.PI / 2; vilEnd(k, pal, P.view === "F", P.pose === "stand" ? 0 : Math.sin(unitPhase), P.pose === "carry"); }
+      else if (P.pose === "carry") vilSide(k, pal, { legs: "walk", lean: 0.12, back: [-2.4, -19.8], backBend: -1.8 }, Math.sin(unitPhase));
+      else if (P.pose === "stand") vilSide(k, pal, { legs: "stand", lean: 0.04, front: [3.2, -9.2], back: [-3.4, -9.4] }, 0);
+      else vilSide(k, pal, { legs: "walk", lean: 0.07 }, Math.sin(unitPhase));
+    }
+  }
+  function lookOf(P) {
+    const side = P.view === "R" || P.view === "L";
+    if (P.cls === "arab") { const A = arabDef(P.kit); return unitLook(A.e, A.d, { x: 0, y: 0, ang: side ? 0 : viewAng(P.view === "F" ? "front" : "rear") }); }
+    if (P.cls === "load") return LOAD_LOOK;
+    if (P.cls === "cart") return LOOK.cart;
+    if (P.cls === "horse") return side ? LOOK.horse : LOOK.horseEnd;
+    if (P.cls === "foot") return !side ? LOOK.footEnd : P.pose === "blow" || P.pose === "wind" || P.pose === "shoot" ? LOOK.footHit : LOOK.foot;
+    return !side ? LOOK.vilEnd : WORK[P.pose] ? LOOK.vilWork : LOOK.vil;
+  }
+  // the sprite of a pose at a density, baked now if the frame's budget allows (else null)
+  function poseSprite(P, di) {
+    const key = P.key + "|" + di + "|" + L.dpr, full = key + "|day";
+    const sp = UNIT_SPRITES.get(full);
+    if (sp) return sp;
+    // at most three poses a frame and within the first two thirds of the frame's budget: a raid's arrival spreads
+    // its bakes over a second or two (the nearest ready pose stands in) instead of filling every frame's budget
+    if (!canBake() || (budget !== Infinity && (S.ubakes >= UBAKES_FRAME || spent > budget * 0.67))) return null;
+    let out = null;
+    // the day's light (unitSprite reads the battle's wave for it) and the painters' globals are borrowed and given back
+    const keep = [waveIdx, endless, unitLit, unitPhase, unitInkW];
+    bakeStep(() => {
+      waveIdx = 0; endless = false;
+      try { out = unitSprite(key, uq(di), lookOf(P), P.view === "L", () => paintPose(P)); }
+      finally { waveIdx = keep[0]; endless = keep[1]; unitLit = keep[2]; unitPhase = keep[3]; unitInkW = keep[4]; }
+    }, key);
+    S.ubakes++;
+    out.twq = uq(di);
+    const px = out.c.width * out.c.height;
+    if (!upx.has(full)) { upx.set(full, px); upxTotal += px; }
+    const rk = P.kit + "|" + P.cls + "|" + P.view;
+    let r = readyAny.get(rk);
+    if (!r) readyAny.set(rk, r = []);
+    r[di] = out;
+    if (upxTotal > UPX_BUDGET) trimUnits();
+    return out;
+  }
+  // past the budget the oldest of the town's poses leave the shared cache (they bake again if they are wanted)
+  function trimUnits() {
+    for (const [k, px] of upx) {
+      if (upxTotal <= UPX_BUDGET * 0.75) break;
+      upx.delete(k); upxTotal -= px; UNIT_SPRITES.delete(k);
+    }
+  }
+  // the shared cache drops sprites by its own count cap too: what it dropped is no longer counted as ours
+  function recountUnits() {
+    for (const [k, px] of upx) if (!UNIT_SPRITES.has(k)) { upx.delete(k); upxTotal -= px; }
+  }
+  // while a pose bakes: the same pose at another density, else the last pose of its kind baked from that side
+  function standInPose(P, di) {
+    for (const dj of [di + 1, di - 1, di + 2, di - 2]) {
+      if (dj < 0 || dj > 2) continue;
+      const o = UNIT_SPRITES.get(P.key + "|" + dj + "|" + L.dpr + "|day");
+      if (o) return o;
+    }
+    const r = readyAny.get(P.kit + "|" + P.cls + "|" + P.view) || readyAny.get(P.kit + "|" + P.cls + "|" + (P.view === "L" ? "R" : P.view === "R" ? "L" : "R"));
+    return r ? r[di] || r[2] || r[1] || r[0] || null : null;
+  }
+  // a sprite at device px (x, y) on the frame's zoom: 1:1 when the zoom is its density's, else scaled
+  function blitU(sp, x, y, alpha) {
+    const sc = viewZ * UF * L.dpr / (sp.twq || uq(1));
+    if (alpha !== undefined) c.globalAlpha = alpha;
+    if (Math.abs(sc - 1) < 1e-6) c.drawImage(sp.c, Math.round(x) - sp.ox, Math.round(y) - sp.oy);
+    else c.drawImage(sp.c, x - sp.ox * sc, y - sp.oy * sc, sp.c.width * sc, sp.c.height * sc);
+    if (alpha !== undefined) c.globalAlpha = 1;
+    S.blits++;
+  }
+  const pkey = P => (P.key = "tw|" + P.cls + "|" + P.kit + "|" + P.view + "|" + P.pose + "|" + P.frame + (P.age ? "|" + P.age : ""));
+
+  // ---- what each unit is doing on screen: its pose, its frame, which way it faces ----
+  const UST = new Map();                 // unit id -> what the renderer remembers of it from frame to frame
+  const STRIDE = { vil: 1.9, foot: 1.8, arab: 1.6, horse: 0.95 };   // walk cycles a tile
+  function ust(u) {
+    let s = UST.get(u.id);
+    if (!s) { s = { ph: (u.id * 0.37) % 1, x: NaN, y: NaN, view: (u.dir || 1) < 0 ? "L" : "R", moveAt: -1e9, P: null, di: -1, sp: null, hitAt: -1e9, dustAt: 0, seen: 0 }; UST.set(u.id, s); }
+    return s;
+  }
+  const byIdG = (G, id) => (id && G.nav && G.nav.ids ? G.nav.ids.get(id) : null) || null;
+  function centerOf(o) { return o ? (o.w ? [o.x + o.w / 2, o.y + o.h / 2] : o.k === "flock" ? [o.x + 1, o.y + 1] : o.hp !== undefined && o.side !== undefined ? [o.x, o.y] : [o.x + 0.5, o.y + 0.5]) : null; }
+  const NODE_WORK = { tree: "chop", stone: "pick", ore: "pick", orchard: "reach", flock: "tend", dye: "dig" };
+  function cdTicks(u) { const R = DATA.RAIDERS[u.k] || DATA.UNITS[u.k]; return R && R.cd ? Math.round(R.cd / TW.DT) : 15; }
+  // the pose of unit u at (x, y) this frame (t: ms), from its state in the sim and how it moved since the last frame
+  // (moving: the unit moved in the sim's last tick; the stride follows the drawn position, so a paused game holds
+  // its walkers mid-step and a picture shows them walking)
+  function poseOf(G, u, x, y, K, s, t) {
+    const mdx = u.x - u.px, mdy = u.y - u.py, moving = Math.abs(mdx) + Math.abs(mdy) > 1e-6;
+    if (isNaN(s.x)) s.ph = (x * 0.61 + y * 0.83 + u.id * 0.37) % 1;
+    else { const dx = x - s.x, dy = y - s.y, d = Math.sqrt(dx * dx + dy * dy); if (d < 3) s.ph += d * STRIDE[K.cls]; }
+    s.x = x; s.y = y;
+    if (moving) {
+      const vx = Math.abs(mdx), vy = Math.abs(mdy * SQ), end = s.view === "F" || s.view === "B";
+      if (end ? vy > vx * 0.9 : vy > vx * 1.8) s.view = mdy > 0 ? "F" : "B";
+      else s.view = mdx > 0 ? "R" : mdx < 0 ? "L" : (u.dir || 1) < 0 ? "L" : "R";
+    }
+    const P = { cls: K.cls, kit: K.kit, view: s.view, pose: "stand", frame: 0, look: null };
+    const face = o => { const q = centerOf(o); if (q && Math.abs(q[0] - x) > 0.05) P.view = s.view = q[0] > x ? "R" : "L"; else if (P.view === "F" || P.view === "B") P.view = s.view = (u.dir || 1) < 0 ? "L" : "R"; };
+    const walkF = () => { P.pose = "walk"; P.frame = Math.floor(s.ph * WALK_N) % WALK_N; };
+    if (K.cls === "vil") {
+      const W = (pose, o) => { face(o); P.pose = pose; const w = WORK[pose]; P.frame = Math.floor(((t + u.id * 137) % (w.ms * 8)) / (w.ms / w.f.length)) % w.f.length; };
+      if (G.over && G.over.win) W("cheer", null);
+      else if (moving) { walkF(); if (u.carry && u.carry.n > 0 && !(u.flee > G.tick)) P.pose = "carry"; }
+      else if (u.held) P.pose = "stand";
+      else if (u.act === "gather" && u.task) {
+        const n = u.task.node ? byIdG(G, u.task.node) : null;
+        if (n && NODE_WORK[n.k]) W(NODE_WORK[n.k], n);
+        else W("hoe", byIdG(G, u.task.bld || u.task.field));
+      } else if ((u.act === "build" || u.act === "repair") && u.task) W("build", byIdG(G, u.task.bld));
+    } else if (moving && !(u.act === "fight" && u.held)) walkF();
+    else if (u.act === "fight" && K.cls !== "arab") {
+      face(byIdG(G, u.tgt));
+      const since = cdTicks(u) - (u.cd | 0);
+      if (K.lasso) P.pose = since >= 0 && since < 5 ? "throw" : u.cd > 0 && u.cd < 12 ? "swing" : "stand";
+      else if (K.bow) { P.pose = "shoot"; P.frame = since >= 0 && since < 4 ? 1 : 0; }
+      else P.pose = since >= 0 && since < 3 ? "blow" : u.cd > 0 && u.cd <= 4 ? "wind" : "stand";
+    } else if (u.act === "fight") {
+      // the campaign's Arab foes have no blow of their own: a lunge and a stride's frame at each blow
+      face(byIdG(G, u.tgt));
+      const since = cdTicks(u) - (u.cd | 0);
+      if (since >= 0 && since < 3) { P.lunge = 1; P.frame = 2; }
+    }
+    if (P.pose !== "walk" && P.pose !== "carry" && (P.cls === "foot" || P.cls === "horse") && P.pose !== "stand" && P.view !== "R" && P.view !== "L") P.view = (u.dir || 1) < 0 ? "L" : "R";
+    if (P.pose === "stand" && K.cls === "arab") P.pose = "walk";
+    P.look = lookOf(P);
+    pkey(P);
+    return P;
+  }
+  // what a carrier has in its hands, by what it gathered
+  function loadOf(G, u) {
+    if (!u.carry || !(u.carry.n > 0)) return null;
+    const r = u.carry.r, n = u.task && u.task.node ? byIdG(G, u.task.node) : null, nk = n ? n.k : "";
+    if (r === "w") return "logs";
+    if (r === "s") return "block";
+    if (r === "g") return nk === "dye" ? "dye" : "ore";
+    return nk === "orchard" ? "fruit" : nk === "flock" ? "jar" : "sack";
+  }
+  // the size a unit is drawn (CSS px at zoom 1), for picking and its selection ring
+  function unitSize(u) {
+    if (u.k === "vil") return [14, 30];
+    const R = DATA.RAIDERS[u.k];
+    return u.k === "horse" || (R && R.mounted) ? [34, 40] : [16, 34];
+  }
+  // what stands in for a unit whose poses have not baked yet: a small inked figure in its kit's colours
+  function silhouette(x, y, K, side) {
+    const k = viewZ * L.dpr * UF, kk = K.cls === "arab" ? null : kitOf(K.kit);
+    const fill = kk ? kk.color : side ? "#b08a4a" : "#8a6a44", h = (K.cls === "horse" || (K.cls === "arab" && K.kit === "cavalry") ? 34 : 28) * k, w = (K.cls === "horse" ? 24 : 7) * k;
+    c.globalAlpha = 0.6;
+    c.fillStyle = fill; c.strokeStyle = INK; c.lineWidth = Math.max(1, k * 1.4);
+    c.beginPath(); c.ellipse(x, y - h * 0.42, w / 2, h * 0.42, 0, 0, TAU); c.fill(); c.stroke();
+    c.fillStyle = kk ? kk.skin : "#d8a878";
+    c.beginPath(); c.arc(x, y - h * 0.92, 4.2 * k, 0, TAU); c.fill(); c.stroke();
+    c.globalAlpha = 1;
+  }
+
+  // ---- a unit on screen: its shadow, its side's ring (a fighter's), the pose, its load or its plunder, a hit's
+  // flash, a cord's hold, its health when hurt or selected ----
+  const TEAM_RING = ["rgba(240, 207, 133, .8)", "rgba(196, 52, 38, .9)"];
+  function drawUnit(G, u, x, y, zi, sel, t, wx, wy) {
+    const d = L.dpr, z = viewZ, k = z * d * UF, K = unitKind(u, age), s = ust(u), di = GROUND_OF[zi];
+    s.seen = drawNo;
+    const P = poseOf(G, u, wx, wy, K, s, t);
+    let sp = s.P && s.P.key === P.key && s.di === di ? s.sp : null;
+    if (!sp) {
+      sp = poseSprite(P, di);
+      if (sp) {
+        s.P = P; s.di = di; s.sp = sp;
+        const W = WORK[P.pose], n = W ? W.f.length : P.pose === "shoot" ? 2 : 0;
+        for (let f = 0; f < n && canBake(); f++) if (f !== P.frame) { const Q = Object.assign({}, P, { frame: f }); pkey(Q); poseSprite(Q, di); }
+        if (P.pose === "wind" || P.pose === "blow") for (const p2 of ["wind", "blow", "stand"]) if (p2 !== P.pose && canBake()) { const Q = Object.assign({}, P, { pose: p2, frame: 0 }); pkey(Q); Q.look = lookOf(Q); poseSprite(Q, di); }
+      }
+    }
+    const look = P.look, sh = (look.shadow || 8) * k;
+    // the contact shadow; a fighter stands on a thin ring of its side's colour (bronze for the town, madder red
+    // for the raiders), so friend and foe read apart at a glance
+    c.fillStyle = "rgba(26, 18, 8, .28)";
+    c.beginPath(); c.ellipse(x + 1.2 * k, y + 0.3 * k, sh * 0.95, sh * 0.34, 0, 0, TAU); c.fill();
+    if (u.k !== "vil") {
+      c.lineWidth = Math.max(1, 1.3 * d); c.strokeStyle = TEAM_RING[u.side ? 1 : 0];
+      c.beginPath(); c.ellipse(x, y + 0.3 * k, sh * 1.05, sh * 0.4, 0, 0, TAU); c.stroke();
+    }
+    // a fighter's blow throws it a little toward its target
+    const lunge = P.pose === "blow" || P.lunge ? (P.view === "L" ? -2.4 : 2.4) * k : 0, side = P.view === "R" || P.view === "L";
+    const load = K.cls === "vil" ? (P.pose === "carry" || (P.pose === "walk" && u.carry && u.carry.n > 0 && !(u.flee > G.tick)) ? loadOf(G, u) : null)
+      : u.side && u.flee && u.loot && (u.loot.kills || u.loot.dmg > 0 || u.loot.food > 0) ? "sack" : null;
+    const loadAt = load ? (K.cls === "vil" ? LOAD_AT[side ? "side" : P.view === "F" ? "front" : "rear"] : K.cls === "horse" || (K.cls === "arab" && K.kit === "cavalry") ? [-9, -20] : LOAD_AT[side ? "side" : P.view === "F" ? "front" : "rear"]) : null;
+    const drawLoad = () => {
+      const LP = { cls: "load", kit: load, view: P.view === "L" ? "L" : "R", pose: "load", frame: 0 };
+      pkey(LP); LP.look = LOAD_LOOK;
+      const ls = poseSprite(LP, di) || standInPose(LP, di);
+      if (ls) blitU(ls, x + (P.view === "L" ? -loadAt[0] : loadAt[0]) * k, y + loadAt[1] * k);
+    };
+    if (load && P.view === "F") drawLoad();
+    if (sp) blitU(sp, x + lunge, y);
+    else {
+      S.miss++;
+      const o = standInPose(P, di);
+      if (o) blitU(o, x + lunge, y); else silhouette(x, y, K, u.side);
+    }
+    if (load && P.view !== "F") drawLoad();
+    // struck: for a moment a hard white edge round the figure (the battle's own flash), nothing more
+    const fl = t - s.hitAt;
+    if (sp && fl >= 0 && fl < 160) { const hot = unitFlashSprite(sp, sp.twq); hot.twq = sp.twq; c.globalAlpha = 1 - fl / 160; blitU(hot, x + lunge, y); c.globalAlpha = 1; }
+    const top = y - ((look.top || 30) + 4) * k;
+    if (u.held) {
+      // the lasso's loop round the body, its slack trailing
+      const cy = y - (K.cls === "horse" ? 20 : 13) * k, rx = (K.cls === "horse" ? 9 : 6.4) * k;
+      c.lineWidth = Math.max(1, 2.2 * k); c.strokeStyle = INK; c.beginPath(); c.ellipse(x, cy, rx, rx * 0.42, -0.15, 0, TAU); c.stroke();
+      c.lineWidth = Math.max(0.6, 1.1 * k); c.strokeStyle = "#d8b47a"; c.beginPath(); c.ellipse(x, cy, rx, rx * 0.42, -0.15, 0, TAU); c.stroke();
+      c.beginPath(); c.moveTo(x + rx, cy); c.quadraticCurveTo(x + rx * 2, cy + rx * 0.4, x + rx * 2.6, cy - rx * 0.2); c.stroke();
+    }
+    const selected = u.id && sel.some(q => q.kind === "unit" && q.id === u.id);
+    if (u.hpMax && (u.hp < u.hpMax || selected)) bar(x - 10 * z * d, top - 5 * d, 20 * z * d, 3.5 * d, u.hp / u.hpMax, u.side ? "#d04a3a" : "#7ec850");
+    // dust: horses at a run, and anyone running for shelter
+    if ((K.cls === "horse" || (K.cls === "arab" && K.kit === "cavalry")) && P.pose === "walk" && t - s.dustAt > 240) { s.dustAt = t; puff(u.x - (P.view === "L" ? -0.3 : 0.3), u.y, 0.5, 700); }
+    else if (K.cls === "vil" && P.pose !== "stand" && u.task && u.task.t === "shelter" && t - s.dustAt > 300) { s.dustAt = t; puff(u.x, u.y, 0.28, 500); }
+    return P;
+  }
+  // a trade cart: the ox walks and the wheel turns with the road
+  const CST = new Map();
+  function drawCart(G, cart, x, y, zi, t, wx, wy) {
+    const d = L.dpr, k = viewZ * d * UF, di = GROUND_OF[zi];
+    let s = CST.get(cart.id);
+    if (!s) CST.set(cart.id, s = { x: NaN, y: NaN, ph: (cart.id * 0.37) % 1, view: "R", seen: 0 });
+    s.seen = drawNo;
+    if (!isNaN(s.x)) { const dx = wx - s.x, dy = wy - s.y, m = Math.sqrt(dx * dx + dy * dy); if (m < 3) s.ph += m * 1.4; }
+    const mdx = cart.px === undefined ? 0 : cart.x - cart.px;
+    if (Math.abs(mdx) > 1e-4) s.view = mdx > 0 ? "R" : "L";
+    s.x = wx; s.y = wy;
+    const P = { cls: "cart", kit: "cart", view: s.view, pose: "walk", frame: Math.floor(s.ph * WALK_N) % WALK_N, age };
+    pkey(P); P.look = LOOK.cart;
+    c.fillStyle = "rgba(26, 18, 8, .26)";
+    c.beginPath(); c.ellipse(x + 6 * k, y + 0.3 * k, 36 * k, 6 * k, 0, 0, TAU); c.fill();
+    const sp = poseSprite(P, di) || standInPose(P, di);
+    if (sp) blitU(sp, x, y); else { S.miss++; c.fillStyle = "#8a6238"; c.fillRect(x - 20 * k, y - 14 * k, 40 * k, 12 * k); }
+    if (cart.hp < (DATA.CART ? DATA.CART.hp : cart.hp)) bar(x - 10 * viewZ * d, y - 34 * k, 20 * viewZ * d, 3.5 * d, cart.hp / DATA.CART.hp, "#7ec850");
+  }
+  // forget the units and carts that are gone (every few seconds)
+  function pruneStates() {
+    for (const [id, s] of UST) if (drawNo - s.seen > 240) UST.delete(id);
+    for (const [id, s] of CST) if (drawNo - s.seen > 240) CST.delete(id);
+  }
+
+  // ---- prebaking: the poses a coming raid will need (from its warning), and an age's people (on its card) ----
+  const preQ = [];
+  function queuePoses(kits, views, poses) {
+    for (const [cls, kitKey] of kits) for (const view of views) for (const [pose, n] of poses) {
+      if ((pose !== "walk" && pose !== "carry") && view !== "R" && view !== "L") continue;
+      if (cls === "arab" && pose !== "walk") continue;
+      for (let f = 0; f < n; f++) { const P = { cls, kit: kitKey, view, pose, frame: f }; pkey(P); P.look = lookOf(P); if (preQ.length < 900) preQ.push(P); }
+    }
+  }
+  const RAID_KITS = [[["foot", "twEtiuniRaider"], ["foot", "twEtiuniSpear"]], [["horse", "twAlan"], ["horse", "twAlanLasso"]],
+    [["arab", "raider"], ["arab", "spearman"], ["arab", "shield"], ["arab", "cavalry"]]];
+  function queueRaid(a) { queuePoses(RAID_KITS[a - 1], ["R", "L", "F", "B"], [["walk", WALK_N], ["wind", 1], ["blow", 1], ["swing", 1], ["throw", 1]]); }
+  function queueAge(a) {
+    queuePoses(VIL_KITS[a - 1].map(k => ["vil", k]), ["R", "L", "F", "B"], [["walk", WALK_N], ["carry", WALK_N], ["stand", 1]]);
+    queuePoses([["foot", LINE_KITS.spear[a - 1]], ["foot", LINE_KITS.bow[a - 1]], ["horse", LINE_KITS.horse[a - 1]]], ["R", "L", "F", "B"], [["walk", WALK_N], ["stand", 1]]);
+  }
+  // spends what is left of the frame's budget on the queue (at the frame's density)
+  function bakeQueued(zi) {
+    if (!preQ.length || budget === Infinity) return;
+    const di = GROUND_OF[zi];
+    while (preQ.length && canBake()) {
+      const P = preQ[0];
+      if ((P.pose === "swing" || P.pose === "throw") && P.kit !== "twAlanLasso") { preQ.shift(); continue; }
+      if (!poseSprite(P, di)) break;          // the frame's share of poses is spent: the rest wait
+      preQ.shift();
+    }
   }
 
   // ---- the governor (10.5): a copy of governDensity's rules for the town's canvas ----
@@ -66383,8 +67212,12 @@ townRegion("art", () => { TWA = (() => {
     if (cv) { cv.width = 0; cv.height = 0; }
     if (mini) { mini.width = 0; mini.height = 0; }
     fxList.length = 0; ghostSpec = null; wantSp = new Map();
-    for (const k of flameFrames.concat(puffs)) kill(k);
-    flameFrames.length = 0; puffs.length = 0; wallGridKey = "";
+    for (const k of flameFrames.concat(puffs, dustSprites)) kill(k);
+    flameFrames.length = 0; puffs.length = 0; dustSprites.length = 0; wallGridKey = "";
+    // the town's poses leave the shared unit cache with it (the battle's own are left to its LRU)
+    for (const k of upx.keys()) { const o = UNIT_SPRITES.get(k); if (o) { UNIT_SPRITES.delete(k); kill(o.c); if (o.hot) kill(o.hot.c); } }
+    for (const k of Array.from(UNIT_SPRITES.keys())) if (k.startsWith("tw|")) UNIT_SPRITES.delete(k);
+    upx.clear(); upxTotal = 0; readyAny.clear(); UST.clear(); CST.clear(); preQ.length = 0;
     L = { w: 0, h: 0, dpr: 1, dpr0: L.dpr0 || 1 };
     openMark(false);
   }
@@ -66426,28 +67259,19 @@ townRegion("art", () => { TWA = (() => {
     miniBg.key = ""; back.key = "";
   }
   function ghost(spec) { ghostSpec = spec || null; }
-  // effects from the sim's events: sparks where a hit lands, dust where something is built or falls
   const fxList = [];
-  function fx(events, G) {
-    for (const e of events || []) {
-      if (e.e === "placed" || e.e === "built" || e.e === "destroyed" || e.e === "canceled") miniBg.dirty = true;
-      let f = null;
-      if (e.e === "hit" && e.x !== undefined) f = { k: "hit", x: e.x, y: e.y, life: 260 };
-      else if (e.e === "destroyed" && e.x !== undefined) f = { k: "dust", x: e.x + 0.5, y: e.y + 0.5, life: 900, r: 1.6 };
-      else if (e.e === "built" && G) { const b = G.blds.find(o => o.id === e.bld); if (b) f = { k: "dust", x: b.x + b.w / 2, y: b.y + b.h, life: 600, r: b.w * 0.6 }; }
-      else if (e.e === "fell" && e.x !== undefined) f = { k: "fell", x: e.x, y: e.y, life: 700 };
-      if (f) { f.at = lastNow; fxList.push(f); if (fxList.length > 60) fxList.shift(); }
-    }
-  }
   function prebake(G, view) {
     if (!G || !G.map || !L.w) return;
-    spent = 0; budget = testBudget !== null ? testBudget : bakeBudgetMs;
+    spent = 0; S.ubakes = 0; budget = testBudget !== null ? testBudget : bakeBudgetMs;
     mapData(G); terrImage(G);
     const zi = nearestStep(view.zoom);
     bakeGround(G, view, GROUND_OF[zi], zi);
     if (view.y < SKY_BOT) bakeSky(G);
     prebakePlaces(G, view, zi);
+    if (prebakeAge !== age) { prebakeAge = age; queueAge(age); }
+    bakeQueued(zi);
   }
+  let prebakeAge = 0;
   // the new age's skins of what stands in view (buildings, walls, fields, wonder, trees and stones), baked within
   // the same budget while the age's card is read (10.4); whatever is not ready when play goes on has its stand-in
   function prebakePlaces(G, view, zi) {
@@ -66468,7 +67292,7 @@ townRegion("art", () => { TWA = (() => {
       if (!canBake()) return;
       if (n.dead || n.k === "dye" || !near(n.x, n.y, 2, 2)) continue;
       const kind = nodeKind(n), v = n.id % 8;
-      sprite("node|" + kind + "|" + v + "|" + age, zi, NODE_BOX[kind], g => paintNode(g, kind, v, K));
+      sprite("node|" + kind + "|" + v + "|" + age + (kind === "flock" ? "|0" : ""), zi, NODE_BOX[kind], g => paintNode(g, kind, v, K, 0));
     }
   }
   const toScreen = (view, x, y) => ({ x: (x - view.x) * PPT * view.zoom, y: (y - view.y) * PPT * view.zoom * SQ });
@@ -66488,7 +67312,7 @@ townRegion("art", () => { TWA = (() => {
     if (!c || !L.w) return;
     const t0 = tnow();
     drawNo++;
-    spent = 0; S.bakes = 0; S.bakeMs = 0; S.blits = 0; S.maxStep = 0; S.miss = 0;
+    spent = 0; S.bakes = 0; S.bakeMs = 0; S.blits = 0; S.maxStep = 0; S.miss = 0; S.ubakes = 0;
     // the harness's town picture is painted whole in one call; everywhere else the frame's budget holds
     budget = testBudget !== null ? testBudget : !nowMs && HARNESS_ON && HARNESS.get("shot") === "town" ? Infinity : bakeBudgetMs;
     if (nowMs) { lastNow = nowMs; govern(G, nowMs); }
@@ -66530,7 +67354,7 @@ townRegion("art", () => { TWA = (() => {
       if (s.kind === "unit") {
         const u = G.units.find(o => o.id === s.id && !o.dead);
         if (!u) continue;
-        const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a, rw = unitBox(u)[0] * 0.75 * z * d;
+        const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a, rw = unitSize(u)[0] * 0.75 * z * d;
         selRing(X(x), Y(y), rw, rw * 0.45, !!u.side);
       } else if (s.kind === "bld" || s.kind === "node") {
         const o = s.kind === "bld" ? G.blds.find(b => b.id === s.id && !b.dead) : G.nodes.find(n => n.id === s.id && !n.dead);
@@ -66568,7 +67392,7 @@ townRegion("art", () => { TWA = (() => {
       if (n.dead || !inView(n.x, n.y, 2, 2)) continue;
       if (n.k === "dye") { if (dyeOn) items.push({ y: n.y + 0.7, x: n.x, o: 0, f: () => nodeSprite("dye", n.id, n.x + 0.5, n.y + 0.7) }); continue; }
       const k = nodeKind(n), fy = n.k === "flock" ? n.y + 1.75 : n.y + (n.k === "stone" || n.k === "ore" ? 0.8 : 0.86), fx0 = n.k === "flock" ? n.x + 1 : n.x + 0.5;
-      items.push({ y: fy, x: n.x, o: 0, f: () => nodeSprite(k, n.id, fx0, fy) });
+      items.push({ y: fy, x: n.x, o: 0, f: () => nodeSprite(k, n.id, fx0, fy, k === "flock" ? Math.floor((nowMs || lastNow) / 1700 + n.id * 0.37) & 1 : 0) });
     }
     // Age 1: an Urartian boundary stele by the palace, and one at each canal's head after Royal Canals (10.2)
     if (age === 1) for (const p of steles(G)) if (inView(p[0] - 1, p[1] - 1, 2, 2)) items.push({ y: p[1], x: p[0], o: 0, f: () => {
@@ -66582,24 +67406,38 @@ townRegion("art", () => { TWA = (() => {
       items.push({ y: b.y + b.h, x: b.x, o: 1, f: () => drawBld(G, b, X, Y, zi, sel) });
     }
     for (const [y, row] of wallRows) items.push({ y: y + 1, x: 0, o: 1, f: () => drawWalls(G, row, X, Y, pw, ph, d) });
+    const tn = nowMs || lastNow;
     for (const u of G.units) {
       if (u.dead || u.shel) continue;
       const x = u.px + (u.x - u.px) * a, y = u.py + (u.y - u.py) * a;
       if (!inView(x - 1, y - 2, 2, 2)) continue;
-      items.push({ y, x, o: 2, f: () => drawUnit(G, u, X(x), Y(y), zi, sel) });
+      items.push({ y, x, o: 2, f: () => drawUnit(G, u, X(x), Y(y), zi, sel, tn, x, y) });
     }
     for (const t of G.carts || []) {
       if (t.dead) continue;
       const x = (t.px === undefined ? t.x : t.px + (t.x - t.px) * a), y = (t.py === undefined ? t.y : t.py + (t.y - t.py) * a);
       if (!inView(x - 1, y - 2, 2, 2)) continue;
-      items.push({ y, x, o: 2, f: () => drawUnit(G, { k: "cart", side: 0, hp: t.hp, hpMax: DATA.CART ? DATA.CART.hp : t.hp }, X(x), Y(y), zi, []) });
+      items.push({ y, x, o: 2, f: () => drawCart(G, t, X(x), Y(y), zi, tn, x, y) });
+    }
+    // rubble where a building fell (on the ground, under whatever stands on it) and the fallen as they fade
+    for (const f of fxList) {
+      const u = (tn - f.at) / f.life;
+      if (u < 0 || u > 1) continue;
+      if (f.k === "rubble" && inView(f.x, f.y, f.w, f.h)) items.push({ y: f.y + f.h - 0.01, x: f.x, o: 0, f: () => {
+        const sp = sprite("rubble|" + f.w + "|" + f.h + "|" + age, zi, [f.w * PPT + 20, f.h * PPT * SQ + 24, f.w * PPT / 2 + 10, f.h * PPT * SQ + 12], g => paintRubble(g, f.w, f.h, age));
+        if (sp) blit(sp, X(f.x + f.w / 2), Y(f.y + f.h), z, clamp((1 - u) * 5, 0, 1));
+      } });
+      else if (f.k === "fall" && inView(f.x - 1, f.y - 2, 2, 2)) items.push({ y: f.y, x: f.x, o: 2, f: () => drawFall(f, X(f.x), Y(f.y), u) });
     }
     items.sort((p, q) => p.y - q.y || p.o - q.o || p.x - q.x);
     for (const it of items) it.f();
 
     // 5. shots in flight and effects
     drawShots(G, X, Y, a, d);
-    drawFx(X, Y, pw, ph, d, nowMs || lastNow);
+    drawShelterBadges(G, X, Y, d);
+    drawFx(G, X, Y, pw, ph, d, nowMs || lastNow);
+    bakeQueued(zi);
+    if (drawNo % 120 === 0) { pruneStates(); recountUnits(); }
     // 7. the ghost, 8. the screen-edge raid arrows
     if (ghostSpec) drawGhost(G, view, X, Y, zi, pw, ph, d);
     drawArrows(G, view, X, Y, d);
@@ -66614,7 +67452,7 @@ townRegion("art", () => { TWA = (() => {
       c.globalAlpha = 1;
     }
     S.ms = tnow() - t0;
-    S.chunkPx = chunkPx; S.spritePx = spritePx;
+    S.chunkPx = chunkPx; S.spritePx = spritePx; S.unitPx = upxTotal; S.units = upx.size;
     S.skyPx = skies.reduce((n, k) => n + (k && k.cv ? k.cv.width * k.cv.height : 0), 0);
     let tim = 0;
     for (const im of timgs.values()) tim += im.width * im.height;
@@ -66653,9 +67491,10 @@ townRegion("art", () => { TWA = (() => {
     const onHill = G.map.hill && G.map.hill[(b.y + (b.h >> 1)) * MW + b.x + (b.w >> 1)];
     return A.range + (onHill ? A.hillBonus || 0 : 0) + (b.k === "tower" && G.techs && G.techs.fire_beacons ? 1 : 0);
   }
-  function nodeSprite(kind, v, wx, wy) {
-    const zi = nearestStep(viewZ), K = look(age), box = NODE_BOX[kind];
-    const sp = spriteAny("node|" + kind + "|" + (v % 8) + "|" + age, zi, box, g => paintNode(g, kind, v % 8, K), a => "node|" + kind + "|" + (v % 8) + "|" + a);
+  function nodeSprite(kind, v, wx, wy, f) {
+    const zi = nearestStep(viewZ), K = look(age), box = NODE_BOX[kind], fk = kind === "flock" ? "|" + (f | 0) : "";
+    const sp = spriteAny("node|" + kind + "|" + (v % 8) + "|" + age + fk, zi, box, g => paintNode(g, kind, v % 8, K, f | 0), a => "node|" + kind + "|" + (v % 8) + "|" + a + fk)
+      || (fk ? spriteAny("node|flock|" + (v % 8) + "|" + age + "|" + (1 - (f | 0)), zi, box, g => paintNode(g, kind, v % 8, K, 1 - (f | 0))) : null);
     const x = curX(wx), y = curY(wy);
     if (sp) { blit(sp, x, y, viewZ); return; }
     S.miss++;
@@ -66789,47 +67628,164 @@ townRegion("art", () => { TWA = (() => {
     c.fillStyle = css; c.fillRect(x, y, w * clamp(f, 0, 1), h);
   }
   const RES_COL = { f: "#d9a441", w: "#8a6238", s: "#a9a9b0", g: "#c9972f" };
-  function drawUnit(G, u, x, y, zi, sel) {
-    const lk = unitBox(u), d = L.dpr, z = viewZ;
-    const sp = spriteAny("unit|" + u.k + "|" + (u.side | 0), zi, [lk[0] + 12, lk[1] + 8, lk[0] / 2 + 6, lk[1] + 4], g => paintUnit(g, u.k, lk, u.side | 0));
-    if (sp) blit(sp, x, y, z);
-    else { S.miss++; c.fillStyle = lk[2]; c.fillRect(x - lk[0] / 2 * z * d, y - lk[1] * z * d, lk[0] * z * d, lk[1] * z * d); }
-    const top = y - (lk[1] + 3) * z * d;
-    if (u.carry && u.carry.n > 0) {
-      c.fillStyle = RES_COL[u.carry.r] || "#ccc"; c.strokeStyle = INK; c.lineWidth = 1 * d;
-      const s = 6 * z * d;
-      c.fillRect(x + lk[0] / 2 * z * d - s * 0.4, y - lk[1] * 0.55 * z * d, s, s); c.strokeRect(x + lk[0] / 2 * z * d - s * 0.4, y - lk[1] * 0.55 * z * d, s, s);
-    }
-    const selected = u.id && sel.some(s => s.kind === "unit" && s.id === u.id);
-    if (u.hpMax && (u.hp < u.hpMax || selected)) bar(x - 10 * z * d, top - 5 * d, 20 * z * d, 3.5 * d, u.hp / u.hpMax, u.side ? "#d04a3a" : "#7ec850");
-    if (u.held) { c.strokeStyle = "#c9a06a"; c.lineWidth = 1.5 * d; c.beginPath(); c.ellipse(x, y - lk[1] * 0.5 * z * d, lk[0] * 0.7 * z * d, 4 * z * d, 0, 0, Math.PI * 2); c.stroke(); }
+  // ---- effects: soft dust (cached sprites), arrows, the lasso, the fallen fading, rubble, the shelter badges, a
+  // modest victory; nothing red that could read as blood ----
+  const dustSprites = [];
+  function dustSprite(i) {
+    if (dustSprites[i]) return dustSprites[i];
+    const k = mk(32, 32), g = k.getContext("2d"), gr = g.createRadialGradient(16, 16, 1, 16, 16, 16);
+    const col = ["206, 184, 140", "168, 150, 120", "236, 222, 190"][i];
+    gr.addColorStop(0, "rgba(" + col + ", .62)"); gr.addColorStop(0.55, "rgba(" + col + ", .3)"); gr.addColorStop(1, "rgba(" + col + ", 0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    return (dustSprites[i] = k);
   }
-  // arrows and cords in flight: a shaft along the path, at the share of the flight done
+  function addFx(f) { f.at = lastNow; fxList.push(f); if (fxList.length > 90) fxList.splice(fxList.findIndex(o => o.k !== "rubble"), 1); }
+  function puff(x, y, r, life, tone) { addFx({ k: "puff", x, y, r: r || 0.6, life: life || 800, tone: tone | 0, seed: (fxList.length * 7 + Math.floor(lastNow)) % 97 }); }
+  // the sim's events become effects (13.6): dust where something is built or falls, a flash where a blow lands,
+  // the fallen lying down, rubble where a building stood, a dropped load, the victory; a raid's warning starts
+  // baking its raiders' poses
+  function fx(events, G) {
+    for (const e of events || []) {
+      if (e.e === "placed" || e.e === "built" || e.e === "destroyed" || e.e === "canceled") miniBg.dirty = true;
+      if (e.e === "hit") {
+        if (e.id) { const s = UST.get(e.id); if (s) s.hitAt = lastNow; }
+        else if (e.x !== undefined) { addFx({ k: "hit", x: e.x, y: e.y, life: 300 }); if ((fxList.length & 3) === 0) puff(e.x, e.y + 0.4, 0.4, 600, 1); }
+      } else if (e.e === "destroyed" && e.x !== undefined) {
+        const B = BLDD[e.k], w = B && B.size ? B.size[0] : 1, h = B && B.size ? B.size[1] : 1;
+        addFx({ k: "rubble", x: e.x, y: e.y, w, h, life: 24000, kind: e.k });
+        for (let i = 0; i < Math.min(6, 2 + w * 2); i++) puff(e.x + w * (0.2 + 0.6 * ((i * 0.618) % 1)), e.y + h * (0.4 + 0.5 * ((i * 0.382) % 1)), 0.5 + w * 0.25, 1400 + i * 120, 1);
+      } else if (e.e === "built" && G) {
+        const b = G.blds.find(o => o.id === e.bld);
+        if (b) for (let i = 0; i < Math.min(4, 1 + b.w); i++) puff(b.x + b.w * (0.15 + 0.7 * i / Math.max(1, b.w)), b.y + b.h, 0.35 + b.w * 0.12, 900);
+      } else if (e.e === "fell" && e.x !== undefined) {
+        const s = UST.get(e.id);
+        if (s && s.sp) addFx({ k: "fall", x: e.x, y: e.y, sp: s.sp, dir: s.view === "L" ? -1 : 1, horse: s.P && (s.P.cls === "horse" || s.P.kit === "cavalry"), life: 1700 });
+        puff(e.x, e.y, 0.45, 700);
+      } else if (e.e === "driven" && e.x !== undefined) {
+        addFx({ k: "drop", x: e.x, y: e.y, life: 1600, seed: e.id % 7 });
+        puff(e.x, e.y, 0.35, 600);
+      } else if (e.e === "cartLost" && e.x !== undefined) {
+        for (let i = 0; i < 3; i++) puff(e.x + (i - 1) * 0.4, e.y, 0.6, 1200, 1);
+      } else if (e.e === "win") addFx({ k: "win", x: 0, y: 0, life: 9000 });
+      else if (e.e === "raidWarn" && G) queueRaid(G.age);
+    }
+  }
+  // arrows in flight (shaft, head and fletching, along the arc), the palace's volleys a little heavier, and the
+  // Alans' lasso: a rope from the thrower's hand to a loop opening at its tip
   function drawShots(G, X, Y, a, d) {
     if (!G.shots || !G.shots.length) return;
     c.lineCap = "round";
+    const k = viewZ * d;
     for (const s of G.shots) {
       const dist = Math.sqrt((s.tx - s.fx) * (s.tx - s.fx) + (s.ty - s.fy) * (s.ty - s.fy)), flight = Math.max(1, Math.ceil(dist / 12 / TW.DT));
-      const f = clamp(1 - (s.at - (G.tick + a)) / flight, 0, 1), x = s.fx + (s.tx - s.fx) * f, y = s.fy + (s.ty - s.fy) * f;
-      const lift = Math.sin(f * Math.PI) * dist * 0.18;
-      const ux = (s.tx - s.fx) / (dist || 1), uy = (s.ty - s.fy) / (dist || 1);
-      const x1 = X(x), y1 = Y(y) - lift * PPT * viewZ * d * SQ, x0 = x1 - ux * 15 * viewZ * d, y0 = y1 - uy * 15 * viewZ * d * SQ;
-      c.strokeStyle = s.k === "cord" ? "#c9a06a" : INK; c.lineWidth = 2.2 * d; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
-      c.strokeStyle = s.k === "cord" ? "#e8d2a0" : "#e8d8b0"; c.lineWidth = 1 * d; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+      const f = clamp(1 - (s.at - (G.tick + a)) / flight, 0, 1);
+      const at = q => { const lift = Math.sin(q * Math.PI) * dist * 0.18 + (1 - q) * 0.5; return [X(s.fx + (s.tx - s.fx) * q), Y(s.fy + (s.ty - s.fy) * q) - lift * PPT * viewZ * d * SQ]; };
+      const [x1, y1] = at(f), [x0, y0] = at(Math.max(0, f - 0.06));
+      if (s.k === "cord") {
+        const [sx, sy] = at(0), mx = (sx + x1) / 2, my = Math.min(sy, y1) - 10 * k;
+        for (const [col, w] of [[INK, 2.4], ["#d8b47a", 1.1]]) {
+          c.strokeStyle = col; c.lineWidth = w * d;
+          c.beginPath(); c.moveTo(sx, sy - 18 * k); c.quadraticCurveTo(mx, my, x1, y1); c.stroke();
+          c.beginPath(); c.ellipse(x1 + 3 * k, y1, 5 * k, 3 * k, 0.3, 0, TAU); c.stroke();
+        }
+        continue;
+      }
+      let ux = x1 - x0, uy = y1 - y0;
+      const l = Math.sqrt(ux * ux + uy * uy) || 1;
+      ux /= l; uy /= l;
+      const len = (s.k === "tc" ? 15 : 12) * k, bx = x1 - ux * len, by = y1 - uy * len, px = -uy, py = ux;
+      c.strokeStyle = INK; c.lineWidth = (s.k === "tc" ? 2.6 : 2.2) * d; c.beginPath(); c.moveTo(bx, by); c.lineTo(x1, y1); c.stroke();
+      c.strokeStyle = "#e8d8b0"; c.lineWidth = 1 * d; c.beginPath(); c.moveTo(bx, by); c.lineTo(x1, y1); c.stroke();
+      c.fillStyle = "#c9ccd2"; c.beginPath(); c.moveTo(x1 + ux * 3 * k, y1 + uy * 3 * k); c.lineTo(x1 + px * 1.6 * k, y1 + py * 1.6 * k); c.lineTo(x1 - px * 1.6 * k, y1 - py * 1.6 * k); c.closePath(); c.fill();
+      c.strokeStyle = s.k === "tc" ? "#a8322a" : "#f4ecd8"; c.lineWidth = 1.2 * d;
+      c.beginPath(); c.moveTo(bx + ux * 2.4 * k, by + uy * 2.4 * k); c.lineTo(bx - ux * 0.6 * k + px * 2 * k, by - uy * 0.6 * k + py * 2 * k);
+      c.moveTo(bx + ux * 2.4 * k, by + uy * 2.4 * k); c.lineTo(bx - ux * 0.6 * k - px * 2 * k, by - uy * 0.6 * k - py * 2 * k); c.stroke();
     }
     c.lineCap = "butt";
   }
-  function drawFx(X, Y, pw, ph, d, t) {
+  // rubble where a building fell: broken stones, charred beams and dust on a scorched patch, fading after 20 s
+  function paintRubble(g, w, h, a) {
+    const R = mulberry32(911 + w * 31 + a * 7), W = w * PPT * 0.5, D = h * PPT * SQ * 0.5, K = look(a);
+    g.fillStyle = "rgba(40, 30, 22, .32)"; g.beginPath(); g.ellipse(0, -D, W * 0.95, D * 0.9, 0, 0, TAU); g.fill();
+    const stone = a === 1 ? [[214, 176, 126], [168, 128, 86], [110, 80, 52]] : a === 2 ? [[150, 150, 154], [104, 104, 110], [60, 60, 66]] : [[214, 162, 150], [170, 118, 106], [110, 76, 70]];
+    for (let i = 0; i < 5 + w * 2; i++) terrInkStone(g, (R() - 0.5) * W * 0.6, -D * (0.8 + R() * 0.5) - i * 0.6, 3.6 + R() * 3, 2.6 + R() * 2, stone[i % 2], R, R() - 0.5);
+    for (let i = 0; i < 2; i++) { g.save(); g.translate((R() - 0.5) * W * 0.6, -D * (1.1 + R() * 0.3)); g.rotate((R() - 0.5) * 1.2); g.fillStyle = "#2e2218"; g.fillRect(-10, -1.6, 20, 3.2); g.fillStyle = "#5a3e26"; g.fillRect(-10, -1.6, 20, 1.1); g.restore(); }
+    for (let i = 0; i < 8 + w * 5; i++) {
+      const x = (R() - 0.5) * W * 1.6, y = -D + (R() - 0.5) * D * 1.4;
+      if (i % 5 === 2) { g.save(); g.translate(x, y); g.rotate((R() - 0.5) * 1.6); g.fillStyle = "#3a2a1c"; g.fillRect(-7, -1.4, 14, 2.8); g.fillStyle = "#6a4a2c"; g.fillRect(-7, -1.4, 14, 1); g.restore(); }
+      else terrInkStone(g, x, y, 2.6 + R() * 3.4, 1.8 + R() * 2.2, stone[i % 3], R, R() - 0.5);
+    }
+    for (let i = 0; i < 3; i++) terrTuft(g, (R() - 0.5) * W * 1.4, -D * (0.2 + R() * 1.4), 3 + R() * 2, terrCss(K.B.blade), terrCss(K.B.tip), 0);
+  }
+  // the fallen: the figure lies down and fades (a horse sinks and fades); no mark is left on the ground
+  function drawFall(f, x, y, u) {
+    const sp = f.sp, sc = viewZ * UF * L.dpr / (sp.twq || uq(1)), tilt = clamp(u * 5, 0, 1);
+    c.save();
+    c.globalAlpha = clamp((1 - u) * 1.6, 0, 1);
+    c.translate(x, y + (f.horse ? tilt * 4 * viewZ * L.dpr : 0));
+    if (!f.horse) c.rotate(f.dir * tilt * Math.PI * 0.46);
+    c.drawImage(sp.c, -sp.ox * sc, -sp.oy * sc, sp.c.width * sc, sp.c.height * sc);
+    c.restore();
+    S.blits++;
+  }
+  // a four-point gilt spark (the victory)
+  function spark(x, y, r, a) {
+    c.globalAlpha = a; c.fillStyle = "#ffe9a8";
+    c.beginPath(); c.moveTo(x, y - r); c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r); c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r); c.fill();
+    c.fillStyle = "#fffbe8"; c.beginPath(); c.arc(x, y, r * 0.3, 0, TAU); c.fill();
+  }
+  function drawFx(G, X, Y, pw, ph, d, t) {
     for (let i = fxList.length - 1; i >= 0; i--) {
       const f = fxList[i], age2 = t - f.at;
       if (age2 > f.life || age2 < -1000) { fxList.splice(i, 1); continue; }
-      const u = clamp(age2 / f.life, 0, 1), x = X(f.x), y = Y(f.y);
-      c.globalAlpha = 1 - u;
-      if (f.k === "hit") { c.strokeStyle = "#ffe6a0"; c.lineWidth = 2 * d; ring(x, y - 10 * viewZ * d, (4 + 10 * u) * viewZ * d, (4 + 10 * u) * viewZ * d, "#ffe6a0"); }
-      else if (f.k === "dust") { c.fillStyle = "rgba(196, 170, 128, .6)"; c.beginPath(); c.ellipse(x, y, (0.4 + u) * f.r * pw * d, (0.4 + u) * f.r * ph * d * 0.6, 0, 0, Math.PI * 2); c.fill(); }
-      else { c.strokeStyle = "rgba(60, 40, 20, .8)"; c.lineWidth = 2 * d; c.beginPath(); c.moveTo(x - 6 * d, y - 6 * d); c.lineTo(x + 6 * d, y + 2 * d); c.moveTo(x + 6 * d, y - 6 * d); c.lineTo(x - 6 * d, y + 2 * d); c.stroke(); }
+      if (f.k === "rubble" || f.k === "fall") continue;       // drawn in the world pass, in depth order
+      const u = clamp(age2 / f.life, 0, 1), x = X(f.x), y = Y(f.y), k = viewZ * d;
+      if (f.k === "hit") {
+        c.globalAlpha = 1 - u; c.lineWidth = 2 * d; ring(x, y - 12 * k, (3 + 9 * u) * k, (3 + 9 * u) * k * 0.7, "#ffe6a0");
+      } else if (f.k === "puff") {
+        const r = (0.5 + u * 0.9) * f.r * pw;
+        c.globalAlpha = (1 - u) * 0.9;
+        c.drawImage(dustSprite(f.tone || 0), x - r + (f.seed % 5 - 2) * k, y - r * 0.8 - u * 10 * k, r * 2, r * 1.6);
+        S.blits++;
+      } else if (f.k === "drop") {
+        // the load hits the ground and is left behind as the villager runs
+        c.globalAlpha = 1 - u;
+        c.fillStyle = "#c8ae78"; c.strokeStyle = INK; c.lineWidth = 1.2 * d;
+        c.beginPath(); c.ellipse(x + 4 * k, y - 2 * k + Math.min(1, u * 6) * 2 * k, 4 * k, 2.6 * k, 0.3, 0, TAU); c.fill(); c.stroke();
+      } else if (f.k === "win") {
+        // gilt sparks rise over the palace and the wonder
+        const tc = G.blds.find(b => b.k === "tc" && !b.dead), wd = G.blds.find(b => b.k === "wonder" && !b.dead && b.done >= 1);
+        for (const b of [tc, wd]) {
+          if (!b) continue;
+          const bx = X(b.x + b.w / 2), by = Y(b.y + b.h) - (b.k === "wonder" ? 150 : 110) * k;
+          for (let j = 0; j < 14; j++) {
+            const q = ((age2 / 2600) + j / 14) % 1, a = Math.sin(q * Math.PI) * (1 - u * 0.6);
+            spark(bx + Math.sin(j * 2.4 + q * 3) * (30 + j * 3) * k, by - q * 70 * k + (j % 3) * 8 * k, (2 + (j % 3)) * k, a);
+          }
+        }
+      }
     }
     c.globalAlpha = 1;
+  }
+  // a building with villagers inside shows how many on a small parchment badge at its door
+  function drawShelterBadges(G, X, Y, d) {
+    const k = viewZ * d;
+    for (const b of G.blds) {
+      if (b.dead || !b.shel || !b.shel.length) continue;
+      const x = X(b.x + b.w / 2), y = Y(b.y + b.h) - 26 * k - 6 * d, n = String(b.shel.length);
+      c.font = font(11 * d, 700);
+      const w = 22 * d + c.measureText(n).width, h = 17 * d;
+      c.fillStyle = "rgba(28, 18, 8, .55)"; c.beginPath(); c.roundRect ? c.roundRect(x - w / 2 + d, y - h / 2 + 1.5 * d, w, h, h / 2) : c.rect(x - w / 2 + d, y - h / 2 + 1.5 * d, w, h); c.fill();
+      c.fillStyle = "#ead9b0"; c.strokeStyle = "#6e4d1e"; c.lineWidth = 1.4 * d;
+      c.beginPath(); c.roundRect ? c.roundRect(x - w / 2, y - h / 2, w, h, h / 2) : c.rect(x - w / 2, y - h / 2, w, h); c.fill(); c.stroke();
+      // a little roof over a figure: "inside"
+      const ix = x - w / 2 + 9 * d, iy = y + 1 * d;
+      c.fillStyle = "#2c1e10";
+      c.beginPath(); c.moveTo(ix - 6 * d, iy - 2.5 * d); c.lineTo(ix, iy - 7.5 * d); c.lineTo(ix + 6 * d, iy - 2.5 * d); c.closePath(); c.fill();
+      c.beginPath(); c.arc(ix, iy - 0.6 * d, 1.8 * d, 0, TAU); c.fill();
+      c.fillRect(ix - 2 * d, iy + 1.2 * d, 4 * d, 3.4 * d);
+      c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(n, ix + 7 * d, y + 0.5 * d);
+    }
   }
   // while any ghost is out: the banks and the edge band shaded and hatched; fertile soil tinted for a field, the
   // bluffs for Garni; the ring the Haldi and Zvartnots rules draw round the palace (9.5)
@@ -67053,7 +68009,7 @@ townRegion("art", () => { TWA = (() => {
       let best = null, bd = r * r;
       for (const u of G.units) {
         if (u.dead || (u.side | 0) !== side || u.shel) continue;
-        const p = toScreen(view, u.x, u.y), hh = unitBox(u)[1] * z, hw = unitBox(u)[0] * z / 2;
+        const p = toScreen(view, u.x, u.y), us = unitSize(u), hh = us[1] * z, hw = us[0] * z / 2;
         // the distance from the point to the unit's box
         const dx = Math.max(0, Math.abs(sx - p.x) - hw), dy = sy > p.y ? sy - p.y : sy < p.y - hh ? p.y - hh - sy : 0, dist = dx * dx + dy * dy;
         if (dist < bd || (dist === bd && best && u.y > best.y)) { bd = dist; best = u; }
@@ -67105,8 +68061,20 @@ townRegion("art", () => { TWA = (() => {
       try { while (!sp.done) { const t = tnow(); bakeBand(sp); out.push(+(tnow() - t).toFixed(1)); } } finally { spent = keep[0]; budget = keep[1]; kill(k); }
       return out;
     },
-    canvases: () => ({ chunks: chunks.size, sprites: sprites.size, skies: skies.filter(k => k && k.cv && k.cv.width).length, timgs: timgs.size, mini: !!(miniBg.cv && miniBg.cv.width) }),
+    canvases: () => ({ units: Array.from(UNIT_SPRITES.keys()).filter(k => k.startsWith("tw|")).length, chunks: chunks.size, sprites: sprites.size, skies: skies.filter(k => k && k.cv && k.cv.width).length, timgs: timgs.size, mini: !!(miniBg.cv && miniBg.cv.width) }),
     look, dpr: () => L.dpr, passMs: () => passMs.slice(),
+    // a unit's pose painted at q device px a unit-space unit, outside every cache (tools only): P = { cls, kit, view,
+    // pose, frame, age } -> { c, ox, oy }
+    pose(P, q) {
+      pkey(P);
+      const key = "twtest|" + P.key + "|" + q, keep = [waveIdx, endless, unitLit, unitPhase, unitInkW];
+      waveIdx = 0; endless = false;
+      try { return unitSprite(key, q, lookOf(P), P.view === "L", () => paintPose(P)); }
+      finally { waveIdx = keep[0]; endless = keep[1]; unitLit = keep[2]; unitPhase = keep[3]; unitInkW = keep[4]; UNIT_SPRITES.delete(key + "|day"); }
+    },
+    load: (kind, q) => test.pose({ cls: "load", kit: kind, view: "R", pose: "load", frame: 0 }, q),
+    // the prebake queue of people's poses: its length (clear: empty it first)
+    unitQueue(clear) { const n = preQ.length; if (clear) preQ.length = 0; return n; },
     battleArt, pristine: () => pristine, slowSteps: () => slowSteps.splice(0),
     // the painted bounds of a place (CSS px at zoom 1 from its anchor), to size its sprite's box: [x0, y0, x1, y1]
     measure(kind, a, v, ex, st) {
@@ -67128,7 +68096,15 @@ townRegion("art", () => { TWA = (() => {
   };
   return { init, free, layout: (w, h, dpr) => layout(w, h, dpr, false), setAge, prebake, invalidate, draw: drawFrame, drawMini, ghost, fx, pick,
     toWorld, toScreen, stats, zoomSteps, groundSteps, bakeBudgetMs, test };
-})(); });
+})();
+  // the town's kits and their headgear and shields go into the battle's shared tables last, once nothing in this
+  // region can throw (15.4): new tw keys only, checked first, so no campaign row is touched or half written
+  const TABS = [[UNIT_HELM_ART, TWK.helms], [UNIT_SHIELD_ART, TWK.shields], [UNIT_SHIELD_SPOTS, TWK.spots], [UNIT_SHIELD_BIG, TWK.big]];
+  for (const [row, key] of TWK.kits) if (!/^tw/.test(key) || UNIT_KITS[row][key]) throw new Error("the town's kit " + key + " would overwrite the battle's");
+  for (const [tab, add] of TABS) for (const key of Object.keys(add)) if (!/^tw/.test(key) || tab[key]) throw new Error("the town's " + key + " would overwrite the battle's");
+  for (const [row, key, k] of TWK.kits) UNIT_KITS[row][key] = k;
+  for (const [tab, add] of TABS) Object.assign(tab, add);
+});
 
 // ---- town: sound ----   (WP5)  SPEC/SFX registration, event-to-sound, scene override
 // TWS: the town's sound through the campaign's Snd engine. While the town is open, Snd.sceneOverride sets the
@@ -69926,7 +70902,7 @@ function townSelftest(check, res) {
   // globals hold their old values, the town's canvases are freed, the battle's forts and its era 0 to 2 foes
   // (baked fresh) hash the same as before the town baked anything, and the Dvin bed keeps its own rare list.
   check("town leaves the battle alone", () => {
-    const saved = keepKeys(), was = [THEME, curEra, waveIdx, endless, sctx, structFit, structSnow], rnd = Math.random, inert0 = overlayEl.hasAttribute("inert");
+    const saved = keepKeys(), was = [THEME, curEra, waveIdx, endless, sctx, structFit, structSnow, uc, unitInkW], rnd = Math.random, inert0 = overlayEl.hasAttribute("inert");
     const watch = ["fillRect", "drawImage", "fill", "stroke", "fillText", "strokeRect", "clearRect", "putImageData", "setTransform", "beginPath"];
     let randoms = 0, ctxCalls = 0;
     const fail = m => { throw new Error(m); };
@@ -69958,6 +70934,8 @@ function townSelftest(check, res) {
       const v1 = at(1.0, tc.x + 2, tc.y + 2), p = TWA.toScreen(v1, tc.x + 2, tc.y + 3.5);
       if (TWA.pick(G, v1, p.x, p.y, 22).kind !== "bld") fail("a tap on the palace did not pick it");
       for (const age of [2, 3]) { TWA.setAge(age); TWA.prebake(G, v1); paint(v1); }
+      // an age's card queues its people's poses to bake (the settling below is about what the view itself needs)
+      if (!TWA.test.unitQueue(true)) fail("an age's prebake queued none of its people's poses");
       // the renderer settles: at an iPad's size and dpr 2, after an age's change at a zoom step between two ground
       // densities, the frames bake what the view needs and then nothing more, with every sprite in place (the gray
       // box review found it baking forever there, its buildings' labels and its trees never baked)
@@ -69969,6 +70947,8 @@ function townSelftest(check, res) {
         const after = [];
         for (let k = 0; k < 3; k++) { paint(vz); const st = TWA.stats(); after.push(st.bakes + "/" + (st.miss | 0) + "/" + (st.fallback | 0)); }
         if (after.some(a => a !== "0/0/0")) fail("the renderer did not settle after an age's change at zoom 0.85 (bakes/missing sprites/missing chunks: " + after.join(" ") + ")");
+        // the people are painted (the town's own poses in the shared unit cache), not the gray box's lettered blocks
+        if (!(TWA.stats().units > 0)) fail("no unit pose was baked for the town's people");
       }
       if (randoms) fail("the town called Math.random " + randoms + " times");
       if (ctxCalls) fail("the town drew through the battle's canvas " + ctxCalls + " times");
@@ -69978,7 +70958,7 @@ function townSelftest(check, res) {
       for (const m of watch) delete ctx[m];
       Math.random = rnd;
       const k = TWA.test.canvases();
-      if (k.chunks || k.sprites || k.skies || k.timgs || k.mini || (cvs && cvs.width)) fail("closing left the town's canvases alive " + JSON.stringify(k));
+      if (k.units || k.chunks || k.sprites || k.skies || k.timgs || k.mini || (cvs && cvs.width)) fail("closing left the town's canvases alive " + JSON.stringify(k));
       if (Town.covers() || Town.isOpen()) fail("the town still covers the map after closing");
       const raf0 = window.requestAnimationFrame, draw0 = draw, photo0 = photo;
       let draws = 0;
@@ -69990,6 +70970,10 @@ function townSelftest(check, res) {
       if (THEME !== was[0] || curEra !== was[1] || waveIdx !== was[2] || endless !== was[3]) fail("the town left THEME, curEra, waveIdx or endless changed");
       // the structure helpers' target and report, borrowed for every painted place, are the battle's again
       if (sctx !== was[4] || structFit !== was[5] || structSnow !== was[6]) fail("the town left sctx, structFit or structSnow changed");
+      // so are the unit painters' target and line width, borrowed for every pose and for the flocks
+      if (uc !== was[7] || unitInkW !== was[8]) fail("the town left uc or unitInkW changed");
+      // the town's kits are new tw keys on the battle's tables, and every row of the campaign is still there
+      for (let r = 0; r < 3; r++) if (!["raider", "spearman", "shield"].every(k => UNIT_KITS[r][k]) || Object.keys(UNIT_KITS[r]).some(k => !/^(raider|spearman|shield|tw[A-Z]\w*)$/.test(k))) fail("kit row " + r + " holds something other than the campaign's rows and the town's tw kits");
       const now = TWA.test.battleArt(), before = TWA.test.pristine();
       const diff = now.filter((h, i) => h !== before[i]);
       if (now.length !== before.length || diff.length) fail("the battle's sprites changed: " + diff.join(", "));
