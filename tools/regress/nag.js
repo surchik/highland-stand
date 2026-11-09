@@ -42,7 +42,7 @@ const CONFIGS = [R.SIZES.desk, R.SIZES.ipad];
       if (!/Tutorial/.test(begin)) await fail("Erebuni's chronicle does not offer the tutorial: \"" + begin + "\"");
       await g.wait(400);
       await g.press("#startBtn");
-      await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
+      await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 }).catch(() => { throw new Error("Begin the Stand did not start the battle"); });
 
       await waitStep("welcome"); await g.press("#coach .cNext");
       await waitStep("gold"); await g.press("#coach .cNext");
@@ -62,14 +62,14 @@ const CONFIGS = [R.SIZES.desk, R.SIZES.ipad];
       const wind = async (s) => { if (o.quick) await g.ev(s => { tut.t0 -= s * 1000; }, s); };
       // the first reminder at 8 s
       await wind(8.2);
-      await g.page.waitForFunction(() => tutNagLevel() >= 1, null, { timeout: 12000 });
+      await g.page.waitForFunction(() => tutNagLevel() >= 1, null, { timeout: 12000 }).catch(() => { throw new Error("the Send Wave step never reached its first reminder (8 s)"); });
       await g.frames(3);
       const w1 = await text();
       if (!/waits for your signal/.test(w1)) await fail("at 8 s the bubble says: " + w1);
       if (!await nudged()) await fail("at 8 s the Send Wave button does not shake");
       // the second at 18 s
       await wind(10);
-      await g.page.waitForFunction(() => tutNagLevel() >= 2, null, { timeout: 14000 });
+      await g.page.waitForFunction(() => tutNagLevel() >= 2, null, { timeout: 14000 }).catch(() => { throw new Error("the Send Wave step never reached its second reminder (18 s)"); });
       await g.frames(3);
       const w2 = await text();
       if (!/Nothing happens until you send the wave/.test(w2)) await fail("at 18 s the bubble says: " + w2);
@@ -124,7 +124,7 @@ const CONFIGS = [R.SIZES.desk, R.SIZES.ipad];
       // Auto on: once the field is clear the next wave comes by itself
       await g.ev(() => { towers.forEach(t => { t.level = 2; }); });   // the first waves must not cost the stand
       const w = await g.ev(() => waveIdx);
-      await g.page.waitForFunction(w => waveIdx > w || /Next in/.test(waveBtn.textContent), w, { timeout: 90000 });
+      await g.page.waitForFunction(w => waveIdx > w || /Next in/.test(waveBtn.textContent), w, { timeout: 90000 }).catch(() => { throw new Error("under Auto wave " + w + " was never cleared"); });
       const auto1 = await g.ev(() => ({ waveIdx, phase, autoT, btn: waveBtn.textContent }));
       if (!/Next in/.test(auto1.btn)) await fail("under Auto the Send Wave button did not count down to the next wave: " + JSON.stringify(auto1));
       await g.page.waitForFunction(w => waveIdx > w, w, { timeout: 20000 }).catch(async () => { await fail("under Auto no wave came by itself after wave " + w); });
@@ -133,7 +133,7 @@ const CONFIGS = [R.SIZES.desk, R.SIZES.ipad];
       // Auto off: the field waits, and the reminders come at 15 s, then every 25 s, three in all
       await g.press("#autoBtn");
       if (await g.ev(() => auto)) await fail("a second press did not turn Auto off");
-      await g.page.waitForFunction(() => phase === "idle" && enemies.length === 0, null, { timeout: 90000 });
+      await g.page.waitForFunction(() => phase === "idle" && enemies.length === 0, null, { timeout: 90000 }).catch(() => { throw new Error("with Auto off the wave under way was never cleared"); });
       const idleW = await g.ev(() => waveIdx);
       const toasts = [];
       await g.ev(() => { window.__toasts = []; const t0 = toast; toast = function (m) { window.__toasts.push(m); return t0.apply(this, arguments); }; });

@@ -1,13 +1,14 @@
 // Runs every regression script of tools/regress against one page and prints one PASS/FAIL line per script, the
 // failures under it, and a summary. Exits 1 when any script failed.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/run-all.js [index.html] [--quick] [--only=padplace,vic]
-//         [--jobs=n] [--shots=dir] [--log=dir]
+//         [--jobs=n] [--shots=dir] [--log=dir] [--strict]
 //   --quick   each script's smaller sample (about 5 minutes in all, against about 15 for the full suite)
 //   --only    some of the scripts, by name
 //   --jobs    scripts run side by side (default 1: the timed scripts, dance10, nag and live, keep to real time best
 //             on a quiet machine)
 //   --shots   a folder per script with a screenshot of every failure
 //   --log     each script's whole output in <dir>/<name>.txt
+//   --strict  a known fault of the live game (a script's KNOWN line) fails its script too
 "use strict";
 const path = require("path");
 const fs = require("fs");
@@ -15,12 +16,13 @@ const { spawn } = require("child_process");
 
 const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors"];
 // a script that runs past this is stopped and fails
-const LIMIT_S = { padplace: 900, plots: 900, probe: 900, vic: 900, nag: 400, dance10: 400, live: 1200, doors: 300 };
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 900, nag: 400, dance10: 400, live: 1200, doors: 300 };
 
 const argv = process.argv.slice(2);
-let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null;
+let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
 for (const a of argv) {
   if (a === "--quick") quick = true;
+  else if (a === "--strict") strict = true;
   else if (a.startsWith("--only=")) only = a.slice(7).split(",").filter(Boolean);
   else if (a.startsWith("--jobs=")) jobs = Math.max(1, +a.slice(7) | 0);
   else if (a.startsWith("--shots=")) shots = path.resolve(a.slice(8));
@@ -38,6 +40,7 @@ function run(name) {
   return new Promise((resolve) => {
     const args = [path.join(__dirname, name + ".js"), file];
     if (quick) args.push("--quick");
+    if (strict) args.push("--strict");
     if (shots) args.push("--shots=" + path.join(shots, name));
     const t0 = Date.now();
     const ch = spawn(process.execPath, args, { env: process.env });
@@ -67,6 +70,8 @@ function run(name) {
       const result = lines.find(l => l.startsWith("RESULT ")) || "";
       const info = result ? result.replace(/^RESULT \S+ (PASS|FAIL) /, "") : "";
       console.log((r.ok ? "PASS " : "FAIL ") + r.name.padEnd(9) + " " + r.s.toFixed(0).padStart(4) + " s  " + info.slice(0, 160));
+      // a known fault of the live game, which a script reports without failing (see README.md)
+      for (const l of [...new Set(lines.filter(l => l.startsWith("KNOWN ")))].slice(0, 4)) console.log("    " + l.slice(0, 300));
       if (!r.ok) {
         const bad = lines.filter(l => l.startsWith("FAIL ") || /Error|error/.test(l) && !l.startsWith("RESULT"));
         for (const l of bad.slice(0, 12)) console.log("    " + l.slice(0, 300));

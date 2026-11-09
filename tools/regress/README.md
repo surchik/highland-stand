@@ -12,9 +12,10 @@ NODE_PATH=$(npm root -g) node tools/regress/run-all.js path/to/other/index.html 
 ```
 
 `run-all.js` prints one `PASS`/`FAIL` line per script with its failures under it, then a `SUMMARY` line, and exits 1
-when anything failed. Its options: `--quick`, `--only=a,b`, `--jobs=n` (scripts side by side; the default 1 keeps the
-timed ones honest), `--shots=dir` (a screenshot of every failure, a folder per script), `--log=dir` (each script's
-whole output).
+when anything failed. Under a script's line come its `KNOWN` lines: faults of the live game that the script reports
+without failing (below). Its options: `--quick`, `--only=a,b`, `--jobs=n` (scripts side by side; the default 1 keeps
+the timed ones honest), `--shots=dir` (a screenshot of every failure, a folder per script), `--log=dir` (each script's
+whole output), `--strict` (a known fault fails its script too).
 
 Each script also runs alone, takes the page as its first argument (default: the repo's `index.html`, or `GAME=`),
 prints a `FAIL ...` line per problem and a `RESULT <name> PASS|FAIL {...}` line, and exits 1 on any failure. All accept
@@ -41,8 +42,18 @@ gold (`gold = 1e6`) where towers or plots are bought in bulk, the towers that st
 full field, the last wave's cleared field that wins a victory (the game's own loop then ends the wave and dances), and
 the clock wound forward for the later tutorial reminders (and all of them under `--quick`).
 
+Known faults of the live game (3d4bb2a), reported as `KNOWN` lines and failed only under `--strict`:
+- the tap that ends the victory dance can press the button that comes up under it. The victory page takes no press
+  for 450 ms from the touch's start (`#overlay.settling`), so a finger held down longer (a slow tap; `dance10.js`
+  holds one 600 ms) or a click the browser delivers late (a slow frame between the touch's start and end, as in
+  headless Chromium under load) lands on Next battle and opens the next chronicle. A mouse is safe: its click goes to
+  the common ancestor of the canvas pressed and the button released on. `dance10.js` tells this case apart from a
+  broken guard by when the click came: a press while the page was still settling fails.
+
+- the town's start card has no on-screen way back to the map: it covers the top bar's leave button and offers only
+  Begin, so a mouse or a finger leaves only by Begin then Leave (Escape and the browser's back swipe also close it).
+  `doors.js` takes Escape by keyboard and the back swipe by touch there.
+
 Known as live (3d4bb2a), and allowed for:
 - the victory page's quiet buttons (Replay, Hold Forever, Campaign Map) are 40 px tall on the iPad, under Apple's
-  44 pt guideline; `vic.js` fails them only below 40 px;
-- the town's start card covers the top bar's leave button and offers only Begin, so a finger leaves it by the back
-  swipe (or by Begin, then Leave); `doors.js` takes the back swipe there, and Escape by keyboard.
+  44 pt guideline; `vic.js` fails them only below 40 px.

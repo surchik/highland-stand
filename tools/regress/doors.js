@@ -6,7 +6,9 @@
 // the back swipe on a touch screen: the card covers the top bar's leave button); opened again, Begin and the age card's Continue start a town, its leave asks, Keep stays, and Leave closes
 // it. After each closing the map is back in reach with both doors. Then a battlefield is chosen by a tap on its map
 // node, its chronicle opened and begun, the first wave sent, and its foes must take the field.
-// Usage:  NODE_PATH=$(npm root -g) node tools/regress/doors.js [index.html] [--quick] [--shots=dir]
+// Known fault of the live game (3d4bb2a), printed as a KNOWN line and failed only under --strict: the town's start card
+// has no on-screen way back to the map (it covers the leave button and offers only Begin).
+// Usage:  NODE_PATH=$(npm root -g) node tools/regress/doors.js [index.html] [--quick] [--strict] [--shots=dir]
 "use strict";
 const R = require("./lib");
 const o = R.cli();
@@ -15,7 +17,10 @@ const CONFIGS = o.quick ? [R.SIZES.desk, R.SIZES.ipad] : [R.SIZES.desk, R.SIZES.
 
 (async () => {
   const browser = await R.launch();
-  const fails = [];
+  const fails = [], knowns = new Set();
+  const strict = o.rest.includes("--strict");
+  // a known fault of the live game (3d4bb2a), reported once on its own line; --strict counts it as a failure
+  const known = (m) => { if (knowns.has(m)) return; knowns.add(m); console.log("KNOWN " + m); if (strict) fails.push("(known) " + m); };
   let doors = 0;
   await R.pool(CONFIGS, CONFIGS.length, async (C) => {
     const g = await R.openGame(browser, o.file, C);
@@ -77,12 +82,15 @@ const CONFIGS = o.quick ? [R.SIZES.desk, R.SIZES.ipad] : [R.SIZES.desk, R.SIZES.
         // for it). Should an on-screen way out come, it is taken instead.
         const q = await g.reach("@leave");
         if (!q.why) await g.tapAt(q.x, q.y);
-        else if (!g.touch) { log("town start card: leave " + q.why + ", Escape"); await g.page.keyboard.press("Escape"); }
         else {
-          log("town start card: leave " + q.why + ", the back swipe");
-          if (await g.ev(() => !!(history.state && history.state.hsTown))) await g.ev(() => history.back());
-          else await fail("town: a finger has no way back from the start card (no history entry for the back swipe)");
-          await g.wait(300);
+          known("the town's start card has no on-screen way back to the map: it covers the top bar's leave button (" + q.why + ") and offers only Begin");
+          if (!g.touch) { log("town start card: Escape"); await g.page.keyboard.press("Escape"); }
+          else {
+            log("town start card: the back swipe");
+            if (await g.ev(() => !!(history.state && history.state.hsTown))) await g.ev(() => history.back());
+            else await fail("town: a finger has no way back from the start card (no history entry for the back swipe)");
+            await g.wait(300);
+          }
         }
         await mapBack("town before a town");
         doors++;
@@ -135,5 +143,5 @@ const CONFIGS = o.quick ? [R.SIZES.desk, R.SIZES.ipad] : [R.SIZES.desk, R.SIZES.
     await g.close();
   });
   await browser.close();
-  R.finish("doors", fails, { doors, configs: CONFIGS.map(c => c.name) }, t0);
+  R.finish("doors", fails, { doors, configs: CONFIGS.map(c => c.name), known: knowns.size }, t0);
 })().catch(e => { console.error(e); process.exit(1); });
