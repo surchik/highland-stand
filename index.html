@@ -2810,6 +2810,16 @@ const LEVELS = [
       "The Greek historian Diodorus tells of a catapult invented by a Greek army in 399 BC, more than three centuries after Erebuni. It shot arrows, not stones.",
     ],
     path: [[-420, 210], [300, 210], [300, 430], [620, 430], [620, 210], [940, 210], [940, 460], [660, 460], [660, 640], [1180, 640], [1180, 420], [1560, 420]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // Hidden scouts (the Beacon Fire reveals them): Etiuni rose against Urartu (its facts); the scouts are the game's
+    tricks: {
+      watch: ["fire"],
+      hidden: { from: [9, 6, 6], every: 2, n: [[1, 8], [1, 5], [2, 4]], role: "raider", name: "Etiuni Scouts",
+        lorePhrase: "the Etiunians seem to have risen against Urartu",
+        lore: "Etiuni scouts creeping on the young fortress are the game's invention." },
+    },
+    // hpFrom: { wave: 6, mult: 1 },   // optional strength from wave 6 on only (its coached waves never change)
     fort: { x: 1290, y: 390 },
     pads: [[170, 300], [420, 300], [170, 120], [470, 520], [540, 330], [760, 320], [760, 120], [1040, 330], [850, 550], [1060, 550], [540, 700], [300, 520], [1240, 240], [1300, 540]],
     rocks: [[80, 500, 15], [540, 120, 13], [1100, 180, 16], [240, 660, 14], [1420, 560, 12], [60, 680, 13]],
@@ -2828,6 +2838,7 @@ const LEVELS = [
     hero: { name: "Sarduri II", title: "King of Urartu" },
     units: {
       raider:  { name: "Itu'aean Archers" },
+      shield:  { name: "Siege-Shield Archers" },
       flyer:   { name: "Skin-Float Raiders" },
     },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
@@ -2855,8 +2866,22 @@ const LEVELS = [
       "In 681 BC the Assyrian king Sennacherib was killed by two of his sons, who fled to Urartu. In the Hebrew Bible they escape to the land of Ararat. The King James Version calls it Armenia.",
       "Tushpa's name outlived the kingdom. Armenian writers knew it as Tosp, and Roman and Greek geographers called Lake Van Thospites or Thospitis.",
       "After Urartu's fall, the Persian king Xerxes had an inscription cut high on the Rock of Van in Old Persian, Elamite and Babylonian. It says his father Darius ordered the tablet made but left it blank.",
+      "A relief of Tiglath-pileser III in the British Museum shows archers shooting from behind a tall siege shield whose top folds back.",
     ],
     path: [[-420, 250], [260, 250], [260, 460], [560, 460], [560, 250], [860, 250], [860, 520], [1110, 520], [1110, 330]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // Shields: archers behind tall siege shields, as Tiglath-pileser III's reliefs show them (no source puts them
+    // at Tushpa: the game's); hidden scouts past the watch-posts its facts tell of
+    tricks: {
+      watch: ["fire"],
+      guards: [{ role: "shield", vs: "archer", from: [6, 4, 4], look: "siegeShield", name: "Siege shields", drop: true,
+        lorePhrase: "shows archers shooting from behind a tall siege shield",
+        lore: "Their shield wall at Tushpa is the game's." }],
+      hidden: { from: [10, 7, 6], every: 3, n: [[1, 10], [1, 6], [2, 5]], role: "raider", name: "Itu'aean Scouts",
+        lorePhrase: "Urartian watchtowers on the mountain peaks",
+        lore: "Scouts slipping past the watch-posts here are the game's." },
+    },
     fort: { x: 1110, y: 300 },
     pads: [[150, 340], [355, 165], [360, 360], [460, 555], [655, 355], [700, 160], [770, 330], [950, 400], [730, 600], [1010, 240], [1195, 430], [170, 165], [980, 610], [560, 640]],
     rocks: [[90, 480, 16], [220, 600, 22], [520, 180, 13], [905, 160, 17], [1230, 250, 14], [1240, 620, 20], [60, 220, 11], [640, 500, 12]],
@@ -2897,10 +2922,31 @@ const LEVELS = [
       "The Roman historian Ammianus Marcellinus says the one-armed stone-thrower of his day was called the onager, the wild ass, because wild asses kick stones back at hunters.",
       "Ammianus Marcellinus, a Roman officer who marched against Persia in 363, wrote that the Persians he faced were so fully plated in iron that arrows could lodge only at the eye-holes and nostrils.",
       "Ammianus Marcellinus reports that Persian elephant drivers of his day carried a knife bound to the right hand, to kill a maddened elephant before it could trample its own side.",
+      "Ammianus Marcellinus, who marched against Persia in 363, describes Persian foot soldiers advancing in close order behind long, curved shields of wicker and rawhide.",
+      "At the siege of Amida in 359, Ammianus writes, firebrands drove the Persian elephants back.",
     ],
-    path: [[1760, 210], [900, 210], [900, 420], [1150, 420], [1150, 620], [300, 620], [300, 420], [550, 420], [550, 240], [80, 240], [80, 430], [-280, 430]],
+    // road 1: the reserves' road, an ambush road (L.tricks.ambush), dormant and drawn as a track until it opens
+    paths: [
+      [[1760, 210], [900, 210], [900, 420], [1150, 420], [1150, 620], [300, 620], [300, 420], [550, 420], [550, 240], [80, 240], [80, 430], [-280, 430]],
+      [[-280, 600], [150, 600], [150, 480], [80, 480], [80, 430], [-280, 430]],
+    ],
+    track: [1],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // The ambush road: the Persian reserves surrounded Vardan's men (its chronicle); the road they take is the
+    // game's. Wicker shields as Ammianus saw them in 363 (the game's at Avarayr); the elephants fear fire (Amida, 359)
+    tricks: {
+      ambush: { route: 1, pad: 14, from: [15, 12, 12], share: [0.1, 0.2, 0.3], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
+        lorePhrase: "the Persian reserves surrounded Vardan's men",
+        lore: "Where they come round here is the game's." },
+      guards: [{ role: "shield", vs: "archer", from: [9, 7, 6], look: "wicker", name: "Wicker shields", drop: true,
+        lorePhrase: "shields of wicker and rawhide",
+        lore: "Ammianus wrote of the war of 363. Shields like these at Avarayr are the game's." }],
+      weak: [{ role: "ram", slot: "fire", mult: 1.4, lorePhrase: "firebrands drove the Persian elephants back" }],
+    },
     fort: { x: 80, y: 400 },
-    pads: [[1040, 310], [780, 300], [1010, 520], [1250, 520], [720, 520], [450, 520], [400, 320], [650, 330], [185, 330], [180, 185], [900, 700], [550, 700], [1240, 185], [430, 185]],
+    // the fifteenth pad watches the reserves' road (and none of road 0)
+    pads: [[1040, 310], [780, 300], [1010, 520], [1250, 520], [720, 520], [450, 520], [400, 320], [650, 330], [185, 330], [180, 185], [900, 700], [550, 700], [1240, 185], [430, 185], [40, 540]],
     rocks: [[1200, 690, 20], [70, 640, 17], [700, 180, 15], [60, 184, 13], [980, 180, 12], [640, 690, 14]],
     vishaps: [[250, 520], [1000, 240]],
     lake: { x: 1280, y: 730, rx: 260, ry: 80, rot: 0.15 },
@@ -2945,11 +2991,25 @@ const LEVELS = [
       "Theodoros Rshtuni used the island of Aghtamar in Lake Van as his seat and refuge.",
       "Manuk Abeghian and other scholars saw the memory of Theodoros Rshtuni in Uncle Toros (K'eri T'oros) of the Armenian epic of David of Sasun.",
       "Early Armenian writers almost always spelled the city's name Duin; later authors favored Dvin.",
+      "The history attributed to Sebeos says the raiders drove the defenders from the ramparts with smoke and arrows, then set up ladders and climbed the walls.",
     ],
     paths: [
       [[-420, 200], [260, 200], [260, 380], [560, 380], [560, 180], [880, 180], [880, 400], [1120, 400]],
       [[-420, 640], [340, 640], [340, 500], [700, 500], [700, 660], [960, 660], [960, 400], [1120, 400]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // Tower hunters: the ladder parties set their ladders against your towers (Sebeos: smoke, arrows, ladders);
+    // against the towers rather than the walls is the game's
+    tricks: {
+      watch: ["fire"],
+      hunters: { from: [8, 6, 6], role: "ram", add: false, huntCap: [1, 2, 3], n: null, tdps: [10, 14, 18], look: "ladder",
+        name: "Smoke-and-Ladder Party", lorePhrase: "then set up ladders and climbed the walls",
+        lore: "Ladders against your towers are the game's." },
+      // optional knob, off at start:
+      // hidden: { from: [null, 9, 8], every: 2, n: [[0, 0], [1, 6], [1, 5]], role: "raider", name: "Archers in the Smoke",
+      //   look: "smoke", lorePhrase: "with smoke and arrows", lore: "Archers hidden in the smoke are the game's way of showing it." },
+    },
     fort: { x: 1120, y: 370 },
     pads: [[150, 290], [420, 290], [420, 120], [700, 300], [720, 90], [980, 280], [160, 550], [480, 590], [820, 570], [1060, 530], [560, 690], [1200, 250], [1220, 500], [900, 120]],
     rocks: [[90, 440, 16], [600, 440, 13], [1290, 600, 17], [1330, 160, 13], [240, 720, 14]],
@@ -3002,6 +3062,14 @@ const LEVELS = [
       [[-420, 230], [280, 230], [280, 410], [640, 410], [640, 240], [980, 240], [980, 420], [1120, 420]],
       [[-420, 600], [300, 600], [300, 700], [720, 700], [720, 540], [980, 540], [980, 420], [1120, 420]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // The adaptive enemy (a game mechanic: no claim about 914)
+    tricks: {
+      adapt: {},
+      // optional knob, off at start: hidden: { from: [null, 8, 7], every: 2, n: [[0, 0], [1, 6], [2, 5]], role: "raider",
+      //   name: "Forest Scouts", lorePhrase: "No known record names a battle in these gorges", lore: "Its scouts in the forest are the game's." },
+    },
     fort: { x: 1120, y: 390 },
     pads: [[150, 320], [150, 500], [420, 320], [420, 500], [520, 615], [760, 330], [860, 470], [860, 630], [1040, 330], [1050, 510], [640, 165], [300, 165], [1200, 250], [560, 470]],
     rocks: [[90, 420, 16], [520, 180, 14], [900, 170, 15], [1230, 560, 18], [200, 690, 14], [1240, 180, 12]],
@@ -3050,7 +3118,25 @@ const LEVELS = [
       "In 2012 Catholicos Karekin II declared a cross said to have gone into battle with Ashot II 'Guardian of the Armenian Army'.",
       "Lake Sevan lies about 1,900 meters above sea level, and its native trout is called ishkhan, 'prince'.",
     ],
-    path: [[-420, 160], [880, 160], [880, 340], [620, 340], [620, 560], [300, 560], [300, 340], [80, 340], [80, 640], [980, 640]],
+    // road 1: the hill track, an ambush road (L.tricks.ambush): it leaves road 0 at x 520, drops through the open top
+    // of the road's U and rejoins it at [300, 340]
+    paths: [
+      [[-420, 160], [880, 160], [880, 340], [620, 340], [620, 560], [300, 560], [300, 340], [80, 340], [80, 640], [980, 640]],
+      [[-420, 160], [520, 160], [520, 280], [380, 330], [300, 340], [80, 340], [80, 640], [980, 640]],
+    ],
+    track: [1],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // Nothing new: the ambush by the hill track, Sajid torch-bearers against your towers, and the adaptive enemy together
+    tricks: {
+      ambush: { route: 1, from: [13, 9, 8], share: [0.1, 0.2, 0.3], mid: 0.4, tell: [2, 1, 1], name: "the hill track",
+        lorePhrase: "Beshir's host gathered on the shore facing the island",
+        lore: "The hill track it takes to your walls is the game's." },
+      hunters: { from: [11, 7, 6], role: "raider", n: [[1, 8, 1], [1, 4, 2], [1, 3, 4]], tdps: [8, 12, 16], look: "torch",
+        name: "Sajid Torch-Bearers", lorePhrase: "Beshir's host gathered on the shore facing the island",
+        lore: "Torch-bearers against your towers are the game's." },
+      adapt: {},
+    },
     fort: { x: 980, y: 610 },
     pads: [[170, 240], [450, 240], [720, 240], [760, 430], [480, 450], [170, 450], [440, 650], [680, 698], [200, 700], [550, 120], [900, 90], [60, 480], [1000, 698], [860, 540]],
     rocks: [[60, 220, 14], [1000, 120, 15], [240, 620, 13], [600, 700, 15]],
@@ -3126,6 +3212,14 @@ const LEVELS = [
       [[-420, 650], [300, 650], [300, 500], [90, 500], [90, 340], [520, 340], [520, 260], [640, 260]],
       [[1700, 620], [980, 620], [980, 480], [1190, 480], [1190, 340], [760, 340], [760, 260], [640, 260]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: {
+      guards: [{ role: "shield", vs: "archer", from: [10, 8, 8], look: "mark", name: "Shield wall", drop: true,
+        lorePhrase: "imperial troops came to take possession of Ani",
+        lore: "The heavy infantry's shield wall here is the game's." }],
+      adapt: {},
+    },
     fort: { x: 640, y: 230 },
     pads: [[290, 200], [500, 175], [780, 175], [990, 200], [195, 420], [1085, 410], [640, 380], [400, 440], [880, 440],
            [180, 575], [1090, 550], [400, 560], [880, 560], [50, 580]],
@@ -3213,6 +3307,15 @@ const LEVELS = [
       [[1720, 200], [1040, 200], [1040, 420], [820, 420], [820, 220], [600, 220], [600, 470], [440, 470], [440, 600], [260, 600]],
       [[-420, 230], [120, 230], [120, 420], [330, 420], [330, 600], [260, 600]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // the second road (routeOpen) is told a wave ahead and previewed like an ambush road (legacy: routeOpen opens it)
+    tricks: {
+      ambush: { route: 1, from: [11, 11, 11], share: null, mid: 0, tell: [1, 1, 1], name: "the goat track", legacy: true,
+        lorePhrase: "did not force the pass but went around it",
+        lore: "The goat track's place on this field is the game's." },
+      adapt: {},
+    },
     fort: { x: 260, y: 570 },
     pads: [[930, 320], [710, 330], [1110, 110], [710, 130], [1160, 300], [930, 505], [520, 540],
            [490, 340], [230, 330], [30, 330], [10, 145], [330, 690], [1100, 540], [1260, 450]],
@@ -3287,6 +3390,9 @@ const LEVELS = [
     // Gaban is unsettled, so the castle is not drawn as either): the road climbs from the town in four long
     // switchbacks to the castle gate at the right end of the crest
     path: [[-420, 670], [380, 670], [380, 520], [940, 520], [940, 370], [280, 370], [280, 250], [1040, 250]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },
     fort: { x: 1040, y: 220 },
     pads: [[380, 165], [600, 160], [820, 165], [400, 445], [640, 445], [860, 445], [520, 595], [760, 595], [1000, 595],
            [170, 300], [200, 450], [1060, 420], [150, 600], [1150, 330]],
@@ -3333,6 +3439,14 @@ const LEVELS = [
       "Kumayri's name wore down over the centuries to Kumri and Gumri; under Russian rule the town became Alexandropol, in Soviet times Leninakan, and today it is Gyumri.",
     ],
     path: [[-460, 190], [420, 190], [420, 400], [180, 400], [180, 600], [700, 600], [700, 300], [1000, 300], [1000, 470], [1560, 470]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: {
+      hunters: { from: [12, 9, 8], role: "raider", n: [[1, 8, 1], [1, 5, 2], [1, 4, 3]], tdps: [8, 12, 14], look: "pick",
+        name: "Azap Pickmen", lorePhrase: "Ottoman raiders struck Erivan",
+        lore: "Raiders with picks against your towers are the game's." },
+      adapt: {},
+    },
     fort: { x: 1210, y: 440 },
     pads: [[300, 295], [90, 300], [530, 300], [305, 500], [70, 480], [420, 690], [590, 480], [820, 470], [610, 195], [850, 200], [880, 390], [1090, 370], [860, 690], [1120, 580]],
     rocks: [[950, 620, 24], [1180, 250, 18], [80, 660, 16], [540, 178, 14], [1250, 330, 13], [340, 620, 12], [760, 176, 15]],
@@ -3390,6 +3504,14 @@ const LEVELS = [
       "Raffi's novel 'Davit Bek' (1882) made the commander a national hero.",
     ],
     path: [[1720, 200], [980, 200], [980, 420], [620, 420], [620, 200], [260, 200], [260, 600], [900, 600]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: {
+      guards: [{ role: "shield", vs: "archer", from: [9, 7, 6], look: "mark", name: "Mantlets", drop: false,
+        lorePhrase: "a large Ottoman army closed around Halidzor",
+        lore: "A mantlet is a wooden screen carried in front of an attack. How the Sapper Mantlet Team came at Halidzor is the game's." }],
+      adapt: {},
+    },
     fort: { x: 900, y: 570 },
     pads: [[1150, 290], [1350, 290], [1080, 520], [800, 300], [800, 510], [520, 510], [440, 310], [440, 110], [800, 110], [160, 330], [160, 520], [380, 690], [640, 690], [1000, 670]],
     rocks: [[1200, 450, 20], [90, 680, 15], [560, 300, 14], [880, 690, 14], [60, 200, 13], [1180, 640, 18]],
@@ -3445,6 +3567,9 @@ const LEVELS = [
       [[-420, 200], [300, 200], [300, 380], [620, 380], [620, 220], [920, 220], [920, 420], [1110, 420]],
       [[-420, 630], [400, 630], [400, 560], [780, 560], [780, 660], [1040, 660], [1040, 420], [1110, 420]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },   // the Genocide and Artsakh fields get the general mechanic, no invented episodes
     fort: { x: 1110, y: 390 },
     pads: [[150, 290], [460, 290], [770, 310], [770, 130], [1010, 300], [460, 470], [180, 470], [600, 470], [250, 698], [590, 660], [1150, 560], [1240, 480], [1010, 120], [880, 500]],
     rocks: [[90, 400, 16], [1200, 680, 16], [700, 130, 13], [700, 705, 14], [340, 470, 14]],
@@ -3500,6 +3625,9 @@ const LEVELS = [
       [[1720, 200], [1040, 200], [1040, 360], [700, 360], [700, 190], [420, 190], [420, 440], [300, 440]],
       [[1720, 610], [880, 610], [880, 540], [560, 540], [560, 640], [300, 640], [300, 440]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },
     fort: { x: 300, y: 410 },
     pads: [[870, 280], [1150, 290], [560, 280], [560, 100], [870, 110], [700, 450], [1000, 460], [1060, 700], [720, 640], [430, 560], [200, 360], [300, 280], [1250, 500], [1200, 110]],
     rocks: [[850, 455, 14], [1150, 420, 16], [380, 110, 13], [80, 250, 15], [960, 700, 15]],
@@ -3555,6 +3683,9 @@ const LEVELS = [
       [[-420, 200], [420, 200], [420, 330], [880, 330], [880, 200], [1180, 200], [1180, 420]],
       [[-420, 560], [300, 560], [300, 660], [760, 660], [760, 520], [1040, 520], [1040, 420], [1180, 420]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },
     fort: { x: 1180, y: 390 },
     pads: [[200, 290], [200, 470], [560, 240], [720, 240], [1030, 290], [1030, 110], [560, 430], [880, 430], [420, 560], [620, 580], [900, 620], [1150, 600], [1290, 300], [120, 650]],
     rocks: [[60, 380, 15], [700, 110, 14], [1280, 500, 16], [430, 720, 14], [760, 420, 12]],
@@ -3606,6 +3737,9 @@ const LEVELS = [
       "The ceasefire that ended the first war took effect on 12 May 1994. It was mediated by Russia's envoy and followed the Bishkek Protocol of 5 May.",
     ],
     path: [[-420, 190], [1100, 190], [1100, 680], [180, 680], [180, 360], [900, 360], [900, 530], [480, 530]],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },
     fort: { x: 480, y: 500 },
     pads: [[600, 275], [300, 275], [900, 275], [1000, 450], [1210, 420], [700, 445], [330, 445], [80, 500], [700, 605], [300, 605], [1000, 605], [600, 100], [1000, 100], [200, 100]],
     rocks: [[1220, 640, 16], [40, 300, 14], [400, 110, 13], [1180, 120, 14]],
@@ -3664,6 +3798,16 @@ const LEVELS = [
       [[-420, 660], [300, 660], [300, 500], [80, 500], [80, 330], [420, 330], [420, 260], [640, 260]],
       [[1700, 660], [980, 660], [980, 500], [1200, 500], [1200, 330], [860, 330], [860, 260], [640, 260]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    // hidden special forces on today's roads (its chronicle: they climbed through the forests); the lookouts reveal them
+    tricks: {
+      watch: ["drums"],
+      hidden: { from: [14, 12, 11], every: 2, n: [[1, 8], [1, 6], [2, 5]], role: "raider", name: "Special forces team",
+        lorePhrase: "special forces climbed through the forests to the Shushi plateau",
+        lore: "Hidden scouts are the game's way of showing it." },
+      adapt: {},
+    },
     fort: { x: 640, y: 230 },
     pads: [[190, 580], [190, 415], [250, 240], [520, 175], [760, 175], [1090, 580], [1090, 415], [1030, 240], [520, 420], [760, 420], [400, 590], [880, 590], [65, 590], [1215, 590]],
     rocks: [[640, 560, 22], [330, 140, 14], [950, 140, 14], [60, 230, 15], [1220, 230, 15], [500, 700, 14]],
@@ -3719,6 +3863,9 @@ const LEVELS = [
       [[-420, 220], [360, 220], [360, 390], [120, 390], [120, 560], [480, 560], [480, 470], [640, 470]],
       [[1700, 220], [920, 220], [920, 390], [1160, 390], [1160, 560], [800, 560], [800, 470], [640, 470]],
     ],
+    // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
+    // difficulty; every number a starting value for tools/balance.js)
+    tricks: { adapt: {} },
     fort: { x: 640, y: 440 },
     pads: [[200, 305], [240, 475], [20, 470], [470, 300], [640, 330], [810, 300], [1080, 305], [1040, 475], [1260, 470], [300, 650], [980, 650], [640, 600], [200, 130], [1080, 130]],
     rocks: [[640, 200, 16], [460, 700, 14], [820, 700, 14], [40, 650, 14], [1240, 650, 14]],
@@ -8503,6 +8650,697 @@ function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
 // the drone war of 2020 and the assault of 2023
 function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 
+// ---------- enemy tricks ----------
+// Four tricks the enemy plays (an ambush road, tower hunters, hidden scouts, shields and armor against one kind of
+// tower) and the adaptive enemy, as general systems driven by each battlefield's own table, L.tricks:
+//   watch:   the tower slots that reveal hidden foes (default ["fire"])
+//   hidden:  { from, every, n: [[base, per] x3], role, name, look?, lorePhrase, lore }    scouts towers cannot aim at
+//   hunters: { from, role, n: [[base, per, cap] x3] | null, add?, huntCap?, tdps, look, name, lorePhrase, lore }
+//   guards:  [{ role, vs, from, look, name, drop, lorePhrase, lore }]                       static shields and armor
+//   weak:    [{ role, slot, mult, lorePhrase }]                                             a slot that hurts more
+//   ambush:  { route, from, share, mid, tell, name, scoutsOnly?, legacy?, lorePhrase, lore } a second road
+//   adapt:   {} | { from }        absent: the battlefield never adapts
+//   econ:    { gold, bounty }     absent: the economy is today's
+//   powerDmg: true                absent: the existing powers do not damage towers
+// Every per-difficulty value is [Easy, Normal, Hard] (byDiff), and null in a slot is "off on that difficulty".
+// Counts: hunters n [base, per, cap] gives min(cap, base + floor((w - from) / per)); hidden n [base, per] gives
+// base + floor(w / per), capped by TRICK_RULES.hidden.cap. Every number here and in the tables is a starting value
+// for tools/balance.js. Each trick fits its battlefield's age and foe; where it is the game's invention its lore
+// line says so (lorePhrase points into a sentence the battlefield already tells, as FOE_LORE does). The adaptive
+// enemy is a game mechanic and its text says so: no battlefield text claims a historical adaptation.
+const TRICK_RULES = {
+  hidden:  { speed: 72, hp: 1.3, bounty: 2, linger: [5, 3, 2], watchPlus: 40, heroReveal: 80, cap: [3, 6, 8], alpha: 0.42 },
+  hunters: { reach: 150, mark: 1.2, work: 24, maxJobs: 2, bounty: 1.3, pitch: 2.5, deadGround: 44, perTower: 2 },
+  guard:   { mult: [0.6, 0.4, 0.3], dropS: 2 },
+  adapt:   { from: [10, 8, 7], on: [0.6, 0.5, 0.45], off: [0.48, 0.38, 0.33],
+             steps: [[0.1, 0.15], [0.1, 0.2, 0.25], [0.2, 0.3, 0.4]], mult: [0.6, 0.4, 0.35],
+             weights: [1, 0.6, 0.35], minDmg: 300 },
+  ambush:  { tellEvery: 7 },
+  tower:   { hpMult: [1.3, 1, 0.9], mend: [0.35, 0.2, 0.1], repair: [0.25, 0.35, 0.45], rebuild: [0.3, 0.45, 0.55],
+             salvage: 0.2, battered: [0.6, 0.85], failing: [0.3, 0.7] },
+  // used only on a battlefield with tricks.powerDmg true (none at start): the share of a tower's strength each
+  // power knocks off it
+  powerDmg: { mine: [0.2, 0.35, 0.45], guns: [0.04, 0.06, 0.08], stones: [0.03, 0.05, 0.06], drone: [0.25, 0.35, 0.45], harop: [0.4, 0.6, 0.7] },
+};
+// a tower's strength by its rank (a mastery stands a quarter stronger), times TRICK_RULES.tower.hpMult
+const TOWER_HP = { archer: [260, 340, 440], ballista: [300, 400, 520], catapult: [320, 420, 540], fire: [300, 380, 480], drums: [280, 360, 460] };
+// the slots that deal damage, and so the ones the enemy can answer (the drums deal none)
+const TRICK_SLOTS = ["archer", "ballista", "catapult", "fire"];
+// the rank and file the adaptive enemy can give a guard to
+const ADAPT_ROLES = new Set(["spearman", "raider", "shield", "cavalry"]);
+// what an adapted guard is called, by the age (eraAge): against the archer, ballista, catapult and fire slot
+const GUARD_LOOKS = [
+  { upTo: 4, names: { archer: "Raised shields", ballista: "Mantlets", catapult: "Open order", fire: "Wet hides" } },
+  { upTo: 5, names: { archer: "Mantlets", ballista: "Gabions", catapult: "Open order", fire: "Wet hides" } },
+  { upTo: 6, names: { archer: "Advance by rushes", ballista: "Dispersed lines", catapult: "Open order", fire: "Wire cutters" } },
+  { upTo: 99, names: { archer: "Body armor", ballista: "Decoys", catapult: "Dispersal", fire: "Mine clearing" } },
+];
+const TRICK_KEYS = ["ambush", "hunters", "hidden", "guards", "adapt"];
+function byDiff(a) { return Array.isArray(a) ? a[curDiff] : a; }
+// cosmetic randomness for the tricks' looks (dust, shimmer, sparks): its own xorshift, never Math.random, so the
+// balance bot's seeded battles do not shift when the art changes
+let fxSeed = 0x2545f491;
+function fxRnd() {
+  fxSeed ^= fxSeed << 13; fxSeed ^= fxSeed >>> 17; fxSeed ^= fxSeed << 5;
+  return (fxSeed >>> 0) / 4294967296;
+}
+// a run saved before the tricks existed (no `tricks: 1`) resumes without them: no tricks, no adapting, no tower damage
+let trickLegacy = false;
+function levelTricks() {
+  const L = LEVELS[curLevel];
+  return (!trickLegacy && L && L.era === curEra && L.tricks) || null;
+}
+// this battlefield's table for one trick on the difficulty fought, with `from` read for it, or null when it is off
+function trickCfg(kind) {
+  const T = levelTricks(), c = T && T[kind];
+  if (!c) return null;
+  if (kind === "guards") {
+    const out = c.filter(g => byDiff(g.from) != null).map(g => Object.assign({}, g, { from: byDiff(g.from) }));
+    return out.length ? out : null;
+  }
+  if (kind === "weak") return c.length ? c : null;
+  if (kind === "adapt") {
+    const from = byDiff(c.from != null ? c.from : TRICK_RULES.adapt.from);
+    return from == null ? null : Object.assign({}, c, { from });
+  }
+  if (typeof c !== "object") return c;
+  const from = byDiff(c.from);
+  return from == null ? null : Object.assign({}, c, { from });
+}
+function trickWatch() { const T = levelTricks(); return (T && T.watch) || ["fire"]; }
+// the ambush road's index in ROUTES, from the battlefield's data whatever the run (a resumed legacy run must not
+// send its foes down a road it never had either), or -1. Mari's other road (legacy) is routeOpen's to open
+function ambushRoute() {
+  const L = LEVELS[curLevel], A = L && L.tricks && L.tricks.ambush;
+  return A && !A.legacy && ROUTES[A.route] ? A.route : -1;
+}
+// the guard's name a foe carries against a slot: the battlefield's own (static), else the age's (adapted)
+function adaptGuardName(slot) {
+  const a = eraAge(curEra);
+  return (GUARD_LOOKS.find(g => a < g.upTo) || GUARD_LOOKS[0]).names[slot] || "Shields";
+}
+// where a group goes in the wave: right after the last group of `type`, else before the outflankers and commanders
+function insertAfter(g, type, grp) {
+  let i = -1;
+  g.forEach((x, k) => { if (x.type === type && !x.trick) i = k; });
+  if (i < 0) { i = g.findIndex(x => x.type === "flyer" || x.type === "boss"); i = i < 0 ? g.length : i; } else i++;
+  g.splice(i, 0, grp);
+}
+// wave w as it is fought: waveGroups with the trick groups added and the static guards laid on. The wave's start,
+// the next-wave row, the brief, foeFirstWave and the balance bot all read this one plan. The coached first three
+// waves of Erebuni are left exactly as they were
+function trickWave(w) {
+  const g = waveGroups(w).map(x => Object.assign({}, x));
+  if (curLevel === 0 && tutGentle && !endless && w <= 3) return g;
+  const H = trickCfg("hunters"), S = trickCfg("hidden"), G = trickCfg("guards");
+  if (H && w >= H.from) {
+    if (H.add === false) {
+      const grp = g.find(x => x.type === H.role);
+      if (grp) grp.hunt = Math.min(grp.n, byDiff(H.huntCap) || 1);
+    } else {
+      const N = byDiff(H.n);
+      if (N) {
+        const n = Math.min(N[2], N[0] + Math.floor((w - H.from) / N[1]));
+        if (n > 0) insertAfter(g, "spearman", { type: H.role, n, gap: 1.4, trick: "hunter", name: H.name });
+      }
+    }
+  }
+  if (S && w >= S.from && (w - S.from) % (S.every || 1) === 0) {
+    const N = byDiff(S.n);
+    const n = N ? Math.min(byDiff(TRICK_RULES.hidden.cap), N[0] + Math.floor(w / N[1])) : 0;
+    if (n > 0) insertAfter(g, "raider", { type: S.role, n, gap: 1.0, trick: "hidden", name: S.name });
+  }
+  if (G) for (const q of G) if (w >= q.from) {
+    for (const x of g) if (x.type === q.role && !x.trick && x.type !== "boss" && x.type !== "flyer") {
+      x.guard = q.vs; x.guardName = q.name; x.guardDrop = !!q.drop;
+    }
+  }
+  return g;
+}
+// the adaptive enemy's plan for wave w: { slot, p, name } or null. It steps only when a wave is cleared, so an early
+// call plans from the cleared waves and the preview shown is the plan used
+function adaptPlan(w) {
+  const C = trickCfg("adapt");
+  if (!C || w < C.from || adapt.slot == null || adapt.step < 0) return null;
+  const steps = byDiff(TRICK_RULES.adapt.steps);
+  return { slot: adapt.slot, p: steps[Math.min(adapt.step, steps.length - 1)], name: adaptGuardName(adapt.slot) };
+}
+// every foe of wave w in the order it comes, each { type, t, gi, trick?, name?, guard?, gname?, gdrop?, adapted?,
+// road? }: the queue startWave sends (live: the coached waves' thinning applied) and what the preview counts
+function wavePlan(w, live) {
+  let groups = trickWave(w);
+  if (live) groups = tutorialWave(groups);
+  const out = [];
+  let t = 0.5;
+  groups.forEach((grp, gi) => {
+    for (let i = 0; i < grp.n; i++) {
+      const q = { type: grp.type, t, gi };
+      if (grp.trick) { q.trick = grp.trick; q.name = grp.name; }
+      if (grp.hunt && i < grp.hunt) q.trick = "hunter";
+      if (grp.guard) { q.guard = grp.guard; q.gname = grp.guardName; q.gdrop = grp.guardDrop; }
+      out.push(q);
+      t += grp.gap;
+    }
+    t += 1.6;
+  });
+  const ap = adaptPlan(w);
+  if (ap) {
+    let acc = 0;
+    for (const q of out) {
+      if (!ADAPT_ROLES.has(q.type) || q.trick || q.guard) continue;
+      acc += ap.p;
+      if (acc >= 1 - 1e-9) { acc -= 1; q.guard = ap.slot; q.gname = ap.name; q.adapted = true; }
+    }
+  }
+  const A = trickCfg("ambush"), k = ambushRoute();
+  if (A && k >= 0 && w >= A.from) {
+    const share = byDiff(A.share) || 0, lastT = out.length ? out[out.length - 1].t : 0;
+    const mid = w === A.from ? (byDiff(A.mid) || 0) * lastT : -1;
+    let acc = 0;
+    for (const q of out) {
+      if (q.t < mid || q.type === "boss" || q.type === "flyer") continue;
+      if (A.scoutsOnly ? q.trick !== "hidden" : q.trick) continue;
+      acc += share;
+      if (acc >= 1 - 1e-9) { acc -= 1; q.road = k; }
+    }
+  }
+  return out;
+}
+// the tricks wave w brings, by the keys of the explainer cards (hs_tricks_seen): the ambush from the wave its tell
+// starts
+function waveTrickKeys(w) {
+  const keys = new Set(), plan = wavePlan(w);
+  for (const q of plan) {
+    if (q.trick === "hidden") keys.add("hidden");
+    if (q.trick === "hunter") keys.add("hunters");
+    if (q.guard && !q.adapted) keys.add("guards");
+    if (q.adapted) keys.add("adapt");
+  }
+  const A = trickCfg("ambush");
+  if (A && (A.legacy || ambushRoute() >= 0) && w >= A.from - (byDiff(A.tell) || 0)) keys.add("ambush");
+  if (trickCfg("powerDmg") && trickStand.powerHurt) keys.add("hunters");
+  return [...keys];
+}
+// the waves a trick first comes on this battlefield on the difficulty fought, for the brief's row and the tests
+function trickFirstWaves() {
+  const out = {}, top = TOTAL_WAVES;
+  const A = trickCfg("ambush");
+  if (A) out.ambush = A.from;
+  for (let w = 1; w <= top; w++) {
+    for (const g of trickWave(w)) {
+      if (g.trick === "hidden" && !out.hidden) out.hidden = w;
+      if ((g.trick === "hunter" || g.hunt) && !out.hunters) out.hunters = w;
+      if (g.guard && !out.guards) out.guards = w;
+    }
+  }
+  const C = trickCfg("adapt");
+  if (C) out.adapt = C.from;
+  return out;
+}
+
+// ---- the stand's trick state (resetGame) ----
+// adapt: the slot the enemy answers (null: none), its step on TRICK_RULES.adapt.steps, the damage each slot dealt
+// in the last three cleared waves (hist[0] the latest) and the damage booked since the last clear (acc)
+let adapt = { slot: null, step: -1, hist: [], acc: {} };
+// per stand: what has been told once, the ambush's opening, the tally of wrecks, repairs and lives lost to tricks
+let trickStand = {};
+let trickLeaks = { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
+function resetTricks() {
+  adapt = { slot: null, step: -1, hist: [], acc: {} };
+  trickStand = { hiddenTold: false, hunterToastW: 0, ambushOpenedW: 0, tellToldW: 0, wrecks: 0, repairGold: 0, rebuildGold: 0,
+    adaptLog: [], powerHurt: false, revealSnd: 0 };
+  trickLeaks = { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
+}
+resetTricks();
+
+// ---- shields and armor: the damage math ----
+// the share of a blow from a slot's tower that lands on foe e: a guard against that slot cuts it (a shield guard
+// drops while a stone's stagger has the foe reeling, and for dropS after), a weakness raises it. Hero blows and
+// spells have no slot and are never resisted
+function slotMult(e, slot) {
+  if (!slot) return 1;
+  let m = (e.weak && e.weak[slot]) || 1;
+  if (e.guard === slot && !(e.guardDrop && e.shieldDownT > 0)) m *= e.guardMult || 1;
+  return m;
+}
+// the damage each slot deals is booked for the adaptive enemy (drums deal none)
+function bookAdapt(slot, eff) {
+  if (slot && TRICK_SLOTS.includes(slot) && eff > 0) adapt.acc[slot] = (adapt.acc[slot] || 0) + eff;
+}
+// a wave is cleared: the enemy studies it. Returns a toast for a change, or ""
+function adaptStep() {
+  adapt.hist.unshift(adapt.acc);
+  if (adapt.hist.length > 3) adapt.hist.length = 3;
+  adapt.acc = {};
+  const C = trickCfg("adapt"), R = TRICK_RULES.adapt;
+  if (!C || waveIdx + 1 < C.from) return "";
+  const steps = byDiff(R.steps), on = byDiff(R.on), off = byDiff(R.off);
+  const share = {};
+  let total = 0;
+  adapt.hist.forEach((h, i) => {
+    for (const s of TRICK_SLOTS) { const v = R.weights[i] * (h[s] || 0); share[s] = (share[s] || 0) + v; total += v; }
+  });
+  const was = adapt.slot;
+  const down = () => { adapt.step--; if (adapt.step < 0) { adapt.step = -1; adapt.slot = null; } };
+  if (total < R.minDmg) down();
+  else {
+    for (const s of TRICK_SLOTS) share[s] /= total;
+    const top = TRICK_SLOTS.reduce((a, b) => (share[b] > share[a] ? b : a));
+    if (adapt.slot == null) { if (share[top] >= on) { adapt.slot = top; adapt.step = 0; } }
+    else if (share[adapt.slot] >= off) adapt.step = Math.min(adapt.step + 1, steps.length - 1);
+    else if (share[top] >= on) { adapt.slot = top; adapt.step = 0; }
+    else down();
+    if (adapt.slot) trickStand.adaptLog.push([waveIdx + 1, adapt.slot, +share[adapt.slot].toFixed(2)]);
+  }
+  if (adapt.slot && adapt.slot !== was) return "The enemy has adapted to your " + towerName(adapt.slot) + ": " + adaptGuardName(adapt.slot) + " in the next wave.";
+  if (!adapt.slot && was) return "The enemy no longer adapts to your " + towerName(was) + ".";
+  return "";
+}
+// the adapt state of a saved run, checked (a bad shape resumes as none)
+function savedAdapt(x) {
+  const out = { slot: null, step: -1, hist: [], acc: {} };
+  if (!x || typeof x !== "object") return out;
+  if (TRICK_SLOTS.includes(x.slot) && Number.isInteger(x.step) && x.step >= 0 && x.step < 8) { out.slot = x.slot; out.step = x.step; }
+  if (Array.isArray(x.hist)) {
+    for (const h of x.hist.slice(0, 3)) {
+      const o = {};
+      if (h && typeof h === "object") for (const s of TRICK_SLOTS) if (typeof h[s] === "number" && isFinite(h[s]) && h[s] >= 0) o[s] = h[s];
+      out.hist.push(o);
+    }
+  }
+  return out;
+}
+
+// ---- tower strength ----
+function towerMaxHp(t) {
+  const row = TOWER_HP[t.type] || TOWER_HP.archer;
+  return Math.round(row[Math.max(0, Math.min(row.length - 1, t.level | 0))] * (t.spec ? 1.25 : 1) * byDiff(TRICK_RULES.tower.hpMult));
+}
+// a new or resumed tower stands at full strength; an upgrade or a mastery keeps the damage it has taken
+function towerInitHp(t, hp, wreck) {
+  t.maxHp = towerMaxHp(t);
+  t.wreck = !!wreck;
+  t.hp = t.wreck ? 0 : Math.max(1, Math.min(t.maxHp, hp == null ? t.maxHp : hp));
+}
+function towerSyncHp(t) {
+  const was = t.maxHp || towerMaxHp(t), now = towerMaxHp(t);
+  t.maxHp = now;
+  if (!t.wreck) t.hp = Math.max(1, Math.min(now, (t.hp == null ? was : t.hp) + now - was));
+}
+function towerHpFrac(t) { return t.wreck ? 0 : t.maxHp > 0 && t.hp != null ? Math.max(0, Math.min(1, t.hp / t.maxHp)) : 1; }
+// "sound", "damaged", "failing" or "wrecked", and what it leaves of the tower's pace
+function towerState(t) {
+  if (t.wreck) return "wrecked";
+  const f = towerHpFrac(t), R = TRICK_RULES.tower;
+  return f < R.failing[0] ? "failing" : f < R.battered[0] ? "damaged" : "sound";
+}
+function towerPace(t) {
+  const s = towerState(t), R = TRICK_RULES.tower;
+  return s === "failing" ? R.failing[1] : s === "damaged" ? R.battered[1] : 1;
+}
+// a tower loses strength (a hunter at its foot, or a power on a battlefield with powerDmg). Returns true if it fell
+function hurtTower(t, n, why) {
+  if (!t || t.wreck || !(n > 0) || !towers.includes(t)) return false;
+  const before = towerState(t);
+  t.hp = Math.max(0, (t.hp == null ? towerMaxHp(t) : t.hp) - n);
+  if (why === "power") trickStand.powerHurt = true;
+  if (t.hp <= 0) { wreckTower(t); return true; }
+  const now = towerState(t);
+  if (now === "failing" && before !== "failing") {
+    const nm = towerName(t.type);
+    toast("Your " + nm + " " + plural(nm, "is", "are") + " failing. Drive off the attackers, then repair.", 2600);
+  }
+  return false;
+}
+function wreckTower(t) {
+  t.hp = 0; t.wreck = true; t.stunnedT = 0; t.burnFx = 0; t.cd = 0;
+  trickStand.wrecks++;
+  shakeFort = Math.max(shakeFort, 0.2);
+  Snd.play("mine", { x: t.x });
+  for (let i = 0; i < 18; i++) {
+    const a = fxRnd() * Math.PI * 2, s2 = 14 + fxRnd() * 50;
+    particles.push({ x: t.x, y: t.y - 10, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2 * 0.4 - 30, life: 0.9, color: i % 2 ? "#a8957a" : "#5e544a", size: 4 });
+  }
+  const nm = towerName(t.type);
+  toast("Your " + nm + " " + plural(nm, "is", "are") + " wrecked. Rebuild from its panel.", 2800);
+  if (selected === t) showPanel(t);
+}
+// a tower's name in the plural ("Village Hunters", "Trench and Wire") takes a plural verb
+function plural(name, one, more) { return / and /.test(name) || (/(s|men)$/i.test(name) && !/ss$/i.test(name)) ? more : one; }
+function repairCost(t) {
+  return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.repair) * (1 - towerHpFrac(t)));
+}
+function rebuildCost(t) { return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.rebuild)); }
+function salvageValue(t) { return Math.floor(towerInvested(t) * TRICK_RULES.tower.salvage); }
+function towerWorked(t) { return enemies.some(e => e.hunt && e.hunt.tower === t && e.hunt.state === "work"); }
+function repairTower(t) {
+  if (!t || t.wreck || towerHpFrac(t) >= 1) return;
+  if (towerWorked(t)) { toast("Drive off the attackers first."); return; }
+  const cost = repairCost(t);
+  if (gold < cost) { needGold(cost); return; }
+  spendGold(cost);
+  trickStand.repairGold += cost;
+  t.hp = t.maxHp = towerMaxHp(t);
+  t.burnFx = 0;
+  Snd.play("upgrade", { x: t.x });
+  toast("Repaired.");
+  saveRun(); syncHud();
+  if (selected === t) showPanel(t);
+}
+function rebuildTower(t) {
+  if (!t || !t.wreck) return;
+  const cost = rebuildCost(t);
+  if (gold < cost) { needGold(cost); return; }
+  spendGold(cost);
+  trickStand.rebuildGold += cost;
+  t.wreck = false;
+  t.maxHp = towerMaxHp(t); t.hp = t.maxHp;
+  t.cd = 0; t.novaT = 0;
+  Snd.play("upgrade", { x: t.x });
+  toast("Rebuilt.");
+  saveRun(); syncHud();
+  if (selected === t) showPanel(t);
+}
+function clearRuin(t) {
+  if (!t || !t.wreck) return;
+  spendGold(-salvageValue(t));
+  towers = towers.filter(x => x !== t);
+  Snd.play("coin");
+  toast("Ruin cleared.");
+  hidePanel();
+  saveRun(); syncHud();
+}
+// every standing tower mends a share of its strength at each wave's clear
+function mendTowers() {
+  const k = byDiff(TRICK_RULES.tower.mend);
+  for (const t of towers) {
+    if (t.wreck || t.hp == null) continue;
+    t.maxHp = towerMaxHp(t);
+    t.hp = Math.min(t.maxHp, t.hp + k * t.maxHp);
+  }
+}
+// a power hits a tower on a battlefield with tricks.powerDmg: it loses that share of its strength
+function powerHurt(t, kind) {
+  if (!t || !levelTricks() || !levelTricks().powerDmg) return;
+  const R = TRICK_RULES.powerDmg[kind];
+  if (R) hurtTower(t, byDiff(R) * towerMaxHp(t), "power");
+}
+
+// ---- tower hunters ----
+// A hunter (e.hunt, from its queue entry) walks its road looking for a standing tower within reach that fewer than
+// perTower hunters have chosen, the one worth the most gold (the nearest on a tie). It marks it (a red line and a
+// ring: the tell), leaves the road for the tower's foot, and works on it until the tower falls, is sold, or `work`
+// seconds pass; then it walks back to where it left the road and on. A tower cannot shoot at its own foot (its
+// neighbors can), and the fire slot burns a hunter `pitch` times as hard. At most maxJobs jobs, then the walls
+function hunterTarget(e, p) {
+  const R = TRICK_RULES.hunters;
+  let best = null, bv = -1, bd = 1e9;
+  for (const t of towers) {
+    if (t.wreck || !inGroundRange(p.x, p.y, t.x, t.y, R.reach)) continue;
+    if (enemies.filter(f => f !== e && f.hunt && f.hunt.tower === t).length >= R.perTower) continue;
+    const foot = hunterFoot(t, p);
+    if (LAKE && hunterWet(p, foot)) continue;   // never across the water: the next tower then
+    const v = towerWorth(t), d = Math.hypot(t.x - p.x, t.y - p.y);
+    if (v > bv || (v === bv && d < bd)) { best = t; bv = v; bd = d; }
+  }
+  return best;
+}
+// where a hunter works: 24 px in front of the pad, toward the road it came from
+function hunterFoot(t, p) {
+  const dx = p.x - t.x, dy = p.y - t.y, d = Math.hypot(dx, dy) || 1;
+  return { x: t.x + dx / d * 24, y: t.y + dy / d * 24 };
+}
+function hunterWet(a, b) {
+  for (let k = 0; k <= 12; k++) {
+    const x = a.x + (b.x - a.x) * k / 12, y = a.y + (b.y - a.y) * k / 12;
+    if (lakeAt(x, y, 10)) return true;
+  }
+  return false;
+}
+// a point inside the lake's ellipse (grown by m)
+function lakeAt(x, y, m) {
+  if (!LAKE) return false;
+  const c = Math.cos(-(LAKE.rot || 0)), s = Math.sin(-(LAKE.rot || 0)), dx = x - LAKE.x, dy = y - LAKE.y;
+  const u = (dx * c - dy * s) / (LAKE.rx + m), v = (dx * s + dy * c) / (LAKE.ry + m);
+  return u * u + v * v <= 1;
+}
+// one step of a hunter's job; returns true while it is off the road (its walk replaces the road's)
+function hunterStep(e, dt, moveMult) {
+  const H = e.hunt, R = TRICK_RULES.hunters, cfg = trickCfg("hunters");
+  if (H.state === "road") {
+    if (H.jobs >= R.maxJobs || !cfg) return false;
+    H.scan -= dt;
+    if (H.scan > 0) return false;
+    H.scan = 0.25;
+    const p = routeAt(e.route || 0, e.dist), t = hunterTarget(e, p);
+    if (!t) return false;
+    H.tower = t; H.state = "mark"; H.t = R.mark; H.leave = e.dist; H.from = { x: p.x, y: p.y };
+    H.foot = hunterFoot(t, p); H.work = 0; H.jobs++; H.snd = 0;
+    e.off = { x: p.x, y: p.y, ang: p.ang };
+    Snd.play(e.def.hunt === "torch" ? "smoke" : "stoneVolley", { x: t.x, vol: 0.5 });
+    if (trickStand.hunterToastW !== waveIdx) {
+      trickStand.hunterToastW = waveIdx;
+      toast("Tower hunters are going for your " + towerName(t.type) + "!", 2400);
+    }
+    return true;
+  }
+  const t = H.tower, gone = !t || t.wreck || !towers.includes(t);
+  if (H.state === "mark") {
+    if (gone) { H.state = "back"; return true; }
+    if (moveMult > 0) H.t -= dt;
+    if (H.t <= 0) H.state = "walk";
+    return true;
+  }
+  const walkTo = (x, y) => {
+    const dx = x - e.off.x, dy = y - e.off.y, d = Math.hypot(dx, dy), step = e.speed * 0.9 * moveMult * dt;
+    if (d > 0.01) e.off.ang = Math.atan2(dy, dx);
+    if (d <= step) { e.off.x = x; e.off.y = y; return true; }
+    e.off.x += dx / d * step; e.off.y += dy / d * step;
+    e.wobble += dt * 9 * (moveMult > 0 ? 1 : 0.2);
+    return false;
+  };
+  if (H.state === "walk") {
+    if (gone) { H.state = "back"; return true; }
+    if (walkTo(H.foot.x, H.foot.y)) H.state = "work";
+    return true;
+  }
+  if (H.state === "work") {
+    if (gone || H.work >= R.work) { H.state = "back"; H.tower = gone ? null : H.tower; return true; }
+    H.work += dt;
+    // a hunter held (frost, a hold, the hero, a stun) does no work
+    if (moveMult <= 0) return true;
+    e.off.ang = Math.atan2(t.y - e.off.y, t.x - e.off.x);
+    e.wobble += dt * 6;
+    const tdps = byDiff(cfg ? cfg.tdps : 10) || 10;
+    H.snd -= dt;
+    if (H.snd <= 0) {
+      H.snd = 0.6;
+      Snd.play(e.def.hunt === "torch" ? "burn" : "impact", { x: t.x, armor: 0, kind: "stone", era: curEra });
+      for (let i = 0; i < 3; i++) {
+        const a = -Math.PI / 2 + (fxRnd() - 0.5) * 2;
+        particles.push({ x: t.x + (fxRnd() - 0.5) * 12, y: t.y - 8, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30, life: 0.45,
+          color: e.def.hunt === "torch" ? "#ff8a3c" : "#b8a07a", size: 2.4 });
+      }
+    }
+    if (e.def.hunt === "torch") t.burnFx = Math.max(t.burnFx || 0, 0.5);
+    if (hurtTower(t, tdps * dt, "hunt")) { H.state = "back"; H.tower = null; }
+    return true;
+  }
+  // back to the road where it left it
+  if (walkTo(H.from.x, H.from.y)) { H.state = "road"; H.tower = null; e.off = null; e.dist = H.leave; H.scan = 1; return false; }
+  return true;
+}
+// a hunter working at, or walking up to, tower t's own foot: t cannot shoot at it (dead ground)
+function inDeadGround(t, e) {
+  return !!(e.off && e.hunt && Math.hypot(e.off.x - t.x, e.off.y - t.y) < TRICK_RULES.hunters.deadGround);
+}
+
+// ---- hidden scouts ----
+// A scout (e.hid) cannot be aimed at until it is seen (e.seenT > 0): a standing tower of a watch slot reveals it
+// within its range and watchPlus (a drum post within 0.45 of its aura), the living hero within heroReveal, and any
+// hit for `linger` seconds. Stones, burns, flames and spells still strike it where they reach. The player always
+// sees it, faint and shimmering under a crossed eye
+function revealFoe(e) {
+  if (!e.hid) return;
+  const was = e.seenT > 0;
+  e.seenT = Math.max(e.seenT || 0, byDiff(TRICK_RULES.hidden.linger));
+  if (!was) {
+    e.revealFx = 0.6;
+    const now = performance.now();
+    if (now - trickStand.revealSnd > 1000 && Snd.ctx) { trickStand.revealSnd = now; Snd.play("uiTick", { vol: 0.4 }); }
+  }
+}
+function trickRevealTick(dt) {
+  let any = false;
+  for (const e of enemies) if (e.hid) { any = true; if (e.seenT > 0) e.seenT -= dt; if (e.revealFx > 0) e.revealFx -= dt; }
+  if (!any) return;
+  const R = TRICK_RULES.hidden, watch = trickWatch();
+  const eyes = [];
+  for (const t of towers) {
+    if (t.wreck || !watch.includes(t.type)) continue;
+    eyes.push({ x: t.x, y: t.y, r: watchReach(t) });
+  }
+  for (const e of enemies) {
+    if (!e.hid || e.dead) continue;
+    const p = enemyPos(e);
+    if (eyes.some(o => inGroundRange(o.x, o.y, p.x, p.y, o.r + e.r)) ||
+      (hero && hero.alive && Math.hypot(p.x - hero.x, p.y - hero.y) < R.heroReveal)) revealFoe(e);
+  }
+}
+// how far a watch-slot tower reveals hidden foes
+function watchReach(t) {
+  const st = getStats(t);
+  return t.type === "drums" ? 0.45 * st.range : st.range + TRICK_RULES.hidden.watchPlus;
+}
+function foeUnseen(e) { return !!(e.hid && !(e.seenT > 0)); }
+
+// ---- the ambush road ----
+// The road lies dormant, drawn as a goat track; `tell` waves before it opens dust and a glint run down it and a far
+// horn sounds from its side; on its first wave part of the host takes it from `mid` of the wave's spawn time on,
+// and from then on `share` of every wave's eligible foes from the first
+function ambushTold(w) {
+  const A = trickCfg("ambush");
+  return !!A && (A.legacy || ambushRoute() >= 0) && w >= A.from - (byDiff(A.tell) || 0);
+}
+// the road's own stretch: from where it leaves the main roads to where it joins one again (its mouth: where it
+// first shows on the field)
+const AMBUSH_STRETCH = new WeakMap();   // per road object of ROUTES (loadLevel builds new ones)
+function ambushStretch(k) {
+  const R = ROUTES[k];
+  if (!R) return null;
+  if (!AMBUSH_STRETCH.has(R)) AMBUSH_STRETCH.set(R, ambushStretchOf(k));
+  return AMBUSH_STRETCH.get(R);
+}
+function ambushStretchOf(k) {
+  const R = ROUTES[k];
+  const onMain = (x, y) => ROUTES.some((Q, j) => j !== k && !Q.track && Q.pts.slice(1).some((b, i) => segDist(x, y, Q.pts[i], b) < 4));
+  let a = -1, b = -1;
+  for (let d = 0; d <= R.len; d += 8) {
+    const q = routeAt(k, d);
+    if (!onMain(q.x, q.y)) { if (a < 0) a = d; b = d; }
+  }
+  if (a < 0) return { a: 0, b: R.len };
+  // its mouth on the field: the first point of the stretch inside the world
+  let m = a;
+  for (let d = a; d <= b; d += 8) { const q = routeAt(k, d); if (q.x >= 0 && q.x <= VW && q.y >= 0 && q.y <= VH) { m = d; break; } }
+  return { a, b, mouth: m };
+}
+function segDist(px, py, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / L2));
+  return Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy);
+}
+// the tell's dust runs down the track (fxRnd: looks only)
+let ambushTellT = 0;
+function ambushTellTick(dt) {
+  const A = trickCfg("ambush");
+  if (!A || phase !== "wave") return;
+  const k = A.legacy ? A.route : ambushRoute();
+  if (k < 0 || !ROUTES[k] || waveIdx < A.from - (byDiff(A.tell) || 0) || waveIdx >= A.from) return;
+  ambushTellT -= dt;
+  if (ambushTellT > 0) return;
+  ambushTellT = TRICK_RULES.ambush.tellEvery;
+  const S = ambushStretch(k) || { a: 0, b: ROUTES[k].len };
+  ambushPuffs.push({ route: k, d: S.mouth != null ? S.mouth : S.a, end: S.b, t: 0 });
+}
+let ambushPuffs = [];   // { route, d, end, t }: a puff of dust walking down the dormant road
+function ambushPuffTick(dt) {
+  for (const f of ambushPuffs) {
+    f.t += dt; f.d += 90 * dt;
+    if (fxRnd() < dt * 8) {
+      const q = routeAt(f.route, f.d), glint = fxRnd() < 0.3;
+      particles.push({ x: q.x + (fxRnd() - 0.5) * 14, y: q.y + (fxRnd() - 0.5) * 8, vx: (fxRnd() - 0.5) * 16, vy: glint ? -6 : -12,
+        life: glint ? 0.35 : 0.9, color: glint ? "#fff2c8" : "rgba(196,176,130,.65)", size: glint ? 1.8 : 4.2 });
+    }
+  }
+  ambushPuffs = ambushPuffs.filter(f => f.d < f.end && f.t < 12);
+}
+function ambushMouthX(k) {
+  const S = ambushStretch(k);
+  return S ? routeAt(k, S.mouth != null ? S.mouth : S.a).x : 0;
+}
+// the wave's start: the tell's toast and far horn on the tell waves (Mari's waits out its commander's banner)
+function ambushWaveStart(w) {
+  const A = trickCfg("ambush");
+  if (!A) return;
+  const k = A.legacy ? A.route : ambushRoute(), tell = byDiff(A.tell) || 0;
+  if (k < 0 || !ROUTES[k]) return;
+  ambushTellT = 1.5;
+  if (w >= A.from - tell && w < A.from) {
+    const x = ambushMouthX(k);
+    waveCueQ.push({ name: "reliefFar", o: { far: 0.6, x }, left: WAVE_CUE_AFTER_S });
+    if (trickStand.tellToldW !== w && w === A.from - tell) {
+      trickStand.tellToldW = w;
+      const msg = "Dust rises on " + A.name + ". Next wave, part of the host will come that way.";
+      if (w % 10 === 0) trickToastLater(msg, 4000); else trickToastLater(msg, 2000);
+    }
+  }
+}
+// the first foe down the ambush road on its first wave: the alarm
+function ambushOpens(e) {
+  const A = trickCfg("ambush");
+  if (!A || trickStand.ambushOpenedW === waveIdx || waveIdx !== A.from) return;
+  trickStand.ambushOpenedW = waveIdx;
+  waveBannerT = 2.6; waveBannerMain = "Ambush!"; waveBannerSub = "Part of the host comes by " + A.name;
+  roadCall = { route: e.route, t: ROAD_CALL_S };
+  const x = ambushMouthX(e.route);
+  Snd.play("ridersIn", { x });
+  waveCueQ.push({ name: "horn", o: { era: curEra, x }, left: 0.9 });
+  toast("The enemy is on " + A.name + "!", 2600);
+}
+// a toast after the one now showing (the wave's own call): in game time it would race at 4x, so in real time
+function trickToastLater(msg, ms) {
+  if (HARNESS_ON) { toast(msg, ms); return; }
+  setTimeout(() => { if (battleLive()) toast(msg, 3600); }, ms || 1900);
+}
+
+// ---- the queue entry becomes a foe ----
+function applyTrickToFoe(e, q, d) {
+  const L = levelTricks();
+  if (L && L.weak) for (const x of L.weak) if (x.role === e.type) (e.weak || (e.weak = {}))[x.slot] = x.mult;
+  if (!q || !L) return;
+  if (e.type === "boss" || e.type === "flyer") return;
+  if (q.name) d.name = q.name;
+  if (q.trick === "hidden") {
+    const R = TRICK_RULES.hidden;
+    e.hid = true; e.seenT = 0;
+    e.hp = e.maxHp = Math.round(e.hp * R.hp);
+    e.speed = R.speed;
+    e.bounty = Math.round(e.bounty * R.bounty);
+  }
+  if (q.trick === "hunter") {
+    const H = trickCfg("hunters");
+    e.hunt = { state: "road", scan: 0.5, jobs: 0, tower: null };
+    d.hunt = (H && H.look) || "pick";
+    e.bounty = Math.round(e.bounty * TRICK_RULES.hunters.bounty);
+  }
+  if (q.guard) {
+    e.guard = q.guard; e.gname = q.gname; e.guardDrop = !!q.gdrop; e.adapted = !!q.adapted;
+    e.guardMult = byDiff(q.adapted ? TRICK_RULES.adapt.mult : TRICK_RULES.guard.mult);
+  }
+}
+// the lives a foe cost, booked by its trick for the balance bot's report: hidden when it spawned hidden, a hunter, on
+// the ambush road, carried an adapted guard (the first that fits)
+function bookTrickLeak(e, lost) {
+  const k = e.hid ? "hidden" : e.hunt ? "hunter" : (e.route >= 0 && e.route === ambushRoute()) ? "ambush" : e.adapted ? "adapted" : null;
+  if (k) trickLeaks[k] += lost;
+}
+// a wave is sent (startWave, once its queue is built): the ambush's tell, an adapted wave's banner line, and the
+// first-time explainer card for a trick this wave brings (before its first foe spawns)
+function trickWaveStart(bossWave, ownBanner) {
+  ambushWaveStart(waveIdx);
+  const ad = spawnQueue.find(q => q.adapted);
+  if (ad && !bossWave && !ownBanner) waveBannerSub = ad.gname + " against your " + towerName(ad.guard);
+  if (typeof trickCardsAtStart === "function") trickCardsAtStart();
+}
+// the first hidden scout of a stand is told
+function trickFoeSpawned(e) {
+  if (e.hid && !trickStand.hiddenTold) {
+    trickStand.hiddenTold = true;
+    toast("Hidden scouts on the road: your " + towerName(trickWatch()[0]) + " reveals them.", 3000);
+  }
+}
+
 // ---------- state ----------
 const TOTAL_WAVES = 20;
 let gold, lives, waveIdx, phase, speedMult, gameOver, auto, autoT;
@@ -8766,10 +9604,11 @@ function powerToast(kind) {
 }
 function stoneVolley(e) {
   const p = enemyPos(e);
-  const targets = towers.filter(t => TOWER_DEFS[t.type].proj && inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.stones.reach));
+  const targets = towers.filter(t => TOWER_DEFS[t.type].proj && !t.wreck && inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.stones.reach));
   if (!targets.length) return;
   const t = targets.reduce((a, b) => ((b.dmgDone || 0) > (a.dmgDone || 0) ? b : a));
   t.stunnedT = Math.max(t.stunnedT || 0, ERA_POWER.stones.stun);
+  powerHurt(t, "stones");
   Snd.play("stoneVolley", { x: t.x });
   for (let i = 0; i < 10; i++) {
     const a = Math.random() * Math.PI * 2, sp2 = 16 + Math.random() * 40;
@@ -8803,8 +9642,9 @@ function sapStep(e, dt) {
     // the mine is fired under the tower: a dust cloud and no flames, and the party marches on
     const t = e.sapAt;
     e.digT = 0; e.sapAt = null; e.mechT = -P.rest;
-    if (!t || !towers.includes(t)) return;
+    if (!t || !towers.includes(t) || t.wreck) return;
     t.stunnedT = Math.max(t.stunnedT || 0, P.stun);
+    powerHurt(t, "mine");
     shakeFort = Math.max(shakeFort, 0.25);
     Snd.play("mine", { x: t.x });
     for (let i = 0; i < 16; i++) {
@@ -8816,7 +9656,7 @@ function sapStep(e, dt) {
   e.mechT += dt;
   if (e.mechT < 0) return;
   const p = enemyPos(e);
-  const t = towers.find(q => TOWER_DEFS[q.type].proj && !(q.stunnedT > 0) && inGroundRange(p.x, p.y, q.x, q.y, P.near));
+  const t = towers.find(q => TOWER_DEFS[q.type].proj && !q.wreck && !(q.stunnedT > 0) && inGroundRange(p.x, p.y, q.x, q.y, P.near));
   if (!t) return;
   e.digT = P.dig; e.sapAt = t;
   powerToast("sap");
@@ -8825,7 +9665,7 @@ function elephantTrumpet(e) {
   const p = enemyPos(e);
   let hit = false;
   for (const t of towers) {
-    if (!TOWER_DEFS[t.type].proj) continue;
+    if (!TOWER_DEFS[t.type].proj || t.wreck) continue;
     if (inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.trumpet.reach)) { t.stunnedT = ERA_POWER.trumpet.stun; hit = true; }
   }
   Snd.play("trumpet", { x: p.x });
@@ -8847,12 +9687,13 @@ function towerInSmoke(t) {
 function smokeSwell(c) { return Math.min(1, 0.35 + c.t / 2); }
 function bombardVolley(e) {
   const p = enemyPos(e);
-  const targets = towers.filter(t => TOWER_DEFS[t.type].proj && inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.guns.reach));
+  const targets = towers.filter(t => TOWER_DEFS[t.type].proj && !t.wreck && inGroundRange(p.x, p.y, t.x, t.y, ERA_POWER.guns.reach));
   if (!targets.length) return;
   // counter-battery: the gunners range on whichever tower in reach has done the most damage this battle (to every
   // foe, not to the guns alone)
   const t = targets.reduce((a, b) => ((b.dmgDone || 0) > (a.dmgDone || 0) ? b : a));
   t.stunnedT = Math.max(t.stunnedT || 0, ERA_POWER.guns.stun);
+  powerHurt(t, "guns");
   Snd.play("cannon", { x: t.x });
   for (let i = 0; i < 12; i++) {
     const a = Math.random() * Math.PI * 2, sp2 = 20 + Math.random() * 50;
@@ -9112,7 +9953,8 @@ function sortByPrio(arr, prio) {
 function sellRefund(t) {
   const inv = towerInvested(t);
   const fresh = t.level === 0 && !t.spec && performance.now() - (t.placedAt || 0) < 5000;
-  return { amount: fresh ? inv : Math.floor(inv * 0.7), fresh };
+  // a damaged tower sells for less (the undo of a placement just made keeps its full refund)
+  return { amount: fresh ? inv : Math.floor(inv * 0.7 * (0.4 + 0.6 * towerHpFrac(t))), fresh };
 }
 
 // ---- run persistence: resume a war after closing the tab ----
@@ -9127,10 +9969,11 @@ let waveSpent = 0;      // gold laid out on the board since then, less refunds
 function spendGold(n) { gold -= n; waveSpent += n; }
 // the run as it stands this moment, in the shape hs_run stores
 // the build that wrote a saved run; a run from any build is resumed only once validRun has passed it
-const BUILD_ID = "2026-10-19";
+const BUILD_ID = "2026-11-09";
 function runRecord() {
   return {
-    v: 1, build: BUILD_ID, lvl: levelId(curLevel), era: curEra, diff: curDiff,
+    // tricks: 1 marks a run of the build with the enemy's tricks; a run without it resumes without them (trickLegacy)
+    v: 1, build: BUILD_ID, lvl: levelId(curLevel), era: curEra, diff: curDiff, tricks: trickLegacy ? undefined : 1,
     gold, lives,
     cleared: phase === "wave" ? waveIdx - 1 : waveIdx,
     endless, auto, plotsBought,
@@ -9141,13 +9984,16 @@ function runRecord() {
     towers: towers.map(t => ({
       type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
       kills: t.kills || 0, dmg: Math.round(t.dmgDone || 0),
+      hp: Math.round(t.hp == null ? towerMaxHp(t) : t.hp), wreck: !!t.wreck,
     })),
     leaks: JSON.parse(JSON.stringify(leaks)),   // what got through, for the defeat page's debrief
+    adapt: { slot: adapt.slot, step: adapt.step, hist: JSON.parse(JSON.stringify(adapt.hist)) },
   };
 }
 // a fresh wave is sent: remember the run as it stood at the horn
 function markWaveStart() {
-  waveStart = { json: JSON.stringify(runRecord()), gold, lives, tally: new Map(towers.map(t => [t, [t.kills || 0, Math.round(t.dmgDone || 0)]])) };
+  waveStart = { json: JSON.stringify(runRecord()), gold, lives,
+    tally: new Map(towers.map(t => [t, [t.kills || 0, Math.round(t.dmgDone || 0), Math.round(t.hp == null ? towerMaxHp(t) : t.hp), !!t.wreck]])) };
   waveSpent = 0;
 }
 function saveRun() {
@@ -9158,7 +10004,12 @@ function saveRun() {
     if (purse >= 0) {
       // the board as it stands now, paid for out of the purse the wave was sent with
       run.cleared = sent.cleared; run.gold = purse; run.lives = waveStart.lives; run.leaks = sent.leaks;
-      run.towers.forEach((r, i) => { const was = waveStart.tally.get(towers[i]) || [0, 0]; r.kills = was[0]; r.dmg = was[1]; });
+      // a tower's strength as it stood at the horn (one built since stands whole)
+      run.towers.forEach((r, i) => {
+        const was = waveStart.tally.get(towers[i]) || [0, 0];
+        r.kills = was[0]; r.dmg = was[1];
+        if (was.length > 2) { r.hp = was[2]; r.wreck = was[3]; } else { delete r.hp; r.wreck = false; }
+      });
     } else {
       // what was built this wave was paid for with its bounties: resume from the board as it was sent
       run = Object.assign(sent, { auto, aided: testAided || testUnlockAll });
@@ -9225,6 +10076,9 @@ function resumeRun() {
   Snd.init();
   overlayEl.classList.add("hidden");
   resetGame();
+  // a run saved before the enemy's tricks resumes without them, and saves again without the mark
+  trickLegacy = r.tricks !== 1;
+  if (!trickLegacy) adapt = savedAdapt(r.adapt);
   gold = r.gold; lives = r.lives; waveIdx = r.cleared;
   waveStart = null; waveSpent = 0;
   leaks = savedLeaks(r.leaks);
@@ -9235,6 +10089,9 @@ function resumeRun() {
   plotsBought = r.plotsBought || 0;
   lastCleared = r.cleared;
   PADS = r.pads.map(p => p.slice());
+  // a pad the battlefield has gained since the run was saved (Avarayr's over the reserves' road) joins after the
+  // saved ones, so every tower keeps its pad
+  for (const p of LEVELS[curLevel].pads) if (!PADS.some(q => q[0] === p[0] && q[1] === p[1])) PADS.push(p.slice());
   plots = (r.plotsLeft || []).map(p => p.slice());
   towers = r.towers.map(tw => {
     const [x, y] = PADS[tw.pad];
@@ -9245,6 +10102,11 @@ function resumeRun() {
       // placed long ago: a resumed tower never sells back at the full price of a placement just undone
       novaT: 0, novaFx: 0, buffHaste: 0, buffMight: 0, placedAt: -1e9,
     };
+  });
+  // each tower's strength as saved, checked (a bad value stands whole); a legacy run's towers stand whole
+  towers.forEach((t, i) => {
+    const tw = r.towers[i], hp = !trickLegacy && typeof tw.hp === "number" && isFinite(tw.hp) && tw.hp >= 0 ? tw.hp : null;
+    towerInitHp(t, hp, !trickLegacy && tw.wreck === true);
   });
   auto = !!r.auto;
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
@@ -9259,8 +10121,11 @@ function resetGame() {
   tutGentle = false;
   loadLevel(curLevel);
   const D = DIFFS[curDiff];
-  gold = D.gold + 15 * LEVELS[curLevel].era; lives = D.lives;
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
+  trickLegacy = false;
+  resetTricks();
+  ambushPuffs = []; ambushTellT = 0;
+  gold = D.gold + 15 * LEVELS[curLevel].era + (trickEcon("gold") || 0); lives = D.lives;
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
   waveStart = null; waveSpent = 0;
@@ -9519,15 +10384,8 @@ function startWave() {
   phase = "wave";
   waveTime = 0;
   autoT = 0;
-  spawnQueue = [];
-  let t = 0.5;
-  for (const grp of tutorialWave(waveGroups(waveIdx))) {
-    for (let i = 0; i < grp.n; i++) {
-      spawnQueue.push({ type: grp.type, t });
-      t += grp.gap;
-    }
-    t += 1.6;
-  }
+  // the wave as it is fought (wavePlan: the trick groups, the guards, the ambush road), its coached thinning applied
+  spawnQueue = wavePlan(waveIdx, true);
   Snd.play("horn", { era: curEra });
   syncHud();
   waveBannerT = 2.6;
@@ -9551,6 +10409,7 @@ function startWave() {
   // a road that opens on this wave: dust and glints come down it for a few seconds
   const RO = LEVELS[curLevel].routeOpen;
   if (RO) for (const k in RO) if (RO[k] === waveIdx && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S };
+  trickWaveStart(bossWave, !!(said && said.main));
 }
 
 // the wave's call in words, as Snd.horn sounds it in each age: horns until the 16th century (the dhol under
@@ -9580,11 +10439,19 @@ function foeHp(type, d, w, gentle) {
   // the commanders climb on their own (commanderClimb) and stand on their own numbers (LEVEL_HP, DIFFS' cmd)
   const boss = type === "boss", climb = boss ? commanderClimb(w) : hpScale(w);
   return Math.round(d.hp * (d.hpMult || 1) * ERAS[curEra].hpMult * climb * levelHpMult(type) *
-    DIFFS[curDiff][boss ? "cmd" : "hp"] * tutorialHp(w, gentle));
+    DIFFS[curDiff][boss ? "cmd" : "hp"] * tutorialHp(w, gentle) * levelHpFrom(type, w));
+}
+// L.hpFrom = { wave, mult }: the rank and file stand mult times stronger from that wave on (Erebuni's knob, so its
+// coached first waves keep their strength)
+function levelHpFrom(type, w) {
+  const H = LEVELS[curLevel].hpFrom;
+  return H && type !== "boss" && w >= H.wave ? (byDiff(H.mult) || 1) : 1;
 }
 function foeArmor(d) { return d.armor + (d.armorAdd || 0); }
 function foeSpeed(d) { return d.spd * (d.spdMult || 1); }
-function foeBounty(d, w) { return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(w))); }
+function foeBounty(d, w) { return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(w) * (trickEcon("bounty") || 1))); }
+// a battlefield's economy knob (L.tricks.econ: gold added at the start, bounty multiplied), or null
+function trickEcon(k) { const T = levelTricks(); return T && T.econ ? byDiff(T.econ[k]) : null; }
 // the phase of a battlefield's assault that wave w belongs to (Ani's Testament: L.phases, each from its first
 // wave), or null
 function levelPhase(w) {
@@ -9599,6 +10466,9 @@ function activeRoutes(w) {
   const L = LEVELS[curLevel], ph = levelPhase(w);
   if (ph && ph.routes) return ph.routes;
   if (L.routeOpen) return ROUTES.map((_, k) => k).filter(k => !(L.routeOpen[k] > w));
+  // the ambush road is never in the turns: only the queue entries wavePlan sends down it take it
+  const amb = ambushRoute();
+  if (amb >= 0) return ROUTES.map((_, k) => k).filter(k => k !== amb);
   return null;
 }
 // what a battlefield says on wave w: a phase's or a road's banner (main, sub) and a line for the toast
@@ -9608,7 +10478,7 @@ function levelWaveText(w) {
 }
 // the wave a battlefield's outflankers were last heard riding in on (L.flank.cue)
 let flankHeard = 0;
-function spawnEnemy(type) {
+function spawnEnemy(type, q) {
   const d = eraUnit(type);
   const hp = foeHp(type, d, waveIdx);
   const e = {
@@ -9618,8 +10488,12 @@ function spawnEnemy(type) {
     slowTimer: 0, slowFactor: 1, stunT: 0, staggerT: 0, burnDps: 0, burnT: 0, pots: null, flash: 0,
     wobble: Math.random() * Math.PI * 2,
   };
-  const roads = activeRoutes(waveIdx);   // forked maps split the horde (over the roads now open)
-  e.route = roads ? roads[spawnSeq++ % roads.length] : spawnSeq++ % ROUTES.length;
+  // an entry sent down the ambush road (wavePlan) takes it and leaves the main roads' turns as they were
+  if (q && q.road != null && ROUTES[q.road]) e.route = q.road;
+  else {
+    const roads = activeRoutes(waveIdx);   // forked maps split the horde (over the roads now open)
+    e.route = roads ? roads[spawnSeq++ % roads.length] : spawnSeq++ % ROUTES.length;
+  }
   if (type === "flyer" || d.flies) {
     // a battlefield's outflankers may ride in from a corner of their own (Ani's raiders: L.flank.entry)
     const flank = type === "flyer" && LEVELS[curLevel].flank;
@@ -9650,7 +10524,10 @@ function spawnEnemy(type) {
     }
   }
   if (type === "ram") e.mechT = 0;
+  applyTrickToFoe(e, q, d);
   enemies.push(e);
+  if (q && q.road != null && q.road === ambushRoute()) ambushOpens(e);
+  trickFoeSpawned(e);
 }
 let spawnSeq = 0;
 // a road opening on its wave (Mari's other road): { route, t }, the seconds its dust still runs down it
@@ -9679,6 +10556,7 @@ function towerWorth(t) {
 function droneTarget() {
   let best = null, bv = -1;
   for (const t of towers) {
+    if (t.wreck) continue;
     const v = towerWorth(t) + (t.dmgDone || 0) * 1e-6;
     if (v > bv) { bv = v; best = t; }
   }
@@ -9689,7 +10567,7 @@ function droneTarget() {
 function radarTarget() {
   let best = null, bv = -1;
   for (const t of towers) {
-    if (towerSkin(t.type) !== "airdefense") continue;
+    if (towerSkin(t.type) !== "airdefense" || t.wreck) continue;
     const v = towerWorth(t) + (t.dmgDone || 0) * 1e-6;
     if (v > bv) { bv = v; best = t; }
   }
@@ -9699,8 +10577,9 @@ const DRONE_KNOCKOUT = 7;
 let droneWarned = false;
 // a drone reaches its tower t: the tower is knocked out for some seconds, burning, and the drone is spent
 function droneStrike(t) {
-  if (!towers.includes(t)) return false;
+  if (!towers.includes(t) || t.wreck) return false;
   t.stunnedT = Math.max(t.stunnedT || 0, DRONE_KNOCKOUT);
+  powerHurt(t, "drone");
   t.burnFx = DRONE_KNOCKOUT;
   shakeFort = Math.max(shakeFort, 0.4);
   Snd.play("rocketHit", { x: t.x });
@@ -9729,6 +10608,7 @@ function flyPos(e) {
 }
 function enemyPos(e) {
   if (e.pin) return e.pin;
+  if (e.off) return e.off;   // a tower hunter off its road
   const p = e.fly ? flyPos(e) : routeAt(e.route || 0, e.dist);
   return e.orbit ? orbitPos(p, e.orbit) : p;
 }
@@ -9773,6 +10653,8 @@ function endWaveIfClear() {
   if (phase === "wave" && spawnQueue.length === 0 && enemies.length === 0) {
     phase = "idle";
     lastCleared = waveIdx;
+    mendTowers();
+    const adaptMsg = adaptStep();
     const bonus = 25 + waveIdx * 3;
     const interest = Math.min(60, Math.floor(gold * 0.05));   // war chest pays out
     gold += bonus + interest;
@@ -9781,6 +10663,10 @@ function endWaveIfClear() {
     toast("Wave " + waveIdx + " repelled! +" + bonus + " gold" +
       (interest > 0 ? " · +" + interest + " interest" : ""));
     waveRepelledCue();
+    if (adaptMsg) {
+      trickToastLater(adaptMsg, 1900);
+      Snd.play(eraAge(curEra) < 4 ? "kettle" : "uiTick", { vol: 0.4 });
+    }
     if (auto) autoT = 3.5;
     saveRun();
     syncHud();
@@ -10046,6 +10932,7 @@ function leakFoe(e, quiet) {
   const lost = Math.min(lives, e.dmg), road = leakRoad(e);
   const r = leaks[e.type] || (leaks[e.type] = { n: 0, lost: 0, roads: {} });
   r.n++; r.lost += lost; r.roads[road] = (r.roads[road] || 0) + lost;
+  bookTrickLeak(e, lost);
   lives -= lost;
   if (!quiet) { shakeFort = 1; Snd.play("leak", { x: FORT.x }); }
   livesHit(lost);
@@ -10102,6 +10989,7 @@ function dangerTick(dt) {
 // left and the right), and an outflanker's way off the road, "by air" in the age of aircraft
 function roadTitle(key) {
   const i = Number(key) || 0;
+  if (i === ambushRoute() && ROUTES[i]) return LEVELS[curLevel].tricks.ambush.name;
   if (ROUTES.length < 2) return "the road";
   if (!ROUTES[i]) return "a road";   // a road this battlefield no longer has
   if (ROUTES.length > 2) return "road " + (i + 1);
@@ -10293,6 +11181,7 @@ function placeTower(type, padIdx) {
     buffHaste: 0, buffMight: 0,
     prio: "first", kills: 0, dmgDone: 0, placedAt: performance.now(),
   });
+  towerInitHp(towers[towers.length - 1]);
   Snd.play("build", { x, type, skin: skinDrawn(towerSkin(type)) });
   saveRun();
   syncHud();
@@ -10300,11 +11189,12 @@ function placeTower(type, padIdx) {
 
 function upgradeTower(t) {
   const def = TOWER_DEFS[t.type];
-  if (t.spec || t.level >= def.levels.length - 1) return;
+  if (t.spec || t.level >= def.levels.length - 1 || t.wreck) return;
   const cost = def.levels[t.level + 1].cost;
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost);
   t.level++;
+  towerSyncHp(t);
   Snd.play("upgrade", { x: t.x });
   saveRun();
   syncHud();
@@ -10313,11 +11203,12 @@ function upgradeTower(t) {
 
 function specializeTower(t, key) {
   const def = TOWER_DEFS[t.type];
-  if (t.spec || t.level < def.levels.length - 1) return;
+  if (t.spec || t.level < def.levels.length - 1 || t.wreck) return;
   const spec = specInfo(t.type, key);
   if (gold < spec.cost) { needGold(spec.cost); return; }
   spendGold(spec.cost);
   t.spec = key;
+  towerSyncHp(t);
   Snd.play("upgrade", { x: t.x });
   toast(spec.name + "!");
   saveRun();
@@ -10348,7 +11239,8 @@ function fireTowerShot(t, target, dmgMult) {
   const dmg = Math.round(st.dmg * dmgMult);
   const art = skinArt(t.type), kind = (art && art.proj) || def.proj;
   if (kind === "stone") {
-    const tp = routeAt(target.route || 0, target.dist + target.speed * paceOf(target) * 0.9);
+    // a foe off the road (a tower hunter) is aimed at where it stands
+    const tp = target.off ? enemyPos(target) : routeAt(target.route || 0, target.dist + target.speed * paceOf(target) * 0.9);
     projectiles.push({
       kind: "stone", x: t.x, y: t.y - 26, sx: t.x, sy: t.y - 26, tx: tp.x, ty: tp.y,
       t: 0, dur: 0.9, dmg, splash: st.splash, src: t, stagger: st.stagger || 0,
@@ -10384,9 +11276,12 @@ function armorCut(dmg, armor) { return Math.max(dmg * ARMOR_FLOOR, dmg - armor);
 function armorHit(dmg, armor, pierce) { return pierce ? dmg : armorCut(dmg, armor); }
 
 function damageEnemy(e, dmg, pierce, src) {
-  const eff = armorHit(dmg, e.armor, pierce);
+  // a guard against the striking tower's slot cuts the blow after armor (slotMult); hero and spells have no slot
+  const slot = src && TOWER_DEFS[src.type] ? src.type : null;
+  const eff = armorHit(dmg, e.armor, pierce) * slotMult(e, slot);
   e.hp -= eff;
-  if (src) { src.dmgDone = (src.dmgDone || 0) + eff; e.lastHit = src; }
+  if (src) { src.dmgDone = (src.dmgDone || 0) + eff; e.lastHit = src; bookAdapt(slot, eff); }
+  if (e.hid) revealFoe(e);
   e.flash = 0.1;
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
   if (src && Snd.ctx) {
@@ -10401,7 +11296,8 @@ function update(dt) {
   if (phase === "wave") {
     waveTime += dt;
     while (spawnQueue.length && spawnQueue[0].t <= waveTime) {
-      spawnEnemy(spawnQueue.shift().type);
+      const q = spawnQueue.shift();
+      spawnEnemy(q.type, q);
     }
   }
 
@@ -10430,11 +11326,11 @@ function update(dt) {
     }
   }
   for (const d of towers) {
-    if (d.type !== "drums") continue;
+    if (d.type !== "drums" || d.wreck) continue;   // a wrecked drum gives no aura
     const st = getStats(d);
     d.beat += dt * 3.2;
     for (const t of towers) {
-      if (t === d || t.type === "drums") continue;   // fire altars too: might feeds the burn, haste the stun
+      if (t === d || t.type === "drums" || t.wreck) continue;   // fire altars too: might feeds the burn, haste the stun
       if (inGroundRange(d.x, d.y, t.x, t.y, st.range)) {
         t.buffHaste = Math.max(t.buffHaste, st.haste);
         t.buffMight = Math.max(t.buffMight, st.might);
@@ -10444,11 +11340,11 @@ function update(dt) {
 
   // fire altars
   for (const t of towers) {
-    if (t.type !== "fire") continue;
+    if (t.type !== "fire" || t.wreck) continue;
     const st = getStats(t);
     t.flame += dt * 6;
     if (st.nova) {
-      t.novaT += dt * (1 + t.buffHaste);
+      t.novaT += dt * (1 + t.buffHaste) * towerPace(t);
       if (t.novaT >= st.nova) {
         t.novaT = 0;
         t.novaFx = 1;
@@ -10471,9 +11367,12 @@ function update(dt) {
         burning = true;
         e.slowTimer = 0.35;
         e.slowFactor = Math.min(e.slowFactor, 1 - st.slow);
-        const burn = st.burn * (1 + t.buffMight);
-        e.hp -= burn * dt;
-        t.dmgDone = (t.dmgDone || 0) + burn * dt;
+        // its burn ignores armor; a guard against the fire slot cuts it, and it burns a tower hunter pitch times as hard
+        const burn = st.burn * (1 + t.buffMight) * dt * slotMult(e, t.type) * (e.hunt ? TRICK_RULES.hunters.pitch : 1);
+        e.hp -= burn;
+        t.dmgDone = (t.dmgDone || 0) + burn;
+        bookAdapt(t.type, burn);
+        if (e.hid) revealFoe(e);
         e.lastHit = t;
         if (Math.random() < dt * 8) {
           particles.push({ x: p.x + (Math.random() - .5) * 12, y: p.y - 10, vx: 0, vy: -26, life: 0.5, color: mote, size: 3 });
@@ -10484,6 +11383,8 @@ function update(dt) {
   }
 
   if (roadCall) roadCallTick(dt);
+  ambushTellTick(dt);
+  if (ambushPuffs.length) ambushPuffTick(dt);
   // enemies
   for (const e of enemies) {
     e.slowTimer -= dt;
@@ -10491,6 +11392,7 @@ function update(dt) {
     if (e.orbit) stepOrbit(e, dt);
     if (e.stunT > 0) e.stunT -= dt;
     if (e.staggerT > 0) e.staggerT -= dt;
+    if (e.shieldDownT > 0) e.shieldDownT -= dt;
     if (e.flash > 0) e.flash -= dt;
     // the fire a lightning strike leaves (burnT), and each pot of pitch on the foe, every pot on its own timer
     let alight = false;
@@ -10501,9 +11403,10 @@ function update(dt) {
     }
     if (e.pots && e.pots.length) {
       for (let i = e.pots.length - 1; i >= 0; i--) {
-        const q = e.pots[i], d = q.dps * Math.min(dt, q.t);
+        // a pot's burn is its catapult's, for a guard and for the adaptive enemy
+        const q = e.pots[i], d = q.dps * Math.min(dt, q.t) * slotMult(e, q.src && q.src.type);
         e.hp -= d;
-        if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; }
+        if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; bookAdapt(q.src.type, d); }
         if ((q.t -= dt) <= 0) e.pots.splice(i, 1);
       }
       alight = true;
@@ -10531,7 +11434,9 @@ function update(dt) {
           if (e.mechT >= ERA_POWER.trumpet.every) { e.mechT = 0; elephantTrumpet(e); }
           break;
         case "smoke":
-          // the ladder party lights a smoke pot whenever it comes up under a tower
+          // the ladder party lights a smoke pot whenever it comes up under a tower, but none while it is off the road
+          // hunting one (its neighbors would be blinded and nothing could stop it)
+          if (e.off) break;
           e.mechT += dt;
           if (e.mechT >= 0) {
             const p = enemyPos(e);
@@ -10563,8 +11468,11 @@ function update(dt) {
     const blocked = hero && hero.alive && hero.engaged.includes(e);
     // a sapper party under its mantlet stands while it digs; foes the kettle-drums quicken walk faster
     const moveMult = e.stunT > 0 || blocked || e.digT > 0 ? 0 : e.hasteT > 0 ? paceOf(e) * (1 + ERA_POWER.drums.haste) : paceOf(e);
-    e.dist += e.speed * moveMult * dt;
-    e.wobble += dt * (e.type === "cavalry" ? 13 : 9) * (moveMult > 0 || e.orbit ? 1 : 0.2);
+    // a tower hunter off the road walks its own way (hunterStep)
+    if (!(e.hunt && hunterStep(e, dt, moveMult))) {
+      e.dist += e.speed * moveMult * dt;
+      e.wobble += dt * (e.type === "cavalry" ? 13 : 9) * (moveMult > 0 || e.orbit ? 1 : 0.2);
+    }
     // walking dust
     if (moveMult > 0 && Math.random() < dt * 2.2) {
       const p = enemyPos(e);
@@ -10611,20 +11519,25 @@ function update(dt) {
   }
   enemies = enemies.filter(e => !e.dead);
 
+  // hidden scouts: what the watch towers and the hero see this tick
+  trickRevealTick(dt);
   // shooting towers
   for (const t of towers) {
     const def = TOWER_DEFS[t.type];
-    if (!def.proj) continue;
+    if (!def.proj || t.wreck) continue;
     if (t.stunnedT > 0) continue;
     t.cd -= dt;
     if (t.cd > 0) continue;
     const st = getStats(t);
     const dmgMult = 1 + t.buffMight;
-    const rate = st.rate / (1 + t.buffHaste);
+    // a damaged or failing tower reloads slower (towerPace)
+    const rate = st.rate / (1 + t.buffHaste) / towerPace(t);
     const rangeMult = towerInSmoke(t) ? ERA_POWER.smoke.sight : 1;   // smoke blinds the towers inside it
     const inR = [];
     for (const e of enemies) {
       if (e.fly && !def.air) continue;        // lobbed stones cannot find men in broken ground
+      // a hidden scout no one has seen, and a hunter at the tower's own foot, cannot be aimed at
+      if (foeUnseen(e) || inDeadGround(t, e)) continue;
       const p = enemyPos(e);
       if (inGroundRange(t.x, t.y, p.x, p.y, st.range * rangeMult + e.r)) inR.push(e);
     }
@@ -10656,6 +11569,8 @@ function update(dt) {
           if (inGroundRange(pr.tx, pr.ty, p.x, p.y, pr.splash + e.r)) {
             damageEnemy(e, pr.dmg, false, pr.src);
             if (pr.stagger) e.staggerT = Math.max(e.staggerT || 0, pr.stagger);
+            // a stone's blow knocks a shield guard aside while the foe reels, and for dropS after
+            if (pr.stagger && e.guardDrop) e.shieldDownT = Math.max(e.shieldDownT || 0, pr.stagger + TRICK_RULES.guard.dropS);
             // burning pitch clings: each pot burns for its own burnDur, and up to BURN_STACKS pots burn on one
             // foe at once; a pot past that rekindles the one nearest to going out
             if (pr.burnHit) {
