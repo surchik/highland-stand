@@ -212,9 +212,9 @@
     position: absolute; display: grid; place-items: center; border-radius: 50%; background: #3d4a55;
     box-shadow: 0 0 0 1px #cf9c40, 0 0 0 2px rgba(20,14,8,.85);
   }
-  #waveInfo .chip:has(.mk.gd), #waveInfo:has(.chip:nth-child(8)) .chip:has(.mk.gd) { padding-right: 15px; }
-  .chip .mk.gd { right: 1px; bottom: 2px; width: 13px; height: 13px; }
-  .chip .mk.gd .ic { width: 10px; height: 10px; color: #fff0c8; filter: none; }
+  #waveInfo .chip:has(.mk.gd), #waveInfo:has(.chip:nth-child(8)) .chip:has(.mk.gd) { padding-right: 18px; }
+  .chip .mk.gd { right: 1px; bottom: 1px; width: 16px; height: 16px; }
+  .chip .mk.gd .ic { width: 12px; height: 12px; color: #fff0c8; filter: none; }
   .chip .mk.gd.ad { background: #5a1f18; box-shadow: 0 0 0 1px #e8553a, 0 0 0 2px rgba(20,14,8,.85); }
   .briefHost .disc .mk.gd { left: -6px; bottom: -5px; width: 19px; height: 19px; }
   .briefHost .disc .mk.gd .ic { width: 13px; height: 13px; color: #fff0c8; }
@@ -575,7 +575,9 @@
   #trickCard dd { margin: 1px 0 0; color: var(--parch); }
   #trickCard .tcLore { margin-top: 11px; padding: 1px 0 1px 9px; border-left: 2px solid var(--crimson); font-style: italic; font-size: 13px; color: #eadfc4; }
   #trickCard .tcSec + .tcSec { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(240,207,133,.25); }
-  #trickCard #tcBtn { display: block; margin: 14px auto 0; min-height: 46px; min-width: 160px; padding: 10px 26px; font-size: 16px; }
+  /* the button sticks to the card's foot, so a long card (two sections, a short window) never hides it below the fold */
+  #trickCard #tcBtn { display: block; margin: 14px auto 0; min-height: 46px; min-width: 160px; padding: 10px 26px; font-size: 16px;
+    position: sticky; bottom: 2px; z-index: 1; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 -6px 16px 6px rgba(28,20,12,.85); }
   /* the tower panel: Repair beside Sell, a ruin's Clear, a hurt tower's strength in red */
   #panel .row2 { display: flex; gap: 6px; }
   #panel .row2 .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
@@ -3069,7 +3071,7 @@ const LEVELS = [
       "Theodoros Rshtuni used the island of Aghtamar in Lake Van as his seat and refuge.",
       "Manuk Abeghian and other scholars saw the memory of Theodoros Rshtuni in Uncle Toros (K'eri T'oros) of the Armenian epic of David of Sasun.",
       "Early Armenian writers almost always spelled the city's name Duin; later authors favored Dvin.",
-      "The history attributed to Sebeos says the raiders drove the defenders from the ramparts with smoke and arrows, then set up ladders and climbed the walls.",
+      "The history attributed to Sebeos says the attackers drove the defenders from the ramparts with smoke and arrows, then set up ladders and climbed the walls.",
     ],
     paths: [
       [[-420, 200], [260, 200], [260, 380], [560, 380], [560, 180], [880, 180], [880, 400], [1120, 400]],
@@ -8785,7 +8787,7 @@ const ADAPT_ROLES = new Set(["spearman", "raider", "shield", "cavalry"]);
 // what an adapted guard is called, by the age (eraAge): against the archer, ballista, catapult and fire slot
 const GUARD_LOOKS = [
   { upTo: 4, names: { archer: "Raised shields", ballista: "Mantlets", catapult: "Open order", fire: "Wet hides" } },
-  { upTo: 5, names: { archer: "Mantlets", ballista: "Gabions", catapult: "Open order", fire: "Wet hides" } },
+  { upTo: 5, names: { archer: "Fascines", ballista: "Gabions", catapult: "Open order", fire: "Wet hides" } },
   { upTo: 6, names: { archer: "Advance by rushes", ballista: "Dispersed lines", catapult: "Open order", fire: "Wire cutters" } },
   { upTo: 99, names: { archer: "Body armor", ballista: "Decoys", catapult: "Dispersal", fire: "Mine clearing" } },
 ];
@@ -8912,8 +8914,10 @@ function wavePlan(w, live) {
     const mid = w === A.from ? (byDiff(A.mid) || 0) * lastT : -1;
     // on the opening wave the first eligible foe from mid on takes it, so the alarm sounds on the wave told
     let acc = w === A.from ? 1 - share : 0;
+    // never a commander, an outflanker or a siege engine (a war elephant or a ram keeps to the main road: one that drew
+    // the quiet road would cost three defenders at a stroke)
     for (const q of out) {
-      if (q.t < mid || q.type === "boss" || q.type === "flyer") continue;
+      if (q.t < mid || q.type === "boss" || q.type === "flyer" || q.type === "ram") continue;
       if (A.scoutsOnly ? q.trick !== "hidden" : q.trick) continue;
       acc += share;
       if (acc >= 1 - 1e-9) { acc -= 1; q.road = k; }
@@ -10791,6 +10795,7 @@ function endWaveIfClear() {
       trickToastLater(adaptMsg, 1900);
       Snd.play(eraAge(curEra) < 4 ? "kettle" : "uiTick", { vol: 0.4 });
     }
+    flankToast();
     if (auto) autoT = 3.5;
     saveRun();
     syncHud();
@@ -22558,6 +22563,7 @@ function draw(time) {
     objs.push({ y: p.y, fn: () => drawEnemy(e, p) });
     if (e.hold === "barricade" && e.stunT > 0) objs.push({ y: p.y + 0.5, fn: () => drawBarricadeHold(e, p) });
   }
+  drawFlankLines(time);
   objs.sort((a, b) => a.y - b.y);
   for (const o of objs) o.fn();
 
@@ -44230,6 +44236,90 @@ function drawAmbushPuffs(time) {
     }
   }
 }
+// ---- the outflankers' way (a tell, not a trick) ----
+// Outflankers leave the road where they enter and cross straight to the walls (by way of the water where it lies near
+// their line; spawnEnemy). Until the stand has sent its second wave of them, a dotted line on the field shows that way
+// from each road they come by, so a first stand can build its archers and ballistae on it in time; the wave before
+// the first brings a toast (flankToast). Drones hunt towers, not the walls, and get none
+function flankWaves() {
+  const out = [];
+  for (let w = 1; w <= TOTAL_WAVES && out.length < 2; w++) if (waveGroups(w).some(g => g.type === "flyer")) out.push(w);
+  return out;
+}
+let flankCache = null;
+function flankPaths() {
+  if (!battleLive() || tut || droneWar() || endless || celebration) return null;
+  const key = curLevel + ":" + curDiff + ":" + waveIdx + ":" + phase;
+  if (flankCache && flankCache.key === key && flankCache.routes === ROUTES) return flankCache.paths;
+  const F = flankWaves(), last = F[F.length - 1];
+  let paths = null;
+  if (F.length && (waveIdx < last || (waveIdx === last && phase === "wave"))) {
+    const w = F.find(x => x >= waveIdx + (phase === "wave" ? 0 : 1)) || last, flank = LEVELS[curLevel].flank;
+    const roads = (activeRoutes(w) || ROUTES.map((R, k) => k)).filter(k => ROUTES[k] && !ROUTES[k].track && k !== ambushRoute());
+    const entries = flank && flank.entry ? [flank.entry] : roads.map(k => ROUTES[k].pts[0]);
+    paths = [];
+    for (const en of entries) {
+      if (paths.some(P => P[0][0] === en[0] && P[0][1] === en[1])) continue;
+      const x0 = en[0], y0 = en[1], x1 = FORT.x, y1 = FORT.y + 35, pts = [[x0, y0]];
+      if (LAKE) {
+        const mx = LAKE.x + LAKE.rx * 0.35, my = LAKE.y - LAKE.ry * 0.2;
+        if (Math.hypot(mx - x0, my - y0) + Math.hypot(x1 - mx, y1 - my) < Math.hypot(x1 - x0, y1 - y0) * 1.3) pts.push([mx, my]);
+      }
+      pts.push([x1, y1]);
+      paths.push(pts);
+    }
+  }
+  flankCache = { key, routes: ROUTES, paths };
+  return paths;
+}
+// the line: dots marching toward the walls, brighter while the field is quiet, and a chevron near its end
+function drawFlankLines(time) {
+  const P = flankPaths();
+  if (!P || !P.length) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  const a = (phase === "idle" ? 0.95 : 0.6) * (0.85 + 0.15 * Math.sin(time * 0.004));
+  for (const pts of P) {
+    ctx.beginPath();
+    let first = true, tail = null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 24));
+      for (let j = i ? 1 : 0; j <= n; j++) {
+        const q = proj(ax + (bx - ax) * j / n, ay + (by - ay) * j / n);
+        if (first) { ctx.moveTo(q.x, q.y); first = false; } else ctx.lineTo(q.x, q.y);
+      }
+      if (i === pts.length - 2) tail = [proj(ax + (bx - ax) * 0.8, ay + (by - ay) * 0.8), proj(ax + (bx - ax) * 0.86, ay + (by - ay) * 0.86)];
+    }
+    ctx.setLineDash([8, 9]);
+    ctx.lineDashOffset = -time * 0.02;
+    ctx.strokeStyle = "rgba(24, 14, 6, " + (0.6 * a).toFixed(3) + ")";
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 236, 190, " + a.toFixed(3) + ")";
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    if (tail) {
+      const [u, v] = tail, ang = Math.atan2(v.y - u.y, v.x - u.x), r = 14 * v.s;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(v.x - Math.cos(ang - 0.6) * r, v.y - Math.sin(ang - 0.6) * r);
+      ctx.lineTo(v.x, v.y);
+      ctx.lineTo(v.x - Math.cos(ang + 0.6) * r, v.y - Math.sin(ang + 0.6) * r);
+      ctx.strokeStyle = "rgba(24, 14, 6, " + (0.6 * a).toFixed(3) + ")"; ctx.lineWidth = 7; ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 236, 190, " + a.toFixed(3) + ")"; ctx.lineWidth = 3.5; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+// the wave before the stand's first outflankers: what the line is, once a stand
+function flankToast() {
+  const F = flankWaves();
+  if (!F.length || waveIdx + 1 !== F[0] || trickStand.flankTold || tut || droneWar()) return;
+  trickStand.flankTold = true;
+  const u = eraUnit("flyer"), fl = foeFlies("flyer", u);
+  trickToastLater(u.name + " next wave: they " + (fl ? "fly" : "leave the road and cross") + " along the dotted line to your walls. Only your " +
+    towerName("archer") + " and " + towerName("ballista") + " reach them.", 2600);
+}
 // the hunters' tell: a dashed red line from each hunter to the tower it has chosen, and a red ring pulsing on that
 // tower's pad until the job ends
 function drawHuntLines(time) {
@@ -52933,6 +53023,7 @@ function showDueCard(due) {
 let trickCardTest = false;
 function trickCardsQuiet() { return HARNESS_ON && !trickCardTest; }
 function trickCardTick() {
+  if (scoutRingPad >= 0 && !scoutBubble && (phase !== "idle" || !battleLive() || towerAt(scoutRingPad))) dropScoutRing();
   if (trickCardsQuiet() || photo || trickCardOn || scoutBubble || !battleLive() || paused || coachFreeze() || phase !== "idle") return;
   if (waveIdx >= TOTAL_WAVES && !endless) return;
   const due = trickCardsDue(waveTrickKeys(waveIdx + 1));
@@ -52967,18 +53058,40 @@ document.addEventListener("keydown", (e) => {
 let scoutBubble = null;   // { pad } while it shows
 function scoutBubblePad() {
   const reach = watchReach({ type: trickWatch()[0], level: 0, spec: null });
-  let best = -1, bv = -1;
-  PADS.forEach((p, i) => {
-    if (towerAt(i)) return;
+  // the road seen from pad p, from share `from` of each road on to its end
+  const sees = (p, from) => {
     let n = 0;
     for (const R of ROUTES) {
       if (R.track) continue;
       const k = ROUTES.indexOf(R);
-      for (let d = R.len * 0.6; d <= R.len; d += 12) { const q = routeAt(k, d); if (inGroundRange(p[0], p[1], q.x, q.y, reach)) n++; }
+      for (let d = R.len * from; d <= R.len; d += 12) { const q = routeAt(k, d); if (inGroundRange(p[0], p[1], q.x, q.y, reach)) n++; }
     }
-    if (n > bv) { bv = n; best = i; }
-  });
+    return n;
+  };
+  // the free pad that watches most of the road's last stretch; when the pads that do are taken, the one that
+  // watches most of the road; none (no ring) if no free pad sees the road at all
+  let best = -1;
+  for (const from of [0.6, 0]) {
+    let bv = 0;
+    PADS.forEach((p, i) => { if (towerAt(i)) return; const n = sees(p, from); if (n > bv) { bv = n; best = i; } });
+    if (best >= 0) break;
+  }
   return best;
+}
+// the ringed pad stays ringed after "Got it" until the next wave starts or a tower stands on it
+let scoutRingPad = -1;
+function ringScoutPad(i) {
+  scoutRingPad = i;
+  if (i < 0 || !coachRing) { if (coachRing) coachRing.classList.remove("on"); return; }
+  const p = PADS[i], c = tutScreen(p[0], p[1], 6), rr = Math.max(18, 34 * c.s);
+  coachRing.classList.add("on");
+  coachRing.style.left = (c.x - rr) + "px"; coachRing.style.top = (c.y - rr) + "px";
+  coachRing.style.width = coachRing.style.height = (2 * rr) + "px";
+}
+function dropScoutRing() {
+  if (scoutRingPad < 0) return;
+  scoutRingPad = -1;
+  if (coachRing && !scoutBubble) coachRing.classList.remove("on");
 }
 function showScoutBubble() {
   buildCoach();
@@ -52987,8 +53100,11 @@ function showScoutBubble() {
   scoutBubble = { pad: scoutBubblePad() };
   coachEl.querySelector(".cStep").textContent = "Hidden scouts";
   coachEl.querySelector(".cSkip").style.display = "none";
-  coachEl.querySelector(".cText").innerHTML = "<b>Hidden scouts.</b> Etiuni scouts creep through the scrub, and your towers cannot aim at what they cannot see. Build a <b>" +
-    escapeHtml(towerName(trickWatch()[0])) + "</b> near the road: its light reveals them within its reach. Your hero reveals them too.";
+  // a watch tower already standing: the bubble says so, and rings a pad for a second one near the road's end
+  const wt = towerName(trickWatch()[0]), stands = towers.some(t => !t.wreck && trickWatch().includes(t.type));
+  coachEl.querySelector(".cText").innerHTML = "<b>Hidden scouts.</b> Etiuni scouts creep through the scrub, and your towers cannot aim at what they cannot see. " +
+    (stands ? "Your <b>" + escapeHtml(wt) + "</b> " + plural(wt, "reveals", "reveal") + " them within its reach: keep one near the road, close to your walls."
+      : "Build a <b>" + escapeHtml(wt) + "</b> near the road: its light reveals them within its reach.") + " Your hero reveals them too.";
   const nb = coachEl.querySelector(".cNext");
   nb.textContent = "Got it"; nb.style.display = "";
   coachEl.querySelector(".cFoot").style.display = "";
@@ -53006,12 +53122,7 @@ function placeScoutBubble() {
   const tile = document.querySelector('#shop .card[data-type="' + trickWatch()[0] + '"]');
   const r = tile.getBoundingClientRect();
   haloOn([tile]);
-  if (scoutBubble.pad >= 0) {
-    const p = PADS[scoutBubble.pad], c = tutScreen(p[0], p[1], 6), rr = Math.max(18, 34 * c.s);
-    coachRing.classList.add("on");
-    coachRing.style.left = (c.x - rr) + "px"; coachRing.style.top = (c.y - rr) + "px";
-    coachRing.style.width = coachRing.style.height = (2 * rr) + "px";
-  }
+  ringScoutPad(scoutBubble.pad);
   placeCoach({ l: r.left, t: r.top, r: r.right, b: r.bottom }, ["above", "right", "left", "below"]);
 }
 function closeScoutBubble() {
@@ -53020,18 +53131,19 @@ function closeScoutBubble() {
   markTrickSeen("hidden");
   coachEl.classList.remove("on");
   coachEl.querySelector(".cSkip").style.display = "";
-  coachRing.classList.remove("on");
+  if (scoutRingPad < 0) coachRing.classList.remove("on");   // the pad's ring stays until the wave (dropScoutRing)
   for (const h of coachHalos) h.style.display = "none";
   Snd.play("mapSelect");
   const seen = tricksSeen();
   trickCardQ = trickCardQ.filter(k => !seen.includes(k));
   if (trickCardQ.length && battleLive()) showDueCard(trickCardQ);
 }
-window.addEventListener("resize", () => { if (scoutBubble) placeScoutBubble(); });
+window.addEventListener("resize", () => { if (scoutBubble) placeScoutBubble(); else if (scoutRingPad >= 0) ringScoutPad(scoutRingPad); });
 // leaving the battle takes the card and the bubble with it (resetGame)
 function dropTrickCards() {
   if (trickCardOn) { trickCardOn = null; trickCardEl.classList.remove("on"); }
   trickCardQ = [];
+  dropScoutRing();
   if (scoutBubble) {
     scoutBubble = null;
     if (coachEl) { coachEl.classList.remove("on"); coachEl.querySelector(".cSkip").style.display = ""; }
@@ -53176,7 +53288,7 @@ function foeTrickBits(role, w, from, trick) {
     const st = plan.filter(q => q.guard && !q.adapted), ad = plan.filter(q => q.adapted);
     if (st.length) {
       const g = (trickCfg("guards") || []).find(x => x.role === role && x.vs === st[0].guard) || {};
-      out.badges.push({ k: "guard", ic: "rshield", label: st[0].gname });
+      out.badges.push({ k: "guard", ic: "shield", label: st[0].gname });
       out.lines.push({ ic: slotIcon(st[0].guard), text: guardLine(st[0].guard, byDiff(TRICK_RULES.guard.mult), st[0].gdrop) });
       if (!out.lore) out.lore = loreSentence(g.lorePhrase);
     }
@@ -53188,7 +53300,7 @@ function foeTrickBits(role, w, from, trick) {
   } else {
     for (const g of trickCfg("guards") || []) {
       if (g.role !== role) continue;
-      out.badges.push({ k: "guard", ic: "rshield", label: g.name });
+      out.badges.push({ k: "guard", ic: "shield", label: g.name });
       out.lines.push({ ic: slotIcon(g.vs), text: "From wave " + g.from + ": " + guardLine(g.vs, byDiff(TRICK_RULES.guard.mult), g.drop) });
       if (!out.lore) out.lore = loreSentence(g.lorePhrase);
     }
@@ -53217,9 +53329,11 @@ function briefTrickRow() {
     hunters: w => "Tower hunters from wave " + w,
     guards: w => ((G && G[0] && G[0].name) || "Shields") + " from wave " + w,
     ambush: w => "Ambush road from wave " + w,
-    adapt: w => "The enemy adapts from wave " + w,
+    adapt: w => "The enemy may adapt from wave " + w,
   };
-  const keys = ["hidden", "hunters", "guards", "ambush", "adapt"].filter(k => first[k]);
+  // in the order they come (a tie keeps the card order)
+  const order = ["hidden", "hunters", "guards", "ambush", "adapt"];
+  const keys = order.filter(k => first[k]).sort((a, b) => first[a] - first[b] || order.indexOf(a) - order.indexOf(b));
   el.innerHTML = keys.map(k => '<button type="button" class="tbg" data-trick="' + k + '">' + icon(TRICK_ICON[k]) + escapeHtml(label[k](first[k])) + "</button>").join("");
   el.setAttribute("aria-label", "This battlefield's tricks on " + DIFFS[curDiff].name);
   return keys.length > 0;
@@ -53365,9 +53479,11 @@ function foeCounters(role, u) {
       if (fast && !off && lv0.stagger) why.push("a hit slows it by " + foePct(1 - STAGGER_PACE) + " for " + lv0.stagger + "–" + top.stagger + "s");
       if (def.pierce && armor >= FOE_ARMORED) why.push(antiAir(type) ? "its hits ignore armor" : "pierces its armor");
       if (!def.pierce) {
-        // the armour floor can leave a fraction of a blow; the card gives it to the nearest whole point
-        const a = Math.round(armorHit(lv0.dmg, armor, false)), b = Math.round(armorHit(top.dmg, armor, false));
-        const hits = "hits of " + lv0.dmg + "–" + top.dmg + " land as " + a + "–" + b;
+        // the armour floor can leave a fraction of a blow; the card gives it to the nearest whole point. A shield
+        // this battlefield's foes of the role carry against the slot cuts it again, as its trick line says
+        const G = (trickCfg("guards") || []).find(g => g.role === role && g.vs === type), gm = G ? byDiff(TRICK_RULES.guard.mult) : 1;
+        const a = Math.round(armorHit(lv0.dmg, armor, false) * gm), b = Math.round(armorHit(top.dmg, armor, false) * gm);
+        const hits = "hits of " + lv0.dmg + "–" + top.dmg + " land as " + a + "–" + b + (G ? " behind its " + G.name.toLowerCase() : "");
         if (a < lv0.dmg * 0.6) weak = hits;
         else if (lv0.splash && !off && role !== "ram" && role !== "boss") why.push("splash catches the whole group");
         else if (!off && armor <= 3) why.push(armor ? hits : "every hit lands in full");
@@ -53509,6 +53625,13 @@ function foeCardHtml(role, w, from, trick) {
     statRow("shield", u.dmg, u.dmg === 1 ? "life lost if it reaches the walls" : "lives lost if it reaches the walls", "wide") + "</div>";
   const pow = tr.find(x => x.k === "pow");
   if (pow) h += '<p class="fcPow">' + icon(pow.ic) + "<span>" + escapeHtml(pow.text) + "</span></p>";
+  // an outflanker's way, which the field shows as a dotted line before its first waves (drawFlankLines)
+  if (role === "flyer" && !droneWar()) {
+    const A = towerName("archer"), B = towerName("ballista");
+    h += '<p class="fcPow">' + icon("wing") + "<span>" + escapeHtml((foeFlies(role, u) ? "It flies straight from the field's edge to your walls."
+      : "It leaves the road where it enters and crosses straight to your walls.") + " Only your " + A + " and " + B +
+      " reach it: build them along its way. Before its first waves, a dotted line on the field shows that way.") + "</span></p>";
+  }
   for (const x of tb.lines) h += '<p class="fcPow fcTrick">' + icon(x.ic) + "<span>" + escapeHtml(x.text) + "</span></p>";
   const c = foeCounters(role, u);
   const list = (cls, head, arr) => arr.length ? '<div class="fcList ' + cls + '"><b>' + head + "</b>" +
@@ -77192,7 +77315,7 @@ function runSelftest() {
       if (!waveInfoEl.querySelector(".chip.warn[data-warn~='ambush'], .chip.warn[data-warn^='ambush']")) throw new Error("no warning chip before the opening");
       const plan = wavePlan(A.from), lastT = plan[plan.length - 1].t, on = plan.filter(q => q.road === k);
       if (!on.length || on.some(q => q.t < byDiff(A.mid) * lastT)) throw new Error("the road opens before 40% of the wave");
-      if (on.some(q => q.type === "boss" || q.type === "flyer" || q.trick)) throw new Error("a commander, outflanker or trick foe takes the ambush road");
+      if (on.some(q => q.type === "boss" || q.type === "flyer" || q.type === "ram" || q.trick)) throw new Error("a commander, outflanker, siege engine or trick foe takes the ambush road");
       // the opening as fought: the first foe down it raises the alarm, and the main road keeps its turns
       startWave();
       const seq0 = spawnSeq;
@@ -77208,11 +77331,33 @@ function runSelftest() {
       if (!n1 || !alarm) throw new Error("no alarm at the opening");
       if (spawnSeq - seq0 !== plan.length - n1) throw new Error("the main road's turns moved");
       if (roadTitle(String(k)) !== A.name) throw new Error("the debrief does not name the reserves' road");
+      if (roadTitle("0") !== "the road") throw new Error("the debrief calls Avarayr's only road " + roadTitle("0"));
       // Mari's other road: told on wave 10, after its commander's banner
       field("mari", 1);
       waveIdx = lastCleared = 9; waveCueQ = [];
       startWave();
       if (!waveCueQ.some(q => q.name === "reliefFar" && q.o.far === 0.6) || !toastEl.textContent.includes("goat track")) throw new Error("Mari's tell");
+    } finally { trickBack(k0); }
+  });
+  check("outflankers' line", () => {
+    const k0 = trickKeep();
+    try {
+      // shown from the stand's start until its second wave of outflankers is sent, from each road's entry to the walls
+      field("avarayr", 1);
+      const F = flankWaves();
+      if (F.join() !== "7,9") throw new Error("Avarayr's outflanker waves " + F);
+      waveIdx = 0; phase = "idle"; flankCache = null;
+      const P = flankPaths();
+      if (!P || P.length !== 1 || P[0][0][0] !== ROUTES[0].pts[0][0] || P[0][P[0].length - 1][0] !== FORT.x) throw new Error("no line before the first wave");
+      waveIdx = 9; phase = "idle";
+      if (flankPaths()) throw new Error("the line outlived the second wave of outflankers");
+      // the toast the wave before the first, once
+      trickStand.flankTold = false; waveIdx = 6; flankToast();
+      if (!trickStand.flankTold || !toastEl.textContent.includes("dotted line")) throw new Error("no outflanker toast");
+      if (!foeCardHtml("flyer", 7, "chip").includes("dotted line")) throw new Error("the outflanker's card does not tell its way");
+      // drones hunt towers: no line
+      field("shushi", 1); waveIdx = 0; phase = "idle";
+      if (flankPaths()) throw new Error("a line for the drones");
     } finally { trickBack(k0); }
   });
   check("tricks: hunters", () => {
@@ -77537,8 +77682,15 @@ function runSelftest() {
       waveIdx = 5; phase = "idle";
       if (showScoutBubble()) {
         if (!trickHold() || !coachEl.classList.contains("on") || !coachEl.textContent.includes("Hidden scouts")) throw new Error("the scout bubble");
+        const ringed = scoutBubble.pad;
+        if (ringed >= 0 && towerAt(ringed)) throw new Error("the bubble ringed a taken pad");
         closeScoutBubble();
         if (!tricksSeen().includes("hidden") || coachEl.classList.contains("on")) throw new Error("the scout bubble did not close");
+        // the pad stays ringed until the wave starts
+        if (ringed >= 0 && !coachRing.classList.contains("on")) throw new Error("the pad's ring went with the bubble");
+        phase = "wave"; trickCardTick();
+        if (coachRing.classList.contains("on")) throw new Error("the pad's ring outlived the wave's start");
+        phase = "idle";
       }
     } finally { dropTrickCards(); trickBack(k0); }
   });
