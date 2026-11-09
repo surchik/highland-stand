@@ -3394,7 +3394,8 @@ const LEVELS = [
       ambush: { route: 1, from: [11, 11, 11], share: null, mid: 0, tell: [1, 1, 1], name: "the goat track", legacy: true,
         lorePhrase: "did not force the pass but went around it",
         lore: "The goat track's place on this field is the game's." },
-      adapt: {},
+      // late: the mix's outflankers on the goat track already cost it dearly here (tools/balance.js)
+      adapt: { from: [10, 19, 7] },
     },
     fort: { x: 260, y: 570 },
     pads: [[930, 320], [710, 330], [1110, 110], [710, 130], [1160, 300], [930, 505], [520, 540],
@@ -3548,7 +3549,7 @@ const LEVELS = [
     id: "halidzor",
     name: "Halidzor",
     tag: "Davit Bek's fortress in the gorges of Syunik.",
-    era: 4, date: "Late winter 1727", year: 1727, hpTune: 1.13,
+    era: 4, date: "Late winter 1727", year: 1727, hpTune: [1.13, 1.05, 1.13],
     hero: { name: "Davit Bek", title: "Liberator of Syunik" },
     foe: "Ottoman",
     units: {
@@ -3650,7 +3651,7 @@ const LEVELS = [
     ],
     // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
     // difficulty; every number a starting value for tools/balance.js)
-    tricks: { adapt: {} },   // the Genocide and Artsakh fields get the general mechanic, no invented episodes
+    tricks: { adapt: {}, econ: { gold: [0, 0, 0], bounty: [1, 0.9, 1] } },   // the Genocide and Artsakh fields get the general mechanic, no invented episodes
     fort: { x: 1110, y: 390 },
     pads: [[150, 290], [460, 290], [770, 310], [770, 130], [1010, 300], [460, 470], [180, 470], [600, 470], [250, 698], [590, 660], [1150, 560], [1240, 480], [1010, 120], [880, 500]],
     rocks: [[90, 400, 16], [1200, 680, 16], [700, 130, 13], [700, 705, 14], [340, 470, 14]],
@@ -3665,7 +3666,7 @@ const LEVELS = [
     id: "musadagh",
     name: "Musa Dagh",
     tag: "Fifty-three days on the mountain of Moses.",
-    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: 1.04,
+    era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: [1.04, 0.9, 1.04],
     hero: { name: "Movses Ter-Kalustian", title: "Commander on Musa Dagh" },
     foe: "Ottoman",
     units: {
@@ -3835,7 +3836,7 @@ const LEVELS = [
     id: "shushi",
     name: "Shushi",
     tag: "The 44-day war and the fall of the fortress, 2020.",
-    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: 1.02,
+    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: [1.02, 0.98, 1.02],
     hero: { name: "Defense Army volunteer", title: "Artsakh Defense Army volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -3903,7 +3904,7 @@ const LEVELS = [
     id: "stepanakert23",
     name: "Stepanakert 2023",
     tag: "Blockade, offensive and exodus, 2022-2023.",
-    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: 1.02,
+    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: [1.02, 0.82, 1.02],
     hero: { name: "Civil defense volunteer", title: "Stepanakert civil defense volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -8713,7 +8714,7 @@ function commanderClimb(w) { return w === 10 ? 1.5 : (1 + (w - 1) * 0.13) * (w =
 // seed, and on Hard, where they stand 8% stronger, on most battlefields
 const LEVEL_HP = {
   erebuni: [0, 1.12, 1.12], tushpa: [1, 1.49, 1.49], avarayr: [2, 1.69, 1.69], dvin: [3, 1.72, 1.12], tashir: [4, 1.86, 1.45],
-  sevan: [5, 1.89, 1.89], gyumri: [6, 1.72, 1.5], halidzor: [7, 1, 1.09], van: [8, 1, 0.9], musadagh: [9, 1, 0.78],
+  sevan: [5, 1.89, 1.89], gyumri: [6, 1.72, 1.5], halidzor: [7, 1, 1.09], van: [8, 1, 0.9], musadagh: [9, 1, 0.68],
   sardarapat: [10, 1, 0.85], stepanakert92: [11, 1, 1.35], shushi: [12, 1, 0.98], stepanakert23: [13, 1, 0.65],
   // Chapter III, calibrated with tools/balance.js (SEEDS=3, Normal) to leave the best build 8-14 defenders with a
   // balanced mix winning: Ani's two roads stand near the chapter's climb; Mari's short second road, open from wave
@@ -8752,7 +8753,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 const TRICK_RULES = {
   // watchPlus: a watch tower reveals within its range and this much more; drumsReveal: a drum post (Shushi's
   // lookouts) within this share of its aura's reach
-  hidden:  { speed: 72, hp: 1.3, bounty: 2, linger: [5, 3, 2], watchPlus: 40, drumsReveal: 0.45, heroReveal: 80, cap: [3, 6, 8], alpha: 0.42 },
+  hidden:  { speed: 72, hp: 1.3, bounty: 2, linger: [5, 3, 2], watchPlus: 40, drumsReveal: 0.7, heroReveal: 80, cap: [3, 6, 8], alpha: 0.42 },
   hunters: { reach: 150, mark: 1.2, work: 24, maxJobs: 2, bounty: 1.3, pitch: 2.5, deadGround: 44, perTower: 2 },
   guard:   { mult: [0.6, 0.4, 0.3], dropS: 2 },
   adapt:   { from: [10, 8, 7], on: [0.7, 0.6, 0.55], off: [0.6, 0.5, 0.45],

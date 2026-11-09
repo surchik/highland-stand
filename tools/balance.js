@@ -78,8 +78,9 @@
 //     hunter is working on; when this wave or the next brings hidden scouts and no standing watch tower (the fire
 //     slot, Shushi's drums) reveals 120 px of the last 40% of each road, it builds one on the free pad that
 //     reveals the most of it (if no free pad reveals any of it, the one that reveals the most road); from the ambush's tell wave, while fewer than two standing towers reach 60 px of the
-//     ambush road's own stretch, it builds the order's next shooting kind on the free pad that reaches the most of
-//     it (or claims a plot that does). These towers do not advance the build order, and it saves for the first of
+//     ambush road's own stretch, it builds the order's next shooting kind (one that hits outflankers on a road that
+//     opens for the whole host, as Mari's does) on the free pad that reaches the most of it (or claims a plot that
+//     does). These towers do not advance the build order, and it saves for the first of
 //     each. Its first pad ranking leaves the ambush roads out (they are dormant)
 //   - The page plays with no town gift and no Nardi gift (R7: the town is hidden on a plain load)
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
@@ -213,8 +214,10 @@ function playBattle(a) {
       const shooters = t => !t.wreck && (TOWER_DEFS[t.type].proj || t.type === "fire");
       const cov = towers.filter(t => shooters(t) && hits(t.x, t.y, getStats(t).range, ambush.P) * 4 >= 60).length;
       if (cov < 2) {
+        // a road that opens for the whole host (Mari's) brings its outflankers too: then a kind that hits them
         let kind = null;
-        for (let j = 0; j < plan.length && !kind; j++) { const k2 = plan[(towers.length - extra + j) % plan.length]; if (k2 !== "drums") kind = k2; }
+        const ok = k2 => k2 !== "drums" && (!ambush.A.legacy || TOWER_DEFS[k2].air);
+        for (let j = 0; j < plan.length && !kind; j++) { const k2 = plan[(towers.length - extra + j) % plan.length]; if (ok(k2)) kind = k2; }
         kind = kind || "archer";
         const r = TOWER_DEFS[kind].levels[0].range;
         let best = -1, bv = 0;
