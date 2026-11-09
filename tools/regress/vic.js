@@ -5,7 +5,7 @@
 // and its corners, apart from the others, with its label whole (and at least 40 px tall to a finger), and each must do
 // its job when pressed: Next battle leads (through a new chapter's nardi invitation and story) to the next chronicle,
 // Replay to this one, Hold Forever back into the battle, the Campaign Map to the map.
-// Usage:  NODE_PATH=$(npm root -g) node tools/regress/vic.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
+// Usage:  NODE_PATH=$(npm root -g) node tools/regress/vic.js [index.html] [--quick] [--levels=0,ani] [--shots=dir] [--jobs=n]
 "use strict";
 const R = require("./lib");
 const o = R.cli();
@@ -28,7 +28,11 @@ const MIN_TAP = 40;
   // the quick sample: the first field, a chapter's last (Sevan, into Chapter III), Ani (the Summons), Sis (the Terms,
   // no endless stand) and the last battlefield
   const levels = R.parseLevels(o.levels || (o.quick ? "erebuni,sevan,ani,sis,stepanakert23" : "all"), ids);
-  await R.pool(CONFIGS, CONFIGS.length, async (C) => {
+  // one size at a time by default (--jobs=3 for all three side by side): each page's renderer grows by about half
+  // a gigabyte a minute over the 17 victories and their presses (on master too, 3d4bb2a and a27052d; the JS heap stays
+  // under 70 MB, so it is the renderer's own memory), and three side by side passed the machine's 15 GB limit, where
+  // the kernel killed the largest page
+  await R.pool(CONFIGS, Math.max(1, Math.min(CONFIGS.length, o.jobs || 1)), async (C) => {
     const g = await R.openGame(browser, o.file, C);
     const fail = async (m) => { fails.push(C.name + " " + m); await g.shot(o.shots, "vic " + C.name + " " + m.slice(0, 60)); };
     await g.toMap();
