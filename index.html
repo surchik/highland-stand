@@ -8738,7 +8738,9 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // line says so (lorePhrase points into a sentence the battlefield already tells, as FOE_LORE does). The adaptive
 // enemy is a game mechanic and its text says so: no battlefield text claims a historical adaptation.
 const TRICK_RULES = {
-  hidden:  { speed: 72, hp: 1.3, bounty: 2, linger: [5, 3, 2], watchPlus: 40, heroReveal: 80, cap: [3, 6, 8], alpha: 0.42 },
+  // watchPlus: a watch tower reveals within its range and this much more; drumsReveal: a drum post (Shushi's
+  // lookouts) within this share of its aura's reach
+  hidden:  { speed: 72, hp: 1.3, bounty: 2, linger: [5, 3, 2], watchPlus: 40, drumsReveal: 0.45, heroReveal: 80, cap: [3, 6, 8], alpha: 0.42 },
   hunters: { reach: 150, mark: 1.2, work: 24, maxJobs: 2, bounty: 1.3, pitch: 2.5, deadGround: 44, perTower: 2 },
   guard:   { mult: [0.6, 0.4, 0.3], dropS: 2 },
   adapt:   { from: [10, 8, 7], on: [0.6, 0.5, 0.45], off: [0.48, 0.38, 0.33],
@@ -9259,7 +9261,7 @@ function trickRevealTick(dt) {
 // how far a watch-slot tower reveals hidden foes
 function watchReach(t) {
   const st = getStats(t);
-  return t.type === "drums" ? 0.45 * st.range : st.range + TRICK_RULES.hidden.watchPlus;
+  return t.type === "drums" ? TRICK_RULES.hidden.drumsReveal * st.range : st.range + TRICK_RULES.hidden.watchPlus;
 }
 function foeUnseen(e) { return !!(e.hid && !(e.seenT > 0)); }
 
@@ -53053,7 +53055,7 @@ function foeTrickBits(role, w, from, trick) {
   const pct = v => Math.round(v * 100) + "%";
   const watchLine = () => {
     const wt = trickWatch()[0], def = TOWER_DEFS[wt], R = TRICK_RULES.hidden;
-    const r = lv => wt === "drums" ? Math.round(0.45 * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
+    const r = lv => wt === "drums" ? Math.round(R.drumsReveal * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
     return "Your towers cannot aim at it until it is seen. Your " + towerName(wt) + " reveals it within " + r(0) + "–" + r(def.levels.length - 1) +
       ", your hero within " + R.heroReveal + ". Any hit shows it for " + byDiff(R.linger) + " s.";
   };
@@ -53380,7 +53382,8 @@ const foeCardEl = $("foeCard");
 let foeCardOn = null;   // { role, w, from: "chip"|"brief", trick } while the card shows
 
 function foeCardHtml(role, w, from, trick) {
-  const u = foeUnit(role), armor = foeArmor(u), spd = Math.round(foeSpeed(u));
+  const u = foeUnit(role), armor = foeArmor(u);
+  let spd = Math.round(foeSpeed(u));
   // the enemy's tricks on this foe (foeTrickBits): badges after its own, a line each, and their history line
   const tb = foeTrickBits(role, w, from, trick), tr = foeTraits(role, u).concat(tb.badges);
   if (trick) {
@@ -53402,7 +53405,13 @@ function foeCardHtml(role, w, from, trick) {
     hpLbl = "HP, wave " + f + (b !== a ? " → " + last : "");
     sub = (first ? "From wave " + first : "Not in the twenty waves") + " · " + diff + (gentle && tutorialHp(f, true) < 1 ? " · Tutorial" : "");
   }
-  const gold = foeBounty(u, from === "chip" ? w : first || 1);
+  let gold = foeBounty(u, from === "chip" ? w : first || 1);
+  // a trick group's own numbers: a hidden scout stands stronger and slower and pays double; a hunter pays more
+  if (trick === "hidden" && from === "chip") {
+    const R = TRICK_RULES.hidden;
+    hp = Math.round(foeHp(role, u, w) * R.hp).toLocaleString("en-US");
+    spd = R.speed; gold = Math.round(gold * R.bounty);
+  } else if (trick === "hunter") gold = Math.round(gold * TRICK_RULES.hunters.bounty);
   let h = '<button class="fcX" type="button" aria-label="Close">' + icon("close") + "</button>" +
     '<div class="fcHead"><span class="disc' + (role === "boss" ? " boss" : "") + '">' + icon(ROLE_ICON[role]) + "</span><div>" +
     "<h3>" + escapeHtml(u.name) + '</h3><div class="fcSub">' + escapeHtml(sub) + "</div></div></div>";
