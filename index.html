@@ -8772,7 +8772,7 @@ function trickWave(w) {
   }
   if (G) for (const q of G) if (w >= q.from) {
     for (const x of g) if (x.type === q.role && !x.trick && x.type !== "boss" && x.type !== "flyer") {
-      x.guard = q.vs; x.guardName = q.name; x.guardDrop = !!q.drop;
+      x.guard = q.vs; x.guardName = q.name; x.guardDrop = !!q.drop; x.guardLook = q.look;
     }
   }
   return g;
@@ -8797,7 +8797,7 @@ function wavePlan(w, live) {
       const q = { type: grp.type, t, gi };
       if (grp.trick) { q.trick = grp.trick; q.name = grp.name; }
       if (grp.hunt && i < grp.hunt) q.trick = "hunter";
-      if (grp.guard) { q.guard = grp.guard; q.gname = grp.guardName; q.gdrop = grp.guardDrop; }
+      if (grp.guard) { q.guard = grp.guard; q.gname = grp.guardName; q.gdrop = grp.guardDrop; q.glook = grp.guardLook; }
       out.push(q);
       t += grp.gap;
     }
@@ -9315,7 +9315,7 @@ function applyTrickToFoe(e, q, d) {
     e.bounty = Math.round(e.bounty * TRICK_RULES.hunters.bounty);
   }
   if (q.guard) {
-    e.guard = q.guard; e.gname = q.gname; e.guardDrop = !!q.gdrop; e.adapted = !!q.adapted;
+    e.guard = q.guard; e.gname = q.gname; e.guardDrop = !!q.gdrop; e.adapted = !!q.adapted; e.glook = q.adapted ? null : q.glook;
     e.guardMult = byDiff(q.adapted ? TRICK_RULES.adapt.mult : TRICK_RULES.guard.mult);
   }
 }
@@ -11319,6 +11319,11 @@ function update(dt) {
   for (const t of towers) {
     t.buffHaste = 0; t.buffMight = 0;
     if (t.stunnedT > 0) t.stunnedT -= dt;
+    if (!t.wreck && t.hp != null && t.hp < t.maxHp * TRICK_RULES.tower.battered[0] && fxRnd() < dt * (t.hp < t.maxHp * TRICK_RULES.tower.failing[0] ? 7 : 3)) {
+      const ember = t.hp < t.maxHp * TRICK_RULES.tower.failing[0] && fxRnd() < 0.4;
+      particles.push({ x: t.x + (fxRnd() - 0.5) * 16, y: t.y - 26 - fxRnd() * 10, vx: (fxRnd() - 0.5) * 6, vy: -20,
+        life: 0.9, color: ember ? "#ff8a2c" : "rgba(70,66,62,.6)", size: ember ? 2.4 : 4 });
+    }
     if (t.burnFx > 0) {
       t.burnFx -= dt;
       if (Math.random() < dt * 9) particles.push({ x: t.x + (Math.random() - 0.5) * 14, y: t.y - 22, vx: (Math.random() - 0.5) * 6, vy: -22,
@@ -22421,6 +22426,7 @@ function draw(time) {
   drawAtmosphere(time);
   drawDayNight(time);
   for (const e of enemies) drawEnemyMarks(e);
+  drawHuntLines(time);
   if (hero && hero.alive && !celebration) drawHeroBar();
   drawHoverRange();
   drawSelectedGhosts();
@@ -43678,6 +43684,16 @@ function drawTower(t, time) {
   const sp = structSprite(key, pxu, (art && art.box) || TOWER_BOX[type],
     art ? () => art.paint(lvl, spec, variant) : () => paintTowerBody(type, lvl, spec, variant), glow);
   const fit = sp.fit;
+  // a wrecked tower is its ruin: the broken stump, rubble and smoke, and nothing moving
+  if (t.wreck) {
+    blitStructSprite(ctx, ruinSprite(sp), x, y, k, m);
+    drawRuinRubble(t, x, y, k, time);
+    if (selected === t) {
+      ctx.strokeStyle = "rgba(255, 210, 122, .7)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2 * s, 32 * s, 32 * s * ELLIPSE, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    return;
+  }
 
   // a tower that has only just loosed kicks back and raises dust; read straight off its cooldown
   const since = rate > 0 && t.cd > 0 ? rate / (1 + (t.buffHaste || 0)) - t.cd : 1;
@@ -43696,6 +43712,9 @@ function drawTower(t, time) {
   const sy = y - kick * drop * k;
   blitStructSprite(ctx, sp, x, sy, k, m);
   noteNightLit(sp, x, sy, k, glow * fade);
+  // a tower hunters have damaged shows its cracks
+  const hurt = t.hp != null ? towerState(t) : "sound";
+  if (hurt !== "sound") drawTowerCracks(t, x, sy, k, fit, hurt === "failing");
   if (kick > 0 && drop > 0) {
     // the frame slams down on its platform: dust jumps from both ends
     const puff = 1 - kick;
@@ -43852,7 +43871,8 @@ function drawTower(t, time) {
     }
   }
 
-  if (selected === t) drawRange(x, y, getStats(t).range, "rgba(255, 210, 122, .5)", s);
+  if (t.hp != null) drawTowerHpBar(t, x, y, k);
+  if (selected === t) { drawRange(x, y, getStats(t).range, "rgba(255, 210, 122, .5)", s); drawWatchReach(t, x, y, s); }
 }
 
 // the ring is the region inGroundRange tests: a world ellipse, carried to the screen point by point (48 of them,
@@ -43957,6 +43977,293 @@ function drawRangeGhosts(t, x, y) {
   ctx.textBaseline = "alphabetic";
 }
 
+// ---------- the enemy's tricks on the field ----------
+// screen pixels (CSS) per world unit under the transform now set: marks are sized to stay readable on any screen
+function trickPxPerUnit() {
+  const m = ctx.getTransform();
+  return Math.max(0.2, Math.hypot(m.a, m.b) / (DPR || 1));
+}
+// a tower's ruin: its sprite broken off at two fifths of its height on a jagged line and charred, cut once per sprite
+function ruinSprite(sp) {
+  if (sp.ruin) return sp.ruin;
+  const W = sp.cv.width, H = sp.cv.height, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.drawImage(sp.cv, 0, 0);
+  const ground = -sp.y * sp.pxu, crown = Math.max(8, (sp.fit && sp.fit.crown) || -sp.y), cut = ground - crown * 0.4 * sp.pxu;
+  g.globalCompositeOperation = "destination-in";
+  g.beginPath();
+  g.moveTo(0, H);
+  const n = 9;
+  for (let i = 0; i <= n; i++) {
+    const x = W * i / n, j = ((i * 7919) % 13) / 13;
+    g.lineTo(x, cut + (j - 0.3) * crown * 0.22 * sp.pxu);
+  }
+  g.lineTo(W, H);
+  g.closePath();
+  g.fill();
+  g.globalCompositeOperation = "source-atop";
+  g.fillStyle = "rgba(34, 24, 16, .5)";
+  g.fillRect(0, 0, W, H);
+  sp.ruin = { cv: c, pxu: sp.pxu, x: sp.x, y: sp.y, w: sp.w, h: sp.h };
+  return sp.ruin;
+}
+// the rubble round a ruin and the smoke still rising from it, in screen space (no randomness: it is drawn each frame)
+function drawRuinRubble(t, x, y, k, time) {
+  const seed = (t.pad + 3) * 2654435761 >>> 0;
+  const rnd = i => ((seed ^ (i * 40503)) >>> 0) % 1000 / 1000;
+  ctx.lineJoin = "round";
+  for (let i = 0; i < 9; i++) {
+    const a = rnd(i) * Math.PI * 2, r = (10 + rnd(i + 20) * 18) * k, sz = (2.6 + rnd(i + 40) * 3.4) * k;
+    const sx = x + Math.cos(a) * r, sy = y + 3 * k + Math.sin(a) * r * 0.45;
+    ctx.beginPath();
+    for (let j = 0; j < 5; j++) {
+      const b = j / 5 * Math.PI * 2 + rnd(i + j) * 0.6;
+      ctx[j ? "lineTo" : "moveTo"](sx + Math.cos(b) * sz, sy + Math.sin(b) * sz * 0.7);
+    }
+    ctx.closePath();
+    ctx.fillStyle = i % 3 ? "#9a8a74" : "#6e6458";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(38, 24, 12, .85)";
+    ctx.lineWidth = 0.9 * k;
+    ctx.stroke();
+  }
+  for (let i = 0; i < 3; i++) {
+    const f = ((time * 0.00035 + i / 3) % 1), rr = (4 + f * 9) * k;
+    ctx.fillStyle = "rgba(70, 64, 58, " + (0.32 * (1 - f)).toFixed(3) + ")";
+    ctx.beginPath();
+    ctx.arc(x + Math.sin(f * 5 + i) * 6 * k, y - 18 * k - f * 46 * k, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+// cracks over a damaged tower (more when failing), placed by its pad so they stay put
+function drawTowerCracks(t, x, y, k, fit, failing) {
+  const crown = fit.crown || 40, half = (fit.half || 18);
+  ctx.strokeStyle = "rgba(30, 18, 10, .78)";
+  ctx.lineWidth = Math.max(0.8, 1.15 * k);
+  ctx.lineCap = "round";
+  const n = failing ? 4 : 2;
+  for (let i = 0; i < n; i++) {
+    const u = (((t.pad + 1) * 37 + i * 53) % 100) / 100 - 0.5;
+    let cx = x + u * half * 1.1 * k, cy = y - crown * (0.35 + ((i * 29) % 40) / 100) * k;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    for (let j = 0; j < 4; j++) {
+      cx += ((j % 2 ? 1 : -1) * (2 + ((i + j) % 3))) * k;
+      cy += (4 + j) * k;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+}
+// a small strength bar under a tower that has lost some
+function drawTowerHpBar(t, x, y, k) {
+  const f = towerHpFrac(t);
+  if (f >= 0.999 || t.wreck) return;
+  const px = trickPxPerUnit(), w = Math.max(26 * k, 30 / px), h = Math.max(3, 4 / px);
+  const bx = x - w / 2, by = y + 12 * k;
+  ctx.fillStyle = "rgba(22, 13, 6, .92)";
+  unitBarPlate(bx - 1.5, by - 1.5, w + 3, h + 3, 2);
+  ctx.fillStyle = "#4a3626";
+  ctx.fillRect(bx, by, w, h);
+  ctx.fillStyle = f >= TRICK_RULES.tower.battered[0] ? "#8fd45e" : f >= TRICK_RULES.tower.failing[0] ? "#f0c040" : "#e8553a";
+  ctx.fillRect(bx, by, w * f, h);
+}
+// the hunters' tell: a dashed red line from each hunter to the tower it has chosen, and a red ring pulsing on that
+// tower's pad until the job ends
+function drawHuntLines(time) {
+  for (const e of enemies) {
+    const H = e.hunt;
+    if (!H || !H.tower || H.state === "road" || H.state === "back" || e.dead) continue;
+    const t = H.tower, a = proj(e.off ? e.off.x : enemyPos(e).x, e.off ? e.off.y : enemyPos(e).y), b = proj(t.x, t.y);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.008);
+    ctx.save();
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -time * 0.03;
+    ctx.strokeStyle = "rgba(30, 6, 4, .55)";
+    ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y - 8 * a.s); ctx.lineTo(b.x, b.y - 4 * b.s); ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 70, 50, .9)";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255, 70, 50, " + (0.45 + 0.45 * pulse).toFixed(3) + ")";
+    ctx.lineWidth = 2.2 + pulse * 1.4;
+    ctx.beginPath();
+    ctx.ellipse(b.x, b.y + 2 * b.s, (30 + pulse * 5) * b.s, (30 + pulse * 5) * b.s * ELLIPSE, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+// a hunter's tool, raised while it marks its tower and swung (or leaned, the ladder) while it works
+function drawHuntTool(e, x, y, k, top) {
+  const H = e.hunt, look = e.def.hunt || "pick";
+  if (!H) return;
+  const marking = H.state === "mark", working = H.state === "work";
+  const t = H.tower, face = t ? (t.x >= x ? 1 : -1) : (Math.cos((enemyPos(e) || {}).ang || 0) >= 0 ? 1 : -1);
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const hx = x + face * 5 * k, hy = y - top * 0.55 * k;
+  if (look === "ladder") {
+    // two rails and rungs: carried on the shoulder, leaned up the tower while the party works
+    const lean = working && t ? 1 : 0, len = (lean ? 36 : 26) * k;
+    const ang = lean ? -Math.PI / 2 + face * 0.42 : (marking ? -0.9 : -0.25) * face + (face < 0 ? Math.PI : 0);
+    const ax = lean ? x + face * 6 * k : hx - Math.cos(ang) * len * 0.45, ay = lean ? y : hy - Math.sin(ang) * len * 0.45;
+    const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 3.2 * k, ny = ux * 3.2 * k;
+    ctx.strokeStyle = "rgba(38, 24, 12, .9)"; ctx.lineWidth = 3.2 * k;
+    const rails = () => {
+      ctx.beginPath();
+      for (const sg of [-1, 1]) { ctx.moveTo(ax + nx * sg, ay + ny * sg); ctx.lineTo(ax + ux * len + nx * sg, ay + uy * len + ny * sg); }
+      for (let i = 1; i < 6; i++) { const f = i / 6; ctx.moveTo(ax + ux * len * f - nx, ay + uy * len * f - ny); ctx.lineTo(ax + ux * len * f + nx, ay + uy * len * f + ny); }
+      ctx.stroke();
+    };
+    rails();
+    ctx.strokeStyle = "#b78a5c"; ctx.lineWidth = 1.5 * k;
+    rails();
+  } else {
+    // pick, spade or torch on a haft, raised high to mark, swung while working
+    const swing = working ? Math.sin(e.wobble * 1.6) * 0.9 : 0;
+    const ang = (marking ? -1.35 : working ? -0.6 + swing : -0.35) * face + (face < 0 ? Math.PI : 0);
+    const len = 15 * k, ex = hx + Math.cos(ang) * len, ey = hy + Math.sin(ang) * len;
+    ctx.strokeStyle = "rgba(38, 24, 12, .9)"; ctx.lineWidth = 3 * k;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = "#8f6538"; ctx.lineWidth = 1.6 * k; ctx.stroke();
+    if (look === "torch") {
+      const fl = 1 + 0.25 * Math.sin(e.wobble * 7);
+      ctx.fillStyle = "rgba(255, 150, 50, .9)";
+      ctx.beginPath(); ctx.ellipse(ex, ey - 2 * k, 2.6 * k, 4.4 * k * fl, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255, 236, 160, .95)";
+      ctx.beginPath(); ctx.ellipse(ex, ey - 1.5 * k, 1.2 * k, 2.2 * k * fl, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const px = -Math.sin(ang), py = Math.cos(ang);
+      ctx.strokeStyle = "rgba(38, 24, 12, .9)"; ctx.lineWidth = 3.2 * k;
+      ctx.beginPath();
+      if (look === "spade") { ctx.moveTo(ex - px * 2.5 * k, ey - py * 2.5 * k); ctx.lineTo(ex + Math.cos(ang) * 5 * k, ey + Math.sin(ang) * 5 * k); ctx.lineTo(ex + px * 2.5 * k, ey + py * 2.5 * k); ctx.closePath(); }
+      else { ctx.moveTo(ex - px * 5.5 * k, ey - py * 5.5 * k); ctx.quadraticCurveTo(ex + Math.cos(ang) * 2 * k, ey + Math.sin(ang) * 2 * k, ex + px * 5.5 * k, ey + py * 5.5 * k); }
+      ctx.stroke();
+      ctx.strokeStyle = "#aeb8c6"; ctx.lineWidth = 1.5 * k; ctx.stroke();
+      if (look === "spade") { ctx.fillStyle = "#aeb8c6"; ctx.fill(); }
+    }
+  }
+  ctx.restore();
+}
+// the shield a static guard carries before it (Tushpa's man-high siege shield with its top folded back, Avarayr's
+// tall wicker shield), on the side it faces
+function drawGuardShield(e, x, y, k, top, dir) {
+  const look = e.glook;
+  if (!look || e.adapted || (look !== "siegeShield" && look !== "wicker")) return;
+  const down = e.guardDrop && e.shieldDownT > 0;
+  const tall = look === "siegeShield" ? 1.05 : 0.78, w = (look === "siegeShield" ? 11 : 8.5) * k, h = top * tall * k;
+  const sx = x + dir * 8 * k, base = y + 1 * k;
+  ctx.save();
+  ctx.translate(sx, base);
+  if (down) ctx.rotate(dir * 0.5);
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h); ctx.lineTo(w / 2, -h); ctx.lineTo(w / 2, 0); ctx.closePath();
+  ctx.fillStyle = look === "siegeShield" ? "#c9a46a" : "#b48d52";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(38, 24, 12, .9)"; ctx.lineWidth = 1.4 * k; ctx.stroke();
+  // the weave
+  ctx.strokeStyle = "rgba(90, 60, 30, .55)"; ctx.lineWidth = 0.8 * k;
+  ctx.beginPath();
+  for (let i = 1; i < 7; i++) { const yy = -h * i / 7; ctx.moveTo(-w / 2, yy); ctx.lineTo(w / 2, yy); }
+  ctx.moveTo(0, 0); ctx.lineTo(0, -h);
+  ctx.stroke();
+  if (look === "siegeShield") {
+    // the squared top folded back over the archers
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, -h); ctx.lineTo(-w / 2 - dir * 6 * k, -h - 4 * k); ctx.lineTo(w / 2 - dir * 6 * k, -h - 4 * k); ctx.lineTo(w / 2, -h); ctx.closePath();
+    ctx.fillStyle = "#b08e58"; ctx.fill();
+    ctx.strokeStyle = "rgba(38, 24, 12, .9)"; ctx.lineWidth = 1.2 * k; ctx.stroke();
+  }
+  ctx.restore();
+}
+// the glyph of a tower slot, drawn in a circle of radius r (the canvas twin of the chips' icons)
+function drawSlotGlyph(slot, x, y, r, col) {
+  const a = eraAge(curEra);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = Math.max(1, r * 0.22); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (slot === "archer") {
+    if (a < 4) { ctx.arc(-r * 0.35, 0, r * 0.75, -1.1, 1.1); ctx.moveTo(-r * 0.35 + Math.cos(1.1) * r * 0.75, Math.sin(-1.1) * r * 0.75); ctx.lineTo(-r * 0.35 + Math.cos(1.1) * r * 0.75, Math.sin(1.1) * r * 0.75); ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * 0.75, 0); ctx.stroke(); }
+    else { for (let i = -1; i <= 1; i++) { ctx.moveTo(-r * 0.6, i * r * 0.45); ctx.lineTo(r * 0.6, i * r * 0.45); } ctx.stroke(); }
+  } else if (slot === "ballista") {
+    if (a < 3) { ctx.moveTo(-r * 0.75, r * 0.4); ctx.lineTo(r * 0.6, -r * 0.35); ctx.stroke(); ctx.beginPath(); ctx.moveTo(r * 0.78, -r * 0.45); ctx.lineTo(r * 0.22, -r * 0.42); ctx.lineTo(r * 0.5, 0.02 * r); ctx.closePath(); ctx.fill(); }
+    else { ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2); ctx.fill(); }
+  } else if (slot === "catapult") {
+    for (let i = 0; i < 8; i++) { const b = i * Math.PI / 4; ctx.moveTo(Math.cos(b) * r * 0.25, Math.sin(b) * r * 0.25); ctx.lineTo(Math.cos(b) * r * 0.75, Math.sin(b) * r * 0.75); }
+    ctx.stroke();
+  } else {
+    if (a < 5) { ctx.moveTo(0, -r * 0.78); ctx.bezierCurveTo(r * 0.7, -r * 0.1, r * 0.5, r * 0.7, 0, r * 0.7); ctx.bezierCurveTo(-r * 0.5, r * 0.7, -r * 0.7, -r * 0.1, 0, -r * 0.78); ctx.fill(); }
+    else { ctx.moveTo(-r * 0.7, -r * 0.4); ctx.lineTo(r * 0.7, r * 0.4); ctx.moveTo(-r * 0.7, r * 0.4); ctx.lineTo(r * 0.7, -r * 0.4); ctx.moveTo(-r * 0.75, 0); ctx.lineTo(r * 0.75, 0); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+// a guard's mark over the health bar: a round shield showing the slot it resists (crimson rimmed when adapted)
+function drawGuardMark(e, cx, cy, r) {
+  const down = e.guardDrop && e.shieldDownT > 0;
+  ctx.save();
+  ctx.globalAlpha = down ? 0.45 : 1;
+  ctx.fillStyle = "rgba(22, 13, 6, .94)";
+  ctx.beginPath(); ctx.arc(cx, cy, r + 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = e.adapted ? "#5a1f18" : "#3d4a55";
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = e.adapted ? "#e8553a" : "#cf9c40"; ctx.lineWidth = Math.max(1, r * 0.2);
+  ctx.stroke();
+  drawSlotGlyph(e.guard, cx, cy, r * 0.72, "#fff0c8");
+  ctx.restore();
+}
+// an eye, open or crossed out, on its own dark plate: a hidden foe's mark
+function drawEyeMark(cx, cy, r, open) {
+  ctx.save();
+  ctx.fillStyle = "rgba(22, 13, 6, .9)";
+  ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = open ? "#fff0c8" : "#d8cfe8"; ctx.fillStyle = ctx.strokeStyle;
+  ctx.lineWidth = Math.max(1, r * 0.2); ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.78, cy);
+  ctx.quadraticCurveTo(cx, cy - r * 0.8, cx + r * 0.78, cy);
+  ctx.quadraticCurveTo(cx, cy + r * 0.8, cx - r * 0.78, cy);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.24, 0, Math.PI * 2); ctx.fill();
+  if (!open) {
+    ctx.strokeStyle = "#ff7a5c";
+    ctx.beginPath(); ctx.moveTo(cx - r * 0.7, cy + r * 0.62); ctx.lineTo(cx + r * 0.7, cy - r * 0.62); ctx.stroke();
+  }
+  ctx.restore();
+}
+// the trick marks over a foe's head (drawEnemyMarks): a hidden foe's eye and its reveal ring, a guard's shield
+function drawTrickMarks(e, bx, by, bw) {
+  const px = trickPxPerUnit(), r = Math.max(5.2, 6.4 / px);
+  if (e.hid) {
+    const seen = e.seenT > 0;
+    drawEyeMark(e.markX, by - r - 3, r, seen);
+    if (e.revealFx > 0) {
+      const f = Math.max(0, Math.min(1, e.revealFx / 0.6));
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.9 * f).toFixed(3) + ")";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(e.markX, e.markY + 18 * e.markK, (14 + (1 - f) * 16) * e.markK, (14 + (1 - f) * 16) * e.markK * ELLIPSE, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  if (e.guard) drawGuardMark(e, bx + bw + r + 2, by + 1, r);
+}
+// the reach within which a watch-slot tower reveals hidden foes: a dotted ring, wherever its range is drawn, on a
+// battlefield with hidden scouts
+function drawWatchReach(t, x, y, s) {
+  if (!trickCfg("hidden") || !trickWatch().includes(t.type) || t.wreck) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(200, 230, 255, .75)";
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([2, 5]);
+  traceRing(rangeRingPts(x, y, watchReach(t)));
+  ctx.stroke();
+  ctx.restore();
+}
+
 // ---------- 3D-styled units ----------
 function shade(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
@@ -43969,6 +44276,9 @@ function shade(hex, amt) {
 function drawEnemy(e, p) {
   const d = e.def || eraUnit(e.type);
   const sp = proj(p.x, p.y);
+  // a hidden scout no tower has seen: the player always sees it, faint and shimmering (foeUnseen)
+  const ghost = foeUnseen(e), ghostA = TRICK_RULES.hidden.alpha;
+  if (ghost) ctx.globalAlpha = ghostA;
   const look = unitLook(e, d, p);
   const m = ctx.getTransform();
   // sprites are blitted 1:1 on device pixels, so the drawn size snaps to the nearest scale step
@@ -44033,9 +44343,19 @@ function drawEnemy(e, p) {
     e.spriteVis = sprite;
   }
   unitBlit(sprite, m, sp.x, sp.y - bob);
+  if (ghost) {
+    // the heat shimmer: a second figure a pixel off, wandering, and a pale outline
+    ctx.globalAlpha = ghostA * 0.55;
+    unitBlit(sprite, m, sp.x + (fxRnd() - 0.5) * 2.2, sp.y - bob + (fxRnd() - 0.5) * 1.2);
+    ctx.globalAlpha = 0.32;
+    unitBlit(unitFlashSprite(sprite, q), m, sp.x, sp.y - bob);
+    ctx.globalAlpha = 1;
+  }
+  if (e.glook) drawGuardShield(e, sp.x, sp.y - bob, k, top, dir);
+  if (e.hunt) drawHuntTool(e, sp.x, sp.y - bob, k, top);
 
   // after dark a foe near a torch-lit tower or the fort gate catches the flame on the edge that faces it
-  if (!look.air && tod.lit) {
+  if (!look.air && tod.lit && !ghost) {
     const night = unit01(tod.dark + tod.dusk * 0.22);
     if (night > 0.05) {
       unitFlameLight(p);
@@ -44052,11 +44372,12 @@ function drawEnemy(e, p) {
 
   // hit flash: for a few frames a hard white edge snaps round the figure, then it is gone;
   // nothing lingers over the figure afterwards
-  if (e.flash > 0.03) {
+  if (e.flash > 0.03 && !ghost) {
     ctx.globalAlpha = unit01((e.flash - 0.03) * 30);
     unitBlit(unitFlashSprite(sprite, q), m, sp.x, sp.y - bob);
     ctx.globalAlpha = 1;
   }
+  ctx.globalAlpha = 1;
 
   // the health bar and status marks are painted after the night light-map, so the dark never dims them
   e.markX = sp.x; e.markY = headY; e.markK = k;
@@ -44153,7 +44474,7 @@ function drawEnemyMarks(e) {
   const turn = Math.PI * 2;
   const frac = Math.max(0, Math.min(1, e.hp / e.maxHp));
   const bx = e.markX - bw / 2, by = headY - 5;
-  const barred = frac < 0.999 || e.type === "boss";
+  const barred = (frac < 0.999 || e.type === "boss") && !foeUnseen(e);
   if (barred) {
     ctx.fillStyle = "rgba(22, 13, 6, .92)";
     unitBarPlate(bx - 1.5, by - 1.5, bw + 3, 6, 2);
@@ -44178,6 +44499,7 @@ function drawEnemyMarks(e) {
     ctx.fillRect(ix, iy, 5, 0.8);
     ctx.fillRect(ix, iy + 4.2, 5, 0.8);
   }
+  if (e.hid || e.guard) drawTrickMarks(e, bx, by, bw);
   if (e.stunT > 0 && !e.iceVis && e.hold !== "barricade" && e.hold !== "smoke") {
     // dazed: three small stars circle the head
     const sr = Math.max(1.4, 1.9 * k);
@@ -52134,6 +52456,7 @@ function drawPlacement() {
   if (padIdx >= 0) {
     const pp = proj(PADS[padIdx][0], PADS[padIdx][1]);
     drawRange(pp.x, pp.y, def.levels[0].range, "rgba(140, 220, 140, .6)", pp.s);
+    drawWatchReach({ type: placing, level: 0, spec: null }, pp.x, pp.y, pp.s);
     ctx.fillStyle = "rgba(140, 220, 140, .3)";
     ctx.beginPath(); ctx.ellipse(pp.x, pp.y + 2 * pp.s, PAD_OPEN.rx * pp.s, PAD_OPEN.ry * pp.s, 0, 0, Math.PI * 2); ctx.fill();
   } else {
@@ -52180,7 +52503,9 @@ function drawHoverRange() {
   const t = towerUnderPointer(pointerClient);
   if (t && t !== selected) {
     const pp = proj(t.x, t.y);
+    if (t.wreck) return;
     drawRange(pp.x, pp.y, getStats(t).range, "rgba(255, 220, 150, .28)", pp.s);
+    drawWatchReach(t, pp.x, pp.y, pp.s);
   }
 }
 
@@ -74089,7 +74414,88 @@ function photoStageBattle(lv, wave, o) {
     waveBannerSub = own ? said.sub || "" : waveBannerLine();
   }
   syncHud();
+  if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
+}
+
+// the photo harness's trick scenes (&trick=): each trick's tell on the field as a player meets it, for tools/shot.js.
+// ambush (the opening, or the tell on a wave before it), hunt (hunters marking and working, towers damaged, failing
+// and wrecked), hidden (scouts unseen and one just revealed), guards (shields on their role), adapt (an adapted
+// wave), card (the explainer card &card=key over the field)
+function photoTrickStage(kind, o) {
+  const keep = enemies.filter(e => e.type === "boss");
+  const at = (q, route, f) => {
+    const e = enemies[enemies.length - 1];
+    e.route = route; e.dist = ROUTES[route].len * f;
+    return e;
+  };
+  const along = (types, route, f0, f1, q) => types.forEach((ty, i) => {
+    spawnEnemy(ty, Object.assign({ type: ty }, q || {}));
+    at(null, route, f0 + (f1 - f0) * i / Math.max(1, types.length - 1));
+  });
+  if (kind === "ambush") {
+    const A = trickCfg("ambush"), k = A && (A.legacy ? A.route : ambushRoute());
+    if (k == null || k < 0) return;
+    enemies = enemies.filter(e => e.route !== k);
+    if (waveIdx >= A.from) {
+      const S = ambushStretch(k);
+      along(["spearman", "raider", "shield", "spearman", "cavalry", "raider"], k, S.mouth / ROUTES[k].len + 0.02, S.b / ROUTES[k].len - 0.04, { road: k });
+      roadCall = { route: k, t: ROAD_CALL_S * 0.5 };
+      waveBannerT = 1.7; waveBannerMain = "Ambush!"; waveBannerSub = "Part of the host comes by " + A.name;
+    } else {
+      ambushPuffs = [];
+      const S = ambushStretch(k);
+      for (let i = 0; i < 3; i++) ambushPuffs.push({ route: k, d: S.mouth + (S.b - S.mouth) * (0.15 + i * 0.3), end: S.b, t: 0 });
+      for (let i = 0; i < 14; i++) ambushPuffTick(1 / 15);
+    }
+  } else if (kind === "hunt") {
+    const H = trickCfg("hunters");
+    const role = H ? H.role : "raider";
+    // three towers hurt: damaged, failing, wrecked
+    const shooters = towers.filter(t => TOWER_DEFS[t.type].proj);
+    if (shooters[0]) shooters[0].hp = shooters[0].maxHp * 0.5;
+    if (shooters[1]) shooters[1].hp = shooters[1].maxHp * 0.2;
+    if (shooters[2]) wreckTower(shooters[2]);
+    // hunters at work, marking and walking
+    const targets = towers.filter(t => !t.wreck).slice(0, 3);
+    const states = ["work", "mark", "walk"];
+    targets.forEach((t, i) => {
+      spawnEnemy(role, { type: role, trick: "hunter", name: H && H.name });
+      const e = enemies[enemies.length - 1];
+      // the road point nearest the tower
+      let best = 0, bd = 1e9;
+      for (let d = 0; d <= ROUTES[e.route].len; d += 10) { const p = routeAt(e.route, d), dd = Math.hypot(p.x - t.x, p.y - t.y); if (dd < bd) { bd = dd; best = d; } }
+      e.dist = best;
+      const p = routeAt(e.route, best);
+      const foot = hunterFoot(t, p), f = states[i] === "work" ? 1 : states[i] === "walk" ? 0.5 : 0;
+      e.off = { x: p.x + (foot.x - p.x) * f, y: p.y + (foot.y - p.y) * f, ang: Math.atan2(t.y - p.y, t.x - p.x) };
+      Object.assign(e.hunt, { state: states[i], tower: t, foot, from: { x: p.x, y: p.y }, leave: best, t: 0.6, work: 3, jobs: 1, snd: 1 });
+    });
+  } else if (kind === "hidden") {
+    const S = trickCfg("hidden");
+    const role = S ? S.role : "raider";
+    for (let i = 0; i < 4; i++) {
+      spawnEnemy(role, { type: role, trick: "hidden", name: S && S.name });
+      const e = enemies[enemies.length - 1];
+      e.dist = ROUTES[e.route].len * (0.12 + i * 0.2);
+      e.seenT = i === 3 ? 2 : 0;
+      if (i === 3) e.revealFx = 0.35;
+    }
+  } else if (kind === "guards") {
+    const G = trickCfg("guards"), g = G && G[0];
+    if (g) along([g.role, g.role, g.role, "spearman"], 0, 0.3, 0.7, { guard: g.vs, gname: g.name, gdrop: g.drop, glook: g.look });
+    const sh = enemies.find(e => e.guard);
+    if (sh) sh.shieldDownT = 1.5;
+  } else if (kind === "adapt") {
+    adapt.slot = "archer"; adapt.step = 1;
+    along(["spearman", "shield", "cavalry", "raider"], 0, 0.25, 0.75, { guard: "archer", gname: adaptGuardName("archer"), adapted: true });
+    waveBannerT = 1.7; waveBannerMain = "Wave " + waveIdx; waveBannerSub = adaptGuardName("archer") + " against your " + towerName("archer");
+  }
+  enemies.push(...keep.filter(e => !enemies.includes(e)));
+  for (const e of enemies) { e.poseVis = null; }
+  hudCache.chips = null;
+  syncHud();
+  if (kind === "card" && typeof showTrickCard === "function") showTrickCard(o.card || "hidden", { read: !!o.read });
 }
 
 // units: four ages per sheet, from era0 (default 0, or &era0=N on the URL: &era0=3 shows eras 3-6)
@@ -74255,6 +74661,8 @@ function runPhoto() {
     if (scene === "battle") {
       photoStageBattle(harnessLv(1), num("wave", 3), {
         spell: HARNESS.get("spell"), banner: HARNESS.has("banner"), panel: num("panel", 0),
+        // &trick=ambush|hunt|hidden|guards|adapt|card (&card=key, &read): a trick's tell or its explainer card
+        trick: HARNESS.get("trick"), card: HARNESS.get("card"), read: HARNESS.has("read"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
