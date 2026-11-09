@@ -69,11 +69,12 @@ function install() {
   };
   // the part of a box the page lets be seen: cut by every ancestor that clips (overflow other than visible) and by
   // the window; a fixed element leaves its ancestors' clipping behind. Returns the box seen and what cut it
-  A.seen = (e, box) => {
+  // (self: the element clips too, as a text's own element clips its lines when it scrolls or hides overflow)
+  A.seen = (e, box, self) => {
     let r = box || e.getBoundingClientRect();
     let v = { l: r.left, t: r.top, r: r.right, b: r.bottom }, by = null, scrollBy = null;
-    let fixed = getComputedStyle(e).position === "fixed";
-    for (let p = e.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+    let fixed = getComputedStyle(e).position === "fixed" && !self;
+    for (let p = self ? e : e.parentElement; p && p !== document.documentElement; p = p.parentElement) {
       const cs = getComputedStyle(p);
       if (!fixed && (cs.overflowX !== "visible" || cs.overflowY !== "visible") && p !== document.body) {
         const q = p.getBoundingClientRect();
@@ -253,7 +254,7 @@ function install() {
         const passes = cs.pointerEvents === "none";
         for (const lr of range.getClientRects()) {
           if (lr.width < 2 || lr.height < 2) continue;
-          const s = A.seen(par, lr);
+          const s = A.seen(par, lr, true);
           if (s.share < 0.6) {
             if (s.scrollBy && !s.by) continue;   // reached by scrolling its frame
             if (pageScroll && s.share < 0.6 && !s.by) continue;
@@ -287,7 +288,15 @@ function install() {
         if (root.contains(c) || !A.visible(c)) continue;
         const q = c.getBoundingClientRect();
         const ov = Math.max(0, Math.min(rr.right, q.right) - Math.max(rr.left, q.left)) * Math.max(0, Math.min(rr.bottom, q.bottom) - Math.max(rr.top, q.top));
-        if (ov > 0.15 * q.width * q.height) fails.push(A.name(c), "it lies over controls (taps pass, but they are hidden): ");
+        if (ov <= 0.15 * q.width * q.height) continue;
+        // a control already under another layer (the battle's header under a menu page) is not this one's doing
+        const qx = (Math.max(rr.left, q.left) + Math.min(rr.right, q.right)) / 2, qy = (Math.max(rr.top, q.top) + Math.min(rr.bottom, q.bottom)) / 2;
+        const vis = root.style.visibility;
+        root.style.visibility = "hidden";   // what a finger would find there without this layer
+        const h = qx >= 0 && qy >= 0 && qx < innerWidth && qy < innerHeight ? document.elementFromPoint(qx, qy) : null;
+        root.style.visibility = vis;
+        if (h && h !== c && !c.contains(h)) continue;
+        fails.push(A.name(c), "it lies over controls (taps pass, but they are hidden): ");
       }
     }
     for (const [p, t, l] of restore.reverse()) { p.scrollTop = t; p.scrollLeft = l; }
@@ -308,7 +317,7 @@ function install() {
       if (document.elementFromPoint(x, y) === cv && x >= S.l && x <= S.r && y >= S.t && y <= S.b) clear++;
     }
     const fieldArea = (v.r - v.l) * (v.b - v.t);
-    const out = { w: Math.round(fw), h: Math.round(fh), x: Math.round(fx), y: Math.round(fy), share: fieldArea / safeArea,
+    const out = { w: Math.round(fw), h: Math.round(fh), x: Math.round(fx), y: Math.round(fy), safeW: S.r - S.l, share: fieldArea / safeArea,
       clear: clear / n * fieldArea / safeArea, scale, pads: [], plots: [], towers: [], zone: null };
     const where = (x, y) => {
       const e = x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
@@ -326,7 +335,9 @@ function install() {
     // read here as an iPhone shows it, at the canvas's density there (2, dprCap), whatever the density of this run
     out.plotLabel = null;
     (typeof plots !== "undefined" ? plots : []).forEach((P, i) => {
-      const pp = proj(P[0], P[1]), ks = Math.max(1, pp.s, 0.96 / Math.max(0.2, scale * 2)), px = 12.5 * ks * scale;
+      // the game's own sizing (plotSignView) where it has one, at an iPhone's density
+      const pp = proj(P[0], P[1]), ks = typeof plotSignView === "function" ? plotSignView(P, { a: scale * 2, b: 0, c: 0, d: scale * 2 }).ks
+        : Math.max(1, pp.s, 0.96 / Math.max(0.2, scale * 2)), px = 12.5 * ks * scale;
       out.plotLabel = out.plotLabel === null ? px : Math.min(out.plotLabel, px);
       const rc = plotSignRects.get(P);
       if (!rc) return;
@@ -338,7 +349,9 @@ function install() {
     for (const t of towers) {
       const p = proj(t.x, t.y), s = Math.max(0.35, p.s);
       const x = r.left + offX + p.x * scale, y = r.top + offY + (p.y - 26 * s) * scale;
-      zw = Math.min(zw, 60 * s * scale); zh = Math.min(zh, 88 * s * scale);
+      // the zone towerUnderPointer reads (towerTapReach, the game's own measure where it has one)
+      const z = typeof towerTapReach === "function" ? towerTapReach(t) : { w: 60 * s * scale, h: 88 * s * scale };
+      zw = Math.min(zw, z.w); zh = Math.min(zh, z.h);
       const w = where(x, y);
       if (w) out.towers.push("the tower on pad " + t.pad + " at " + Math.round(x) + "," + Math.round(y) + " " + w);
     }

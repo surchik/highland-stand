@@ -52,17 +52,24 @@ rules, leave, invitation and game-over cards, the tutorial's coach walked step b
 - text at least 11 px, not cut off, not under a button or anything else, out of the safe areas; the text the game
   draws on its canvases too (`canvasHook` in `iphone-audit.js` measures every `fillText`: the wave and pause banners,
   the map's names, the nardi board, the field);
-- the field fills at least 55% of the safe area and its part free of the HUD at least 45%; no pad, plot sign or tower
-  under the HUD; a tower's tap zone (`towerUnderPointer`) at least 36 px; a plot's price board at least 11 px as an
-  iPhone shows it (the board keeps a size in device pixels, `plotSignView`, so it is read at the canvas's density on
-  an iPhone, 2, whatever `--dpr` the run takes);
+- held sideways the field fills at least 55% of the safe area and its part free of the HUD at least 45%; held upright
+  (the owner's fallback, no portrait redesign) the 16:9 field can be no larger than the width allows, so it must span
+  the whole safe width with under 3% of it under the HUD; no pad, plot sign or tower under the HUD; a tower's tap zone
+  at least 36 px (the game's own measure, `towerTapReach`, where it has one: a phone widens the zone); a plot's price
+  board at least 11 px as an iPhone shows it (the game's own sizing, `plotSignView`, read at the canvas's density on
+  an iPhone, 2, whatever `--dpr` the run takes); a battlefield's node on the map 44 px to a finger (the game's
+  `mapNodeRadius` where it has one);
 - nothing that holds the battle is left without a way out: its close or onward button is pressed by a finger and
   must put it away (a panel by a tap on open ground);
 - held upright, the rotate card speaks of a phone, and Play in portrait leaves the controls in reach;
 - in Safari (`navigator.standalone` false) a tip, shown once on the first screen or the map, says "Add Highland
   Stand to your Home Screen" and names the Share button, lies over no control, goes with its own button, stores a new
   `hs_` key and does not come back after a reload; opened from the Home Screen (`navigator.standalone` true) it never
-  shows. The script finds the tip by its words (any box that says "Home Screen" and holds a button).
+  shows. The script finds the tip by its shown words (`innerText`: any box that says "Home Screen" and holds a
+  button). A layer that takes no taps or must not hide controls (toast, note, tip) is judged by what a finger would
+  find under it without it: a control already under another layer (the battle's header under a menu page) is not its
+  doing. A text's own element clips its lines too (a text frame that scrolls: what is below its fold is reached by
+  scrolling, not cut off).
 
 It prints one `FAIL <size> <state>: ...` line per failure (the same failure on the pages of one leaf or the steps of
 the coach once, with the pages or steps), a `FIELD` line per size, and exits 1 on any. Options: `--sizes=ses,i15s,maxs,

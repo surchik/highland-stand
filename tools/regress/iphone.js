@@ -170,8 +170,15 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
       });
       if (chips.seen < chips.all) fail(label, "the next-wave row shows " + chips.seen + " of its " + chips.all + " chips (the rest wrap out of sight)");
       const F = await g.ev(() => __hsAudit.field());
-      if (F.share < FIELD_SHARE) fail(label, "the field is " + F.w + "x" + F.h + ", " + Math.round(F.share * 100) + "% of the safe area (needs " + Math.round(FIELD_SHARE * 100) + "%)");
-      if (F.clear < FIELD_CLEAR) fail(label, "the field free of the HUD is " + Math.round(F.clear * 100) + "% of the safe area (needs " + Math.round(FIELD_CLEAR * 100) + "%)");
+      if (C.upright) {
+        // held upright (the owner's fallback after Play in portrait, no portrait redesign) the 16:9 field can be no
+        // larger than the width allows: it must span the whole safe width, with nothing of the HUD over it
+        if (F.w < F.safeW - 1) fail(label, "the field is " + F.w + " px wide of the " + Math.round(F.safeW) + " the width allows");
+        if (F.clear < F.share * 0.97) fail(label, "the HUD lies over " + Math.round((1 - F.clear / F.share) * 100) + "% of the field (needs under 3% held upright)");
+      } else {
+        if (F.share < FIELD_SHARE) fail(label, "the field is " + F.w + "x" + F.h + ", " + Math.round(F.share * 100) + "% of the safe area (needs " + Math.round(FIELD_SHARE * 100) + "%)");
+        if (F.clear < FIELD_CLEAR) fail(label, "the field free of the HUD is " + Math.round(F.clear * 100) + "% of the safe area (needs " + Math.round(FIELD_CLEAR * 100) + "%)");
+      }
       for (const p of F.pads.concat(F.plots, F.towers)) fail(label, p);
       if (F.zone && Math.min(F.zone.w, F.zone.h) < 36) fail(label, "a tower's tap zone is as small as " + F.zone.w + "x" + F.zone.h + " px (needs 36)");
       if (F.plotLabel !== null && F.plotLabel < 10.95) fail(label, "a plot's price board reads at " + F.plotLabel.toFixed(1) + " px on an iPhone's density (needs 11)");
@@ -179,14 +186,15 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
     };
     // the Home Screen tip: whatever on screen tells to add the game to the Home Screen
     const tipFind = () => g.ev(() => {
-      const els = [...document.body.querySelectorAll("div, section, aside, p")].filter(e => __hsAudit.visible(e) && /home screen/i.test(e.textContent || "") && !e.closest("#overlay #ovPage"));
+      // the words as shown (innerText leaves out what is hidden: a tip kept in the page but not shown is not seen)
+      const els = [...document.body.querySelectorAll("div, section, aside, p")].filter(e => __hsAudit.visible(e) && /home screen/i.test(e.innerText || "") && !e.closest("#overlay #ovPage"));
       // the smallest box that holds the words and a button
       const box = els.filter(e => e.querySelector("button, [role=button]")).sort((a, b) => a.getBoundingClientRect().width * a.getBoundingClientRect().height - b.getBoundingClientRect().width * b.getBoundingClientRect().height)[0];
       if (!box) return null;
       if (!box.id) box.id = "__hsTip";
       const btn = box.querySelector("button, [role=button]");
       if (!btn.id) btn.id = "__hsTipX";
-      return { box: "#" + box.id, btn: "#" + btn.id, text: box.textContent.replace(/\s+/g, " ").trim().slice(0, 160) };
+      return { box: "#" + box.id, btn: "#" + btn.id, text: box.innerText.replace(/\s+/g, " ").trim().slice(0, 160) };
     });
     let tipSeen = null;
     const tipStep = async (where) => {
@@ -223,12 +231,12 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
       await step("map", "map", async () => {
         if (await g.ev(() => menuMode) !== "map") throw new Error("no map after the story");
         await check("map", pageSpec(MAP_PARTS, ["#startBtn"]));
-        // its battlefields: a finger picks one within 34 map units of its node
+        // its battlefields: a finger picks one within 34 map units of its node (the game's mapNodeRadius where it has one)
         const nodes = await g.ev(() => {
-          const cv = $("worldMap"), r = cv.getBoundingClientRect();
+          const cv = $("worldMap"), r = cv.getBoundingClientRect(), rad = typeof mapNodeRadius === "function" ? mapNodeRadius() : 34;
           return CHAPTERS[mapChapter()].levels.map(i => {
             const x = r.left + MAP_NODES[i].x * r.width / MAP_W, y = r.top + MAP_NODES[i].y * r.height / MAP_H, e = document.elementFromPoint(x, y);
-            return { id: LEVELS[i].id, x, y, d: 68 * r.width / MAP_W, hit: e === cv ? "" : __hsAudit.hitName(x, y) };
+            return { id: LEVELS[i].id, x, y, d: 2 * rad * r.width / MAP_W, hit: e === cv ? "" : __hsAudit.hitName(x, y) };
           });
         });
         for (const n of nodes) if (n.hit) fail("map", "the node of " + n.id + " lies under " + n.hit);

@@ -491,6 +491,9 @@
   #panel .btn .dl i.dn b { color: #ffb19c; }
   #panel .btn .dl i.dps { color: #fff3d6; }
   #panel .btn .dl s { text-decoration: none; font-size: 13px; line-height: 1; margin: 0 1px; opacity: .8; }
+  /* the head and stats keep the panel's one column; on a phone they are a column of their own (#panel.sheet) */
+  #panel .pInfo { display: contents; }
+  #panel .pMast { display: none; }
   #panel.tight { padding-top: 12px; padding-bottom: 13px; }
   #panel.tight .pport { width: 46px; height: 46px; }
   #panel.tight .stats { margin: 6px 0 7px; padding: 6px 8px; }
@@ -574,6 +577,7 @@
   #trickCard dt { margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--bronze-hi); }
   #trickCard dd { margin: 1px 0 0; color: var(--parch); }
   #trickCard .tcLore { margin-top: 11px; padding: 1px 0 1px 9px; border-left: 2px solid var(--crimson); font-style: italic; font-size: 13px; color: #eadfc4; }
+  #trickCard .tcText { display: contents; }
   #trickCard .tcSec + .tcSec { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(240,207,133,.25); }
   /* the button sticks to the card's foot, so a long card (two sections, a short window) never hides it below the fold */
   #trickCard #tcBtn { display: block; margin: 14px auto 0; min-height: 46px; min-width: 160px; padding: 10px 26px; font-size: 16px;
@@ -1751,6 +1755,400 @@
   #overlay #townBtn .ic { width: 24px; height: 24px; vertical-align: 0; }
   #overlay.brief #townBtn, #overlay.victory #townBtn { display: none; }
   @media (max-aspect-ratio: 1/1) { #overlay #townBtn { top: calc(26px + var(--sat)); right: calc(248px + var(--sar)); } }
+
+  /* the Home Screen tip (syncHomeTip: an iPhone in Safari only): a parchment strip in the map page's own flow */
+  .homeTip { display: none; }
+  #overlay:not(.brief):not(.victory) .homeTip {
+    display: flex; align-items: center; gap: 8px; order: -1; flex: none; box-sizing: border-box; width: min(560px, calc(100% - 24px));
+    padding: 4px 4px 4px 10px; border-radius: 6px; text-align: left; color: var(--ink);
+    background: linear-gradient(180deg, #f2e2b6, #d9c08a); border: 1px solid #8a6a36; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.45);
+  }
+  .homeTip p { flex: 1 1 auto; min-width: 0; font-size: 13px; line-height: 1.3; }
+  .homeTip p b { color: #5a1a12; }
+  .homeTip .htShare { flex: none; width: 24px; height: 24px; color: #2f5a8a; }
+  .homeTip .htX { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: none; color: #5a3a1a; cursor: pointer; display: grid; place-items: center; }
+  .homeTip .htX .ic { width: 16px; height: 16px; }
+
+  /* ================= phones =================
+     The rule (mirrored by PHONE_MQ in the script): a phone held sideways is a window at most 500 px tall,
+     @media (max-height: 500px); a phone held upright is one at most 500 px wide and taller than that,
+     @media (max-width: 500px) and (min-height: 501px). Every iPhone from the SE (667 x 320 in Safari) to the
+     Pro Max (932 x 430 from the Home Screen) matches the first held sideways and the second held upright; no
+     iPad (744 px and more on its short side) and no desktop window of ordinary size matches either, so
+     everything below leaves the tablet and desktop layouts exactly as they were. */
+
+  /* ---- phone, sideways: the battle ---- */
+  @media (max-height: 500px) {
+    :root { --tray-h: 56px; --ph-lcol: 54px; --ph-rcol: 114px; }
+    /* the header: two plaques 40 px tall in the top corners; only the plaques take a finger, the sky between
+       them is the field's */
+    #topbar { height: 40px; gap: 6px; pointer-events: none; }
+    .hudPlaque { height: 40px; gap: 6px; padding: 0 14px 6px 6px; pointer-events: auto; background-position: right 4px top 13px, 0 0, 0 0; }
+    .hudPlaque.right { padding: 0 6px 6px 14px; background-position: left 4px top 13px, 0 0, 0 0; }
+    .hudPlaque::after { height: 6px; }
+    .stat { height: 28px; gap: 5px; padding: 0 10px 0 2px; font-size: 14px; }
+    .stat .medal { width: 22px; height: 22px; }
+    .stat .medal .ic { width: 16px; height: 16px; }
+    .btn.icon, .btn.plaque { height: 32px; }
+    .btn.icon { width: 32px; }
+    .btn.icon .ic { width: 17px; height: 17px; }
+    .btn.plaque { min-width: 0; padding: 0 10px 0 8px; font-size: 13px; }
+    #topbar .btn.icon::after { inset: -7px -5px -5px; }
+    #topbar .btn.plaque::after { inset: -7px -3px -5px; }
+    #autoBtn, #speedBtn { display: inline-block; }
+    #autoBtn::before { margin-right: 5px; }
+    #speedBtn::before { margin-right: 11px; }
+    /* the tray: five tiles 52 px tall across the whole width */
+    #shop { gap: 0; padding: 0 calc(6px + var(--sar)) calc(1px + var(--sab)) calc(6px + var(--sal)); }
+    .trayCap.left { display: none; }
+    .trayPanel { flex: 1 1 auto; gap: 6px; }
+    .card { flex: 1 1 0; width: auto; height: 52px; }
+    .card .pic { height: 32px; }
+    .card .nm { height: 18px; font-size: 11.5px; line-height: 18px; letter-spacing: 0; }
+    .card .key { top: 2px; left: 2px; min-width: 17px; height: 17px; font-size: 11px; line-height: 15px; }
+    .card .pr { top: 2px; right: 2px; height: 17px; padding: 0 5px 0 1px; font-size: 12px; }
+    .card .pr .ic { width: 13px; height: 13px; }
+    /* the wave cap: a column in the band right of the field, the chips (every one of them) over Send Wave */
+    .trayCap.right {
+      position: fixed; z-index: 10; left: calc(var(--fl) + var(--fw) + 6px); right: calc(4px + var(--sar));
+      top: calc(44px + var(--sat)); bottom: calc(var(--tray-h) + var(--sab) + 4px);
+      width: auto; max-width: none; height: auto; margin: 0; padding: 8px 5px 6px; gap: 6px; justify-content: space-between;
+    }
+    #waveInfo { flex: 0 1 auto; height: auto; overflow: visible; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 8px 6px; }
+    #waveInfo::before, #waveInfo .lbl { display: none; }
+    #waveInfo:has(.chip:nth-child(8)) { gap: 8px 6px; }
+    #waveInfo .chip, #waveInfo:has(.chip:nth-child(8)) .chip { padding: 0 5px 0 2px; }
+    #waveInfo .chip:has(.mk.gd), #waveInfo:has(.chip:nth-child(8)) .chip:has(.mk.gd) { padding-right: 17px; }
+    /* a chip answers a finger 36 px tall: its reach runs into the gaps around it */
+    #waveInfo .chip::after { content: ""; position: absolute; inset: -5px -4px; }
+    .chip .mk.arm { font-size: 11px; height: 13px; line-height: 13px; }
+    #waveBtn { height: 44px; padding: 0 6px; font-size: 14px; letter-spacing: .2px; gap: 6px; white-space: normal; line-height: 1.1; }
+    #waveBtn .ic { display: none; }
+    #waveBtn.underway, #waveBtn.done, #waveBtn.auto { height: 34px; margin: 5px 0; font-size: 12.5px; letter-spacing: .2px; }
+    /* the spells: four medallions in the band left of the field, between the header and the tray */
+    #spellbar {
+      top: calc((40px + var(--sat) + 100vh - var(--tray-h) - var(--sab)) / 2);
+      top: calc((40px + var(--sat) + 100dvh - var(--tray-h) - var(--sab)) / 2);
+      gap: 7px; padding: 9px 0 9px 5px;
+    }
+    #spellbar::before { width: 36px; border-radius: 0 11px 11px 0; }
+    .spell { width: 44px; height: 44px; }
+    .spell > .ic { width: 25px; height: 25px; }
+    .spell .cdn { bottom: 4px; font-size: 12.5px; }
+    .spell:disabled > .ic { transform: translateY(-5px) scale(.84); }
+    .spell .cdl { bottom: -4px; right: -6px; min-width: 16px; height: 16px; font-size: 11px; line-height: 14px; padding: 0 3px; }
+  }
+
+  /* ---- phone, either way: the tower panel is a sheet of two columns (placePanelPhone sizes and places it) ---- */
+  @media (max-height: 500px), (max-width: 500px) {
+    /* a tile's line stands over its own tile, kept on the screen at both ends of the tray */
+    .card .ds { bottom: calc(100% + 8px); padding: 10px 11px 11px; font-size: 12.5px; }
+    .card:first-child .ds { left: 0; transform: none; }
+    .card:last-child .ds { left: auto; right: 0; transform: none; }
+    #rotateHint { padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal)); }
+    #rotateHint .kit { padding: 22px 20px 20px; font-size: 16.5px; }
+    #rotateHint .btn { min-height: 44px; }
+    .chTab .chStars { font-size: 11px; }
+    .chTab .chStars .ic { width: 11px; height: 11px; }
+    #ovStars .lbl { font-size: 11px; letter-spacing: 1px; }
+    .briefHost .nm { font-size: 11px; letter-spacing: 0; }
+    .briefHost .disc .mk.arm { font-size: 11px; }
+    .briefTricks .tbg { min-height: 38px; font-size: 12px; }
+    #overlay.brief .pgBtn, .chArrow { width: 44px; height: 44px; font-size: 26px; }
+    #overlay.brief #ovRubric { white-space: normal; }
+    #panel.sheet { padding: 0; }
+    #panel.sheet .ptr { display: none; }
+    #panel.sheet .pInfo { display: block; position: absolute; left: 10px; top: 10px; bottom: 9px; width: calc(44% - 13px); overflow-y: auto; overscroll-behavior: contain; }
+    #panel.sheet .actions { position: absolute; right: 9px; top: 10px; width: calc(56% - 4px); gap: 5px; }
+    #panel.sheet .phead { gap: 7px; }
+    #panel.sheet .pport { width: 38px; height: 38px; border-width: 1px; }
+    #panel.sheet h3 { font-size: 14.5px; }
+    #panel.sheet .lvl { margin-top: 3px; font-size: 11px; letter-spacing: .3px; }
+    #panel.sheet .stats { grid-template-columns: 1fr; gap: 3px; margin: 7px 0 0; padding: 6px 7px; font-size: 12px; }
+    #panel.sheet .st { white-space: normal; align-items: flex-start; flex-wrap: wrap; column-gap: 4px; }
+    #panel.sheet .st.rec { align-items: baseline; }
+    #panel.sheet .lvl { flex-wrap: wrap; row-gap: 1px; }
+    #panel.sheet .lvl span { margin-left: 2px; }
+    #panel.sheet .st .ic { flex: none; margin-top: 1px; }
+    #panel.sheet .st span, #panel.sheet .st em { font-size: 11px; }
+    #panel.sheet .btn { min-height: 44px; padding: 4px 5px; font-size: 13px; gap: 1px 5px; }
+    #panel.sheet .btn .small { font-size: 11px; line-height: 1.25; }
+    #panel.sheet .btn .dl { font-size: 11px; gap: 0 6px; }
+    #panel.sheet .btn .dl s { font-size: 11px; }
+    /* Target is no step forward: 36 px is its reach */
+    #panel.sheet .actions > .btn:not(.up):not(.spec):not(.sell):not(.repair):not(.clear) { min-height: 36px; }
+    #panel.sheet.squeeze .actions .btn .small { display: none; }
+    #panel.sheet.squeeze .pMast { display: block; margin-top: 7px; font-size: 11.5px; line-height: 1.3; color: var(--parch); }
+    #panel.sheet .pMast p + p { margin-top: 5px; }
+    #panel.sheet .pMast b { color: #ffcf9a; }
+
+    /* the trick card: its text scrolls in its own frame, the button stands under it (never over the words) */
+    #trickCard { padding: calc(8px + var(--sat)) calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal)); }
+    #trickCard .kit { display: flex; flex-direction: column; width: min(560px, 100%); max-height: 100%; overflow: hidden; padding: 12px 16px 12px; font-size: 14px; line-height: 1.38; }
+    #trickCard .tcText { display: block; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+    #trickCard #tcBtn { position: static; flex: none; margin: 10px auto 0; min-height: 44px; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 3px 10px rgba(0,0,0,.5); }
+    #trickCard .disc { width: 40px; height: 40px; }
+    #trickCard .disc .ic { width: 24px; height: 24px; }
+    #trickCard h2 { font-size: 18px; }
+    #trickCard dt { font-size: 11px; letter-spacing: 1px; }
+    #trickCard .tcLore { font-size: 12.5px; }
+
+    /* the foe card: its labels at 11 px (placeFoeCard keeps it inside the safe area) */
+    #foeCard .fcList > b { font-size: 11px; letter-spacing: .8px; }
+    #foeCard .fcSub { font-size: 11px; }
+
+    /* the coach: Next and Got it 44 px to a finger, Skip 36 */
+    #coach .cNext { min-height: 44px; }
+    #coach .cSkip { min-height: 36px; padding: 0 2px 0 10px; }
+    #coach { width: min(330px, calc(100vw - 24px)); font-size: 14px; line-height: 1.36; padding: 11px 14px 12px; }
+
+    /* Settings: toggles a finger can take; the keyboard's line has no place on a phone */
+    #settings .tgl { width: 48px; min-height: 36px; display: grid; place-items: center; padding: 0; font-size: 12.5px; }
+    #settings .seg .tgl { width: auto; min-height: 40px; }
+    #settings .hint { display: none; }
+    #settings .menuBtn { min-height: 44px; }
+  }
+
+  /* ---- phone, sideways: Settings in two columns under the header, the toast over the field ---- */
+  @media (max-height: 500px) {
+    #settings[style*="block"] { display: grid !important; }
+    #settings {
+      grid-template-columns: 210px 210px; grid-auto-rows: min-content; column-gap: 18px; align-items: start;
+      width: auto; top: calc(44px + var(--sat)); right: calc(6px + var(--sar)); padding: 12px 14px 13px;
+      max-height: calc(100vh - 50px - var(--sat) - var(--sab)); max-height: calc(100dvh - 50px - var(--sat) - var(--sab)); overflow-y: auto;
+    }
+    #settings h3 { grid-column: 1 / -1; margin-bottom: 8px; padding-bottom: 6px; font-size: 15px; }
+    #settings .row { grid-column: 1; margin-bottom: 7px; }
+    #settings .row.band { margin-bottom: 0; }
+    #settings .menuBtn { grid-column: 2; margin-top: 0; margin-bottom: 7px; }
+    #settings #tutBtn { grid-row: 2; }
+    #settings #pauseBtn { grid-row: 3; }
+    #settings #menuBtn { grid-row: 4; margin-top: 4px; }
+    body.onMenu #settings { top: calc(60px + var(--sat)); right: calc(8px + var(--sar)); }
+    #toast { top: calc(46px + var(--sat)); left: calc(var(--fl, 50vw) + var(--fw, 0px) / 2); max-width: calc(var(--fw, 100vw) - 24px);
+      padding: 6px 14px; font-size: 13.5px; }
+    body.hasNote:not(.onMenu) #toast { top: max(calc(46px + var(--sat)), var(--noteBottom, 0px)); }
+  }
+
+  /* ---- phone, sideways: the menu pages ---- */
+  @media (max-height: 500px) {
+    /* a slimmer frame, the page inside the safe area, and a page taller than the screen starts at its top */
+    #overlay {
+      justify-content: safe center; gap: 6px;
+      padding: calc(8px + var(--sat)) calc(10px + var(--sar)) calc(8px + var(--sab)) calc(10px + var(--sal));
+      box-shadow: inset 0 0 0 4px #17100a, inset 0 0 0 5px var(--bronze-hi), inset 0 0 0 6px var(--bronze-sh), inset 0 0 40px 10px rgba(0,0,0,.5);
+    }
+    #overlay .ovOrn { width: 34px; height: 34px; }
+    #overlay .ovOrn.o1 { left: 3px; top: 3px; } #overlay .ovOrn.o2 { right: 3px; top: 3px; }
+    #overlay .ovOrn.o3 { left: 3px; bottom: 3px; } #overlay .ovOrn.o4 { right: 3px; bottom: 3px; }
+    #overlay h1 { font-size: 21px; letter-spacing: 1.5px; }
+    #overlay .crest .ic { width: 34px; height: 34px; }
+    #ovPage .ovHead { gap: 8px; padding: 0; }
+    #overlay .ovRule { width: min(78%, 260px); height: 8px; }
+    #overlay .sub { font-size: 13.5px; line-height: 1.42; padding: 0; }
+    #ovStars .lbl { font-size: 11px; letter-spacing: 1px; }
+    #ovStars .num { font-size: 14px; }
+    .chTab .chStars { font-size: 11px; }
+    .chTab .chStars .ic { width: 11px; height: 11px; }
+    /* the menu's gear, the Nardi door and the chapter's story: round buttons in the top right corner */
+    #overlay #ovGear { top: calc(8px + var(--sat)); right: calc(10px + var(--sar)); }
+    #overlay #nardiBtn { top: calc(8px + var(--sat)); right: calc(60px + var(--sar)); width: 44px; padding: 0; justify-content: center; border-radius: 50%; }
+    #overlay #nardiBtn span { display: none; }
+    #overlay #townBtn { display: none; }
+    #ovStars .lbl { display: none; }
+    #overlay:not(.brief) .crest { display: none; }
+
+    /* the map's page (a defeat's and an endless stand's end too): the map at the left as tall as it can be, and
+       at the right a column: the campaign's stars and the round buttons, the page's words (they scroll), the
+       chapter, the difficulty and the march */
+    #overlay:not(.brief):not(.victory) {
+      --side: clamp(232px, 31vw, 300px); --tipRow: 0px; --vh: 100vh;
+      --mapW: min(calc((var(--vh) - 16px - var(--tipRow) - var(--sat) - var(--sab)) * 1.8), calc(100vw - var(--side) - 32px - var(--sal) - var(--sar)));
+      display: grid; grid-template-columns: var(--mapW) minmax(0, 1fr); grid-template-rows: 44px minmax(0, 1fr) auto auto;
+      column-gap: 12px; row-gap: 6px; align-items: stretch; justify-items: stretch; overflow: hidden;
+    }
+    @supports (height: 100dvh) { #overlay:not(.brief):not(.victory) { --vh: 100dvh; } }
+    #overlay:not(.brief):not(.victory) #worldMap {
+      grid-column: 1; grid-row: 1 / -1; align-self: center; flex: none; margin: 0; min-height: 0; max-height: none; height: auto;
+      width: var(--mapW); border-width: 2px; box-shadow: 0 0 0 1px var(--bronze-hi), 0 0 0 4px var(--walnut), 0 0 0 5px var(--bronze-sh), 0 8px 24px rgba(0,0,0,.7);
+    }
+    #overlay:not(.brief):not(.victory) #ovStars { position: static; grid-column: 2; grid-row: 1; justify-self: start; align-self: center; }
+    /* the Home Screen tip, when it shows, takes the top of the map's column; the map gives it the height */
+    #overlay:not(.brief):not(.victory) .homeTip { grid-column: 1; grid-row: 1; width: auto; align-self: center; min-height: 44px; }
+    #overlay:not(.brief):not(.victory):has(.homeTip) { --tipRow: 50px; }
+    #overlay:not(.brief):not(.victory):has(.homeTip) #worldMap { grid-row: 2 / -1; }
+    #overlay:not(.brief):not(.victory) .homeTip p { font-size: 12.5px; line-height: 1.25; }
+    #overlay:not(.brief):not(.victory) #ovPage {
+      grid-column: 2; grid-row: 2; min-height: 0; overflow-y: auto; overscroll-behavior: contain; justify-content: flex-start; gap: 4px;
+      padding: 2px 2px 4px;
+    }
+    #overlay:not(.brief):not(.victory) .sub, #overlay:not(.brief):not(.victory) .ovDebrief.on { width: 100%; height: auto; max-width: none; }
+    #overlay:not(.brief):not(.victory) .ovDebrief.on { padding: 4px 4px 5px; font-size: 12.5px; line-height: 1.3; }
+    #overlay:not(.brief):not(.victory) .ovDebrief .dbChip { height: 24px; }
+    #overlay:not(.brief):not(.victory) .chapterBar { grid-column: 2; grid-row: 3; margin: 0; padding: 0; gap: 6px; flex-wrap: nowrap; }
+    #overlay:not(.brief):not(.victory) .chTabs { flex: 1 1 auto; min-width: 0; }
+    #overlay:not(.brief):not(.victory) .chTab:not(.selected) { display: none; }
+    #overlay:not(.brief):not(.victory) .chTab.selected { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 3px 8px 3px 4px; font-size: 12.5px; line-height: 1.15; white-space: normal; text-align: left; }
+    #overlay:not(.brief):not(.victory) .chArrow { width: 44px; height: 44px; font-size: 26px; }
+    #overlay:not(.brief):not(.victory) #chStory { position: fixed; top: calc(8px + var(--sat)); right: calc(110px + var(--sar)); width: 44px; height: 44px; margin: 0; padding: 0; justify-content: center; border-radius: 50%; }
+    #overlay:not(.brief):not(.victory) #chStory span { display: none; }
+    #overlay:not(.brief):not(.victory) #chStory .ic { width: 20px; height: 20px; }
+    #overlay:not(.brief):not(.victory) .ovFoot { grid-column: 2; grid-row: 4; padding: 0; gap: 6px; flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+    #overlay:not(.brief):not(.victory) .diffRow { gap: 5px; }
+    #overlay:not(.brief):not(.victory) .diffBtn { flex: 1 1 0; min-width: 0; min-height: 40px; justify-content: center; padding: 2px 4px; font-size: 13px; }
+    #overlay:not(.brief):not(.victory) .diffBtn .seal { display: none; }
+    #overlay:not(.brief):not(.victory) .bigRow { flex-direction: column; gap: 6px; flex-wrap: nowrap; }
+    #overlay:not(.brief):not(.victory) .big { width: 100%; min-width: 0; min-height: 46px; margin: 0; padding: 6px 10px; justify-content: center; font-size: 15px; white-space: normal; line-height: 1.15; }
+    #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
+    #overlay:not(.brief):not(.victory) .big .ic { width: 18px; height: 18px; }
+    #overlay:not(.brief):not(.victory) .ovRule { display: none; }
+    body.onMenu #settings { top: calc(58px + var(--sat)); }
+
+    /* the chronicle and the chapter's story: the leaf fills the screen as a spread, the host at the left and the
+       history at the right, each scrolling in its own column; the page turner and the buttons stay in view */
+    #overlay.brief {
+      display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; overflow: hidden;
+      padding: calc(8px + var(--sat)) calc(10px + var(--sar)) calc(8px + var(--sab)) calc(10px + var(--sal));
+    }
+    #overlay.brief #ovPage .briefLeft > * { flex: none; }
+    .briefHost .disc .mk.arm { font-size: 11px; }
+    #overlay.brief #ovPage {
+      flex: 1 1 auto; min-height: 0; width: 100%; margin: 0; align-items: start; justify-items: stretch;
+      display: grid; grid-template-columns: minmax(0, 41fr) minmax(0, 59fr); grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+      column-gap: 16px; row-gap: 0; padding: 14px 18px 8px;
+    }
+    #overlay.brief #ovPage::before { inset: 5px; }
+    #overlay.brief #ovPage .corner { width: 14px; height: 14px; }
+    #overlay.brief #ovPage .headpiece, #overlay.brief .ovRule, #overlay.brief #ovPage .sideband, #overlay.brief .crest { display: none; }
+    #overlay.brief #ovPage .briefLeft {
+      display: flex; grid-column: 1; grid-row: 1 / 5; align-self: stretch; max-width: none; min-height: 0; margin: 0; gap: 8px;
+      overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 4px;
+    }
+    #overlay.brief #briefArt { width: min(100%, 132px, calc(100vh - 210px)); width: min(100%, 132px, calc(100dvh - 210px)); flex: none; align-self: center; }
+    #overlay.brief .briefHero:not(:empty) { margin: 0; font-size: 13.5px; }
+    .briefHero .k { font-size: 12.5px; } .briefHero .hy { font-size: 13px; }
+    .briefHost { flex-wrap: wrap; justify-content: center; gap: 8px 2px; min-height: 0; padding-left: 0; }
+    .briefHost .foe { flex: 0 0 calc(25% - 2px); }
+    .briefHost .nm { font-size: 11px; letter-spacing: 0; }
+    .briefHint, .briefTricks { padding-left: 0; margin-top: 0; }
+    .briefTricks .tbg { min-height: 38px; font-size: 12px; }
+    #overlay.brief .ovFact.on { grid-column: 1; grid-row: 5; align-self: center; max-width: none; max-height: 3.95em; overflow-y: auto; margin: 4px 0 0; font-size: 12px; line-height: 1.3; }
+    #overlay.brief h1 { grid-column: 2; grid-row: 1; font-size: 23px; line-height: 1.1; }
+    #overlay.brief #ovHy:not(:empty) { grid-column: 2; grid-row: 2; font-size: 16px; margin-top: 1px; }
+    #overlay.brief #ovRubric { grid-column: 2; grid-row: 3; margin-top: 2px; font-size: 13.5px; letter-spacing: 1px; white-space: normal; text-align: center; }
+    #ovRubric::before, #ovRubric::after { margin: 0 7px; }
+    #overlay.brief .sub {
+      grid-column: 2; grid-row: 4; align-self: stretch; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+      margin-top: 6px; padding-right: 4px; font-size: 15px; line-height: 1.5;
+    }
+    /* (the text scrolls here, so it keeps no height of its longest page: setLeafPages) */
+    #overlay.brief #ovSub { min-height: 0 !important; }
+    #ovSub .versal { font-size: 46px; line-height: 36px; margin: 3px 3px 0 -1px; }
+    #overlay.brief .ovPager.on { grid-column: 2; grid-row: 5; margin-top: 2px; gap: 10px; }
+    #overlay.brief .pgBtn { width: 44px; height: 44px; font-size: 26px; }
+    #overlay.brief .ovFoot { flex: none; padding: 0 56px 0 0; gap: 8px; }
+    #overlay.brief .bigRow { gap: 10px; flex-wrap: nowrap; }
+    #overlay.brief .big, #overlay.brief #mapBtn { min-height: 44px; padding: 6px 20px; font-size: 15.5px; margin: 0; }
+    #overlay.brief #ovGear { top: auto; bottom: calc(8px + var(--sab)); right: calc(10px + var(--sar)); }
+  }
+
+  /* ---- phone, upright (the owner's fallback after "Play in portrait": everything fits or scrolls) ---- */
+  @media (max-width: 500px) and (min-height: 501px) {
+    /* --ph-top: the room resizePhone keeps above the field (the header's two rows, the chips, Send Wave, the spells) */
+    :root { --tray-h: 78px; --ph-top: 196px; }
+    /* the battle's header in two rows: the counters, then the buttons */
+    #topbar { height: auto; flex-wrap: wrap; gap: 0; pointer-events: none; }
+    .hudPlaque { flex: 1 1 100%; height: 40px; gap: 6px; padding: 0 10px 6px; pointer-events: auto; border-radius: 0; border-right: 0; }
+    .hudPlaque.right { justify-content: flex-end; border-left: 0; border-radius: 0 0 9px 9px; padding: 0 8px 6px; }
+    .hudPlaque::after { height: 6px; }
+    .stat { height: 28px; gap: 5px; padding: 0 10px 0 2px; font-size: 14px; }
+    .stat .medal { width: 22px; height: 22px; }
+    .stat .medal .ic { width: 16px; height: 16px; }
+    .btn.icon, .btn.plaque { height: 32px; }
+    .btn.icon { width: 32px; }
+    .btn.icon .ic { width: 17px; height: 17px; }
+    .btn.plaque { min-width: 0; padding: 0 10px 0 8px; font-size: 13px; }
+    #topbar .btn.icon::after { inset: -7px -5px -5px; }
+    #topbar .btn.plaque::after { inset: -7px -3px -5px; }
+    #autoBtn, #speedBtn { display: inline-block; }
+    #autoBtn::before { margin-right: 5px; }
+    #speedBtn::before { margin-right: 11px; }
+    /* the tray: five tiles, their names on two lines */
+    #shop { gap: 0; padding: 0 calc(4px + var(--sar)) calc(2px + var(--sab)) calc(4px + var(--sal)); }
+    .trayCap.left { display: none; }
+    .trayPanel { flex: 1 1 auto; gap: 4px; }
+    .card { flex: 1 1 0; width: auto; height: 72px; }
+    .card .pic { height: 41px; }
+    .card .nm { height: 29px; padding: 1px 2px 0; font-size: 11px; line-height: 13px; white-space: normal; text-overflow: clip; display: grid; place-items: center; }
+    .card .key { top: 2px; left: 2px; min-width: 17px; height: 17px; font-size: 11px; line-height: 15px; }
+    .card .pr { top: 2px; right: 2px; height: 18px; padding: 0 4px 0 1px; font-size: 12px; }
+    .card .pr .ic { width: 13px; height: 13px; }
+    /* above the field: the next wave's chips across the screen, Send Wave and the spells under them */
+    .trayCap.right {
+      position: fixed; z-index: 10; left: calc(4px + var(--sal)); right: calc(4px + var(--sar)); width: auto; max-width: none;
+      top: calc(86px + var(--sat)); bottom: calc(100% - var(--ft) + 6px); height: auto; margin: 0; padding: 7px 6px 6px; gap: 6px; justify-content: space-between;
+    }
+    #waveInfo { flex: 0 1 auto; height: auto; overflow: visible; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 8px 8px; }
+    #waveInfo::before, #waveInfo .lbl { display: none; }
+    #waveInfo:has(.chip:nth-child(8)) { gap: 8px 8px; }
+    #waveInfo .chip, #waveInfo:has(.chip:nth-child(8)) .chip { padding: 0 5px 0 2px; }
+    #waveInfo .chip:has(.mk.gd), #waveInfo:has(.chip:nth-child(8)) .chip:has(.mk.gd) { padding-right: 17px; }
+    #waveInfo .chip::after { content: ""; position: absolute; inset: -5px -4px; }
+    .chip .mk.arm { font-size: 11px; height: 13px; line-height: 13px; }
+    #waveBtn { flex: none; height: 44px; margin-left: 212px; width: auto; padding: 0 8px; font-size: 14px; white-space: normal; line-height: 1.1; }
+    #waveBtn.underway, #waveBtn.done, #waveBtn.auto { height: 34px; margin: 5px 0 5px 212px; font-size: 12.5px; }
+    #spellbar { top: auto; bottom: calc(100% - var(--ft) + 10px); left: calc(8px + var(--sal)); transform: none; flex-direction: row; gap: 8px; padding: 0; }
+    #spellbar::before { display: none; }
+    .spell { width: 44px; height: 44px; }
+    .spell > .ic { width: 25px; height: 25px; }
+    .spell .cdn { bottom: 4px; font-size: 12.5px; }
+    .spell:disabled > .ic { transform: translateY(-5px) scale(.84); }
+    .spell .cdl { bottom: -4px; right: -6px; min-width: 16px; height: 16px; font-size: 11px; line-height: 14px; padding: 0 3px; }
+    /* the toast over the field's top; Settings under the header, one column */
+    #toast { top: calc(var(--ft, 50vh) + 8px); max-width: calc(100vw - 24px); padding: 6px 14px; font-size: 13.5px; }
+    body.hasNote:not(.onMenu) #toast { top: max(calc(var(--ft, 50vh) + 8px), var(--noteBottom, 0px)); }
+    #settings { top: calc(86px + var(--sat)); right: calc(6px + var(--sar)); width: min(300px, calc(100vw - 12px));
+      max-height: calc(100vh - 92px - var(--sat) - var(--sab)); max-height: calc(100dvh - 92px - var(--sat) - var(--sab)); overflow-y: auto; }
+    #settings .row input[type=range] { min-width: 0; }
+
+    /* the menu pages: one column that scrolls, starting under the corner buttons */
+    #overlay { justify-content: safe center; gap: 8px;
+      padding: calc(60px + var(--sat)) calc(12px + var(--sar)) calc(14px + var(--sab)) calc(12px + var(--sal)); }
+    #overlay .ovOrn { width: 34px; height: 34px; }
+    #overlay .ovOrn.o1 { left: 3px; top: 3px; } #overlay .ovOrn.o2 { right: 3px; top: 3px; }
+    #overlay .ovOrn.o3 { left: 3px; bottom: 3px; } #overlay .ovOrn.o4 { right: 3px; bottom: 3px; }
+    /* the corner buttons stay in the top corners; what the page scrolls to keeps clear of them (scroll-padding) */
+    #overlay { scroll-padding: calc(60px + var(--sat)) 0 calc(10px + var(--sab)); }
+    #overlay #ovGear { top: calc(8px + var(--sat)); right: calc(10px + var(--sar)); }
+    #overlay #nardiBtn { top: calc(8px + var(--sat)); right: calc(60px + var(--sar)); }
+    #overlay #townBtn { display: none; }
+    #ovStars { top: calc(8px + var(--sat)); left: calc(10px + var(--sal)); }
+    body.onMenu #settings { top: calc(58px + var(--sat)); right: calc(8px + var(--sar)); }
+    #overlay h1 { font-size: 24px; letter-spacing: 2px; }
+    #overlay .crest .ic { width: 40px; height: 40px; }
+    #ovPage .ovHead { padding: 0; gap: 10px; }
+    #overlay .sub { padding: 0; font-size: 14.5px; }
+    #overlay:not(.brief):not(.victory) .sub { width: 100%; height: auto; }
+    #overlay:not(.brief):not(.victory) .ovDebrief.on { width: 100%; padding: 4px 6px 5px; font-size: 13px; }
+    #worldMap { flex: none; width: 100%; height: auto; min-height: 0; max-height: none; margin: 4px 0; }
+    /* the map comes right under the page's words, so it shows as the page opens; the chapters follow it */
+    #overlay:not(.brief):not(.victory) #worldMap { order: 1; }
+    #overlay:not(.brief):not(.victory) .chapterBar { order: 2; }
+    #overlay:not(.brief):not(.victory) .ovFoot { order: 3; }
+    .chapterBar { padding: 0; gap: 6px; }
+    .chTab, .chStory { min-height: 40px; }
+    .chStory { margin-left: 0; }
+    #overlay .ovFoot { padding: 0; gap: 8px; max-width: 100%; }
+    #overlay .bigRow, #overlay .diffRow { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+    #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
+    #overlay .big { padding: 10px 22px; font-size: 16.5px; white-space: normal; }
+    #overlay .diffBtn { padding: 4px 12px 4px 5px; font-size: 13.5px; min-height: 40px; }
+    #overlay .diffRow { gap: 6px; flex-wrap: wrap; justify-content: center; }
+    #overlay.brief #ovPage { width: 100%; padding: 20px 16px 22px; }
+    #overlay.brief .sub { font-size: 16.5px; }
+    #overlay.brief h1 { font-size: 28px; }
+    .homeTip { width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -2474,6 +2872,7 @@
 
 <div id="panel" class="kit">
   <div class="ptr" id="pPtr"></div>
+  <div class="pInfo">
   <div class="phead">
     <div class="pport"><canvas id="pPortrait" width="120" height="120"></canvas></div>
     <div>
@@ -2482,6 +2881,8 @@
     </div>
   </div>
   <div class="stats" id="pStats"></div>
+  <div class="pMast" id="pMast"></div>
+  </div>
   <div class="actions" id="pActions"></div>
 </div>
 
@@ -2573,7 +2974,7 @@
     <button class="chArrow" id="chPrev" aria-label="Previous chapter" title="Previous chapter (Left arrow)">&#8249;</button>
     <div class="chTabs" id="chapterTabs"></div>
     <button class="chArrow" id="chNext" aria-label="Next chapter" title="Next chapter (Right arrow)">&#8250;</button>
-    <button class="chStory" id="chStory" title="Read this chapter's story"><svg class="ic"><use href="#i-flag"/></svg>Chapter story</button>
+    <button class="chStory" id="chStory" title="Read this chapter's story" aria-label="Chapter story"><svg class="ic"><use href="#i-flag"/></svg><span>Chapter story</span></button>
   </div>
   <canvas id="worldMap"></canvas>
   <div class="endingCard" id="endingCard" role="dialog" aria-modal="true" aria-labelledby="ecTitle" aria-hidden="true">
@@ -2664,8 +3065,20 @@ safeProbe.id = "safeProbe";
 document.body.appendChild(safeProbe);
 function safeInsets() {
   const cs = getComputedStyle(safeProbe);
-  return { t: parseFloat(cs.paddingTop) || 0, b: parseFloat(cs.paddingBottom) || 0 };
+  return { t: parseFloat(cs.paddingTop) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0 };
 }
+// ---- the phone layout: one rule, read by the stylesheet and the script alike ----
+// A phone held sideways is at most 500 px tall (every iPhone from the SE to the Pro Max is 320 to 430 px tall in
+// Safari or from the Home Screen; the shortest iPad held wide is 744 px, a desktop window 600 px and more); held
+// upright it is at most 500 px wide (iPhones 375 to 430; the narrowest iPad upright is 744). Those two queries,
+// and only they, turn on the phone's rules in the stylesheet (the @media blocks "phone, sideways" and "phone,
+// upright"); the iPad and desktop layouts match neither and are never touched by them
+const PHONE_MQ = matchMedia("(max-height: 500px), (max-width: 500px)"), PHONE_WIDE_MQ = matchMedia("(max-height: 500px)");
+function isPhone() { return PHONE_MQ.matches; }
+function phoneWide() { return PHONE_WIDE_MQ.matches; }
+function phoneTall() { return PHONE_MQ.matches && !PHONE_WIDE_MQ.matches; }
+// a length the phone's rules set on :root (the tray's height, the side columns' widths), in px
+function rootPx(name) { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0; }
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, dprCap);
   const w = Math.round(window.innerWidth || 1280), h = Math.round(window.innerHeight || 720);
@@ -2673,12 +3086,33 @@ function resize() {
   if (w * h * DPR * DPR > 16e6) DPR = Math.max(1, Math.sqrt(16e6 / (w * h)));
   canvas.width = Math.round(w * DPR); canvas.height = Math.round(h * DPR);
   canvas.style.width = w + "px"; canvas.style.height = h + "px";
+  if (isPhone()) { resizePhone(w, h); return; }
   // the tower tray owns the bottom strip (--tray-h in the stylesheet, plus the safe area under it): the field
   // stands on its top edge, so the header can only ever overlap sky
   const trayH = 90 + safeInsets().b;
   scale = Math.min(w / VW, (h - trayH) / VH);
   offX = (w - VW * scale) / 2;
   offY = h - trayH - VH * scale;
+}
+// A phone: the field stands on the tray (56 px sideways), as large as the rest of the HUD lets it be. Held sideways
+// the 16:9 field is bound by the height, so the bands beside it carry what lies over the field on a tablet: the
+// spells in the left one (--ph-lcol), the next wave's chips and Send Wave in the right one (--ph-rcol, at least);
+// the header's two plaques hang over the field's sky. Held upright it is bound by the width, and the room above it
+// takes the spells and the wave cap. The field's box is handed to the stylesheet (--fl --ft --fw --fh, client px)
+function resizePhone(w, h) {
+  const ins = safeInsets(), trayH = rootPx("--tray-h") + ins.b;
+  if (phoneWide()) {
+    const L = ins.l + rootPx("--ph-lcol"), R = ins.r + rootPx("--ph-rcol");
+    scale = Math.min((w - L - R) / VW, (h - trayH) / VH);
+    offX = L + (w - L - R - VW * scale) / 2;
+  } else {
+    scale = Math.min((w - ins.l - ins.r) / VW, (h - trayH - ins.t - rootPx("--ph-top")) / VH);
+    offX = (w - VW * scale) / 2;
+  }
+  offY = h - trayH - VH * scale;
+  const st = document.documentElement.style;
+  st.setProperty("--fl", offX + "px"); st.setProperty("--ft", offY + "px");
+  st.setProperty("--fw", VW * scale + "px"); st.setProperty("--fh", VH * scale + "px");
 }
 window.addEventListener("resize", resize);
 // iOS reports the new size a beat after an orientation change, and the address bar's show and hide
@@ -10310,10 +10744,13 @@ function syncHudNote(force) {
   document.body.classList.toggle("hasNote", !!html);
   if (!html) return;
   const st = waveNumEl.closest(".stat") || waveNumEl, r = st.getBoundingClientRect(), pl = (st.closest(".hudPlaque") || st).getBoundingClientRect();
-  el.style.left = Math.round(r.left) + "px";
-  el.style.top = Math.round(pl.bottom + 4) + "px";
+  // a phone held upright has its header in two rows and the room under it full of the wave cap: the note stands at
+  // the top of the field instead
+  const top = phoneTall() ? Math.round(offY + 6) : Math.round(pl.bottom + 4);
+  el.style.left = (phoneTall() ? Math.round(offX + 6) : Math.round(r.left)) + "px";
+  el.style.top = top + "px";
   // a toast in battle comes down below the note, not over it (#toast, body.hasNote)
-  document.body.style.setProperty("--noteBottom", Math.round(pl.bottom + 4 + el.offsetHeight + 8) + "px");
+  document.body.style.setProperty("--noteBottom", Math.round(top + el.offsetHeight + 8) + "px");
 }
 window.addEventListener("resize", () => syncHudNote(true));
 function syncHud() {
@@ -11010,6 +11447,7 @@ function showVictoryScreen() {
   victoryNext = nextBattleAfter(curLevel);
   menuMode = "victory";
   overlayEl.classList.add("victory");
+  phonePageTop();
   $("worldMap").style.display = "none";
   $("diffRow").style.display = "none";
   $("resumeBtn").style.display = "none";
@@ -43780,8 +44218,10 @@ function plotSignSpot(plot, pp, ks) {
 function plotSignView(plot, m) {
   const pp = proj(plot[0], plot[1]);
   const dev = m.b === 0 && m.c === 0 ? m.a : Math.hypot(m.a, m.b);
-  // the sign keeps a legible size however far away the plot lies or small the window is
-  const ks = Math.max(1, pp.s, 0.96 / Math.max(0.2, dev));
+  // the sign keeps a legible size however far away the plot lies or small the window is; on a phone its 12.5-unit
+  // price reads at 11 px at least, whatever the screen's density
+  let ks = Math.max(1, pp.s, 0.96 / Math.max(0.2, dev));
+  if (isPhone()) ks = Math.max(ks, 0.9 / Math.max(0.05, scale));
   return { pp, ks, spot: plotSignSpot(plot, pp, ks) };
 }
 
@@ -53027,7 +53467,8 @@ function showTrickCard(keys, o) {
   if (!keys.length) return;
   buildTrickCard();
   const extra = o.extra || {};
-  $("tcBody").innerHTML = keys.map(k => trickSectionHtml(k, extra[k])).join("") +
+  // the text in a frame of its own (laid out as before on a tablet; on a phone it scrolls above the button)
+  $("tcBody").innerHTML = '<div class="tcText">' + keys.map(k => trickSectionHtml(k, extra[k])).join("") + "</div>" +
     '<button type="button" class="btn big" id="tcBtn">' + (o.read ? "Close" : "To the walls") + "</button>";
   const h2 = trickCardEl.querySelector("h2");
   if (h2) h2.id = "tcTitle";
@@ -53708,18 +54149,35 @@ function placeFoeCard(anchor) {
   const W = innerWidth, H = innerHeight, m = 8, gap = 12;
   foeCardEl.classList.remove("scroll");
   foeCardEl.style.maxHeight = "";
+  // a phone keeps it out of the safe area (the sensor housing's band, the home indicator's); its wave cap stands
+  // beside the field, so a chip's card opens beside the cap, over the field
+  const ins = isPhone() ? safeInsets() : { t: 0, b: 0, l: 0, r: 0 };
+  if (cap && phoneWide()) { placeFoeCardBeside(a, r, ins, m); return; }
   const w = foeCardEl.offsetWidth, h = foeCardEl.offsetHeight, cx = (a.left + a.right) / 2;
-  const roomUp = r.top - gap - m, roomDown = H - r.bottom - gap - m;
+  const roomUp = r.top - gap - m - ins.t, roomDown = H - ins.b - r.bottom - gap - m;
   const above = h <= roomUp || roomUp >= roomDown;
   // a card taller than the room on its side scrolls inside a frame of that height
   const room = above ? roomUp : roomDown;
-  if (h > room) { foeCardEl.style.maxHeight = Math.max(160, room) + "px"; foeCardEl.classList.add("scroll"); }
+  if (h > room) { foeCardEl.style.maxHeight = (isPhone() ? Math.max(120, room) : Math.max(160, room)) + "px"; foeCardEl.classList.add("scroll"); }
   const top = above ? r.top - gap - foeCardEl.offsetHeight : r.bottom + gap;
-  const left = Math.max(m, Math.min(W - w - m, cx - w / 2));
+  const left = Math.max(m + ins.l, Math.min(W - ins.r - w - m, cx - w / 2));
   foeCardEl.style.left = left + "px";
-  foeCardEl.style.top = Math.max(m, top) + "px";
+  foeCardEl.style.top = Math.max(m + ins.t, top) + "px";
   foeCardEl.classList.toggle("below", !above);
   foeCardEl.style.setProperty("--ptr", Math.max(16, Math.min(w - 16, cx - left)) + "px");
+}
+// a phone held sideways: the card from a chip stands left of the wave cap, level with its chip, over the field
+// (its pointer hidden), as tall as the screen lets it be and scrolling past that
+function placeFoeCardBeside(a, cap, ins, m) {
+  // under the header (its pause and Settings stay in view), down to the foot of the screen
+  const H = innerHeight, top0 = Math.max(ins.t + m, $("topbar").getBoundingClientRect().bottom + 4), bot = H - ins.b - m;
+  if (foeCardEl.offsetHeight > bot - top0) { foeCardEl.style.maxHeight = (bot - top0) + "px"; foeCardEl.classList.add("scroll"); }
+  const w = foeCardEl.offsetWidth, h = foeCardEl.offsetHeight;
+  const top = Math.max(top0, Math.min(bot - h, (a.top + a.bottom) / 2 - h / 2));
+  foeCardEl.style.left = Math.max(ins.l + m, cap.left - 10 - w) + "px";
+  foeCardEl.style.top = top + "px";
+  foeCardEl.classList.remove("below");
+  foeCardEl.classList.add("scroll");   // no pointer: it stands beside the cap, not over it
 }
 function closeFoeCard() {
   if (!foeCardOn) return;
@@ -53837,6 +54295,9 @@ function setPanelStats(t) {
 function placePanel(t) {
   const pp = proj(t.x, t.y);
   const sx = pp.x * scale + offX, sy = (pp.y - 20 * pp.s) * scale + offY;
+  panelEl.classList.toggle("sheet", isPhone());
+  if (isPhone()) { placePanelPhone(t, sx, sy); return; }
+  panelEl.style.width = panelEl.style.height = "";
   const acts = $("pActions"), floor = window.innerHeight - $("shop").offsetHeight - 10, room = floor - 60;
   panelEl.classList.remove("tight");
   acts.style.maxHeight = "";
@@ -53854,6 +54315,45 @@ function placePanel(t) {
   panelEl.style.top = top + "px";
   panelEl.classList.toggle("ptr-right", !onRight);
   $("pPtr").style.top = Math.max(12, Math.min(h - 30, sy - top - 9)) + "px";
+}
+// On a phone the panel is a sheet of two columns, the tower's head and stats beside its buttons, laid in the room
+// away from the tower: held sideways the side of the screen across from it, from under the header to the foot of
+// the screen (over the tray, which a tap on open ground gives back), held upright the room above the field (down to
+// just above the tower when that is not enough). Its buttons never scroll: when they do not fit, the Masteries give
+// their lines to the head's column (.squeeze) and the stats scroll there instead
+function placePanelPhone(t, sx, sy) {
+  const ins = safeInsets(), W = innerWidth, H = innerHeight, m = 4;
+  const acts = $("pActions"), hud = $("topbar").getBoundingClientRect();
+  panelEl.classList.remove("tight", "squeeze", "ptr-right");
+  acts.style.maxHeight = "";
+  panelEl.style.height = "";
+  let left, top, w, room;
+  if (phoneWide()) {
+    const gap = Math.max(18, 40 * scale), lo = ins.l + m, hi = W - ins.r - m;
+    const rightRoom = hi - (sx + gap), leftRoom = (sx - gap) - lo, onRight = rightRoom >= leftRoom;
+    w = Math.min(400, Math.max(rightRoom, leftRoom));
+    left = onRight ? hi - w : lo;
+    top = hud.bottom + m;
+    room = H - ins.b - m - top;
+  } else {
+    w = Math.min(420, W - ins.l - ins.r - 2 * m);
+    left = (W - w) / 2;
+    top = hud.bottom + m;
+    // the room above the field, or down to just above the tower where that is more
+    room = Math.max(offY - m, sy - 34 * Math.max(0.35, scale)) - top;
+  }
+  panelEl.style.width = Math.round(w) + "px";
+  panelEl.style.left = Math.round(left) + "px";
+  panelEl.style.top = Math.round(top) + "px";
+  panelEl.style.display = "block";
+  const fit = () => {
+    const info = panelEl.querySelector(".pInfo");
+    const need = Math.max(acts.scrollHeight, info.scrollHeight) + 20;
+    panelEl.style.height = Math.round(Math.min(room, need)) + "px";
+    return acts.scrollHeight + 20 <= room + 0.5;
+  };
+  panelEl.style.height = Math.round(room) + "px";
+  if (!fit()) { panelEl.classList.add("squeeze"); panelEl.style.height = Math.round(room) + "px"; fit(); }
 }
 // an open panel follows its tower when the window is resized
 window.addEventListener("resize", () => {
@@ -54005,10 +54505,14 @@ function ribbonBandPath(c, half, grow) {
   c.closePath();
 }
 
+// o.subK (a phone, ribbonPhoneK): the smaller lines are set that many times larger, so they read at 11 px on the
+// screen; a line too long for the cloth then takes two, and the band (o.h tall, the sprite's height) grows to hold them
 function paintRibbon(c, main, sub, o) {
-  const cx = RIBBON_W / 2, cy = RIBBON_H / 2;
+  const subK = o.subK || 1;
+  const cx = RIBBON_W / 2, cy = (o.h || RIBBON_H) / 2;
   const size = o.size || 40;
-  const half = o.over ? 56 : 42;
+  const lay = subK > 1 ? ribbonPhoneLayout(c, main, sub, o) : null;
+  const half = lay ? lay.half : o.over ? 56 : 42;
   const top = cy - half, bot = cy + half;
   // dark cloth, solid behind the lettering: only the outer 15% at either end thins away.
   // A sheer ribbon is hung over the live field, so its cloth lets towers and units read through
@@ -54068,16 +54572,17 @@ function paintRibbon(c, main, sub, o) {
   c.textAlign = "center";
   c.lineJoin = "round";
   if (o.over) {
-    c.font = "700 15px " + UI_FONT;
+    c.font = "700 " + 15 * subK + "px " + UI_FONT;
     if ("letterSpacing" in c) c.letterSpacing = "5px";
+    const oy = lay ? cy + lay.overY : cy - 30;
     c.fillStyle = "rgba(20, 11, 4, .85)";
-    c.fillText(o.over, cx, cy - 28.8);
+    c.fillText(o.over, cx, lay ? oy + 1.2 : cy - 28.8);
     c.fillStyle = "#f0cf85";
-    c.fillText(o.over, cx, cy - 30);
+    c.fillText(o.over, cx, oy);
     if ("letterSpacing" in c) c.letterSpacing = "0px";
   }
 
-  const mainY = o.over ? cy + 15 : cy + (sub ? 3 : 12) - (40 - size) * 0.3;
+  const mainY = lay ? cy + lay.mainY : o.over ? cy + 15 : cy + (sub ? 3 : 12) - (40 - size) * 0.3;
   c.font = "700 " + size + "px " + UI_FONT;
   const fill = c.createLinearGradient(0, mainY - size * 0.74, 0, mainY + size * 0.08);
   const tones = o.tone === "boss" ? ["#ffe6d4", "#ff9d7a", "#c9523a"] : ["#fff3c6", "#f0cf85", "#c2912f"];
@@ -54098,44 +54603,86 @@ function paintRibbon(c, main, sub, o) {
   }
 
   if (sub) {
-    const subY = o.over ? cy + 39 : cy + 27;
-    c.font = "italic 15.5px " + UI_FONT;
-    const emblem = o.emblem >= 0 ? 17 : 0;
-    const lead = emblem ? emblem + 7 : 0;
-    const x = cx - (c.measureText(sub).width + lead) / 2;
-    if (emblem) {
-      c.save();
-      c.translate(x, subY - 13.5);
-      c.scale(emblem / 24, emblem / 24);
-      c.fillStyle = "#f0cf85";
-      const en = document.querySelector("#i-era" + o.emblem + " path");
-      c.fill(eraEmblemPath(o.emblem), en && en.getAttribute("fill-rule") === "evenodd" ? "evenodd" : "nonzero");
-      c.restore();
-    }
-    c.textAlign = "left";
-    c.fillStyle = "rgba(20, 11, 4, .85)";
-    c.fillText(sub, x + lead, subY + 1.2);
-    c.fillStyle = "#f4ead2";
-    c.fillText(sub, x + lead, subY);
+    const lines = lay ? lay.lines : [sub];
+    lines.forEach((line, k) => {
+      const subY = lay ? cy + lay.subY[k] : o.over ? cy + 39 : cy + 27;
+      c.font = "italic " + 15.5 * subK + "px " + UI_FONT;
+      const emblem = o.emblem >= 0 && k === 0 ? 17 * subK : 0;
+      const lead = emblem ? emblem + 7 * subK : 0;
+      const x = cx - (c.measureText(line).width + lead) / 2;
+      if (emblem) {
+        c.save();
+        c.translate(x, subY - 13.5 * subK);
+        c.scale(emblem / 24, emblem / 24);
+        c.fillStyle = "#f0cf85";
+        const en = document.querySelector("#i-era" + o.emblem + " path");
+        c.fill(eraEmblemPath(o.emblem), en && en.getAttribute("fill-rule") === "evenodd" ? "evenodd" : "nonzero");
+        c.restore();
+      }
+      c.textAlign = "left";
+      c.fillStyle = "rgba(20, 11, 4, .85)";
+      c.fillText(line, x + lead, subY + 1.2);
+      c.fillStyle = "#f4ead2";
+      c.fillText(line, x + lead, subY);
+    });
   }
 }
+// a phone's ribbon (paintRibbon with o.subK): the sub line split in two where it is too long for the cloth, and
+// where every line stands, as offsets from the band's middle; half is the band's half height
+function ribbonPhoneLayout(c, main, sub, o) {
+  const k = o.subK, size = o.size || 40, ss = 15.5 * k, os = 15 * k;
+  c.font = "italic " + ss + "px " + UI_FONT;
+  const lead = o.emblem >= 0 ? 24 * k : 0, room = RIBBON_W * 0.68;
+  let lines = sub ? [sub] : [];
+  if (sub && c.measureText(sub).width + lead > room) {
+    const words = sub.split(" ");
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+      const wd = Math.max(c.measureText(a).width + lead, c.measureText(b).width);
+      if (!best || wd < best.wd) best = { wd, l: [a, b] };
+    }
+    if (best) lines = best.l;
+  }
+  const overH = o.over ? os + 8 : 0, mainH = size * 0.74, gap = 8, lineH = ss * 1.12;
+  const block = overH + mainH + (lines.length ? gap + ss * 0.78 + (lines.length - 1) * lineH + ss * 0.22 : 0);
+  const y0 = -block / 2;
+  const mainY = y0 + overH + mainH;
+  return {
+    lines, half: Math.max(o.over ? 56 : 42, block / 2 + 13),
+    overY: y0 + os * 0.8, mainY,
+    subY: lines.map((_, i) => mainY + gap + ss * 0.78 + i * lineH),
+  };
+}
+// on a phone: how much larger a ribbon's smaller lines are set (1 elsewhere), and the sprite's height for them
+function ribbonPhoneK() { return isPhone() ? Math.max(1, 11.5 / (15.5 * Math.max(0.05, scale))) : 1; }
 
 function drawRibbonBanner(cx, cy, main, sub, o) {
   o = o || {};
   const k = Math.max(1, Math.min(3, Math.ceil(ctx.getTransform().a * 4) / 4));
-  const key = [main, sub, o.over || "", o.size || 0, o.tone || "", o.emblem >= 0 ? o.emblem : "", o.sheer ? 1 : 0, k].join("|");
+  const subK = ribbonPhoneK();
+  const key = [main, sub, o.over || "", o.size || 0, o.tone || "", o.emblem >= 0 ? o.emblem : "", o.sheer ? 1 : 0, k].join("|") + (subK > 1 ? "|" + subK.toFixed(3) : "");
   let sprite = ribbonCache.get(key);
   if (!sprite) {
     if (ribbonCache.size >= 6) ribbonCache.clear();
     sprite = document.createElement("canvas");
+    let h = RIBBON_H, po = o;
+    if (subK > 1) {
+      // measured on a scratch context first: the band's height decides the sprite's
+      const lay = ribbonPhoneLayout(sprite.getContext("2d"), main, sub, Object.assign({}, o, { subK }));
+      h = Math.max(RIBBON_H, Math.ceil(2 * lay.half + 40));
+      po = Object.assign({}, o, { subK, h });
+    }
     sprite.width = Math.ceil(RIBBON_W * k);
-    sprite.height = Math.ceil(RIBBON_H * k);
+    sprite.height = Math.ceil(h * k);
+    sprite.hsH = h;
     const c = sprite.getContext("2d");
     c.scale(k, k);
-    paintRibbon(c, main, sub, o);
+    paintRibbon(c, main, sub, po);
     ribbonCache.set(key, sprite);
   }
-  ctx.drawImage(sprite, cx - RIBBON_W / 2, cy - RIBBON_H / 2, RIBBON_W, RIBBON_H);
+  const h = sprite.hsH || RIBBON_H;
+  ctx.drawImage(sprite, cx - RIBBON_W / 2, cy - h / 2, RIBBON_W, h);
 }
 
 // damage a second at these stats, before armor and drums: the blow over the reload (two bolts for twin ballistae)
@@ -54222,6 +54769,7 @@ function showPanel(t) {
   renderTowerPortrait($("pPortrait"), t.type, t.level, t.spec, 1.5);
   const acts = $("pActions");
   acts.innerHTML = "";
+  $("pMast").innerHTML = "";
   panelCostBtns = [];
   panelHurt = t.wreck ? "wrecked" : towerHpFrac(t) < 1 ? "hurt" : "whole";
   if (t.wreck) { showRuinPanel(t); placePanel(t); return; }
@@ -54246,6 +54794,8 @@ function showPanel(t) {
       const desc = sp.stats.nova && t.buffHaste > 0
         ? sp.desc.replace(/^Every \d+s/, "Every " + +(sp.stats.nova / (1 + t.buffHaste)).toFixed(1) + "s") : sp.desc;
       const b = mkBtn(icon("star") + sp.name + coinBadge(sp.cost), desc, "spec", () => specializeTower(t, key), gold < sp.cost, sp.cost);
+      // a phone's squeezed panel tells what each Mastery does in the head's column, beside its button
+      $("pMast").insertAdjacentHTML("beforeend", "<p><b>" + escapeHtml(sp.name) + "</b> " + escapeHtml(desc) + "</p>");
       b.insertAdjacentHTML("beforeend", statDeltaHtml(t.type, getStats(t), def.specs[key].stats));
       // the mastery under the pointer, or under a finger while it is down, is the one whose reach the field shows
       b.addEventListener("pointerenter", () => { rangePreview = key; });
@@ -54314,6 +54864,7 @@ function refreshPanelBtns() {
 
 // ---------- menu / overlay ----------
 function buildMenu() {
+  syncHomeTip();
   $("endlessBtn").style.display = "none";
   // the debrief of a lost stand stays while the map is browsed (so the map never rescales under the finger), and
   // steps back once another battlefield is chosen
@@ -55507,7 +56058,22 @@ function drawMapRecord(m, cx, y, rec) {
 // The plate keeps inside the chart's frame: status may be a list of lines, longest first, and the plate takes the
 // first that fits with at most a short slide in from the edge (so a chosen plate by the frame drops its age, which
 // the subtitle still gives); one still too wide slides in as far as it must
+// On a phone (look.k > 1, renderWorldMap) the whole plate is drawn k times larger about its top centre, so its
+// smallest line reads at 11 px on the screen; it still keeps inside the chart's frame
 function drawMapPlate(m, cx, top, name, hy, status, look) {
+  const k = look.k || 1;
+  if (k > 1) {
+    m.save();
+    // a plate that would run past the chart's foot rises (over its fort's foot) until it fits
+    const tall = (31 + (hy ? 12 : 0) + (status && look.rec ? 13 : 0)) * k;
+    const top2 = Math.min(top, MAP_H - 14 - tall);
+    m.translate(cx * (1 - k), top2 * (1 - k));
+    m.scale(k, k);
+    const r = drawMapPlate(m, cx, top2, name, hy, status, Object.assign({}, look, { k: 1, lo: (16 - cx * (1 - k)) / k, hi: (MAP_W - 16 - cx * (1 - k)) / k }));
+    m.restore();
+    return { x: cx * (1 - k) + r.x * k, y: top2 * (1 - k) + r.y * k, w: r.w * k, h: r.h * k };
+  }
+  const lo = look.lo === undefined ? 16 : look.lo, hi = look.hi === undefined ? MAP_W - 16 : look.hi;
   m.font = "700 13.5px " + UI_FONT;
   const nameW = m.measureText(name).width;
   const recW = look.rec ? mapRecordWidth(m, look.rec) : 0;
@@ -55517,7 +56083,7 @@ function drawMapPlate(m, cx, top, name, hy, status, look) {
   const fit = s => {
     const sw = s ? m.measureText(s).width : 0, w = Math.max(72, Math.ceil(Math.max(nameW, hyW, sw, recW)) + 18);
     const x0 = Math.round(look.edge === "left" ? cx : look.edge === "right" ? cx - w : cx - w / 2);
-    return { s, w, x0, x: Math.min(Math.max(x0, 16), MAP_W - 16 - w) };
+    return { s, w, x0, x: Math.min(Math.max(x0, lo), hi - w) };
   };
   const lines = [].concat(status), P = lines.map(fit).find(p => Math.abs(p.x - p.x0) <= 12) || fit(lines[lines.length - 1]);
   const w = P.w, x = P.x;
@@ -55657,6 +56223,8 @@ function renderWorldMap() {
   // record under its name. A chosen won one gives both on a plate a line taller, its date without the age, so
   // the plate stays inside the chart's border
   mapPlatesDrawn = [];
+  // a phone draws the plates larger: their smallest line (10.5 units) at 11 px on the screen, and no Armenian line
+  const plateK = mapPlateK();
   for (const i of lv.filter(k => k !== curLevel).concat(lv.includes(curLevel) ? [curLevel] : [])) {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
@@ -55667,15 +56235,36 @@ function renderWorldMap() {
       : !unlocked ? "Locked"
       : best > 0 ? "Best: wave " + best : "Unconquered";
     mapPlatesDrawn.push(Object.assign({ i }, drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name,
-      hyName("field", LEVELS[i].name), status, { sel, locked: !unlocked, rec: rec.stars ? rec : null, edge: pl[2] })));
+      plateK > 1 ? "" : hyName("field", LEVELS[i].name), status, Object.assign({ sel, locked: !unlocked, rec: rec.stars ? rec : null, edge: pl[2] }, plateK > 1 ? { k: plateK } : {}))));
   }
 }
 
+// how much larger a phone draws the map's plates (1 elsewhere): the map is drawn a little over half its size there
+function mapPlateK() {
+  if (!isPhone()) return 1;
+  const w = $("worldMap").getBoundingClientRect().width;
+  return w ? Math.max(1, 11.2 / (10.5 * w / MAP_W)) : 1;
+}
+// a battlefield's node answers within 34 map units; on a phone within 22 px of the screen at least (the nearest
+// node wins where two reach that far)
+function mapNodeRadius() {
+  if (!isPhone()) return 34;
+  const w = $("worldMap").getBoundingClientRect().width;
+  return w ? Math.max(34, 22.5 * MAP_W / w) : 34;
+}
 function mapNodeAt(evt) {
   const cv = $("worldMap");
   const r = cv.getBoundingClientRect();
   const mx = (evt.clientX - r.left) * (MAP_W / r.width);
   const my = (evt.clientY - r.top) * (MAP_H / r.height);
+  if (isPhone()) {
+    let best = -1, bd = mapNodeRadius();
+    for (const i of CHAPTERS[mapChapter()].levels) {
+      const d = Math.hypot(MAP_NODES[i].x - mx, MAP_NODES[i].y - my);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
   for (const i of CHAPTERS[mapChapter()].levels) {
     if (Math.hypot(MAP_NODES[i].x - mx, MAP_NODES[i].y - my) < 34) return i;
   }
@@ -55843,6 +56432,49 @@ function checkNewUnlocks() {
 
 let menuMode = "map";   // "map" → world map; "brief" → history chronicle; "chapter" → a chapter's story
 
+// ---- the Home Screen tip: an iPhone in Safari plays with the browser's bars over the field; added to the Home
+// Screen the game opens full screen. A line on the campaign map says how, in the page's own flow (never over a
+// control, never in the way), until it is closed (hs_home_tip) or has been shown on three visits (hs_home_tip_shown).
+// Never from the Home Screen (navigator.standalone), in another browser, on an iPad or a desktop, or in the harness
+const HOME_TIP_KEY = "hs_home_tip", HOME_TIP_SHOWN = "hs_home_tip_shown";
+let homeTipOn = null;   // decided once a visit, the first time the map shows
+function homeTipWanted() {
+  const ua = navigator.userAgent || "";
+  if (HARNESS_ON || !/iPhone/.test(ua) || !/Safari\//.test(ua) || /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|FBAN|FBAV|Instagram/.test(ua)) return false;
+  if (navigator.standalone === true) return false;
+  try { if (matchMedia("(display-mode: standalone)").matches) return false; } catch (e) {}
+  try {
+    if (localStorage.getItem(HOME_TIP_KEY)) return false;
+    const n = Number(localStorage.getItem(HOME_TIP_SHOWN)) || 0;
+    if (n >= 3) return false;
+    localStorage.setItem(HOME_TIP_SHOWN, String(n + 1));
+  } catch (e) { return false; }
+  return true;
+}
+// a phone's menu page scrolls (held upright, or a long one held sideways): a new page opens at its top
+function phonePageTop() { if (isPhone()) overlayEl.scrollTop = 0; }
+function syncHomeTip() {
+  if (homeTipOn === null) homeTipOn = homeTipWanted();
+  let el = $("homeTip");
+  if (!homeTipOn) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "homeTip";
+  el.className = "homeTip";
+  el.setAttribute("role", "note");
+  el.innerHTML = '<svg class="ic htShare" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 6.6 12 3l4 3.6M8.6 9.5H6.5v10.5h11V9.5h-2.1" ' +
+    'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+    "<p><b>Add Highland Stand to your Home Screen</b> to play full screen. Tap Share in Safari's bar, then Add to Home Screen.</p>" +
+    '<button type="button" class="htX" aria-label="Close the Home Screen tip">' + icon("close") + "</button>";
+  el.querySelector(".htX").addEventListener("click", (e) => {
+    e.stopPropagation();
+    homeTipOn = false;
+    try { localStorage.setItem(HOME_TIP_KEY, "closed"); } catch (x) {}
+    el.remove();
+    Snd.play("uiTick");
+  });
+  overlayEl.appendChild(el);
+}
 function showMenu(crest, title, sub, btnText, offerEndless) {
   hideEndingCard();
   leaveVictory();
@@ -55868,6 +56500,7 @@ function showMenu(crest, title, sub, btnText, offerEndless) {
   $("endlessBtn").style.display = offerEndless ? "" : "none";
   overlayEl.classList.remove("hidden");
   syncPauseBtn();
+  phonePageTop();
 }
 
 // ====================================== BACKDROP SECTION: halidzor ======================================
@@ -59156,6 +59789,7 @@ function setLeafPages(pages, at) {
 function showLeafPage(k) {
   leafPage = k;
   $("ovSub").innerHTML = leafHtml(k);
+  $("ovSub").scrollTop = 0;   // a phone's leaf scrolls its text: a new page opens at its top
   document.querySelectorAll("#pgDots i").forEach((d, j) => d.classList.toggle("on", j === k));
   $("pgPrev").disabled = k <= 0;
   $("pgNext").disabled = k >= leafPages.length - 1;
@@ -59213,6 +59847,7 @@ function showChapterIntro(c, then) {
   $("resumeBtn").style.display = "none";
   $("endlessBtn").style.display = "none";
   overlayEl.classList.add("brief");
+  phonePageTop();
   $("ovCrest").className = "crest era" + first.era;
   $("ovCrest").innerHTML = icon("era" + first.era);
   $("ovCrest").title = "Chapter " + C.num;
@@ -59238,6 +59873,7 @@ function showChapterIntro(c, then) {
 function closeChapterIntro() {
   menuMode = "map";
   overlayEl.classList.remove("brief");
+  phonePageTop();
   $("worldMap").style.display = "";
   $("diffRow").style.display = "";
   clearLeaf();
@@ -59289,6 +59925,7 @@ function showBrief() {
   // the content block opens as an illuminated spread: miniature and host on the left,
   // title, red rubric and the history on the right
   overlayEl.classList.add("brief");
+  phonePageTop();
   $("ovCrest").className = "crest era" + L.era;
   $("ovCrest").innerHTML = icon("era" + L.era);
   $("ovCrest").title = E.name;
@@ -59361,18 +59998,32 @@ function nearestFreePad(x, y, maxDist) {
 // A tower is picked where it is seen, in screen space: the world point under the pointer stops at the far
 // edge of the field, so a tower on a pad beyond that edge could be placed but never clicked again. The hit
 // zone is an upright oval over the drawn tower, from its footing to its parapet, shrinking with distance.
-function towerUnderPointer(e) {
+// A tower answers a tap within an oval over its body, 30 x 44 world units (half-axes) at the front row. On a phone
+// that oval is a few px on the screen, so a second pass (wide) widens it to 20 px each way at least: it runs only
+// where the first found no tower and no plot of land lies under the finger (canvas pointerdown)
+function towerTapAxes(t, wide) {
+  const p = proj(t.x, t.y), s = Math.max(0.35, p.s);
+  let ax = 30 * s, ay = 44 * s;
+  if (wide) { const m = 20 / Math.max(0.05, scale); ax = Math.max(ax, m); ay = Math.max(ay, m); }
+  return { x: p.x, y: p.y - 26 * s, ax, ay };
+}
+function towerUnderPointer(e, wide) {
   if (!e) return null;
   const r = canvas.getBoundingClientRect();
   const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
   let best = null, bd = 1;
   for (const t of towers) {
-    const p = proj(t.x, t.y), s = Math.max(0.35, p.s);
-    const dx = (sx - p.x) / (30 * s), dy = (sy - (p.y - 26 * s)) / (44 * s);
+    const z = towerTapAxes(t, wide);
+    const dx = (sx - z.x) / z.ax, dy = (sy - z.y) / z.ay;
     const d = dx * dx + dy * dy;
     if (d < bd) { bd = d; best = t; }
   }
   return best;
+}
+// the tap zone of a tower as a finger finds it, in client px across and down (the phone's wide pass included)
+function towerTapReach(t) {
+  const z = towerTapAxes(t, isPhone() && matchMedia("(pointer: coarse)").matches);
+  return { w: 2 * z.ax * scale, h: 2 * z.ay * scale };
 }
 
 canvas.addEventListener("pointermove", (e) => { mouse = toVirtual(e); pointerClient = { clientX: e.clientX, clientY: e.clientY }; });
@@ -59433,6 +60084,10 @@ canvas.addEventListener("pointerdown", (e) => {
   if (hit) { showPanel(hit); return; }
   const pi = plotUnderPointer(e);
   if (pi >= 0) { buyPlot(pi); return; }
+  // a finger on a phone: the tower nearest within its widened zone (while a panel is up, a tap beside a tower
+  // only puts it away, as a tap on open ground does)
+  const near = touch && isPhone() && !selected ? towerUnderPointer(e, true) : null;
+  if (near) { showPanel(near); return; }
   hidePanel();
 });
 
@@ -59781,7 +60436,9 @@ onFiveTaps($("ovCrest"), testUnlock);
 {
   const rh = document.createElement("div");
   rh.id = "rotateHint";
-  rh.innerHTML = '<div class="kit"><span class="rot">&#10227;</span>Turn your tablet sideways: the highlands are a wide field and are best held in landscape.' +
+  // a phone (the screen's short side at most 500 px, so an iPad's narrow Split View still reads "tablet") is named so
+  const device = Math.min(screen.width || 9999, screen.height || 9999) <= 500 ? "phone" : "tablet";
+  rh.innerHTML = '<div class="kit"><span class="rot">&#10227;</span>Turn your ' + device + ' sideways: the highlands are a wide field and are best held in landscape.' +
     '<br><button class="btn">Play in portrait</button></div>';
   rh.querySelector("button").addEventListener("click", () => rh.classList.add("dismissed"));
   document.body.appendChild(rh);
@@ -59798,6 +60455,15 @@ onFiveTaps(goldEl.parentElement, testGold);
 for (const t of ["touchend", "click", "keydown"]) window.addEventListener(t, () => Snd.unlock(), { capture: true, passive: true });
 for (const t of ["gesturestart", "gesturechange"]) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
 document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
+// On a phone the field answers taps right up to the header's buttons: a browser that moves a tap onto the nearest
+// thing that takes clicks (touch adjustment) must find the field itself there, or a tap on the sky under the header
+// would press Auto or the speed button. The field takes its taps on pointerdown; this click does nothing
+{
+  let on = false;
+  const takeClicks = () => { if (!on && isPhone()) { on = true; canvas.addEventListener("click", () => {}); } };
+  takeClicks();
+  if (PHONE_MQ.addEventListener) PHONE_MQ.addEventListener("change", takeClicks);
+}
 canvas.addEventListener("pointerup", (e) => {
   // a finger lifted leaves no pointer behind: no hover glow stays where it last touched
   if (e.pointerType === "touch" && !placing && !castingSpell) mouse = { x: -999, y: -999 };
