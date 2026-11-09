@@ -2855,7 +2855,7 @@ const LEVELS = [
       boss:    { name: "Shamshi-ilu the Turtan" },
       // the turtan's outflankers, on foot across the hills (named apart from the Etiuni Scouts of the hidden trick,
       // so a leak of one is never read as the other), stand harder here ([Easy, Normal, Hard]; tools/balance.js)
-      flyer:   { name: "Assyrian Flankers", hpMult: [2, 2, 2] },
+      flyer:   { name: "Assyrian Flankers", hpMult: [2, 1.3, 2] },
     },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
     towers: {
@@ -2889,14 +2889,15 @@ const LEVELS = [
     // Hidden scouts (the Beacon Fire reveals them): Etiuni rose against Urartu (its facts); the scouts are the game's
     tricks: {
       watch: ["fire"],
-      hidden: { from: [8, 6, 6], every: 2, n: [[1, 5], [2, 4], [2, 4]], role: "raider", name: "Etiuni Scouts",
+      hidden: { from: [8, 6, 6], every: 2, dense: [null, 12, 12], hp: [1.3, 3, 3], linger: [5, 2, 2], n: [[1, 5], [2, 4], [2, 4]], role: "raider", name: "Etiuni Scouts",
         lorePhrase: "the Etiunians seem to have risen against Urartu",
         lore: "Etiuni scouts creeping on the young fortress are the game's invention." },
       // thinner spoils from wave 4 on (the coached waves 1-3 keep theirs)
       econ: { from: 4, gold: [0, 0, 0], bounty: [0.5, 0.5, 0.5] },
     },
-    // the rank and file climb from wave 4 to wave 10 to these multiples (its coached waves never change)
-    hpFrom: { wave: 4, full: 10, mult: [1.1, 1, 1] },
+    // the rank and file climb from wave 4 to wave 18 to these multiples (its coached waves never change): its
+    // pressure comes in its later waves, where a full board of mastered towers used to coast
+    hpFrom: { wave: 4, full: 18, mult: [1.1, 1.65, 1.25] },
     fort: { x: 1290, y: 390 },
     pads: [[170, 300], [420, 300], [170, 120], [470, 520], [540, 330], [760, 320], [760, 120], [1040, 330], [850, 550], [1060, 550], [540, 700], [300, 520], [1240, 240], [1300, 540]],
     rocks: [[80, 500, 15], [540, 120, 13], [1100, 180, 16], [240, 660, 14], [1420, 560, 12], [60, 680, 13]],
@@ -2974,8 +2975,11 @@ const LEVELS = [
     id: "avarayr",
     name: "Avarayr Plain",
     tag: "On the Tghmut banks, faith against the shahanshah.",
-    era: 1, date: "451 AD", year: 451, hpTune: [1, 1.15, 1.15],
+    era: 1, date: "451 AD", year: 451, hpTune: [1.45, 1.2, 1.2],
     hero: { name: "Vardan Mamikonian", title: "Sparapet of Armenia" },
+    // the fording party crosses a little lighter on Normal: its way is shown on the field before it first comes, and
+    // the reserves' road carries more of this field's pressure ([Easy, Normal, Hard]; tools/balance.js)
+    units: { flyer: { hpMult: [1, 0.9, 1] } },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
     towers: {
       archer:    { depicts: "Bowmen of the noble houses, each contingent led by its own prince" },
@@ -3014,14 +3018,14 @@ const LEVELS = [
     // The ambush road: the Persian reserves surrounded Vardan's men (its chronicle); the road they take is the
     // game's. Wicker shields as Ammianus saw them in 363 (the game's at Avarayr); the elephants fear fire (Amida, 359)
     tricks: {
-      ambush: { route: 1, pad: 14, from: [15, 12, 12], share: [0.03, 0.03, 0.03], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
+      ambush: { route: 1, pad: 14, from: [14, 12, 12], share: [0.1, 0.15, 0.15], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
         lorePhrase: "the Persian reserves surrounded Vardan's men",
         lore: "The road they take here is the game's." },
       guards: [{ role: "shield", vs: "archer", from: [9, 5, 5], look: "wicker", name: "Wicker shields", drop: true,
         lorePhrase: "shields of wicker and rawhide",
         lore: "That war came 88 years before Avarayr. Their shield wall here is the game's." }],
       weak: [{ role: "ram", slot: "fire", mult: 1.4, lorePhrase: "firebrands drove the Persian elephants back" }],
-      econ: { gold: [0, 0, 0], bounty: [0.9, 0.7, 0.7] },
+      econ: { gold: [0, 0, 0], bounty: [0.75, 0.75, 0.7] },
     },
     fort: { x: 80, y: 400 },
     // the fifteenth pad watches the reserves' road (and none of road 0)
@@ -3211,15 +3215,16 @@ const LEVELS = [
     // difficulty; every number set with tools/balance.js, SEEDS=3)
     // Nothing new: the ambush by the hill track, Sajid torch-bearers against your towers, and the adaptive enemy together
     tricks: {
-      ambush: { route: 1, from: [9, 9, 9], share: [0.25, 0.25, 0.25], mid: 0.4, tell: [2, 1, 1], name: "the hill track",
+      // Easy meets the tricks milder: the hill track later and thinner, fewer torch-bearers working slower
+      ambush: { route: 1, from: [11, 9, 9], share: [0.15, 0.25, 0.25], mid: 0.4, tell: [2, 1, 1], name: "the hill track",
         lorePhrase: "Beshir's host gathered on the shore facing the island",
         lore: "The hill track it takes to your walls is the game's." },
-      hunters: { from: [7, 7, 7], role: "raider", n: [[1, 4, 3], [1, 4, 3], [1, 4, 3]], tdps: [14, 14, 14], look: "torch",
+      hunters: { from: [7, 7, 7], role: "raider", n: [[1, 6, 2], [1, 4, 3], [1, 4, 3]], tdps: [10, 14, 14], look: "torch",
         // no lorePhrase: Sevan's texts tell nothing of torches or towers, so the card says only what is the game's
         name: "Sajid Torch-Bearers",
         lore: "Torch-bearers against your towers are the game's." },
       adapt: {},
-      econ: { gold: [-40, 0, 0], bounty: [0.9, 0.9, 0.9] },
+      econ: { gold: [0, 0, 0], bounty: [0.75, 0.9, 0.9] },
     },
     fort: { x: 980, y: 610 },
     pads: [[170, 240], [450, 240], [720, 240], [760, 430], [480, 450], [170, 450], [440, 650], [680, 698], [200, 700], [550, 120], [900, 90], [60, 480], [1000, 698], [860, 540]],
@@ -8747,7 +8752,9 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // Four tricks the enemy plays (an ambush road, tower hunters, hidden scouts, shields and armor against one kind of
 // tower) and the adaptive enemy, as general systems driven by each battlefield's own table, L.tricks:
 //   watch:   the tower slots that reveal hidden foes (default ["fire"])
-//   hidden:  { from, every, n: [[base, per] x3], role, name, look?, lorePhrase, lore }    scouts towers cannot aim at
+//   hidden:  { from, every, dense?, linger?, n: [[base, per] x3], role, name, look?, lorePhrase, lore }
+//            scouts towers cannot aim at, every `every` waves and from `dense` every wave; linger and hp: TRICK_RULES'
+//            unless the battlefield names its own
 //   hunters: { from, role, n: [[base, per, cap] x3] | null, add?, huntCap?, tdps, look, name, lorePhrase, lore }
 //   guards:  [{ role, vs, from, look, name, drop, lorePhrase, lore }]                       static shields and armor
 //   weak:    [{ role, slot, mult, lorePhrase }]                                             a slot that hurts more
@@ -8824,6 +8831,10 @@ function trickCfg(kind) {
   return from == null ? null : Object.assign({}, c, { from });
 }
 function trickWatch() { const T = levelTricks(); return (T && T.watch) || ["fire"]; }
+// the seconds a hit keeps a hidden scout seen: the battlefield's own (hidden.linger) or the rule's
+function hiddenLinger() { const S = trickCfg("hidden"); return byDiff((S && S.linger) || TRICK_RULES.hidden.linger); }
+// a hidden scout's strength against its role's: the battlefield's own (hidden.hp) or the rule's
+function hiddenHp() { const S = trickCfg("hidden"); return byDiff((S && S.hp) || TRICK_RULES.hidden.hp); }
 // the ambush road's index in ROUTES, from the battlefield's data whatever the run (a resumed legacy run must not
 // send its foes down a road it never had either), or -1. Mari's other road (legacy) is routeOpen's to open
 function ambushRoute() {
@@ -8861,7 +8872,8 @@ function trickWave(w) {
       }
     }
   }
-  if (S && w >= S.from && (w - S.from) % (S.every || 1) === 0) {
+  // scouts come every `every` waves from `from`, and every wave from `dense` where the battlefield names it
+  if (S && w >= S.from && ((w - S.from) % (S.every || 1) === 0 || w >= (byDiff(S.dense) || Infinity))) {
     const N = byDiff(S.n);
     const n = N ? Math.min(byDiff(TRICK_RULES.hidden.cap), N[0] + Math.floor(w / N[1])) : 0;
     if (n > 0) insertAfter(g, "raider", { type: S.role, n, gap: 1.0, trick: "hidden", name: S.name });
@@ -9269,7 +9281,7 @@ function inDeadGround(t, e) {
 function revealFoe(e) {
   if (!e.hid) return;
   const was = e.seenT > 0;
-  e.seenT = Math.max(e.seenT || 0, byDiff(TRICK_RULES.hidden.linger));
+  e.seenT = Math.max(e.seenT || 0, hiddenLinger());
   if (!was) {
     e.revealFx = 0.6;
     const now = performance.now();
@@ -9413,7 +9425,7 @@ function applyTrickToFoe(e, q, d) {
   if (q.trick === "hidden") {
     const R = TRICK_RULES.hidden;
     e.hid = true; e.seenT = 0;
-    e.hp = e.maxHp = Math.round(e.hp * R.hp);
+    e.hp = e.maxHp = Math.round(e.hp * hiddenHp());
     e.speed = R.speed;
     e.bounty = Math.round(e.bounty * R.bounty);
   }
@@ -53253,7 +53265,7 @@ function foeTrickBits(role, w, from, trick) {
     const wt = trickWatch()[0], def = TOWER_DEFS[wt], R = TRICK_RULES.hidden;
     const r = lv => wt === "drums" ? Math.round(R.drumsReveal * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
     return "Your towers cannot aim at it until it is seen. " + watchSays("reveals", "reveal") + " it within " + r(0) + "–" + r(def.levels.length - 1) +
-      ", your hero within " + R.heroReveal + ". Any hit shows it for " + byDiff(R.linger) + " s.";
+      ", your hero within " + R.heroReveal + ". Any hit shows it for " + hiddenLinger() + " s.";
   };
   const huntLine = H => {
     const R = TRICK_RULES.hunters, fire = towerName("fire");
@@ -53610,7 +53622,7 @@ function foeCardHtml(role, w, from, trick) {
   // a trick group's own numbers: a hidden scout stands stronger and slower and pays double; a hunter pays more
   if (trick === "hidden" && from === "chip") {
     const R = TRICK_RULES.hidden;
-    hp = Math.round(foeHp(role, u, w) * R.hp).toLocaleString("en-US");
+    hp = Math.round(foeHp(role, u, w) * hiddenHp()).toLocaleString("en-US");
     spd = R.speed; gold = Math.round(gold * R.bounty);
   } else if (trick === "hunter") gold = Math.round(gold * TRICK_RULES.hunters.bounty);
   let h = '<button class="fcX" type="button" aria-label="Close">' + icon("close") + "</button>" +
