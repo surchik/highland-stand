@@ -12,7 +12,7 @@ const ok = (c, m) => { out.push((c ? "ok   " : "FAIL ") + m); if (!c) fails.push
   const page = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const errs = [];
   page.on("pageerror", e => errs.push(e.message));
-  await page.goto("file://" + FILE);
+  await page.goto("file://" + FILE + "?town");   // the town is hidden without ?town
   await page.waitForTimeout(1500);
   const ev = (f, a) => page.evaluate(f, a);
   await ev(() => { for (const k of ["hs_town", "hs_town_run", "hs_town_bless"]) localStorage.removeItem(k); if (menuMode === "chapter") $("startBtn").click(); });

@@ -29,7 +29,7 @@ const want = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
     const ok = (c, m) => { if (!c) fails.push(m); };
     try {
       await page.goto("about:blank");
-      await page.goto("file://" + FILE);
+      await page.goto("file://" + FILE + "?town");   // the town is hidden without ?town
       await wait(1500);
       await ev(() => { try { for (const k of ["hs_town", "hs_town_run", "hs_town_bless"]) localStorage.removeItem(k); } catch (e) {} if (menuMode === "chapter") $("startBtn").click(); });
       await wait(300);
@@ -68,7 +68,7 @@ const want = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
         let first = true;
         for (const [mod, fn] of [["TWS", "onEvents"], ["TWS", "tick"], ["TWA", "fx"]]) {
           if (!first) {   // each module on a fresh page (a module that threw stays off for the page's life)
-            await page.goto("about:blank"); await page.goto("file://" + FILE); await wait(1500);
+            await page.goto("about:blank"); await page.goto("file://" + FILE + "?town"); await wait(1500);
             await ev(() => { try { for (const k of ["hs_town", "hs_town_run"]) localStorage.removeItem(k); } catch (e) {} if (menuMode === "chapter") $("startBtn").click(); });
             await wait(300);
             await click("#townBtn"); await click("@card:begin"); await click("@card:cont"); await wait(400);

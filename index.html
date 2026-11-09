@@ -60017,7 +60017,8 @@ function nardiSelftest(check, res) {
 //   TOWN_FAIL = "<region>: <message>", skips the later regions and leaves no door; the campaign runs as before:
 //   guard (WP1) | text: TWT (WP6) | sim: TW (WP2) | art: TWA (WP3) | sound: TWS (WP5) | shell: Town (WP4, the
 //   door last) | hooks: townBlessBattle (WP1, top level) | townSelftest (WP1's frame, a sub-region per WP).
-//   ?notown hides the town on purpose (TOWN_KILL); ?towntest=throw:<text|sim|art|sound|shell> (harness only)
+//   The town is hidden unless ?town or the harness asks for it; ?notown hides it on purpose (TOWN_KILL: no region,
+//   no door, no gift); ?towntest=throw:<text|sim|art|sound|shell> (harness only)
 //   throws at the start of that region. Shared tables (UNIT_KITS, Snd.SPEC, Snd.SFX, Snd.AMB, #uiSprite) are
 //   only appended to, with new tw-prefixed keys, last in the owning region, after everything that can throw.
 // TW, pure (no DOM, no page globals; tools/town-extract.js runs it in Node). Determinism rules of 13.2.
@@ -60114,7 +60115,12 @@ function nardiSelftest(check, res) {
 const TOWN_OFF = Object.freeze({ open() {}, close() {}, isOpen: () => false, covers: () => false, photo() {},
   test: null, BLESS_KEY: "hs_town_bless", BLESS_GOLD: 40, BLESS_BY_STARS: Object.freeze([0, 20, 30, 40]) });
 let TWT = null, TW = null, TWA = null, TWS = null, Town = TOWN_OFF, TOWN_FAIL = "";
-const TOWN_KILL = /[?&]notown\b/.test(location.search);          // the kill switch: hides the door
+// Hidden by default (owner decision, Nov 2026: not ready to show players): the town loads only with ?town in the
+// address (a tester's door) or under the harness (?selftest, ?shot), so its checks and photos still run; ?notown
+// still hides it everywhere. A hidden town loads no region, shows no door and pays no gift: a gift a player won
+// before it was hidden waits in hs_town_bless (as do hs_town and hs_town_run) for the day it is shown again.
+const TOWN_ASK = /[?&]town\b/.test(location.search);
+const TOWN_KILL = /[?&]notown\b/.test(location.search) || !(TOWN_ASK || HARNESS_ON);   // hides the door
 // the harness's test switch: ?towntest=throw:<region> throws at the start of that region, to prove the campaign
 // survives a broken town (selftest check 13, tools/town-isolation.js)
 const TOWN_THROW = HARNESS_ON ? ((/[?&]towntest=throw:(\w+)/.exec(location.search) || [])[1] || "") : "";
@@ -71475,8 +71481,9 @@ townRegion("shell", () => { Town = (() => {
 // blessing paid a moment ago, 0 when none). The gift is 20, 30 or 40 by the stars of the win, never more than 40.
 // Not into the coached first stand, whose treasury the tutorial counts on: the gift waits for the next battle.
 // It reads only Town.BLESS_KEY and Town.BLESS_GOLD, which TOWN_OFF has too, so a gift is paid even if the town
-// failed to load.
+// failed to load; a hidden town (TOWN_KILL) pays none and leaves the gift waiting.
 function townBlessBattle(elder) {
+  if (TOWN_KILL) return false;   // a hidden town pays nothing; its gift waits (see TOWN_KILL)
   let v = 0;
   try { v = Number(localStorage.getItem(Town.BLESS_KEY)) || 0; } catch (e) {}
   if (!(v > 0) || tut) return false;
