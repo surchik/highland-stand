@@ -2851,8 +2851,9 @@ const LEVELS = [
     units: {
       raider:  { name: "Etiuni Raiders" },
       boss:    { name: "Shamshi-ilu the Turtan" },
-      // the turtan's outflankers ride hard here ([Easy, Normal, Hard]; tools/balance.js)
-      flyer:   { hpMult: [2, 2, 2] },
+      // the turtan's outflankers, on foot across the hills (named apart from the Etiuni Scouts of the hidden trick,
+      // so a leak of one is never read as the other), stand harder here ([Easy, Normal, Hard]; tools/balance.js)
+      flyer:   { name: "Assyrian Flankers", hpMult: [2, 2, 2] },
     },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
     towers: {
@@ -3212,7 +3213,8 @@ const LEVELS = [
         lorePhrase: "Beshir's host gathered on the shore facing the island",
         lore: "The hill track it takes to your walls is the game's." },
       hunters: { from: [7, 7, 7], role: "raider", n: [[1, 4, 3], [1, 4, 3], [1, 4, 3]], tdps: [14, 14, 14], look: "torch",
-        name: "Sajid Torch-Bearers", lorePhrase: "Beshir's host gathered on the shore facing the island",
+        // no lorePhrase: Sevan's texts tell nothing of torches or towers, so the card says only what is the game's
+        name: "Sajid Torch-Bearers",
         lore: "Torch-bearers against your towers are the game's." },
       adapt: {},
       econ: { gold: [-40, 0, 0], bounty: [0.9, 0.9, 0.9] },
@@ -8869,8 +8871,8 @@ function trickWave(w) {
   }
   return g;
 }
-// the adaptive enemy's plan for wave w: { slot, p, name } or null. It steps only when a wave is cleared, so an early
-// call plans from the cleared waves and the preview shown is the plan used
+// the adaptive enemy's plan for wave w: { slot, p, name } or null. It steps when a wave is cleared or cut short by an
+// early call (after the called wave's queue is built), so the preview shown is always the plan used
 function adaptPlan(w) {
   const C = trickCfg("adapt");
   if (!C || w < C.from || adapt.slot == null || adapt.step < 0) return null;
@@ -8976,9 +8978,14 @@ function slotMult(e, slot) {
   if (e.guard === slot && !(e.guardDrop && e.shieldDownT > 0)) m *= e.guardMult || 1;
   return m;
 }
-// the damage each slot deals is booked for the adaptive enemy (drums deal none)
-function bookAdapt(slot, eff) {
-  if (slot && TRICK_SLOTS.includes(slot) && eff > 0) adapt.acc[slot] = (adapt.acc[slot] || 0) + eff;
+// the damage each slot deals is booked for the adaptive enemy (drums deal none): the strength it took off foe e (not
+// a blow's overkill), and only off the foes the enemy could shield, never an outflanker or a commander (the foe
+// cards send the archers and ballistae against those, and following that advice must not draw the answer)
+function bookAdapt(slot, eff, e) {
+  if (!slot || !TRICK_SLOTS.includes(slot) || !(eff > 0)) return;
+  if (e && (e.type === "flyer" || e.type === "boss" || e.fly)) return;
+  const took = e ? Math.min(eff, Math.max(0, e.hp)) : eff;
+  if (took > 0) adapt.acc[slot] = (adapt.acc[slot] || 0) + took;
 }
 // a wave is cleared: the enemy studies it. Returns a toast for a change, or ""
 function adaptStep() {
@@ -9075,7 +9082,7 @@ function wreckTower(t) {
     particles.push({ x: t.x, y: t.y - 10, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2 * 0.4 - 30, life: 0.9, color: i % 2 ? "#a8957a" : "#5e544a", size: 4 });
   }
   const nm = towerName(t.type);
-  toast("Your " + nm + " " + plural(nm, "is", "are") + " wrecked. Rebuild from its panel.", 2800);
+  toast("Your " + nm + " " + plural(nm, "is", "are") + " wrecked. Tap the ruin to rebuild.", 2800);
   if (selected === t) showPanel(t);
 }
 // a tower's name in the plural ("Village Hunters", "Trench and Wire") takes a plural verb
@@ -9093,6 +9100,7 @@ function repairTower(t) {
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost);
   trickStand.repairGold += cost;
+  t.fixedAt = waveStart;   // bought during this wave: a save made before its clear keeps it whole (saveRun)
   t.hp = t.maxHp = towerMaxHp(t);
   t.burnFx = 0;
   Snd.play("upgrade", { x: t.x });
@@ -9106,6 +9114,7 @@ function rebuildTower(t) {
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost);
   trickStand.rebuildGold += cost;
+  t.fixedAt = waveStart;
   t.wreck = false;
   t.maxHp = towerMaxHp(t); t.hp = t.maxHp;
   t.cd = 0; t.novaT = 0;
@@ -9362,9 +9371,12 @@ function ambushWaveStart(w) {
   if (w >= A.from - tell && w < A.from) {
     const x = ambushMouthX(k);
     waveCueQ.push({ name: "reliefFar", o: { far: 0.6, x }, left: WAVE_CUE_AFTER_S });
-    if (trickStand.tellToldW !== w && w === A.from - tell) {
+    if (trickStand.tellToldW !== w) {
+      // told on every tell wave, counting down: "In two waves" where the tell comes two ahead (Easy), then "Next wave"
       trickStand.tellToldW = w;
-      const msg = "Dust rises on " + A.name + ". Next wave, part of the host will come that way.";
+      const left = A.from - w;
+      const msg = "Dust rises on " + A.name + ". " + (left === 1 ? "Next wave" : "In " + (["two", "three", "four"][left - 2] || left) + " waves") +
+        ", part of the host will come that way.";
       if (w % 10 === 0) trickToastLater(msg, 4000); else trickToastLater(msg, 2000);
     }
   }
@@ -10098,11 +10110,12 @@ function saveRun() {
     if (purse >= 0) {
       // the board as it stands now, paid for out of the purse the wave was sent with
       run.cleared = sent.cleared; run.gold = purse; run.lives = waveStart.lives; run.leaks = sent.leaks;
-      // a tower's strength as it stood at the horn (one built since stands whole)
+      // a tower's strength as it stood at the horn (one built, repaired or rebuilt since, out of this purse, stands
+      // whole: the gold paid for it is gone from the purse saved)
       run.towers.forEach((r, i) => {
         const was = waveStart.tally.get(towers[i]) || [0, 0];
         r.kills = was[0]; r.dmg = was[1];
-        if (was.length > 2) { r.hp = was[2]; r.wreck = was[3]; } else { delete r.hp; r.wreck = false; }
+        if (was.length > 2 && towers[i].fixedAt !== waveStart) { r.hp = was[2]; r.wreck = was[3]; } else { delete r.hp; r.wreck = false; }
       });
     } else {
       // what was built this wave was paid for with its bounties: resume from the board as it was sent
@@ -10468,6 +10481,7 @@ function startWave() {
     return;
   }
   let early = 0;
+  const prevPhase = phase;
   if (phase === "wave") {
     // early call: allowed once the current wave has fully spawned; pays a
     // risk bonus but forfeits the pending wave-clear bonus
@@ -10482,6 +10496,11 @@ function startWave() {
   autoT = 0;
   // the wave as it is fought (wavePlan: the trick groups, the guards, the ambush road), its coached thinning applied
   spawnQueue = wavePlan(waveIdx, true);
+  // an early call cuts the last wave short: the enemy studies it as if it were cleared (the wave just sent keeps the
+  // plan its preview showed), so calling early never switches the adaptive enemy off. It forfeits the clear's bonus
+  // and the free mend, as it always did
+  const earlyAdapt = prevPhase === "wave" ? adaptStep() : "";
+  if (earlyAdapt) trickToastLater(earlyAdapt, 1900);
   Snd.play("horn", { era: curEra });
   syncHud();
   waveBannerT = 2.6;
@@ -10680,7 +10699,9 @@ const DRONE_KNOCKOUT = 7;
 let droneWarned = false;
 // a drone reaches its tower t: the tower is knocked out for some seconds, burning, and the drone is spent
 function droneStrike(t) {
-  if (!towers.includes(t) || t.wreck) return false;
+  if (!towers.includes(t)) return false;
+  // a tower wrecked while the drone was in flight: it strikes the ruin and is spent, costing no defenders
+  if (t.wreck) { Snd.play("rocketHit", { x: t.x }); shakeFort = Math.max(shakeFort, 0.2); return true; }
   t.stunnedT = Math.max(t.stunnedT || 0, DRONE_KNOCKOUT);
   powerHurt(t, "drone");
   t.burnFx = DRONE_KNOCKOUT;
@@ -11000,6 +11021,7 @@ function marchToNext() {
 // the campaign map, opened on the chapter of the battlefield given (the furthest reached by default)
 function openCampaignMap(lv) {
   leaveVictory();
+  dropTrickCards();   // no path out of a battle leaves a trick card up over the map
   curLevel = lv === undefined ? furthestOpen() : lv;
   curEra = LEVELS[curLevel].era;
   applyEraLabels();
@@ -11090,13 +11112,16 @@ function dangerTick(dt) {
 
 // what the debrief calls a road: on a forked map by where its foes come in (the upper and the lower road, or the
 // left and the right), and an outflanker's way off the road, "by air" in the age of aircraft
+// the roads other than an ambush road, which the ambush names itself: Avarayr's and Sevan's main road is "the road"
+function mainRoutes() { const amb = ambushRoute(); return ROUTES.map((R, k) => k).filter(k => k !== amb); }
 function roadTitle(key) {
   const i = Number(key) || 0;
   if (i === ambushRoute() && ROUTES[i]) return LEVELS[curLevel].tricks.ambush.name;
-  if (ROUTES.length < 2) return "the road";
+  const main = mainRoutes();
+  if (main.length < 2) return "the road";
   if (!ROUTES[i]) return "a road";   // a road this battlefield no longer has
-  if (ROUTES.length > 2) return "road " + (i + 1);
-  const me = ROUTES[i].pts[0], other = ROUTES[1 - i].pts[0];
+  if (main.length > 2) return "road " + (main.indexOf(i) + 1);
+  const me = ROUTES[i].pts[0], other = ROUTES[main[0] === i ? main[1] : main[0]].pts[0];
   const vertical = Math.abs(me[1] - other[1]) >= Math.abs(me[0] - other[0]);
   return "the " + (vertical ? (me[1] < other[1] ? "upper" : "lower") : (me[0] < other[0] ? "left" : "right")) + " road";
 }
@@ -11145,7 +11170,9 @@ function debriefTip() {
   }
   let heavy = null, onRoads = 0;
   for (const rd in roads) { onRoads += roads[rd]; if (heavy === null || roads[rd] > roads[heavy]) heavy = rd; }
-  if (ROUTES.length > 1 && heavy !== null && onRoads >= 4 && roads[heavy] >= 0.7 * onRoads) w.road = 2 * roads[heavy] - onRoads;
+  // one road left weak needs two roads in play: an ambush road counts once it has opened in this stand
+  const Am = trickCfg("ambush"), inPlay = mainRoutes().length + (ambushRoute() >= 0 && Am && waveIdx >= Am.from ? 1 : 0);
+  if (inPlay > 1 && heavy !== null && onRoads >= 4 && roads[heavy] >= 0.7 * onRoads) w.road = 2 * roads[heavy] - onRoads;
   if (of.foot && of.foot.reduce((s, k) => s + leaks[k].n, 0) < 5) w.foot = 0;
   const kind = ["boss", "armour", "air", "fast", "road", "foot"].reduce((a, b) => (w[b] > w[a] ? b : a));
   const b = s => "<b>" + escapeHtml(s) + "</b>", T = type => b(towerName(type));
@@ -11396,9 +11423,9 @@ function damageEnemy(e, dmg, pierce, src) {
   const slot = src && TOWER_DEFS[src.type] ? src.type : null;
   const eff = armorHit(dmg, e.armor, pierce) * slotMult(e, slot);
   // the adaptive enemy studies the strength a slot took off its foes, not a blow's overkill on one nearly felled
-  const took = Math.min(eff, Math.max(0, e.hp));
+  if (src) bookAdapt(slot, eff, e);
   e.hp -= eff;
-  if (src) { src.dmgDone = (src.dmgDone || 0) + eff; e.lastHit = src; bookAdapt(slot, took); }
+  if (src) { src.dmgDone = (src.dmgDone || 0) + eff; e.lastHit = src; }
   if (e.hid) revealFoe(e);
   e.flash = 0.1;
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
@@ -11492,9 +11519,9 @@ function update(dt) {
         e.slowFactor = Math.min(e.slowFactor, 1 - st.slow);
         // its burn ignores armor; a guard against the fire slot cuts it, and it burns a tower hunter pitch times as hard
         const burn = st.burn * (1 + t.buffMight) * dt * slotMult(e, t.type) * (e.hunt ? TRICK_RULES.hunters.pitch : 1);
+        bookAdapt(t.type, burn, e);
         e.hp -= burn;
         t.dmgDone = (t.dmgDone || 0) + burn;
-        bookAdapt(t.type, burn);
         if (e.hid) revealFoe(e);
         e.lastHit = t;
         if (Math.random() < dt * 8) {
@@ -11528,8 +11555,9 @@ function update(dt) {
       for (let i = e.pots.length - 1; i >= 0; i--) {
         // a pot's burn is its catapult's, for a guard and for the adaptive enemy
         const q = e.pots[i], d = q.dps * Math.min(dt, q.t) * slotMult(e, q.src && q.src.type);
+        if (q.src) bookAdapt(q.src.type, d, e);
         e.hp -= d;
-        if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; bookAdapt(q.src.type, d); }
+        if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; }
         if ((q.t -= dt) <= 0) e.pots.splice(i, 1);
       }
       alight = true;
@@ -52783,6 +52811,12 @@ function slotIcon(slot) {
 }
 // "do" or "does" after a tower's name ("Your Nakharar Bowmen do", "Your Field Ballista does")
 function towerVerb(slot, one, more) { return plural(towerName(slot), one, more); }
+// who reveals hidden foes, as a sentence opens: "Your Beacon Fire reveals", or at a drum post (Shushi's Cathedral
+// bells, which cannot see) "The lookouts at your Cathedral bells reveal"
+function watchSays(one, more) {
+  const wt = trickWatch()[0], nm = towerName(wt);
+  return wt === "drums" ? "The lookouts at your " + nm + " " + more : "Your " + nm + " " + plural(nm, one, more);
+}
 // the sentence of this battlefield's facts or chronicle that holds the phrase (FOE_LORE's rule: a sentence opening
 // on "He" or "His" brings the one before it), or ""
 function loreSentence(phrase) {
@@ -52796,11 +52830,11 @@ function loreSentence(phrase) {
 }
 // what each card says (section 4.1 of the trick spec): title, what, watch for, your answer
 function trickText(key) {
-  const fire = towerName("fire"), watch = towerName(trickWatch()[0]);
+  const fire = towerName("fire");
   return {
     ambush: { title: "Ambush Road",
       what: "A second road lies quiet at the edge of the field. Partway through a wave, the enemy sends part of its host down it.",
-      watch: "Dust and a far horn on the quiet road one wave before. A road sign at the head of the next-wave row.",
+      watch: "Dust and a far horn on the quiet road before it opens. A road sign at the head of the next-wave row.",
       answer: "Before it opens, build a tower or two that reach the quiet road. Your hero can hold it too." },
     hunters: { title: "Tower Hunters",
       what: "Some foes leave the road to wreck your towers. Your towers can now be damaged and wrecked.",
@@ -52810,7 +52844,7 @@ function trickText(key) {
     hidden: { title: "Hidden Scouts",
       what: "Camouflaged scouts slip down the road. Your towers cannot aim at them until they are seen.",
       watch: "A shimmer on the road and a crossed eye over each scout. You always see them. Your towers do not.",
-      answer: "Your " + watch + " " + plural(watch, "reveals them within its reach", "reveal them within their reach") + ", and so does your hero. Any hit shows a scout for a moment, and spells strike them." },
+      answer: watchSays("reveals them within its reach", "reveal them within their reach") + ", and so does your hero. Any hit shows a scout for a moment, and spells strike them." },
     guards: { title: "Shields and Armor",
       what: "Some foes carry shields or armor against one kind of tower. That tower does them far less harm.",
       watch: "A shield mark on the foe and on its chip, showing the tower it resists.",
@@ -53054,7 +53088,7 @@ function waveChipsHtml(w) {
       marks = icon(g.trick === "hidden" ? "eye-off" : "hammer", "mk act") + (arm > 0 ? '<span class="mk arm' + (arm >= 10 ? " hvy" : "") + '">' + arm + "</span>" : "");
     } else {
       title = foeTitle(g.type, u, g.n);
-      if (g.hunt) title += " · " + g.hunt + " hunt towers";
+      if (g.hunt) title += " · " + g.hunt + (g.hunt === 1 ? " hunts towers" : " hunt towers");
       marks = foeMarksHtml(g.type, u);
       if (g.hunt) marks = marks.replace(/<svg class="ic mk act"[^]*?<\/svg>/, "") + icon("hammer", "mk act");
     }
@@ -53106,7 +53140,7 @@ function foeTrickBits(role, w, from, trick) {
   const watchLine = () => {
     const wt = trickWatch()[0], def = TOWER_DEFS[wt], R = TRICK_RULES.hidden;
     const r = lv => wt === "drums" ? Math.round(R.drumsReveal * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
-    return "Your towers cannot aim at it until it is seen. Your " + towerName(wt) + " " + towerVerb(wt, "reveals", "reveal") + " it within " + r(0) + "–" + r(def.levels.length - 1) +
+    return "Your towers cannot aim at it until it is seen. " + watchSays("reveals", "reveal") + " it within " + r(0) + "–" + r(def.levels.length - 1) +
       ", your hero within " + R.heroReveal + ". Any hit shows it for " + byDiff(R.linger) + " s.";
   };
   const huntLine = H => {
@@ -53132,7 +53166,8 @@ function foeTrickBits(role, w, from, trick) {
   }
   if (H && H.add === false && H.role === role) {
     out.badges.push({ k: "hunt", ic: "hammer", label: "Hunts towers" });
-    out.lines.push({ ic: "hammer", text: "From wave " + H.from + ", the first " + (byDiff(H.huntCap) || 1) + " of each wave hunt towers. " + huntLine(H) });
+    const cap = byDiff(H.huntCap) || 1;
+    out.lines.push({ ic: "hammer", text: "From wave " + H.from + ", " + (cap === 1 ? "the first of each wave hunts towers. " : "the first " + cap + " of each wave hunt towers. ") + huntLine(H) });
     out.lore = loreSentence(H.lorePhrase);
   }
   // shields and armor: on a chip, as the next wave carries them; on the brief, as the battlefield brings them
@@ -53222,7 +53257,7 @@ function showRuinPanel(t) {
 // Repair beside Sell, half the width each, on a damaged tower
 function repairBtn(t) {
   const cost = repairCost(t);
-  const b = mkBtn(icon("heal") + "Repair" + coinBadge(cost), null, "repair", () => repairTower(t), gold < cost, cost);
+  const b = mkBtn(icon("heal") + "Repair" + coinBadge(cost), null, "repair", () => repairTower(t), gold < cost, () => repairCost(t));
   b.title = "Restore its full strength";
   panelCostBtns.push({ el: b, cost });
   return b;
@@ -53987,10 +54022,20 @@ function mkBtn(label, sub, cls, onClick, disabled, cost) {
   b.addEventListener("pointerdown", (e) => { b.dataset.ptr = e.pointerType || ""; });
   b.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (cost != null && gold < cost) { needGold(cost); return; }
+    // a price that moves while the panel is up (a repair while hunters work) is read when the button is pressed
+    const price = typeof cost === "function" ? cost() : cost;
+    if (price != null && gold < price) { needGold(price); return; }
     onClick(e);
   });
   return b;
+}
+// a button's coin badge shows a new amount in place: only its text changes, so a finger on the button keeps it
+function setCoinAmount(b, amount) {
+  const c = b && b.querySelector(".coin");
+  if (!c) return;
+  const tn = c.lastChild;
+  if (tn && tn.nodeType === 3) { if (tn.nodeValue !== String(amount)) tn.nodeValue = String(amount); }
+  else c.appendChild(document.createTextNode(String(amount)));
 }
 function setPoor(b, poor) {
   b.classList.toggle("poor", poor);
@@ -54045,13 +54090,13 @@ function showPanel(t) {
   }
   // a sale from a finger asks for a second tap within 3 s (a finger meant for the step above it must not sell the
   // tower); a mouse, a key and an undo of a placement just made go at once
-  const ref = sellRefund(t), label = (ref.fresh ? "Undo" : "Sell") + coinBadge(ref.amount);
-  const sb = mkBtn(label, null, "sell", (e) => {
+  const ref = sellRefund(t), label = () => (ref.fresh ? "Undo" : "Sell") + coinBadge(sellRefund(t).amount);
+  const sb = mkBtn(label(), null, "sell", (e) => {
     if (!ref.fresh && touchClick(sb, e) && !sb.classList.contains("confirm")) {
       sb.classList.add("confirm");
-      sb.innerHTML = "Tap again to sell" + coinBadge(ref.amount);
+      sb.innerHTML = "Tap again to sell" + coinBadge(sellRefund(t).amount);
       clearTimeout(sellAskT);
-      sellAskT = setTimeout(() => { sb.classList.remove("confirm"); sb.innerHTML = label; }, 3000);
+      sellAskT = setTimeout(() => { sb.classList.remove("confirm"); sb.innerHTML = label(); }, 3000);
       return;
     }
     clearTimeout(sellAskT);
@@ -54079,18 +54124,25 @@ function hidePanel() {
 
 // keep upgrade buttons live: enable + light up the moment gold suffices
 function refreshPanelBtns() {
+  const up = selected && panelEl.style.display === "block";
+  if (up) {
+    // the panel is redrawn only when its tower turns whole, hurt or wrecked. While hunters work on it the prices of
+    // a repair and a sale move several times a second: they change in place, so a finger's "Tap again to sell" and
+    // a tap landing on a button are never wiped by a redraw
+    const now = selected.wreck ? "wrecked" : towerHpFrac(selected) < 1 ? "hurt" : "whole";
+    if (now !== panelHurt) { showPanel(selected); return; }
+    const rb = panelCostBtns.find(b => b.el.classList.contains("repair"));
+    if (rb) { rb.cost = repairCost(selected); setCoinAmount(rb.el, rb.cost); }
+    const sb = $("pActions").querySelector(".btn.sell");
+    if (sb && !sb.classList.contains("confirm")) setCoinAmount(sb, sellRefund(selected).amount);
+  }
   for (const pb of panelCostBtns) {
     const afford = gold >= pb.cost;
     if (pb.el.classList.contains("poor") && afford) pb.el.classList.add("lit");
     if (!afford) pb.el.classList.remove("lit");
     setPoor(pb.el, !afford);
   }
-  if (selected && panelEl.style.display === "block") {
-    const now = selected.wreck ? "wrecked" : towerHpFrac(selected) < 1 ? "hurt" : "whole";
-    const rb = panelCostBtns.find(b => b.el.classList.contains("repair"));
-    if (now !== panelHurt || (rb && rb.cost !== repairCost(selected))) { showPanel(selected); return; }
-    setPanelStats(selected);
-  }
+  if (up) setPanelStats(selected);
 }
 
 // ---------- menu / overlay ----------
@@ -59054,6 +59106,10 @@ function fitRubric() {
 window.addEventListener("resize", fitRubric);
 function showBrief() {
   leaveVictory();
+  dropTrickCards();
+  // the brief previews a new stand, never a resumed one (Resume skips it): a legacy run resumed earlier must not
+  // hide this stand's tricks
+  trickLegacy = false;
   introThen = -1;
   menuMode = "brief";
   $("mapBtn").style.display = "";
@@ -77011,7 +77067,8 @@ function runSelftest() {
         const T = L.tricks;
         if (!T) return;
         const text = [...(L.facts || []), ...levelPages(L)].join(" ");
-        const phrase = p => { if (!text.includes(p)) throw new Error(L.id + ": lorePhrase is not in its facts or chronicle: " + p); };
+        // a trick with no lorePhrase (Sevan's torch-bearers) has only its line of what is the game's invention
+        const phrase = p => { if (p != null && !text.includes(p)) throw new Error(L.id + ": lorePhrase is not in its facts or chronicle: " + p); };
         for (const k in T) if (!KINDS.includes(k)) throw new Error(L.id + ": unknown trick " + k);
         if (T.watch && !(T.watch.length && T.watch.every(s => TOWER_DEFS[s]))) throw new Error(L.id + ": watch slots");
         const one = (c, kind) => {
@@ -77245,6 +77302,12 @@ function runSelftest() {
       // the panel of a damaged tower and of a ruin
       f.hp = f.maxHp * 0.5; showPanel(f);
       if (!$("pActions").querySelector(".row2 .repair") || !$("pStats").textContent.includes("Strength")) throw new Error("no Repair beside Sell");
+      // while it is hurt further the prices change in place: the buttons a finger may be on are the same elements
+      const rep0 = $("pActions").querySelector(".repair"), sell0 = $("pActions").querySelector(".sell");
+      f.hp = f.maxHp * 0.3; refreshPanelBtns();
+      const rep1 = $("pActions").querySelector(".repair"), sell1 = $("pActions").querySelector(".sell");
+      if (rep1 !== rep0 || sell1 !== sell0) throw new Error("the panel was redrawn on a price change");
+      if (!rep1.textContent.includes(String(repairCost(f))) || !sell1.textContent.includes(String(sellRefund(f).amount))) throw new Error("the prices were not updated in place");
       hurtTower(f, 1e9); showPanel(f);
       const btns = [...$("pActions").querySelectorAll(".btn")].map(x => x.className);
       if (!/\(ruin\)$/.test($("pName").textContent) || btns.length !== 2 || !btns[0].includes("up") || !btns[1].includes("clear")) throw new Error("the ruin's panel: " + btns);
@@ -77359,10 +77422,13 @@ function runSelftest() {
       waveIdx = w - 1; phase = "idle"; lastCleared = waveIdx;
       startWave();
       if (spawnQueue.filter(q => q.adapted).length !== ad.length) throw new Error("the wave sent another adaptation than its preview");
-      const before = JSON.stringify(adapt), next = wavePlan(w + 1).filter(q => q.adapted).length;
+      // an early call sends the wave its preview showed, and the enemy studies the wave it cut short all the same
+      const next = wavePlan(w + 1).filter(q => q.adapted).length, hist0 = adapt.hist.length;
+      adapt.acc = { archer: 1000 };
       spawnQueue = []; enemies = [{ dead: false, hp: 1, maxHp: 1, dist: 0, route: 0, type: "spearman", r: 9, def: eraUnit("spearman"), slowTimer: 0, slowFactor: 1, stunT: 0, staggerT: 0, wobble: 0, speed: 0 }];
       startWave();
-      if (JSON.stringify(adapt) !== before || spawnQueue.filter(q => q.adapted).length !== next) throw new Error("an early call planned from a wave not cleared");
+      if (spawnQueue.filter(q => q.adapted).length !== next) throw new Error("an early call sent another adaptation than its preview");
+      if (adapt.hist.length !== Math.min(3, hist0 + 1) || adapt.hist[0].archer !== 1000 || JSON.stringify(adapt.acc) !== "{}") throw new Error("an early call did not study the wave it cut short");
       enemies = []; spawnQueue = [];
       // the work spread: it ramps down a step a wave, then lets go
       waveIdx = C.from;
@@ -77397,6 +77463,18 @@ function runSelftest() {
       if (saved.tricks !== 1 || saved.towers[0].hp !== 100 || saved.towers[1].wreck !== true || saved.adapt.slot !== "archer") throw new Error("the save lacks the tricks' state");
       resumeRun();
       if (trickLegacy || towers[0].hp !== 100 || !towers[1].wreck || adapt.slot !== "archer" || adapt.step !== 1 || adapt.hist.length !== 1) throw new Error("the resume lost the tricks' state");
+      // a repair and a rebuild bought during a wave stand whole in a save made before its clear, paid for
+      startWave();
+      for (let i = 0; i < 10; i++) update(1 / 30);
+      const g1 = gold, paid = repairCost(towers[0]) + rebuildCost(towers[1]);
+      repairTower(towers[0]); rebuildTower(towers[1]);
+      if (g1 - gold !== paid) throw new Error("the repair and rebuild were not paid");
+      saveRun();
+      const fixed = JSON.parse(localStorage.getItem("hs_run"));
+      if (fixed.towers[1].wreck || (fixed.towers[0].hp != null && fixed.towers[0].hp < towerMaxHp(towers[0]))) throw new Error("a repair or rebuild bought this wave was saved undone");
+      resumeRun();
+      if (towers[0].hp !== towers[0].maxHp || towers[1].wreck || towers[1].hp !== towers[1].maxHp) throw new Error("a repair or rebuild bought this wave was lost on resume");
+      if (gold !== fixed.gold) throw new Error("the purse after a repair this wave");
       // a run saved before the tricks resumes without them, gains Avarayr's new pad, and its towers stand whole
       const old = JSON.parse(JSON.stringify(saved));
       delete old.tricks; delete old.adapt; old.build = "2026-10-19";
