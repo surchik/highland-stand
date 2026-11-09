@@ -3007,10 +3007,10 @@ const LEVELS = [
     tricks: {
       ambush: { route: 1, pad: 14, from: [15, 12, 12], share: [0.1, 0.2, 0.3], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
         lorePhrase: "the Persian reserves surrounded Vardan's men",
-        lore: "Where they come round here is the game's." },
+        lore: "The road they take here is the game's." },
       guards: [{ role: "shield", vs: "archer", from: [9, 7, 6], look: "wicker", name: "Wicker shields", drop: true,
         lorePhrase: "shields of wicker and rawhide",
-        lore: "Ammianus wrote of the war of 363. Shields like these at Avarayr are the game's." }],
+        lore: "That war came 88 years before Avarayr. Their shield wall here is the game's." }],
       weak: [{ role: "ram", slot: "fire", mult: 1.4, lorePhrase: "firebrands drove the Persian elephants back" }],
     },
     fort: { x: 80, y: 400 },
@@ -3506,14 +3506,15 @@ const LEVELS = [
       "In 1547 Catholicos Stepanos V Salmastetsi called a secret council at Etchmiadzin, then took Armenia's appeal to Venice, to Popes Paul III and Julius III, and to Emperor Charles V.",
       "Ferhad Pasha's new fortress at Erivan went up in about 45 days in the autumn of 1583.",
       "Kumayri's name wore down over the centuries to Kumri and Gumri; under Russian rule the town became Alexandropol, in Soviet times Leninakan, and today it is Gyumri.",
+      "Azaps, the Ottoman irregular infantry, also served in fortresses, where they built bridges and worked as sappers.",
     ],
     path: [[-460, 190], [420, 190], [420, 400], [180, 400], [180, 600], [700, 600], [700, 300], [1000, 300], [1000, 470], [1560, 470]],
     // the enemy's tricks here (L.tricks: the format is at TRICK_RULES; [Easy, Normal, Hard], null = off on that
     // difficulty; every number a starting value for tools/balance.js)
     tricks: {
       hunters: { from: [12, 9, 8], role: "raider", n: [[1, 8, 1], [1, 5, 2], [1, 4, 3]], tdps: [8, 12, 14], look: "pick",
-        name: "Azap Pickmen", lorePhrase: "Ottoman raiders struck Erivan",
-        lore: "Raiders with picks against your towers are the game's." },
+        name: "Azap Pickmen", lorePhrase: "built bridges and worked as sappers",
+        lore: "Azap pickmen against your towers here are the game's." },
       adapt: {},
     },
     fort: { x: 1210, y: 440 },
@@ -9408,7 +9409,8 @@ function trickWaveStart(bossWave, ownBanner) {
 function trickFoeSpawned(e) {
   if (e.hid && !trickStand.hiddenTold) {
     trickStand.hiddenTold = true;
-    toast("Hidden scouts on the road: your " + towerName(trickWatch()[0]) + " reveals them.", 3000);
+    const wn = towerName(trickWatch()[0]);
+    toast("Hidden scouts on the road: your " + wn + " " + plural(wn, "reveals", "reveal") + " them.", 3000);
   }
 }
 
@@ -52771,12 +52773,12 @@ function trickText(key) {
     hunters: { title: "Tower Hunters",
       what: "Some foes leave the road to wreck your towers. Your towers can now be damaged and wrecked.",
       watch: "A red line from the hunter to the tower it has chosen.",
-      answer: "A tower cannot shoot at its own foot, so build towers that cover each other. Your " + fire +
-        " burns attackers at a tower's foot. Repair and rebuild from the tower's panel." },
+      answer: "A tower cannot shoot at its own foot, so build towers that cover each other. Your " + fire + " " + plural(fire, "burns", "burn") +
+        " attackers at a tower's foot. Repair and rebuild from the tower's panel." },
     hidden: { title: "Hidden Scouts",
       what: "Camouflaged scouts slip down the road. Your towers cannot aim at them until they are seen.",
       watch: "A shimmer on the road and a crossed eye over each scout. You always see them. Your towers do not.",
-      answer: "Your " + watch + " reveals them within its reach, and so does your hero. Any hit shows a scout for a moment, and spells strike them." },
+      answer: "Your " + watch + " " + plural(watch, "reveals them within its reach", "reveal them within their reach") + ", and so does your hero. Any hit shows a scout for a moment, and spells strike them." },
     guards: { title: "Shields and Armor",
       what: "Some foes carry shields or armor against one kind of tower. That tower does them far less harm.",
       watch: "A shield mark on the foe and on its chip, showing the tower it resists.",
@@ -53072,13 +53074,13 @@ function foeTrickBits(role, w, from, trick) {
   const watchLine = () => {
     const wt = trickWatch()[0], def = TOWER_DEFS[wt], R = TRICK_RULES.hidden;
     const r = lv => wt === "drums" ? Math.round(R.drumsReveal * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
-    return "Your towers cannot aim at it until it is seen. Your " + towerName(wt) + " reveals it within " + r(0) + "–" + r(def.levels.length - 1) +
+    return "Your towers cannot aim at it until it is seen. Your " + towerName(wt) + " " + towerVerb(wt, "reveals", "reveal") + " it within " + r(0) + "–" + r(def.levels.length - 1) +
       ", your hero within " + R.heroReveal + ". Any hit shows it for " + byDiff(R.linger) + " s.";
   };
   const huntLine = H => {
     const R = TRICK_RULES.hunters, fire = towerName("fire");
     return "It leaves the road for a tower within " + R.reach + " and does " + byDiff(H.tdps) + " damage a second to it. The tower it attacks cannot shoot at it. Its neighbors can, and your " +
-      fire + " burns it " + R.pitch + " times as hard.";
+      fire + " " + plural(fire, "burns", "burn") + " it " + R.pitch + " times as hard.";
   };
   const guardLine = (slot, mult, drop) => "Your " + towerName(slot) + " " + towerVerb(slot, "does", "do") + " only " + pct(mult) + " damage to it." +
     (drop ? " A stone's blow knocks its shields aside for " + (TOWER_DEFS.catapult.levels[0].stagger + TRICK_RULES.guard.dropS) + " s." : "");
