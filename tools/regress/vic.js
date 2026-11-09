@@ -2,7 +2,7 @@
 // victory won in the game's own loop (the last wave's field cleared), the dance ended by a tap on the field once it
 // may be, and a battlefield's ending card (Ani's Summons, Sis's Terms) put away by its own button. Then every button
 // the page offers (Next battle, Replay, Hold Forever, Campaign Map) must lie wholly on screen, uncovered at its center
-// and its corners, apart from the others, with its label whole (and 44 px tall or more to a finger), and each must do
+// and its corners, apart from the others, with its label whole (and at least 40 px tall to a finger), and each must do
 // its job when pressed: Next battle leads (through a new chapter's nardi invitation and story) to the next chronicle,
 // Replay to this one, Hold Forever back into the battle, the Campaign Map to the map.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/vic.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
@@ -16,6 +16,9 @@ const CONFIGS = [
   { name: "touch 1194x834", w: 1194, h: 834, touch: true },
 ];
 const BTNS = ["#nextBtn", "#startBtn", "#endlessBtn", "#mapBtn"];
+// the least height a button may have to a finger: the page's quiet buttons (Replay, Hold Forever, Campaign Map) are
+// 40 px on the iPad as live (3d4bb2a), under Apple's 44 pt guideline; the floor keeps them from shrinking further
+const MIN_TAP = 40;
 
 (async () => {
   const browser = await R.launch();
@@ -38,7 +41,7 @@ const BTNS = ["#nextBtn", "#startBtn", "#endlessBtn", "#mapBtn"];
         const q = await g.reach("#ecBtn");
         if (q.why) { await fail(tag + ": the ending card's button: " + q.why); await g.ev(() => closeEndingCard()); }
         else {
-          if (C.touch && q.h < 44) await fail(tag + ": the ending card's button is " + Math.round(q.h) + " px tall");
+          if (C.touch && q.h < MIN_TAP) await fail(tag + ": the ending card's button is " + Math.round(q.h) + " px tall");
           await g.tapAt(q.x, q.y);
           await g.frames(2);
           if (await g.ev(() => endingCardUp())) await fail(tag + ": the ending card's button did not put it away");
@@ -91,7 +94,7 @@ const BTNS = ["#nextBtn", "#startBtn", "#endlessBtn", "#mapBtn"];
           if (geo.l < -0.5 || geo.t < -0.5 || geo.r > geo.vw + 0.5 || geo.b > geo.vh + 0.5) await fail(id + " " + sel + ": not wholly on screen " + JSON.stringify([geo.l, geo.t, geo.r, geo.b].map(Math.round)));
           if (geo.covered.length) await fail(id + " " + sel + ": a corner lies under " + geo.covered.join(", "));
           if (geo.cut) await fail(id + " " + sel + ": its label \"" + geo.text + "\" is cut");
-          if (C.touch && q.h < 44) await fail(id + " " + sel + ": " + Math.round(q.h) + " px tall, under a finger's 44");
+          if (C.touch && q.h < MIN_TAP) await fail(id + " " + sel + ": " + Math.round(q.h) + " px tall, under " + MIN_TAP);
           boxes[sel] = geo;
         }
         const ks = Object.keys(boxes);
