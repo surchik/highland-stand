@@ -52843,8 +52843,11 @@ function showDueCard(due) {
   showTrickCard(due[0]);
 }
 // every frame: a card due for the next wave shows at the first idle moment before it
+// the harness shows no card unless a self-test asks for one (trickCardTest)
+let trickCardTest = false;
+function trickCardsQuiet() { return HARNESS_ON && !trickCardTest; }
 function trickCardTick() {
-  if (HARNESS_ON || photo || trickCardOn || scoutBubble || !battleLive() || paused || coachFreeze() || phase !== "idle") return;
+  if (trickCardsQuiet() || photo || trickCardOn || scoutBubble || !battleLive() || paused || coachFreeze() || phase !== "idle") return;
   if (waveIdx >= TOTAL_WAVES && !endless) return;
   const due = trickCardsDue(waveTrickKeys(waveIdx + 1));
   if (due.length) showDueCard(due);
@@ -52852,7 +52855,7 @@ function trickCardTick() {
 // a wave sent with no idle moment before it (an early call, Auto, a resume): its card shows at its start, after its
 // queue is built and before its first foe spawns
 function trickCardsAtStart() {
-  if (HARNESS_ON || photo || trickCardOn || scoutBubble) return;
+  if (trickCardsQuiet() || trickCardOn || scoutBubble) return;
   const keys = new Set();
   for (const q of spawnQueue) {
     if (q.trick === "hidden") keys.add("hidden");
@@ -75736,7 +75739,8 @@ function runSelftest() {
     for (let i = 0; i < LEVELS.length; i++) {
       const L = LEVELS[i], roads = L.paths || [L.path], strict = !LEGACY.has(L.id);
       if (!levelPages(L)[0] || !L.victory || !L.defeat || !L.hero || !L.year || (strict && !L.chronicle)) throw new Error(L.name + ": missing story fields");
-      if (L.pads.length !== 14) throw new Error(L.name + ": " + L.pads.length + " pads");
+      // 14 pads, and one more where an ambush road needs its own (Avarayr's, L.tricks.ambush.pad)
+      if (L.pads.length !== 14 + (L.tricks && L.tricks.ambush && L.tricks.ambush.pad != null ? 1 : 0)) throw new Error(L.name + ": " + L.pads.length + " pads");
       L.pads.forEach((p, k) => L.pads.forEach((q, j) => { if (j > k && Math.hypot(p[0] - q[0], p[1] - q[1]) < 100) throw new Error(L.name + ": pads " + k + "/" + j + " crowd"); }));
       const end = roads[0][roads[0].length - 1];
       if (roads.some(r => r[r.length - 1][0] !== end[0] || r[r.length - 1][1] !== end[1])) throw new Error(L.name + ": forked roads must meet at the gate");
@@ -76909,6 +76913,503 @@ function runSelftest() {
       curLevel = keep.lv; curDiff = keep.diff; curEra = LEVELS[curLevel].era;
       closeFoeCard(); resetGame();
     }
+  });
+  // ---- the enemy's tricks and the adaptive enemy (hard/spec.final.md, section 5.1) ----
+  // each check keeps the battlefield, the difficulty, the tricks met and the saved run as they were
+  const trickKeep = () => ({ lv: curLevel, diff: curDiff, seen: localStorage.getItem(TRICK_SEEN_KEY), run: localStorage.getItem("hs_run") });
+  const trickBack = k => {
+    trickCardTest = false;
+    if (k.seen == null) localStorage.removeItem(TRICK_SEEN_KEY); else localStorage.setItem(TRICK_SEEN_KEY, k.seen);
+    if (k.run == null) localStorage.removeItem("hs_run"); else localStorage.setItem("hs_run", k.run);
+    curLevel = k.lv; curDiff = k.diff; curEra = LEVELS[curLevel].era;
+    paused = false; closeFoeCard(); hidePanel(); resetGame(); overlayEl.classList.add("hidden");
+  };
+  const field = (id, d) => {
+    curLevel = levelIndexOf(id); curDiff = d; curEra = LEVELS[curLevel].era;
+    resetGame(); overlayEl.classList.add("hidden");
+    gold = 1e6;
+  };
+  // the road point of route k nearest to (x, y)
+  const roadNear = (k, x, y) => {
+    let best = 0, bd = 1e9;
+    for (let d = 0; d <= ROUTES[k].len; d += 4) { const p = routeAt(k, d), dd = Math.hypot(p.x - x, p.y - y); if (dd < bd) { bd = dd; best = d; } }
+    return best;
+  };
+  check("tricks: data and order", () => {
+    const k0 = trickKeep();
+    try {
+      const KINDS = ["watch", "hidden", "hunters", "guards", "weak", "ambush", "adapt", "econ", "powerDmg"];
+      const fromOk = a => (Array.isArray(a) ? a.length === 3 : true) && (Array.isArray(a) ? a : [a]).every(x => x === null || (Number.isInteger(x) && x >= 1 && x <= 20));
+      const words = s => typeof s === "string" && s.trim().length > 0 && !/—/.test(s);
+      LEVELS.forEach(L => {
+        const T = L.tricks;
+        if (!T) return;
+        const text = [...(L.facts || []), ...levelPages(L)].join(" ");
+        const phrase = p => { if (!text.includes(p)) throw new Error(L.id + ": lorePhrase is not in its facts or chronicle: " + p); };
+        for (const k in T) if (!KINDS.includes(k)) throw new Error(L.id + ": unknown trick " + k);
+        if (T.watch && !(T.watch.length && T.watch.every(s => TOWER_DEFS[s]))) throw new Error(L.id + ": watch slots");
+        const one = (c, kind) => {
+          if (!fromOk(c.from)) throw new Error(L.id + " " + kind + ": from " + c.from);
+          if (c.role && (!ENEMY_DEFS[c.role] || c.role === "boss" || c.role === "flyer")) throw new Error(L.id + " " + kind + ": role " + c.role);
+          if (!words(c.name) || !words(c.lore)) throw new Error(L.id + " " + kind + ": name or lore");
+          phrase(c.lorePhrase);
+        };
+        for (const kind of ["hidden", "hunters", "ambush"]) if (T[kind]) one(T[kind], kind);
+        for (const g of T.guards || []) { one(g, "guards"); if (!TRICK_SLOTS.includes(g.vs)) throw new Error(L.id + ": guard vs " + g.vs); }
+        for (const x of T.weak || []) { if (!ENEMY_DEFS[x.role] || !TRICK_SLOTS.includes(x.slot)) throw new Error(L.id + ": weak"); phrase(x.lorePhrase); }
+        if (T.adapt && T.adapt.from != null && !fromOk(T.adapt.from)) throw new Error(L.id + ": adapt from");
+        if (T.ambush) {
+          const roads = L.paths || [L.path];
+          if (!roads[T.ambush.route] || !(L.track || []).includes(T.ambush.route)) throw new Error(L.id + ": the ambush road is missing or not drawn as a track");
+        }
+      });
+      // the first six: each has a trick, and walking the campaign in order each teaches at most one kind not met on an
+      // earlier battlefield, the shields before the enemy adapts with them, on every difficulty
+      for (let d = 0; d < 3; d++) {
+        const met = new Set();
+        for (let i = 0; i < 6; i++) {
+          curLevel = i; curDiff = d; curEra = LEVELS[i].era;
+          const kinds = TRICK_KEYS.filter(k => trickCfg(k));
+          if (!kinds.length) throw new Error(LEVELS[i].id + " has no trick on " + DIFFS[d].name);
+          const fresh = kinds.filter(k => !met.has(k));
+          if (fresh.length > 1) throw new Error(LEVELS[i].id + " teaches " + fresh.join(" and ") + " on " + DIFFS[d].name);
+          if (fresh.includes("adapt") && !met.has("guards")) throw new Error("the enemy adapts before the shields are taught");
+          kinds.forEach(k => met.add(k));
+        }
+      }
+      // no ambush's first tell or opening falls on a commander wave (Mari's legacy tell waits out its banner instead)
+      for (const L of LEVELS) {
+        const A = L.tricks && L.tricks.ambush;
+        if (!A || A.legacy) continue;
+        for (let d = 0; d < 3; d++) {
+          const f = A.from[d], t = A.tell[d];
+          if (f != null && (f % 10 === 0 || (f - t) % 10 === 0)) throw new Error(L.id + ": the ambush meets a commander wave on " + DIFFS[d].name);
+        }
+      }
+      // every ambush road's own stretch: 45 clear of every pad and plot, 20 out of a lake, reached at 152 over 60 px by
+      // two pads, or a pad and a plot
+      LEVELS.forEach((L, i) => {
+        const A = L.tricks && L.tricks.ambush;
+        if (!A || A.legacy) return;
+        curLevel = i; curDiff = 1; curEra = L.era; loadLevel(i);
+        const S = ambushStretch(A.route), P = [];
+        for (let d = S.a; d <= S.b; d += 4) P.push(routeAt(A.route, d));
+        for (const q of L.pads.concat(L.plots || [])) {
+          const dm = Math.min(...P.map(p => Math.hypot(p.x - q[0], p.y - q[1])));
+          if (dm < 45) throw new Error(L.id + ": pad or plot " + q + " is " + Math.round(dm) + " from the ambush road");
+        }
+        if (P.some(p => lakeAt(p.x, p.y, 20))) throw new Error(L.id + ": the ambush road runs into the lake");
+        const reach = q => P.filter(p => inGroundRange(q[0], q[1], p.x, p.y, 152)).length * 4 >= 60;
+        const pads = L.pads.filter(reach).length, plts = (L.plots || []).filter(reach).length;
+        if (!(pads >= 2 || (pads >= 1 && plts >= 1))) throw new Error(L.id + ": the ambush road is reached by " + pads + " pads and " + plts + " plots");
+      });
+    } finally { trickBack(k0); }
+  });
+  check("tricks: wave plan", () => {
+    const k0 = trickKeep();
+    try {
+      for (let i = 0; i < LEVELS.length; i++) {
+        const counts = [];
+        for (let d = 0; d < 3; d++) {
+          curLevel = i; curDiff = d; curEra = LEVELS[i].era; tutGentle = false;
+          adapt = { slot: "archer", step: 9, hist: [], acc: {} };   // the top step, so the adapted foes are counted too
+          const H = trickCfg("hunters");
+          let tot = 0;
+          for (let w = 1; w <= TOTAL_WAVES; w++) {
+            const g = trickWave(w), plan = wavePlan(w);
+            if (JSON.stringify(g) !== JSON.stringify(trickWave(w)) || JSON.stringify(plan) !== JSON.stringify(wavePlan(w))) throw new Error(LEVELS[i].id + " w" + w + ": the plan is not repeatable");
+            for (const q of plan) if ((q.type === "boss" || q.type === "flyer") && (q.trick || q.guard || q.road != null)) throw new Error(LEVELS[i].id + " w" + w + ": a " + q.type + " carries a trick");
+            for (const x of g) {
+              if (x.trick === "hidden" && x.n > byDiff(TRICK_RULES.hidden.cap)) throw new Error(LEVELS[i].id + ": too many scouts");
+              if (x.trick === "hunter" && H && x.n > byDiff(H.n)[2]) throw new Error(LEVELS[i].id + ": too many hunters");
+            }
+            const info = waveRowInfo(w), r01 = info.groups.filter(x => chipRank(x) <= 1).length + (info.warn.length ? 1 : 0);
+            if (r01 > 6) throw new Error(LEVELS[i].id + " w" + w + ": " + r01 + " chips before the rank and file");
+            tot += plan.filter(q => q.trick || q.guard || q.road != null).length;
+          }
+          counts.push(tot);
+        }
+        if (!(counts[0] <= counts[1] && counts[1] <= counts[2])) throw new Error(LEVELS[i].id + ": trick foes by difficulty " + counts);
+      }
+      // the coached Erebuni: waves 1 to 3 as they were in their groups, their foes' strength and the purse
+      for (let d = 0; d < 3; d++) {
+        field("erebuni", d);
+        resetGame();
+        if (gold !== DIFFS[d].gold) throw new Error("Erebuni's purse changed on " + DIFFS[d].name);
+        tutGentle = true;
+        for (let w = 1; w <= 3; w++) {
+          if (JSON.stringify(trickWave(w)) !== JSON.stringify(waveGroups(w))) throw new Error("Erebuni's coached wave " + w + " changed");
+          for (const role of ["spearman", "raider"]) if (levelHpFrom(role, w) !== 1) throw new Error("Erebuni's coached wave " + w + " stands stronger");
+        }
+        tutGentle = false;
+      }
+    } finally { adapt = { slot: null, step: -1, hist: [], acc: {} }; trickBack(k0); }
+  });
+  check("tricks: ambush", () => {
+    const k0 = trickKeep();
+    try {
+      field("avarayr", 1);
+      const A = trickCfg("ambush"), k = ambushRoute();
+      if (k !== 1 || A.from !== 12 || activeRoutes(5).includes(k)) throw new Error("Avarayr's reserves' road");
+      // the tell wave: the far horn, the toast, the dust down the track
+      waveIdx = lastCleared = A.from - 2;
+      waveCueQ = [];
+      startWave();
+      if (!waveCueQ.some(q => q.name === "reliefFar")) throw new Error("no far horn on the tell wave");
+      if (!toastEl.textContent.includes("Dust rises on the reserves' road")) throw new Error("tell toast: " + toastEl.textContent);
+      for (let i = 0; i < 60; i++) update(1 / 30);
+      if (!ambushPuffs.length) throw new Error("no dust on the dormant road");
+      spawnQueue = []; enemies = [];
+      endWaveIfClear();
+      if (waveIdx !== A.from - 1 || phase !== "idle") throw new Error("the tell wave did not clear");
+      hudCache.chips = null; syncHud();
+      if (!waveInfoEl.querySelector(".chip.warn[data-warn~='ambush'], .chip.warn[data-warn^='ambush']")) throw new Error("no warning chip before the opening");
+      const plan = wavePlan(A.from), lastT = plan[plan.length - 1].t, on = plan.filter(q => q.road === k);
+      if (!on.length || on.some(q => q.t < byDiff(A.mid) * lastT)) throw new Error("the road opens before 40% of the wave");
+      if (on.some(q => q.type === "boss" || q.type === "flyer" || q.trick)) throw new Error("a commander, outflanker or trick foe takes the ambush road");
+      // the opening as fought: the first foe down it raises the alarm, and the main road keeps its turns
+      startWave();
+      const seq0 = spawnSeq;
+      let n1 = 0, alarm = false;
+      while (spawnQueue.length) {
+        const q = spawnQueue.shift();
+        waveTime = q.t;
+        spawnEnemy(q.type, q);
+        const e = enemies[enemies.length - 1];
+        if ((q.road === k) !== (e.route === k)) throw new Error("a foe took the wrong road");
+        if (q.road === k) { n1++; alarm = alarm || (waveBannerMain === "Ambush!" && !!roadCall && roadCall.route === k); }
+      }
+      if (!n1 || !alarm) throw new Error("no alarm at the opening");
+      if (spawnSeq - seq0 !== plan.length - n1) throw new Error("the main road's turns moved");
+      if (roadTitle(String(k)) !== A.name) throw new Error("the debrief does not name the reserves' road");
+      // Mari's other road: told on wave 10, after its commander's banner
+      field("mari", 1);
+      waveIdx = lastCleared = 9; waveCueQ = [];
+      startWave();
+      if (!waveCueQ.some(q => q.name === "reliefFar" && q.o.far === 0.6) || !toastEl.textContent.includes("goat track")) throw new Error("Mari's tell");
+    } finally { trickBack(k0); }
+  });
+  check("tricks: hunters", () => {
+    const k0 = trickKeep();
+    try {
+      field("dvin", 1);
+      waveIdx = 8; phase = "wave";
+      hero.alive = false; hero.respawn = 1e9;
+      const H = trickCfg("hunters");
+      if (!H || !trickWave(8).some(g => g.type === "ram" && g.hunt > 0 && g.hunt <= byDiff(H.huntCap))) throw new Error("Dvin's ladder parties do not hunt");
+      // a ballista beside the road and an archer near enough to cover its foot
+      const near = (i, j) => Math.hypot(PADS[i][0] - PADS[j][0], PADS[i][1] - PADS[j][1]);
+      let pa = -1, pb = -1;
+      for (let i = 0; i < PADS.length && pa < 0; i++) for (let j = 0; j < PADS.length; j++) if (i !== j && near(i, j) < 170) { pa = i; pb = j; break; }
+      placeTower("ballista", pa); placeTower("archer", pb);
+      const a = towers[0], b = towers[1];
+      a.level = 2; towerSyncHp(a);   // the ballista is worth the most gold: the hunter's choice
+      b.level = 2; towerSyncHp(b);
+      spawnEnemy("ram", { type: "ram", trick: "hunter" });
+      const e = enemies[enemies.length - 1];
+      e.dist = roadNear(e.route, a.x, a.y);
+      e.hp = e.maxHp = 1e7;
+      let clouds = -1, aShot = false, bShot = false;
+      for (let n = 0; n < 900 && !(e.hunt.state === "work" && e.hunt.work > 3); n++) {
+        update(1 / 30);
+        if (e.off && clouds < 0) clouds = smokeClouds.length;
+        if (e.off && smokeClouds.length > clouds) throw new Error("a ladder party lit smoke off the road");
+        for (const pr of projectiles) {
+          if (pr.src === a && pr.target === e && inDeadGround(a, e)) aShot = true;
+          if (pr.src === b && pr.target === e && e.hunt.state === "work") bShot = true;
+        }
+      }
+      if (e.hunt.state !== "work" || e.hunt.tower !== a) throw new Error("the hunter never worked at its tower (" + e.hunt.state + ")");
+      if (aShot) throw new Error("a tower shot at the hunter at its own foot");
+      if (!(a.hp < a.maxHp)) throw new Error("the hunter did no damage");
+      if (!bShot && inGroundRange(b.x, b.y, e.off.x, e.off.y, getStats(b).range + e.r)) throw new Error("the neighbor never shot at the hunter");
+      // repair is refused while it is worked
+      const g0 = gold, h0 = a.hp;
+      repairTower(a);
+      if (gold !== g0 || a.hp !== h0) throw new Error("a tower was repaired under attack");
+      // the fire slot burns a hunter pitch times as hard
+      towers = []; enemies = []; projectiles = [];
+      placeTower("fire", pa);
+      const f = towers[0];
+      const mk = hunt => {
+        spawnEnemy("ram", hunt ? { type: "ram", trick: "hunter" } : { type: "ram" });
+        const x = enemies[enemies.length - 1];
+        x.pin = { x: f.x + 20, y: f.y, ang: 0 }; x.hp = x.maxHp = 1e6; x.mechT = -1e9;
+        if (x.hunt) x.hunt.jobs = 99;
+        return x;
+      };
+      const h1 = mk(true), h2 = mk(false);
+      update(0.1);
+      const r = (1e6 - h1.hp) / (1e6 - h2.hp);
+      if (Math.abs(r - TRICK_RULES.hunters.pitch) > 0.01) throw new Error("pitch " + r);
+      enemies = [];
+      // a wreck shoots nothing and gives no aura
+      placeTower("drums", pb);
+      const dr = towers[1];
+      hurtTower(dr, 1e9, "hunt");
+      if (!dr.wreck) throw new Error("no wreck");
+      update(0.05);
+      if (f.buffHaste || f.buffMight) throw new Error("a wrecked drum gave its aura");
+      hurtTower(f, 1e9, "hunt");
+      mk(false);
+      for (let n = 0; n < 10; n++) update(0.05);
+      if (enemies[0].hp !== 1e6) throw new Error("a wrecked altar burned");
+      enemies = [];
+      // rebuild, clear, repair, sell and the free mend pay the rules
+      let inv = towerInvested(f), gb = gold;
+      rebuildTower(f);
+      if (gb - gold !== Math.ceil(inv * byDiff(TRICK_RULES.tower.rebuild)) || f.wreck || f.hp !== f.maxHp) throw new Error("rebuild");
+      inv = towerInvested(dr); gb = gold;
+      clearRuin(dr);
+      if (gold - gb !== Math.floor(inv * TRICK_RULES.tower.salvage) || towers.includes(dr)) throw new Error("clear");
+      f.hp = f.maxHp * 0.4; inv = towerInvested(f); gb = gold;
+      repairTower(f);
+      if (gb - gold !== Math.ceil(inv * byDiff(TRICK_RULES.tower.repair) * 0.6) || f.hp !== f.maxHp) throw new Error("repair");
+      f.hp = f.maxHp * 0.5; f.placedAt = -1e9;
+      if (sellRefund(f).amount !== Math.floor(inv * 0.7 * (0.4 + 0.6 * 0.5))) throw new Error("a damaged tower's sale");
+      phase = "wave"; spawnQueue = []; enemies = [];
+      endWaveIfClear();
+      if (Math.abs(f.hp - f.maxHp * (0.5 + byDiff(TRICK_RULES.tower.mend))) > 1e-6) throw new Error("the free mend");
+      // the panel of a damaged tower and of a ruin
+      f.hp = f.maxHp * 0.5; showPanel(f);
+      if (!$("pActions").querySelector(".row2 .repair") || !$("pStats").textContent.includes("Strength")) throw new Error("no Repair beside Sell");
+      hurtTower(f, 1e9); showPanel(f);
+      const btns = [...$("pActions").querySelectorAll(".btn")].map(x => x.className);
+      if (!/\(ruin\)$/.test($("pName").textContent) || btns.length !== 2 || !btns[0].includes("up") || !btns[1].includes("clear")) throw new Error("the ruin's panel: " + btns);
+      hidePanel();
+    } finally { trickBack(k0); }
+  });
+  check("tricks: hidden", () => {
+    const k0 = trickKeep();
+    try {
+      field("erebuni", 1);
+      waveIdx = 6; phase = "wave";
+      hero.alive = false; hero.respawn = 1e9;
+      if (!trickWave(6).some(g => g.trick === "hidden")) throw new Error("no scouts on Erebuni's wave 6");
+      let pa = -1, pb = -1;
+      for (let i = 0; i < PADS.length && pa < 0; i++) for (let j = 0; j < PADS.length; j++) {
+        if (i !== j && Math.hypot(PADS[i][0] - PADS[j][0], PADS[i][1] - PADS[j][1]) < 200) { pa = i; pb = j; break; }
+      }
+      placeTower("archer", pa);
+      const a = towers[0];
+      a.level = 2;
+      spawnEnemy("raider", { type: "raider", trick: "hidden", name: "Etiuni Scouts" });
+      const e = enemies[enemies.length - 1];
+      const mid = { x: (PADS[pa][0] + PADS[pb][0]) / 2, y: (PADS[pa][1] + PADS[pb][1]) / 2, ang: 0 };
+      e.pin = mid; e.hp = e.maxHp = 1e6;
+      for (let n = 0; n < 40; n++) { update(1 / 30); if (projectiles.some(p => p.target === e)) throw new Error("a tower aimed at an unseen scout"); }
+      if (e.seenT > 0) throw new Error("seen with no one watching");
+      draw(PHOTO_TIME);
+      // the Beacon Fire reveals it, and the archers then shoot
+      placeTower("fire", pb);
+      let shot = false;
+      for (let n = 0; n < 60 && !shot; n++) { update(1 / 30); shot = projectiles.some(p => p.target === e); }
+      if (!(e.seenT > 0) || !shot) throw new Error("the Beacon Fire did not reveal the scout");
+      draw(PHOTO_TIME);
+      towers = []; projectiles = []; e.seenT = 0;
+      // the hero reveals it
+      hero.alive = true; hero.x = mid.x + 40; hero.y = mid.y;
+      update(1 / 30);
+      if (!(e.seenT > 0)) throw new Error("the hero did not reveal the scout");
+      hero.alive = false; e.seenT = 0; e.revealFx = 0;
+      update(1 / 30);
+      // a stone's splash strikes and reveals it
+      placeTower("catapult", pa);
+      projectiles.push({ kind: "stone", x: mid.x, y: mid.y, sx: mid.x, sy: mid.y, tx: mid.x, ty: mid.y, t: 0.99, dur: 0.9, dmg: 10, splash: 40, src: towers[0], stagger: 0 });
+      update(0.1);
+      if (!(e.seenT > 0) || e.hp >= 1e6) throw new Error("a stone's splash did not strike and reveal the scout");
+    } finally { trickBack(k0); }
+  });
+  check("tricks: guards", () => {
+    const k0 = trickKeep();
+    try {
+      field("tushpa", 1);
+      waveIdx = 6; phase = "wave";
+      hero.alive = false; hero.respawn = 1e9;
+      spawnEnemy("shield", { type: "shield", guard: "archer", gname: "Siege shields", gdrop: true, glook: "siegeShield" });
+      const e = enemies[enemies.length - 1], m = byDiff(TRICK_RULES.guard.mult);
+      const took = (slot, x) => { (x || e).hp = 1e6; damageEnemy(x || e, 100, true, slot ? { type: slot } : undefined); return 1e6 - (x || e).hp; };
+      if (Math.abs(took("archer") - 100 * m) > 1e-6) throw new Error("the guard's cut");
+      for (const s of ["ballista", "catapult", "fire", null]) if (took(s) !== 100) throw new Error("a guard against the archers cut a blow of " + s);
+      // a stone's stagger drops the shields for its time and dropS after; mantlets do not drop
+      projectiles.push({ kind: "stone", x: 0, y: 0, sx: 0, sy: 0, tx: enemyPos(e).x, ty: enemyPos(e).y, t: 0.99, dur: 0.9, dmg: 1, splash: 30, src: { type: "catapult" }, stagger: 0.5 });
+      e.pin = enemyPos(e);
+      update(0.05);
+      if (took("archer") !== 100) throw new Error("the shields stood through a stone's blow");
+      for (let n = 0; n < 60; n++) update(0.05);
+      if (Math.abs(took("archer") - 100 * m) > 1e-6) throw new Error("the shields never came back up");
+      field("halidzor", 1);
+      waveIdx = 8;
+      spawnEnemy("shield", { type: "shield", guard: "archer", gname: "Mantlets", gdrop: false });
+      const mt = enemies[enemies.length - 1];
+      mt.staggerT = 1; mt.shieldDownT = 3;
+      if (Math.abs(took("archer", mt) - 100 * m) > 1e-6) throw new Error("a mantlet dropped");
+      // a firepot's burn is its catapult's
+      spawnEnemy("spearman", { type: "spearman", guard: "catapult", gname: "Open order", adapted: true });
+      const p = enemies[enemies.length - 1];
+      p.pin = { x: -500, y: 300, ang: 0 }; p.hp = 1e6;
+      p.pots = [{ dps: 100, t: 10, src: { type: "catapult" } }];
+      towers = [];
+      update(0.1);
+      if (Math.abs((1e6 - p.hp) - 100 * 0.1 * byDiff(TRICK_RULES.adapt.mult)) > 1e-6) throw new Error("a firepot's burn was not the catapult's");
+      // Avarayr's elephants take more from the fire slot
+      field("avarayr", 1);
+      waveIdx = 8;
+      spawnEnemy("ram", { type: "ram" });
+      const el = enemies[enemies.length - 1];
+      if (Math.abs(took("fire", el) - 140) > 1e-6 || took("archer", el) !== 100) throw new Error("the elephants do not fear fire");
+      // the card and the chip tell it
+      field("tushpa", 1);
+      waveIdx = 5;
+      const html = foeCardHtml("shield", 6, "chip");
+      if (!html.includes("Siege shields") || !html.includes("only " + Math.round(m * 100) + "% damage") || !html.includes("siege shield whose top folds back")) throw new Error("the foe card does not tell the shields");
+      if (!waveChipsHtml(6).includes('mk gd')) throw new Error("no guard mark on the chip");
+    } finally { trickBack(k0); }
+  });
+  check("adaptive enemy", () => {
+    const k0 = trickKeep();
+    try {
+      field("sevan", 1);
+      const C = trickCfg("adapt"), R = TRICK_RULES.adapt, steps = byDiff(R.steps);
+      waveIdx = C.from;
+      const clear = acc => { adapt.acc = Object.assign({}, acc); return adaptStep(); };
+      // one tower doing the work: the enemy answers it and climbs to its cap
+      let said = clear({ archer: 1000 });
+      if (adapt.slot !== "archer" || adapt.step !== 0 || !said.includes("adapted to your")) throw new Error("no answer to the archers");
+      for (let i = 0; i < 6; i++) clear({ archer: 1000 });
+      if (adapt.step !== steps.length - 1) throw new Error("it never reached its cap");
+      // exact counts: the accumulator over the plan's eligible foes, never a commander, outflanker, hunter or scout
+      const w = C.from + 2, plan = wavePlan(w), elig = plan.filter(q => ADAPT_ROLES.has(q.type) && !q.trick && !(q.guard && !q.adapted));
+      const ad = plan.filter(q => q.adapted);
+      if (ad.length !== Math.floor(elig.length * steps[steps.length - 1] + 1e-9)) throw new Error("adapted " + ad.length + " of " + elig.length);
+      if (ad.some(q => q.type === "boss" || q.type === "flyer" || q.trick)) throw new Error("adapted a commander, outflanker or trick foe");
+      // the plan is what the wave sends, and an early call plans from the cleared waves alone
+      waveIdx = w - 1; phase = "idle"; lastCleared = waveIdx;
+      startWave();
+      if (spawnQueue.filter(q => q.adapted).length !== ad.length) throw new Error("the wave sent another adaptation than its preview");
+      const before = JSON.stringify(adapt), next = wavePlan(w + 1).filter(q => q.adapted).length;
+      spawnQueue = []; enemies = [{ dead: false, hp: 1, maxHp: 1, dist: 0, route: 0, type: "spearman", r: 9, def: eraUnit("spearman"), slowTimer: 0, slowFactor: 1, stunT: 0, staggerT: 0, wobble: 0, speed: 0 }];
+      startWave();
+      if (JSON.stringify(adapt) !== before || spawnQueue.filter(q => q.adapted).length !== next) throw new Error("an early call planned from a wave not cleared");
+      enemies = []; spawnQueue = [];
+      // the work spread: it ramps down a step a wave, then lets go
+      waveIdx = C.from;
+      const spread = { archer: 250, ballista: 250, catapult: 250, fire: 250 };
+      let lastMsg = "";
+      for (let i = 0; i < 8 && adapt.slot; i++) lastMsg = clear(spread);
+      if (adapt.slot !== null || !lastMsg.includes("no longer adapts")) throw new Error("it never let go of a spread board");
+      // a new dominant slot starts at its first step
+      for (let i = 0; i < 4; i++) clear({ archer: 1000 });
+      for (let i = 0; i < 3 && adapt.slot === "archer"; i++) clear({ ballista: 1000 });
+      if (adapt.slot !== "ballista" || adapt.step > 1) throw new Error("a new dominant tower was not answered afresh");
+      // Easy is milder; a battlefield without it never adapts
+      if (!(R.steps[0][R.steps[0].length - 1] < steps[steps.length - 1] && R.mult[0] > R.mult[1] && R.from[0] >= R.from[1])) throw new Error("Easy is not milder");
+      field("tushpa", 1);
+      waveIdx = 12;
+      for (let i = 0; i < 4; i++) clear({ archer: 1000 });
+      if (adapt.slot !== null || adaptPlan(13)) throw new Error("Tushpa adapted");
+    } finally { trickBack(k0); }
+  });
+  check("tricks: save and resume", () => {
+    const k0 = trickKeep();
+    try {
+      field("avarayr", 1);
+      gold = 5000;
+      placeTower("archer", 0); placeTower("ballista", 1);
+      towers[0].hp = 100; hurtTower(towers[1], 1e9);
+      adapt = { slot: "archer", step: 1, hist: [{ archer: 500 }], acc: {} };
+      startWave();
+      for (let i = 0; i < 30; i++) update(1 / 30);
+      saveRun();
+      const saved = JSON.parse(localStorage.getItem("hs_run"));
+      if (saved.tricks !== 1 || saved.towers[0].hp !== 100 || saved.towers[1].wreck !== true || saved.adapt.slot !== "archer") throw new Error("the save lacks the tricks' state");
+      resumeRun();
+      if (trickLegacy || towers[0].hp !== 100 || !towers[1].wreck || adapt.slot !== "archer" || adapt.step !== 1 || adapt.hist.length !== 1) throw new Error("the resume lost the tricks' state");
+      // a run saved before the tricks resumes without them, gains Avarayr's new pad, and its towers stand whole
+      const old = JSON.parse(JSON.stringify(saved));
+      delete old.tricks; delete old.adapt; old.build = "2026-10-19";
+      old.towers.forEach(t => { delete t.hp; delete t.wreck; });
+      old.pads = old.pads.slice(0, 14);
+      localStorage.setItem("hs_run", JSON.stringify(old));
+      resumeRun();
+      if (!trickLegacy || trickCfg("ambush") || trickCfg("guards") || adaptPlan(14)) throw new Error("a legacy run resumed with tricks");
+      if (PADS.length !== 15 || PADS[14][0] !== 40 || towers.some(t => t.wreck || t.hp !== t.maxHp)) throw new Error("the legacy run's pads or towers");
+      if (activeRoutes(13).includes(1)) throw new Error("a legacy run sends foes down the dormant road");
+      saveRun();
+      if (JSON.parse(localStorage.getItem("hs_run")).tricks) throw new Error("a legacy run saved as a new one");
+      // bad values resume as defaults
+      const bad = JSON.parse(JSON.stringify(saved));
+      bad.towers[0].hp = "x"; bad.towers[1].wreck = "yes"; bad.adapt = { slot: "drums", step: -4, hist: 7 };
+      localStorage.setItem("hs_run", JSON.stringify(bad));
+      if (!getSavedRun()) throw new Error("a run with bad trick values was refused");
+      resumeRun();
+      if (towers[0].hp !== towers[0].maxHp || towers[1].wreck || adapt.slot !== null) throw new Error("bad trick values did not fall back");
+    } finally { trickBack(k0); }
+  });
+  check("tricks: cards once", () => {
+    const k0 = trickKeep();
+    try {
+      field("dvin", 1);
+      localStorage.removeItem(TRICK_SEEN_KEY);
+      trickCardTest = true;
+      for (const key of TRICK_KEYS) {
+        showTrickCard(key);
+        const kit = trickCardEl.querySelector(".kit"), btn = $("tcBtn");
+        if (!trickCardEl.classList.contains("on") || !trickHold()) throw new Error(key + ": the card did not hold the battle");
+        if (kit.offsetHeight > innerHeight * 0.7 + 1 || btn.offsetHeight < 44) throw new Error(key + ": the card's size");
+        if (!trickCardEl.textContent.includes(trickText(key).title)) throw new Error(key + ": the card's words");
+        closeTrickCard();
+        if (!tricksSeen().includes(key) || trickHold()) throw new Error(key + ": not marked seen");
+        if (trickCardsDue([key]).length) throw new Error(key + ": due again");
+      }
+      // a card due on an early-called wave shows at its start, before the first foe of it spawns
+      localStorage.removeItem(TRICK_SEEN_KEY);
+      waveIdx = 7; phase = "wave"; spawnQueue = [];
+      spawnEnemy("spearman");
+      const n0 = enemies.length;
+      startWave();
+      if (!trickCardOn || !trickCardOn.keys.includes("hunters") || enemies.length !== n0 || !trickHold()) throw new Error("no card at an early-called wave's start");
+      closeTrickCard();
+      // closing a card leaves a pause that was there before it
+      paused = true;
+      showTrickCard("guards");
+      closeTrickCard();
+      if (!paused) throw new Error("closing the card lifted the pause");
+      paused = false;
+      // a reminder from the row holds nothing and marks nothing
+      localStorage.removeItem(TRICK_SEEN_KEY);
+      showTrickCard(["ambush", "adapt"], { read: true });
+      if (trickHold() || $("tcBtn").textContent !== "Close") throw new Error("the read card held the battle");
+      closeTrickCard();
+      if (tricksSeen().length) throw new Error("a read card marked a trick seen");
+      // Erebuni's bubble before its first scout wave
+      field("erebuni", 1);
+      waveIdx = 5; phase = "idle";
+      if (showScoutBubble()) {
+        if (!trickHold() || !coachEl.classList.contains("on") || !coachEl.textContent.includes("Hidden scouts")) throw new Error("the scout bubble");
+        closeScoutBubble();
+        if (!tricksSeen().includes("hidden") || coachEl.classList.contains("on")) throw new Error("the scout bubble did not close");
+      }
+    } finally { dropTrickCards(); trickBack(k0); }
+  });
+  check("tricks: render", () => {
+    const k0 = trickKeep();
+    try {
+      const scenes = [["avarayr", 12, "ambush"], ["avarayr", 11, "ambush"], ["sevan", 9, "ambush"], ["dvin", 8, "hunt"], ["erebuni", 6, "hidden"],
+        ["tushpa", 6, "guards"], ["avarayr", 8, "guards"], ["tashir", 9, "adapt"]];
+      for (const [id, w, kind] of scenes) {
+        photoStageBattle(levelIndexOf(id), w, { trick: kind, banner: true });
+        draw(PHOTO_TIME);
+        if ((kind === "adapt" || (kind === "ambush" && w === 12)) && !waveInfoEl.querySelector(".chip.warn")) throw new Error("no warning chip: " + id + " " + kind);
+      }
+      // Damaged, Failing and Wrecked towers in every age's skins (the skins follow the age drawn)
+      photoStageBattle(levelIndexOf("dvin"), 8, { trick: "hunt", panel: 3 });
+      draw(PHOTO_TIME);
+      hidePanel();
+      towers.forEach((t, i) => { if (i % 3 === 0) t.hp = t.maxHp * 0.5; else if (i % 3 === 1) t.hp = t.maxHp * 0.2; else { t.wreck = true; t.hp = 0; } });
+      for (let e = 0; e < ERAS.length; e++) { curEra = e; draw(PHOTO_TIME); }
+      curEra = LEVELS[curLevel].era;
+    } finally { trickBack(k0); }
   });
   check("menu + brief", () => { photoMenu(false); renderWorldMap(); photoMenu(true); });
   check("perf + pixels", () => {

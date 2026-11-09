@@ -32,7 +32,8 @@
 //   BUILD_name=kinds  add a build of your own for this run, e.g. BUILD_catdrum=catapult,catapult,archer,drums
 //   PATCH=js      run this code in every page once it has loaded, before any battle: for trying numbers
 //                 without editing the game, e.g. PATCH='TOWER_DEFS.ballista.levels[0].dmg = 50' or
-//                 PATCH='LEVELS[9].hpTune = 1.1'
+//                 PATCH='LEVELS[9].hpTune = 1.1' or PATCH='TRICK_RULES.adapt.mult[1] = 0.3'
+//   COUNTERS=0    the bot plays without its answers to the enemy's tricks (below), for an A/B of their worth
 //
 // What it prints, for each difficulty: one row per battlefield and one column per build. With one seed, "W 14"
 // is a stand held with 14 lives left and "L 12" a stand lost on wave 12; with several, "2/3 9.7" is two wins in
@@ -46,15 +47,21 @@
 // has had less time to deal damage, so compare a mastery with its twin ("archer.a" with "archer.b"), not with an
 // unmastered tower.
 //
-// What the game is tuned to (LEVEL_HP's rank and file and each battlefield's hpTune, LEVEL_HP's commanders,
-// all in index.html; Hard's rank and file stand as Normal's), with SEEDS=3:
-//   - Normal: the best build fells both commanders on every battlefield and every seed, so the lives it loses
-//     are the rank and file's toll: a few on the first six (Erebuni, the first, stays gentle), and about
-//     7-14 left on the rest, Chapter III's Ani, Mari and Sis with 8-14. A balanced mix holds most battlefields;
-//     all-archer and all-catapult builds hold some. Tushpa, Avarayr and Sevan are the exception for now: the
-//     mix holds them whole at any strength tried (see LEVEL_HP), so the best build ends them with 20 lives
-//   - Hard: the best build holds at least 12 of the 14 on every seed with 3 lives or more, and the mix most of
-//     the early ones. Easy: comfortable for every sensible build.
+// What the game is tuned to (the enemy's tricks, L.tricks and TRICK_RULES; LEVEL_HP's rank and file and each
+// battlefield's hpTune; LEVEL_HP's commanders; all in index.html), with SEEDS=3. Hit points alone do not make the
+// first six harder for a good build (see LEVEL_HP): their pressure comes from the tricks and the adaptive enemy.
+//   - Normal, the first six (Erebuni, Tushpa, Avarayr, Dvin, Tashir, Sevan; Erebuni's coached waves 1-3 never
+//     change): the best build keeps 12-16 of its 20 on every seed and fells both commanders on every seed; the
+//     mix wins every seed; "ballista" and "archers" each lose at least one battle across the six (the adaptive
+//     enemy's work). Where two or more tricks are active no one trick is more than 75% of the best build's toll.
+//   - Normal, the later eleven: the best build keeps about 10-15 (2 of 3 seeds in band) and fells both
+//     commanders on every seed; the mix wins 2 of 3 on at least 8 of the 11, and 0 of 3 on at most one.
+//   - Easy: the mix wins every battlefield on every seed, keeping about 22-27 of 30 on the first six.
+//   - Hard: the best build wins at least 12 of the 17 on 2 of 3 seeds, keeping 2-8 of 14, and loses some seeds;
+//     "ballista" and "archers" lose often.
+//   - The adaptive enemy, from its first wave: it adapts on at most 30% of the mix's waves and on at least 60% of
+//     the one-tower builds' (Tashir, Sevan and later).
+// Victory gives 3 stars at 17 of 20: the best build in the Normal band earns 2.
 //
 // How the bot plays: the same rules for every build, so the table compares builds, not the bot's skill.
 //   - Pads are ranked greedily by how much road each adds within 170 px of the pads already taken; for the
@@ -65,6 +72,16 @@
 //   - It spends and casts before every wave and every two seconds of battle (see SEEDS). A spell goes on the
 //     knot of ground foes with the most hit points within its radius, if they hold more than 600.
 //   - It never moves its hero, never calls a wave early, never sells and never changes a tower's target.
+//   - Its answers to the enemy's tricks (COUNTERS=0 turns them off), the same for every build and only on what a
+//     player is shown at that moment (the next-wave row, the ambush's tell), before any other spending:
+//     it rebuilds its wrecked towers (the most invested first), then repairs towers under 60% strength that no
+//     hunter is working on; when this wave or the next brings hidden scouts and no standing watch tower (the fire
+//     slot, Shushi's drums) reveals 120 px of the last 40% of each road, it builds one on the free pad that
+//     reveals the most of it; from the ambush's tell wave, while fewer than two standing towers reach 60 px of the
+//     ambush road's own stretch, it builds the order's next shooting kind on the free pad that reaches the most of
+//     it (or claims a plot that does). These towers do not advance the build order, and it saves for the first of
+//     each. Its first pad ranking leaves the ambush roads out (they are dormant)
+//   - The page plays with no town gift and no Nardi gift (R7: the town is hidden on a plain load)
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -104,7 +121,8 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters } = a;
+  const tricked = typeof trickCfg === "function";
   Math.random = mulberry32(seed);
   toast = () => {};
   curDiff = diff; curLevel = lv;
@@ -115,7 +133,9 @@ function playBattle(a) {
   // pads before it already cover. Towers that hit outflankers rank them by road and sky together: the sky is
   // the line a flyer from each road's entry takes, read off a probe flyer (over a lake it bends to the water)
   const pts = [], sky = [], seq0 = spawnSeq;
+  const amb = tricked ? ambushRoute() : -1;   // a dormant ambush road is left out of the first ranking
   for (let ri = 0; ri < ROUTES.length; ri++) {
+    if (ri === amb) continue;
     for (let k = 0; k <= 120; k++) pts.push(routeAt(ri, ROUTES[ri].len * k / 120));
     spawnSeq = ri; spawnEnemy("flyer");
     const f = enemies.pop();
@@ -145,17 +165,85 @@ function playBattle(a) {
     const n = specCount[t.type] = (specCount[t.type] || 0) + 1;
     return (n + slot) % 2 ? "a" : "b";
   };
+  // the answers to the enemy's tricks (see the header): `extra` counts the towers they built, which do not move the
+  // build order on
+  let extra = 0;
+  const hits = (x, y, r, P) => { let c = 0; for (const q of P) if (inGroundRange(x, y, q.x, q.y, r)) c++; return c; };
+  const freePads = () => PADS.map((p, i) => i).filter(i => !towerAt(i));
+  const ambush = (() => {
+    if (!tricked) return null;
+    const A = trickCfg("ambush"), k = A ? (A.legacy ? A.route : ambushRoute()) : -1;
+    if (!A || k < 0 || !ROUTES[k]) return null;
+    const S = ambushStretch(k), P = [];
+    for (let d = S.a; d <= S.b; d += 4) P.push(routeAt(k, d));
+    return { A, k, P };
+  })();
+  // the last 40% of each road the hidden scouts take (every main road), 4 px a sample
+  const tails = ROUTES.map((R, k) => k).filter(k => k !== amb && !(ROUTES[k].track && !(LEVELS[curLevel].routeOpen || {})[k])).map(k => {
+    const P = [];
+    for (let d = ROUTES[k].len * 0.6; d <= ROUTES[k].len; d += 4) P.push(routeAt(k, d));
+    return P;
+  });
+  const counter = () => {
+    if (!tricked || !counters) return true;
+    // 3. rebuild the wrecks, then repair what hunters are not working on
+    for (const t of towers.filter(t => t.wreck).sort((x, y) => towerInvested(y) - towerInvested(x))) if (gold >= rebuildCost(t)) rebuildTower(t);
+    for (const t of towers.filter(t => !t.wreck && towerHpFrac(t) < 0.6 && !towerWorked(t)).sort((x, y) => towerInvested(y) - towerInvested(x))) {
+      if (gold >= repairCost(t)) repairTower(t);
+    }
+    // 2. the reveal: hidden scouts this wave or the next
+    const w0 = phase === "wave" ? waveIdx : waveIdx + 1;
+    if (trickCfg("hidden") && [w0, w0 + 1].some(x => x <= TOTAL_WAVES && trickWave(x).some(g => g.trick === "hidden"))) {
+      const watch = trickWatch();
+      const seenOk = P => towers.some(t => !t.wreck && watch.includes(t.type) && hits(t.x, t.y, watchReach(t), P) * 4 >= 120);
+      if (!tails.every(seenOk)) {
+        const kind = watch[0], r = watchReach({ type: kind, level: 0, spec: null });
+        let best = -1, bv = 0;
+        for (const i of freePads()) { const v = tails.reduce((s, P) => s + hits(PADS[i][0], PADS[i][1], r, P), 0); if (v > bv) { bv = v; best = i; } }
+        if (best >= 0) {
+          if (gold < TOWER_DEFS[kind].cost) return false;   // it saves for it
+          placeTower(kind, best); extra++;
+        }
+      }
+    }
+    // 1. the ambush road, from its tell
+    if (ambush && ambushTold(waveIdx)) {
+      const shooters = t => !t.wreck && (TOWER_DEFS[t.type].proj || t.type === "fire");
+      const cov = towers.filter(t => shooters(t) && hits(t.x, t.y, getStats(t).range, ambush.P) * 4 >= 60).length;
+      if (cov < 2) {
+        let kind = null;
+        for (let j = 0; j < plan.length && !kind; j++) { const k2 = plan[(towers.length - extra + j) % plan.length]; if (k2 !== "drums") kind = k2; }
+        kind = kind || "archer";
+        const r = TOWER_DEFS[kind].levels[0].range;
+        let best = -1, bv = 0;
+        for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, ambush.P); if (v * 4 >= 60 && v > bv) { bv = v; best = i; } }
+        if (best < 0) {
+          // no free pad reaches it: a plot that does
+          let bi = -1, pv = 0;
+          plots.forEach((q, i) => { const v = hits(q[0], q[1], r, ambush.P); if (v * 4 >= 60 && v > pv) { pv = v; bi = i; } });
+          if (bi >= 0 && gold >= plotPrice()) { buyPlot(bi); rankRoad.push(PADS.length - 1); rankAir.push(PADS.length - 1); best = PADS.length - 1; }
+          else if (bi >= 0 && cov === 0) return false;
+        }
+        if (best >= 0) {
+          if (gold >= TOWER_DEFS[kind].cost) { placeTower(kind, best); extra++; }
+          else if (cov === 0) return false;
+        }
+      }
+    }
+    return true;
+  };
   const spend = () => {
+    if (!counter()) return;
     for (let guard = 0; guard < 200; guard++) {
       const n = towers.length;
-      const up = towers.filter(t => !t.spec && t.level < TOWER_DEFS[t.type].levels.length - 1).sort((x, y) => x.level - y.level)[0];
-      const build = PADS.some((p, i) => !towerAt(i)) ? plan[n % plan.length] : null;
+      const up = towers.filter(t => !t.spec && !t.wreck && t.level < TOWER_DEFS[t.type].levels.length - 1).sort((x, y) => x.level - y.level)[0];
+      const build = PADS.some((p, i) => !towerAt(i)) ? plan[Math.max(0, n - extra) % plan.length] : null;
       const nextPad = build && (TOWER_DEFS[build].air ? rankAir : rankRoad).find(i => !towerAt(i));
       let done = false;
       if (build && (n < 5 || !up) && gold >= TOWER_DEFS[build].cost) { placeTower(build, nextPad); done = true; }
       else if (up && gold >= TOWER_DEFS[up.type].levels[up.level + 1].cost) { upgradeTower(up); done = true; }
       else if (!up && !build) {
-        const sp = towers.find(t => !t.spec);
+        const sp = towers.find(t => !t.spec && !t.wreck);
         if (sp) {
           const key = sp.botSpec || (sp.botSpec = specFor(sp));
           if (gold >= specInfo(sp.type, key).cost) { specializeTower(sp, key); done = true; }
@@ -206,9 +294,15 @@ function playBattle(a) {
           walked: +Math.min(1, b.dist / roadOf(b)).toFixed(3) });
     }
   };
+  let adaptW = 0, adaptOn = 0;   // waves since the adaptive enemy's first, and those it adapted
   while (!gameOver && waveIdx < TOTAL_WAVES) {
     spend();
+    if (paused || (tricked && trickHold())) throw new Error("the battle was held before wave " + (waveIdx + 1));
+    const was = waveIdx;
     startWave();
+    if (waveIdx === was) throw new Error("wave " + (was + 1) + " did not start");
+    const C = tricked && trickCfg("adapt");
+    if (C && waveIdx >= C.from) { adaptW++; if (spawnQueue.some(q => q.adapted)) adaptOn++; }
     let n = 0;
     const before = lives;
     while (phase === "wave" && !gameOver && n < 2400 / dt) {
@@ -228,8 +322,13 @@ function playBattle(a) {
     const o = by[k] || (by[k] = { n: 0, dmg: 0, gold: 0 });
     o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t);
   }
+  // the lives each trick cost (the game books each leak once: hidden, a hunter, the ambush road, an adapted guard)
+  const lost = DIFFS[diff].lives - Math.max(0, lives), T = tricked ? trickLeaks : { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
+  const toll = Object.assign({}, T, { rest: Math.max(0, lost - T.ambush - T.hidden - T.hunter - T.adapted) });
   return { won: lives > 0 && waveIdx >= TOTAL_WAVES && gameOver, lives: Math.max(0, lives), wave: waveIdx,
     towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
+    toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
+    adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn,
     trace: trace.join(" ") };
 }
 
@@ -246,6 +345,7 @@ function playBattle(a) {
   const dt = +(process.env.DT || 1 / 60);
   const jobs = Math.max(1, +(process.env.JOBS || Math.min(4, os.cpus().length)));
   const probe = process.env.CMD === "probe";
+  const counters = process.env.COUNTERS !== "0";
 
   const browser = await chromium.launch();
   const errors = [];
@@ -270,7 +370,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe });
+      spells, spec, dt, probe, counters });
   }
   const results = [];
   let done = 0;
@@ -346,6 +446,23 @@ function playBattle(a) {
     }
     const keys = Object.keys(agg).filter(k => agg[k].dmg > 0).sort();
     console.log("damage per 100 gold: " + keys.map(k => k + " " + Math.round(agg[k].dmg / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
+    // the tricks' toll on each battlefield's best build, and how often the enemy adapted to each build
+    const bestOf = lv => {
+      let best = null;
+      for (const b of builds) { const rs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b); if (!best || score(rs) > score(best)) best = rs; }
+      return best;
+    };
+    const tolls = levels.flatMap(lv => bestOf(lv));
+    if (tolls.length && tolls[0].toll) {
+      const mean = k => (tolls.reduce((s, r) => s + (r.toll[k] || 0), 0) / tolls.length).toFixed(1);
+      console.log("trick toll, best builds (mean lives lost): ambush " + mean("ambush") + " · hidden " + mean("hidden") + " · hunters " + mean("hunter") +
+        " · adapted " + mean("adapted") + " · rest " + mean("rest") + "; towers wrecked " + (tolls.reduce((s, r) => s + r.wrecks, 0) / tolls.length).toFixed(1) +
+        ", repairs " + Math.round(tolls.reduce((s, r) => s + r.repairGold + r.rebuildGold, 0) / tolls.length) + " gold");
+      console.log("adapted waves: " + builds.map(b => {
+        const rs = results.filter(r => r.diff === diff && r.build === b), w = rs.reduce((s, r) => s + r.adaptW, 0);
+        return b + " " + (w ? Math.round(100 * rs.reduce((s, r) => s + r.adaptOn, 0) / w) + "%" : "-");
+      }).join(" · "));
+    }
   }
   if (errors.length) console.log("\npage errors:\n" + [...new Set(errors)].slice(0, 8).join("\n"));
   console.log("\n" + results.length + " battles in " + Math.round((Date.now() - t0) / 1000) + " s");
