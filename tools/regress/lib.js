@@ -133,10 +133,11 @@ class Game {
     }, [x, y]);
   }
   // An element's center, if a finger or the pointer there reaches it (it, or something inside it, is what the
-  // point hits). Returns { x, y, w, h, r } or { why }. sel: a CSS selector, or a function source returning the element
+  // point hits). Returns { x, y, w, h, r } or { why }. sel: a CSS selector, "@name" for a button of the town
+  // (Town.test.button: "@leave", "@card:begin"), or a function (no closure) returning the element
   reach(sel) {
     return this.ev(sel => {
-      const e = sel.startsWith("=>") ? (0, eval)("(" + sel.slice(2) + ")")() : document.querySelector(sel);
+      const e = sel.startsWith("=>") ? (0, eval)("(" + sel.slice(2) + ")")() : sel.startsWith("@") ? Town.test.button(sel.slice(1)) : document.querySelector(sel);
       if (!e) return { why: "missing" };
       const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
       if (!r.width || !r.height || cs.display === "none" || cs.visibility === "hidden") return { why: "hidden" };
