@@ -10974,6 +10974,33 @@ function endCelebration() {
 let victoryNext = -1;      // the battlefield the victory page offers next (-1: the campaign is complete)
 let introThen = -1;        // a chapter story opened on the way to a battlefield continues to its chronicle
 let overlaySettleT = 0;
+// The tap that ends the dance (or lands on the field in the beat before the defeat page) must not press a button of
+// the page that comes up in place of the field. A tap's click comes when the finger lifts, however long it was held,
+// so the page takes no press (#overlay.settling) until every pointer that went down outside it (on the field, the
+// tower bar, the spell buttons) is up again and then for SETTLE_AFTER_MS more, and for at least SETTLE_MIN_MS from
+// the page's coming up. SETTLE_CAP_MS bounds the wait for a lift, so a pointerup the browser never sends cannot leave
+// the page dead (and such a pointer is then forgotten).
+const SETTLE_MIN_MS = 450, SETTLE_AFTER_MS = 250, SETTLE_CAP_MS = 6000;
+const fieldPointers = new Set();   // the pointers down that went down outside the page (#overlay)
+let fieldUpAt = 0;                 // when the last of them came up (performance.now)
+document.addEventListener("pointerdown", (e) => { if (!overlayEl.contains(e.target)) fieldPointers.add(e.pointerId); }, true);
+for (const type of ["pointerup", "pointercancel"]) {
+  document.addEventListener(type, (e) => { if (fieldPointers.delete(e.pointerId)) fieldUpAt = performance.now(); }, true);
+}
+window.addEventListener("blur", () => { if (fieldPointers.size) { fieldPointers.clear(); fieldUpAt = performance.now(); } });
+function settleOverlay() {
+  overlayEl.classList.add("settling");
+  clearTimeout(overlaySettleT);
+  const t0 = performance.now();
+  const check = () => {
+    const now = performance.now();
+    if (fieldPointers.size && now - t0 >= SETTLE_CAP_MS) fieldPointers.clear();   // lost: no later page waits on them
+    const wait = fieldPointers.size ? 50 : Math.max(t0 + SETTLE_MIN_MS, fieldUpAt + SETTLE_AFTER_MS) - now;
+    if (wait > 0) overlaySettleT = setTimeout(check, Math.min(wait, 50));
+    else overlayEl.classList.remove("settling");
+  };
+  overlaySettleT = setTimeout(check, SETTLE_MIN_MS);
+}
 // the battle a victory offers next: the one after it, or after the last, the first open battlefield not yet won
 function nextBattleAfter(lv) {
   if (lv + 1 < LEVELS.length) return lv + 1;
@@ -10997,11 +11024,9 @@ function showVictoryScreen() {
   mb.classList.toggle("lead", victoryNext < 0);
   sb.innerHTML = icon("swords") + escapeHtml("Replay " + LEVELS[curLevel].name);
   sb.classList.add("quiet");
-  // the tap that ended the dance must not land on a button of the page that replaces it
-  overlayEl.classList.add("settling");
+  // the tap that ended the dance must not land on a button of the page that replaces it (settleOverlay)
+  settleOverlay();
   fitCampaignStars();
-  clearTimeout(overlaySettleT);
-  overlaySettleT = setTimeout(() => overlayEl.classList.remove("settling"), 450);
 }
 // The record under the victory page's title: the stars the stand earned, the seal of its difficulty, and a
 // "New best" ribbon with the record's words when the stand beat one that stood before it. The end of an
@@ -11314,10 +11339,8 @@ function endFall() {
       "Try Again");
   }
   showDebrief(debrief, lv);
-  // a tap meant for the field in the beat must not land on a button of the page that replaces it
-  overlayEl.classList.add("settling");
-  clearTimeout(overlaySettleT);
-  overlaySettleT = setTimeout(() => overlayEl.classList.remove("settling"), 450);
+  // a tap meant for the field in the beat must not land on a button of the page that replaces it (settleOverlay)
+  settleOverlay();
 }
 
 // ---------- tower logic ----------

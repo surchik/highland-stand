@@ -4,9 +4,10 @@
 // comes up under the finger (the tap lands where the page's Next battle button will be). Left alone, the dance must
 // still be going at 10.5 s and end by itself with its tune (DANCE_MAX_MS). Sis ends in terms, with no dance: its horn
 // call takes no tap and gives way to the page by itself. By mouse at 1600x900 and by touch on an iPad at 1194x834.
-// Known fault of the live game (3d4bb2a), printed as a KNOWN line and failed only under --strict: the page that comes up
-// takes no press for 450 ms from the touch that ended the dance, so a slow tap (the finger down 600 ms, tried here
-// once by touch) or a click delayed past that window presses the button under the finger (Next battle).
+// The page that comes up takes no press until the finger that ended the dance is lifted and a beat after
+// (settleOverlay), so a slow tap (the finger down 600 ms, tried here once by touch) or a click delayed by a slow frame
+// must not press the button under the finger (Next battle) either. Up to 9bd4d17 the page settled for only 450 ms
+// from the touch's start, and this script printed that as a KNOWN fault; it now fails.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/dance10.js [index.html] [--quick] [--strict] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -69,8 +70,7 @@ const strict = o.rest.includes("--strict");
         await g.wait(700);
         const p = await g.ev(() => ({ on: !!celebration, mode: menuMode, lv: curLevel }));
         if (p.on) await fail("a slow tap after 10 s did not end the dance");
-        else if (p.mode !== "victory" || p.lv !== lv) known("a slow tap (the finger down 600 ms) that ends the dance presses the #" + spot.id + " that comes up under it: the victory page takes no press for only 450 ms from the touch's start");
-        else console.log("NOTE " + tag + ": the slow tap no longer presses the page's button (the known fault is gone)");
+        else if (p.mode !== "victory" || p.lv !== lv) await fail("a slow tap (the finger down 600 ms) that ended the dance pressed the #" + spot.id + " that came up under it " + JSON.stringify(p));
       } else if (mode === "taps") {
         const start = await g.ev(() => celebration.start);
         for (const at of EARLY) {
@@ -100,10 +100,9 @@ const strict = o.rest.includes("--strict");
           const p = await g.ev(() => ({ mode: menuMode, up: !overlayEl.classList.contains("hidden"), lv: curLevel, nardi: Nardi.isOpen(), tap: window.__tap }));
           if (p.mode !== "victory" || !p.up || p.lv !== lv || p.nardi) {
             const c = p.tap.click, late = c ? Math.round(c.at - p.tap.down) : -1;
-            // the page takes no press for 450 ms after the tap that ends the dance; a click later than that (a finger
-            // held down, or a slow frame between the touch's start and end) is the known slow tap below, not a regression
-            if (c && !c.settling) known("the tap that ended the dance pressed #" + (c.on || spot.id) + ": its click came " + late + " ms after the touch, past the page's 450 ms settle");
-            else await fail("the tap that ended the dance went on to press #" + spot.id + (c ? " (its click " + late + " ms after the touch, the page still settling)" : "") + " " + JSON.stringify({ mode: p.mode, lv: p.lv }));
+            // the page takes no press until the finger that ended the dance is up and a beat after, however late
+            // its click comes (a finger held down, or a slow frame between the touch's start and end)
+            await fail("the tap that ended the dance went on to press #" + (c && c.on || spot.id) + (c ? " (its click " + late + " ms after the touch" + (c.settling ? ", the page still settling" : "") + ")" : "") + " " + JSON.stringify({ mode: p.mode, lv: p.lv }));
           }
         }
       } else {

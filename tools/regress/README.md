@@ -46,18 +46,17 @@ gold (`gold = 1e6`) where towers or plots are bought in bulk, the towers that st
 full field, the last wave's cleared field that wins a victory (the game's own loop then ends the wave and dances), and
 the clock wound forward for the later tutorial reminders (and all of them under `--quick`).
 
-Known faults of the game (live 3d4bb2a, and still in a27052d), reported as `KNOWN` lines and failed only under `--strict`:
-- the tap that ends the victory dance can press the button that comes up under it. The victory page takes no press
-  for 450 ms from the touch's start (`#overlay.settling`), so a finger held down longer (a slow tap; `dance10.js`
-  holds one 600 ms) or a click the browser delivers late (a slow frame between the touch's start and end, as in
-  headless Chromium under load) lands on Next battle and opens the next chronicle. A mouse is safe: its click goes to
-  the common ancestor of the canvas pressed and the button released on. `dance10.js` tells this case apart from a
-  broken guard by when the click came: a press while the page was still settling fails.
-
+Known faults of the game, reported as `KNOWN` lines and failed only under `--strict`:
 - the town's start card has no on-screen way back to the map: it covers the top bar's leave button and offers only
   Begin, so a mouse or a finger leaves only by Begin then Leave (Escape and the browser's back swipe also close it).
   `doors.js` takes Escape by keyboard and the back swipe by touch there. Since a27052d players cannot reach the town
   (it opens only under `?town`), so this matters only on the day it is shown again.
+
+Fixed after 9bd4d17, and now failed by `dance10.js`: the tap that ended the victory dance could press the button that
+came up under it. The page took no press for only 450 ms from the touch's start, so a finger held longer (a slow tap;
+`dance10.js` holds one 600 ms) or a click the browser delivered late (a slow frame, as in headless Chromium under
+load) landed on Next battle. The page (`#overlay.settling`, `settleOverlay`) now takes no press until every pointer
+that went down on the field is up and 250 ms more, and for 450 ms at least; the defeat page shares the guard.
 
 Known as live (3d4bb2a, a27052d), and allowed for:
 - the victory page's quiet buttons (Replay, Hold Forever, Campaign Map) are 40 px tall on the iPad, under Apple's
