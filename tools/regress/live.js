@@ -3,7 +3,8 @@
 // six towers built from the tray on the pads that watch the most road, the secret 4x speed taken by Shift+click on
 // the speed button, the first wave sent and Auto turned on, until the third wave is repelled. Fails on any page error,
 // any console error, the game's crash card, an exception inside a sound (the sound engine swallows its own errors;
-// here they are counted), a silent audio graph, or a stand lost in three waves. By mouse at 1600x900.
+// here they are counted), a silent audio graph, or a stand lost in three waves. A trick's first-time card that is up
+// when the stand is left is put away by its button (a fresh save meets each card once). By mouse at 1600x900.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -82,9 +83,17 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
       }
       const p = await g.problems();
       if (p.length) { await fail(p.join(" | ")); g.errs.length = 0; }
-      // the battle left as a player leaves it: Settings, Abandon, and Abandon again to confirm
+      // the battle left as a player leaves it: a trick's first-time card that came up for the next wave (Tushpa's
+      // shields come on wave 4, so the card shows once wave 3 is repelled) put away by its button, then Settings,
+      // Abandon, and Abandon again to confirm
       try {
         await g.ev(() => { if (speedMult !== 1) setSpeed(1); auto = false; autoBtn.textContent = "Auto: Off"; autoBtn.classList.remove("on"); });
+        if (await g.ev(() => !!document.querySelector("#trickCard.on"))) {
+          await g.press("#tcBtn");
+          await g.frames(2);
+          if (await g.ev(() => !!document.querySelector("#trickCard.on"))) await fail("the trick card's button did not put it away");
+          else if (res[id]) res[id].card = true;
+        }
         if (!await g.ev(() => gameOver)) {
           await g.press("#gearBtn");
           await g.press("#menuBtn");

@@ -34,6 +34,9 @@
 //                 without editing the game, e.g. PATCH='TOWER_DEFS.ballista.levels[0].dmg = 50' or
 //                 PATCH='LEVELS[9].hpTune = 1.1' or PATCH='TRICK_RULES.adapt.mult[1] = 0.3'
 //   COUNTERS=0    the bot plays without its answers to the enemy's tricks (below), for an A/B of their worth
+//   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
+//                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
+//                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
 //
 // What it prints, for each difficulty: one row per battlefield and one column per build. With one seed, "W 14"
 // is a stand held with 14 lives left and "L 12" a stand lost on wave 12; with several, "2/3 9.7" is two wins in
@@ -72,7 +75,7 @@
 //     Each new tower is the next kind in the build's order.
 //   - It spends and casts before every wave and every two seconds of battle (see SEEDS). A spell goes on the
 //     knot of ground foes with the most hit points within its radius, if they hold more than 600.
-//   - It never moves its hero, never calls a wave early, never sells and never changes a tower's target.
+//   - It never moves its hero, never sells, never changes a tower's target, and calls a wave early only with EARLY=1.
 //   - Its answers to the enemy's tricks (COUNTERS=0 turns them off), the same for every build and only on what a
 //     player is shown at that moment (the next-wave row, the ambush's tell), before any other spending:
 //     it rebuilds its wrecked towers (the most invested first), then repairs towers under 60% strength that no
@@ -123,7 +126,8 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN } = a;
+  let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
   Math.random = mulberry32(seed);
   toast = () => {};
@@ -315,6 +319,17 @@ function playBattle(a) {
       update(dt); n++;
       watchBosses();
       if (n % every === 0) { spend(); if (spells) castAll(); }
+      // EARLY=1: call the next wave once the current one has fully spawned and at most EARLY_N foes still walk
+      if (early && phase === "wave" && !spawnQueue.length && enemies.length > 0 && enemies.length <= earlyN && waveIdx < TOTAL_WAVES && !gameOver) {
+        spend();
+        const w0 = waveIdx;
+        startWave();
+        if (waveIdx !== w0) {
+          earlyCalls++;
+          const C2 = tricked && trickCfg("adapt");
+          if (C2 && waveIdx >= C2.from) { adaptW++; if (spawnQueue.some(q => q.adapted)) adaptOn++; }
+        }
+      }
     }
     if (lives < before) leaks[waveIdx] = before - Math.max(0, lives);
     // wave:lives:gold:towers, each tower as its kind's initial and rank (a, b for a mastery)
@@ -334,7 +349,7 @@ function playBattle(a) {
   return { won: lives > 0 && waveIdx >= TOTAL_WAVES && gameOver, lives: Math.max(0, lives), wave: waveIdx,
     towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
     toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
-    adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn,
+    adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn, earlyCalls,
     trace: trace.join(" ") };
 }
 
@@ -376,7 +391,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters });
+      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3) });
   }
   const results = [];
   let done = 0;

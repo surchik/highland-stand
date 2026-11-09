@@ -8715,9 +8715,14 @@ function commanderClimb(w) { return w === 10 ? 1.5 : (1 + (w - 1) * 0.13) * (w =
 // strength. Hit points alone never made the first six hard for a good build: foes 1.8 times as strong, 30% faster or
 // in columns 40% tighter did not cost the balanced mix a life on Tushpa, Avarayr or Sevan, and on Erebuni it kept
 // all 20 at twice the strength and at 40% of the spoils, because those maps' roads and pads solve them. So the first
-// six get their pressure from the enemy's tricks (L.tricks, TRICK_RULES), from the adaptive enemy against one-tower
-// boards (Dvin, Tashir, Sevan) and from their economies (L.tricks.econ: thinner spoils on all six, on Erebuni only
-// from wave 4), with hit points as fine tuning (hpTune; Erebuni's outflankers ride at twice their strength).
+// six get their pressure from the enemy's tricks (L.tricks, TRICK_RULES: Avarayr's reserves' road takes a sixth of
+// a wave from wave 12 on Normal, Sevan's hill track a quarter, Sevan's torch-bearers and Dvin's ladder parties cost
+// repairs), from the adaptive enemy against one-tower boards (Dvin, Tashir, Sevan) and from their economies
+// (L.tricks.econ: thinner spoils on all but Dvin, on Erebuni only from wave 4). A full mixed board answers Erebuni's
+// scouts and Tushpa's shields whatever their numbers (the bot lost nothing to scouts eight times as strong), so there
+// those tricks punish one-tower boards and a missing watch tower, and Erebuni's later waves climb instead (hpFrom),
+// where its full board used to coast. Hit points are fine tuning (hpTune). The outflankers' way is drawn on the field
+// before their first waves (drawFlankLines), so they no longer carry a field's toll (Erebuni's ride at 1.3 times).
 // Calibrated with tools/balance.js (SEEDS=3) to the owner's targets: on Normal the best build keeps 12-16 of 20 on
 // every seed on the first six, Erebuni included (its coached waves 1-3 unchanged), and the balanced mix wins every
 // seed; on the later eleven the best keeps about 10-15 and the mix wins; on Easy the mix keeps about 22-27 of 30 on
@@ -53285,7 +53290,8 @@ function foeTrickBits(role, w, from, trick) {
   if (trick === "hunter" && H) {
     out.badges.push({ k: "hunt", ic: "hammer", label: "Hunts towers" });
     out.lines.push({ ic: "hammer", text: huntLine(H) });
-    out.lore = loreSentence(H.lorePhrase);
+    // a trick no sentence of the battlefield's grounds (Sevan's torch-bearers) says only what is the game's
+    out.lore = loreSentence(H.lorePhrase) || H.lore || "";
     return out;
   }
   if (H && H.add === false && H.role === role) {
