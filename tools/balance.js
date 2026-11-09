@@ -49,7 +49,8 @@
 //
 // What the game is tuned to (the enemy's tricks, L.tricks and TRICK_RULES; LEVEL_HP's rank and file and each
 // battlefield's hpTune; LEVEL_HP's commanders; all in index.html), with SEEDS=3. Hit points alone do not make the
-// first six harder for a good build (see LEVEL_HP): their pressure comes from the tricks and the adaptive enemy.
+// first six harder for a good build (see LEVEL_HP): their pressure comes from the tricks, the adaptive enemy and
+// their economies (L.tricks.econ), with hit points as fine tuning.
 //   - Normal, the first six (Erebuni, Tushpa, Avarayr, Dvin, Tashir, Sevan; Erebuni's coached waves 1-3 never
 //     change): the best build keeps 12-16 of its 20 on every seed and fells both commanders on every seed; the
 //     mix wins every seed; "ballista" and "archers" each lose at least one battle across the six (the adaptive
