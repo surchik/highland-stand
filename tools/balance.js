@@ -77,7 +77,7 @@
 //     it rebuilds its wrecked towers (the most invested first), then repairs towers under 60% strength that no
 //     hunter is working on; when this wave or the next brings hidden scouts and no standing watch tower (the fire
 //     slot, Shushi's drums) reveals 120 px of the last 40% of each road, it builds one on the free pad that
-//     reveals the most of it; from the ambush's tell wave, while fewer than two standing towers reach 60 px of the
+//     reveals the most of it (if no free pad reveals any of it, the one that reveals the most road); from the ambush's tell wave, while fewer than two standing towers reach 60 px of the
 //     ambush road's own stretch, it builds the order's next shooting kind on the free pad that reaches the most of
 //     it (or claims a plot that does). These towers do not advance the build order, and it saves for the first of
 //     each. Its first pad ranking leaves the ambush roads out (they are dormant)
@@ -200,6 +200,8 @@ function playBattle(a) {
         const kind = watch[0], r = watchReach({ type: kind, level: 0, spec: null });
         let best = -1, bv = 0;
         for (const i of freePads()) { const v = tails.reduce((s, P) => s + hits(PADS[i][0], PADS[i][1], r, P), 0); if (v > bv) { bv = v; best = i; } }
+        // no free pad watches the last stretch (the build's towers stand there): the one that watches the most road
+        if (best < 0) for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, pts); if (v > bv) { bv = v; best = i; } }
         if (best >= 0) {
           if (gold < TOWER_DEFS[kind].cost) return false;   // it saves for it
           placeTower(kind, best); extra++;
