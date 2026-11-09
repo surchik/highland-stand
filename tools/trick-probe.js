@@ -7,8 +7,8 @@
 //     first-rank watch tower there reveals
 //   - the timeline: the waves of the ambush's tell and opening, the scouts, the hunters, the guards and the adaptive
 //     enemy's first wave, commander waves marked "!"
-//   - the teaching order of the first six: each teaches at most one trick not met before, the shields before the
-//     enemy adapts with them (fails otherwise)
+//   - the teaching order of the first six: each teaches at most one trick not met before (Dvin's adaptive enemy
+//     beside its hunters apart), the shields before the enemy adapts with them (fails otherwise)
 // Usage:  NODE_PATH=$(npm root -g) node tools/trick-probe.js [index.html]
 const path = require("path");
 const { chromium } = require(process.env.PW_PATH || "playwright");
@@ -98,7 +98,8 @@ const { chromium } = require(process.env.PW_PATH || "playwright");
         curLevel = i; curDiff = d; curEra = LEVELS[i].era;
         const kinds = TRICK_KEYS.filter(k => trickCfg(k)), fresh = kinds.filter(k => !met.has(k));
         order.push(LEVELS[i].id + ":" + (fresh.join("+") || "-"));
-        if (fresh.length > 1) fails.push(LEVELS[i].id + " teaches " + fresh.join(" and ") + " on " + DN[d]);
+        // Dvin alone brings the adaptive enemy beside its hunters (the owner's R1; the game's selftest says the same)
+        if (fresh.filter(k => !(LEVELS[i].id === "dvin" && k === "adapt")).length > 1) fails.push(LEVELS[i].id + " teaches " + fresh.join(" and ") + " on " + DN[d]);
         if (fresh.includes("adapt") && !met.has("guards")) fails.push("the enemy adapts before the shields are taught on " + DN[d]);
         kinds.forEach(k => met.add(k));
       }

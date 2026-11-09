@@ -3011,14 +3011,14 @@ const LEVELS = [
     // The ambush road: the Persian reserves surrounded Vardan's men (its chronicle); the road they take is the
     // game's. Wicker shields as Ammianus saw them in 363 (the game's at Avarayr); the elephants fear fire (Amida, 359)
     tricks: {
-      ambush: { route: 1, pad: 14, from: [15, 12, 12], share: [0.1, 0.03, 0.03], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
+      ambush: { route: 1, pad: 14, from: [15, 12, 12], share: [0.03, 0.03, 0.03], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
         lorePhrase: "the Persian reserves surrounded Vardan's men",
         lore: "The road they take here is the game's." },
-      guards: [{ role: "shield", vs: "archer", from: [9, 5, 6], look: "wicker", name: "Wicker shields", drop: true,
+      guards: [{ role: "shield", vs: "archer", from: [9, 5, 5], look: "wicker", name: "Wicker shields", drop: true,
         lorePhrase: "shields of wicker and rawhide",
         lore: "That war came 88 years before Avarayr. Their shield wall here is the game's." }],
       weak: [{ role: "ram", slot: "fire", mult: 1.4, lorePhrase: "firebrands drove the Persian elephants back" }],
-      econ: { gold: [0, 0, 0], bounty: [1, 0.7, 0.7] },
+      econ: { gold: [0, 0, 0], bounty: [0.9, 0.7, 0.7] },
     },
     fort: { x: 80, y: 400 },
     // the fifteenth pad watches the reserves' road (and none of road 0)
@@ -3163,7 +3163,7 @@ const LEVELS = [
     id: "sevan",
     name: "Sevan Shores",
     tag: "The Iron King stands where the lake meets the sky.",
-    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1, 0.85],
+    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1, 0.82],
     hero: { name: "Ashot II Erkat", title: "The Iron King" },
     foe: "Sajid",
     units: {
@@ -3208,10 +3208,10 @@ const LEVELS = [
     // difficulty; every number a starting value for tools/balance.js)
     // Nothing new: the ambush by the hill track, Sajid torch-bearers against your towers, and the adaptive enemy together
     tricks: {
-      ambush: { route: 1, from: [9, 9, 9], share: [0.25, 0.25, 0.1], mid: 0.4, tell: [2, 1, 1], name: "the hill track",
+      ambush: { route: 1, from: [9, 9, 9], share: [0.25, 0.25, 0.25], mid: 0.4, tell: [2, 1, 1], name: "the hill track",
         lorePhrase: "Beshir's host gathered on the shore facing the island",
         lore: "The hill track it takes to your walls is the game's." },
-      hunters: { from: [7, 7, 7], role: "raider", n: [[1, 4, 3], [1, 4, 3], [1, 4, 2]], tdps: [14, 14, 14], look: "torch",
+      hunters: { from: [7, 7, 7], role: "raider", n: [[1, 4, 3], [1, 4, 3], [1, 4, 3]], tdps: [14, 14, 14], look: "torch",
         name: "Sajid Torch-Bearers", lorePhrase: "Beshir's host gathered on the shore facing the island",
         lore: "Torch-bearers against your towers are the game's." },
       adapt: {},
@@ -3395,7 +3395,7 @@ const LEVELS = [
         lorePhrase: "did not force the pass but went around it",
         lore: "The goat track's place on this field is the game's." },
       // late: the mix's outflankers on the goat track already cost it dearly here (tools/balance.js)
-      adapt: { from: [10, 19, 7] },
+      adapt: { from: [19, 19, 7] },
     },
     fort: { x: 260, y: 570 },
     pads: [[930, 320], [710, 330], [1110, 110], [710, 130], [1160, 300], [930, 505], [520, 540],
@@ -8901,7 +8901,8 @@ function wavePlan(w, live) {
   if (A && k >= 0 && w >= A.from) {
     const share = byDiff(A.share) || 0, lastT = out.length ? out[out.length - 1].t : 0;
     const mid = w === A.from ? (byDiff(A.mid) || 0) * lastT : -1;
-    let acc = 0;
+    // on the opening wave the first eligible foe from mid on takes it, so the alarm sounds on the wave told
+    let acc = w === A.from ? 1 - share : 0;
     for (const q of out) {
       if (q.t < mid || q.type === "boss" || q.type === "flyer") continue;
       if (A.scoutsOnly ? q.trick !== "hidden" : q.trick) continue;
@@ -77020,14 +77021,17 @@ function runSelftest() {
         }
       });
       // the first six: each has a trick, and walking the campaign in order each teaches at most one kind not met on an
-      // earlier battlefield, the shields before the enemy adapts with them, on every difficulty
+      // earlier battlefield, the shields before the enemy adapts with them, on every difficulty. Dvin alone brings the
+      // adaptive enemy beside its hunters (the owner's R1: its one-tower builds held every seed against the hunters
+      // alone); a balanced board never meets it there
+      const ALONGSIDE = { dvin: "adapt" };
       for (let d = 0; d < 3; d++) {
         const met = new Set();
         for (let i = 0; i < 6; i++) {
           curLevel = i; curDiff = d; curEra = LEVELS[i].era;
           const kinds = TRICK_KEYS.filter(k => trickCfg(k));
           if (!kinds.length) throw new Error(LEVELS[i].id + " has no trick on " + DIFFS[d].name);
-          const fresh = kinds.filter(k => !met.has(k));
+          const fresh = kinds.filter(k => !met.has(k) && ALONGSIDE[LEVELS[i].id] !== k);
           if (fresh.length > 1) throw new Error(LEVELS[i].id + " teaches " + fresh.join(" and ") + " on " + DIFFS[d].name);
           if (fresh.includes("adapt") && !met.has("guards")) throw new Error("the enemy adapts before the shields are taught");
           kinds.forEach(k => met.add(k));
@@ -77163,6 +77167,9 @@ function runSelftest() {
       b.level = 2; towerSyncHp(b);
       spawnEnemy("ram", { type: "ram", trick: "hunter" });
       const e = enemies[enemies.length - 1];
+      // on the road that passes nearest the ballista, whichever road the turns gave it (spawnSeq runs on across tests)
+      const gap = k => { const p = routeAt(k, roadNear(k, a.x, a.y)); return Math.hypot(p.x - a.x, p.y - a.y); };
+      e.route = ROUTES.map((R, k) => k).filter(k => !ROUTES[k].track).sort((x, y) => gap(x) - gap(y))[0];
       e.dist = roadNear(e.route, a.x, a.y);
       e.hp = e.maxHp = 1e7;
       let clouds = -1, aShot = false, bShot = false;
