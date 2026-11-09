@@ -2,16 +2,19 @@
 // and with each town region told to throw (?towntest=throw:<region>, honored only under the harness, so those
 // loads go through ?shot=menu and then let the real frame loop run), and asserts each time: the page boots, there
 // is no Town door, a battle starts from the chronicle's Begin button and holds 3 waves at 4x, and the thrown error
-// is counted exactly once (none with ?notown). A last load with nothing switched off checks the door is there.
+// is counted exactly once (none with ?notown). The town is hidden by default (TOWN_KILL without ?town or the
+// harness), so a plain load is one more switched-off case; in every switched-off case a waiting gift
+// (hs_town_bless) is left unpaid, and when a region throws it is paid as before. Two last loads with nothing
+// switched off (?shot=menu and the tester's ?town) check the door is there.
 // Usage: NODE_PATH=$(npm root -g) node tools/town-isolation.js [regions]      (GAME=path for another index.html)
 //   regions: text,sim,art,sound,shell (default all five)
 const path = require("path");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const file = path.resolve(process.env.GAME || path.join(__dirname, "..", "index.html"));
 const regions = (process.argv[2] || "text,sim,art,sound,shell").split(",");
-const cases = [{ name: "notown", q: "notown" }]
+const cases = [{ name: "hidden", q: "" }, { name: "notown", q: "notown" }]
   .concat(regions.map(r => ({ name: "throw:" + r, q: "shot=menu&towntest=throw:" + r, region: r })))
-  .concat([{ name: "control", q: "shot=menu", control: true }]);
+  .concat([{ name: "control", q: "shot=menu", control: true }, { name: "town", q: "town", control: true }]);
 
 (async () => {
   const browser = await chromium.launch();
@@ -22,7 +25,7 @@ const cases = [{ name: "notown", q: "notown" }]
     page.on("pageerror", e => errs.push(e.message));
     const r = { name: C.name, ok: false };
     try {
-      await page.goto("file://" + file + "?" + C.q, { timeout: 180000 });
+      await page.goto("file://" + file + (C.q ? "?" + C.q : ""), { timeout: 180000 });
       if (/shot=/.test(C.q)) {
         await page.waitForFunction(() => /^PHOTO_/.test(document.title), null, { timeout: 120000 });
         await page.waitForTimeout(300);   // the guard's rethrow runs on a timer
@@ -42,10 +45,12 @@ const cases = [{ name: "notown", q: "notown" }]
         try { localStorage.setItem("hs_tutorial_done", "1"); } catch (e) {}
         testUnlockAll = true; curDiff = 1; curLevel = 1; curEra = LEVELS[1].era; applyEraLabels();
         showBrief();
+        try { localStorage.setItem("hs_town_bless", "30"); } catch (e) {}   // a gift won before the town was hidden
         $("startBtn").click();
+        const giftLeft = localStorage.getItem("hs_town_bless");
         for (let i = 0; i < 3; i++) placeTower("archer", i);
         setSpeed(4);
-        return { started: overlayEl.classList.contains("hidden") && !gameOver, towers: towers.length };
+        return { started: overlayEl.classList.contains("hidden") && !gameOver, towers: towers.length, giftLeft };
       }));
       let waves = 0;
       for (let w = 1; w <= 3 && r.started; w++) {
@@ -65,7 +70,8 @@ const cases = [{ name: "notown", q: "notown" }]
       const thrown = errs.filter(m => /towntest/.test(m)).length, other = errs.filter(m => !/towntest/.test(m));
       r.thrown = thrown; r.otherErrors = other.slice(0, 3);
       r.ok = !r.door && r.off && waves === 3 && other.length === 0 &&
-        (C.region ? thrown === 1 && r.fail.indexOf(C.region + ":") === 0 : thrown === 0 && r.fail === "");
+        (C.region ? thrown === 1 && r.fail.indexOf(C.region + ":") === 0 && r.giftLeft === null
+                  : thrown === 0 && r.fail === "" && r.giftLeft === "30");
     } catch (e) {
       r.error = String(e && e.message || e).slice(0, 300);
     }

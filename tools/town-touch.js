@@ -29,7 +29,7 @@ const note = s => { const l = "[" + ((Date.now() - t0) / 1000).toFixed(0).padSta
   const cdp = await ctx.newCDPSession(page);
   page.on("pageerror", e => { errs.push(e.message); note("PAGEERROR " + e.message); });
   page.on("console", m => { if (m.type() === "error") { errs.push("console: " + m.text()); note("CONSOLE.ERROR " + m.text()); } });
-  await page.goto("file://" + FILE);
+  await page.goto("file://" + FILE + "?town");   // the town is hidden without ?town
   await page.waitForTimeout(1500);
   const ev = (fn, a) => page.evaluate(fn, a);
   const wait = ms => page.waitForTimeout(ms);

@@ -55,7 +55,7 @@ const METER = () => {
     await page.evaluate(METER);
     return { page, ctx, errs };
   };
-  const { page, errs } = await newPage("");
+  const { page, errs } = await newPage("?town");   // the town is hidden without ?town
   const ev = (f, a) => page.evaluate(f, a);
   ok(await ev(() => !TOWN_FAIL && !!TWS), "the town did not load: " + (await ev(() => TOWN_FAIL)));
 
@@ -290,7 +290,7 @@ const METER = () => {
       return { atOpen: s0.over, playing: s1.over, after: s2 };
     };
     for (const sc of ["leave", "back", "errorBack", "errorSwipe", "recover"]) {
-      const P = await newPage("");
+      const P = await newPage("?town");
       try {
         const r = await go(P.page, sc);
         X[sc] = r;
