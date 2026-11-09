@@ -65,12 +65,36 @@ async function launch(opts = {}) {
 }
 
 // A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads }
+// and, for a phone (iphone.js): ua (the browser's user agent), standalone (navigator.standalone, as iOS reports a
+// page opened from the Home Screen), insets: { l, r, t, b } the safe-area insets in CSS px, and init: functions run
+// in the page before its own script (each a [fn, arg] pair).
+// Chromium has no safe-area insets to emulate (env(safe-area-inset-*) is always 0 there), so the insets are laid on
+// the page as the stylesheet's own --sat, --sab, --sal and --sar custom properties, set on <html> as it is parsed:
+// they override :root's env() values, and every rule that keeps out of the safe area reads them, as does
+// safeInsets() through #safeProbe. The game's file is not changed for it.
 async function openGame(browser, file, o) {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext(Object.assign({
     viewport: { width: o.w, height: o.h },
     deviceScaleFactor: o.dpr || (o.touch ? 2 : 1),
     hasTouch: !!o.touch, isMobile: !!o.touch,
-  });
+  }, o.ua ? { userAgent: o.ua } : {}));
+  if (o.standalone !== undefined) {
+    await ctx.addInitScript(sa => {
+      try { Object.defineProperty(Navigator.prototype, "standalone", { configurable: true, get: () => sa }); } catch (e) {}
+    }, !!o.standalone);
+  }
+  if (o.insets) {
+    await ctx.addInitScript(ins => {
+      const set = () => {
+        const st = document.documentElement.style;
+        st.setProperty("--sat", (ins.t || 0) + "px"); st.setProperty("--sab", (ins.b || 0) + "px");
+        st.setProperty("--sal", (ins.l || 0) + "px"); st.setProperty("--sar", (ins.r || 0) + "px");
+      };
+      if (document.documentElement) set();
+      else new MutationObserver((m, ob) => { if (document.documentElement) { ob.disconnect(); set(); } }).observe(document, { childList: true });
+    }, o.insets);
+  }
+  for (const [fn, arg] of o.init || []) await ctx.addInitScript(fn, arg);
   if (o.storage) {
     await ctx.addInitScript(st => {
       try { for (const k in st) { if (st[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, st[k]); } } catch (e) {}

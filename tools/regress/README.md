@@ -6,8 +6,8 @@ canvas where the game's own projection draws them, by mouse and by touch (CDP to
 They need only Playwright with its Chromium:
 
 ```
-NODE_PATH=$(npm root -g) node tools/regress/run-all.js            # the whole suite on index.html, about 25 min
-NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick    # a sample of each, about 7 min
+NODE_PATH=$(npm root -g) node tools/regress/run-all.js            # the whole suite on index.html, about 28 min
+NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick    # a sample of each, about 8 min
 NODE_PATH=$(npm root -g) node tools/regress/run-all.js path/to/other/index.html --only=vic,doors
 ```
 
@@ -31,6 +31,51 @@ prints a `FAIL ...` line per problem and a `RESULT <name> PASS|FAIL {...}` line,
 | `dance10.js` | The victory dance: taps at 0.5, 3, 6 and 9.4 s leave it dancing, a tap after 10 s ends it without pressing the button that comes up under the finger, and left alone it dances on past 10 s to the end of its tune. Sis's horn call (an ending in terms, no dance) takes no tap. Mouse and touch. |
 | `live.js` | Every battlefield played live for three waves at 4x with sound (the Web Audio graph opened by the first click): Shift+G test gold, six towers from the tray, Shift+click for 4x, Send Wave, Auto. Fails on any page or console error, the crash card, an exception inside a sound (the sound engine swallows them; the script counts them), a silent audio graph, or a stand lost. A trick's first-time card that is up when the stand ends (Tushpa's shields come on wave 4) is put away by its button, then each battle is left by Settings, Abandon, Abandon. |
 | `doors.js` | The map's doors at 1600x900 (mouse), 1194x834 and 834x1194 (touch), in two loads of the page. A plain load (as a player opens the game; Under Ararat is hidden since a27052d): no Town door on the map, no town region loaded, and a town gift won earlier is not paid but waits; Nardi's door opens the board, its rules card and its leave card's Keep playing and Leave the board work. A `?town` load (the tester's door): the town's start card closed, then a town begun, its leave card's Keep and Leave. The map back in reach after each; then, in both loads, a battlefield tapped on the map, its chronicle begun and its first wave on the field (the `?town` load pays the waiting gift). |
+
+| `iphone.js` | The game on an iPhone (touch, an iPhone's Safari user agent) at eight sizes: held sideways in Safari with its bars (SE 667x320, iPhone 15 734x343, Pro Max 814x380), from the Home Screen (SE 667x375; iPhone 15 852x393 and Pro Max 932x430 with the safe-area insets left 59, right 59, bottom 21) and held upright (393x659, 375x553). Every screen and pop-up is opened as a player opens it and held to the quality bar below; `--quick` takes the iPhone 15 in Safari and from the Home Screen. |
+
+`iphone.js` in detail. Its states: Chapter I's story (every page), the campaign map (its battlefields' nodes and the
+names drawn on it), Settings from the map and in battle, two chronicles (every page, a foe's card from a medallion, a
+trick's card from the tricks row), a battle (its HUD and field, a tower tile's line, a long toast, the pause and wave
+banners), a busy field (the panel of the towers a finger reaches first on each side of it, of one choosing its
+Mastery, a damaged one and a wreck), the foe card from the next-wave row, every trick's first-time card and a card of
+two, the line under the wave counter (Mari, Sis), Erebuni's scout bubble, the crash card, three victory pages (Ani's
+and Sis's with their cards), the defeat page with its debrief, the end of an endless stand, the nardi board with its
+rules, leave, invitation and game-over cards, the tutorial's coach walked step by step by a finger, the rotate card
+(upright) and the Home Screen tip (Safari). What it holds each to:
+- a pop-up lies inside the visible area minus the safe areas, or scrolls inside itself with its way forward in view
+  as it opens; held upright a page may scroll (the owner's best effort there);
+- every control is on screen, out of the safe areas, hit at its center and the middle of each edge by
+  `elementFromPoint`, and at least 44 x 44 px to a finger where it is the way forward (never under 36 px). The size is
+  measured through the control's center with `elementFromPoint`, so a reach widened past the drawn button counts, and
+  a wave chip counts the band of the wave cap the game reads as that chip (`foeTargetAt`);
+- text at least 11 px, not cut off, not under a button or anything else, out of the safe areas; the text the game
+  draws on its canvases too (`canvasHook` in `iphone-audit.js` measures every `fillText`: the wave and pause banners,
+  the map's names, the nardi board, the field);
+- the field fills at least 55% of the safe area and its part free of the HUD at least 45%; no pad, plot sign or tower
+  under the HUD; a tower's tap zone (`towerUnderPointer`) at least 36 px; a plot's price board at least 11 px as an
+  iPhone shows it (the board keeps a size in device pixels, `plotSignView`, so it is read at the canvas's density on
+  an iPhone, 2, whatever `--dpr` the run takes);
+- nothing that holds the battle is left without a way out: its close or onward button is pressed by a finger and
+  must put it away (a panel by a tap on open ground);
+- held upright, the rotate card speaks of a phone, and Play in portrait leaves the controls in reach;
+- in Safari (`navigator.standalone` false) a tip, shown once on the first screen or the map, says "Add Highland
+  Stand to your Home Screen" and names the Share button, lies over no control, goes with its own button, stores a new
+  `hs_` key and does not come back after a reload; opened from the Home Screen (`navigator.standalone` true) it never
+  shows. The script finds the tip by its words (any box that says "Home Screen" and holds a button).
+
+It prints one `FAIL <size> <state>: ...` line per failure (the same failure on the pages of one leaf or the steps of
+the coach once, with the pages or steps), a `FIELD` line per size, and exits 1 on any. Options: `--sizes=ses,i15s,maxs,
+seh,i15h,maxh,i15u,seu`, `--only=tip,pages,map,settings,chronicle,battle,panel,foe,tricks,note,bubble,crash,victory,
+defeat,nardi,coach`, `--dpr=3` (the density of its photos; the checks are the same at any), `--shots=dir` (a photo of
+every state that failed), `--photos=dir` (a photo of every state), `--jobs=n` (sizes side by side, default 4).
+Chromium cannot emulate `env(safe-area-inset-*)`: `openGame` (`lib.js`, option `insets`) sets the stylesheet's own
+`--sat`, `--sab`, `--sal` and `--sar` on `<html>` as the page is parsed, which every rule that keeps out of the safe
+area reads, as does `safeInsets()` through `#safeProbe`; the game's file is not changed for it. What `iphone.js` sets
+up directly in the page: the staged fields (`photoStageBattle`, then the battle held still by `speedMult = 0`), every
+trick marked met (their cards are opened one by one), the victory, defeat and endless pages (`victory()`,
+`endCelebration()`, `endFall()`), the crash card (`showCrashCard`), a nardi invitation (`Nardi.offer`) and the end of
+a nardi game, and in the coach the steps a finger cannot finish at once (a foe falling, a spell, the hero's march).
 
 `lib.js` holds what the scripts share: the command line, the sizes, the page opened with its error listeners
 (page errors, console errors and the game's crash card all fail a script), the input helpers (`tapAt`, `press`,

@@ -14,10 +14,10 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
-const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors"];
+const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors", "iphone"];
 // a script that runs past this is stopped and fails
 // (vic plays a victory on every battlefield at three sizes: 444 s on a quiet machine, over 900 s on a busy one)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300 };
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 600 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
