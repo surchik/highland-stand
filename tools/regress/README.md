@@ -6,8 +6,8 @@ canvas where the game's own projection draws them, by mouse and by touch (CDP to
 They need only Playwright with its Chromium:
 
 ```
-NODE_PATH=$(npm root -g) node tools/regress/run-all.js            # the whole suite on index.html, about 15-20 min
-NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick    # a sample of each, about 5-7 min
+NODE_PATH=$(npm root -g) node tools/regress/run-all.js            # the whole suite on index.html, about 25 min
+NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick    # a sample of each, about 7 min
 NODE_PATH=$(npm root -g) node tools/regress/run-all.js path/to/other/index.html --only=vic,doors
 ```
 

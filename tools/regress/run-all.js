@@ -2,7 +2,7 @@
 // failures under it, and a summary. Exits 1 when any script failed.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/run-all.js [index.html] [--quick] [--only=padplace,vic]
 //         [--jobs=n] [--shots=dir] [--log=dir] [--strict]
-//   --quick   each script's smaller sample (about 5 minutes in all, against about 15 for the full suite)
+//   --quick   each script's smaller sample (about 7 minutes in all, against about 25 for the full suite)
 //   --only    some of the scripts, by name
 //   --jobs    scripts run side by side (default 1: the timed scripts, dance10, nag and live, keep to real time best
 //             on a quiet machine)
