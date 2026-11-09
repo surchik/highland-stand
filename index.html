@@ -9318,7 +9318,7 @@ let ambushPuffs = [];   // { route, d, end, t }: a puff of dust walking down the
 function ambushPuffTick(dt) {
   for (const f of ambushPuffs) {
     f.t += dt; f.d += 90 * dt;
-    if (fxRnd() < dt * 8) {
+    if (fxRnd() < dt * 14) {
       const q = routeAt(f.route, f.d), glint = fxRnd() < 0.3;
       particles.push({ x: q.x + (fxRnd() - 0.5) * 14, y: q.y + (fxRnd() - 0.5) * 8, vx: (fxRnd() - 0.5) * 16, vy: glint ? -6 : -12,
         life: glint ? 0.35 : 0.9, color: glint ? "#fff2c8" : "rgba(196,176,130,.65)", size: glint ? 1.8 : 4.2 });
@@ -22503,6 +22503,7 @@ function draw(time) {
 
   // spell bursts go down first: a floating reward is never buried under the debris of a strike
   drawSpellFx(time);
+  if (ambushPuffs.length) drawAmbushPuffs(time);
   flyers.sort((a, b) => a.y - b.y);
   for (const o of flyers) o.fn();
 
@@ -44153,6 +44154,20 @@ function drawTowerHpBar(t, x, y, k) {
   ctx.fillStyle = f >= TRICK_RULES.tower.battered[0] ? "#8fd45e" : f >= TRICK_RULES.tower.failing[0] ? "#f0c040" : "#e8553a";
   ctx.fillRect(bx, by, w * f, h);
 }
+// the ambush's tell: a cloud of dust at the head of each puff walking down the dormant road
+function drawAmbushPuffs(time) {
+  for (const f of ambushPuffs) {
+    const q = routeAt(f.route, f.d), p = proj(q.x, q.y), fade = Math.min(1, f.t / 0.6) * Math.min(1, (f.end - f.d) / 120);
+    for (let i = 0; i < 3; i++) {
+      const r = (24 + i * 10 + 3 * Math.sin(time * 0.004 + i)) * p.s, a = (0.55 - i * 0.15) * fade;
+      if (a <= 0.01) continue;
+      ctx.fillStyle = "rgba(128, 102, 68, " + a.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.ellipse(p.x - i * 9 * p.s, p.y - (6 + i * 5) * p.s, r, r * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
 // the hunters' tell: a dashed red line from each hunter to the tower it has chosen, and a red ring pulsing on that
 // tower's pad until the job ends
 function drawHuntLines(time) {
@@ -44182,7 +44197,8 @@ function drawHuntLines(time) {
 // a hunter's tool, raised while it marks its tower and swung (or leaned, the ladder) while it works
 function drawHuntTool(e, x, y, k, top) {
   const H = e.hunt, look = e.def.hunt || "pick";
-  if (!H) return;
+  // a ladder party carries its own ladder (its art): the prop is drawn only once it leans on the tower
+  if (!H || (look === "ladder" && H.state !== "work")) return;
   const marking = H.state === "mark", working = H.state === "work";
   const t = H.tower, face = t ? (t.x >= x ? 1 : -1) : (Math.cos((enemyPos(e) || {}).ang || 0) >= 0 ? 1 : -1);
   ctx.save();
@@ -75081,6 +75097,8 @@ function photoTrickStage(kind, o) {
   hudCache.chips = null;
   syncHud();
   if (kind === "card" && typeof showTrickCard === "function") showTrickCard(o.card || "hidden", { read: !!o.read });
+  // Erebuni's coached bubble at the Beacon Fire's tile (placed after the page has laid out)
+  if (kind === "bubble") { towers = towers.slice(0, 2); hudCache.chips = null; syncHud(); showScoutBubble(); }
 }
 
 // units: four ages per sheet, from era0 (default 0, or &era0=N on the URL: &era0=3 shows eras 3-6)
@@ -75255,6 +75273,11 @@ function runPhoto() {
     } else if (scene === "units" || scene === "towers" || scene === "props") {
       photoSheet(scene);
       if (HARNESS.has("wave")) waveIdx = num("wave", 2);
+      // &dmg=1: the towers Damaged, Failing and Wrecked in turn (the tower hunters' marks on every skin)
+      if (HARNESS.has("dmg") && scene === "towers") towers.forEach((t, i) => {
+        towerInitHp(t);
+        if (i % 3 === 0) t.hp = t.maxHp * 0.5; else if (i % 3 === 1) t.hp = t.maxHp * 0.2; else { t.wreck = true; t.hp = 0; }
+      });
     } else if (scene === "menu" || scene === "brief") {
       photoMenu(scene === "brief");
     } else if (scene === "chapter") {
