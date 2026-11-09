@@ -75870,9 +75870,11 @@ function runSelftest() {
     resetGame();
   });
   // the foes' strength: the rank and file stand on LEVEL_HP's rank and file (and hpTune), the commanders on its
-  // commanders alone, and Hard's rank and file stand as Normal's while its commanders stand 8% higher
+  // commanders alone, and Hard's rank and file stand as Normal's while its commanders stand 8% higher (a field's
+  // own per-difficulty knobs, here Erebuni's late climb, hpFrom, set aside for the test)
   check("foe strength", () => {
-    const H = LEVEL_HP[levelId(0)], tune = H[1];
+    const H = LEVEL_HP[levelId(0)], tune = H[1], hf = LEVELS[0].hpFrom;
+    LEVELS[0].hpFrom = null;
     curLevel = 0; curDiff = 1; waveIdx = 10; phase = "wave"; spawnQueue = [];
     const hpOf = (diff, type, t) => {
       curDiff = diff; H[1] = t;
@@ -75887,7 +75889,7 @@ function runSelftest() {
       if (Math.abs(hpOf(2, "boss", tune) / boss - DIFFS[2].cmd) > 0.01) throw new Error("Hard's commander is not " + DIFFS[2].cmd + "x");
       if (commanderClimb(10) >= commanderClimb(20) / 2) throw new Error("the wave-10 commander stands too high");
     } finally {
-      H[1] = tune; curDiff = 1; resetGame();
+      H[1] = tune; LEVELS[0].hpFrom = hf; curDiff = 1; resetGame();
     }
   });
   // the campaign's chapters: each battlefield in exactly one, in order, every node on its chart
