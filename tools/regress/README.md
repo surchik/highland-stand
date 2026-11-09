@@ -30,19 +30,23 @@ prints a `FAIL ...` line per problem and a `RESULT <name> PASS|FAIL {...}` line,
 | `nag.js` | The tutorial played through on a fresh save, by mouse and by touch: the Send Wave step's reminders at 8 s and 18 s (Space named to a keyboard only, the button shaking, no wave by itself), the Auto step outlining Auto, Auto then sending the next wave by itself, and with Auto off the cleared field's reminder toasts at 15 s and every 25 s, three in all. |
 | `dance10.js` | The victory dance: taps at 0.5, 3, 6 and 9.4 s leave it dancing, a tap after 10 s ends it without pressing the button that comes up under the finger, and left alone it dances on past 10 s to the end of its tune. Sis's horn call (an ending in terms, no dance) takes no tap. Mouse and touch. |
 | `live.js` | Every battlefield played live for three waves at 4x with sound (the Web Audio graph opened by the first click): Shift+G test gold, six towers from the tray, Shift+click for 4x, Send Wave, Auto. Fails on any page or console error, the crash card, an exception inside a sound (the sound engine swallows them; the script counts them), a silent audio graph, or a stand lost. Each battle is left by Settings, Abandon, Abandon. |
-| `doors.js` | The map's Nardi and Under Ararat doors open and close at 1600x900 (mouse), 1194x834 and 834x1194 (touch): the board's rules card, its leave card's Keep playing and Leave the board; the town's start card closed, then a town begun, its leave card's Keep and Leave; the map back in reach after each; then a battlefield tapped on the map, its chronicle begun and its first wave on the field. |
+| `doors.js` | The map's doors at 1600x900 (mouse), 1194x834 and 834x1194 (touch), in two loads of the page. A plain load (as a player opens the game; Under Ararat is hidden since a27052d): no Town door on the map, no town region loaded, and a town gift won earlier is not paid but waits; Nardi's door opens the board, its rules card and its leave card's Keep playing and Leave the board work. A `?town` load (the tester's door): the town's start card closed, then a town begun, its leave card's Keep and Leave. The map back in reach after each; then, in both loads, a battlefield tapped on the map, its chronicle begun and its first wave on the field (the `?town` load pays the waiting gift). |
 
 `lib.js` holds what the scripts share: the command line, the sizes, the page opened with its error listeners
 (page errors, console errors and the game's crash card all fail a script), the input helpers (`tapAt`, `press`,
 `reach`, `worldToClient`) and `enterBattle`, which reaches a battlefield's chronicle as the map leads there (every road
 opened, as Shift+U does) and presses Begin the Stand.
 
+Under Ararat (the town) is hidden since a27052d: a plain load has no Town door, loads no town region and pays no town
+gift. Every script loads the page plain, as a player does; only `doors.js` loads it a second time with `?town` (the
+tester's door; `openGame(browser, file, { ..., query: "town" })` in `lib.js`) to open and close the town by its door.
+
 What the scripts set up directly in the page rather than through the interface, because it is not what they test:
 gold (`gold = 1e6`) where towers or plots are bought in bulk, the towers that stand before a probe or a plots run on a
 full field, the last wave's cleared field that wins a victory (the game's own loop then ends the wave and dances), and
 the clock wound forward for the later tutorial reminders (and all of them under `--quick`).
 
-Known faults of the live game (3d4bb2a), reported as `KNOWN` lines and failed only under `--strict`:
+Known faults of the game (live 3d4bb2a, and still in a27052d), reported as `KNOWN` lines and failed only under `--strict`:
 - the tap that ends the victory dance can press the button that comes up under it. The victory page takes no press
   for 450 ms from the touch's start (`#overlay.settling`), so a finger held down longer (a slow tap; `dance10.js`
   holds one 600 ms) or a click the browser delivers late (a slow frame between the touch's start and end, as in
@@ -52,8 +56,9 @@ Known faults of the live game (3d4bb2a), reported as `KNOWN` lines and failed on
 
 - the town's start card has no on-screen way back to the map: it covers the top bar's leave button and offers only
   Begin, so a mouse or a finger leaves only by Begin then Leave (Escape and the browser's back swipe also close it).
-  `doors.js` takes Escape by keyboard and the back swipe by touch there.
+  `doors.js` takes Escape by keyboard and the back swipe by touch there. Since a27052d players cannot reach the town
+  (it opens only under `?town`), so this matters only on the day it is shown again.
 
-Known as live (3d4bb2a), and allowed for:
+Known as live (3d4bb2a, a27052d), and allowed for:
 - the victory page's quiet buttons (Replay, Hold Forever, Campaign Map) are 40 px tall on the iPad, under Apple's
   44 pt guideline; `vic.js` fails them only below 40 px.
