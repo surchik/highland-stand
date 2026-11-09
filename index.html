@@ -203,6 +203,24 @@
   }
   .chip .mk.arm { left: 0; bottom: 1px; min-width: 13px; height: 12px; padding: 0 2px; border-radius: 3px 3px 6px 6px; font-size: 10px; line-height: 12px; }
   .chip .mk.arm.hvy, .briefHost .disc .mk.arm.hvy { background: linear-gradient(180deg, #c25a50, #64251f); }
+  /* the enemy's tricks in the row: a trick group's own mark at the shoulder (a crossed eye, a hammer), a guard's shield
+     with the tower it resists at the chip's foot (crimson when the enemy adapted), and one warning chip for an ambush
+     road and an adaptation, its icons side by side */
+  .chip.trk { border-color: #9a86d8; background: linear-gradient(180deg, #3e3550, #241d30); }
+  .chip.trk .ic.act { color: #d8cfff; }
+  .chip .mk.gd, .briefHost .disc .mk.gd {
+    position: absolute; display: grid; place-items: center; border-radius: 50%; background: #3d4a55;
+    box-shadow: 0 0 0 1px #cf9c40, 0 0 0 2px rgba(20,14,8,.85);
+  }
+  #waveInfo .chip:has(.mk.gd), #waveInfo:has(.chip:nth-child(8)) .chip:has(.mk.gd) { padding-right: 15px; }
+  .chip .mk.gd { right: 1px; bottom: 2px; width: 13px; height: 13px; }
+  .chip .mk.gd .ic { width: 10px; height: 10px; color: #fff0c8; filter: none; }
+  .chip .mk.gd.ad { background: #5a1f18; box-shadow: 0 0 0 1px #e8553a, 0 0 0 2px rgba(20,14,8,.85); }
+  .briefHost .disc .mk.gd { left: -6px; bottom: -5px; width: 19px; height: 19px; }
+  .briefHost .disc .mk.gd .ic { width: 13px; height: 13px; color: #fff0c8; }
+  .chip.warn { border-color: #d0563f; color: #ffcf9a; background: linear-gradient(180deg, #5a3a20, #32200f); padding: 0 4px; gap: 1px; }
+  .chip.warn .ic { width: 20px; height: 20px; color: #ffb37a; }
+  .chip.warn .ic.sl { width: 16px; height: 16px; color: #fff0c8; }
 
   .btn {
     padding: 7px 13px; border: 1px solid var(--bronze-sh); border-radius: 7px;
@@ -529,7 +547,52 @@
   #foeCard .fcList.poor > b { color: #ff9f88; }
   #foeCard .fcList p { margin-top: 1px; color: rgba(255,243,214,.86); }
   #foeCard .fcList p i { font-style: normal; font-weight: 700; color: #fff3d6; }
+  #foeCard .fcTrick { color: #e8e0ff; }
+  #foeCard .fcTrick .ic { color: #c9b8ff; }
+  #foeCard .tb.hid .ic, #foeCard .tb.adapt .ic { color: #c9b8ff; }
+  #foeCard .tb.guard .ic { color: #b9c6ce; }
+  #foeCard .tb.hunt .ic { color: #ff9f88; }
   #foeCard .fcLore { margin-top: 10px; padding: 1px 0 1px 9px; border-left: 2px solid var(--crimson); font-style: italic; color: #eadfc4; }
+
+  /* a trick's first-time explainer: over the field and the tray, under the rotate plaque (40); it scrolls inside
+     when the window is short, and its one button is touch-sized */
+  #trickCard { display: none; position: fixed; inset: 0; z-index: 38; align-items: center; justify-content: center;
+    background: rgba(14,10,6,.6); padding: 16px; }
+  #trickCard.on { display: flex; }
+  #trickCard .kit { width: min(440px, 100%); max-height: 70vh; max-height: 70dvh; overflow-y: auto; overscroll-behavior: contain;
+    padding: 16px 20px 16px; font-size: 14.5px; line-height: 1.42; text-align: left; }
+  #trickCard .tcHead { display: flex; align-items: center; gap: 12px; }
+  #trickCard .disc {
+    flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: var(--bronze-hi);
+    background: radial-gradient(circle at 36% 30%, #6a5235, #33271a 62%, #1c140d);
+    border: 2px solid var(--bronze); box-shadow: 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,235,190,.3);
+  }
+  #trickCard .disc .ic { width: 28px; height: 28px; }
+  #trickCard h2 { font-size: 20px; line-height: 1.15; color: #fff3d6; text-shadow: 0 1px 0 rgba(0,0,0,.7); }
+  #trickCard .tcNow { margin-top: 8px; font-weight: 700; color: #ffcf9a; }
+  #trickCard dl { margin-top: 6px; }
+  #trickCard dt { margin-top: 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--bronze-hi); }
+  #trickCard dd { margin: 1px 0 0; color: var(--parch); }
+  #trickCard .tcLore { margin-top: 11px; padding: 1px 0 1px 9px; border-left: 2px solid var(--crimson); font-style: italic; font-size: 13px; color: #eadfc4; }
+  #trickCard .tcSec + .tcSec { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(240,207,133,.25); }
+  #trickCard #tcBtn { display: block; margin: 14px auto 0; min-height: 46px; min-width: 160px; padding: 10px 26px; font-size: 16px; }
+  /* the tower panel: Repair beside Sell, a ruin's Clear, a hurt tower's strength in red */
+  #panel .row2 { display: flex; gap: 6px; }
+  #panel .row2 .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+  #panel .repair { border-color: #6c8a4a; color: #e4f6c8; background: linear-gradient(180deg, #4d5f30, #2f3b1d); }
+  #panel .clear { border-color: #6c8a4a; color: #e4f6c8; background: linear-gradient(180deg, #4d6a36, #2f4422); }
+  .st.hurt b { color: #ffb19c; }
+  /* the brief's row of the enemy's tricks on the difficulty chosen; each opens its card */
+  .briefTricks { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin-top: -4px; padding-left: 70px; }
+  .briefTricks:empty { display: none; }
+  .briefTricks .tbg {
+    display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px 2px 7px; border-radius: 13px; border: 0;
+    font-family: var(--face); font-size: 11.5px; font-weight: 700; color: #5a3a16; cursor: pointer;
+    background: rgba(120,80,30,.12); box-shadow: inset 0 0 0 1px rgba(122,90,46,.55);
+  }
+  .briefTricks .tbg .ic { width: 15px; height: 15px; color: #8a2a1e; }
+  @media (hover: none) { .briefTricks .tbg { min-height: 34px; font-size: 12.5px; } }
+  @media (hover: hover) { .briefTricks .tbg:hover { background: rgba(120,80,30,.22); } }
 
   /* Settings, once opened, stands above the tutorial's coach (28): its sliders are never hidden under the bubble */
   #settings { position: fixed; top: calc(58px + var(--sat)); right: calc(12px + var(--sar)); z-index: 29; width: 262px; padding: 18px 16px 19px; display: none; }
@@ -1023,7 +1086,7 @@
     #overlay.brief { padding: 14px 0; gap: 6px; }
     #overlay.brief #ovPage { width: min(94vw, 1030px); grid-template-columns: 42% minmax(0, 1fr) 22px; column-gap: 26px; padding: 22px 24px 20px 26px; margin-bottom: 4px; }
     .briefHost { gap: 0; padding-left: 64px; }
-    .briefHint { padding-left: 64px; }
+    .briefHint, .briefTricks { padding-left: 64px; }
     .briefHost .nm { font-size: 10px; letter-spacing: -.3px; }
     /* the medallions stand closer here: their marks sit tighter on them */
     .briefHost .disc .ic.act { left: -4px; top: -5px; width: 17px; height: 17px; padding: 2.5px; }
@@ -1053,7 +1116,7 @@
     #overlay.brief .ovRule { order: 9; }
     #overlay.brief .ovPager.on { order: 10; }
     #overlay.brief .ovFact.on { order: 11; }
-    .briefHost, .briefHint { padding-left: 0; }
+    .briefHost, .briefHint, .briefTricks { padding-left: 0; }
   }
 
   /* four medallions on a carved rail let into the left edge of the screen */
@@ -1772,6 +1835,11 @@
     <rect x="4.8" y="10.4" width="14.4" height="10.8" rx="2"/>
     <path d="M12 13.4a1.7 1.7 0 0 1 .9 3.1v2h-1.8v-2a1.7 1.7 0 0 1 .9-3.1z" fill="#2b2118"/>
   </symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1.8 12c2.700-4.500 6.200-6.800 10.200-6.800s7.500 2.300 10.200 6.800c-2.700 4.500-6.200 6.800-10.200 6.800S4.500 16.500 1.800 12z" fill="none" stroke="currentColor" stroke-width="2.100"/><circle cx="12" cy="12" r="3.300"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M1.8 12c2.700-4.500 6.200-6.800 10.200-6.800s7.500 2.300 10.200 6.800c-2.700 4.500-6.200 6.800-10.200 6.800S4.500 16.500 1.800 12z" fill="none" stroke="currentColor" stroke-width="2.100"/><circle cx="12" cy="12" r="3.300"/><path d="M3.800 20.600L20.200 3.400" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round"/></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24"><path d="M3.200 8.300l5.300-5.300 3.600 3.600-1.800 1.800 10.100 10.100-2.100 2.100L8.200 10.500l-1.800 1.800z"/></symbol>
+  <symbol id="i-road" viewBox="0 0 24 24"><path d="M8.200 2.600L3.600 21.400M15.800 2.600l4.600 18.800" fill="none" stroke="currentColor" stroke-width="2.300" stroke-linecap="round"/><path d="M12 3.400v3.200M12 10.200v3.600M12 17.400v3.600" fill="none" stroke="currentColor" stroke-width="2.100" stroke-linecap="round"/></symbol>
+  <symbol id="i-adapt" viewBox="0 0 24 24"><path d="M19.400 9.200A7.800 7.800 0 0 0 5.200 7.400M4.600 14.800a7.800 7.800 0 0 0 14.200 1.800" fill="none" stroke="currentColor" stroke-width="2.300" stroke-linecap="round"/><path d="M21 3.400v6.400h-6.400zM3 20.600v-6.400h6.400z"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
     <circle cx="12" cy="12" r="4.8" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -2466,6 +2534,7 @@
       <div class="briefHero" id="briefHero"></div>
       <div class="briefHost" id="briefHost"></div>
       <div class="briefHint" id="briefHint"></div>
+      <div class="briefTricks" id="briefTricks" role="group"></div>
     </div>
     <div class="sideband" aria-hidden="true"><svg><rect x="1.400" y="0" width="16" height="100%" fill="url(#braidV)"/></svg></div>
     <svg class="headpiece" viewBox="0 0 320 22" aria-hidden="true">
@@ -10118,6 +10187,7 @@ function resumeRun() {
 
 function resetGame() {
   stopTutorial();
+  dropTrickCards();
   tutGentle = false;
   loadLevel(curLevel);
   const D = DIFFS[curDiff];
@@ -10365,6 +10435,7 @@ function waveCueTick(dt) {
 function startWave() {
   if (gameOver) return;
   if (paused) { toast("Paused: " + resumeHint()); return; }
+  if (trickHold()) return;
   if (waveIdx >= TOTAL_WAVES && !endless) return;
   // the coached first stand: the field holds still while a step is read, and the first wave waits for a tower
   if (tut && (coachFreeze() || !towers.length)) {
@@ -11029,6 +11100,17 @@ function debriefTip() {
     for (const rd in r.roads) if (rd !== "off") roads[rd] = (roads[rd] || 0) + r.roads[rd];
   }
   if (!Object.keys(of).length) return "";
+  // the enemy's tricks first: hidden scouts that cost three defenders or more, towers wrecked twice or more
+  const lostAll = Object.keys(leaks).reduce((n, k) => n + leaks[k].lost, 0);
+  const S = trickCfg("hidden"), Hn = trickCfg("hunters");
+  if (S && trickLeaks.hidden >= 3 && trickLeaks.hidden <= lostAll) {
+    return "Hidden scouts slipped through (<b>" + escapeHtml(S.name) + "</b>): build your <b>" + escapeHtml(towerName(trickWatch()[0])) +
+      "</b> where the road nears your walls, so they are seen in time.";
+  }
+  if (Hn && trickStand.wrecks >= 2) {
+    return "Your towers were wrecked " + trickStand.wrecks + " times: build them so each covers another, keep your <b>" + escapeHtml(towerName("fire")) +
+      "</b> close, and repair between waves.";
+  }
   let heavy = null, onRoads = 0;
   for (const rd in roads) { onRoads += roads[rd]; if (heavy === null || roads[rd] > roads[heavy]) heavy = rd; }
   if (ROUTES.length > 1 && heavy !== null && onRoads >= 4 && roads[heavy] >= 0.7 * onRoads) w.road = 2 * roads[heavy] - onRoads;
@@ -52621,20 +52703,476 @@ function coinBadge(amount) {
   return '<span class="coin">' + icon("coin") + amount + "</span>";
 }
 
-// the next wave as role chips: icon plus head-count, with the foe's marks (armor, wing, power or speed); full names
-// and badges on hover, and a click, a tap or Enter opens the foe's card
-function waveChipsHtml(w) {
-  // the commander leads the row, then the foes that leave the road or carry a power (the siege engines, the
-  // drones): on a crowded boss wave the chips that find no room are the rank and file's
-  const rank = g => g.type === "boss" ? 0 : foeOffRoad(g.type, foeUnit(g.type)) || foePower(g.type, foeUnit(g.type)) ? 1 : 2;
-  const groups = waveGroups(w).sort((a, b) => rank(a) - rank(b));
-  const units = groups.map(g => foeUnit(g.type));
-  const names = groups.map((g, i) => foeTitle(g.type, units[i], g.n));
-  return '<span class="lbl" title="' + escapeHtml("Next wave: " + names.join(", ")) + '">Next<i>wave</i></span>' +
-    groups.map((g, i) => '<span class="chip' + (g.type === "boss" ? " boss" : "") + '" data-role="' + g.type + '" data-w="' + w +
-      '" role="button" tabindex="0" title="' + escapeHtml(names[i]) + '" aria-label="' + escapeHtml(names[i]) + '">' +
-      icon(ROLE_ICON[g.type]) + foeMarksHtml(g.type, units[i]) + g.n + "</span>").join("");
+// ---------- telling the player about the enemy's tricks ----------
+// Every trick is told before it can bite: a first-time explainer card (remembered in hs_tricks_seen), a tell on the
+// field, a mark in the next-wave row, a line on the foe card and a counter the player can buy. The words are the
+// game's rules; each card's history line is a sentence the battlefield already tells (lorePhrase), then a short line
+// saying what is the game's invention.
+const TRICK_SEEN_KEY = "hs_tricks_seen";
+const TRICK_ICON = { ambush: "road", hunters: "hammer", hidden: "eye-off", guards: "rshield", adapt: "adapt" };
+function tricksSeen() {
+  try { const a = JSON.parse(localStorage.getItem(TRICK_SEEN_KEY) || "[]"); return Array.isArray(a) ? a.filter(k => TRICK_KEYS.includes(k)) : []; }
+  catch (e) { return []; }
 }
+function markTrickSeen(k) {
+  const a = tricksSeen();
+  if (a.includes(k)) return;
+  a.push(k);
+  try { localStorage.setItem(TRICK_SEEN_KEY, JSON.stringify(a)); } catch (e) {}
+}
+// a tower slot's icon in the kit, by the age: the bow, the spear-bolt, the splash and the flame of the old ages,
+// the volley, the target, the mortar and the barricade of the gun ages
+function slotIcon(slot) {
+  const a = eraAge(curEra);
+  if (slot === "archer") return a < 4 ? "bow" : "volley";
+  if (slot === "ballista") return a < 3 ? "spear" : "target";
+  if (slot === "catapult") return a < 5 ? "splash" : "mortar";
+  return a < 5 ? "flame" : "barricade";
+}
+// "do" or "does" after a tower's name ("Your Nakharar Bowmen do", "Your Field Ballista does")
+function towerVerb(slot, one, more) { return plural(towerName(slot), one, more); }
+// the sentence of this battlefield's facts or chronicle that holds the phrase (FOE_LORE's rule: a sentence opening
+// on "He" or "His" brings the one before it), or ""
+function loreSentence(phrase) {
+  if (!phrase) return "";
+  const L = LEVELS[curLevel];
+  for (const block of [...(L.facts || []), ...levelPages(L)]) {
+    const ss = loreSentences(block), i = ss.findIndex(x => x.includes(phrase));
+    if (i >= 0) return (i > 0 && /^(He|She|They|It|His|Her|Their|Its)\b/.test(ss[i]) ? ss[i - 1] + " " : "") + ss[i];
+  }
+  return "";
+}
+// what each card says (section 4.1 of the trick spec): title, what, watch for, your answer
+function trickText(key) {
+  const fire = towerName("fire"), watch = towerName(trickWatch()[0]);
+  return {
+    ambush: { title: "Ambush Road",
+      what: "A second road lies quiet at the edge of the field. Partway through a wave, the enemy sends part of its host down it.",
+      watch: "Dust and a far horn on the quiet road one wave before. A road sign at the head of the next-wave row.",
+      answer: "Before it opens, build a tower or two that reach the quiet road. Your hero can hold it too." },
+    hunters: { title: "Tower Hunters",
+      what: "Some foes leave the road to wreck your towers. Your towers can now be damaged and wrecked.",
+      watch: "A red line from the hunter to the tower it has chosen.",
+      answer: "A tower cannot shoot at its own foot, so build towers that cover each other. Your " + fire +
+        " burns attackers at a tower's foot. Repair and rebuild from the tower's panel." },
+    hidden: { title: "Hidden Scouts",
+      what: "Camouflaged scouts slip down the road. Your towers cannot aim at them until they are seen.",
+      watch: "A shimmer on the road and a crossed eye over each scout. You always see them. Your towers do not.",
+      answer: "Your " + watch + " reveals them within its reach, and so does your hero. Any hit shows a scout for a moment, and spells strike them." },
+    guards: { title: "Shields and Armor",
+      what: "Some foes carry shields or armor against one kind of tower. That tower does them far less harm.",
+      watch: "A shield mark on the foe and on its chip, showing the tower it resists.",
+      answer: "Mix your towers. Every other tower hits them as usual. A stone's blow knocks shields aside for a moment." },
+    adapt: { title: "The Enemy Adapts",
+      what: "When one kind of tower does most of the damage for three waves, the enemy brings shields or armor against it.",
+      watch: "The adapt sign at the head of the next-wave row, with the tower it answers.",
+      answer: "Spread the work across your towers. The enemy answers one tower at a time, and it stops when you change." },
+  }[key];
+}
+// the card's history line on this battlefield: the sentence the trick stands on, then what is the game's
+function trickLore(key) {
+  if (key === "adapt") return "This is a game mechanic, not a record of this battle.";
+  const T = levelTricks(), c = T && (key === "guards" ? (T.guards || [])[0] : T[key]);
+  if (!c) return "";
+  return [loreSentence(c.lorePhrase), c.lore].filter(Boolean).join(" ");
+}
+// one section of the card: the disc, the title, What / Watch for / Your answer and the lore line; `extra` is a line
+// of what this wave holds (the warning chip's read mode)
+function trickSectionHtml(key, extra) {
+  const T = trickText(key), lore = trickLore(key);
+  return '<div class="tcSec"><div class="tcHead"><span class="disc">' + icon(TRICK_ICON[key]) + "</span><h2>" + escapeHtml(T.title) + "</h2></div>" +
+    (extra ? '<p class="tcNow">' + escapeHtml(extra) + "</p>" : "") +
+    "<dl><dt>What</dt><dd>" + escapeHtml(T.what) + "</dd><dt>Watch for</dt><dd>" + escapeHtml(T.watch) +
+    "</dd><dt>Your answer</dt><dd>" + escapeHtml(T.answer) + "</dd></dl>" +
+    (lore ? '<p class="tcLore">' + escapeHtml(lore) + "</p>" : "") + "</div>";
+}
+let trickCardEl = null;
+let trickCardOn = null;   // { keys, read } while the card shows
+let trickCardQ = [];      // keys still due after the one showing
+function buildTrickCard() {
+  if (trickCardEl) return;
+  trickCardEl = document.createElement("div");
+  trickCardEl.id = "trickCard";
+  trickCardEl.setAttribute("role", "dialog");
+  trickCardEl.setAttribute("aria-modal", "true");
+  trickCardEl.setAttribute("aria-labelledby", "tcTitle");
+  trickCardEl.innerHTML = '<div class="kit" id="tcBody"></div>';
+  for (const t of ["pointerdown", "pointerup", "click"]) trickCardEl.addEventListener(t, e => e.stopPropagation());
+  trickCardEl.addEventListener("click", (e) => { if (e.target.closest("#tcBtn") || (e.target === trickCardEl && trickCardOn && trickCardOn.read)) closeTrickCard(); });
+  document.body.appendChild(trickCardEl);
+}
+// the card: a first meeting (it holds the battle until it is closed, and marks the trick seen) or, read: true, a
+// reminder opened from the next-wave row or the brief, which holds nothing
+function showTrickCard(keys, o) {
+  o = o || {};
+  keys = Array.isArray(keys) ? keys : [keys];
+  if (!keys.length) return;
+  buildTrickCard();
+  const extra = o.extra || {};
+  $("tcBody").innerHTML = keys.map(k => trickSectionHtml(k, extra[k])).join("") +
+    '<button type="button" class="btn big" id="tcBtn">' + (o.read ? "Close" : "To the walls") + "</button>";
+  const h2 = trickCardEl.querySelector("h2");
+  if (h2) h2.id = "tcTitle";
+  trickCardOn = { keys, read: !!o.read };
+  trickCardEl.classList.add("on");
+  trickCardEl.setAttribute("aria-hidden", "false");
+  closeFoeCard();
+  if (!o.read) Snd.play("unlock");
+  try { $("tcBtn").focus({ preventScroll: true }); } catch (e) {}
+}
+function closeTrickCard() {
+  if (!trickCardOn) return;
+  if (!trickCardOn.read) for (const k of trickCardOn.keys) markTrickSeen(k);
+  trickCardOn = null;
+  trickCardEl.classList.remove("on");
+  trickCardEl.setAttribute("aria-hidden", "true");
+  Snd.play("uiTick");
+  // a second trick due on the same wave comes next
+  const seen = tricksSeen();
+  trickCardQ = trickCardQ.filter(k => !seen.includes(k));
+  if (trickCardQ.length && battleLive()) showDueCard(trickCardQ);
+}
+// the battle stands still while a first-meeting card (or Erebuni's bubble) is up; the pause the player or the rotate
+// plaque set is theirs and is never lifted by closing it
+function trickHold() { return !!((trickCardOn && !trickCardOn.read) || scoutBubble); }
+function trickCardsDue(keys) { const seen = tricksSeen(); return keys.filter(k => !seen.includes(k)); }
+function showDueCard(due) {
+  trickCardQ = due.slice(1);
+  // Erebuni's hidden scouts are taught by a coach's bubble at the Beacon Fire tile, when the coach is not on the field
+  if (due[0] === "hidden" && curLevel === 0 && !tut && showScoutBubble()) return;
+  showTrickCard(due[0]);
+}
+// every frame: a card due for the next wave shows at the first idle moment before it
+function trickCardTick() {
+  if (HARNESS_ON || photo || trickCardOn || scoutBubble || !battleLive() || paused || coachFreeze() || phase !== "idle") return;
+  if (waveIdx >= TOTAL_WAVES && !endless) return;
+  const due = trickCardsDue(waveTrickKeys(waveIdx + 1));
+  if (due.length) showDueCard(due);
+}
+// a wave sent with no idle moment before it (an early call, Auto, a resume): its card shows at its start, after its
+// queue is built and before its first foe spawns
+function trickCardsAtStart() {
+  if (HARNESS_ON || photo || trickCardOn || scoutBubble) return;
+  const keys = new Set();
+  for (const q of spawnQueue) {
+    if (q.trick === "hidden") keys.add("hidden");
+    if (q.trick === "hunter") keys.add("hunters");
+    if (q.guard) keys.add(q.adapted ? "adapt" : "guards");
+  }
+  if (ambushTold(waveIdx)) keys.add("ambush");
+  const due = trickCardsDue([...keys]);
+  if (due.length) showDueCard(due);
+}
+document.addEventListener("keydown", (e) => {
+  if (!trickCardOn && !scoutBubble) return;
+  if (e.code === "Escape" || e.code === "Enter" || e.code === "NumpadEnter" || e.key === "Escape" || e.key === "Enter") {
+    e.preventDefault(); e.stopPropagation();
+    if (trickCardOn) closeTrickCard(); else closeScoutBubble();
+  }
+}, true);
+
+// ---- Erebuni's coached bubble before its first scout wave ----
+// One step of the coach: it halos the Beacon Fire's tile in the tray and rings the free pad that watches most of the
+// road's last stretch. It uses the coach's own bubble with its own Got it button (the tutorial's Skip is hidden and
+// its state is not touched), and marks the hidden scouts seen when it is closed
+let scoutBubble = null;   // { pad } while it shows
+function scoutBubblePad() {
+  const reach = watchReach({ type: trickWatch()[0], level: 0, spec: null });
+  let best = -1, bv = -1;
+  PADS.forEach((p, i) => {
+    if (towerAt(i)) return;
+    let n = 0;
+    for (const R of ROUTES) {
+      if (R.track) continue;
+      const k = ROUTES.indexOf(R);
+      for (let d = R.len * 0.6; d <= R.len; d += 12) { const q = routeAt(k, d); if (inGroundRange(p[0], p[1], q.x, q.y, reach)) n++; }
+    }
+    if (n > bv) { bv = n; best = i; }
+  });
+  return best;
+}
+function showScoutBubble() {
+  buildCoach();
+  const tile = document.querySelector('#shop .card[data-type="' + trickWatch()[0] + '"]');
+  if (!tile || !tile.getBoundingClientRect().width) return false;
+  scoutBubble = { pad: scoutBubblePad() };
+  coachEl.querySelector(".cStep").textContent = "Hidden scouts";
+  coachEl.querySelector(".cSkip").style.display = "none";
+  coachEl.querySelector(".cText").innerHTML = "<b>Hidden scouts.</b> Etiuni scouts creep through the scrub, and your towers cannot aim at what they cannot see. Build a <b>" +
+    escapeHtml(towerName(trickWatch()[0])) + "</b> near the road: its light reveals them within its reach. Your hero reveals them too.";
+  const nb = coachEl.querySelector(".cNext");
+  nb.textContent = "Got it"; nb.style.display = "";
+  coachEl.querySelector(".cFoot").style.display = "";
+  if (!nb.dataset.scout) {
+    nb.dataset.scout = "1";
+    nb.addEventListener("click", (e) => { if (scoutBubble) { e.stopImmediatePropagation(); closeScoutBubble(); } }, true);
+  }
+  coachEl.classList.add("on");
+  Snd.play("unlock");
+  placeScoutBubble();
+  return true;
+}
+function placeScoutBubble() {
+  if (!scoutBubble) return;
+  const tile = document.querySelector('#shop .card[data-type="' + trickWatch()[0] + '"]');
+  const r = tile.getBoundingClientRect();
+  haloOn([tile]);
+  if (scoutBubble.pad >= 0) {
+    const p = PADS[scoutBubble.pad], c = tutScreen(p[0], p[1], 6), rr = Math.max(18, 34 * c.s);
+    coachRing.classList.add("on");
+    coachRing.style.left = (c.x - rr) + "px"; coachRing.style.top = (c.y - rr) + "px";
+    coachRing.style.width = coachRing.style.height = (2 * rr) + "px";
+  }
+  placeCoach({ l: r.left, t: r.top, r: r.right, b: r.bottom }, ["above", "right", "left", "below"]);
+}
+function closeScoutBubble() {
+  if (!scoutBubble) return;
+  scoutBubble = null;
+  markTrickSeen("hidden");
+  coachEl.classList.remove("on");
+  coachEl.querySelector(".cSkip").style.display = "";
+  coachRing.classList.remove("on");
+  for (const h of coachHalos) h.style.display = "none";
+  Snd.play("mapSelect");
+  const seen = tricksSeen();
+  trickCardQ = trickCardQ.filter(k => !seen.includes(k));
+  if (trickCardQ.length && battleLive()) showDueCard(trickCardQ);
+}
+window.addEventListener("resize", () => { if (scoutBubble) placeScoutBubble(); });
+// leaving the battle takes the card and the bubble with it (resetGame)
+function dropTrickCards() {
+  if (trickCardOn) { trickCardOn = null; trickCardEl.classList.remove("on"); }
+  trickCardQ = [];
+  if (scoutBubble) {
+    scoutBubble = null;
+    if (coachEl) { coachEl.classList.remove("on"); coachEl.querySelector(".cSkip").style.display = ""; }
+    if (coachRing) coachRing.classList.remove("on");
+    for (const h of coachHalos) h.style.display = "none";
+  }
+}
+
+// ---- the next-wave row ----
+// the commander leads the row; then one warning chip for an ambush and an adaptation; then the tricks' own groups,
+// the siege engines and the outflankers; then the rank and file, who give way first on a crowded row. A role is
+// never split: a chip whose foes carry a guard wears its mark
+function waveRowInfo(w) {
+  const groups = trickWave(w), plan = wavePlan(w);
+  const gd = groups.map(() => ({ n: 0, k: 0, slot: null, name: "", adapted: 0 }));
+  for (const q of plan) {
+    const g = gd[q.gi];
+    if (!g || !q.guard) continue;
+    g.n++; g.slot = q.guard; g.name = q.gname;
+    if (q.adapted) g.adapted++;
+  }
+  const warn = [];
+  const A = trickCfg("ambush");
+  if (A && (A.legacy || ambushRoute() >= 0) && w >= A.from) warn.push("ambush");
+  const ad = plan.filter(q => q.adapted);
+  if (ad.length) warn.push("adapt");
+  return { groups, gd, warn, ad, A };
+}
+function warnTitles(info) {
+  const out = [];
+  if (info.warn.includes("ambush")) out.push("Ambush: part of the next wave comes by " + info.A.name);
+  if (info.warn.includes("adapt")) {
+    const q = info.ad[0];
+    out.push("The enemy has adapted to your " + towerName(q.guard) + ": " + q.gname + " on " + info.ad.length + " of the next wave");
+  }
+  return out;
+}
+function chipRank(g) {
+  if (g.type === "boss") return 0;
+  if (g.trick || g.hunt) return 1;
+  return foeOffRoad(g.type, foeUnit(g.type)) || foePower(g.type, foeUnit(g.type)) ? 1 : 2;
+}
+function waveChipsHtml(w) {
+  const info = waveRowInfo(w);
+  const order = info.groups.map((g, i) => i).sort((a, b) => chipRank(info.groups[a]) - chipRank(info.groups[b]) || a - b);
+  const names = [];
+  const chips = order.map(i => {
+    const g = info.groups[i], u = foeUnit(g.type), G = info.gd[i];
+    let title, marks;
+    if (g.trick) {
+      const nm = g.name || u.name;
+      title = g.n + " " + nm + " · " + (g.trick === "hidden" ? "Hidden" : "Hunts towers");
+      const arm = foeArmor(u);
+      marks = icon(g.trick === "hidden" ? "eye-off" : "hammer", "mk act") + (arm > 0 ? '<span class="mk arm' + (arm >= 10 ? " hvy" : "") + '">' + arm + "</span>" : "");
+    } else {
+      title = foeTitle(g.type, u, g.n);
+      if (g.hunt) title += " · " + g.hunt + " hunt towers";
+      marks = foeMarksHtml(g.type, u);
+      if (g.hunt) marks = marks.replace(/<svg class="ic mk act"[^]*?<\/svg>/, "") + icon("hammer", "mk act");
+    }
+    if (G.n) {
+      title += " · " + G.n + " with " + G.name + " against your " + towerName(G.slot);
+      marks += '<span class="mk gd' + (G.adapted ? " ad" : "") + '">' + icon(slotIcon(G.slot)) + "</span>";
+    }
+    names.push(title);
+    return '<span class="chip' + (g.type === "boss" ? " boss" : "") + (g.trick ? " trk" : "") + '" data-role="' + g.type + '"' +
+      (g.trick ? ' data-trick="' + g.trick + '"' : "") + ' data-w="' + w + '" role="button" tabindex="0" title="' + escapeHtml(title) +
+      '" aria-label="' + escapeHtml(title) + '">' + icon(ROLE_ICON[g.type]) + marks + g.n + "</span>";
+  });
+  if (info.warn.length) {
+    const t = warnTitles(info).join(" · ");
+    let ic = "";
+    if (info.warn.includes("ambush")) ic += icon("road");
+    if (info.warn.includes("adapt")) ic += icon("adapt") + icon(slotIcon(info.ad[0].guard), "sl");
+    const at = info.groups[order[0]] && info.groups[order[0]].type === "boss" ? 1 : 0;
+    chips.splice(at, 0, '<span class="chip warn" data-warn="' + info.warn.join(",") + '" data-w="' + w + '" role="button" tabindex="0" title="' +
+      escapeHtml(t) + '" aria-label="' + escapeHtml(t) + '">' + ic + "</span>");
+    names.splice(at, 0, t);
+  }
+  return '<span class="lbl" title="' + escapeHtml("Next wave: " + names.join(", ")) + '">Next<i>wave</i></span>' + chips.join("");
+}
+// the warning chip opens the card in read mode, one section a warning, with what the next wave holds
+function openWarnCard(chip) {
+  const w = Number(chip.dataset.w), info = waveRowInfo(w), keys = info.warn, extra = {};
+  const t = warnTitles(info);
+  keys.forEach((k, i) => { extra[k] = t[i]; });
+  showTrickCard(keys, { read: true, extra });
+}
+document.addEventListener("click", (e) => {
+  const chip = e.target.closest && e.target.closest("#waveInfo .chip.warn");
+  if (chip) { e.stopPropagation(); openWarnCard(chip); Snd.play("uiTick"); }
+});
+document.addEventListener("keydown", (e) => {
+  const chip = document.activeElement && document.activeElement.closest && document.activeElement.closest("#waveInfo .chip.warn");
+  if (chip && (e.code === "Enter" || e.code === "Space")) { e.preventDefault(); openWarnCard(chip); }
+});
+
+// ---- the foe card's trick lines ----
+// the badges and lines a foe's card adds for the tricks: from a chip, what the next wave's foes of that role carry
+// (trick: the chip's own trick group); from the brief, what the battlefield's foes of that role bring on the
+// difficulty chosen. lore: the sentence the trick stands on, which takes the place of the role's own line
+function foeTrickBits(role, w, from, trick) {
+  const out = { badges: [], lines: [], lore: "" };
+  if (!levelTricks() || role === "boss") return out;
+  const pct = v => Math.round(v * 100) + "%";
+  const watchLine = () => {
+    const wt = trickWatch()[0], def = TOWER_DEFS[wt], R = TRICK_RULES.hidden;
+    const r = lv => wt === "drums" ? Math.round(0.45 * def.levels[lv].range) : def.levels[lv].range + R.watchPlus;
+    return "Your towers cannot aim at it until it is seen. Your " + towerName(wt) + " reveals it within " + r(0) + "–" + r(def.levels.length - 1) +
+      ", your hero within " + R.heroReveal + ". Any hit shows it for " + byDiff(R.linger) + " s.";
+  };
+  const huntLine = H => {
+    const R = TRICK_RULES.hunters, fire = towerName("fire");
+    return "It leaves the road for a tower within " + R.reach + " and does " + byDiff(H.tdps) + " damage a second to it. The tower it attacks cannot shoot at it. Its neighbors can, and your " +
+      fire + " burns it " + R.pitch + " times as hard.";
+  };
+  const guardLine = (slot, mult, drop) => "Your " + towerName(slot) + " " + towerVerb(slot, "does", "do") + " only " + pct(mult) + " damage to it." +
+    (drop ? " A stone's blow knocks its shields aside for " + (TOWER_DEFS.catapult.levels[0].stagger + TRICK_RULES.guard.dropS) + " s." : "");
+  if (trick === "hidden") {
+    const S = trickCfg("hidden");
+    out.badges.push({ k: "hid", ic: "eye-off", label: "Hidden" });
+    out.lines.push({ ic: "eye-off", text: watchLine() });
+    if (S) out.lore = loreSentence(S.lorePhrase);
+    return out;
+  }
+  const H = trickCfg("hunters");
+  if (trick === "hunter" && H) {
+    out.badges.push({ k: "hunt", ic: "hammer", label: "Hunts towers" });
+    out.lines.push({ ic: "hammer", text: huntLine(H) });
+    out.lore = loreSentence(H.lorePhrase);
+    return out;
+  }
+  if (H && H.add === false && H.role === role) {
+    out.badges.push({ k: "hunt", ic: "hammer", label: "Hunts towers" });
+    out.lines.push({ ic: "hammer", text: "From wave " + H.from + ", the first " + (byDiff(H.huntCap) || 1) + " of each wave hunt towers. " + huntLine(H) });
+    out.lore = loreSentence(H.lorePhrase);
+  }
+  // shields and armor: on a chip, as the next wave carries them; on the brief, as the battlefield brings them
+  if (from === "chip") {
+    const plan = wavePlan(w).filter(q => q.type === role && !q.trick);
+    const st = plan.filter(q => q.guard && !q.adapted), ad = plan.filter(q => q.adapted);
+    if (st.length) {
+      const g = (trickCfg("guards") || []).find(x => x.role === role && x.vs === st[0].guard) || {};
+      out.badges.push({ k: "guard", ic: "rshield", label: st[0].gname });
+      out.lines.push({ ic: slotIcon(st[0].guard), text: guardLine(st[0].guard, byDiff(TRICK_RULES.guard.mult), st[0].gdrop) });
+      if (!out.lore) out.lore = loreSentence(g.lorePhrase);
+    }
+    if (ad.length) {
+      out.badges.push({ k: "adapt", ic: "adapt", label: "Adapted" });
+      out.lines.push({ ic: "adapt", text: ad.length + " of them carry " + ad[0].gname + " against your " + towerName(ad[0].guard) + ": it does " +
+        pct(byDiff(TRICK_RULES.adapt.mult)) + " damage to those. A game mechanic: the enemy answers the tower that hurt it most over the last three waves." });
+    }
+  } else {
+    for (const g of trickCfg("guards") || []) {
+      if (g.role !== role) continue;
+      out.badges.push({ k: "guard", ic: "rshield", label: g.name });
+      out.lines.push({ ic: slotIcon(g.vs), text: "From wave " + g.from + ": " + guardLine(g.vs, byDiff(TRICK_RULES.guard.mult), g.drop) });
+      if (!out.lore) out.lore = loreSentence(g.lorePhrase);
+    }
+  }
+  for (const x of trickCfg("weak") || []) {
+    if (x.role !== role) continue;
+    out.badges.push({ k: "weak", ic: "flame", label: "Fears fire" });
+    out.lines.push({ ic: "flame", text: "Your " + towerName(x.slot) + " " + towerVerb(x.slot, "does", "do") + " " + pct(x.mult) + " damage to it." });
+    if (!out.lore) out.lore = loreSentence(x.lorePhrase);
+  }
+  const A = trickCfg("ambush");
+  if (A && role !== "flyer" && (A.legacy || ambushRoute() >= 0)) out.lines.push({ ic: "road", text: "From wave " + A.from + ", part of the host comes by " + A.name + "." });
+  return out;
+}
+
+// ---- the brief's trick row ----
+// under the host: what this battlefield's enemy tries on the difficulty chosen, each from its first wave; a tap
+// opens the trick's card to read
+function briefTrickRow() {
+  const el = $("briefTricks");
+  if (!el) return false;
+  const first = levelTricks() ? trickFirstWaves() : {};
+  const G = trickCfg("guards");
+  const label = {
+    hidden: w => "Hidden scouts from wave " + w,
+    hunters: w => "Tower hunters from wave " + w,
+    guards: w => ((G && G[0] && G[0].name) || "Shields") + " from wave " + w,
+    ambush: w => "Ambush road from wave " + w,
+    adapt: w => "The enemy adapts from wave " + w,
+  };
+  const keys = ["hidden", "hunters", "guards", "ambush", "adapt"].filter(k => first[k]);
+  el.innerHTML = keys.map(k => '<button type="button" class="tbg" data-trick="' + k + '">' + icon(TRICK_ICON[k]) + escapeHtml(label[k](first[k])) + "</button>").join("");
+  el.setAttribute("aria-label", "This battlefield's tricks on " + DIFFS[curDiff].name);
+  return keys.length > 0;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("#briefTricks .tbg");
+  if (b) { showTrickCard(b.dataset.trick, { read: true }); Snd.play("uiTick"); }
+});
+
+// ---- the tower panel ----
+// a tower's strength in its stats (where anything can hurt it, or it has been hurt), and what a watch slot reveals
+function trickStatRows(t) {
+  let s = "";
+  const showHp = t.hp != null && (t.hp < t.maxHp || t.wreck || trickCfg("hunters") || (levelTricks() && levelTricks().powerDmg));
+  if (showHp) {
+    const st = towerState(t);
+    s += statRow("shield", Math.round(t.hp) + "/" + t.maxHp, "Strength" + (st === "damaged" ? ", Damaged" : st === "failing" ? ", Failing" : ""), "wide" + (st !== "sound" ? " hurt" : ""));
+  }
+  if (!t.wreck && trickCfg("hidden") && trickWatch().includes(t.type)) s += statRow("eye", "", "Reveals hidden foes within " + Math.round(watchReach(t)), "wide");
+  return s;
+}
+// the panel of a ruin: its strength gone, Rebuild and Clear
+function showRuinPanel(t) {
+  $("pName").textContent = (t.spec ? specInfo(t.type, t.spec).name : towerName(t.type)) + " (ruin)";
+  const acts = $("pActions");
+  const rc = rebuildCost(t), sv = salvageValue(t);
+  const rb = mkBtn(icon("up") + "Rebuild" + coinBadge(rc), null, "up", () => rebuildTower(t), gold < rc, rc);
+  rb.title = "Raise it again as it was";
+  panelCostBtns.push({ el: rb, cost: rc });
+  acts.appendChild(rb);
+  const cb = mkBtn("Clear" + coinBadge(sv), null, "clear", () => clearRuin(t));
+  cb.title = "Clear the ruin and free the pad";
+  acts.appendChild(cb);
+}
+// Repair beside Sell, half the width each, on a damaged tower
+function repairBtn(t) {
+  const cost = repairCost(t);
+  const b = mkBtn(icon("heal") + "Repair" + coinBadge(cost), null, "repair", () => repairTower(t), gold < cost, cost);
+  b.title = "Restore its full strength";
+  panelCostBtns.push({ el: b, cost });
+  return b;
+}
+
 // a foe that flies though its role walks (the Harop strike wave) wears the wing of the tower panel's "Hits
 // outflankers" on its chip and its medallion, so the warning is there before the wave and on a touch screen too
 function flyingCommander(role, u) {
@@ -52753,8 +53291,13 @@ function foeCounters(role, u) {
 
 // the wave a foe first marches in (waveGroups), or 0 if it never comes in the twenty
 function foeFirstWave(role) {
-  for (let w = 1; w <= TOTAL_WAVES; w++) if (waveGroups(w).some(g => g.type === role)) return w;
+  for (let w = 1; w <= TOTAL_WAVES; w++) if (trickWave(w).some(g => g.type === role)) return w;
   return 0;
+}
+// a medallion of a role that carries a static guard on this battlefield wears its mark
+function briefGuardMark(role) {
+  const g = (trickCfg("guards") || []).find(x => x.role === role);
+  return g ? '<span class="mk gd">' + icon(slotIcon(g.vs)) + "</span>" : "";
 }
 
 // one line of history for each foe, as a phrase found in the sentence it comes from: the battlefield's facts and
@@ -52831,10 +53374,16 @@ function foeTitle(role, u, count) {
 }
 
 const foeCardEl = $("foeCard");
-let foeCardOn = null;   // { role, w, from: "chip"|"brief" } while the card shows
+let foeCardOn = null;   // { role, w, from: "chip"|"brief", trick } while the card shows
 
-function foeCardHtml(role, w, from) {
-  const u = foeUnit(role), tr = foeTraits(role, u), armor = foeArmor(u), spd = Math.round(foeSpeed(u));
+function foeCardHtml(role, w, from, trick) {
+  const u = foeUnit(role), armor = foeArmor(u), spd = Math.round(foeSpeed(u));
+  // the enemy's tricks on this foe (foeTrickBits): badges after its own, a line each, and their history line
+  const tb = foeTrickBits(role, w, from, trick), tr = foeTraits(role, u).concat(tb.badges);
+  if (trick) {
+    const g = trickWave(w || 1).find(x => x.type === role && x.trick === trick);
+    if (g && g.name) u.name = g.name;
+  }
   const diff = DIFFS[curDiff].name;
   const first = foeFirstWave(role), last = TOTAL_WAVES;
   let hp, hpLbl, sub;
@@ -52863,11 +53412,12 @@ function foeCardHtml(role, w, from) {
     statRow("shield", u.dmg, u.dmg === 1 ? "life lost if it reaches the walls" : "lives lost if it reaches the walls", "wide") + "</div>";
   const pow = tr.find(x => x.k === "pow");
   if (pow) h += '<p class="fcPow">' + icon(pow.ic) + "<span>" + escapeHtml(pow.text) + "</span></p>";
+  for (const x of tb.lines) h += '<p class="fcPow fcTrick">' + icon(x.ic) + "<span>" + escapeHtml(x.text) + "</span></p>";
   const c = foeCounters(role, u);
   const list = (cls, head, arr) => arr.length ? '<div class="fcList ' + cls + '"><b>' + head + "</b>" +
     arr.map(x => "<p><i>" + escapeHtml(towerName(x.type)) + ":</i> " + escapeHtml(x.why) + "</p>").join("") + "</div>" : "";
   h += list("good", "Strong against it", c.good.slice(0, 3)) + list("poor", "Weak against it", c.poor.slice(0, 3));
-  const lore = foeLore(role);
+  const lore = tb.lore || foeLore(role);
   if (lore) h += '<p class="fcLore">' + escapeHtml(lore) + "</p>";
   return h;
 }
@@ -52876,13 +53426,13 @@ function foeCardHtml(role, w, from) {
 // a card carried over to a new row of chips opens without its tick. A chip's card stands clear of the whole wave
 // cap, so it never lies over the Send Wave button under the chips (in portrait the cap hangs under the header and
 // the card opens below it)
-function openFoeCard(role, w, from, anchor, quiet) {
+function openFoeCard(role, w, from, anchor, quiet, trick) {
   if (!foeCardEl || !ENEMY_DEFS[role]) return;
   if (from === "chip") hidePanel();
-  foeCardEl.innerHTML = foeCardHtml(role, w, from);
+  foeCardEl.innerHTML = foeCardHtml(role, w, from, trick);
   foeCardEl.style.display = "block";
   foeCardEl.style.maxHeight = "";
-  foeCardOn = { role, w, from };
+  foeCardOn = { role, w, from, trick: trick || null };
   placeFoeCard(anchor);
   if (!quiet) Snd.play("uiTick");
 }
@@ -52915,9 +53465,10 @@ function closeFoeCard() {
 // the next wave's chips were drawn anew: a card opened from one follows its foe into the new row, or closes
 function refreshFoeCardChip() {
   if (!foeCardOn || foeCardOn.from !== "chip") return;
-  const chip = waveInfoEl.querySelector('.chip[data-role="' + foeCardOn.role + '"]');
+  const sel = '.chip[data-role="' + foeCardOn.role + '"]' + (foeCardOn.trick ? '[data-trick="' + foeCardOn.trick + '"]' : ":not([data-trick])");
+  const chip = waveInfoEl.querySelector(sel);
   if (!chip) { closeFoeCard(); return; }
-  openFoeCard(foeCardOn.role, Number(chip.dataset.w), "chip", chip, true);
+  openFoeCard(foeCardOn.role, Number(chip.dataset.w), "chip", chip, true, foeCardOn.trick);
 }
 
 // A click or a tap opens the card; on a touch screen a finger held still on a chip or medallion opens it too,
@@ -52927,7 +53478,8 @@ function foeTargetAt(e) {
   const med = e.target.closest && e.target.closest("#briefHost .foe[data-role]");
   if (med) return { el: med, role: med.dataset.role, from: "brief", w: 0 };
   const own = e.target.closest && e.target.closest("#waveInfo .chip[data-role]");
-  if (own) return { el: own, role: own.dataset.role, from: "chip", w: Number(own.dataset.w) };
+  if (own) return { el: own, role: own.dataset.role, from: "chip", w: Number(own.dataset.w), trick: own.dataset.trick || null };
+  if (e.target.closest && e.target.closest("#waveInfo .chip.warn")) return null;   // the warning chip opens the trick card
   const cap = e.target.closest && e.target.closest(".trayCap.right");
   if (!cap || e.target.closest("#waveBtn")) return null;
   const wb = $("waveBtn").getBoundingClientRect();
@@ -52939,12 +53491,12 @@ function foeTargetAt(e) {
     const d = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0;
     if (d < bd) { bd = d; best = chip; }
   }
-  return best && bd <= 6 ? { el: best, role: best.dataset.role, from: "chip", w: Number(best.dataset.w) } : null;
+  return best && bd <= 6 ? { el: best, role: best.dataset.role, from: "chip", w: Number(best.dataset.w), trick: best.dataset.trick || null } : null;
 }
 let foeHold = 0, foeHeld = null;
 function foeOpenFrom(t) {
-  if (foeCardOn && foeCardOn.role === t.role && foeCardOn.from === t.from && foeCardOn.w === t.w) return false;
-  openFoeCard(t.role, t.w, t.from, t.el);
+  if (foeCardOn && foeCardOn.role === t.role && foeCardOn.from === t.from && foeCardOn.w === t.w && foeCardOn.trick === (t.trick || null)) return false;
+  openFoeCard(t.role, t.w, t.from, t.el, false, t.trick);
   return true;
 }
 document.addEventListener("pointerdown", (e) => {
@@ -53011,7 +53563,7 @@ function levelStudsHtml(t, def) {
 }
 
 function setPanelStats(t) {
-  const html = statText(t) + serviceRecord(t);
+  const html = t.wreck ? trickStatRows(t) : statText(t) + trickStatRows(t) + serviceRecord(t);
   if (html !== panelStatsHtml) { $("pStats").innerHTML = html; panelStatsHtml = html; }
 }
 
@@ -53397,6 +53949,8 @@ function showPanel(t) {
   const acts = $("pActions");
   acts.innerHTML = "";
   panelCostBtns = [];
+  panelHurt = t.wreck ? "wrecked" : towerHpFrac(t) < 1 ? "hurt" : "whole";
+  if (t.wreck) { showRuinPanel(t); placePanel(t); return; }
   if (TOWER_DEFS[t.type].proj) {
     acts.appendChild(mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
       t.prio = PRIOS[(PRIOS.indexOf(t.prio || "first") + 1) % PRIOS.length];
@@ -53441,9 +53995,18 @@ function showPanel(t) {
     clearTimeout(sellAskT);
     sellTower(t);
   });
-  acts.appendChild(sb);
+  if (towerHpFrac(t) < 1) {
+    // a damaged tower: Repair beside Sell, half the width each
+    const row = document.createElement("div");
+    row.className = "row2";
+    row.appendChild(repairBtn(t));
+    row.appendChild(sb);
+    acts.appendChild(row);
+  } else acts.appendChild(sb);
   placePanel(t);
 }
+// the panel's tower as it was drawn ("whole", "hurt", "wrecked"): a change redraws its buttons
+let panelHurt = "";
 
 let sellAskT = 0;
 function hidePanel() {
@@ -53460,7 +54023,12 @@ function refreshPanelBtns() {
     if (!afford) pb.el.classList.remove("lit");
     setPoor(pb.el, !afford);
   }
-  if (selected && panelEl.style.display === "block") setPanelStats(selected);
+  if (selected && panelEl.style.display === "block") {
+    const now = selected.wreck ? "wrecked" : towerHpFrac(selected) < 1 ? "hurt" : "whole";
+    const rb = panelCostBtns.find(b => b.el.classList.contains("repair"));
+    if (now !== panelHurt || (rb && rb.cost !== repairCost(selected))) { showPanel(selected); return; }
+    setPanelStats(selected);
+  }
 }
 
 // ---------- menu / overlay ----------
@@ -58456,10 +59024,12 @@ function showBrief() {
     const u = foeUnit(role), name = u.name;
     return '<div class="foe' + (role === "boss" ? " boss" : "") + '" data-role="' + role + '" role="button" tabindex="0" title="' +
       escapeHtml(foeTitle(role, u)) + '" aria-label="' + escapeHtml(foeTitle(role, u)) + '"><span class="disc">' +
-      icon(ROLE_ICON[role]) + foeMarksHtml(role, u) + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
+      icon(ROLE_ICON[role]) + foeMarksHtml(role, u) + briefGuardMark(role) + '</span><span class="nm">' + escapeHtml(name) + "</span></div>";
   }).join("");
-  // a battlefield with a rule of its own says it here (Ani's assaults, Mari's other road, Sis's days), else the hint
-  $("briefHint").textContent = L.briefNote || (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses";
+  // a battlefield with a rule of its own says it here (Ani's assaults, Mari's other road, Sis's days), else the hint;
+  // the enemy's tricks on the difficulty chosen go in a row under it, and take the hint's place
+  const tricksShown = briefTrickRow();
+  $("briefHint").textContent = L.briefNote || (tricksShown ? "" : (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses");
   renderBriefArt(curLevel);
   startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() ? "Begin the Stand · Tutorial" : "Begin the Stand");
@@ -58845,10 +59415,12 @@ $("tutBtn").addEventListener("click", () => {
   if (fresh) {
     closeSettings();
     paused = false; syncPauseBtn();
+    try { localStorage.removeItem(TRICK_SEEN_KEY); } catch (e) {}
     startTutorial();
     return;
   }
   if (!onMenu && !tutConfirm.armed()) { tutConfirm.arm(); return; }
+  try { localStorage.removeItem(TRICK_SEEN_KEY); } catch (e) {}   // the tricks' cards come again with it
   closeSettings();
   if (!onMenu) {
     if (!gameOver) saveBest();   // the waves held still count toward the battlefield's best
@@ -74131,7 +74703,7 @@ function frame(time) {
     if (Nardi.covers() || Town.covers()) { last = time; return; }
     const dt = Math.min((time - last) / 1000, 0.05);
     last = time;
-    if (!gameOver && !paused && !coachFreeze() && overlayEl.classList.contains("hidden")) {
+    if (!gameOver && !paused && !coachFreeze() && !trickHold() && overlayEl.classList.contains("hidden")) {
       for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
       if (!gameOver) { dangerTick(dt); waveCueTick(dt); }
     }
@@ -74140,6 +74712,7 @@ function frame(time) {
     if (fallen && time - fallen.start > FALL_MS) endFall();
     draw(time);
     coachTick();
+    trickCardTick();
   } catch (err) {
     crashed = err;
     showCrashCard(err);
