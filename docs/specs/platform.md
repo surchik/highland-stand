@@ -958,7 +958,7 @@ scrolling column.
 | layout | door |
 | --- | --- |
 | desktop, iPad, phone upright | `#hallBtn`: a round 44 px button with a trophy, fixed at the top left, 10 px to the right of the campaign tally (`left` is set from the tally's right edge whenever `fitCampaignStars` runs, and it hides with the tally when a long title pushes the tally away). Title "Daily challenge and leaderboards". A red dot on it while today's daily is unplayed. Measured free at 1600, 1194, 1024 and 834 px wide and on the upright phone (between the tally and the crest, or the Nardi button). |
-| phone sideways | the top row of the side column is full (tally, chapter story, nardi, gear: 226 of 232 px at 667 px wide), so **the tally itself is the door**: `#ovStars` becomes a button that opens the Hall, with the same red dot. No new control, nothing shrinks. |
+| phone sideways | the top row of the side column is full (tally, chapter story, nardi, gear: about 226 of 232 px at 667 px wide, read off a screenshot), so **the tally itself is the door**: `#ovStars` becomes a button that opens the Hall, with the same red dot. No new control, nothing shrinks. |
 | every layout | Settings (the gear) gains **Account and boards** on menu pages, and tapping the tally opens the Hall everywhere. |
 
 **Doors on the victory page.**
