@@ -604,6 +604,7 @@
   #settings { position: fixed; top: calc(58px + var(--sat)); right: calc(12px + var(--sar)); z-index: 29; width: 262px; padding: 18px 16px 19px; display: none; }
   #settings h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin-bottom: 11px; letter-spacing: .5px; color: #fff3d6; padding-bottom: 8px; border-bottom: 1px solid rgba(240,207,133,.25); }
   #settings h3 .ic { width: 18px; height: 18px; color: var(--bronze-hi); vertical-align: 0; }
+  #settings .setX { display: none; }
   #settings .row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; font-size: 14px; }
   #settings .row label { width: 62px; font-weight: 700; }
   #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--bronze); }
@@ -915,7 +916,7 @@
   /* on a phone held sideways the record takes one short line in the rule's place, and a page that still
      runs long starts at its title, so nothing above the fold is cut off */
   @media (max-height: 500px) {
-    #overlay.victory, #overlay:has(#ovRecord.on) { justify-content: safe center; }
+    #overlay.victory, #overlay:has(#ovRecord.on) { justify-content: flex-start; justify-content: safe center; }
     #overlay.victory:has(#ovRecord.on) .ovRule { display: none; }
     #ovRecord.on { flex-direction: row; gap: 12px; margin: 0; }
     #ovRecord .recRow > .ic { width: 22px; height: 22px; }
@@ -925,6 +926,17 @@
     #ovRecord .recSeal .seal .ic { width: 14px; height: 14px; }
     #ovRecord .recBest > span { padding: 3px 26px 4px; font-size: 13.5px; }
     #ovRecord .recBest b { font-size: 11px; }
+    /* the quiet choices stay on one row under Next battle (even under 700 px wide), 44 px to a finger */
+    html #overlay.victory .bigRow { grid-template-columns: repeat(3, minmax(0, max-content)); gap: 10px 10px; }
+    #overlay.victory #mapBtn, #overlay.victory .big.quiet, #overlay.victory #endlessBtn {
+      min-height: 44px; padding: 5px 14px; font-size: 14.5px; line-height: 1.15; white-space: normal; justify-content: center;
+    }
+  }
+  /* the shortest phones (the SE in Safari): a tighter page, so it all fits without a scroll */
+  @media (max-height: 340px) {
+    #overlay.victory .sub { font-size: 12.5px; line-height: 1.38; }
+    #overlay.victory #nextBtn { padding-top: 6px; padding-bottom: 8px; }
+    #overlay.victory #ovPage { gap: 4px; }
   }
   @media (min-width: 900px) and (min-height: 640px) {
     #overlay.victory { gap: 0; }
@@ -1772,10 +1784,14 @@
   /* ================= phones =================
      The rule (mirrored by PHONE_MQ in the script): a phone held sideways is a window at most 500 px tall,
      @media (max-height: 500px); a phone held upright is one at most 500 px wide and taller than that,
-     @media (max-width: 500px) and (min-height: 501px). Every iPhone from the SE (667 x 320 in Safari) to the
-     Pro Max (932 x 430 from the Home Screen) matches the first held sideways and the second held upright; no
-     iPad (744 px and more on its short side) and no desktop window of ordinary size matches either, so
-     everything below leaves the tablet and desktop layouts exactly as they were. */
+     @media (max-width: 500px) and (min-height: 500.02px). Every iPhone from the SE (667 x 320 in Safari) to the
+     Pro Max (932 x 430 from the Home Screen) matches the first held sideways and the second held upright. A whole
+     iPad screen (744 px and more on its short side) and a desktop window more than 500 px tall and wide match
+     neither, so everything below leaves the tablet and desktop layouts exactly as they were. Some smaller windows
+     do match and get the phone's layout: on an iPad, Split View at a third, Slide Over and an upright half split
+     (upright) and a Stage Manager window 500 px tall or less (sideways); a desktop window 500 px tall or less
+     (sideways) or 500 px wide or less (upright). The phone's layout is built for 375 px across and more; a window
+     narrower than that (Slide Over at 320 px) still works but is not held to the iPhone's bar. */
 
   /* ---- phone, sideways: the battle ---- */
   @media (max-height: 500px) {
@@ -1897,6 +1913,12 @@
     #trickCard dt { font-size: 11px; letter-spacing: 1px; }
     #trickCard .tcLore { font-size: 12.5px; }
 
+    /* the wave row's warning chip (it opens the trick card) is 40 px wide at least */
+    #waveInfo .chip.warn { min-width: 40px; justify-content: center; }
+    /* the defeat debrief's chips name their foe on a tap: 36 px to a finger */
+    #overlay .ovDebrief .dbChip { height: 30px; }
+    #overlay .ovDebrief .dbChip::after { content: ""; position: absolute; inset: -3px -2px; }
+
     /* the foe card: its labels at 11 px (placeFoeCard keeps it inside the safe area) */
     #foeCard .fcList > b { font-size: 11px; letter-spacing: .8px; }
     #foeCard .fcSub { font-size: 11px; }
@@ -1906,11 +1928,21 @@
     #coach .cSkip { min-height: 36px; padding: 0 2px 0 10px; }
     #coach { width: min(330px, calc(100vw - 24px)); font-size: 14px; line-height: 1.36; padding: 11px 14px 12px; }
 
-    /* Settings: toggles a finger can take; the keyboard's line has no place on a phone */
+    /* Settings: toggles a finger can take */
     #settings .tgl { width: 48px; min-height: 36px; display: grid; place-items: center; padding: 0; font-size: 12.5px; }
     #settings .seg .tgl { width: auto; min-height: 40px; }
-    #settings .hint { display: none; }
     #settings .menuBtn { min-height: 44px; }
+    /* a close button in the title row, 44 px to a finger (Settings over the field has no other way out on a phone) */
+    #settings h3 { position: relative; padding-right: 40px; }
+    #settings .setX {
+      display: grid; place-items: center; position: absolute; right: -10px; top: 50%; margin-top: -26px; width: 44px; height: 44px;
+      padding: 0; border: 0; border-radius: 50%; background: none; color: var(--parch); cursor: pointer;
+    }
+    #settings .setX .ic { width: 16px; height: 16px; color: var(--parch); }
+  }
+  /* the keyboard's line has no place on a phone (a short desktop window keeps it) */
+  @media (max-height: 500px) and (pointer: coarse), (max-width: 500px) and (pointer: coarse) {
+    #settings .hint { display: none; }
   }
 
   /* ---- phone, sideways: Settings in two columns under the header, the toast over the field ---- */
@@ -1928,7 +1960,7 @@
     #settings #tutBtn { grid-row: 2; }
     #settings #pauseBtn { grid-row: 3; }
     #settings #menuBtn { grid-row: 4; margin-top: 4px; }
-    body.onMenu #settings { top: calc(60px + var(--sat)); right: calc(8px + var(--sar)); }
+    body.onMenu #settings { right: calc(8px + var(--sar)); }
     #toast { top: calc(46px + var(--sat)); left: calc(var(--fl, 50vw) + var(--fw, 0px) / 2); max-width: calc(var(--fw, 100vw) - 24px);
       padding: 6px 14px; font-size: 13.5px; }
     body.hasNote:not(.onMenu) #toast { top: max(calc(46px + var(--sat)), var(--noteBottom, 0px)); }
@@ -1938,7 +1970,7 @@
   @media (max-height: 500px) {
     /* a slimmer frame, the page inside the safe area, and a page taller than the screen starts at its top */
     #overlay {
-      justify-content: safe center; gap: 6px;
+      justify-content: flex-start; justify-content: safe center; gap: 6px;
       padding: calc(8px + var(--sat)) calc(10px + var(--sar)) calc(8px + var(--sab)) calc(10px + var(--sal));
       box-shadow: inset 0 0 0 4px #17100a, inset 0 0 0 5px var(--bronze-hi), inset 0 0 0 6px var(--bronze-sh), inset 0 0 40px 10px rgba(0,0,0,.5);
     }
@@ -1988,7 +2020,17 @@
     }
     #overlay:not(.brief):not(.victory) .sub, #overlay:not(.brief):not(.victory) .ovDebrief.on { width: 100%; height: auto; max-width: none; }
     #overlay:not(.brief):not(.victory) .ovDebrief.on { padding: 4px 4px 5px; font-size: 12.5px; line-height: 1.3; }
-    #overlay:not(.brief):not(.victory) .ovDebrief .dbChip { height: 24px; }
+    /* the defeat page: what got through and the tip come first, under the title; the history follows them */
+    #overlay:not(.brief):not(.victory):has(.ovDebrief.on) .sub { order: 1; }
+    #overlay:not(.brief):not(.victory):has(.ovDebrief.on) h1 { font-size: 18px; letter-spacing: 1px; }
+    /* and in the debrief the tip leads (what to do next), then what got through and the roads */
+    #overlay:not(.brief):not(.victory) .ovDebrief .dbTip { order: -1; padding-bottom: 3px; }
+    #overlay:not(.brief):not(.victory) .ovDebrief .dbRow { gap: 4px 5px; }
+    /* a column that scrolls fades at its fold while more lies below it (phoneFold) */
+    #overlay:not(.brief):not(.victory) #ovPage.more, #overlay.brief #ovPage .briefLeft.more, #overlay.brief #ovPage .sub.more {
+      -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+      mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+    }
     #overlay:not(.brief):not(.victory) .chapterBar { grid-column: 2; grid-row: 3; margin: 0; padding: 0; gap: 6px; flex-wrap: nowrap; }
     #overlay:not(.brief):not(.victory) .chTabs { flex: 1 1 auto; min-width: 0; }
     #overlay:not(.brief):not(.victory) .chTab:not(.selected) { display: none; }
@@ -2006,7 +2048,8 @@
     #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
     #overlay:not(.brief):not(.victory) .big .ic { width: 18px; height: 18px; }
     #overlay:not(.brief):not(.victory) .ovRule { display: none; }
-    body.onMenu #settings { top: calc(58px + var(--sat)); }
+    body.onMenu #settings { top: calc(58px + var(--sat));
+      max-height: calc(100vh - 64px - var(--sat) - var(--sab)); max-height: calc(100dvh - 64px - var(--sat) - var(--sab)); }
 
     /* the chronicle and the chapter's story: the leaf fills the screen as a spread, the host at the left and the
        history at the right, each scrolling in its own column; the page turner and the buttons stay in view */
@@ -2055,9 +2098,29 @@
     #overlay.brief .big, #overlay.brief #mapBtn { min-height: 44px; padding: 6px 20px; font-size: 15.5px; margin: 0; }
     #overlay.brief #ovGear { top: auto; bottom: calc(8px + var(--sab)); right: calc(10px + var(--sar)); }
   }
+  /* a short phone (400 px or less: every one in Safari): the chronicle's miniature stands small beside the hero's
+     name, so the host's medallions and the tricks come into view under them (the column fades at its fold
+     while more lies below: phoneFold) */
+  @media (max-height: 400px) {
+    #overlay.brief #ovPage .briefLeft { flex-direction: row; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 8px 10px; }
+    #overlay.brief #briefArt { width: 56px; align-self: center; }
+    #overlay.brief .briefHero:not(:empty) { flex: 1 1 0; min-width: 0; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; margin: 0; line-height: 1.2; }
+    #overlay.brief #ovPage .briefLeft > .briefHost, #overlay.brief #ovPage .briefLeft > .briefHint, #overlay.brief #ovPage .briefLeft > .briefTricks { flex: 0 0 100%; }
+    /* the host as a row of medallions 40 px across, their names left to the foe card a tap opens */
+    #overlay.brief .briefHost { gap: 9px 19px; padding: 4px 0 0 6px; }
+    #overlay.brief .briefHost .foe { flex: none; }
+    #overlay.brief .briefHost .nm { display: none; }
+    #overlay.brief .briefHost .disc { width: 40px; height: 40px; }
+    #overlay.brief .briefHost .disc .ic { width: 28px; height: 28px; }
+  }
+  /* and the shortest (the SE in Safari): no miniature at all, the hero's name on its own line */
+  @media (max-height: 330px) {
+    #overlay.brief #briefArt { display: none; }
+    #overlay.brief .briefHero:not(:empty) { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0 8px; }
+  }
 
   /* ---- phone, upright (the owner's fallback after "Play in portrait": everything fits or scrolls) ---- */
-  @media (max-width: 500px) and (min-height: 501px) {
+  @media (max-width: 500px) and (min-height: 500.02px) {
     /* --ph-top: the room resizePhone keeps above the field (the header's two rows, the chips, Send Wave, the spells) */
     :root { --tray-h: 78px; --ph-top: 196px; }
     /* the battle's header in two rows: the counters, then the buttons */
@@ -2116,7 +2179,7 @@
     #settings .row input[type=range] { min-width: 0; }
 
     /* the menu pages: one column that scrolls, starting under the corner buttons */
-    #overlay { justify-content: safe center; gap: 8px;
+    #overlay { justify-content: flex-start; justify-content: safe center; gap: 8px;
       padding: calc(60px + var(--sat)) calc(12px + var(--sar)) calc(14px + var(--sab)) calc(12px + var(--sal)); }
     #overlay .ovOrn { width: 34px; height: 34px; }
     #overlay .ovOrn.o1 { left: 3px; top: 3px; } #overlay .ovOrn.o2 { right: 3px; top: 3px; }
@@ -2893,7 +2956,7 @@
 <div id="foeCard" class="kit" role="dialog" aria-label="Foe"></div>
 
 <div id="settings" class="kit">
-  <h3><svg class="ic"><use href="#i-gear"/></svg>Settings</h3>
+  <h3><svg class="ic"><use href="#i-gear"/></svg>Settings<button type="button" class="setX" id="setClose" aria-label="Close Settings"><svg class="ic"><use href="#i-close"/></svg></button></h3>
   <div class="row">
     <label>Music</label>
     <div class="tgl" id="setMusicTgl">On</div>
@@ -3073,14 +3136,28 @@ function safeInsets() {
 }
 // ---- the phone layout: one rule, read by the stylesheet and the script alike ----
 // A phone held sideways is at most 500 px tall (every iPhone from the SE to the Pro Max is 320 to 430 px tall in
-// Safari or from the Home Screen; the shortest iPad held wide is 744 px, a desktop window 600 px and more); held
-// upright it is at most 500 px wide (iPhones 375 to 430; the narrowest iPad upright is 744). Those two queries,
+// Safari or from the Home Screen; a whole iPad screen held wide is 744 px or more, a desktop window most often 600
+// px and more); held upright it is at most 500 px wide (iPhones 375 to 430; a whole iPad screen upright is 744 or
+// more). Smaller windows match too and get the phone's layout (an iPad's Split View at a third, Slide Over, a Stage
+// Manager window, a desktop window 500 px tall or narrow: the stylesheet's "phones" note). Those two queries,
 // and only they, turn on the phone's rules in the stylesheet (the @media blocks "phone, sideways" and "phone,
 // upright"); the iPad and desktop layouts match neither and are never touched by them
 const PHONE_MQ = matchMedia("(max-height: 500px), (max-width: 500px)"), PHONE_WIDE_MQ = matchMedia("(max-height: 500px)");
 function isPhone() { return PHONE_MQ.matches; }
 function phoneWide() { return PHONE_WIDE_MQ.matches; }
 function phoneTall() { return PHONE_MQ.matches && !PHONE_WIDE_MQ.matches; }
+// On a phone a column that scrolls in its own frame (the map page's words and debrief, the chronicle's host and its
+// history) fades at its fold while more of it lies below (the stylesheet's .more); elsewhere it never takes the class
+function phoneFold(el) {
+  if (!el) return;
+  let q = 0;
+  const upd = () => { q = 0; el.classList.toggle("more", isPhone() && el.scrollHeight - el.clientHeight - el.scrollTop > 4); };
+  const soon = () => { if (!q) q = requestAnimationFrame(upd); };
+  el.addEventListener("scroll", upd, { passive: true });
+  window.addEventListener("resize", soon);
+  if (window.ResizeObserver) new ResizeObserver(soon).observe(el);
+  new MutationObserver(soon).observe(el, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["class", "style"] });
+}
 // a length the phone's rules set on :root (the tray's height, the side columns' widths), in px
 function rootPx(name) { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0; }
 function resize() {
@@ -3163,6 +3240,7 @@ const goldEl = $("gold"), livesEl = $("lives"), waveNumEl = $("waveNum"),
   waveInfoEl = $("waveInfo"), waveBtn = $("waveBtn"), speedBtn = $("speedBtn"),
   autoBtn = $("autoBtn"), toastEl = $("toast"), overlayEl = $("overlay"),
   panelEl = $("panel"), settingsEl = $("settings");
+phoneFold($("ovPage")); phoneFold(document.querySelector("#ovPage .briefLeft")); phoneFold($("ovSub"));
 
 function mulberry32(a) {
   return function () {
@@ -10806,6 +10884,8 @@ function updateWaveBtn() {
 
 // ms: how long it stays (a battlefield's own longer lines are given time to be read)
 function toast(msg, ms) {
+  // (a toast a phone's wave ribbon lowered goes back to its own place: drawWaveBanner)
+  if (toastEl.hsLow) { toastEl.hsLow = false; toastEl.style.top = ""; }
   toastEl.innerHTML = richText(msg);
   toastEl.classList.add("show");
   clearTimeout(toastTimer);
@@ -53259,10 +53339,16 @@ function drawWaveBanner() {
   ctx.globalAlpha = a;
   // hung along the far edge of the field, where what it crosses is small, clear of the main
   // rows of towers; sheer, so the towers and units behind it still read
-  drawRibbonBanner(VW / 2, 190 - rise, waveBannerMain, sub, {
+  const band = drawRibbonBanner(VW / 2, 190 - rise, waveBannerMain, sub, {
     size: boss ? 32 : 40, tone: boss ? "boss" : "gold", emblem: sub === waveBannerSub ? -1 : curEra, sheer: true,
   });
   ctx.restore();
+  // on a phone the toast would lie over the ribbon (both hang at the top of a small field): a toast that shows
+  // while the ribbon does stands under it, and stays there until the next toast
+  if (isPhone() && toastEl.classList.contains("show") && !toastEl.hsLow) {
+    const below = offY + (190 + band + 6) * scale, top = toastEl.getBoundingClientRect().top;
+    if (below > top) { toastEl.style.top = Math.round(below) + "px"; toastEl.hsLow = true; }
+  }
 }
 
 function drawVignette() {
@@ -54696,6 +54782,7 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
     sprite.width = Math.ceil(RIBBON_W * k);
     sprite.height = Math.ceil(h * k);
     sprite.hsH = h;
+    sprite.hsHalf = subK > 1 ? (h - 40) / 2 : o.over ? 56 : 42;
     const c = sprite.getContext("2d");
     c.scale(k, k);
     paintRibbon(c, main, sub, po);
@@ -54703,6 +54790,8 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
   }
   const h = sprite.hsH || RIBBON_H;
   ctx.drawImage(sprite, cx - RIBBON_W / 2, cy - h / 2, RIBBON_W, h);
+  // the band's half height (world units): its lower edge is cy plus this
+  return sprite.hsHalf || 42;
 }
 
 // damage a second at these stats, before armor and drums: the blow over the reload (two bolts for twin ballistae)
@@ -55611,14 +55700,96 @@ function mapArarat(c, x, base, k) {
 
 // Paints one chart (an id of MAP_CHARTS) onto its own canvas: the parchment sheet, then the chart's features
 // in a fixed order, the compass, the title cartouche and the braided border.
+// the chart's title cartouche, as the sheet carries it (a tablet's and a desktop's map)
+function mapCartouche(tc, chart, spec) {
+  const W = MAP_W, H = MAP_H;
+  const title = chart.title, caption = chart.caption;
+  tc.font = "700 16px " + UI_FONT;
+
+  const titleW = tc.measureText(title).width;
+  tc.font = "italic 11px " + UI_FONT;
+  const plateW = Math.max(titleW + 30, tc.measureText(caption).width) + 26;
+  const px = spec.cartouche === "br" ? Math.round(W - 20 - plateW) : 20, py = spec.cartouche === "br" ? H - 64 : 20;
+  tc.save();
+  tc.translate(px - 20, py - 20);
+  tc.fillStyle = "rgba(58, 36, 14, .3)";
+  tc.fillRect(21.5, 22, plateW, 44);
+  tc.fillStyle = "#f5e9c9";
+  tc.fillRect(20, 20, plateW, 44);
+  tc.strokeStyle = MAP_INK;
+  tc.lineWidth = 1.2;
+  tc.strokeRect(20, 20, plateW, 44);
+  tc.strokeStyle = "#b98a3e";
+  tc.lineWidth = 0.9;
+  tc.strokeRect(22.6, 22.6, plateW - 5.2, 38.8);
+  // an eight-petalled rosette stands before the title
+  tc.strokeStyle = "#a8322a";
+  tc.lineWidth = 1;
+  tc.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    tc.moveTo(40, 36);
+    tc.quadraticCurveTo(40 + Math.cos(a + 0.5) * 5.4, 36 + Math.sin(a + 0.5) * 5.4, 40 + Math.cos(a) * 6.4, 36 + Math.sin(a) * 6.4);
+  }
+  tc.stroke();
+  tc.beginPath(); tc.arc(40, 36, 1.6, 0, Math.PI * 2);
+  tc.fillStyle = "#c9972f"; tc.fill();
+  tc.textAlign = "left";
+  tc.fillStyle = "#2c1e10";
+  tc.font = "700 16px " + UI_FONT;
+  tc.fillText(title, 52, 41.5);
+  tc.font = "italic 11px " + UI_FONT;
+  tc.fillStyle = "#4a3318";
+  tc.fillText(caption, 33, 56);
+  tc.restore();
+
+}
+// a phone's: the title alone (the page beside the map names the chapter), its plate scaled by k so the letters stand
+// 11 px or more on the screen; drawn over the sheet each time the map is (renderWorldMap)
+function mapTitlePhone(m, chart, corner, k) {
+  const W = MAP_W, H = MAP_H, title = chart.title;
+  m.save();
+  m.font = "700 16px " + UI_FONT;
+  const pw = m.measureText(title).width + 44, ph = 30;
+  if (corner === "br") { m.translate(W - 20, H - 20); m.scale(k, k); m.translate(-pw, -ph); }
+  else { m.translate(20, 20); m.scale(k, k); }
+  m.fillStyle = "rgba(58, 36, 14, .3)";
+  m.fillRect(1.5, 2, pw, ph);
+  m.fillStyle = "#f5e9c9";
+  m.fillRect(0, 0, pw, ph);
+  m.strokeStyle = MAP_INK;
+  m.lineWidth = 1.2;
+  m.strokeRect(0, 0, pw, ph);
+  m.strokeStyle = "#b98a3e";
+  m.lineWidth = 0.9;
+  m.strokeRect(2.6, 2.6, pw - 5.2, ph - 5.2);
+  m.strokeStyle = "#a8322a";
+  m.lineWidth = 1;
+  m.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    m.moveTo(17, 15);
+    m.quadraticCurveTo(17 + Math.cos(a + 0.5) * 5.4, 15 + Math.sin(a + 0.5) * 5.4, 17 + Math.cos(a) * 6.4, 15 + Math.sin(a) * 6.4);
+  }
+  m.stroke();
+  m.beginPath(); m.arc(17, 15, 1.6, 0, Math.PI * 2);
+  m.fillStyle = "#c9972f"; m.fill();
+  m.textAlign = "left";
+  m.fillStyle = "#2c1e10";
+  m.fillText(title, 29, 20.5);
+  m.restore();
+}
+// On a phone the cartouche is left off the sheet (phone: true; kept apart as id + "|p") and drawn over it by
+// renderWorldMap at a size a phone can read (mapTitlePhone)
 const terrainCanvases = {};
-function buildWorldTerrain(id) {
+function buildWorldTerrain(id, phone) {
+  const key = (MAP_CHARTS[id] ? id : "highlands") + (phone ? "|p" : "");
   id = MAP_CHARTS[id] ? id : "highlands";
   const W = MAP_W, H = MAP_H, chart = MAP_CHARTS[id];
   const spec = chart.geo ? mapGeoSpec(id) : MAP_HIGHLANDS;
   const canvas = document.createElement("canvas");
   canvas.width = W * MAP_BACKING; canvas.height = H * MAP_BACKING;
-  terrainCanvases[id] = canvas;
+  terrainCanvases[key] = canvas;
   const tc = canvas.getContext("2d");
   tc.scale(MAP_BACKING, MAP_BACKING);
   const rand = mulberry32(spec.seed);
@@ -55706,44 +55877,8 @@ function buildWorldTerrain(id) {
   mapCompass(tc, spec.compass[0], spec.compass[1], spec.compass[2]);
 
   // title cartouche on its own plate, in the chart's upper-left or lower-right corner
-  const title = chart.title, caption = chart.caption;
-  tc.font = "700 16px " + UI_FONT;
-  const titleW = tc.measureText(title).width;
-  tc.font = "italic 11px " + UI_FONT;
-  const plateW = Math.max(titleW + 30, tc.measureText(caption).width) + 26;
-  const px = spec.cartouche === "br" ? Math.round(W - 20 - plateW) : 20, py = spec.cartouche === "br" ? H - 64 : 20;
-  tc.save();
-  tc.translate(px - 20, py - 20);
-  tc.fillStyle = "rgba(58, 36, 14, .3)";
-  tc.fillRect(21.5, 22, plateW, 44);
-  tc.fillStyle = "#f5e9c9";
-  tc.fillRect(20, 20, plateW, 44);
-  tc.strokeStyle = MAP_INK;
-  tc.lineWidth = 1.2;
-  tc.strokeRect(20, 20, plateW, 44);
-  tc.strokeStyle = "#b98a3e";
-  tc.lineWidth = 0.9;
-  tc.strokeRect(22.6, 22.6, plateW - 5.2, 38.8);
-  // an eight-petalled rosette stands before the title
-  tc.strokeStyle = "#a8322a";
-  tc.lineWidth = 1;
-  tc.beginPath();
-  for (let i = 0; i < 8; i++) {
-    const a = i * Math.PI / 4;
-    tc.moveTo(40, 36);
-    tc.quadraticCurveTo(40 + Math.cos(a + 0.5) * 5.4, 36 + Math.sin(a + 0.5) * 5.4, 40 + Math.cos(a) * 6.4, 36 + Math.sin(a) * 6.4);
-  }
-  tc.stroke();
-  tc.beginPath(); tc.arc(40, 36, 1.6, 0, Math.PI * 2);
-  tc.fillStyle = "#c9972f"; tc.fill();
-  tc.textAlign = "left";
-  tc.fillStyle = "#2c1e10";
-  tc.font = "700 16px " + UI_FONT;
-  tc.fillText(title, 52, 41.5);
-  tc.font = "italic 11px " + UI_FONT;
-  tc.fillStyle = "#4a3318";
-  tc.fillText(caption, 33, 56);
-  tc.restore();
+  if (!phone) mapCartouche(tc, chart, spec);
+  canvas.hsCorner = spec.cartouche;
 
   // braided inner border in crimson and bronze between two ink rules
   tc.fillStyle = "#cfb47c";
@@ -56171,10 +56306,15 @@ function renderWorldMap() {
   if (cv.width !== MAP_W * MAP_BACKING) { cv.width = MAP_W * MAP_BACKING; cv.height = MAP_H * MAP_BACKING; }
   const m = cv.getContext("2d");
   const ch = CHAPTERS[mapChapter()], lv = ch.levels;
-  const terrain = terrainCanvases[ch.chart] || buildWorldTerrain(ch.chart);
+  const phone = isPhone(), tkey = (MAP_CHARTS[ch.chart] ? ch.chart : "highlands") + (phone ? "|p" : "");
+  const terrain = terrainCanvases[tkey] || buildWorldTerrain(ch.chart, phone);
   m.setTransform(1, 0, 0, 1, 0, 0);
   m.drawImage(terrain, 0, 0);
   m.setTransform(MAP_BACKING, 0, 0, MAP_BACKING, 0, 0);
+  if (phone) {
+    const w = cv.getBoundingClientRect().width;
+    mapTitlePhone(m, MAP_CHARTS[ch.chart] || MAP_CHARTS.highlands, terrain.hsCorner, w ? Math.max(1, 11.2 / (16 * w / MAP_W)) : 1);
+  }
   syncChapterBar();
 
   // campaign road between nodes: dark ink where it has been marched, a faint dotted line where it is still closed
@@ -56456,21 +56596,17 @@ let menuMode = "map";   // "map" → world map; "brief" → history chronicle; "
 
 // ---- the Home Screen tip: an iPhone in Safari plays with the browser's bars over the field; added to the Home
 // Screen the game opens full screen. A line on the campaign map says how, in the page's own flow (never over a
-// control, never in the way), until it is closed (hs_home_tip) or has been shown on three visits (hs_home_tip_shown).
+// control, never in the way), one time: on the first visit it is laid out on the map it is remembered (hs_home_tip
+// "shown"), stays for that visit until its close button puts it away ("closed"), and never comes back.
 // Never from the Home Screen (navigator.standalone), in another browser, on an iPad or a desktop, or in the harness
-const HOME_TIP_KEY = "hs_home_tip", HOME_TIP_SHOWN = "hs_home_tip_shown";
-let homeTipOn = null;   // decided once a visit, the first time the map shows
+const HOME_TIP_KEY = "hs_home_tip";
+let homeTipOn = null;   // decided once a visit, the first time the menu is built
 function homeTipWanted() {
   const ua = navigator.userAgent || "";
   if (HARNESS_ON || !/iPhone/.test(ua) || !/Safari\//.test(ua) || /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|FBAN|FBAV|Instagram/.test(ua)) return false;
   if (navigator.standalone === true) return false;
   try { if (matchMedia("(display-mode: standalone)").matches) return false; } catch (e) {}
-  try {
-    if (localStorage.getItem(HOME_TIP_KEY)) return false;
-    const n = Number(localStorage.getItem(HOME_TIP_SHOWN)) || 0;
-    if (n >= 3) return false;
-    localStorage.setItem(HOME_TIP_SHOWN, String(n + 1));
-  } catch (e) { return false; }
+  try { if (localStorage.getItem(HOME_TIP_KEY)) return false; } catch (e) { return false; }
   return true;
 }
 // a phone's menu page scrolls (held upright, or a long one held sideways): a new page opens at its top
@@ -56479,14 +56615,14 @@ function syncHomeTip() {
   if (homeTipOn === null) homeTipOn = homeTipWanted();
   let el = $("homeTip");
   if (!homeTipOn) { if (el) el.remove(); return; }
-  if (el) return;
+  if (el) { homeTipSeen(el); requestAnimationFrame(() => homeTipSeen(el)); return; }
   el = document.createElement("div");
   el.id = "homeTip";
   el.className = "homeTip";
   el.setAttribute("role", "note");
   el.innerHTML = '<svg class="ic htShare" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 6.6 12 3l4 3.6M8.6 9.5H6.5v10.5h11V9.5h-2.1" ' +
     'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-    "<p><b>Add Highland Stand to your Home Screen</b> to play full screen. Tap Share in Safari's bar, then Add to Home Screen.</p>" +
+    "<p><b>Add Highland Stand to your Home Screen</b> to play full screen. Tap Share (or ••• then Share), then Add to Home Screen.</p>" +
     '<button type="button" class="htX" aria-label="Close the Home Screen tip">' + icon("close") + "</button>";
   el.querySelector(".htX").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -56496,6 +56632,14 @@ function syncHomeTip() {
     Snd.play("uiTick");
   });
   overlayEl.appendChild(el);
+  homeTipSeen(el);
+  requestAnimationFrame(() => homeTipSeen(el));
+}
+// the visit the tip is first laid out on a page (the map; a chronicle or a victory page does not show it) spends it
+function homeTipSeen(el) {
+  if (el.hsSeen || !el.isConnected || getComputedStyle(el).display === "none" || overlayEl.classList.contains("hidden")) return;
+  el.hsSeen = true;
+  try { if (!localStorage.getItem(HOME_TIP_KEY)) localStorage.setItem(HOME_TIP_KEY, "shown"); } catch (e) {}
 }
 function showMenu(crest, title, sub, btnText, offerEndless) {
   hideEndingCard();
@@ -60387,7 +60531,10 @@ function togglePause() {
   syncPauseBtn();
   toast(paused ? "Paused" : "Onward!");
 }
-$("pauseBtn").addEventListener("click", togglePause);
+// on a phone Settings lies over most of the field: its Resume (or Pause) also puts it away
+$("pauseBtn").addEventListener("click", () => { togglePause(); if (isPhone()) closeSettings(); });
+// the close button in Settings' title row (shown on a phone only)
+$("setClose").addEventListener("click", (e) => { e.stopPropagation(); closeSettings(); });
 $("hudPause").addEventListener("click", togglePause);
 // Leaving the app (the iPad's app switcher, a call, a closed cover, a hidden tab) pauses the battle, and it stays
 // paused on return, under its banner, until the player resumes it. Two fields are left as they are: one the
@@ -60770,7 +60917,7 @@ const TUT_STEPS = [
         n("catapult") + " stones splash and slow a crowd · " + n("fire") + " slows and burns · " + n("drums") + " make nearby towers faster and stronger.";
     },
     el: () => document.querySelector("#shop .trayPanel") },
-  { id: "spells", freeze: false,
+  { id: "spells", freeze: false, dodge: true,
     html: () => "<b>Spells</b>: tap or click one (or press Q, W, E), then tap or click the field where it should strike. Try one now.",
     el: () => $("spellbar"), halo: () => [...document.querySelectorAll("#spellbar .spell[data-spell]")],
     done: () => tut.ev.spell },
@@ -60802,6 +60949,23 @@ const TUT_STEPS = [
 ];
 
 let coachEl = null, coachRing = null, coachHalos = [];
+// On a phone the bubble's buttons answer only a press that began on them, and none in the first 350 ms after the
+// bubble came up on a new step: the tap that ends a step (a spell cast on the field beside the bubble) has its own
+// click, and that click must not land on the bubble that moved under the finger (coachDown, coachSettleUntil).
+// A keyboard's press (a click with no pointer: detail 0) always counts; the iPad and the desktop are unchanged
+let coachDown = null, coachSettleUntil = 0, coachSkipT = 0;
+document.addEventListener("pointerdown", (e) => {
+  coachDown = coachEl && coachEl.contains(e.target) ? e.target.closest("button") : null;
+}, true);
+function coachPress(btn, e) {
+  if (!isPhone() || e.detail === 0) return true;
+  return coachDown === btn && performance.now() >= coachSettleUntil;
+}
+function coachSkipReset() {
+  clearTimeout(coachSkipT);
+  const skip = coachEl && coachEl.querySelector(".cSkip");
+  if (skip && skip.classList.contains("confirm")) { skip.classList.remove("confirm"); skip.textContent = "Skip tutorial"; }
+}
 function buildCoach() {
   if (coachEl) return;
   coachEl = document.createElement("div");
@@ -60814,8 +60978,23 @@ function buildCoach() {
     '<div class="cFoot"><button type="button" class="btn cNext">Next</button></div>';
   // taps on the bubble are the bubble's own: they never reach the field under it
   for (const t of ["pointerdown", "pointerup", "click"]) coachEl.addEventListener(t, e => e.stopPropagation());
-  coachEl.querySelector(".cSkip").addEventListener("click", () => { Snd.play("uiTick"); endTutorial(true); });
-  coachEl.querySelector(".cNext").addEventListener("click", () => { Snd.play("mapSelect"); tutAdvance(); });
+  const skip = coachEl.querySelector(".cSkip");
+  skip.addEventListener("click", (e) => {
+    if (!coachPress(skip, e)) return;
+    // on a phone the first tap asks again, as Sell does: a finger aimed at the field beside the bubble never ends
+    // the lesson by itself
+    if (isPhone() && !skip.classList.contains("confirm")) {
+      Snd.play("uiTick");
+      skip.classList.add("confirm");
+      skip.textContent = "Tap again to skip";
+      clearTimeout(coachSkipT);
+      coachSkipT = setTimeout(coachSkipReset, 3000);
+      return;
+    }
+    coachSkipReset();
+    Snd.play("uiTick"); endTutorial(true);
+  });
+  coachEl.querySelector(".cNext").addEventListener("click", (e) => { if (!coachPress(e.currentTarget, e)) return; Snd.play("mapSelect"); tutAdvance(); });
   coachRing = document.createElement("div");
   coachRing.id = "coachRing";
   document.body.appendChild(coachRing);
@@ -60860,6 +61039,7 @@ function tutIdleNudge() {
 function endTutorial(skipped) {
   if (!tut) return;
   tut = null;
+  coachSkipReset();
   setTutorialState("1");
   if (coachEl) coachEl.classList.remove("on");
   if (coachRing) coachRing.classList.remove("on");
@@ -60896,46 +61076,92 @@ function tutInsets() {
 function rectsMeet(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
 // the bubble beside its target: above, below, right or left, the first side where it fits on screen
 // without covering the target; failing that, the side that covers least
-function placeCoach(T, prefer) {
-  const W = window.innerWidth, H = window.innerHeight, ins = tutInsets(), m = 10;
-  const bw = coachEl.offsetWidth, bh = coachEl.offsetHeight;
+function placeCoach(T, prefer, dodge) {
+  const W = window.innerWidth, H = window.innerHeight, ins = tutInsets(), m = 10, phone = isPhone();
+  // on a phone the bubble keeps its own width again before it is measured (it may have been narrowed below)
+  if (phone && coachEl.style.width) coachEl.style.width = "";
+  let bw = coachEl.offsetWidth, bh = coachEl.offsetHeight;
   const area = { l: ins.l + m, t: ins.t + m, r: W - ins.r - m, b: H - ins.b - m };
+  // on a phone the header's buttons stay uncovered: the bubble keeps below the header
+  if (phone) area.t = Math.max(area.t, $("topbar").getBoundingClientRect().bottom + 4);
   const ptr = coachEl.querySelector(".cPtr");
   if (!T) {
     coachEl.style.left = Math.round((W - bw) / 2) + "px";
-    coachEl.style.top = Math.round(Math.max(area.t + 60, H * 0.3 - bh / 2)) + "px";
+    coachEl.style.top = Math.round(Math.max(area.t + (phone ? 0 : 60), H * 0.3 - bh / 2)) + "px";
     ptr.style.display = "none";
     return;
   }
   const gap = 18, cx = (T.l + T.r) / 2, cy = (T.t + T.b) / 2;
-  const clampX = x => Math.max(area.l, Math.min(area.r - bw, x));
-  const clampY = y => Math.max(area.t, Math.min(area.b - bh, y));
-  const sides = [
-    ["above", clampX(cx - bw / 2), T.t - gap - bh],
-    ["below", clampX(cx - bw / 2), T.b + gap],
-    ["right", T.r + gap, clampY(cy - bh / 2)],
-    ["left", T.l - gap - bw, clampY(cy - bh / 2)],
-  ];
-  if (prefer) sides.sort((a, b) => prefer.indexOf(a[0]) - prefer.indexOf(b[0]));
-  let pick = null, least = 1e12;
   const pad = { l: T.l - 4, t: T.t - 4, r: T.r + 4, b: T.b + 4 };
-  for (const [side, x, y] of sides) {
-    const R = { l: x, t: y, r: x + bw, b: y + bh };
-    const inside = R.l >= area.l - 0.5 && R.r <= area.r + 0.5 && R.t >= area.t - 0.5 && R.b <= area.b + 0.5;
-    if (inside && !rectsMeet(R, pad)) { pick = [side, x, y]; break; }
-    // a side that does not fit is pulled on screen, and scored by how much of the target it then hides
-    const cxl = Math.max(area.l, Math.min(area.r - bw, x)), cyl = Math.max(area.t, Math.min(area.b - bh, y));
-    const C = { l: cxl, t: cyl, r: cxl + bw, b: cyl + bh };
-    const ov = Math.max(0, Math.min(C.r, pad.r) - Math.max(C.l, pad.l)) * Math.max(0, Math.min(C.b, pad.b) - Math.max(C.t, pad.t));
-    if (ov < least) { least = ov; pick = [side, cxl, cyl]; }
+  const choose = () => {
+    const clampX = x => Math.max(area.l, Math.min(area.r - bw, x));
+    const clampY = y => Math.max(area.t, Math.min(area.b - bh, y));
+    const sides = [
+      ["above", clampX(cx - bw / 2), T.t - gap - bh],
+      ["below", clampX(cx - bw / 2), T.b + gap],
+      ["right", T.r + gap, clampY(cy - bh / 2)],
+      ["left", T.l - gap - bw, clampY(cy - bh / 2)],
+    ];
+    if (prefer) sides.sort((a, b) => prefer.indexOf(a[0]) - prefer.indexOf(b[0]));
+    let pick = null, least = 1e12;
+    for (const [side, x, y] of sides) {
+      const R = { l: x, t: y, r: x + bw, b: y + bh };
+      const inside = R.l >= area.l - 0.5 && R.r <= area.r + 0.5 && R.t >= area.t - 0.5 && R.b <= area.b + 0.5;
+      if (inside && !rectsMeet(R, pad)) return { pick: [side, x, y], clean: true };
+      // a side that does not fit is pulled on screen, and scored by how much of the target it then hides
+      const cxl = Math.max(area.l, Math.min(area.r - bw, x)), cyl = Math.max(area.t, Math.min(area.b - bh, y));
+      const C = { l: cxl, t: cyl, r: cxl + bw, b: cyl + bh };
+      const ov = Math.max(0, Math.min(C.r, pad.r) - Math.max(C.l, pad.l)) * Math.max(0, Math.min(C.b, pad.b) - Math.max(C.t, pad.t));
+      if (ov < least) { least = ov; pick = [side, cxl, cyl]; }
+    }
+    return { pick, clean: false };
+  };
+  let got = choose();
+  // on a phone a bubble too wide for the room beside its target (the tower panel's sheet) is narrowed to that
+  // room, down to 200 px, and wraps taller instead of lying over what it talks about
+  if (!got.clean && phone) {
+    const room = Math.floor(Math.max(T.l - gap - area.l, area.r - (T.r + gap)));
+    if (room >= 200 && room < bw) {
+      coachEl.style.width = room + "px";
+      const nh = coachEl.offsetHeight;
+      if (nh <= area.b - area.t) { bw = coachEl.offsetWidth; bh = nh; const g2 = choose(); if (g2.clean) got = g2; else coachEl.style.width = "", bw = coachEl.offsetWidth, bh = coachEl.offsetHeight; }
+      else coachEl.style.width = "";
+    }
   }
-  const [side, x, y] = pick;
+  let [side, x, y] = got.pick;
+  // a bubble beside a tall target on a phone (the spells' column) slides along it to where it hides the fewest
+  // foes and the least road, and keeps that place unless another is clearly better (checked twice a second)
+  if (dodge && phone && (side === "right" || side === "left") && T.b - T.t > 60) y = coachDodgeY(T, x, bw, bh, area, y);
   coachEl.style.left = Math.round(x) + "px";
   coachEl.style.top = Math.round(y) + "px";
   ptr.style.display = "";
   ptr.className = "cPtr " + side;
   if (side === "above" || side === "below") ptr.style.left = Math.round(Math.max(14, Math.min(bw - 28, cx - x - 7))) + "px", ptr.style.top = "";
   else ptr.style.top = Math.round(Math.max(14, Math.min(bh - 28, cy - y - 7))) + "px", ptr.style.left = "";
+}
+let coachDodge = null;
+function coachDodgeY(T, x, bw, bh, area, y0) {
+  // (the bubble's pointer still finds the target: it stands 21 px or more inside the bubble's ends)
+  const lo = Math.max(area.t, T.t - bh + 28), hi = Math.min(area.b - bh, T.b - 28);
+  if (hi <= lo) return y0;
+  const now = performance.now();
+  if (coachDodge && coachDodge.step === tut.i && now - coachDodge.t < 500) return Math.max(lo, Math.min(hi, coachDodge.y));
+  // what lies under a bubble at a given height: each foe counts ten, each stretch of road (20 world units) one
+  const pts = [];
+  for (const e of enemies || []) if (!e.dead && e.hp > 0 && !e.hid) { const c = tutScreen(e.x, e.y); pts.push([c.x, c.y, 10]); }
+  for (const R of ROUTES) for (let i = 0; i < R.pts.length - 1; i++) {
+    const a = R.pts[i], b = R.pts[i + 1], n = Math.max(1, Math.round(R.segLens[i] / 20));
+    for (let k = 0; k < n; k++) { const c = tutScreen(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n); pts.push([c.x, c.y, 1]); }
+  }
+  const cost = yy => { let c = 0; for (const p of pts) if (p[0] >= x - 12 && p[0] <= x + bw + 12 && p[1] >= yy - 12 && p[1] <= yy + bh + 12) c += p[2]; return c; };
+  let best = y0, bc = cost(y0);
+  for (let k = 0; k <= 8; k++) { const yy = lo + (hi - lo) * k / 8, c = cost(yy); if (c < bc - 0.5) { bc = c; best = yy; } }
+  if (coachDodge && coachDodge.step === tut.i) {
+    const keep = Math.max(lo, Math.min(hi, coachDodge.y));
+    if (cost(keep) <= bc + 9.5) best = keep;
+  }
+  coachDodge = { step: tut.i, y: best, t: now };
+  return best;
 }
 function haloOn(els) {
   els = els.filter(Boolean);
@@ -60984,6 +61210,8 @@ function coachTick() {
       const tgt = S.el && S.el();
       if (tgt) { tgt.classList.remove("nudge"); void tgt.offsetWidth; tgt.classList.add("nudge"); setTimeout(() => tgt.classList.remove("nudge"), 2400); }
     }
+    // a new step: on a phone its buttons take no press for 350 ms (coachPress)
+    if (!tut.shown || !coachEl.classList.contains("on")) coachSettleUntil = performance.now() + 350;
     tut.shown = key;
     coachEl.querySelector(".cStep").textContent = (tut.i + 1) + " / " + TUT_STEPS.length;
     coachEl.querySelector(".cText").innerHTML = S.html();
@@ -61009,7 +61237,7 @@ function coachTick() {
     if (r.width) T = { l: r.left, t: r.top, r: r.right, b: r.bottom };
   }
   haloOn(S.halo ? S.halo() : [el].concat(S.also ? S.also() : []));
-  placeCoach(T, S.prefer);
+  placeCoach(T, S.prefer, S.dodge);
 }
 
 // ---------- nardi ----------
