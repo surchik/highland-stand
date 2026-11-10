@@ -1144,3 +1144,441 @@ call, `hs_stats(days)`, and the page draws it. A period switch (7, 30, 90 days).
 | Switches | `config` | the gate (`required`, `optional`, `off`), boards and daily on or off, the events cap and sample, **Remove events older than 180 days** |
 
 Visits from `/next/` (`channel: "next"`) are left out of every card.
+
+---
+
+## 8. Privacy and the providers' rules
+
+### 8.1 The privacy page (`?privacy`)
+
+`#privacyPage` is **static HTML in the body** (`<section id="privacyPage" hidden>`), not text built by script:
+a provider's reviewer, a crawler, or a browser with scripts off can read it at
+`https://highland.avunjian.com/?privacy`. With `?privacy` in the address the page shows it over everything
+(`z-index: 70`), skips the gate, and starts no sound; **Back to the game** goes to the plain address. It is also
+reached from the gate's small print, the Account tab and the stats page. Its deletion part has the id `delete`
+(`?privacy#delete` is the link the providers ask for). The words (the owner fills the three bracketed places
+and should have the page read by someone who knows his country's law; this spec is not legal advice):
+
+> **Privacy**
+>
+> Highland Stand is a free game made by [owner's name]. Write to [contact email] about anything on this page.
+>
+> **What we keep when you sign in**
+>
+> - Your account: the email address, name and picture address that Google, Facebook or Discord gives our
+>   server when you sign in. We need the email so the same person gets the same account. The game never
+>   shows your email, your real name or your picture, and we never write to you.
+> - A player name you choose. It is shown on the leaderboards.
+> - Your progress: the battlefields you have held, your stars, and the battle you are in the middle of.
+> - Your scores.
+>
+> **What we count**
+>
+> We count what happens in the game: pages opened, battles begun, won and lost, towers built, and where
+> players stop. Each count carries a random number kept in your browser, the kind of device (phone, tablet
+> or desktop), its system, the size of its window, your language, and the name of the site you came from.
+> Once you sign in, your counts are tied to your account. We use them only to make the game better. The
+> game's database does not store your IP address.
+>
+> **What we do not do**
+>
+> No ads. No trackers from other companies. No cookies. We do not sell or share what we keep. We cannot post
+> to your Google, Facebook or Discord account or read anything in it.
+>
+> **Where it is kept**
+>
+> On the game's own server in [country]. In your browser: your progress, your sign-in and the random number,
+> in this site's storage.
+>
+> **How long**
+>
+> Your account, name, progress and scores: until you delete your account. Counts: 180 days.
+>
+> **How to delete your data**
+>
+> In the game, open the Hall from the campaign map, choose Account, then Delete my account. Your account,
+> name, progress, scores and counts are removed from our server at once. Or write to us from the address you
+> signed in with. To remove what is in your browser, sign out, or clear this site's data in your browser.
+> To end the game's access to your sign-in: in your Google Account under Security, in Facebook's settings
+> under Apps and Websites, or in Discord's settings under Authorized Apps.
+>
+> **Children**
+>
+> The game's accounts are for players 13 and older. If you believe a younger child has an account here,
+> write to us and we will delete it.
+>
+> **Changes**
+>
+> When the game changes what it keeps, this page changes first. Last changed: [date].
+
+`deploy/check-page.js` gains nothing for it; a selftest check holds the page to having `#privacyPage` with its
+`#delete` part (10.5).
+
+### 8.2 What each provider wants before its button works for everyone
+
+The callback address for all three is `https://<the Supabase host>/auth/v1/callback` **[V]**. The secrets go
+only into the Supabase `.env` on the server (9.2).
+
+| | Google | Facebook (Meta) | Discord |
+| --- | --- | --- | --- |
+| where | Google Cloud console: a project, then "OAuth consent screen" (Google Auth Platform) and Credentials | developers.facebook.com: an app with the use case "Authenticate and request data from users with Facebook Login" | discord.com/developers: an application, its OAuth2 page |
+| what to fill | app name, support email, audience External; an OAuth client of type Web application with the callback as its authorized redirect URI; home page `https://highland.avunjian.com`, privacy link `https://highland.avunjian.com/?privacy`, authorized domain `avunjian.com` | the callback under Facebook Login, Settings, "Valid OAuth Redirect URIs"; the `email` permission added beside `public_profile` **[V]**; in Basic settings: an app icon, a category, the Privacy Policy URL, and under User data deletion the instructions address `https://highland.avunjian.com/?privacy#delete` (Meta accepts either a callback or an instructions address **[V]**) | the callback under OAuth2, Redirects **[V]**; optional privacy and terms links on the application's page |
+| before the public can use it | press **Publish app** so the status is "In production". In "Testing" only listed test users (100 at most) can sign in **[V]**. With only the email and profile scopes, which is all Supabase asks for, Google's verification is not required; it is required to show an app name and logo on Google's screen **[V]**. Without it Google's screen names the Supabase host, not the game. | switch the app from Development to **Live**. In Development only people with a role on the app can sign in **[V]**. Whether Meta asks for business verification or App Review for the `email` permission differs by account **[U]**; the Supabase guide says apps asking only for `public_profile` and `email` can often go live without a detailed review **[V as their statement]**. | nothing: sign-in with the `identify` and `email` scopes needs no review **[U]** |
+| traps | Google refuses sign-in inside other apps' browsers **[V]** (1.6). Its brand rules: the standard-color G on a white, dark or neutral button, the words "Sign in with Google" or "Continue with Google", shown no less prominently than the other buttons **[V]**; they also name Google's own typeface for the words, which the game does not load (no third-party requests): relevant only if brand verification is ever sought. | a Facebook account made with a phone number has no email, and Supabase then refuses the sign-in unless `GOTRUE_EXTERNAL_FACEBOOK_EMAIL_OPTIONAL=true` is set (9.2) **[V in the Auth server's source; U on the owner's installed version]** | a Discord account whose email is not verified gives none: set `GOTRUE_EXTERNAL_DISCORD_EMAIL_OPTIONAL=true` the same way |
+| age | accounts from 13 (higher in some countries; younger only as supervised accounts) **[U]** | from 13 **[U]** | from 13 (higher in some countries) **[U]** |
+
+**Children under 13.** All three providers set their own floor at 13 or above, so the gate says "For players
+13 and older" and the game asks no age itself. What the owner should weigh: with `required`, a child under 13,
+or a classroom without accounts, cannot play at all. `optional` lets them play as guests with nothing stored
+on the server but anonymous counts. The switch is one tap on the stats page.
+
+---
+
+## 9. The owner's setup guide, and the staging channel
+
+### 9.1 The guide
+
+`docs/specs/platform/setup-guide.md` is the full text of `deploy/supabase/README.md`, written for a
+non-engineer: each step says what to click or paste and what should be seen after. Its steps:
+
+1. Give the Supabase a public https address (a name such as `supabase.avunjian.com`, its DNS record, a
+   reverse-proxy block for Caddy or nginx, three lines of Supabase's `.env`), and check it answers.
+2. Make the three provider apps, each with the one callback address.
+3. Put each provider's id and secret into Supabase's `.env` and switch the providers on in
+   `docker-compose.yml`; restart the Auth service; check `/auth/v1/settings` lists them.
+4. Run `schema.sql` in the Studio's SQL editor.
+5. Hand over the two public values (the address and the anon key). Never the service key or the JWT secret.
+6. Sign in once on `/next/`, then make yourself an admin with one line of SQL.
+7. Open `/next/?stats` and press Publish ruleset.
+8. The sign-in checklist (every provider on a desktop browser, iPhone Safari, the iPhone Home Screen app, an
+   iPad, an Android phone, a link opened inside Facebook's app; a second device resumes; sign out; delete the
+   account; stop the Auth service and see "Sign-in is not answering" with Play now working).
+9. Going live, and the upkeep: backups, the weekly look at flagged scores, the words to refuse in names,
+   removing old events.
+
+### 9.2 Where each secret goes
+
+| secret | where it lives | never |
+| --- | --- | --- |
+| Google, Facebook and Discord client secrets | the Supabase folder's `.env` on the VPS, as `GOOGLE_SECRET`, `FACEBOOK_SECRET`, `DISCORD_SECRET`, passed to the Auth service by lines in `docker-compose.yml` (`GOTRUE_EXTERNAL_<PROVIDER>_ENABLED`, `_CLIENT_ID`, `_SECRET`, `_REDIRECT_URI`, and for Facebook and Discord `_EMAIL_OPTIONAL: "true"`) **[V]** | in the repository, the page, a chat, an email |
+| the JWT secret, the service role key, the database password | already in that `.env`; nothing here needs them | anywhere else |
+| the anon key and the Supabase address | **public**: in `index.html` (`HS_SUPABASE_ANON_KEY`, `HS_SUPABASE_URL`) | |
+
+The provider ids (not secrets) sit beside their secrets in the same `.env`. After a change:
+`sh run.sh recreate auth` in the Supabase folder (older installs: `docker compose up -d --force-recreate
+auth`), then `curl -H "apikey: <anon key>" https://<host>/auth/v1/settings` must show the three under
+`external` **[V]**.
+
+### 9.3 The staging channel: branch `next` at `/next/`
+
+**The script.** `docs/specs/platform/update.sh.proposed` replaces `deploy/update.sh`. What changes: the two
+flows are functions (`publish_master`, exactly today's steps, and `publish_next`), each run in a subshell
+with `set -e`, and the script exits with the master flow's status, so nothing the staging channel does can
+change what the live page does or reports. `publish_next`:
+
+- asks the remote for the branch (`git ls-remote --heads origin next`). No answer: leave `/next/` as it is.
+  No such branch: remove `$WEB/next/` (and say so once).
+- the same commit as last published (`.git/hs-next-live`) or last refused (`.git/hs-next-rejected`): nothing.
+- else fetches it, reads `index.html` and `og.jpg` out of the commit with `git show` (**the clone's checkout
+  stays on master**), runs `deploy/check-page.js` on that page, and publishes to `$WEB/next/` with the same
+  write-then-rename as the live page. A page that fails is logged once and `/next/` stays as it was.
+
+The cron line and `setup-server.sh` do not change. The run that pulls the new script is still the old one (the
+header of `update.sh` explains why), so `/next/` appears on the run after: within four minutes of the push.
+Both web servers of `setup-server.sh` serve it as it lies: nginx by `try_files $uri $uri/ /index.html`, Caddy
+by `file_server` **[V in the repository's own configs; U on the live server's actual config]**.
+
+**Testing the script safely.** `bash docs/specs/platform/test-update.sh path/to/update.sh` builds a bare
+"origin", a clone and a web root in a temporary folder (the script honors `HS_REPO` and `HS_WEB`), and walks
+six cases: no branch `next`; a branch published at `/next/` with the live page untouched and the clone still
+on master; a broken page on `next` refused once while master still goes out on the same run; `next` mended;
+a broken master refused while `/next/` is still served, then mended; the branch deleted and `/next/` removed.
+It passes on the proposed script here. It goes into the repository as `tools/platform/test-update.sh`.
+
+**The page on `/next/`.** Same origin as the live game, so three things are needed in the page, all in PF-0:
+
+1. *Its own storage.* Before anything reads a save:
+
+   ```js
+   // A page served from /next/ shares its origin, and so its storage, with the live game. It keeps everything
+   // under names of its own: every key is stored with "next:" before it. Nothing else in the file knows.
+   const HS_CHANNEL = /^\/next(\/|$)/.test(location.pathname) ? "next" : "live";
+   if (HS_CHANNEL === "next" && !HARNESS_ON && typeof Storage !== "undefined" && window.localStorage instanceof Storage) {
+     const real = window.localStorage, P = "next:";
+     const own = () => { const ks = []; for (let i = 0; i < real.length; i++) { const k = real.key(i); if (k && k.startsWith(P)) ks.push(k.slice(P.length)); } return ks; };
+     Object.defineProperty(window, "localStorage", { configurable: true, value: {
+       getItem: k => real.getItem(P + k),
+       setItem: (k, v) => real.setItem(P + k, v),      // the quota guard above still applies
+       removeItem: k => real.removeItem(P + k),
+       key: i => { const ks = own(); return i < ks.length ? ks[i] : null; },
+       get length() { return own().length; },
+     } });
+   }
+   ```
+   It sits after the storage fallback (line 3139): when storage has already fallen back to memory there is
+   nothing to separate. The cloud's hook (4.2) wraps this object's methods as it wraps the fallback's.
+2. *Its own mark.* A thin ribbon at the top left of every page: "Staging build · your saves here are separate".
+   `<meta name="robots" content="noindex">` is added by script. Analytics carry `channel: "next"` and are left
+   out of the stats.
+3. *The same Supabase, its own ruleset.* A staging build signs in against the same Supabase (the redirect
+   back to `/next/` is allowed because the host is the `SITE_URL`'s, 1.2). An account is the same account on
+   both channels, but **saves are not**: the staging page stores its save document in the account's row only
+   when the channel is live. On `/next/` cloud saves run against a separate document: `hs_save_get` and
+   `hs_save_put` are called with `p_device` starting `next:` and the page keeps the staging document under
+   the key `"next"` inside `data` (`{ v, at, ..., next: { ...the staging document... } }`), never touching the
+   live part. Scores from `/next/` post only if its ruleset id differs from the live one (the page refuses to
+   post to a ruleset whose `hs_sessions.channel` history it cannot see; simply: on `/next/` the ruleset id sent
+   is `RULESET + "-next"`, and the admin publishes that).
+
+---
+
+## 10. Tests
+
+### 10.1 The local stack (`tools/platform/stack.js`)
+
+One Node process (no dependency but `pg`, installed under `tools/platform/node_modules` by `npm install`,
+which the README names) that gives a page everything the real Supabase gives it, on `http://127.0.0.1:<port>`:
+
+- **PostgreSQL.** On this machine the system's own PostgreSQL 16 server is installed
+  (`/usr/lib/postgresql/16/bin`), and the stack uses it: `initdb` and `pg_ctl` run as the `postgres` user
+  (`runuser -u postgres --`; PostgreSQL refuses to run as root) on a data folder under `/var/tmp/hs-stack`
+  (**not** under the session's scratch folder, which the `postgres` user cannot enter: that is what failed
+  when `embedded-postgres` was tried there). Where no system server exists the stack falls back to the npm
+  package `embedded-postgres` installed under `/var/tmp/hs-stack` with `createPostgresUser: true`. It then
+  loads `standins.sql` and `deploy/supabase/schema.sql`. The versions differ from the owner's (Supabase ships
+  PostgreSQL 15 or 17); the schema uses nothing version-bound.
+- **A stand-in for PostgREST** at `/rest/v1/rpc/<fn>`: checks the `apikey` header, reads the bearer token
+  (the anon key, or a JWT signed with the stack's test secret), and runs the call **as PostgREST does**: in one
+  transaction, `set local role anon|authenticated`, `set_config('request.jwt.claims', <the claims>, true)`,
+  then `select public.<fn>(<named arguments>)` with the JSON body's keys as argument names. So row level
+  security and the grants are enforced for real, by the database. Errors are mapped as PostgREST maps them
+  (`P0001` 400, `42501` 401 or 403, `PT429` 429) with the same JSON. It answers `OPTIONS` as the gateway does.
+- **A stand-in for Auth** at `/auth/v1`: `/settings`, `/authorize` (stores the challenge, sends the browser
+  to the fake provider), `/callback` (finds or makes the `auth.users` row by email, issues a one-time code,
+  sends the browser back with `?code=` or with `error` in the query and after `#`), `/token?grant_type=pkce`
+  (checks the verifier against the challenge with SHA-256; a code works once and for 5 minutes),
+  `/token?grant_type=refresh_token` (rotation; a used token works again for 10 seconds, then ends the
+  session), `/user`, `/logout`. Open routes need no `apikey`, the others do, as on the gateway.
+- **A fake provider** at `/provider/authorize`: a page of test people ("Aram", "Bagrat", "a Facebook account
+  with no email", "cancel", "provider error"); a control call lets a test pick one without a click.
+- **The page itself** at `/` and `/next/` (the file under test, read from disk each time), so the origin and
+  the redirect are real.
+- **Controls** for tests, under `/__test/`: Auth down (every Auth route answers 503 or hangs), PostgREST
+  down, the server's clock moved, a session's tokens expired, a run's start moved back (the SQL test's trick,
+  for score checks), the database emptied.
+
+The page under test gets the stack's address through `window.__HS_PLATFORM_TEST = { url, anonKey, gate }`,
+set by Playwright's `addInitScript`; PF-MAIN reads it **only when `location.hostname` is `127.0.0.1` or
+`localhost`**, so it means nothing on the live site. The JWT secret in the stack is a test value named as one.
+
+### 10.2 SQL tests (`tools/platform/sql-tests.js`)
+
+`schema-test.sql` grown into a suite run against the stack's database, one case per rule, each as the three
+callers (a visitor, a player, an admin) where it applies:
+
+- every `hs_` table: row level security is on; a visitor reads and writes nothing; a player reads only his
+  own rows on the five tables and writes none; no `hs_` function is executable by `PUBLIC`; every definer
+  function pins `search_path`;
+- names: each refusal, folding, uniqueness, the weekly limit, the first-10-minutes grace, the blocklist;
+- saves: first write, versions, a stale write gets the stored document back, two devices racing a first
+  write, size and shape refusals, the rate limit;
+- runs and scores: each refusal of 2.5 by name; the score arithmetic against the page's `scoreOf` for a
+  table of inputs (the same table is in the selftest); best-of per board; this week's key across a Sunday
+  midnight UTC; ranks with ties; a hidden player; a removed score restores the next best; Standard and Open
+  are different boards; rulesets do not mix;
+- the daily: the pick equals the page's for every day of a year and three pool sizes; a wrong battlefield or
+  twist; three attempts; a lost attempt's score; yesterday's board;
+- analytics: batch limits, bad names, a borrowed session id, the per-device and overall caps, the account
+  joined to a session at sign-in; `hs_stats` for a small made-up history with known answers (funnel counts,
+  day 1 and day 7, quits with and without `battle_back`, win rate and defenders kept per battlefield);
+- the handoff: once, expiry, bad ids; account deletion: every row of one player gone, the other untouched.
+
+### 10.3 Playwright flows (`tools/regress/platform.js`)
+
+It starts the stack itself, plays the page over `http://127.0.0.1`, and follows the suite's conventions
+(`lib.js`: presses where things are drawn, page and console errors fail, a `RESULT` line, `--quick`,
+`--shots`). Sizes: 1600 x 900 by mouse, 1194 x 834 by touch, and the iPhone sizes of `iphone.js` (667 x 320,
+852 x 393 with insets, 393 x 659) by touch with its audit (`iphone-audit.js`: every control on screen, out
+of the safe areas, 44 px to a finger, text at least 11 px, nothing covered). The flows:
+
+1. **Gate.** A fresh visitor sees the sign-in card and nothing of the game answers a tap or a key; the three
+   buttons, the privacy link and back; a provider switched off on the server has no button; an in-app
+   browser's user agent hides Google and shows the note.
+2. **Sign-in.** Google, then Facebook, then Discord through the fake provider: the address is clean after
+   the return, the name card refuses a taken and a bad name, the welcome card leads with "Begin: Erebuni Rise".
+3. **Errors.** The provider cancels; the provider errors; the code is used twice; the verifier is missing.
+   After two the card offers Play now.
+4. **Play and save.** The tutorial's first waves, a wave cleared, the page closed: the server holds a save
+   whose run is that battle (read back through the stack's database).
+5. **A second device.** A second browser context signs in as the same person: the welcome card says "Resume:
+   Erebuni Rise, Wave 3"; resuming continues that battle. Both contexts then play different battles offline
+   and come back: the "Two battles in progress" choice appears and each answer does what it says.
+6. **A guest's progress.** A context with today's local saves (the `hs_` keys of a player who has won five
+   battlefields) signs in to a new account: all of it is in the account; signs in to an account that has
+   other progress: the best of both.
+7. **Score and board.** A victory staged as the suite's `vic.js` stages one (the last wave's cleared field;
+   the run's start moved back through the control): the strip shows the score and "#1 this week"; the Hall's
+   board lists the player; a second player's lower score ranks second; Standard and Open differ.
+8. **Daily.** Today's battlefield and twist match the server's; three attempts; the board; the day changes
+   (the clock control) and the challenge with it.
+9. **Share card.** With `navigator.share` and `canShare` stubbed: the tap shares a JPEG file of 1200 x 630
+   whose text carries the score; without them the sheet's Save, Copy picture and Copy text each work.
+10. **Stats.** A player is refused; an admin sees the funnel of the flows above with the right counts,
+    publishes a ruleset, switches the gate to `optional`, and a fresh context then has Play as a guest.
+11. **Auth down.** With Auth down a fresh visitor gets "Sign-in is not answering" and Play now, plays, and
+    on a later visit with Auth up signs in and keeps what he won. A signed-in player with Auth down goes
+    straight to his welcome card and plays; his save goes up when the service returns.
+12. **The Home Screen app.** Two contexts stand for the app and Safari: the app starts a sign-in, the return
+    lands in the other context, the handoff brings the code back, the app is signed in.
+13. **Sign out, delete.** Sign-out clears the device; "Delete my account" empties the database of that
+    player and returns to the gate.
+14. **Staging.** The page at `/next/` signs in, keeps its saves under `next:`, and a context on `/` sees none
+    of it.
+
+### 10.4 Unit checks in Node (`tools/platform/unit.js`)
+
+The pure parts of PF-MAIN are written between two marker comments (`// ==== PLATFORM PURE BEGIN ====` and
+`END`), as the town's simulation is, so a Node script loads them without a browser: `Cloud.merge` (a table
+of cases per rule, and the run rule's six), `scoreOf`, `dailyOf`, `sha256` and the PKCE challenge, the name
+check, the event queue's limits. Runs in under a second; `run-all.js` does not need it, the builder does.
+
+### 10.5 What goes into the selftest and the regression suite
+
+**Selftest** (`?selftest=1`; 151 checks, about 122 s of a 125 s budget). The harness turns the platform off,
+so nothing of it runs there and no existing check changes. Added, all pure and synchronous, **together under
+50 ms** (measured by the builder and written into the check's comment; the budget is kept, not raised):
+
+1. `Cloud.merge`: one case per rule and the run rule's cases;
+2. `scoreOf` for the vector 20 of 20, 600 s, 900 of 3,000 gives 8,800, and a lost daily under 4,000;
+3. `dailyOf` for three fixed dates;
+4. `sha256` and the challenge of RFC 7636's example verifier;
+5. the `RULESET` pin (5.2);
+6. `#privacyPage` exists with its `#delete` part, and `#gate` is not shown under the harness;
+7. gameplay's `track` calls: after a staged battle `window.__hsEv` holds a `battle_start`, a `wave_end` and a
+   `victory` with every property of 7.2 (this one belongs to the gameplay track's checks).
+
+Anything that needs a network, a clock or the stack stays out of the selftest.
+
+**Regression suite.** The nine scripts load the page from `file://`, where the platform is off: they pass
+unchanged, and that is itself the proof that the platform changes nothing when off. `platform.js` joins
+`run-all.js` as the tenth script (limit 900 s; `--quick` runs flows 1, 2, 4, 5, 7 and 11 at 1600 x 900 and
+667 x 320). `tools/regress/README.md` gets its row. `iphone.js` is not changed; the new pages are held to its
+bar by `platform.js` using the same audit.
+
+**Before every merge to master:** `node deploy/check-page.js index.html`, `timeout 900 node tools/selftest.js`,
+`run-all.js --quick`, `node tools/platform/unit.js`, `node tools/platform/sql-tests.js`,
+`bash tools/platform/test-update.sh deploy/update.sh`.
+
+---
+
+## 11. The build
+
+### 11.1 Work packages
+
+Each ends with the suite green (10.5). P0 to P4 need nothing from gameplay; P5 and P6 need what 0.3 lists.
+
+| WP | what | done when |
+| --- | --- | --- |
+| **P0 Seam** | PF-0 (the constants, `track`, `CLOUD_KEYS`, `HALL_TABS`, the staging namespace), `Platform` with `boot`, `blocking`, `victoryPage`, `defeatPage` as no-ops, the lines of 0.4 | the page behaves byte for byte as before with the constants empty: selftest, check-page and `run-all --quick` pass; `/next/` in the stack keeps its keys under `next:` |
+| **P1 Stack and schema** | `deploy/supabase/schema.sql`, `tools/platform/stack.js`, `sql-tests.js`, `unit.js` | the SQL suite passes on the stack; a `curl` session against the stack signs in through the fake provider and calls `hs_profile_get` |
+| **P2 Sign-in and the gate** | section 1 and section 3: PKCE, the session, refresh, sign-out, the handoff, the gate's seven states in three layouts, the name card, the switch and `hs_config` | flows 1, 2, 3, 11, 12 pass at every size; with Auth down nobody is locked out; the address never keeps a code |
+| **P3 Cloud saves** | section 4: the document, the hook, pull and push, merge, the run rule and its prompt, the guest's migration, the stash, the Account tab's sync line | flows 4, 5, 6, 13 pass; `Cloud.merge` cases pass in `unit.js` and the selftest; a save made by today's game (the suite's migration fixtures) uploads whole |
+| **P4 Analytics and stats** | section 7: the queue, batching, the platform's events, `?stats` with every card | flow 10 passes; the funnel of a scripted first visit has the right count at each step; nothing is sent on `file://` |
+| **P5 Scores and boards** | 5.1 to 5.5: the run token, posting, the outbox, the victory strip, the Hall with Leaderboards and Account, the doors on every layout, publishing a ruleset | flow 7 passes at every size; the strip shows each state of 5.3; `vic.js` and `iphone.js` still pass unchanged |
+| **P6 Daily** | 5.6 with gameplay's twists and `startDaily` | flow 8 passes; the page's pick equals the server's for a year of days |
+| **P7 Share card** | section 6 | flow 9 passes; the picture is checked by eye at the three layouts for a short and a long battlefield name, a daily and a guest |
+| **P8 Privacy, deletion, the guide, staging** | section 8's page, "Delete my account", `deploy/supabase/README.md`, `deploy/update.sh` with `/next/`, `tools/platform/test-update.sh` | flows 13 and 14 pass; `test-update.sh` passes; the guide's commands were each run against the stack or marked as for the owner's server |
+| **P9 The owner's pass** | on the owner's real Supabase through `/next/`: the guide's checklist on real devices | the checklist is ticked for each provider on a desktop browser, iPhone Safari, the iPhone Home Screen app, an iPad and an Android phone; then `next` is merged to master |
+
+Order: P0, P1, then P2 and P4 side by side, P3, P8, then P5, P6, P7 as gameplay's parts land, P9 last. P0 can
+merge to master on its own day: it changes nothing a player sees and gives gameplay `track` and `CLOUD_KEYS`.
+
+### 11.2 Risks
+
+| risk | what is done about it |
+| --- | --- |
+| The gate turns new players away (the owner chose `required` over the recommended `optional`) | measured from day one (3.2); the switch is one tap; never a lock-out (3.6) |
+| Sign-in in the iPhone Home Screen app behaves differently from what was assumed | the handoff makes every return path work (1.6); flow 12; the owner's checklist on a real iPhone before going live |
+| A provider's review (Meta above all) delays its button | buttons follow `/settings`: launch with the providers that are ready |
+| The owner's Supabase is an older install (routes, env names, the gateway) | the guide's checks after each step; every assumption about it is in section 12 |
+| A merge bug loses progress | merges only ever grow records; `Cloud.merge` is pure and tested three ways; the device keeps its own copy; the previous cloud document is returned on every conflict |
+| Token theft through script injection | no outside script; names only as text; an optional content security policy (11.3) |
+| Forged scores | 2.5: bounds, flags, the admin's buttons; the honest limit is written down |
+| Events fill the disk | caps per device and overall, 180 days kept, sampling switch |
+| Two tracks editing one 4.5 MB file | platform code lives in four marked blocks (0.2); the lines touched outside them are the table of 0.4 |
+| The page's weight and start-up | PF-MAIN is a few thousand lines beside 79,000; `boot` adds at most one 4 s wait, only when the service is slow, and shows the gate's own page while it waits |
+
+### 11.3 If time runs short: what is cut, in this order
+
+1. The optional content security policy (`<meta http-equiv>`: `connect-src` the Supabase host only, no outside
+   scripts). Nice to have; needs care with the sound engine's worklet.
+2. The Open boards (5.4): only standard runs are ranked.
+3. This week's boards: all-time boards only.
+4. The stats page's bars: tables only.
+5. Yesterday's podium and the practice mode of the daily.
+6. The share sheet's Copy picture (Save and Copy text stay).
+7. `hs_pf_stash` (4.6): another account's unsent progress is dropped at sign-in with a warning at sign-out.
+8. The daily challenge as a whole (P6). The boards stand without it.
+9. The share card (P7).
+
+Never cut: the gate with its escape (3.6), the handoff (1.6), cloud saves with the guest's migration, the
+funnel events, row level security and its tests, the privacy page and account deletion.
+
+---
+
+## 12. What was verified, and what was not
+
+**Verified in this session [V]**, with the source:
+
+| what | source |
+| --- | --- |
+| The Auth routes, their parameters and answers: `/authorize` (`provider`, `redirect_to`, `code_challenge`, `code_challenge_method`), `/token?grant_type=pkce` (`auth_code`, `code_verifier`), `/token?grant_type=refresh_token`, `/logout?scope=`, `/user`, `/settings`, `/health` | `supabase/auth` master: `openapi.yaml`, `internal/api/external.go`, `pkce.go`, `token.go` (read from raw.githubusercontent.com) |
+| The challenge must be 43 to 128 characters of `A-Z a-z 0-9 . _ ~ -`; `s256` in any case; the code is good 5 minutes (300 s floor) and once; errors return in the query and after `#` as `error`, `error_code`, `error_description` | the same files; Supabase docs `guides/auth/sessions/pkce-flow.mdx` |
+| `redirect_to` is honored when on `SITE_URL`'s scheme, host and port, or matching `GOTRUE_URI_ALLOW_LIST` globs; else `SITE_URL` | `internal/utilities/request.go`; docs `guides/auth/redirect-urls.mdx` |
+| The server adds the email scope for Google, Facebook and Discord itself; a provider that returns no email fails the sign-in unless `EMAIL_OPTIONAL` is set for it | `internal/api/provider/{google,facebook,discord}.go`, `external.go`, `conf/configuration.go` |
+| Access tokens last 3600 s by default; refresh tokens rotate; reuse within 10 s is allowed, later ends the session | `conf/configuration.go`; docs `guides/auth/sessions.mdx` |
+| Identities with the same verified email are linked to one user | docs `guides/auth/auth-identity-linking.mdx` |
+| Self-hosting: the callback is `https://<host>/auth/v1/callback`; providers are enabled by `GOTRUE_EXTERNAL_*` lines in `docker-compose.yml` fed from `.env`; `SITE_URL`, `ADDITIONAL_REDIRECT_URLS`, `API_EXTERNAL_URL`; `sh run.sh recreate auth`; the check through `/auth/v1/settings`; a reverse proxy to the gateway's port 8000 | `supabase/supabase` master: `docker/.env.example`, `docker/docker-compose.yml`, docs `guides/self-hosting/self-hosted-oauth.mdx`, `self-hosted-proxy-https.mdx` |
+| `/auth/v1/authorize` and `/callback` need no `apikey`; the other Auth routes and `/rest/v1` do; CORS is on | `docker/volumes/api/kong.yml` (the Kong gateway) |
+| PostgREST: `POST /rpc/<fn>` with a JSON object of named arguments; `RAISE` maps to 400, `42501` to 401 or 403, `PTxyz` to status xyz | `PostgREST/postgrest` main: `docs/references/api/functions.rst`, `errors.rst` |
+| How supabase-js itself does it (verifier, challenge, refresh margin, which refresh errors end a session) | the npm package `@supabase/auth-js` 2.119.0, `src/GoTrueClient.ts`, `src/lib/helpers.ts`, `fetch.ts` |
+| `schema.sql` loads twice and passes its test; the proposed `update.sh` passes its test | run here on PostgreSQL 16.15 and bash |
+| Google refuses OAuth in embedded web views; "Testing" allows 100 listed users; verification is not required for the basic scopes and is required to show a name and logo; the button rules | web search results quoting Google's developer blog, support pages and branding guidelines (the pages themselves could not be opened) |
+| Meta accepts a data deletion instructions address in place of a callback; Development mode limits sign-in to people with a role | web search result quoting Meta's documentation; Supabase docs `social-sign-in/auth-facebook.mdx` |
+| The map and victory pages' free room at 1600 x 900, 1194 x 834, 1024 x 768, 834 x 1194, 667 x 320, 932 x 430 and 393 x 659 | screenshots of master taken with `tools/shot.js` |
+
+**Not verified [U]**, with how each is settled:
+
+| what | how it is settled |
+| --- | --- |
+| The owner's Supabase: its version, its gateway (Kong or the newer Envoy), whether `/auth/v1/authorize` is open and CORS is on there, whether `GOTRUE_EXTERNAL_*_EMAIL_OPTIONAL` exists in its Auth version, whether its PostgreSQL role may delete from `auth.users` | the guide's checks after steps 1, 3 and 4 (`curl` lines, and `schema.sql`'s last statement warns about `auth.users`) |
+| supabase.com's docs site itself (blocked here); the docs were read from the Supabase repository's sources instead, which may run ahead of the owner's installed version | compare with the installed version's `.env.example` and compose file on the server |
+| What iOS does with a provider redirect from a Home Screen app on current versions (stays in the app, a sheet, or Safari; whether a sheet shares the app's storage) | the design does not depend on it (1.6); the owner's checklist on a real iPhone; flow 12 covers the logic |
+| Safari's seven-day limit on a site's script storage, and Home Screen apps' exemption from it | from memory of WebKit's announcement; it only strengthens the case for accounts, nothing depends on it |
+| Meta: whether `email` needs App Review or business verification for this app; Discord: that `identify` and `email` need no review; the three providers' minimum ages; Facebook's and Discord's button brand rules | the owner sees it in each console while making the app (guide, step 2); the gate's "13 and older" is conservative for all three |
+| Google's exact rule for "Testing" with only basic scopes (one result said any user may sign in) | the guide says to press Publish app either way |
+| Web Share with files in an iPhone Home Screen app; the clipboard picture write on each browser | the owner's checklist; the sheet's Save picture works everywhere |
+| That the live web server serves `/next/` from `$WEB/next/` | the repository's nginx and Caddy configs both do; the first `next` push shows it |
+| The numbers in the ruleset examples (`fast`, `slow`, `earnMax`), and the score weights' feel | gameplay's balance bot produces the pars; the weights are data |
+
+---
+
+## 13. For the owner: to do and to decide
+
+**To do** (the guide walks through each): give the Supabase its https name; make the three provider apps;
+put their secrets in the Supabase `.env`; run `schema.sql`; hand over the address and the anon key; sign in
+on `/next/` and make yourself an admin; publish the ruleset; run the checklist on your devices; fill the three
+bracketed places of the privacy page; add the words to refuse to `hs_name_blocklist`.
+
+**To decide:**
+
+1. **The gate after its first week.** `required` is built as you chose. The stats page will show what it
+   costs. The recommendation stands: try `optional` for a week and compare.
+2. **Children and classrooms.** With `required` nobody under 13, and nobody without one of the three accounts,
+   can play. Is that intended for a history game?
+3. **Launching before Meta approves.** The buttons follow what the server has switched on: launch with Google
+   and Discord if Facebook's review drags?
+4. **The second address** (hyeland.avunjian.com). A sign-in and a save belong to one address in the browser.
+   Simplest: make the second name redirect to the first. Otherwise it needs one more line in Supabase's `.env`.
+5. **The score's weights** (4,000 / 3,000 / 1,500 / 1,500) and whether Open boards are wanted at all.
+6. **How long counts are kept** (180 days proposed) and who the privacy page names as the contact.
