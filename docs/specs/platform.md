@@ -653,3 +653,494 @@ short window cuts it.
 The welcome, name, waiting and down cards use the same three arrangements (sideways: the words left, the
 buttons right). The rotate card (`#rotateHint`, shown to a phone held upright) lies under the gate; it shows
 once the gate is passed, as today.
+
+---
+
+## 4. Cloud saves
+
+### 4.1 The save document
+
+One per account, in `hs_saves.data`. The server treats it as opaque; the page owns its shape:
+
+```json
+{ "v": 1, "at": 1794000000000, "dev": "k3f9", "label": "iPhone",
+  "keys": { "hs_records": "{\"erebuni\":{...}}", "hs_best_erebuni_0": "21", "hs_chapters_seen": "[\"kingdoms\"]" },
+  "run": { "at": 1794000000000, "dev": "k3f9", "label": "iPhone", "val": "<the hs_run string, or null>", "tok": null } }
+```
+
+- `keys` holds the raw `localStorage` strings of every `CLOUD_KEYS` key but `hs_run`, exactly as the game
+  wrote them. The platform never interprets a key it has no rule for.
+- `run` is the battle in progress: `val` is the `hs_run` string, or `null` meaning "no battle in progress as of
+  `at`" (a battle won, lost or abandoned leaves that mark, so another device drops its stale copy). `tok` is
+  the run token (5.3), which travels with the battle.
+- `at` are milliseconds of `Platform.now()` (the server's clock), `dev` and `label` come from `hs_pf_dev`.
+- Not synced, by decision: `hs_settings` (volumes belong to a device), `hs_home_tip`, the `hs_mig_*` flags (each
+  device migrates its own old data before it syncs), `hs_nardi_bless` and every `hs_town*` key (the town is
+  hidden), and all `hs_pf_*`.
+
+### 4.2 How the page notices a change
+
+Gameplay keeps writing `localStorage` through its helpers, as today. PF-MAIN wraps the storage once at start:
+`Storage.prototype.setItem` and `removeItem` (after the quota guard of line 3136), or the methods of the
+in-memory fallback object, call `Cloud.touched(key)` after the write when `key` matches `CLOUD_KEYS`. That sets
+`hs_pf_sync.dirty`, stamps `run.at` when the key is `hs_run`, and schedules a push (4.3). Writes the platform
+itself makes while applying a merge are not counted. So no call site in the game changes, and a key gameplay
+adds to `CLOUD_KEYS` syncs with no further code.
+
+### 4.3 When it syncs
+
+**Pull** (`hs_save_get`, then merge, then push if the merge changed the cloud's side):
+
+- at load, for a signed-in player, before the welcome card's buttons go live (2.5 s limit, 3.4);
+- right after a sign-in;
+- when the page becomes visible again, if a menu page is up and the last pull is over 5 minutes old;
+- never while a battle is live: a battle in play is never replaced under the player.
+
+**Push** (`hs_save_put` with the version last seen):
+
+| trigger | delay |
+| --- | --- |
+| a victory, a defeat, an abandon (the events `victory`, `defeat`, `battle_quit`) | at once |
+| a wave cleared (`wave_end`; the game saves the run there, line 11363) | at once, but not more often than every 25 s |
+| any other change of a synced key in battle (a tower built: the game saves the run then too) | 25 s after the last one |
+| a change on a menu page (a chapter's story seen, a nardi game) | 2 s after the last one |
+| the page is hidden or closed (`visibilitychange` to hidden, `pagehide`) while dirty | at once, with `keepalive` (skipped when the body is over 60 KB: the next load sends it) |
+| the device comes back online (`online`) while dirty; a sign-in | at once |
+
+A push that the server answers with `ok: false` (another device wrote since) merges the returned document
+(4.4) and pushes again, three times at most. A push that fails for the network leaves `dirty` set: the save is
+simply sent whole the next time (the sync is by state, not by a log of changes, so nothing queues up and
+nothing can be replayed twice). After a failure the next try waits 5 s, then 15 s, 60 s, then 5 minutes.
+
+**Limits.** The server refuses a document over 256 KB. The page builds at most 200 KB: over that it leaves the
+run out, sends `sync_fail { why: "size" }`, and tells nobody (records are a few KB; a run is 2 to 10 KB).
+Today's whole save is under 20 KB.
+
+The Account tab shows the state in one line: "Saved to your account just now." / "Saved to your account 12
+minutes ago." / "Waiting for a connection. Your progress is safe on this device."
+
+### 4.4 Merge rules
+
+`Cloud.merge(mine, theirs)` is a pure function of two documents (it is unit-tested in the selftest, 10.5).
+For each key the rule named in `CLOUD_KEYS`:
+
+| rule | result | used for |
+| --- | --- | --- |
+| `max` | the larger number; a number beats a non-number; one side missing: the other | `hs_best_*` (the wave reached, 21 once won), `hs_tutorial_done` |
+| `union` | the JSON arrays joined, mine first, no item twice; a side that is not an array counts as empty | `hs_open_kept`, `hs_unlocked_seen`, `hs_chapters_seen`, `hs_tricks_seen` |
+| `records` | per battlefield id and per difficulty, the larger of each of `stars`, `lives`, `endless` (clamped as `levelRecord` clamps them, line 10935); a battlefield only one side has is kept | `hs_records` |
+| `newer` | the value of the document whose `at` is later | `hs_nardi` |
+| a function | its return value for `(mine, theirs)` (raw strings, `null` when missing) | gameplay's keys |
+| `run` | 4.5 | `hs_run` |
+
+Nothing a player has won is ever lost by a merge: records and roads only grow. No rule deletes a key (the
+battle in progress is the one thing that can end). The merged values are written back to `localStorage`; if a
+menu page is up it is rebuilt (`buildMenu()`), so stars and open roads won elsewhere appear.
+
+### 4.5 The battle in progress
+
+`mine` and `theirs` are the two `run` parts. In this order:
+
+1. The same `val`: nothing to do.
+2. A battle is live on this device right now: mine stands (and is stamped now).
+3. One side is a "none" mark and the other a battle: the later `at` wins. So a battle finished on the iPad
+   after the phone last saved it is dropped from the phone ("That battle was finished on your iPad."), and a
+   battle begun after the mark is kept.
+4. Two different battles, both saved within the last 24 hours, on different devices: **ask**. On the welcome
+   card, in place of the lead button:
+
+   ```
+   Two battles in progress
+   This device: Avarayr Plain, wave 7, 10 minutes ago.
+   Your iPad: Dvin Gates, wave 3, 2 hours ago.
+   [ Keep this device's battle ]   [ Take the iPad's battle ]
+   The other one is dropped.
+   ```
+   The choice is stamped now, so it wins everywhere (`save_conflict_choice { keep }`).
+5. Two different battles otherwise: the later `at` wins, with a toast when this device's was replaced: "Your
+   battle from your iPad is here: Dvin Gates, wave 3."
+6. A battle from the cloud is adopted only if this build can fight it: it is written, `getSavedRun()` (line
+   10710, which runs `validRun`) is asked, and if that says no the device keeps what it had and leaves the
+   cloud's `run` part as it found it, for the device that can fight it.
+
+Times are words: "just now" (under a minute), "5 minutes ago", "2 hours ago", "yesterday", "3 days ago".
+
+### 4.6 A guest's progress, and someone else's
+
+`hs_pf_sync.owner` says whose progress the synced keys on this device are: `""` for a guest's, else a user id.
+
+At a sign-in (or a load with a session) as account U:
+
+| `owner` | the account's save | what happens | the welcome card's extra line | `save_merge.case` |
+| --- | --- | --- | --- | --- |
+| U | any | the normal pull and merge | none | `same` |
+| `""`, this device has progress | none | the device's progress is uploaded as the account's first save | "Your progress on this device is now saved to your account." | `upload` |
+| `""`, this device has none | exists | the account's save is written to the device | none | `download` |
+| `""`, this device has progress | exists | merged by 4.4 and 4.5 (records: the best of both; the battle: 4.5) | "Your progress on this device was joined with your account." | `merge` |
+| another account V | any | V's synced keys are set aside in `hs_pf_stash` if they were never pushed (else dropped), the device is cleared, then as "this device has none" | none | `download` |
+
+Then `owner = U`. When V signs in here again and a stash for V waits, it is merged into V's save and removed.
+The stash is one slot of at most 256 KB.
+
+**The migration of today's players** is the second row: on the day the gate goes live every existing player
+has local progress and no account; his first sign-in uploads it whole. Until he signs in (or while he plays
+through 3.6) nothing of his is touched.
+
+Sign-out and account deletion clear the synced keys from the device (1.5), so a shared tablet starts fresh for
+the next person and one player's progress is never merged into another's account.
+
+---
+
+## 5. Leaderboards and the daily challenge
+
+### 5.1 What a score is
+
+One sentence, shown under every board and on the victory page's strip (as a tooltip and, on touch, on a tap of
+the score): **"A win is worth 4,000, plus up to 3,000 for the defenders you kept, up to 1,500 for speed and up
+to 1,500 for gold you never spent."**
+
+```
+won:   score = 4000 + round(3000 * L + 1500 * S + 1500 * T)        (4,000 to 10,000)
+         L = lives / livesMax                        the share of the difficulty's defenders still standing
+         S = clamp((slow - simSec) / (slow - fast))  1 at the fastest battle that can be fought, 0 at par or slower
+         T = clamp(1 - spent / earned)               the share of all gold earned that was never laid out
+lost (the daily only):  score = floor(3999 * wavesCleared / wavesTotal)      (0 to 3,999: under any win)
+```
+
+The inputs are the three counters of 0.3 (2) plus `lives` and the wave count; `fast`, `slow` and `livesMax`
+come from the ruleset, so the page and the server compute the same number (`Platform.scoreOf(stats)` in the
+page for the strip; `hs_score_submit` for the board; a selftest vector and the SQL test use the same example:
+20 of 20 kept, 600 s between 300 and 900, 900 of 3,000 spent: 4000 + 3000 + 750 + 1050 = 8,800).
+
+Why these: defenders kept is the game's own measure (its stars); speed rewards the game's one risk the player
+chooses, calling a wave early; thrift rewards holding with less. What it does not reward: stalling (no term
+grows with time), selling the towers before the last foe falls (`spent` never goes down), an easier difficulty
+(each difficulty has its own board). Equal scores rank by who got there first.
+
+This formula is a proposal to gameplay, which owns the rules a score is computed from. Its shape (a win bonus
+and three capped shares) is fixed in `hs_score_submit`; the five weights and every par are data in the ruleset
+and can change with a ruleset bump and no change to the database.
+
+### 5.2 Rulesets
+
+- `RULESET` names the rules a score was earned under. Boards are per ruleset; a new ruleset starts empty
+  boards ("The boards start fresh when the battles are rebalanced." under the board). Records and stars on
+  the device are not affected.
+- The selftest pins it: `hash(JSON.stringify(rulesetData()))` (the page's `sha256`, first 8 hex digits) must
+  equal the constant `RULESET_PIN` written beside `RULESET`. A balance change without a new `RULESET` and pin
+  fails the selftest, so two different games can never share a board.
+- A ruleset is published from `?stats` (7.5): the page shows "This page plays ruleset 3. The server does not
+  have it. **Publish ruleset 3**". Until then battles are fought and scored on the device but not ranked
+  ("The boards for this version open soon"). An admin who opens the game with an unpublished ruleset gets a
+  toast on the map: "Admin: publish ruleset 3 on the stats page." The staging channel publishes its own
+  ruleset the same way; its sessions and scores carry `channel: "next"` and are left out of the stats.
+
+### 5.3 From a battle to a board
+
+The platform listens to four events (0.3). Its whole state is `hs_pf_run`.
+
+1. `battle_start` with `resumed: false`: `hs_pf_run` is cleared. If the player is signed in, has a name, and
+   the event says `ranked: true` (gameplay sets it false for the coached first stand, a test-mode run and an
+   endless stand), the page calls `hs_run_begin` (5 s limit; tried again at 10 s and 30 s if the network
+   failed). The answer's `run_id` is kept: `hs_pf_run = { rid, mode, lv, diff, ruleset, t }`.
+   With `resumed: true` the token saved with the battle is used if its `lv`, `diff` and `ruleset` match.
+2. `victory` (and `defeat` when `mode` is `daily`): if a token is held, `hs_score_submit(rid, stats)`. A
+   network failure puts `{ rid, stats, t }` in `hs_pf_out` (20 entries at most, dropped after 7 days), sent
+   again at the next load, on `online`, and after any successful call.
+3. `battle_quit`, or the next fresh `battle_start`: the token is dropped. The run stays unfinished on the
+   server; a daily attempt stays spent.
+
+The victory page's score strip (`#ovScore`) says, in the page's small type, exactly one of:
+
+| state | words |
+| --- | --- |
+| posting | "Score 7,750" |
+| posted | "Score 7,750 · #12 this week" (with " · your best" when it beat the player's all-time best; "#1 of 3 this week" while a board has under 10 players) |
+| posted, open loadout | "Score 7,750 · #4 this week · Open" |
+| not signed in | "Score 7,750 · Sign in to post it" (the words are a button to the Account tab) |
+| waiting for the network | "Score 7,750 · It posts when you are back online" |
+| the battle began offline | "Score 7,750 · Not ranked: this battle began offline" |
+| ruleset not published | "Score 7,750 · The boards for this version open soon" |
+| refused by the server | "Score 7,750 · Not ranked" (`score_rejected { reason }` goes to the stats) |
+| not rankable (test mode, the coached stand, endless) | no strip |
+
+### 5.4 Progression and fairness
+
+D5 gives players upgrades bought with stars and heroes who level up. A board where those count is a board of
+who has played longest. So:
+
+- Every run carries `loadout`: `std` or `open` (0.3 (3)). It is part of the board's key.
+- **Standard** is the board shown first, the one the victory strip and the share card name without a
+  qualifier, and the only one that counts for the daily. Everyone on it fought with the same tools.
+- **Open** is the second tab ("Upgrades and hero levels count here."). A player who never switches his
+  upgrades off still has a board to climb.
+- Gameplay owns how a battle becomes standard for a player who owns upgrades (its spec; this spec only needs
+  the tag to be true). Until the progression ships every battle is `std` unless a gift of gold paid into it.
+- If time runs short the Open boards are the first thing cut (11.3): open runs then show "Score 7,750 · Not
+  ranked: upgrades were on".
+
+### 5.5 Names, the Hall, and the doors
+
+**Display names.** Chosen at first sign-in (3.5), changed on the Account tab. The server is the judge
+(`hs_private.name_clean`): compatibility forms folded (NFKC), outer spaces trimmed and inner runs made one
+space; 3 to 16 characters; no control or invisible direction characters; no ASCII punctuation but dot, dash
+and underscore; not on the blocklist; unique after folding (lower case, spaces dots dashes underscores
+removed, the digits 0 1 3 4 5 7 and @ $ read as the letters they imitate), so "Aram", "a r a m" and "Ar4m"
+are one name. One change in 7 days (free in the first 10 minutes). The blocklist (`hs_name_blocklist`) ships
+with the game's own name and words of authority; the words to refuse are the owner's to add, in folded form,
+and should cover slurs against any people. An admin can rename or hide a player (`hs_admin_moderate`); a hidden
+player's rows are on no board. On the page a name is only ever set with `textContent` or drawn with
+`fillText`: it is never parsed as HTML.
+
+**The Hall** (`#hall`): a full page in the game's style (`z-index: 50`; the map is `inert` under it), opened
+only from a menu page, closed by its X, Escape or the browser's back. A row of tabs from `HALL_TABS`, in this
+order: gameplay's tabs (if any), **Daily**, **Leaderboards**, **Account**.
+
+*Leaderboards tab.* Controls: the battlefield (‹ name ›, any battlefield the player has opened; it starts on
+the last one fought), the three difficulty seals, **This week | All time**, **Standard | Open**. Then the
+list, 50 rows: rank, name, score, defenders kept ("17/20"), battle clock ("10:00"). The player's own row is
+tinted; if he is below the fold his row is pinned under the list: "#132 · Aram · 7,420". Under the list the
+score sentence and "Weeks run Monday to Sunday, UTC." States: loading (three faint rows), empty ("No scores
+yet. Be the first to hold this field."), no connection ("The boards need a connection." **Try again**), not
+signed in ("Sign in to post your scores." with the three buttons).
+
+*Daily tab.* 5.6. *Account tab.* The name with **Change**, "Signed in with Google", the sync line (4.3),
+**Sign out**, **Delete my account**, **Privacy**. For a guest: the sign-in card of 3.3.
+
+Hall layouts: desktop and iPad, a centered column 720 px wide, tabs on top, the list scrolling inside the
+card. Phone sideways: tabs as a column of 44 px icons with short labels at the left (64 px wide), the tab's
+controls in a second column (200 px), the list in the rest, scrolling in its own frame with the fold fade
+(`phoneFold`); rows 30 px, text 12.5 px. Phone upright: tabs across the top, controls then list in one
+scrolling column.
+
+**Doors on the map page.**
+
+| layout | door |
+| --- | --- |
+| desktop, iPad, phone upright | `#hallBtn`: a round 44 px button with a trophy, fixed at the top left, 10 px to the right of the campaign tally (`left` is set from the tally's right edge whenever `fitCampaignStars` runs, and it hides with the tally when a long title pushes the tally away). Title "Daily challenge and leaderboards". A red dot on it while today's daily is unplayed. Measured free at 1600, 1194, 1024 and 834 px wide and on the upright phone (between the tally and the crest, or the Nardi button). |
+| phone sideways | the top row of the side column is full (tally, chapter story, nardi, gear: 226 of 232 px at 667 px wide), so **the tally itself is the door**: `#ovStars` becomes a button that opens the Hall, with the same red dot. No new control, nothing shrinks. |
+| every layout | Settings (the gear) gains **Account and boards** on menu pages, and tapping the tally opens the Hall everywhere. |
+
+**Doors on the victory page.**
+
+| layout | where |
+| --- | --- |
+| desktop, iPad, phone upright | `#ovScore`, a strip between the record row (`#ovRecord`) and the page's text: the score line of 5.3, then two small buttons, **Leaderboard** (opens the Hall on this battlefield, difficulty and loadout, on This week) and **Share** (section 6). Buttons 40 px tall on the iPad as the page's other quiet buttons are, 44 px on the upright phone. |
+| phone sideways | the page is full to the pixel (title, stars, four lines, Next battle, three buttons at 667 x 320), so the score line joins the record row as text ("★★★ Normal · 7,750 · #12 this week") and the two buttons are round 44 px icon buttons fixed at the top right, left of the gear: `#boardBtn` at `right: calc(60px + var(--sar))`, `#shareBtn` at `right: calc(110px + var(--sar))`, `top: calc(8px + var(--sat))`, the slots the map page's nardi and story buttons use (neither is on the victory page). If the title reaches under them they hide the way the tally does, and the same two actions are in Settings. |
+
+The defeat page gets the strip only for a lost daily (its score and rank, **Leaderboard**, no Share).
+
+### 5.6 The daily challenge
+
+**One battlefield and one twist per UTC day, from the date alone.** With `day` = whole days since 1 January
+1970 UTC (`Math.floor(Platform.now() / 86400000)`), `pool` the ruleset's list of battlefield ids (`n` long)
+and `twists` its list of twist ids (`m` long):
+
+```
+k = the smallest whole number >= 5 that shares no factor with n        (17 battlefields: k = 5)
+j = the smallest whole number >= 3 that shares no factor with m
+battlefield = pool[(day * k) % n]
+twist       = twists[(day * j + Math.floor(day / n)) % m]
+```
+
+Every battlefield comes up once in every `n` days, never two days running, and the twists shift by one against
+the battlefields each cycle. The database computes the same two lines (`hs_private.daily_pick`; the SQL test
+checks it against the arithmetic) and refuses a daily run whose battlefield or twist is not the day's. `k` and
+`j` are worked out by the page and published in the ruleset. The day is the server's (the page corrects its
+clock by the server's, 1), so a device with a wrong clock still plays today's.
+
+**Rules.** Normal difficulty; the standard loadout; the twist's effect (gameplay's `DAILY_TWISTS`: a name and
+one line each, such as "No Archers: the archers' slot is closed."); the same for everyone. It is open to every
+signed-in player who has fought Erebuni once, whatever the campaign has reached; it writes no record, opens no
+road and does not touch a campaign battle in progress (0.3 (5)).
+
+**Attempts.** Three ranked attempts a day; the best counts. An attempt is spent when the first wave is sent
+(that is when the run begins on the server); looking at the battlefield's chronicle costs nothing. A lost
+attempt scores for the waves it held (5.1). After the third, **Practice** plays the same battle unranked.
+Without a connection at the first wave the battle is practice ("Practice: no connection. This battle is not
+ranked."), and no attempt is spent.
+
+**The Daily tab.**
+
+```
+Daily challenge · November 10
+Ani, c. 1041 to 1044
+No Archers: the archers' slot is closed.
+Normal · Standard loadout · The same for everyone
+Attempts left: 2 of 3      Your best today: 7,420 (#12 of 87)
+[ Play today's challenge ]                      New challenge in 5 h 12 min
+(today's board: 50 rows, the player's own pinned)
+Yesterday: 1. Bagrat 9,105   2. Aram 8,800   3. Nune 8,640
+```
+
+**The share text** (the card is section 6): "Highland Stand daily, Nov 10: Ani, No Archers. Score 7,420, #12
+today. https://highland.avunjian.com"
+
+---
+
+## 6. The share card
+
+A picture drawn on a canvas when a victory page (or a daily's result) opens, offered by the **Share** button.
+
+**Size and file.** 1200 x 630 px (the link-preview shape every messenger shows whole), JPEG at quality 0.9,
+named `highland-stand-<battlefield id>.jpg`, about 150 to 250 KB.
+
+**What is on it** (coordinates in px from the top left; the text column starts at x = 64):
+
+| y | what | style |
+| --- | --- | --- |
+| whole card | the battlefield as it stood at the victory: the game canvas's field box copied when the page opens (the dance's last frame), full width, cropped to 1200:630 around 55% of its height; if the copy fails, a gradient #2a1c10 to #14100c | |
+| whole card | for legibility: a dark veil from the left (88% at x = 0, 55% at x = 620, none from x = 900) and over the bottom 110 px (to 70%); a 2 px bronze line (#b98a3e) 14 px inside the edge | |
+| 96 | the crest (56 px) and **HIGHLAND STAND** | 30 px, bold, letter-spaced, #f0cf85 |
+| 150 | daily only: "Daily challenge · Nov 10" | 22 px, #e6d3a8 |
+| 190 | the page's own title: "<Battlefield> Stands!" (or the battlefield's `endTitle`); a lost daily: "<Battlefield>: held 7 of 18 waves" | 62 px bold #fff3d6, shrunk to no less than 40 px to fit 640 px |
+| 240 | the place's name in Armenian letters (`hyName`), when it has one | 34 px, the page's Armenian face, #f0cf85 |
+| 290 | "<date> · <Difficulty>" (daily: "· <twist name>" added) | 26 px #e6d3a8 |
+| 352 | the three stars, won ones gold | 44 px each |
+| 420 | "<kept> of <max> defenders kept" | 30 px #fff3d6 |
+| 462 | "Held in <m:ss> · Score <n,nnn>" | 30 px #fff3d6 |
+| 504 | when known: "#<rank> this week" (daily: "#<rank> of <total> today"; open loadout: "· Open" added) | 30 px bold #f0cf85 |
+| 566 | signed in: "Held by <player name>" | 24 px #e6d3a8 |
+| 556, 590 (right-aligned at x = 1136) | "Free in your browser" and **highland.avunjian.com** | 20 px and 26 px bold #fff3d6 |
+
+The time is the battle clock (`simSec`) as minutes and seconds. All words are drawn in the page's own face
+(`getComputedStyle(document.body).fontFamily`). The address is the page's canonical one (the `<link
+rel="canonical">`), so a card made on `/next/` still names the game.
+
+**When it is drawn.** As the victory page opens (so the picture is ready before the finger comes: a browser
+only lets a page share inside a tap, and making the picture takes longer than that), and again when the rank
+arrives. The Share button is live once the first picture is ready.
+
+**The tap.**
+
+1. If `navigator.canShare({ files: [file] })`: `navigator.share({ files: [file], title: "Highland Stand",
+   text })`. (iPhone, iPad, Android, and from the Home Screen.) The address is inside `text`, because some
+   apps drop a separate `url` when a picture comes with it.
+2. Otherwise a small card (`#shareSheet`) over the page: the picture at 300 px, **Save picture** (a download
+   link), **Copy picture** (where the browser can put a picture on the clipboard; a PNG is made for it then),
+   **Copy text**, and **Share link** where `navigator.share` exists without files. Each confirms with a toast
+   ("Picture saved.", "Copied.").
+3. A share the player cancels is not an error.
+
+**The words** (`text`): "I held <Battlefield> in Highland Stand with <kept> of <max> defenders. Score <n,nnn>.
+https://highland.avunjian.com". The daily's is in 5.6.
+
+Events: `share_tapped { from, method }`, `share_done { method }`. The card works for a guest too (no name
+line, no rank).
+
+---
+
+## 7. Analytics (D6)
+
+First-party only: events go from the page to `hs_track` in the owner's Supabase. No cookie, no third-party
+script, no pixel, no fingerprint. The server never stores an IP address or a user agent string.
+
+### 7.1 Who is who
+
+- `aid`: a random UUID made on the first visit and kept in `localStorage` (`hs_pf_aid`). It names a browser,
+  not a person, and never leaves this site. It is what makes a funnel possible before sign-in.
+- `sid`: a random id per page load. `seq`: the event's number within it.
+- After sign-in the server adds the account to the session by itself (from the token, never from the page), so
+  the visits before the sign-in and after it join. "Delete my account" removes those sessions and their events.
+- Clearing the browser's site data makes a new `aid`. The Home Screen app has its own.
+
+### 7.2 The events
+
+Every event: `{ n: name, q: seq, t: device time in ms, p: props }`. Props are short and flat. `lv` is a
+battlefield id, `diff` 0 to 2, `mode` is `campaign`, `daily` or `endless`. **G** marks the events gameplay
+sends with `track()`; the others the platform sends itself.
+
+| event | when | props |
+| --- | --- | --- |
+| `page_load` | every load, first | `gate` (the mode in force), `signed` (a session exists), `returning` (an `aid` existed), `progress` (battlefields held on this device), `standalone`, `ret` (this load is a return from a provider) |
+| `gate_shown` | the gate's `signin` state appears | `mode`, `state` (`signin`, `inapp`), `providers` (e.g. `"gfd"`) |
+| `gate_down` | the `down` state appears | `why` (`timeout`, `http`, `offline`, `none`, `errors`) |
+| `provider_tapped` | a provider's button | `provider` |
+| `signed_in` | a code exchanged | `provider`, `new` (no profile yet), `handoff` (it came through 1.6), `ms` (from the tap, when the same window) |
+| `signin_error` | a return with an error, or a failed exchange | `provider`, `error` |
+| `name_set` | a name accepted | `changed` (false: the first) |
+| `gate_bypass` | **Play now** or **Play as a guest** | `why` (`down`, `offline`, `errors`, `guest`) |
+| `gate_passed` | the gate closes | `how` (`session`, `signin`, `bypass`), `ms` since load |
+| `welcome_tap` | a button of the welcome card | `choice` (`resume`, `continue`, `begin`, `map`, `daily`) |
+| `chapter_story` **G** | a chapter's story opens (`showChapterIntro`) | `ch` |
+| `brief_open` **G** | a battlefield's chronicle opens (`showBrief`) | `lv` |
+| `tutorial_step` **G** | the coach enters a step (`tutGo`) | `id`, `i` |
+| `tutorial_done` **G** | the tutorial ends (`endTutorial`) | `skipped`, `i` (the step it was on) |
+| `battle_start` **G** | the first wave of a battle is sent, and a battle is resumed | `lv`, `diff`, `mode`, `loadout`, `ruleset`, `ranked`, `resumed`, `tutorial`, `twist` (daily) |
+| `wave_end` **G** | a wave is cleared (`endWaveIfClear`) | `lv`, `diff`, `mode`, `wave`, `lives`, `gold`, `towers`, `sec` (battle clock so far), `early` (it was called early) |
+| `tower_built` **G** | `placeTower` | `lv`, `wave`, `type`, `pad` |
+| `tower_upgraded` **G** | `upgradeTower`, a mastery chosen | `type`, `level`, `spec` |
+| `tower_sold` **G** | `sellTower` | `type`, `level`, `wave` |
+| `plot_bought` **G** | `buyPlot` | `lv`, `wave` |
+| `trick_met` **G** | a trick's first-time card shows (`showTrickCard`) | `lv`, `wave`, `trick` |
+| `defeat` **G** | `defeat()` | `lv`, `diff`, `mode`, `wave`, `waves`, `lives_max`, `sec`, `spent`, `earned`, `loadout`, `ruleset`, `through` (what got through, as the debrief counts it: up to three `role:count` pairs), `road` (the road that cost most) |
+| `victory` **G** | `victory()` | `lv`, `diff`, `mode`, `lives`, `lives_max`, `waves`, `stars`, `sec`, `spent`, `earned`, `loadout`, `ruleset`, `twist` |
+| `battle_quit` **G** and platform | **G**: Abandon and "Replay tutorial" from a battle (`how: "abandon"`); platform: the page is hidden or closed while a battle is live (`how: "left"`) | `lv`, `diff`, `mode`, `wave`, `how` |
+| `battle_back` | the page is seen again with that battle still live | `lv`, `wave` |
+| `page_hide` | the page is hidden or closed | `where` (`gate`, `map`, `brief`, `story`, `battle`, `victory`, `defeat`, `hall`, `nardi`), `sec` (the visit so far) |
+| `save_merge` | 4.6 | `case`, `run` (`none`, `mine`, `theirs`, `asked`) |
+| `save_conflict_choice` | 4.5 | `keep` |
+| `sync_fail` | a push or pull failed three times | `op`, `status`, `why` |
+| `hall_open` | the Hall opens | `tab`, `from` (`map`, `victory`, `welcome`, `settings`) |
+| `board_open` | a board is shown | `mode`, `lv`, `diff`, `period`, `loadout` |
+| `score_posted` | a score accepted | `mode`, `lv`, `diff`, `score`, `rank`, `best` |
+| `score_rejected` | a score refused | `reason` |
+| `daily_played` | a daily battle ends (won, lost or left) | `lv`, `twist`, `attempt`, `won`, `score`, `ranked` |
+| `share_tapped`, `share_done` | section 6 | `from`, `method` |
+| `privacy_open` | the privacy page | `from` |
+| `signed_out`, `account_deleted` | 1.5 | |
+| `error` | the crash card shows | `msg` (120 characters at most), `where` |
+
+A player's path through a first visit is 3.7. Where a player quits is `battle_quit` (not followed by
+`battle_back` in that visit) and the last `page_hide.where` of his last visit.
+
+### 7.3 Sending
+
+- Events queue in memory and in `hs_pf_evq` (200 events or 60 KB at most; the oldest go first when full).
+- A batch (50 events at most) is sent: 20 s after the first unsent event; when 20 are waiting; as the page is
+  hidden or closed (with `keepalive`, so it leaves with the page); after a sign-in. `POST /rpc/hs_track
+  { p_ctx, p_events }` where `p_ctx = { aid, sid, build, ruleset, channel, dev, os, browser, standalone, vw, vh,
+  lang, ref }`: `build` is `BUILD_ID`; `channel` is `live` or `next`; `dev` is `phone` (the phone layout, or a
+  screen whose short side is at most 500 px), `tablet` (touch, not a phone) or `desktop`; `os` one of `ios`,
+  `android`, `mac`, `windows`, `linux`, `other`; `browser` one of `safari`, `chrome`, `firefox`, `edge`,
+  `inapp`, `other`; `vw`, `vh` the window; `lang` the first language tag; `ref` the referring site's host name
+  only (never its path), empty for the game's own pages.
+- Offline, or the service down: the events stay in the queue and go with the next load. After a failure the
+  next try waits 30 s, doubling to 10 minutes. Three refusals in a row (4xx) stop sending for the visit.
+- Nothing is sent under `HARNESS_ON`, on `file://`, or with the platform off. The queue on `window.__hsEv`
+  still fills there, which is how the selftest checks gameplay's `track` calls (10.5).
+
+### 7.4 Limits and sampling
+
+- Per visit: 600 events. Per battle: 40 of `tower_built`, `tower_upgraded`, `tower_sold` and `plot_bought`
+  together (the rest are dropped; the battle's totals are in `victory` and `defeat`). `wave_end` is never
+  dropped.
+- `hs_config.ev_sample` (0 to 1, default 1): when the owner lowers it, a device sends the tower events only if
+  its `aid` falls in that share (the same devices every day). Funnel, battle and gate events are never sampled.
+- Server: 900 events an hour per device, 60,000 an hour in all, 50 per batch, 1 KB of props per event, names
+  of lower-case letters, digits and underscores. Over a limit the batch is dropped without an error.
+- Keeping: `hs_admin_purge_events(180)` removes visits older than 180 days; the stats page has the button, and
+  the setup guide shows how to schedule it.
+
+### 7.5 The owner's stats page (`?stats`)
+
+`https://highland.avunjian.com/?stats` shows `#statsPage` instead of the game (the gate is not shown; the game
+under it does not start a battle). Not signed in: one line and the three buttons (the sign-in returns to
+`?stats`). Signed in but not in `hs_admins`: "This page is for the game's owner." and a link back. An admin: one
+call, `hs_stats(days)`, and the page draws it. A period switch (7, 30, 90 days). Plain tables and bars made of
+`div`s, in the game's colors, one column, readable on a phone.
+
+| card | from `hs_stats` | shows |
+| --- | --- | --- |
+| Totals | `totals`, `daily` | accounts, saves, scores and events in the period; people, visits and signed-in people per day as a bar per day |
+| First visit funnel | `funnel` | devices first seen in the period that reached each step: `page_load`, `gate_shown`, `provider_tapped`, `signed_in`, `name_set`, `battle_start`, `tutorial_done`, `wave_end`, `victory`; each bar with its share of the first and of the step before. Under it **the gate's cost**: `signed_in / gate_shown`. |
+| The gate | `gate` | taps and sign-ins per provider, errors by code, bypasses by reason, arrivals in in-app browsers |
+| Coming back | `retention` | per first-seen day: new devices, the share seen the next day (day 1) and seven days on (day 7); the period's averages on top |
+| Where players quit | `quits` | battles left and not come back to, by battlefield, difficulty and wave: the 20 most common, and per battlefield a row of bars by wave |
+| Battlefields | `fields` | per battlefield and difficulty: battles ended, win rate, defenders kept in the wins (average and as a share), the average wave of the defeats, quits |
+| Devices | `devices` | people by phone, tablet, desktop; by system; Home Screen app or not |
+| Rulesets | `rulesets` | each ruleset seen in visits with whether it is published, and **Publish ruleset <id>** for the page's own |
+| Scores to look at | `flagged` | flagged results with **Remove** (`hs_admin_remove_score`) and **Hide player** (`hs_admin_moderate`) |
+| Switches | `config` | the gate (`required`, `optional`, `off`), boards and daily on or off, the events cap and sample, **Remove events older than 180 days** |
+
+Visits from `/next/` (`channel: "next"`) are left out of every card.
