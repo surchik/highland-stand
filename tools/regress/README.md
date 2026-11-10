@@ -32,17 +32,24 @@ prints a `FAIL ...` line per problem and a `RESULT <name> PASS|FAIL {...}` line,
 | `live.js` | Every battlefield played live for three waves at 4x with sound (the Web Audio graph opened by the first click): Shift+G test gold, six towers from the tray, Shift+click for 4x, Send Wave, Auto. Fails on any page or console error, the crash card, an exception inside a sound (the sound engine swallows them; the script counts them), a silent audio graph, or a stand lost. A trick's first-time card that is up when the stand ends (Tushpa's shields come on wave 4) is put away by its button, then each battle is left by Settings, Abandon, Abandon. |
 | `doors.js` | The map's doors at 1600x900 (mouse), 1194x834 and 834x1194 (touch), in two loads of the page. A plain load (as a player opens the game; Under Ararat is hidden since a27052d): no Town door on the map, no town region loaded, and a town gift won earlier is not paid but waits; Nardi's door opens the board, its rules card and its leave card's Keep playing and Leave the board work. A `?town` load (the tester's door): the town's start card closed, then a town begun, its leave card's Keep and Leave. The map back in reach after each; then, in both loads, a battlefield tapped on the map, its chronicle begun and its first wave on the field (the `?town` load pays the waiting gift). |
 
-| `iphone.js` | The game on an iPhone (touch, an iPhone's Safari user agent) at eight sizes: held sideways in Safari with its bars (SE 667x320, iPhone 15 734x343, Pro Max 814x380), from the Home Screen (SE 667x375; iPhone 15 852x393 and Pro Max 932x430 with the safe-area insets left 59, right 59, bottom 21) and held upright (393x659, 375x553). Every screen and pop-up is opened as a player opens it and held to the quality bar below; `--quick` takes the iPhone 15 in Safari and from the Home Screen. |
+| `iphone.js` | The game on an iPhone (touch, an iPhone's Safari user agent) at ten sizes: held sideways in Safari with its bars (SE 667x320, iPhone 15 734x343, Pro Max 814x380), the same in Safari across the whole width with the safe-area insets (iPhone 15 852x343, Pro Max 932x380: Safari with `viewport-fit=cover` may report the insets held sideways), from the Home Screen (SE 667x375; iPhone 15 852x393 and Pro Max 932x430 with the safe-area insets left 59, right 59, bottom 21) and held upright (393x659, 375x553). Every screen and pop-up is opened as a player opens it and held to the quality bar below; `--quick` takes the iPhone 15 in Safari and from the Home Screen. |
 
 `iphone.js` in detail. Its states: Chapter I's story (every page), the campaign map (its battlefields' nodes and the
 names drawn on it), Settings from the map and in battle, two chronicles (every page, a foe's card from a medallion, a
 trick's card from the tricks row), a battle (its HUD and field, a tower tile's line, a long toast, the pause and wave
-banners), a busy field (the panel of the towers a finger reaches first on each side of it, of one choosing its
-Mastery, a damaged one and a wreck), the foe card from the next-wave row, every trick's first-time card and a card of
+banners; Settings put away by its Resume or Pause and by its own close button; the wave's toast kept off its
+ribbon), a busy field (the panel of the towers a finger reaches first on each side of it, of one choosing its
+Mastery, a damaged one and a wreck), every tower by a finger on three full fields at top rank (the tap that opens a
+panel presses nothing in it and spends no gold, the panel's buttons stay inside it and the safe area before and after
+one tap on Sell, which never sells; a tap 16 px beside a tower opens it or only lights a plot, never buys one; a tower
+built from a chosen tile opens at a tap while the tile is still chosen), the foe card from the next-wave row, every trick's first-time card and a card of
 two, the line under the wave counter (Mari, Sis), Erebuni's scout bubble, the crash card, three victory pages (Ani's
 and Sis's with their cards), the defeat page with its debrief, the end of an endless stand, the nardi board with its
-rules, leave, invitation and game-over cards, the tutorial's coach walked step by step by a finger, the rotate card
-(upright) and the Home Screen tip (Safari). What it holds each to:
+rules, leave, invitation and game-over cards, the tutorial's coach walked step by step by a finger (the finger
+that casts the spell on the field held over the next bubble's Skip tutorial must not press it), the rotate card
+(upright) and the Home Screen tip (Safari). Held sideways the chronicle's first row of medallions is whole and a
+column that runs past its fold fades there, the victory page's buttons are in sight without a scroll and 44 px tall,
+and the defeat debrief's tip is in sight as the page opens. What it holds each to:
 - a pop-up lies inside the visible area minus the safe areas, or scrolls inside itself with its way forward in view
   as it opens; held upright a page may scroll (the owner's best effort there);
 - every control is on screen, out of the safe areas, hit at its center and the middle of each edge by
@@ -63,8 +70,8 @@ rules, leave, invitation and game-over cards, the tutorial's coach walked step b
   must put it away (a panel by a tap on open ground);
 - held upright, the rotate card speaks of a phone, and Play in portrait leaves the controls in reach;
 - in Safari (`navigator.standalone` false) a tip, shown once on the first screen or the map, says "Add Highland
-  Stand to your Home Screen" and names the Share button, lies over no control, goes with its own button, stores a new
-  `hs_` key and does not come back after a reload; opened from the Home Screen (`navigator.standalone` true) it never
+  Stand to your Home Screen" and names the Share button, lies over no control, goes with its own button, is
+  remembered in an `hs_` key and does not come back after a reload, closed or not (a one-time tip); opened from the Home Screen (`navigator.standalone` true) it never
   shows. The script finds the tip by its shown words (`innerText`: any box that says "Home Screen" and holds a
   button). A layer that takes no taps or must not hide controls (toast, note, tip) is judged by what a finger would
   find under it without it: a control already under another layer (the battle's header under a menu page) is not its
@@ -73,8 +80,8 @@ rules, leave, invitation and game-over cards, the tutorial's coach walked step b
 
 It prints one `FAIL <size> <state>: ...` line per failure (the same failure on the pages of one leaf or the steps of
 the coach once, with the pages or steps), a `FIELD` line per size, and exits 1 on any. Options: `--sizes=ses,i15s,maxs,
-seh,i15h,maxh,i15u,seu`, `--only=tip,pages,map,settings,chronicle,battle,panel,foe,tricks,note,bubble,crash,victory,
-defeat,nardi,coach`, `--dpr=3` (the density of its photos; the checks are the same at any), `--shots=dir` (a photo of
+i15c,maxc,seh,i15h,maxh,i15u,seu`, `--only=tip,pages,map,settings,chronicle,battle,panel,foe,tricks,note,bubble,crash,victory,
+defeat,nardi,coach,towers`, `--dpr=3` (the density of its photos; the checks are the same at any), `--shots=dir` (a photo of
 every state that failed), `--photos=dir` (a photo of every state), `--jobs=n` (sizes side by side, default 4).
 Chromium cannot emulate `env(safe-area-inset-*)`: `openGame` (`lib.js`, option `insets`) sets the stylesheet's own
 `--sat`, `--sab`, `--sal` and `--sar` on `<html>` as the page is parsed, which every rule that keeps out of the safe
