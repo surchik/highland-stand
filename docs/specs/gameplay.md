@@ -27,7 +27,8 @@ Gameplay never talks to the network. It uses three things only:
    decides what is ranked.
 
 The other way, the platform may call these gameplay functions and nothing else: `startDaily(spec)` (6.4),
-`openCouncil()`, `openCaptains()` (4.6), `battleFacts()`, `RULESET`, `rulesetTable()` (6.3).
+`openCouncil()`, `openCaptains()`, `renderCouncil(el)` (4.6), `battleFacts()`, `RULESET`, `rulesetTable()`
+(6.3), `mergeSave(key, a, b)` and `onSavesChanged()` (9.5).
 
 ### 0.2 MEASURED today (master, Normal, 7 builds, 1 seed, 119 battles)
 
@@ -186,6 +187,12 @@ Where each trick first comes with the new tables, on Normal (script wave in brac
 
 `trickFirstWaves()` (line 9502) loops played waves to `totalWaves()` and reports played numbers; the brief's
 row and the cards then say the right wave with no text change.
+The whole table, and "no ambush opens or is first told on a commander wave" on all three difficulties, was
+checked on the prototype (`gameplay-proto/check-tricks.js`).
+One thing the map changes and tuning must weigh: outflankers come on the script's odd waves from 7, so a
+short battle, whose every late wave covers an odd one, brings them on most waves (Erebuni: waves 5 to 10,
+where today it is 7 of 20). Their count per wave is a knob (`L.units.flyer.hpMult` is today's); a board
+without archers or ballistae is punished sooner.
 
 ### 1.4 Gold: a wave pays for the script waves it stands for
 
@@ -236,12 +243,15 @@ the save owns (section 3.8).
 ### 1.7 Saved runs made under 20 waves
 
 A run in `hs_run` written by today's build has no `rules` field. It resumes as a legacy run, the way a run
-from before the tricks does (`trickLegacy`, line 10749): `legacyRun = r.rules !== RULESET`. A legacy run
+from before the tricks does (`trickLegacy`, line 10749). A legacy run
 plays the identity table (20 waves, today's economy), offers the five classic tiles only, applies no
 progression (4.8), tells nothing new, and saves again without the mark. Its victory counts in full for the
 campaign (stars, the next road) and reports `rules: 1` in its facts, so the platform can keep it off the
 boards. `validRun` (line 10726) tests `r.cleared >= (r.rules === RULESET ? levelScript(LEVELS[lvl]).length : 20)`.
-New runs carry `rules: RULESET` and the fields of 2.9 and 4.8. `RULESET = 2`.
+New runs carry `rules: RULESET`, the fields of 2.9 and 4.7, and their own table (`script: [...]`): a run
+always finishes on the table it began with (`curScript()` reads the run's, checked: rising whole numbers
+from 1 to 20), so a later change of a battlefield's length never breaks a run in progress. `RULESET = 2`.
+`legacyRun` is `r.rules == null`.
 
 ### 1.8 Every place that says twenty
 
@@ -835,7 +845,7 @@ outer arc while it cools. Keyboard: `T`. The tooltip and the touch toast add "Pr
 | Age | The Call | Effect (radius 120 px around the hero) | At level 5 also |
 |---|---|---|---|
 | Bronze and Iron | Stand Fast | For 6 s the hero and the men of posts near him take half damage and each holds one more foe | Foes held near him burn for 20 a second |
-| Princes and Kings | Charge | The hero rides 160 px up his road: 120 to every ground foe he passes, each thrown back 30 px | The foes he passed are staggered 2 s |
+| Princes and Kings | Charge | The hero charges 160 px up his road: 120 to every ground foe he passes, each thrown back 30 px | The foes he passed are staggered 2 s |
 | Powder | Sortie | For 8 s the hero and every post's men on the field strike twice as hard | They also strike through armor |
 | The Great War | To Arms | For 8 s towers within 200 px of the hero reload 30% faster (a drum that walks) | And strike 20% harder |
 | Artsakh | Call Fire | After 1.5 s five mortar bombs fall around him: 90 each, blast 70 | Seven bombs |

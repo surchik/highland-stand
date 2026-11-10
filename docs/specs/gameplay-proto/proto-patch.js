@@ -20,10 +20,11 @@
   const fstep = w => (w >= 1 && w < SC.length ? SC[w] - SC[w - 1] : 1);
   const played = s => { for (let k = 1; k <= SC.length; k++) if (SC[k - 1] >= s) return k; return SC.length + (s - 20); };
   window.PROTO = { sw, fstep, played, table, get SC() { return SC; }, payAhead: true };
+  const own = (typeof PROTO_SCRIPT !== "undefined") ? PROTO_SCRIPT : {};
   const _reset = resetGame;
   resetGame = function () {
-    const N = env[LEVELS[curLevel].id] || 20;
-    TOTAL_WAVES = N; SC = table(N);
+    const id = LEVELS[curLevel].id, N = env[id] || 20;
+    SC = own[id] || table(N); TOTAL_WAVES = SC.length;
     _reset();
   };
   // composition: every group a covered script wave brings, at its largest
