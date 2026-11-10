@@ -156,7 +156,9 @@ Gameplay code never calls the network and never reads the platform's state. The 
    resume, and never replaces a campaign battle in progress. Its events carry `mode: "daily"`.
 6. **New keys** registered in `CLOUD_KEYS` with a merge rule (gameplay's notes name `hs_council`, `hs_heroes`,
    `hs_towers_seen`). A key that holds something spent (stars on the tree) needs a function rule; "newer" would
-   let an old device undo a purchase.
+   let an old device undo a purchase. The daily's attempts and best are the server's to count
+   (`hs_daily_status`); a local `hs_daily` key, if gameplay keeps one for its own page, is not synced and is
+   not the authority.
 7. **Two layout promises** (5.5): the phone's map page gets no further control in its top row (it is full: tally,
    story, nardi, gear), so the campaign tally `#ovStars` becomes a button that opens the Hall; and the phone's
    victory page keeps its top right corner beside the gear free for the platform's two round buttons.
@@ -168,11 +170,11 @@ Gameplay code never calls the network and never reads the platform's state. The 
 | --- | --- | --- |
 | 3139 (after) | | PF-0 |
 | 76205-76207 | `requestAnimationFrame(frame);` then the first chapter's story | `requestAnimationFrame(frame); Platform.boot(() => { if (!HARNESS_ON && !chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter()); });` With the platform off `boot` calls its argument at once: the same behavior as today. |
-| 60737 (keydown handler, first line) | | `if (Platform.blocking()) return;` (no hotkey reaches the game under the gate, the Hall, the privacy or stats page) |
+| 60739 (keydown handler, after its `if (crashed) return;`) | | `if (Platform.blocking()) return;` (no hotkey reaches the game under the gate, the Hall, the privacy or stats page) |
 | 60669 `syncOverlayUp` | | no change; the platform calls it after it lifts its own `inert` (it exports nothing new) |
 | 11502 (in `endCelebration`, after `showRecord`) | | `Platform.victoryPage();` (shows the score strip and the two doors; a no-op when off) |
 | 11886 (in `endFall`, after `showDebrief`) | | `Platform.defeatPage();` (a lost daily shows its score) |
-| 56549 (`syncChapterBar`) | `#ovStars` is a `div role="img"` | a `button` with the same content; its click is `openHall()` when the platform or a gameplay tab is there, else nothing |
+| 3017 | `<div id="ovStars" role="img">` (filled by `syncChapterBar`, line 56549; hidden by `fitCampaignStars` when a title reaches it) | `<button id="ovStars" type="button">` with the same content and the same hiding; its click is `openHall()` when the platform is on or gameplay has added a tab, else nothing (and then it keeps `cursor: default`) |
 | 2979-3007 `#settings` | | one more row, `#setAcct` "Account and boards", shown on menu pages only (`body.onMenu`) when the platform is on |
 | 76030 `showCrashCard` | | first line `track("error", { msg: String(err && err.message || err).slice(0, 120) });` |
 
@@ -196,7 +198,7 @@ All start `hs_pf_`, live in `localStorage`, are never synced, and are removed by
 | `hs_pf_run` | the run token of the battle in progress (5.3) | removed |
 | `hs_pf_out` | scores waiting for a connection (5.3) | removed |
 | `hs_pf_evq` | analytics events not yet sent (7.3) | kept |
-| `hs_pf_cfg` | the last `hs_config` answer (3.2) | kept |
+| `hs_pf_cfg` | the last `hs_config` answer (3.2) and the providers `/settings` last listed | kept |
 | `hs_pf_daily` | today's `hs_daily_status` answer (5.6) | removed |
 | `hs_pf_stash` | another account's unsent progress found at sign-in (4.6) | kept |
 
@@ -251,9 +253,10 @@ No pop-up: iOS blocks them and a Home Screen app has none.
    `"hall"`: where the player was), sets the gate to its waiting state (1.6), sends `provider_tapped`, flushes
    analytics with `keepalive`, and navigates to
    `B/auth/v1/authorize?provider=<p>&redirect_to=<R>&code_challenge=<c>&code_challenge_method=s256`
-   where `R = location.origin + location.pathname + "?hsh=" + h` (so `/next/` returns to `/next/`).
+   where `R = location.origin + location.pathname + "?hsh=" + h` (so `/next/` returns to `/next/`; a sign-in
+   begun on the stats page returns to `?stats&hsh=...`).
 3. The provider signs the player in and sends him to `B/auth/v1/callback`, which sends him to `R` with
-   `&code=<uuid>` added, or with `error`, `error_code` and `error_description` in the query (and again after
+   `code=<uuid>` added to its query (the rest of the query is kept **[V]**), or with `error`, `error_code` and `error_description` in the query (and again after
    `#`) **[V]**. The code is good for 5 minutes and once **[V]**.
 4. On every load, before the game's first page is decided, `Platform.boot` reads the query:
    - `code` and a stored `hs_pf_pkce` whose `h` equals `hsh` and whose `t` is under 10 minutes old: exchange
@@ -550,7 +553,8 @@ your scores. We never post to your accounts.  Privacy
 ```
 
 - The three buttons are shown in that order, each only when `/settings` says the provider is on. If none is
-  on, the state is `down`.
+  on, the state is `down`. The list of providers last seen is kept in `hs_pf_cfg`, so on a later visit the
+  buttons show at once and are corrected when `/settings` answers; only a first visit waits in `checking`.
 - Each button is a `button.gateBtn` with the provider's mark drawn as inline SVG at the left (Google's
   four-color G on a white button with dark text; Facebook's white f on #1877F2; Discord's white mark on
   #5865F2) and the words "Continue with <Provider>". These are the providers' own wordings and colors; their
@@ -653,6 +657,42 @@ short window cuts it.
 The welcome, name, waiting and down cards use the same three arrangements (sideways: the words left, the
 buttons right). The rotate card (`#rotateHint`, shown to a phone held upright) lies under the gate; it shows
 once the gate is passed, as today.
+
+### 3.9 Start-up, step by step
+
+`Platform.boot(onMap)` is called once, at the end of the page's own start-up (0.4). `onMap` is today's last
+step (a new chapter's story over the map).
+
+```
+0. The platform is off (HARNESS_ON, file:, the constants empty and no test override)   -> onMap(); done.
+1. ?privacy                      -> show #privacyPage; done (the game waits on its map under it).
+2. Start analytics (aid, sid); queue page_load.
+3. Read code, error and hsh from the address; strip them from it (1.2).
+4. ?stats                        -> show #statsPage (7.5); done.
+5. Show #gate in `checking`.
+6. Take the cached hs_pf_cfg; ask hs_config again in the background (it counts from the next load).
+   cloud is false                -> hide the gate; onMap(); done.
+7. A code came:
+     the verifier is here        -> exchange it: a session, or the `signin` state with its line (fails + 1).
+     it is not, hsh came         -> hs_handoff_put; the `other` state; done.
+8. A session is held (hs_pf_auth):
+     in parallel: hs_profile_get (the name; hs_pf_me shows meanwhile) and the save pull (4.3).
+     no name yet                 -> the `name` state, then on.
+     mode off                    -> hide the gate; toast; onMap(); done.
+     else                        -> the `welcome` state, its buttons dimmed until the pull ends or 2.5 s pass.
+   No session:
+     mode off, or optional with guest play chosen   -> hide the gate; onMap(); done.
+     GET /settings (4 s)         -> fails or offline: the `down` state.
+                                 -> answers: the `signin` state (`down` if it lists none of the three).
+9. Leaving the gate: lift `inert`, syncOverlayUp(), send gate_passed, then what was chosen:
+     Campaign Map, Play now, Play as a guest   -> onMap()
+     Resume                                    -> resumeRun()
+     Continue, Begin                           -> the battlefield's chronicle, through its chapter's story when new
+     Today's challenge                         -> onMap(); openHall("daily")
+```
+
+Nothing in these steps can leave a player on a dead page: every wait has a limit, and every failure ends in a
+state with a button that plays.
 
 ---
 
@@ -893,7 +933,7 @@ player's rows are on no board. On the page a name is only ever set with `textCon
 `fillText`: it is never parsed as HTML.
 
 **The Hall** (`#hall`): a full page in the game's style (`z-index: 50`; the map is `inert` under it), opened
-only from a menu page, closed by its X, Escape or the browser's back. A row of tabs from `HALL_TABS`, in this
+only from a menu page, closed by its X or Escape. A row of tabs from `HALL_TABS`, in this
 order: gameplay's tabs (if any), **Daily**, **Leaderboards**, **Account**.
 
 *Leaderboards tab.* Controls: the battlefield (‹ name ›, any battlefield the player has opened; it starts on
@@ -1532,7 +1572,7 @@ funnel events, row level security and its tests, the privacy page and account de
 
 | what | source |
 | --- | --- |
-| The Auth routes, their parameters and answers: `/authorize` (`provider`, `redirect_to`, `code_challenge`, `code_challenge_method`), `/token?grant_type=pkce` (`auth_code`, `code_verifier`), `/token?grant_type=refresh_token`, `/logout?scope=`, `/user`, `/settings`, `/health` | `supabase/auth` master: `openapi.yaml`, `internal/api/external.go`, `pkce.go`, `token.go` (read from raw.githubusercontent.com) |
+| The Auth routes, their parameters and answers: `/authorize` (`provider`, `redirect_to`, `code_challenge`, `code_challenge_method`), `/token?grant_type=pkce` (`auth_code`, `code_verifier`), `/token?grant_type=refresh_token`, `/logout?scope=`, `/user`, `/settings`, `/health`; the code is added to the return address's query and the rest of the query is kept | `supabase/auth` master: `openapi.yaml`, `internal/api/external.go`, `pkce.go`, `token.go`, `verify.go` (read from raw.githubusercontent.com) |
 | The challenge must be 43 to 128 characters of `A-Z a-z 0-9 . _ ~ -`; `s256` in any case; the code is good 5 minutes (300 s floor) and once; errors return in the query and after `#` as `error`, `error_code`, `error_description` | the same files; Supabase docs `guides/auth/sessions/pkce-flow.mdx` |
 | `redirect_to` is honored when on `SITE_URL`'s scheme, host and port, or matching `GOTRUE_URI_ALLOW_LIST` globs; else `SITE_URL` | `internal/utilities/request.go`; docs `guides/auth/redirect-urls.mdx` |
 | The server adds the email scope for Google, Facebook and Discord itself; a provider that returns no email fails the sign-in unless `EMAIL_OPTIONAL` is set for it | `internal/api/provider/{google,facebook,discord}.go`, `external.go`, `conf/configuration.go` |
