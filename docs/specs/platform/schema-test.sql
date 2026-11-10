@@ -89,6 +89,10 @@ select t.ok((public.hs_save_put(1, '{"v":1,"keys":{}}') ->> 'ok')::boolean = fal
 select t.ok((public.hs_save_put(1, '{"v":1,"keys":{}}') -> 'data' -> 'keys' ->> 'hs_records') like '%erebuni%', 'and gets the stored save back');
 select t.ok(t.err($$select public.hs_save_put(2, ('{"k":"' || repeat('x', 270000) || '"}')::jsonb)$$) = 'save_too_large', 'a save over 256 KB');
 select t.ok(t.err($$select public.hs_save_put(2, '[1]')$$) = 'save_invalid', 'a save that is not an object');
+select t.ok((public.hs_save_get('next') ->> 'version')::int = 0, 'the staging channel has a save of its own');
+select t.ok((public.hs_save_put(0, '{"v":1,"keys":{"hs_records":"{\"staging\":1}"}}', 'next:test', 'next') ->> 'version')::int = 1, 'and writes it');
+select t.ok((public.hs_save_get() -> 'data' -> 'keys' ->> 'hs_records') like '%erebuni%', 'the live save is untouched by it');
+select t.ok(t.err($$select public.hs_save_put(0, '{}', null, 'beta')$$) = 'channel_unknown', 'a channel that does not exist');
 commit;
 begin;
 select t.as_user(:B::uuid);

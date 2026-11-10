@@ -362,7 +362,7 @@ clipboard.writeText`, with a selected text field as the fallback). Facebook's an
 
 The file: `docs/specs/platform/schema.sql`, to be copied to `deploy/supabase/schema.sql` unchanged. One file,
 safe to run again, no secret in it. It was run twice on PostgreSQL 16 here and passes `schema-test.sql`
-(79 assertions: roles, policies, each function's refusals and results). It uses nothing newer than PostgreSQL 13
+(83 assertions: roles, policies, each function's refusals and results). It uses nothing newer than PostgreSQL 13
 (`normalize()`), so it runs on any Supabase image.
 
 ### 2.1 Tables
@@ -370,7 +370,7 @@ safe to run again, no secret in it. It was run twice on PostgreSQL 16 here and p
 | table | one row per | columns that matter | who reads it directly |
 | --- | --- | --- | --- |
 | `hs_profiles` | player | `user_id`, `name` (chosen), `name_key` (folded, unique), `name_changed_at`, `hidden`, `first_aid` | the player, his own row |
-| `hs_saves` | player | `version`, `data` (the save document, section 4.1), `bytes`, `device`, `updated_at` | the player, his own row |
+| `hs_saves` | player and channel (`live`, or `next` for the staging page, 9.3) | `version`, `data` (the save document, section 4.1), `bytes`, `device`, `updated_at` | the player, his own rows |
 | `hs_rulesets` | ruleset | `id`, `data` (2.4), `active` | nobody (functions) |
 | `hs_runs` | ranked battle begun | `id` (the run token), `user_id`, `mode`, `level_id`, `diff`, `ruleset`, `day`, `twist`, `started_at`, `finished_at` | the player, his own rows |
 | `hs_scores` | accepted result | the run, the numbers sent, `score`, `stars`, `loadout`, `flags` | the player, his own rows |
@@ -418,8 +418,8 @@ Signed-in players only:
 | --- | --- | --- |
 | `hs_profile_get()` | | `{ user_id, name or null, hidden, name_changed_at, admin, now }` |
 | `hs_profile_set_name(p_name, p_aid)` | | `{ ok, name }`; `name_length`, `name_chars`, `name_blocked`, `name_taken`, `name_wait` |
-| `hs_save_get()` | | `{ version, data, updated_at, device, now }` (`version: 0, data: null` when none) |
-| `hs_save_put(p_expected, p_data, p_device)` | the version the page last saw (0: none) | `{ ok: true, version }` or `{ ok: false, version, data }` (someone wrote in between: merge and send again); `save_too_large` (over 256 KB), `save_invalid` |
+| `hs_save_get(p_channel)` | `live` (the default) or `next` | `{ version, data, updated_at, device, now }` (`version: 0, data: null` when none) |
+| `hs_save_put(p_expected, p_data, p_device, p_channel)` | the version the page last saw (0: none) | `{ ok: true, version }` or `{ ok: false, version, data }` (someone wrote in between: merge and send again); `save_too_large` (over 256 KB), `save_invalid` |
 | `hs_run_begin(p_mode, p_level, p_diff, p_ruleset, p_twist)` | | `{ ok, run_id, day, attempts_left, now }` or `{ ok: false, reason: "no_attempts" }`; `ruleset_unknown`, `level_unknown`, `daily_mismatch`, `no_profile` |
 | `hs_score_submit(p_run, p_stats)` | `p_stats = { won, lives, waves, sim_sec, spent, earned, loadout, build }` | `{ accepted, score, stars, board, best_all, rank_all, total_all, best_week, rank_week, total_week }`; `score_implausible` (with `details`), `run_unknown`, `run_finished`, `run_expired`, `stats_invalid`, `ruleset_unknown` |
 | `hs_delete_account()` | | `{ ok }` |
@@ -1320,15 +1320,15 @@ It passes on the proposed script here. It goes into the repository as `tools/pla
 2. *Its own mark.* A thin ribbon at the top left of every page: "Staging build · your saves here are separate".
    `<meta name="robots" content="noindex">` is added by script. Analytics carry `channel: "next"` and are left
    out of the stats.
-3. *The same Supabase, its own ruleset.* A staging build signs in against the same Supabase (the redirect
-   back to `/next/` is allowed because the host is the `SITE_URL`'s, 1.2). An account is the same account on
-   both channels, but **saves are not**: the staging page stores its save document in the account's row only
-   when the channel is live. On `/next/` cloud saves run against a separate document: `hs_save_get` and
-   `hs_save_put` are called with `p_device` starting `next:` and the page keeps the staging document under
-   the key `"next"` inside `data` (`{ v, at, ..., next: { ...the staging document... } }`), never touching the
-   live part. Scores from `/next/` post only if its ruleset id differs from the live one (the page refuses to
-   post to a ruleset whose `hs_sessions.channel` history it cannot see; simply: on `/next/` the ruleset id sent
-   is `RULESET + "-next"`, and the admin publishes that).
+3. *The same Supabase, kept apart.* A staging build signs in against the same Supabase (the return to
+   `/next/` is allowed because its host is the `SITE_URL`'s, 1.2), so an account is the same account on both
+   channels. What a staging build writes is kept apart from the live game's, so a build under trial can never
+   reach a real save or a real board:
+   - *saves*: `hs_save_get` and `hs_save_put` are called with `p_channel: "next"`; the server keeps one save
+     document per account and channel;
+   - *scores and the daily*: the ruleset id the page sends from `/next/` is `String(RULESET) + "-next"`, which
+     the admin publishes from `/next/?stats`; its boards are its own;
+   - *analytics*: `channel: "next"`, left out of the stats.
 
 ---
 

@@ -27,12 +27,14 @@ create table if not exists public.hs_profiles (
 create unique index if not exists hs_profiles_name_key on public.hs_profiles (name_key);
 
 create table if not exists public.hs_saves (
-  user_id uuid primary key references auth.users(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  channel text not null default 'live' check (channel in ('live', 'next')),   -- the staging page keeps a save of its own
   version integer not null default 1,       -- grows by one with every accepted write
   data jsonb not null,                      -- the save document (opaque to the server)
   bytes integer not null,
   device text,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (user_id, channel)
 );
 
 create table if not exists public.hs_rulesets (
@@ -321,33 +323,35 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- public: cloud saves
-create or replace function public.hs_save_get() returns jsonb
+create or replace function public.hs_save_get(p_channel text default 'live') returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_uid uuid := hs_private.uid(); r public.hs_saves;
 begin
-  select * into r from public.hs_saves where user_id = v_uid;
+  if p_channel not in ('live', 'next') then raise exception 'channel_unknown' using errcode = 'P0001'; end if;
+  select * into r from public.hs_saves where user_id = v_uid and channel = p_channel;
   if not found then return jsonb_build_object('version', 0, 'data', null, 'now', now()); end if;
   return jsonb_build_object('version', r.version, 'data', r.data, 'updated_at', r.updated_at, 'device', r.device, 'now', now());
 end $$;
 
 -- write the save if the caller saw the version that is stored (0: none yet); else the stored one comes back
-create or replace function public.hs_save_put(p_expected integer, p_data jsonb, p_device text default null) returns jsonb
+create or replace function public.hs_save_put(p_expected integer, p_data jsonb, p_device text default null, p_channel text default 'live') returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_uid uuid := hs_private.uid(); r public.hs_saves; sz integer;
 begin
+  if p_channel not in ('live', 'next') then raise exception 'channel_unknown' using errcode = 'P0001'; end if;
   if p_data is null or jsonb_typeof(p_data) <> 'object' then raise exception 'save_invalid' using errcode = 'P0001'; end if;
   sz := octet_length(p_data::text);
   if sz > 262144 then raise exception 'save_too_large' using errcode = 'P0001'; end if;
   if not hs_private.rate_ok('save', v_uid::text, 3600, 240) then perform hs_private.limit_hit(); end if;
-  select * into r from public.hs_saves where user_id = v_uid for update;
+  select * into r from public.hs_saves where user_id = v_uid and channel = p_channel for update;
   if not found then
     if coalesce(p_expected, 0) <> 0 then
       return jsonb_build_object('ok', false, 'version', 0, 'data', null, 'now', now());
     end if;
     begin
-      insert into public.hs_saves (user_id, version, data, bytes, device) values (v_uid, 1, p_data, sz, left(p_device, 60));
+      insert into public.hs_saves (user_id, channel, version, data, bytes, device) values (v_uid, p_channel, 1, p_data, sz, left(p_device, 60));
     exception when unique_violation then   -- another device wrote first
-      select * into r from public.hs_saves where user_id = v_uid;
+      select * into r from public.hs_saves where user_id = v_uid and channel = p_channel;
       return jsonb_build_object('ok', false, 'version', r.version, 'data', r.data, 'now', now());
     end;
     return jsonb_build_object('ok', true, 'version', 1, 'now', now());
@@ -356,7 +360,7 @@ begin
     return jsonb_build_object('ok', false, 'version', r.version, 'data', r.data, 'device', r.device, 'now', now());
   end if;
   update public.hs_saves set version = r.version + 1, data = p_data, bytes = sz, device = left(p_device, 60), updated_at = now()
-    where user_id = v_uid;
+    where user_id = v_uid and channel = p_channel;
   return jsonb_build_object('ok', true, 'version', r.version + 1, 'now', now());
 end $$;
 
@@ -722,7 +726,10 @@ create or replace view hs_private.v_battles as   -- one row per battle ended
     (e.props ->> 'lives')::integer as lives, (e.props ->> 'lives_max')::integer as lives_max,
     (e.props ->> 'wave')::integer as wave, (e.props ->> 'waves')::integer as waves
   from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
-  where e.name in ('victory', 'defeat', 'battle_quit');
+  where e.name in ('victory', 'defeat')
+     -- a battle left (abandoned, or the page hidden in the middle of it) and not come back to in that visit
+     or (e.name = 'battle_quit' and not exists (select 1 from public.hs_events b
+           where b.sid = e.sid and b.name = 'battle_back' and b.seq > e.seq));
 
 create or replace function public.hs_stats(p_days integer default 30) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
@@ -799,8 +806,8 @@ begin
 end $$;
 grant execute on function public.hs_config(), public.hs_track(jsonb, jsonb), public.hs_handoff_put(text, text), public.hs_handoff_take(text),
   public.hs_board(text, text, integer, text, text, text, date, integer), public.hs_daily_status(text) to anon, authenticated;
-grant execute on function public.hs_profile_get(), public.hs_profile_set_name(text, uuid), public.hs_save_get(),
-  public.hs_save_put(integer, jsonb, text), public.hs_run_begin(text, text, integer, text, text), public.hs_score_submit(uuid, jsonb),
+grant execute on function public.hs_profile_get(), public.hs_profile_set_name(text, uuid), public.hs_save_get(text),
+  public.hs_save_put(integer, jsonb, text, text), public.hs_run_begin(text, text, integer, text, text), public.hs_score_submit(uuid, jsonb),
   public.hs_delete_account(), public.hs_stats(integer), public.hs_admin_publish_ruleset(text, jsonb), public.hs_admin_set_config(text, jsonb),
   public.hs_admin_moderate(uuid, boolean, text), public.hs_admin_remove_score(bigint), public.hs_admin_purge_events(integer) to authenticated;
 
