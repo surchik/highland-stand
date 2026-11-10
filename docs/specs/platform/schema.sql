@@ -498,6 +498,7 @@ create or replace function public.hs_board(p_mode text, p_level text default nul
   p_limit integer default 50) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_uid uuid := auth.uid(); v_board text; v_period text; v_rows jsonb; me record; v_me jsonb;
+  v_admin boolean := hs_private.is_admin();
 begin
   if p_mode = 'daily' then
     v_board := 'd:' || to_char(coalesce(p_day, (now() at time zone 'utc')::date), 'YYYY-MM-DD'); v_period := 'all';
@@ -508,8 +509,10 @@ begin
     raise exception 'mode_unknown' using errcode = 'P0001';
   end if;
   if v_board is null then raise exception 'board_unknown' using errcode = 'P0001'; end if;
+  -- (an admin's rows also carry the score's id and the player's, for hs_admin_remove_score and hs_admin_moderate)
   select coalesce(jsonb_agg(jsonb_build_object('rank', q.rn, 'name', q.name, 'score', q.score, 'lives', q.lives,
-      'sec', q.sim_sec, 'at', q.achieved_at, 'me', q.user_id = v_uid) order by q.rn), '[]'::jsonb)
+      'sec', q.sim_sec, 'at', q.achieved_at, 'me', coalesce(q.user_id = v_uid, false))
+      || case when v_admin then jsonb_build_object('id', q.score_id, 'uid', q.user_id) else '{}'::jsonb end order by q.rn), '[]'::jsonb)
     into v_rows
     from (select s.*, p.name, row_number() over (order by s.score desc, s.achieved_at) as rn
           from public.hs_score_best s join public.hs_profiles p on p.user_id = s.user_id
