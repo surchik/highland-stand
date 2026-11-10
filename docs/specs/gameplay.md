@@ -40,8 +40,9 @@ Tool: a copy of `tools/balance.js` that also records each wave's length in game 
   The whole campaign is 602 minutes of wave time at 1x for a player who wins every battle once.
 - Waves 1 to 3 take about 30 s each. From wave 6 (the first siege engine, 27 px/s) a wave takes 110 to 165 s.
   The late waves are the time: waves 11 to 20 are two thirds of a battle.
-- The balanced mix ends a battle with 6,700 to 16,500 gold invested (Erebuni 6,790, Stepanakert 2023 16,470):
-  14 pads at rank 3, about seven masteries. Masteries start around wave 17.
+- Winning builds end a battle with 6,700 to 16,500 gold invested (the mix: 6,790 on Erebuni, 13,620 on
+  Shushi): every pad at rank 3 and the first masteries from about wave 18 (five on Erebuni's last wave).
+  A battle cut off at wave 10 would never see a mastery.
 - Results (lives kept of 20): the mix wins 14 of 17, the best build 17 of 17 with 10 to 17 kept. Table in
   `gameplay-proto/base-normal.table.txt`.
 - The tray on a 667 px phone is 655 px of tiles: five tiles are 126 px wide, six 104 px, seven 88 px, all 52 px
@@ -55,8 +56,9 @@ copy of the page, with the lengths of section 1.2 and nothing retuned. Same bot,
 - The campaign's wave time at 1x falls from 602 to 433 minutes. Erebuni 36 to 18, Dvin 37 to 18, Tashir 28 to
   17, Mari 26 to 17, Stepanakert 2023 25 to 16. The two battles left at 20 waves (Sis, Sardarapat) play
   exactly as before, battle for battle.
-- The board is as built at the end as today: gold invested by the winning builds moves by 3% or less on 14 of
-  17 battlefields (Erebuni 6,702 to 6,958; Dvin 11,763 to 11,575).
+- The board is as built at the end as today: gold invested by the winning builds is within 6% of today's on
+  14 of 17 battlefields (Erebuni 6,702 to 6,958; Dvin 11,763 to 11,575; Sevan and Gyumri 10% richer,
+  Stepanakert 2023 6% poorer; the builds that win are not the same set in the two runs).
 - The mix still wins 14 of 17 and the best build 17 of 17. The shortened battlefields come out 3 to 6 lives
   easier (fewer waves, fewer chances to leak), so every one of them needs its `hpTune` raised (section 5.6).
   Mari's mix lets a commander through and needs its commander number looked at.
@@ -96,8 +98,16 @@ function scriptWave(w) { const S = curScript(); return w <= 0 ? 0 : w <= S.lengt
 function playedWave(s) { const S = curScript(); for (let k = 0; k < S.length; k++) if (S[k] >= s) return k + 1; return S.length + (s - SCRIPT_LEN); }
 // the script waves played wave w stands for when it is FOUGHT: itself and the ones skipped before it
 function coveredWaves(w) { const out = []; for (let i = scriptWave(w - 1) + 1; i <= scriptWave(w); i++) out.push(i); return out; }
-// the script waves played wave w PAYS for: itself and the ones skipped after it (1.4)
-function paidWaves(w) { ... }
+// the script waves played wave w PAYS for: itself and the ones skipped after it (1.4). Waves 1 to 3 pay
+// themselves only, and wave 4 also pays a script wave skipped between 3 and it
+function paidWaves(w) {
+  const S = curScript(), n = S.length, out = [];
+  if (w > n) return [scriptWave(w)];                                   // an endless wave pays itself
+  const a = w === 4 ? 4 : scriptWave(w);
+  const b = w <= 3 ? scriptWave(w) : w < n ? S[w] - 1 : SCRIPT_LEN;
+  for (let s = a; s <= b; s++) out.push(s);
+  return out;
+}
 ```
 
 `curScript()` is `levelScript(LEVELS[curLevel])`, or the identity table for a legacy run (1.8).
@@ -131,7 +141,7 @@ brackets. "Cmd" is the commander's wave and the pair's.
 | 7 | Ani, c. 1041 to 1044 | 18 | 9, 18 | 29 (32) | Three assaults over years ("The Testament", `L.phases`): the long set piece of Chapter III. The phases start on waves 1, 7 and 14. |
 | 8 | Mari, August 1266 | 12 | 7, 12 | 15 (26) | One lost battle in the passes. The second road opens on wave 8. Short, so the turn comes fast. |
 | 9 | Sis, early 1375 | 20 | 10, 20 | 40 (40) | The last siege of the kingdom. Each wave is three days (`DAYS_PER_WAVE`), 60 days in all: the one battle whose length is part of its telling. Unchanged. |
-| 10 | Gyumri Road, 1579 | 13 | 7, 13 | 27 (44) | A road fight (the battle is the game's). Today it is one of the two longest; it should not be. |
+| 10 | Gyumri Road, 1579 | 13 | 7, 13 | 28 (44) | A road fight (the battle is the game's). Today it is one of the two longest; it should not be. |
 | 11 | Halidzor, 1727 | 14 | 8, 14 | 26 (36) | A siege of days ended by a sortie. Mid length. |
 | 12 | Van, 1915 | 18 | 9, 18 | 35 (40) | A month in the barricaded quarters until relief came. Long. |
 | 13 | Musa Dagh, 1915 | 16 | 8, 16 | 23 (28) | Fifty-three days on the mountain. Long in waves, but its short road keeps it under 25 minutes. |
@@ -194,7 +204,8 @@ short battle must still reach them). So income follows the script, not the count
 
 The toast names the sum as now ("Wave 5 repelled! +129 gold · +45 interest"). A coin pop over a fallen foe
 shows the multiplied bounty. Nothing else is told: the player sees bigger waves that pay more.
-MEASURED with the prototype (pure pay-ahead, without the wave 4 exception): boards within 3% of today's.
+MEASURED with the prototype (pure pay-ahead, without the wave 4 exception): boards within 6% of today's on
+14 of 17 battlefields.
 
 ### 1.5 The tutorial
 
@@ -272,15 +283,15 @@ Unlocked when Tushpa opens (after the first victory at Erebuni) and offered on e
 post: {
   name: "Garrison Post", cost: 90, proj: null, post: true,
   levels: [
-    { men: 2, hp: 130, dmg: 10, rate: 1.0, reach: 115, respawn: 12 },
-    { men: 3, hp: 180, dmg: 15, rate: 1.0, reach: 130, respawn: 10, cost: 110 },
-    { men: 3, hp: 250, dmg: 22, rate: 0.9, reach: 145, respawn: 9, cost: 190 },
+    { men: 2, hp: 130, dmg: 10, rate: 1.0, reach: 150, respawn: 12 },
+    { men: 3, hp: 180, dmg: 15, rate: 1.0, reach: 165, respawn: 10, cost: 110 },
+    { men: 3, hp: 250, dmg: 22, rate: 0.9, reach: 180, respawn: 9, cost: 190 },
   ],
   specs: {
     a: { name: "Shield Wall", cost: 300, desc: "Four men behind great shields. Each holds two foes.",
-         stats: { men: 4, hp: 420, dmg: 20, rate: 1.0, reach: 150, respawn: 8, holds: 2, guard: 0.35 } },
+         stats: { men: 4, hp: 420, dmg: 20, rate: 1.0, reach: 185, respawn: 8, holds: 2, guard: 0.35 } },
     b: { name: "Sortie", cost: 300, desc: "Three picked fighters who strike hard and give chase.",
-         stats: { men: 3, hp: 300, dmg: 48, rate: 0.8, reach: 185, respawn: 8, pierce: true, chase: 60 } },
+         stats: { men: 3, hp: 300, dmg: 48, rate: 0.8, reach: 215, respawn: 8, pierce: true, chase: 60 } },
   },
 },
 ```
@@ -288,7 +299,10 @@ post: {
 `TOWER_HP.post = [300, 380, 480]` (the post itself, for hunters and powers). `men`: soldiers. `hp`, `dmg`,
 `rate`: each soldier's strength, blow and seconds between blows (the blow is cut by armor like an arrow,
 `armorHit`; Sortie's pierces). `reach`: how far from the pad the rally point may lie (ground range, the
-game's ellipse). `respawn`: seconds until a fallen man returns to the post and walks out. `holds`: foes one
+game's ellipse). MEASURED (`gameplay-proto/padroad.txt`): a pad's nearest road lies 110 to 140 away on
+most pads (the archers' first range is 130 for the same reason) and up to 250 on a few. At 150, ten to
+fifteen pads of every battlefield can take a post and a typical pad has about 165 px of road to choose
+from; at rank 3 about 260 px. `respawn`: seconds until a fallen man returns to the post and walks out. `holds`: foes one
 man holds (1 unless given). `guard`: the share of damage a man does not take. `chase`: px a man follows a
 foe along the road before he turns back.
 Reading: rank 1 is 20 damage a second for 90 gold against the archers' 22 for 50; its worth is the hold.
@@ -329,8 +343,8 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 ### 2.3 The rally point, by mouse and by touch
 
 - When built, the rally point is the road point in reach nearest the pad (on a tie, the one nearer the
-  walls). A pad with no road in reach (none today within 115 px: a self-test proves it, 8.1) would refuse
-  the tower with the toast "No road in reach of this pad."
+  walls). A pad with no road in a rank 1 post's reach (up to four pads a battlefield, measured) refuses
+  the tower: its preview ring lights no road and the press answers "No road in reach of this pad."
 - The post's panel has a first button "Rally point" (icon `#i-flag`). Pressing it puts the panel away and
   arms `rallying = tower`: the field draws the reach ring and lights every stretch of road inside it (the
   dormant ambush track too), and the toast says "Tap the road inside the ring." (mouse: "Click the road
@@ -382,7 +396,7 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 - Shield Wall: four men, 420 strong, who take 35% less. Each holds two foes: eight foes stand still at one
   spot. For roads where the board's splash and fire can work on a held crowd.
 - Sortie: three men who strike 48 through armor every 0.8 s and follow a foe 60 px down the road. Longer
-  reach (185). For felling what is held, armored foes above all, and for covering two stretches of road.
+  reach (215). For felling what is held, armored foes above all, and for covering two stretches of road.
 
 ### 2.6 Name and look in every age
 
@@ -434,7 +448,7 @@ Blurb (`SLOT_BLURB.post`): "Men who stand on the road and hold foes in melee. Ou
   Rally point." Seen once (`hs_towers_seen`).
 - In the first battle with a post built, when it is first selected: one coach bubble at the Rally point
   button, "Tap here, then tap the road to move your men." Seen once (same key).
-- Panel stats (`setPanelStats`): Men 3 · Strength 180 · Blow 15 · Holds 3 · Reach 130.
+- Panel stats (`setPanelStats`): Men 3 · Strength 180 · Blow 15 · Holds 3 · Reach 165.
   `statDeltaHtml` gets a branch for `def.post`.
 
 ### 2.9 Save
@@ -675,7 +689,7 @@ The decision asked for: a loadout chosen before the battle, or a tray that grows
 ```js
 function trayTypes() {
   const base = ["archer", "ballista", "catapult", "fire", "drums"];
-  if (legacyRun || tut) return base;                         // an old run and the coached stand: the classic five
+  if (legacyRun || tutGentle) return base;                   // an old run and the coached stand: the classic five
   const out = base.filter(k => !trayBan.includes(k));        // trayBan: the daily's struck tile, else []
   if (towerUnlocked("post") && !trayBan.includes("post")) out.push("post");
   const a = AGE_TOWER[ageOf(curEra)];
@@ -692,12 +706,15 @@ Hotkeys 6 and 7. Every `#shop .card` loop already reads `dataset.type`.
 
 Layouts:
 
-- Desktop: tiles are 148 px with 7 px gaps. Seven are 1,078 px. With `data-n="7"` the left end-cap (an
-  ornament) hides under 1,640 px of window instead of 1,100 px, and tiles may shrink to 112 px
-  (`flex: 0 1 148px; min-width: 112px`) before the right cap gives ground. At 1,280 px: seven tiles of
-  about 140 px and the wave cap at 250 px.
-- iPad (1194 x 834 and 1024 x 768, touch): the same rule gives tiles of 118 px and 104 px, 82 px tall.
-  No change to the wave cap. `padplace.js`'s first press on a tile and the tile's line over it work as now.
+- Desktop: tiles are 148 px with 7 px gaps; seven are 1,078 px. Today's steps (lines 1253 to 1268: the
+  left end-cap, an ornament, hides under 1,340 px; tiles are 128 px under 1,100; the wave cap leaves the
+  tray and hangs under the header under 980) move out with the tile count. With `data-n="7"`: the left
+  cap hides under 1,680 px, tiles are 128 px under 1,440 and 112 px under 1,300, the wave cap leaves the
+  tray under 1,170. With `data-n="6"`: 1,500, 1,260 (128 px), and 1,100 for the wave cap. Under 760 px a
+  tile's width is `(100vw - 28px) / n`, not `/ 5`.
+- iPad: at 1194 x 834 seven tiles are 112 px wide and 82 px tall and the wave cap stays in the tray at
+  its 320 px. At 1024 x 768 the wave cap hangs under the header (the layout narrow windows have today)
+  and the tiles are 128 px. `padplace.js` and `plots.js` run at both.
 - Phone held sideways (667 x 320 and up): the tiles share the whole width as now (`flex: 1 1 0`, 6 px
   gaps): seven are 88 px on an SE, 98 px on an iPhone 15 from the Home Screen (852 px less 59 px insets
   each side). Height stays 52 px. To keep the bar "text at least 11 px, never cut off": on a phone a tile
@@ -783,6 +800,8 @@ function kitHas(branch, tier) { return (kit.own[branch] || 0) >= tier; }
   `sellRefund`, `plotPrice`.
 - The kit of a run in progress never changes: a reset or a purchase made on the map while a run is saved
   applies from the next battle. A resumed run uses `r.kit`.
+- A coached stand (`tutGentle`) and a legacy run use the empty kit and a level 1 hero: the tutorial is the
+  same battle for everyone, whatever the save owns.
 
 ### 4.4 Heroes
 
@@ -1067,3 +1086,360 @@ foes break free after 4 s) is specified as the fallback and built only if needed
 7. A person plays: 8.4.
 After any later change to a number in 5.3, rerun step 6.
 
+## 6. What a score is made from
+
+### 6.1 The facts of a finished battle
+
+`battleFacts()` returns a plain object when a battle ends (victory, defeat, the end of an endless stand).
+Everything in it is counted by the battle itself. It is a claim made by a page the player controls: the
+platform must treat it as such (6.3).
+
+```js
+{
+  rules: 2,                    // RULESET; 1 for a legacy run (a 20-wave run begun before the update)
+  build: "2026-11-09",         // BUILD_ID
+  lvl: "erebuni", age: "iron", diff: 1,
+  mode: "campaign",            // "campaign" | "endless" | "daily"
+  daily: null,                 // { day, twist } in a daily
+  won: true,
+  waves: 10,                   // the battle's length
+  cleared: 10,                 // waves cleared (lastCleared, at most `waves` outside an endless stand)
+  script: 20,                  // scriptWave(cleared): how far through the 20-step script, for comparing lost battles
+  beyond: 0,                   // endless: waves held beyond the chronicle
+  livesStart: 20, livesKept: 15, lost: 6, returned: 1,      // kept = start - lost + returned
+  leaks: { spearman: 2, cavalry: 3, boss: 0 }, cmdMet: 3, cmdFelled: 3,
+  trickLost: { ambush: 0, hidden: 1, hunter: 0, adapted: 0 },
+  timeS: 1042,                 // game seconds with a wave on the field: what 1x would have taken. Speed does not change it
+  realS: 688,                  // real seconds from the first wave's call to the end, pauses left out
+  speedS: { x1: 120, x2: 568, x4: 0 },                      // real seconds at each speed
+  goldStart: 220, goldEarned: 7410, goldSpent: 7180, goldLeft: 450,   // left = start + earned - spent
+  goldFrom: { bounty: 5200, clear: 1500, interest: 480, early: 110, market: 120 },
+  spentOn: { build: 2300, rank: 3100, mastery: 1200, land: 275, repair: 305 }, refunds: 0,
+  towers: { archer: 4, ballista: 3, catapult: 3, fire: 2, drums: 1, post: 1 },   // standing at the end
+  masteries: 6, built: 15, sold: 1, wrecks: 1, plots: 1,
+  tray: ["archer", "ballista", "catapult", "fire", "drums", "post"], ban: [],
+  spells: { arrows: 6, frost: 7, wrath: 5 }, calls: 4, heroLevel: 2, heroFalls: 1, heroKills: 23,
+  kit: { own: { bows: 1, engines: 1, captains: 0, heralds: 0, stewards: 0 }, hero: 2, std: false },
+  power: 2,                    // stars' worth of the Council tiers that were active
+  early: 3, auto: false, resumed: 0, aided: false, tut: false,
+}
+```
+
+Counters to add to the battle (none exist today as totals): `timeS` (summed in `update` while
+`phase === "wave"`), `realS` and `speedS` (in the frame loop, not while paused or hidden), `goldEarned` and
+`goldFrom` (every `gold +=`), `spentOn` and `refunds` (in `spendGold`, which gains a reason), `lost`,
+`returned`, `built`, `sold`, spell and Call counts, `early`, `auto`, `resumed`. All of them are saved in
+`hs_run` at each wave's horn (`markWaveStart`), so a resumed run does not lose or double them, and a wave
+fought again after a reload counts once.
+
+### 6.2 The inputs of a score
+
+The weights are the platform's. Gameplay defines the three inputs so that they mean the same on every
+battlefield, and supplies the pars:
+- Defenders: `L = livesKept / livesStart` (0 to 1).
+- Speed: `S = clamp((2 * parS - timeS) / parS, 0, 1)`: 1 at par or faster, 0 at twice par. `parS` is the
+  best build's mean wave time on Normal from the final balance tables (5.6), per battlefield. Early calls
+  are how a player beats par; the speed button does nothing to it.
+- Thrift: `T = clamp(goldLeft / (0.2 * (goldStart + goldEarned)), 0, 1)`: 1 when a fifth of all gold was
+  never needed.
+- A lost battle ranks under every victory, by `script` (so a loss on wave 8 of 10 and one on wave 15 of 20
+  compare honestly), then by `livesKept` (0) and `timeS`.
+- The endless board: `beyond`, ties by less `timeS`.
+- Difficulty: one board a difficulty, no multiplier. Easy's foes are weaker by rule, so its scores do not
+  compare with Normal's.
+What must not move a score: the speed chosen, pauses, the device, the hero's kills, how many towers were
+sold. What should keep a run off the standard boards: `rules !== RULESET`, `aided`, `tut`, `resumed > 0`
+(a wave fought again after a reload), `kit.std === false`, a non-empty `ban` outside the daily.
+
+### 6.3 `rulesetTable()`: what the platform can check a claim against
+
+One JSON object, built by the page from its own tables (so it cannot drift from the game), for the
+platform to publish to its server: for each battlefield its `waves`, `script`, `livesStart` by difficulty,
+`pads` and `plots` (the most towers there can be), `parS`, `minS` (the sum over its waves of the time the
+last foe of that wave spawns: no battle can clear its waves faster, early calls included), `goldMax` by
+difficulty (every bounty with the plunder mastery, every clear bonus, the interest cap on every wave, two
+markets at Caravan, the early bonus on every wave: an upper bound), the standard kit, and the tray. With
+it a server can refuse `timeS < minS`, `goldEarned > goldMax`, `livesKept > livesStart`,
+`goldLeft !== goldStart + goldEarned - goldSpent`, more towers than pads and plots, a tray tile the age does
+not have, a kit above the chapter's cap. It cannot prove a battle was played; say so on the board's
+small print.
+
+### 6.4 The standard loadout, the daily, and its twists
+
+The standard loadout of a battlefield: the five slots, the Garrison Post and its age's tower, whether or
+not the player has reached them, with the standard kit (4.8: the PAR Council in the standard order, the
+hero at the table's level). Erebuni's is five slots, the post and the Horse Lines with an empty Council and
+a level 1 hero.
+
+`startDaily({ day, lvl, twist })` (the platform chooses the three from gameplay's tables): Normal, the
+standard loadout, the twist applied, `mode: "daily"`. A daily never writes `hs_best_*` or `hs_records` (it
+opens no road and gives no stars), may be fought on a battlefield the campaign has not reached (its
+chronicle is shown first, as before any battle), is not saved as a resumable run (leaving it ends the
+attempt: `hs_run` is not written, so the campaign's saved run is left alone), and gives hero experience up
+to 150 a day. Its brief shows the twist's card before "Begin the Stand".
+Randomness: the few draws that move foes (an outflanker's entry point, its path over a lake, which side an
+aircraft circles) come from a small generator seeded from `day` and `lvl` (`gRnd`), so every player meets
+the same lines; looks (particles, sheep) keep `Math.random`.
+
+`DAILY_POOL`: all 17 battlefields by id. `DAILY_TWISTS`: each is an id, a name, one sentence for its card,
+and a patch made of knobs that exist today, so none needs new art:
+
+| id | Name | Card | What it sets |
+|---|---|---|---|
+| `thin` | Thin purse | "Bounties are a fifth lower today." | bounty x 0.8 (`econ.bounty`) |
+| `swift` | Forced march | "Every foe marches 15% faster today." | `spdMult` x 1.15 on every role |
+| `iron` | Iron ranks | "The rank and file wear 3 more armor today." | `armorAdd` + 3 on raider, spearman, shield, cavalry |
+| `scouts` | Scouts abroad | "Hidden scouts come on many waves today." | the hidden trick (`from` script 4, `every` 2, n [2, 5]), the battlefield's own scout name if it has one, else "Scouts" |
+| `sappers` | Sappers abroad | "Tower hunters come today." | the hunters trick (`from` script 6, look `pick`, n [1, 4, 3], tdps 12) |
+| `ban` | Short of hands | "No {tower} today." | one of ballista, catapult, fire, drums struck from the tray (`trayBan`); never the battlefield's watch slot |
+| `few` | Few defenders | "You have 12 defenders today." | lives 12 |
+| `quiet` | Silent heavens | "No spells today." | the three spells off |
+| `pair` | Two commanders | "The first commander brings a second." | the script wave 10 group n = 2 |
+| `wary` | A watchful enemy | "The enemy adapts early today." | `adapt.from` script 3 |
+| `press` | No rest | "The next wave comes 4 s after the last is cleared." | Auto on and locked |
+| `dusk` | Night stand | "The battle begins at dusk." | the sun starts low (looks only; may ride with any other twist) |
+
+`DAILY_SKIP`: the pairs (battlefield, twist) the bot's mix cannot win on two of three seeds with the
+standard loadout (`TWIST=id` in the bot); the platform's picker steps past them. The table is made by the
+bot and committed with the balance tables.
+
+## 7. Analytics hooks
+
+Gameplay calls `track(name, props)`; it never waits for it and never reads from it. Props are small flat
+objects of numbers, booleans and short ids: no free text, nothing personal. To keep the stream thin, what
+happens many times a wave is counted and sent once with the wave.
+
+| Event | Where (function, line today) | Props |
+|---|---|---|
+| `map_open` | `buildMenu` 55002, when the map is shown | `chapter`, `open` (battlefields open), `stars`, `unspent` |
+| `chapter_story` | `showChapterIntro`, each page turn | `id`, `page`, `pages` |
+| `diff_set` | the difficulty row's handler | `diff` |
+| `brief_open` | `showBrief` 60101 | `lvl`, `diff`, `daily` |
+| `brief_page` | the chronicle's page turn (`showLeafPage`) | `lvl`, `page`, `pages` (how far the history is read) |
+| `foe_card` | opening a foe's card | `lvl`, `role`, `from` ("brief" or "battle") |
+| `battle_start` | the Begin the Stand handler (not `resetGame`, which tests call) | `lvl`, `diff`, `mode`, `rules`, `waves`, `tray`, `power`, `heroLevel`, `tut` |
+| `battle_resume` | `resumeRun` 10741 | `lvl`, `w`, `rules` |
+| `tutorial_step` | each coach step shown (`TUT_STEPS`, about 60880) | `i`, `id` |
+| `tutorial_end` | `stopTutorial` | `i`, `how` ("done" or "skip") |
+| `wave_start` | `startWave` 11040 | `lvl`, `w`, `sw` (script wave), `early`, `gold`, `lives`, `towers` |
+| `wave_end` | `endWaveIfClear` 11342 | `lvl`, `w`, `secs`, `lost`, `gold`, `built`, `ranked`, `mastered`, `sold`, `spells`, `calls`, `rallies`, `fired` (mines by hand), `repairs` (counts in that wave) |
+| `trick_card` | a first-time trick card shown (`trickCardsAtStart`) | `lvl`, `key` |
+| `unlock_seen` | a one-time card of 4.6 put away | `what` |
+| `battle_end` | `victory` 11451, `endFall` 11854 | the facts of 6.1 |
+| `battle_abandon` | Settings, Abandon (about 60612) | `lvl`, `w`, `lives`, `timeS` |
+| `endless_start` | Hold Forever | `lvl`, `diff` |
+| `daily_start` | `startDaily` | `day`, `lvl`, `twist` |
+| `star_gain` | `recordWin` 10970, when the tally rises | `lvl`, `diff`, `stars`, `hard` (the seal), `total` |
+| `hero_level` | when an age's level rises | `age`, `level` |
+| `council_open` | `openCouncil` | `from` ("map", "brief", "victory", "hall"), `unspent` |
+| `council_buy` | buying a tier | `branch`, `tier`, `left` |
+| `council_reset` | Reset the Council | `spent` |
+| `captains_open` | `openCaptains` | `age`, `from` |
+| `speed_set`, `auto_set` | `setSpeed` 60400, the Auto button 60423 | `x`; `on` |
+
+The funnel the gate's cost is read from (D3) continues in these: the platform's own gate events, then
+`brief_open`, `battle_start` with `tut`, `tutorial_step` by step, `wave_end` for waves 1 to 3,
+`battle_end`, the second `battle_start`. Under the harness (`?selftest`, `?shot`) `track` stays the no-op.
+
+## 8. Tests
+
+### 8.1 The self-test and its budget
+
+Today: 151 checks in about 122 s of a 125 s budget. The budget is kept by not adding to that suite:
+- Suite 1 (`?selftest=1`, today's): only edited where it assumes twenty. The staged waves 12 and 19 of
+  "render L" become `Math.ceil(N * 0.6)` and `N - 1`; every `TOTAL_WAVES` in lines 77157 to 78325 becomes
+  `totalWaves()` (they stage a victory, a defeat or an endless stand: same cost); line 77379's check that
+  the constant is 20 becomes a check that the endless defeat page names no number; line 78245 keeps
+  1 to 20 (the data stays script waves); line 78293's "an ambush does not meet a commander wave" uses
+  `isCommanderWave(playedWave(f))`. No check is added. Its time does not grow.
+- Suite 2 (`?selftest=2`, new, `runSelftestPlay`): everything below, with its own 125 s budget.
+  `tools/selftest.js` takes `--suite=1|2|all` (default all: both suites in two pages side by side, so the
+  wall time stays about 125 s) and fails if either suite's own clock passes 125 s (`res.ms`). If suite 2
+  passes 100 s it is split again.
+
+Suite 2's checks:
+- Waves: every `L.waves` is 10 to 20 and has a table; every table starts 1, 2, 3, rises, holds 10, ends 20;
+  `coveredWaves` and `paidWaves` each split 1 to 20 with no gap or overlap; the clear bonuses of a whole
+  battle sum to the 20-wave total (1,130) on every battlefield; on Sis and Sardarapat `wavePlan(w)` equals
+  the script's plan for every wave (unchanged battles); Erebuni's coached waves 1 to 3 match a fixture
+  taken from master (queue, hit points, bounties, gold after each); the commander waves equal 1.2's table;
+  no ambush opens or is first told on a commander wave; the first waves of 1.3's table; "Wave 3/10" in the
+  HUD; the brief's line; Mari's held lines; the coach's last words.
+- Old saves: an `hs_run` without `rules` resumes with 20 waves, five tiles and the empty kit, wins, and
+  records its stars; an old endless record of 34 reads as 14 beyond and is written back both ways; an
+  `hs_best` of 15 on a 10-wave battlefield shows 10 and one of 21 still opens the next road.
+- Garrison Post: at least ten pads of every battlefield have road within a rank 1 post's reach, and a
+  pad without refuses the post; a post built gets a rally point
+  on a road in reach; a staged press moves it and a press out of reach does not; a held foe's `dist` does
+  not grow and it is let go when its man falls; engines and outflankers are not held; an unseen scout
+  passes and a seen one is held; a hunter at a tower in reach stops working when a man reaches it; one post
+  holds a commander 8 s at most; a stone aimed at a held foe lands on it; a resumed run keeps the rally
+  point; a wrecked post sends no one; the drums quicken the men.
+- The age's towers: each is offered only in its age and only once its battlefield is open; Horse Lines
+  never throw a foe behind its road's start nor throw a held foe; a Market pays `pay` times `payStep`, a
+  third is refused, a wrecked one pays nothing; a Powder Mine arms, fires by a press on its marker, fires
+  by its trigger at 3 foes, and Twin Fuses holds two; a Dressing Station returns a defender only after a
+  wave without a loss, stops at its cap and never passes the starting count; an Observation Post's mark
+  multiplies a blow once whatever the number of posts, shows a marked scout, and can mark an outflanker.
+- Tray: 5, 6 or 7 tiles as the campaign stands; five in the coached stand; keys 6 and 7; every
+  `towerShort` is 13 characters or fewer, or the tile carries `noNm`; a tile's price is the kit's.
+- Council: stars counted from records with the Hard seal; a tier needs the one under it and its chapter;
+  reset returns everything; a forged `hs_council` is cut down by `councilSane`; the panel's numbers equal
+  `towerStats`; the standard order gives 4.8's rows; the page is staged at 1600 x 900, 1194 x 834 and
+  667 x 320 with no element outside it (`?shot=council`).
+- Heroes: a victory on Normal is 300 on a 10-wave and on a 20-wave battlefield; the thresholds; the
+  migration from records; a second press of the medallion sounds the Call at level 2 and only lets go at
+  level 1; the Call's clock.
+- Facts and hooks: `battleFacts()` after a staged victory, defeat and endless end has every field of 6.1
+  and its three sums hold; a legacy run says `rules: 1`; with a spy for `track`, a staged battle sends the
+  events of section 7 in order, each JSON-safe and under 2 KB; `rulesetTable()` has 17 rows and
+  `minS < parS` on each.
+- Daily: `startDaily` gives the standard loadout and kit, applies each twist of 6.4, and a staged victory
+  leaves `hs_best_*`, `hs_records` and `hs_run` as they were.
+
+### 8.2 The regression suite (`tools/regress/`)
+
+- `padplace.js`: the post's tile and the age's tile on every pad, by mouse (1600 x 900, 2000 x 1250) and
+  touch (1194 x 834), and a phone pass (667 x 320) for one battlefield an age with seven tiles.
+- `probe.js`: every new kind at every rank and mastery opens its own panel. New: Rally point pressed, then
+  the road: the men's rally moved (mouse, iPad touch, phone); Lay the charge the same; a press on an armed
+  charge's marker fires it and opens no panel.
+- `plots.js`: unchanged, run once more with seven tiles in the tray at 1194 x 834.
+- `iphone.js` (all ten sizes): the tray of six and of seven (tiles at least 44 x 44, names whole and 11 px
+  or absent); the post's and the mine's panels as sheets (every button inside the sheet and the safe
+  area, the tap that opens the sheet presses nothing); the armed rally (ring and toast inside the safe
+  area, the toast not over the wave ribbon); the Council and Captains tabs; the chronicle with `#briefKit`
+  and the hero's button (44 px); the victory page with its two new strips; the three one-time cards; the
+  Call's ring on the medallion.
+- `vic.js`: the two new buttons obey its rule on every battlefield and size. `doors.js`: the tally opens
+  the Council and the map is back in reach; the chronicle's hero button opens Captains and returns.
+- `live.js`: on every battlefield a post is built and its rally set, the age's tower built, three waves.
+- `nag.js`: unchanged steps; the last bubble says "ten waves". `dance10.js`: unchanged.
+- New `waves.js`: every battlefield played to its victory through the game's own loop at 4x with test
+  gold: the HUD counts to N, the commander banners come on the table's waves, the victory page comes up
+  after wave N. `--quick`: Erebuni, Avarayr, Mari. About 10 minutes in full.
+
+### 8.3 Balance tables to produce (kept under `docs/specs/balance/`)
+
+Each at SEEDS=3 on Easy, Normal and Hard with wave time: (a) master, as the baseline; (b) lengths only,
+before and after retuning; (c) with the post; (d) with each age's tower; (e) `KIT=floor`, `par`, `cap`;
+(f) CMD=probe for (b) and (e); (g) `TWIST=` for every twist on every battlefield (Normal, mix, standard
+kit): `DAILY_SKIP`; (h) `rulesetTable()` as JSON.
+
+### 8.4 Touch playtests
+
+By a person, or with the touch player built for the earlier play review, on an iPad (1194 x 834), an
+iPhone SE (667 x 320 in Safari) and an iPhone 15 from the Home Screen (852 x 393):
+1. A fresh save: the tutorial to Erebuni's victory. Ten waves, no new tile, the same coach. Under 25
+   minutes at 1x with the reading.
+2. Tushpa: the "new tower" card, a post built, the rally moved five times during waves at 2x. No press
+   meant for the road opens a panel, buys land or moves the hero (at most 1 slip in 20 presses).
+3. Avarayr with Horse Lines; Gyumri Road with a Powder Mine fired by hand five times on a crowd; Van with a
+   Dressing Station; Stepanakert 1992 with an Observation Post retargeted.
+4. The Council on the phone: buy three tiers, reset, buy again. The Call by a second press with foes on
+   the hero.
+5. A family run on Easy that never opens the Council or builds a new tower: it wins the first six.
+6. Sardarapat's 20 waves on a phone at 2x: the frame rate with four posts' men and the riders on the
+   field stays where it is today (the frame governor does not step in on an iPhone 12 or newer).
+
+## 9. Build order, risks, cuts
+
+### 9.1 Work packages
+
+| WP | What | Done when |
+|---|---|---|
+| 1 | The script map and the 17 lengths (section 1), with `legacyRun`, the records' `beyond`, every text. No new content. | Suite 1 green with its edits; suite 2's waves and old-saves checks green; the bot's tables for Sis and Sardarapat equal master's cell for cell; `waves.js` green; a 20-wave run saved on master resumes and wins. |
+| 2 | Tuning the lengths (5.6 step 1). | The bands of 5.1 on all three difficulties at SEEDS=3 with `KIT=none`; wave time within 15% of 1.2; tables committed. |
+| 3 | Facts, hooks, `rulesetTable()`, `startDaily` and the twists (sections 6, 7). Small, and the platform is waiting on it: it may run beside WP2. | Suite 2's facts, hooks and daily checks green; the platform's spec agrees the field list. |
+| 4 | The tray of n tiles and the Garrison Post (sections 2, 3.7, 3.8): numbers, men, rally by mouse and touch, art, the card, the bot's rule, tuning step 2. | Suite 2's post and tray checks; `padplace`, `probe`, `iphone`, `live` green; "mix7" and the post builds meet 5.2; playtest 2. |
+| 5 | The kit and the War Council (4.1 to 4.3, 4.6 to 4.8). | Suite 2's council checks; `doors`, `vic`, `iphone` green; `KIT=floor|par|cap` in the bot; playtest 4. |
+| 6 | Heroes: experience, levels, one Call (Stand Fast in every age), the Captains tab, `HERO=hold`. | Suite 2's hero checks; the hero's worth measured (`HERO=hold` against `off`) and inside the kit's bound. |
+| 7a to 7e | The age's towers in campaign order: Horse Lines, Market, Powder Mine, Dressing Station, Observation Post. Each: numbers, panel, art, card, bot rule, checks, its tuning step. | Its suite 2 checks; its rows of 5.2; its playtest of 8.4. |
+| 8 | The final balance (5.6 steps 4 to 6), `DAILY_SKIP`, the pars. | Every target of 5.1 and 5.2 at SEEDS=3; tables and `rulesetTable()` committed. |
+| 9 | The text audit (every new player-facing string against the house rules; every CHECK of sections 2 and 3 read against a source or renamed to its generic fallback; every INVENTION said on its card), the full regression suite, the playtests, `deploy/check-page.js`. | No CHECK left open; suites, `run-all.js` and `town-isolation.js` green. |
+
+### 9.2 What a first release must contain, and what waits
+
+First release: WP1 to WP6, WP7a and WP7b (the two ages a new player meets in the first evening), WP8 for
+what is in, WP9. That is: the new lengths, the Garrison Post, the growing tray, the War Council, hero
+levels with one Call, Horse Lines and the Market, the facts and hooks the platform needs for boards and
+the daily.
+Second release: Powder Mine, Dressing Station, Observation Post (WP7c to 7e), the per-age Calls, the
+twists beyond the first six. Until then Chapters III to V play with the post and no age tower, and 3.1's
+table hides the rows that are not built (`AGE_TOWER[i] = null`).
+
+### 9.3 Cut first, in this order, if time runs short
+
+1. The per-age Calls (one Call everywhere).
+2. Experience for the hero's own kills and for the endless stand.
+3. The Captains tab (the chronicle's hero button shows the level and bar in its own small card).
+4. The post's sally against hunters (men hold hunters on the road only).
+5. Short names for phone tiles (the tiles show no name on a phone when seven are in the tray).
+6. The Dressing Station's healing of men and hero (it keeps the returning defenders).
+7. The twists beyond `thin`, `swift`, `iron`, `ban`, `few`, `quiet`.
+8. The age's towers from the last age backward.
+Never cut: the script map with the legacy run; the rally point by touch; the PAR, FLOOR and CAP checks;
+the facts; the tutorial's fixture check.
+
+### 9.4 Risks
+
+- Scope. Seven new mechanics with art, two pages, a kit, three rounds of tuning. Held by the release
+  split (9.2), by reusing painters for every figure (2.7), and by the order: nothing after WP3 blocks the
+  platform.
+- Tuning churn. Every battlefield is retuned three times (lengths, towers, kit). Held by 5.3 (the shared
+  knobs are never touched) and 5.6 (one cause at a time, tables kept).
+- The tutorial drifting. Held by the fixture check and by the empty kit and five tiles in a coached stand.
+- Touch conflicts: rally, charge, hero, spell, plot and tower all take a press on the field. Held by one
+  armed state at a time, the settle guard, and `probe.js` and `iphone.js` presses.
+- Seven tiles on a 667 px phone. Held by short names or none, and `iphone.js`.
+- Saves and the cloud. Held by deriving stars and unlocks from records, by never rewriting an old key, and
+  by merge rules that only take the larger or the union (4.7).
+- History. New names without a source in the repo are marked CHECK with a generic fallback; a tower that
+  is the game's idea says so on its card.
+- A tower that does not fight (Market, Dressing Station, Observation Post) may read as dull or as a trap.
+  Held by the bot's targets in 5.2 and by playtests; the Market is the first to rework if players build
+  two and lose.
+- Frame rate on phones with men and riders on the field. Held by the unit sprite cache and playtest 6.
+- Two tracks in one 4.5 MB file. Gameplay edits the gameplay regions named in this spec; the platform adds
+  its own block and the hooks of 0.1. The shared places are the overlay's HTML and CSS (the tally, the
+  victory page, the chronicle): see N4 and N8.
+
+### 9.5 What gameplay needs from the platform
+
+- N1. `window.track` defined before the first battle, or not at all. Sampling is the platform's.
+- N2. `CLOUD_KEYS` declared before gameplay's block. The merge rules of 4.7 applied (gameplay supplies
+  `mergeSave(key, a, b)` for `hs_records`, `hs_council`, `hs_heroes`, `hs_towers_seen`, `hs_run`). After a
+  pull that changed any key, a call to `onSavesChanged()` so the map, the tally and the kit are read again.
+  A pull never lands while a battle is on the field.
+- N3. `window.onBattleEnd(facts)` as the one way a result leaves the battle. Standard boards keyed by
+  `rules`, battlefield, difficulty and mode, taking only runs with `kit.std`, `resumed === 0`, not `aided`,
+  not `tut` (6.2); open boards may take the rest and show `power` and `heroLevel` beside a score.
+- N4. The star tally is the War Council's door. If the Hall uses the tally as its own door on a phone, the
+  Hall shows the Council first (a tab that hosts `renderCouncil(el)` or a button that calls `openCouncil()`).
+- N5. The daily: the platform picks day, battlefield and twist from `DAILY_POOL`, `DAILY_TWISTS` and
+  `DAILY_SKIP`, counts attempts, and calls `startDaily`. Gameplay shows the twist and plays it.
+- N6. The gate and the cloud stay off under `file://`, `?selftest` and `?shot`, so the bot, the self-test
+  and the regression suite run as they do today.
+- N7. The victory page: one row for gameplay (`#ovGrowth`: the hero's bar and the Council button, 44 px on
+  a phone) between `#ovRecord` and the platform's score strip.
+- N8. Boards are per `RULESET`. Gameplay raises `RULESET` whenever a change moves what a score means (a
+  length, the pay rule, a tower's table, a kit number, a par), and says so in the commit.
+- N9. The share card may read `battleFacts()` and `renderBriefArt(lvl)`; it needs nothing else from the
+  battle.
+
+### 9.6 What the owner should decide
+
+1. The lengths of 1.2, above all: Sis and Sardarapat stay at 20; the campaign ends on a 12-wave stand.
+2. The tray grows to seven; no loadout.
+3. The five ages and their towers. Three of the five do not shoot (Market, Dressing Station, Observation
+   Post). The Dressing Station returns defenders, so gold can buy back a star. The Powder Mine and the
+   Market as battlefield towers are the game's invention and say so.
+4. Heroes: the battlefield's own hero always leads and experience is shared inside an age. The other
+   ways: a level for each hero alone (growth would not carry to the next battlefield), or guest heroes
+   from the same age (men on fields they never stood on).
+5. Stars: a Hard victory gives one more (68 in all); three stars on Easy keep counting as three.
+6. The Council: free reset; tiers open with chapters; a tier once owned counts on old battlefields too.
+7. The daily gives hero experience and no stars.
+8. The release split of 9.2, or everything in one release.
+9. Names marked CHECK that turn out to have no source: use the generic fallback, or drop the tower's own
+   name on that battlefield.
