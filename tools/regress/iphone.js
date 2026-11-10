@@ -51,6 +51,9 @@ const SIZES = [
   { key: "seh", name: "SE Home Screen 667x375", w: 667, h: 375, home: true },
   { key: "i15h", name: "iPhone 15 Home Screen 852x393", w: 852, h: 393, home: true, insets: HOME_INSETS },
   { key: "maxh", name: "Pro Max Home Screen 932x430", w: 932, h: 430, home: true, insets: HOME_INSETS },
+  // Safari held sideways with viewport-fit=cover reports the whole width and the insets too (as the Home Screen does)
+  { key: "i15c", name: "iPhone 15 Safari full width 852x343", w: 852, h: 343, home: false, insets: HOME_INSETS },
+  { key: "maxc", name: "Pro Max Safari full width 932x380", w: 932, h: 380, home: false, insets: HOME_INSETS },
   { key: "i15u", name: "iPhone 15 upright 393x659", w: 393, h: 659, home: false, upright: true },
   { key: "seu", name: "SE upright 375x553", w: 375, h: 553, home: false, upright: true },
 ];
@@ -206,11 +209,33 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
       if (!/add highland stand to your home screen/i.test(t.text)) fail("Home Screen tip", "its words do not say \"Add Highland Stand to your Home Screen\": " + t.text.slice(0, 80));
       if (!/share/i.test(t.text)) fail("Home Screen tip", "its words do not name the Share button: " + t.text.slice(0, 80));
       await check("Home Screen tip", { root: t.box, noCover: true, scroll: "inside" });
-      const keys0 = await g.ev(() => Object.keys(localStorage));
+      // one time: the visit that shows it spends it (an hs_ key is stored as it shows), so a reload without closing
+      // it does not bring it back
+      const hsKeys = () => g.ev(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^hs_/.test(k)) o[k] = localStorage.getItem(k); } return JSON.stringify(o); });
+      const keys0 = JSON.parse(await hsKeys());
       await tap("Home Screen tip", t.btn, "cannot close the tip");
       if (!(await hidden(t.box))) fail("Home Screen tip", "its close button did not put it away");
-      const keys1 = await g.ev(() => { const k = []; for (let i = 0; i < localStorage.length; i++) k.push(localStorage.key(i)); return k; });
-      if (!keys1.some(k => /^hs_/.test(k) && !keys0.includes(k))) fail("Home Screen tip", "closing it stored no new hs_ key");
+      const keys1 = JSON.parse(await hsKeys());
+      if (!Object.keys(keys1).some(k => /tip/i.test(k))) fail("Home Screen tip", "no hs_ key remembers it");
+      if (!Object.keys(keys1).some(k => keys1[k] !== keys0[k])) fail("Home Screen tip", "closing it changed no hs_ key");
+    };
+    // a fresh visit that shows the tip and leaves it open, then a reload: the tip is not shown again
+    const tipOnceStep = async () => {
+      if (!want("tip") || C.home || C.upright) return;
+      const g2 = await R.openGame(browser, o.file, page);
+      try {
+        await g2.ev(AU.install);
+        await g2.frames(3);
+        const seen = await g2.ev(() => { const e = document.getElementById("homeTip"); return !!e && __hsAudit.visible(e); });
+        if (!seen) { if (await g2.ev(() => menuMode) === "chapter") { await g2.ev(() => document.getElementById("startBtn").click()); await g2.frames(3); } }
+        const seen2 = await g2.ev(() => { const e = document.getElementById("homeTip"); return !!e && __hsAudit.visible(e); });
+        if (!seen2) { fail("Home Screen tip", "a fresh visit in Safari shows no tip"); return; }
+        await g2.page.reload();
+        await g2.page.waitForFunction(() => typeof menuMode !== "undefined" && document.readyState === "complete", null, { timeout: 60000 });
+        await g2.frames(3);
+        if (await g2.ev(() => menuMode) === "chapter") { await g2.ev(() => document.getElementById("startBtn").click()); await g2.frames(3); }
+        if (await g2.ev(() => { const e = document.getElementById("homeTip"); return !!e && getComputedStyle(e).display !== "none"; })) fail("Home Screen tip", "shows again on the next visit though it was left open (it is a one-time tip)");
+      } finally { await g2.close(); }
     };
 
     try {
@@ -244,6 +269,7 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await canvasText("map", ["worldMap"], () => renderWorldMap());
       });
       await tipStep("map");
+      await tipOnceStep();
       if (want("tip") && !C.home && !C.upright && !tipSeen) fail("Home Screen tip", "Safari shows no tip to add the game to the Home Screen (looked on the first screen and the map)");
       // ---- Settings from the map ----
       await step("settings", "Settings (map)", async () => {
@@ -262,6 +288,18 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           for (let k = 0; k < n; k++) {
             if (k) await tap(label + " page " + (k + 1), "#pgNext", null, true);
             await check(label + " page " + (k + 1), pageSpec(LEAF_PARTS, ["#startBtn"]));
+          }
+          // held sideways the host's column shows its first row of medallions whole, and shows that it scrolls
+          if (!C.upright) {
+            await g.ev(() => { const L = document.querySelector("#ovPage .briefLeft"); if (L) L.scrollTop = 0; });
+            await settle(2);
+            const m = await g.ev(() => {
+              const L = document.querySelector("#ovPage .briefLeft"), B = L.getBoundingClientRect();
+              const ds = [...document.querySelectorAll("#briefHost .disc")].map(d => d.getBoundingClientRect()).filter(r => r.width);
+              return { first: ds.length ? ds[0].bottom <= B.bottom + 1 : true, more: L.scrollHeight > L.clientHeight + 4, fade: L.classList.contains("more") };
+            });
+            if (!m.first) fail(label, "the host's first row of medallions is cut by its column's fold");
+            if (m.more && !m.fade) fail(label, "the host's column runs past its fold with nothing to show that it scrolls");
           }
           if (id !== "tushpa") continue;
           if (await shown("#briefHost .foe[data-role]")) {
@@ -310,6 +348,8 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (await shown("#rotateHint")) fail("rotate card", "Play in portrait did not put it away");
       };
       const freeze = () => g.ev(() => { speedMult = 0; });
+      // a panel a finger opened takes presses once that finger is up (the game's settlePanel): wait for it
+      const panelSettled = () => g.page.waitForFunction(() => !panelEl.classList.contains("settling"), null, { timeout: 3000 }).catch(() => fail("tower panel", "the panel a finger opened never took presses"));
       const stage = async (id, wave, extra) => {
         await g.ev(([id, wave, extra]) => {
           photoStageBattle(levelIndexOf(id), wave, extra || {});
@@ -335,6 +375,15 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await check("Settings (battle)", { root: "#settings", scroll: "inside" });
         await tap("Settings (battle)", "#gearBtn", "cannot close Settings");
         if (await shown("#settings")) fail("Settings (battle)", "the gear did not put Settings away");
+        // Settings over the field: its Resume (or Pause) puts it away, and so does its own close button
+        await tap("Settings (battle)", "#gearBtn");
+        await tap("Settings (battle)", "#pauseBtn", "cannot tap Settings' Resume or Pause");
+        if (await shown("#settings")) fail("Settings (battle)", "its Resume (or Pause) left it open over the field");
+        await g.ev(() => { if (paused) togglePause(); toastEl.classList.remove("show"); });
+        await tap("Settings (battle)", "#gearBtn");
+        await tap("Settings (battle)", "#setClose", "cannot tap Settings' close button");
+        if (await shown("#settings")) fail("Settings (battle)", "its close button did not put it away");
+        await g.ev(() => { if (settingsEl.style.display === "block") closeSettings(); if (paused) togglePause(); toastEl.classList.remove("show"); });
         // a long toast
         await g.ev(t => toast(t, 6000), LONG_TOAST);
         await g.wait(450);   // its fade in
@@ -356,7 +405,16 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (await g.ev(() => paused)) fail("pause banner", "the play button did not resume");
         await tap("wave banner", "#waveBtn", "cannot tap Send Wave");
         if (await g.ev(() => waveIdx) !== 1) fail("wave banner", "Send Wave sent no wave");
-        else await banner("wave banner");
+        else {
+          await banner("wave banner");
+          // the wave's toast does not lie over its ribbon
+          const tb = await g.ev(() => {
+            if (!toastEl.classList.contains("show") || waveBannerT <= 0) return null;
+            const t = toastEl.getBoundingClientRect(), half = Math.max(42, ...[...ribbonCache.values()].map(sp => sp.hsHalf || 0));
+            return { t: t.top, b: t.bottom, bt: offY + (190 - half) * scale, bb: offY + (190 + half) * scale };
+          });
+          if (tb && tb.t < tb.bb - 1 && tb.b > tb.bt + 1) fail("wave banner", "the toast (" + Math.round(tb.t) + "-" + Math.round(tb.b) + ") lies over the wave's ribbon (" + Math.round(tb.bt) + "-" + Math.round(tb.bb) + ")");
+        }
         await freeze();
       });
 
@@ -387,6 +445,7 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           const hit = await g.hitName(at.x, at.y);
           await g.tapAt(at.x, at.y);
           await settle(3);
+          await panelSettled();
           const open = await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", p.pad);
           if (!open) {
             fail(label, "a tap on the tower at " + Math.round(at.x) + "," + Math.round(at.y) + " (on " + hit + ") did not open its panel");
@@ -403,6 +462,94 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           await settle(2);
           if (await g.ev(() => panelEl.style.display === "block")) { fail(label, "a tap on open ground at " + Math.round(empty.x) + "," + Math.round(empty.y) + " did not put the panel away"); await g.ev(() => hidePanel()); }
         }
+      });
+      // ---- every tower by a finger. At top rank (choosing its Mastery, every third one damaged): the tap that opens
+      // its panel presses nothing in it (no gold spent, nothing sold), the panel's buttons lie inside the panel and the
+      // safe area, and still do after one tap on Sell ("Tap again to sell"). Beside a tower (16 px each way) a tap
+      // opens that tower or claims nothing (a plot nearer the finger is only lit: a second tap buys it) and never
+      // spends gold. A tower built from a chosen tile opens at a tap while the tile is still chosen ----
+      await step("towers", "towers by finger", async () => {
+        if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }
+        const sig = () => g.ev(() => JSON.stringify({ gold: Math.round(gold), plots: plots.length, t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + (t.wreck ? "w" : "")) }));
+        const clear = () => g.ev(() => { hidePanel(); touchArmedPlot = null; heroSelected = false; castingSpell = null; setPlacing(null); updateSpellBar(); });
+        const bad = [];
+        for (const [id, offs] of [["gyumri", false], ["stepanakert92", false], ["dvin", true]]) {
+          await stage(id, 8, {});
+          await g.ev(() => {
+            gold = 5000; const kinds = ["archer", "ballista", "catapult", "fire", "drums"];
+            PADS.forEach((_, i) => { if (!towerAt(i)) placeTower(kinds[i % 5], i); });
+            towers.forEach((t, k) => { t.wreck = false; t.level = TOWER_DEFS[t.type].levels.length - 1; t.spec = null; if (t.maxHp) t.hp = k % 3 === 0 ? t.maxHp * 0.4 : t.maxHp; });
+            if (hero) { hero.x = -500; hero.y = -500; }
+            syncHud();
+          });
+          await settle(2);
+          const pads = await g.ev(() => towers.map(t => t.pad));
+          for (const pad of pads) {
+            const L = "towers " + id + " pad " + pad;
+            await clear();
+            const at = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), pad);
+            if (await g.hitName(at.x, at.y) !== "canvas#game") continue;   // under the HUD: battleCheck tells it
+            const s0 = await sig();
+            await g.tapAt(at.x, at.y); await settle(2); await panelSettled();
+            const opened = await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", pad);
+            if (!opened) { bad.push(L + ": a tap on the tower did not open its panel"); continue; }
+            if (await sig() !== s0) { bad.push(L + ": the tap that opened the panel also spent gold or changed the towers"); continue; }
+            const inside = () => g.ev(() => {
+              const P = panelEl.getBoundingClientRect(), S = __hsAudit.safe(), out = [];
+              for (const b of panelEl.querySelectorAll("#pActions .btn")) {
+                const r = b.getBoundingClientRect();
+                if (!r.width) continue;
+                const nm = (b.textContent || "").trim().replace(/\s+/g, " ").slice(0, 22);
+                if (r.top < P.top - 0.5 || r.bottom > P.bottom + 0.5) out.push('"' + nm + '" runs past the panel (' + Math.round(r.top) + "-" + Math.round(r.bottom) + " of " + Math.round(P.top) + "-" + Math.round(P.bottom) + ")");
+                const acts = $("pActions"), A = acts.getBoundingClientRect();
+                if ((r.bottom > A.bottom + 0.5 || r.top < A.top - 0.5) && acts.scrollHeight <= acts.clientHeight + 1) out.push('"' + nm + '" is cut off');
+              }
+              if (P.top < S.t - 0.5 || P.bottom > S.b + 0.5 || P.left < S.l - 0.5 || P.right > S.r + 0.5) out.push("the panel runs out of the safe area");
+              return out;
+            });
+            for (const m of await inside()) bad.push(L + ": " + m);
+            const q = await g.reach("#pActions .sell");
+            if (!q.why) {
+              await g.tapAt(q.x, q.y); await settle(2);
+              if (await sig() !== s0) bad.push(L + ": one tap on Sell sold the tower");
+              else for (const m of await inside()) bad.push(L + " (Tap again to sell): " + m);
+            }
+            if (!offs) continue;
+            for (const [dx, dy] of [[16, 0], [-16, 0], [0, 16], [0, -16]]) {
+              await clear();
+              const x = at.x + dx, y = at.y + dy;
+              if (await g.hitName(x, y) !== "canvas#game") continue;
+              const s1 = await sig();
+              await g.tapAt(x, y); await settle(2);
+              const r = await g.ev(() => ({ sel: selected ? selected.pad : -1, armed: !!touchArmedPlot, hero: heroSelected }));
+              if (await sig() !== s1) bad.push(L + ": a tap " + dx + "," + dy + " px off it spent gold or changed the towers");
+              else if (r.sel >= 0 && r.sel !== pad) bad.push(L + ": a tap " + dx + "," + dy + " px off it opened the tower on pad " + r.sel);
+              else if (r.sel < 0 && !r.armed && !r.hero) bad.push(L + ": a tap " + dx + "," + dy + " px off it did nothing");
+            }
+          }
+        }
+        // a tower built from a chosen tile, tapped while the tile is still chosen: its panel, no gold spent
+        await stage("erebuni", 3, {});
+        await g.ev(() => { gold = 5000; for (const t of towers.slice()) towers.splice(towers.indexOf(t), 1); if (hero) { hero.x = -500; hero.y = -500; } hidePanel(); setPlacing(null); syncHud(); });
+        const free = await g.ev(() => PADS.map((_, i) => i).filter(i => !towerAt(i)).slice(0, 6));
+        for (const i of free) {
+          const L = "tower from the tray, pad " + i;
+          await clear();
+          await tap(L, '#shop .card[data-type="archer"]', "cannot tap the archers' tile");
+          const p = await g.ev(i => { const r = canvas.getBoundingClientRect(), q = proj(PADS[i][0], PADS[i][1]); return { x: r.left + offX + q.x * scale, y: r.top + offY + (q.y + 4 * q.s) * scale }; }, i);
+          if (await g.hitName(p.x, p.y) !== "canvas#game") continue;
+          await g.tapAt(p.x, p.y); await settle(1); await g.tapAt(p.x, p.y); await settle(2);
+          if (!(await g.ev(i => !!towerAt(i), i))) { bad.push(L + ": two taps on the pad built nothing"); continue; }
+          const at = await g.ev(i => __hsAudit.towerPoint(towerAt(i)), i);
+          const s0 = await sig();
+          await g.tapAt(at.x, at.y); await settle(2); await panelSettled();
+          const r = await g.ev(i => ({ open: !!selected && selected === towerAt(i) && panelEl.style.display === "block", placing }), i);
+          if (await sig() !== s0) bad.push(L + ": a tap on the new tower (its tile still chosen) spent gold or changed the towers");
+          else if (!r.open) bad.push(L + ": a tap on the new tower (its tile still chosen) did not open its panel");
+        }
+        await clear();
+        for (const b of bad.slice(0, 12)) fail("towers by finger", b);
+        if (bad.length > 12) fail("towers by finger", (bad.length - 12) + " more like these");
       });
       // ---- the foe card from the next-wave row ----
       await step("foe", "foe card (wave row)", async () => {
@@ -491,6 +638,14 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (await shown("#endingCard")) fail("ending card (" + id + ")", "its button did not put it away");
           } else if (id !== "avarayr") fail(label, "no ending card over the page");
           await check(label, pageSpec(["#ovGear"], ["#nextBtn", "#mapBtn.lead"]));
+          // every way on from the page in sight (held sideways, without a scroll) and 44 px tall
+          const v = await g.ev(() => {
+            const bs = [...document.querySelectorAll("#overlay .bigRow .big")].filter(b => b.offsetParent);
+            return { small: bs.filter(b => b.getBoundingClientRect().height < 43.5).map(b => b.id + " " + Math.round(b.getBoundingClientRect().height)),
+              out: bs.filter(b => b.getBoundingClientRect().bottom > __hsAudit.safe().b + 0.5).map(b => b.id) };
+          });
+          if (!C.upright && v.out.length) fail(label, "buttons below the screen's edge until the page is scrolled: " + v.out.join(", "));
+          if (v.small.length) fail(label, "buttons under 44 px tall: " + v.small.join(", "));
         }
       });
       // ---- the defeat page with its debrief, and the end of an endless stand ----
@@ -507,6 +662,16 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           await settle(3);
           await waitSettled();
           await check(label, pageSpec(MAP_PARTS, ["#startBtn"]));
+          // held sideways the debrief's tip is in sight as the page opens (it leads the column)
+          if (!inf && !C.upright) {
+            const v = await g.ev(() => {
+              const P = $("ovPage").getBoundingClientRect(), T = document.querySelector("#ovDebrief.on .dbTip");
+              if (!T) return null;
+              const r = T.getBoundingClientRect();
+              return r.top >= P.top - 1 && r.top + 16 <= P.bottom;
+            });
+            if (v === false) fail(label, "the debrief's tip is out of sight until the column is scrolled");
+          }
         }
       });
       // ---- nardi: the board, its rules, leaving, the invitation and the end of a game ----
@@ -572,7 +737,34 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           }
           // on to the next step, as a player goes
           const nx = await g.ev(() => { const b = coachEl.querySelector(".cNext"); return __hsAudit.visible(b); });
-          if (nx) { await tap(label, "#coach .cNext", "cannot tap " + "Next"); continue; }
+          if (nx) {
+            // (a bubble just come up takes no press for a moment on a phone: coachSettleUntil)
+            await g.page.waitForFunction(() => typeof coachSettleUntil === "undefined" || performance.now() >= coachSettleUntil, null, { timeout: 2000 }).catch(() => {});
+            await tap(label, "#coach .cNext", "cannot tap " + "Next");
+            if (await g.ev(() => tut ? tut.i : -1) === st.i) { fail(label, "Next did not lead on"); await g.ev(() => tutAdvance()); }
+            continue;
+          }
+          if (st.id === "spells") {
+            // the tap that casts the spell on the field must press nothing of the bubble that comes up after it (the
+            // next step's Skip tutorial, where the finger is): a finger held down for a few frames, as a real tap is
+            const pt = await g.ev(() => {
+              const i = tut.i; tutGo(i + 1); coachTick();
+              const b = coachEl.querySelector(".cSkip").getBoundingClientRect();
+              tutGo(i); coachTick();
+              return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+            });
+            await tap(label, "#spellbar .spell[data-spell]", "cannot tap a spell");
+            if (await g.hitName(pt.x, pt.y) === "canvas#game" && await g.ev(() => !!castingSpell)) {
+              await g.touchAt(pt.x, pt.y, 90); await settle(3);
+              const r = await g.ev(() => ({ on: !!tut, confirm: !!(coachEl && coachEl.querySelector(".cSkip").classList.contains("confirm")), cast: !castingSpell }));
+              if (!r.on) { fail(label, "the tap that cast the spell also pressed the next bubble's Skip tutorial, which ended the lesson"); break; }
+              if (r.confirm) fail(label, "the tap that cast the spell also pressed the next bubble's Skip tutorial");
+              if (!r.cast) fail(label, "a tap on the field with a spell chosen cast nothing");
+              await g.ev(() => coachSkipReset && coachSkipReset());
+            } else await g.ev(() => { castingSpell = null; updateSpellBar(); tut.ev.spell = true; });
+            await settle(3);
+            continue;
+          }
           if (st.id === "shop") await tap(label, '#shop .card[data-type="archer"]', "cannot tap the archers' tile");
           else if (st.id === "pad") {
             const p = await g.ev(() => { const P = PADS[tut.pad], r = canvas.getBoundingClientRect(), q = proj(P[0], P[1]); return { x: r.left + offX + q.x * scale, y: r.top + offY + (q.y + 4 * q.s) * scale }; });
@@ -584,6 +776,7 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             const p = await g.ev(() => __hsAudit.towerPoint(towers[0]));
             await g.tapAt(p.x, p.y); await settle(2);
             if (await g.ev(() => !selected)) { fail(label, "a tap on the tower did not select it"); await g.ev(() => showPanel(towers[0])); }
+            await panelSettled();
           } else if (st.id === "upgrade") await tap(label, "#pActions .up", "cannot tap Upgrade");
           else await g.ev(id => { tut.ev[{ spells: "spell", hero: "hero", speed: "speed", auto: "auto" }[id] || "kill"] = true; }, st.id);
           await settle(3);

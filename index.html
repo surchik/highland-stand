@@ -1795,7 +1795,10 @@
 
   /* ---- phone, sideways: the battle ---- */
   @media (max-height: 500px) {
-    :root { --tray-h: 56px; --ph-lcol: 54px; --ph-rcol: 114px; }
+    /* --sabT: the room kept under the tray: the bottom inset less 9 px (the tiles may stand over the top of the home
+       indicator's band, clear of its swipe strip: on a notched iPhone the field is bound by the height) */
+    :root { --tray-h: 56px; --ph-lcol: 54px; --ph-rcol: 114px; --sabT: max(0px, calc(var(--sab) - 9px)); }
+    #shop { height: calc(var(--tray-h) + var(--sabT)); }
     /* the header: two plaques 40 px tall in the top corners; only the plaques take a finger, the sky between
        them is the field's */
     #topbar { height: 40px; gap: 6px; pointer-events: none; }
@@ -1815,7 +1818,7 @@
     #autoBtn::before { margin-right: 5px; }
     #speedBtn::before { margin-right: 11px; }
     /* the tray: five tiles 52 px tall across the whole width */
-    #shop { gap: 0; padding: 0 calc(6px + var(--sar)) calc(1px + var(--sab)) calc(6px + var(--sal)); }
+    #shop { gap: 0; padding: 0 calc(6px + var(--sar)) calc(1px + var(--sabT)) calc(6px + var(--sal)); }
     .trayCap.left { display: none; }
     .trayPanel { flex: 1 1 auto; gap: 6px; }
     .card { flex: 1 1 0; width: auto; height: 52px; }
@@ -1827,7 +1830,7 @@
     /* the wave cap: a column in the band right of the field, the chips (every one of them) over Send Wave */
     .trayCap.right {
       position: fixed; z-index: 10; left: calc(var(--fl) + var(--fw) + 6px); right: calc(4px + var(--sar));
-      top: calc(44px + var(--sat)); bottom: calc(var(--tray-h) + var(--sab) + 4px);
+      top: calc(44px + var(--sat)); bottom: calc(var(--tray-h) + var(--sabT) + 4px);
       width: auto; max-width: none; height: auto; margin: 0; padding: 8px 5px 6px; gap: 6px; justify-content: space-between;
     }
     #waveInfo { flex: 0 1 auto; height: auto; overflow: visible; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 8px 6px; }
@@ -1843,8 +1846,8 @@
     #waveBtn.underway, #waveBtn.done, #waveBtn.auto { height: 34px; margin: 5px 0; font-size: 12.5px; letter-spacing: .2px; }
     /* the spells: four medallions in the band left of the field, between the header and the tray */
     #spellbar {
-      top: calc((40px + var(--sat) + 100vh - var(--tray-h) - var(--sab)) / 2);
-      top: calc((40px + var(--sat) + 100dvh - var(--tray-h) - var(--sab)) / 2);
+      top: calc((40px + var(--sat) + 100vh - var(--tray-h) - var(--sabT)) / 2);
+      top: calc((40px + var(--sat) + 100dvh - var(--tray-h) - var(--sabT)) / 2);
       gap: 7px; padding: 9px 0 9px 5px;
     }
     #spellbar::before { width: 36px; border-radius: 0 11px 11px 0; }
@@ -2215,6 +2218,10 @@
     #overlay.brief .sub { font-size: 16.5px; }
     #overlay.brief h1 { font-size: 28px; }
     .homeTip { width: 100%; }
+    /* the chronicle's host: four medallions a row, so their names never run into each other */
+    #overlay.brief .briefHost { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+    #overlay.brief .briefHost .foe { flex: 0 0 calc(25% - 2px); }
+    #overlay.brief .briefHost .nm { font-size: 11px; letter-spacing: 0; }
   }
 </style>
 </head>
@@ -3181,7 +3188,8 @@ function resize() {
 // the header's two plaques hang over the field's sky. Held upright it is bound by the width, and the room above it
 // takes the spells and the wave cap. The field's box is handed to the stylesheet (--fl --ft --fw --fh, client px)
 function resizePhone(w, h) {
-  const ins = safeInsets(), trayH = rootPx("--tray-h") + ins.b;
+  // (held sideways the tray keeps 9 px less than the bottom inset under it: --sabT)
+  const ins = safeInsets(), trayH = rootPx("--tray-h") + (phoneWide() ? Math.max(0, ins.b - 9) : ins.b);
   if (phoneWide()) {
     const L = ins.l + rootPx("--ph-lcol"), R = ins.r + rootPx("--ph-rcol");
     scale = Math.min((w - L - R) / VW, (h - trayH) / VH);
