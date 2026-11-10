@@ -1878,6 +1878,10 @@
     /* Target is no step forward: 36 px is its reach */
     #panel.sheet .actions > .btn:not(.up):not(.spec):not(.sell):not(.repair):not(.clear) { min-height: 36px; }
     #panel.sheet.squeeze .actions .btn .small { display: none; }
+    #panel.sheet.squeeze2 .actions .btn .dl { display: none; }
+    /* the sheet a finger opened takes no press until that finger is up (settlePanel): the tap's own click never
+       lands on a button that came up under it */
+    #panel.sheet.settling { pointer-events: none; }
     #panel.sheet.squeeze .pMast { display: block; margin-top: 7px; font-size: 11.5px; line-height: 1.3; color: var(--parch); }
     #panel.sheet .pMast p + p { margin-top: 5px; }
     #panel.sheet .pMast b { color: #ffcf9a; }
@@ -44256,7 +44260,7 @@ function drawPlotSign(plot) {
   const price = plotPrice(), affordable = gold >= price;
   // under the pointer the board steps forward, a quarter larger; its rim is gilt there and on
   // every board while a tower is being placed
-  const hot = plotUnderPointer(pointerClient) === plots.indexOf(plot), bright = hot || !!placing;
+  const hot = touchArmedPlot === plot || plotUnderPointer(pointerClient) === plots.indexOf(plot), bright = hot || !!placing;
   const kd = hot ? view.ks * 1.25 : view.ks, sxu = structPxu(m, kd);
   const glow = structClamp((dayFactor() - 0.5) / 0.2, 0, 1), lit = glow > 0.4;
   const sign = structSprite("plotsign" + price + (affordable ? "y" : "n") + (bright ? "h" : "") + (lit ? "l" : "") + "|" + Math.round(sxu * 256), sxu, PLOT_SIGN_BOX,
@@ -54318,16 +54322,19 @@ function placePanel(t) {
 }
 // On a phone the panel is a sheet of two columns, the tower's head and stats beside its buttons, laid in the room
 // away from the tower: held sideways the side of the screen across from it, from under the header to the foot of
-// the screen (over the tray, which a tap on open ground gives back), held upright the room above the field (down to
-// just above the tower when that is not enough). Its buttons never scroll: when they do not fit, the Masteries give
-// their lines to the head's column (.squeeze) and the stats scroll there instead
+// the screen (over the tray, which a tap on open ground gives back), held upright above the tower's tap zone (the
+// room above the field, and over the field down to just above that zone) or, where that is less, below the zone
+// down to the foot of the screen. The sheet never lies over the tower's tap zone, and its buttons never leave it:
+// when they do not fit, the Masteries give their lines to the head's column (.squeeze) and the stats scroll there,
+// then the buttons drop their numbers (.squeeze2), and only past that do the buttons scroll in their own column
 function placePanelPhone(t, sx, sy) {
   const ins = safeInsets(), W = innerWidth, H = innerHeight, m = 4;
-  const acts = $("pActions"), hud = $("topbar").getBoundingClientRect();
-  panelEl.classList.remove("tight", "squeeze", "ptr-right");
-  acts.style.maxHeight = "";
-  panelEl.style.height = "";
-  let left, top, w, room;
+  const acts = $("pActions"), hud = $("topbar").getBoundingClientRect(), info = panelEl.querySelector(".pInfo");
+  panelEl.classList.remove("tight", "squeeze", "squeeze2", "ptr-right");
+  acts.style.maxHeight = acts.style.overflowY = "";
+  let left, top, w, room, fill = true;
+  // the columns' own heights: measured with the sheet at no height, so neither column is stretched to it
+  const need = () => { panelEl.style.height = "0px"; const n = Math.max(acts.scrollHeight, info.scrollHeight) + 20; return n; };
   if (phoneWide()) {
     const gap = Math.max(18, 40 * scale), lo = ins.l + m, hi = W - ins.r - m;
     const rightRoom = hi - (sx + gap), leftRoom = (sx - gap) - lo, onRight = rightRoom >= leftRoom;
@@ -54338,22 +54345,35 @@ function placePanelPhone(t, sx, sy) {
   } else {
     w = Math.min(420, W - ins.l - ins.r - 2 * m);
     left = (W - w) / 2;
-    top = hud.bottom + m;
-    // the room above the field, or down to just above the tower where that is more
-    room = Math.max(offY - m, sy - 34 * Math.max(0.35, scale)) - top;
+    panelEl.style.width = Math.round(w) + "px";
+    panelEl.style.display = "block";
+    const z = towerTapAxes(t, true), zTop = (z.y - z.ay) * scale + offY, zBot = (z.y + z.ay) * scale + offY;
+    const top0 = hud.bottom + m, roomUp = zTop - 8 - top0, roomDown = H - ins.b - m - (zBot + 8), n = need();
+    const up = n <= roomUp || roomUp >= roomDown;
+    top = up ? top0 : zBot + 8;
+    room = Math.max(60, up ? roomUp : roomDown);
+    fill = false;
   }
   panelEl.style.width = Math.round(w) + "px";
   panelEl.style.left = Math.round(left) + "px";
   panelEl.style.top = Math.round(top) + "px";
   panelEl.style.display = "block";
-  const fit = () => {
-    const info = panelEl.querySelector(".pInfo");
-    const need = Math.max(acts.scrollHeight, info.scrollHeight) + 20;
-    panelEl.style.height = Math.round(Math.min(room, need)) + "px";
-    return acts.scrollHeight + 20 <= room + 0.5;
-  };
-  panelEl.style.height = Math.round(room) + "px";
-  if (!fit()) { panelEl.classList.add("squeeze"); panelEl.style.height = Math.round(room) + "px"; fit(); }
+  panelEl.hsRoom = room;
+  const fits = () => acts.scrollHeight + 20 <= room + 0.5;
+  need();
+  if (!fits()) { panelEl.classList.add("squeeze"); need(); }
+  if (!fits()) { panelEl.classList.add("squeeze2"); need(); }
+  panelEl.style.height = Math.round(fill ? room : Math.min(room, need())) + "px";
+  fitPanelActs();
+}
+// the sheet's buttons scroll in their column only where even a squeezed sheet cannot hold them (and when a button
+// grows in place, as "Tap again to sell" does): never past the sheet's foot
+function fitPanelActs() {
+  const acts = $("pActions"), room = panelEl.hsRoom || 0;
+  if (!panelEl.classList.contains("sheet") || !room) return;
+  if (acts.scrollHeight + 20 <= panelEl.offsetHeight + 0.5) return;
+  panelEl.style.height = Math.round(Math.min(room, acts.scrollHeight + 20)) + "px";
+  if (acts.scrollHeight + 20 > room + 0.5) { acts.style.maxHeight = Math.round(room - 20) + "px"; acts.style.overflowY = "auto"; }
 }
 // an open panel follows its tower when the window is resized
 window.addEventListener("resize", () => {
@@ -54812,6 +54832,7 @@ function showPanel(t) {
     if (!ref.fresh && touchClick(sb, e) && !sb.classList.contains("confirm")) {
       sb.classList.add("confirm");
       sb.innerHTML = "Tap again to sell" + coinBadge(sellRefund(t).amount);
+      if (isPhone()) fitPanelActs();
       clearTimeout(sellAskT);
       sellAskT = setTimeout(() => { sb.classList.remove("confirm"); sb.innerHTML = label(); }, 3000);
       return;
@@ -54835,6 +54856,7 @@ let panelHurt = "";
 let sellAskT = 0;
 function hidePanel() {
   panelEl.style.display = "none";
+  panelEl.classList.remove("settling");
   selected = null;
   panelCostBtns = [];
 }
@@ -60037,6 +60059,9 @@ canvas.addEventListener("pointerdown", (e) => {
   // a finger has no hover: the tap itself is where the pointer is, for the previews drawn under it
   const touch = e.pointerType === "touch" || e.pointerType === "pen";
   if (touch) mouse = v;
+  // a finger on a phone claims a plot of land with two taps on it (tapPlotPhone): any other tap lets the first go
+  const armedPlot = touchArmedPlot, phoneTouch = touch && isPhone();
+  touchArmedPlot = null;
   if (castingSpell) {
     castSpell(castingSpell, v.x, v.y);
     return;
@@ -60074,6 +60099,15 @@ canvas.addEventListener("pointerdown", (e) => {
       if (gold < TOWER_DEFS[placing].cost) setPlacing(null);
       return;
     }
+    if (phoneTouch) {
+      // a finger on a phone that taps a tower built a moment ago means that tower: the tray's card is put down and
+      // the tower's panel comes up (a plot beside it takes the tap only where it is the nearer of the two)
+      const pick = phoneTapPick(e, true);
+      if (pick && pick.tower) { setPlacing(null); openPanelByFinger(pick.tower); return; }
+      if (pick) { tapPlotPhone(pick.plot, armedPlot); return; }
+      setPlacing(null);
+      return;
+    }
     const pi = plotUnderPointer(e);
     if (pi >= 0) { buyPlot(pi); return; }   // claim land without dropping placement mode
     setPlacing(null);
@@ -60081,15 +60115,72 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   // a tower drawn under the pointer wins over the patch of land beside it
   const hit = towerUnderPointer(e);
-  if (hit) { showPanel(hit); return; }
+  if (hit) { if (phoneTouch) openPanelByFinger(hit); else showPanel(hit); return; }
+  if (phoneTouch) {
+    // a finger on a phone: the tower within its widened zone or the plot, whichever is the nearer (while a panel
+    // is up, a tap beside a tower only puts it away, as a tap on open ground does)
+    const pick = phoneTapPick(e, !selected);
+    if (pick && pick.tower) { openPanelByFinger(pick.tower); return; }
+    if (pick) { tapPlotPhone(pick.plot, armedPlot); return; }
+    hidePanel();
+    return;
+  }
   const pi = plotUnderPointer(e);
   if (pi >= 0) { buyPlot(pi); return; }
-  // a finger on a phone: the tower nearest within its widened zone (while a panel is up, a tap beside a tower
-  // only puts it away, as a tap on open ground does)
-  const near = touch && isPhone() && !selected ? towerUnderPointer(e, true) : null;
-  if (near) { showPanel(near); return; }
   hidePanel();
 });
+// A finger on a phone, past the exact tower oval: a tower's widened zone (towerTapAxes wide) and a plot of land
+// (its sign or its ground) may both claim the tap; the nearer of the two, each measured against its own reach,
+// takes it. { tower } or { plot } or null
+function phoneTapPick(e, withTowers) {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+  let tower = null, td = 1;
+  if (withTowers) for (const t of towers) {
+    const z = towerTapAxes(t, true), d = Math.hypot((sx - z.x) / z.ax, (sy - z.y) / z.ay);
+    if (d < td) { td = d; tower = t; }
+  }
+  const pi = plotUnderPointer(e);
+  if (pi < 0) return tower ? { tower } : null;
+  // the plot's reach measured from its price board (the top of the sign: its post often stands by a tower) or
+  // from its ground; a tap on the post alone goes to a tower in reach
+  let pd = Infinity;
+  const rc = plotSignRects.get(plots[pi]);
+  if (rc) {
+    const kb = (rc[2] - rc[0]) / (PLOT_SIGN_BOX[2] - PLOT_SIGN_BOX[0]), x = rc[0] - PLOT_SIGN_BOX[0] * kb, y = rc[1] - PLOT_SIGN_BOX[1] * kb - 22.8 * kb / 1.25;
+    const d = Math.max(Math.abs(sx - x) / (30 * kb), Math.abs(sy - y) / (12 * kb));
+    if (d <= 1) pd = d;
+  }
+  const q = proj(plots[pi][0], plots[pi][1]), k = Math.max(0.5, q.s), gd = Math.hypot((sx - q.x) / (40 * k), (sy - q.y) / (24 * k));
+  if (gd < 1) pd = Math.min(pd, gd);
+  return tower && td <= pd ? { tower } : { plot: pi };
+}
+// a finger on a phone claims land with two taps: the first lights the plot's sign and names the price, a second
+// on the same plot buys it (a tap meant for a tower beside it costs nothing)
+var touchArmedPlot = null;   // var: the field may be drawn before this line is reached
+function tapPlotPhone(i, armed) {
+  const price = plotPrice();
+  if (gold < price || armed === plots[i]) { buyPlot(i); return; }
+  touchArmedPlot = plots[i];
+  Snd.play("uiTick");
+  toast("Tap the sign again to claim this ground for 🪙" + price);
+}
+// a panel opened by a finger on a phone takes no press until that finger is up (settlePanel)
+function openPanelByFinger(t) { showPanel(t); settlePanel(); }
+var panelSettleT = 0;   // var: hidePanel may run before this line is reached
+function settlePanel() {
+  panelEl.classList.add("settling");
+  clearTimeout(panelSettleT);
+  const t0 = performance.now();
+  const check = () => {
+    const now = performance.now();
+    if (fieldPointers.size && now - t0 >= SETTLE_CAP_MS) fieldPointers.clear();
+    const wait = fieldPointers.size ? 50 : fieldUpAt + SETTLE_AFTER_MS - now;
+    if (wait > 0) panelSettleT = setTimeout(check, Math.min(wait, 50));
+    else panelEl.classList.remove("settling");
+  };
+  check();
+}
 
 window.addEventListener("contextmenu", (e) => { e.preventDefault(); setPlacing(null); });
 
@@ -60097,6 +60188,8 @@ var touchArmedPad = -1;   // var: setPlacing may run before this line is reached
 function setPlacing(type) {
   placing = type;
   touchArmedPad = -1;
+  // on a phone a tower chosen in the tray puts down an armed spell or the hero's rally: the next tap builds
+  if (type && isPhone() && (castingSpell || heroSelected)) { castingSpell = null; heroSelected = false; updateSpellBar(); }
   document.querySelectorAll("#shop .card").forEach(c =>
     c.classList.toggle("selected", c.dataset.type === type));
   if (type) hidePanel();
