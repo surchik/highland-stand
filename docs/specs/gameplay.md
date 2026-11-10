@@ -473,8 +473,9 @@ then on also when earlier battlefields of that age are replayed).
 | The Great War | Dressing Station (`station`) | Heals your men and hero, and returns fallen defenders | Van |
 | Artsakh | Observation Post (`spotter`) | Marks one foe: every blow on it lands 60% harder | Stepanakert 1992 |
 
-Dvin, Halidzor's neighbors and the others get their age's tower when the campaign reaches the battlefield
-named; Dvin itself stays a battle about the ladder parties and the adaptive enemy the first time through.
+A battlefield that comes before the one named gets its age's tower on a replay: Dvin, the first time
+through, stays a battle about the ladder parties and the adaptive enemy, and has a Market when it is fought
+again after Tashir has opened.
 
 ### 3.2 Horse Lines (Bronze and Iron)
 
@@ -564,8 +565,8 @@ mine: { name: "Powder Mine", cost: 120, proj: null, charge: true, manual: true,
 
 Reading: rank 1 is 260 to each foe in the blast every 28 s. On five foes that is 46 damage a second for
 120 gold, but only when the player (or the trigger) fires it on a crowd; fired on one foe it is 9 a second.
-Timing is the skill, and the Garrison Post (hold them on the charge) and the Horse Lines' cousin in this
-age, the hero's Sortie, are its partners.
+Timing is the skill. Its partners are the Garrison Post (hold them on the charge) and the hero's Call in
+this age (4.4).
 Counters: outflankers are untouched; a hidden scout unseen does not count for the trigger (a hand-fired
 blast still hits it, as stones do); engines take the blow through their armor (12 to 28): the Great Charge
 is the answer there. Hunters may wreck the store: a wrecked store's laid charge can still be fired once.
@@ -722,4 +723,347 @@ Layouts:
   column holds five buttons of 44 px at most in 320 px of height less the header: the trigger button takes
   the Target button's 36 px class, and `fitPanelActs` squeezes as it does today for a mastery choice
   (`squeeze`, `squeeze2`). `iphone.js` proves it (8.2).
+
+## 4. Progression (D5)
+
+Two things grow: the War Council (stars spent on a tree, the same for every battlefield) and the heroes
+(experience kept per age). Towers are unlocked by reaching battlefields (3.1), never bought.
+
+### 4.1 Stars
+
+- Campaign stars, as today: a battlefield's stars are the most any of its victories earned on any
+  difficulty (1 to 3, by defenders kept). 17 x 3 = 51.
+- New, the Hard seal: a battlefield won on Hard gives one more star. 17.
+- 68 stars in all. They are counted from `hs_records` each time they are needed
+  (`starsEarned() = sum of levelStanding(i).stars + (levelRecord(i).stars[2] > 0 ? 1 : 0)`), never stored:
+  today's players have their stars the moment the update loads, and the cloud cannot make stars by merging.
+- Nothing else gives stars: not the endless stand, not the daily, not a first clear as such. A star always
+  means "this battlefield, held this well".
+- The map's tally (`#ovStars`, line 56549) shows earned stars of 68, and a pip with the number unspent.
+
+### 4.2 The War Council
+
+Five branches of five tiers. A tier needs the tier under it in its branch, and its chapter: tier t can be
+bought once Chapter t is open (its first battlefield is open: `levelOpen(CHAPTERS[t - 1].levels[0])`).
+Costs by tier: 1, 1, 2, 2, 3 stars (9 a branch, 45 for all). Reset is free and whole, at any time outside a
+battle ("Reset the Council"). Once owned a tier counts on every battlefield, old ones too.
+
+| Branch (`id`) | Tier 1 (1 star) | Tier 2 (1) | Tier 3 (2) | Tier 4 (2) | Tier 5 (3) |
+|---|---|---|---|---|---|
+| Bowmen (`bows`): archer and ballista slots | Archer slot: 5% more damage | Ballista slot: 5% more damage | Both: 6% more range | Both: reload 6% faster | Both: masteries cost 15% less |
+| Engineers (`engines`): catapult and fire slots | Catapult slot: 6% wider blast | Fire slot: 8% more burn | Catapult slot: stagger lasts 0.15 s longer | Fire slot: slows 4 points more | Both: masteries cost 15% less |
+| Captains (`captains`): drums, Garrison Post, the age's tower | Drums slot: 8% more reach | Garrison Post: men 10% stronger | Men return 15% sooner; the age's tower costs 10% less to build | Drums slot: 3 points more might | Their masteries cost 15% less |
+| Heralds (`heralds`): hero and spells | Hero 12% stronger (strength) | Spells ready 6% sooner | Hero returns in 16 s, not 20 | Spells ready another 6% sooner | The hero's Call ready 20% sooner |
+| Stewards (`stewards`): gold and walls | 20 more gold at the start | Repairs and rebuilds cost 20% less | The war chest's interest may reach 80 a wave, not 60 | Towers 12% stronger; they mend 5 points more at a clear | A sale returns 85%, not 70%; land costs 15% less |
+
+Each tier is one sentence and one number, shown exactly so on its card. Design bound, to be held by tuning
+(5.2): the whole tree is worth less than one step of difficulty to a good build (Easy's foes are 15% weaker
+than Normal's), and the stars a careful first play earns (PAR, 4.8) are worth about half of what can be owned
+at that point.
+
+### 4.3 How the Council and the hero's level reach the battle
+
+One object, the kit, is fixed when a battle begins (`resetGame`) and saved with the run:
+
+```js
+// kit = { own: { bows: 2, engines: 1, captains: 0, heralds: 0, stewards: 1 }, hero: 2, std: false }
+function battleKit() { ... }       // the player's Council and the age's hero level; the standard kit in a daily; NONE in a legacy run
+function kitHas(branch, tier) { return (kit.own[branch] || 0) >= tier; }
+```
+
+- `getStats(t)` (line 11894) stays the raw table. A new `towerStats(t)` returns the stats with the kit
+  applied (a copy cached per kind, rank and mastery; the cache is dropped in `resetGame`). Every reader of
+  a tower's numbers in battle (the shooting loop, fire, drums, the post, `watchReach`, the range rings,
+  `setPanelStats`, `statDeltaHtml`, the foe card's "blows to fell", `statDps`) calls `towerStats`. The panel
+  therefore shows the numbers that are fought with.
+- Costs go through `towerCost(type)`, `rankCost(type, level)`, `specCost(type, key)`; `towerInvested` and
+  `towerWorth` sum what was actually paid, kept on the tower (`t.paid`).
+- Hero: `heroSpawn` reads `HERO_LEVELS[kit.hero]` and the Heralds' tiers. Spells: `SPELLS[k].cd * kitCd()`.
+- Stewards: `resetGame`'s purse, `repairCost`, `rebuildCost`, the interest cap, `towerMaxHp`, `mendTowers`,
+  `sellRefund`, `plotPrice`.
+- The kit of a run in progress never changes: a reset or a purchase made on the map while a run is saved
+  applies from the next battle. A resumed run uses `r.kit`.
+
+### 4.4 Heroes
+
+Who leads: always the battlefield's own hero (`L.hero`), as today. A man is never put on a field he did
+not stand on, so there is nothing to choose before a battle. What grows is kept per age: the heroes of one
+age share one experience total and one level ("the captains of an age learn from each other's stands": a
+rule of the game, said as such on the Captains page). The level a hero stands at is his age's.
+
+Experience from one battle, added to the battlefield's age when the battle ends, won or lost:
+`xp = round(D * (10 * scriptWave(lastCleared) + (won ? 100 : 0))) + min(40, hero.kills)`, D = 0.75 on Easy,
+1 on Normal, 1.5 on Hard. A full victory on Normal is 300 whatever the battlefield's length. An endless
+stand adds 10 a wave beyond the chronicle, at most 200 a stand. A daily counts as its battlefield's age, at
+most 150 a day. A legacy run gives the same. Test mode (`recordsBarred()`) gives none.
+
+Levels: 2 at 150, 3 at 450, 4 at 900, 5 at 1,500.
+
+| Level | Strength | Blow (every 0.7 s) | Holds | Heals out of combat | Returns after | New |
+|---|---|---|---|---|---|---|
+| 1 | 400 | 34 | 3 | 10 /s | 20 s | (today's hero) |
+| 2 | 460 | 40 | 3 | 10 /s | 20 s | The Call |
+| 3 | 520 | 46 | 3 | 14 /s | 20 s | Reveals scouts within 110 px (80 today) |
+| 4 | 600 | 54 | 4 | 14 /s | 17 s | The Call lasts 2 s longer |
+| 5 | 700 | 62 | 4 | 18 /s | 14 s | The Call's second effect (below) |
+
+The Call: one ability, the age's, on a 60 s clock. How it is given, with no new button (a phone's left
+column has room for four medallions and no more): the hero's medallion, pressed while the hero is already
+chosen, sounds the Call where he stands (today a second press only lets him go; it still does when the
+Call is not ready or not yet earned). The medallion wears a bright ring when the Call is ready and a thin
+outer arc while it cools. Keyboard: `T`. The tooltip and the touch toast add "Press again for his Call."
+
+| Age | The Call | Effect (radius 120 px around the hero) | At level 5 also |
+|---|---|---|---|
+| Bronze and Iron | Stand Fast | For 6 s the hero and the men of posts near him take half damage and each holds one more foe | Foes held near him burn for 20 a second |
+| Princes and Kings | Charge | The hero rides 160 px up his road: 120 to every ground foe he passes, each thrown back 30 px | The foes he passed are staggered 2 s |
+| Powder | Sortie | For 8 s the hero and every post's men on the field strike twice as hard | They also strike through armor |
+| The Great War | To Arms | For 8 s towers within 200 px of the hero reload 30% faster (a drum that walks) | And strike 20% harder |
+| Artsakh | Call Fire | After 1.5 s five mortar bombs fall around him: 90 each, blast 70 | Seven bombs |
+
+Basis for the names: Stand Fast is Avarayr's own words in the game ("Stand as Vardan stood"); Charge is the
+Iron King's sortie in Sevan's text; Sortie is Halidzor's; To Arms is Sardarapat's bells calling everyone to
+the field; Call Fire is generic. None claims a deed of a named hero on a field where he leads: the Call is a
+game ability and its card says "The Call is a game ability."
+Art: no new figure. A ring that spreads from the hero (the frost ring's painter in gold), the hero's swing,
+the age's horn (`horn`, exists). Charge reuses the hero's walk at four times the pace with dust.
+
+### 4.5 What is earned where
+
+| Source | Stars | Hero experience | Towers |
+|---|---|---|---|
+| A victory | 1 to 3 by defenders kept (the best across difficulties counts) | 300 on Normal, 225 on Easy, 450 on Hard, and up to 40 for the hero's own kills | Reaching a battlefield opens the tower named for it (3.1) |
+| A first victory on Hard | 1 more (the Hard seal) | as above | |
+| A lost battle | none | 10 for each script wave cleared, by difficulty | |
+| The endless stand | none (its record only) | 10 a wave, at most 200 a stand | |
+| The daily challenge | none (its board and its streak are the platform's) | as a battle, at most 150 a day | |
+
+### 4.6 The pages and their doors
+
+Two panels, one page. The page is gameplay's own (`menuMode = "council"`, a parchment page in the overlay
+like the chapter story), so it works with the platform off. It has two tabs, Council and Captains.
+`openCouncil()` and `openCaptains(age)` open it.
+
+Doors:
+- The map: the star tally becomes a button (`#ovStars`: `role="button"`, 44 px to a finger, title "War
+  Council: 3 stars to spend"). A red pip shows the stars unspent. If the platform's Hall takes the tally as
+  its own door on a phone, the Hall must show the Council as its first tab or as a first button calling
+  `openCouncil()` (need N4 in 9.4).
+- The chronicle: (1) the hero's line under the miniature (`#briefHero`, line 60132) becomes a button,
+  "Your hero · Argishti I · Level 2", that opens the Captains tab at his age. (2) A new row `#briefKit`
+  under the tricks row: the towers this battle offers as small medallions (5 to 7; a new one wears "New"),
+  and a chip "Council · 3 to spend" (shown only when stars are unspent) that opens the Council.
+- The victory page: under the stars, when the victory earned new stars and one of them can buy something,
+  a button "Spend 2 stars at the War Council"; and a strip with the hero's name, his level and the
+  experience bar filling to its new place. Both go under `#ovRecord` and must keep `vic.js`'s rule for
+  every button (wholly on screen, 40 px, apart from the others).
+- One-time cards (frame and behavior of the trick cards, `hs_towers_seen`): "The War Council opens."
+  (the first time stars are unspent, on the map), "A new tower" (2.8, and one for each age's tower),
+  "The Call" (first battle at level 2, a coach bubble on the hero's medallion).
+
+Layouts:
+- Desktop and iPad: the Council tab is five columns (one a branch, its name over it) of five medallions
+  56 px across, tier 1 at the top. A medallion is owned (gold), open (lit, with its cost in stars), closed
+  by its branch (dim) or closed by its chapter (dim, a small lock, "Opens with Chapter III"). A press
+  chooses it and shows its one sentence, its cost and the "Take it · 2 stars" button (44 px tall) in a strip
+  under the tree; a second press on the button buys. Header: "War Council", "4 stars to spend of 9", and
+  "Reset the Council" (a second press confirms on touch, as Sell does). The Captains tab is five rows, one
+  an age: the names of that age's heroes the player has met, the level, the bar, what the next level
+  brings, the Call's line.
+- Phone held sideways (667 x 320 and up): the tree takes the left 470 px: five columns 94 px apart, five
+  rows of 44 px medallions 6 px apart (244 px) under a 36 px header. The strip with the sentence and the
+  button is a column on the right, 170 px wide, text at 12 px, button 44 px. The tabs are two 44 px
+  buttons in the header. Nothing scrolls on the Council tab; the Captains tab scrolls inside its frame.
+- Phone held upright (best effort): the tree's five columns share the width (62 px each at 375), the
+  strip is under it, the page scrolls.
+- On the chronicle held sideways on a phone the left column is full: `#briefKit` shows the Council chip
+  and, if there is one, the new tower's medallion only.
+
+### 4.7 Saves, and CLOUD_KEYS
+
+Three new keys, all pushed onto `CLOUD_KEYS`:
+
+| Key | Shape | Merge rule for the cloud |
+|---|---|---|
+| `hs_council` | `{ v: 1, own: { bows: 0..5, engines, captains, heralds, stewards } }` | Per branch the larger number, then `councilSane()`: tiers above the chapter reached are dropped, and if the cost is more than the stars earned, the highest tiers are dropped (last branch first) until it fits. |
+| `hs_heroes` | `{ v: 1, xp: { iron, crowns, powder, greatwar, artsakh } }` | Per age the larger number. |
+| `hs_towers_seen` | `["post", "horse", ..., "council", "call"]` | Union. |
+
+Existing keys that change shape: `hs_records` rows gain `beyond` (1.6; merge: per field and difficulty the
+larger, as for stars and lives). `hs_run` gains `rules`, `kit`, `daily` (the daily's spec, else absent),
+tower fields `rally`, `spot`, `trigger`, `paid`, and `t` (the time it was written, ms): the platform keeps
+the newer of two runs by `t`.
+
+Today's players (migration, no rewrite of anything they own):
+- Stars: counted from `hs_records` as it is. A player with 30 stars opens the game to "30 stars to spend".
+- Heroes: when `hs_heroes` is absent it is created once from the campaign: 300 for each battlefield of the
+  age already won (so a veteran's heroes stand at the levels a first play would have given). Safe to merge.
+- Towers: derived from the campaign, so everything a player has reached is open at once.
+- Runs: 1.7. Records: 1.6. Nothing in `hs_best_*`, `hs_settings`, `hs_tutorial_done`, `hs_tricks_seen`,
+  `hs_chapters_seen`, `hs_unlocked_seen`, `hs_nardi*`, `hs_home_tip` changes.
+- `validRun`, `councilSane`, `heroLevelOf` treat every stored value as untrusted: whole numbers in range,
+  else the default.
+
+### 4.8 Fairness: the power a player is expected to have
+
+The difficulty a new player meets must not depend on grinding. Three things make that true:
+1. Towers come from reaching a battlefield, never from stars or replays.
+2. Hero experience is per age and a victory gives the same 300 whatever the battlefield's length, so the
+   level a first play arrives with is known. A lost battle gives experience too, so a player who is stuck
+   grows without leaving the battlefield.
+3. Council tiers open with chapters, so what can be owned on first arrival is bounded, and the balance
+   targets are set for what a careful first play actually has (PAR), then checked at the least any player
+   can have (FLOOR).
+
+Definitions, for a player arriving at a battlefield having won every one before it once:
+- FLOOR: one star a battlefield (every victory earns one). PAR: two (what the best build inside the Normal
+  band earns: it keeps 12 to 16 of 20, and three stars need 17). CAP: everything the chapter lets be owned,
+  for a player who went back for three stars and Hard seals.
+- The standard order of buying, used for FLOOR, PAR, the daily and the bot: tier by tier, and inside a
+  tier Bowmen, Engineers, Captains, Heralds, Stewards (`councilStandard(stars, chapter)`).
+- Hero level: the age's level after one Normal victory on each earlier battlefield of the age.
+
+| # | Battlefield | Chapter (tiers open) | FLOOR stars | PAR stars spent | CAP stars | Hero level, first play |
+|---|---|---|---|---|---|---|
+| 1 | Erebuni | I (1) | 0 | 0 | 0 | 1 |
+| 2 | Tushpa | I (1) | 1 | 2 | 4 | 2 |
+| 3 | Avarayr | I (1) | 2 | 4 | 5 | 3 |
+| 4 | Dvin | II (1 to 2) | 3 | 6 | 10 | 1 |
+| 5 | Tashir | II | 4 | 8 | 10 | 2 |
+| 6 | Sevan | II | 5 | 10 | 10 | 3 |
+| 7 | Ani | III (1 to 3) | 6 | 12 | 20 | 4 |
+| 8 | Mari | III | 7 | 14 | 20 | 4 |
+| 9 | Sis | III | 8 | 16 | 20 | 5 |
+| 10 | Gyumri Road | III | 9 | 18 | 20 | 1 |
+| 11 | Halidzor | IV (1 to 4) | 10 | 20 | 30 | 2 |
+| 12 | Van | IV | 11 | 22 | 30 | 1 |
+| 13 | Musa Dagh | IV | 12 | 24 | 30 | 2 |
+| 14 | Sardarapat | IV | 13 | 26 | 30 | 3 |
+| 15 | Stepanakert 1992 | V (all) | 14 | 28 | 45 | 1 |
+| 16 | Shushi | V | 15 | 30 | 45 | 2 |
+| 17 | Stepanakert 2023 | V | 16 | 32 | 45 | 3 |
+
+Erebuni is always fought first with nothing: the tutorial is the same for everyone.
+How the balance targets account for it (5.2): every band is measured with the PAR kit. With the FLOOR kit
+the bands may be up to 2 lives worse, and the mix must still win everything it must win. With the CAP kit
+they may be up to 3 lives better, and Hard's best build must still lose some seeds. If a tier breaks one
+of these, the tier's number is cut, not the battlefield retuned.
+The standard kit of a battlefield is its PAR row: `councilStandard(PAR stars, chapter)` and the hero level
+of the table. The daily and the platform's standard boards use it for everyone (6.4).
+
+## 5. Balance
+
+### 5.1 The owner's rulings, carried over
+
+With `tools/balance.js`, SEEDS=3, lives 30 / 20 / 14 as today:
+- Normal, the first six (Erebuni to Sevan): the best build loses 4 to 8 of 20 on every seed (keeps 12 to
+  16) and fells both commanders on every seed; the balanced mix wins every seed. Erebuni's coached waves 1
+  to 3 never change.
+- Normal, the later eleven: the best build loses 5 to 10 (keeps 10 to 15, two of three seeds in the band)
+  and fells both commanders; the mix wins two of three on at least 8 of the 11 and none of three on at
+  most one.
+- Easy: the mix wins every battlefield on every seed and keeps about 22 to 27 of 30 on the first six.
+- Hard: the best build wins at least 12 of the 17 on two of three seeds, keeps 2 to 8 of 14 and loses
+  some seeds.
+- One-recipe builds lose: "ballista" and "archers" each lose at least once on the first six on Normal and
+  often on Hard; the adaptive enemy adapts on at most 30% of the mix's waves and at least 60% of the
+  one-tower builds'.
+- Where two or more tricks are active no one trick is more than 75% of the best build's toll.
+- A victory gives three stars at 17 of 20: the best build in the Normal band earns two.
+
+### 5.2 What is added for the new lengths, towers and progression
+
+- Kit: all of 5.1 is measured with the PAR kit of 4.8 (`KIT=par`, the default once progression lands).
+  `KIT=floor`: bands up to 2 lives worse; the mix still wins every seed on Easy everywhere and on Normal's
+  first six. `KIT=cap`: bands up to 3 lives better; on Hard the best build still loses some seeds.
+  `KIT=none` is kept for comparing with today's game.
+- Lengths: a battlefield's band does not move with its length. A 10-wave Erebuni still costs the best
+  build 4 to 8. (The prototype shows what moves: 3 to 6 lives easier before retuning.)
+- Time, a new target: wave time at 1x for the best build on Normal within 15% of the table in 1.2. The
+  bot prints it (5.4).
+- The classic five stay a whole game: "mix" (no new towers) meets every target above that it meets today.
+- The new towers are worth their pad and never required: "mix7" (the mix with the post and the age's
+  tower in its order) keeps on average 1 to 3 lives more than "mix" over the 17 on Normal, and on no
+  battlefield more than 5 more. On at least a third of its battlefields each new tower is in the best
+  build.
+- New one-recipe builds lose on Normal on at least two of three seeds wherever they can be built:
+  "posts" (posts only), "postdrum" (posts and drums), "agemix" (the age's tower on every second pad, posts
+  between), "bazaar" (two markets first, then the mix, on the Princes and Kings battlefields: it must end
+  below "mix" in lives on at least four of the six).
+- A commander is never stopped by posts: with CMD=probe a board of posts alone leaves both commanders
+  above 60% of their strength at the walls.
+- The Market: "greedy" (the mix with one market as its third building) ends with 150 to 250 more gold
+  invested than "mix" and within 2 lives of it.
+- The Dressing Station: "mix" plus a station as its sixth building keeps at most 3 more lives than "mix"
+  on Van, Musa Dagh and Sardarapat.
+- Easy and the new towers: the mix alone still meets Easy's band; a family that never touches a new tower
+  loses nothing.
+
+### 5.3 Knobs, in the order they should be reached for
+
+1. `hpTune` and `LEVEL_HP`'s rank and file column (a battlefield's own strength), as today.
+2. `LEVEL_HP`'s commander column, with CMD=probe.
+3. The tricks' counts where the script map made them denser or thinner (Erebuni's scouts, 1.3).
+4. The new towers' own numbers (2.1, 3.2 to 3.6).
+5. The Council's numbers (4.2) and the hero's levels (4.4).
+Never `DIFFS`, `hpScale`, `TOWER_DEFS` of the five slots, the star thresholds or the pay rule of 1.4: they
+are shared by everything already tuned.
+
+### 5.4 How the bot learns all this (`tools/balance.js`)
+
+- Lengths: the loop reads `totalWaves()` (it names `TOTAL_WAVES` at lines 202, 308, 323, 349). `trickWave`
+  and the tell are already read through the game.
+- Time: each battle returns `secs` (game seconds per wave) and the table gains a column "min" for the best
+  build (the patch is `gameplay-proto/balance-time.diff`).
+- Kit: `KIT=none|floor|par|cap` calls a test hook `setKitForTest(kit)` before `resetGame()`; the hook builds
+  the kit from 4.8's table for the battlefield played.
+- New kinds in a build's order: `post`, and `age` (the age's tower of the battlefield played; skipped where
+  it is not offered). New builds in `BUILDS`: mix7, posts, postdrum, agemix, greedy, bazaar, station
+  (5.2). `BAN=fire` strikes a tile (for the daily's twist).
+- The bot's rules for the new towers, the same for every build:
+  - Post: the pad that reaches the most road (the existing ranking, radius the post's reach). Rally point:
+    the road point in its reach that lies in the range of the most standing shooting towers, on a tie the
+    one nearest the walls; set again after each purchase. Where an ambush road is told, a post that
+    reaches it moves its rally there for those waves if no other tower covers it.
+  - Horse Lines: the pad whose reach holds the most road within 120 px downstream of a fire or catapult.
+  - Market: the free pad that reaches the least road (the worst pad for a tower), bought as the order
+    says, never after two thirds of the battle.
+  - Powder Mine: pad by road reached; the charge at the road point in reach covered by the most towers;
+    trigger "at 3 foes".
+  - Dressing Station: the free pad nearest the fortress.
+  - Observation Post: pad by road and sky reached (`rankAir`); target Strongest.
+  - Hero: `HERO=hold` parks the hero at the road point nearest the fortress that the most towers cover
+    (today the bot never moves him, so his level could not be measured), and sounds the Call when three
+    or more foes are within its radius. `HERO=off` is today's behavior, for comparing.
+- Report: lives returned by a station apart from lives kept; gold paid by markets; per new tower, damage
+  per 100 gold as for the others, and for the post "seconds of hold per 100 gold".
+- Seeds: `BOT_SLOT` is untouched, so every battlefield keeps its seeds.
+
+### 5.5 Builds that must lose, and why they do
+
+- Posts alone: men deal 20 to 73 a second a post and hold two to four; engines and outflankers walk past;
+  a commander is held 8 s a post. Nothing kills the column.
+- The age's tower alone: a market kills nothing; a station kills nothing; an observation post kills
+  nothing; a powder mine fires once in 22 to 28 s; horse lines strike once in 14 to 18 s.
+- Two markets and a thin board: income arrives after the waves that needed it.
+The adaptive enemy has no guard against the new kinds in the first release. If tuning shows a board of
+one new kind and drums winning, the fix is that kind's numbers. A guard against the post ("Wedge": held
+foes break free after 4 s) is specified as the fallback and built only if needed.
+
+### 5.6 The order of tuning
+
+1. Lengths only (`KIT=none`, classic builds): set every `hpTune` so the bands of 5.1 hold again. Expect to
+   raise the short battlefields by 5% to 15%. Then commanders with CMD=probe. Tables for all three
+   difficulties, SEEDS=3, saved under `docs/specs/balance/` (before and after).
+2. The Garrison Post (still `KIT=none`): its numbers, until "mix7" is 1 to 3 lives above "mix" and the
+   post builds lose.
+3. The age's towers, one age at a time, in campaign order.
+4. The kit: turn on `KIT=par`; the game is now easier by the kit's worth; raise `hpTune` across the board
+   by that much (expected 3% to 8%, more in later chapters) so the bands hold at PAR. Check FLOOR and CAP.
+5. Easy, then Hard (their own `hpTune` entries), then the endless stand's first ten waves on three
+   battlefields (it must not have become trivial with posts: a mix7 board should fall between waves 8 and
+   20 beyond the chronicle).
+6. Three seeds, all three difficulties, all builds: the final tables, with wave time.
+7. A person plays: 8.4.
+After any later change to a number in 5.3, rerun step 6.
 
