@@ -202,9 +202,9 @@ the `nostore` card instead of leaving.
 | `bash tools/platform/test-update.sh` | PASS, 36 cases |
 | `node tools/regress/platform.js --photos=...` | PASS, 20 runs (flows 1, 2, 3, 11 at 5 sizes), 45 states, 584 s |
 | `node tools/platform/compare-shots.js <5cf786b page> index.html` | 40 pairs, all the same |
-| `node tools/platform/p0.js` | P0_RESULT |
-| `node tools/regress/run-all.js --quick` | QUICK_RESULT |
-| `node tools/regress/run-all.js --only=iphone,doors,vic` | FULL3_RESULT |
+| `node tools/platform/p0.js` | PASS, 0 failures, 323 s |
+| `node tools/regress/run-all.js --quick` | 10 of 10 PASS (padplace, plots, probe, vic, nag, dance10, live, doors, iphone, platform), 899 s; dance10 and nag passed this time |
+| `node tools/regress/run-all.js --only=iphone,doors,vic` | iphone PASS (697 states, 10 sizes, 547 s); doors PASS; vic FAIL in the first run: its renderer was killed by the kernel for memory (cgroup OOM, a 7.4 GB renderer, at 1440x900 Shushi and Stepanakert) while the other track ran browsers. vic loads `file://`, where the platform is off. Rerun alone (`run-all.js --only=vic`): PASS, 17 battlefields, 773 s. A load failure. |
 | `probe.js` (reviewer) | findings 1 to 4, 7, 8; the sound items above |
 | `probe10.js` (reviewer) | 40 cards at the ten iPhone sizes, 0 failing |
 | mutations (finding 11) | 4 caught, 1 not |
