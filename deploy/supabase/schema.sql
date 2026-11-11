@@ -205,13 +205,30 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- private helpers
+-- the caller's account. A token outlives a deleted account by up to an hour (its expiry), so the account must
+-- still be in auth.users: else the caller is not signed in, and nothing is written for an account that is gone
 create or replace function hs_private.uid() returns uuid
-language plpgsql stable set search_path = '' as $$
+language plpgsql stable security definer set search_path = '' as $$
 declare v uuid := auth.uid();
 begin
-  if v is null then raise exception 'not_signed_in' using errcode = '42501'; end if;
+  if v is null or not exists (select 1 from auth.users u where u.id = v) then
+    raise exception 'not_signed_in' using errcode = '42501';
+  end if;
   return v;
 end $$;
+
+-- the caller's account when there is one that still exists, else null (a visitor, for the analytics)
+create or replace function hs_private.uid_or_null() returns uuid
+language sql stable security definer set search_path = '' as $$
+  select u.id from auth.users u where u.id = auth.uid();
+$$;
+
+-- how far a counter of rate_ok has got in this period, without adding to it
+create or replace function hs_private.rate_peek(p_kind text, p_key text, p_seconds integer) returns integer
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select r.n from public.hs_rate r
+    where r.bucket = p_kind || ':' || (floor(extract(epoch from hs_private.now()) / p_seconds))::bigint and r.key = p_key), 0);
+$$;
 
 create or replace function hs_private.is_admin() returns boolean
 language sql stable security definer set search_path = '' as $$
@@ -356,6 +373,8 @@ language plpgsql immutable set search_path = '' as $$
 declare lv jsonb := p_rules -> 'levels' -> p_level; d jsonb; c jsonb; t jsonb;
 begin
   if lv is null or jsonb_typeof(lv) <> 'object' then raise exception 'level_unknown' using errcode = 'P0001'; end if;
+  -- jsonb's -> counts a negative index from the end: -1 would be read as Hard
+  if p_diff is null or p_diff not between 0 and 2 then raise exception 'diff_unknown' using errcode = 'P0001'; end if;
   d := lv -> 'd' -> p_diff;
   if d is null then raise exception 'diff_unknown' using errcode = 'P0001'; end if;
   rev := (lv ->> 'rev')::integer;
@@ -468,7 +487,7 @@ end $$;
 create or replace function public.hs_run_begin(p_mode text, p_level text, p_diff integer, p_ruleset text, p_twist text default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_uid uuid := hs_private.uid(); rs public.hs_rulesets; v_day date; v_level text; v_twist text;
-  v_used integer; v_max integer; v_id uuid; b record; v_now timestamptz := hs_private.now();
+  v_used integer; v_max integer; v_id uuid; b record; v_now timestamptz := hs_private.now(); v_new jsonb; v_nl text; v_nt text;
   v_chan text := hs_private.channel_of(p_ruleset);
 begin
   if p_mode is null or p_mode not in ('campaign', 'daily') then raise exception 'mode_unknown' using errcode = 'P0001'; end if;
@@ -481,6 +500,19 @@ begin
     select d.level_id, d.twist into v_level, v_twist from hs_private.daily_pick(rs.data, v_day) d;
     if v_level is distinct from p_level or v_twist is distinct from p_twist or p_diff is distinct from (rs.data -> 'daily' ->> 'diff')::integer then
       raise exception 'daily_mismatch' using errcode = 'P0001';
+    end if;
+    -- the day's board is one for the whole channel: an older page whose ruleset would make it a different battle
+    -- (another battlefield, twist, difficulty or table) than the newest ruleset's is turned away, not let in
+    select r.data into v_new from public.hs_rulesets r where r.active and hs_private.channel_of(r.id) = v_chan
+      order by r.published_at desc, r.id desc limit 1;
+    select d.level_id, d.twist into v_nl, v_nt from hs_private.daily_pick(v_new, v_day) d;
+    if v_nl is distinct from v_level or v_nt is distinct from v_twist
+       or (v_new -> 'daily' -> 'diff') is distinct from (rs.data -> 'daily' -> 'diff')
+       or (v_new -> 'daily' -> 'waves') is distinct from (rs.data -> 'daily' -> 'waves')
+       or (v_new -> 'daily' -> 'levels' -> v_level) is distinct from (rs.data -> 'daily' -> 'levels' -> v_level)
+       or (v_new -> 'daily' -> 't' -> v_twist) is distinct from (rs.data -> 'daily' -> 't' -> v_twist)
+       or (v_new -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') is distinct from (rs.data -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') then
+      raise exception 'daily_mismatch' using errcode = 'P0001', detail = 'an older ruleset';
     end if;
     v_max := (rs.data -> 'daily' ->> 'attempts')::integer;
     -- attempts are counted per day and per channel: a try on the staging page spends none of the live game's
@@ -691,12 +723,12 @@ $$;
 -- p_ctx: { aid, sid, build, ruleset, channel, dev, os, browser, standalone, vw, vh, lang, ref }
 -- p_events: [ { n: name, q: sequence number, t: device clock in ms, p: { ... } }, ... ] (50 at most, 60 KB at most)
 -- Limits count events, not calls. A visitor's events draw on one pool for all visitors (ev_cap_hour, default
--- 20000 an hour) and 900 an hour per device id; a signed-in player's draw on his own 1500 an hour and on no pool,
+-- 20000 an hour) and 900 an hour per device id (the pool is charged only for events the device's limit lets through); a signed-in player's draw on his own 1500 an hour and on no pool,
 -- so a flood of made-up visitors cannot starve the players' counts. Over ev_max_mb megabytes of events (default
 -- 1024) visitors' events are dropped; over one and a half times that, everyone's. Over a limit: dropped, no error.
 create or replace function public.hs_track(p_ctx jsonb, p_events jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v_uid uuid := auth.uid(); v_aid uuid; v_sid text; n integer; e jsonb; v_ok integer := 0;
+declare v_uid uuid := hs_private.uid_or_null(); v_aid uuid; v_sid text; n integer; e jsonb; v_ok integer := 0;
   v_cap integer; v_max_mb integer; v_keep integer; v_mb numeric; v_drop boolean := false; v_now timestamptz := hs_private.now();
 begin
   begin
@@ -716,10 +748,13 @@ begin
     into v_cap, v_max_mb, v_keep;
   v_mb := pg_total_relation_size('public.hs_events') / 1048576.0;
   if v_uid is null then
-    -- the pool first (one row), so a flood of made-up device ids adds no rows of its own once the pool is dry
+    -- the pool is read first (one row, not added to), so a flood of made-up device ids adds no rows of its own
+    -- once the pool is dry; then the device's own limit; and only a batch both let through is charged to the
+    -- pool, so one device id past its 900 cannot drain the pool for every other visitor
     if v_mb > v_max_mb then v_drop := true;
-    elsif not hs_private.rate_ok('evanon', 'all', 3600, v_cap, n) then v_drop := true;
+    elsif hs_private.rate_peek('evanon', 'all', 3600) + n > v_cap then v_drop := true;
     elsif not hs_private.rate_ok('ev', v_aid::text, 3600, 900, n) then v_drop := true;
+    elsif not hs_private.rate_ok('evanon', 'all', 3600, v_cap, n) then v_drop := true;
     end if;
   else
     if v_mb > v_max_mb * 1.5 then v_drop := true;
@@ -787,17 +822,19 @@ end $$;
 create or replace function hs_private.ruleset_problem(p_data jsonb) returns text
 language plpgsql immutable set search_path = '' as $$
 declare k text; lv jsonb; d jsonb; dl jsonb; i integer; n integer; m integer; dk integer; dj integer; v_waves integer;
-  a integer; b integer; t integer;
+  a integer; b integer; t integer; tk text; v_tw jsonb;
 begin
   if coalesce(jsonb_typeof(p_data), '') <> 'object' or coalesce(jsonb_typeof(p_data -> 'levels'), '') <> 'object'
      or coalesce(jsonb_typeof(p_data -> 'score'), '') <> 'object' then
     return 'shape';
   end if;
   begin
-    if (p_data -> 'score' ->> 'win')::numeric is null or (p_data -> 'score' ->> 'lives')::numeric is null
-       or (p_data -> 'score' ->> 'speed')::numeric is null or (p_data -> 'score' ->> 'thrift')::numeric is null then
+    -- the weights are whole numbers (hs_score_submit adds them as such); a cast that fails lands below
+    if (p_data -> 'score' ->> 'win')::integer is null or (p_data -> 'score' ->> 'lives')::integer is null
+       or (p_data -> 'score' ->> 'speed')::integer is null or (p_data -> 'score' ->> 'thrift')::integer is null then
       return 'score';
     end if;
+    if (p_data -> 'score' ->> 'lostMax')::integer < 0 then return 'score'; end if;
     for k, lv in select * from jsonb_each(p_data -> 'levels') loop
       if coalesce(jsonb_typeof(lv), '') <> 'object' or (lv ->> 'waves')::integer is null or (lv ->> 'waves')::integer not between 1 and 60
          or coalesce(jsonb_typeof(lv -> 'd'), '') <> 'array' or jsonb_array_length(lv -> 'd') <> 3 then
@@ -808,7 +845,8 @@ begin
         d := lv -> 'd' -> i;
         if coalesce(jsonb_typeof(d), '') <> 'object' or (d ->> 'lives')::integer is null or (d ->> 'lives')::integer < 1
            or (d ->> 'fast')::numeric is null or (d ->> 'slow')::numeric is null or (d ->> 'earnMax')::numeric is null
-           or (d ->> 'slow')::numeric <= (d ->> 'fast')::numeric or (d ->> 'earnMax')::numeric < 0 then
+           or (d ->> 'slow')::numeric <= (d ->> 'fast')::numeric or (d ->> 'earnMax')::numeric < 0
+           or (d ->> 'min')::numeric < 0 then
           return k || ': difficulty ' || i;
         end if;
       end loop;
@@ -830,6 +868,14 @@ begin
        or (p_data -> 'daily' ->> 'attempts')::integer is null or (p_data -> 'daily' ->> 'attempts')::integer < 1 then
       return 'daily: diff or attempts';
     end if;
+    -- the twists' multipliers (positive numbers) and livesSet (a whole number of defenders)
+    if p_data -> 'daily' ? 't' and coalesce(jsonb_typeof(p_data -> 'daily' -> 't'), '') <> 'object' then return 'daily: t'; end if;
+    for tk, v_tw in select * from jsonb_each(coalesce(p_data -> 'daily' -> 't', '{}'::jsonb)) loop
+      if coalesce(jsonb_typeof(v_tw), '') <> 'object' or (v_tw ->> 'livesSet')::integer < 1
+         or (v_tw ->> 'lives')::numeric <= 0 or (v_tw ->> 'fast')::numeric <= 0 or (v_tw ->> 'slow')::numeric <= 0 or (v_tw ->> 'earn')::numeric < 0 then
+        return 'daily: twist ' || tk;
+      end if;
+    end loop;
     n := jsonb_array_length(p_data -> 'daily' -> 'pool'); m := jsonb_array_length(p_data -> 'daily' -> 'twists');
     dk := (p_data -> 'daily' ->> 'k')::integer; dj := (p_data -> 'daily' ->> 'j')::integer;
     if dk is null or dj is null or dk < 1 or dj < 1 then return 'daily: k or j'; end if;
@@ -845,9 +891,17 @@ begin
       end if;
       dl := p_data -> 'daily' -> 'levels' -> k;
       if coalesce(jsonb_typeof(dl), '') <> 'object' or (dl ->> 'fast')::numeric is null or (dl ->> 'slow')::numeric is null
-         or (dl ->> 'earnMax')::numeric is null or (dl ->> 'slow')::numeric <= (dl ->> 'fast')::numeric then
+         or (dl ->> 'earnMax')::numeric is null or (dl ->> 'slow')::numeric <= (dl ->> 'fast')::numeric
+         or (dl ->> 'earnMax')::numeric < 0 or (dl ->> 'min')::numeric < 0 then
         return k || ': the daily''s table';
       end if;
+      -- under every twist it can meet, slow stays above fast
+      for tk in select jsonb_array_elements_text(p_data -> 'daily' -> 'twists') loop
+        v_tw := coalesce(p_data -> 'daily' -> 't' -> tk, '{}'::jsonb);
+        if (dl ->> 'slow')::numeric * coalesce((v_tw ->> 'slow')::numeric, 1) <= (dl ->> 'fast')::numeric * coalesce((v_tw ->> 'fast')::numeric, 1) then
+          return k || ': the daily''s table under twist ' || tk;
+        end if;
+      end loop;
       if dl ? 'script' and (coalesce(jsonb_typeof(dl -> 'script'), '') <> 'array' or jsonb_array_length(dl -> 'script') <> v_waves
           or (dl -> 'script' ->> -1)::integer is distinct from 20) then
         return k || ': the daily''s script';
@@ -867,6 +921,20 @@ begin
   if p_id is null or p_id !~ '^[A-Za-z0-9._-]{1,40}$' then raise exception 'ruleset_invalid' using errcode = 'P0001', detail = 'id'; end if;
   v_problem := hs_private.ruleset_problem(p_data);
   if v_problem is not null then raise exception 'ruleset_invalid' using errcode = 'P0001', detail = v_problem; end if;
+  -- a battlefield's boards are keyed by its rev (RULINGS S4), so a rev that is kept must mean the same battle:
+  -- against every ruleset already published on the same channel, a battlefield with the same rev must have the
+  -- same length, script and difficulties, and the score's weights must be the same (else every rev moves)
+  select nl.key || ': its rev is kept but the battle or the score changed (move its rev)' into v_problem
+    from public.hs_rulesets r, jsonb_each(p_data -> 'levels') nl
+    where hs_private.channel_of(r.id) = hs_private.channel_of(p_id)
+      and r.data -> 'levels' -> nl.key is not null
+      and (r.data -> 'levels' -> nl.key ->> 'rev') = (nl.value ->> 'rev')
+      and ((r.data -> 'levels' -> nl.key -> 'waves') is distinct from (nl.value -> 'waves')
+        or (r.data -> 'levels' -> nl.key -> 'script') is distinct from (nl.value -> 'script')
+        or (r.data -> 'levels' -> nl.key -> 'd') is distinct from (nl.value -> 'd')
+        or ((r.data -> 'score') - 'lostMax') is distinct from ((p_data -> 'score') - 'lostMax'))
+    order by 1 limit 1;
+  if v_problem is not null then raise exception 'ruleset_invalid' using errcode = 'P0001', detail = v_problem; end if;
   insert into public.hs_rulesets (id, data, published_by, published_at) values (p_id, p_data, auth.uid(), hs_private.now())
     on conflict (id) do update set data = excluded.data, active = true, published_at = excluded.published_at, published_by = excluded.published_by;
   return jsonb_build_object('ok', true, 'id', p_id);
@@ -876,7 +944,9 @@ create or replace function public.hs_admin_set_config(p_key text, p_value jsonb)
 language plpgsql security definer set search_path = '' as $$
 begin
   perform hs_private.need_admin();
-  if p_key not in ('gate', 'cloud', 'notice', 'ev_sample', 'ev_cap_hour', 'ev_max_mb', 'ev_keep_days', 'boards', 'daily') then raise exception 'key_unknown' using errcode = 'P0001'; end if;
+  if p_key is null or p_key not in ('gate', 'cloud', 'notice', 'ev_sample', 'ev_cap_hour', 'ev_max_mb', 'ev_keep_days', 'boards', 'daily') then raise exception 'key_unknown' using errcode = 'P0001'; end if;
+  -- hs_config sends the public switches to every visitor: none may be large
+  if octet_length(coalesce(p_value, 'null'::jsonb)::text) > 4096 then raise exception 'value_invalid' using errcode = 'P0001'; end if;
   if p_key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days') and p_value is not null and p_value <> 'null'::jsonb
      and hs_private.int_or_null(p_value #>> '{}') is null then raise exception 'value_invalid' using errcode = 'P0001'; end if;
   if p_key = 'notice' and char_length(coalesce(p_value #>> '{}', '')) > 140 then raise exception 'value_invalid' using errcode = 'P0001'; end if;
@@ -900,7 +970,11 @@ begin
   if not found then raise exception 'user_unknown' using errcode = 'P0001'; end if;
   if p_name is not null then
     n := hs_private.name_clean(p_name);
-    update public.hs_profiles set name = n, name_key = hs_private.name_fold(n), name_changed_at = hs_private.now() where user_id = p_user;
+    begin
+      update public.hs_profiles set name = n, name_key = hs_private.name_fold(n), name_changed_at = hs_private.now() where user_id = p_user;
+    exception when unique_violation then
+      raise exception 'name_taken' using errcode = 'P0001';
+    end;
   end if;
   return jsonb_build_object('ok', true);
 end $$;

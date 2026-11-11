@@ -25,7 +25,7 @@ ok() { oks=$((oks + 1)); echo "ok   $*"; }
 bad() { fails=$((fails + 1)); echo "FAIL $*"; }
 # the code block under a marker of the guide
 block() { awk -v m="<!-- guide-check: $1 -->" 'found && /^ *```/ { if (inside) exit; inside = 1; next } inside { sub(/^   /, ""); print } $0 ~ m { found = 1 }' "$GUIDE"; }
-for b in step0-greps nginx-zone nginx-site step1-check step3-settings step3-preflight step3-authorize step4-config step4-audit step5-smoke step6-admin step9-names step9-cloud-off step9-cloud-on; do
+for b in step0-greps nginx-zone nginx-site step1-check step1-auth-closed step3-settings step3-preflight step3-authorize step4-config step4-audit step5-smoke step6-admin step9-names step9-cloud-off step9-cloud-on; do
   [ -n "$(block $b)" ] || bad "the guide has no block marked $b"
 done
 
@@ -78,6 +78,23 @@ g=$(cd "$T/supa-example" && bash -c "$(block step0-greps)" | tr '\n' ' ')
 # ------------------------------------------------------------------ step 1: the four curls
 g=$(bash -c "$(block step1-check | pub)" | tr '\n' ' ')
 [ "$g" = "401 404 404 404 " ] && ok "step 1 check: $g" || bad "step 1 check: $g (wanted 401 404 404 404)"
+# Auth's routes that make accounts, sign in by password or send mail: refused on the public name, while the gateway
+# behind it (the stack, --wide, answering as an open Supabase Auth would) serves them: so it is the block that refuses
+g=$(bash -c "$(block step1-auth-closed | pub)" | tr '\n' ' ')
+[ "$g" = "404 404 404 403 " ] && ok "step 1 check: signup, otp, a password sign-in and a write to the user are refused: $g" || bad "step 1 auth closed: $g (wanted 404 404 404 403)"
+if [ "$PUB" != "$API" ]; then
+  # (with the key, which an open gateway asks for on these routes and a visitor can read off the page)
+  g=$(bash -c "$(block step1-auth-closed | sed -e "s#https://supabase.avunjian.com#$API#g" -e "s#^curl -s #curl -s -H 'apikey: $KEY' #")" | tr '\n' ' ')
+  [ "$g" = "200 200 200 200 " ] && ok "step 1 check: and the gateway behind the block does serve them ($g), so the block is what refuses" || bad "step 1 auth through the gateway itself: $g"
+  for q in "/auth/v1/recover" "/auth/v1/magiclink" "/auth/v1/token?grant_type=id_token" "/auth/v1/admin/users" "/auth/v1/verify" "/auth/v1/settings/" "/auth/v1/userx"; do
+    st=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$PUB$q" -H "apikey: $KEY")
+    [ "$st" = 404 ] || bad "step 1 block: POST $q -> $st (wanted 404)"
+  done
+  ok "step 1 block: recover, magiclink, an id_token sign-in, the admin's routes, verify and near misses of the six names: 404"
+  st=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$PUB/auth/v1/user" -H "Origin: https://highland.avunjian.com" -H "Access-Control-Request-Method: GET")
+  st2=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$PUB/auth/v1/token?grant_type=pkce" -H "Origin: https://highland.avunjian.com" -H "Access-Control-Request-Method: POST")
+  [ "$st$st2" = 200200 ] && ok "step 1 block: the page's preflights for user and token still pass ($st $st2)" || bad "step 1 block: preflights $st $st2"
+fi
 if [ "$PUB" != "$API" ]; then
   # what the guide's block refuses beyond the four: other paths, paths that try to slip past it, floods, big bodies
   st=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is "$PUB/rest/v1/rpc/hs_config/../../hs_saves" -H "apikey: $KEY")
@@ -114,11 +131,15 @@ r=$(sql -At -c "$(block step4-config)")
 echo "$r" | grep -q '"now"' && ok "step 4 check: select public.hs_config(); answers $r" || bad "step 4 check: $r"
 r=$(sql -At -c "$(block step4-audit)")
 [ -z "$r" ] && ok "step 4 audit: no rows on an install with nothing else in it" || bad "step 4 audit on a clean install: $r"
-sql -q -c "create table public.other_app_notes (id int); create function public.other_app_fn() returns int language sql as 'select 1';" > /dev/null
+# another project's objects: a table without row level security that visitors may only change (no read, no insert),
+# a table with it on and a policy that lets visitors read it, a function visitors may run
+sql -q -c "create table public.other_app_notes (id int); revoke all on public.other_app_notes from anon, authenticated; grant update on public.other_app_notes to anon;
+  create table public.other_app_open (id int); alter table public.other_app_open enable row level security; create policy everyone_reads on public.other_app_open for select to anon using (true);
+  create function public.other_app_fn() returns int language sql as 'select 1';" > /dev/null
 r=$(sql -At -c "$(block step4-audit)" | tr '\n' ' ')
-[ "$r" = "function a visitor may run|public.other_app_fn table without row level security|public.other_app_notes " ] \
-  && ok "step 4 audit: another project's open table and function are listed: $r" || bad "step 4 audit with another project's objects: $r"
-sql -q -c "drop table public.other_app_notes; drop function public.other_app_fn();" > /dev/null
+[ "$r" = "function a visitor may run|public.other_app_fn policy to read (SELECT for anon)|public.other_app_open: everyone_reads table without row level security|public.other_app_notes " ] \
+  && ok "step 4 audit: another project's table open to change, its policy for visitors and its function are listed: $r" || bad "step 4 audit with another project's objects: $r"
+sql -q -c "drop table public.other_app_notes; drop table public.other_app_open; drop function public.other_app_fn();" > /dev/null
 
 # ------------------------------------------------------------------ step 5: the smoke test
 r=$(cd "$ROOT" && bash -c "$(block step5-smoke | pub)" 2>&1); st=$?

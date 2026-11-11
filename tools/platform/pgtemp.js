@@ -3,7 +3,8 @@
 // root) on a data folder under /var/tmp/hs-stack. Not under the session's scratch folder: the postgres user
 // cannot enter root's private folders. It listens on a socket in that folder only, never on the network, and
 // lets local users in without a password: there is no password, key or secret anywhere in it. stop() removes
-// the folder.
+// the folder; so does the process's end, an interrupt or a kill (SIGINT, SIGTERM, SIGHUP), and a folder left by
+// a process that died without either (owner.pid names a process that is gone) is swept by the next start().
 //
 // const db = await require("./pgtemp").start();
 // await db.createDatabase("hs", { schema: true });     // standins.sql, schema.sql (twice when asked), test-clock.sql
@@ -49,12 +50,56 @@ function asPostgres(prog, args, opts = {}) {
   return r;
 }
 
+// a process that has ended but not yet been reaped (a zombie) counts as gone
+function alive(pid) {
+  if (!(pid > 0)) return false;
+  try { process.kill(pid, 0); } catch (e) { if (e.code !== "EPERM") return false; }
+  try { return !/^\d+ \(.*\) Z/.test(fs.readFileSync("/proc/" + pid + "/stat", "utf8")); } catch (e) { return !fs.existsSync("/proc"); }
+}
+function readPid(file) { try { return parseInt(fs.readFileSync(file, "utf8"), 10); } catch (e) { return 0; } }
+// stop a folder's server and remove the folder (sync, so it can run in an exit handler)
+function removeCluster(dir) {
+  const data = path.join(dir, "data");
+  if (fs.existsSync(path.join(data, "postmaster.pid"))) {
+    asPostgres("pg_ctl", ["-D", data, "-m", "immediate", "-w", "-t", "30", "stop"], { allowFail: true });
+  }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+}
+// folders of earlier runs whose process is gone: its tests crashed or were killed before they could clean up.
+// A folder whose owner still runs (another test at the same time) is left alone.
+function sweep() {
+  let names = [];
+  try { names = fs.readdirSync(BASE); } catch (e) { return []; }
+  const gone = [];
+  for (const n of names) {
+    const dir = path.join(BASE, n);
+    const owner = readPid(path.join(dir, "owner.pid"));
+    // a folder from before owner.pid: gone when its server is not running
+    const dead = owner ? !alive(owner) : !alive(readPid(path.join(dir, "data", "postmaster.pid")));
+    if (dead) { removeCluster(dir); gone.push(n); }
+  }
+  return gone;
+}
+const LIVE = new Set();
+let hooked = false;
+function hookExit() {
+  if (hooked) return;
+  hooked = true;
+  process.on("exit", () => { for (const d of LIVE) removeCluster(d); LIVE.clear(); });
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(sig, () => { for (const d of LIVE) removeCluster(d); LIVE.clear(); process.exit(sig === "SIGINT" ? 130 : 143); });
+  }
+}
+
 async function start(opts = {}) {
   if (!fs.existsSync(path.join(BIN, "postgres"))) throw new Error("no PostgreSQL server at " + BIN + " (set HS_PG_BIN)");
   fs.mkdirSync(BASE, { recursive: true, mode: 0o755 });
   fs.chmodSync(BASE, 0o1777);
+  sweep();
   const dir = fs.mkdtempSync(path.join(BASE, (opts.name || "db") + "-"));
   fs.chmodSync(dir, 0o755);
+  fs.writeFileSync(path.join(dir, "owner.pid"), String(process.pid));
+  LIVE.add(dir); hookExit();
   const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
   if (isRoot) execFileSync("chown", ["postgres", dir]);
   const data = path.join(dir, "data");
@@ -112,8 +157,8 @@ async function start(opts = {}) {
       return notices;
     },
     async stop() {
-      asPostgres("pg_ctl", ["-D", data, "-m", "immediate", "-w", "-t", "30", "stop"], { allowFail: true });
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+      removeCluster(dir);
+      LIVE.delete(dir);
     },
     log() { try { return fs.readFileSync(path.join(dir, "server.log"), "utf8"); } catch (e) { return ""; } },
   };
@@ -122,4 +167,4 @@ async function start(opts = {}) {
 
 function quoteIdent(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
 
-module.exports = { start, needPg, quoteIdent, FILES, BASE };
+module.exports = { start, sweep, needPg, quoteIdent, FILES, BASE };

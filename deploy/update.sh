@@ -16,7 +16,8 @@
 # page on next that fails its check is not published and is logged once; /next/ keeps what it had. A page on
 # next that lacks the staging namespace line (const HS_CHANNEL = ) is refused the same way: it shares the live
 # game's origin, and without that line it would read and write the live game's saves. When the branch is
-# deleted, /next/ is removed. The live page never depends on the staging channel: the two flows run apart, and
+# deleted, /next/ is removed. Only a branch named exactly next counts (not feature/next), and a folder named next
+# in the web root that this script did not make is never written into or removed. The live page never depends on the staging channel: the two flows run apart, and
 # the script exits with the live flow's status, so what it publishes and reports for master is what it always
 # did.
 {
@@ -87,73 +88,90 @@ return 0
 
 # the staging channel (see the header). .git/hs-next-live holds the commit published at /next/, and
 # .git/hs-next-rejected the last one turned away, so neither is checked or logged again every two minutes.
+# .git/hs-next-dir says this script made the folder <web root>/next: a folder of that name it did not make (the
+# owner's own) is never written into or removed, and that is logged once (.git/hs-next-foreign).
+# .git/hs-next-nonode holds the commit last held back for want of Node.js, so that is logged once too.
+NEXT_TMP=""
 publish_next() {
-  local heads rev short tmp st report
-  # the branch as the remote has it; a remote that does not answer leaves /next/ as it is
-  heads=$(git ls-remote --heads origin next 2>/dev/null) || return 0
+  local heads rev short st report
+  # the folder is removed by the subshell's end whatever stops it (an error under set -e included)
+  trap '[ -z "$NEXT_TMP" ] || rm -rf "$NEXT_TMP"' EXIT
+  # a folder or file at <web root>/next that this script did not make is the owner's: leave it alone
+  if [ -e "$WEB/next" ] && [ ! -f .git/hs-next-dir ]; then
+    if [ ! -f .git/hs-next-foreign ]; then
+      : > .git/hs-next-foreign
+      echo "$(date -Is) staging is off: $WEB/next was not made by this script, so it is left as it is (move it away to turn staging on)"
+    fi
+    return 0
+  fi
+  rm -f .git/hs-next-foreign
+  # the branch named exactly next as the remote has it (a pattern alone would also match feature/next); a remote
+  # that does not answer leaves /next/ as it is
+  heads=$(git ls-remote origin refs/heads/next 2>/dev/null) || return 0
+  heads=$(printf '%s\n' "$heads" | awk '$2 == "refs/heads/next" { print $1; exit }')
   if [ -z "$heads" ]; then
-    if [ -d "$WEB/next" ]; then
+    if [ -f .git/hs-next-dir ]; then
       rm -rf "$WEB/next"
+      rm -f .git/hs-next-dir
       echo "$(date -Is) removed /next/: the branch next is gone"
     fi
-    rm -f .git/hs-next-live .git/hs-next-rejected
+    rm -f .git/hs-next-live .git/hs-next-rejected .git/hs-next-nonode
     return 0
   fi
-  rev=${heads%%[[:space:]]*}
+  rev=$heads
   if [ "$(cat .git/hs-next-live 2>/dev/null || true)" = "$rev" ] && [ -f "$WEB/next/index.html" ]; then return 0; fi
   if [ "$(cat .git/hs-next-rejected 2>/dev/null || true)" = "$rev" ]; then return 0; fi
-  git fetch -q origin next 2>/dev/null || return 0
-  short=$(git rev-parse --short "$rev" 2>/dev/null) || return 0
-  tmp=$(mktemp -d) || return 0
-  if ! git show "$rev:index.html" > "$tmp/index.html" 2>/dev/null; then
-    echo "$rev" > .git/hs-next-rejected
-    echo "$(date -Is) NOT published next $short: the branch has no index.html; /next/ stays as it was"
-    rm -rf "$tmp"
+  if ! node_ok "$NODE"; then
+    # unlike master, an unchecked page never goes out at /next/: nobody is waiting for it. Said once per commit
+    if [ "$(cat .git/hs-next-nonode 2>/dev/null || true)" != "$rev" ]; then
+      echo "$rev" > .git/hs-next-nonode
+      echo "$(date -Is) NOT published next $(printf '%.7s' "$rev"): no Node.js 18 or newer found to check it; tried again each run"
+    fi
     return 0
   fi
-  if node_ok "$NODE"; then
-    st=0
-    report=$("$NODE" deploy/check-page.js "$tmp/index.html" 2>&1) || st=$?
-    if [ "$st" -ne 0 ]; then
-      if [ "$st" -eq 1 ]; then
-        echo "$rev" > .git/hs-next-rejected
-        echo "$(date -Is) NOT published next $short: the page failed its check; /next/ stays as it was"
-      else
-        echo "$(date -Is) NOT published next $short: the check could not run (exit $st); /next/ stays as it was, and $short is tried again next run"
-      fi
-      if [ -n "$report" ]; then printf '%s\n' "$report" | sed 's/^/    /'; fi
-      rm -rf "$tmp"
-      return 0
+  rm -f .git/hs-next-nonode
+  git fetch -q origin refs/heads/next 2>/dev/null || return 0
+  short=$(git rev-parse --short "$rev" 2>/dev/null) || return 0
+  NEXT_TMP=$(mktemp -d) || return 0
+  if ! git show "$rev:index.html" > "$NEXT_TMP/index.html" 2>/dev/null; then
+    echo "$rev" > .git/hs-next-rejected
+    echo "$(date -Is) NOT published next $short: the branch has no index.html; /next/ stays as it was"
+    return 0
+  fi
+  st=0
+  report=$("$NODE" deploy/check-page.js "$NEXT_TMP/index.html" 2>&1) || st=$?
+  if [ "$st" -ne 0 ]; then
+    if [ "$st" -eq 1 ]; then
+      echo "$rev" > .git/hs-next-rejected
+      echo "$(date -Is) NOT published next $short: the page failed its check; /next/ stays as it was"
+    else
+      echo "$(date -Is) NOT published next $short: the check could not run (exit $st); /next/ stays as it was, and $short is tried again next run"
     fi
-  else
-    # unlike master, an unchecked page never goes out at /next/: nobody is waiting for it
-    echo "$(date -Is) NOT published next $short: no Node.js 18 or newer found to check it; tried again next run"
-    rm -rf "$tmp"
+    if [ -n "$report" ]; then printf '%s\n' "$report" | sed 's/^/    /'; fi
     return 0
   fi
   # the page on /next/ shares its origin with the live game: one without the staging namespace (PF-0's
   # "const HS_CHANNEL = " line) would read and write the live game's saves and sign-in, so it never goes out
-  if ! grep -q 'const HS_CHANNEL = ' "$tmp/index.html"; then
+  if ! grep -q 'const HS_CHANNEL = ' "$NEXT_TMP/index.html"; then
     echo "$rev" > .git/hs-next-rejected
     echo "$(date -Is) NOT published next $short: the page lacks the staging namespace (const HS_CHANNEL); /next/ stays as it was"
-    rm -rf "$tmp"
     return 0
   fi
-  mkdir -p "$WEB/next"
+  if [ ! -d "$WEB/next" ]; then mkdir "$WEB/next"; fi
+  : > .git/hs-next-dir
   # its share picture first, as for the live page; a branch without one leaves none behind
-  if git show "$rev:og.jpg" > "$tmp/og.jpg" 2>/dev/null; then
-    if ! cmp -s "$tmp/og.jpg" "$WEB/next/og.jpg"; then
-      install -m 644 "$tmp/og.jpg" "$WEB/next/og.jpg.new"
+  if git show "$rev:og.jpg" > "$NEXT_TMP/og.jpg" 2>/dev/null; then
+    if ! cmp -s "$NEXT_TMP/og.jpg" "$WEB/next/og.jpg"; then
+      install -m 644 "$NEXT_TMP/og.jpg" "$WEB/next/og.jpg.new"
       mv "$WEB/next/og.jpg.new" "$WEB/next/og.jpg"
     fi
   else
     rm -f "$WEB/next/og.jpg"
   fi
-  install -m 644 "$tmp/index.html" "$WEB/next/index.html.new"
+  install -m 644 "$NEXT_TMP/index.html" "$WEB/next/index.html.new"
   mv "$WEB/next/index.html.new" "$WEB/next/index.html"
   echo "$rev" > .git/hs-next-live
   rm -f .git/hs-next-rejected
-  rm -rf "$tmp"
   echo "$(date -Is) published next $short at /next/"
 }
 

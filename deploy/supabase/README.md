@@ -64,18 +64,26 @@ your other projects, not only the game.
    services") explains it. Your other projects' users are signed out by it, and their apps need the new anon key.
 
    **Check:** four lines, each `0`.
-2. **The gateway's own port is closed from outside.** From a computer that is **not** the server **[your server]**:
+2. **The gateway's own ports are closed from outside.** Supabase's gateway listens on port 8000, and on
+   installs with the Kong gateway also on port 8443 (https with a certificate of its own). Either one serves the
+   whole Supabase, every project's tables included, past the narrow address of step 1. From a computer that is
+   **not** the server **[your server]**:
 
    ```
    curl -m 5 -I http://76.13.121.176:8000/auth/v1/settings
+   curl -k -m 5 -I https://76.13.121.176:8443/auth/v1/settings
    ```
 
-   It should fail or time out. If it answers, the whole Supabase is already reachable without https. In `.env`
-   set `KONG_HTTP_PORT=127.0.0.1:8000` (newer installs: `API_GW_HTTP_PORT=127.0.0.1:8000`) and run
-   `docker compose up -d` in the Supabase folder **[your server]**, then try the `curl` again. (A firewall rule
-   is not enough: Docker goes round `ufw`.)
+   Each should fail or time out. If the first answers: in `.env` set `KONG_HTTP_PORT=127.0.0.1:8000` (newer
+   installs: `API_GW_HTTP_PORT=127.0.0.1:8000`). If the second answers: set `KONG_HTTPS_PORT=127.0.0.1:8443`.
+   Then run `docker compose up -d` in the Supabase folder **[your server]**, and try both `curl` lines again. (A
+   firewall rule is not enough: Docker goes round `ufw`.)
 
-   **Check:** the `curl` above fails or times out.
+   The database itself may also answer from outside, on 5432 and on 6543 (newer installs, through its pooler).
+   Those need the database password, not the anon key, so the game does not change them. If nothing outside the
+   server needs them, have them closed the same way.
+
+   **Check:** both `curl` lines fail or time out.
 3. **The dashboard's password is strong.** In `.env`, `DASHBOARD_PASSWORD` is long and not used anywhere
    else. Step 4 also has a query that shows what of your other projects the anon key could reach.
 
@@ -119,8 +127,25 @@ project. Tell the builder which case you are in.
        # a path written to mean one thing to this server and another to the gateway behind it is refused
        if ($request_uri ~* "^[^?]*(%2e|%2f|%5c|\.\.|//)") { return 404; }
 
-       # sign-in
-       location /auth/v1/ {
+       # sign-in: only what the game's page uses. Supabase's other sign-in addresses make accounts, sign in
+       # with a password, or send mail and texts to any address: they are not served on this name
+       location ~ ^/auth/v1/(settings|authorize|callback|logout|health)$ {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $remote_addr;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+       # a finished sign-in's token, and its renewal; no other kind of token
+       location = /auth/v1/token {
+           if ($arg_grant_type !~ "^(pkce|refresh_token)$") { return 404; }
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $remote_addr;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+       # who is signed in: read only (a change of email or password is not served)
+       location = /auth/v1/user {
+           limit_except GET OPTIONS { deny all; }
            proxy_pass http://127.0.0.1:8000;
            proxy_set_header Host $host;
            proxy_set_header X-Forwarded-For $remote_addr;
@@ -160,7 +185,25 @@ project. Tell the builder which case you are in.
        request_body {
            max_size 512KB
        }
-       @game path /auth/v1/* /rest/v1/rpc/hs_*
+       @signin path /auth/v1/settings /auth/v1/authorize /auth/v1/callback /auth/v1/logout /auth/v1/health
+       handle @signin {
+           reverse_proxy localhost:8000
+       }
+       @token {
+           path /auth/v1/token
+           query grant_type=pkce grant_type=refresh_token
+       }
+       handle @token {
+           reverse_proxy localhost:8000
+       }
+       @user {
+           path /auth/v1/user
+           method GET HEAD OPTIONS
+       }
+       handle @user {
+           reverse_proxy localhost:8000
+       }
+       @game path /rest/v1/rpc/hs_*
        handle @game {
            reverse_proxy localhost:8000
        }
@@ -170,8 +213,10 @@ project. Tell the builder which case you are in.
    }
    ```
 
-   (Caddy has no limit per visitor's address built in. The game's database has limits of its own, so this is a
-   second line of defense you do without on Caddy.)
+   (Caddy has no limit per visitor's address built in, and this block has no counterpart of the nginx line that
+   refuses paths written to slip past it. The game's database has limits of its own, so these are second lines
+   of defense you do without on Caddy. The checks below and the builder's test of step 5 tell you whether the
+   block works as meant.)
 3. **Tell Supabase its address.** In the Supabase folder's `.env`, set these three lines **[your server]**.
    **If another project already uses this Supabase, do not change the first two**: they are that project's, and
    the providers' callback of step 2 is then that address, not the new one.
@@ -204,6 +249,18 @@ curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/pg/
 ```
 
 You should see `401` (the sign-in service answered and wants a key), then `404`, `404`, `404`.
+
+And these, which would make accounts or send mail through the game's address, must be refused too **[tried]**:
+
+<!-- guide-check: step1-auth-closed -->
+```
+curl -s -o /dev/null -w "%{http_code}\n" -X POST https://supabase.avunjian.com/auth/v1/signup
+curl -s -o /dev/null -w "%{http_code}\n" -X POST https://supabase.avunjian.com/auth/v1/otp
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://supabase.avunjian.com/auth/v1/token?grant_type=password"
+curl -s -o /dev/null -w "%{http_code}\n" -X PUT https://supabase.avunjian.com/auth/v1/user
+```
+
+You should see `404`, `404`, `404`, then `403` on nginx (or `404` on Caddy).
 
 ---
 
@@ -387,9 +444,13 @@ may run that is not the game's:
 ```sql
 select 'table without row level security' as what, n.nspname || '.' || c.relname as name
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where c.relkind in ('r', 'p') and n.nspname in ('public', 'graphql_public') and not c.relrowsecurity
-  and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert')
-    or has_table_privilege('authenticated', c.oid, 'select') or has_table_privilege('authenticated', c.oid, 'insert'))
+where c.relkind in ('r', 'p') and n.nspname in ('public', 'graphql_public', 'storage') and not c.relrowsecurity
+  and exists (select 1 from (values ('anon'), ('authenticated')) r(role), (values ('select'), ('insert'), ('update'), ('delete')) q(priv)
+              where has_table_privilege(r.role, c.oid, q.priv))
+union all
+select 'policy to read (' || p.cmd || ' for ' || array_to_string(p.roles, ', ') || ')', p.schemaname || '.' || p.tablename || ': ' || p.policyname
+from pg_policies p
+where p.schemaname in ('public', 'graphql_public', 'storage') and p.roles && array['public', 'anon', 'authenticated']::name[]
 union all
 select 'function a visitor may run', n.nspname || '.' || p.proname
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -397,11 +458,17 @@ where n.nspname = 'public' and p.proname not like 'hs\_%' and has_function_privi
 order by 1, 2;
 ```
 
-No rows: nothing of yours is exposed by the key. Rows: those belong to your other projects. They were just as
-exposed before, to anyone who had the key and an address that reaches this Supabase; the game makes the key easy
-to find. Switch row level security on for each table that should not be public
-(`alter table <name> enable row level security;` and then the policies that project needs), or ask whoever built
-that project. The narrow address of step 1 keeps them unreachable **through the game's address** only.
+It looks at three things: tables anyone with the key can read, add to, change or delete from because row level
+security is off; the rules (policies) that let visitors or signed-in people into a table where it is on; and
+functions a visitor may run. The schema `storage` is Supabase's file storage.
+
+No rows: none of those three exists. That is a good sign, not a full audit: whether some other part of a project
+is safe only its author can say. Rows: those belong to your other projects (the game's own tables have row level
+security, no policies, and are not listed). They were just as exposed before, to anyone who had the key and an
+address that reaches this Supabase; the game makes the key easy to find. A table listed without row level
+security: switch it on (`alter table <name> enable row level security;` and then the policies that project
+needs), or ask whoever built that project. A policy: read it with its author, since it may let in more than it
+should. The narrow address of step 1 keeps all of them unreachable **through the game's address** only.
 
 ---
 
@@ -423,8 +490,9 @@ The same day the builder runs a test from outside with only those two values **[
 node tools/platform/smoke.js https://supabase.avunjian.com PASTE_THE_ANON_KEY
 ```
 
-It makes thirteen checks: that the key is not an example key, that sign-in answers, that the address is narrow,
-that no table can be read, that the gateway's port is closed and the certificate valid. It changes nothing on
+It makes thirteen checks: that the key is not an example key, that sign-in answers, that the address is narrow
+(nothing but what the game uses, no sign-up and no mail), that no table can be read, that the gateway's ports
+8000 and 8443 are closed and the certificate valid. It changes nothing on
 your server but one counted visit marked as a test. You get its lines back; anything marked FAIL comes with what
 to do.
 
@@ -556,15 +624,37 @@ insert into public.hs_name_blocklist (pattern) values ('someword'), ('anotherwor
 ```
 
 **Backups.** The players' accounts, progress and scores now live in your Supabase database. If it is not backed
-up yet, make a daily copy from the Supabase folder **[your server]**:
+up yet, make a daily copy. First write a small script, by pasting this whole block on the server **[your
+server]**:
 
 ```
+cat > /root/backup-highland.sh <<'END'
+#!/bin/sh
+# a copy of the Supabase database each day, the last eight days kept
+set -e
+mkdir -p /root/backups
 docker exec supabase-db pg_dump -U postgres -d postgres -Fc -f /tmp/highland.dump
-docker cp supabase-db:/tmp/highland.dump /root/backups/highland-$(date +%F).dump
+docker cp supabase-db:/tmp/highland.dump "/root/backups/highland-$(date +%F).dump"
+docker exec supabase-db rm -f /tmp/highland.dump
+find /root/backups -name 'highland-*.dump' -mtime +7 -delete
+END
+chmod 700 /root/backup-highland.sh
+/root/backup-highland.sh && ls -l /root/backups
 ```
 
-(Put those two lines in a daily cron job, and keep a week of copies somewhere off the server. A backup holds
-the players' email addresses: keep it as private as the server.)
+**Check:** the last line lists one file, `highland-` and today's date, of more than a few kilobytes. (If
+`pg_dump` says "permission denied", change `-U postgres` to `-U supabase_admin` in the script and run it
+again.)
+
+Then have it run every night: run `crontab -e` and add this line at the end **[your server]**:
+
+```
+17 3 * * * /root/backup-highland.sh >> /root/backup-highland.log 2>&1
+```
+
+(The line has no `%` sign, which cron would read as a line break, and the script makes its folder itself, so it
+runs at night as it did by hand. Keep a copy somewhere off the server now and then too. A backup holds the
+players' email addresses: keep it as private as the server.)
 
 **Old counts.** Nothing to do: the game removes visits older than 180 days by itself, a few at a time, as new
 ones arrive. The stats page shows how full the counts are and has a button, "Remove old events", for when you

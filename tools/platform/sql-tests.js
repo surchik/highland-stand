@@ -361,6 +361,18 @@ group("rulesets", async () => {
     [bad(r => { delete r.score; }), "shape", "no score weights"],
     [bad(r => { delete r.daily; }), "daily", "no daily at all"],
     [bad(r => { r.daily.pool = "erebuni"; }), "daily", "a pool that is not a list"],
+    [bad(r => { r.levels.erebuni.d[0].min = "abc"; }), "a value that is not a number", "a min that is not a number (it would fail every run's begin)"],
+    [bad(r => { r.levels.erebuni.d[0].min = -1; }), "erebuni: difficulty 0", "a min under zero"],
+    [bad(r => { r.score.win = "4000.5"; }), "a value that is not a number", "a weight that is not a whole number (hs_score_submit adds it as one)"],
+    [bad(r => { r.score.speed = 1500.5; }), "a value that is not a number", "a weight that is a fraction"],
+    [bad(r => { r.score.lostMax = "x"; }), "a value that is not a number", "a lostMax that is not a number"],
+    [bad(r => { r.daily.t.thin.earn = "lots"; }), "a value that is not a number", "a twist multiplier that is not a number"],
+    [bad(r => { r.daily.t.thin.fast = 0; }), "daily: twist thin", "a twist multiplier of zero"],
+    [bad(r => { r.daily.t.few.livesSet = 0; }), "daily: twist few", "a twist that sets no defenders"],
+    [bad(r => { r.daily.t.few.livesSet = "x"; }), "a value that is not a number", "a livesSet that is not a number"],
+    [bad(r => { r.daily.t = [1]; }), "daily: t", "twists' table that is not an object"],
+    [bad(r => { r.daily.levels.erebuni.min = "abc"; }), "a value that is not a number", "a daily min that is not a number"],
+    [bad(r => { r.daily.t.thin.slow = 0.2; }), "erebuni: the daily's table under twist thin", "a twist that brings slow under fast"],
     ["[1]", "shape", "not an object"],
   ];
   for (const [data, detail, what] of cases) {
@@ -368,6 +380,24 @@ group("rulesets", async () => {
     ok(e && e.msg === "ruleset_invalid" && (detail === null || e.detail === detail), "refused: " + what + " (" + (e ? e.msg + " / " + e.detail : "published") + ")");
   }
   eq(await errMsg(rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "a b", p_data: R2 })), "ruleset_invalid", "an id with a space");
+  // a kept rev must mean the same battle (the boards are keyed by it, RULINGS S4), on the same channel
+  for (const [data, detail, what] of [
+    [bad(r => { r.levels.erebuni.d[1].lives = 25; }), "erebuni: its rev is kept but the battle or the score changed (move its rev)", "Erebuni's defenders changed, its rev kept"],
+    [bad(r => { r.levels.erebuni.d[2].fast = 310; }), "erebuni: its rev is kept but the battle or the score changed (move its rev)", "Erebuni's pace changed, its rev kept"],
+    [bad(r => { r.levels.tushpa.script = SCRIPT12.slice(0, 11).concat([20]).map((x, i) => i === 0 ? 2 : x); }), "tushpa: its rev is kept but the battle or the score changed (move its rev)", "Tushpa's script changed, its rev kept"],
+    [bad(r => { r.score.speed = 1600; r.levels.tushpa.rev = 7; }), "erebuni: its rev is kept but the battle or the score changed (move its rev)", "the score's weights changed, one rev kept"],
+  ]) {
+    const e = await err(rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9", p_data: data }));
+    ok(e && e.msg === "ruleset_invalid" && e.detail === detail, "refused: " + what + " (" + (e ? e.msg + " / " + e.detail : "published") + ")");
+  }
+  eq(await errMsg(rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "2", p_data: bad(r => { r.levels.erebuni.d[1].lives = 25; }) })), "ruleset_invalid", "nor by publishing ruleset 2 again with it");
+  eq((await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9", p_data: bad(r => { r.score.speed = 1600; r.levels.erebuni.rev = 8; r.levels.tushpa.rev = 7; r.score.lostMax = 3000; }) })).ok, true,
+    "the weights changed with every rev moved: published");
+  eq((await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9", p_data: bad(r => { r.score.speed = 1600; r.levels.erebuni.rev = 8; r.levels.tushpa.rev = 7; }) })).ok, true,
+    "lostMax alone may change (it is no campaign board's)");
+  eq((await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9-next", p_data: bad(r => { r.levels.erebuni.d[1].lives = 25; r.levels.erebuni.rev = 8; r.levels.tushpa.rev = 2; }) })).ok, true,
+    "a staging ruleset is held only to the staging channel's (Erebuni's rev 8 means another battle on the live boards)");
+  await su("delete from public.hs_rulesets where id in ('9', '9-next')");
   ok((await su("select count(*)::int as n from public.hs_rulesets where id = '9'"))[0].n === 0, "none of them was stored");
   // the switches
   eq(await errMsg(rpc(U.A, "hs_admin_set_config", { p_key: "gate", p_value: "off" })), "not_admin", "a player sets the gate");
@@ -379,6 +409,10 @@ group("rulesets", async () => {
     eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: k, p_value: v })), "value_invalid", "refused: " + what);
   }
   eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: "secret", p_value: 1 })), "key_unknown", "a switch that does not exist");
+  eq(await errMsg(as(U.AD, "select public.hs_admin_set_config(null, '1'::jsonb)")), "key_unknown", "a switch with no name");
+  eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: "boards", p_value: { pad: "x".repeat(4100) } })), "value_invalid", "a switch over 4 KB (hs_config sends it to every visitor)");
+  eq((await rpc(U.AD, "hs_admin_set_config", { p_key: "boards", p_value: { pad: "x".repeat(3000) } })).boards.pad.length, 3000, "one of 3 KB is kept");
+  await as(U.AD, "select public.hs_admin_set_config('boards', 'null'::jsonb)");
   await as(U.AD, "select public.hs_admin_set_config('gate', 'null'::jsonb)");
   ok(!("gate" in (await rpc(null, "hs_config", {}))), "a null value removes the switch");
   eq((await rpc(U.AD, "hs_admin_set_config", { p_key: "notice", p_value: "Back at six." })).notice, "Back at six.", "a notice for the gate's cards");
@@ -393,6 +427,7 @@ group("scores", async () => {
   eq(await errMsg(runBegin(U.A, "campaign", "erebuni", 1, "99")), "ruleset_unknown", "a run under an unpublished ruleset");
   eq(await errMsg(runBegin(U.A, "campaign", "nowhere", 1, "2")), "level_unknown", "a run on a battlefield the ruleset lacks");
   eq(await errMsg(runBegin(U.A, "campaign", "erebuni", 3, "2")), "diff_unknown", "a difficulty that does not exist");
+  eq(await errMsg(runBegin(U.A, "campaign", "erebuni", -1, "2")), "diff_unknown", "a difficulty of -1 (jsonb would read it as Hard)");
   const b0 = await runBegin(U.A, "campaign", "erebuni", 1, "2");
   ok(b0.ok === true && /^[0-9a-f-]{36}$/.test(b0.run_id) && b0.attempts_left === null, "a campaign run begins with its token");
   const good = { won: true, lives: 20, waves: 10, sim_sec: 600, spent: 900, earned: 3000, loadout: "std", build: "2026-11-20" };
@@ -460,6 +495,13 @@ group("scores", async () => {
   r = await play(U.D, "2", "tushpa", 1, { ...good, waves: 12, sim_sec: 700 });
   const r3 = await play(U.D, "3", "tushpa", 1, { ...good, waves: 12, sim_sec: 700 });
   ok(r.board === "c:tushpa:1:std:1" && r3.board === "c:tushpa:1:std:2", "ruleset 3 moved Tushpa's rev: Tushpa's boards start fresh");
+  // RULINGS S2: a resumed battle posts lives_board, which may be 0 on a win; the stars come from what is posted
+  r = await play(U.D, "2", "erebuni", 1, { ...good, lives: 0 });
+  ok(r.score === ref.scoreOf({ ...good, lives: 0 }, ref.boundsOf(R2, "erebuni", 1)) && r.stars === 1 && r.board === "c:erebuni:1:std:1",
+    "a win posted with 0 defenders (a resumed battle's lives_board) is taken, one star (" + JSON.stringify([r.score, r.stars, r.error]) + ")");
+  // RULINGS S4: the board's rev is the published ruleset's, never the client's
+  r = await play(U.D, "2", "erebuni", 1, { ...good, lives: 17, rev: 99 });
+  eq(r.board, "c:erebuni:1:std:1", "a rev sent in p_stats is ignored: the board is the ruleset's rev 1");
   const rn = await play(U.D, "3-next", "erebuni", 1, { ...good, lives: 19 });
   ok(rn.board === "c:erebuni:1:std:1:next", "a staging ruleset's scores go on a board of their own (:next)");
   eq((await rpc(null, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "3-next" })).rows.length, 1, "which the staging page reads");
@@ -497,6 +539,7 @@ group("scores", async () => {
   await rpc(U.AD, "hs_admin_moderate", { p_user: U.C, p_hidden: false, p_name: "Narek" });
   eq((await rpc(U.C, "hs_profile_get", {})).name, "Narek", "the admin renames a player");
   eq(await errMsg(rpc(U.AD, "hs_admin_moderate", { p_user: U.C, p_hidden: false, p_name: "<x>" })), "name_chars", "under the same name rule");
+  eq(await errMsg(rpc(U.AD, "hs_admin_moderate", { p_user: U.C, p_hidden: false, p_name: "Bagrat II" })), "name_taken", "and a name another player holds is name_taken, not a raw error");
   // rate limits: 60 runs an hour, 40 results an hour
   let last = "";
   await rpc(U.R, "hs_profile_get", {});
@@ -561,6 +604,18 @@ group("daily", async () => {
   ok(ln.board === "d:" + today + ":next" && ln.score === 1000, "on the day's staging board, scored floor(4000 * 3 / 12) = 1000");
   eq((await rpc(null, "hs_board", { p_mode: "daily" })).rows.length, 1, "the live day's board holds only the live score");
   eq((await rpc(null, "hs_board", { p_mode: "daily", p_ruleset: "3-next" })).rows.length, 1, "the staging day's board holds its own");
+  // one day's board for the whole channel: a page on an older ruleset whose daily would be another battle is
+  // turned away once a newer ruleset is published, and the newer one's page plays it
+  const R8 = JSON.parse(JSON.stringify(R3));
+  for (const k of Object.keys(R8.daily.levels)) R8.daily.levels[k].slow += 50;
+  await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "8-next", p_data: R8 });
+  const eOld = await err(runBegin(U.B, "daily", sn.level, 1, "3-next", sn.twist));
+  ok(eOld && eOld.msg === "daily_mismatch" && eOld.detail === "an older ruleset", "a daily under an older ruleset with other tables than the newest: daily_mismatch");
+  const b8 = await runBegin(U.B, "daily", sn.level, 1, "8-next", sn.twist);
+  ok(b8.ok === true, "the newest ruleset's daily begins");
+  eq((await runBegin(U.B, "daily", pick.level, 1, "2", pick.twist)).ok, true, "and the live channel is not touched by a staging ruleset");
+  await su("delete from public.hs_runs where ruleset = '8-next' or (user_id = $1 and mode = 'daily')", [U.B]);
+  await su("delete from public.hs_rulesets where id = '8-next'");
   // the bounds of a twist
   const bb = await su(`select (hs_private.bounds($1::jsonb, 'erebuni', 1, 'few', true)).lives a, (hs_private.bounds($1::jsonb, 'erebuni', 1, 'thin', true)).earn_max b,
       (hs_private.bounds($1::jsonb, 'erebuni', 1, null, false)).earn_max c, (hs_private.bounds($1::jsonb, 'erebuni', 1, 'thin', true)).waves d`, [JSON.stringify(R2)]);
@@ -664,12 +719,23 @@ group("analytics", async () => {
   const D4 = "44444444-4444-4444-8444-444444444444", D5 = "55555555-5555-4555-8555-555555555555";
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D4, "sess-0005-pool"), p_events: Array.from({ length: 50 }, (_, g) => ({ n: "page_load", q: g })) })).accepted, 50, "fifty events inside a pool of sixty");
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: Array.from({ length: 11 }, (_, g) => ({ n: "page_load", q: g })) })).accepted, 0, "eleven more would pass the pool: dropped");
-  eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 0, "and so is a single one after it (the pool counts events)");
+  eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: Array.from({ length: 10 }, (_, g) => ({ n: "page_load", q: 20 + g })) })).accepted, 10,
+    "a dropped batch is not charged to the pool: ten more fill it exactly");
+  eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 0, "and a single one after that is dropped (the pool counts events)");
   const before = (await su("select count(*)::int n from public.hs_rate where bucket like 'ev:%'"))[0].n;
   for (let i = 0; i < 20; i++) await rpc(null, "hs_track", { p_ctx: ctx(crypto.randomUUID(), "sess-flood-" + i), p_events: [{ n: "page_load" }] });
   eq((await su("select count(*)::int n from public.hs_rate where bucket like 'ev:%'"))[0].n, before, "once the pool is dry, made-up device ids add no rate rows");
   eq((await su("select count(*)::int n from public.hs_sessions where sid like 'sess-flood-%'"))[0].n, 0, "nor visits");
   eq((await rpc(U.B, "hs_track", { p_ctx: ctx(D5, "sess-0007-user"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 1, "a signed-in player is not starved by the visitors' pool");
+  await su("update public.hs_config set value = '20000' where key = 'ev_cap_hour'");
+  // one device id flooding past its own 900 does not drain the pool for every other visitor
+  await su("update public.hs_config set value = '2000' where key = 'ev_cap_hour'");
+  await su("delete from public.hs_rate where bucket like 'evanon:%' or bucket like 'ev:%'");
+  const D6 = "66666666-6666-4666-8666-666666666666";
+  acc = 0; for (let i = 0; i < 60; i++) acc += (await rpc(null, "hs_track", { p_ctx: ctx(D6, "sess-0008-flood"), p_events: Array.from({ length: 50 }, (_, j) => ({ n: "tower_built", q: i * 50 + j })) })).accepted;
+  const pool = (await su("select n from public.hs_rate where bucket like 'evanon:%' and key = 'all'"))[0].n;
+  ok(acc === 900 && pool === 900, "one device sends 3,000 events: 900 kept, and the pool is charged only those 900 (" + acc + ", pool " + pool + ")");
+  eq((await rpc(null, "hs_track", { p_ctx: ctx(crypto.randomUUID(), "sess-0009-after"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 1, "a new visitor after the flood is still counted");
   await su("update public.hs_config set value = '20000' where key = 'ev_cap_hour'");
 });
 
@@ -794,8 +860,16 @@ group("delete", async () => {
   eq((await su("select count(*)::int n from public.hs_rate where key = $1", [U.A]))[0].n, 0, "and his rate counters");
   eq((await su("select payload->>'actor_username' u from auth.audit_log_entries")).map(x => x.u), ["b@example.com"], "and the sign-in service's log of him, not of anyone else");
   eq(await has(U.B), bBefore, "B is untouched");
-  ok((await rpc(U.A, "hs_profile_get", {})).name === null, "a token of the deleted account finds nothing");
-  eq(await errMsg(rpc(U.A, "hs_run_begin", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_ruleset: "2" })), "no_profile", "and can begin nothing");
+  // the deleted account's access token still holds its signature for up to an hour: it is no longer signed in
+  for (const [fn, args] of [["hs_profile_get", {}], ["hs_profile_set_name", { p_name: "Ghost" }], ["hs_save_get", {}], ["hs_save_put", { p_expected: 0, p_data: { v: 1 } }],
+      ["hs_run_begin", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_ruleset: "2" }], ["hs_score_submit", { p_run: crypto.randomUUID(), p_stats: { won: true } }],
+      ["hs_delete_account", {}]]) {
+    eq(await errMsg(rpc(U.A, fn, args)), "not_signed_in", "a token of the deleted account: " + fn + " answers not_signed_in");
+  }
+  eq((await rpc(U.A, "hs_track", { p_ctx: { aid: "77777777-7777-4777-8777-777777777777", sid: "sess-ghost-0001" }, p_events: [{ n: "page_load", q: 1 }] })).accepted, 1,
+    "its events are counted as a visitor's");
+  eq(await has(U.A), 0, "and leave nothing that carries the deleted account");
+  eq((await su("select count(*)::int n from public.hs_rate where key = $1", [U.A]))[0].n, 0, "not even a rate counter");
 });
 
 group("ceiling", async () => {
@@ -853,7 +927,7 @@ async function suite(db, name, handoff) {
     groupName = g.name + (handoff ? "+handoff" : ""); groupCount = 0; groupFail = 0;
     const t0 = Date.now();
     try { await g.fn(ctx); } catch (e) {
-      failed++; total++; groupFail++; console.log("FAIL [" + groupName + "] stopped: " + (e.stack || e.message));
+      failed++; total++; groupFail++; console.log("FAIL [" + groupName + "] stopped: " + (e.detail ? "(" + e.detail + ") " : "") + (e.stack || e.message));
       for (const c of [admin, api, api2]) await c.query("rollback").catch(() => {});
     }
     await setClock("");

@@ -38,7 +38,9 @@ it.)
 `index.html` (and its `og.jpg`) at `https://highland.avunjian.com/next/`, after the same check, reading the files
 straight from the branch so the clone on the server stays on master. A staging page that fails its check, or
 that lacks the staging namespace line (`const HS_CHANNEL = `, without which it would share the live game's saves),
-is not published and is logged once; `/next/` keeps what it had. Deleting the branch removes `/next/`. The live
+is not published and is logged once; `/next/` keeps what it had. Deleting the branch removes `/next/`. Only a
+branch named exactly `next` counts. A folder `next` already in the web root that the script did not make itself
+is never written into or removed: staging stays off, said once in the log, until it is moved away. The live
 page never depends on it: the master flow is the same steps as before, and the script exits with its status.
 The run that pulls a new `update.sh` is still the old one, so `/next/` first appears on the run after (within
 four minutes of the push). `bash tools/platform/test-update.sh` tries all of it on throwaway copies. The

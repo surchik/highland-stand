@@ -6,7 +6,10 @@
 #   2. the sign-in's refusals: a code used twice, a wrong verifier, a refresh token used again too late;
 #   3. as a visitor and as a signed-in player, try to read every hs_ table and to run every function outside the
 #      ones granted to that caller, and show each refusal;
-#   4. the same address as the owner's narrow public name serves it: the tables are not served at all.
+#   4. the same address as the owner's narrow public name serves it: the tables are not served at all, nor Auth's
+#      routes that make accounts or send mail;
+#   5. the stack's controls, and its site port: the page and og.jpg and nothing else of the repository, and 413 for
+#      a body over 512 KB.
 # Every attempt is printed with the answer's status and message. Exit 0 only when every answer is the expected one.
 #
 #   bash tools/platform/curl-session.sh            (needs node, curl, jq and openssl; the stack needs PostgreSQL 16)
@@ -87,6 +90,16 @@ echo "the old refresh token again 30 s later -> $S $(echo "$R" | jq -r .error_co
 call POST "/auth/v1/token?grant_type=refresh_token" "{\"refresh_token\":\"$RT2\"}"
 echo "and with it the whole session is over -> $S $(echo "$R" | jq -r .error_code)"; [ "$S" = 400 ] || bad "the session outlived the reuse"
 curl -s -X POST "$B/__test/authclock" --data '{"seconds":0}' > /dev/null
+# a code left more than five minutes: expired, and gone after that
+curl -s -X POST "$B/__test/provider" --data '{"who":"aram"}' > /dev/null
+A3=$(curl -s -o /dev/null -w '%{redirect_url}' "$(curl -s -o /dev/null -w '%{redirect_url}' "$(curl -s -o /dev/null -w '%{redirect_url}' "$B/auth/v1/authorize?provider=google&redirect_to=$SITE/&code_challenge=$C&code_challenge_method=s256")")")
+CODE3=$(echo "$A3" | sed -n 's/.*[?&]code=\([^&#]*\).*/\1/p')
+curl -s -X POST "$B/__test/authclock" --data '{"seconds":301}' > /dev/null
+call POST "/auth/v1/token?grant_type=pkce" "{\"auth_code\":\"$CODE3\",\"code_verifier\":\"$V\"}"
+echo "a code used 301 s after the sign-in -> $S $(echo "$R" | jq -r .error_code)"; [ "$S" = 400 ] && [ "$(echo "$R" | jq -r .error_code)" = flow_state_expired ] || bad "an expired code"
+call POST "/auth/v1/token?grant_type=pkce" "{\"auth_code\":\"$CODE3\",\"code_verifier\":\"$V\"}"
+echo "and the same code again -> $S $(echo "$R" | jq -r .error_code)"; [ "$S" = 404 ] || bad "an expired code came back"
+curl -s -X POST "$B/__test/authclock" --data '{"seconds":0}' > /dev/null
 call POST /rest/v1/rpc/hs_profile_get '{}' "${AT%?}x"
 echo "a forged token -> $S $(echo "$R" | jq -r .code) $(echo "$R" | jq -r .message)"; [ "$S" = 401 ] || bad "a forged token was taken"
 R0=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_config" -H 'Content-Type: application/json' --data '{}')
@@ -141,6 +154,13 @@ for p in / /rest/v1/ /rest/v1/hs_saves /rest/v1/hs_events /rest/v1/rpc/pg_sleep 
   st=$(curl -s -o /dev/null -w '%{http_code}' "$B$p" -H "apikey: $K" -H "Authorization: Bearer $AT2")
   if [ "$st" = 404 ]; then refusals=$((refusals + 1)); echo "NOT SERVED $p -> 404"; else bad "$p -> $st"; fi
 done
+# Auth's routes that make accounts, sign in by password or send mail and texts: an open Supabase Auth serves them,
+# the narrow name does not (the stand-in answers them 200 when served wide, as an open one would)
+for m in "POST /auth/v1/signup" "POST /auth/v1/otp" "POST /auth/v1/recover" "POST /auth/v1/magiclink" "POST /auth/v1/token?grant_type=password" "PUT /auth/v1/user"; do
+  want=404; [ "$m" = "PUT /auth/v1/user" ] && want=403
+  st=$(curl -s -o /dev/null -w '%{http_code}' -X "${m%% *}" "$B${m#* }" -H "apikey: $K" -H 'Content-Type: application/json' --data '{}')
+  if [ "$st" = $want ]; then refusals=$((refusals + 1)); echo "NOT SERVED $m -> $st"; else bad "$m -> $st"; fi
+done
 call POST /rest/v1/rpc/hs_profile_get '{}' "$AT2"
 echo "and the game's own call still answers: hs_profile_get -> $S $(echo "$R" | jq -r .name)"; [ "$S" = 200 ] || bad "narrow broke the game's call"
 
@@ -170,6 +190,17 @@ A3=$(curl -s -o /dev/null -w '%{redirect_url}' "$(curl -s -o /dev/null -w '%{red
 case "$A3" in *error_code=provider_email_needs_verification*) echo "an unverified Discord email -> error_code=provider_email_needs_verification";; *) bad "unverified email: $A3";; esac
 st=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/next/"); st2=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/")
 echo "the game at / -> $st2 and at /next/ -> $st"; [ "$st$st2" = 200200 ] || bad "the page"
+# the site port holds what the live web root holds: the page and its picture, nothing else of the repository
+PAGE=$(curl -s "$SITE/" | sha256sum)
+for p in /.git/HEAD /tools/platform/stack.js /docs/specs/RULINGS.md /deploy/update.sh /next/.git/config /nowhere; do
+  [ "$(curl -s "$SITE$p" | sha256sum)" = "$PAGE" ] || bad "the site served $p itself"
+done
+echo "the site's other paths (.git, tools, docs, deploy) are answered with the page, as nginx's try_files does"
+st=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$SITE/og.jpg"); echo "/og.jpg -> $st"; case "$st" in "200 image/jpeg") ;; *) bad "og.jpg";; esac
+# a body over the proxy's 512 KB: 413, and an answer, not a connection cut short
+head -c 600000 /dev/zero | tr '\0' 'x' > "$OUT/big"
+st=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_track" -H "apikey: $K" -H 'Content-Type: application/json' --data-binary @"$OUT/big")
+echo "a body of 600 KB -> $st"; [ "$st" = 413 ] || bad "a big body -> $st"
 
 echo "RESULT curl-session: $refusals refusals shown, $fails unexpected answers"
 [ "$fails" = 0 ]

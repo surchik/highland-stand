@@ -6,7 +6,8 @@
 //
 // 1. The stack as the owner's server should be: every check passes but 12 and 13, which only the real Supabase can
 //    answer (the gateway's own port and the certificate of the owner's https name).
-// 2. The same stack with email auto-confirm on and served whole (no narrow proxy): checks 3 and 11 must fail.
+// 2. The same stack with email auto-confirm on and served whole (no narrow proxy): checks 3 and 11 must fail, and
+//    11 must name Auth's signup, otp, recover, magiclink, password sign-in and a write to the user.
 // 3. A key that says it is Supabase's demo key (made here with an unsigned payload: the real demo key is not
 //    copied into the repository): check 1 must fail.
 // 4. A key whose role is service_role: check 1 must fail and say never to hand it over.
@@ -47,6 +48,11 @@ const failedChecks = (out) => [...out.matchAll(/^FAIL +(\d+)\./gm)].map(m => Num
     r = await smoke(stack.url, stack.anonKey);
     process.stdout.write(r.out.split("\n").filter(l => /^(FAIL|RESULT|        what)/.test(l)).join("\n") + "\n");
     if (JSON.stringify(failedChecks(r.out)) !== "[3,11]" || r.code !== 1) { bad++; console.log("UNEXPECTED: wanted checks 3 and 11 to fail, got " + JSON.stringify(failedChecks(r.out))); }
+    // Auth's routes that make accounts or send mail are among what check 11 names (the stand-in answers them as
+    // an open Supabase Auth would)
+    for (const p of ["POST /auth/v1/signup", "POST /auth/v1/otp", "POST /auth/v1/recover", "POST /auth/v1/magiclink", "POST /auth/v1/token?grant_type=password", "PUT /auth/v1/user"]) {
+      if (!r.out.includes(p + " -> 200")) { bad++; console.log("UNEXPECTED: check 11 did not name " + p); }
+    }
     await stack.control("settings", { mailer_autoconfirm: false });
     await stack.control("narrow", { on: true });
 

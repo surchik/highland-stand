@@ -20,15 +20,22 @@
 //   8  hs_save_get and hs_stats are refused to a visitor
 //   9  hs_track takes one event, and not one of 5 KB
 //  10  hs_board for a board that does not exist answers an empty list within 3 s
-//  11  the public name serves nothing but /auth/v1/ and /rest/v1/rpc/hs_
-//  12  the gateway's own port (8000) does not answer from outside
+//  11  the public name serves nothing but the Auth routes the page uses and /rest/v1/rpc/hs_: no other path, and none
+//      of Auth's routes that make accounts or send mail (signup, otp, recover, magiclink, a password sign-in, a
+//      write to the user)
+//  12  the gateway's own ports do not answer from outside: 8000 (Envoy or Kong over http) and 8443 (Kong's https);
+//      5432 and 6543 (the database's pooler, behind its password) are named when they answer. When this machine
+//      cannot open a direct connection at all (its own outbound firewall, or no DNS of its own behind a proxy), a
+//      silence would prove nothing: the check then says it cannot be answered from here, and neither passes nor fails
 //  13  the address is https and its certificate is valid
 // Against the local stack (an address on 127.0.0.1 or localhost) checks 12 and 13 cannot say anything about the
 // owner's server: they are run and reported as "only the real Supabase answers this", and do not fail the run.
 //
-// Prints "RESULT smoke: P passed, F failed, L only on the real Supabase" and exits 1 when any check failed.
+// Prints "RESULT smoke: P passed, F failed, L only on the real Supabase" (and ", U not answerable from this machine"
+// when there are such) and exits 1 when any check failed.
 "use strict";
 const http = require("http");
+const net = require("net");
 const https = require("https");
 const tls = require("tls");
 const crypto = require("crypto");
@@ -82,7 +89,9 @@ function request(method, url, o = {}) {
       const c = http.request({ method: "CONNECT", hostname: p.hostname, port: p.port || 80, path: u.hostname + ":" + (u.port || 443), agent: false,
         headers: p.username ? { "proxy-authorization": "Basic " + Buffer.from(decodeURIComponent(p.username) + ":" + decodeURIComponent(p.password)).toString("base64") } : {} });
       c.on("connect", (res, sock) => {
-        if (res.statusCode !== 200) return finish({ error: "the proxy refused the tunnel (" + res.statusCode + ")" });
+        // the tunnel's socket may be reset by the proxy at any moment: an error on it ends this request, never the run
+        sock.on("error", e => finish({ error: "proxy: " + e.message, code: e.code }));
+        if (res.statusCode !== 200) { sock.destroy(); return finish({ error: "the proxy refused the tunnel (" + res.statusCode + ")" }); }
         const t = tls.connect({ socket: sock, servername: u.hostname }, () => go(t));
         t.on("error", e => finish({ error: e.message, code: e.code }));
       });
@@ -95,18 +104,31 @@ const json = (r) => { try { return JSON.parse(r.body); } catch (e) { return null
 const keyHeaders = () => ({ apikey: KEY, authorization: "Bearer " + KEY });
 const describe = (r) => r.error ? r.error : r.status + " " + String(r.body || "").replace(/\s+/g, " ").slice(0, 100);
 
+// a plain TCP connection to a port, never through the proxy: "open", "closed" (refused or reset), "silent" (no answer
+// in time), or "unknown: <why>" when the name cannot be looked up here at all
+function probe(host, port, timeout) {
+  return new Promise((resolve) => {
+    let done = false;
+    const s = net.connect({ host, port });
+    const end = (r) => { if (!done) { done = true; clearTimeout(t); s.destroy(); resolve(r); } };
+    const t = setTimeout(() => end("silent"), timeout || 5000);
+    s.on("connect", () => end("open"));
+    s.on("error", (e) => end(["ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH"].includes(e.code) ? "closed" : "unknown: " + (e.code || e.message)));
+  });
+}
+
 // ------------------------------------------------------------------ the checks
 const results = [];
 function report(n, status, what, help) {
   results.push(status);
-  const tag = { pass: "PASS", fail: "FAIL", local: "ONLY ON THE REAL SUPABASE" }[status];
+  const tag = { pass: "PASS", fail: "FAIL", local: "ONLY ON THE REAL SUPABASE", here: "NOT ANSWERABLE FROM THIS MACHINE" }[status];
   console.log(tag + "  " + String(n).padStart(2) + ". " + what);
   if (status === "fail" && help) console.log("        what to do: " + help);
 }
 
 (async () => {
   console.log("Smoke test of " + base.origin + (LOCAL ? " (the local stack: checks 12 and 13 cannot speak for the owner's server)" : ""));
-  if (PROXY) console.log("(through this machine's HTTPS proxy: check 12 and the certificate of check 13 are the proxy's view; run it from another machine to be sure)");
+  if (PROXY) console.log("(through this machine's HTTPS proxy: the certificate of check 13 is the proxy's view; check 12 tries direct connections, which a machine behind a proxy may not be able to make; run it from another machine to be sure)");
   // 1. the key
   {
     let payload = null;
@@ -214,23 +236,38 @@ function report(n, status, what, help) {
   // 11. nothing but the two prefixes
   {
     const bad = [];
-    for (const [m, p] of [["GET", "/"], ["GET", "/pg/"], ["GET", "/storage/v1/"], ["GET", "/realtime/v1/"], ["GET", "/graphql/v1"], ["GET", "/rest/v1/"],
-        ["POST", "/rest/v1/rpc/pg_sleep"], ["POST", "/rest/v1/rpc/not_the_game"]]) {
-      const r = await request(m, base.origin + p, { headers: keyHeaders(), body: m === "POST" ? {} : undefined, timeout: 4000 });
-      // a 404 from PostgREST itself (its answer names a PGRST code) means the proxy passed the path on
-      if (r.error || r.status !== 404 || /PGRST/.test(r.body || "")) bad.push(m + " " + p + " -> " + describe(r));
+    // (the Auth routes are sent empty bodies: were one served after all, an empty body makes nothing and sends nothing)
+    const PATHS = [["GET", "/"], ["GET", "/pg/"], ["GET", "/storage/v1/"], ["GET", "/realtime/v1/"], ["GET", "/graphql/v1"], ["GET", "/rest/v1/"],
+      ["POST", "/rest/v1/rpc/pg_sleep"], ["POST", "/rest/v1/rpc/not_the_game"],
+      ["POST", "/auth/v1/signup"], ["POST", "/auth/v1/otp"], ["POST", "/auth/v1/recover"], ["POST", "/auth/v1/magiclink"],
+      ["POST", "/auth/v1/token?grant_type=password"], ["POST", "/auth/v1/token?grant_type=id_token"], ["PUT", "/auth/v1/user"], ["GET", "/auth/v1/admin/users"]];
+    for (const [m, p] of PATHS) {
+      const r = await request(m, base.origin + p, { headers: keyHeaders(), body: m === "GET" ? undefined : {}, timeout: 4000 });
+      // a 404 from PostgREST or Auth itself (its answer names a PGRST code or an error_code) means the proxy passed
+      // the path on; a write to the user may be refused 403 (nginx's limit_except)
+      const refused = (r.status === 404 || (r.status === 403 && p === "/auth/v1/user")) && !/PGRST|error_code/.test(r.body || "");
+      if (r.error || !refused) bad.push(m + " " + p + " -> " + describe(r));
     }
-    if (!bad.length) report(11, "pass", "the public name serves nothing but /auth/v1/ and /rest/v1/rpc/hs_ (8 other paths: 404)");
-    else report(11, "fail", "served beyond the two prefixes: " + bad.join("; "), "use the guide's nginx or Caddy block for this name (step 1), which answers 404 to everything else");
+    if (!bad.length) report(11, "pass", "the public name serves nothing but the page's Auth routes and /rest/v1/rpc/hs_ (" + PATHS.length + " other paths refused, Auth's signup, otp, recover, magiclink and password sign-in among them)");
+    else report(11, "fail", "served beyond what the page uses: " + bad.join("; "), "use the guide's nginx or Caddy block for this name (step 1), which answers 404 to everything else");
   }
-  // 12. the gateway's own port
+  // 12. the gateway's own ports
   {
-    const r = await request("GET", "http://" + base.hostname + ":8000/auth/v1/settings", { headers: keyHeaders(), timeout: 5000 });
-    const silent = r.error === "timeout" || r.error === "refused" || r.code === "ECONNRESET" || r.code === "EHOSTUNREACH";
-    const what = "the gateway's port 8000 " + (silent ? "does not answer (" + r.error + ")" : "ANSWERS (" + describe(r) + ")");
+    const host = base.hostname.replace(/^\[|\]$/g, "");
+    // first a port that must answer (the public name's own): if even that cannot be reached directly, this machine
+    // cannot open direct connections and a silence below would prove nothing
+    const control = await probe(host, Number(base.port) || (base.protocol === "https:" ? 443 : 80), 5000);
+    const gw = {}, db = {};
+    for (const p of [8000, 8443]) gw[p] = await probe(host, p, 5000);
+    for (const p of [5432, 6543]) db[p] = await probe(host, p, 3000);
+    const list = (o) => Object.entries(o).map(([p, v]) => p + " " + v).join(", ");
+    const open = Object.keys(gw).filter(p => gw[p] === "open");
+    const what = "the gateway's own ports: " + list(gw) + (Object.values(db).includes("open") ? "; the database's pooler answers on " + Object.keys(db).filter(p => db[p] === "open").join(" and ") + " (behind its password)" : "");
     if (LOCAL) report(12, "local", what + "; on this machine that says nothing about the owner's server");
-    else if (silent) report(12, "pass", what);
-    else report(12, "fail", what, "step 0 of the guide: bind the gateway to 127.0.0.1 in docker-compose.yml (\"127.0.0.1:8000:8000\"), then recreate it");
+    else if (control !== "open") report(12, "here", "a direct connection to the address's own port gives \"" + control + "\", so a silence of 8000 and 8443 would prove nothing (" + what + "); run this from a computer that can reach the server directly");
+    else if (open.length) report(12, "fail", what, "step 0 of the guide: in the Supabase folder's .env bind " + open.map(p => p === "8443" ? "KONG_HTTPS_PORT=127.0.0.1:8443" : "the gateway's http port to 127.0.0.1:8000").join(" and ") + ", then docker compose up -d");
+    else if (Object.values(gw).some(v => v.startsWith("unknown"))) report(12, "here", what + ": cannot be answered from this machine");
+    else report(12, "pass", what);
   }
   // 13. https and a valid certificate
   {
@@ -244,6 +281,7 @@ function report(n, status, what, help) {
     }
   }
   const P = results.filter(x => x === "pass").length, F = results.filter(x => x === "fail").length, L = results.filter(x => x === "local").length;
-  console.log("RESULT smoke: " + P + " passed, " + F + " failed, " + L + " only on the real Supabase");
+  const H = results.filter(x => x === "here").length;
+  console.log("RESULT smoke: " + P + " passed, " + F + " failed, " + L + " only on the real Supabase" + (H ? ", " + H + " not answerable from this machine" : ""));
   process.exit(F ? 1 : 0);
 })().catch(e => { console.log("FAIL the smoke test stopped: " + (e.stack || e.message)); process.exit(1); });

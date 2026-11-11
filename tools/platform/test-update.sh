@@ -13,11 +13,13 @@
 # (time stamps aside), the same exit status, the same commit checked out and the same marker files, in every case
 # the old script knows: a first publish, nothing new, a new page and picture, a broken page (refused, logged
 # once), mended, no Node.js found, a check that cannot run (exit 2), the remote gone.
-# Part B, the staging channel: no branch next; a good next published at /next/ with its og.jpg, the live page
+# Part B, the staging channel: the owner's own folder named next (never removed or written into, said once); no
+# branch next while a branch feature/next exists (not taken for next); a good next published at /next/ with its og.jpg, the live page
 # untouched and the clone still on master with a clean tree; a next that fails check-page not published, the live
 # page untouched, logged once over three runs, master still published on the same run; next mended; a next without
 # the staging namespace line refused once; a next without og.jpg leaves none behind; a check that cannot run is
-# tried again; a broken master while /next/ stays served; the remote unreachable; the branch deleted (/next/
+# tried again; no Node.js (said once over three runs); a failure halfway through (no temporary folder left, which
+# every run checks); a broken master while /next/ stays served; the remote unreachable; the branch deleted (/next/
 # removed, said once).
 # Part C, the hand-over: a server running the old script from its own clone gets the commit that brings the new
 # one. That first run is still the old script and publishes master only; the run after it is the new script and
@@ -94,15 +96,29 @@ cp "$T/log-new" "$T/partA.log"
 
 # ------------------------------------------------------------------ part B: the staging channel
 git clone -q "$T/origin.git" "$T/repo"; mkdir "$T/web"
-run() { local rc=0; env HS_REPO="$T/repo" HS_WEB="$T/web" "$@" bash "$NEW" >> "$T/log" 2>&1 || rc=$?; echo $rc >> "$T/rcs"; }
+# every run gets a TMPDIR of its own: a temporary folder left in it afterward is a leak
+mkdir "$T/tmpd"
+run() { local rc=0; env HS_REPO="$T/repo" HS_WEB="$T/web" TMPDIR="$T/tmpd" "$@" bash "$NEW" >> "$T/log" 2>&1 || rc=$?; echo $rc >> "$T/rcs"
+  if [ -n "$(ls -A "$T/tmpd")" ]; then fail "B. a run left a temporary folder behind: $(ls -A "$T/tmpd")"; rm -rf "${T:?}/tmpd/"*; fi; }
 lastrc() { tail -1 "$T/rcs"; }
 cnt() { grep -c "$1" "$T/log" || true; }
 onmaster() { [ "$(git -C "$T/repo" rev-parse HEAD)" = "$(git -C "$T/repo" rev-parse origin/master)" ] && [ -z "$(git -C "$T/repo" status --porcelain)" ]; }
-# 1. no branch next
+# 0. the owner's own folder named next, made before this script: never removed or written into, said once
+mkdir "$T/web/next"; echo "the owner's own" > "$T/web/next/notes.txt"
+run; run
+if [ "$(cat "$T/web/next/notes.txt" 2>/dev/null)" = "the owner's own" ] && [ "$(cnt 'staging is off')" = 1 ] && [ "$(lastrc)" = 0 ]; then
+  pass "B0. a folder next the script did not make, no branch next: kept, said once"
+else fail "B0: kept $(ls "$T/web/next" 2>&1), said $(cnt 'staging is off') times"; fi
+# 1. no branch next; branches whose names only end in next (feature/next) are not the staging branch
+git checkout -q -b feature/next; npage feat > index.html; commit feat; git checkout -q master
 page live6 > index.html; commit six; run
-if grep -q live6 "$T/web/index.html" && [ ! -e "$T/web/next" ] && [ "$(lastrc)" = 0 ]; then pass "B1. no branch next: master published, no /next/"; else fail "B1"; fi
-# 2. a good next, with its picture
-git checkout -q -b next; npage next1 > index.html; printf 'jpg-next' > og.jpg; commit n1; run
+if grep -q live6 "$T/web/index.html" && [ "$(ls "$T/web/next")" = notes.txt ] && [ "$(lastrc)" = 0 ] && [ "$(cnt 'staging is off')" = 1 ]; then
+  pass "B1. no branch next, a branch feature/next: master published, the owner's folder untouched"
+else fail "B1"; fi
+mv "$T/web/next" "$T/owner-next"; run
+if [ ! -e "$T/web/next" ] && [ "$(cnt 'next')" = "$(cnt 'staging is off')" ]; then pass "B1b. the owner's folder moved away, still no branch next: feature/next is not published, nothing said"; else fail "B1b"; cat "$T/log"; fi
+# 2. a good next, with its picture (beside feature/next, which the remote may list first)
+git checkout -q -b next master; npage next1 > index.html; printf 'jpg-next' > og.jpg; commit n1; run
 if grep -q next1 "$T/web/next/index.html" && [ "$(cat "$T/web/next/og.jpg")" = jpg-next ] && grep -q live6 "$T/web/index.html" \
    && [ "$(cat "$T/web/og.jpg")" = jpg2 ] && onmaster && [ "$(lastrc)" = 0 ] && [ "$(cnt 'published next')" = 1 ]; then
   pass "B2. a good next: published at /next/ with its og.jpg; the live page and picture untouched; the clone on master, clean"
@@ -132,10 +148,18 @@ if grep -q next4 "$T/web/next/index.html" && [ "$(cnt 'check could not run (exit
 run
 if grep -q next5 "$T/web/next/index.html" && [ "$(cat "$T/web/next/og.jpg")" = jpg-next5 ]; then pass "B7b. and published once it can"; else fail "B7b"; fi
 # 8. no node at all: master goes out unchecked as always, next does not go out
-npage next6 > index.html; commit n6; run HS_NODE=/nonexistent/node
-if grep -q next5 "$T/web/next/index.html" && [ "$(cnt 'no Node.js 18 or newer found to check it')" = 1 ]; then pass "B8. no Node.js: next is not published unchecked"; else fail "B8"; fi
+npage next6 > index.html; commit n6; run HS_NODE=/nonexistent/node; run HS_NODE=/nonexistent/node; run HS_NODE=/nonexistent/node
+if grep -q next5 "$T/web/next/index.html" && [ "$(cnt 'no Node.js 18 or newer found to check it')" = 1 ]; then pass "B8. no Node.js: next is not published unchecked, said once over three runs"; else fail "B8: said $(cnt 'no Node.js 18 or newer found to check it') times"; fi
 run
 grep -q next6 "$T/web/next/index.html" && pass "B8b. and goes out once node is back" || fail "B8b"
+# 8c. a failure halfway through publishing (a file where the folder was) stops the staging flow and leaves no
+# temporary folder (run() checks), and the live flow is not touched
+git checkout -q next; npage next6b > index.html; commit n6b
+rm -rf "$T/web/next"; echo x > "$T/web/next"; run; run
+if [ "$(cat "$T/web/next")" = x ] && [ "$(lastrc)" = 0 ]; then pass "B8c. a failure halfway through: nothing left in TMPDIR, the exit status master's"; else fail "B8c"; fi
+rm -f "$T/web/next"; run
+grep -q next6b "$T/web/next/index.html" && pass "B8d. and published once the way is clear" || fail "B8d"
+git checkout -q next; npage next6 > index.html; commit n6c; run
 # 9. a broken master while /next/ stays served
 git checkout -q master; broken > index.html; commit bad2; run
 if grep -q live7 "$T/web/index.html" && grep -q next6 "$T/web/next/index.html" && [ "$(lastrc)" = 1 ]; then pass "B9. a broken master: the live page stays, /next/ stays, the run reports master's failure"; else fail "B9"; fi
@@ -153,6 +177,9 @@ git checkout -q master; git push -q origin --delete next; run; run
 if [ ! -e "$T/web/next" ] && grep -q live8 "$T/web/index.html" && [ "$(cnt 'removed /next/')" = 1 ] && [ ! -e "$T/repo/.git/hs-next-live" ]; then
   pass "B12. the branch deleted: /next/ removed, said once, the live page untouched"
 else fail "B12"; fi
+# 12b. feature/next alone left on the remote: still nothing at /next/
+[ -n "$(git ls-remote "$T/origin.git" refs/heads/feature/next)" ] && [ ! -e "$T/web/next" ] && pass "B12b. with only feature/next left, /next/ stays away" || fail "B12b"
+
 onmaster && pass "B13. through all of it the clone stayed on master with a clean tree" || fail "B13"
 cp "$T/log" "$T/partB.log"
 

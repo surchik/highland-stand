@@ -22,16 +22,22 @@
 //     authorize and callback need no apikey, the others do, as on Supabase's gateway.
 //   - CORS as the gateway answers it (the page's origin is the site port, so it is a real cross-origin call),
 //     the preflight remembered for an hour as the Envoy gateway does.
-//   - By default the port serves only what the owner's public name serves (the guide's step 1): /auth/v1/ and
-//     /rest/v1/rpc/hs_. Everything else answers 404, as the narrow proxy does. --wide serves the rest of the API
-//     as a gateway with no such proxy would (GET /rest/v1/<table> is then answered by the database itself, which
-//     refuses it), so a test can show both walls.
+//   - By default the port serves only what the owner's public name serves (the guide's step 1, publicName below):
+//     the six Auth routes the page uses (settings, authorize, callback, token for pkce and refresh_token, user to
+//     read, logout) plus health, and /rest/v1/rpc/hs_. Everything else answers 404, as the narrow proxy does
+//     (and a write to /auth/v1/user 403, as nginx's limit_except). --wide serves the rest of the API as a gateway
+//     with no such proxy would: GET /rest/v1/<table> is then answered by the database itself, which refuses it,
+//     and Auth's routes that make accounts or send mail (signup, otp, recover, magiclink, token with a password,
+//     a write to user) answer 200 as an open GoTrue would, without doing anything. So a test can show both walls,
+//     and that it is the proxy, not the stand-in, that refuses those routes.
 //   - a fake OAuth provider at /provider/ (on the real thing this is Google, Facebook or Discord): a page of test
 //     people, or an identity a test chooses beforehand, including one with no email, one with an unverified
 //     email, a cancel, an error and one that never answers.
 //   - controls for tests under /__test/ (see CONTROLS below).
-// - On the site port, the game itself: the page directory at / and at /next/ (read from disk on every request,
-//   so a test always plays the file as it is), with the paths read as nginx reads them.
+// - On the site port, the game itself as the live web root holds it: index.html and og.jpg of the page directory
+//   at / and at /next/ and nothing else of it (read from disk on every request, so a test always plays the file
+//   as it is), with the paths read as nginx reads them: any other path is the page (try_files ... /index.html),
+//   and a missing og.jpg is 404.
 //
 // The JWT secret is made at start from random bytes, lives in this process only and is never written to disk
 // or to the log. The anon key printed at start is signed with it and is worth nothing once the stack stops.
@@ -91,8 +97,13 @@ function withQuery(addr, params, alsoFragment) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = []; let n = 0;
-    req.on("data", c => { n += c.length; if (n > BODY_MAX) { reject(Object.assign(new Error("too large"), { status: 413 })); req.destroy(); } else chunks.push(c); });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    // over the limit the rest is read and thrown away, so the 413 answer reaches the caller as nginx's does
+    // (a connection cut short would read as a network error instead)
+    let over = false;
+    const tooLarge = () => { over = true; chunks.length = 0; reject(Object.assign(new Error("too large"), { status: 413 })); };
+    if (Number(req.headers["content-length"]) > BODY_MAX) tooLarge();
+    req.on("data", c => { if (over) return; n += c.length; if (n > BODY_MAX) tooLarge(); else chunks.push(c); });
+    req.on("end", () => { if (!over) resolve(Buffer.concat(chunks).toString("utf8")); });
     req.on("error", reject);
   });
 }
@@ -166,12 +177,11 @@ async function start(opts = {}) {
     try { p = decodeURIComponent(new URL(req.url, site).pathname); } catch (e) { res.writeHead(400); res.end(); return; }
     p = p.replace(/\\/g, "/").replace(/\/{2,}/g, "/");
     if (p.split("/").includes("..")) { res.writeHead(400); res.end(); return; }
+    // the web root holds index.html and og.jpg, and next/ the same two: nothing else of the folder is served
+    // (the repository's .git, tools and docs are not on the live server)
     let dir = pageDir, rel = p;
-    if (/^\/next(\/|$)/i.test(p)) { dir = nextDir; rel = p.slice(5) || "/"; }
-    let file = path.join(dir, rel);
-    try { if (fs.statSync(file).isDirectory()) file = path.join(file, "index.html"); } catch (e) { file = path.join(pageDir, "index.html"); }
-    if (!fs.existsSync(file)) file = path.join(pageDir, "index.html");
-    serveFile(res, file);
+    if (/^\/next(\/|$)/.test(p)) { dir = nextDir; rel = p.slice(5) || "/"; }
+    serveFile(res, path.join(dir, rel === "/og.jpg" ? "og.jpg" : "index.html"));
   }
 
   // ---------------------------------------------------------------- CORS, as the gateway answers it
@@ -191,8 +201,10 @@ async function start(opts = {}) {
     if (verbose) log(req.method, p);
     if (p.startsWith("/__test/")) return control(req, res, p.slice(8));
     if (p.startsWith("/provider/")) return provider(req, res, u, p.slice(10));
-    const served = p.startsWith("/auth/v1/") || p.startsWith("/rest/v1/rpc/hs_");
-    if (state.narrow && !served) { res.writeHead(404, { "content-type": "text/plain" }); res.end("Not found"); return; }
+    if (state.narrow) {
+      const refused = publicName(req.method, p, u);
+      if (refused) { res.writeHead(refused, { "content-type": "text/plain" }); res.end(refused === 403 ? "Forbidden" : "Not found"); return; }
+    }
     if (req.method === "OPTIONS") {
       res.writeHead(200, {
         "access-control-allow-methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
@@ -218,6 +230,14 @@ async function start(opts = {}) {
       return sendJson(res, 405, { code: "PGRST117", details: null, hint: null, message: "Unsupported HTTP method" });
     }
     res.writeHead(404, { "content-type": "text/plain" }); res.end("Not found");
+  }
+  // what the guide's public name lets through (deploy/supabase/README.md, step 1): 0, or the status it refuses with
+  function publicName(method, p, u) {
+    if (/^\/auth\/v1\/(settings|authorize|callback|logout|health)$/.test(p)) return 0;
+    if (p === "/auth/v1/user") return ["GET", "HEAD", "OPTIONS"].includes(method) ? 0 : 403;
+    if (p === "/auth/v1/token") return /^(pkce|refresh_token)$/.test(u.searchParams.get("grant_type") || "") ? 0 : 404;
+    if (p.startsWith("/rest/v1/rpc/hs_")) return 0;
+    return 404;
   }
   function hang(req, res) {
     state.hanging.add(res);
@@ -357,6 +377,13 @@ async function start(opts = {}) {
     if (route === "/token" && req.method === "POST") return token(req, res, u);
     if (route === "/user" && req.method === "GET") return user(req, res);
     if (route === "/logout" && req.method === "POST") return logout(req, res, u);
+    // the routes an open GoTrue serves that the page never uses: they make accounts, sign in by password or send
+    // mail and texts. The stand-in answers as an open one would and does nothing, so a test can show the public
+    // name refuses them (the stack's narrow default, or the guide's nginx in front of --wide)
+    if ((["/signup", "/otp", "/recover", "/magiclink"].includes(route) && req.method === "POST")
+        || (route === "/user" && req.method === "PUT")) {
+      return sendJson(res, 200, { stand_in: true, msg: "an open Supabase Auth would act on " + req.method + " " + route + " here" });
+    }
     return authErr(res, 404, "not_found", "Not found");
   }
   function allowedRedirect(to) {
@@ -452,6 +479,8 @@ async function start(opts = {}) {
   }
   async function token(req, res, u) {
     const grant = u.searchParams.get("grant_type");
+    // a password sign-in: an open GoTrue would answer it; the stand-in only says so (see auth() above)
+    if (grant === "password") return sendJson(res, 200, { stand_in: true, msg: "an open Supabase Auth would sign in by password here" });
     let body;
     try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) { return authErr(res, 400, "bad_json", "Could not parse request body as JSON"); }
     if (grant === "pkce") {
