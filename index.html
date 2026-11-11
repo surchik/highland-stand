@@ -3137,6 +3137,47 @@ if (!HARNESS_ON) {
     Storage.prototype.setItem = function (k, v) { try { set.call(this, k, v); } catch (e) { /* quota: keep playing */ } };
   }
 }
+// True when the page runs on memory because the browser keeps no site data (the fallback above took over).
+// A sign-in cannot survive the trip to a provider and back then, and the gate says so (section 3.6).
+const HS_STORE_MEM = !HARNESS_ON && !(typeof Storage !== "undefined" && window.localStorage instanceof Storage);
+
+// ---------- platform: accounts, cloud saves, boards, analytics (docs/specs/platform.final.md) ----------
+// The owner's Supabase. Both values are public by design (of this game the anon key opens nothing but the
+// hs_ functions; what it opens of OTHER projects in the same Supabase is section 9.1). Empty: the platform is
+// off and the game is the game of before. NEVER put a service key, a JWT secret or a provider's secret in
+// this file.
+const HS_SUPABASE_URL = "";        // e.g. "https://supabase.avunjian.com" (no slash at the end)
+const HS_SUPABASE_ANON_KEY = "";
+const HS_GATE = "required";        // "required" | "optional" | "off" (docs/specs/platform.final.md, section 3)
+const HS_ANON_ID = "device";      // "device" | "visit": where the anonymous id lives before a sign-in (section 7.1)
+// Gameplay's one door to analytics, and the platform's one way to hear of a battle. It never throws and never
+// touches the network: it only queues. With the platform off the queue is kept short and goes nowhere.
+function track(name, props) {
+  try {
+    const q = window.__hsEv || (window.__hsEv = []);
+    q.push([String(name), props || null, Date.now()]);
+    if (q.length > 400) q.splice(0, q.length - 400);
+    if (window.__hsEvKick) window.__hsEvKick();
+  } catch (e) {}
+}
+// The keys a player owns that follow the account from device to device, each with its merge rule
+// ("max", "flag", "union", "records", "newer", "run", or a function (mine, theirs) => string|null given the two raw
+// strings). Gameplay adds its new keys from its own code with CLOUD_KEYS.push(...), never by editing this list.
+// Keys not listed never leave the device.
+const CLOUD_KEYS = [
+  { key: "hs_records", merge: "records" },
+  { prefix: "hs_best_", merge: "max" },
+  { key: "hs_open_kept", merge: "union" },
+  { key: "hs_unlocked_seen", merge: "union" },
+  { key: "hs_chapters_seen", merge: "union" },
+  { key: "hs_tricks_seen", merge: "union" },
+  { key: "hs_tutorial_done", merge: "flag" },
+  { key: "hs_nardi", merge: "newer" },
+  { key: "hs_run", merge: "run" },
+];
+// The tabs of the Hall page (section 5.5). The platform adds Daily, Leaderboards and Account; gameplay adds
+// its own from its own code with HALL_TABS.push({ id, label, icon, render(el), badge() }).
+const HALL_TABS = [];
 
 // ---------- setup ----------
 const canvas = document.getElementById("game");
