@@ -124,7 +124,7 @@ minutes at 1x on a phone that may drop the tab.**
 Evidence: 1.2's own times (Sis 40, Stepanakert 1992 38, Van and Sardarapat 35); the platform spends an attempt
 at the first horn and does not save a daily.
 Fix: every daily is a 12-wave stand: `startDaily` plays `SCRIPT_TABLES[12]` on every battlefield (Avarayr's
-own 12-step table keeps its ambush rule). That is 15 to 23 minutes at 1x on 16 battlefields and 31 on
+own 12-step table keeps its ambush rule). That is 15 to 26 minutes at 1x on 16 battlefields and 31 on
 Stepanakert 1992, half that at 2x, and it comes free with the script map. The ruleset gains `daily.waves: 12`
 and the daily's own `fast`, `slow`, `earnMax` per battlefield (bot tables). The daily therefore lands after
 the script map in the build order. Sis counts its days by script wave, so its last wave is still day 60.
@@ -255,7 +255,8 @@ levels become 1, 2, 3 in Chapters I, II and V and 1, 2, 3, 4 in III and IV. (b) 
 campaign, once, for every hero at every level: when Dvin opens (Chapter II). Levels make it stronger. New
 things then come one a battlefield: Council, post, Horse Lines, the Call, Stores. (c) Ages stay an internal
 table that says which battlefields offer which tower; no age is named to the player and the internal ids are
-`a1` to `a5`.
+`a1` to `a5`. (d) The Call belongs to the kit, like a level: a Standard battle and a daily are fought with
+today's hero (level 1, no Call), so shipping the heroes changes no Standard board.
 
 **22. Minor. The Call by "a second press of the medallion" will be sounded by accident,** since today a
 second press lets the hero go. Fix: while the hero is chosen and the Call is ready the medallion shows a horn
@@ -321,6 +322,18 @@ has fought Erebuni). It is the same for everyone and a loss still scores, so it 
 may prefer a pool of the first ten until the game has more players (an open point).
 
 **34. Minor. The lengths of 1.2 sum to 245, not 246.**
+
+**35. Minor. A hero's level lengthens his hold on a commander.** Today the hero holds any ground foe within
+32 px, a commander included, until he falls (`hero.engaged`, line 10535; `HERO_DPS.boss` is 34 a second, so
+about 12 s of 400 strength, then 20 s away). At level 5 (700 strength, back in 14 s) and with Stand Fast's
+half damage that hold nearly doubles, on the foe that costs 10 defenders. Fix: a commander's blow on the
+hero rises with the hero's level (34, 39, 44, 51, 60) and Stand Fast does not halve it.
+
+**36. Major (it completes issues 2 and 4). A reload makes every spell ready.** `runRecord` (line 10641) saves
+no cooldown, and `resumeRun` begins from `resetGame`, so after a reload the three spells are ready and a
+fallen hero is back. With a clock that counts waiting, a reload between waves is then the free way to wait
+out the cooldowns. Fix: the run keeps `cd` (the spells' clocks, the Call's, the hero's strength and seconds
+to return, a mine's arming) as they stood at the save, and a resume restores them.
 
 ## Rejected on reflection (not issues)
 

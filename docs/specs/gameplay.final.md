@@ -216,7 +216,7 @@ Where each trick first comes with the new tables, on Normal (script wave in brac
 
 | Battlefield | Trick | Wave |
 |---|---|---|
-| Erebuni | scouts (7), every wave from (12) | 6, then 7, then every wave from 8 (today: every second wave until 12; retune their count) |
+| Erebuni | scouts (7), every wave from (12) | 6, then every wave (today: every second wave until 12; retune their count) |
 | Tushpa | siege shields (4), scouts (7) | 4, 5 |
 | Avarayr | wicker shields (5), reserves' road (12) | 4, 9 |
 | Dvin | ladder parties (6), adaptive enemy (8) | 5, 6 |
@@ -765,8 +765,9 @@ landing. New: the nest's painter, a tile portrait.
 
 - `TOWER_DEFS` gains six kinds. `def.proj` stays null for all six, so the shooting loop skips them; each
   has its own short block in `update()` beside the fire altars'. `def.max` caps a kind on a field:
-  `placeTower` refuses the next one with that kind's sentence, and its tile dims. `getStats`, `towerInvested`, `towerWorth`,
-  `towerMaxHp`, repair, rebuild, sale, wreck and the drums' aura work as for any tower.
+  `placeTower` refuses the next one with that kind's sentence, and its tile dims. `getStats`,
+  `towerInvested`, `towerWorth`, `towerMaxHp`, repair, rebuild, sale, wreck and the drums' aura work as for
+  any tower.
 - `TRICK_SLOTS` is unchanged. `bookAdapt` gains a second tally, `adapt.other`, for damage dealt by the
   post, the horse, the mine and the spotter's shells; `adaptStep` adds it to `total` only.
 - `towerName`, `levelTower`, `applyEraLabels`, `renderShopPortraits`, `SKIN_ART`, `SKIN_BLURB`,
@@ -876,13 +877,14 @@ battle ("Reset the Council"). Once owned a tier counts on every battlefield, old
 |---|---|---|---|---|---|
 | Bowmen (`bows`): archer and ballista slots | Archer slot: 5% more damage | Ballista slot: 5% more damage | Both: 6% more range | Both: reload 6% faster | Both: masteries cost 15% less |
 | Engineers (`engines`): catapult and fire slots | Catapult slot: 6% wider blast | Fire slot: 8% more burn | Catapult slot: stagger lasts 0.15 s longer | Fire slot: slows 4 points more | Both: masteries cost 15% less |
-| Captains (`captains`): drums, Garrison Post, the special tower | Drums slot: 8% more reach | Garrison Post: men 10% stronger | Men return 15% sooner; the battlefield's special tower costs 10% less to build | Drums slot: 3 points more might | Their masteries cost 15% less |
+| Captains (`captains`): drums, Garrison Post, the special tower | Drums slot: 8% more reach | Drums slot: 3 points more might | Garrison Post: men 10% stronger | Men return 15% sooner; the battlefield's special tower costs 10% less to build | Their masteries cost 15% less |
 | Heralds (`heralds`): hero and spells | Hero 12% stronger (strength) | Spells ready 6% sooner | Hero returns in 16 s, not 20 | Spells ready another 6% sooner | The hero's Call ready 20% sooner |
 | Stewards (`stewards`): gold and walls | 20 more gold at the start | Repairs and rebuilds cost 20% less | The war chest's interest may reach 80 a wave, not 60 | Towers 12% stronger; they mend 5 points more at a clear | A sale returns 85%, not 70%; land costs 15% less |
 
-Until the Garrison Post and the special towers are in the game (G5, G7), the Captains' tiers 2 and 3 show
-their sentence with "(with the Garrison Post)" dimmed and can still be taken: a tier is never changed after a
-player has bought it.
+A tier is never sold for something that is not in the game yet, and never changed after a player has
+bought it: until the Garrison Post ships (G5) the Captains' tiers 3 to 5 are shown closed, "Comes with the
+Garrison Post", and the standard order of buying (4.8) skips them. The Council ships before the post (9.2),
+which is why the drums' two tiers come first in that branch.
 Each tier is one sentence and one number, shown exactly so on its card. Design bound, held by tuning (5.2):
 the whole tree and a level 5 hero together are worth less than one step of difficulty to a good build
 (Easy's foes are 15% weaker than Normal's): at most 4 defenders on Normal; what a careful first play owns
@@ -895,9 +897,8 @@ One object, the kit, is fixed when a battle begins (`resetGame`) and saved with 
 ```js
 // kit = { own: { bows: 2, engines: 1, captains: 0, heralds: 0, stewards: 1 }, hero: 2, call: true }
 // the player's Council, his chapter's hero level and whether the Call is open; KIT_EMPTY (no tier, hero 1,
-// the Call as the campaign has it) in a Standard battle; KIT_EMPTY with the Call in a daily; KIT_EMPTY
-// without it in a coached stand
-function battleKit() { return standardBattle || dailyRun || tutGentle ? kitEmpty() : playerKit(); }
+// no Call: today's hero) in a Standard battle, a daily and a coached stand
+function battleKit() { return standardBattle || dailyRun || tutGentle ? KIT_EMPTY : playerKit(); }
 function kitHas(branch, tier) { return (kit.own[branch] || 0) >= tier; }
 ```
 
@@ -944,11 +945,16 @@ Levels: 2 at 150, 3 at 450, 4 at 900, 5 at 1,500.
 
 On a first play a hero stands at level 1, 2, 3 on the three battlefields of Chapters I, II and V and at 1,
 2, 3, 4 on the four of Chapters III and IV. Level 5 is for a player who comes back.
+One rule keeps the commanders what they are. Today the hero holds any ground foe he reaches, a commander
+included, until he falls: about 12 s (400 strength against the commander's 34 a second, `HERO_DPS.boss`).
+A hero's level must not lengthen that: a commander strikes a hero of level 1 to 5 for 34, 39, 44, 51 and
+60 a second, and Stand Fast's half damage does not apply to a commander's blows.
 
 The Call: one ability, the same in every chapter, opened once by the campaign and not by a level: every
 hero has it from the day Dvin opens (Chapter II), at every level, on every battlefield, old ones too
 (`callOpen() = levelOpen(3)`). So it is never lost when a new chapter's hero starts at level 1, and it does
 not land on Tushpa together with the Council and the Garrison Post. Levels and the Heralds make it stronger.
+It is part of the kit (4.3): a Standard battle and a daily are fought without it, with today's hero.
 
 - Stand Fast, on a 60 s clock: for 6 s the hero takes half damage and holds two more foes, and the men of
   Garrison Posts within 120 px of him take half damage and each hold one more. At level 5 also: the foes he
@@ -1036,7 +1042,7 @@ Three new keys, all pushed onto `CLOUD_KEYS`:
 
 Existing keys that change shape: `hs_records` rows gain `beyond` (1.6; merge: per field and difficulty the
 larger, as for stars and lives). `hs_run` gains `rules`, `kit`, `script`, `tray` (1.7), the battle's
-counters (6.1) with `redo` (6.1), tower fields `rally`, `spot`, `trigger`, `paid`, and `t` (the time it was
+counters with `redo` and `cd` (6.1), tower fields `rally`, `spot`, `trigger`, `paid`, and `t` (the time it was
 written, ms): the platform keeps the newer of two runs by `t`. A daily never writes `hs_run`.
 
 Today's players (migration, no rewrite of anything they own):
@@ -1059,7 +1065,7 @@ number restarts no Standard board (6.3).
 ### 4.8 Fairness: one reference game, and a bounded bonus
 
 The difficulty a new player meets must not depend on grinding, and progression must not tilt a board. Both
-follow from one decision: the game is tuned as the Standard battle (no Council tier, a level 1 hero, the
+follow from one decision: the game is tuned as the Standard battle (no Council tier, today's hero, the
 battlefield's whole tray), and everything a player owns is a bonus on top, with a ceiling.
 
 1. The owner's balance targets (5.1) are measured on the Standard battle. That battle is also the daily
@@ -1113,7 +1119,7 @@ The boards do not use any of this: a Standard battle is fought with the empty ki
 ### 5.1 The owner's rulings, carried over, and what they are measured on
 
 With `tools/balance.js`, SEEDS=3, lives 30 / 20 / 14 as today, on the Standard battle (`KIT=none`: no
-Council tier, a level 1 hero, the battlefield's whole tray):
+Council tier, a level 1 hero without the Call, the battlefield's whole tray):
 - Normal, the first six (Erebuni to Sevan): the best build loses 4 to 8 of 20 on every seed (keeps 12 to
   16) and fells both commanders on every seed; the balanced mix wins every seed. Erebuni's coached waves 1
   to 3 never change.
@@ -1340,6 +1346,11 @@ barring resumed battles would bar most phone battles. Instead:
   wave fought twice counts whichever attempt lost more; trying a wave again can never gain a defender or a
   second there.
 - A resume between waves has nothing to fight again: no debt, no time.
+- A resume gives nothing back. Today the spells' clocks are not in the saved run (`runRecord`, line 10641),
+  so a reload makes every spell ready and brings a fallen hero back: with a clock that counts waiting, a
+  reload between waves would be the free way to wait. The run therefore also keeps `cd`: the three spells'
+  clocks, the Call's, the hero's strength and his seconds to return, and a mine's arming, as they stood at
+  the save (at the horn, for a wave fought again), and `resumeRun` restores them.
 - The victory page says it only when there is a debt: "A wave fought again counts its worse attempt on the
   boards."
 A daily is never saved (6.4), so none of this applies to it.
@@ -1396,24 +1407,25 @@ count that is not the battlefield's (the daily's 12 for a daily). It cannot prov
 ### 6.4 The standard loadout, the daily, and its twists
 
 The standard loadout (the platform's `std`) is "nothing beyond the standard set": no Council tier in force,
-the hero at level 1, no gift of gold (the nardi blessing, the town's gift), and a tray that is the
+the hero at level 1 without the Call, no gift of gold (the nardi blessing, the town's gift), and a tray that is the
 battlefield's whole tray or a part of it. Only what adds power makes a battle `open`.
 - A new player's battles are `std` by themselves: he owns no tier, and a tray still short of a tower he has
   not reached is a handicap, not an advantage. So first victories go to the headline board. (The coached
   first stand is never ranked: `tutorial`.)
 - A player who owns Council tiers or a hero level on that battlefield gets a switch on the chronicle, in
-  `#briefKit`: "Standard battle · no Council, hero at level 1 · for the Standard boards. The battle clock
+  `#briefKit`: "Standard battle · no Council, hero at level 1, no Call · for the Standard boards. The battle clock
   runs between waves too. Pause to plan." (off by default, remembered for the visit, 44 px). `standard_set`
   records its use. `openBriefStandard(levelIndex)` opens a chronicle with the switch on, for a "Fight for
   this board" door if the platform wants one.
-- The Call is part of the standard set once the campaign has opened it (4.4); a player without it has less.
+- The Call is part of the kit, like a hero's level: a Standard battle and a daily are fought with today's
+  hero, level 1 and no Call. So the Council and the heroes can ship (R2) without touching a Standard board.
 
 `startDaily(levelIndex, twistId)` (the platform chooses both from `rulesetData()`): Normal; a 12-wave stand
 on every battlefield (`DAILY_WAVES`, 1.1: `SCRIPT_TABLES[12]`, or the battlefield's `dailyScript`); the
-standard loadout with the whole tray and the Call for everyone, whether or not the campaign has reached
-them; the twist applied; `mode: "daily"`. Why 12 everywhere: a daily is one sitting, is not saved, and an
+standard loadout with the whole tray for everyone, whether or not the campaign has reached those towers;
+the twist applied; `mode: "daily"`. Why 12 everywhere: a daily is one sitting, is not saved, and an
 attempt is spent at the first horn; at the campaign's lengths that is up to 40 minutes at 1x on a phone that
-may drop the tab. At 12 waves it is 15 to 23 minutes at 1x on sixteen battlefields and about 31 on
+may drop the tab. At 12 waves it is 15 to 26 minutes at 1x on sixteen battlefields and about 31 on
 Stepanakert 1992 (`gameplay-proto/tables.txt`), half that at 2x. Sis counts its days by script wave
 (`DAYS_PER_WAVE * scriptWave(w)`), so its last wave is still day 60.
 A daily never writes `hs_best_*` or `hs_records` (it opens no road and gives no stars), may be fought on a
@@ -1542,7 +1554,8 @@ Suite 2's checks, by the package that brings them:
   (`RULESET_PIN`, each battlefield's `rev` pin).
 - G1, resumes: a run saved in the middle of a wave with two defenders lost resumes with the wave to fight
   again, its clock kept, and a debt of 2 when the wave is then cleared without loss, of 0 when it loses 2
-  or more again; a run saved between waves resumes with no debt.
+  or more again; a run saved between waves resumes with no debt; a run saved with a spell cooling and the
+  hero fallen resumes with the spell still cooling and the hero still away.
 - G2, Council: stars counted from records with the Hard seal; a tier needs the one under it and its
   chapter; reset returns everything; `Cloud`-style merge of two `hs_council` values takes the later `t` (a
   reset on one side survives) and a forged value is cut down by `councilSane`; the panel's numbers equal
@@ -1576,7 +1589,7 @@ Suite 2's checks, by the package that brings them:
 - G5, tray: 5, 6 or 7 tiles as the campaign stands; five in the coached stand; a resumed run's own tray;
   keys 6 and 7; a tile's price is the kit's; a kind at its limit is refused with its sentence.
 - G6, daily: `startDaily` gives 12 waves on every battlefield, the standard loadout (the whole tray, the
-  empty kit, the Call), applies each twist, and a staged victory leaves `hs_best_*`, `hs_records` and
+  empty kit, no Call), applies each twist, and a staged victory leaves `hs_best_*`, `hs_records` and
   `hs_run` as they were; two daily battles of one day draw the same outflanker lines; `daily.skip` holds
   only pairs of the pool and the list.
 - G7, the special towers: each is offered only on its battlefields and only once its battlefield is open;
@@ -1778,7 +1791,7 @@ platform's, and a lost daily is scored as the platform wrote it):
    2 defenders for a careful first play and 4 for a player who owns everything. The other way (the first
    version's): tune it for a player who owns half the tree, which costs one more round of tuning and makes
    every Standard battle and every daily harder than the campaign.
-8. The boards: a Standard battle has no Council and a level 1 hero, by a switch on the chronicle; the
+8. The boards: a Standard battle has no Council, a level 1 hero and no Call, by a switch on the chronicle; the
    battle clock runs between waves ("Pause to plan"); a resumed battle stays ranked and a wave fought
    again counts its worse attempt.
 9. The daily: 12 waves on every battlefield; it gives hero experience and no stars; its pool is all 17
@@ -1828,6 +1841,9 @@ By the issue numbers of `docs/specs/gameplay-critique.md`.
 | 31 | minor | 8.1: the runner enforces each suite's budget; side by side only on four cores. |
 | 32 | minor | 3.2, 3.4, 3.5, 2.6: the CHECK and INVENTION marks restated. |
 | 34 | minor | 1.2: the total is 245 waves, not 246. |
+| 35 | minor | 4.4: a commander's blow on the hero rises with the hero's level; Stand Fast does not halve it. |
+| 36 | major | 6.1, 4.7, 8.1: the spells', the Call's and the hero's clocks are saved with the run, so a reload gives nothing back. |
+| 33 | minor | Not changed: put to the owner (9.6, item 9; Appendix B). |
 
 ## Appendix B. Kept against the review, and why
 
