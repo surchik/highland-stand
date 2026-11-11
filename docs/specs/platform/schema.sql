@@ -11,6 +11,10 @@
 -- through the functions below, which run as their owner (security definer), check who is calling with
 -- auth.uid(), and are the only doors the game's page uses (POST /rest/v1/rpc/<name>).
 
+-- Run as the postgres role, so that no function below is owned by a superuser (the SQL editor of an older
+-- install runs as supabase_admin, which is one). A role that may not become postgres stops here with an error.
+set role postgres;
+
 create schema if not exists hs_private;
 revoke all on schema hs_private from public;
 
@@ -151,35 +155,34 @@ create table if not exists public.hs_rate (  -- counters for the rate limits
   primary key (bucket, key)
 );
 
-create table if not exists public.hs_handoff (  -- a sign-in that came back in another window (section 1.6)
-  id text primary key,
-  code text not null,
-  created_at timestamptz not null default now()
-);
-
 -- ---------------------------------------------------------------- row level security and grants
 do $$
 declare t text;
 begin
   foreach t in array array['hs_profiles', 'hs_saves', 'hs_rulesets', 'hs_runs', 'hs_scores', 'hs_score_best',
-      'hs_sessions', 'hs_events', 'hs_admins', 'hs_config', 'hs_name_blocklist', 'hs_rate', 'hs_handoff'] loop
+      'hs_sessions', 'hs_events', 'hs_admins', 'hs_config', 'hs_name_blocklist', 'hs_rate'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated', t);
   end loop;
 end $$;
 
--- a signed-in player may read the rows that are theirs; nothing else is open to the API roles
-grant select on public.hs_profiles, public.hs_saves, public.hs_runs, public.hs_scores, public.hs_score_best to authenticated;
+-- No policy and no grant: row level security with no policy lets the API roles read and write nothing. The page
+-- reads no table (it calls the functions below), and a player's own hs_scores rows would show him which of his
+-- results were flagged. (The drops clear what an earlier draft of this file created.)
 drop policy if exists hs_profiles_own on public.hs_profiles;
-create policy hs_profiles_own on public.hs_profiles for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists hs_saves_own on public.hs_saves;
-create policy hs_saves_own on public.hs_saves for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists hs_runs_own on public.hs_runs;
-create policy hs_runs_own on public.hs_runs for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists hs_scores_own on public.hs_scores;
-create policy hs_scores_own on public.hs_scores for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists hs_score_best_own on public.hs_score_best;
-create policy hs_score_best_own on public.hs_score_best for select to authenticated using (user_id = (select auth.uid()));
+-- Supabase also grants the API roles every new sequence in public
+do $$
+declare q text;
+begin
+  for q in select c.oid::regclass::text from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and c.relkind = 'S' and c.relname like 'hs\_%' loop
+    execute 'revoke all on sequence ' || q || ' from public, anon, authenticated';
+  end loop;
+end $$;
 
 -- ---------------------------------------------------------------- private helpers
 create or replace function hs_private.uid() returns uuid
@@ -201,14 +204,15 @@ begin
   if not hs_private.is_admin() then raise exception 'not_admin' using errcode = '42501'; end if;
 end $$;
 
--- at most p_max calls per p_seconds for one key; false once over the limit
-create or replace function hs_private.rate_ok(p_kind text, p_key text, p_seconds integer, p_max integer) returns boolean
+-- at most p_max per p_seconds for one key (p_add at a time: one call, or a batch's events); false once over
+drop function if exists hs_private.rate_ok(text, text, integer, integer);
+create or replace function hs_private.rate_ok(p_kind text, p_key text, p_seconds integer, p_max integer, p_add integer default 1) returns boolean
 language plpgsql security definer set search_path = '' as $$
 declare b text; c integer;
 begin
   b := p_kind || ':' || (floor(extract(epoch from now()) / p_seconds))::bigint;
-  insert into public.hs_rate as r (bucket, key, n) values (b, p_key, 1)
-    on conflict (bucket, key) do update set n = r.n + 1
+  insert into public.hs_rate as r (bucket, key, n) values (b, p_key, greatest(p_add, 1))
+    on conflict (bucket, key) do update set n = r.n + greatest(p_add, 1)
     returning n into c;
   if random() < 0.002 then delete from public.hs_rate where at < now() - interval '2 days'; end if;
   return c <= p_max;
@@ -226,6 +230,29 @@ language sql immutable set search_path = '' as $$
   select translate(lower(regexp_replace(normalize(p, NFKC), '[\s._\-]+', '', 'g')), '013457@$', 'oieastas');
 $$;
 
+-- letters and digits of any alphabet, spaces, and . _ - : nothing else (no symbols, pictures or stacked marks).
+-- The classes are read under an ICU collation where the server has one, so the rule does not hang on the
+-- database's locale (under the plain "C" locale only A to Z would count as letters).
+create or replace function hs_private.name_letters(p text) returns boolean
+language plpgsql stable set search_path = '' as $$
+begin
+  if exists (select 1 from pg_catalog.pg_collation where collname = 'und-x-icu') then
+    return p ~ ('^[[:alpha:][:digit:] ._-]+$' collate "und-x-icu");
+  end if;
+  return p ~ '^[[:alpha:][:digit:] ._-]+$';
+end $$;
+
+-- a text of an event that may be shown on the stats page: a short tag, or the word "other"
+create or replace function hs_private.tag(p text) returns text
+language sql immutable set search_path = '' as $$
+  select case when p is null then null when p ~ '^[A-Za-z0-9_.:-]{1,40}$' then p else 'other' end;
+$$;
+-- a number of an event, or null when it is not one (a stranger's event must never make the stats fail)
+create or replace function hs_private.int_or_null(p text) returns integer
+language sql immutable set search_path = '' as $$
+  select case when p ~ '^-?[0-9]{1,9}$' then p::integer end;
+$$;
+
 -- the name as it will be stored (trimmed, single spaces), or an exception naming what is wrong with it
 create or replace function hs_private.name_clean(p text) returns text
 language plpgsql stable security definer set search_path = '' as $$
@@ -234,7 +261,7 @@ begin
   n := btrim(regexp_replace(normalize(coalesce(p, ''), NFKC), '\s+', ' ', 'g'));
   if char_length(n) < 3 or char_length(n) > 16 then raise exception 'name_length' using errcode = 'P0001'; end if;
   -- no control or invisible direction characters, no ASCII punctuation but . _ -
-  if n ~ '[[:cntrl:]]' or n ~ '[​-‏‪-‮⁦-⁩﻿]' or n ~ '[!-,/:-@\[-\^`{-~]' then
+  if n ~ '[[:cntrl:]]' or n ~ '[​-‏‪-‮⁦-⁩﻿]' or n ~ '[!-,/:-@\[-\^`{-~]' or not hs_private.name_letters(n) then
     raise exception 'name_chars' using errcode = 'P0001';
   end if;
   f := hs_private.name_fold(n);
@@ -258,14 +285,25 @@ declare d bigint := p_day - date '1970-01-01';
   pool jsonb := p_rules -> 'daily' -> 'pool'; tw jsonb := p_rules -> 'daily' -> 'twists';
   n integer := jsonb_array_length(pool); m integer := jsonb_array_length(tw);
   k bigint := (p_rules -> 'daily' ->> 'k')::bigint; j bigint := (p_rules -> 'daily' ->> 'j')::bigint;
+  skip jsonb; idx integer; i integer;
 begin
   level_id := pool ->> ((d * k) % n)::integer;
-  twist := tw ->> ((d * j + d / n) % m)::integer;
+  -- the place in the cycle of n days steps the twists by j; each new cycle shifts them all by one, so over
+  -- n * m days every battlefield meets every twist once
+  idx := (((d % n) * j + d / n) % m)::integer;
+  -- daily.skip[battlefield] lists the twists that battlefield never gets: the pick walks on to the next one
+  skip := coalesce(p_rules -> 'daily' -> 'skip' -> level_id, '[]'::jsonb);
+  for i in 0 .. m - 1 loop
+    twist := tw ->> ((idx + i) % m);
+    exit when not (skip ? twist);
+  end loop;
 end $$;
 
--- the bounds of one battle under a ruleset (a daily's twist may scale them): lives, fast, slow, earn_max, waves
+-- the bounds of one battle under a ruleset (a daily's twist may scale them): lives, fast, slow, earn_max, waves,
+-- and the battlefield's script table (the script wave each of its waves stands for, 20 at the last)
+drop function if exists hs_private.bounds(jsonb, text, integer, text);
 create or replace function hs_private.bounds(p_rules jsonb, p_level text, p_diff integer, p_twist text,
-  out lives integer, out fast integer, out slow integer, out earn_max integer, out waves integer)
+  out lives integer, out fast integer, out slow integer, out earn_max integer, out waves integer, out script jsonb)
 language plpgsql immutable set search_path = '' as $$
 declare lv jsonb := p_rules -> 'levels' -> p_level; d jsonb; t jsonb;
 begin
@@ -274,7 +312,8 @@ begin
   if d is null then raise exception 'diff_unknown' using errcode = 'P0001'; end if;
   t := coalesce(p_rules -> 'daily' -> 't' -> p_twist, '{}'::jsonb);
   waves := (lv ->> 'waves')::integer;
-  lives := round((d ->> 'lives')::numeric * coalesce((t ->> 'lives')::numeric, 1));
+  script := lv -> 'script';
+  lives := coalesce((t ->> 'livesSet')::integer, round((d ->> 'lives')::numeric * coalesce((t ->> 'lives')::numeric, 1)));
   fast := round((d ->> 'fast')::numeric * coalesce((t ->> 'fast')::numeric, 1));
   slow := round((d ->> 'slow')::numeric * coalesce((t ->> 'slow')::numeric, 1));
   earn_max := round((d ->> 'earnMax')::numeric * coalesce((t ->> 'earn')::numeric, 1));
@@ -419,6 +458,7 @@ declare v_uid uuid := hs_private.uid(); run public.hs_runs; rs public.hs_ruleset
   v_won boolean; v_lives integer; v_waves integer; v_sec integer; v_spent integer; v_earned integer; v_loadout text;
   v_score integer; v_stars integer; v_flags text[] := '{}'; v_elapsed numeric; v_board text; v_week text;
   v_sid bigint; v_better_all boolean := false; v_better_week boolean := false; ra record; rw record; fL numeric; fS numeric; fT numeric;
+  v_prog numeric;
 begin
   if not hs_private.rate_ok('score', v_uid::text, 3600, 40) then perform hs_private.limit_hit(); end if;
   select * into run from public.hs_runs where id = p_run and user_id = v_uid for update;
@@ -455,7 +495,14 @@ begin
     v_score := (w ->> 'win')::integer + round((w ->> 'lives')::numeric * fL + (w ->> 'speed')::numeric * fS + (w ->> 'thrift')::numeric * fT);
     v_stars := case when v_lives >= b.lives * 0.85 then 3 when v_lives >= b.lives * 0.5 then 2 else 1 end;
   else
-    v_score := floor((w ->> 'lostMax')::numeric * v_waves / b.waves);
+    -- by the script wave the last cleared wave stands for, out of 20, so a loss on a short battlefield and one on
+    -- a long one compare honestly; a ruleset without the table falls back to waves cleared out of the length
+    if v_waves >= 1 and jsonb_typeof(b.script) = 'array' and jsonb_array_length(b.script) = b.waves then
+      v_prog := least(1, greatest(0, (b.script ->> (v_waves - 1))::numeric / 20));
+    else
+      v_prog := v_waves::numeric / b.waves;
+    end if;
+    v_score := floor((w ->> 'lostMax')::numeric * v_prog);
     v_stars := 0;
   end if;
   if v_sec < b.fast then v_flags := v_flags || 'fast'; end if;
@@ -551,10 +598,15 @@ end $$;
 
 -- ---------------------------------------------------------------- public: analytics
 -- p_ctx: { aid, sid, build, ruleset, channel, dev, os, browser, standalone, vw, vh, lang, ref }
--- p_events: [ { n: name, q: sequence number, t: device clock in ms, p: { ... } }, ... ] (50 at most)
+-- p_events: [ { n: name, q: sequence number, t: device clock in ms, p: { ... } }, ... ] (50 at most, 60 KB at most)
+-- Limits count events, not calls. A visitor's events draw on one pool for all visitors (ev_cap_hour, default
+-- 20000 an hour) and 900 an hour per device id; a signed-in player's draw on his own 1500 an hour and on no pool,
+-- so a flood of made-up visitors cannot starve the players' counts. Over ev_max_mb megabytes of events (default
+-- 1024) visitors' events are dropped; over one and a half times that, everyone's. Over a limit: dropped, no error.
 create or replace function public.hs_track(p_ctx jsonb, p_events jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v_uid uuid := auth.uid(); v_aid uuid; v_sid text; n integer; e jsonb; v_ok integer := 0; v_cap integer;
+declare v_uid uuid := auth.uid(); v_aid uuid; v_sid text; n integer; e jsonb; v_ok integer := 0;
+  v_cap integer; v_max_mb integer; v_keep integer; v_mb numeric; v_drop boolean := false;
 begin
   begin
     v_aid := (p_ctx ->> 'aid')::uuid; v_sid := p_ctx ->> 'sid';
@@ -565,59 +617,61 @@ begin
     raise exception 'ctx_invalid' using errcode = 'P0001';
   end if;
   n := jsonb_array_length(p_events);
-  if n > 50 or octet_length(p_events::text) > 32768 then raise exception 'batch_too_large' using errcode = 'P0001'; end if;
-  -- one device: 900 events an hour; everyone together: the configured cap (default 60000 an hour). Over it: dropped, not an error
-  select coalesce((select (value #>> '{}')::integer from public.hs_config where key = 'ev_cap_hour'), 60000) into v_cap;
-  if not hs_private.rate_ok('ev', v_aid::text, 3600, 900 / greatest(n, 1)) or not hs_private.rate_ok('evall', 'all', 3600, v_cap / greatest(n, 1)) then
-    return jsonb_build_object('accepted', 0, 'dropped', n);
+  if n > 50 or octet_length(p_events::text) > 61440 then raise exception 'batch_too_large' using errcode = 'P0001'; end if;
+  if n = 0 then return jsonb_build_object('accepted', 0, 'dropped', 0); end if;
+  select coalesce((select hs_private.int_or_null(value #>> '{}') from public.hs_config where key = 'ev_cap_hour'), 20000),
+         coalesce((select hs_private.int_or_null(value #>> '{}') from public.hs_config where key = 'ev_max_mb'), 1024),
+         coalesce((select hs_private.int_or_null(value #>> '{}') from public.hs_config where key = 'ev_keep_days'), 180)
+    into v_cap, v_max_mb, v_keep;
+  v_mb := pg_total_relation_size('public.hs_events') / 1048576.0;
+  if v_uid is null then
+    -- the pool first (one row), so a flood of made-up device ids adds no rows of its own once the pool is dry
+    if v_mb > v_max_mb then v_drop := true;
+    elsif not hs_private.rate_ok('evanon', 'all', 3600, v_cap, n) then v_drop := true;
+    elsif not hs_private.rate_ok('ev', v_aid::text, 3600, 900, n) then v_drop := true;
+    end if;
+  else
+    if v_mb > v_max_mb * 1.5 then v_drop := true;
+    elsif not hs_private.rate_ok('evu', v_uid::text, 3600, 1500, n) then v_drop := true;
+    end if;
   end if;
+  if v_drop then return jsonb_build_object('accepted', 0, 'dropped', n); end if;
   insert into public.hs_sessions as s (sid, aid, uid, build, ruleset, channel, dev_class, os, browser, standalone, vw, vh, lang, ref)
     values (v_sid, v_aid, v_uid, left(p_ctx ->> 'build', 20), left(p_ctx ->> 'ruleset', 40), left(p_ctx ->> 'channel', 12),
-      left(p_ctx ->> 'dev', 12), left(p_ctx ->> 'os', 16), left(p_ctx ->> 'browser', 16), (p_ctx ->> 'standalone')::boolean,
-      (p_ctx ->> 'vw')::integer, (p_ctx ->> 'vh')::integer, left(p_ctx ->> 'lang', 12), left(p_ctx ->> 'ref', 60))
+      left(p_ctx ->> 'dev', 12), left(p_ctx ->> 'os', 16), left(p_ctx ->> 'browser', 16), (p_ctx ->> 'standalone') = 'true',
+      hs_private.int_or_null(p_ctx ->> 'vw'), hs_private.int_or_null(p_ctx ->> 'vh'), left(p_ctx ->> 'lang', 12), left(p_ctx ->> 'ref', 60))
     on conflict (sid) do update set uid = coalesce(s.uid, excluded.uid)
     where s.aid = excluded.aid;
   if not exists (select 1 from public.hs_sessions where sid = v_sid and aid = v_aid) then
     raise exception 'ctx_invalid' using errcode = 'P0001';   -- the session id belongs to another device
   end if;
   for e in select * from jsonb_array_elements(p_events) loop
-    continue when coalesce(e ->> 'n', '') !~ '^[a-z][a-z0-9_]{1,39}$' or octet_length(coalesce(e -> 'p', '{}'::jsonb)::text) > 1024;
+    -- a name of small letters, digits and underscores; props an object of at most 4 KB (a battle's facts are about 1.2 KB)
+    continue when coalesce(e ->> 'n', '') !~ '^[a-z][a-z0-9_]{1,39}$'
+      or (e ? 'p' and jsonb_typeof(e -> 'p') not in ('object', 'null'))
+      or octet_length(coalesce(e -> 'p', '{}'::jsonb)::text) > 4096;
     insert into public.hs_events (sid, seq, name, props, cts)
-      values (v_sid, coalesce((e ->> 'q')::integer, 0), e ->> 'n', coalesce(e -> 'p', '{}'::jsonb),
-        to_timestamp(least(greatest(coalesce((e ->> 't')::numeric, 0), 0), 4102444800000) / 1000.0));
+      values (v_sid, coalesce(hs_private.int_or_null(e ->> 'q'), 0), e ->> 'n',
+        case when jsonb_typeof(e -> 'p') = 'object' then e -> 'p' else '{}'::jsonb end,
+        to_timestamp(least(greatest(coalesce(case when (e ->> 't') ~ '^[0-9]{1,15}$' then (e ->> 't')::numeric end, 0), 0), 4102444800000) / 1000.0));
     v_ok := v_ok + 1;
   end loop;
+  -- old visits leave by themselves (no scheduler needed): now and then a call removes a few that are past keeping
+  if random() < 0.005 then
+    delete from public.hs_sessions where sid in (select s2.sid from public.hs_sessions s2
+      where s2.started_at < now() - make_interval(days => greatest(v_keep, 7)) limit 300);
+  end if;
   return jsonb_build_object('accepted', v_ok, 'dropped', n - v_ok);
-end $$;
-
--- ---------------------------------------------------------------- public: sign-in handed between windows
--- The window that got the sign-in's code but not its verifier leaves the code here for the window that has the
--- verifier (an iPhone's Home Screen app and Safari keep separate storage). A code is useless without the verifier.
-create or replace function public.hs_handoff_put(p_id text, p_code text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
-begin
-  if p_id !~ '^[A-Za-z0-9_-]{32,64}$' or p_code !~ '^[A-Za-z0-9-]{20,80}$' then raise exception 'handoff_invalid' using errcode = 'P0001'; end if;
-  if not hs_private.rate_ok('hand', 'all', 60, 600) then perform hs_private.limit_hit(); end if;
-  delete from public.hs_handoff where created_at < now() - interval '10 minutes';
-  insert into public.hs_handoff (id, code) values (p_id, p_code) on conflict (id) do nothing;
-  return jsonb_build_object('ok', true);
-end $$;
-
-create or replace function public.hs_handoff_take(p_id text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
-declare v_code text;
-begin
-  if p_id !~ '^[A-Za-z0-9_-]{32,64}$' then raise exception 'handoff_invalid' using errcode = 'P0001'; end if;
-  delete from public.hs_handoff where id = p_id and created_at > now() - interval '5 minutes' returning code into v_code;
-  return jsonb_build_object('code', v_code);
 end $$;
 
 -- ---------------------------------------------------------------- public: delete my account
 create or replace function public.hs_delete_account() returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' set statement_timeout = '30s' as $$
 declare v_uid uuid := hs_private.uid();
 begin
-  delete from public.hs_sessions where uid = v_uid;      -- and its events
+  -- the visits that carried the account, and the visits of the same devices from before any sign-in (and their events)
+  delete from public.hs_sessions where uid is null and aid in (select s.aid from public.hs_sessions s where s.uid = v_uid);
+  delete from public.hs_sessions where uid = v_uid;
   delete from public.hs_rate where key = v_uid::text;
   delete from auth.users where id = v_uid;               -- and, through the foreign keys, every hs_ row of this player
   return jsonb_build_object('ok', true);
@@ -638,6 +692,19 @@ begin
     if (lv ->> 'waves')::integer not between 1 and 60 or jsonb_array_length(lv -> 'd') <> 3 then
       raise exception 'ruleset_invalid' using errcode = 'P0001', detail = k;
     end if;
+    -- a script table, when given: one entry a wave, ending on script wave 20
+    if lv ? 'script' and (jsonb_typeof(lv -> 'script') <> 'array' or jsonb_array_length(lv -> 'script') <> (lv ->> 'waves')::integer
+        or (lv -> 'script' ->> -1)::integer <> 20) then
+      raise exception 'ruleset_invalid' using errcode = 'P0001', detail = k || ': script';
+    end if;
+  end loop;
+  -- no battlefield of the daily's pool may leave out every twist
+  for k in select jsonb_array_elements_text(p_data -> 'daily' -> 'pool') loop
+    if p_data -> 'levels' -> k is null then raise exception 'ruleset_invalid' using errcode = 'P0001', detail = k || ': not a battlefield'; end if;
+    if not exists (select 1 from jsonb_array_elements_text(p_data -> 'daily' -> 'twists') tw
+                   where not (coalesce(p_data -> 'daily' -> 'skip' -> k, '[]'::jsonb) ? tw)) then
+      raise exception 'ruleset_invalid' using errcode = 'P0001', detail = k || ': no twist left';
+    end if;
   end loop;
   insert into public.hs_rulesets (id, data, published_by) values (p_id, p_data, auth.uid())
     on conflict (id) do update set data = excluded.data, active = true, published_at = now(), published_by = excluded.published_by;
@@ -648,7 +715,10 @@ create or replace function public.hs_admin_set_config(p_key text, p_value jsonb)
 language plpgsql security definer set search_path = '' as $$
 begin
   perform hs_private.need_admin();
-  if p_key not in ('gate', 'cloud', 'notice', 'ev_sample', 'ev_cap_hour', 'boards', 'daily') then raise exception 'key_unknown' using errcode = 'P0001'; end if;
+  if p_key not in ('gate', 'cloud', 'notice', 'ev_sample', 'ev_cap_hour', 'ev_max_mb', 'ev_keep_days', 'boards', 'daily') then raise exception 'key_unknown' using errcode = 'P0001'; end if;
+  if p_key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days') and p_value is not null and p_value <> 'null'::jsonb
+     and hs_private.int_or_null(p_value #>> '{}') is null then raise exception 'value_invalid' using errcode = 'P0001'; end if;
+  if p_key = 'notice' and char_length(coalesce(p_value #>> '{}', '')) > 140 then raise exception 'value_invalid' using errcode = 'P0001'; end if;
   if p_key = 'gate' and (p_value #>> '{}') not in ('required', 'optional', 'off') then raise exception 'value_invalid' using errcode = 'P0001'; end if;
   if p_value is null or p_value = 'null'::jsonb then
     delete from public.hs_config where key = p_key;
@@ -701,14 +771,19 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- removes visits older than p_days, 5000 at a call (their events go with them); "more" says to call again.
+-- Battles begun and never finished leave after 30 days.
 create or replace function public.hs_admin_purge_events(p_days integer default 180) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' set statement_timeout = '60s' as $$
 declare n bigint;
 begin
   perform hs_private.need_admin();
-  delete from public.hs_sessions where started_at < now() - make_interval(days => greatest(p_days, 7));
+  delete from public.hs_sessions where sid in (select s.sid from public.hs_sessions s
+    where s.started_at < now() - make_interval(days => greatest(p_days, 7)) order by s.started_at limit 5000);
   get diagnostics n = row_count;
-  return jsonb_build_object('ok', true, 'sessions_removed', n);
+  delete from public.hs_runs where id in (select r.id from public.hs_runs r
+    where r.finished_at is null and r.started_at < now() - interval '30 days' limit 5000);
+  return jsonb_build_object('ok', true, 'sessions_removed', n, 'more', n >= 5000);
 end $$;
 
 -- ---------------------------------------------------------------- the owner's stats (admins only)
@@ -720,31 +795,60 @@ create or replace view hs_private.v_sessions as
 create or replace view hs_private.v_first_seen as
   select aid, min(day) as first_day from hs_private.v_sessions group by aid;
 
+drop view if exists hs_private.v_battles;
 create or replace view hs_private.v_battles as   -- one row per battle ended
   select e.ts, s.day, s.aid, s.person, s.dev_class, e.name,
-    e.props ->> 'lv' as level_id, (e.props ->> 'diff')::integer as diff, e.props ->> 'mode' as mode,
-    (e.props ->> 'lives')::integer as lives, (e.props ->> 'lives_max')::integer as lives_max,
-    (e.props ->> 'wave')::integer as wave, (e.props ->> 'waves')::integer as waves
+    hs_private.tag(e.props ->> 'lv') as level_id, hs_private.int_or_null(e.props ->> 'diff') as diff, hs_private.tag(e.props ->> 'mode') as mode,
+    hs_private.int_or_null(e.props ->> 'lives') as lives, hs_private.int_or_null(e.props ->> 'lives_max') as lives_max,
+    hs_private.int_or_null(e.props ->> 'wave') as wave, hs_private.int_or_null(e.props ->> 'waves') as waves
   from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
   where e.name in ('victory', 'defeat')
      -- a battle left (abandoned, or the page hidden in the middle of it) and not come back to in that visit
      or (e.name = 'battle_quit' and not exists (select 1 from public.hs_events b
            where b.sid = e.sid and b.name = 'battle_back' and b.seq > e.seq));
 
-create or replace function public.hs_stats(p_days integer default 30) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+-- p_cards: null for every card, or the cards wanted (the page asks card by card when the whole answer is too slow)
+drop function if exists public.hs_stats(integer);
+create or replace function public.hs_stats(p_days integer default 30, p_cards text[] default null) returns jsonb
+language plpgsql stable security definer set search_path = '' set statement_timeout = '30s' as $$
 declare v_from date := (now() at time zone 'utc')::date - greatest(least(coalesce(p_days, 30), 365), 1);
   v_funnel jsonb; v_ret jsonb; v_quit jsonb; v_fields jsonb; v_dev jsonb; v_daily jsonb; v_gate jsonb; v_rules jsonb; v_tot jsonb; v_flag jsonb;
+  v_cfg jsonb; v_mb numeric;
 begin
   perform hs_private.need_admin();
-  -- the first-run funnel: of the devices first seen in the window, how many reached each step
-  with newcomers as (select aid from hs_private.v_first_seen where first_day >= v_from),
+  if p_cards is null or 'funnel' = any(p_cards) then
+  -- the first-run funnel: of the devices first seen in the window, how many reached each step. Each device is of
+  -- one kind: "new" (no battlefield held at its first load), "returning" (it had progress: a player from before
+  -- the accounts), or "inapp" (its first gate was in another app's browser). Two steps are not taken from the
+  -- page's word: signed_in is a visit that carried an account, name_set is that account having a profile.
+  with first_load as (
+      select distinct on (s.aid) s.aid, hs_private.int_or_null(e.props ->> 'progress') as progress
+      from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid where e.name = 'page_load' order by s.aid, e.ts),
+    newcomers as (
+      select fs.aid, case
+          when exists (select 1 from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
+                       where s.aid = fs.aid and e.name = 'gate_shown' and e.props ->> 'state' = 'inapp') then 'inapp'
+          when coalesce(fl.progress, 0) > 0 then 'returning' else 'new' end as kind
+      from hs_private.v_first_seen fs left join first_load fl on fl.aid = fs.aid where fs.first_day >= v_from),
     steps (ord, name) as (values (1, 'page_load'), (2, 'gate_shown'), (3, 'provider_tapped'), (4, 'signed_in'), (5, 'name_set'),
       (6, 'battle_start'), (7, 'tutorial_done'), (8, 'wave_end'), (9, 'victory')),
-    reached as (select st.ord, st.name, count(distinct s.aid) as n
-      from steps st left join (public.hs_events e join hs_private.v_sessions s on s.sid = e.sid join newcomers nc on nc.aid = s.aid)
-        on e.name = st.name group by st.ord, st.name)
-  select jsonb_agg(jsonb_build_object('step', name, 'n', n) order by ord) into v_funnel from reached;
+    kinds (kind) as (values ('new'), ('returning'), ('inapp')),
+    did as (
+      select distinct nc.aid, nc.kind, e.name from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid
+        join public.hs_events e on e.sid = s.sid
+        where e.name in ('page_load', 'gate_shown', 'provider_tapped', 'battle_start', 'tutorial_done', 'wave_end', 'victory')
+      union
+      select distinct nc.aid, nc.kind, 'signed_in' from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid where s.uid is not null
+      union
+      select distinct nc.aid, nc.kind, 'name_set' from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid
+        join public.hs_profiles p on p.user_id = s.uid)
+  select jsonb_agg(jsonb_build_object('step', st.name, 'n', (select count(*) from did d where d.name = st.name),
+      'new', (select count(*) from did d where d.name = st.name and d.kind = 'new'),
+      'returning', (select count(*) from did d where d.name = st.name and d.kind = 'returning'),
+      'inapp', (select count(*) from did d where d.name = st.name and d.kind = 'inapp')) order by st.ord)
+    into v_funnel from steps st;
+  end if;
+  if p_cards is null or 'retention' = any(p_cards) then
   -- return on the next day and a week on, by the day a device was first seen
   with fs as (select aid, first_day from hs_private.v_first_seen where first_day >= v_from),
     seen as (select distinct aid, day from hs_private.v_sessions)
@@ -753,10 +857,14 @@ begin
       count(*) filter (where exists (select 1 from seen x where x.aid = fs.aid and x.day = fs.first_day + 1)) as d1,
       count(*) filter (where exists (select 1 from seen x where x.aid = fs.aid and x.day = fs.first_day + 7)) as d7
     from fs group by fs.first_day) q;
+  end if;
+  if p_cards is null or 'quits' = any(p_cards) then
   -- where players quit: battles left unfinished, by battlefield and the wave they were on
   select jsonb_agg(jsonb_build_object('lv', level_id, 'diff', diff, 'wave', wave, 'n', n) order by n desc) into v_quit
   from (select level_id, diff, wave, count(*) as n from hs_private.v_battles
         where name = 'battle_quit' and day >= v_from group by 1, 2, 3 order by n desc limit 60) q;
+  end if;
+  if p_cards is null or 'fields' = any(p_cards) then
   -- each battlefield and difficulty: battles ended, win rate, defenders kept in the wins, and where the defeats came
   select jsonb_agg(jsonb_build_object('lv', level_id, 'diff', diff, 'ended', ended, 'wins', wins, 'quits', quits,
       'lives_avg', lives_avg, 'lives_share', lives_share, 'defeat_wave_avg', defeat_wave) order by level_id, diff) into v_fields
@@ -766,32 +874,48 @@ begin
       round(avg(lives::numeric / nullif(lives_max, 0)) filter (where name = 'victory'), 3) as lives_share,
       round(avg(wave) filter (where name = 'defeat'), 1) as defeat_wave
     from hs_private.v_battles where day >= v_from and coalesce(mode, 'campaign') = 'campaign' group by 1, 2) q;
+  end if;
+  if p_cards is null or 'devices' = any(p_cards) then
   select jsonb_agg(jsonb_build_object('dev', dev_class, 'os', os, 'standalone', standalone, 'people', people, 'sessions', sessions) order by people desc) into v_dev
-  from (select dev_class, os, standalone, count(distinct person) as people, count(*) as sessions
+  from (select hs_private.tag(dev_class) as dev_class, hs_private.tag(os) as os, standalone, count(distinct person) as people, count(*) as sessions
         from hs_private.v_sessions where day >= v_from group by 1, 2, 3) q;
+  end if;
+  if p_cards is null or 'totals' = any(p_cards) then
   select jsonb_agg(jsonb_build_object('day', day, 'people', people, 'sessions', sessions, 'signed_in', signed_in) order by day) into v_daily
   from (select day, count(distinct person) as people, count(*) as sessions, count(distinct uid) as signed_in
         from hs_private.v_sessions where day >= v_from group by day) q;
+  select jsonb_build_object('accounts', (select count(*) from public.hs_profiles), 'saves', (select count(*) from public.hs_saves),
+    'scores', (select count(*) from public.hs_scores where created_at >= v_from), 'events', (select count(*) from public.hs_events where ts >= v_from)) into v_tot;
+  end if;
+  if p_cards is null or 'gate' = any(p_cards) then
   -- the gate: what was tapped, what came back, who went round it
   select jsonb_agg(jsonb_build_object('event', name, 'provider', provider, 'why', why, 'n', n) order by name, n desc) into v_gate
-  from (select e.name, e.props ->> 'provider' as provider, coalesce(e.props ->> 'why', e.props ->> 'error') as why, count(distinct s.aid) as n
+  from (select e.name, hs_private.tag(e.props ->> 'provider') as provider,
+          hs_private.tag(coalesce(e.props ->> 'why', e.props ->> 'error', e.props ->> 'state')) as why, count(distinct s.aid) as n
         from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
         where s.day >= v_from and e.name in ('gate_shown', 'provider_tapped', 'signed_in', 'signin_error', 'gate_bypass', 'gate_down')
         group by 1, 2, 3) q;
+  end if;
+  if p_cards is null or 'rulesets' = any(p_cards) then
   select jsonb_agg(jsonb_build_object('ruleset', ruleset, 'sessions', n, 'published', pub) order by n desc) into v_rules
-  from (select s.ruleset, count(*) as n, exists (select 1 from public.hs_rulesets r where r.id = s.ruleset and r.active) as pub
-        from hs_private.v_sessions s where s.day >= v_from and s.ruleset is not null group by s.ruleset) q;
-  select jsonb_build_object('accounts', (select count(*) from public.hs_profiles), 'saves', (select count(*) from public.hs_saves),
-    'scores', (select count(*) from public.hs_scores where created_at >= v_from), 'events', (select count(*) from public.hs_events where ts >= v_from)) into v_tot;
+  from (select q0.ruleset, count(*) as n, exists (select 1 from public.hs_rulesets r where r.id = q0.ruleset and r.active) as pub
+        from (select hs_private.tag(s.ruleset) as ruleset from hs_private.v_sessions s where s.day >= v_from and s.ruleset is not null) q0
+        group by q0.ruleset) q;
+  end if;
+  if p_cards is null or 'flagged' = any(p_cards) then
   select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'user', user_id, 'lv', level_id, 'diff', diff, 'mode', mode, 'score', score,
       'flags', flags, 'at', created_at) order by created_at desc) into v_flag
   from (select sc.id, p.name, sc.user_id, sc.level_id, sc.diff, sc.mode, sc.score, sc.flags, sc.created_at
         from public.hs_scores sc join public.hs_profiles p on p.user_id = sc.user_id
         where sc.created_at >= v_from and cardinality(sc.flags) > 0 order by sc.created_at desc limit 50) q;
+  end if;
+  -- every switch (the public ones and the admin's own), and how full the events are
+  select coalesce(jsonb_object_agg(c.key, c.value), '{}'::jsonb) into v_cfg from public.hs_config c;
+  v_mb := round(pg_total_relation_size('public.hs_events') / 1048576.0, 1);
   return jsonb_build_object('from', v_from, 'days', p_days, 'funnel', coalesce(v_funnel, '[]'::jsonb), 'retention', coalesce(v_ret, '[]'::jsonb),
     'quits', coalesce(v_quit, '[]'::jsonb), 'fields', coalesce(v_fields, '[]'::jsonb), 'devices', coalesce(v_dev, '[]'::jsonb),
     'daily', coalesce(v_daily, '[]'::jsonb), 'gate', coalesce(v_gate, '[]'::jsonb), 'rulesets', coalesce(v_rules, '[]'::jsonb),
-    'totals', v_tot, 'flagged', coalesce(v_flag, '[]'::jsonb), 'config', public.hs_config(), 'now', now());
+    'totals', v_tot, 'flagged', coalesce(v_flag, '[]'::jsonb), 'config', v_cfg, 'events_mb', v_mb, 'now', now());
 end $$;
 
 -- ---------------------------------------------------------------- who may call what
@@ -804,28 +928,43 @@ begin
     execute 'revoke all on function ' || f || ' from public, anon, authenticated';
   end loop;
 end $$;
-grant execute on function public.hs_config(), public.hs_track(jsonb, jsonb), public.hs_handoff_put(text, text), public.hs_handoff_take(text),
+grant execute on function public.hs_config(), public.hs_track(jsonb, jsonb),
   public.hs_board(text, text, integer, text, text, text, date, integer), public.hs_daily_status(text) to anon, authenticated;
 grant execute on function public.hs_profile_get(), public.hs_profile_set_name(text, uuid), public.hs_save_get(text),
   public.hs_save_put(integer, jsonb, text, text), public.hs_run_begin(text, text, integer, text, text), public.hs_score_submit(uuid, jsonb),
-  public.hs_delete_account(), public.hs_stats(integer), public.hs_admin_publish_ruleset(text, jsonb), public.hs_admin_set_config(text, jsonb),
+  public.hs_delete_account(), public.hs_stats(integer, text[]), public.hs_admin_publish_ruleset(text, jsonb), public.hs_admin_set_config(text, jsonb),
   public.hs_admin_moderate(uuid, boolean, text), public.hs_admin_remove_score(bigint), public.hs_admin_purge_events(integer) to authenticated;
 
 -- ---------------------------------------------------------------- starting values
-insert into public.hs_config (key, value) values ('ev_cap_hour', '60000') on conflict (key) do nothing;
+insert into public.hs_config (key, value) values ('ev_cap_hour', '20000'), ('ev_max_mb', '1024'), ('ev_keep_days', '180')
+  on conflict (key) do nothing;
 -- names nobody may take: the game's own and the words of authority (the owner adds the words to refuse, in folded
 -- form, to this table; none are listed here)
 insert into public.hs_name_blocklist (pattern, kind) values
   ('admin', 'contains'), ('moderator', 'contains'), ('highlandstand', 'contains'), ('support', 'exact'), ('owner', 'exact'),
-  ('official', 'contains'), ('system', 'exact'), ('null', 'exact'), ('undefined', 'exact')
+  ('official', 'contains'), ('system', 'exact'), ('null', 'exact'), ('undefined', 'exact'),
+  ('卐', 'contains'), ('卍', 'contains')
 on conflict (pattern) do nothing;
 
 -- PostgREST reads its list of functions when told to
 notify pgrst, 'reload schema';
 
--- a last check for the owner: account deletion needs this
+-- last checks for the owner
 do $$ begin
+  -- account deletion needs this
   if not has_table_privilege(current_user, 'auth.users', 'DELETE') then
-    raise warning 'This role may not delete from auth.users: "Delete my account" will fail. Run this file as the postgres role (the SQL editor does), or see deploy/supabase/README.md.';
+    raise warning 'This role may not delete from auth.users: "Delete my account" will fail. See deploy/supabase/README.md.';
+  end if;
+  -- the name rule on this server: letters of any alphabet pass, pictures and symbols do not
+  if not hs_private.name_letters('Արամ Aram 7') or hs_private.name_letters('★★★') or hs_private.name_letters('a😀b') then
+    raise warning 'The name rule does not read letters as expected on this server (its locale has no letter classes). Tell the game''s builder before going live.';
+  end if;
+  -- on a real Supabase the functions should belong to a role that is not a superuser (the test stand-in has only one role)
+  if exists (select 1 from pg_roles where rolname = 'supabase_admin') and exists (
+      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_roles r on r.oid = p.proowner
+      where n.nspname = 'public' and p.proname like 'hs\_%' and r.rolsuper) then
+    raise warning 'Some hs_ functions are owned by a superuser. Run this file again from its first line (it begins with: set role postgres).';
   end if;
 end $$;
+
+reset role;
