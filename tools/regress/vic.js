@@ -4,7 +4,10 @@
 // the page offers (Next battle, Replay, Hold Forever, Campaign Map) must lie wholly on screen, uncovered at its center
 // and its corners, apart from the others, with its label whole (and at least 40 px tall to a finger), and each must do
 // its job when pressed: Next battle leads (through a new chapter's nardi invitation and story) to the next chronicle,
-// Replay to this one, Hold Forever back into the battle, the Campaign Map to the map.
+// Replay to this one, Hold Forever back into the battle, the Campaign Map to the map. The War Council's button in the
+// row of growth (#ovGrowth, "Spend 3 stars at the War Council": shown when the victory earned stars that can buy a
+// tier) is held to the same rule, and must open the Hall on the Council and leave the page in reach once the Hall is
+// closed.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/vic.js [index.html] [--quick] [--levels=0,ani] [--shots=dir] [--jobs=n]
 "use strict";
 const R = require("./lib");
@@ -15,7 +18,7 @@ const CONFIGS = [
   { name: "mouse 1440x900", w: 1440, h: 900 },
   { name: "touch 1194x834", w: 1194, h: 834, touch: true },
 ];
-const BTNS = ["#nextBtn", "#startBtn", "#endlessBtn", "#mapBtn"];
+const BTNS = ["#nextBtn", "#startBtn", "#endlessBtn", "#mapBtn", "#ogCouncil"];
 // the least height a button may have to a finger: the page's quiet buttons (Replay, Hold Forever, Campaign Map) are
 // 40 px on the iPad as live (3d4bb2a), under Apple's 44 pt guideline; the floor keeps them from shrinking further
 const MIN_TAP = 40;
@@ -75,11 +78,14 @@ const MIN_TAP = 40;
     for (const lv of levels) {
       const id = ids[lv];
       try {
+        // the stars before this victory: its row of growth shows when it adds some that can buy a tier
+        const had = await g.ev(() => starsEarned());
         await winReal(lv);
         await settle(id);
-        const L = await g.ev(() => ({ next: victoryNext, noEndless: !!LEVELS[curLevel].noEndless, lv: curLevel }));
+        const L = await g.ev(had => ({ next: victoryNext, noEndless: !!LEVELS[curLevel].noEndless, lv: curLevel,
+          growth: starsEarned() > had && COUNCIL_IDS.some(b => (councilOwn()[b] | 0) < 5 && tierState(councilOwn(), b, (councilOwn()[b] | 0) + 1, councilUnspent()) === "open") }), had);
         if (L.lv !== lv) await fail(id + ": the victory page is " + ids[L.lv] + "'s");
-        const want = { "#nextBtn": L.next >= 0, "#startBtn": true, "#endlessBtn": !L.noEndless, "#mapBtn": true };
+        const want = { "#nextBtn": L.next >= 0, "#startBtn": true, "#endlessBtn": !L.noEndless, "#mapBtn": true, "#ogCouncil": L.growth };
         const boxes = {};
         for (const sel of BTNS) {
           const shown = await g.ev(sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; }, sel);
@@ -105,6 +111,22 @@ const MIN_TAP = 40;
         for (let a = 0; a < ks.length; a++) for (let b = a + 1; b < ks.length; b++) {
           const A = boxes[ks[a]], B = boxes[ks[b]];
           if (A.l < B.r - 0.5 && B.l < A.r - 0.5 && A.t < B.b - 0.5 && B.t < A.b - 0.5) await fail(id + ": " + ks[a] + " and " + ks[b] + " overlap");
+        }
+        // the War Council's button: the Hall on the Council, and the page in reach again once it is closed
+        if (boxes["#ogCouncil"]) {
+          await g.press("#ogCouncil");
+          await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 }).catch(() => {});
+          const h = await g.ev(() => ({ open: hallOpen, tab: hallTab, panel: !!document.querySelector("#hallBody .wc") }));
+          if (!h.open || h.tab !== "council" || !h.panel) await fail(id + " #ogCouncil: the Hall did not open on the Council " + JSON.stringify(h));
+          else {
+            await g.press("#hallClose");
+            await g.wait(120);
+            const s = await g.ev(() => ({ open: hallOpen, mode: menuMode }));
+            if (s.open || s.mode !== "victory") await fail(id + " #ogCouncil: closing the Hall did not give the victory page back " + JSON.stringify(s));
+            const q = await g.reach("#mapBtn");
+            if (q.why) await fail(id + " #ogCouncil: after the Hall, the Campaign Map " + q.why);
+          }
+          pressed++;
         }
         // each button pressed on its own victory page
         let first = true;
