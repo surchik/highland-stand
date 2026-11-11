@@ -10,6 +10,9 @@
 //    (only what exists yet). unit.js runs the block alone and holds each name it finds to the tables below:
 //      sha256, pkceChallenge  (P2)  the FIPS 180-4 vectors and RFC 7636's own verifier and challenge
 //      nameCheck              (P2)  ref.NAME_CASES, the same table sql-tests.js holds the server's rule to
+//      inAppUA, providersOf,  (P2)  the sign-in card's own rules: which user agents are another app's browser (1.6),
+//      signinLine                   which provider buttons show for what Auth's /settings answers (3.3, RULINGS D3,
+//                                   D6), and the line after a sign-in that did not finish, by the server's code (1.2)
 //      scoreOf                (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to
 //      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
@@ -104,7 +107,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -116,6 +119,52 @@ if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) if (!pure || !(n in pure)) waiting.push(n + " (" + p + ")");
 }
 if (pure) {
+  // the page's own SHA-256 against Node's on random verifiers of the page's own shape (and, below, against the Web
+  // Crypto API's crypto.subtle, which a secure page also has)
+  if (pure.pkceChallenge) {
+    let bad = 0;
+    for (let i = 0; i < 50; i++) {
+      const v = crypto.randomBytes(64).toString("hex");
+      if (pure.pkceChallenge(v) !== stack.challengeOf(v)) bad++;
+    }
+    ok(bad === 0, "the page's PKCE challenge equals Node's for 50 random verifiers");
+  }
+  if (pure.b64url) for (const n of [0, 1, 2, 3, 31, 32, 33, 64]) {
+    const b = crypto.randomBytes(n);
+    eq(pure.b64url(new Uint8Array(b)), b.toString("base64url"), "the page's base64url of " + n + " bytes");
+  }
+  if (pure.inAppUA) {
+    const IN = ["Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/440.0]",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 300.0.0.18.110",
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36",
+      "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0 Mobile Safari/537.36 musical_ly_2023",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/290.0 Mobile/15E148 Safari/604.1"];
+    const OUT = ["Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", ""];
+    for (const u of IN) ok(pure.inAppUA(u) === true, "an in-app browser is seen: " + u.slice(-40));
+    for (const u of OUT) ok(pure.inAppUA(u) === false, "a browser of its own is not taken for an in-app one: " + (u.slice(-40) || "(empty)"));
+  }
+  if (pure.providersOf) {
+    const all = { external: { google: true, facebook: true, discord: true, email: false }, mailer_autoconfirm: false };
+    eq(pure.providersOf(all, false), { list: ["google", "facebook", "discord"], held: "" }, "the three buttons, in order, when the server has all three on");
+    eq(pure.providersOf({ ...all, mailer_autoconfirm: true }, false), { list: ["google", "facebook"], held: "d" }, "Discord held back while the server confirms emails itself (RULINGS D3)");
+    eq(pure.providersOf({ external: { google: false, facebook: true, discord: true } }, false), { list: ["facebook", "discord"], held: "" }, "a provider switched off has no button (RULINGS D6)");
+    eq(pure.providersOf(all, true), { list: ["facebook", "discord"], held: "" }, "no Google in an in-app browser");
+    eq(pure.providersOf({ external: { discord: true }, mailer_autoconfirm: true }, false), { list: [], held: "d" }, "only Discord, held back: no button");
+    eq(pure.providersOf({ external: { google: "true" } }, false), { list: [], held: "" }, "only a true switch counts");
+    eq(pure.providersOf(null, false), { list: [], held: "" }, "no answer, no button");
+  }
+  if (pure.signinLine) {
+    eq(pure.signinLine("provider_email_needs_verification", "discord"), "Discord says your email is not verified. Verify it there, then try again.", "the line for an unverified email names the provider");
+    for (const c of ["bad_oauth_state", "flow_state_expired", "flow_state_not_found"]) eq(pure.signinLine(c, "google"), "Sign-in took too long. Try again.", "the line for " + c);
+    eq(pure.signinLine("access_denied", "google", false), "Sign-in was canceled.", "the line for a cancel");
+    eq(pure.signinLine("access_denied", "google", true), "Sign-in did not finish. Try again, or use another account.", "access_denied after a code is no cancel");
+    eq(pure.signinLine("no_verifier"), "Sign-in did not finish here. Try again.", "the line for a return in another window");
+    for (const c of ["server_error", "abandoned", "unexpected_failure", "", null]) eq(pure.signinLine(c, "facebook"), "Sign-in did not finish. Try again, or use another account.", "the line for " + JSON.stringify(c));
+    ok(!/[\u2013\u2014]/.test(Object.values(PURE_LINES(pure)).join("")), "no long dash in the lines");
+  }
   if (pure.sha256) for (const [m, want] of SHA) {
     const w = want || crypto.createHash("sha256").update(m, "utf8").digest("hex");
     eq(String(pure.sha256(m)).toLowerCase(), w, "the page's sha256 of " + JSON.stringify(m.slice(0, 20)));
@@ -140,7 +189,20 @@ if (pure) {
   }
 }
 
+// every line the sign-in card can show after a failure, for the dash check
+function PURE_LINES(p) { const o = {}; for (const c of ["provider_email_needs_verification", "bad_oauth_state", "access_denied", "no_verifier", "x"]) o[c] = p.signinLine(c, "google"); return o; }
+(async () => {
+if (pure && pure.pkceChallenge && globalThis.crypto && crypto.webcrypto && crypto.webcrypto.subtle) {
+  let bad = 0;
+  for (let i = 0; i < 20; i++) {
+    const v = crypto.randomBytes(64).toString("hex");
+    const d = Buffer.from(await crypto.webcrypto.subtle.digest("SHA-256", new TextEncoder().encode(v))).toString("base64url");
+    if (d !== pure.pkceChallenge(v)) bad++;
+  }
+  ok(bad === 0, "the page's PKCE challenge equals crypto.subtle's for 20 random verifiers");
+}
 console.log("unit.js: " + (pure ? "the page's PLATFORM PURE block found" : "no PLATFORM PURE block in " + path.basename(page) + " yet"));
 if (waiting.length) console.log("waiting for their packages: " + waiting.join(", "));
 console.log("RESULT unit: " + total + " checks, " + failed + " failed" + (waiting.length ? ", " + waiting.length + " subjects not in the page yet" : ""));
 process.exit(failed ? 1 : 0);
+})();

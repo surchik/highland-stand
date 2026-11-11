@@ -2531,6 +2531,162 @@
     }
     #hall .hlBody { margin-top: 6px; font-size: 15px; line-height: 1.4; }
   }
+
+  /* ---- the gate (section 3): a layer of its own over the whole page, under the crash card only. The map shows
+     through its dimmed ground; one carved card holds the state (checking, signin, name, welcome, down, nostore).
+     Desktop and iPad: one column 460 px wide. A phone held sideways: the words at the left, the buttons in a
+     column 250 px wide at the right. Held upright: one column, the buttons the card's whole width. The card keeps
+     out of the safe areas and scrolls inside itself where a very short window cuts it. ---- */
+  #gate {
+    position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal));
+    background: radial-gradient(ellipse 90% 80% at 50% 46%, rgba(26,17,9,.62), rgba(8,5,2,.88));
+    color: var(--parch); font-family: var(--face); touch-action: manipulation;
+  }
+  #gate.gtHidden { display: none; }
+  #gate:focus, #gate .gtCard:focus { outline: none; }
+  #gate .gtCard {
+    position: relative; width: min(460px, 100%); max-height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+    padding: 30px; text-align: center; font-size: 17px; line-height: 1.4;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "words" "btns" "small"; row-gap: 18px; align-items: center;
+  }
+  #gate .gtWords { grid-area: words; min-width: 0; }
+  #gate .gtBtns { grid-area: btns; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+  #gate .gtSmall { grid-area: small; font-size: 12.5px; line-height: 1.4; color: var(--parch-dk); }
+  #gate .gtSmall:empty { display: none; }
+  #gate .gtHead { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  #gate .gtCrest { flex: none; width: 64px; height: 64px; display: grid; place-items: center; color: var(--bronze-hi); }
+  #gate .gtCrest .ic { width: 64px; height: 64px; vertical-align: 0; filter: drop-shadow(0 2px 2px rgba(0,0,0,.7)); }
+  #gate .gtTitle { font-size: 26px; line-height: 1.15; letter-spacing: 1.5px; color: var(--bronze-hi); text-shadow: 0 2px 0 rgba(0,0,0,.7); }
+  #gate .gtTitle.gtWord { letter-spacing: .3px; }
+  #gate .gtWords p { margin-top: 10px; }
+  #gate .gtLead { font-weight: 700; color: #fff3d6; }
+  #gate .gtNotice { font-style: italic; color: var(--bronze-hi); }
+  #gate .gtLine { font-weight: 700; color: #ffcf9e; }
+  #gate .gtNote { font-size: 15px; color: #ffe0b0; }
+  #gate .gtSmall a, #gate .gtWords a { color: var(--bronze-hi); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  /* the privacy link stands on a line of its own, tall enough for a finger */
+  #gate .gtPrivacy { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; font-size: 14px; }
+  /* the buttons: the providers' own colors and marks, the quiet ones (Play now, Try again, Later) in the game's walnut */
+  #gate .gateBtn, #gate .gtQuiet {
+    position: relative; width: 320px; max-width: 100%; min-height: 52px; padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 12px;
+    -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 17px; font-weight: 600; letter-spacing: 0;
+    border-radius: 8px; border: 1px solid transparent; box-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  #gate .gateBtn svg { flex: none; width: 22px; height: 22px; }
+  #gate .gateBtn[data-p="google"] { background: #fff; color: #1f1f1f; border-color: #dadce0; }
+  #gate .gateBtn[data-p="facebook"] { background: #1877F2; color: #fff; }
+  #gate .gateBtn[data-p="discord"] { background: #5865F2; color: #fff; }
+  #gate .gtQuiet {
+    font-family: var(--face); font-weight: 700; color: var(--parch); border: 1px solid var(--bronze-sh);
+    background: linear-gradient(180deg, #503d28, #2f2317); text-shadow: 0 1px 0 rgba(0,0,0,.65);
+    box-shadow: inset 0 1px 0 rgba(240,207,133,.38), inset 0 -2px 0 rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.55);
+  }
+  /* the welcome card's lead button: the green of today's Resume and March buttons */
+  #gate .gtQuiet.gtGo { color: #fff6dc; border-color: #2c4a22; background: linear-gradient(180deg, #75a652, var(--green, #4d7a35) 50%, #33552a); text-shadow: 0 1px 0 rgba(20,45,10,.9); }
+  #gate .gtQuiet .gtSub { display: block; overflow: hidden; text-overflow: ellipsis; }
+  #gate .gtQuiet.gtWrap { white-space: normal; line-height: 1.2; padding-top: 6px; padding-bottom: 6px; }
+  #gate button:disabled { cursor: default; filter: saturate(.4) brightness(.7); }
+  @media (hover: hover) { #gate button:not(:disabled):hover { filter: brightness(1.08); } }
+  #gate button:focus-visible, #gate a:focus-visible, #gate input:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  /* the ring is for the keyboard: the card moves the focus to its first button itself, and a tap should not ring it */
+  #gate:not(.gtKeys) button:focus-visible, #gate:not(.gtKeys) a:focus-visible { outline: none; }
+  /* "Last used": a small tag on the shoulder of the button this device signed in with last */
+  #gate .gtLast {
+    position: absolute; top: -8px; right: 10px; padding: 0 7px; border-radius: 8px; font-family: var(--face); font-size: 11.5px; line-height: 15px; font-weight: 700;
+    color: #2c1e10; background: linear-gradient(180deg, #f0cf85, #c9972f); border: 1px solid #6e4d1e; pointer-events: none;
+  }
+  /* the in-app browser's two small buttons, side by side */
+  #gate .gtPair { display: flex; gap: 10px; width: 320px; max-width: 100%; }
+  #gate .gtPair .gtQuiet { flex: 1 1 0; width: auto; min-width: 0; min-height: 44px; font-size: 15px; padding: 0 8px; }
+  #gate .gtCopy { width: 100%; margin-top: 8px; min-height: 44px; padding: 0 10px; font: 14px system-ui, sans-serif; user-select: text; -webkit-user-select: text; }
+  /* the name card's field and what it says under it */
+  #gate .gtField {
+    width: 320px; max-width: 100%; min-height: 48px; padding: 0 14px; border-radius: 8px; border: 2px solid var(--bronze-sh);
+    background: #f6ecd2; color: #2c1e10; font: 600 18px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center;
+    user-select: text; -webkit-user-select: text;
+  }
+  #gate .gtErr { min-height: 1.4em; font-size: 14.5px; font-weight: 700; color: #ffb79a; }
+  #gate .gtErr:empty::before { content: "\00a0"; }
+  #gate .gtStats { color: var(--parch-dk); }
+  #gate .gtWait { font-style: italic; }
+  /* checking: the crest and one line, nothing to press */
+  #gate .gtCard.gtChecking { grid-template-areas: "words"; }
+  #gate .gtChecking .gtCrest .ic { animation: gtPulse 1.4s ease-in-out infinite; }
+  @keyframes gtPulse { 50% { opacity: .55; } }
+  /* the Account tab in the Hall (5.5): who you are, sign out; for a guest the sign-in buttons */
+  #hall .acTab { padding: 18px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  #hall .acTab .acName { font-size: 22px; font-weight: 700; color: #fff3d6; overflow-wrap: anywhere; }
+  #hall .acTab .acRow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  #hall .acTab .btn, #hall .acTab .gateBtn { min-height: 44px; padding: 0 18px; font-size: 15px; }
+  #hall .acTab .gateBtn {
+    position: relative; width: 300px; max-width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
+    -webkit-appearance: none; appearance: none; border-radius: 8px; border: 1px solid transparent; white-space: nowrap;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  #hall .acTab .gateBtn svg { flex: none; width: 20px; height: 20px; }
+  #hall .acTab .gateBtn[data-p="google"] { background: #fff; color: #1f1f1f; border-color: #dadce0; }
+  #hall .acTab .gateBtn[data-p="facebook"] { background: #1877F2; color: #fff; }
+  #hall .acTab .gateBtn[data-p="discord"] { background: #5865F2; color: #fff; }
+  #hall .acTab .gtLast { position: absolute; top: -8px; right: 10px; padding: 0 7px; border-radius: 8px; font-family: var(--face); font-size: 11.5px; line-height: 15px; font-weight: 700;
+    color: #2c1e10; background: linear-gradient(180deg, #f0cf85, #c9972f); border: 1px solid #6e4d1e; pointer-events: none; }
+  #hall .acTab .acNote { color: var(--parch-dk); font-size: 14.5px; }
+  #hall .acTab .acErr { min-height: 1.3em; font-weight: 700; color: #ffb79a; font-size: 14px; }
+  #hall .acTab .acField { width: 260px; max-width: 100%; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 2px solid var(--bronze-sh);
+    background: #f6ecd2; color: #2c1e10; font: 600 17px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; user-select: text; -webkit-user-select: text; }
+  #hall .acTab a { color: var(--bronze-hi); text-decoration: underline; text-underline-offset: 2px; display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; }
+  /* the privacy page (?privacy). Its whole text comes with work package P8; until then a short page says what the
+     sign-in card says, and leads back */
+  #privacyPage { position: fixed; inset: 0; z-index: 61; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start;
+    padding: calc(24px + var(--sat)) calc(16px + var(--sar)) calc(24px + var(--sab)) calc(16px + var(--sal));
+    background: linear-gradient(180deg, #3a2819, #1e140b); color: var(--parch); font-family: var(--face); user-select: text; -webkit-user-select: text; }
+  #privacyPage[hidden] { display: none; }
+  #privacyPage .kit { width: min(640px, 100%); padding: 26px 28px; font-size: 17px; line-height: 1.5; }
+  #privacyPage h1 { font-size: 26px; color: var(--bronze-hi); margin-bottom: 10px; }
+  #privacyPage p { margin-top: 10px; }
+  #privacyPage .pvBack { display: inline-flex; align-items: center; min-height: 44px; margin-top: 16px; padding: 0 20px; text-decoration: none; font-size: 16px; }
+  @media (max-height: 500px), (max-width: 500px) { #privacyPage .kit { padding: 18px 18px; font-size: 15px; } #privacyPage h1 { font-size: 21px; } }
+
+  /* ---- the gate on a phone held sideways: two columns in a card up to 640 px wide; the words (crest 40 px,
+     title 20 px, text 13.5 px, the small print 11 px) at the left, the buttons (250 x 44 px, 8 px apart) at the
+     right. At 667 x 320 three buttons stand 148 px tall ---- */
+  @media (max-height: 500px) {
+    #gate { padding: calc(8px + var(--sat)) calc(12px + var(--sar)) calc(8px + var(--sab)) calc(12px + var(--sal)); }
+    #gate .gtCard {
+      width: min(640px, 100%); padding: 14px 16px; font-size: 13.5px; line-height: 1.32; text-align: left;
+      grid-template-columns: minmax(0, 1fr) 250px; grid-template-areas: "words btns" "small btns"; column-gap: 18px; row-gap: 8px;
+    }
+    #gate .gtCard.gtChecking { grid-template-columns: minmax(0, 1fr); grid-template-areas: "words"; text-align: center; }
+    #gate .gtCard.gtChecking .gtHead { justify-content: center; }
+    #gate .gtHead { justify-content: flex-start; gap: 10px; }
+    #gate .gtCrest, #gate .gtCrest .ic { width: 40px; height: 40px; }
+    #gate .gtTitle { font-size: 20px; letter-spacing: 1px; }
+    #gate .gtWords p { margin-top: 6px; }
+    #gate .gtSmall { font-size: 11px; line-height: 1.32; align-self: end; }
+    #gate .gtPrivacy { min-height: 36px; padding: 0 10px 0 0; font-size: 13px; }
+    #gate .gtNote { font-size: 13px; }
+    #gate .gtBtns { gap: 8px; }
+    #gate .gateBtn, #gate .gtQuiet { width: 250px; min-height: 44px; font-size: 15px; padding: 0 10px; gap: 10px; }
+    #gate .gateBtn svg { width: 20px; height: 20px; }
+    #gate .gtPair { width: 250px; gap: 8px; }
+    #gate .gtPair .gtQuiet { font-size: 13.5px; }
+    #gate .gtField { width: 250px; min-height: 44px; font-size: 16px; }
+    #gate .gtErr { font-size: 13px; }
+    #gate .gtCopy { font-size: 12px; margin-top: 4px; }
+    #hall .acTab { padding: 12px 12px 14px; gap: 8px; }
+    #hall .acTab .acName { font-size: 18px; }
+  }
+  /* held upright: one column the screen's width less 24 px, the buttons its whole width and 48 px tall */
+  @media (max-width: 500px) and (min-height: 500.02px) {
+    #gate { padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal)); }
+    #gate .gtCard { width: 100%; padding: 20px 16px; font-size: 15px; row-gap: 14px; }
+    #gate .gtCrest, #gate .gtCrest .ic { width: 48px; height: 48px; }
+    #gate .gtTitle { font-size: 22px; }
+    #gate .gtSmall { font-size: 11.5px; }
+    #gate .gtBtns { align-items: stretch; }
+    #gate .gateBtn, #gate .gtQuiet, #gate .gtPair, #gate .gtField { width: 100%; min-height: 48px; font-size: 16px; }
+  }
 </style>
 </head>
 <body>
@@ -3394,6 +3550,24 @@
   </div>
 </div>
 
+<!-- ---------- platform: the gate (docs/specs/platform.final.md, section 3) ---------- -->
+<!-- A layer over the whole page while the platform is on and a visitor has not passed it. Its card is filled by the
+     platform's section for each state; with the platform off it is never shown. -->
+<div id="gate" class="gtHidden" role="dialog" aria-modal="true" aria-labelledby="gateTitle" tabindex="-1">
+  <div class="gtCard kit" id="gateCard"></div>
+</div>
+<!-- ---------- platform: the privacy page (?privacy; its whole text comes with work package P8) ---------- -->
+<div id="privacyPage" hidden>
+  <div class="kit" role="document">
+    <h1>Privacy</h1>
+    <p>Highland Stand is for players 13 and older.</p>
+    <p>When you sign in, we keep your email address, the player name you choose, your progress and your scores, so your game follows you to any device. We count how the game is played.</p>
+    <p>You sign in through Google, Facebook or Discord. We never post to your accounts there, and we never read your posts, friends or contacts.</p>
+    <p>This is a short page. The full privacy page comes with a later build.</p>
+    <a class="btn pvBack" id="privacyBack" href="./">Back to the game</a>
+  </div>
+</div>
+
 <script>
 "use strict";
 
@@ -3521,6 +3695,44 @@ const CLOUD_KEYS = [
 // The tabs of the Hall page (section 5.5). The platform adds Daily, Leaderboards and Account; gameplay adds
 // its own from its own code with HALL_TABS.push({ id, label, icon, render(el), badge() }).
 const HALL_TABS = [];
+// The platform's switch (section 3.9, step 0). It is on only over http or https, outside the harness, with both
+// public values set and never with Supabase's published demo key. A test of this machine's own may hand the values
+// over in window.__HS_PLATFORM_TEST = { url, anonKey, gate } (read only when the page is served from 127.0.0.1 or
+// localhost, so it means nothing on the live site); the platform's tests fill the two constants in their own
+// served copy of the page instead, which is the same thing.
+const PF_TEST = (() => {
+  try {
+    const t = window.__HS_PLATFORM_TEST;
+    return t && typeof t === "object" && /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? t : null;
+  } catch (e) { return null; }
+})();
+const PF_URL = String((PF_TEST && PF_TEST.url) || HS_SUPABASE_URL).replace(/\/+$/, "");
+const PF_KEY = String((PF_TEST && PF_TEST.anonKey) || HS_SUPABASE_ANON_KEY);
+// Supabase's demo key opens any Supabase started with the defaults: a page that carries it is not set up
+function pfDemoKey(k) {
+  try { const p = JSON.parse(atob(k.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); return !!p && p.iss === "supabase-demo"; } catch (e) { return false; }
+}
+const PF_ON = !HARNESS_ON && /^https?:$/.test(location.protocol) && !!PF_URL && !!PF_KEY && !pfDemoKey(PF_KEY);
+// A sign-in's return (1.2): the code, the sign-in's own id (hsh) and any error the server sent, read here, as the
+// script starts, and wiped from the address at once with history.replaceState, so the code is never in the address
+// while the rest of the page loads, never in the history and never in what a later event or a shared link carries.
+// The platform's section decides what to do with them once the page is up. Null when the address held none of them.
+const PF_RETURN = PF_ON ? pfTakeReturn() : null;
+function pfTakeReturn() {
+  try {
+    const NAMES = ["code", "hsh", "error", "error_code", "error_description"];
+    const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.replace(/^#/, ""));
+    const inHash = NAMES.some(k => h.has(k));
+    if (!NAMES.some(k => q.has(k)) && !inHash) return null;
+    const one = (k) => (q.get(k) != null ? q.get(k) : h.get(k));
+    const r = { code: q.get("code"), hsh: q.get("hsh"), error: one("error"), errorCode: one("error_code") };
+    // the rest of the query is kept as it was spelled (?stats stays ?stats); the fragment goes whole
+    const name = (p) => { try { return decodeURIComponent(p.split("=")[0]); } catch (e) { return p; } };
+    const keep = location.search.replace(/^\?/, "").split("&").filter(p => p && !NAMES.includes(name(p)));
+    history.replaceState(history.state, "", location.pathname + (keep.length ? "?" + keep.join("&") : ""));
+    return r;
+  } catch (e) { return null; }
+}
 
 // ---------- setup ----------
 const canvas = document.getElementById("game");
@@ -77502,10 +77714,10 @@ function townSelftest(check, res) {
 }
 
 // ---------- platform ----------
-// (docs/specs/platform.final.md) What is built so far is the seam, work package P0: the Hall's shell, which is
-// always on, and the Platform object's four doors into the game, which do nothing while the platform is off.
-// Sign-in and the gate, cloud saves, the boards, the daily, the share card and analytics join it package by
-// package, all inside this section.
+// (docs/specs/platform.final.md) What is built so far: the seam (work package P0: the Hall's shell, which is always
+// on, and the Platform object's doors into the game, which do nothing while the platform is off) and sign-in with
+// the gate (P2: the Auth client, the session, the gate's cards, the Account tab). Cloud saves, the boards, the
+// daily, the share card and analytics join it package by package, all inside this section.
 
 // ---- the Hall: a page with tabs over the menu pages (section 5.5) ----
 // Its tabs are the rows of HALL_TABS, in the order they were pushed: { id, label, icon, render(el), badge() }.
@@ -77781,7 +77993,806 @@ if (HARNESS_ON && HARNESS.has("testtab")) {
 }
 syncHallDoors();
 
-// ---- the Platform object: the game's four calls into the platform (0.4) ----
+// ==== PLATFORM PURE BEGIN ====
+// The platform's pure parts: no page, no storage, no network, no clock. tools/platform/unit.js runs this block
+// alone in Node and holds each part to its tables (10.4), so nothing here may reach outside it.
+
+// SHA-256 (FIPS 180-4), small and synchronous: the PKCE challenge is made with it (1.2). The browser's own
+// crypto.subtle would do the same, but only on a secure page and only as a promise; this one works the same
+// everywhere and is checked in Node against the standard's vectors and RFC 7636's.
+const PF_SHA_K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+];
+// the digest of some bytes, as 32 bytes
+function sha256Bytes(bytes) {
+  const n = bytes.length, len = ((n + 9 + 63) >> 6) << 6, m = new Uint8Array(len);
+  m.set(bytes);
+  m[n] = 0x80;
+  // the message's length in bits, big-endian, in the last eight bytes (a message under 512 MB fits in 32 bits)
+  const bits = n * 8;
+  m[len - 4] = (bits >>> 24) & 255; m[len - 3] = (bits >>> 16) & 255; m[len - 2] = (bits >>> 8) & 255; m[len - 1] = bits & 255;
+  m[len - 5] = Math.floor(n / 0x20000000) & 255;
+  const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19], w = new Array(64);
+  const rotr = (x, k) => (x >>> k) | (x << (32 - k));
+  for (let o = 0; o < len; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = (m[o + 4 * i] << 24) | (m[o + 4 * i + 1] << 16) | (m[o + 4 * i + 2] << 8) | m[o + 4 * i + 3];
+    for (let i = 16; i < 64; i++) {
+      const a = w[i - 15], b = w[i - 2];
+      w[i] = (w[i - 16] + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + w[i - 7] + (rotr(b, 17) ^ rotr(b, 19) ^ (b >>> 10))) | 0;
+    }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + PF_SHA_K[i] + w[i]) | 0;
+      const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+    H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+  }
+  const out = new Uint8Array(32);
+  H.forEach((x, i) => { out[4 * i] = (x >>> 24) & 255; out[4 * i + 1] = (x >>> 16) & 255; out[4 * i + 2] = (x >>> 8) & 255; out[4 * i + 3] = x & 255; });
+  return out;
+}
+const pfHex = (bytes) => Array.from(bytes, b => (b < 16 ? "0" : "") + b.toString(16)).join("");
+// a text's digest (its UTF-8 bytes), as 64 hex digits
+function sha256(text) { return pfHex(sha256Bytes(new TextEncoder().encode(String(text)))); }
+// bytes as base64url without padding (RFC 4648, section 5)
+function b64url(bytes) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const x = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0), left = bytes.length - i;
+    s += A[(x >> 18) & 63] + A[(x >> 12) & 63] + (left > 1 ? A[(x >> 6) & 63] : "") + (left > 2 ? A[x & 63] : "");
+  }
+  return s;
+}
+// RFC 7636: the S256 challenge of a verifier, base64url(sha256(verifier))
+function pkceChallenge(verifier) { return b64url(sha256Bytes(new TextEncoder().encode(String(verifier)))); }
+
+// The name rule (5.5): the server's own (hs_private.name_clean), not a weaker one. { name, key } for a name the
+// server will take (cleaned: NFKC, outer spaces trimmed, inner runs made one), else { error } with the server's
+// word: name_length, name_chars or name_blocked. Whether a name is taken only the server can say.
+const PF_NAME_BLOCK = [["admin", 1], ["moderator", 1], ["highlandstand", 1], ["support", 0], ["owner", 0], ["official", 1], ["system", 0],
+  ["null", 0], ["undefined", 0], ["卐", 1], ["卍", 1]];   // (1: refused anywhere in the folded name; 0: refused as the whole name)
+// the form two names are compared in: no spaces, dots, dashes or underscores, small letters, the look-alike digits read as letters
+function nameFold(n) {
+  return String(n).normalize("NFKC").replace(/[\s._-]+/g, "").toLowerCase().replace(/[013457@$]/g, c => "oieastas"["013457@$".indexOf(c)]);
+}
+function nameCheck(raw) {
+  const n = String(raw == null ? "" : raw).normalize("NFKC").replace(/\s+/g, " ").trim();
+  const len = Array.from(n).length;
+  if (len < 3 || len > 16) return { error: "name_length" };
+  if (/\p{Cc}/u.test(n) || /[​-‏‪-‮⁦-⁩﻿]/.test(n) || /[!-,/:-@[-^`{-~]/.test(n) || !/^[\p{L}\p{N} ._-]+$/u.test(n)) return { error: "name_chars" };
+  const f = nameFold(n);
+  if (Array.from(f).length < 3) return { error: "name_length" };
+  if (PF_NAME_BLOCK.some(([b, any]) => (any ? f.includes(b) : f === b))) return { error: "name_blocked" };
+  return { name: n, key: f };
+}
+// the name card's words for each refusal
+const PF_NAME_WORDS = {
+  name_length: "Use 3 to 16 characters.",
+  name_chars: "Use letters, numbers, spaces, dots, dashes and underscores.",
+  name_taken: "That name is taken. Try another.",
+  name_blocked: "That name is not allowed. Try another.",
+  name_wait: "You can change your name once a week.",
+  offline: "No connection. Try again.",
+};
+
+// An in-app browser (a link opened inside Facebook, Instagram, TikTok, an Android web view...), by its user
+// agent: Google refuses to sign in there (1.6)
+function inAppUA(ua) {
+  return /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|Twitter|LinkedInApp|Snapchat|Pinterest|GSA\/|; wv\)/.test(String(ua || ""));
+}
+const PF_PROVIDERS = [["google", "Google"], ["facebook", "Facebook"], ["discord", "Discord"]];
+const pfProviderName = (p) => (PF_PROVIDERS.find(x => x[0] === p) || [p, "the provider"])[1];
+// Which buttons the sign-in card shows, from what Auth's /settings answered (3.3): each provider the server has
+// switched on, in that order; Discord held back while the server confirms emails by itself (mailer_autoconfirm:
+// it would take an email Discord never verified as proof of who owns it); Google left out in an in-app browser.
+// { list: ["google", ...], held: "d" or "" }
+function providersOf(settings, inapp) {
+  const ext = (settings && settings.external) || {}, list = [];
+  let held = "";
+  for (const [p] of PF_PROVIDERS) {
+    if (ext[p] !== true) continue;
+    if (p === "discord" && settings.mailer_autoconfirm === true) { held = "d"; continue; }
+    if (p === "google" && inapp) continue;
+    list.push(p);
+  }
+  return { list, held };
+}
+// The one line the sign-in card shows after a sign-in that did not finish (1.2, step 4), by the server's
+// error_code (or its error, or what the page itself saw: no_verifier, abandoned)
+function signinLine(code, provider, hadCode) {
+  const c = String(code || "");
+  if (c === "provider_email_needs_verification") return pfProviderName(provider) + " says your email is not verified. Verify it there, then try again.";
+  if (/^(bad_oauth_state|flow_state_expired|flow_state_not_found)$/.test(c)) return "Sign-in took too long. Try again.";
+  if (c === "access_denied" && !hadCode) return "Sign-in was canceled.";
+  if (c === "no_verifier") return "Sign-in did not finish here. Try again.";
+  return "Sign-in did not finish. Try again, or use another account.";
+}
+const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine };
+// ==== PLATFORM PURE END ====
+
+// ---- the platform's state on this device (0.5): every key starts hs_pf_ and none is ever synced ----
+function pfRead(k) { try { const v = localStorage.getItem(k); return v == null ? null : JSON.parse(v); } catch (e) { return null; } }
+function pfWrite(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function pfDrop(k) { try { localStorage.removeItem(k); } catch (e) {} }
+const pfCfg = () => pfRead("hs_pf_cfg") || {};
+function pfCfgSet(part) { pfWrite("hs_pf_cfg", Object.assign(pfCfg(), part)); }
+const pfGateMem = () => Object.assign({ fails: 0, guest: false }, pfRead("hs_pf_gate") || {});
+function pfGateSet(part) { pfWrite("hs_pf_gate", Object.assign(pfGateMem(), part)); }
+// random bytes from the browser's own source (there on every page, secure or not)
+function pfRandBytes(n) { const b = new Uint8Array(n); crypto.getRandomValues(b); return b; }
+function pfUuid() {
+  const b = pfRandBytes(16);
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = pfHex(b);
+  return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+}
+// The server's clock: the device's plus the difference the last hs_ answer showed (1, the api helper). Every time
+// stamp the platform writes uses it, so two devices whose clocks are wrong still agree which save is newer
+let pfClockOff = 0;
+function pfNow() { return Date.now() + pfClockOff; }
+const pfSec = () => Math.floor(Date.now() / 1000);
+const pfStandalone = () => navigator.standalone === true;
+const pfInApp = inAppUA(navigator.userAgent);
+const pfFramed = (() => { try { return window.top !== window.self; } catch (e) { return true; } })();
+const PF_GATE_MODES = ["required", "optional", "off"];
+
+// ---- one helper for every call (section 1). It never throws ----
+// pfApi("POST", "/rest/v1/rpc/hs_profile_get", {}, { auth: true, timeout: 8000 }) -> { ok, status, data, code }
+// status 0: the network failed or the time ran out. code: the "message" of a PostgREST error (the function's own
+// word, such as "name_taken") or the "error_code" of an Auth error. auth: the signed-in player's token, made fresh
+// first when it has under 90 seconds left (1.4); without it the anon key stands in its place.
+async function pfApi(method, path, body, o = {}) {
+  let bearer = PF_KEY;
+  if (o.auth) {
+    if (!(await pfFresh())) return { ok: false, status: 401, data: null, code: "no_session" };
+    const s = pfSession();
+    if (!s) return { ok: false, status: 401, data: null, code: "no_session" };
+    bearer = s.at;
+  }
+  const ctl = typeof AbortController === "function" ? new AbortController() : null;
+  let timer = 0;
+  try {
+    const headers = { apikey: PF_KEY, Authorization: "Bearer " + bearer };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const req = fetch(PF_URL + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined,
+      keepalive: !!o.keepalive, cache: "no-store", credentials: "omit", redirect: "error" });
+    const late = new Promise((_, no) => { timer = setTimeout(() => { if (ctl) ctl.abort(); no(new Error("timeout")); }, o.timeout || 8000); });
+    const res = await Promise.race([req, late]);
+    const text = await Promise.race([res.text(), late]);
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) {}
+    // every hs_ function answers the server's time: the clock's difference is read from it
+    if (data && typeof data === "object" && typeof data.now === "string") { const t = Date.parse(data.now); if (isFinite(t)) pfClockOff = t - Date.now(); }
+    const code = res.ok ? "" : String((data && (data.error_code || data.message || data.error)) || "");
+    return { ok: res.ok, status: res.status, data, code };
+  } catch (e) {
+    return { ok: false, status: 0, data: null, code: "network" };
+  } finally { clearTimeout(timer); }
+}
+const pfRpc = (fn, args, o) => pfApi("POST", "/rest/v1/rpc/" + fn, args || {}, o);
+
+// ---- the session (1.3, 1.4): hs_pf_auth = { at, rt, exp, uid, prov } ----
+// exp is in this device's own seconds (now plus the answer's expires_in), so a device whose clock is wrong still
+// refreshes in time. The provider's own tokens in the answer are dropped at once and never stored
+function pfSession() {
+  const s = pfRead("hs_pf_auth");
+  return s && typeof s.at === "string" && typeof s.rt === "string" && typeof s.uid === "string" ? s : null;
+}
+function pfKeepSession(t, prov) {
+  const user = t.user || {}, meta = user.app_metadata || {};
+  const s = { at: String(t.access_token), rt: String(t.refresh_token), exp: pfSec() + (Math.floor(Number(t.expires_in)) || 3600),
+    uid: String(user.id || (pfSession() || {}).uid || ""), prov: String(meta.provider || prov || (pfSession() || {}).prov || "") };
+  pfWrite("hs_pf_auth", s);
+  return s;
+}
+// One refresh at a time across this browser's tabs: inside a lock where the browser has one (Safari 15.4 and
+// later), else a plain promise of this page's. Inside it the session is read again: another tab may have just
+// refreshed it, and a refresh token works only once.
+let pfRefreshing = null, pfRefreshNotBefore = 0, pfRefreshRefused = false;
+function pfFresh(force) {
+  const s = pfSession();
+  if (!s) return Promise.resolve(false);
+  if (!force && s.exp - pfSec() >= 90) return Promise.resolve(true);
+  // refused by the server: the access token is used while it lasts, then the session is over
+  if (pfRefreshRefused) { if (s.exp > pfSec()) return Promise.resolve(true); pfSessionOver(); return Promise.resolve(false); }
+  // the last try failed for the network: the next is not before 30 s
+  if (Date.now() < pfRefreshNotBefore) return Promise.resolve(s.exp > pfSec());
+  if (!pfRefreshing) {
+    const run = () => pfRefreshNow(force);
+    const locked = navigator.locks && navigator.locks.request ? navigator.locks.request(HS_KEY_PREFIX + "hs_pf_auth", run) : run();
+    pfRefreshing = Promise.resolve(locked).catch(() => false).finally(() => { pfRefreshing = null; });
+  }
+  return pfRefreshing;
+}
+async function pfRefreshNow(force) {
+  const s = pfSession();
+  if (!s) return false;
+  if (!force && s.exp - pfSec() >= 90) return true;   // another tab did it
+  // (4 s: a load waits on it behind the checking card, which never stays up longer than that for one call)
+  const r = await pfApi("POST", "/auth/v1/token?grant_type=refresh_token", { refresh_token: s.rt }, { timeout: 4000 });
+  const again = pfSession();
+  if (!again || again.rt !== s.rt) return !!again;    // signed out, or another tab got there while this one waited
+  if (r.ok && r.data && r.data.access_token && r.data.refresh_token) { pfKeepSession(r.data, s.prov); return true; }
+  if (r.status === 0 || r.status >= 500) { pfRefreshNotBefore = Date.now() + 30000; return s.exp > pfSec(); }
+  pfRefreshRefused = true;
+  if (s.exp > pfSec()) return true;
+  pfSessionOver();
+  return false;
+}
+// The server ended the session (1.4): this device forgets it and keeps everything else; the gate comes back on the
+// next load. The player is told, never in the middle of a battle
+let pfOverTold = false;
+function pfSessionOver() {
+  if (!pfSession()) return;
+  pfDrop("hs_pf_auth");
+  pfRefreshRefused = false;
+  pfAccountRedraw();
+  if (pfOverTold || gateUp) return;
+  pfOverTold = true;
+  const tell = () => { if (battleLive()) { setTimeout(tell, 2000); return; } toast("You were signed out. Your progress is safe on this device."); };
+  tell();
+}
+document.addEventListener("visibilitychange", () => { if (PF.on && document.visibilityState === "visible" && pfSession()) pfFresh(); });
+
+// ---- signing in: PKCE by a full-page redirect (1.2) ----
+// back: where the player was ("", "stats", "hall"), so the return can take him there again
+function pfSignIn(provider, back) {
+  if (pfFramed) {   // a provider shows no page inside a frame: the game opens in a tab of its own instead (1.6)
+    try { window.open(location.href, "_blank", "noopener"); } catch (e) {}
+    return;
+  }
+  const v = pfHex(pfRandBytes(64));             // the verifier: 128 hex characters, inside the server's 43 to 128
+  const h = b64url(pfRandBytes(32));            // this sign-in's own id, which comes back in the address
+  pfWrite("hs_pf_pkce", { v, h, p: provider, t: pfNow(), sa: pfStandalone(), back: back || "" });
+  track("provider_tapped", { provider });
+  const back2 = back === "stats" ? "stats&" : "";
+  const R = location.origin + location.pathname + "?" + back2 + "hsh=" + h;
+  // while the browser leaves, the card says so and takes no second press
+  if (gateUp && gateState === "signin") gateLeaving(provider);
+  location.assign(PF_URL + "/auth/v1/authorize?" + new URLSearchParams({ provider, redirect_to: R, code_challenge: pkceChallenge(v), code_challenge_method: "s256" }).toString());
+}
+// What this load brought back from a provider, or a sign-in left unfinished (3.9, step 7). Resolves to
+// { ok: true, provider, ms } after a code exchanged, { line } after a failure (counted), or null when nothing was
+// under way.
+async function pfTakeSignIn() {
+  const R = PF_RETURN;
+  let pk = pfRead("hs_pf_pkce");
+  if (pk && !(typeof pk.t === "number" && pfNow() - pk.t < 600000 && typeof pk.v === "string")) { pfDrop("hs_pf_pkce"); pk = null; }   // older than 10 minutes
+  if (!R && !pk) return null;
+  const fail = (error, provider, line) => {
+    pfDrop("hs_pf_pkce");
+    pfGateSet({ fails: pfGateMem().fails + 1 });
+    track("signin_error", { provider: provider || "", error: String(error).slice(0, 40), standalone: pfStandalone() });
+    return { line };
+  };
+  if (R && R.code) {
+    if (!pk || !pk.h || pk.h !== R.hsh) return fail("no_verifier", pk && pk.p, signinLine("no_verifier"));
+    const r = await pfApi("POST", "/auth/v1/token?grant_type=pkce", { auth_code: R.code, code_verifier: pk.v }, { timeout: 8000 });
+    if (!(r.ok && r.data && r.data.access_token && r.data.refresh_token)) {
+      return fail("exchange_" + r.status, pk.p, signinLine(r.data && r.data.error_code, pk.p, true));
+    }
+    const s = pfKeepSession(r.data, pk.p);
+    pfDrop("hs_pf_pkce");
+    pfGateSet({ fails: 0 });
+    pfRefreshRefused = false;
+    return { ok: true, provider: s.prov || pk.p, ms: Math.max(0, Math.round(pfNow() - pk.t)), uid: s.uid, back: pk.back || "" };
+  }
+  if (R && (R.error || R.errorCode)) {
+    const code = R.errorCode || R.error;
+    return fail(code, pk && pk.p, signinLine(code, pk && pk.p, false));
+  }
+  // a sign-in begun here and come back without a code: the player came back without signing in (Back, or the
+  // provider's page closed). In a Home Screen app a return that landed in another window looks the same here (1.6)
+  return fail("abandoned", pk.p, signinLine("abandoned"));
+}
+// Back from the provider's page by the browser's Back button, the page restored from the back-forward cache with
+// no load at all: the same as a return without a code
+window.addEventListener("pageshow", (e) => {
+  if (!e.persisted || !PF.on) return;
+  const pk = pfRead("hs_pf_pkce");
+  if (!pk) { if (gateUp && gateState === "leaving") gateSignin(gateLine); return; }
+  pfDrop("hs_pf_pkce");
+  pfGateSet({ fails: pfGateMem().fails + 1 });
+  track("signin_error", { provider: pk.p || "", error: "abandoned", standalone: pfStandalone() });
+  const line = signinLine("abandoned");
+  if (gateUp) gateSignin(line);
+  else { pfAccountRedraw(); toast(line); }
+});
+
+// The page seen again while it still waits on its way to the provider: the provider's page opened somewhere else
+// and this page never left. That is what a Home Screen app may do (iOS can show the provider in Safari or in a
+// sheet over the app, 1.6). If that other window finished the sign-in in storage this page shares, the page goes
+// on with it; else the sign-in is counted as not finished, as on any later load (1.6, step 1), and the card offers
+// the buttons again.
+document.addEventListener("visibilitychange", () => {
+  if (!PF.on || document.visibilityState !== "visible" || !gateUp || gateState !== "leaving" || Date.now() - gateLeftAt < 1500) return;
+  if (pfSession()) { location.reload(); return; }
+  const pk = pfRead("hs_pf_pkce");
+  if (!pk) { gateSignin(gateLine); return; }
+  pfDrop("hs_pf_pkce");
+  pfGateSet({ fails: pfGateMem().fails + 1 });
+  track("signin_error", { provider: pk.p || "", error: "abandoned", standalone: pfStandalone() });
+  gateSignin(signinLine("abandoned"));
+});
+
+// ---- signing out (1.5) ----
+// Cloud saves come with work package P3, which pushes the save first and then clears the synced keys from this
+// device. Until then the progress lives on this device only, so signing out keeps it here and removes only the
+// platform's own keys of the session (0.5).
+async function pfSignOut() {
+  const s = pfSession();
+  if (s) await pfApi("POST", "/auth/v1/logout?scope=local", undefined, { auth: true, timeout: 4000 });
+  for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_pkce", "hs_pf_run", "hs_pf_out", "hs_pf_daily"]) pfDrop(k);
+  track("signed_out", {});
+  location.reload();
+}
+
+// ---- the gate (section 3) ----
+const gateEl = $("gate"), gateCardEl = $("gateCard");
+let gateUp = false, gateState = "", gateLine = "", gateShownT = 0, gateFocusT = 0, gateMode = HS_GATE;
+const PF_MARKS = {
+  google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.62H6.61v3.56h3.07V22h3.68v-9.12h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"/></svg>',
+  discord: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M20.32 4.37A19.79 19.79 0 0 0 15.43 2.85a.07.07 0 0 0-.08.04c-.21.38-.44.86-.61 1.25a18.27 18.27 0 0 0-5.49 0 12.64 12.64 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.74 19.74 0 0 0-4.88 1.52.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.23-1.99a.08.08 0 0 0-.04-.11 13.1 13.1 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.09.25-.19.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.06 0a.07.07 0 0 1 .08.01c.12.1.25.2.37.29a.08.08 0 0 1-.01.13 12.3 12.3 0 0 1-1.87.89.08.08 0 0 0-.04.11c.36.7.77 1.36 1.23 1.99a.08.08 0 0 0 .08.03 19.84 19.84 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.33-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.33-.95 2.42-2.16 2.42z"/></svg>',
+};
+// the pieces every card is made of: a node with its text set as text (nothing from the server is ever markup)
+function pfEl(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function pfBtn(cls, text, onPress) {
+  const b = pfEl("button", cls, text);
+  b.type = "button";
+  b.addEventListener("click", (e) => { e.preventDefault(); if (b.disabled) return; Snd.init(); Snd.play("uiTick"); onPress(b); });
+  return b;
+}
+// a provider's button: its mark, "Continue with <Provider>", and "Last used" on the one this device used last
+function pfProviderBtn(p, back) {
+  const b = pfBtn("gateBtn", null, () => pfSignIn(p, back));
+  b.dataset.p = p;
+  b.innerHTML = PF_MARKS[p] || "";
+  b.appendChild(pfEl("span", "gtBtnWords", "Continue with " + pfProviderName(p)));
+  if (pfCfg().lastProv === p) b.appendChild(pfEl("span", "gtLast", "Last used"));
+  return b;
+}
+// The note an in-app browser gets above the buttons (1.6), and its two ways out: the address copied, and the
+// address opened in the phone's own browser (iOS and Android each have their own way to ask for it)
+function pfInAppNote(into) {
+  const host = location.host, link = location.origin + location.pathname;
+  const box = pfEl("div", "gtInApp");
+  box.appendChild(pfEl("p", "gtNote", "This app's browser can block sign-in. For Google, open " + host + location.pathname.replace(/\/$/, "") + " in Safari or Chrome."));
+  const pair = pfEl("div", "gtPair");
+  pair.appendChild(pfBtn("gtQuiet", "Copy link", (b) => {
+    const said = () => { b.textContent = "Link copied"; };
+    const field = () => {
+      let f = box.querySelector(".gtCopy");
+      if (!f) { f = pfEl("input", "gtCopy"); f.type = "text"; f.readOnly = true; f.value = link; f.setAttribute("aria-label", "The game's address"); box.appendChild(f); }
+      f.focus(); f.select();
+      try { if (document.execCommand("copy")) said(); } catch (e) {}
+    };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(said, field); return; } } catch (e) {}
+    field();
+  }));
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
+  if (ios || android) {
+    const a = pfEl("a", "gtQuiet", "Open in browser");
+    a.href = ios ? "x-safari-" + link : "intent://" + location.host + location.pathname + "#Intent;scheme=https;end";
+    a.setAttribute("role", "button");
+    a.style.textDecoration = "none";
+    pair.appendChild(a);
+  }
+  box.appendChild(pair);
+  into.appendChild(box);
+}
+// The card's frame for every state: the words (crest and title, the owner's notice, the lines), the buttons, the
+// small print. Sideways on a phone the words stand at the left and the buttons at the right
+function gateCard(state, o) {
+  clearTimeout(gateShownT);
+  gateState = state;
+  gateCardEl.textContent = "";
+  gateCardEl.className = "gtCard kit" + (state === "checking" ? " gtChecking" : "");
+  gateCardEl.dataset.state = state;
+  const words = pfEl("div", "gtWords"), btns = pfEl("div", "gtBtns"), small = pfEl("div", "gtSmall");
+  const head = pfEl("div", "gtHead");
+  const crest = pfEl("span", "gtCrest");
+  crest.innerHTML = icon("crest");
+  head.appendChild(crest);
+  const t = pfEl("h2", "gtTitle" + (o.word ? " gtWord" : ""), o.title || "HIGHLAND STAND");
+  t.id = "gateTitle";
+  head.appendChild(t);
+  words.appendChild(head);
+  const notice = typeof o.notice === "string" ? o.notice : "";
+  if (notice) words.appendChild(pfEl("p", "gtNotice", notice));
+  for (const l of o.lines || []) if (l) words.appendChild(typeof l === "string" ? pfEl("p", "", l) : l);
+  gateCardEl.appendChild(words);
+  if (state !== "checking") { gateCardEl.appendChild(btns); gateCardEl.appendChild(small); }
+  return { words, btns, small };
+}
+// The layer up (3.1): over everything but the crash card. Under it the game is out of reach: no tap (the layer
+// takes them), no Tab stop, no hotkey (Platform.blocking())
+function gateShow() {
+  if (!gateUp) {
+    gateUp = true;
+    gateEl.classList.remove("gtHidden");
+    for (const id of ["overlay", "topbar", "shop", "spellbar", "hall"]) { const el = $(id); if (el) el.setAttribute("inert", ""); }
+    try { closeSettings(); } catch (e) {}
+  }
+}
+// the first press of a card's buttons (or the card itself) takes the focus, so Tab cycles inside the card
+function gateFocus() {
+  cancelAnimationFrame(gateFocusT);
+  gateFocusT = requestAnimationFrame(() => {
+    const f = gateCardEl.querySelector("input:not([disabled]), button:not([disabled]), a[href]");
+    try { (f || gateEl).focus({ preventScroll: true }); } catch (e) {}
+  });
+}
+// The layer away (3.9, step 9): the page under it is in reach again as it would be had the gate never come up
+// (syncOverlayUp() works out the battle's HUD and the overlay's reach afresh), gate_passed is counted, and then
+// what was chosen runs
+gateEl.addEventListener("pointerdown", () => gateEl.classList.remove("gtKeys"), true);
+window.addEventListener("keydown", (e) => { if (gateUp) gateEl.classList.add("gtKeys"); }, true);
+const pfT0 = performance.now();
+function gateLeave(how, then) {
+  if (!gateUp) { if (then) then(); return; }
+  clearTimeout(gateShownT);
+  gateUp = false;
+  gateState = "";
+  gateEl.classList.add("gtHidden");
+  gateCardEl.textContent = "";
+  for (const id of ["overlay", "topbar", "shop", "spellbar", "hall"]) { const el = $(id); if (el) el.removeAttribute("inert"); }
+  overlayUp = null;
+  syncOverlayUp();
+  if (!hallOpen) hallEl.removeAttribute("inert");
+  track("gate_passed", { how, ms: Math.round(performance.now() - pfT0) });
+  if (then) then();
+}
+// gate_shown is counted once the sign-in (or no-site-data) card has been on screen for a second (3.2)
+function gateCounted(state, providers, held) {
+  clearTimeout(gateShownT);
+  const at = gateState;
+  gateShownT = setTimeout(() => {
+    if (gateUp && gateState === at) track("gate_shown", { mode: gateMode, state, providers, held: held || "" });
+  }, 1000);
+}
+
+// checking: the crest and one line while the switch, the providers, a code's exchange or the profile are asked
+function gateChecking() {
+  gateShow();
+  gateCard("checking", { lines: [pfEl("p", "gtLead", "Opening the gates...")] });
+  gateFocus();
+}
+// the browser is on its way to the provider: nothing more to press
+let gateLeftAt = 0;
+function gateLeaving(provider) {
+  gateLeftAt = Date.now();
+  const c = gateCard("leaving", { lines: [pfEl("p", "gtLead", "Opening " + pfProviderName(provider) + "...")] });
+  c.btns.appendChild(pfBtn("gtQuiet", "Back", () => gateSignin(gateLine)));
+}
+// The sign-in card (3.3). line: what went wrong with the last sign-in, if anything. The buttons follow what Auth's
+// /settings listed (pfProv, or the list last seen); "Play now" joins them after two sign-ins in a row did not
+// finish (3.6), "Play as a guest" in the optional mode
+let pfProv = null, pfHeld = "", pfOnMap = null;
+function gateSignin(line) {
+  gateLine = line || "";
+  gateShow();
+  const fails = pfGateMem().fails, list = (pfProv || []).slice();
+  const lines = [pfEl("p", "gtLead", "Sign in to take command."), "Your progress is saved to your account. Pick up where you left off on any device."];
+  if (pfFramed) lines.push(pfEl("p", "gtNote", "Sign-in opens the game in its own tab."));
+  if (gateLine) lines.push(pfEl("p", "gtLine", gateLine));
+  if (fails >= 2) lines.push(pfEl("p", "gtLine", "Sign-in is giving trouble. You can play now and sign in later."));
+  const c = gateCard("signin", { notice: pfCfg().notice, lines });
+  if (pfInApp) pfInAppNote(c.btns);
+  for (const p of list) c.btns.appendChild(pfProviderBtn(p, ""));
+  // two sign-ins in a row that did not finish, or no button left to press (an in-app browser where Google is the
+  // only provider open): Play now, so that the card is never a wall
+  if (fails >= 2 || !list.length) c.btns.appendChild(pfBtn("gtQuiet", "Play now", () => gateBypass(list.length ? "errors" : "down")));
+  if (gateMode === "optional") {
+    c.btns.appendChild(pfBtn("gtQuiet", "Play as a guest", () => { pfGateSet({ guest: true }); gateBypass("guest"); }));
+    c.words.appendChild(pfEl("p", "gtNote", "Guest progress stays on this device."));
+  }
+  c.small.appendChild(pfEl("p", "", "For players 13 and older. We keep your email address, a player name you choose, your progress and your scores. We count how the game is played. We never post to your accounts."));
+  const pv = pfEl("a", "gtPrivacy", "Privacy");
+  pv.href = "?privacy";
+  c.small.appendChild(pv);
+  gateCounted(pfInApp ? "inapp" : "signin", list.map(p => p[0]).join(""), pfHeld);
+  gateFocus();
+}
+// Sign-in is not answering, or the device is offline (3.6): play now, or try again
+function gateDown(why) {
+  gateShow();
+  track("gate_down", { why });
+  const off = why === "offline";
+  const lead = pfEl("p", "");
+  lead.appendChild(pfEl("b", "gtLead", off ? "You are offline." : "Sign-in is not answering."));
+  lead.appendChild(document.createTextNode(" You can play now. Your progress stays on this device and joins your account the next time you sign in."));
+  const c = gateCard("down", { notice: pfCfg().notice, lines: [lead] });
+  c.btns.appendChild(pfBtn("gtQuiet gtGo", "Play now", () => gateBypass(off ? "offline" : "down")));
+  c.btns.appendChild(pfBtn("gtQuiet", "Try again", () => { gateChecking(); pfNoSession(); }));
+  gateFocus();
+}
+// The browser keeps no site data (3.6): a sign-in could not survive the trip to the provider, so no provider's
+// button is shown at all
+function gateNostore() {
+  gateShow();
+  const lead = pfEl("p", "");
+  lead.appendChild(pfEl("b", "gtLead", "This browser is not keeping this site's data,"));
+  lead.appendChild(document.createTextNode(" so a sign-in cannot be remembered here. You can play now. Your progress lasts until you close this page."));
+  const c = gateCard("nostore", { lines: [lead, "To sign in, allow site data (cookies) for this site, or leave private browsing."] });
+  c.btns.appendChild(pfBtn("gtQuiet gtGo", "Play now", () => gateBypass("nostore")));
+  gateCounted("nostore", "", "");
+  gateFocus();
+}
+// Play now, Play as a guest: the gate closes for this visit and the player plays on this device's progress
+function gateBypass(why) {
+  track("gate_bypass", { why });
+  gateLeave("bypass", () => pfOnMap && pfOnMap());
+}
+
+// The name card (3.5): "Defender" and six random digits to start with, the server's rule checked as the player
+// types, the server's own refusals under the field. then(name) goes on; name is null after "Later"
+function pfSuggest() { const b = pfRandBytes(4); return "Defender" + String(((b[0] << 16) | (b[1] << 8) | b[2]) % 1000000).padStart(6, "0"); }
+function pfNameForm(box, o) {
+  const field = pfEl("input", o.fieldCls);
+  field.type = "text";
+  field.maxLength = 32;
+  field.autocomplete = "off";
+  field.spellcheck = false;
+  field.setAttribute("autocapitalize", "words");
+  field.setAttribute("aria-label", "Player name");
+  field.value = o.value;
+  const err = pfEl("p", o.errCls);
+  err.setAttribute("aria-live", "polite");
+  let touched = false, fails = 0, retried = false;
+  const check = () => { const r = nameCheck(field.value); err.textContent = r.error ? PF_NAME_WORDS[r.error] : ""; return r; };
+  field.addEventListener("input", () => { touched = true; check(); });
+  field.addEventListener("keydown", (e) => { if (e.code === "Enter" || e.code === "NumpadEnter") { e.preventDefault(); save.click(); } e.stopPropagation(); });
+  const save = pfBtn(o.saveCls, o.saveWords, async () => {
+    const r = check();
+    if (r.error) return;
+    save.disabled = true;
+    const aid = pfRead("hs_pf_aid");
+    const res = await pfRpc("hs_profile_set_name", { p_name: r.name, p_aid: typeof aid === "string" ? aid : null }, { auth: true, timeout: 8000 });
+    save.disabled = false;
+    if (res.ok && res.data && res.data.name) {
+      const me = pfRead("hs_pf_me") || {};
+      pfWrite("hs_pf_me", { uid: (pfSession() || {}).uid || me.uid || "", name: String(res.data.name), admin: !!me.admin });
+      track("name_set", { changed: !!o.changed });
+      o.then(String(res.data.name));
+      return;
+    }
+    // the untouched suggestion taken already: one more suggestion, tried at once (3.5)
+    if (res.code === "name_taken" && !touched && !retried) { retried = true; field.value = pfSuggest(); save.click(); return; }
+    if (PF_NAME_WORDS[res.code] && res.code !== "offline") { err.textContent = PF_NAME_WORDS[res.code]; return; }
+    if (res.code === "no_session") { pfSessionOver(); }
+    err.textContent = PF_NAME_WORDS.offline;
+    if (++fails >= 2 && o.onLater && !box.querySelector(".pfLater")) box.appendChild(pfBtn(o.laterCls + " pfLater", "Later", () => o.onLater()));
+  });
+  box.appendChild(field);
+  box.appendChild(err);
+  box.appendChild(save);
+  return field;
+}
+function gateName(newAccount, then) {
+  gateShow();
+  const lines = ["It is shown on the leaderboards. Do not use your real name."];
+  if (newAccount) lines.push(pfEl("p", "gtNote", "This is a new account. If you played before, you may have used another button."));
+  const c = gateCard("name", { title: "Choose your player name", word: true, lines });
+  pfNameForm(c.btns, { fieldCls: "gtField", errCls: "gtErr", saveCls: "gtQuiet gtGo", laterCls: "gtQuiet", saveWords: "Save name", value: pfSuggest(),
+    changed: false, then, onLater: () => then(null) });
+  if (newAccount) c.btns.appendChild(pfBtn("gtQuiet", "Back to sign-in", () => pfSignOut()));
+  gateFocus();
+}
+// The welcome card (3.4): who, how far, and the one button that goes on from where the player left off
+function gateWelcome(name, first, how) {
+  gateShow();
+  const n = name || "";
+  const all = LEVELS.map((L, i) => i), tally = starTally(all), held = all.filter(levelConquered).length;
+  const lines = [pfEl("p", "gtStats", tally.won + " of " + tally.of + " stars. " + held + " of " + LEVELS.length + " battlefields held.")];
+  const c = gateCard("welcome", { title: (first ? "Welcome" : "Welcome back") + (n ? ", " + n : "") + ".", word: true, notice: pfCfg().notice, lines });
+  const go = (choice, fn) => { track("welcome_tap", { choice }); gateLeave(how, fn); };
+  const saved = getSavedRun();
+  // the battlefield to go on with: the furthest open one not yet won (none when all are won)
+  let next = -1;
+  for (let i = 0; i < LEVELS.length; i++) if (levelOpen(i) && !levelConquered(i)) next = i;
+  if (saved) {
+    c.btns.appendChild(pfBtn("gtQuiet gtGo gtWrap", "Resume: " + LEVELS[saved.lvl].name + ", Wave " + (saved.cleared + 1) + (saved.endless ? " ∞" : ""), () => go("resume", resumeRun)));
+  } else if (next >= 0) {
+    const L = LEVELS[next], begin = held === 0 && next === 0;
+    c.btns.appendChild(pfBtn("gtQuiet gtGo gtWrap", (begin ? "Begin: " : "Continue: ") + L.name + ", " + L.date, () => go(begin ? "begin" : "continue", () => pfToBattlefield(next))));
+  }
+  c.btns.appendChild(pfBtn("gtQuiet" + (!saved && next < 0 ? " gtGo" : ""), "Campaign Map", () => go("map", () => pfOnMap && pfOnMap())));
+  gateFocus();
+}
+// a battlefield's chronicle from the welcome card, through its chapter's story first when that chapter is new
+// (as the victory page's Next battle goes on, marchToNext)
+function pfToBattlefield(i) {
+  curLevel = i;
+  curEra = LEVELS[i].era;
+  applyEraLabels();
+  const ch = chapterOf(i);
+  if (!chaptersSeen().includes(ch)) { showChapterIntro(ch, i); return; }
+  selectMapLevel(i);
+  showBrief();
+}
+
+// ---- start-up, step by step (3.9) ----
+// The platform's own state for this load: on (the switch, and nothing has turned it off since), the mode in force,
+// and the player as the page knows him
+const PF = { on: PF_ON, me: null };
+// The platform off for the rest of this load (hs_config said cloud: false, or the schema is not there): nothing on
+// screen is torn down, the Account tab and Settings' row go
+function pfOff() {
+  PF.on = false;
+  document.body.classList.remove("pfOn");
+  const i = HALL_TABS.findIndex(t => t && t.id === "account");
+  if (i >= 0) HALL_TABS.splice(i, 1);
+  if (hallOpen && hallTab === "account") closeHall();
+  syncHallDoors();
+}
+// How far this device has come: battlefields held (page_load's "progress")
+const pfHeldCount = () => LEVELS.reduce((n, L, i) => n + (levelConquered(i) ? 1 : 0), 0);
+async function pfBoot(onMap) {
+  pfOnMap = onMap;
+  document.body.classList.add("pfOn");
+  syncHallDoors();
+  const sp = new URLSearchParams(location.search);
+  // 1. the privacy page: the game waits on its map under it
+  if (sp.has("privacy")) { pfPrivacy(); onMap(); return; }
+  // 2. the anonymous id (7.1: kept on the device by default; with HS_ANON_ID "visit" only from a sign-in or a guest's
+  // choice, work package P4), then the first event
+  let aid = pfRead("hs_pf_aid");
+  const returning = typeof aid === "string";
+  if (!returning && HS_ANON_ID === "device") { aid = pfUuid(); pfWrite("hs_pf_aid", aid); }
+  const cfg0 = pfCfg();
+  gateMode = PF_GATE_MODES.includes(PF_TEST && PF_TEST.gate) ? PF_TEST.gate : PF_GATE_MODES.includes(cfg0.gate) ? cfg0.gate : HS_GATE;
+  track("page_load", { gate: gateMode, signed: !!pfSession(), returning, progress: pfHeldCount(), standalone: pfStandalone(), ret: !!PF_RETURN });
+  // 3. the address was read and wiped as the script began (PF_RETURN)
+  // 4. the stats page (work package P4) has its own sign-in line: no gate there
+  if (sp.has("stats")) { onMap(); return; }
+  // 5, 6. the gate comes up; a browser that keeps no site data can only play
+  gateChecking();
+  if (HS_STORE_MEM) { gateNostore(); return; }
+  // 7. a provider's return, or a sign-in left unfinished
+  const back = await pfTakeSignIn();
+  if (!PF.on) return;
+  // 8. a session is held, or not
+  if (pfSession()) pfWithSession(back && back.ok ? back : null);
+  else pfNoSession(back && back.line);
+}
+// No session: the switch (hs_config, 2.5 s) and the providers (Auth's /settings, 4 s) asked at once (3.2)
+async function pfNoSession(line) {
+  if (line !== undefined) gateLine = line || "";
+  const offline = navigator.onLine === false;
+  const [cr, sr] = await Promise.all([
+    offline ? { ok: false, status: 0 } : pfRpc("hs_config", {}, { timeout: 2500 }),
+    offline ? { ok: false, status: 0 } : pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }),
+  ]);
+  const cfg = cr.ok && cr.data && typeof cr.data === "object" ? cr.data : null;
+  // the schema is not installed, or the owner switched the platform off: the game of before, for this load
+  if (cr.status === 404 || (cfg && cfg.cloud === false)) { pfOff(); gateLeave("off", pfOnMap); return; }
+  if (cfg) pfCfgSet({ gate: PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : null, notice: typeof cfg.notice === "string" ? cfg.notice.slice(0, 140) : "" });
+  // the mode: the fresh answer; else the one last seen; else the page's own (a test's beats them all)
+  const c = pfCfg();
+  gateMode = PF_GATE_MODES.includes(PF_TEST && PF_TEST.gate) ? PF_TEST.gate : cfg && PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : PF_GATE_MODES.includes(c.gate) ? c.gate : HS_GATE;
+  if (gateMode === "off" || (gateMode === "optional" && pfGateMem().guest)) { gateLeave("off", pfOnMap); return; }
+  if (offline) { gateDown("offline"); return; }
+  if (!(sr.ok && sr.data && typeof sr.data === "object")) { gateDown(sr.status === 0 ? "timeout" : "http"); return; }
+  const pv = providersOf(sr.data, pfInApp);
+  pfCfgSet({ prov: providersOf(sr.data, false).list, held: pv.held });
+  pfProv = pv.list; pfHeld = pv.held;
+  // no provider open at all (or only Discord, held back): down. In an in-app browser where only Google is open the
+  // card still comes, with its note and its ways out to the phone's own browser
+  if (!pfProv.length && !(pfInApp && providersOf(sr.data, false).list.length)) { gateDown("none"); return; }
+  gateSignin(gateLine);
+}
+// A session is held (3.9, step 8): the mode last seen at once (the switch is asked again behind), the name, then
+// the welcome card. justIn: the sign-in this load finished, if it did
+async function pfWithSession(justIn) {
+  const s = pfSession();
+  // the switch, asked again behind the card: for a signed-in player it only chooses between the welcome card and a toast
+  pfRpc("hs_config", {}, { timeout: 8000 }).then(cr => {
+    if (cr.status === 404 || (cr.ok && cr.data && cr.data.cloud === false)) { pfOff(); return; }
+    if (cr.ok && cr.data) pfCfgSet({ gate: PF_GATE_MODES.includes(cr.data.gate) ? cr.data.gate : null, notice: typeof cr.data.notice === "string" ? cr.data.notice.slice(0, 140) : "" });
+  });
+  const cfg = pfCfg(), me = pfRead("hs_pf_me");
+  const otherBefore = !!cfg.lastUid && cfg.lastUid !== s.uid;
+  const firstHere = !(me && me.uid === s.uid) && !(cfg.seen || []).includes(s.uid);
+  if (justIn) pfCfgSet({ lastProv: justIn.provider, lastUid: s.uid, seen: (cfg.seen || []).filter(u => u !== s.uid).concat([s.uid]).slice(-8) });
+  let r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
+  if (!pfSession()) { pfNoSession(""); return; }          // the server ended the session: as if none was held
+  if (r.status === 401 && pfSession()) {
+    // a token refused (the server ended its session, or the clock moved): one refresh, then the call again
+    if (await pfFresh(true)) r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
+    if (r.status === 401) { pfDrop("hs_pf_auth"); pfNoSession(""); return; }
+  }
+  let name = me && me.uid === s.uid ? me.name || null : null, named = true;
+  if (r.ok && r.data && typeof r.data === "object") {
+    name = typeof r.data.name === "string" && r.data.name ? r.data.name : null;
+    named = !!name;
+    pfWrite("hs_pf_me", { uid: s.uid, name, admin: !!r.data.admin });
+  }
+  if (justIn) track("signed_in", { provider: justIn.provider, new: !named, standalone: pfStandalone(), same: true, handoff: false, ms: justIn.ms });
+  PF.me = { uid: s.uid, name };
+  const how = justIn ? "signin" : "session";
+  const on = (nm) => {
+    PF.me = { uid: s.uid, name: nm };
+    pfAccountRedraw();
+    if (gateMode === "off") { gateLeave(how, () => { toast("Welcome back, " + (nm || "Defender") + "."); pfOnMap && pfOnMap(); if (justIn && justIn.back === "hall") openHall("account"); }); return; }
+    gateWelcome(nm, firstHere, how);
+  };
+  if (!named) { gateName(justIn ? otherBefore : false, (nm) => on(nm)); return; }
+  on(name);
+}
+
+// ---- the privacy page (?privacy). The full page comes with work package P8 ----
+function pfPrivacy() {
+  const el = $("privacyPage");
+  if (!el) return;
+  el.hidden = false;
+  track("privacy_open", { from: document.referrer && document.referrer.startsWith(location.origin) ? "game" : "link" });
+  // the game's own address without ?privacy: the map as it was
+  $("privacyBack").href = location.pathname;
+}
+
+// ---- the Account tab in the Hall (5.5): who you are and sign out; for a guest the sign-in buttons ----
+let pfAcctEl = null;
+function pfAccountRedraw() { if (hallOpen && hallTab === "account" && pfAcctEl) showHallTab("account", false); }
+function renderAccount(el) {
+  pfAcctEl = el;
+  const box = pfEl("div", "acTab");
+  el.appendChild(box);
+  const s = pfSession(), me = pfRead("hs_pf_me");
+  if (s) {
+    const name = (PF.me && PF.me.uid === s.uid && PF.me.name) || (me && me.uid === s.uid && me.name) || "Defender";
+    box.appendChild(pfEl("div", "acName", name));
+    if (s.prov) box.appendChild(pfEl("p", "", "Signed in with " + pfProviderName(s.prov) + "."));
+    const row = pfEl("div", "acRow");
+    row.appendChild(pfBtn("btn", "Change name", () => {
+      box.textContent = "";
+      box.appendChild(pfEl("p", "", "Choose your player name. It is shown on the leaderboards. Do not use your real name."));
+      const f = pfNameForm(box, { fieldCls: "acField", errCls: "acErr", saveCls: "btn", laterCls: "btn", saveWords: "Save name", value: name, changed: true,
+        then: (nm) => { PF.me = { uid: s.uid, name: nm }; pfAccountRedraw(); toast("Your name is " + nm + "."); } });
+      box.appendChild(pfBtn("btn", "Cancel", () => pfAccountRedraw()));
+      try { f.focus({ preventScroll: true }); f.select(); } catch (e) {}
+    }));
+    row.appendChild(pfBtn("btn", "Sign out", () => {
+      box.textContent = "";
+      box.appendChild(pfEl("p", "", "Sign out? Your progress stays on this device."));
+      const r2 = pfEl("div", "acRow");
+      r2.appendChild(pfBtn("btn", "Sign out", (b) => { b.disabled = true; pfSignOut(); }));
+      r2.appendChild(pfBtn("btn", "Stay signed in", () => pfAccountRedraw()));
+      box.appendChild(r2);
+    }));
+    box.appendChild(row);
+  } else if (HS_STORE_MEM) {
+    box.appendChild(pfEl("p", "", "This browser is not keeping this site's data, so a sign-in cannot be remembered here. To sign in, allow site data (cookies) for this site, or leave private browsing."));
+  } else {
+    box.appendChild(pfEl("p", "", "Sign in to save your progress and post scores."));
+    if (pfFramed) box.appendChild(pfEl("p", "acNote", "Sign-in opens the game in its own tab."));
+    const cfg = pfCfg();
+    const list = (pfProv || (Array.isArray(cfg.prov) ? cfg.prov : ["google", "facebook", "discord"]).filter(p => !(p === "discord" && cfg.held === "d"))).filter(p => !(p === "google" && pfInApp));
+    if (pfInApp) box.appendChild(pfEl("p", "acNote", "This app's browser can block sign-in. For Google, open the game in Safari or Chrome."));
+    for (const p of list) box.appendChild(pfProviderBtn(p, "hall"));
+    if (!list.length) box.appendChild(pfEl("p", "acNote", "Sign-in is not open right now."));
+  }
+  const pv = pfEl("a", "", "Privacy");
+  pv.href = "?privacy";
+  box.appendChild(pv);
+}
+// (after gameplay's tabs: the Council's row is pushed where its code is, earlier in the file)
+if (PF_ON) HALL_TABS.push({ id: "account", label: "Account", short: "Account", icon: "shield", render: renderAccount });
+
+// ---- the Platform object: the game's calls into the platform (0.4) ----
 // With the platform off (file://, the harness, the two public constants empty) each does what leaves the game
 // the game of before.
 const Platform = {
@@ -77789,14 +78800,26 @@ const Platform = {
   // run once the gate is passed. With the platform off it runs at once.
   boot(onMap) {
     syncHallDoors();   // every tab pushed while the script loaded is counted by now
-    onMap();
+    if (!PF_ON) { onMap(); return; }
+    pfBoot(onMap).catch((err) => {
+      // the gate must never be a wall: whatever went wrong, the game is played
+      try { console.error(err); } catch (e) {}
+      track("error", { msg: String(err && err.message || err).slice(0, 120), where: "boot" });
+      gateLeave("bypass", onMap);
+    });
   },
   // true while a page of the platform's holds the keyboard: no hotkey of the game's may act under it
-  blocking() { return hallOpen; },
+  blocking() { return hallOpen || gateUp || !$("privacyPage").hidden; },
   // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
   victoryPage() {},
   // the defeat page is up: a lost daily's score goes on it here (5.5)
   defeatPage() {},
+  // the player as the platform knows him, for a hero's or a card's words (0.3): read only
+  player() { const s = PF.on ? pfSession() : null; return { signedIn: !!s, name: s ? ((PF.me && PF.me.name) || ((pfRead("hs_pf_me") || {}).name) || null) : null }; },
+  // the daily challenge for gameplay's page: null until work package P6
+  daily() { return null; },
+  // the server's clock in ms (the device's while nothing has been heard from it)
+  now() { return pfNow(); },
 };
 
 // ---------- main loop ----------
