@@ -5,7 +5,7 @@ analytics, the owner's stats page, the privacy page, the owner's setup guide and
 Written against `index.html` at master 54207ce (line numbers below are that file's). Nothing here changes
 gameplay; the gameplay track has its own spec (`docs/specs/gameplay.md`). The seam between the two is section 0.3.
 
-**This is `docs/specs/platform.md` revised after its review** (`docs/specs/platform-critique.md`, 45 numbered
+**This is `docs/specs/platform.md` revised after its review** (`docs/specs/platform-critique.md`, 47 numbered
 findings). Every blocker and every major of the review is applied here, and most minors. Appendix A lists what
 changed, by the review's numbers; Appendix B what was not taken, and why. Where this file and `platform.md`
 differ, this file stands. A builder reads this file only.
@@ -107,8 +107,8 @@ PF-0, verbatim (the builder fills nothing in; the owner supplies the two values 
 
 ```js
 // ---------- platform: accounts, cloud saves, boards, analytics (docs/specs/platform.final.md) ----------
-// The owner's Supabase. Both values are public by design (the anon key only opens what row level security
-// allows). Empty: the platform is off and the game is the game of before. NEVER put a service key, a JWT
+// The owner's Supabase. Both values are public by design (of this game the anon key opens nothing but the
+// hs_ functions; what it opens of OTHER projects in the same Supabase is section 9.1). Empty: the platform is off and the game is the game of before. NEVER put a service key, a JWT
 // secret or a provider's secret in this file.
 const HS_SUPABASE_URL = "";        // e.g. "https://supabase.avunjian.com" (no slash at the end)
 const HS_SUPABASE_ANON_KEY = "";
@@ -305,7 +305,7 @@ Auth (GoTrue), under `B/auth/v1`:
 | call | when | notes |
 | --- | --- | --- |
 | `GET /settings` | at the gate, before the buttons show | answers `{ external: { google: true, facebook: true, discord: true, ... } }` **[V]**. It is the health probe (3.6) and decides which of the three buttons show, so the owner can open the providers one at a time. It also answers `mailer_autoconfirm` **[V]**, which decides whether Discord's button may show (3.3). 4 s time limit. |
-| `GET /authorize?provider=<p>&redirect_to=<url>&code_challenge=<c>&code_challenge_method=s256` | a top-level navigation (`location.assign`), never a `fetch` | **[V]** the route needs no `apikey` on the default gateway (Kong's `auth-v1-open-authorize`; **[U]** the newer default gateway, Envoy, is assumed to do the same: the setup guide's test 3 shows it). `scopes` is left out: the server asks each provider for the email scope by itself **[V]**. |
+| `GET /authorize?provider=<p>&redirect_to=<url>&code_challenge=<c>&code_challenge_method=s256` | a top-level navigation (`location.assign`), never a `fetch` | **[V]** the route needs no `apikey` on the default gateway (Kong's `auth-v1-open-authorize`; the newer default gateway, Envoy, does the same in Supabase's current files **[V]**; the guide's check after step 3 shows it on the owner's install). `scopes` is left out: the server asks each provider for the email scope by itself **[V]**. |
 | `POST /token?grant_type=pkce` body `{ auth_code, code_verifier }` | on return with `?code=` | answers `{ access_token, refresh_token, expires_in, expires_at, user, provider_token?, ... }` **[V]**. `provider_token` and `provider_refresh_token` are dropped at once and never stored: the game never calls a provider. The provider's name for the Account tab is `user.app_metadata.provider` in this answer, so `GET /user` is never called. |
 | `POST /token?grant_type=refresh_token` body `{ refresh_token }` | 1.4 | a new pair each time (rotation) **[V]** |
 | `POST /logout?scope=local` | sign-out | 204 **[V]**; the local session is removed whatever it answers |
@@ -1277,7 +1277,7 @@ clock by the server's, 1), so a device with a wrong clock still plays today's. T
 with `startDaily(levelIndex, twistId, day)`: gameplay seeds its own dice from the day (0.3 (5)).
 
 **Rules.** Normal difficulty; the standard loadout; the twist's effect (gameplay's `DAILY_TWISTS`: a name and
-one line each, such as "No Archers: the archers' slot is closed."); the same for everyone. It is open to every
+one line each, such as "Thin purse: bounties are a fifth lower today."); the same for everyone. It is open to every
 signed-in player who has fought Erebuni once, whatever the campaign has reached; it writes no record, opens no
 road and does not touch a campaign battle in progress (0.3 (5)).
 
@@ -1293,7 +1293,7 @@ Daily tab says so under its button ("One sitting. Leaving the battle ends the at
 ```
 Daily challenge · November 10
 Ani, c. 1041 to 1044
-No Archers: the archers' slot is closed.
+Thin purse: bounties are a fifth lower today.
 Normal · Standard loadout · The same for everyone
 Attempts left: 2 of 3      Your best today: 7,420 (#12 of 87)
 [ Play today's challenge ]                      New challenge in 5 h 12 min
@@ -1301,7 +1301,7 @@ Attempts left: 2 of 3      Your best today: 7,420 (#12 of 87)
 Yesterday: 1. Bagrat 9,105   2. Aram 8,800   3. Nune 8,640
 ```
 
-**The share text** (the card is section 6): "Highland Stand daily, Nov 10: Ani, No Archers. Score 7,420, #12
+**The share text** (the card is section 6): "Highland Stand daily, Nov 10: Ani, Thin purse. Score 7,420, #12
 today. https://highland.avunjian.com"
 
 ---

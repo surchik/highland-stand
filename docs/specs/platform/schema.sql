@@ -7,9 +7,10 @@
 -- so it does not touch other projects that share this database. It holds no secret.
 --
 -- How access works: every table has row level security on and gives the public API roles (anon,
--- authenticated) nothing but, on a few tables, a read of the caller's own rows. Everything else goes
--- through the functions below, which run as their owner (security definer), check who is calling with
+-- authenticated) nothing at all: no policy, no grant, not even a read of the caller's own rows. Everything
+-- goes through the functions below, which run as their owner (security definer), check who is calling with
 -- auth.uid(), and are the only doors the game's page uses (POST /rest/v1/rpc/<name>).
+-- Revised after the review (docs/specs/platform-critique.md); the spec is docs/specs/platform.final.md.
 
 -- Run as the postgres role, so that no function below is owned by a superuser (the SQL editor of an older
 -- install runs as supabase_admin, which is one). A role that may not become postgres stops here with an error.
