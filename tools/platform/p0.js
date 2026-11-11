@@ -7,7 +7,13 @@
 //   at least 560 x 280 px held sideways, nothing of it lies outside the visible area minus the safe areas (the
 //   iPhone suite's own audit, tools/regress/iphone-audit.js), every control is 44 px to a finger, a tab's badge and
 //   the tally's pip follow the tab, a toast shows over it, it closes by its button and by Escape, and the map is
-//   back in reach; a page that changes layout under it has the tab drawn again;
+//   back in reach; a page that changes layout under it has the tab drawn again; the tally says where it leads;
+//   a double tap on the tally opens the Hall and presses nothing in it;
+// - the five tabs the two specs name (War Council, Captains, Daily, Leaderboards, Account) are all whole and in
+//   sight, without scrolling, at 1600 x 900, 1194 x 834 and the ten iPhone sizes of tools/regress/iphone.js, the
+//   tab's box still 560 x 280 at the least held sideways; a sixth tab on the shortest phone scrolls and fades;
+// - a field being typed in is not thrown away when a phone's keyboard shrinks the window into another layout;
+// - the Hall opens under ?selftest too;
 // - no hotkey of the game's acts while the Hall is open, and typing in a tab's field types;
 // - with no tab the tally is the plaque it was (no door, no action) and nothing else offers the Hall;
 // - on a plain page (no harness) tabs pushed as gameplay pushes them open in the order of 0.3 (the Council while
@@ -19,10 +25,14 @@
 // - with the constants empty the page asks the network for nothing but its own document;
 // - under /next/ every key the page reads or writes begins "next:" (the storage check's own key and a browser
 //   that refuses writes included), a page at / neither sees nor touches those keys, and the other way around;
-//   /next/index.html and /next are the channel too, /nextish/ is not; under the harness no real key is touched;
+//   /next/index.html and /next are the channel too, and so is every spelling a web server answers with the
+//   staging page (//next/, /%6Eext/, /NEXT/, /next%2F: the script's server merges slashes and decodes as nginx
+//   does); /nextish/ is not; a real save without the prefix is not seen from /next/; under the harness no real
+//   key is touched;
 // - the harness's photo of the Hall (?shot=hall) works over http and on file://, and says so when it has no tab.
 // Usage:  NODE_PATH=$(npm root -g) node tools/platform/p0.js [index.html] [--shots=dir] [--verbose] [--only=hall,plain,...]
-//   --only  some of the parts: hall, notab, plain, track, next, photo
+//   --only  some of the parts: hall, five, field, selftest, notab, plain, track, next, photo (selftest waits out the
+//           whole suite under ?selftest, about two minutes)
 // Prints one line per failure (FAIL <where>: ...), a RESULT line, and exits 1 on any failure.
 "use strict";
 const http = require("http");
@@ -42,9 +52,13 @@ const UA = devices["iPhone 15"].userAgent;
 function serve(file) {
   const hits = [];
   const srv = http.createServer((req, res) => {
-    const p = new URL(req.url, "http://x").pathname;
+    // the path as nginx reads it ($uri): percent codes decoded, doubled slashes merged. (Capitals are answered
+    // too, as a disk that does not tell them apart would.)
+    let p = req.url.split("?")[0];
+    try { p = decodeURIComponent(p); } catch (e) {}
+    p = p.replace(/\/{2,}/g, "/");
     hits.push(p);
-    if (/^\/((next|nextish)(\/|$))?(index\.html)?$/.test(p)) {
+    if (/^\/((next|nextish)(\/|$))?(index\.html)?$/i.test(p)) {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       fs.createReadStream(file).pipe(res);
     } else { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); }
@@ -65,6 +79,18 @@ function rawStorageLog() {
       return orig.apply(this, arguments);
     };
   }
+}
+// a real player's save already in the browser (written behind the page's back, before its script runs, and not
+// logged): Chapter I's story seen, the music off
+function SEED_REAL() {
+  try {
+    const real = window.__realLS || window.localStorage, SP = Storage.prototype;
+    if (real.length) return;
+    window.__rawQuiet = true;
+    SP.setItem.call(real, "hs_chapters_seen", JSON.stringify(["kingdoms"]));
+    SP.setItem.call(real, "hs_settings", JSON.stringify({ musicOn: false }));
+    window.__rawQuiet = false;
+  } catch (e) { window.__rawQuiet = false; }
 }
 // a browser that refuses every write (Safari's older Private mode): the page's storage falls back to memory
 function refuseWrites() {
@@ -109,7 +135,10 @@ function refuseWrites() {
     await g.ev(AU.install);
     return g;
   };
-  const hallState = (g) => g.ev(() => ({
+  // (the Hall takes no press for a moment after it comes up: every reading of it waits that moment out)
+  const settled = (g) => g.page.waitForFunction(() => !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 });
+  const hallState = async (g) => { await settled(g); return hallStateNow(g); };
+  const hallStateNow = (g) => g.ev(() => ({
     open: !hallEl.classList.contains("hlHidden") && getComputedStyle(hallEl).display !== "none",
     blocking: Platform.blocking(), inert: overlayEl.hasAttribute("inert"), tab: hallBodyEl.dataset.tab || "",
     focusIn: hallEl.contains(document.activeElement), focus: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : "",
@@ -145,12 +174,32 @@ function refuseWrites() {
       const door = await g.ev(() => {
         const e = $("ovStars"), cs = getComputedStyle(e);
         return { tag: e.tagName, type: e.type, door: e.classList.contains("door"), pip: e.classList.contains("pip"), role: e.getAttribute("role"), ti: e.getAttribute("tabindex"),
-          cursor: cs.cursor, pipBox: getComputedStyle(e, "::after").width, text: e.textContent };
+          cursor: cs.cursor, pipBox: getComputedStyle(e, "::after").width, text: e.textContent,
+          label: e.getAttribute("aria-label"), title: e.title, pop: e.getAttribute("aria-haspopup") };
       });
       if (door.tag !== "BUTTON" || door.type !== "button") fail(tag, "the tally is a " + door.tag + " type " + door.type + ", not a button");
       if (!door.door || door.cursor !== "pointer" || door.role || door.ti !== null) fail(tag, "the tally is not a door though the Hall has tabs: " + JSON.stringify(door));
       if (!door.pip || door.pipBox !== "12px") fail(tag, "the tally wears no pip though a tab's badge is up: " + JSON.stringify(door));
       if (!/\d+\/\d+/.test(door.text)) fail(tag, "the tally lost its count: " + door.text);
+      if (!/^Stars won across the campaign: \d+ of \d+\. Open the Hall$/.test(door.label || "") || door.title !== door.label || door.pop !== "dialog") fail(tag, "the door does not say where it leads: " + JSON.stringify(door));
+      // ---- a double tap on the tally: the Hall opens, and the second tap presses nothing the Hall put under it ----
+      {
+        const q = await g.reach("#ovStars");
+        if (q.why) fail(tag, "the tally is not in reach: " + q.why);
+        else {
+          await g.tapAt(q.x, q.y);
+          const under = await g.hitName(q.x, q.y);
+          await g.tapAt(q.x, q.y);
+          const dt = await hallStateNow(g), settling = await g.ev(() => hallEl.classList.contains("hlSettling"));
+          if (!dt.open || dt.tab !== "test1") fail(tag, "a double tap on the tally left the Hall " + (dt.open ? "on " + dt.tab : "closed") + " (the second tap landed on " + under + ")");
+          if (!settling) fail(tag, "the Hall was not settling when the second tap came (the check proves nothing)");
+          if (under !== "div#hall.hlSettling") fail(tag, "while the Hall settles a tap at the tally's place lands on " + under + ", not on the Hall's own ground");
+          await settled(g);
+          if (await g.ev(() => hallEl.classList.contains("hlSettling") || getComputedStyle(hallEl.querySelector(".hlCard")).pointerEvents === "none")) fail(tag, "the Hall never took presses again");
+          await g.press("#hallClose");
+          if ((await hallState(g)).open) fail(tag, "the Hall did not close after the double tap");
+        }
+      }
       const st0 = await hallState(g);
       if (st0.open || st0.blocking || st0.inert) fail(tag, "the Hall is up before it was opened: " + JSON.stringify(st0));
       // (the tally itself, as a control of the map page, is held to the iPhone suite's bar by iphone.js)
@@ -313,6 +362,140 @@ function refuseWrites() {
   };
   if (want("hall")) for (const C of WALK) await hallWalk(C);
 
+  // ================= the five tabs the two specs name, every one whole and in sight =================
+  // (War Council and Captains are gameplay's, Daily, Leaderboards and Account the platform's: 5.5.) Each tab must
+  // lie whole inside the row as it stands, with the row not scrolled and not able to scroll, and inside the
+  // visible area minus the safe areas; held sideways the tab's box keeps its 560 x 280.
+  const HOME = { l: 59, r: 59, b: 21, t: 0 };
+  const FIVE_AT = [
+    { name: "mouse 1600x900", w: 1600, h: 900, layout: "wide" },
+    { name: "touch 1194x834", w: 1194, h: 834, touch: true, layout: "wide" },
+    { name: "touch 667x320 SE Safari", w: 667, h: 320, touch: true, ua: UA, standalone: false, layout: "side" },
+    { name: "touch 734x343 iPhone 15 Safari", w: 734, h: 343, touch: true, ua: UA, standalone: false, layout: "side" },
+    { name: "touch 814x380 Pro Max Safari", w: 814, h: 380, touch: true, ua: UA, standalone: false, layout: "side" },
+    { name: "touch 667x375 SE Home Screen", w: 667, h: 375, touch: true, ua: UA, standalone: true, layout: "side" },
+    { name: "touch 852x393 iPhone 15 Home Screen", w: 852, h: 393, touch: true, ua: UA, standalone: true, insets: HOME, layout: "side" },
+    { name: "touch 932x430 Pro Max Home Screen", w: 932, h: 430, touch: true, ua: UA, standalone: true, insets: HOME, layout: "side" },
+    { name: "touch 852x343 iPhone 15 Safari full width", w: 852, h: 343, touch: true, ua: UA, standalone: false, insets: HOME, layout: "side" },
+    { name: "touch 932x380 Pro Max Safari full width", w: 932, h: 380, touch: true, ua: UA, standalone: false, insets: HOME, layout: "side" },
+    { name: "touch 393x659 iPhone 15 upright", w: 393, h: 659, touch: true, ua: UA, standalone: false, layout: "tall" },
+    { name: "touch 375x553 SE upright", w: 375, h: 553, touch: true, ua: UA, standalone: false, layout: "tall" },
+  ];
+  const pushTabs = (g, n) => g.ev((n) => {
+    const names = [["council", "War Council", "Council", "star"], ["captains", "Captains", "Captains", "shield"], ["daily", "Daily", "Daily", "flag"],
+      ["boards", "Leaderboards", "Boards", "trophy"], ["account", "Account", "Account", "crest"], ["sixth", "A sixth tab", "Sixth", "horn"]];
+    HALL_TABS.length = 0;
+    for (const [id, label, short, ic] of names.slice(0, n)) HALL_TABS.push({ id, label, short, icon: ic, badge: () => id === "daily" ? 1 : 0, render(el) { el.innerHTML = '<p style="padding:12px">' + label + "</p>"; } });
+    syncHallDoors();
+  }, n);
+  const rowState = (g) => g.ev(() => {
+    const row = hallTabsEl, r = row.getBoundingClientRect(), cs = getComputedStyle(document.documentElement);
+    const px = (v) => parseFloat(cs.getPropertyValue(v)) || 0;
+    const safe = { l: px("--sal"), r: innerWidth - px("--sar"), t: px("--sat"), b: innerHeight - px("--sab") };
+    const cut = [];
+    for (const b of row.children) {
+      const q = b.getBoundingClientRect(), whole = q.left >= r.left - 0.5 && q.right <= r.right + 0.5 && q.top >= r.top - 0.5 && q.bottom <= r.bottom + 0.5;
+      const inSafe = q.left >= safe.l - 0.5 && q.right <= safe.r + 0.5 && q.top >= safe.t - 0.5 && q.bottom <= safe.b + 0.5;
+      const small = q.width < 44 || q.height < 44;
+      if (!whole || !inSafe || small) cut.push(b.dataset.tab + " " + Math.round(q.width) + "x" + Math.round(q.height) + " at " + Math.round(q.left) + "," + Math.round(q.top) + (whole ? "" : " cut by the row") + (inSafe ? "" : " outside the safe area") + (small ? " under 44 px" : ""));
+    }
+    return { layout: hallLayout(), n: row.children.length, scroll: row.scrollWidth > row.clientWidth + 1 || row.scrollHeight > row.clientHeight + 1, sx: row.scrollLeft, sy: row.scrollTop,
+      more: row.classList.contains("more"), cut, box: [hallBodyEl.clientWidth, hallBodyEl.clientHeight] };
+  });
+  if (want("five")) {
+    for (const C of FIVE_AT) {
+      const tag = "five tabs " + C.name;
+      const g = await openAt("/?shot=menu&unlock", C);
+      try {
+        await pushTabs(g, 5);
+        await g.press("#ovStars");
+        await settled(g);
+        const s = await rowState(g);
+        notes["five " + C.w + "x" + C.h] = s.box.join("x");
+        if (s.layout !== C.layout) fail(tag, "the Hall's layout is " + s.layout + ", not " + C.layout);
+        if (s.n !== 5) fail(tag, "the row holds " + s.n + " tabs");
+        if (s.scroll || s.sx || s.sy || s.more) fail(tag, "the row scrolls to show its five tabs: " + JSON.stringify(s));
+        if (s.cut.length) fail(tag, "tabs not whole in sight: " + s.cut.join("; "));
+        if (C.layout === "side" && (s.box[0] < 560 || s.box[1] < 280)) fail(tag, "the tab's box is " + s.box.join(" x ") + ", under 560 x 280");
+        if (C.layout === "wide" && (s.box[0] < 680 || s.box[1] < 320)) fail(tag, "the tab's box is " + s.box.join(" x ") + ", under 680 x 320");
+        // each of the five opens by a press on it
+        for (const id of ["account", "council"]) {
+          await g.press('#hallTabs .hlTab[data-tab="' + id + '"]');
+          const st = await hallState(g);
+          if (st.tab !== id) fail(tag, "a press on " + id + " showed " + st.tab);
+        }
+        await g.shot(o.shots, tag);
+        await g.press("#hallClose");
+        // a sixth tab on the shortest screens: whatever does not fit scrolls, and the row says more lies past its edge
+        if (C.w === 667 && C.h === 320 || C.w === 375) {
+          await pushTabs(g, 6);
+          await g.ev(() => openHall("council"));
+          await settled(g);
+          const s6 = await rowState(g);
+          if (s6.scroll && !s6.more) fail(tag, "with six tabs the row scrolls with no mark that more lies past its edge: " + JSON.stringify(s6));
+          await g.ev(() => { hallTabsEl.scrollTo(9999, 9999); });
+          await g.frames(3);
+          const s6b = await rowState(g);
+          if (s6b.more) fail(tag, "scrolled to its end the row still says more lies past its edge");
+          await g.ev(() => closeHall());
+        }
+        await problems(g, tag);
+      } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); await g.shot(o.shots, tag + " stopped"); }
+      finally { await g.close(); }
+    }
+  }
+
+  // ================= a field typed in while a phone's keyboard shrinks the window =================
+  // (Android Chrome shrinks the window for its keyboard: an upright phone then reads as one held sideways)
+  if (want("field")) {
+    const tag = "field under a keyboard";
+    const C = { name: "touch 393x780", w: 393, h: 780, touch: true };
+    const g = await openAt("/?shot=menu&unlock&testtab=2", C);
+    try {
+      await g.press("#ovStars");
+      await settled(g);
+      await g.press("#hallTestInput");
+      await g.page.keyboard.type("Ar");
+      const a = await g.ev(() => { window.__field = $("hallTestInput"); return { layout: hallLayout(), value: $("hallTestInput").value, focus: document.activeElement.id }; });
+      if (a.layout !== "tall" || a.value !== "Ar" || a.focus !== "hallTestInput") fail(tag, "before the keyboard: " + JSON.stringify(a));
+      await g.page.setViewportSize({ width: 393, height: 440 });
+      await g.frames(4);
+      const b = await g.ev(() => ({ layout: hallLayout(), same: $("hallTestInput") === window.__field, value: window.__field.value, focus: document.activeElement.id }));
+      if (b.layout !== "side") fail(tag, "the shrunk window does not read as another layout (the check proves nothing): " + b.layout);
+      if (!b.same || b.value !== "Ar" || b.focus !== "hallTestInput") fail(tag, "the keyboard came up and the field was lost: " + JSON.stringify(b));
+      await g.page.keyboard.type("a");
+      if (await g.ev(() => window.__field.value) !== "Ara") fail(tag, "the field took no more typing after the window shrank");
+      // the field left: the tab is drawn again for the layout it is in now
+      await g.ev(() => document.activeElement.blur());
+      await g.frames(4);
+      const c = await g.ev(() => ({ same: $("hallTestInput") === window.__field, size: $("hallTestSize").textContent, w: hallBodyEl.clientWidth, h: hallBodyEl.clientHeight }));
+      if (c.same || !c.size.includes(c.w + " x " + c.h)) fail(tag, "once the field was left the tab was not drawn again for its new box: " + JSON.stringify(c));
+      await g.page.setViewportSize({ width: C.w, height: C.h });
+      await g.frames(4);
+      await g.ev(() => closeHall());
+      await problems(g, tag);
+    } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); await g.shot(o.shots, tag + " stopped"); }
+    finally { await g.close(); }
+  }
+
+  // ================= the Hall under ?selftest =================
+  if (want("selftest")) {
+    const tag = "under ?selftest";
+    const C = { name: "mouse 1600x900", w: 1600, h: 900 };
+    const ctx = await browser.newContext({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1 });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on("pageerror", e => errs.push(e.message));
+    try {
+      await page.goto(S.base + "/?selftest=1&testtab=2", { waitUntil: "commit" });
+      await page.waitForFunction(() => document.body && /SELFTEST_RESULT/.test(document.body.textContent), null, { timeout: 800000 });
+      const r = await page.evaluate(() => { overlayEl.classList.remove("hidden"); const a = openHall(); const out = { a, tabs: HALL_TABS.length, door: $("ovStars").classList.contains("door"), shown: getComputedStyle(hallEl).display, tab: hallTab, blocking: Platform.blocking() }; closeHall(); out.after = Platform.blocking(); return out; });
+      if (!r.a || r.tabs !== 2 || !r.door || r.shown === "none" || r.tab !== "test1" || !r.blocking || r.after) fail(tag, "the Hall under ?selftest: " + JSON.stringify(r));
+      if (errs.length) fail(tag, "page errors: " + errs.slice(0, 3).join(" | "));
+    } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); }
+    finally { await ctx.close(); }
+  }
+
   // ================= no tab: no door, and nothing offers the Hall =================
   const noTab = async (C, pathq) => {
     const tag = "no tab " + C.name + (pathq.includes("shot") ? " (harness)" : "");
@@ -322,7 +505,7 @@ function refuseWrites() {
       const d = await g.ev(() => {
         const e = $("ovStars"), cs = getComputedStyle(e);
         return { tag: e.tagName, door: e.classList.contains("door"), pip: e.classList.contains("pip"), role: e.getAttribute("role"), ti: e.getAttribute("tabindex"), cursor: cs.cursor,
-          shown: __hsAudit.visible(e), label: e.getAttribute("aria-label"), tabs: HALL_TABS.length, acct: getComputedStyle($("setAcct")).display, hall: getComputedStyle(hallEl).display };
+          shown: __hsAudit.visible(e), label: e.getAttribute("aria-label"), pop: e.getAttribute("aria-haspopup"), tabs: HALL_TABS.length, acct: getComputedStyle($("setAcct")).display, hall: getComputedStyle(hallEl).display };
       });
       if (d.tabs !== 0) fail(tag, "HALL_TABS holds " + d.tabs + " tabs on a page that should have none");
       if (d.tag !== "BUTTON" || d.door || d.pip || d.role !== "img" || d.ti !== "-1" || d.cursor !== "default") fail(tag, "the tally is not the plain plaque: " + JSON.stringify(d));
@@ -331,7 +514,15 @@ function refuseWrites() {
       if (d.hall !== "none") fail(tag, "the Hall is shown");
       const q = await g.reach("#ovStars");
       if (q.why) fail(tag, "the tally cannot be pressed to see that it does nothing: " + q.why);
-      else { await g.tapAt(q.x, q.y); await g.frames(2); }
+      else {
+        await g.tapAt(q.x, q.y); await g.frames(2);
+        // a press does not hand the plaque the focus (it could not take it before it was a button element), and
+        // even focused by a script it wears no ring
+        const f = await g.ev(() => { const was = document.activeElement && document.activeElement.id; $("ovStars").focus(); const cs = getComputedStyle($("ovStars")); const r = { was, style: cs.outlineStyle }; $("ovStars").blur(); return r; });
+        if (f.was === "ovStars") fail(tag, "a press on the plaque gave it the focus");
+        if (f.style !== "none") fail(tag, "the plaque wears a focus ring (" + f.style + ")");
+      }
+      if (/Open the Hall/.test(d.label || "") || d.pop) fail(tag, "the plaque speaks of the Hall: " + d.label);
       await g.ev(() => $("ovStars").click());
       const st = await hallState(g);
       if (st.open || st.blocking || st.inert) fail(tag, "a press on the tally did something: " + JSON.stringify(st));
@@ -416,6 +607,7 @@ function refuseWrites() {
       if (after !== before) fail(tag, "a hotkey reached the game under the Hall: " + before + " became " + after);
       if (!st.open) fail(tag, "a key other than Escape closed the Hall");
       await g.ev(() => openHall("council"));
+      await settled(g);
       await g.press("#hallClose");
       if (await g.ev(() => $("ovStars").classList.contains("pip")) !== true) fail(tag, "the pip went though the Daily's badge is still up");
       await opens("daily", "no stars and the daily unplayed");
@@ -455,7 +647,22 @@ function refuseWrites() {
       st = await hallState(g);
       if (!st.open || st.tab !== "account" || await g.ev(() => settingsEl.style.display) === "block") fail(tag, "Settings' account row did not open the Hall on Account and put Settings away: " + JSON.stringify(st));
       await g.page.keyboard.press("Escape");
+      await g.frames(2);
+      // the row that was pressed went with Settings: the focus goes to the gear that leads there, not to nothing
+      st = await hallStateNow(g);
+      if (st.open || st.focus !== "ovGear") fail(tag, "after the Hall opened from Settings' row and closed, the focus is on " + st.focus + ", not on the gear");
       await g.ev(() => document.body.classList.remove("pfOn"));
+      // ---- a crash while the Hall is open: "Return to map" puts the Hall away with the game's other pages ----
+      await g.ev(() => { openHall(); showCrashCard(new Error("p0 test crash")); crashed = crashShown; });
+      st = await hallState(g);
+      if (!st.open) fail(tag, "the crash card closed the Hall under it");
+      await g.page.keyboard.press("Escape");
+      if (!(await hallStateNow(g)).open) fail(tag, "Escape reached the Hall under the crash card");
+      await g.ev(() => recoverToMap());
+      await g.frames(3);
+      st = await hallStateNow(g);
+      if (st.open || st.blocking || st.inert) fail(tag, "after a crash under the Hall, Return to map left the Hall up: " + JSON.stringify(st));
+      await g.toMap();
       // ---- the Hall goes when the menu page under it goes; it does not open over the nardi board or a battle ----
       await g.ev(() => openHall());
       await g.ev(() => overlayEl.classList.add("hidden"));
@@ -684,6 +891,37 @@ function refuseWrites() {
       }
       await ctx.close();
 
+      // ---- 5b: every spelling a web server answers with the staging page is the staging channel, and touches no
+      // real key (the server here merges slashes and decodes as nginx does); a real save is not seen from them ----
+      for (const p of ["//next/", "/%6Eext/", "/NEXT/", "/next%2F", "///next//index.html", "/%6E%65%78%74"]) {
+        const cx = await browser.newContext({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1 });
+        await cx.addInitScript(rawStorageLog);
+        // (a real player's save, already in this browser: Chapter I's story seen, the music off)
+        await cx.addInitScript(SEED_REAL);
+        const g = await openAt(p, C, { ctx: cx }); opened.push(g);
+        const r = await g.ev(() => ({ ch: HS_CHANNEL, pre: HS_KEY_PREFIX, mode: menuMode, music: Snd.musicOn }));
+        if (r.ch !== "next" || r.pre !== "next:") fail(tag, "a page at " + p + " (the staging page, as the server answers it) reads its channel as " + r.ch);
+        // (the story shown marks Chapter I seen under the page's own name, so what proves it is the story itself
+        // and the music)
+        if (r.mode !== "chapter" || !r.music) fail(tag, "a page at " + p + " sees the real save: " + JSON.stringify(r));
+        // (the seeding script's own read and writes, made before the page's script ran, are left out)
+        const l = (await rawLog(g)).filter(e => e[0] === "local" && !e[2].startsWith("next:"));
+        const bad = [...new Set(l.map(e => e[1] + " " + e[2]))];
+        if (bad.length) fail(tag, "a page at " + p + " touched keys without the prefix: " + bad.slice(0, 8).join(", "));
+        await g.close();
+        try { await cx.close(); } catch (e) {}
+      }
+      // ---- 5c: the live page with that same real save sees its stars (so 5b proves something) ----
+      {
+        const cx = await browser.newContext({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1 });
+        await cx.addInitScript(SEED_REAL);
+        const g = await openAt("/", C, { ctx: cx }); opened.push(g);
+        const r = await g.ev(() => ({ ch: HS_CHANNEL, seen: localStorage.getItem("hs_chapters_seen"), mode: menuMode, music: Snd.musicOn }));
+        if (r.ch !== "live" || !r.seen || r.mode === "chapter" || r.music) fail(tag, "the live page does not see the seeded real save (the check above proves nothing): " + JSON.stringify(r));
+        await g.close();
+        try { await cx.close(); } catch (e) {}
+      }
+
       // ---- 6: a browser that refuses every write, at /next/: memory, and the one key it tried wears the prefix ----
       const g6 = await openAt("/next/", C, { init: [[rawStorageLog], [refuseWrites]] }); opened.push(g6);
       const c6 = await g6.ev(() => ({ ch: HS_CHANNEL, mem: HS_STORE_MEM, key: typeof localStorage.key, mode: menuMode }));
@@ -736,7 +974,7 @@ function refuseWrites() {
 
   await browser.close();
   S.srv.close();
-  const strange = S.hits.filter(p => !/^\/((next|nextish)(\/|$))?(index\.html)?$/.test(p));
+  const strange = S.hits.filter(p => !/^\/((next|nextish)(\/|$))?(index\.html)?$/i.test(p));
   if (strange.length) fail("server", "the page asked the server for " + [...new Set(strange)].join(", "));
   R.finish("p0", fails, notes, t0);
 })();
