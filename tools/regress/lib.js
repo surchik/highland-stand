@@ -64,7 +64,8 @@ async function launch(opts = {}) {
   return chromium.launch({ args });
 }
 
-// A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads }
+// A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads,
+// councilCard: true to let the War Council's one-time card come up (it counts as seen otherwise) }
 // and, for a phone (iphone.js): ua (the browser's user agent), standalone (navigator.standalone, as iOS reports a
 // page opened from the Home Screen), insets: { l, r, t, b } the safe-area insets in CSS px, and init: functions run
 // in the page before its own script (each a [fn, arg] pair).
@@ -108,6 +109,14 @@ async function openGame(browser, file, o) {
   await page.goto("file://" + file + (o.query ? "?" + o.query : ""), { timeout: 120000 });
   await page.waitForFunction(() => typeof menuMode !== "undefined" && typeof Town !== "undefined" && typeof Nardi !== "undefined" &&
     document.readyState === "complete", null, { timeout: 120000 });
+  // The War Council's one-time card ("The War Council opens", gameplay 4.6) comes up over the map the first time stars
+  // wait to be spent. The scripts that walk the map after a victory are not about it: it counts as seen unless a
+  // script asks for it (councilCard: true). Written once the page has loaded and only where the save has no list,
+  // never from an init script: a storage write there, at the start of a reload, can leave the reloaded page reading
+  // an empty storage (the iPhone tip's one-time check caught it)
+  if (!o.councilCard) {
+    await page.evaluate(() => { try { if (localStorage.getItem("hs_towers_seen") === null) localStorage.setItem("hs_towers_seen", JSON.stringify(["council"])); } catch (e) {} });
+  }
   g.cdp = await ctx.newCDPSession(page);
   await g.frames(3);
   return g;

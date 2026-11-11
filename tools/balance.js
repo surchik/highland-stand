@@ -42,6 +42,12 @@
 //                 without the clock; the clock it reports adds the 4 s a wave is sent after the last is cleared
 //                 (Auto's pause), once per wave after the first. Under the table: the line of pars for LEVEL_PAR
 //                 in index.html. JSON=1 gives sec, waveSec, secs (per wave), earned, spent and minS for every battle
+//   KIT=none|floor|par|cap  the War Council's tiers a battle is fought with (gameplay 4.8, 5.2): none (the Standard
+//                 battle, the default), or what a player owns on first arrival at the battlefield played having won
+//                 every earlier one once with one star (floor), two (par), or everything the chapter lets be owned
+//                 (cap), bought in the standard order (councilStandard). The bounds of 5.2: with the best build on
+//                 Normal, par keeps at most 2 more defenders than none (the mean over the battlefields), cap at most 4,
+//                 and on no battlefield more than 6. The hero's level joins the kit with the heroes (G3, HERO=hold)
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
@@ -134,13 +140,17 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit } = a;
   let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
   Math.random = mulberry32(seed);
   toast = () => {};
   curDiff = diff; curLevel = lv;
+  if (typeof setKitForTest === "function") setKitForTest(kit || "none");   // KIT= (a page before the Council has none)
   resetGame();
+  // what a tower and a rank cost under the kit (the page's own prices; a page before the Council has only the table's)
+  const costOf = k => (typeof towerCost === "function" ? towerCost(k) : TOWER_DEFS[k].cost);
+  const rankOf = t => (typeof rankCost === "function" ? rankCost(t.type, t.level + 1) : TOWER_DEFS[t.type].levels[t.level + 1].cost);
   spawnSeq = 0;   // which road each foe takes on a forked field: the game never resets it between battles
   overlayEl.classList.add("hidden");
   // rank pads by how much road lies within reach: each next pad is the one adding most reach over road the
@@ -217,7 +227,7 @@ function playBattle(a) {
         // no free pad watches the last stretch (the build's towers stand there): the one that watches the most road
         if (best < 0) for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, pts); if (v > bv) { bv = v; best = i; } }
         if (best >= 0) {
-          if (gold < TOWER_DEFS[kind].cost) return false;   // it saves for it
+          if (gold < costOf(kind)) return false;   // it saves for it
           placeTower(kind, best); extra++;
         }
       }
@@ -243,7 +253,7 @@ function playBattle(a) {
           else if (bi >= 0 && cov === 0) return false;
         }
         if (best >= 0) {
-          if (gold >= TOWER_DEFS[kind].cost) { placeTower(kind, best); extra++; }
+          if (gold >= costOf(kind)) { placeTower(kind, best); extra++; }
           else if (cov === 0) return false;
         }
       }
@@ -258,8 +268,8 @@ function playBattle(a) {
       const build = PADS.some((p, i) => !towerAt(i)) ? plan[Math.max(0, n - extra) % plan.length] : null;
       const nextPad = build && (TOWER_DEFS[build].air ? rankAir : rankRoad).find(i => !towerAt(i));
       let done = false;
-      if (build && (n < 5 || !up) && gold >= TOWER_DEFS[build].cost) { placeTower(build, nextPad); done = true; }
-      else if (up && gold >= TOWER_DEFS[up.type].levels[up.level + 1].cost) { upgradeTower(up); done = true; }
+      if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); done = true; }
+      else if (up && gold >= rankOf(up)) { upgradeTower(up); done = true; }
       else if (!up && !build) {
         const sp = towers.find(t => !t.spec && !t.wreck);
         if (sp) {
@@ -384,6 +394,8 @@ function playBattle(a) {
   const jobs = Math.max(1, +(process.env.JOBS || Math.min(4, os.cpus().length)));
   const probe = process.env.CMD === "probe";
   const counters = process.env.COUNTERS !== "0";
+  const kit = process.env.KIT || "none";
+  if (!["none", "floor", "par", "cap"].includes(kit)) { console.error("KIT is none, floor, par or cap"); process.exit(2); }
 
   const browser = await chromium.launch();
   const errors = [];
@@ -408,7 +420,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3) });
+      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit });
   }
   const results = [];
   let done = 0;
@@ -438,7 +450,7 @@ function playBattle(a) {
   const score = rs => rs.filter(r => r.won).length * 1000 + rs.reduce((s, r) => s + r.lives + r.wave * 10 * !r.won, 0) / rs.length;
   for (const diff of diffs) {
     console.log("\n" + DN[diff] + ": " + levels.length + " battlefields, " + seeds + " seed" + (seeds > 1 ? "s" : "") +
-      ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4));
+      ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4) + (kit !== "none" ? ", kit " + kit : ""));
     const W = 12, NW = 25;
     console.log(pad("battlefield", NW) + builds.map(b => pad(b, W)).join("") + "| best");
     const wins = {}, cmds = {}, held = {};
