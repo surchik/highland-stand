@@ -35,6 +35,7 @@ exception when others then
 end $$;
 grant execute on all functions in schema t to anon, authenticated;
 
+truncate auth.audit_log_entries;
 truncate public.hs_events, public.hs_sessions, public.hs_score_best, public.hs_scores, public.hs_runs, public.hs_saves,
   public.hs_profiles, public.hs_admins, public.hs_rulesets, public.hs_rate cascade;
 select to_regclass('public.hs_handoff') is not null as has_handoff \gset
@@ -237,7 +238,7 @@ select public.hs_admin_publish_ruleset('3', $${
   "score": { "win": 4000, "lives": 3000, "speed": 1500, "thrift": 1500, "lostMax": 3999 },
   "levels": {
     "erebuni": { "waves": 10, "script": [1, 2, 3, 5, 8, 10, 12, 15, 18, 20],
-                 "d": [ { "lives": 30, "fast": 300, "slow": 900, "earnMax": 6000 }, { "lives": 20, "fast": 300, "slow": 900, "earnMax": 5500 }, { "lives": 14, "fast": 300, "slow": 900, "earnMax": 5200 } ] },
+                 "d": [ { "lives": 30, "min": 200, "fast": 300, "slow": 900, "earnMax": 6000 }, { "lives": 20, "min": 200, "fast": 300, "slow": 900, "earnMax": 5500 }, { "lives": 14, "min": 200, "fast": 300, "slow": 900, "earnMax": 5200 } ] },
     "tushpa":  { "waves": 12, "script": [1, 2, 3, 5, 8, 9, 10, 12, 14, 16, 18, 20],
                  "d": [ { "lives": 30, "fast": 400, "slow": 1100, "earnMax": 7000 }, { "lives": 20, "fast": 400, "slow": 1100, "earnMax": 6500 }, { "lives": 14, "fast": 400, "slow": 1100, "earnMax": 6200 } ] }
   },
@@ -258,6 +259,18 @@ select t.as_user(:B::uuid);
 select t.ok((public.hs_score_submit((select id from tr), '{"won":false,"lives":0,"waves":5,"sim_sec":400,"spent":900,"earned":2000}') ->> 'score')::int = floor(3999 * 8 / 20.0),
   'a lost daily is scored by the script wave it reached, out of 20');
 commit;
+-- "fast" shapes the score; only "min" (the clock no battle can beat) refuses a result
+begin;
+select t.as_user(:B::uuid);
+create temp table tr on commit drop as select (public.hs_run_begin('campaign', 'erebuni', 1, '3') ->> 'run_id')::uuid as id;
+grant select on tr to authenticated;
+reset role;
+update public.hs_runs set started_at = now() - interval '20 minutes' where user_id = :B::uuid and ruleset = '3' and mode = 'campaign';
+select t.as_user(:B::uuid);
+select t.ok(t.err(format($$select public.hs_score_submit(%L, '{"won":true,"lives":20,"waves":10,"sim_sec":150,"spent":900,"earned":3000}')$$, (select id from tr))) = 'score_implausible', 'a battle shorter than the shortest there can be');
+select t.ok((public.hs_score_submit((select id from tr), '{"won":true,"lives":20,"waves":10,"sim_sec":250,"spent":900,"earned":3000}') ->> 'score')::int = 4000 + 3000 + 1500 + 1050, 'a battle under "fast" and over "min" is taken, with the full speed share');
+commit;
+select t.ok((select flags @> array['fast'] from public.hs_scores where user_id = :B::uuid and ruleset = '3' and mode = 'campaign'), 'and flagged for the admin');
 
 -- ---- 7. analytics: anyone may send, nobody but an admin may read
 begin;
@@ -345,6 +358,9 @@ select t.ok(jsonb_array_length(public.hs_board('campaign', 'erebuni', 1, 'std', 
 commit;
 
 -- ---- 10. delete my account: every row of the player goes
+insert into auth.audit_log_entries (payload, ip_address) values
+  (json_build_object('actor_id', :A, 'actor_username', 'a@example.com', 'action', 'login'), '203.0.113.7'),
+  (json_build_object('actor_id', :B, 'actor_username', 'b@example.com', 'action', 'login'), '203.0.113.8');
 begin;
 select t.as_user(:A::uuid);
 select public.hs_delete_account();
@@ -354,6 +370,8 @@ select t.ok(not exists (select 1 from public.hs_profiles where user_id = :A::uui
   and not exists (select 1 from public.hs_scores where user_id = :A::uuid) and not exists (select 1 from public.hs_score_best where user_id = :A::uuid)
   and not exists (select 1 from public.hs_runs where user_id = :A::uuid) and not exists (select 1 from public.hs_sessions where uid = :A::uuid), 'and every row that was theirs');
 select t.ok(not exists (select 1 from public.hs_sessions where aid = '11111111-1111-1111-1111-111111111111'), 'and the visits of that device from before the sign-in');
+select t.ok((select count(*) from auth.audit_log_entries) = 1 and (select payload ->> 'actor_username' from auth.audit_log_entries) = 'b@example.com',
+  'and the sign-in service''s log of them, not of anyone else');
 select t.ok(exists (select 1 from public.hs_profiles where user_id = :B::uuid) and exists (select 1 from public.hs_sessions where uid = :B::uuid), 'B is untouched');
 
 -- ---- 11. every hs_ table has row level security on, and no hs_ function is open to PUBLIC

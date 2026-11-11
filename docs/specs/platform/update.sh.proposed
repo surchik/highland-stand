@@ -13,6 +13,7 @@
 # <web root>/next/ the same way, after the same check, without touching the clone's checkout (the files are read
 # straight from the branch with git show). A page on next that fails its check is not published and is logged
 # once; the live page and the master flow never depend on it. When the branch is deleted, /next/ is removed.
+# A page on next that lacks the staging namespace line is refused the same way (see publish_next).
 {
 set -eu
 REPO=${HS_REPO:-/opt/highland-stand}
@@ -107,6 +108,14 @@ publish_next() {
       rm -rf "$tmp"
       return 0
     fi
+  fi
+  # the page on /next/ shares its origin with the live game: one without the staging namespace (PF-0's
+  # "const HS_CHANNEL = " line) would read and write the live game's saves and sign-in, so it never goes out
+  if ! grep -q 'const HS_CHANNEL = ' "$tmp/index.html"; then
+    echo "$rev" > .git/hs-next-rejected
+    echo "$(date -Is) NOT published next $short: the page lacks the staging namespace (const HS_CHANNEL); /next/ stays as it was"
+    rm -rf "$tmp"
+    return 0
   fi
   mkdir -p "$WEB/next"
   if git show "$rev:og.jpg" > "$tmp/og.jpg" 2>/dev/null && ! cmp -s "$tmp/og.jpg" "$WEB/next/og.jpg"; then

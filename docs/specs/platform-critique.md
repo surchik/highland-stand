@@ -4,6 +4,8 @@ A skeptical and security review of `docs/specs/platform.md` (commit f7657c8) wit
 `docs/specs/platform/`, read against `index.html` at master 54207ce, the gameplay spec
 (`docs/specs/gameplay.md`, 2af988b), and Supabase's own sources. The revised spec is
 `docs/specs/platform.final.md`; its appendix says what was changed for each number here and what was not.
+The SQL fixes are made in `docs/specs/platform/schema.sql` itself and tested (`schema-test.sql`, 124
+assertions, with and without the optional handoff file).
 
 Five lenses: (1) security and privacy, (2) correctness against a self-hosted Supabase and against the page,
 (3) the gate, (4) the seam with gameplay, (5) scope.
@@ -150,8 +152,8 @@ anyone through `hs_track`, and `?stats` draws them for a signed-in admin whose t
 visitor's event runs script as the admin: the gate, the kill switch, moderation and the purge are his.
 
 There is a second fault in the same place. The views cast props straight to numbers
-(`(e.props ->> 'diff')::integer`). [measured, reasoned] One event with `"diff":"x"` makes `hs_stats` fail
-for everyone, on every call, until that event is purged.
+(`(e.props ->> 'diff')::integer`). [measured] One event with `"diff":"x"` makes `hs_stats` fail with
+`invalid input syntax for type integer` for everyone, on every call, until that event is purged.
 
 **Fix (applied: `schema.sql`, spec 1.3, 7.5, 10.3):** every string that comes from the server is put on
 the page as text, never as markup, the stats page included; `hs_stats` passes a prop through only when it
@@ -413,8 +415,9 @@ Each is applied in the final spec unless marked.
 41. **Staging shares the live origin.** "Trying a build can never touch a real save" is true only while
     the build's own namespace code is whole. `publish_next` now refuses a page without that line; the
     guide says to use a private window for `/next/`; a host name of its own is the owner's option.
-42. **Account deletion left the device's earlier anonymous visits.** They go too, and the page makes a
-    new anonymous id afterwards, so the privacy page's "counts are removed" is true.
+42. **Account deletion left the device's earlier anonymous visits, and the sign-in service's own log of the
+    account** (`auth.audit_log_entries`, which holds the email and the addresses signed in from). Both go
+    too, and the page makes a new anonymous id afterwards, so the privacy page's "removed at once" is true.
 43. **Look-alike letters across alphabets** (a Cyrillic "а" for a Latin "a") are not folded. The admin's
     rename is the remedy. Now said.
 44. **A daily's first-wave call is not retried.** The draft retried `hs_run_begin` at 10 s and 30 s; for a
@@ -422,6 +425,34 @@ Each is applied in the final spec unless marked.
 45. **The pure checks need not be in the self-test.** Gameplay's rule is that the first suite gets edits
     only. The platform's pure checks live in `tools/platform/unit.js`; the page's suites get the two that
     need the page (the privacy page exists; the gate is not shown under the harness).
+
+---
+
+## Found while revising
+
+Two more, both major, found when the revised SQL was tested. Both are fixed in `schema.sql`.
+
+### 46. A flagged score crashed instead of being flagged
+
+*Lens 2.* `hs_score_submit` sets its flags with `v_flags := v_flags || 'fast'`. PostgreSQL reads the bare
+`'fast'` as an array and fails: `malformed array literal: "fast"`. The draft's test never posted a battle
+that earns a flag, so it never ran the line. [measured, on the draft's schema] A battle of 280 s where
+`fast` is 300 (allowed: the floor was 270) fails with that error; so would every "perfect" battle. The best
+honest players would have seen "Not ranked".
+
+**Fix (applied: `schema.sql`):** `array_append`. The test now posts a battle under `fast` and reads the flag.
+
+### 47. The server would refuse honest battles that beat `fast`
+
+*Lens 4.* The draft refuses a clock under nine tenths of the ruleset's `fast`, taking `fast` for "the
+fastest battle that can be fought". Gameplay defines `fast = max(minS, round(0.6 * parS))` (its 6.2): six
+tenths of par unless the true floor `minS` is longer. Where it is not, a battle between `minS` and
+0.54 par is possible and would be refused as impossible.
+
+**Fix (applied: `schema.sql`, spec 0.3 (1), 2.4):** the ruleset carries `min` per difficulty (gameplay's
+`minS`: the clock no battle can beat). Only `min` refuses; `fast` and `slow` shape the score, and a clock
+under `fast` is flagged. A ruleset without `min` falls back to `fast`. [measured] With `min` 200 and `fast`
+300: 150 s is refused, 250 s is taken with the full speed share and flagged.
 
 ---
 
@@ -449,4 +480,6 @@ cascade.
    reachable). If it may not, item 8 loses its attack and keeps its cheap guard.
 4. The `x-safari-https://` and `intent:` links of item 39.
 5. The legal reading of item 19 in any country.
-6. Nothing in the page was built. Every layout claim rests on the draft's screenshots of master.
+6. The nginx and Caddy blocks of the revised guide (two prefixes, a limit per address): neither server is
+   installed here. They are written, not run.
+7. Nothing in the page was built. Every layout claim rests on the draft's screenshots of master.

@@ -19,6 +19,13 @@ create table if not exists auth.users (
   raw_user_meta_data jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
+-- the sign-in service's log, as GoTrue keeps it (the payload names the account and its email)
+create table if not exists auth.audit_log_entries (
+  id uuid primary key default gen_random_uuid(),
+  payload json,
+  created_at timestamptz default now(),
+  ip_address varchar(64) not null default ''
+);
 -- as in Supabase: the caller's id from the JWT claims PostgREST sets for the transaction
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')::uuid

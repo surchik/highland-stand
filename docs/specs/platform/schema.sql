@@ -300,10 +300,13 @@ begin
 end $$;
 
 -- the bounds of one battle under a ruleset (a daily's twist may scale them): lives, fast, slow, earn_max, waves,
--- and the battlefield's script table (the script wave each of its waves stands for, 20 at the last)
+-- the battlefield's script table (the script wave each of its waves stands for, 20 at the last), and min_sec:
+-- the clock no battle can beat ("min" when the ruleset gives one, else "fast"). fast and slow shape the score;
+-- only min_sec refuses a result.
 drop function if exists hs_private.bounds(jsonb, text, integer, text);
 create or replace function hs_private.bounds(p_rules jsonb, p_level text, p_diff integer, p_twist text,
-  out lives integer, out fast integer, out slow integer, out earn_max integer, out waves integer, out script jsonb)
+  out lives integer, out fast integer, out slow integer, out earn_max integer, out waves integer, out script jsonb,
+  out min_sec integer)
 language plpgsql immutable set search_path = '' as $$
 declare lv jsonb := p_rules -> 'levels' -> p_level; d jsonb; t jsonb;
 begin
@@ -315,6 +318,7 @@ begin
   script := lv -> 'script';
   lives := coalesce((t ->> 'livesSet')::integer, round((d ->> 'lives')::numeric * coalesce((t ->> 'lives')::numeric, 1)));
   fast := round((d ->> 'fast')::numeric * coalesce((t ->> 'fast')::numeric, 1));
+  min_sec := round(coalesce((d ->> 'min')::numeric, (d ->> 'fast')::numeric) * coalesce((t ->> 'fast')::numeric, 1));
   slow := round((d ->> 'slow')::numeric * coalesce((t ->> 'slow')::numeric, 1));
   earn_max := round((d ->> 'earnMax')::numeric * coalesce((t ->> 'earn')::numeric, 1));
 end $$;
@@ -482,7 +486,7 @@ begin
   -- what cannot be: the checks a made-up score has to pass
   if v_won and (v_waves <> b.waves or v_lives < 1 or v_lives > b.lives) then raise exception 'score_implausible' using errcode = 'P0001', detail = 'lives or waves'; end if;
   if not v_won and (run.mode <> 'daily' or v_waves < 0 or v_waves >= b.waves or v_lives <> 0) then raise exception 'score_implausible' using errcode = 'P0001', detail = 'a defeat'; end if;
-  if v_sec > 6 * 3600 or v_sec < floor(b.fast * 0.9 * v_waves / b.waves) then raise exception 'score_implausible' using errcode = 'P0001', detail = 'time'; end if;
+  if v_sec > 6 * 3600 or v_sec < floor(b.min_sec * 0.9 * v_waves / b.waves) then raise exception 'score_implausible' using errcode = 'P0001', detail = 'time'; end if;
   if v_earned < 0 or v_earned > b.earn_max or v_spent < 0 or v_spent > v_earned or (v_won and v_spent < 1) then raise exception 'score_implausible' using errcode = 'P0001', detail = 'gold'; end if;
   v_elapsed := extract(epoch from now() - run.started_at);
   if v_elapsed < v_sec / 4.2 - 5 then raise exception 'score_implausible' using errcode = 'P0001', detail = 'clock'; end if;
@@ -505,8 +509,8 @@ begin
     v_score := floor((w ->> 'lostMax')::numeric * v_prog);
     v_stars := 0;
   end if;
-  if v_sec < b.fast then v_flags := v_flags || 'fast'; end if;
-  if v_won and fL = 1 and fS > 0.95 and fT > 0.9 then v_flags := v_flags || 'perfect'; end if;
+  if v_sec < b.fast then v_flags := array_append(v_flags, 'fast'); end if;
+  if v_won and fL = 1 and fS > 0.95 and fT > 0.9 then v_flags := array_append(v_flags, 'perfect'); end if;
   insert into public.hs_scores (run_id, user_id, mode, level_id, diff, ruleset, loadout, day, twist, won, score, stars,
       lives, lives_max, waves, waves_total, sim_sec, spent, earned, build, flags)
     values (run.id, v_uid, run.mode, run.level_id, run.diff, run.ruleset, v_loadout, run.day, run.twist, v_won, v_score, v_stars,
@@ -673,6 +677,11 @@ begin
   delete from public.hs_sessions where uid is null and aid in (select s.aid from public.hs_sessions s where s.uid = v_uid);
   delete from public.hs_sessions where uid = v_uid;
   delete from public.hs_rate where key = v_uid::text;
+  -- the sign-in service's own log of this account (it holds the email and the addresses signed in from)
+  begin
+    delete from auth.audit_log_entries where payload ->> 'actor_id' = v_uid::text;
+  exception when others then null;   -- an Auth version without that table or column: nothing to remove
+  end;
   delete from auth.users where id = v_uid;               -- and, through the foreign keys, every hs_ row of this player
   return jsonb_build_object('ok', true);
 end $$;

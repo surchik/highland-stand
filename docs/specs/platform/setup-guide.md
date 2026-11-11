@@ -7,6 +7,9 @@ The game's page talks to **your own Supabase**, the one already running on the s
 guide makes that Supabase reachable from the game, lets players sign in with Google, Facebook and Discord,
 creates the game's tables, and ends with a checklist to try it all on the staging address before it goes live.
 
+(Revised with `docs/specs/platform.final.md`. New since the first draft: step 0, the narrow address of step 1,
+the auto-confirm check of step 3, the audit of step 4, the Home Screen sign-in of step 6.)
+
 Words used below:
 
 - **the Supabase address**: the public https address of your Supabase. This guide writes
@@ -24,45 +27,121 @@ Two rules about secrets:
 
 ---
 
-## Step 1. Give the Supabase a public https address
+## Step 0. Before anything is public
 
-Skip this step if `https://supabase.avunjian.com/auth/v1/` already answers (try the check at its end).
+Until now your Supabase may only have been used from the server itself. This guide makes a small part of it
+reachable from the internet, and the game's page carries its anon key for everyone to read. That key is not
+only the game's: it is the key of **every project in that Supabase**. Check three things first. They protect
+your other projects, not only the game.
+
+1. **The secrets are your own.** Open the Supabase folder's `.env`. If one of these lines still has the value
+   from Supabase's example file, stop and change the keys first (newer installs: `sh utils/generate-keys.sh`
+   in the Supabase folder; Supabase's self-hosting guide, "Securing your services", explains it; your other
+   projects' users are signed out by it and their apps need the new anon key):
+
+   ```
+   JWT_SECRET=your-super-secret-jwt-token-with-at-least-32-characters-long
+   POSTGRES_PASSWORD=your-super-secret-and-long-postgres-password
+   DASHBOARD_PASSWORD=this_password_is_insecure_and_should_be_updated
+   ```
+
+   And the anon key must not be the example's. In the Supabase folder run:
+
+   ```
+   grep '^ANON_KEY=' .env | cut -d. -f2 | base64 -d 2>/dev/null | grep -c supabase-demo
+   ```
+
+   It must print `0`. If it prints `1`, the keys are the published examples: anyone could make an
+   all-powerful key for your database. Change them before going on.
+2. **The gateway's own port is closed from outside.** From a computer that is **not** the server:
+
+   ```
+   curl -m 5 -I http://76.13.121.176:8000/auth/v1/settings
+   ```
+
+   It should fail or time out. If it answers, the whole Supabase is already reachable without https. In
+   `.env` set `KONG_HTTP_PORT=127.0.0.1:8000` (newer installs: `API_GW_HTTP_PORT=127.0.0.1:8000`) and run
+   `docker compose up -d`, then try the `curl` again. (A firewall rule is not enough: Docker goes round `ufw`.)
+3. **You know what else is in there.** Step 4 has a query that lists the tables of your other projects that
+   anyone with the anon key could read or change. With the narrow address of step 1 they are not reachable
+   through the game's address. They are reachable through any other address that leads to the same Supabase.
+
+---
+
+## Step 1. Give the Supabase a narrow public https address
+
+The game needs two things from the Supabase and nothing else: the sign-in service (`/auth/v1/`) and the game's
+own functions (`/rest/v1/rpc/hs_...`). The public address serves those two and answers "not found" for
+everything else: the dashboard, your other projects' tables, storage and the rest stay where they are today.
+
+**If your Supabase is already public** because another project of yours uses it (try
+`curl -I https://<its address>/auth/v1/`): leave that address as it is, and still add the narrow one below
+for the game under a name of its own. Narrowing the existing address would break the other project.
 
 1. **DNS.** Where avunjian.com's DNS is managed, add an A record: name `supabase`, value `76.13.121.176`
    (the same server as the game).
-2. **The web server.** The game's server already runs a web server with https (Caddy or nginx). Add the
+2. **The web server.** The game's server already runs a web server with https (nginx or Caddy). Add the
    Supabase to it. Supabase's own gateway listens on port 8000 of the server.
 
-   If the server runs **Caddy**, add to `/etc/caddy/Caddyfile` and run `systemctl reload caddy`:
+   If it runs **nginx**: put this one line into the `http { ... }` part of `/etc/nginx/nginx.conf` (it keeps
+   one counter per visitor's address, so nobody can flood the game's functions):
 
    ```
-   supabase.avunjian.com {
-       reverse_proxy localhost:8000
-   }
+   limit_req_zone $binary_remote_addr zone=hs_rpc:10m rate=10r/s;
    ```
 
-   If it runs **nginx**, create `/etc/nginx/sites-available/supabase`, link it into `sites-enabled`, then run
+   Then create `/etc/nginx/sites-available/supabase`, link it into `sites-enabled`, run
    `certbot --nginx -d supabase.avunjian.com` and `systemctl reload nginx`:
 
    ```
    server {
        listen 80;
        server_name supabase.avunjian.com;
-       location / {
+       client_max_body_size 512k;
+
+       # sign-in
+       location /auth/v1/ {
            proxy_pass http://127.0.0.1:8000;
            proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-For $remote_addr;
            proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
+       }
+       # the game's functions, and only those
+       location /rest/v1/rpc/hs_ {
+           limit_req zone=hs_rpc burst=40 nodelay;
+           limit_req_status 429;
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $remote_addr;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+       # nothing else of the Supabase is served on this name
+       location / { return 404; }
+   }
+   ```
+
+   If the server runs **Caddy**, add to `/etc/caddy/Caddyfile` and run `systemctl reload caddy`:
+
+   ```
+   supabase.avunjian.com {
+       request_body {
+           max_size 512KB
+       }
+       @game path /auth/v1/* /rest/v1/rpc/hs_*
+       handle @game {
+           reverse_proxy localhost:8000
+       }
+       handle {
+           respond 404
        }
    }
    ```
 
-   (Supabase's own guide offers a ready-made Caddy or nginx container instead: "Configure Reverse Proxy and
-   HTTPS" in its self-hosting docs. Either way works.)
-3. **Tell Supabase its address.** In the Supabase folder's `.env`, set these three lines:
+   (Caddy has no limit per visitor's address built in. The game's database has limits of its own, so this
+   is a second line of defense you do without on Caddy.)
+3. **Tell Supabase its address.** In the Supabase folder's `.env`, set these three lines. **If another
+   project already uses this Supabase, do not change the first two**: they are that project's, and the
+   providers' callback of step 2 is then that address, not the new one.
 
    ```
    SUPABASE_PUBLIC_URL=https://supabase.avunjian.com
@@ -71,20 +150,25 @@ Skip this step if `https://supabase.avunjian.com/auth/v1/` already answers (try 
    ```
 
    `SITE_URL` is the **game's** address, not the Supabase's: it is where players are sent back after signing
-   in. If the game is also served under a second name (hyeland.avunjian.com), add:
-   `ADDITIONAL_REDIRECT_URLS=https://hyeland.avunjian.com/**`
+   in. If another project already has its own `SITE_URL`, keep it and add the game instead:
+   `ADDITIONAL_REDIRECT_URLS=https://highland.avunjian.com/**`. If the game is also served under a second
+   name (hyeland.avunjian.com), add it to the same line, separated by a comma.
 4. **Restart Supabase** from its folder so it reads the new lines: `docker compose up -d`
    (newer installs have a helper for the same: `sh run.sh start`).
-5. The dashboard (Studio) is now reachable at the same address behind its user name and password
-   (`DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD` in `.env`). Make sure that password is a strong one.
+5. The dashboard (Studio) is **not** on the new address. Reach it as you do today. If today that is
+   `http://<server>:8000`, which step 0 has just closed, open it through a tunnel from your own computer:
+   `ssh -L 8000:127.0.0.1:8000 root@76.13.121.176`, then `http://localhost:8000` in your browser.
 
-**Check.** On any computer:
+**Check.** On any computer other than the server:
 
 ```
-curl -I https://supabase.avunjian.com/auth/v1/
+curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/auth/v1/settings
+curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/
+curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/rest/v1/
+curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/pg/
 ```
 
-You should see `HTTP/2 401`. (401 is right: it means the service answered and wants a key.)
+You should see `401` (the sign-in service answered and wants a key), then `404`, `404`, `404`.
 
 ---
 
@@ -190,6 +274,19 @@ curl -H "apikey: PASTE_THE_ANON_KEY" https://supabase.avunjian.com/auth/v1/setti
 In the answer, under `"external"`, you should see `"google":true`, `"facebook":true`, `"discord":true`. A
 provider that reads `false` is not switched on: look at its lines in both files again.
 
+**Look for one more word in the same answer: `"mailer_autoconfirm"`. It must read `false`.**
+
+If it reads `true`, your Supabase accepts an email address without checking it. That is common on installs
+without a mail server. For this game it is dangerous with Discord: someone can make a Discord account with
+**your** email address, never confirm it, press "Continue with Discord", and be let into **your** account,
+which step 6 makes the admin. The game's page protects you by itself: while the word reads `true` it shows no
+Discord button, and the stats page says so in red. To have Discord:
+
+- set `ENABLE_EMAIL_AUTOCONFIRM=false` in `.env` and restart the sign-in service. Your other projects'
+  sign-ups by email and password then need a working mail server (the `SMTP_` lines) to confirm addresses.
+  If another project relies on sign-ups without confirmation, do not change it, and
+- leave Discord off (`DISCORD_ENABLED=false`): Google and Facebook are not affected.
+
 Two more checks that the game's page will be allowed to call the Supabase:
 
 ```
@@ -217,10 +314,37 @@ gateway of your install wants the key on this address too: tell the game's build
    editor and press **Run**.
 3. You should see "Success". Running it again later is safe: it only adds what is missing.
 
-If you see a warning that says `"Delete my account" will fail`, tell the game's builder: the role the editor
-runs as may not delete accounts on your install, and one more line is needed.
+The file may print up to three warnings. Each begins with the word `WARNING`. Copy any you see to the game's
+builder: that "Delete my account" will fail (the role the editor runs as may not delete accounts on your
+install); that the name rule does not read letters as expected; that some functions are owned by a superuser.
+
+If the editor says `permission denied to set role "postgres"`, tell the builder: your editor runs as a role
+that cannot hand its work to the `postgres` role, and one line is needed.
 
 **Check.** In the editor run `select public.hs_config();`. It answers with one small line that contains `"now"`.
+
+**The audit of your other projects.** Run this in the same editor. It lists every table that anyone holding
+the anon key can read or change because it has no row level security, and every function such a visitor may
+run that is not the game's:
+
+```sql
+select 'table without row level security' as what, n.nspname || '.' || c.relname as name
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where c.relkind in ('r', 'p') and n.nspname in ('public', 'graphql_public') and not c.relrowsecurity
+  and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert')
+    or has_table_privilege('authenticated', c.oid, 'select') or has_table_privilege('authenticated', c.oid, 'insert'))
+union all
+select 'function a visitor may run', n.nspname || '.' || p.proname
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname not like 'hs\_%' and has_function_privilege('anon', p.oid, 'execute')
+order by 1, 2;
+```
+
+No rows: nothing of yours is exposed by the key. Rows: those belong to your other projects. They were just
+as exposed before, to anyone who had the key and an address that reaches this Supabase; the game makes the
+key easy to find. Switch row level security on for each table that should not be public
+(`alter table <name> enable row level security;` and then the policies that project needs), or ask whoever
+built that project. The narrow address of step 1 keeps them unreachable **through the game's address** only.
 
 ---
 
@@ -235,6 +359,10 @@ player's browser loads):
 **Do not send** the `SERVICE_ROLE_KEY`, the `JWT_SECRET`, a provider's secret or the database password. Nobody
 needs them.
 
+The same day the builder runs a test from outside with only those two values (`tools/platform/smoke.js`):
+about a dozen checks that the address is narrow, the key is not an example key, sign-in answers, and no table
+can be read. You get its lines back; anything marked FAIL comes with what to do.
+
 The builder puts the two values into the game on the branch `next`. Within a few minutes the staging address
 shows it: **https://highland.avunjian.com/next/** . The live game does not change yet. What you do on the
 staging address is kept apart from the live game: its saves, its scores and its counts are its own.
@@ -243,8 +371,16 @@ staging address is kept apart from the live game: its saves, its scores and its 
 
 ## Step 6. Sign in, and make yourself the admin
 
-1. Open `https://highland.avunjian.com/next/` and sign in with the account you want to be the admin.
-2. In the dashboard's SQL Editor run this, with the email address of that account:
+1. **On your iPhone first.** Open `https://highland.avunjian.com/next/` in Safari, tap Share, "Add to Home
+   Screen", open the game from the Home Screen icon, and sign in there with Google. Then tell the builder
+   which of these happened:
+   - the game on the Home Screen said "Welcome" (this is the good case, and nothing more is built for it), or
+   - Safari or a sheet opened and said "Sign-in did not finish here", and the Home Screen game still shows
+     the sign-in page. (Then the builder adds a small piece that hands the sign-in back to the Home Screen
+     game, and you run one more SQL file, `schema-handoff.sql`, the same way as step 4.)
+2. On a computer, open `https://highland.avunjian.com/next/` and sign in with the account you want to be the
+   admin. First make sure step 3's `"mailer_autoconfirm"` reads `false`, or that Discord is off.
+3. In the dashboard's SQL Editor run this, with the email address of that account:
 
    ```sql
    insert into public.hs_admins (user_id)
@@ -253,12 +389,15 @@ staging address is kept apart from the live game: its saves, its scores and its 
 
    It should say one row was added. (If it says zero, the address is not the one you signed in with. Look
    under **Authentication**, **Users** in the dashboard for the address it has.)
-3. Open `https://highland.avunjian.com/next/?stats`. You should see the stats page. Anyone else sees "This
+4. Open `https://highland.avunjian.com/next/?stats`. You should see the stats page. Anyone else sees "This
    page is for the game's owner."
 
 ---
 
-## Step 7. Publish the ruleset
+## Step 7. Publish the ruleset (from the second release on)
+
+The first release has accounts, saved progress and the stats page, and no leaderboards yet: skip this step
+until the builder says the boards are in.
 
 On the stats page, under **Rulesets**, press **Publish ruleset**. This tells the server the rules of the
 battles in this version of the game, so it can check scores. Do it again whenever the stats page says a new
@@ -276,21 +415,27 @@ Signing in:
 - [ ] On a computer, in Chrome or Edge: Continue with Google signs you in and shows "Welcome".
 - [ ] The same with Facebook, and with Discord.
 - [ ] On an iPhone in Safari: each of the three.
-- [ ] On the iPhone, add the staging page to the Home Screen, open it from there, and sign in. (The Home
-      Screen app keeps its own sign-in, apart from Safari's.) If a browser sheet or Safari opens, finish
-      there and go back to the Home Screen app: it should say "Welcome" within a few seconds.
+- [ ] On the iPhone, open the game from its Home Screen icon and sign in (step 6 tried this once; try each
+      provider now). The Home Screen game keeps its own sign-in, apart from Safari's.
+- [ ] Press Google's button, and on Google's page press the browser's Back button. The game shows "Sign-in
+      did not finish". Do it a second time: the game offers **Play now**, and Play now works.
+- [ ] In Safari's settings switch on "Block All Cookies" (or open the page in a browser with this site's data
+      blocked): the game says "This browser is not keeping this site's data" and **Play now** works. Switch
+      it back.
 - [ ] On an iPad, and on an Android phone.
 - [ ] Open the staging address from a link inside the Facebook or Instagram app: the page says to open it in
-      Safari or Chrome for Google, and the Facebook button works.
-- [ ] A name already taken is refused; a name with `<` in it is refused.
+      Safari or Chrome for Google, and the Facebook button works. Try **Open in browser** there and tell the
+      builder whether it opened Safari or Chrome.
+- [ ] A name already taken is refused; a name with `<` in it, or with a star or a smiley, is refused; your
+      name in Armenian letters is accepted.
 
 Playing on:
 
 - [ ] Play two waves on the computer and close the tab. Open the staging page on the phone with the same
       account: the first button says "Resume: ..., Wave 3", and it resumes that battle.
-- [ ] Win a battle: the victory page shows a score and a place; the Leaderboard button shows your name.
-- [ ] Share makes a picture with the battlefield, the stars and the score.
-- [ ] The Hall's Daily tab shows today's challenge; playing it puts you on today's board.
+- [ ] (Second release) Win a battle: the victory page shows a score and a place; the Leaderboard button shows
+      your name. Share makes a picture with the battlefield, the stars and the score.
+- [ ] (Third release) The Hall's Daily tab shows today's challenge; playing it puts you on today's board.
 
 When things go wrong:
 
@@ -312,7 +457,8 @@ Your data:
 The stats page:
 
 - [ ] The funnel shows your own visits; the gate switch changes to "optional" and a private window then
-      offers "Play as a guest"; change it back to the mode you want.
+      offers "Play as a guest" **the first time it opens the page**; change it back to the mode you want.
+- [ ] The Health card at the top shows nothing in red.
 
 ---
 
@@ -342,13 +488,17 @@ docker cp supabase-db:/tmp/highland.dump /root/backups/highland-$(date +%F).dump
 
 (Put those two lines in a daily cron job, and keep a week of copies somewhere off the server.)
 
-**Old counts.** The stats page has a button "Remove events older than 180 days". Press it now and then, or
-schedule it in the SQL Editor once (if your install has the `pg_cron` extension):
+**Old counts.** Nothing to do: the game removes visits older than 180 days by itself, a few at a time, as new
+ones arrive. The stats page shows how full the counts are and has a button, "Remove old events", for when you
+want it done at once (press it again while it says there is more). The counts can never grow past the ceiling
+set under Switches (1 GB to begin with): when they reach it, visitors who are not signed in are no longer
+counted until old visits have left.
 
-```sql
-select cron.schedule('highland-purge', '15 4 * * 0',
-  $$delete from public.hs_sessions where started_at < now() - interval '180 days'$$);
-```
+**The privacy page.** Fill in its bracketed places: your name, a contact address, the country of the server,
+and the number of days your web server keeps its access logs (nginx's default with `logrotate` is 14 weekly
+files; say what yours is, or set it). Have the page read by someone who knows your country's law, and ask
+that person one question in particular: may the game keep a random number in a visitor's browser to count
+visits before the visitor has chosen anything? If the answer is no, tell the builder (one setting changes it).
 
 **Turning things off in a hurry.** On the stats page, under Switches: the gate can be set to `off` (nobody is
 asked to sign in), and boards or the daily can be switched off. To switch the whole account system off for
