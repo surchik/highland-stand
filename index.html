@@ -9342,7 +9342,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 1;
-const RULESET_PIN = "c5d08f87";
+const RULESET_PIN = "a2186e3f";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -9352,9 +9352,9 @@ const LEVEL_REV = {
   van: 1, musadagh: 1, sardarapat: 1, stepanakert92: 1, shushi: 1, stepanakert23: 1,
 };
 const LEVEL_PIN = {
-  erebuni: "8a20edf2", tushpa: "5a766d0b", avarayr: "47b9a06e", dvin: "978a29ca", tashir: "d722cdff", sevan: "2b668a04",
-  ani: "9e6244b8", mari: "5641d958", sis: "5a9c57e2", gyumri: "11e336a1", halidzor: "ad27745a", van: "ec30f3ce",
-  musadagh: "279f53b9", sardarapat: "5187200e", stepanakert92: "fa6c135b", shushi: "015f7e86", stepanakert23: "12447b02",
+  erebuni: "01597965", tushpa: "61ca9118", avarayr: "4d985c5c", dvin: "b675faf5", tashir: "54419e97", sevan: "9c0e7630",
+  ani: "7fbb5fae", mari: "2a171694", sis: "da3b4e52", gyumri: "4f07a82e", halidzor: "d78a5c9f", van: "f4c4eb6e",
+  musadagh: "d070b014", sardarapat: "dc2f3a06", stepanakert92: "99a02348", shushi: "3e6bf59e", stepanakert23: "73190c6a",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -9372,17 +9372,38 @@ const SCORE_WEIGHTS = { win: 4000, lives: 3000, speed: 1500, thrift: 1500, lostM
 const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
 // The object the platform publishes to its server, built from the page's own tables so it cannot drift from the
 // game. For each battlefield: its length, its script table (the script wave each of its waves stands for), its
-// revision, the most towers it can hold and its tray; for each difficulty the defenders, `min` (the sum over the
+// revision, the most towers it can hold, its tray and `fight` (below); for each difficulty the defenders, `min` (the sum over the
 // waves of the moment the wave's last foe comes on: no battle can be shorter, early calls included), `fast` and
 // `slow` (above) and `earnMax` (the starting purse, every bounty with the richest plunder mastery over it, every
 // clear's bonus, the interest and the early call's bonus at their caps on every wave, and a tenth more: no honest
 // battle can earn as much). It reads the wave plans with the battle's own functions, so it borrows the globals
 // they read for a moment and gives them back; nothing of a battle in progress is changed.
+// `fight` is a short hash of the tables the battlefield is fought by, so that a change of balance moves the pins
+// as a change of length does: its foes' numbers, its age's and its own strength (LEVEL_HP, hpTune, hpFrom), its
+// tricks, its roads, pads and plots, the towers of its tray and each wave's groups, with what every battlefield
+// shares (the difficulties, the foes' and the towers' strength tables, the tricks' rules, the spells, the siege
+// powers, the climb of strength and the thinning of bounties by wave). Names, looks and texts are left out
+// (RULE_SKIP): a rename restarts no board. What is written in code and not in a table (the clear's bonus, the
+// interest, a sale's share) is not in it: a change there still needs its author to raise RULESET. If a table is
+// only reshaped and the fight is the same, the pins are written anew and RULESET and the revs stay: say so in
+// the commit.
+const RULE_SKIP = new Set(["name", "desc", "depicts", "look", "lorePhrase", "lore", "cue", "color", "trim", "variant", "mounted", "title", "hotkey"]);
+function rulesOnly(v) {
+  if (Array.isArray(v)) return v.map(rulesOnly);
+  if (v && typeof v === "object") {
+    const o = {};
+    for (const k of Object.keys(v)) if (!RULE_SKIP.has(k) && typeof v[k] !== "function") o[k] = rulesOnly(v[k]);
+    return o;
+  }
+  return v === undefined ? null : v;
+}
 function rulesetData() {
   const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless];
   const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
   const script = [];
   for (let w = 1; w <= TOTAL_WAVES; w++) script.push(w);
+  const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER,
+    script.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
   const levels = {};
   try {
     trickLegacy = false; tutGentle = false; endless = false;
@@ -9407,8 +9428,17 @@ function rulesetData() {
         min = Math.floor(min);
         return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax: Math.ceil(pay * 1.1) };
       });
+      const fight = rulesHash(shared + JSON.stringify(rulesOnly({
+        era: [ERAS[L.era].hpMult, ERAS[L.era].bounty, eraPower(), droneWar()],
+        hp: [LEVEL_HP[L.id], L.hpTune, L.hpFrom],
+        units: Object.keys(ENEMY_DEFS).map(role => eraUnit(role)),
+        tricks: L.tricks,
+        roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
+        towers: TRAY_CLASSIC.split(",").map(k => TOWER_DEFS[k]),
+        waves: script.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
+      }))).slice(0, 12);
       levels[L.id] = { waves: TOTAL_WAVES, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
-        pads: L.pads.length + (L.plots || []).length, tray: TRAY_CLASSIC, d };
+        pads: L.pads.length + (L.plots || []).length, tray: TRAY_CLASSIC, fight, d };
     });
   } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless] = keep; }
   // the daily's part is empty until the daily's battle is built (6.4): no pool, so no day has a battle
@@ -79369,7 +79399,8 @@ function runSelftestPlay() {
     for (const id of ids) {
       const V = R.levels[id];
       if (V.waves !== TOTAL_WAVES || V.script.length !== V.waves || V.script[0] !== 1 || V.script[V.waves - 1] !== 20 ||
-          V.script.some((x, i) => i && x <= V.script[i - 1]) || V.rev !== LEVEL_REV[id] || V.d.length !== DIFFS.length || !(V.pads >= 5) || V.tray !== TRAY_CLASSIC) fail(id + ": " + JSON.stringify(V).slice(0, 200));
+          V.script.some((x, i) => i && x <= V.script[i - 1]) || V.rev !== LEVEL_REV[id] || V.d.length !== DIFFS.length || !(V.pads >= 5) || V.tray !== TRAY_CLASSIC ||
+          !/^[0-9a-f]{12}$/.test(V.fight)) fail(id + ": " + JSON.stringify(V).slice(0, 200));
       V.d.forEach((d, i) => {
         if (!(d.lives === DIFFS[i].lives && d.min > 0 && d.min <= d.fast && d.fast < d.slow && d.earnMax > 0 && [d.min, d.fast, d.slow, d.earnMax].every(Number.isInteger))) fail(id + " on " + DIFFS[i].name + ": " + JSON.stringify(d));
       });
@@ -79381,6 +79412,19 @@ function runSelftestPlay() {
     if (P.all !== RULESET_PIN) fail("the rules changed without a new RULESET: RULESET_PIN would be \"" + P.all + "\" (node tools/ruleset.js)");
     const off = ids.filter(id => P.levels[id] !== LEVEL_PIN[id]);
     if (off.length) fail("a battlefield's rules changed without a new rev (LEVEL_REV, LEVEL_PIN): " + off.map(id => id + " " + P.levels[id]).join(", "));
+    // the pins move with the balance: a tower's number moves every battlefield's, a battlefield's own strength
+    // or a pad of its own moves its pin alone, and a new name moves none
+    const moved = change => { const undo = change(); try { const Q = rulesetPins(); return ids.filter(id => Q.levels[id] !== P.levels[id]).join() + (Q.all !== P.all ? "" : " (whole pin unmoved)"); } finally { undo(); } };
+    const A = TOWER_DEFS.archer.levels[0], tushpa = LEVELS[levelIndexOf("tushpa")], sis = LEVELS[levelIndexOf("sis")];
+    let got = moved(() => { A.dmg += 1; return () => { A.dmg -= 1; }; });
+    if (got !== ids.join()) fail("an archer's damage moved the pins of: " + got);
+    got = moved(() => { const was = sis.hpTune; sis.hpTune = 1.07; return () => { sis.hpTune = was; }; });
+    if (got !== "sis") fail("Sis's hpTune moved the pins of: " + got);
+    got = moved(() => { tushpa.pads[0][0] += 10; return () => { tushpa.pads[0][0] -= 10; }; });
+    if (got !== "tushpa") fail("a pad of Tushpa moved the pins of: " + got);
+    got = moved(() => { const was = tushpa.name; tushpa.name = "Another Name"; return () => { tushpa.name = was; }; });
+    if (got !== " (whole pin unmoved)") fail("a battlefield's name moved the pins of: " + got);
+    if (JSON.stringify(rulesetPins()) !== JSON.stringify(P)) fail("the tables were not put back");
   });
 
   // no battle can be shorter than `min`, nor earn more than `earnMax`: a battle whose every wave is called the
@@ -79716,6 +79760,21 @@ function runSelftestPlay() {
     startWave();
     const b = evLast("battle_start");
     if (!b || b.resumed !== false || b.ranked !== true) fail("its first horn: " + JSON.stringify(b));
+    // hiding the page saves a wave on the field and nothing else: a battle merely opened leaves no run to resume
+    stage("tushpa", 1);
+    clearRun();
+    holdOnLeave();
+    if (localStorage.getItem("hs_run") !== null) fail("a battle with nothing built or sent was saved as the page was hidden");
+    paused = false;
+    placeTower("archer", 0);
+    startWave(); fight();
+    clearRun();
+    holdOnLeave();
+    if (localStorage.getItem("hs_run") !== null) fail("a battle between waves was saved as the page was hidden");
+    paused = false;
+    startWave(); run(2);
+    holdOnLeave();
+    if (!JSON.parse(localStorage.getItem("hs_run") || "{}").redo || !paused) fail("a wave on the field was not saved as the page was hidden");
   }));
 
   check("resume: a reload gives back no spell and no hero", guarded(() => {
