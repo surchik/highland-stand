@@ -668,7 +668,8 @@
   #overlay #ovGear { position: fixed; top: calc(26px + var(--sat)); right: calc(80px + var(--sar)); z-index: 2; width: 44px; height: 44px; }
   #overlay #ovGear .ic { width: 22px; height: 22px; }
   /* the stars won across the campaign hang in the top left corner, across from the gear: a plaque of the
-     header's make, not a button. The chronicle and the chapter stories leave it out */
+     header's make (a button element since the Hall, whose door it is: the platform's block at the end of this
+     sheet). The chronicle and the chapter stories leave it out */
   #ovStars {
     position: fixed; top: calc(26px + var(--sat)); left: calc(80px + var(--sal)); z-index: 2; box-sizing: border-box; height: 44px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 12px; border-radius: 22px;
@@ -2237,6 +2238,169 @@
     /* the victory page's quiet choices: 44 px to a finger */
     #overlay.victory #mapBtn, #overlay.victory .big.quiet, #overlay.victory #endlessBtn { min-height: 44px; }
   }
+
+  /* ================= platform (docs/specs/platform.final.md) =================
+     Everything of the platform's that is styled: the Hall and its doors here; the gate, the score strip, the
+     share sheet, the privacy page and the stats page join it with their work packages. */
+
+  /* ---- the Hall's doors ---- */
+  /* The campaign's tally is a button now, and the door to the Hall while the Hall has a tab (.door). It keeps the
+     plaque's look exactly: a button's own dress is taken off it here, and what a plain box would take from the
+     page around it is taken from there again. Without a tab it does nothing and keeps the plaque's plain cursor. */
+  #ovStars {
+    -webkit-appearance: none; appearance: none; margin: 0; font-size: inherit; font-style: inherit; font-variant: inherit;
+    letter-spacing: inherit; word-spacing: inherit; text-transform: inherit; text-indent: inherit; text-shadow: inherit; text-align: inherit;
+  }
+  #ovStars.door { cursor: pointer; touch-action: manipulation; }
+  /* the plaque is no control: it never wears a focus ring (a click cannot focus it either: the platform's section) */
+  #ovStars:not(.door) { outline: none; }
+  #ovStars.door:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  @media (hover: hover) { #ovStars.door:hover { filter: brightness(1.2); } }
+  /* something waits behind the door (a tab's badge is above zero): one crimson pip on the plaque's shoulder */
+  #ovStars.door.pip::after {
+    content: ""; position: absolute; top: -3px; right: -1px; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 34%, #ff8b76, #d0402f 55%, #8a1f17); border: 1.5px solid #17100a;
+    box-shadow: 0 0 0 1px rgba(240,207,133,.55);
+  }
+  /* Settings: the account's row, on the menu pages only and only while the platform is on (body.pfOn) */
+  #settings #setAcct { display: none; }
+  body.pfOn.onMenu #settings #setAcct { display: flex; }
+
+  /* ---- the Hall: a page with tabs over the menu pages (5.5). Its tabs come from HALL_TABS ----
+     Desktop and iPad: a carved card 720 px wide, the tabs across its top, the tab's own content under them
+     (680 px wide; as tall as its content, 320 px at the least, and scrolling inside the card where the window
+     is shorter). */
+  #hall {
+    position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center;
+    padding: calc(clamp(16px, 7vh, 64px) + var(--sat)) calc(20px + var(--sar)) calc(20px + var(--sab)) calc(20px + var(--sal));
+    background:
+      radial-gradient(ellipse 80% 70% at 50% 46%, rgba(120,84,44,.34), rgba(60,40,20,.1) 55%, transparent 78%),
+      radial-gradient(ellipse 92% 88% at 50% 48%, transparent 52%, rgba(6,3,1,.78)),
+      linear-gradient(180deg, #3a2819, #2b1d12 50%, #1e140b);
+    color: var(--parch); font-family: var(--face); touch-action: manipulation;
+  }
+  #hall.hlHidden { display: none; }
+  #hall:focus, #hall .hlBody:focus { outline: none; }
+  #hall .hlCard { position: relative; flex: none; width: min(720px, 100%); max-height: 100%; display: flex; flex-direction: column; padding: 18px 18px 20px; }
+  #hall .hlTop { flex: none; display: flex; align-items: flex-start; gap: 10px; }
+  #hall .hlTop .hlX { margin-top: 5px; }
+  /* the row holds the five tabs the two specs name (War Council, Captains, Daily, Leaderboards, Account) in one
+     line; a longer row wraps to a second line, so no tab is ever out of sight */
+  #hall .hlTabs { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; overscroll-behavior: contain; scrollbar-width: none; padding: 5px 4px 8px 2px; }
+  #hall .hlTabs::-webkit-scrollbar { display: none; }
+  #hall .hlTab {
+    position: relative; flex: none; min-height: 44px; padding: 0 12px 0 10px; display: inline-flex; align-items: center; gap: 7px;
+    -webkit-appearance: none; appearance: none; cursor: pointer; white-space: nowrap; touch-action: manipulation;
+    font-family: var(--face); font-size: 15px; font-weight: 700; letter-spacing: .2px; color: var(--parch-dk);
+    border: 2px solid var(--bronze-sh); border-radius: 22px; background: linear-gradient(180deg, #17100a, #2a1f15);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.45), inset 0 3px 6px rgba(0,0,0,.7), 0 1px 0 rgba(255,235,190,.1);
+  }
+  #hall .hlTab .hlIc { flex: none; display: grid; place-items: center; }
+  #hall .hlTab .hlIc .ic { width: 19px; height: 19px; vertical-align: 0; color: var(--bronze-hi); }
+  #hall .hlTab .hlShort { display: none; }
+  #hall .hlTab[aria-selected="true"] {
+    color: #fff3d6; border-color: var(--bronze); background: linear-gradient(180deg, #7a4f1e, #482c10);
+    box-shadow: inset 0 1px 0 rgba(255,235,190,.35), inset 0 -3px 0 rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.5);
+  }
+  /* a tab's badge (stars to spend, a daily not yet played): a crimson count on its shoulder */
+  #hall .hlBadge {
+    position: absolute; top: -5px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    font-size: 11.5px; line-height: 15px; font-weight: 700; letter-spacing: 0; text-align: center; color: #fff3d6;
+    background: linear-gradient(180deg, #d5503f, #8a1f17); border: 1.5px solid #17100a; box-shadow: 0 0 0 1px rgba(240,207,133,.55);
+    font-variant-numeric: tabular-nums lining-nums; pointer-events: none;
+  }
+  #hall .hlX {
+    flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
+    -webkit-appearance: none; appearance: none; color: var(--bronze-hi); touch-action: manipulation;
+    border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #17100a, #2a1f15);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.6), inset 0 3px 6px rgba(0,0,0,.75), 0 1px 0 rgba(255,235,190,.1);
+  }
+  #hall .hlX .ic { width: 17px; height: 17px; vertical-align: 0; }
+  @media (hover: hover) { #hall .hlTab:hover, #hall .hlX:hover { filter: brightness(1.2); } }
+  #hall button:focus-visible { outline: 2px solid #fff3c6; outline-offset: 2px; }
+  /* the focus ring is for the keyboard: the Hall moves the focus to its tab itself, and a tap should not ring it */
+  #hall:not(.hlKeys) button:focus-visible { outline: none; }
+  /* the tab's own content: the box a tab's render(el) is given. It scrolls inside the card when it runs long */
+  #hall .hlBody {
+    position: relative; flex: 0 1 auto; min-height: 320px; margin-top: 12px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+    font-size: 16px; line-height: 1.45; color: var(--parch); -webkit-overflow-scrolling: touch;
+  }
+  #hall .hlBody .hlNone { padding: 26px 12px; text-align: center; font-style: italic; color: var(--parch-dk); }
+  /* the Hall just came up: for a moment it takes no press, so the second tap of a double tap on its door does not
+     land on whatever the Hall put under that finger (the page under it is inert, and the Hall's own ground takes
+     the tap) */
+  #hall.hlSettling .hlCard { pointer-events: none; }
+  /* a toast raised from a tab shows over the Hall, not under it */
+  body.hallUp #toast { z-index: 51; }
+
+  /* ---- the Hall on a phone, either way: no card (the screen is the page), each tab a 44 px medallion with a
+     short name under it, the tab's content in a framed box of its own ---- */
+  @media (max-height: 500px), (max-width: 500px) {
+    #hall { align-items: stretch; padding: calc(8px + var(--sat)) calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal)); }
+    #hall .hlCard { width: 100%; max-height: none; flex: 1 1 auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+    /* (--hlw and --hlm are set by fitHallTabs(): a tab's width held upright, a medallion's size held sideways,
+       made smaller only where the tabs would not all fit at full size) */
+    #hall .hlTabs { flex-wrap: nowrap; gap: 2px; padding: 4px 0 2px; }
+    #hall .hlTab {
+      width: var(--hlw, 64px); min-height: 0; padding: 0 0 1px; flex-direction: column; gap: 1px; white-space: normal; text-align: center;
+      font-size: 11px; line-height: 12px; letter-spacing: 0; border: 0; border-radius: 6px; background: none; box-shadow: none;
+    }
+    #hall button.hlTab:focus-visible { outline-offset: -2px; }
+    #hall .hlTab .hlIc {
+      width: var(--hlm, 44px); height: var(--hlm, 44px); border-radius: 50%; border: 2px solid var(--bronze-sh); background: linear-gradient(180deg, #17100a, #2a1f15);
+      box-shadow: inset 0 0 0 1px rgba(240,207,133,.45), inset 0 3px 6px rgba(0,0,0,.7), 0 1px 0 rgba(255,235,190,.1);
+    }
+    #hall .hlTab .hlIc .ic { width: 22px; height: 22px; }
+    #hall .hlTab[aria-selected="true"] { background: none; box-shadow: none; }
+    #hall .hlTab[aria-selected="true"] .hlIc {
+      border-color: var(--bronze); background: linear-gradient(180deg, #7a4f1e, #482c10);
+      box-shadow: inset 0 1px 0 rgba(255,235,190,.35), inset 0 -3px 0 rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.5);
+    }
+    #hall .hlTab .hlLong { display: none; }
+    #hall .hlTab .hlShort { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    #hall .hlBadge { top: -2px; right: 4px; }
+    #hall .hlBody {
+      flex: 1 1 auto; min-width: 0; min-height: 0; margin: 0; border: 1px solid var(--bronze-sh); border-radius: 8px;
+      background: linear-gradient(180deg, rgba(20,13,7,.5), rgba(20,13,7,.28)); font-size: 13.5px; line-height: 1.35;
+    }
+    /* content that runs past the box fades at the fold while more lies below it (phoneFold) */
+    #hall .hlBody.more {
+      -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+      mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+    }
+  }
+  /* ---- held sideways: the tabs are a column at the left (64 px wide, the close button at its head) and the tab's
+     content takes all the rest: at 667 x 320 its box is 577 x 302 px, and never under 560 x 280 on an iPhone.
+     Five tabs fit the column on every iPhone: on the shortest screens their medallions are drawn smaller (35 px
+     at 667 x 320), each tab still 44 px and more to a finger ---- */
+  @media (max-height: 500px) {
+    /* (the tally stands in the map page's grid here, not in the corner: it is the anchor of its own pip) */
+    #overlay:not(.brief):not(.victory) #ovStars.door.pip { position: relative; top: auto; left: auto; }
+    /* Settings in two columns: the account's row under Replay tutorial (Pause's place, which a menu page leaves free) */
+    #settings #setAcct { grid-row: 3; }
+    #hall .hlCard { flex-direction: row; gap: 8px; }
+    #hall .hlTop { width: 64px; flex-direction: column; align-items: center; gap: 4px; }
+    #hall .hlTop .hlX { order: -1; margin-top: 0; }
+    #hall .hlTabs { flex: 0 1 auto; width: 64px; min-height: 0; padding: 0; flex-direction: column; align-items: center; overflow-x: hidden; overflow-y: auto; }
+    #hall .hlBadge { top: 0; }
+    /* more tabs than the column can hold even with small medallions: it scrolls, and fades where more lies below */
+    #hall .hlTabs.more {
+      -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+      mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+    }
+  }
+  /* ---- held upright: the tabs across the top, the tab's content under them in one column that scrolls ---- */
+  @media (max-width: 500px) and (min-height: 500.02px) {
+    #hall .hlTop { gap: 6px; }
+    #hall .hlTop .hlX { margin-top: 4px; }
+    #hall .hlTabs { overflow-x: auto; overflow-y: hidden; }
+    /* more tabs than the row can hold even at their narrowest: it scrolls, and fades where more lies to the right */
+    #hall .hlTabs.more {
+      -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+      mask-image: linear-gradient(90deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+    }
+    #hall .hlBody { margin-top: 6px; font-size: 15px; line-height: 1.4; }
+  }
 </style>
 </head>
 <body>
@@ -3000,6 +3164,7 @@
       <button type="button" class="tgl" data-band="zurna" role="radio">Zurna &amp; dhol</button>
     </div>
   </div>
+  <button class="btn menuBtn" id="setAcct"><svg class="ic"><use href="#i-trophy"/></svg>Account and boards</button>
   <button class="btn menuBtn" id="tutBtn"><svg class="ic"><use href="#i-flag"/></svg>Replay tutorial</button>
   <button class="btn menuBtn" id="pauseBtn">Pause</button>
   <button class="btn menuBtn" id="menuBtn"><svg class="ic"><use href="#i-flag"/></svg>Abandon &amp; Level Select</button>
@@ -3014,7 +3179,7 @@
   <svg class="ovOrn o3" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <svg class="ovOrn o4" aria-hidden="true"><use href="#i-ovcorner"/></svg>
   <button class="btn icon" id="ovGear" title="Settings" aria-label="Settings"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
-  <div id="ovStars" role="img"></div>
+  <button id="ovStars" type="button" role="img" tabindex="-1"></button>
   <div id="ovPage">
     <svg class="corner c1" aria-hidden="true"><use href="#i-corner"/></svg>
     <svg class="corner c2" aria-hidden="true"><use href="#i-corner"/></svg>
@@ -3085,6 +3250,18 @@
   </div>
 </div>
 
+<!-- ---------- platform: the Hall (docs/specs/platform.final.md, section 5.5) ---------- -->
+<!-- A page with tabs over the menu pages. Its shell is always in the page; its tabs come from HALL_TABS. -->
+<div id="hall" class="hlHidden" role="dialog" aria-modal="true" aria-label="The Hall" tabindex="-1">
+  <div class="hlCard kit">
+    <div class="hlTop">
+      <div class="hlTabs" id="hallTabs" role="tablist" aria-label="Pages of the Hall"></div>
+      <button type="button" class="hlX" id="hallClose" aria-label="Close" title="Close (Esc)"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="hlBody" id="hallBody" role="tabpanel" tabindex="-1"></div>
+  </div>
+</div>
+
 <script>
 "use strict";
 
@@ -3094,6 +3271,21 @@
 // storage first, so a harness run can never touch real campaign progress.
 const HARNESS = new URLSearchParams(location.search);
 const HARNESS_ON = HARNESS.has("shot") || HARNESS.has("selftest");
+// The staging channel (docs/specs/platform.final.md, section 9.3): branch "next" is published at /next/, on the
+// live game's own origin, so the two pages share one storage. A page served from /next/ keeps everything under
+// names of its own (the namespace below, in the platform's block). The channel is read here, before anything
+// touches storage, because the storage check below writes a key of its own. The publishing script refuses a page
+// that lacks this line.
+// The path is read as the web server reads it, not as the address bar spells it: nginx merges doubled slashes,
+// decodes percent codes and, on some disks, takes capitals for small letters, so //next/, /%6Eext/ and /NEXT/ can
+// all be answered with the staging page. Each of them is the staging channel here too. (A path that cannot be
+// decoded is read as it stands.)
+const HS_CHANNEL = (() => {
+  let p = location.pathname;
+  try { p = decodeURIComponent(p); } catch (e) {}
+  return /^\/next(\/|$)/i.test(p.replace(/[\/\\]+/g, "/")) ? "next" : "live";
+})();
+const HS_KEY_PREFIX = HS_CHANNEL === "next" ? "next:" : "";
 const harnessErrors = [];
 let photo = null;
 if (HARNESS_ON) {
@@ -3119,7 +3311,8 @@ if (HARNESS_ON) {
 // memory for the session then, and a failed write is dropped instead of breaking the game.
 if (!HARNESS_ON) {
   let ok = false;
-  try { const ls = window.localStorage; ls.setItem("hs_probe", "1"); ls.removeItem("hs_probe"); ok = true; } catch (e) {}
+  // (the check's own key wears the staging channel's prefix: a build under trial writes no key of the live game's)
+  try { const ls = window.localStorage; ls.setItem(HS_KEY_PREFIX + "hs_probe", "1"); ls.removeItem(HS_KEY_PREFIX + "hs_probe"); ok = true; } catch (e) {}
   if (!ok) {
     const mem = {};
     try {
@@ -3140,6 +3333,24 @@ if (!HARNESS_ON) {
 // True when the page runs on memory because the browser keeps no site data (the fallback above took over).
 // A sign-in cannot survive the trip to a provider and back then, and the gate says so (section 3.6).
 const HS_STORE_MEM = !HARNESS_ON && !(typeof Storage !== "undefined" && window.localStorage instanceof Storage);
+// The staging namespace (section 9.3). A page served from /next/ shares its origin, and so its storage, with the
+// live game. It keeps everything under names of its own: every key is stored with "next:" before it. Nothing
+// else in the file knows. The same wrapper goes over the harness's memory and over the fallback's: nothing of the
+// live game's is at stake there, but one rule then holds everywhere, that under /next/ no key is ever read or
+// written without the prefix. It is not guarded by a try: a staging page that cannot take its own names must
+// stop here rather than run on the live game's saves.
+if (HS_CHANNEL === "next") {
+  const real = window.localStorage, P = HS_KEY_PREFIX;
+  // this channel's keys, without the prefix (a store kept in memory has no list of its keys, with or without this)
+  const own = () => { const ks = []; for (let i = 0, n = real.length | 0; i < n; i++) { const k = real.key(i); if (k && k.startsWith(P)) ks.push(k.slice(P.length)); } return ks; };
+  Object.defineProperty(window, "localStorage", { configurable: true, value: {
+    getItem: k => real.getItem(P + k),
+    setItem: (k, v) => real.setItem(P + k, v),      // the quota guard above still applies
+    removeItem: k => real.removeItem(P + k),
+    key: i => { const ks = own(); return i < ks.length ? ks[i] : null; },
+    get length() { return own().length; },
+  } });
+}
 
 // ---------- platform: accounts, cloud saves, boards, analytics (docs/specs/platform.final.md) ----------
 // The owner's Supabase. Both values are public by design (of this game the anon key opens nothing but the
@@ -11984,6 +12195,7 @@ function endCelebration() {
   if (!last) $("ovHy").textContent = hyName("field", L.name);
   showVictoryScreen();
   showRecord(victoryStars(heldLives, DIFFS[curDiff].lives), curDiff, best);
+  Platform.victoryPage();   // the score's strip and its two doors (nothing while the platform is off)
   if (best) chime("record");
   if (L.endingCard && !last) showEndingCard(L.endingCard);
   // Ani's Summons interrupts the celebration: what is left of the dance fades, the field's music (its tune, drums
@@ -12371,6 +12583,7 @@ function endFall() {
       "Try Again");
   }
   showDebrief(debrief, lv);
+  Platform.defeatPage();    // a lost daily shows its score (nothing while the platform is off)
   // a tap meant for the field in the beat must not land on a button of the page that replaces it (settleOverlay)
   settleOverlay();
 }
@@ -61244,6 +61457,8 @@ canvas.addEventListener("pointerup", (e) => {
 window.addEventListener("keydown", (e) => {
   // under the crash card the game behind it takes no keys (Space would send a wave); its own buttons still do
   if (crashed) return;
+  // nor under a page of the platform's (the Hall): no hotkey of the game's reaches it from there
+  if (Platform.blocking()) return;
   // a victory's card (the Summons, the Terms) takes every key until it is put away
   if (endingCardUp()) {
     if (e.code === "Escape" || e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") { e.preventDefault(); closeEndingCard(); }
@@ -76502,6 +76717,304 @@ function townSelftest(check, res) {
   });
 }
 
+// ---------- platform ----------
+// (docs/specs/platform.final.md) What is built so far is the seam, work package P0: the Hall's shell, which is
+// always on, and the Platform object's four doors into the game, which do nothing while the platform is off.
+// Sign-in and the gate, cloud saves, the boards, the daily, the share card and analytics join it package by
+// package, all inside this section.
+
+// ---- the Hall: a page with tabs over the menu pages (section 5.5) ----
+// Its tabs are the rows of HALL_TABS, in the order they were pushed: { id, label, icon, render(el), badge() }.
+//   id      a short name: openHall(id) opens that tab ("council" and "daily" have a say in what opens first)
+//   label   the tab's name; short (optional) is the name under its medallion on a phone
+//   icon    the name of a picture in the page's sprite, as icon() takes it ("star", "trophy")
+//   render  (el) fills the tab's box, handed over empty. It is called when the tab is shown, and again when the
+//           page changes layout under it (a phone turned, a window resized from one layout into another)
+//   badge   (optional) a count, shown on the tab and, as one pip, on the campaign's tally while it is above zero.
+//           It is read again after every press inside the tab's box
+// The box a tab is given: on a desktop or an iPad 680 px wide and as tall as its content, 320 px at the least
+// (it scrolls inside the card where the window is short); on a phone held sideways the whole screen but the
+// tabs' column, 577 x 302 px at 667 x 320 and never under 560 x 280 on an iPhone; on a phone held upright the
+// screen's width under the row of tabs, scrolling.
+// The Hall is not behind the platform's switch: it works on file://, under the harness and with the constants
+// empty, with whatever tabs the page has. With no tab it has no door and does not open.
+const hallEl = $("hall"), hallTabsEl = $("hallTabs"), hallBodyEl = $("hallBody");
+let hallOpen = false, hallTab = "", hallFocus = null, hallLayoutWas = "", hallSettleT = 0;
+const HALL_SETTLE_MS = 300;   // how long the Hall, just opened, takes no press
+function hallTabs() { return HALL_TABS.filter(t => t && t.id && typeof t.render === "function"); }
+function hallLayout() { return phoneWide() ? "side" : isPhone() ? "tall" : "wide"; }
+// a tab's badge as a whole number, zero at the least; a badge() that throws counts as none
+function hallBadge(t) {
+  try { return typeof t.badge === "function" ? Math.max(0, Math.floor(Number(t.badge()) || 0)) : 0; } catch (e) { return 0; }
+}
+// what opens when no tab is asked for (0.3): the Council while stars wait to be spent, else the Daily while
+// today's challenge is unplayed (each says so with its badge), else the first tab
+function hallFirst(tabs) {
+  for (const id of ["council", "daily"]) { const t = tabs.find(x => x.id === id); if (t && hallBadge(t) > 0) return t; }
+  return tabs[0];
+}
+// The tab row, kept in step with HALL_TABS: built again when the tabs themselves changed, else only its marks
+// (which tab is shown, each tab's badge) are set, so a button under a finger or the keyboard is not replaced
+function syncHallTabs() {
+  const tabs = hallTabs();
+  const have = Array.from(hallTabsEl.children).map(b => b.dataset.tab).join("\n");
+  if (have !== tabs.map(t => String(t.id)).join("\n")) {
+    hallTabsEl.textContent = "";
+    for (const t of tabs) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "hlTab"; b.dataset.tab = String(t.id);
+      b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "hallBody");
+      // (a tab's words are set as text, never as markup; its picture is a name in the sprite)
+      b.innerHTML = '<span class="hlIc">' + icon(String(t.icon || "star").replace(/[^\w-]/g, "")) + '</span><span class="hlLong"></span><span class="hlShort"></span><span class="hlBadge" hidden></span>';
+      b.querySelector(".hlLong").textContent = String(t.label || t.id);
+      b.querySelector(".hlShort").textContent = String(t.short || t.label || t.id);
+      hallTabsEl.appendChild(b);
+    }
+  }
+  tabs.forEach((t, i) => {
+    const b = hallTabsEl.children[i], on = String(t.id) === hallTab, n = hallBadge(t), bd = b.querySelector(".hlBadge");
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
+    bd.hidden = !n;
+    bd.textContent = n > 9 ? "9+" : String(n);
+    b.setAttribute("aria-label", String(t.label || t.id) + (n ? " (" + n + ")" : ""));
+  });
+  fitHallTabs();
+}
+// Every tab in sight at once, on a phone too. Held sideways the tabs are a column under the close button: where
+// the screen is too short for them at full size (five tabs at 667 x 320) their medallions are drawn smaller, 30 px
+// at the least, each tab still 44 px and more to a finger. Held upright they are a row beside the close button:
+// where the screen is too narrow each tab is narrower, 48 px at the least. Only past those floors does the row
+// scroll, and then it fades at the edge where more lies (.more). A desktop's row wraps instead (the stylesheet).
+function fitHallTabs() {
+  const l = hallLayout(), n = hallTabsEl.children.length, top = hallTabsEl.parentNode;
+  hallEl.style.removeProperty("--hlm");
+  hallEl.style.removeProperty("--hlw");
+  if (hallOpen && n && l === "side") {
+    const b = hallTabsEl.children[0], over = b.offsetHeight - b.querySelector(".hlIc").offsetHeight;   // the name under a medallion
+    const room = top.clientHeight - $("hallClose").offsetHeight - 4 - (n - 1) * 2;
+    const m = Math.max(30, Math.min(44, Math.floor(room / n) - over));
+    if (m < 44) hallEl.style.setProperty("--hlm", m + "px");
+  } else if (hallOpen && n && l === "tall") {
+    const room = top.clientWidth - $("hallClose").offsetWidth - 6 - (n - 1) * 2;
+    const w = Math.max(48, Math.min(64, Math.floor(room / n)));
+    if (w < 64) hallEl.style.setProperty("--hlw", w + "px");
+  }
+  hallTabsMore();
+}
+function hallTabsMore() {
+  const l = hallLayout(), e = hallTabsEl;
+  e.classList.toggle("more", hallOpen && (l === "side" ? e.scrollHeight - e.clientHeight - e.scrollTop > 4 : l === "tall" ? e.scrollWidth - e.clientWidth - e.scrollLeft > 4 : false));
+}
+hallTabsEl.addEventListener("scroll", hallTabsMore, { passive: true });
+function hallTabBtn() { return Array.from(hallTabsEl.children).find(b => b.dataset.tab === hallTab) || null; }
+// one tab shown: its box emptied and handed to its render(). A tab that cannot draw itself must not take the
+// Hall, and the way out of it, down with it: the box says so instead
+function showHallTab(id, focus) {
+  const tabs = hallTabs(), t = tabs.find(x => String(x.id) === String(id)) || tabs[0];
+  if (!t) { closeHall(); return; }
+  hallTab = String(t.id);
+  syncHallTabs();
+  hallBodyEl.textContent = "";
+  hallBodyEl.scrollTop = 0;
+  hallBodyEl.dataset.tab = hallTab;
+  hallBodyEl.setAttribute("aria-label", String(t.label || t.id));
+  try { t.render(hallBodyEl); }
+  catch (err) {
+    try { console.error(err); } catch (e) {}
+    track("error", { msg: String(err && err.message || err).slice(0, 120), at: "hall:" + hallTab });
+    if (HARNESS_ON) setTimeout(() => { throw err; });   // the harness's tools count it as the page error it is
+    hallBodyEl.textContent = "";
+    const p = document.createElement("p");
+    p.className = "hlNone";
+    p.textContent = "This page could not be shown. Close it and try again.";
+    hallBodyEl.appendChild(p);
+  }
+  syncHallTabs();   // (what the tab drew may have changed a badge)
+  // The keyboard's place is the tab just shown, unless the tab took the focus into its own box (a field to type
+  // in). And the focus is never left outside the Hall (what held it may have gone with the box's old content)
+  const b = hallTabBtn(), a = document.activeElement;
+  if (b) b.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (!hallBodyEl.contains(a) && (focus || !hallEl.contains(a))) { try { (b || hallEl).focus({ preventScroll: true }); } catch (e) {} }
+}
+// openHall(tabId): the Hall on that tab; with no tab named (or one it does not have) on the tab hallFirst picks.
+// It opens only over a menu page, never over the field and never over a card that holds the page (a victory's
+// card, the nardi board, the crash card). Returns whether the Hall is open. Called again while open, it turns
+// to the tab named.
+function openHall(tabId) {
+  const tabs = hallTabs();
+  if (!tabs.length) return false;
+  if (!hallOpen && (overlayEl.classList.contains("hidden") || crashed || endingCardUp() || Nardi.isOpen() || Town.isOpen())) return false;
+  const t = (tabId != null && tabs.find(x => String(x.id) === String(tabId))) || (hallOpen && tabId == null ? tabs.find(x => String(x.id) === hallTab) : null) || hallFirst(tabs);
+  if (!hallOpen) {
+    hallOpen = true;
+    hallFocus = document.activeElement;
+    // the focus ring shows while the keyboard is in use, as on the nardi board
+    hallEl.classList.toggle("hlKeys", !!(hallFocus && hallFocus.matches && hallFocus.matches(":focus-visible")));
+    closeSettings();
+    closeFoeCard();
+    // the page under the Hall is out of reach while it is open: no Tab stop, no screen-reader detour
+    overlayEl.setAttribute("inert", "");
+    hallEl.classList.remove("hlHidden");
+    document.body.classList.add("hallUp");
+    hallLayoutWas = hallLayout();
+    // the tap that opened the Hall may be the first of two: for a moment the Hall takes no press (.hlSettling),
+    // as a page of the game's does after a battle (settleOverlay)
+    hallEl.classList.add("hlSettling");
+    clearTimeout(hallSettleT);
+    hallSettleT = setTimeout(() => hallEl.classList.remove("hlSettling"), HALL_SETTLE_MS);
+  }
+  showHallTab(t.id, true);
+  return true;
+}
+function closeHall() {
+  if (!hallOpen) return;
+  hallOpen = false;
+  hallEl.classList.add("hlHidden");
+  hallEl.classList.remove("hlSettling");
+  clearTimeout(hallSettleT);
+  document.body.classList.remove("hallUp");
+  hallBodyEl.textContent = "";
+  hallTab = "";
+  // the page under the Hall is in reach again exactly when it is on screen (as the nardi board leaves it: not a
+  // snapshot taken on opening, for syncOverlayUp() runs from a MutationObserver)
+  overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
+  syncHallDoors();
+  // The focus goes back to what held it. Where that is no longer on the page to take it (Settings' row, whose
+  // panel the Hall put away), it goes to the gear that leads there, not to nothing
+  const shown = (e) => !!(e && e.isConnected && e.focus && e.getClientRects().length && !e.closest("[inert]") && getComputedStyle(e).visibility !== "hidden");
+  const f = hallFocus, to = shown(f) ? f : f && f !== document.body && shown($("ovGear")) ? $("ovGear") : null;
+  hallFocus = null;
+  if (to) { try { to.focus({ preventScroll: true }); } catch (e) {} }
+}
+// The Hall's doors follow its tabs. The campaign's tally (#ovStars) is a button and a Tab stop while the Hall has
+// a tab, and the plaque it always was while it has none; it wears one pip while any tab's badge is above zero.
+// syncChapterBar() fills the tally and fitCampaignStars() hides it, as before: this only reads the tabs
+function syncHallDoors() {
+  const tabs = hallTabs(), el = $("ovStars"), door = tabs.length > 0;
+  el.classList.toggle("door", door);
+  el.classList.toggle("pip", door && tabs.some(t => hallBadge(t) > 0));
+  if (door) { el.removeAttribute("role"); el.removeAttribute("tabindex"); el.setAttribute("aria-haspopup", "dialog"); }
+  else { el.setAttribute("role", "img"); el.setAttribute("tabindex", "-1"); el.removeAttribute("aria-haspopup"); }
+  // a door says where it leads: the tally's own words (syncChapterBar writes them), and ". Open the Hall" after
+  // them while it is one
+  for (const a of ["title", "aria-label"]) {
+    const v = el.getAttribute(a);
+    if (v == null) continue;
+    const bare = v.endsWith(HALL_DOOR_WORDS) ? v.slice(0, -HALL_DOOR_WORDS.length) : v, now = door && bare ? bare + HALL_DOOR_WORDS : bare;
+    if (now !== v) el.setAttribute(a, now);
+  }
+}
+const HALL_DOOR_WORDS = ". Open the Hall";
+// the plaque (no tab, no door) is no control: a click must not hand it the focus, as it could not before it was
+// a button element
+$("ovStars").addEventListener("mousedown", (e) => { if (!hallTabs().length) e.preventDefault(); });
+$("ovStars").addEventListener("click", () => {
+  if (!hallTabs().length) return;   // no tab, no door: the plaque does nothing
+  Snd.init(); Snd.play("uiTick");
+  openHall();
+});
+// the tally is filled again whenever the map is built (a victory's stars, a save merged): the door follows
+new MutationObserver(syncHallDoors).observe($("ovStars"), { childList: true, attributes: true, attributeFilter: ["title", "aria-label"] });
+// Settings' row (shown only on menu pages while the platform is on): the Account tab, or what the Hall opens on
+$("setAcct").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeSettings(); openHall("account"); });
+$("hallClose").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeHall(); });
+hallTabsEl.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest(".hlTab");
+  if (!b || b.dataset.tab === hallTab) return;
+  Snd.init(); Snd.play("uiTick");
+  showHallTab(b.dataset.tab, true);
+});
+// a press inside a tab can change its badge (a star spent): the counts are read again once the press is done
+hallBodyEl.addEventListener("click", () => requestAnimationFrame(() => { if (hallOpen) syncHallTabs(); }));
+hallEl.addEventListener("pointerdown", () => hallEl.classList.remove("hlKeys"), true);
+// Keys while the Hall is open. The game's own keys are shut out by Platform.blocking(), which its keydown
+// handler asks first. The Hall itself answers Escape (unless a tab took the key for a card of its own and
+// said so with preventDefault) and, on the tab row, the arrows, Home and End, as a row of tabs does
+window.addEventListener("keydown", (e) => {
+  if (!hallOpen || crashed) return;
+  hallEl.classList.add("hlKeys");
+  if (e.defaultPrevented) return;
+  if (e.code === "Escape") { e.preventDefault(); closeHall(); return; }
+  const b = e.target && e.target.closest && e.target.closest(".hlTab");
+  if (b && /^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End)$/.test(e.code)) {
+    const tabs = hallTabs(), n = tabs.length, i = tabs.findIndex(t => String(t.id) === b.dataset.tab);
+    const j = e.code === "Home" ? 0 : e.code === "End" ? n - 1 : (i + (e.code === "ArrowLeft" || e.code === "ArrowUp" ? n - 1 : 1)) % n;
+    e.preventDefault();
+    if (j !== i) showHallTab(tabs[j].id, true);
+  }
+});
+// the page changed layout under an open tab: the tab draws itself again for the new box
+// But never while a field in the tab is being typed in: an Android phone's keyboard shrinks the window, which can
+// turn an upright phone's layout into the sideways one, and drawing the tab again would throw the field away with
+// what was typed. The tab is drawn again once the field is left, if the layout is still another by then.
+function hallRelayout() {
+  if (!hallOpen) return;
+  fitHallTabs();
+  const l = hallLayout(), a = document.activeElement;
+  if (l === hallLayoutWas) return;
+  if (a && hallBodyEl.contains(a) && a.matches("input, textarea, select, [contenteditable]")) return;
+  hallLayoutWas = l;
+  showHallTab(hallTab, false);
+}
+window.addEventListener("resize", hallRelayout);
+hallBodyEl.addEventListener("focusout", () => requestAnimationFrame(hallRelayout));
+// ("Return to map" on the crash card puts the Hall away with the game's own pages: one line in recoverToMap)
+// the menu page under the Hall went away (a battle begun from a tab): the Hall goes with it
+new MutationObserver(() => { if (hallOpen && overlayEl.classList.contains("hidden")) closeHall(); }).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+// a tab's content that runs past its box fades at the fold on a phone, as the map page's columns do
+phoneFold(hallBodyEl);
+
+// ---- harness only: the Hall's test tabs ----
+// No tab is the platform's own before its later packages, so the shell is shown and tested with tabs of the
+// harness's: &testtab under ?shot or ?selftest adds one (&testtab=N adds N, six at the most; &long gives each a
+// long list, to see the box scroll). They exist nowhere else. ?shot=hall opens the Hall over the map
+// (&tab=<id> on that tab); ?shot=menu&testtab shows the map with the tally as the Hall's door. A test tab's
+// id is test1, test2, ...; its badge counts down with its "Spend one" button.
+if (HARNESS_ON && HARNESS.has("testtab")) {
+  const n = Math.max(1, Math.min(6, Number(HARNESS.get("testtab")) | 0 || 1)), icons = ["star", "trophy", "shield", "flag", "crown", "horn"];
+  for (let i = 1; i <= n; i++) {
+    let left = i === 1 ? 3 : i === 2 ? 1 : 0;
+    HALL_TABS.push({
+      id: "test" + i, label: "Test tab " + i, short: "Test " + i, icon: icons[i - 1], badge: () => left,
+      render(el) {
+        const box = document.createElement("div");
+        box.id = "hallTestBox";
+        box.style.cssText = "box-sizing:border-box;min-height:100%;padding:12px 14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start";
+        box.innerHTML = '<b style="font-size:18px;color:#f0cf85">Test tab ' + i + '</b><span id="hallTestSize"></span>' +
+          '<span style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn" id="hallTestSpend" style="min-height:44px;padding:0 18px">Spend one</button>' +
+          '<button type="button" class="btn" id="hallTestToast" style="min-height:44px;padding:0 18px">Say so</button></span>' +
+          '<input type="text" id="hallTestInput" aria-label="A field to type in" style="min-height:44px;width:min(260px,100%);padding:0 10px;font:inherit;user-select:text;-webkit-user-select:text">' +
+          (HARNESS.has("long") ? Array.from({ length: 40 }, (_, k) => '<span>Row ' + (k + 1) + " of a long list</span>").join("") : "");
+        el.appendChild(box);
+        // the box as the Hall hands it over (what a tab may count on)
+        box.querySelector("#hallTestSize").textContent = "The box is " + el.clientWidth + " x " + el.clientHeight + " px. " + left + " to spend.";
+        box.querySelector("#hallTestSpend").addEventListener("click", () => { left = Math.max(0, left - 1); box.querySelector("#hallTestSize").textContent = "The box is " + el.clientWidth + " x " + el.clientHeight + " px. " + left + " to spend."; });
+        box.querySelector("#hallTestToast").addEventListener("click", () => toast("A word from test tab " + i));
+      },
+    });
+  }
+}
+syncHallDoors();
+
+// ---- the Platform object: the game's four calls into the platform (0.4) ----
+// With the platform off (file://, the harness, the two public constants empty) each does what leaves the game
+// the game of before.
+const Platform = {
+  // The last step of the page's start-up (3.9): the gate comes up here, and onMap() is the page's own last step,
+  // run once the gate is passed. With the platform off it runs at once.
+  boot(onMap) {
+    syncHallDoors();   // every tab pushed while the script loaded is counted by now
+    onMap();
+  },
+  // true while a page of the platform's holds the keyboard: no hotkey of the game's may act under it
+  blocking() { return hallOpen; },
+  // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
+  victoryPage() {},
+  // the defeat page is up: a lost daily's score goes on it here (5.5)
+  defeatPage() {},
+};
+
 // ---------- main loop ----------
 let last = performance.now();
 // An error inside the frame stops the loop's work, not the page: a card (crashCard) offers a reload, or the
@@ -76543,6 +77056,7 @@ window.addEventListener("error", (ev) => {
   showCrashCard(crashed);
 });
 function showCrashCard(err) {
+  track("error", { msg: String(err && err.message || err).slice(0, 120) });
   crashShown = err;
   try { console.error(err); } catch (e) {}
   if (HARNESS_ON) setTimeout(() => { throw err; });   // the harness's tools count it as the page error it is
@@ -76575,6 +77089,7 @@ function recoverToMap() {
     celebration = null; fallen = null; parley = null; paused = false;
     try { if (Nardi.isOpen()) Nardi.close(); } catch (e) {}
     try { if (Town.isOpen()) Town.close(); } catch (e) {}
+    try { closeHall(); } catch (e) {}   // the platform's Hall, had it been open under the card (table 0.4)
     curLevel = furthestOpen();
     curDiff = prefDiff;
     showMenu("🏔️", "Highland Stand", "", "Take Command");
@@ -76718,8 +77233,10 @@ resetGame();
 buildMenu();
 renderShopPortraits();
 requestAnimationFrame(frame);
+// The platform starts last, in this same turn of the script (so no tap reaches the map before its gate is up),
+// and hands the page back here. With the platform off it calls back at once: the behavior of before.
 // a chapter opened for the first time tells its story first
-if (!HARNESS_ON && !chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter());
+Platform.boot(() => { if (!HARNESS_ON && !chaptersSeen().includes(mapChapter())) showChapterIntro(mapChapter()); });
 
 // ---------- harness scenes (only reachable through ?shot= / ?selftest=) ----------
 const PHOTO_TIME = 98765;
@@ -77072,6 +77589,10 @@ function runPhoto() {
       photoVictory();
     } else if (scene === "fall" || scene === "defeat") {
       photoFall(harnessLv(1), num("wave", 8), num("t", 0.9), scene === "defeat");
+    } else if (scene === "hall") {
+      // the Hall over the map; &tab=<id> picks its tab, &testtab gives it the harness's own tabs (the platform's section)
+      photoMenu(false);
+      if (!openHall(HARNESS.has("tab") ? HARNESS.get("tab") : undefined)) throw new Error("the Hall has no tab to show (add &testtab)");
     } else if (scene === "town") {
       // &stage=: a TW.stage (age1 when none), &card=: a card over it, &noui: the map alone, &tz, &tx, &ty: zoom and center (tiles), &p=: a wonder's percent
       photoMenu(false);
