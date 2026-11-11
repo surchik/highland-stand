@@ -46,8 +46,9 @@ reads neither: `first_load` and the funnel's `did` take every `page_load` (schem
 `signed_in` step is any visit with an account. So a reader of the privacy page (a provider's reviewer, a player who
 followed the link from a store page) is a new device that loaded the game and never saw the gate; and every device
 on which the owner opens `?stats` and signs in is a new device that signed in without seeing the sign-in card. The
-gate's cost (`signed_in / gate_shown`) then passes 100%, and the owner's guide asks him to do exactly this on his
-laptop, his iPad and his phone (README's stats checklist).
+gate's cost (`signed_in / gate_shown`) can then pass 100%. The guide asks the owner to open the live `?stats` each
+week (deploy/supabase/README.md 616), from whatever device he has at hand, and each new one is counted so (its
+`/next/?stats` visits are left out, the live ones are not).
 
 Evidence (`probe.js t11`: an owner signed in through the gate; then a fresh context reads only `?privacy`; then a
 fresh context opens `?stats` and signs in there):
@@ -184,9 +185,9 @@ Each run to its end, on 5ad745a, at load average 3 to 9 with the other track wor
 | `node tools/platform/sql-tests.js` | 500 assertions, 0 failed |
 | `bash tools/platform/test-update.sh` | PASS, 36 cases |
 | `platform.js --flows=10` (all 5 sizes) | PASS, 165 s; funnel 4/2/1/1 .. 1/1/0/0 at every size; hostile answers as reported; quiet logs: webdriver SITE/, hs_config, settings only; file:// only the file; empty constants only PLAIN/?stats and PLAIN/; event count 969 to 969 and 973 to 973 |
-| `run-all.js --quick` | RUNALL_RESULT_PLACEHOLDER |
-| `platform.js --flows=1,2,3,11` (all 5 sizes) | PLATFORM_FULL_PLACEHOLDER |
-| `NODE_PATH=$(npm root -g) node tools/platform/p0.js` | P0_PLACEHOLDER |
+| `NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick` | 10 of 10 PASS in 1,183 s: padplace, plots, probe, vic, nag, dance10 (68 s, PASS this time), live, doors, iphone, platform (294 s, flows 1, 2, 3, 10, 11 at 1600x900 and 667x320) |
+| `platform.js --flows=1,2,3,11` (all 5 sizes) | 19 of 20 runs passed, 584.6 s; one FAIL at load average 8 to 9: "flow 11 touch 1194x834: signed in with the service hanging, the checking card stayed 6.5 s". Rerun alone (`--flows=11 --sizes=ipad`) three times: PASS, PASS, PASS (50 s, 47 s, 50 s). A load failure by the rule of the build; noted, since P4 adds a hanging `hs_track` call to that load (it is aborted at 15 s and holds no timer of the gate's) |
+| `NODE_PATH=$(npm root -g) node tools/platform/p0.js` | PASS, 273.7 s |
 
 Probes (`probe.js`):
 
@@ -232,6 +233,6 @@ sends nothing twice (`pfEvHidden`). Per frame: nothing; `track` costs one `JSON.
 
 - Safari, iOS, Firefox: keepalive with a CORS preflight, `pagehide` on iOS, a prerender in Safari. Chromium only.
 - The real Supabase and its gateway (PostgREST's own handling of `on conflict` and the 61,440-byte batch limit).
-- `dance10`'s known intermittent failure: see the run-all line above.
+- `dance10`'s known intermittent failure did not show in my one run-all; one green run does not clear it.
 - The photos at 1600 x 900 and 1194 x 834 are the builder's (`shots/p4/stats-desk-*`, `stats-ipad-*`); I looked at
   them (the funnel, the gate, the switches) and found them readable; the gate card in one of them shows finding 4.
