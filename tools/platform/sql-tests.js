@@ -700,6 +700,12 @@ group("analytics", async () => {
     council: { bows: 999999, engines: 999999, captains: 999999, heralds: 999999, stewards: 999999 }, power: 999999, early: 999999, auto: false, aided: false, tutorial: false };
   r = await rpc(null, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "victory", q: 14, p: facts }] });
   ok(r.accepted === 1, "gameplay's worst case of a battle's facts (" + JSON.stringify(facts).length + " characters) is kept");
+  // an event sent again (the page's batch at closing, sent once more on the next load) is kept once
+  r = await rpc(null, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "victory", q: 14, p: facts }, { n: "page_hide", q: 30, p: { where: "map" } }] });
+  ok(r.accepted === 1 && r.dropped === 1, "an event sent again is kept once: the same visit and number (" + JSON.stringify(r) + ")");
+  eq((await su("select count(*)::int n from public.hs_events where sid = 'sess-0001-abcd' and seq = 14"))[0].n, 1, "one row for it");
+  eq((await su("select indexdef from pg_indexes where indexname = 'hs_events_once'"))[0].indexdef.replace(/\s+/g, " ").replace(/public\./g, ""),
+    "CREATE UNIQUE INDEX hs_events_once ON hs_events USING btree (sid, seq) WHERE (seq > 0)", "each event of a visit once (events without a number are not held to it)");
   // the account joins the visit once signed in, and never another's
   await rpc(U.A, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "signed_in", q: 15, p: { provider: "google" } }] });
   eq((await su("select uid::text from public.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "the visit takes the account once signed in");
@@ -754,7 +760,7 @@ group("stats", async () => {
   await rpc(U1, "hs_profile_set_name", { p_name: "Ani Player" });
   const ev = (n, q, p) => ({ n, q, p: p || {} });
   await rpc(null, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("page_load", 1, { progress: 0 }), ev("gate_shown", 2, { state: "signin" }), ev("provider_tapped", 3, { provider: "google" })] });
-  await rpc(U1, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("signed_in", 4, { provider: "google" }), ev("battle_start", 5, { lv: "erebuni" }), ev("tutorial_done", 6),
+  await rpc(U1, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("signed_in", 4, { provider: "google", standalone: true }), ev("battle_start", 5, { lv: "erebuni" }), ev("tutorial_done", 6),
     ev("wave_end", 7, { lv: "erebuni" }), ev("victory", 8, { lv: "erebuni", diff: 1, mode: "campaign", lives: 17, lives_max: 20, wave: 10, waves: 10 })] });
   await rpc(null, "hs_track", { p_ctx: ctx(N2, "st-n2-visit1", { dev: "desktop", os: "windows", browser: "chrome" }), p_events: [ev("page_load", 1, { progress: 0 }), ev("gate_shown", 2, { state: "signin" })] });
   await rpc(null, "hs_track", { p_ctx: ctx(R1, "st-r1-visit1", { dev: "tablet" }), p_events: [ev("page_load", 1, { progress: 5 }), ev("gate_shown", 2, { state: "signin" }), ev("provider_tapped", 3, { provider: "discord" })] });
@@ -787,6 +793,10 @@ group("stats", async () => {
   const dv = Object.fromEntries(s.devices.map(x => [x.dev + "/" + x.os, x.people]));
   ok(dv["phone/ios"] === 3 && dv["desktop/windows"] === 1 && dv["tablet/ios"] === 1, "people by kind of device (" + JSON.stringify(dv) + ")");
   ok(s.gate.some(x => x.event === "provider_tapped" && x.provider === "discord" && x.n === 1), "the gate card counts what was tapped");
+  ok(s.gate.some(x => x.event === "gate_shown" && x.why === "inapp" && x.n === 1), "and the arrivals in another app's browser");
+  ok(s.gate.every(x => typeof x.standalone === "boolean"), "each of its rows says whether it is the Home Screen app's");
+  ok(s.gate.some(x => x.event === "signed_in" && x.standalone === true && x.n === 1) && s.gate.some(x => x.event === "provider_tapped" && x.provider === "google" && x.standalone === false),
+    "a sign-in in the Home Screen app on a line of its own (1.6)");
   ok(s.rulesets.some(x => x.ruleset === "2" && x.published === true), "the rulesets card says which are published");
   ok(typeof s.events_mb === "number" && s.config && "ev_cap_hour" in s.config, "the stats say how full the events are and show every switch");
   ok(s.totals && s.totals.accounts >= 1, "totals");

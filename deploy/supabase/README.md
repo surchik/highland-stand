@@ -598,7 +598,8 @@ Your data:
 
 The stats page:
 
-- [ ] The funnel shows your own visits; the gate switch changes to "optional" and a private window then offers
+- [ ] The page opens with its cards. (Visits to `/next/` are left out of every card, so the funnel fills only once
+      the live game has visitors.) The gate switch changes to "optional" and a private window then offers
       "Play as a guest" **the first time it opens the page**; change it back to the mode you want.
 - [ ] The Health card at the top shows nothing in red.
 

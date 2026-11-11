@@ -149,6 +149,16 @@ create table if not exists public.hs_events (
 );
 create index if not exists hs_events_name_ts on public.hs_events (name, ts);
 create index if not exists hs_events_sid on public.hs_events (sid, seq);
+-- each event of a visit is kept once: a batch the page sent as it closed is sent again on the next load when no
+-- answer came back, and two tabs may each send what an earlier visit left. The page numbers its events from 1; an
+-- event with no number (seq 0) is not held to it. (Made once; a table from an earlier version of this file is
+-- first cleared of any event it holds twice.)
+do $$ begin
+  if not exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'hs_events_once') then
+    delete from public.hs_events a using public.hs_events b where a.sid = b.sid and a.seq = b.seq and a.seq > 0 and a.id > b.id;
+    create unique index hs_events_once on public.hs_events (sid, seq) where seq > 0;
+  end if;
+end $$;
 
 create table if not exists public.hs_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -782,8 +792,9 @@ begin
       values (v_sid, coalesce(hs_private.int_or_null(e ->> 'q'), 0), e ->> 'n',
         case when jsonb_typeof(e -> 'p') = 'object' then e -> 'p' else '{}'::jsonb end,
         to_timestamp(least(greatest(coalesce(case when (e ->> 't') ~ '^[0-9]{1,15}$' then (e ->> 't')::numeric end, 0), 0), 4102444800000) / 1000.0),
-        v_now);
-    v_ok := v_ok + 1;
+        v_now)
+      on conflict (sid, seq) where seq > 0 do nothing;   -- already kept (sent again): counted once
+    if found then v_ok := v_ok + 1; end if;
   end loop;
   -- old visits leave by themselves (no scheduler needed): now and then a call removes a few that are past keeping
   if random() < 0.005 then
@@ -1121,12 +1132,16 @@ begin
   end if;
   if p_cards is null or 'gate' = any(p_cards) then
   -- the gate: what was tapped, what came back, who went round it
-  select jsonb_agg(jsonb_build_object('event', name, 'provider', provider, 'why', why, 'n', n) order by name, n desc) into v_gate
+  -- (standalone: the Home Screen app, which the stats page shows on a line of its own, 1.6)
+  select jsonb_agg(jsonb_build_object('event', name, 'provider', provider, 'why', why, 'standalone', standalone, 'n', n) order by name, n desc) into v_gate
   from (select e.name, hs_private.tag(e.props ->> 'provider') as provider,
-          hs_private.tag(coalesce(e.props ->> 'why', e.props ->> 'error', e.props ->> 'state')) as why, count(distinct s.aid) as n
+          hs_private.tag(coalesce(e.props ->> 'why', e.props ->> 'error', e.props ->> 'state')) as why,
+          coalesce(e.props ->> 'standalone', '') = 'true' or s.standalone is true as standalone, count(distinct s.aid) as n
         from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
         where s.day >= v_from and e.name in ('gate_shown', 'provider_tapped', 'signed_in', 'signin_error', 'gate_bypass', 'gate_down')
-        group by 1, 2, 3) q;
+          -- a sign-in counts only from a visit that carried the account (the server's word, not the page's)
+          and (e.name <> 'signed_in' or s.uid is not null)
+        group by 1, 2, 3, 4) q;
   end if;
   if p_cards is null or 'rulesets' = any(p_cards) then
   select jsonb_agg(jsonb_build_object('ruleset', ruleset, 'sessions', n, 'published', pub) order by n desc) into v_rules

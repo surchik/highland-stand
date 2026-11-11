@@ -19,7 +19,8 @@
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
 //                                   document of a newer format is left alone, a bare removal of hs_run writes no
 //                                   mark, "flag", the per-key "newer", the run rule's six)
-//      EvQueue                (P4)  the queue's limits (written with P4)
+//      EvQueue, evBytes,      (P4)  the events' queue: sizes as the server counts them, the limits of 7.4, batches
+//      evDevice, EV_BOT_UA          filled by bytes, the waits after a failure, three refusals; p_ctx's words; robots
 //    A name the page does not have yet is listed as waiting for its package, not failed.
 // 2. What exists today: the reference arithmetic both the page and the server are held to (ref.js), checked
 //    against the spec's own numbers, and the stack's PKCE and JWT code (stack.js) checked against RFC 7636 and
@@ -192,6 +193,133 @@ if (pure) {
     let bad = 0; for (let day = 20400; day < 20765; day++) { const a = pure.dailyOf(d, day), b = ref.dailyOf(d, day); if (a.level !== b.level || a.twist !== b.twist) bad++; }
     ok(bad === 0, "the page's daily equals the server's for a year (" + d.pool.length + " x " + d.twists.length + ")");
   }
+}
+
+// the events' queue (7.3, 7.4): sizes as the server counts them, the limits on the page, batching by bytes, the
+// waits after a failure and the stop after three refusals
+if (pure && pure.EvQueue) {
+  const { EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA } = pure;
+  // sizes: jsonb's text has a space after each comma and colon between values (none inside a string)
+  eq(evBytes('{"a":1,"b":"x,y:z"}'), '{"a": 1, "b": "x,y:z"}'.length, "an event's size counts the spaces the database adds, not those inside a string");
+  eq(evBytes('{"n":"Արամ"}'), Buffer.byteLength('{"n": "Արամ"}'), "an event's size counts UTF-8 bytes");
+  eq(evBytes('{"e":"\\"a,b\\""}'), Buffer.byteLength('{"e": "\\"a,b\\""}'), "an escaped quote does not end a string");
+  eq(evBytes(JSON.stringify({ x: "😀" })), Buffer.byteLength('{"x": "😀"}'), "a picture outside the first plane is 4 bytes");
+  ok(evFlat({ a: 1, b: { c: 2 }, d: [1, 2] }) === true && evFlat({ a: { b: { c: 1 } } }) === false && evFlat({ a: [{ b: 1 }] }) === false, "one level of nesting, not two");
+  const q = EvQueue({ sid: "visit-0001-aaaa" });
+  eq([q.add("Bad Name", {}, 1), q.add("x", {}, 1), q.add("a".repeat(41), {}, 1)], ["name", "name", "name"], "a name the server would refuse is not kept");
+  const cyc = {}; cyc.me = cyc;
+  eq([q.add("victory", [1, 2], 1), q.add("victory", "text", 1), q.add("victory", cyc, 1)], ["type", "type", "type"], "props that are a list, a text or a cycle are not kept");
+  eq(q.add("victory", { a: { b: { c: 1 } } }, 1), "deep", "props nested two levels are not kept (RULINGS S8)");
+  const pad = (n) => ({ pad: "x".repeat(n - '{"pad": ""}'.length) });
+  eq(evBytes(JSON.stringify(pad(4096))), 4096, "(a pad of 4,096 bytes as the server counts it)");
+  eq([q.add("victory", pad(4096), 1), q.add("victory", pad(4097), 1)], ["ok", "size"], "props of 4,096 bytes kept, of 4,097 not (the server's limit)");
+  eq(q.add("defeat", null, 2), "ok", "null props are kept, as an empty object (gameplay's trackFacts after a fault)");
+  eq(q.list.map(e => e.q), [1, 2], "kept events are numbered 1, 2, ... in the visit");
+  eq(q.list[1].p, {}, "null props are sent as {}");
+  // the visit's 600, the battle's 40 tower events, the sample
+  const v = EvQueue({ sid: "visit-0002-aaaa" });
+  let kept = 0; for (let i = 0; i < 650; i++) if (v.add("map_open", { i }, i) === "ok") kept++;
+  eq(kept, EVQ.visit, "600 events a visit");
+  eq([v.add("hall_open", {}, 1), v.add("wave_end", {}, 1), v.add("victory", {}, 1), v.add("defeat", {}, 1), v.add("gate_shown", {}, 1), v.add("signed_in", {}, 1)],
+    ["visit", "ok", "ok", "ok", "ok", "ok"], "past 600, wave_end, the battle's ends and the gate's events still kept");
+  ok(v.list.length === EVQ.keep, "the queue holds 200 at most (" + v.list.length + ")");
+  ok(v.list[v.list.length - 1].n === "signed_in" && v.list[0].q === v.seq - EVQ.keep + 1, "full: the oldest went first");
+  const t = EvQueue({ sid: "visit-0003-aaaa" });
+  const res = []; for (let i = 0; i < 45; i++) res.push(t.add(i % 2 ? "tower_built" : "tower_upgraded", { i }, i));
+  eq(res.filter(x => x === "ok").length, 40, "40 tower events a battle");
+  eq([t.add("plot_bought", {}, 1), t.add("tower_sold", {}, 1), t.add("wave_end", {}, 1)], ["battle", "battle", "ok"], "plots and sales count among them; a wave's end does not");
+  t.add("battle_start", {}, 1);
+  eq(t.add("tower_built", {}, 1), "ok", "a new battle has its own 40");
+  t.sampleOut = true;
+  eq([t.add("tower_built", {}, 1), t.add("wave_end", {}, 1), t.add("battle_start", {}, 1), t.add("gate_shown", {}, 1)], ["sample", "ok", "ok", "ok"],
+    "outside the owner's sample: no tower events; battle and gate events still go");
+  // the store's 60 KB
+  const big = EvQueue({ sid: "visit-0004-aaaa" });
+  for (let i = 0; i < 40; i++) big.add("victory", pad(3000), i);
+  ok(big.bytes <= EVQ.keepBytes && big.list.length === Math.floor(EVQ.keepBytes / big.list[0].b), "the queue keeps 60 KB at most (" + big.list.length + " events of 3 KB, " + big.bytes + " bytes)");
+  // batches: by count, by bytes, one visit each
+  const bt = EvQueue({ sid: "visit-0005-aaaa" });
+  for (let i = 0; i < 70; i++) bt.add("map_open", { i }, 1000);
+  let b = bt.take(1000);
+  eq([b.events.length, b.sid, b.events[0].q], [50, "visit-0005-aaaa", 1], "a batch takes 50 events at most, the oldest first");
+  b = bt.take(1000);
+  eq(b.events.length, 20, "the next batch takes the rest, not those still on their way");
+  eq(bt.take(1000), null, "nothing left to take while both are on their way");
+  const bb = EvQueue({ sid: "visit-0006-aaaa" });
+  for (let i = 0; i < 40; i++) bb.add("victory", pad(1500), 1000);
+  b = bb.take(1000);
+  const body = JSON.stringify(b.events.map(e => ({ n: e.n, q: e.q, t: e.t, p: e.p })));
+  ok(b.events.length < 40 && b.bytes <= EVQ.batchBytes && evBytes(body) <= 61440 - 1024, "a batch is filled by bytes: " + b.events.length + " events, " + evBytes(body) + " bytes as the server counts them (under 60 KB, room for p_ctx)");
+  const left = EvQueue({ sid: "visit-0008-bbbb", from: [{ n: "page_load", q: 1, t: 5, p: {}, s: "visit-0007-aaaa" }, { n: "page_hide", q: 2, t: 9, p: { where: "map" }, s: "visit-0007-aaaa" }] });
+  left.add("page_load", {}, 100000);
+  b = left.take(100000);
+  eq([b.sid, b.events.map(e => e.q)], ["visit-0007-aaaa", [1, 2]], "a batch is of one visit: an earlier visit's events go in their own");
+  eq(left.take(100000).sid, "visit-0008-bbbb", "then this visit's");
+  // when a batch is due
+  const d = EvQueue({ sid: "visit-0009-aaaa" });
+  eq(d.due(1000), Infinity, "nothing waiting: no batch due");
+  d.add("page_load", {}, 1000);
+  eq(d.due(1000), EVQ.wait, "20 s after the first unsent event");
+  eq(d.due(15000), 6000, "(counted from that event)");
+  for (let i = 0; i < 19; i++) d.add("map_open", {}, 2000);
+  eq(d.due(2000), 0, "at once when 20 wait");
+  eq(EvQueue({ sid: "visit-0010-aaaa", from: [{ n: "page_load", q: 1, t: 5, p: {}, s: "visit-0007-aaaa" }] }).due(1e12), 0, "an earlier visit's events: at once");
+  // a failure waits 30 s, doubling to 10 minutes; a 2xx clears it
+  const f = EvQueue({ sid: "visit-0011-aaaa" });
+  f.add("page_load", {}, 0);
+  const waits = [];
+  let now = 1e9;
+  for (let i = 0; i < 7; i++) { const x = f.take(now, true); f.done(x, i % 2 ? 503 : 0, now); waits.push((f.notBefore - now) / 1000); now += 1000; }
+  eq(waits, [30, 60, 120, 240, 480, 600, 600], "offline or the service down: the next try after 30 s, doubling to 10 minutes");
+  ok(f.list.length === 1 && f.take(now) === null && f.due(now) > 0, "the event is kept, and not tried again before its time");
+  ok(!!f.take(now, true), "but it goes at once when the page leaves (force)");
+  f.release(f.list.length ? { events: f.list } : { events: [] });
+  const x = f.take(now, true); f.done(x, 200, now);
+  ok(f.list.length === 0 && f.fails === 0 && f.notBefore === 0, "kept by the server: gone from the queue, and the wait cleared");
+  // three refusals in a row stop sending for the visit; one success between them resets the count
+  const r = EvQueue({ sid: "visit-0012-aaaa" });
+  for (let i = 0; i < 6; i++) r.add("page_load", { i }, 0);
+  const one = () => { const y = r.take(now, true); y.events.splice(1); for (const e of r.list) if (!y.events.includes(e)) delete e.f; return y; };
+  r.done(one(), 400, now); r.done(one(), 429, now); r.done(one(), 200, now); r.done(one(), 401, now); r.done(one(), 404, now);
+  ok(!r.stopped && r.list.length === 1, "two refusals, a success, two refusals: still sending (refused batches are not sent again)");
+  r.done(one(), 400, now);
+  ok(r.stopped && r.due(now) === Infinity && r.take(now, true) === null, "the third refusal in a row: no more sending this visit");
+  eq(r.add("page_load", {}, 1), "ok", "events are still queued (the next load sends them)");
+  // the store: what dump() writes, from() reads back; what does not pass is left out
+  const st = EvQueue({ sid: "visit-0013-aaaa" });
+  st.add("victory", { lv: "erebuni", towers: { archer: 2 } }, 7);
+  const back = EvQueue({ sid: "visit-0014-aaaa", from: st.dump().concat([{ n: "Bad", q: 1, t: 1, p: {}, s: "visit-0013-aaaa" }, { n: "page_load", q: 1, t: 1, p: {}, s: "<b>" },
+    { n: "page_load", q: 1, t: 1, p: { a: { b: { c: 1 } } }, s: "visit-0013-aaaa" }, { n: "page_load", q: 1, t: 1, p: pad(5000), s: "visit-0013-aaaa" }, null, "x",
+    { n: "page_load", q: 1, t: 1, p: [1], s: "visit-0013-aaaa" }]) });
+  eq(back.dump(), st.dump(), "the store's events read back as written; a bad name, visit id, props too deep or too large, or not an object, are left out");
+  // the device's words for p_ctx
+  const UA = {
+    iphone: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    ipad: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    win: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    edge: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    ff: "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    android: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+    crios: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0 Mobile/15E148 Safari/604.1",
+  };
+  eq(evDevice({ ua: UA.iphone, touch: 5, phone: true, w: 390, h: 844 }), { dev: "phone", os: "ios", browser: "safari" }, "an iPhone in Safari");
+  eq(evDevice({ ua: UA.ipad, touch: 5, phone: false, w: 834, h: 1194 }), { dev: "tablet", os: "ios", browser: "safari" }, "an iPad (it says Macintosh, and has touch)");
+  eq(evDevice({ ua: UA.ipad, touch: 0, phone: false, w: 1600, h: 900 }), { dev: "desktop", os: "mac", browser: "safari" }, "a Mac");
+  eq(evDevice({ ua: UA.win, touch: 0, w: 1920, h: 1080 }), { dev: "desktop", os: "windows", browser: "chrome" }, "Chrome on Windows");
+  eq(evDevice({ ua: UA.edge, touch: 0, w: 1920, h: 1080 }).browser, "edge", "Edge");
+  eq(evDevice({ ua: UA.ff, touch: 0, w: 1920, h: 1080 }), { dev: "desktop", os: "linux", browser: "firefox" }, "Firefox on Linux");
+  eq(evDevice({ ua: UA.android, touch: 5, phone: false, w: 412, h: 915 }), { dev: "phone", os: "android", browser: "chrome" }, "an Android phone (a short side under 500 px)");
+  eq(evDevice({ ua: UA.crios, touch: 5, phone: true, w: 390, h: 844 }).browser, "chrome", "Chrome on an iPhone");
+  eq(evDevice({ ua: UA.iphone, touch: 5, phone: true, w: 390, h: 844, inapp: true }).browser, "inapp", "another app's browser");
+  for (const u of ["Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0 Safari/537.36",
+      "Mozilla/5.0 (Linux; Android 11) Chrome/120 Mobile Safari/537.36 Chrome-Lighthouse", "facebookexternalhit/1.1 Facebot", "Slurp", "Mozilla/5.0 Discordbot/2.0", "Twitterbot/1.0 Preview"])
+    ok(EV_BOT_UA.test(u), "a robot's user agent counts nothing: " + u.slice(0, 50));
+  for (const u of Object.values(UA)) ok(!EV_BOT_UA.test(u), "a browser is not taken for a robot: " + u.slice(-30));
+  // the sample: the same share for an id every time, and spread evenly
+  const ids = Array.from({ length: 2000 }, () => crypto.randomUUID());
+  ok(ids.every(a => evShare(a) === evShare(a) && evShare(a) >= 0 && evShare(a) < 1), "a device's place in the sample is fixed, from 0 to 1");
+  const under = ids.filter(a => evShare(a) < 0.25).length;
+  ok(under > 400 && under < 600, "a sample of 0.25 keeps about a quarter of devices (" + under + " of 2000)");
 }
 
 // every line the sign-in card can show after a failure, for the dash check

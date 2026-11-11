@@ -6,10 +6,10 @@
 // touch at 1194x834 and on iPhones held sideways (667x320 in Safari; 852x393 from the Home Screen with the safe-area
 // insets) and upright (393x659), with an iPhone's user agent on the phones.
 //
-//   NODE_PATH=$(npm root -g) node tools/regress/platform.js [index.html] [--quick] [--flows=1,2,3,11]
+//   NODE_PATH=$(npm root -g) node tools/regress/platform.js [index.html] [--quick] [--flows=1,2,3,10,11]
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
-// The flows built so far (work package P2: sign-in and the gate):
+// The flows built so far (work package P2: sign-in and the gate; P4: analytics and the stats page):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back; a provider the server switched off has no button; Discord held
 //      back while the server confirms emails by itself; an in-app browser's user agent hides Google and shows the
@@ -34,10 +34,23 @@
 //      the device offline: the session stays, and is refreshed once Auth is back; signed in with the service
 //      hanging: the checking card 4 s at most; storage blocked: the no-site-data card, never a provider's button,
 //      and a battle played
+//   10 analytics and the stats page (the events counted only with the test's own switch, __HS_PLATFORM_TEST.events,
+//      since a Playwright page is a webdriver): a scripted first visit for each kind of device (two new devices, a
+//      returning player of before, an arrival in another app's browser) and the funnel the server counts and the
+//      stats page shows, step by step and kind by kind; p_ctx's device words; every R1 card drawn; ?stats for a
+//      visitor (the sign-in line, and its return to ?stats) and for a player ("This page is for the game's owner.");
+//      hostile events straight to hs_track (markup and text where numbers belong, over 4,096 bytes, nested too deep,
+//      wrong types, a forged user id and a forged token, a borrowed visit id, a flood from one device): the server's
+//      answers, and the owner's page still answers with nothing of theirs made into markup; the period switch; Discord
+//      held back with the Health card's line; the gate switched to optional from the page (a fresh visitor gets Play
+//      as a guest), the owner's line, back to required; Remove old events. Then nothing is sent from a webdriver
+//      without the switch, on file://, or by the page as committed (its constants empty), each with its request log
+//      (requests-quiet.json with --photos), and the server's count of events does not move. The owner's part from
+//      the visitor's ?stats on runs on the desktop only
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
 // photographed. Every request must go to the stack's two ports; any page error or console error fails.
-// --quick: flows 1, 2, 3 and 11 at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure.
+// --quick: flows 1, 2, 3, 10 and 11 at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure.
 "use strict";
 const path = require("path");
 const fs = require("fs");
@@ -52,7 +65,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", "1,2,3,11")).split(",");
+const FLOWS = (opt("flows", "1,2,3,10,11")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -735,7 +748,343 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(g, W + " storage blocked");
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 11: flow11 };
+  // ================================================================ flow 10: analytics and the stats page
+  // The events are counted only with the test's own switch (window.__HS_PLATFORM_TEST.events): a Playwright page is a
+  // webdriver, and a webdriver counts nothing (7.3)
+  const EVON = [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { events: true }); }, null]];
+  // a page closed as a player closes it (its pagehide runs, so its last batch leaves with it), its errors read first
+  const leave = async (g, where) => {
+    const probs = await g.problems().catch(() => g.errs);
+    for (const p of probs) fail(where, p);
+    try { await g.page.close({ runBeforeUnload: true }); } catch (e) {}
+    await new Promise(r => setTimeout(r, 400));
+    const bad = g.reqs.filter(u => !u.startsWith(SITE) && !u.startsWith(API));
+    if (bad.length) fail(where, "requests outside the stack: " + [...new Set(bad)].slice(0, 4).join(", "));
+    await g.close();
+  };
+  const who = (key, n) => ({ identity: { provider_id: "p4-" + key + "-" + n, email: "p4-" + key + "-" + n + "@example.com", verified: true, name: "P4 " + n } });
+  const pressStats = async (g, sel) => { await g.ev(sel => { const e = document.querySelector(sel); if (e) e.scrollIntoView({ block: "center" }); }, sel); await g.frames(2); await pressGo(g, sel); };
+  const statsUp = (g, ms = 40000) => g.page.waitForFunction(() => typeof stShell !== "undefined" && !$("statsPage").hidden && !stBusy && !/Counting/.test($("statsBody").innerText), null, { timeout: ms });
+  // into the battle from the welcome card's Begin, through the chapter's story and the chronicle, as a player goes
+  const toField = async (g, W) => {
+    for (let k = 0; k < 8; k++) {
+      if (await g.ev(() => battleLive())) return true;
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "nearest" }); });
+      await g.frames(2);
+      const q = await g.reach("#startBtn");
+      if (q.why) { await g.wait(250); continue; }
+      await g.tapAt(q.x, q.y);
+      await g.wait(400);
+    }
+    if (!(await g.ev(() => battleLive()))) { fail(W, "the battle did not begin from the welcome card: " + await g.ev(() => menuMode)); return false; }
+    return true;
+  };
+  // the coach's Skip, as a player presses it (twice on a phone), the first wave sent and its field cleared, then the
+  // last wave's field cleared as vic.js stages a victory
+  const firstBattle = async (g, W) => {
+    await g.page.waitForFunction(() => !!document.querySelector("#coach .cSkip") && document.querySelector("#coach .cSkip").getClientRects().length > 0, null, { timeout: 15000 });
+    for (let k = 0; k < 2 && (await g.ev(() => !!tut)); k++) { await g.frames(4); const q = await g.reach("#coach .cSkip"); if (!q.why) await g.tapAt(q.x, q.y); await g.wait(300); }
+    if (await g.ev(() => !!tut)) fail(W, "the coach's Skip did not end the tutorial");
+    await g.ev(() => { if (!battle.started) startWave(); });
+    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 });
+    await g.ev(() => { spawnQueue = []; enemies = []; });
+    await g.page.waitForFunction(() => (window.__hsEv || []).some(e => e[0] === "wave_end"), null, { timeout: 20000 });
+    await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+    await g.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
+    if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
+    await g.page.waitForFunction(() => menuMode === "victory", null, { timeout: 15000 });
+  };
+  const flow10 = async (C) => {
+    const W = "flow 10 " + C.name;
+    await resetStack();
+    // --- a scripted first visit for each kind of device (3.2): two new devices, a returning player, an arrival in
+    // another app's browser. What each does is known, so the funnel's every step has a known count
+    const inUA = (C.ua || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36") + " Instagram 300.0.0.18.110";
+    // A, new: signs in with Google, takes a name, begins Erebuni from the welcome card, skips the coach, clears a wave
+    // and wins (as vic.js stages the win)
+    const A = await open(C, { init: EVON });
+    await gate(A, "signin");
+    await A.wait(1100);
+    await S.control("provider", who(C.key, "a"));
+    await signIn(A, null, "google", "name");
+    await A.page.fill("#gate .gtField", "Stats" + C.key + "A");
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const begin = await cardText(A);
+    if (!/Begin: Erebuni Rise/.test(begin)) fail(W, "A's welcome card: " + begin);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "");
+    const upright = C.w < C.h && C.w <= 500;
+    if (upright) await A.page.setViewportSize({ width: C.h, height: C.w });
+    if (await toField(A, W)) await firstBattle(A, W);
+    if (upright) await A.page.setViewportSize({ width: C.w, height: C.h });
+    const aEv = await A.ev(() => (window.__hsEv || []).map(e => e[0]));
+    // (this load is the one back from the provider: the gate's first events were the load before, and the server
+    // counts those below)
+    for (const n of ["page_load", "signed_in", "name_set", "gate_passed", "welcome_tap", "chapter_story", "brief_open", "battle_start", "tutorial_step", "tutorial_done", "wave_end", "victory"])
+      if (!aEv.includes(n)) fail(W, "A's visit lacks " + n + ": " + aEv.join(","));
+    const aUid = await A.ev(() => JSON.parse(localStorage.getItem("hs_pf_auth")).uid);
+    // B, new: sees the sign-in card and leaves
+    const B = await open(C, { init: EVON });
+    await gate(B, "signin");
+    await B.wait(1300);
+    // R, returning: a player of before (Erebuni won on this device) signs in with Discord and takes a name
+    const Rt = await open(C, { init: EVON, storage: { hs_best_erebuni_0: "21" } });
+    await gate(Rt, "signin");
+    await Rt.wait(1100);
+    await S.control("provider", who(C.key, "r"));
+    await signIn(Rt, null, "discord", "name");
+    await Rt.page.fill("#gate .gtField", "Stats" + C.key + "R");
+    await pressGo(Rt, "#gate .gtGo");
+    await gate(Rt, "welcome");
+    // I, another app's browser: signs in with Facebook and leaves at the name card
+    const I = await open(C, { init: EVON, ua: inUA });
+    await gate(I, "signin");
+    await I.wait(1100);
+    if ((await buttons(I)).includes("google")) fail(W, "the in-app browser shows Google");
+    await S.control("provider", who(C.key, "i"));
+    await signIn(I, null, "facebook", "name");
+    // every page leaves (its queue goes with it, keepalive)
+    for (const g of [B, I]) await leave(g, W + " funnel visit");
+    const want = { page_load: [4, 2, 1, 1], gate_shown: [4, 2, 1, 1], provider_tapped: [3, 1, 1, 1], signed_in: [3, 1, 1, 1], name_set: [2, 1, 1, 0],
+      battle_start: [1, 1, 0, 0], tutorial_done: [1, 1, 0, 0], wave_end: [1, 1, 0, 0], victory: [1, 1, 0, 0] };
+    // A is made the owner, and opens ?stats in the same browser (no new device)
+    await S.control("admin", { user_id: aUid });
+    await A.page.goto(SITE + "/?stats");
+    // the server holds them all once the pages' last batches are in (A's leave with its page, Rt's on its timer or now)
+    await Rt.ev(() => pfEvNow());
+    let s = null;
+    for (let k = 0; k < 60; k++) {
+      const rows = await S.query(`select count(*)::int n from public.hs_events where name = 'page_hide'`);
+      if (rows[0].n >= 3) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    await statsUp(A);
+    await A.wait(300);
+    const seen = await A.ev(() => {
+      const o = {};
+      for (const k of document.querySelectorAll("#statsPage .stKind")) for (const b of k.querySelectorAll(".stBar[data-step]")) (o[b.dataset.step] = o[b.dataset.step] || {})[k.dataset.kind] = Number(b.dataset.n);
+      return o;
+    });
+    s = await A.ev(() => stData && stData.funnel);
+    const got = {};
+    for (const x of s || []) got[x.step] = [x.n, x.new, x.returning, x.inapp];
+    if (JSON.stringify(got) !== JSON.stringify(want)) fail(W, "the funnel the server counts: " + JSON.stringify(got) + ", not " + JSON.stringify(want));
+    const shown = {};
+    for (const k in want) shown[k] = [want[k][0], ...(["new", "returning", "inapp"].map(kind => seen[k] ? seen[k][kind] : null))];
+    if (JSON.stringify(shown) !== JSON.stringify(want)) fail(W, "the funnel the page shows: " + JSON.stringify(seen));
+    notes.flows["funnel@" + C.key] = got.page_load ? got.page_load.join("/") + " .. " + (got.victory || []).join("/") : "none";
+    // what each visit said of its device (p_ctx)
+    const ctxs = await S.query("select distinct dev_class, os, browser, standalone, channel from public.hs_sessions where channel = 'live'");
+    const dev = C.key === "desk" ? "desktop" : C.key === "ipad" ? "tablet" : "phone";
+    if (!ctxs.some(r => r.dev_class === dev)) fail(W, "no visit was counted as a " + dev + ": " + JSON.stringify(ctxs));
+    if (!ctxs.some(r => r.browser === "inapp")) fail(W, "the in-app visit was not counted as one: " + JSON.stringify(ctxs));
+    if (C.standalone && !ctxs.some(r => r.standalone === true)) fail(W, "the Home Screen app was not counted as one");
+    // the stats page's cards, every one there and drawn as text
+    const cards = await A.ev(() => Array.from(document.querySelectorAll("#statsPage .stCard h2")).map(h => h.textContent));
+    for (const t of ["Health", "Totals", "First visit funnel", "The gate", "Coming back", "Where players quit", "Battlefields", "Devices", "Switches"])
+      if (!cards.includes(t)) fail(W, "the stats page lacks its card " + t + ": " + cards.join(", "));
+    await audit(A, W + " stats page", { root: "#statsPage", parts: ["#statsPage .stWrap"], primary: ["#statsBack"], primaryRequired: true, scroll: "page" }, null);
+    if (PHOTOS) await A.page.screenshot({ path: path.join(PHOTOS, "stats-" + C.key + "-1-top.png") });
+    if (PHOTOS && (C.key === "desk" || C.key === "ipad")) {
+      for (const [i, h] of [[2, "First visit funnel"], [3, "The gate"], [4, "Battlefields"], [5, "Switches"]]) {
+        await A.ev(h => { const c = Array.from(document.querySelectorAll("#statsPage .stCard")).find(x => x.querySelector("h2").textContent === h); if (c) c.scrollIntoView({ block: "start" }); }, h);
+        await A.frames(2);
+        await A.page.screenshot({ path: path.join(PHOTOS, "stats-" + C.key + "-" + i + "-" + h.toLowerCase().replace(/\W+/g, "-") + ".png") });
+      }
+    }
+    await leave(Rt, W + " returning");
+    if (C.key !== "desk") { await done(A, W + " owner"); return; }
+    // --- (the desktop only from here) a player is refused; a visitor gets the sign-in line, and the sign-in comes back to ?stats
+    const P = await open(C, { init: EVON });
+    await gate(P, "signin");
+    await P.page.goto(SITE + "/?stats");
+    await statsUp(P);
+    const ps = await P.ev(() => ({ text: $("statsBody").innerText, btns: Array.from(document.querySelectorAll("#statsPage .gateBtn")).map(b => b.dataset.p), gate: gateUp }));
+    if (!/Sign in with the owner's account/.test(ps.text) || ps.btns.join() !== "google,facebook,discord" || ps.gate) fail(W, "?stats for a visitor: " + JSON.stringify(ps));
+    if (PHOTOS) await P.page.screenshot({ path: path.join(PHOTOS, "stats-desk-signin.png") });
+    await S.control("provider", who(C.key, "p"));
+    await pressStats(P, '#statsPage .gateBtn[data-p="google"]');
+    await P.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !$("statsPage").hidden && /owner/.test($("statsBody").innerText), null, { timeout: 30000 });
+    await clean(P, W + " stats sign-in");
+    const pr = await P.ev(() => ({ text: $("statsBody").innerText, search: location.search, gate: gateUp }));
+    if (!/This page is for the game's owner\./.test(pr.text) || !/^\?stats=?$/.test(pr.search) || pr.gate) fail(W, "?stats for a player: " + JSON.stringify(pr));
+    if (PHOTOS) await P.page.screenshot({ path: path.join(PHOTOS, "stats-desk-player.png") });
+    await leave(P, W + " player");
+    // --- hostile events, sent as a stranger can: straight to hs_track with the public key
+    const post = async (body, bearer) => {
+      const r = await fetch(API + "/rest/v1/rpc/hs_track", { method: "POST", headers: { apikey: S.anonKey, Authorization: "Bearer " + (bearer || S.anonKey), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      return { status: r.status, body: j };
+    };
+    const HX = "<img src=x onerror=\"window.__xss=1\">", hctx = (aid, sid, more) => Object.assign({ aid, sid, channel: "live", dev: "<b>phone</b>", os: HX, browser: "\"><script>window.__xss=2</script>", vw: "wide", standalone: "yes" }, more || {});
+    const H1 = "f1000000-0000-4000-8000-000000000001", H2 = "f1000000-0000-4000-8000-000000000002", H3 = "f1000000-0000-4000-8000-000000000003";
+    const hostile = [];
+    hostile.push(["markup and text where numbers belong", await post({ p_ctx: hctx(H1, "evil-0001-aaaa"), p_events: [
+      { n: "page_load", q: 1, t: "now", p: { progress: "lots", gate: HX } }, { n: "gate_shown", q: 2, p: { state: HX, providers: HX } },
+      { n: "provider_tapped", q: 3, p: { provider: HX } }, { n: "signin_error", q: 4, p: { provider: "google", error: HX } },
+      { n: "gate_bypass", q: 5, p: { why: "<svg onload=window.__xss=3>" } },
+      { n: "victory", q: 6, p: { lv: HX, diff: "hard", mode: HX, lives: "many", lives_max: {}, wave: [1], waves: "x" } },
+      { n: "defeat", q: 7, p: { lv: "erebuni", diff: "1; drop table hs_events", wave: "1e9", lives: -5, lives_max: 0 } },
+      { n: "battle_quit", q: 8, p: { lv: "javascript:alert(1)", diff: 1, wave: 2 } }] })]);
+    hostile.push(["an event over 4,096 bytes", await post({ p_ctx: hctx(H1, "evil-0001-aaaa"), p_events: [{ n: "victory", q: 9, p: { lv: "erebuni", pad: "x".repeat(5000) } }] })]);
+    hostile.push(["props nested two levels and deeper", await post({ p_ctx: hctx(H1, "evil-0001-aaaa"), p_events: [{ n: "victory", q: 10, p: { a: { b: { c: { d: 1 } } } } },
+      { n: "victory", q: 11, p: { l: [[[[1]]]] } }] })]);
+    hostile.push(["wrong types", await post({ p_ctx: hctx(H1, "evil-0001-aaaa"), p_events: [{ n: 42, q: 12 }, "page_load", null, [1, 2], { n: "wave_end", q: "twelve", t: { x: 1 }, p: "props" },
+      { n: "wave_end", q: 13, p: [1, 2, 3] }, { n: "WAVE END", q: 14 }, { n: "wave_end", q: 15, p: true }] })]);
+    hostile.push(["p_events that is not a list", await post({ p_ctx: hctx(H1, "evil-0001-aaaa"), p_events: { n: "page_load" } })]);
+    hostile.push(["a forged user id in p_ctx", await post({ p_ctx: hctx(H2, "evil-0002-aaaa", { uid: aUid, user_id: aUid }), p_events: [{ n: "signed_in", q: 1, p: { provider: "google", user_id: aUid } }] })]);
+    hostile.push(["a forged token", await post({ p_ctx: hctx(H2, "evil-0003-aaaa"), p_events: [{ n: "page_load", q: 1 }] },
+      Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url") + "." + Buffer.from(JSON.stringify({ sub: aUid, role: "authenticated", exp: 4102444800 })).toString("base64url") + ".forged")]);
+    hostile.push(["another device's visit id", await post({ p_ctx: hctx(H3, "evil-0001-aaaa"), p_events: [{ n: "page_load", q: 99 }] })]);
+    let flood = 0;
+    for (let i = 0; i < 24; i++) { const r = await post({ p_ctx: hctx(H3, "evil-0004-flood"), p_events: Array.from({ length: 50 }, (_, j) => ({ n: "tower_built", q: i * 50 + j + 1 })) }); flood += (r.body && r.body.accepted) || 0; }
+    hostile.push(["a flood of 1,200 events from one device", { status: 200, body: { accepted: flood } }]);
+    const hres = Object.fromEntries(hostile.map(([k, r]) => [k, r.status + " " + JSON.stringify(r.body).slice(0, 80)]));
+    log("  hostile: " + JSON.stringify(hres));
+    notes.hostile = hres;
+    const H = (k) => hostile.find(x => x[0] === k)[1];
+    if (H("markup and text where numbers belong").body.accepted !== 8) fail(W, "the hostile batch: " + hres["markup and text where numbers belong"]);
+    if (H("an event over 4,096 bytes").body.accepted !== 0 || H("props nested two levels and deeper").body.accepted !== 0) fail(W, "an oversize or deep event was kept");
+    if (H("wrong types").body.accepted !== 0) fail(W, "events of the wrong types were kept: " + hres["wrong types"]);
+    if (H("p_events that is not a list").status !== 400) fail(W, "p_events not a list: " + hres["p_events that is not a list"]);
+    if (H("a forged token").status !== 401) fail(W, "a forged token was taken: " + hres["a forged token"]);
+    if (H("another device's visit id").status !== 400) fail(W, "a borrowed visit id was taken: " + hres["another device's visit id"]);
+    if (flood !== 900) fail(W, "one device's flood: " + flood + " kept, not 900");
+    const forged = await S.query("select sid, uid::text from public.hs_sessions where sid in ('evil-0002-aaaa', 'evil-0003-aaaa')");
+    if (forged.some(r => r.uid !== null)) fail(W, "a forged user id joined a visit to an account: " + JSON.stringify(forged));
+    // the owner's page with them in the table: it still answers, nothing of theirs is markup, and they show as "other"
+    await A.ev(() => pfStatsLoad());
+    await statsUp(A);
+    const safe = await A.ev(() => {
+      const root = $("statsPage"), bad = [];
+      for (const e of root.querySelectorAll("*")) {
+        if (/^(IMG|SCRIPT|SVG|IFRAME|OBJECT|EMBED|U|I|B)$/i.test(e.tagName)) bad.push(e.tagName);
+        for (const a of e.attributes) if (/^on/i.test(a.name) || /javascript:/i.test(a.value)) bad.push(e.tagName + " " + a.name);
+      }
+      return { bad, xss: window.__xss || 0, other: /other/.test(root.innerText), cards: root.querySelectorAll(".stCard").length, text: root.innerText.includes("<img") };
+    });
+    if (safe.bad.length || safe.xss || !safe.other || safe.cards < 9) fail(W, "the stats with hostile events in the table: " + JSON.stringify(safe));
+    if (PHOTOS) {
+      await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsPage .stCard")).find(x => x.querySelector("h2").textContent === "The gate"); if (c) c.scrollIntoView({ block: "start" }); });
+      await A.frames(2);
+      await A.page.screenshot({ path: path.join(PHOTOS, "stats-desk-hostile-gate.png") });
+    }
+    // the period switch asks again for 7 days
+    await pressStats(A, "#statsTools .stDay");
+    await statsUp(A);
+    if ((await A.ev(() => stDays)) !== 7) fail(W, "the period switch did not take 7 days");
+    // --- Discord held back while the sign-in service confirms emails by itself: the Health card says why, and a
+    // fresh visitor has no Discord button
+    await S.control("settings", { mailer_autoconfirm: true });
+    await A.ev(() => pfStatsLoad());
+    await statsUp(A);
+    const hl = await A.ev(() => Array.from(document.querySelectorAll("#statsPage .stCard")).find(x => x.querySelector("h2").textContent === "Health").innerText);
+    if (!/Discord sign-in is held back: the sign-in service confirms emails by itself\. See the guide, step 3\./.test(hl)) fail(W, "the Health card with autoconfirm on: " + hl);
+    if (PHOTOS) { await A.ev(() => $("statsPage").scrollTo(0, 0)); await A.frames(2); await A.page.screenshot({ path: path.join(PHOTOS, "stats-desk-health-autoconfirm.png") }); }
+    const D = await open(C, { init: EVON });
+    await gate(D, "signin");
+    if ((await buttons(D)).includes("discord")) fail(W, "a Discord button with autoconfirm on");
+    await leave(D, W + " autoconfirm");
+    await S.control("settings", { mailer_autoconfirm: false });
+    // --- the switches: the gate set to optional from the page; a fresh visitor then has Play as a guest
+    await A.ev(() => pfStatsLoad());
+    await statsUp(A);
+    await pressStats(A, '#statsPage .stGate[data-mode="optional"]');
+    await A.page.waitForFunction(() => !stBusy && stData && stData.config && stData.config.gate === "optional", null, { timeout: 20000 });
+    const G = await open(C, { init: EVON });
+    await gate(G, "signin");
+    const gt = await cardText(G);
+    if (!/Play as a guest/.test(gt)) fail(W, "the gate set to optional: a fresh visitor's card is " + gt);
+    await pressGo(G, "#gate .gtQuiet:not(.gtGo)");
+    await gate(G, "");
+    await leave(G, W + " optional");
+    // the owner's line, and back to required
+    await A.page.fill('#statsPage .stField[data-key="notice"]', "Back at six.");
+    await pressStats(A, '#statsPage .stField[data-key="notice"] + .btn');
+    await A.page.waitForFunction(() => !stBusy && stData && stData.config && stData.config.notice === "Back at six.", null, { timeout: 20000 });
+    await pressStats(A, '#statsPage .stGate[data-mode="required"]');
+    await A.page.waitForFunction(() => !stBusy && stData && stData.config && stData.config.gate === "required", null, { timeout: 20000 });
+    // Remove old events
+    await pressStats(A, "#statsPage .stPurge");
+    await A.page.waitForFunction(() => /Removed \d+ visits\./.test($("statsBody").innerText), null, { timeout: 20000 }).catch(() => fail(W, "Remove old events said nothing"));
+    await done(A, W + " owner");
+    // --- nothing is sent from a webdriver without the switch, on file://, or with the constants empty
+    const before = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    const logs = {};
+    const Q = await open(C);
+    await gate(Q, "signin");
+    await Q.wait(1500);
+    await Q.ev(() => { track("tower_built", {}); for (let i = 0; i < 25; i++) track("map_open", { i }); });
+    await Q.wait(500);
+    logs.webdriver = Q.reqs.slice();
+    if (Q.reqs.some(u => /hs_track/.test(u))) fail(W, "a webdriver without the switch sent events");
+    const qState = await Q.ev(() => ({ queue: !!pfEvQ, kick: typeof window.__hsEvKick, barred: pfEvBarred(), store: localStorage.getItem("hs_pf_evq") }));
+    if (qState.queue || qState.kick !== "undefined" || qState.store) fail(W, "a webdriver's queue: " + JSON.stringify(qState));
+    await leave(Q, W + " webdriver");
+    await new Promise(r => setTimeout(r, 800));
+    const afterQ = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    if (afterQ !== before) fail(W, "events reached the server from a webdriver without the switch (" + before + " to " + afterQ + ")");
+    // a prerender (the switch on): no queue while it is one; it begins once the page is shown
+    const PR = await open(C, { init: EVON.concat([[() => { window.__pre = true; Object.defineProperty(Document.prototype, "prerendering", { configurable: true, get: () => window.__pre === true }); }, null]]) });
+    await gate(PR, "signin");
+    await PR.wait(1200);
+    const pr0 = await PR.ev(() => ({ q: !!pfEvQ, kick: typeof window.__hsEvKick }));
+    await PR.ev(() => { window.__pre = false; document.dispatchEvent(new Event("prerenderingchange")); });
+    await PR.wait(300);
+    const pr1 = await PR.ev(() => ({ q: !!pfEvQ, n: pfEvQ ? pfEvQ.list.map(e => e.n) : [] }));
+    if (pr0.q || pr0.kick !== "undefined" || !pr1.q || !pr1.n.includes("page_load") || !pr1.n.includes("gate_shown")) fail(W, "a prerender: " + JSON.stringify({ pr0, pr1 }));
+    logs.prerender = PR.reqs.slice();
+    await leave(PR, W + " prerender");
+    const before2 = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    // file:// with the constants filled and the switch on: the platform is off there
+    const fctx = await browser.newContext({ viewport: { width: C.w, height: C.h } });
+    await fctx.addInitScript(EVON[0][0]);
+    const fp = await fctx.newPage();
+    const freqs = [];
+    fp.on("request", r => freqs.push(r.url()));
+    await fp.goto("file://" + path.join(dir, "index.html"), { timeout: 120000 });
+    await fp.waitForTimeout(2500);
+    await fp.evaluate(() => { for (let i = 0; i < 25; i++) track("map_open", { i }); });
+    await fp.waitForTimeout(500);
+    const fst = await fp.evaluate(() => ({ on: PF_ON, gate: gateUp, kick: typeof window.__hsEvKick, q: (window.__hsEv || []).length }));
+    await fp.close({ runBeforeUnload: true }).catch(() => {});
+    await fctx.close();
+    logs.file = freqs.slice();
+    if (freqs.some(u => !u.startsWith("file:") && !/^(data|blob):/.test(u)) || fst.on || fst.gate || fst.kick !== "undefined") fail(W, "file:// sent or started something: " + JSON.stringify({ fst, freqs: freqs.filter(u => !u.startsWith("file:")) }));
+    // the page as committed (both constants empty), served over http, the switch on
+    const http = require("http");
+    const plain = http.createServer((q, s2) => { s2.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); s2.end(src); });
+    await new Promise(r => plain.listen(0, "127.0.0.1", r));
+    const PLAIN = "http://127.0.0.1:" + plain.address().port;
+    const ectx = await browser.newContext({ viewport: { width: C.w, height: C.h } });
+    await ectx.addInitScript(EVON[0][0]);
+    const ep = await ectx.newPage();
+    const ereqs = [];
+    ep.on("request", r => ereqs.push(r.url()));
+    await ep.goto(PLAIN + "/?stats", { timeout: 120000 });
+    await ep.waitForTimeout(2500);
+    const est = await ep.evaluate(() => ({ on: PF_ON, gate: gateUp, kick: typeof window.__hsEvKick, stats: $("statsPage").hidden ? "" : $("statsBody").innerText.replace(/\s+/g, " ") }));
+    if (PHOTOS) await ep.screenshot({ path: path.join(PHOTOS, "stats-desk-off.png") });
+    await ep.goto(PLAIN + "/", { timeout: 120000 });
+    await ep.waitForTimeout(2500);
+    await ep.evaluate(() => { for (let i = 0; i < 25; i++) track("map_open", { i }); });
+    await ep.waitForTimeout(500);
+    await ep.close({ runBeforeUnload: true }).catch(() => {});
+    await ectx.close();
+    await new Promise(r => plain.close(r));
+    logs.empty = ereqs.slice();
+    if (ereqs.some(u => !u.startsWith(PLAIN + "/") && !/^(data|blob):/.test(u)) || est.on || est.gate || est.kick !== "undefined") fail(W, "the page with its constants empty sent or started something: " + JSON.stringify({ est, reqs: ereqs.filter(u => !u.startsWith(PLAIN)) }));
+    if (!/the platform is off/.test(est.stats) || !/Supabase address and its public key are not set/.test(est.stats)) fail(W, "?stats with the platform off: " + est.stats);
+    await new Promise(r => setTimeout(r, 1000));
+    const after = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    if (after !== before2) fail(W, "events reached the server from a page that should send none (" + before2 + " to " + after + ")");
+    const strip = (l) => l.map(u => u.replace(SITE, "SITE").replace(API, "API").replace(PLAIN, "PLAIN").replace(/^file:\/\/.*index\.html/, "file://.../index.html"));
+    notes.quiet = { webdriver: strip(logs.webdriver), prerender: strip(logs.prerender), file: strip(logs.file), empty: strip(logs.empty), webdriverEventsBefore: before, webdriverEventsAfter: afterQ, eventsBefore: before2, eventsAfter: after };
+    if (PHOTOS) fs.writeFileSync(path.join(PHOTOS, "requests-quiet.json"), JSON.stringify(notes.quiet, null, 2));
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 10: flow10, 11: flow11 };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
