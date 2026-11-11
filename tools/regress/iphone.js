@@ -25,8 +25,14 @@
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/iphone.js [index.html] [--quick] [--sizes=i15s,i15h]
 //         [--only=pages,map,...] [--dpr=3] [--shots=dir] [--photos=dir] [--jobs=n] [--verbose]
 //   --shots   a photo of every state that failed; --photos a photo of every state; --dpr their density (default 1)
-//   --only    some of the states: tip, pages, map, settings, chronicle, battle, panel, foe, tricks, note, bubble, crash,
-//             victory, defeat, nardi, coach, towers (rotate is part of battle)
+//   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
+//             crash, victory, defeat, nardi, coach, towers (rotate is part of battle)
+// The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
+// the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
+// nothing in it scrolls) and is held to the bar; a finger takes three tiers, resets the Council (a second tap
+// confirms) and takes a tier again; the Hall's close gives the map back. The chronicle's #briefKit (the Council's
+// chip, the Standard switch 44 px tall, which a tap turns on) and the victory page's #ovGrowth (held sideways one
+// line of text in place of the prose's last line; upright a button 44 px tall) are held to the bar with their pages.
 "use strict";
 const path = require("path");
 const R = require("./lib");
@@ -279,6 +285,65 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await tap("Settings (map)", "#ovGear", "cannot close Settings");
         if (await shown("#settings")) fail("Settings (map)", "the gear did not put Settings away");
       });
+      // ---- the War Council: its one-time card, its panel in the Hall, three tiers taken by a finger, reset, again ----
+      await step("council", "council", async () => {
+        await g.ev(() => {
+          const rec = {};
+          for (let i = 0; i < 3; i++) {
+            localStorage.setItem(bestKey(i, LEVELS[i].era), "21");
+            rec[levelId(i)] = { stars: [0, 3, i === 1 ? 2 : 0], lives: [0, 18, i === 1 ? 9 : 0], endless: [0, 0, 0] };
+          }
+          localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
+          localStorage.removeItem("hs_council");
+          localStorage.removeItem("hs_towers_seen");
+          window.__hsQuietCouncilCard = false;   // the card is this state's to show (openGame holds it back)
+          testUnlockAll = false;
+          openCampaignMap(2);
+        });
+        const card = await g.page.waitForFunction(() => unlockCardOn === "council", null, { timeout: 5000 }).then(() => true, () => false);
+        if (!card) { fail("council card", "\"The War Council opens\" did not come up over the map"); await tap("council", "#ovStars", "cannot tap the tally"); }
+        else {
+          await settle(2);
+          await check("council card", { root: "#trickCard .kit", primary: ["#tcBtn"], scroll: "inside", primaryRequired: true });
+          await tap("council card", "#tcBtn", "cannot tap To the Council");
+          if (await g.ev(() => !!unlockCardOn || towersSeen().indexOf("council") < 0)) fail("council card", "its button did not put it away and remember it");
+        }
+        await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 }).catch(() => {});
+        if (!(await g.ev(() => hallOpen && hallTab === "council"))) throw new Error("the Hall did not open on the Council");
+        await settle(2);
+        await check("council", { root: "#hall", parts: ["#hallBody", "#hallClose", "#hallTabs"], primary: ["#wcTake"], scroll: C.upright ? "page" : "inside", primaryRequired: true });
+        const fit = await g.ev(() => {
+          const B = $("hallBody"), b = B.getBoundingClientRect(), out = [];
+          for (const e of B.querySelectorAll(".wc *")) {
+            const r = e.getBoundingClientRect();
+            if (!r.width && !r.height) continue;
+            if (r.left < b.left - 0.5 || r.right > b.right + 0.5 || (!isPhone() || phoneWide()) && (r.top < b.top - 0.5 || r.bottom > b.bottom + 0.5)) out.push((e.id || e.className || e.tagName) + " " + [r.left, r.top, r.right, r.bottom].map(Math.round));
+          }
+          return { out: out.slice(0, 4), scrolls: phoneWide() && B.scrollHeight > B.clientHeight + 1, box: [Math.round(b.width), Math.round(b.height)] };
+        });
+        if (fit.out.length) fail("council", "outside the Hall's box " + fit.box.join("x") + ": " + fit.out.join("; "));
+        if (fit.scrolls) fail("council", "the panel scrolls in a phone held sideways");
+        // playtest 4: three tiers taken by a finger, the Council reset (two taps), a tier taken again
+        for (const [b, t] of [["bows", 1], ["engines", 1], ["bows", 2]]) {
+          await tap("council", '.wcMed[data-b="' + b + '"][data-t="' + t + '"]', "cannot tap " + b + " " + t, true);
+          await tap("council", "#wcTake", "cannot tap Take it", true);
+        }
+        let own = await g.ev(() => councilOwn());
+        if (own.bows !== 2 || own.engines !== 1) fail("council", "three tiers by a finger left " + JSON.stringify(own));
+        await tap("council", "#wcReset", "cannot tap Reset", true);
+        if (await g.ev(() => councilSpent(councilOwn())) === 0) fail("council", "a finger's first tap on Reset reset the Council");
+        await check("council reset armed", { root: "#hall", parts: ["#hallBody", "#hallClose", "#hallTabs"], primary: ["#wcReset"], scroll: C.upright ? "page" : "inside", primaryRequired: true });
+        await tap("council", "#wcReset", "cannot tap Reset again", true);
+        if (await g.ev(() => councilSpent(councilOwn())) !== 0) fail("council", "the second tap on Reset did not reset");
+        await tap("council", '.wcMed[data-b="stewards"][data-t="1"]', "cannot tap the Stewards' first tier", true);
+        await tap("council", "#wcTake", "cannot tap Take it", true);
+        own = await g.ev(() => councilOwn());
+        if (own.stewards !== 1 || own.bows) fail("council", "after the reset, a tier taken again left " + JSON.stringify(own));
+        await tap("council", "#hallClose", "cannot close the Hall");
+        await settle(3);
+        const back = await g.ev(() => ({ open: hallOpen, mode: menuMode, inert: overlayEl.hasAttribute("inert") }));
+        if (back.open || back.mode !== "map" || back.inert) fail("council", "the Hall's close did not give the map back " + JSON.stringify(back));
+      });
       // ---- chronicles: every page, a foe's card from its medallion, a trick's card from its row ----
       await step("chronicle", "chronicle", async () => {
         for (const id of ["tushpa", "stepanakert23"]) {
@@ -303,6 +368,23 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (m.more && !m.fade) fail(label, "the host's column runs past its fold with nothing to show that it scrolls");
           }
           if (id !== "tushpa") continue;
+          // the row of the battle (#briefKit): the Standard switch for a player who owns a tier, 44 px, turned on by a tap
+          if (await g.ev(() => councilSpent(councilOwn()) > 0)) {
+            const k = await g.ev(() => ({ towers: !!document.querySelector("#briefKit .bkTowers"), sw: !!$("bkStd") }));
+            if (!k.sw) fail(label, "no Standard switch for a player who owns a tier");
+            else {
+              if (!C.upright && k.towers) fail(label, "held sideways #briefKit shows the tray's towers, for which the column has no room");
+              const q = await g.ev(() => { const e = $("bkStd"); e.scrollIntoView({ block: "nearest" }); return e.getBoundingClientRect().height; });
+              if (q < 43.5) fail(label, "the Standard switch is " + Math.round(q) + " px tall");
+              await tap(label, "#bkStd", "cannot tap the Standard switch", true);
+              if (await g.ev(() => !standardBattle)) fail(label, "a tap did not turn the Standard switch on");
+              // (the page as it opens: scrolled back to its top, as the other pages of this chronicle are held)
+              await g.ev(() => { overlayEl.scrollTop = 0; const L = document.querySelector("#ovPage .briefLeft"); if (L) L.scrollTop = 0; });
+              await settle(2);
+              await check(label + " switch", pageSpec(LEAF_PARTS, ["#startBtn"]));
+              await g.ev(() => { standardBattle = false; briefKitRow(); });
+            }
+          }
           if (await shown("#briefHost .foe[data-role]")) {
             await tap(label, "#briefHost .foe[data-role]", "cannot tap a foe's medallion", true);
             await settle(2);
@@ -643,6 +725,20 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (await shown("#endingCard")) fail("ending card (" + id + ")", "its button did not put it away");
           } else if (id !== "avarayr") fail(label, "no ending card over the page");
           await check(label, pageSpec(["#ovGear"], ["#nextBtn", "#mapBtn.lead"]));
+          // the row of growth: a first victory here earns stars to spend. Held sideways one line in place of the prose's last
+          // line; upright a button 44 px tall
+          if (id === "ani") {
+            const gr = await g.ev(() => { const e = $("ovGrowth"), b = $("ogCouncil"); return { on: e.classList.contains("on"), line: e.classList.contains("line"), text: e.textContent, btn: b ? b.getBoundingClientRect().height : 0 }; });
+            if (!gr.on) fail(label, "no row of growth after a victory that earned stars to spend");
+            else if (!C.upright && (!gr.line || !/^\d+ stars? to spend at the War Council\.$/.test(gr.text))) fail(label, "held sideways the row of growth is not one line: " + JSON.stringify(gr));
+            else if (C.upright && gr.btn < 43.5) fail(label, "the Council's button is " + Math.round(gr.btn) + " px tall");
+          }
+          // held sideways the line takes only the endless invitation's place: Sis, which ends where history did, has
+          // none, so its prose keeps every word (its tally) and it shows no line
+          if (id === "sis" && !C.upright) {
+            const gr = await g.ev(() => ({ on: $("ovGrowth").classList.contains("on"), sub: $("ovSub").textContent }));
+            if (gr.on || !/to spare on/.test(gr.sub)) fail(label, "held sideways the row of growth took Sis's tally: " + JSON.stringify(gr));
+          }
           // every way on from the page in sight (held sideways, without a scroll) and 44 px tall
           const v = await g.ev(() => {
             const bs = [...document.querySelectorAll("#overlay .bigRow .big")].filter(b => b.offsetParent);

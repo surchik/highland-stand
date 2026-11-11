@@ -252,6 +252,9 @@ score (N5's "may").
 | 3017 | `<div id="ovStars" role="img">` (filled by `syncChapterBar`, line 56549; hidden by `fitCampaignStars` when a title reaches it) | `<button id="ovStars" type="button">` with the same content and the same hiding; its click is `openHall()` when the Hall has a tab (gameplay's or the platform's), else nothing (and then it keeps `cursor: default`) |
 | 2979-3007 `#settings` | | one more row, `#setAcct` "Account and boards", shown on menu pages only (`body.onMenu`) when the platform is on |
 | 76030 `showCrashCard` | | first line `track("error", { msg: String(err && err.message || err).slice(0, 120) });` |
+| the harness block, above the storage fallback (built in P0) | | `const HS_CHANNEL = ...` and `HS_KEY_PREFIX` (9.3), read before anything touches storage; the channel is read from the path as the web server reads it (doubled slashes merged, percent codes decoded, capitals as small letters) |
+| the storage fallback's check (built in P0) | `localStorage.setItem("hs_probe", ...)` | the same key under `HS_KEY_PREFIX` |
+| `recoverToMap` (built in P0) | closes the nardi board and the town | also `try { closeHall(); } catch (e) {}`: "Return to map" on the crash card puts the Hall away |
 
 Everything else the platform needs it reads through functions that exist: `getSavedRun`, `resumeRun`,
 `furthestOpen`, `levelConquered`, `levelStanding`, `starTally`, `showBrief`, `selectMapLevel`, `openCampaignMap`,

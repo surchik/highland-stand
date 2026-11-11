@@ -11,6 +11,11 @@
 //   leave button); opened again, Begin and the age card's Continue start a town, its leave asks, Keep stays, and
 //   Leave closes it. Then a battle from the map, as above, which pays the waiting gift.
 // After each closing the map is back in reach with its doors (Nardi always, the town's only under ?town).
+// The War Council (gameplay 4.6, a plain load): the campaign's tally opens the Hall on the Council, on a fresh save
+// and on one with stars to spend; a tier is chosen and taken there by the player's own presses; the Hall's close
+// gives the map back. On the chronicle (#briefKit) the chip "Council · N to spend" opens the Council and the Hall's
+// close gives the chronicle back; the Standard switch (shown once a tier is owned) turns on by a press, 44 px to a
+// finger, and the battle begun then is fought with no Council tier.
 // Known fault of the game (3d4bb2a, a27052d), printed as a KNOWN line and failed only under --strict: the town's
 // start card has no on-screen way back to the map (it covers the leave button and offers only Begin).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/doors.js [index.html] [--quick] [--strict] [--shots=dir]
@@ -91,6 +96,45 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
       log("nardi ok");
     };
 
+    // the tally opens the Council: a tier taken by presses, the Hall closed, the map back
+    const hallUp = async (what) => {
+      await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 }).catch(() => {});
+      const h = await g.ev(() => { const w = document.querySelector("#hallBody .wc"), r = w && w.getBoundingClientRect(), b = $("hallBody").getBoundingClientRect();
+        return { open: hallOpen, tab: hallTab, panel: !!w, inside: !!r && r.left >= b.left - 0.5 && r.right <= b.right + 0.5 && r.top >= b.top - 0.5 }; });
+      if (!h.open || h.tab !== "council" || !h.panel || !h.inside) { await fail(what + ": the Hall did not open on the Council " + JSON.stringify(h)); return false; }
+      return true;
+    };
+    const councilRounds = async () => {
+      // a fresh save: the tally is the door all the same, and the Council says it has nothing to spend yet
+      await g.press("#ovStars");
+      if (await hallUp("Council, fresh")) {
+        const c = await g.ev(() => document.querySelector("#hallBody .wcCount").textContent);
+        if (!/^0 stars to spend of 0$/.test(c)) await fail("Council, fresh: " + c);
+        await g.press("#hallClose");
+      }
+      await mapBack("Council, fresh");
+      // Erebuni won with three stars: the tally's words count them, its door opens the Council, a tier is taken
+      await g.ev(() => {
+        localStorage.setItem(bestKey(0, LEVELS[0].era), "21");
+        localStorage.setItem(RECORDS_KEY, JSON.stringify({ [levelId(0)]: { stars: [0, 3, 0], lives: [0, 18, 0], endless: [0, 0, 0] } }));
+        openCampaignMap(0);
+      });
+      await g.frames(3);
+      const title = await g.ev(() => $("ovStars").title);
+      if (!/^War Council: 3 stars to spend\. Stars won across the campaign: 3 of 68/.test(title)) await fail("the tally's words: " + title);
+      await g.press("#ovStars");
+      if (await hallUp("Council, three stars")) {
+        await g.press('.wcMed[data-b="stewards"][data-t="1"]');
+        await g.press("#wcTake");
+        const own = await g.ev(() => councilOwn());
+        if (own.stewards !== 1) await fail("Council: Take it did not take the Stewards' first tier " + JSON.stringify(own));
+        await g.press("#hallClose");
+      }
+      await mapBack("Council, three stars");
+      doors += 2;
+      log("council ok");
+    };
+
     const townRounds = async () => {
       await g.ev(() => { try { for (const k of ["hs_town", "hs_town_run", "hs_town_bless"]) localStorage.removeItem(k); } catch (e) {} });
       await g.press("#townBtn");
@@ -152,11 +196,32 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
       if (await g.ev(() => menuMode) !== "brief") { await g.press("#startBtn"); await g.frames(2); }
       if (await g.ev(() => menuMode) !== "brief" || await g.ev(() => curLevel) !== lv) await fail("the map did not lead to the chronicle of " + lv);
       await g.wait(400);
+      if (!town) {
+        // the chronicle's row of the battle: the Council's chip opens it, the Hall's close gives the chronicle back
+        if ((await g.reach("#bkCouncil")).why) await fail("the chronicle has no Council chip: " + (await g.reach("#bkCouncil")).why);
+        else {
+          await g.press("#bkCouncil");
+          if (await hallUp("the chronicle's chip")) await g.press("#hallClose");
+          await g.frames(3);
+          const s = await g.ev(() => ({ mode: menuMode, open: hallOpen, inert: overlayEl.hasAttribute("inert") }));
+          if (s.mode !== "brief" || s.open || s.inert) await fail("the chronicle is not back after the Council " + JSON.stringify(s));
+        }
+        // the Standard switch: a tier is owned, so it is there; a press turns it on
+        const q = await g.reach("#bkStd");
+        if (q.why) await fail("the Standard switch: " + q.why);
+        else {
+          if (C.touch && q.h < 44) await fail("the Standard switch is " + Math.round(q.h) + " px tall");
+          await g.press("#bkStd");
+          if (await g.ev(() => $("bkStd").getAttribute("aria-checked")) !== "true") await fail("the Standard switch did not turn on");
+        }
+      }
       await g.press("#startBtn");
       await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
       const gift = await g.ev(() => ({ key: localStorage.getItem("hs_town_bless"), toast: toastEl.classList.contains("show") ? toastEl.textContent : "" }));
       if (town && (gift.key !== null || !/gift from the town: \+40/.test(gift.toast))) await fail("?town: the waiting town gift was not paid " + JSON.stringify(gift));
       if (!town && (gift.key !== GIFT || /gift from the town/i.test(gift.toast))) await fail("a plain load paid the hidden town's gift " + JSON.stringify(gift));
+      // the Standard battle is fought with no Council tier
+      if (!town && await g.ev(() => !kitEmpty(kit) || battleLoadout() !== "std")) await fail("the Standard battle has a kit " + JSON.stringify(await g.ev(() => kit)));
       // an iPad held upright: the plaque asks to turn it, and Play in portrait goes on
       if (!(await g.reach("#rotateHint button")).why) await g.press("#rotateHint button");
       await g.press("#waveBtn");
@@ -177,6 +242,7 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
       } else {
         await noTown("the map");
         await nardiRounds();
+        await councilRounds();
       }
       await battle();
     } catch (e) {
