@@ -176,8 +176,8 @@ machine.
 
 ## What is right (checked)
 
-- Fairness: a Standard battle and the coached stand fight with `KIT_EMPTY` (suite 2, mutants, and a finger on Dvin
-  in the probe); the loadout tag is `std` with the empty kit and `open` with a level or the Call; `RULESET_PIN`
+- Fairness: a Standard battle and the coached stand fight with `KIT_EMPTY` (suite 2 and its mutants; the reviewer's
+  finger probe could not reach the switch at 667 x 320 without scrolling, see "The pages"); the loadout tag is `std` with the empty kit and `open` with a level or the Call; `RULESET_PIN`
   b065cbc7 and every battlefield are untouched; the bot's `KIT=none` table on all 17 equals G2's cell for cell
   (3,332 fields, 0 differences) and the builder's (3,689 fields, 0).
 - The rules: 300 / 225 / 450 a victory, 10 a wave cleared by difficulty, none in test mode or at an endless stand's
