@@ -668,7 +668,8 @@
   #overlay #ovGear { position: fixed; top: calc(26px + var(--sat)); right: calc(80px + var(--sar)); z-index: 2; width: 44px; height: 44px; }
   #overlay #ovGear .ic { width: 22px; height: 22px; }
   /* the stars won across the campaign hang in the top left corner, across from the gear: a plaque of the
-     header's make, not a button. The chronicle and the chapter stories leave it out */
+     header's make (a button element since the Hall, whose door it is: the platform's block at the end of this
+     sheet). The chronicle and the chapter stories leave it out */
   #ovStars {
     position: fixed; top: calc(26px + var(--sat)); left: calc(80px + var(--sal)); z-index: 2; box-sizing: border-box; height: 44px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 12px; border-radius: 22px;
@@ -2244,8 +2245,8 @@
 
   /* ---- the Hall's doors ---- */
   /* The campaign's tally is a button now, and the door to the Hall while the Hall has a tab (.door). It keeps the
-     plaque's look exactly: a button's own dress is taken off it here. Without a tab it does nothing and keeps
-     the plaque's arrow. */
+     plaque's look exactly: a button's own dress is taken off it here, and what a plain box would take from the
+     page around it is taken from there again. Without a tab it does nothing and keeps the plaque's plain cursor. */
   #ovStars {
     -webkit-appearance: none; appearance: none; margin: 0; font-size: inherit; font-style: inherit; font-variant: inherit;
     letter-spacing: inherit; word-spacing: inherit; text-transform: inherit; text-indent: inherit; text-shadow: inherit; text-align: inherit;
@@ -2265,7 +2266,8 @@
 
   /* ---- the Hall: a page with tabs over the menu pages (5.5). Its tabs come from HALL_TABS ----
      Desktop and iPad: a carved card 720 px wide, the tabs across its top, the tab's own content under them
-     (680 px wide; as tall as its content, and scrolling inside the card where the window is shorter). */
+     (680 px wide; as tall as its content, 320 px at the least, and scrolling inside the card where the window
+     is shorter). */
   #hall {
     position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center;
     padding: calc(clamp(16px, 7vh, 64px) + var(--sat)) calc(20px + var(--sar)) calc(20px + var(--sab)) calc(20px + var(--sal));
@@ -2278,8 +2280,9 @@
   #hall.hlHidden { display: none; }
   #hall:focus, #hall .hlBody:focus { outline: none; }
   #hall .hlCard { position: relative; flex: none; width: min(720px, 100%); max-height: 100%; display: flex; flex-direction: column; padding: 18px 18px 20px; }
-  #hall .hlTop { flex: none; display: flex; align-items: center; gap: 10px; }
-  #hall .hlTabs { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; padding: 5px 4px 5px 2px; }
+  #hall .hlTop { flex: none; display: flex; align-items: flex-start; gap: 10px; }
+  #hall .hlTop .hlX { margin-top: 5px; }
+  #hall .hlTabs { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; padding: 5px 4px 8px 2px; }
   #hall .hlTabs::-webkit-scrollbar { display: none; }
   #hall .hlTab {
     position: relative; flex: none; min-height: 44px; padding: 0 16px 0 12px; display: inline-flex; align-items: center; gap: 8px;
@@ -2364,13 +2367,13 @@
     #settings #setAcct { grid-row: 3; }
     #hall .hlCard { flex-direction: row; gap: 8px; }
     #hall .hlTop { width: 64px; flex-direction: column; align-items: center; gap: 4px; }
-    #hall .hlX { order: -1; }
+    #hall .hlTop .hlX { order: -1; margin-top: 0; }
     #hall .hlTabs { flex: 0 1 auto; width: 64px; min-height: 0; flex-direction: column; align-items: center; overflow-x: hidden; overflow-y: auto; }
   }
   /* ---- held upright: the tabs across the top, the tab's content under them in one column that scrolls ---- */
   @media (max-width: 500px) and (min-height: 500.02px) {
-    #hall .hlTop { gap: 6px; align-items: flex-start; }
-    #hall .hlX { margin-top: 4px; }
+    #hall .hlTop { gap: 6px; }
+    #hall .hlTop .hlX { margin-top: 4px; }
     #hall .hlBody { margin-top: 6px; font-size: 15px; line-height: 1.4; }
   }
 </style>
@@ -76216,15 +76219,16 @@ function townSelftest(check, res) {
 // ---- the Hall: a page with tabs over the menu pages (section 5.5) ----
 // Its tabs are the rows of HALL_TABS, in the order they were pushed: { id, label, icon, render(el), badge() }.
 //   id      a short name: openHall(id) opens that tab ("council" and "daily" have a say in what opens first)
-//   label   the tab's name; short (optional) is the name under its medallion on a phone held sideways
+//   label   the tab's name; short (optional) is the name under its medallion on a phone
 //   icon    the name of a picture in the page's sprite, as icon() takes it ("star", "trophy")
 //   render  (el) fills the tab's box, handed over empty. It is called when the tab is shown, and again when the
 //           page changes layout under it (a phone turned, a window resized from one layout into another)
 //   badge   (optional) a count, shown on the tab and, as one pip, on the campaign's tally while it is above zero.
 //           It is read again after every press inside the tab's box
-// The box a tab is given: on a desktop or an iPad 680 px wide and as tall as its content (it scrolls inside the
-// card where the window is short); on a phone held sideways the whole screen but the tabs' column, 577 x 302 px
-// at 667 x 320 and never under 560 x 280 on an iPhone; on a phone held upright the screen's width, scrolling.
+// The box a tab is given: on a desktop or an iPad 680 px wide and as tall as its content, 320 px at the least
+// (it scrolls inside the card where the window is short); on a phone held sideways the whole screen but the
+// tabs' column, 577 x 302 px at 667 x 320 and never under 560 x 280 on an iPhone; on a phone held upright the
+// screen's width under the row of tabs, scrolling.
 // The Hall is not behind the platform's switch: it works on file://, under the harness and with the constants
 // empty, with whatever tabs the page has. With no tab it has no door and does not open.
 const hallEl = $("hall"), hallTabsEl = $("hallTabs"), hallBodyEl = $("hallBody");
@@ -76292,7 +76296,11 @@ function showHallTab(id, focus) {
     hallBodyEl.appendChild(p);
   }
   syncHallTabs();   // (what the tab drew may have changed a badge)
-  if (focus) { const b = hallTabBtn(); if (b) { try { b.focus({ preventScroll: true }); } catch (e) {} b.scrollIntoView({ block: "nearest", inline: "nearest" }); } }
+  // The keyboard's place is the tab just shown, unless the tab took the focus into its own box (a field to type
+  // in). And the focus is never left outside the Hall (what held it may have gone with the box's old content)
+  const b = hallTabBtn(), a = document.activeElement;
+  if (b) b.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (!hallBodyEl.contains(a) && (focus || !hallEl.contains(a))) { try { (b || hallEl).focus({ preventScroll: true }); } catch (e) {} }
 }
 // openHall(tabId): the Hall on that tab; with no tab named (or one it does not have) on the tab hallFirst picks.
 // It opens only over a menu page, never over the field and never over a card that holds the page (a victory's
