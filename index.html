@@ -9643,10 +9643,17 @@ function applyEraLabels() {
   }
 }
 let eraLabelsDrawn = -1;
-// once the Call is open the hero's tooltip (and a finger's toast) says how to sound it
+// once the Call is open the hero's tooltip (and a finger's toast) says how to sound it, but only while it is ready:
+// while it cools a second press lets him go, so the words say when it will be ready instead. R chooses and lets go;
+// only T sounds the Call
+function heroHint(touch) {
+  let s = heroName() + ": select, then " + (touch ? "tap" : "click") + " the field to march to that spot";
+  if (kit.call) s += callCd <= 0 ? ". Press again for his Call" : ". His Call is ready in " + Math.ceil(callCd) + " s";
+  return s + (touch ? "." : kit.call ? " (R; T sounds his Call)" : " (R)");
+}
 function syncHeroTitle() {
   const hb = $("heroBtn");
-  if (hb) hb.title = heroName() + ": select, then click the field to march to that spot" + (kit.call ? ". Press again for his Call (R, T)" : " (R)");
+  if (hb) hb.title = heroHint(false);
 }
 // a tile's name stays on its one line: a long one ("Modern Rifle Marksmen") is set smaller and tighter until
 // it fits the tile, which narrows with the window; re-fit whenever a tile changes size (or first shows)
@@ -9804,7 +9811,7 @@ const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
 // (KITSET 1 holds the heroes' tables too: the Council and the heroes are released together, R2, so the first published
 // tables are G2's and G3's together and KITSET stays 1 for them)
 const KITSET = 1;
-const KITSET_PIN = "9a0d9502";
+const KITSET_PIN = "96485c5b";
 const COUNCIL_COSTS = [1, 1, 2, 2, 3];
 const COUNCIL_LIVE = { post: false, call: true };   // the Call came with the heroes (G3); the post comes with G5
 const COUNCIL = [
@@ -9832,7 +9839,7 @@ const COUNCIL = [
   { id: "heralds", name: "Heralds", about: "The hero and the spells", icon: "horn", tiers: [
     { line: "Hero 5% stronger", fx: [["hero", "hp", 1.05]] },
     { line: "Spells ready 3% sooner", fx: [["spells", 0.03]] },
-    { line: "Hero returns in 16 s, not 20", fx: [["hero", "back", 16]] },
+    { line: "Hero returns in 16 s, not 20 (14 s at his level 5)", fx: [["hero", "back", 16]] },
     { line: "Spells ready another 3% sooner", fx: [["spells", 0.03]] },
     { line: "The hero's Call ready 20% sooner", needs: "call", fx: [["call", "cd", 0.8]] },
   ] },
@@ -9856,21 +9863,27 @@ const COUNCIL_NEEDS = { post: "Comes with the Garrison Post", call: "Comes with 
 // times the Heralds' strength too), so no level lengthens the 12 s a hero holds a commander. `reveal` 0 leaves the
 // scouts to their own rule (TRICK_RULES.hidden.heroReveal, 80 px). These tables are KITSET's with the Council's
 const HERO_XP = [0, 150, 450, 900, 1500];   // the experience each level begins at
+// (G3 close: 4.4's first table, 460 to 700 strength and a blow of 40 to 62, broke 5.2's bounds: with the PAR kit the
+// best build kept 3.44 more defenders on the sample, the bound being 2, because G2 left the Council at that bound
+// exactly. So the levels a first play reaches, 2 to 4, bring no strength and no blow, only what they bring besides
+// (a sooner Call, a longer one, healing, one more held, a sooner return, the scouts' reveal); level 5, the returning
+// player's, is 470 strong with a blow of 40. And the Call holds one more foe, not two: with two, CAP kept 7 more on
+// Van, the bound being 6. docs/specs/balance/g3-hero-normal-seeds1.txt)
 const HERO_LEVELS = [null,
   { hp: 400, blow: 34, holds: 3, heal: 10, back: 20, boss: 34, callCd: 60, callFor: 6, reveal: 0, burn: 0 },
-  { hp: 460, blow: 40, holds: 3, heal: 10, back: 20, boss: 39, callCd: 50, callFor: 6, reveal: 0, burn: 0 },
-  { hp: 520, blow: 46, holds: 3, heal: 14, back: 20, boss: 44, callCd: 50, callFor: 6, reveal: 110, burn: 0 },
-  { hp: 600, blow: 54, holds: 4, heal: 14, back: 17, boss: 51, callCd: 50, callFor: 8, reveal: 110, burn: 0 },
-  { hp: 700, blow: 62, holds: 4, heal: 18, back: 14, boss: 60, callCd: 50, callFor: 8, reveal: 110, burn: 20 },
+  { hp: 400, blow: 34, holds: 3, heal: 10, back: 20, boss: 34, callCd: 50, callFor: 6, reveal: 0, burn: 0 },
+  { hp: 400, blow: 34, holds: 3, heal: 14, back: 20, boss: 34, callCd: 50, callFor: 6, reveal: 110, burn: 0 },
+  { hp: 400, blow: 34, holds: 4, heal: 14, back: 17, boss: 34, callCd: 50, callFor: 8, reveal: 110, burn: 0 },
+  { hp: 470, blow: 40, holds: 4, heal: 18, back: 14, boss: 40, callCd: 50, callFor: 8, reveal: 110, burn: 20 },
 ];
 // what each level brings, in the words the hero's card and the captains' lines use
 const HERO_NEW = [null, "", "The Call is ready in 50 s, not 60.", "He reveals hidden scouts within 110 px, not 80.",
-  "The Call lasts 2 s longer.", "The foes he holds under the Call burn."];
+  "The Call lasts 2 s longer, and he holds four foes, not three.", "He is stronger (470, a blow of 40), and the foes he holds under the Call burn."];
 // Stand Fast, the one Call: for callFor seconds the hero takes half damage (never from a commander) and holds `more`
-// foes more; the men of Garrison Posts within `reach` of him take half damage and each hold one more (the posts come
+// foe more (one: two broke a bound of 5.2, see above); the men of Garrison Posts within `reach` of him take half damage and each hold one more (the posts come
 // with G5); at level 5 the foes he holds burn for `burn` a second. A press on his medallion within `guard` seconds of
 // the press that chose him does nothing, so a double tap never spends it
-const CALL = { more: 2, cut: 0.5, reach: 120, menMore: 1, burnT: 0.5, guard: 0.4 };
+const CALL = { more: 1, cut: 0.5, reach: 120, menMore: 1, burnT: 0.5, guard: 0.4 };
 // Experience from one battle, added to its chapter when it ends, won or lost: D x (10 a wave cleared, 100 more for a
 // victory), D by difficulty; a daily at most 150 a day. A veteran's chapter never reads below 300 a battlefield won
 const HERO_XP_RULE = { wave: 10, win: 100, diff: [0.75, 1, 1.5], dailyMax: 150, veteran: 300 };
@@ -10050,9 +10063,16 @@ CLOUD_KEYS.push({ key: HEROES_KEY, merge: heroesMerge });
 // the numbers of the hero a battle is fought with (its kit's level; any other value is today's hero)
 function heroLv() { const l = kit && kit.hero; return HERO_LEVELS[Number.isInteger(l) && l >= 1 && l <= 5 ? l : 1]; }
 // the hero's names in a chapter, for the captains' lines ("Argishti I, Sarduri II, Vardan Mamikonian")
+// One name a person: Tashir's "Ashot II" (son of King Smbat) is Sevan's "Ashot II Erkat", the Iron King, the same
+// king (docs/history/text-audit.json, the Sevan entry), so the line names him once, by the name he is known by
+const HERO_SAME = { "Ashot II": "Ashot II Erkat" };
 function chapterHeroes(ch) {
   const out = [];
-  for (const i of CHAPTERS[ch].levels) { const n = LEVELS[i] && LEVELS[i].hero && LEVELS[i].hero.name; if (n && !out.includes(n)) out.push(n); }
+  for (const i of CHAPTERS[ch].levels) {
+    let n = LEVELS[i] && LEVELS[i].hero && LEVELS[i].hero.name;
+    if (n && HERO_SAME[n]) n = HERO_SAME[n];
+    if (n && !out.includes(n)) out.push(n);
+  }
   return out;
 }
 
@@ -11564,7 +11584,7 @@ function soundCall() {
   spellFx.push({ type: "call", x: hero.x, y: hero.y, t: 0, life: 1.1 });
   Snd.play("horn", { era: curEra, x: hero.x });
   toast(heroName() + ": Stand Fast!");
-  updateSpellBar();
+  updateSpellBar(); syncHeroTitle();
   return true;
 }
 // A press on the hero's medallion (or R): it chooses him, or lets him go; while he is chosen and the Call is ready a
@@ -13171,6 +13191,9 @@ function onSavesChanged() {
   if (hallOpen && hallTab === "council") showHallTab("council");
   else if (hallOpen) syncHallTabs();
 }
+// the chronicle's hero line: his chapter's level, or level 1 when the Standard switch is on (a Standard battle is
+// fought with today's hero, so the line must not promise more)
+function briefHeroLevel() { return standardBattle ? "Level 1 · Standard" : "Level " + heroLevel(chapterOf(curLevel)); }
 // The Council's doors follow its stars: the map's tally (its words), and on a chronicle the chip in #briefKit
 function syncCouncilDoors() {
   if (menuMode === "map" || $("ovStars").innerHTML) syncCampaignTally();
@@ -13178,7 +13201,7 @@ function syncCouncilDoors() {
     briefKitRow();
     // the hero's line names his chapter's level as it now reads (a merge can raise it)
     const lv = $("briefHero").querySelector(".lv");
-    if (lv) lv.textContent = "Level " + heroLevel(chapterOf(curLevel));
+    if (lv) lv.textContent = briefHeroLevel();
   }
   if (menuMode === "victory") renderGrowth();
 }
@@ -13256,6 +13279,10 @@ document.addEventListener("click", (e) => {
     Snd.play("uiTick");
     track("standard_set", { lv: levelId(curLevel), on: standardBattle });
     briefKitRow();
+    // the hero's line names the level the battle will be fought at (a Standard battle: level 1)
+    const lv = $("briefHero").querySelector(".lv");
+    if (lv) lv.textContent = briefHeroLevel();
+    if (heroCardOn()) foeCardEl.innerHTML = heroCardHtml();
     try { $("bkStd").focus({ preventScroll: true }); } catch (err) {}
   }
 });
@@ -55505,8 +55532,8 @@ function showCallBubble() {
   coachEl.querySelector(".cSkip").style.display = "none";
   const tap = matchMedia("(pointer: coarse)").matches ? "Tap" : "Click";
   coachEl.querySelector(".cText").innerHTML = "<b>The Call: Stand Fast.</b> Your hero can now sound a Call. " + tap + " his medallion to choose him, then " +
-    tap.toLowerCase() + " it again: for " + heroLv().callFor + " s he takes half damage and holds two more foes. It is ready again in " + Math.round(callWait()) +
-    " s. Key: T. The Call is a game ability.";
+    tap.toLowerCase() + " it again: for " + heroLv().callFor + " s he takes half damage and holds one more foe. It is ready again in " + Math.round(callWait()) +
+    " s." + (tap === "Click" ? " Key: T." : "") + " The Call is a game ability.";
   const nb = coachEl.querySelector(".cNext");
   nb.textContent = "Got it"; nb.style.display = "";
   coachEl.querySelector(".cFoot").style.display = "";
@@ -56262,12 +56289,14 @@ function heroCardHtml() {
     escapeHtml("Level " + lv + " · Chapter " + C.num) + "</div></div></div>";
   h += '<div class="hcBar" role="img" aria-label="' + escapeHtml(next == null ? "Level 5, the highest" : xp + " of " + next + " to level " + (lv + 1)) + '"><i style="width:' +
     (100 * heroBarShare(xp)).toFixed(1) + '%"></i></div><p class="hcXp">' + escapeHtml(next == null ? "Level 5, the highest. " + xp + " experience." : xp + " of " + next + " experience to level " + (lv + 1) + ".") + "</p>";
-  h += '<div class="fcStats">' + statRow("hp", HL.hp, "strength") + statRow("sword", HL.blow, "a blow") + statRow("shield", HL.holds, "foes held") +
-    statRow("heal", HL.heal + "/s", "healing") + statRow("fast", HL.back + " s", "back after a fall", "wide") + "</div>";
+  // the strength and the return he fights with: his level's, with the Heralds' tiers over them outside a Standard battle
+  const KS = kitSummary(standardBattle ? KIT_EMPTY : playerKit());
+  h += '<div class="fcStats">' + statRow("hp", Math.round(HL.hp * KS.heroHp), "strength") + statRow("sword", HL.blow, "a blow") + statRow("shield", HL.holds, "foes held") +
+    statRow("heal", HL.heal + "/s", "healing") + statRow("fast", Math.min(HL.back, KS.heroBack) + " s", "back after a fall", "wide") + "</div>";
   if (next != null) h += '<p class="fcPow">' + icon("up") + "<span>" + escapeHtml("Level " + (lv + 1) + ": " + HERO_NEW[lv + 1]) + "</span></p>";
   const cd = Math.round(HL.callCd * (standardBattle ? 1 : kitSummary(playerKit()).callCd));
   h += '<p class="fcPow">' + icon("horn") + "<span>" + escapeHtml(callOpen()
-    ? "The Call, Stand Fast: press his medallion again while he is chosen. For " + HL.callFor + " s he takes half damage and holds two more foes" +
+    ? "The Call, Stand Fast: press his medallion again while he is chosen. For " + HL.callFor + " s he takes half damage and holds one more foe" +
       (HL.burn ? ", and they burn" : "") + ". Ready every " + cd + " s. The Call is a game ability."
     : "The Call opens with Dvin, in Chapter II. The Call is a game ability.") + "</span></p>";
   if (standardBattle) h += '<p class="fcPow fcTrick">' + icon("flag") + "<span>" + escapeHtml("A Standard battle is fought with him at level 1 and no Call.") + "</span></p>";
@@ -62080,9 +62109,9 @@ function showBrief() {
   // under the miniature, the hero who holds this field, with his name in Armenian letters when he was a real,
   // named person (the anonymous defenders of Shirak, 2020 and 2023 stay English-only)
   // with his chapter's level; pressed, it shows his card (openHeroCard)
-  const H = L.hero || {}, hh = hyName("hero", H.name), hlv = heroLevel(chapterOf(curLevel));
+  const H = L.hero || {}, hh = hyName("hero", H.name), hlv = standardBattle ? 1 : heroLevel(chapterOf(curLevel));
   $("briefHero").innerHTML = H.name ? '<span class="k">Your hero</span><b title="' + escapeHtml(H.title || "") + '">' + escapeHtml(H.name) + "</b>" +
-    '<span class="lv">Level ' + hlv + "</span>" + (hh ? '<span class="hy" lang="hy">' + escapeHtml(hh) + "</span>" : "") : "";
+    '<span class="lv">' + briefHeroLevel() + "</span>" + (hh ? '<span class="hy" lang="hy">' + escapeHtml(hh) + "</span>" : "") : "";
   if (H.name) {
     $("briefHero").setAttribute("role", "button"); $("briefHero").tabIndex = 0;
     $("briefHero").setAttribute("aria-label", "Your hero, " + H.name + ", level " + hlv + ": his card");
@@ -62330,7 +62359,7 @@ document.querySelectorAll("#spellbar .spell").forEach(b => {
       // Call's bubble, if it shows, is put away by the press it asked for
       if (callBubble) closeCallBubble();
       const did = heroPress(performance.now());
-      if (did === "chose" && e.pointerType !== "mouse") toast(b.title.replace(/\s*\([A-Z, ]+\)$/, "").replace("click the field", "tap the field") + (kit.call ? "." : ""));
+      if (did === "chose" && e.pointerType !== "mouse") toast(heroHint(true));
       return;
     }
     trySelectSpell(b.dataset.spell);
@@ -62338,6 +62367,8 @@ document.querySelectorAll("#spellbar .spell").forEach(b => {
     if (e.pointerType !== "mouse" && castingSpell === b.dataset.spell) toast(b.title.replace(/\s*\([A-Z]\)$/, ""));
   });
 });
+// the hero's tooltip reads the Call's clock as it is when the pointer comes over him (ready, or ready in N s)
+if ($("heroBtn")) $("heroBtn").addEventListener("pointerenter", syncHeroTitle);
 
 document.querySelectorAll("#shop .card").forEach(card => {
   card.addEventListener("pointerdown", (e) => {
@@ -82147,7 +82178,7 @@ function runSelftestPlay() {
     wonTo(2, 2);   // Erebuni and Tushpa won: Avarayr open, Dvin not
     if (callOpen() || levelOpen(3)) fail("the Call is open before Dvin");
     stage("avarayr", 1);
-    if (kit.hero !== 3 || kit.call || hero.maxHp !== 520 || heroBack() !== 20 || heroReveal() !== 110 || heroLv().holds !== 3 || battleLoadout() !== "open") fail("Avarayr at level 3: " + JSON.stringify(kit) + " " + hero.maxHp);
+    if (kit.hero !== 3 || kit.call || hero.maxHp !== 400 || heroBack() !== 20 || heroReveal() !== 110 || heroLv().holds !== 3 || battleLoadout() !== "open") fail("Avarayr at level 3: " + JSON.stringify(kit) + " " + hero.maxHp);
     if ($("heroBtn").title.includes("Call") || $("heroBtn").classList.contains("callRdy")) fail("the medallion offers a Call before Dvin");
     if (battleFacts().heroLevel !== 3) fail("the facts' heroLevel: " + battleFacts().heroLevel);
     wonTo(3, 2);
@@ -82159,10 +82190,10 @@ function runSelftestPlay() {
     stage("avarayr", 1);
     if (!kitEmpty(kit) || hero.maxHp !== 400 || kit.call || heroReveal() !== TRICK_RULES.hidden.heroReveal || battleLoadout() !== "std" || $("heroBtn").title.includes("Call")) fail("a Standard battle: " + JSON.stringify(kit));
     standardBattle = false;
-    // level 5: 700 strength, back in 14 s, four held; a commander strikes him for 60 a second
+    // level 5: 470 strength, back in 14 s, four held; a commander strikes him for 40 a second
     localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { kingdoms: 1500 } }));
     stage("tushpa", 1);
-    if (kit.hero !== 5 || hero.maxHp !== 700 || heroBack() !== 14 || heroLv().holds !== 4) fail("level 5: " + JSON.stringify(kit) + " " + hero.maxHp);
+    if (kit.hero !== 5 || hero.maxHp !== 470 || heroBack() !== 14 || heroLv().holds !== 4) fail("level 5: " + JSON.stringify(kit) + " " + hero.maxHp);
     startWave(); spawnQueue = []; enemies = [];
     spawnEnemy("boss");
     const b = enemies[enemies.length - 1];
@@ -82170,14 +82201,14 @@ function runSelftestPlay() {
     const bp = enemyPos(b); hero.x = bp.x; hero.y = bp.y; hero.rally = null;
     const h0 = hero.hp;
     for (let k = 0; k < 20; k++) update(0.05);
-    if (Math.abs((h0 - hero.hp) - 60) > 1.5) fail("a commander's blows on a level 5 hero: " + (h0 - hero.hp) + " a second");
+    if (Math.abs((h0 - hero.hp) - 40) > 1.5) fail("a commander's blows on a level 5 hero: " + (h0 - hero.hp) + " a second");
     // the saved run keeps its hero; a forged one stands no higher than his chapter
     saveRun();
     const R = JSON.parse(localStorage.getItem("hs_run"));
     if (R.kit.hero !== 5 || R.kit.call !== true) fail("the saved kit: " + JSON.stringify(R.kit));
     localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { kingdoms: 0 } }));   // (Chapter I won: the floor's level 4)
     resumeRun();
-    if (kit.hero !== 4 || heroLevel(0) !== 4 || hero.maxHp !== 600) fail("a saved hero above his chapter's level stood: " + kit.hero);
+    if (kit.hero !== 4 || heroLevel(0) !== 4 || hero.maxHp !== 400) fail("a saved hero above his chapter's level stood: " + kit.hero);
     R.kit.hero = 9; R.kit.call = "yes";
     localStorage.setItem("hs_run", JSON.stringify(R));
     resumeRun();
@@ -82198,8 +82229,10 @@ function runSelftestPlay() {
     if (!hb.classList.contains("callCool") || hb.classList.contains("callRdy") || !(parseFloat(hb.style.getPropertyValue("--cc")) > 0.9)) fail("the cooling arc: " + hb.className);
     if (!spellFx.some(fx => fx.type === "call")) fail("no ring spread from him");
     // with the Call cooling, a second press lets him go as today
+    // and the words say so: no "Press again for his Call" while it cools, and R never named as the Call's key
+    if (/Press again/.test(heroHint(true)) || !/His Call is ready in \d+ s/.test(heroHint(true)) || !/\(R; T sounds his Call\)$/.test(heroHint(false))) fail("the cooling hint: " + heroHint(true) + " / " + heroHint(false));
     if (heroPress(20000) !== "chose" || heroPress(25000) !== "let" || heroSelected) fail("a press with the Call cooling did not let him go");
-    // Stand Fast: half the blows of the rank and file, two more held, never half a commander's
+    // Stand Fast: half the blows of the rank and file, one more held (CALL.more), never half a commander's
     startWave(); spawnQueue = []; enemies = [];
     for (let k = 0; k < 6; k++) spawnEnemy("raider");
     const hp = enemyPos(enemies[0]);
@@ -82207,17 +82240,32 @@ function runSelftestPlay() {
     hero.x = hp.x; hero.y = hp.y; hero.rally = null;
     hero.hp = hero.maxHp; let h0 = hero.hp;
     update(0.05);
-    if (hero.engaged.length !== 5) fail("he holds " + hero.engaged.length + " under the Call, not 5");
+    const nh = HERO_LEVELS[kit.hero].holds + CALL.more;
+    if (CALL.more !== 1 || hero.engaged.length !== nh) fail("he holds " + hero.engaged.length + " under the Call, not " + nh);
     for (let k = 0; k < 19; k++) update(0.05);
     const cut = h0 - hero.hp;
-    if (Math.abs(cut - 5 * HERO_DPS.raider * 0.5) > 1) fail("Stand Fast's half damage: " + cut);
+    if (Math.abs(cut - nh * HERO_DPS.raider * 0.5) > 1) fail("Stand Fast's half damage: " + cut);
     // the Call's clock: Stand Fast ends after 6 s, the wait runs in game time (between waves too)
     for (let k = 0; k < 100; k++) update(0.05);
     if (callT !== 0 || hero.engaged.length > 3) fail("Stand Fast outlived its 6 s: " + callT + ", " + hero.engaged.length + " held");
     if (Math.abs(callCd - (60 - 6)) > 0.11) fail("the Call's clock after 6 s: " + callCd);
     enemies = []; spawnQueue = [];
-    paused = true;   // a pause stops it (update does not run while paused)
-    paused = false;
+    // a pause stops it: the page's own frame, run with the pause on, leaves the clock where it was; run with the
+    // pause off, the same frames move it (so the frames did run)
+    {
+      const raf = window.requestAnimationFrame, last0 = last, cd0 = callCd, ph = photo;
+      window.requestAnimationFrame = () => 0;
+      photo = null;   // (the harness holds the page still for its photos; the frames must run as a player's do)
+      try {
+        paused = true;
+        let t = last;
+        for (let k = 0; k < 10; k++) frame(t += 50);
+        if (callCd !== cd0) fail("the Call's clock ran while paused: " + cd0 + " to " + callCd);
+        paused = false;
+        for (let k = 0; k < 10; k++) frame(t += 50);
+        if (!(callCd < cd0 - 0.3)) fail("the frames did not run the clock unpaused: " + cd0 + " to " + callCd);
+      } finally { window.requestAnimationFrame = raf; paused = false; last = last0; photo = ph; }
+    }
     for (let k = 0; k < 54 * 20 && callCd > 0; k++) update(0.05);
     if (callCd !== 0 || !callReady()) fail("the Call is not ready again after 60 s: " + callCd);
     // T sounds it; the wave's numbers count it; a reload keeps its clock
@@ -82245,6 +82293,24 @@ function runSelftestPlay() {
     const p5 = enemyPos(e5); hero.x = p5.x; hero.y = p5.y; hero.rally = null;
     soundCall(); update(0.05);
     if (kit.hero !== 5 || Math.abs(callT - 7.95) > 0.01 || !(e5.burnDps >= 20)) fail("level 5's Call: callT " + callT + ", burn " + e5.burnDps);
+    // a commander under the Call: Stand Fast never halves his blows, and the Heralds' first tier is in them (a level
+    // 2 hero with Heralds 1: his level's number a second, times 1.05), so no Call and no tier lengthens his hold
+    noWins(); wonTo(3, 2);
+    localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { faith: 150 } }));
+    localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { heralds: 1 }, n: 1 }));
+    stage("dvin", 1);
+    startWave(); spawnQueue = []; enemies = [];
+    if (kit.hero !== 2 || kit.own.heralds !== 1 || !soundCall()) fail("a level 2 hero with Heralds 1 and his Call: " + JSON.stringify(kit));
+    spawnEnemy("boss");
+    const bc = enemies[enemies.length - 1];
+    bc.hp = bc.maxHp = 1e9; bc.speed = 0;
+    const pc = enemyPos(bc); hero.x = pc.x; hero.y = pc.y; hero.rally = null;
+    hero.hp = hero.maxHp;
+    const hc = hero.hp;
+    for (let k = 0; k < 20; k++) update(0.05);
+    if (!(callT > 0) || !hero.engaged.includes(bc)) fail("the commander was not held under the Call: callT " + callT);
+    if (Math.abs((hc - hero.hp) - HERO_LEVELS[2].boss * 1.05) > 1) fail("a commander's blows under the Call on a level 2 hero with Heralds 1: " + (hc - hero.hp).toFixed(1) +
+      " a second, not " + (HERO_LEVELS[2].boss * 1.05).toFixed(1));
   }));
   check("heroes: the chronicle's card, the captains' lines, the victory strip, the Call's bubble", guarded(() => {
     localStorage.removeItem("hs_heroes");
@@ -82261,8 +82327,19 @@ function runSelftestPlay() {
         !/The Call is a game ability/.test(t) || !/learn from each other's stands/.test(t)) fail("the card: " + t);
     bh.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); bh.click();
     if (heroCardOn() || foeCardEl.style.display !== "none") fail("a second press left the card open");
-    // the Standard switch is shown to a player whose kit here holds a level or the Call
+    // the Standard switch is shown to a player whose kit here holds a level or the Call; turned on, the hero's line
+    // and his card name the level the battle is fought at, and off again, his chapter's
     if (!$("bkStd")) fail("no Standard switch for a player with a level and the Call");
+    $("bkStd").click();
+    if (!standardBattle || bh.querySelector(".lv").textContent !== "Level 1 · Standard") fail("the Standard switch on, the hero's line: " + bh.textContent);
+    $("bkStd").click();
+    if (standardBattle || bh.querySelector(".lv").textContent !== "Level 2") fail("the Standard switch off, the hero's line: " + bh.textContent);
+    // the card's strength is the one he fights with: his level's and the Heralds' first tier over it
+    localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { heralds: 1 }, n: 1 }));
+    openHeroCard(bh);
+    if (!foeCardEl.textContent.includes(String(Math.round(HERO_LEVELS[2].hp * 1.05)))) fail("the card's strength with Heralds 1: " + foeCardEl.textContent);
+    closeFoeCard();
+    localStorage.removeItem("hs_council");
     // the captains: one line a chapter reached, its level and its bar
     const el = document.createElement("div");
     el.style.cssText = "position:fixed;left:0;top:0;z-index:99;width:680px";
@@ -82271,6 +82348,8 @@ function runSelftestPlay() {
       renderCouncil(el, "wide");
       const caps = [...el.querySelectorAll(".wcCap")];
       if (caps.length !== 2 || !/^I · Argishti I, Sarduri II, Vardan Mamikonian/.test(caps[0].textContent) || !/Level 4/.test(caps[0].textContent) || !/Level 2/.test(caps[1].textContent)) fail("the captains: " + caps.map(c => c.textContent).join(" | "));
+      // one name a person: Tashir's Ashot II and Sevan's Ashot II Erkat are the same king
+      if (!caps[1].querySelector(".wcCapT") || caps[1].querySelector(".wcCapT").textContent !== "II · Theodoros Rshtuni, Ashot II Erkat" || chapterHeroes(1).length !== 2) fail("Chapter II's captains: " + caps[1].textContent);
       // held sideways the lines take the tree's place, and fit the box
       el.style.cssText = "position:fixed;left:0;top:0;z-index:99;overflow:hidden;width:560px;height:280px";
       el.textContent = ""; renderCouncil(el, "side");

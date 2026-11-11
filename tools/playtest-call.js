@@ -30,6 +30,9 @@ const { devices } = require(process.env.PW_PATH || "playwright");
     await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
     if (!(await g.ev(() => kit.call))) throw new Error("the battle has no Call");
     await g.press("#waveBtn");
+    // each press on the medallion leaves its time where the script can read it, beside heroChoseAt
+    await g.ev(() => { const f = heroPress; heroPress = function (now) { window.__hpNow = now; return f(now); }; });
+    let redo = 0;
     for (let round = 1; round <= 10; round++) {
       // foes on the hero: four raiders held where he stands, too strong to fall during the round
       await g.ev(() => {
@@ -50,8 +53,16 @@ const { devices } = require(process.env.PW_PATH || "playwright");
       if (s.calls !== c0 || !s.sel || !s.face) slips.push("round " + round + ": the choosing tap " + JSON.stringify(s));
       if (round % 2 === 0) {
         await g.press("#heroBtn");   // a double tap's second half, at once (two frames after the first)
-        s = await g.ev(() => ({ calls: battle.calls, sel: heroSelected }));
-        if (s.calls !== c0) slips.push("round " + round + ": a double tap sounded the Call " + JSON.stringify(s));
+        s = await g.ev(() => ({ calls: battle.calls, sel: heroSelected, gap: window.__hpNow - heroChoseAt, guard: CALL.guard * 1000 }));
+        if (s.gap >= s.guard) {
+          // on a busy machine the harness's "at once" can come later than the guard: that is no double tap, so the
+          // round is played again (a finger's double tap is well under 0.4 s)
+          if (++redo > 6) { slips.push("round " + round + ": the machine never tapped twice within " + s.guard + " ms"); break; }
+          console.log("round " + round + ": the second tap came " + Math.round(s.gap) + " ms after the first (a busy machine), played again");
+          await g.ev(() => { callT = 0; });
+          round--; continue;
+        }
+        if (s.calls !== c0) slips.push("round " + round + ": a double tap " + Math.round(s.gap) + " ms apart sounded the Call " + JSON.stringify(s));
       }
       await g.wait(500);
       await g.press("#heroBtn");

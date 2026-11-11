@@ -49,17 +49,18 @@
 //                 bought in the standard order (councilStandard) with one star a battlefield (floor), two (par), or
 //                 everything the chapter lets be owned (cap). The bounds of 5.2: with the best build on Normal, par keeps
 //                 at most 2 more defenders than none (the mean over the battlefields), cap at most 4, and on no
-//                 battlefield more than 6; measure them with HERO=hold
-//   HERO=off|hold off (the default) is the bot as it always played: it never moves its hero, who stands where he
-//                 appears by the walls, and never sounds the Call. hold parks him at the road point that the most
-//                 standing towers reach, on a tie the one nearest the walls, among the road points within 150 px of
-//                 the place by the walls where he appears (set again every time it spends, and after he returns from a fall), and sounds the Call (where
-//                 the kit has it) when three or more foes are within its reach. The hero's worth is HERO=hold against
-//                 HERO=off on the same kit. (Gameplay 5.4 names any road point: G3 measured that a hero parked
-//                 mid-field, where the most towers reach, gives up his place as the walls' last line and costs 4 to
-//                 19 defenders a battle on the sample, Dvin and Van lost outright, and the last fifth of one road
-//                 still lost them, their other road passing him by; 150 px of his own place keeps the rule's intent,
-//                 the hero fighting under the most towers, without that)
+//                 battlefield more than 6; each bound is read as the worse of HERO=off and HERO=hold
+//   HERO=off|hold|park  off (the default) is the bot as it always played: it never moves its hero, who stands where
+//                 he appears by the walls, and never sounds the Call. hold leaves him there too and sounds the Call
+//                 (where the kit has it) when three or more ground foes are within its reach: the hero's worth is
+//                 HERO=hold against HERO=off on the same kit, and KIT=none HERO=hold is KIT=none HERO=off battle for
+//                 battle (no Call to sound), so the base of the comparison is the Standard battle itself. park is hold
+//                 and also parks him at the road point the most standing towers reach, on a tie the one nearest the
+//                 walls, among the road points within 150 px of where he appears (set again each time it spends and
+//                 after he returns from a fall): gameplay 5.4's first wording. park is not used for a bound: it costs
+//                 defenders by itself (KIT=none HERO=park against off on G3's sample: Dvin 13 to 4, Van lost, Tashir
+//                 16 to 11; parked anywhere on the road it cost 4 to 19 a battle), so a kit measured on top of it
+//                 looks smaller than it is. A measure whose base loses a battlefield HERO=off wins is not a measure
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
@@ -101,7 +102,7 @@
 //     Each new tower is the next kind in the build's order.
 //   - It spends and casts before every wave and every two seconds of battle (see SEEDS). A spell goes on the
 //     knot of ground foes with the most hit points within its radius, if they hold more than 600.
-//   - It never moves its hero (HERO=hold does), never sells, never changes a tower's target, and calls a wave early only with EARLY=1.
+//   - It never moves its hero (HERO=park does), never sells, never changes a tower's target, and calls a wave early only with EARLY=1.
 //   - Its answers to the enemy's tricks (COUNTERS=0 turns them off), the same for every build and only on what a
 //     player is shown at that moment (the next-wave row, the ambush's tell), before any other spending:
 //     it rebuilds its wrecked towers (the most invested first), then repairs towers under 60% strength that no
@@ -297,7 +298,8 @@ function playBattle(a) {
       if (!done) break;
     }
   };
-  // HERO=hold: the road point nearest the walls that the most standing towers reach, and the Call on a crowd
+  // HERO=park: the road point near his place by the walls that the most standing towers reach; HERO=hold and park:
+  // the Call on a crowd
   const heroPts = [];
   for (let ri = 0; ri < ROUTES.length; ri++) {
     if (ri === amb || (ROUTES[ri].track && !(LEVELS[curLevel].routeOpen || {})[ri])) continue;
@@ -309,7 +311,7 @@ function playBattle(a) {
     }
   }
   const parkHero = () => {
-    if (heroMode !== "hold" || !hero || !hero.alive) return;
+    if (heroMode !== "park" || !hero || !hero.alive) return;
     let best = null, bv = -1;
     for (const q of heroPts) {
       let v = 0;
@@ -322,7 +324,7 @@ function playBattle(a) {
   };
   const callReach = typeof CALL === "object" ? CALL.reach : 0;
   const tryCall = () => {
-    if (heroMode !== "hold" || typeof soundCall !== "function" || !callReady()) return;
+    if (heroMode === "off" || typeof soundCall !== "function" || !callReady()) return;
     let n = 0;
     for (const e of enemies) if (!e.fly && !e.dead && e.hp > 0) { const p = enemyPos(e); if (Math.hypot(p.x - hero.x, p.y - hero.y) < callReach) n++; }
     if (n >= 3) soundCall();
@@ -382,7 +384,7 @@ function playBattle(a) {
       update(dt); n++;
       watchBosses();
       if (n % every === 0) { spend(); if (spells) castAll(); parkHero(); }
-      if (heroMode === "hold" && n % 15 === 0) tryCall();   // a quarter of a second at 60 Hz
+      if (heroMode !== "off" && n % 15 === 0) tryCall();   // a quarter of a second at 60 Hz
       // EARLY=1: call the next wave once the current one has fully spawned and at most EARLY_N foes still walk
       if (early && phase === "wave" && !spawnQueue.length && enemies.length > 0 && enemies.length <= earlyN && waveIdx < TOTAL_WAVES && !gameOver) {
         spend();
@@ -441,7 +443,7 @@ function playBattle(a) {
   const kit = process.env.KIT || "none";
   if (!["none", "hero", "floor", "par", "cap"].includes(kit)) { console.error("KIT is none, hero, floor, par or cap"); process.exit(2); }
   const heroMode = process.env.HERO || "off";
-  if (!["off", "hold"].includes(heroMode)) { console.error("HERO is off or hold"); process.exit(2); }
+  if (!["off", "hold", "park"].includes(heroMode)) { console.error("HERO is off, hold or park"); process.exit(2); }
 
   const browser = await chromium.launch();
   const errors = [];

@@ -337,6 +337,8 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await tap("council", "#wcReset", "cannot tap Reset", true);
         if (await g.ev(() => councilSpent(councilOwn())) === 0) fail("council", "a finger's first tap on Reset reset the Council");
         await check("council reset armed", { root: "#hall", parts: ["#hallBody", "#hallClose", "#hallTabs"], primary: ["#wcReset"], scroll: C.upright ? "page" : "inside", primaryRequired: true });
+        // (the armed Reset waits 3 s; on a busy machine the photo check above can take longer, so arm it again first)
+        if (!(await g.ev(() => councilResetArmed > 0))) await tap("council", "#wcReset", "cannot tap Reset to arm it again", true);
         await tap("council", "#wcReset", "cannot tap Reset again", true);
         if (await g.ev(() => councilSpent(councilOwn())) !== 0) fail("council", "the second tap on Reset did not reset");
         await tap("council", '.wcMed[data-b="stewards"][data-t="1"]', "cannot tap the Stewards' first tier", true);
@@ -789,6 +791,55 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           });
           if (!C.upright && v.out.length) fail(label, "buttons below the screen's edge until the page is scrolled: " + v.out.join(", "));
           if (v.small.length) fail(label, "buttons under 44 px tall: " + v.small.join(", "));
+        }
+        // the hero's growth line laid out at this size: a victory earned outside test mode (the records of the fourteen
+        // battlefields before it, two stars each), at Stepanakert 1992, whose hero has the longest name. Held sideways it is one
+        // line, "Arkady Ter-Tadevosyan · Level 2 · k stars to spend", and every button stays on screen; upright the
+        // hero's strip is in the row. The save is put back as it was afterwards
+        {
+          const label = "victory stepanakert92 (experience)";
+          const was = await g.ev(() => {
+            const keep = {};
+            for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); keep[k] = localStorage.getItem(k); }
+            const lv = levelIndexOf("stepanakert92"), rec = {};
+            for (let i = 0; i < lv; i++) { localStorage.setItem(bestKey(i, LEVELS[i].era), "21"); rec[levelId(i)] = { stars: [0, 2, 0], lives: [0, 12, 0], endless: [0, 0, 0] }; }
+            localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
+            localStorage.removeItem("hs_heroes"); localStorage.removeItem("hs_council");
+            const ut = testUnlockAll;
+            testUnlockAll = false;
+            photoStageBattle(lv, 20, {});
+            enemies = []; projectiles = []; lives = 17;
+            victory();
+            endCelebration();
+            return { keep, ut };
+          });
+          await settle(3);
+          await waitSettled();
+          if (await shown("#endingCard")) await tap(label, "#ecBtn", "cannot tap the ending card's button");
+          const gr = await g.ev(() => {
+            const e = $("ovGrowth"), cs = getComputedStyle(e), r = e.getBoundingClientRect();
+            return { on: e.classList.contains("on"), line: e.classList.contains("line"), text: e.textContent, h: r.height, lh: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3,
+              right: r.right, sr: __hsAudit.safe().r, strip: !!e.querySelector(".ogHero") };
+          });
+          if (!gr.on) fail(label, "no row of growth after a victory that earned experience");
+          else if (!C.upright) {
+            if (!gr.line || !/^Arkady Ter-Tadevosyan · Level 2( · \d+ stars? to spend)?$/.test(gr.text)) fail(label, "held sideways the hero's line reads " + JSON.stringify(gr.text));
+            if (gr.h > gr.lh * 1.5 + 1) fail(label, "held sideways the hero's line takes " + Math.round(gr.h) + " px, more than one line of " + Math.round(gr.lh));
+            if (gr.right > gr.sr + 0.5) fail(label, "the hero's line runs past the safe area: " + Math.round(gr.right) + " > " + Math.round(gr.sr));
+          } else if (!gr.strip || !/Arkady Ter-Tadevosyan/.test(gr.text) || !/Level 2/.test(gr.text)) fail(label, "upright the hero's strip: " + JSON.stringify(gr.text));
+          await check(label, pageSpec(["#ovGear"], ["#nextBtn", "#mapBtn.lead"]));
+          const v = await g.ev(() => {
+            const bs = [...document.querySelectorAll("#overlay .bigRow .big")].filter(b => b.offsetParent);
+            return { small: bs.filter(b => b.getBoundingClientRect().height < 43.5).map(b => b.id + " " + Math.round(b.getBoundingClientRect().height)),
+              out: bs.filter(b => b.getBoundingClientRect().bottom > __hsAudit.safe().b + 0.5).map(b => b.id) };
+          });
+          if (!C.upright && v.out.length) fail(label, "buttons below the screen's edge until the page is scrolled: " + v.out.join(", "));
+          if (v.small.length) fail(label, "buttons under 44 px tall: " + v.small.join(", "));
+          await g.ev(was => {
+            testUnlockAll = was.ut;
+            localStorage.clear();
+            for (const k of Object.keys(was.keep)) localStorage.setItem(k, was.keep[k]);
+          }, was);
         }
       });
       // ---- the defeat page with its debrief, and the end of an endless stand ----

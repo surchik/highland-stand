@@ -994,6 +994,18 @@ T sounds the Call. The heroes' tables are in KITSET 1 with the Council's: the tw
 KITSET stays 1 and its pin was written anew. A daily's cap of 150 a day is built (`heroGain(ch, xp, day)`) and waits
 for G6 to name the day.)
 
+(G3 close: the table above broke 5.2's bounds, so the hero's numbers were cut, never a battlefield and never the
+Council. On RULINGS E's sample, Normal, SEEDS=1, the table as written kept 3.44 more defenders with the PAR kit (bound
+2; G2 had left PAR at 2.00 exactly) and 7 more on Van with the CAP kit (bound 6). Built now: levels 1 to 4 are 400
+strong with a blow of 34 (a commander strikes them for 34 a second), and what levels 2 to 4 bring is the rest of the
+table (the Call 50 s, healing 14, the scouts' 110 px, four held, back in 17 s, the Call 8 s); level 5 is 470 strong
+with a blow of 40, a commander's 40 a second, healing 18, back in 14 s, and the burn. Stand Fast holds one more foe,
+not two (with two, CAP kept 7 more on Van under `HERO=hold`). With these, PAR keeps 2.00 more (most 5) and CAP 2.78
+(most 6) with `HERO=off`, and 2.00 (5) and 2.89 (6) with `HERO=hold`, which now leaves the hero where he stands and
+sounds the Call on a crowd of three (the bot's old parking is `HERO=park`, not used for a bound: it lost Van by
+itself). The Heralds' third tier reads "Hero returns in 16 s, not 20 (14 s at his level 5)". Tables:
+docs/specs/balance/g3-hero-normal-seeds1.txt.)
+
 ### 4.5 What is earned where
 
 | Source | Stars | Hero experience | Towers |

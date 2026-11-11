@@ -96,24 +96,25 @@ never a battlefield.
 
 `KIT=hero` gives a battle the first play's hero (his chapter's level after one Normal victory on each earlier
 battlefield of the chapter, 1 to 4) and the Call from Dvin on, with no Council tier; `KIT=floor|par|cap` now carry
-the same hero with their Council. `HERO=off` (the default) is the bot as it always played; `HERO=hold` parks the hero
-under the most towers near the walls and sounds the Call on a crowd of three. With `KIT=none HERO=off` the tables
-equal G2's cell for cell on all 17 (0 differences in 3,332 fields). RULESET and every battlefield are unchanged.
+the same hero with their Council. `HERO=off` (the default) is the bot as it always played; `HERO=hold` leaves the hero
+where he appears by the walls and sounds the Call on a crowd of three. `KIT=none` gives the same battles with either:
+with `HERO=off` the tables equal G2's cell for cell on all 17 (0 differences in 3,332 fields), and `HERO=hold` equals
+`HERO=off` there (no Call to sound). RULESET and every battlefield are unchanged.
 
-The hero alone is small: `KIT=hero` against `KIT=none` keeps 0.33 more defenders (2 at most) with `HERO=off` and 0.00
-(1 at most) with `HERO=hold`. The Call is sounded about 3.4 times a battle.
+`HERO=park` is the parking G3 first built for `HERO=hold` (the road point the most towers reach, within 150 px of the
+walls). It is kept for experiments only: by itself, with no kit, it lost Van and cost Dvin 9 defenders, so any kit
+measured on top of it looked smaller than it was. A measure whose base loses a battlefield `HERO=off` wins is not used.
 
-`HERO=hold`, as gameplay 5.4 words it (any road point, the one the most towers reach), cost 4 to 19 defenders a battle
-and lost Dvin and Van outright: a hero parked mid-field gives up his place as the walls' last line, which is worth
-more than the towers' cover. The bot therefore parks him within 150 px of his own place by the walls (a builder's
-choice, said in the bot's header). Even so `HERO=hold` is worse than `HERO=off` on Dvin, Tashir and Van (Van is lost
-with any kit), so it measures the bot's placement as much as the hero: read the bounds on both.
+The bounds of 5.2 are read as the worse of `HERO=off` and `HERO=hold`. 4.4's first table (460 to 700 strength, a
+blow of 40 to 62, the Call two more held) broke them: PAR 3.44 more defenders (bound 2) and CAP 7 on Van (bound 6).
+G2 had left PAR at 2.00, exactly its bound, so the hero's levels at a first play (2 to 4) had no room for strength.
+The hero's numbers were cut, never a battlefield or the Council: levels 1 to 4 are 400 strong with a blow of 34, level
+5 is 470 with 40, and the Call holds one more foe, not two. The levels keep the rest of 4.4's table (the Call 50 s,
+healing, the scouts' reveal, four held, a sooner return, a longer Call, the burn). On the sample:
+- PAR: 2.00 more (most 5) with `HERO=off` and with `HERO=hold`.
+- CAP: 2.78 more (most 6) with `HERO=off`, 2.89 (most 6) with `HERO=hold`.
+- The hero alone (`KIT=hero`): 0.00 with off, 0.22 (most 1) with hold; the Call is sounded about 4 times a battle.
 
-The bounds of 5.2 with the heroes in the kit, on the sample:
-- `HERO=hold` on both sides: PAR mean 2.33 (bound 2), most 7 (Dvin; bound 6); CAP mean 2.22, most 6.
-- `HERO=off`: CAP mean 3.78 (bound 4), most 7 (Van; G2 had 6 there).
-Neither broken cell is the hero's: cutting the Call (one more held, not two) or every level's strength (430, 480,
-550, 640) left both cells exactly where they were, and the hero alone is worth 0 on Dvin and Van. So no hero number
-was cut. These are the Council's edges that G2's review (finding 3) already marked, at one seed, and they go to the
-gate G2 named for G4: `KIT=par` and `KIT=cap` (now with `HERO=hold` and `HERO=off`) on all 17 at SEEDS=3 before any
-Open board is published; cut the Council (or the hero, if the larger table shows it is his) there.
+The margin is thin: PAR sits on its bound and one seed decides a cell. G4's full tables (all 17, SEEDS=3, with
+`HERO=off` and `HERO=hold`) must hold the same bounds before any Open board is published; if they break there, the
+hero's or the Council's numbers are cut, which for the Council is the owner's call.
