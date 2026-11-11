@@ -91,3 +91,29 @@ hold, only not shown to break on RULINGS E's sample. A gate for G4: before any O
 `KIT=par` and `KIT=cap` on all 17 battlefields at SEEDS=3 (gameplay 8.3 b) beside `KIT=none`; if the 17-battlefield
 mean passes 2 (PAR) or 4 (CAP), or any battlefield passes 6, cut the Council's numbers (a new KITSET and its pin),
 never a battlefield.
+
+## G3: the heroes (g3-hero-normal-seeds1.txt)
+
+`KIT=hero` gives a battle the first play's hero (his chapter's level after one Normal victory on each earlier
+battlefield of the chapter, 1 to 4) and the Call from Dvin on, with no Council tier; `KIT=floor|par|cap` now carry
+the same hero with their Council. `HERO=off` (the default) is the bot as it always played; `HERO=hold` parks the hero
+under the most towers near the walls and sounds the Call on a crowd of three. With `KIT=none HERO=off` the tables
+equal G2's cell for cell on all 17 (0 differences in 3,332 fields). RULESET and every battlefield are unchanged.
+
+The hero alone is small: `KIT=hero` against `KIT=none` keeps 0.33 more defenders (2 at most) with `HERO=off` and 0.00
+(1 at most) with `HERO=hold`. The Call is sounded about 3.4 times a battle.
+
+`HERO=hold`, as gameplay 5.4 words it (any road point, the one the most towers reach), cost 4 to 19 defenders a battle
+and lost Dvin and Van outright: a hero parked mid-field gives up his place as the walls' last line, which is worth
+more than the towers' cover. The bot therefore parks him within 150 px of his own place by the walls (a builder's
+choice, said in the bot's header). Even so `HERO=hold` is worse than `HERO=off` on Dvin, Tashir and Van (Van is lost
+with any kit), so it measures the bot's placement as much as the hero: read the bounds on both.
+
+The bounds of 5.2 with the heroes in the kit, on the sample:
+- `HERO=hold` on both sides: PAR mean 2.33 (bound 2), most 7 (Dvin; bound 6); CAP mean 2.22, most 6.
+- `HERO=off`: CAP mean 3.78 (bound 4), most 7 (Van; G2 had 6 there).
+Neither broken cell is the hero's: cutting the Call (one more held, not two) or every level's strength (430, 480,
+550, 640) left both cells exactly where they were, and the hero alone is worth 0 on Dvin and Van. So no hero number
+was cut. These are the Council's edges that G2's review (finding 3) already marked, at one seed, and they go to the
+gate G2 named for G4: `KIT=par` and `KIT=cap` (now with `HERO=hold` and `HERO=off`) on all 17 at SEEDS=3 before any
+Open board is published; cut the Council (or the hero, if the larger table shows it is his) there.

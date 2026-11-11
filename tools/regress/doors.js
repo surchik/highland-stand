@@ -15,7 +15,9 @@
 // and on one with stars to spend; a tier is chosen and taken there by the player's own presses; the Hall's close
 // gives the map back. On the chronicle (#briefKit) the chip "Council · N to spend" opens the Council and the Hall's
 // close gives the chronicle back; the Standard switch (shown once a tier is owned) turns on by a press, 44 px to a
-// finger, and the battle begun then is fought with no Council tier.
+// finger, and the battle begun then is fought with no Council tier. The chronicle's hero line (gameplay 4.6, G3)
+// opens the hero's card by a press, wholly on screen; its close button puts it away, and so does a second press on
+// the line.
 // Known fault of the game (3d4bb2a, a27052d), printed as a KNOWN line and failed only under --strict: the town's
 // start card has no on-screen way back to the map (it covers the leave button and offers only Begin).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/doors.js [index.html] [--quick] [--strict] [--shots=dir]
@@ -197,6 +199,24 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
       if (await g.ev(() => menuMode) !== "brief" || await g.ev(() => curLevel) !== lv) await fail("the map did not lead to the chronicle of " + lv);
       await g.wait(400);
       if (!town) {
+        // the hero's line opens his card (on screen, his level named) and closes it, by its own button and by the line
+        const card = () => g.ev(() => { const r = foeCardEl.getBoundingClientRect(); return { on: heroCardOn(), shown: foeCardEl.style.display === "block",
+          inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, text: foeCardEl.textContent }; });
+        if ((await g.reach("#briefHero")).why) await fail("the hero's line: " + (await g.reach("#briefHero")).why);
+        else {
+          await g.press("#briefHero"); await g.frames(2);
+          let k = await card();
+          if (!k.on || !k.shown || !k.inside || !/Level \d/.test(k.text)) await fail("the hero's line did not open his card on screen " + JSON.stringify(k).slice(0, 200));
+          else {
+            await g.press("#foeCard .fcX"); await g.frames(2);
+            if ((await card()).on) await fail("the hero's card did not close by its button");
+            await g.press("#briefHero"); await g.frames(2);
+            if (!(await card()).on) await fail("the hero's line did not open his card again");
+            await g.press("#briefHero"); await g.frames(2);
+            k = await card();
+            if (k.on || k.shown) await fail("a second press on the hero's line left his card open");
+          }
+        }
         // the chronicle's row of the battle: the Council's chip opens it, the Hall's close gives the chronicle back
         if ((await g.reach("#bkCouncil")).why) await fail("the chronicle has no Council chip: " + (await g.reach("#bkCouncil")).why);
         else {

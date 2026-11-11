@@ -985,6 +985,15 @@ It is part of the kit (4.3): a Standard battle and a daily are fought without it
 - Later, if players ask for more (not in any release planned here): a Call of its own for each chapter
   (Charge, Sortie, To Arms, Call Fire in the first version of this spec).
 
+(G3 build: as above, with these choices where the text left one open. A commander's blow on the hero is his level's
+number times the Heralds' first tier (5% stronger), so that tier no longer lengthens the hold either; Level 1 with no
+tier is 34, as today. The Heralds' third tier ("returns in 16 s") is the sooner of 16 and the level's time. The
+Call's reach (for the bot's crowd of three and the ring) is 120 px, the posts' radius. The Call is ready as a battle
+begins, as the spells are, and its clock is kept in `hs_run`'s `cd` (`call`). Keys: R chooses and lets go as today;
+T sounds the Call. The heroes' tables are in KITSET 1 with the Council's: the two are released together (R2), so
+KITSET stays 1 and its pin was written anew. A daily's cap of 150 a day is built (`heroGain(ch, xp, day)`) and waits
+for G6 to name the day.)
+
 ### 4.5 What is earned where
 
 | Source | Stars | Hero experience | Towers |

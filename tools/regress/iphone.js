@@ -33,6 +33,10 @@
 // confirms) and takes a tier again; the Hall's close gives the map back. The chronicle's #briefKit (the Council's
 // chip, the Standard switch 44 px tall, which a tap turns on) and the victory page's #ovGrowth (held sideways one
 // line of text in place of the prose's last line; upright a button 44 px tall) are held to the bar with their pages.
+// The heroes (gameplay 4.4, 4.6, 8.2, G3): the chronicle's hero line names his level and a tap opens his card, held
+// to the bar as the foe card is; the victory page's growth line names the hero and his level; in battle, chosen with
+// the Call ready, the hero's medallion wears the horn, the word "Call" and its bright ring inside the safe area, a
+// later tap sounds the Call and its thin arc cools on the medallion.
 "use strict";
 const path = require("path");
 const R = require("./lib");
@@ -368,10 +372,24 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (m.more && !m.fade) fail(label, "the host's column runs past its fold with nothing to show that it scrolls");
           }
           if (id !== "tushpa") continue;
-          // the row of the battle (#briefKit): the Standard switch for a player who owns a tier, 44 px, turned on by a tap
-          if (await g.ev(() => councilSpent(councilOwn()) > 0)) {
+          // the hero's line: his level, and a tap opens his card (held to the bar as a foe's card is) and its close puts it away
+          if (await shown("#briefHero")) {
+            const hl = await g.ev(() => $("briefHero").textContent);
+            if (!/Level \d/.test(hl)) fail(label, "the hero's line names no level: " + hl);
+            await tap(label, "#briefHero", "cannot tap the hero's line", true);
+            await settle(2);
+            if (!(await g.ev(() => heroCardOn()))) fail("hero card (chronicle)", "a tap on the hero's line did not open his card");
+            else {
+              await check("hero card (chronicle)", { root: "#foeCard", scroll: "inside" });
+              await tap("hero card (chronicle)", "#foeCard .fcX", "cannot close the hero's card");
+              if (await shown("#foeCard")) fail("hero card (chronicle)", "its close button did not put it away");
+            }
+          } else fail(label, "no hero's line");
+          // the row of the battle (#briefKit): the Standard switch for a player who owns a tier, a hero level or the Call,
+          // 44 px, turned on by a tap
+          if (await g.ev(() => !kitEmpty(playerKit()))) {
             const k = await g.ev(() => ({ towers: !!document.querySelector("#briefKit .bkTowers"), sw: !!$("bkStd") }));
-            if (!k.sw) fail(label, "no Standard switch for a player who owns a tier");
+            if (!k.sw) fail(label, "no Standard switch for a player who owns a tier, a level or the Call");
             else {
               if (!C.upright && k.towers) fail(label, "held sideways #briefKit shows the tray's towers, for which the column has no room");
               const q = await g.ev(() => { const e = $("bkStd"); e.scrollIntoView({ block: "nearest" }); return e.getBoundingClientRect().height; });
@@ -449,6 +467,28 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         fieldLines.push("FIELD " + tag + ": " + F.w + "x" + F.h + " at " + F.x + "," + F.y + ", scale " + F.scale.toFixed(3) + ", " +
           Math.round(F.share * 100) + "% of the safe area, " + Math.round(F.clear * 100) + "% free of the HUD");
         await canvasText("battle", ["game"]);
+        // the hero's Call (G3): chosen with the Call ready, the horn and "Call" with the bright ring, inside the safe area;
+        // a later tap sounds it, and the thin arc cools on the medallion
+        if (await g.ev(() => !!kit.call && hero && hero.alive)) {
+          await g.ev(() => { callCd = 0; heroSelected = false; spellBtnCache.heroBtn = null; updateSpellBar(); });
+          await tap("hero's Call", "#heroBtn", "cannot tap the hero's medallion");
+          const m = await g.ev(() => {
+            const b = $("heroBtn"), r = b.getBoundingClientRect(), S = __hsAudit.safe(), w = b.querySelector(".callw");
+            return { sel: heroSelected, face: b.classList.contains("callFace"), ring: b.classList.contains("callRdy"), word: getComputedStyle(w).display !== "none" && w.textContent,
+              inside: r.left - 5 >= S.l - 0.5 && r.top - 5 >= S.t - 0.5 && r.right + 5 <= S.r + 0.5 && r.bottom + 5 <= S.b + 0.5, h: r.height };
+          });
+          if (!m.sel || !m.face || !m.ring || m.word !== "Call") fail("hero's Call", "chosen with the Call ready, the medallion does not show it: " + JSON.stringify(m));
+          if (!m.inside) fail("hero's Call", "the medallion's ring runs out of the safe area");
+          if (m.h < 43.5) fail("hero's Call", "the medallion is " + Math.round(m.h) + " px");
+          await g.wait(450);
+          await tap("hero's Call", "#heroBtn", "cannot tap the medallion again");
+          await settle(2);
+          const c = await g.ev(() => ({ cd: callCd, calls: battle.calls, cool: $("heroBtn").classList.contains("callCool"), sel: heroSelected,
+            arc: getComputedStyle($("heroBtn"), "::after").display }));
+          if (!(c.cd > 0) || c.calls < 1 || c.sel) fail("hero's Call", "a later tap did not sound the Call: " + JSON.stringify(c));
+          else if (!c.cool || c.arc === "none") fail("hero's Call", "no arc cools on the medallion: " + JSON.stringify(c));
+          await g.ev(() => { toastEl.classList.remove("show"); });
+        }
         // a tower's tile: a touch shows its line for a few seconds
         await tap("tower tile", '#shop .card[data-type="archer"]', "cannot tap the first tower's tile");
         if (await shown("#shop .card.selected .ds")) await check("tower tile's line", { root: "#shop .card.selected .ds", controls: "none", scroll: "inside" });
@@ -730,7 +770,9 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           if (id === "ani") {
             const gr = await g.ev(() => { const e = $("ovGrowth"), b = $("ogCouncil"); return { on: e.classList.contains("on"), line: e.classList.contains("line"), text: e.textContent, btn: b ? b.getBoundingClientRect().height : 0 }; });
             if (!gr.on) fail(label, "no row of growth after a victory that earned stars to spend");
-            else if (!C.upright && (!gr.line || !/^\d+ stars? to spend at the War Council\.$/.test(gr.text))) fail(label, "held sideways the row of growth is not one line: " + JSON.stringify(gr));
+            else if (!C.upright && (!gr.line || !/^([^·]+ · Level \d( · \d+ stars? to spend)?|\d+ stars? to spend at the War Council\.)$/.test(gr.text))) fail(label, "held sideways the row of growth is not one line: " + JSON.stringify(gr));
+            // (this page's victory is staged with every battlefield open, test mode: it gives the hero no experience, so
+            // the line names the stars alone; gameplay's suite 2 holds the hero's line)
             else if (C.upright && gr.btn < 43.5) fail(label, "the Council's button is " + Math.round(gr.btn) + " px tall");
           }
           // held sideways the line takes only the endless invitation's place: Sis, which ends where history did, has
