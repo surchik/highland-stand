@@ -43,7 +43,7 @@ settle it.
    **no policy and no grant**: the public API roles can read and write no table at all. Every read and write
    goes through a `security definer` function that checks `auth.uid()`.
 3. **The public name of the Supabase serves two path prefixes and nothing else**: `/auth/v1/` and
-   `/rest/v1/rpc/hs_`. The game prints the anon key in a page everyone loads, and that key opens every table of
+   `/rest/v1/rpc/hs_` (and of `/auth/v1/` only the routes the page uses: P1 close, see 9.1). The game prints the anon key in a page everyone loads, and that key opens every table of
    every other project in the same database that lacks row level security. So the dashboard, the other
    projects' tables and every other service stay off the public name, and the owner audits his other tables
    before the key is printed (sections 9.1, 10.6; the guide's steps 0, 1 and 4).
@@ -574,7 +574,12 @@ call again).
 **Limits** (per hour, per player unless said): name changes 20, save writes 240, runs begun 60, scores 40.
 Over the limit: 429. Events are counted one by one, not call by call **[M]**: a visitor's draw on one pool for
 all visitors (`ev_cap_hour`, 20,000 an hour) and on 900 an hour per device id; a signed-in player's draw on
-his own 1,500 an hour and on no pool. Over a limit events are dropped without an error (7.4).
+his own 1,500 an hour and on no pool. Over a limit events are dropped without an error (7.4). The pool is read
+first and charged last, only for a batch the device's limit lets through, so one device id cannot drain it (P1
+close). What the limits count is what is stored: each call is one transaction, so a refused call (a result
+`score_implausible`, a name refused) is rolled back with its counter and counts against no limit; only the
+proxy's 10 a second per address limits refused calls (none on Caddy). Nothing leaks by it, since the bounds are
+public. An access token of a deleted account answers `not_signed_in` (P1 close).
 
 **What Supabase itself does to every call**, and what the schema does about it:
 
@@ -1652,9 +1657,14 @@ rest. None of that is the game's, and all of it would be one address away. So:
 
 - **Step 0, before anything is public**: the install's secrets are its own (not the four values printed in
   Supabase's example file, which anyone can use to make an all-powerful key), the dashboard's password is
-  strong, and the gateway's own port does not answer from outside the server.
+  strong, and the gateway's own ports (8000, and Kong's https port 8443 where Kong is the gateway) do not answer
+  from outside the server.
 - **The public name serves two path prefixes only**: `/auth/v1/` (sign-in) and `/rest/v1/rpc/hs_` (the
-  game's functions). Everything else answers 404 there: the dashboard, `/pg`, storage, realtime, GraphQL,
+  game's functions). Of `/auth/v1/` only what the page uses (P1 close): `settings`, `authorize`, `callback`,
+  `logout`, `health`, `token` with `grant_type` `pkce` or `refresh_token`, and `user` read only. Supabase's
+  defaults leave sign-up by email and phone open (phone with auto-confirm), so `signup`, `otp`, `recover`,
+  `magiclink` and a password sign-in would let anyone make signed-in accounts past the visitors' event pool, or
+  send mail and texts to any address, through the game's name. Everything else answers 404 there: the dashboard, `/pg`, storage, realtime, GraphQL,
   every table, and every function of another project. The page needs nothing else. The same block limits
   each address to 10 requests a second on the functions and bodies to 512 KB (7.4). If the Supabase is
   already public because another project of the owner's uses it, that address stays as it is (narrowing it
@@ -1945,8 +1955,11 @@ The owner's own Supabase must be met early, not in the last work package. `node 
 9. `POST /rest/v1/rpc/hs_track` with one event answers `accepted: 1`; a 5 KB event is not accepted;
 10. `POST /rest/v1/rpc/hs_board` for a board that does not exist answers an empty list within 3 s;
 11. the public name serves nothing but the two prefixes (9.1): `/`, `/pg/`, `/storage/v1/`, `/realtime/v1/`,
-    `/graphql/v1`, `/rest/v1/` and `/rest/v1/rpc/` followed by a name that does not start `hs_` are all 404;
-12. the gateway's own port does not answer from outside (`http://<host>:8000/auth/v1/settings` times out);
+    `/graphql/v1`, `/rest/v1/` and `/rest/v1/rpc/` followed by a name that does not start `hs_` are all 404, and
+    so are Auth's `signup`, `otp`, `recover`, `magiclink` and a password sign-in (a write to `user`: 403 or 404);
+12. the gateway's own ports do not answer from outside: 8000 (`http://<host>:8000/auth/v1/settings` times out)
+    and 8443 (Kong's https); 5432 and 6543 are named when they answer. When the machine running it cannot open a
+    direct connection to the address's own port, the check is reported as not answerable from there (P1 close);
 13. the address is https and its certificate is valid.
 
 It runs the day the owner hands over the two values (the end of P1) and again before each release. It needs
