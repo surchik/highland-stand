@@ -1,9 +1,34 @@
 # The platform's tools
 
-Checks of the platform track (docs/specs/platform.final.md, section 10). They need only Playwright with its
-Chromium (`NODE_PATH=$(npm root -g)`), as the regression suite does, and share its helpers (`tools/regress/lib.js`,
-`tools/regress/iphone-audit.js`). Each prints a `FAIL ...` line per problem and a `RESULT ...` line, and exits 1 on
-any failure.
+Checks of the platform track (docs/specs/platform.final.md, section 10). Each prints a `FAIL ...` line per problem
+and a `RESULT ...` line, and exits 1 on any failure.
+
+What they need:
+- the browser checks (`p0.js`, `compare-shots.js`): Playwright with its Chromium (`NODE_PATH=$(npm root -g)`), as
+  the regression suite does, and its helpers (`tools/regress/lib.js`, `tools/regress/iphone-audit.js`);
+- the stack and the SQL suite: the machine's PostgreSQL 16 server at `/usr/lib/postgresql/16/bin` (or `HS_PG_BIN`),
+  run as the `postgres` user on a throwaway folder under `/var/tmp/hs-stack` (or `HS_STACK_DIR`), and one npm
+  package, `pg`: run `npm install --prefix tools/platform` once (it lands in `tools/platform/node_modules`, which
+  git ignores);
+- the shell checks: bash, curl, jq and openssl; `guide-check.sh` also nginx (or its Ubuntu package unpacked
+  without installing it: `apt-get download nginx nginx-common`, then `dpkg -x` each into one folder).
+
+No secret is kept anywhere here. The stack makes its JWT secret from random bytes when it starts, keeps it in its
+own memory and never writes it; its anon key is worth nothing once it stops. The database has no password at all:
+it listens on a socket in its own folder only.
+
+| script | what it does |
+| --- | --- |
+| `stack.js` | The local stack (10.1): PostgreSQL with `standins.sql`, `deploy/supabase/schema.sql` and `test-clock.sql`; on one port the Supabase address (a stand-in for PostgREST at `/rest/v1/rpc/<fn>` that runs each call as `authenticator` under `set local role anon` or `authenticated` and the JWT's claims, read-only for a stable function, with the role's statement timeout; a stand-in for Auth with settings, authorize with PKCE, callback, token for pkce and refresh_token with rotation, user, logout; CORS as the gateway answers it; by default only `/auth/v1/` and `/rest/v1/rpc/hs_` are served, as the guide's public name serves them, and `--wide` serves the rest as a bare gateway would); a fake OAuth provider at `/provider/` (test people, or one a test picks with `POST /__test/provider {"who": ...}`: `aram`, `bagrat`, `nune`, `fb-noemail`, `discord-unverified`, `cancel`, `error`, `hang`); controls at `/__test/` (`auth` and `rest` `{"mode": "up" | "down" | "hang"}`, `clock` `{"offset": "1 day"}` for the database, `authclock` `{"seconds": N}` for Auth, `expire`, `runback`, `reset`, `settings` (e.g. `mailer_autoconfirm`), `provider`, `redirects`, `narrow`, `admin`, `query`, `state`); and on a second port the game at `/` and `/next/`, read from disk on every request (`--page=DIR`, `--next=DIR`). `node tools/platform/stack.js` prints both addresses, the anon key and a `psql` line; Ctrl+C stops it and removes its database. From a test: `const s = await require("./tools/platform/stack").start({ page })`, then `s.url`, `s.site`, `s.anonKey`, `s.control(name, body)`, `s.query(sql)`, `s.stop()`. For the page under test, `window.__HS_PLATFORM_TEST = { url: s.url, anonKey: s.anonKey }`. |
+| `sql-tests.js` | The SQL suite (10.2, with RULINGS S1 to S5 and S8): a fresh database, `schema.sql` run twice, then every rule as a visitor, a player and an admin, called as PostgREST calls (as `authenticator`, a role and the claims set for the transaction, stable functions read-only): structure and grants, every table refused every way, names, saves, rulesets, scores and boards, the daily, analytics and the stats, the purge, read-only functions, account deletion, the size ceiling; then again with `schema-handoff.sql` loaded. About 3 s. `--only=group,...`, `--verbose`, `--keep`. |
+| `unit.js` | The pure checks (10.4). Today: the reference arithmetic (`ref.js`: the score, the lost daily, the daily's pick, the name rule) against the spec's numbers, and the stack's PKCE (RFC 7636's vector) and JWT code. The page's own `PF_PURE` block (`sha256`, `pkceChallenge`, `nameCheck` from P2, `Cloud` from P3, `EvQueue` from P4, `scoreOf` from P5, `dailyOf` from P6) is held to the same tables once it exists; until then each is listed as waiting. Under a second. |
+| `ref.js` | The reference arithmetic both sides are held to: `scoreOf`, `starsOf`, `boundsOf`, `dailyOf`, `kOf`, `jOf`, `nameClean`, and the shared tables `SCORE_CASES`, `LOST_CASES`, `NAME_CASES`. |
+| `curl-session.sh` | A session with curl alone against the stack: sign-in with PKCE through the test provider, `hs_profile_get` and a name; a code used twice, a wrong verifier, a refresh token reused late; then, as a visitor and as a player, every `hs_` table read and every function outside that caller's grants, each refusal shown; and the narrow name serving nothing else. |
+| `smoke.js` | The smoke test against the owner's Supabase (10.6): `node tools/platform/smoke.js <address> <anon key>` (or `HS_SMOKE_URL`, `HS_SMOKE_ANON_KEY`). Public values only, nothing stored; it refuses to go on with a service key. 13 checks; against an address on this machine checks 12 and 13 are reported as answerable only by the real Supabase. Uses this machine's `HTTPS_PROXY` when one is set. |
+| `smoke-local.js` | `smoke.js` against the stack, then against three broken versions of it (auto-confirm on and the whole API served, a demo key, a service key), to show each check can fail. |
+| `guide-check.sh` | Runs the guide's `[tried]` commands, read out of `deploy/supabase/README.md` itself, against the stack behind a real nginx carrying the guide's own nginx lines: step 0's greps, step 1's checks (and what the block refuses: other paths, slipped paths, floods, big bodies), step 3's three checks, `schema.sql` again as the SQL editor's role, step 4's check and audit, step 5's smoke test, step 6's sign-in and admin line, step 9's lines. `bash tools/platform/guide-check.sh [path/to/nginx]`. |
+| `test-update.sh` | `deploy/update.sh` on throwaway copies (9.3): the live flow byte for byte against today's script (master's `deploy/update.sh`) through every case it knows, the staging channel's cases, the hand-over from the old script to the new, and `bash -n`. `bash tools/platform/test-update.sh [new] [old] [check-page.js]`. About 6 s. |
+| `pgtemp.js`, `standins.sql`, `test-clock.sql` | The throwaway PostgreSQL; Supabase's roles (`supabase_admin` the superuser, `postgres` not one), API roles, auth schema and default grants; the test clock (`hs_private.now()` plus the setting `hs_test.clock`). Never run either SQL file on the real Supabase. |
 
 | script | what it holds the page to |
 | --- | --- |
