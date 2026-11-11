@@ -13,21 +13,27 @@
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back; a provider the server switched off has no button; Discord held
 //      back while the server confirms emails by itself; an in-app browser's user agent hides Google and shows the
-//      note with its two ways out; a framed page (on the desktop) opens the game in a tab of its own
+//      note with its two ways out; a framed page (on the desktop) opens the game in a tab of its own, and has a real
+//      link and Play now as well; Tab and Shift+Tab stay inside the card (the desktop)
 //   2  sign-in: Google, Facebook (an account with no email) and Discord through the stack's test provider; after
 //      every return the address holds no code, no sign-in id and no fragment; the name card refuses a bad name on
 //      the page and a taken name from the server; the welcome card leads with "Begin: Erebuni Rise, 782 BC"; the
 //      Account tab shows who is signed in, and signs out; a returning player goes straight to his welcome card;
 //      the session is refreshed before it ends and when the page is seen again; a session the server refuses
-//      brings the sign-in card back (the last three on the desktop only)
+//      brings the sign-in card back; a sign-in begun on the Account tab comes back to it (the last four on the
+//      desktop only)
 //   3  errors: the provider cancels, fails, hangs; an unverified Discord email; a wrong verifier; no verifier; a
 //      code used twice; the browser's Back button (by a reload, and from the back-forward cache); a sign-in that
 //      took over five minutes; a code left in the address; after two failures "Play now", which plays; a sign-in
-//      that works counts the failures down to none
+//      that works counts the failures down to none; a return whose sign-in id is not the stored one; free text as
+//      the error is sent as "other"; a device whose clock runs 15 minutes fast signs in; on the desktop: a verifier
+//      the store would not keep (the page does not leave), and a second tab opened during a sign-in leaves it alone
 //   11 Auth down (it answers 503), hanging, or the device offline: "Play now", and the visitor plays a battle; on a
 //      later visit with Auth up he signs in and keeps what he won; a signed-in player with Auth and the database
-//      both down goes straight to his welcome card and plays; storage blocked: the no-site-data card, never a
-//      provider's button, and a battle played
+//      both down goes straight to his welcome card and plays; his token ended (over an hour away) with Auth down or
+//      the device offline: the session stays, and is refreshed once Auth is back; signed in with the service
+//      hanging: the checking card 4 s at most; storage blocked: the no-site-data card, never a provider's button,
+//      and a battle played
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
 // photographed. Every request must go to the stack's two ports; any page error or console error fails.
@@ -226,6 +232,16 @@ const log = (m) => { if (o.verbose) console.log(m); };
     for (const k of ["Space", "Enter", "KeyP", "Digit1", "Escape", "KeyU"]) await g.page.keyboard.press(k);
     const after = await g.ev(() => ({ mode: menuMode, gate: gateUp, st: gateState, live: battleLive(), hall: hallOpen, wave: waveIdx, sel: curLevel, settings: settingsEl.style.display }));
     if (after.mode !== under.mode || !after.gate || after.st !== "signin" || after.live || after.hall || after.wave !== under.wave || after.sel !== under.sel || after.settings === "block") fail(W, "a tap or a key reached the game: " + JSON.stringify(after));
+    // Tab and Shift+Tab go round inside the card and never out to the page (3.3)
+    if (C.key === "desk") {
+      const out = [];
+      for (const k of ["Tab", "Tab", "Tab", "Tab", "Tab", "Tab", "Tab", "Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab"]) {
+        await g.page.keyboard.press(k);
+        if (!(await g.ev(() => gateCardEl.contains(document.activeElement)))) out.push(k + " to " + await g.ev(() => document.activeElement && document.activeElement.tagName));
+      }
+      if (out.length) fail(W, "the focus left the card: " + out.join(", "));
+      if ((await g.ev(() => ({ st: gateState, up: gateUp }))).st !== "signin") fail(W, "Tab changed the card");
+    }
     await g.wait(1200);
     const shown = await evs(g, "gate_shown");
     if (!shown.length || shown[0].providers !== "gfd" || shown[0].state !== "signin" || shown[0].mode !== "required") fail(W, "gate_shown: " + JSON.stringify(shown));
@@ -284,10 +300,18 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await fr.waitForFunction(() => typeof gateState !== "undefined" && gateState === "signin", null, { timeout: 60000 });
       const ft = await fr.evaluate(() => gateCardEl.innerText);
       if (!ft.includes("Sign-in opens the game in its own tab.")) fail(W, "a framed page lacks its line");
+      // a frame whose sandbox forbids new tabs is told nothing: a real link and Play now are there as well
+      const fl = await fr.evaluate(() => ({ link: Array.from(gateCardEl.querySelectorAll("a[target=_blank]")).map(a => a.href), play: Array.from(gateCardEl.querySelectorAll("button")).some(b => b.textContent === "Play now") }));
+      if (fl.link.length !== 1 || !fl.link[0].startsWith(SITE) || !fl.play) fail(W, "a framed page's ways out: " + JSON.stringify(fl));
       const [pop] = await Promise.all([ctx.waitForEvent("page", { timeout: 15000 }).catch(() => null), fr.click('#gate .gateBtn[data-p="google"]')]);
       if (!pop) fail(W, "a framed page's button opened no tab");
       else if (!pop.url().startsWith(SITE)) fail(W, "a framed page's button opened " + pop.url());
       if (errs.length) fail(W, "framed: " + errs.join("; "));
+      // Play now in the frame plays
+      await fr.click("#gate button >> text=Play now");
+      await fr.waitForFunction(() => !gateUp, null, { timeout: 15000 });
+      const fb = await fr.evaluate(() => (window.__hsEv || []).filter(e => e[0] === "gate_bypass").map(e => e[1].why));
+      if (fb.join() !== "framed") fail(W, "a framed page's Play now: gate_bypass " + fb.join());
       await ctx.close();
     }
   };
@@ -416,6 +440,21 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await gate(g, "signin");
       const raw = await g.ev(() => ({ next: !!localStorage.getItem("next:hs_pf_auth"), live: !!localStorage.getItem("hs_pf_auth") }));
       if (!raw.next || raw.live) fail(W, "the staging page's session is not kept apart: " + JSON.stringify(raw));
+      // a sign-in begun on the Account tab (a guest who played on) comes back to the Account tab, not the welcome card
+      await g.ev(() => localStorage.setItem("hs_pf_gate", JSON.stringify({ fails: 2, guest: false })));
+      await g.page.reload(); await gate(g, "signin");
+      await pressGo(g, () => Array.from(gateCardEl.querySelectorAll("button")).find(b => b.textContent === "Play now"));
+      await gate(g, "");
+      await toMap(g);
+      await g.ev(() => openHall("account"));
+      await g.page.waitForFunction(() => hallOpen && hallTab === "account" && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 });
+      await S.control("provider", { who: "aram" });
+      await pressGo(g, '.acTab .gateBtn[data-p="google"]');
+      await gate(g, "");
+      await g.page.waitForFunction(() => hallOpen && hallTab === "account", null, { timeout: 10000 }).catch(() => {});
+      const hb = await g.ev(() => ({ hall: hallOpen, tab: hallTab, text: hallBodyEl.innerText.replace(/\s+/g, " ") }));
+      if (!hb.hall || hb.tab !== "account" || !hb.text.includes("Aram") || !hb.text.includes("Signed in with Google.")) fail(W, "a sign-in from the Account tab came back to " + JSON.stringify(hb).slice(0, 200));
+      await clean(g, W + " from the Account tab");
     }
     await done(g, W);
   };
@@ -464,6 +503,47 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await gate(g, "signin");
     await line("Sign-in did not finish here. Try again.", "no_verifier", "no verifier");
     await fails0();
+    // a return whose sign-in id is not the one stored (the hsh check): refused before any exchange, no session made
+    await S.control("provider", { who: "aram" });
+    const s0 = (await S.control("state")).sessions;
+    await g.ev(() => { pfSignIn("google", ""); const p = JSON.parse(localStorage.getItem("hs_pf_pkce")); p.h = "another-sign-in"; localStorage.setItem("hs_pf_pkce", JSON.stringify(p)); });
+    await gate(g, "signin");
+    await line("Sign-in did not finish here. Try again.", "no_verifier", "a sign-in id not the one stored");
+    if ((await S.control("state")).sessions !== s0 || await store(g, "hs_pf_auth")) fail(W, "a return with another sign-in id made a session");
+    await fails0();
+    // an error word from the address that is not the server's kind of word goes into the event as "other" (7.2)
+    await g.page.goto(SITE + "/?error=" + encodeURIComponent("Look at <this> 123") + "&error_code=" + encodeURIComponent("Hello World!"));
+    await gate(g, "signin");
+    await line("Sign-in did not finish. Try again, or use another account.", "other", "free text as the error");
+    const ew = await evs(g, "signin_error");
+    if (ew.some(x => x.error !== "other")) fail(W, "free text reached signin_error: " + JSON.stringify(ew));
+    await fails0();
+    if (C.key === "desk") {
+      // the verifier cannot be written (a full store): the browser does not leave, the no-site-data card says why
+      await g.ev(() => { window.__realSet = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (/hs_pf_pkce/.test(k)) throw new DOMException("full", "QuotaExceededError"); return window.__realSet.call(this, k, v); }; });
+      await pressGo(g, '#gate .gateBtn[data-p="google"]');
+      await gate(g, "nostore");
+      await g.wait(500);
+      if (!new URL(g.page.url()).href.startsWith(SITE) || await store(g, "hs_pf_pkce")) fail(W, "a verifier that was not kept: the page left for " + g.page.url());
+      await g.ev(() => { Storage.prototype.setItem = window.__realSet; });
+      await g.page.reload(); await gate(g, "signin");
+      // a second tab of the game opened while the first waits at the provider leaves that sign-in alone
+      // (nobody queued: the provider's page of test people waits for a choice)
+      await pressGo(g, '#gate .gateBtn[data-p="google"]');
+      await g.page.waitForURL(u => String(u).startsWith(API + "/provider/"), { timeout: 15000 });
+      const p2 = await g.ctx.newPage();
+      await p2.goto(SITE + "/", { timeout: 120000 });
+      await p2.waitForFunction(() => typeof gateState !== "undefined" && gateUp && gateState === "signin", null, { timeout: 30000 });
+      const e2 = await p2.evaluate(() => (window.__hsEv || []).filter(e => e[0] === "signin_error").length);
+      if (e2) fail(W, "a second tab counted the first tab's sign-in as abandoned");
+      await p2.close();
+      await g.page.click("#who-bagrat");
+      await gate(g, "name");
+      await clean(g, W + " a second tab");
+      await g.ev(() => { localStorage.removeItem("hs_pf_auth"); localStorage.removeItem("hs_pf_me"); });
+      await g.page.goto(SITE + "/"); await gate(g, "signin");
+      await fails0();
+    }
     // a code used twice: a sign-in that works, its return address kept, then that address loaded again with the
     // same verifier
     let back = null;
@@ -489,7 +569,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await gate(g, "signin");
     await line("Sign-in did not finish. Try again, or use another account.", "abandoned", "Back button");
     // ... and from the back-forward cache (the page shown again with no load: its pageshow event)
-    await g.ev(() => { localStorage.setItem("hs_pf_pkce", JSON.stringify({ v: "a".repeat(128), h: "x", p: "discord", t: Date.now(), sa: false, back: "" })); window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })); });
+    // (the sign-in as this tab began it: its verifier, and this tab's own mark that it began it)
+    await g.ev(() => { localStorage.setItem("hs_pf_pkce", JSON.stringify({ v: "a".repeat(128), h: "x", p: "discord", t: Date.now(), sa: false, back: "" })); sessionStorage.setItem("hs_pf_mine", "x"); window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })); });
     await g.frames(2);
     const bf = await evs(g, "signin_error");
     if (!bf.some(x => x.error === "abandoned" && x.provider === "discord")) fail(W, "a return from the back-forward cache was not counted: " + JSON.stringify(bf));
@@ -533,8 +614,15 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await clean(g, W + " after the failures");
     const gm = JSON.parse(await store(g, "hs_pf_gate"));
     if (gm.fails !== 0) fail(W, "the failures were not counted down: " + JSON.stringify(gm));
-    // "Back to sign-in" on a second account's name card signs out
     await done(g, W);
+    // a device whose clock runs 15 minutes fast signs in (the verifier's age is read on the device's own clock)
+    const gf = await open(C, { init: [[() => { const n = Date.now.bind(Date); Date.now = () => n() + 15 * 60000; }, null]] });
+    await gate(gf, "signin");
+    await signIn(gf, "nune", "google", "name");
+    await clean(gf, W + " a fast clock");
+    const ef = await evs(gf, "signin_error");
+    if (ef.length || !(await store(gf, "hs_pf_auth"))) fail(W, "a clock 15 minutes fast cannot sign in: " + JSON.stringify(ef));
+    await done(gf, W + " a fast clock");
   };
 
   // ================================================================ flow 11: Auth down, offline, storage blocked
@@ -573,6 +661,36 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (!(await cardText(g)).startsWith("Welcome back, Aram.")) fail(W, "signed in with the service down: " + await cardText(g));
     await pressGo(g, "#gate .gtQuiet:not(.gtGo)");
     await plays(g, W + " signed in, service down");
+    // a player back after his access token ended (more than an hour), with Auth down: the session stays (1.4, 3.6's
+    // fourth row), the welcome card, and the next load with Auth up refreshes it
+    const expire = () => g.ev(() => { const s = JSON.parse(localStorage.getItem("hs_pf_auth")); s.exp = Math.floor(Date.now() / 1000) - 60; localStorage.setItem("hs_pf_auth", JSON.stringify(s)); });
+    await expire();
+    await g.page.reload();
+    await gate(g, "welcome", 15000);
+    if (!(await cardText(g)).startsWith("Welcome back, Aram.") || !(await store(g, "hs_pf_auth"))) fail(W, "an ended token with Auth down: " + await cardText(g));
+    await S.control("auth", { mode: "up" }); await S.control("rest", { mode: "up" });
+    await g.page.reload();
+    await gate(g, "welcome");
+    const rs = JSON.parse(await store(g, "hs_pf_auth") || "null");
+    if (!rs || rs.exp - Math.floor(Date.now() / 1000) < 3000) fail(W, "the session kept through Auth down was not refreshed once Auth came back");
+    // signed in, the token near its end, Auth and the database both hanging: the checking card is up 4 s at most
+    // (3.1), then the welcome card from what the device remembers
+    await g.ev(() => { const s = JSON.parse(localStorage.getItem("hs_pf_auth")); s.exp = Math.floor(Date.now() / 1000) + 30; localStorage.setItem("hs_pf_auth", JSON.stringify(s)); });
+    await S.control("auth", { mode: "hang" }); await S.control("rest", { mode: "hang" });
+    await g.page.reload();
+    const tc = await g.ev(() => performance.now());
+    await gate(g, "welcome", 20000);
+    const tw = await g.ev(() => performance.now()), tb = await g.ev(() => pfT0);
+    if (tw - tb > 5500) fail(W, "signed in with the service hanging, the checking card stayed " + ((tw - tb) / 1000).toFixed(1) + " s");
+    log("  checking card with the service hanging: " + ((tw - tb) / 1000).toFixed(1) + " s (" + ((tw - tc) / 1000).toFixed(1) + " s after the load was seen)");
+    await S.control("auth", { mode: "up" }); await S.control("rest", { mode: "up" });
+    // and offline, the token ended: the session stays as well
+    await expire();
+    await S.control("auth", { mode: "down" }); await S.control("rest", { mode: "down" });
+    await g.page.addInitScript(() => { Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => false }); });
+    await g.page.reload();
+    await gate(g, "welcome", 15000);
+    if (!(await cardText(g)).startsWith("Welcome back, Aram.") || !(await store(g, "hs_pf_auth"))) fail(W, "an ended token offline: " + await cardText(g));
     await S.control("auth", { mode: "up" }); await S.control("rest", { mode: "up" });
     await done(g, W + " Auth down");
     // Auth that never answers: the checking card for at most about 4 s, then down

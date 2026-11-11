@@ -60,6 +60,9 @@ Then try these once each:
       **You see** a short line under the field each time, and the name is not saved.
 - [ ] Reload the page while signed in.
       **You see** "Welcome back, <your name>." straight away, with no sign-in.
+- [ ] Sign out, get **Play now** as above, then open the gear, **Account and boards**, and sign in from the
+      Account tab's buttons.
+      **You see** the Hall again on its Account tab, signed in, with no welcome card in between.
 - [ ] The privacy link under the buttons opens a short privacy page, and "Back to the game" returns.
       (The full privacy page, with your name, contact and country, comes later.)
 
@@ -127,7 +130,10 @@ offers **Play now**.
       **Play now** and **Try again**. Play now lets you play.
 - [ ] Start it again: `docker compose start auth`. Press **Try again** (or reload): the sign-in card comes back.
 - [ ] While signed in on another browser, stop the service again and reload that browser.
-      **You see** your "Welcome back" card at once, and you can play. Start the service again afterwards.
+      **You see** your "Welcome back" card within about 4 seconds, and you can play. This holds even when more
+      than an hour has passed since you signed in there (the sign-in's one-hour pass cannot be renewed while the
+      service is down, and the game keeps you signed in anyway). Start the service again afterwards, reload, and
+      you are still signed in.
 
 ---
 

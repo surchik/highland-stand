@@ -78115,7 +78115,10 @@ function signinLine(code, provider, hadCode) {
   if (c === "no_verifier") return "Sign-in did not finish here. Try again.";
   return "Sign-in did not finish. Try again, or use another account.";
 }
-const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine };
+// What goes into signin_error's error: a word of the kind the server uses (provider_email_needs_verification,
+// exchange_403, abandoned), never free text that came in the address (7.2 allows none in an event)
+function errWord(e) { const w = String(e == null ? "" : e); return /^[a-z0-9_]{1,40}$/.test(w) ? w : "other"; }
+const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine, errWord };
 // ==== PLATFORM PURE END ====
 
 // ---- the platform's state on this device (0.5): every key starts hs_pf_ and none is ever synced ----
@@ -78152,7 +78155,9 @@ const PF_GATE_MODES = ["required", "optional", "off"];
 async function pfApi(method, path, body, o = {}) {
   let bearer = PF_KEY;
   if (o.auth) {
-    if (!(await pfFresh())) return { ok: false, status: 401, data: null, code: "no_session" };
+    // no fresh token: "no_session" only when the session is gone (refused by the server, or never held); a refresh
+    // that failed for the network leaves the session in place, and the call fails as the network does (1.4)
+    if (!(await pfFresh())) return pfSession() ? { ok: false, status: 0, data: null, code: "network" } : { ok: false, status: 401, data: null, code: "no_session" };
     const s = pfSession();
     if (!s) return { ok: false, status: 401, data: null, code: "no_session" };
     bearer = s.at;
@@ -78202,9 +78207,10 @@ function pfFresh(force) {
   if (!s) return Promise.resolve(false);
   if (!force && s.exp - pfSec() >= 90) return Promise.resolve(true);
   // refused by the server: the access token is used while it lasts, then the session is over
-  if (pfRefreshRefused) { if (s.exp > pfSec()) return Promise.resolve(true); pfSessionOver(); return Promise.resolve(false); }
-  // the last try failed for the network: the next is not before 30 s
-  if (Date.now() < pfRefreshNotBefore) return Promise.resolve(s.exp > pfSec());
+  if (pfRefreshRefused) { if (!force && s.exp > pfSec()) return Promise.resolve(true); pfSessionOver(); return Promise.resolve(false); }
+  // the last try failed for the network: the next is not before 30 s (force: the server refused the token, so a
+  // token that looks fresh here is no use)
+  if (Date.now() < pfRefreshNotBefore) return Promise.resolve(!force && s.exp > pfSec());
   if (!pfRefreshing) {
     const run = () => pfRefreshNow(force);
     const locked = navigator.locks && navigator.locks.request ? navigator.locks.request(HS_KEY_PREFIX + "hs_pf_auth", run) : run();
@@ -78221,9 +78227,10 @@ async function pfRefreshNow(force) {
   const again = pfSession();
   if (!again || again.rt !== s.rt) return !!again;    // signed out, or another tab got there while this one waited
   if (r.ok && r.data && r.data.access_token && r.data.refresh_token) { pfKeepSession(r.data, s.prov); return true; }
-  if (r.status === 0 || r.status >= 500) { pfRefreshNotBefore = Date.now() + 30000; return s.exp > pfSec(); }
+  if (r.status === 0 || r.status >= 500) { pfRefreshNotBefore = Date.now() + 30000; return !force && s.exp > pfSec(); }
   pfRefreshRefused = true;
-  if (s.exp > pfSec()) return true;
+  // the token is used while it lasts, unless the server has refused it already (force)
+  if (!force && s.exp > pfSec()) return true;
   pfSessionOver();
   return false;
 }
@@ -78251,7 +78258,20 @@ function pfSignIn(provider, back) {
   }
   const v = pfHex(pfRandBytes(64));             // the verifier: 128 hex characters, inside the server's 43 to 128
   const h = b64url(pfRandBytes(32));            // this sign-in's own id, which comes back in the address
-  pfWrite("hs_pf_pkce", { v, h, p: provider, t: pfNow(), sa: pfStandalone(), back: back || "" });
+  // t is the device's own clock, not the server's: the return is a new load that has heard nothing from the server
+  // yet, so only the device's clock is the same on both sides (a clock ten minutes fast must not make every
+  // verifier look stale)
+  pfWrite("hs_pf_pkce", { v, h, p: provider, t: Date.now(), sa: pfStandalone(), back: back || "" });
+  // a store that is full or blocked did not keep the verifier: the trip could never finish, so it is not begun
+  const kept = pfRead("hs_pf_pkce");
+  if (!kept || kept.h !== h || kept.v !== v) {
+    if (gateUp) gateNostore();
+    else toast("This browser is not keeping this site's data, so a sign-in cannot be remembered here.");
+    return;
+  }
+  // this tab began it: only this tab may later count it as left unfinished (a second tab of the game opened
+  // meanwhile must not end it)
+  try { sessionStorage.setItem(HS_KEY_PREFIX + "hs_pf_mine", h); } catch (e) {}
   track("provider_tapped", { provider });
   const back2 = back === "stats" ? "stats&" : "";
   const R = location.origin + location.pathname + "?" + back2 + "hsh=" + h;
@@ -78265,12 +78285,15 @@ function pfSignIn(provider, back) {
 async function pfTakeSignIn() {
   const R = PF_RETURN;
   let pk = pfRead("hs_pf_pkce");
-  if (pk && !(typeof pk.t === "number" && pfNow() - pk.t < 600000 && typeof pk.v === "string")) { pfDrop("hs_pf_pkce"); pk = null; }   // older than 10 minutes
+  // older than 10 minutes by the device's clock (as it was stored), or from the future by more than a minute (the
+  // clock was moved back since): stale either way
+  const age = pk && typeof pk.t === "number" ? Date.now() - pk.t : NaN;
+  if (pk && !(age > -60000 && age < 600000 && typeof pk.v === "string")) { pfDrop("hs_pf_pkce"); pk = null; }
   if (!R && !pk) return null;
   const fail = (error, provider, line) => {
     pfDrop("hs_pf_pkce");
     pfGateSet({ fails: pfGateMem().fails + 1 });
-    track("signin_error", { provider: provider || "", error: String(error).slice(0, 40), standalone: pfStandalone() });
+    track("signin_error", { provider: provider || "", error: errWord(error), standalone: pfStandalone() });
     return { line };
   };
   if (R && R.code) {
@@ -78283,22 +78306,38 @@ async function pfTakeSignIn() {
     pfDrop("hs_pf_pkce");
     pfGateSet({ fails: 0 });
     pfRefreshRefused = false;
-    return { ok: true, provider: s.prov || pk.p, ms: Math.max(0, Math.round(pfNow() - pk.t)), uid: s.uid, back: pk.back || "" };
+    pfMineDrop();
+    return { ok: true, provider: s.prov || pk.p, ms: Math.max(0, Math.round(Date.now() - pk.t)), uid: s.uid, back: pk.back || "" };
   }
   if (R && (R.error || R.errorCode)) {
     const code = R.errorCode || R.error;
     return fail(code, pk && pk.p, signinLine(code, pk && pk.p, false));
   }
-  // a sign-in begun here and come back without a code: the player came back without signing in (Back, or the
-  // provider's page closed). In a Home Screen app a return that landed in another window looks the same here (1.6)
+  // a sign-in begun in this tab and come back without a code: the player came back without signing in (Back, or
+  // the provider's page closed). In a Home Screen app a return that landed in another window looks the same here
+  // (1.6). A sign-in begun in another tab is that tab's: left alone
+  if (!pfMine(pk)) return null;
+  pfMineDrop();
   return fail("abandoned", pk.p, signinLine("abandoned"));
 }
+// Did this tab begin the sign-in under way? The mark is in this tab's own sessionStorage. A Home Screen app has
+// one window only, and iOS may start it afresh (losing the mark) while the provider's page is up elsewhere: there
+// it is always its own. A browser whose sessionStorage throws cannot tell, and counts it as its own, as before
+function pfMine(pk) {
+  if (!pk || pfStandalone()) return true;
+  try { return sessionStorage.getItem(HS_KEY_PREFIX + "hs_pf_mine") === pk.h; } catch (e) { return true; }
+}
+function pfMineDrop() { try { sessionStorage.removeItem(HS_KEY_PREFIX + "hs_pf_mine"); } catch (e) {} }
+
 // Back from the provider's page by the browser's Back button, the page restored from the back-forward cache with
 // no load at all: the same as a return without a code
 window.addEventListener("pageshow", (e) => {
   if (!e.persisted || !PF.on) return;
+  // a sign-in card shown again while a session is held now (another tab finished one): the card is out of date
+  if (gateUp && (gateState === "leaving" || gateState === "signin") && pfSession()) { location.reload(); return; }
   const pk = pfRead("hs_pf_pkce");
-  if (!pk) { if (gateUp && gateState === "leaving") gateSignin(gateLine); return; }
+  if (!pk || !pfMine(pk)) { if (gateUp && gateState === "leaving") gateSignin(gateLine); return; }
+  pfMineDrop();
   pfDrop("hs_pf_pkce");
   pfGateSet({ fails: pfGateMem().fails + 1 });
   track("signin_error", { provider: pk.p || "", error: "abandoned", standalone: pfStandalone() });
@@ -78312,11 +78351,14 @@ window.addEventListener("pageshow", (e) => {
 // sheet over the app, 1.6). If that other window finished the sign-in in storage this page shares, the page goes
 // on with it; else the sign-in is counted as not finished, as on any later load (1.6, step 1), and the card offers
 // the buttons again.
+// Only in a Home Screen app: in a browser tab the page seen again while it waits is a slow network still loading
+// the provider's page (the player looked at another app meanwhile), and the sign-in must be let go on.
 document.addEventListener("visibilitychange", () => {
-  if (!PF.on || document.visibilityState !== "visible" || !gateUp || gateState !== "leaving" || Date.now() - gateLeftAt < 1500) return;
+  if (!PF.on || !pfStandalone() || document.visibilityState !== "visible" || !gateUp || gateState !== "leaving" || Date.now() - gateLeftAt < 1500) return;
   if (pfSession()) { location.reload(); return; }
   const pk = pfRead("hs_pf_pkce");
   if (!pk) { gateSignin(gateLine); return; }
+  pfMineDrop();
   pfDrop("hs_pf_pkce");
   pfGateSet({ fails: pfGateMem().fails + 1 });
   track("signin_error", { provider: pk.p || "", error: "abandoned", standalone: pfStandalone() });
@@ -78441,6 +78483,18 @@ function gateFocus() {
 // what was chosen runs
 gateEl.addEventListener("pointerdown", () => gateEl.classList.remove("gtKeys"), true);
 window.addEventListener("keydown", (e) => { if (gateUp) gateEl.classList.add("gtKeys"); }, true);
+// Tab and Shift+Tab go round inside the card (3.3): past the last control to the first and back, never out to the
+// page (which is inert under the gate, so the focus would land on nothing)
+window.addEventListener("keydown", (e) => {
+  if (!gateUp || e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+  const all = Array.from(gateCardEl.querySelectorAll("input:not([disabled]), button:not([disabled]), a[href]")).filter(x => x.offsetParent !== null);
+  if (!all.length) { e.preventDefault(); try { gateEl.focus({ preventScroll: true }); } catch (er) {} return; }
+  const i = all.indexOf(document.activeElement);
+  const to = e.shiftKey ? (i <= 0 ? all.length - 1 : -1) : (i < 0 || i === all.length - 1 ? 0 : -1);
+  if (to < 0) return;
+  e.preventDefault();
+  try { all[to].focus({ preventScroll: true }); } catch (er) {}
+}, true);
 const pfT0 = performance.now();
 function gateLeave(how, then) {
   if (!gateUp) { if (then) then(); return; }
@@ -78493,9 +78547,19 @@ function gateSignin(line) {
   const c = gateCard("signin", { notice: pfCfg().notice, lines });
   if (pfInApp) pfInAppNote(c.btns);
   for (const p of list) c.btns.appendChild(pfProviderBtn(p, ""));
+  // A framed page: the provider's buttons open the game in a tab of its own, which a frame's sandbox may forbid
+  // without the page ever knowing (window.open with noopener answers null either way). So a plain link does the
+  // same where a sandbox lets links through, and Play now stays for a frame that allows neither
+  if (pfFramed) {
+    const a = pfEl("a", "gtQuiet", "Open the game in its own tab");
+    a.href = location.href; a.target = "_blank"; a.rel = "noopener";
+    a.setAttribute("role", "button");
+    a.style.textDecoration = "none";
+    c.btns.appendChild(a);
+  }
   // two sign-ins in a row that did not finish, or no button left to press (an in-app browser where Google is the
-  // only provider open): Play now, so that the card is never a wall
-  if (fails >= 2 || !list.length) c.btns.appendChild(pfBtn("gtQuiet", "Play now", () => gateBypass(list.length ? "errors" : "down")));
+  // only provider open), or a frame: Play now, so that the card is never a wall
+  if (fails >= 2 || !list.length || pfFramed) c.btns.appendChild(pfBtn("gtQuiet", "Play now", () => gateBypass(!list.length ? "down" : fails >= 2 ? "errors" : "framed")));
   if (gateMode === "optional") {
     c.btns.appendChild(pfBtn("gtQuiet", "Play as a guest", () => { pfGateSet({ guest: true }); gateBypass("guest"); }));
     c.words.appendChild(pfEl("p", "gtNote", "Guest progress stays on this device."));
@@ -78708,18 +78772,40 @@ async function pfWithSession(justIn) {
   const otherBefore = !!cfg.lastUid && cfg.lastUid !== s.uid;
   const firstHere = !(me && me.uid === s.uid) && !(cfg.seen || []).includes(s.uid);
   if (justIn) pfCfgSet({ lastProv: justIn.provider, lastUid: s.uid, seen: (cfg.seen || []).filter(u => u !== s.uid).concat([s.uid]).slice(-8) });
-  let r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
-  if (!pfSession()) { pfNoSession(""); return; }          // the server ended the session: as if none was held
-  if (r.status === 401 && pfSession()) {
-    // a token refused (the server ended its session, or the clock moved): one refresh, then the call again
-    if (await pfFresh(true)) r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
-    if (r.status === 401) { pfDrop("hs_pf_auth"); pfNoSession(""); return; }
-  }
+  // The profile: { r } with the server's answer, { r: network failure } when it could not be asked (the session
+  // stays: 1.4, and 3.6's fourth row), or { gone: true } when the server ended the session. It writes no card itself,
+  // because it may end after the deadline below
+  const profile = async () => {
+    let r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
+    if (!pfSession()) return { gone: true };              // the server refused the session's refresh
+    if (r.status === 401) {
+      // a token refused (the server ended its session, or the clock moved): one refresh, then the call again
+      if (await pfFresh(true)) r = await pfRpc("hs_profile_get", {}, { auth: true, timeout: 4000 });
+      else if (pfSession()) return { r: { ok: false, status: 0, data: null, code: "network" } };   // Auth not answering: the session stays
+      if (!pfSession()) return { gone: true };
+      if (r.status === 401) { pfDrop("hs_pf_auth"); return { gone: true }; }
+    }
+    if (r.ok && r.data && typeof r.data === "object") {
+      const nm = typeof r.data.name === "string" && r.data.name ? r.data.name : null;
+      pfWrite("hs_pf_me", { uid: s.uid, name: nm, admin: !!r.data.admin });
+    }
+    return { r };
+  };
+  // The checking card stays up 4 s at most for all of it together (3.1): past that the card is drawn from what
+  // this device remembers (hs_pf_me), and a late answer only updates the name behind it
+  const asked = profile();
+  const late = await Promise.race([asked, new Promise(ok => setTimeout(() => ok(null), 4000))]);
+  if (!late) asked.then(x => {
+    if (!x || x.gone || !x.r.ok || !x.r.data) return;
+    const nm = typeof x.r.data.name === "string" && x.r.data.name ? x.r.data.name : null;
+    if (nm && PF.me && PF.me.uid === s.uid && !PF.me.name) { PF.me = { uid: s.uid, name: nm }; pfAccountRedraw(); }
+  });
+  if (late && late.gone) { pfNoSession(""); return; }    // the server ended the session: as if none was held
+  const r = late ? late.r : { ok: false, status: 0, data: null, code: "network" };
   let name = me && me.uid === s.uid ? me.name || null : null, named = true;
   if (r.ok && r.data && typeof r.data === "object") {
     name = typeof r.data.name === "string" && r.data.name ? r.data.name : null;
     named = !!name;
-    pfWrite("hs_pf_me", { uid: s.uid, name, admin: !!r.data.admin });
   }
   if (justIn) track("signed_in", { provider: justIn.provider, new: !named, standalone: pfStandalone(), same: true, handoff: false, ms: justIn.ms });
   PF.me = { uid: s.uid, name };
@@ -78728,6 +78814,8 @@ async function pfWithSession(justIn) {
     PF.me = { uid: s.uid, name: nm };
     pfAccountRedraw();
     if (gateMode === "off") { gateLeave(how, () => { toast("Welcome back, " + (nm || "Defender") + "."); pfOnMap && pfOnMap(); if (justIn && justIn.back === "hall") openHall("account"); }); return; }
+    // a sign-in begun on the Account tab goes back there (the player had passed the gate already): no welcome card
+    if (justIn && justIn.back === "hall") { gateLeave(how, () => { pfOnMap && pfOnMap(); openHall("account"); }); return; }
     gateWelcome(nm, firstHere, how);
   };
   if (!named) { gateName(justIn ? otherBefore : false, (nm) => on(nm)); return; }

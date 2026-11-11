@@ -13,6 +13,7 @@
 //      inAppUA, providersOf,  (P2)  the sign-in card's own rules: which user agents are another app's browser (1.6),
 //      signinLine                   which provider buttons show for what Auth's /settings answers (3.3, RULINGS D3,
 //                                   D6), and the line after a sign-in that did not finish, by the server's code (1.2)
+//      errWord                (P2)  signin_error's error: the server's kind of word kept, free text sent as "other"
 //      scoreOf                (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to
 //      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
@@ -107,7 +108,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -164,6 +165,10 @@ if (pure) {
     eq(pure.signinLine("no_verifier"), "Sign-in did not finish here. Try again.", "the line for a return in another window");
     for (const c of ["server_error", "abandoned", "unexpected_failure", "", null]) eq(pure.signinLine(c, "facebook"), "Sign-in did not finish. Try again, or use another account.", "the line for " + JSON.stringify(c));
     ok(!/[\u2013\u2014]/.test(Object.values(PURE_LINES(pure)).join("")), "no long dash in the lines");
+  }
+  if (pure.errWord) {
+    for (const w of ["access_denied", "provider_email_needs_verification", "exchange_403", "exchange_0", "no_verifier", "abandoned", "bad_oauth_state"]) eq(pure.errWord(w), w, "signin_error keeps the word " + w);
+    for (const w of ["", null, undefined, "Hello World!", "<img src=x>", "a b", "Access_Denied", "x".repeat(41), "user@example.com"]) eq(pure.errWord(w), "other", "signin_error sends free text as other: " + JSON.stringify(w));
   }
   if (pure.sha256) for (const [m, want] of SHA) {
     const w = want || crypto.createHash("sha256").update(m, "utf8").digest("hex");
