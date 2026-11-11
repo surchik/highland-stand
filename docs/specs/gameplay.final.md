@@ -884,11 +884,15 @@ battle ("Reset the Council"). Once owned a tier counts on every battlefield, old
 
 | Branch (`id`) | Tier 1 (1 star) | Tier 2 (1) | Tier 3 (2) | Tier 4 (2) | Tier 5 (3) |
 |---|---|---|---|---|---|
-| Bowmen (`bows`): archer and ballista slots | Archer slot: 5% more damage | Ballista slot: 5% more damage | Both: 6% more range | Both: reload 6% faster | Both: masteries cost 15% less |
-| Engineers (`engines`): catapult and fire slots | Catapult slot: 6% wider blast | Fire slot: 8% more burn | Catapult slot: stagger lasts 0.15 s longer | Fire slot: slows 4 points more | Both: masteries cost 15% less |
-| Captains (`captains`): drums, Garrison Post, the special tower | Drums slot: 8% more reach | Drums slot: 3 points more might | Garrison Post: men 10% stronger | Men return 15% sooner; the battlefield's special tower costs 10% less to build | Their masteries cost 15% less |
-| Heralds (`heralds`): hero and spells | Hero 12% stronger (strength) | Spells ready 6% sooner | Hero returns in 16 s, not 20 | Spells ready another 6% sooner | The hero's Call ready 20% sooner |
-| Stewards (`stewards`): gold and walls | 20 more gold at the start | Repairs and rebuilds cost 20% less | The war chest's interest may reach 80 a wave, not 60 | Towers 12% stronger; they mend 5 points more at a clear | A sale returns 85%, not 70%; land costs 15% less |
+| Bowmen (`bows`): archer and ballista slots | Archer slot: 2% more damage | Ballista slot: 2% more damage | Both: 2% more range | Both: reload 2% faster | Both: masteries cost 15% less |
+| Engineers (`engines`): catapult and fire slots | Catapult slot: 3% wider blast | Fire slot: 3% more burn | Catapult slot: stagger lasts 0.05 s longer | Fire slot: slows 2 points more | Both: masteries cost 15% less |
+| Captains (`captains`): drums, Garrison Post, the special tower | Drums slot: 3% more reach | Drums slot: 1 point more might | Garrison Post: men 10% stronger | Men return 15% sooner; the battlefield's special tower costs 10% less to build | Their masteries cost 15% less |
+| Heralds (`heralds`): hero and spells | Hero 5% stronger (strength) | Spells ready 3% sooner | Hero returns in 16 s, not 20 | Spells ready another 3% sooner | The hero's Call ready 20% sooner |
+| Stewards (`stewards`): gold and walls | 10 more gold at the start | Repairs and rebuilds cost 10% less | The war chest's interest may reach 70 a wave, not 60 | Towers 5% stronger; they mend 2 points more at a clear | A sale returns 80%, not 70%; land costs 10% less |
+
+(G2 close: these are the numbers the game ships with KITSET 1. G2 cut the first draft's numbers to hold the
+bounds of 5.2 on the sample of RULINGS E: see docs/specs/balance/README.md, section G2. The Captains' tiers 3
+to 5 and the Heralds' tier 5 are not tuned yet: they are tuned with the post (G5) and the Call (G3).)
 
 A tier is never sold for something that is not in the game yet, and never changed after a player has
 bought it: until the Garrison Post ships (G5) the Captains' tiers 3 to 5 are shown closed, "Comes with the
@@ -1047,7 +1051,7 @@ Three new keys, all pushed onto `CLOUD_KEYS`:
 
 | Key | Shape | Merge rule for the cloud |
 |---|---|---|
-| `hs_council` | `{ v: 1, own: { bows: 0..5, engines, captains, heralds, stewards }, n: <how many times it was changed> }` | The value with the larger `n` (on a tie, per branch the larger), then `councilSane()`: tiers above the chapter reached are dropped, and if the cost is more than the stars earned, the highest tiers are dropped (last branch first) until it fits. The later change wins because a reset is free and stars are counted from records: nothing can be lost, and a reset made on one device is not undone by another's older copy. A count of changes, not a time, because a device's clock cannot be trusted. |
+| `hs_council` | `{ v: 1, own: { bows: 0..5, engines, captains, heralds, stewards }, n: <how many times it was changed> }` | The value with the larger `n` (on a tie, per branch the larger), each value only clamped to a whole number 0 to 5 (`councilParse`). The merge is pure: it never reads this device's records, which the same merge has not brought in yet (G2 close). `councilSane()` runs on every read (`councilLoad`): tiers above the chapter reached are dropped, and if the cost is more than the stars earned, the highest tiers are dropped (last branch first) until it fits. The later change wins because a reset is free and stars are counted from records: nothing can be lost, and a reset made on one device is not undone by another's older copy. A count of changes, not a time, because a device's clock cannot be trusted. |
 | `hs_heroes` | `{ v: 1, xp: { kingdoms, faith, crowns, night, artsakh }, daily: { day, xp } }` (the chapters' ids) | Per chapter the larger number; `daily`: the later day, on the same day the larger `xp`. |
 | `hs_towers_seen` | `["post", "horse", ..., "council", "call"]` | Union. |
 
@@ -1569,7 +1573,8 @@ Suite 2's checks, by the package that brings them:
   hero fallen resumes with the spell still cooling and the hero still away.
 - G2, Council: stars counted from records with the Hard seal; a tier needs the one under it and its
   chapter; reset returns everything; the merge of two `hs_council` values takes the larger `n` (a
-  reset on one side survives) and a forged value is cut down by `councilSane`; the panel's numbers equal
+  reset on one side survives), is pure (a device with no records keeps the cloud's tiers: G2 close), and a
+  forged value is cut down by `councilSane` when it is read; the panel's numbers equal
   `getStats`; the standard order gives 4.8's rows; `KITSET_PIN`; the loadout tag is `std` with the empty
   kit and any tray that is part of the battlefield's, `open` with a tier in force; the page is staged at
   1600 x 900, 1194 x 834 and in a 560 x 280 box with no element outside it (`?shot=council`).
@@ -1773,7 +1778,7 @@ What gameplay asks:
   `track` sending nothing under `file://`, `?selftest` and `?shot`, so the bot, the self-test and the
   regression suite run as today. The gate and the cloud stay off there too.
 - N2. A merge function for each of gameplay's keys, as 4.7 gives them (`hs_council`: the larger change
-  count `n`, then `councilSane`; `hs_heroes`: per chapter the larger; `hs_towers_seen`: union).
+  count `n`, each value clamped by `councilParse` and no more (the cut, `councilSane`, is made at read time); `hs_heroes`: per chapter the larger; `hs_towers_seen`: union).
 - N3 (DIFFERS). The battle clock. The first version of this spec asked for wave time only, and the
   platform's review granted it. This review withdraws that request: the clock is the platform's own first
   definition, all of `dt` from the first horn, waiting between waves included. Reasons (6.1): the spells,

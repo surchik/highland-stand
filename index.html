@@ -9758,7 +9758,7 @@ const COUNCIL = [
     { line: "Fire slot: slows 2 points more", fx: [["stat", ["fire"], "slow", "+", 0.02]] },
     { line: "Catapults and fires: masteries cost 15% less", fx: [["spec", ["catapult", "fire"], 0.85]] },
   ] },
-  { id: "captains", name: "Captains", about: "Drums, posts and the special tower", icon: "crown", tiers: [
+  { id: "captains", name: "Captains", about: "The drums slot, and more to come", icon: "crown", tiers: [
     { line: "Drums slot: 3% more reach", fx: [["stat", ["drums"], "range", "x", 1.03]] },
     { line: "Drums slot: 1 point more might", fx: [["stat", ["drums"], "might", "+", 0.01]] },
     { line: "Garrison Post: men 10% stronger", needs: "post", fx: [["post", "men", 1.1]] },
@@ -9927,7 +9927,10 @@ function councilStore(c) { try { localStorage.setItem(COUNCIL_KEY, JSON.stringif
 function councilOwn() { return Object.assign({}, councilLoad().own); }
 function councilUnspent() { return Math.max(0, starsEarned() - councilSpent(councilLoad().own)); }
 // The cloud's merge of two copies (the platform hands the raw strings, null for a side that has none): the copy
-// changed more often wins, on a tie per branch the larger, then councilSane. A count of changes and not a time,
+// changed more often wins, on a tie per branch the larger, each value only clamped by councilParse. It is a pure
+// function of the two copies: it never reads this device's records, which the same merge has not brought in yet
+// (a new device's first sign-in would cut the cloud's tiers to nothing). The cut to the stars earned is made on
+// every read instead (councilLoad). A count of changes and not a time,
 // for a device's clock cannot be trusted; and the later change wins because a reset is free and stars are counted
 // from records, so nothing can be lost and a reset made on one device is not undone by another's older copy
 function councilMerge(mine, theirs) {
@@ -9937,8 +9940,7 @@ function councilMerge(mine, theirs) {
   if (mine == null) c = b; else if (theirs == null) c = a;
   else if (a.n !== b.n) c = a.n > b.n ? a : b;
   else { c = { v: 1, own: {}, n: a.n }; for (const id of COUNCIL_IDS) c.own[id] = Math.max(a.own[id], b.own[id]); }
-  const s = councilSane(c);
-  return JSON.stringify({ v: 1, own: s.own, n: s.n });
+  return JSON.stringify({ v: 1, own: c.own, n: c.n });
 }
 CLOUD_KEYS.push({ key: COUNCIL_KEY, merge: councilMerge });
 // the one-time cards a player has put away (gameplay 4.6): "council" now, the towers and the Call later. Union
@@ -9961,6 +9963,7 @@ function councilBuy(b) {
   c.own[b] = t; c.n++;
   councilStore(c);
   track("council_buy", { branch: b, tier: t, left: unspent - COUNCIL_COSTS[t - 1] });
+  syncCouncilDoors();   // every door that names the stars to spend says the new number, whoever took the tier
   return t;
 }
 function councilReset() {
@@ -9970,6 +9973,7 @@ function councilReset() {
   c.n++;
   councilStore(c);
   track("council_reset", { spent });
+  syncCouncilDoors();
   return spent;
 }
 // The standard order of buying (4.8), for FLOOR, PAR and CAP and the balance bot: tier by tier, and inside a tier
@@ -10529,7 +10533,7 @@ function clearRuin(t) {
 }
 // every standing tower mends a share of its strength at each wave's clear
 function mendTowers() {
-  const k = byDiff(TRICK_RULES.tower.mend) + kitNow().mend;   // the Stewards' fourth tier mends 5 points more
+  const k = byDiff(TRICK_RULES.tower.mend) + kitNow().mend;   // the Stewards' fourth tier mends 2 points more
   for (const t of towers) {
     if (t.wreck || t.hp == null) continue;
     t.maxHp = towerMaxHp(t);
@@ -11017,7 +11021,7 @@ let celebration = null;
 let confetti = [];
 let panelCostBtns = [];
 
-// the next plot of land: dearer for each claimed before it (the Stewards' last tier takes 15% off)
+// the next plot of land: dearer for each claimed before it (the Stewards' last tier takes 10% off)
 function plotPrice() { return plotPriceAt(plotsBought); }
 function plotPriceAt(k) { return Math.round((150 + 125 * k) * kitNow().land); }
 
@@ -12625,7 +12629,7 @@ function endCelebration() {
     "A circle dance turns before the gates, and the fires of the citadel burn on. ") +
     victoryTally(L, heldLives, DIFFS[curDiff].name) +
     (last ? " Every battlefield of the campaign, from the founding of Erebuni, usually dated 782 BC, to Stepanakert in 2023, has now been held. " +
-      "Return to any of them on a harder difficulty, or hold forever here." : L.noEndless ? "" : " Your army still stands: hold forever, if you dare."),
+      "Return to any of them on a harder difficulty, or hold forever here." : L.noEndless ? "" : " " + ENDLESS_INVITE),
     "Defend Again", !L.noEndless);
   // showMenu's buildMenu moves a battlefield the campaign has not opened (a test-mode run resumed after a reload,
   // when every road is shut again) to the furthest open one; the victory page stays this battlefield's
@@ -12881,10 +12885,20 @@ function openCouncil(from) {
 new MutationObserver(() => { if ($("hall").classList.contains("hlHidden")) { councilVisit = false; councilResetArmed = 0; } })
   .observe($("hall"), { attributes: true, attributeFilter: ["class"] });
 HALL_TABS.push({ id: "council", label: "War Council", short: "Council", icon: "star", render: renderCouncil, badge: () => councilUnspent() });
+// The platform calls this after a merge changed a synced key on this device, never under a battle (platform 0.3),
+// in place of buildMenu(): the map is built again (its roads and stars), and the Council's doors and an open
+// Council tab are drawn again from the merged copy
+function onSavesChanged() {
+  if (!overlayEl.classList.contains("hidden") && menuMode === "map") buildMenu();
+  syncCouncilDoors();
+  if (hallOpen && hallTab === "council") showHallTab("council");
+  else if (hallOpen) syncHallTabs();
+}
 // The Council's doors follow its stars: the map's tally (its words), and on a chronicle the chip in #briefKit
 function syncCouncilDoors() {
   if (menuMode === "map" || $("ovStars").innerHTML) syncCampaignTally();
   if (menuMode === "brief") briefKitRow();
+  if (menuMode === "victory") renderGrowth();
 }
 // The campaign's tally in the map's corner: the stars won of 51 (and the Hard seals, once there are any), and in its
 // words all 68 and the stars the War Council has to spend. (It still reads "5/51" as it always has: the stars by
@@ -12934,10 +12948,13 @@ function briefKitRow() {
 }
 addEventListener("resize", () => { if (menuMode === "brief" && !overlayEl.classList.contains("hidden")) briefKitRow(); });
 // the chronicle with the Standard switch already on: a door for the platform's "Fight for this board"
+// (false, and nothing done, for a battlefield that is not open: the switch is never set on another field's page)
 function openBriefStandard(levelIndex) {
-  if (levelIndex >= 0 && levelIndex < LEVELS.length && levelOpen(levelIndex)) { curLevel = levelIndex; curEra = LEVELS[levelIndex].era; applyEraLabels(); }
+  if (!(Number.isInteger(levelIndex) && levelIndex >= 0 && levelIndex < LEVELS.length && levelOpen(levelIndex))) return false;
+  curLevel = levelIndex; curEra = LEVELS[levelIndex].era; applyEraLabels();
   standardBattle = true;
   showBrief();
+  return true;
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest && e.target.closest("#bkCouncil, #bkStd");
@@ -12958,19 +12975,28 @@ document.addEventListener("click", (e) => {
 // War Council". On a phone held sideways the page is full to the pixel, so there it is one line of text in place of
 // the last line of the page's prose, and the map's tally is the door. (The hero's strip joins it with the heroes, G3.)
 let growthStars = 0;   // stars the victory just earned (set before the records take it)
-function victoryGrowth(newStars) {
+const ENDLESS_INVITE = "Your army still stands: hold forever, if you dare.";
+let growthNew = 0, growthCut = false;   // this victory's new stars; whether the phone's line took the invitation's place
+function victoryGrowth(newStars) { growthNew = newStars; growthCut = false; renderGrowth(); }
+// drawn again whenever the stars to spend change (syncCouncilDoors), so the button never names stars already spent
+function renderGrowth() {
   const el = $("ovGrowth");
   if (!el) return;
   const unspent = councilUnspent(), c = councilLoad();
-  const can = newStars > 0 && COUNCIL_IDS.some(id => (c.own[id] | 0) < 5 && tierState(c.own, id, (c.own[id] | 0) + 1, unspent) === "open");
+  const can = growthNew > 0 && COUNCIL_IDS.some(id => (c.own[id] | 0) < 5 && tierState(c.own, id, (c.own[id] | 0) + 1, unspent) === "open");
   el.innerHTML = "";
   el.classList.remove("on", "line");
   if (!can) return;
   const words = unspent + " " + starsWord(unspent) + " to spend at the War Council";
   if (phoneWide()) {
-    // the last sentence of the page's prose gives its line to this one
-    const sub = $("ovSub"), ss = (sub.textContent || "").trim().split(/(?<=[.!?])\s+/);
-    if (ss.length > 1) sub.textContent = ss.slice(0, -1).join(" ");
+    // the endless invitation, the prose's last line on a field that has one, gives its line to this one. A field
+    // that ends where history did (Sis) and the closing page keep every word, and the map's tally is the door
+    if (!growthCut) {
+      const sub = $("ovSub");
+      if (!sub.innerHTML.includes(ENDLESS_INVITE)) return;
+      sub.innerHTML = sub.innerHTML.replace(" " + ENDLESS_INVITE, "").replace(ENDLESS_INVITE, "");
+      growthCut = true;
+    }
     el.textContent = words.charAt(0).toUpperCase() + words.slice(1) + ".";
     el.classList.add("on", "line");
     return;
@@ -12997,16 +13023,18 @@ function markTowerSeen(k) {
   try { localStorage.setItem(TOWERS_SEEN_KEY, JSON.stringify(a)); } catch (e) {}
 }
 let unlockCardOn = "";
+// (the regression scripts that walk the map for other reasons hold it back with a window flag: tools/regress/lib.js)
 function councilCardDue() {
-  return !HARNESS_ON && menuMode === "map" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
+  return !HARNESS_ON && !window.__hsQuietCouncilCard && menuMode === "map" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
     !towersSeen().includes("council") && councilUnspent() > 0;
 }
 function showUnlockCard(what) {
   buildTrickCard();
   const T = { council: { title: "The War Council opens",
     lines: ["Every victory earns stars: one to three for the defenders you never lost, and one more for a victory on Hard.",
-      "Spend them at the War Council on small, lasting gains for your towers, your hero, your spells and your gold. Reset it whenever you like, for free.",
-      "Tap the stars in the corner of the map to open it. The Council is a game system, not a record of history."] } }[what];
+      "Spend them at the War Council. Each tier is a small gain that lasts. Reset it whenever you like, for free.",
+      // a finger taps and a mouse clicks; the tally stands in a corner of the map or of the page, by the layout
+      (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " the star tally to open it. The Council is a game system, not a record of history."] } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon("star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">To the Council</button>' +
@@ -55040,6 +55068,8 @@ function showTrickCard(keys, o) {
   // on a phone the text's frame fades at its fold while more of it lies below (phoneFold)
   phoneFold(trickCardEl.querySelector(".tcText"), true);
   trickCardOn = { keys, read: !!o.read };
+  unlockCardOn = "";
+  trickCardEl.classList.remove("unlock");
   trickCardEl.classList.add("on");
   trickCardEl.setAttribute("aria-hidden", "false");
   closeFoeCard();
@@ -55048,6 +55078,8 @@ function showTrickCard(keys, o) {
 }
 function closeTrickCard() {
   if (!trickCardOn) return;
+  // the War Council's one-time card wears this card's frame: a press beside it is its Later (it is put away, seen)
+  if (unlockCardOn) { closeUnlockCard(false); return; }
   if (!trickCardOn.read) for (const k of trickCardOn.keys) markTrickSeen(k);
   trickCardOn = null;
   trickCardEl.classList.remove("on");
@@ -55192,7 +55224,9 @@ function closeScoutBubble() {
 window.addEventListener("resize", () => { if (scoutBubble) placeScoutBubble(); else if (scoutRingPad >= 0) ringScoutPad(scoutRingPad); });
 // leaving the battle takes the card and the bubble with it (resetGame)
 function dropTrickCards() {
-  if (trickCardOn) { trickCardOn = null; trickCardEl.classList.remove("on"); }
+  if (trickCardOn) { trickCardOn = null; trickCardEl.classList.remove("on", "unlock"); }
+  // a one-time card taken away unread is not marked seen: it comes back on the map
+  unlockCardOn = "";
   trickCardQ = [];
   dropScoutRing();
   if (scoutBubble) {
@@ -62498,8 +62532,9 @@ function startTutorial() {
   tut = { i: -1, ev: {}, pad: -1, shown: "" };
   tutGentle = true;
   // the coached stand is the same battle for everyone: no Council tier, today's hero (gameplay 4.3). Begun on a
-  // field just set up, so the purse and the hero are set again with the empty kit
-  if (!kitEmpty(kit) && !towers.length && waveIdx === 0) {
+  // field just set up, so the purse and the hero are set again with the empty kit. Land already bought keeps the
+  // kit: the purse it was bought from cannot be set again without giving its price back (the stand is then "open")
+  if (!kitEmpty(kit) && !towers.length && waveIdx === 0 && plotsBought === 0) {
     setKit(KIT_EMPTY);
     gold = startPurse();
     battle.start = battle.earned = gold;
@@ -81263,7 +81298,7 @@ function runSelftestPlay() {
     if (!ev.length || ev.some(e => flat(e[0], e[1]) > 200)) fail("the Council's events");
     if (!evLast("council_buy") || evLast("council_buy").branch !== "stewards" || evLast("council_reset").spent !== 9) fail("council_buy and council_reset: " + JSON.stringify(ev.slice(-2)));
   }));
-  check("council: the cloud's merge keeps the later change, and councilSane cuts a forged value", guarded(() => {
+  check("council: the cloud's merge keeps the later change, is pure, and councilSane cuts a forged value on read", guarded(() => {
     wonTo(6, 2);   // Chapter III open, 12 stars
     const C = (own, n) => JSON.stringify({ v: 1, own: Object.assign({ bows: 0, engines: 0, captains: 0, heralds: 0, stewards: 0 }, own), n });
     const M = (a, b) => JSON.parse(councilMerge(a, b));
@@ -81276,8 +81311,28 @@ function runSelftestPlay() {
     m = M(C({ bows: 2, engines: 1 }, 4), C({ bows: 1, heralds: 2 }, 4));
     if (m.own.bows !== 2 || m.own.engines !== 1 || m.own.heralds !== 2 || m.n !== 4) fail("a tie: " + JSON.stringify(m));
     if (councilMerge(null, null) !== null || M(null, C({ bows: 1 }, 1)).own.bows !== 1 || M(C({ engines: 1 }, 1), null).own.engines !== 1) fail("a side with none");
-    // forged: every tier, a closed one, garbage; cut to the chapter (tiers 1 to 3), to what is in the game, and to the stars
+    // pure: a new device (no records, no roads) merging the cloud's copy at its first sign-in keeps every tier; the
+    // records come in by the same merge, and the cut is made when the copy is read
+    const recs = localStorage.getItem(RECORDS_KEY), bests = LEVELS.map((L, i) => localStorage.getItem(bestKey(i, L.era)));
+    localStorage.removeItem(RECORDS_KEY);
+    LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era)));
+    const full = { bows: 3, engines: 3, captains: 2, heralds: 3, stewards: 2 };
+    if (starsEarned() !== 0) fail("the records were not taken away");
+    m = M(null, C(full, 5));
+    if (m.n !== 5 || JSON.stringify(m.own) !== JSON.stringify(full)) fail("the merge read this device's records: " + JSON.stringify(m));
+    m = M(C({}, 0), C(full, 5));
+    if (m.n !== 5 || JSON.stringify(m.own) !== JSON.stringify(full)) fail("the merge with an empty copy read the records: " + JSON.stringify(m));
+    localStorage.setItem(RECORDS_KEY, recs);
+    LEVELS.forEach((L, i) => { if (bests[i] !== null) localStorage.setItem(bestKey(i, L.era), bests[i]); });
+    if (starsEarned() !== 12) fail("the records were not put back: " + starsEarned());
+    // forged: every tier, a closed one, garbage; the merge only clamps (0 to 5, whole numbers); on read the copy is
+    // cut to the chapter (tiers 1 to 3), to what is in the game, and to the stars
     m = M(C({ bows: 5, engines: 5, captains: 5, heralds: 5, stewards: 5 }, 99), C({ bows: "x", engines: -1, captains: 9 }, 2));
+    if (m.n !== 99 || COUNCIL_IDS.some(id => m.own[id] !== 5)) fail("the merge cut or lost a copy: " + JSON.stringify(m));
+    m = M(C({ bows: 9, engines: -1, captains: 2.5 }, 3), C({ bows: "x" }, 3));
+    if (m.own.bows !== 0 || m.own.engines !== 0 || m.own.captains !== 0 || m.n !== 3) fail("the merge took a value out of range: " + JSON.stringify(m));
+    localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { bows: 5, engines: 5, captains: 5, heralds: 5, stewards: 5 }, n: 99 }));
+    m = councilLoad();
     if (m.n !== 99 || m.own.bows > 3 || m.own.captains > 2 || councilSpent(m.own) > 12) fail("a forged copy stood: " + JSON.stringify(m));
     if (councilSpent(m.own) !== 12) fail("the cut went too far: " + JSON.stringify(m.own));
     // the chapter leaves bows 3, engines 3, captains 2, heralds 3, stewards 3 (18 stars); 12 are earned, so the
@@ -81379,6 +81434,16 @@ function runSelftestPlay() {
     maybeStartTutorial();
     if (!kitEmpty(kit) || gold !== startPurse() || hero.maxHp !== 400 || battle.start !== gold || battleLoadout() !== "std") fail("the coached stand has a kit: " + JSON.stringify(kit) + " gold " + gold);
     stopTutorial();
+    // land already bought keeps the kit: the purse it came from is not given again
+    resetGame(); overlayEl.classList.add("hidden");
+    if (plots.length) {
+      const g0 = gold;
+      buyPlot(0);
+      const paidFor = g0 - gold;
+      startTutorial();
+      if (!(paidFor > 0) || gold !== g0 - paidFor || kitEmpty(kit) || battleLoadout() !== "open") fail("the coached stand gave land's price back: gold " + gold + " of " + g0 + " less " + paidFor);
+      stopTutorial();
+    }
     // a player who owns nothing sees no switch
     localStorage.removeItem("hs_council");
     curLevel = 3; showBrief();
@@ -81435,6 +81500,8 @@ function runSelftestPlay() {
         // the numbers on the panel: what each tier's line names
         if (el.querySelectorAll(".wcMed").length !== 25 || !el.querySelector(".wcMed.s-later") || !el.querySelector(".wcMed.s-chapter") || !el.querySelector(".wcMed.s-own")) out.push(lay + ": the tree's states");
         if (lay === "side" && el.scrollHeight > el.clientHeight + 1) out.push("side " + w + "x" + h + ": the panel scrolls (" + el.scrollHeight + ")");
+        // held sideways the strip is the 170 px column of 4.6 and the tree has the rest
+        if (lay === "side") { const sw = el.querySelector(".wcStrip").getBoundingClientRect().width; if (Math.abs(sw - 170) > 0.5) out.push("side " + w + "x" + h + ": the strip is " + sw + " px, not 170"); }
       } finally { el.remove(); councilSel = null; }
     }
     if (out.length) fail(out.slice(0, 6).join(" | "));
@@ -81473,9 +81540,58 @@ function runSelftestPlay() {
     if (r.height < 40 || r.top < rec.bottom - 1) fail("the Council's button: " + JSON.stringify([r.top, r.height, rec.bottom]));
     $("ogCouncil").click();
     if (!hallOpen || hallTab !== "council" || !evLast("council_open") || evLast("council_open").from !== "victory") fail("the button did not open the Council: " + JSON.stringify(evLast("council_open")));
+    // stars spent in the Hall: the row names what is left, and goes once nothing can be bought
+    councilBuy("bows");
+    if (!$("ogCouncil") || !/Spend 4 stars at the War Council/.test($("ogCouncil").textContent)) fail("the row after one star spent: " + g.textContent);
+    for (const id of ["engines", "captains", "heralds", "stewards"]) councilBuy(id);
+    if (councilUnspent() !== 0 || g.classList.contains("on") || $("ogCouncil")) fail("the row after every star spent: " + g.textContent + " (" + councilUnspent() + " left)");
     closeHall();
     leaveVictory();
     if (g.classList.contains("on") || g.innerHTML) fail("the row outlived its page");
+    // on a phone held sideways the line takes the endless invitation's place, and only that: a field that ends where
+    // history did (Sis, noEndless) keeps its every word, the tally included, and shows no line
+    const pw = phoneWide;
+    phoneWide = () => true;
+    try {
+      localStorage.removeItem("hs_council");
+      wonTo(1, 3); localStorage.setItem(bestKey(1, LEVELS[1].era), "13");
+      stage("tushpa", 1);
+      lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+      victory(); endCelebration();
+      const sub = $("ovSub").textContent;
+      if (!g.classList.contains("line") || !/^5 stars to spend at the War Council\.$/.test(g.textContent) || sub.includes(ENDLESS_INVITE) || !/to spare on Normal/.test(sub)) fail("the phone's line on Tushpa: " + g.textContent + " / " + sub);
+      leaveVictory();
+      const sis = LEVELS.findIndex(L => L.noEndless);
+      wonTo(sis, 3); localStorage.setItem(bestKey(sis, LEVELS[sis].era), "13");
+      stage(LEVELS[sis].id, 1);
+      lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+      victory(); endCelebration();
+      if (g.classList.contains("on") || !/to spare on Normal/.test($("ovSub").textContent)) fail("Sis lost its tally to the phone's line: " + $("ovSub").textContent);
+      leaveVictory();
+    } finally { phoneWide = pw; }
+    // the platform's door to a Standard battle does nothing for a battlefield that is not open
+    localStorage.removeItem(RECORDS_KEY); LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era)));
+    curLevel = 0; standardBattle = false;
+    if (openBriefStandard(9) !== false || standardBattle || curLevel !== 0) fail("openBriefStandard opened a closed battlefield");
+  }));
+  check("council: the one-time card put away by a press beside it is seen, told, and lets the keys go", guarded(() => {
+    wonTo(1, 3);
+    localStorage.removeItem("hs_towers_seen");
+    showUnlockCard("council");
+    if (unlockCardOn !== "council" || !trickCardEl.classList.contains("unlock")) fail("the card did not come up");
+    evClear();
+    trickCardEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    if (unlockCardOn || trickCardOn || trickCardEl.classList.contains("unlock") || trickCardEl.classList.contains("on")) fail("the card stayed: " + unlockCardOn);
+    if (!towersSeen().includes("council") || evs().filter(e => e[0] === "unlock_seen").length !== 1 || hallOpen) fail("put away beside it: seen " + towersSeen() + ", hall " + hallOpen);
+    // a key after it is the page's again
+    const ke = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    document.dispatchEvent(ke);
+    if (hallOpen) fail("a key opened the Hall after the card");
+    // a battle that drops the cards takes this one too, unseen (it comes back on the map)
+    localStorage.removeItem("hs_towers_seen");
+    showUnlockCard("council");
+    dropTrickCards();
+    if (unlockCardOn || trickCardEl.classList.contains("unlock") || towersSeen().includes("council")) fail("dropTrickCards left the card behind");
   }));
 
   // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt

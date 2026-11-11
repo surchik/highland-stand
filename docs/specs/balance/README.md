@@ -80,3 +80,14 @@ Normal, SEEDS=1): the best build keeps at most 2 more defenders with the PAR kit
 and no more than 6 anywhere. The spec's first numbers broke them (4.56 and 4.56, 8 at most), so every tier's
 number was cut (the table `COUNCIL` in index.html); no battlefield was retuned. After the cut: PAR 2.00 (5 at most),
 CAP 2.78 (6 at most). A Council number is pinned by `KITSET_PIN` (node tools/ruleset.js prints it), not by RULESET.
+
+### What the G2 sample does not show (the review's finding 3, G2 close)
+
+The PAR mean of 2.00 stands exactly on its bound, at one seed, on nine battlefields. The bound of 5.2 is a mean
+over all 17, and the sample underweights the battlefields where the kits are largest: over the six sampled
+battlefields after Chapter I the PAR mean is 3.17 and the CAP mean 4.33, both over their bounds. FLOOR (2.11) is
+above PAR (2.00) on the same sample, so at one seed much of the table is noise. The bound is therefore not shown to
+hold, only not shown to break on RULINGS E's sample. A gate for G4: before any Open board is published, run
+`KIT=par` and `KIT=cap` on all 17 battlefields at SEEDS=3 (gameplay 8.3 b) beside `KIT=none`; if the 17-battlefield
+mean passes 2 (PAR) or 4 (CAP), or any battlefield passes 6, cut the Council's numbers (a new KITSET and its pin),
+never a battlefield.

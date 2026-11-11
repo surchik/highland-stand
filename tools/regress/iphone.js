@@ -295,7 +295,8 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           }
           localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
           localStorage.removeItem("hs_council");
-          localStorage.removeItem("hs_towers_seen");   // the card is this state's to show (openGame counts it as seen)
+          localStorage.removeItem("hs_towers_seen");
+          window.__hsQuietCouncilCard = false;   // the card is this state's to show (openGame holds it back)
           testUnlockAll = false;
           openCampaignMap(2);
         });
@@ -731,6 +732,12 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (!gr.on) fail(label, "no row of growth after a victory that earned stars to spend");
             else if (!C.upright && (!gr.line || !/^\d+ stars? to spend at the War Council\.$/.test(gr.text))) fail(label, "held sideways the row of growth is not one line: " + JSON.stringify(gr));
             else if (C.upright && gr.btn < 43.5) fail(label, "the Council's button is " + Math.round(gr.btn) + " px tall");
+          }
+          // held sideways the line takes only the endless invitation's place: Sis, which ends where history did, has
+          // none, so its prose keeps every word (its tally) and it shows no line
+          if (id === "sis" && !C.upright) {
+            const gr = await g.ev(() => ({ on: $("ovGrowth").classList.contains("on"), sub: $("ovSub").textContent }));
+            if (gr.on || !/to spare on/.test(gr.sub)) fail(label, "held sideways the row of growth took Sis's tally: " + JSON.stringify(gr));
           }
           // every way on from the page in sight (held sideways, without a scroll) and 44 px tall
           const v = await g.ev(() => {

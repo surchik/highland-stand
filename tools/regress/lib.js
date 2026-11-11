@@ -96,6 +96,7 @@ async function openGame(browser, file, o) {
     }, o.insets);
   }
   for (const [fn, arg] of o.init || []) await ctx.addInitScript(fn, arg);
+  if (!o.councilCard) await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; });
   if (o.storage) {
     await ctx.addInitScript(st => {
       try { for (const k in st) { if (st[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, st[k]); } } catch (e) {}
@@ -110,13 +111,10 @@ async function openGame(browser, file, o) {
   await page.waitForFunction(() => typeof menuMode !== "undefined" && typeof Town !== "undefined" && typeof Nardi !== "undefined" &&
     document.readyState === "complete", null, { timeout: 120000 });
   // The War Council's one-time card ("The War Council opens", gameplay 4.6) comes up over the map the first time stars
-  // wait to be spent. The scripts that walk the map after a victory are not about it: it counts as seen unless a
-  // script asks for it (councilCard: true). Written once the page has loaded and only where the save has no list,
-  // never from an init script: a storage write there, at the start of a reload, can leave the reloaded page reading
-  // an empty storage (the iPhone tip's one-time check caught it)
-  if (!o.councilCard) {
-    await page.evaluate(() => { try { if (localStorage.getItem("hs_towers_seen") === null) localStorage.setItem("hs_towers_seen", JSON.stringify(["council"])); } catch (e) {} });
-  }
+  // wait to be spent. The scripts that walk the map after a victory are not about it: unless a script asks for it
+  // (councilCard: true) the page is told to hold it back by a window flag an init script sets before the page's own
+  // code runs (councilCardDue reads it). A flag and not a storage write: it cannot race the card's 600 ms timer, and
+  // a storage write at the start of a reload can leave the reloaded page reading an empty storage
   g.cdp = await ctx.newCDPSession(page);
   await g.frames(3);
   return g;
