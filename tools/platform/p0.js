@@ -137,6 +137,21 @@ function refuseWrites() {
   };
   // (the Hall takes no press for a moment after it comes up: every reading of it waits that moment out)
   const settled = (g) => g.page.waitForFunction(() => !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 });
+  // The tabs gameplay registers from its own code at boot (G2's War Council, gameplay 4.6), on every page, before the
+  // harness's test tabs. The parts below hold the Hall's shell to its spec with the harness's tabs or tabs of their
+  // own: each first checks that gameplay's tabs are there as registered (tabIds), then takes them out of the row
+  // (shellOnly; keepTest keeps the harness's test tabs), so the shell is tried as it stands alone. Gameplay's own
+  // tab is held by the selftest's suite 2 and tools/regress (vic.js, iphone.js).
+  const GAMEPLAY_TABS = ["council"];
+  const tabIds = (g) => g.ev(() => HALL_TABS.map(t => t && t.id).join(","));
+  const shellOnly = (g, keepTest) => g.ev((keepTest) => {
+    for (let i = HALL_TABS.length - 1; i >= 0; i--) if (!(keepTest && HALL_TABS[i] && /^test\d$/.test(HALL_TABS[i].id))) HALL_TABS.splice(i, 1);
+    syncHallDoors();
+  }, !!keepTest);
+  const gameplayFirst = async (g, tag, rest) => {
+    const ids = await tabIds(g), want = GAMEPLAY_TABS.concat(rest || []).join(",");
+    if (ids !== want) fail(tag, "the page's own tab row is " + ids + ", not " + want + " (gameplay's tabs first, as registered)");
+  };
   const hallState = async (g) => { await settled(g); return hallStateNow(g); };
   const hallStateNow = (g) => g.ev(() => ({
     open: !hallEl.classList.contains("hlHidden") && getComputedStyle(hallEl).display !== "none",
@@ -170,6 +185,8 @@ function refuseWrites() {
     const tag = "hall " + C.name;
     const g = await openAt("/?shot=menu&unlock&testtab=4", C);
     try {
+      await gameplayFirst(g, tag, ["test1", "test2", "test3", "test4"]);
+      await shellOnly(g, true);
       // ---- the door ----
       const door = await g.ev(() => {
         const e = $("ovStars"), cs = getComputedStyle(e);
@@ -181,7 +198,8 @@ function refuseWrites() {
       if (!door.door || door.cursor !== "pointer" || door.role || door.ti !== null) fail(tag, "the tally is not a door though the Hall has tabs: " + JSON.stringify(door));
       if (!door.pip || door.pipBox !== "12px") fail(tag, "the tally wears no pip though a tab's badge is up: " + JSON.stringify(door));
       if (!/\d+\/\d+/.test(door.text)) fail(tag, "the tally lost its count: " + door.text);
-      if (!/^Stars won across the campaign: \d+ of \d+\. Open the Hall$/.test(door.label || "") || door.title !== door.label || door.pop !== "dialog") fail(tag, "the door does not say where it leads: " + JSON.stringify(door));
+      // (the tally's own words begin with the War Council's stars to spend while there are any: gameplay 4.6)
+      if (!/^(War Council: \d+ stars? to spend\. )?Stars won across the campaign: \d+ of \d+(, \d+ of them Hard seals?)?\. Open the Hall$/.test(door.label || "") || door.title !== door.label || door.pop !== "dialog") fail(tag, "the door does not say where it leads: " + JSON.stringify(door));
       // ---- a double tap on the tally: the Hall opens, and the second tap presses nothing the Hall put under it ----
       {
         const q = await g.reach("#ovStars");
@@ -452,6 +470,8 @@ function refuseWrites() {
     const C = { name: "touch 393x780", w: 393, h: 780, touch: true };
     const g = await openAt("/?shot=menu&unlock&testtab=2", C);
     try {
+      await gameplayFirst(g, tag, ["test1", "test2"]);
+      await shellOnly(g, true);
       await g.press("#ovStars");
       await settled(g);
       await g.press("#hallTestInput");
@@ -489,7 +509,10 @@ function refuseWrites() {
     try {
       await page.goto(S.base + "/?selftest=1&testtab=2", { waitUntil: "commit" });
       await page.waitForFunction(() => document.body && /SELFTEST_RESULT/.test(document.body.textContent), null, { timeout: 800000 });
-      const r = await page.evaluate(() => { overlayEl.classList.remove("hidden"); const a = openHall(); const out = { a, tabs: HALL_TABS.length, door: $("ovStars").classList.contains("door"), shown: getComputedStyle(hallEl).display, tab: hallTab, blocking: Platform.blocking() }; closeHall(); out.after = Platform.blocking(); return out; });
+      const ids = await page.evaluate(() => HALL_TABS.map(t => t.id).join(","));
+      if (ids !== GAMEPLAY_TABS.concat(["test1", "test2"]).join(",")) fail(tag, "the tab row under ?selftest is " + ids);
+      const r = await page.evaluate(() => { for (let i = HALL_TABS.length - 1; i >= 0; i--) if (!/^test\d$/.test(HALL_TABS[i].id)) HALL_TABS.splice(i, 1); syncHallDoors();
+        overlayEl.classList.remove("hidden"); const a = openHall(); const out = { a, tabs: HALL_TABS.length, door: $("ovStars").classList.contains("door"), shown: getComputedStyle(hallEl).display, tab: hallTab, blocking: Platform.blocking() }; closeHall(); out.after = Platform.blocking(); return out; });
       if (!r.a || r.tabs !== 2 || !r.door || r.shown === "none" || r.tab !== "test1" || !r.blocking || r.after) fail(tag, "the Hall under ?selftest: " + JSON.stringify(r));
       if (errs.length) fail(tag, "page errors: " + errs.slice(0, 3).join(" | "));
     } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); }
@@ -502,6 +525,8 @@ function refuseWrites() {
     const g = await openAt(pathq, C);
     try {
       await g.toMap();
+      await gameplayFirst(g, tag);
+      await shellOnly(g, false);
       const d = await g.ev(() => {
         const e = $("ovStars"), cs = getComputedStyle(e);
         return { tag: e.tagName, door: e.classList.contains("door"), pip: e.classList.contains("pip"), role: e.getAttribute("role"), ti: e.getAttribute("tabindex"), cursor: cs.cursor,
@@ -560,6 +585,8 @@ function refuseWrites() {
       const boot = await g.ev(() => { let n = 0; Platform.boot(() => { n++; }); return n; });
       if (boot !== 1) fail(tag, "Platform.boot(cb) called cb " + boot + " times at once");
       await g.toMap();
+      await gameplayFirst(g, tag);
+      await shellOnly(g, false);
       // ---- tabs as gameplay registers them ----
       await g.ev(() => {
         window.__stars = 2; window.__daily = 1;
@@ -953,21 +980,22 @@ function refuseWrites() {
       const g = await openAt(url, C);
       try {
         const st = await hallState(g), title = await g.page.title();
-        if (title !== "PHOTO_READY" || !st.open || st.tab !== "test2" || st.tabs !== "test1,test2") fail(tag, "?shot=hall&testtab=2&tab=test2 over " + where + ": " + title + " " + JSON.stringify(st));
+        if (title !== "PHOTO_READY" || !st.open || st.tab !== "test2" || st.tabs !== GAMEPLAY_TABS.concat(["test1", "test2"]).join(",")) fail(tag, "?shot=hall&testtab=2&tab=test2 over " + where + ": " + title + " " + JSON.stringify(st));
         if (where === "file" && g.reqs.length !== 1) fail(tag, "on file:// the page asked for more than itself: " + g.reqs.join(" , "));
         await problems(g, tag + " (" + where + ")");
       } finally { await g.close(); }
     }
-    // with no tab the photo says so instead of showing an empty Hall
+    // with no test tab the photo shows gameplay's first tab (with no tab at all it would say so instead of showing an
+    // empty Hall: no page is without gameplay's tabs any more, so that path is not reached here)
     const g = await openAt("/?shot=hall", C);
     try {
-      const title = await g.page.title(), text = await g.ev(() => document.body.innerText);
-      if (title !== "PHOTO_ERROR" || !/the Hall has no tab to show/.test(text)) fail(tag, "?shot=hall with no tab: " + title);
+      const title = await g.page.title(), st = await hallState(g);
+      if (title !== "PHOTO_READY" || !st.open || st.tab !== GAMEPLAY_TABS[0] || st.tabs !== GAMEPLAY_TABS.join(",")) fail(tag, "?shot=hall with no test tab: " + title + " " + JSON.stringify(st));
     } finally { await g.close(); }
     // a test tab exists only under the harness and only when asked for
     for (const [url, n] of [["/?testtab=3", 0], ["/?shot=menu", 0], ["/?shot=menu&testtab", 1], ["/?shot=menu&testtab=9", 6]]) {
       const g2 = await openAt(url, C);
-      try { const k = await g2.ev(() => HALL_TABS.length); if (k !== n) fail(tag, url + " gives the Hall " + k + " tabs, not " + n); }
+      try { const k = await g2.ev(() => HALL_TABS.length); if (k !== n + GAMEPLAY_TABS.length) fail(tag, url + " gives the Hall " + k + " tabs, not " + n + " and gameplay's " + GAMEPLAY_TABS.length); }
       finally { await g2.close(); }
     }
   }
