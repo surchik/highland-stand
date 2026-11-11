@@ -272,7 +272,9 @@ Fix: (G1) the hooks, the battle's numbers and `rulesetData()` on today's game, n
 Council; (G3) hero levels and the Call; (G4) the script map and lengths, retuned; (G5) the tray and the
 Garrison Post; (G6) the daily; (G7a to e) one tower at a time. Each ends playable, tested and shippable.
 Issue 12 is what makes G2 and G3 possible before G4. Releases: R1 = G1, R2 = G2 and G3, R3 = G4 and G5
-together (one change of rules), R4 = G6, then a tower a release.
+together (one change of rules), R4 = G6, then a tower a release. Because three releases now come before the
+lengths change, the "legacy run" of 1.7 becomes a general rule: a saved run carries `rules`, `kit`, `script`
+and `tray` and finishes under what it began with.
 
 **24. Major. Cut from the first releases.** The Captains tab (the hero's level, bar and Call are a strip at
 the foot of the Council page and a line on the chronicle: one gameplay tab in the Hall, not two); the five
@@ -318,6 +320,8 @@ unit is added, and no new name speaks of a people.
 has fought Erebuni). It is the same for everyone and a loss still scores, so it is left as it is; the owner
 may prefer a pool of the first ten until the game has more players (an open point).
 
+**34. Minor. The lengths of 1.2 sum to 245, not 246.**
+
 ## Rejected on reflection (not issues)
 
 - A loadout chosen before battle. With seven kinds at most and a tray that fits, it would be a rule made to
@@ -330,4 +334,16 @@ may prefer a pool of the first ten until the game has more players (an open poin
 
 ## Measurement for issue 31
 
-SELFTEST_TIMING_PLACEHOLDER
+`node tools/selftest.js` on master, this machine (4 cores), wall time from launch to result:
+
+| Run | Wall time | Result |
+|---|---|---|
+| One self-test alone | 117 s | 151 checks pass |
+| Two at once, first | 121 s | 151 checks pass |
+| Two at once, second | 120 s | 151 checks pass |
+
+Two pages side by side cost each about 3% (3 to 4 s). So the spec's plan works here, with 4 s to spare under
+125 s, and no more than that: a machine with two cores, or a suite 2 that draws more than suite 1, would push
+suite 1 over. The budget is not enforced anywhere today (`tools/selftest.js` only has a 180 s page timeout),
+so the final spec adds the check to the runner and keeps the fallback of running the suites one after the
+other.
