@@ -25,16 +25,20 @@ this spec uses them as they stand there:
 
 1. `track(name, props)`: a global the platform defines (a no-op when it is off). Gameplay's calls are in
    section 7. The platform acts on four of them (`battle_start`, `victory`, `defeat`, `battle_quit`), so
-   those carry the battle's contract numbers (6.1). Every event's props are flat and under 900 bytes (the
-   server drops an event over 1,024 bytes: `platform/schema.sql` line 584).
+   those carry the battle's numbers (6.1). An event's props are nested one level at most and under 3 KB:
+   the server keeps an event up to 4,096 bytes (the platform's review raised it from 1,024 after finding,
+   as this review did, that the first version's battle numbers would have been dropped).
 2. localStorage under `hs_*` keys through the game's helpers. The platform owns `CLOUD_KEYS`; gameplay adds
    its new keys there with a merge function each (4.7). Gameplay never writes a key that starts `hs_pf_`.
-3. `RULESET` and `rulesetData()` (6.3), `DAILY_TWISTS` and `startDaily(levelIndex, twistId)` (6.4), the
+3. `RULESET` and `rulesetData()` (6.3), `DAILY_TWISTS` and `startDaily(levelIndex, twistId, day)` (6.4), the
    loadout tag `"std"` or `"open"` (6.4), and one panel the platform's Hall hosts as a tab (`HALL_TABS`,
    4.6). Gameplay may read `Platform.daily()` and `Platform.player()` where they exist and must work when
    they do not (`file://`, the self-test, the bot).
-4. The battle clock is the platform's `simSec`, unchanged: the sum of `dt` in `update` from the first wave's
-   horn to the last foe's fall. Waiting between waves counts; pauses, menus and cards do not (6.1).
+4. The battle clock is the platform's `simSec` as its first spec defined it: the sum of `dt` in `update`
+   from the first wave's horn to the last foe's fall. Waiting between waves counts; pauses, menus and cards
+   do not (6.1). The platform's review has since moved to the wave-time clock this spec's first version
+   asked for; that request is withdrawn here, with reasons, and is the main point the two final specs must
+   settle again (9.5, N3).
 
 What gameplay needs from the platform is 9.5.
 
@@ -84,7 +88,9 @@ and nothing retuned. Same bot, same seeds:
 - The self-test alone takes 117 s of wall time on this machine; two at once take 120 and 121 s each. Two
   suites side by side fit under 125 s with 4 s to spare (8.1).
 - The first version's example of a battle's numbers is 1,063 bytes as JSON: over the server's limit for one
-  event. Hence the split in 6.1.
+  event as it stood (1,024 bytes, `platform/schema.sql` at f7657c8). The platform's review found the same
+  and raised the limit to 4,096 bytes with one level of nesting allowed (`schema.sql` at 2c862b1). Hence the
+  size test of 6.1 and 8.1.
 - `update()` runs the spells' and the hero's clocks in every phase (lines 12052 to 12053), and a tower can be
   built while the game is paused: there is no pause test in `placeTower`, `upgradeTower` or the field's
   `pointerdown` handler (only `startWave` refuses), and it was TESTED on master with the regression
@@ -988,11 +994,10 @@ It is part of the kit (4.3): a Standard battle and a daily are fought without it
 ### 4.6 The pages and their doors
 
 One panel: the War Council, with the captains' levels as a strip in it. Gameplay draws it into whatever
-element it is given (`renderCouncil(el)`) and reports a badge (`councilBadge()`: stars unspent). Where the
-platform's Hall exists it is one of its tabs (`HALL_TABS.push({ id: "council", ... })`) and `openCouncil()`
-is `openHall("council")`. Until the Hall is merged, and wherever it is absent, the same function fills a
-bare parchment page of gameplay's own (`menuMode = "council"`, a way back to the map), so neither track
-waits for the other.
+element it is given (`renderCouncil(el)`) and reports a badge (`councilBadge()`: stars unspent). It is one
+of the tabs of the platform's Hall (`HALL_TABS.push({ id: "council", ... })`) and `openCouncil()` is
+`openHall("council")`. The Hall's shell ships with the platform's P0 and works on `file://` and under the
+harness (the platform's review settled this), so gameplay builds no page of its own; G2 starts after P0.
 
 Doors:
 - The map: the star tally becomes a button (`#ovStars`: `role="button"`, 44 px to a finger, title "War
@@ -1008,7 +1013,10 @@ Doors:
 - The victory page: under the stars, when the victory earned new stars and one of them can buy something,
   a button "Spend 2 stars at the War Council"; and a strip with the hero's name, his level and the
   experience bar filling to its new place. Both go in one row, `#ovGrowth`, under `#ovRecord`, and must
-  keep `vic.js`'s rule for every button (wholly on screen, 40 px, apart from the others).
+  keep `vic.js`'s rule for every button (wholly on screen, 40 px, apart from the others). On a phone held
+  sideways the victory page is full to the pixel at 667 x 320 (the platform's review measured it), so there
+  `#ovGrowth` is one line of text and no button, in place of the last line of the page's prose: "Argishti
+  I · Level 2 · 2 stars to spend". The Council's door there is the map's tally.
 - One-time cards (frame and behavior of the trick cards, `hs_towers_seen`): "The War Council opens."
   (the first time stars are unspent, on the map), "A new tower" (2.8, and one for each special tower),
   "The Call" (the first battle after Dvin opens, a coach bubble on the hero's medallion).
@@ -1039,14 +1047,14 @@ Three new keys, all pushed onto `CLOUD_KEYS`:
 
 | Key | Shape | Merge rule for the cloud |
 |---|---|---|
-| `hs_council` | `{ v: 1, own: { bows: 0..5, engines, captains, heralds, stewards }, t: <ms of the last change> }` | The value with the later `t` (on a tie, per branch the larger), then `councilSane()`: tiers above the chapter reached are dropped, and if the cost is more than the stars earned, the highest tiers are dropped (last branch first) until it fits. Newer wins because a reset is free and stars are counted from records: nothing can be lost, and a reset made on one device is not undone by another's older copy. |
+| `hs_council` | `{ v: 1, own: { bows: 0..5, engines, captains, heralds, stewards }, n: <how many times it was changed> }` | The value with the larger `n` (on a tie, per branch the larger), then `councilSane()`: tiers above the chapter reached are dropped, and if the cost is more than the stars earned, the highest tiers are dropped (last branch first) until it fits. The later change wins because a reset is free and stars are counted from records: nothing can be lost, and a reset made on one device is not undone by another's older copy. A count of changes, not a time, because a device's clock cannot be trusted. |
 | `hs_heroes` | `{ v: 1, xp: { kingdoms, faith, crowns, night, artsakh }, daily: { day, xp } }` (the chapters' ids) | Per chapter the larger number; `daily`: the later day, on the same day the larger `xp`. |
 | `hs_towers_seen` | `["post", "horse", ..., "council", "call"]` | Union. |
 
 Existing keys that change shape: `hs_records` rows gain `beyond` (1.6; merge: per field and difficulty the
 larger, as for stars and lives). `hs_run` gains `rules`, `kit`, `script`, `tray` (1.7), the battle's
-counters with `redo` and `cd` (6.1), tower fields `rally`, `spot`, `trigger`, `paid`, and `t` (the time it was
-written, ms): the platform keeps the newer of two runs by `t`. A daily never writes `hs_run`.
+counters with `redo` and `cd` (6.1), tower fields `rally`, `spot`, `trigger`, `paid`. Which of two saved runs is newer is the platform's stamp to
+say. A daily never writes `hs_run`.
 
 Today's players (migration, no rewrite of anything they own):
 - Stars: counted from `hs_records` as it is. A player with 30 stars opens the game to "30 stars to spend".
@@ -1272,46 +1280,45 @@ After every one of these: three seeds, all three difficulties, all builds on the
 ### 6.1 The numbers of a battle
 
 Kept by the battle, saved with the run at every wave's horn (`markWaveStart`, so a resumed run neither loses
-nor doubles them), and sent when the battle ends. They leave in two events, because the server drops any
-event whose props are over 1,024 bytes and the platform's props are flat (0.4):
-
-- `victory`, `defeat`, `battle_quit`: the contract, flat, about 300 bytes. The platform's four triggers read
-  only this.
-- `battle_facts`, sent right after each of the three: gameplay's own numbers for the stats view, flat, short
-  keys, numbers and short strings only, at most 900 bytes in the worst case (a self-test builds it, 8.1; the
-  example below is about 700, and about 850 with every number at six figures). A battle in test mode sends
-  none.
+nor doubles them), and sent as the props of `victory`, `defeat` and `battle_quit`. The first block is the
+platform's contract, names as in its spec; the second is gameplay's own, for the stats view and for
+checking claims. `battleFacts()` returns both as one object. It is nested one level at most, and
+`JSON.stringify(battleFacts())` stays under 3 KB in the worst case (Stepanakert 1992, seven kinds, every
+counter at six figures: a self-test builds it, 8.1): the server keeps an event up to 4,096 bytes as
+PostgreSQL writes it, and drops a larger one without an error.
 
 ```js
-// the contract (platform spec 0.3 and 7.2): props of victory, defeat and battle_quit
-{ lv: "erebuni", diff: 1, mode: "campaign",      // "campaign" | "daily" | "endless"
+{
+  // the contract (platform spec 0.3 and 7.2)
+  lv: "erebuni", diff: 1, mode: "campaign",      // "campaign" | "daily" | "endless"
   ruleset: "2", rev: 1, loadout: "std",          // rev: the battlefield's own revision (6.3); "std" | "open" (6.4)
   wave: 10, waves: 10,                           // waves cleared, the battle's length
   lives: 15, lives_max: 20,                      // the defenders on the walls at the end; the difficulty's
-  held: 15, lives_board: 15, stars: 2,           // never lost; what the boards count (below); from `held`
+  held: 15, lives_board: 15, stars: 2,           // never lost; what the boards count (below); stars from `held`
   sec: 1042,                                     // the battle clock (below)
   spent: 7180, earned: 7630,                     // gold laid out; the starting purse plus every coin paid since
-  twist: "",                                     // the daily's twist id
+  twist: null,                                   // the daily's twist id
   through: "cavalry:3,spearman:2", road: 0,      // a defeat's debrief
-  legacy: false, resumed: 0, how: "" }           // a run under older rules; resumes; battle_quit's "abandon"
+  legacy: false, resumed: 0,                     // a run under older rules (1.7); how many times it was resumed
 
-// battle_facts: gameplay's own (every value a number or a short string; no object, no array)
-{ lv: "erebuni", diff: 1, mode: "campaign", won: 1, kitset: 1, age: "a1", ch: "kingdoms",
-  script: 20, beyond: 0, lost: 6, returned: 1, debt: 0,
-  cmd_met: 3, cmd_felled: 3, tl_ambush: 0, tl_hidden: 1, tl_hunter: 0, tl_adapted: 0,
-  real_s: 688, s_x1: 120, s_x2: 568, s_x4: 0, idle_s: 96,       // real seconds; at each speed; clock run between waves
-  left: 450, refunds: 0,
-  g_bounty: 5200, g_clear: 1500, g_interest: 480, g_early: 110, g_stores: 120,
-  on_build: 2300, on_rank: 3100, on_mastery: 1200, on_land: 275, on_repair: 305,
-  n_archer: 4, n_ballista: 3, n_catapult: 3, n_fire: 2, n_drums: 1, n_post: 1, n_age: 0,    // standing at the end
+  // gameplay's own
+  build: "2026-11-09", kitset: 1, ch: "kingdoms",
+  script: 20,                                    // scriptWave(wave): how far through the 20-step script
+  beyond: 0,                                     // endless: waves held beyond the chronicle
+  lost: 6, returned: 1, debt: 0,                 // lives = lives_max - lost + returned; debt: below
+  cmdMet: 3, cmdFelled: 3, trickLost: { ambush: 0, hidden: 1, hunter: 0, adapted: 0 },
+  realS: 688, speedS: { x1: 120, x2: 568, x4: 0 }, idleS: 96,   // real seconds, pauses left out; at each speed; clock run between waves
+  left: 450, refunds: 0,                         // gold in the purse at the end; gold that sales gave back
+  from: { bounty: 5200, clear: 1500, interest: 480, early: 110, stores: 120 },
+  on: { build: 2300, rank: 3100, mastery: 1200, land: 275, repair: 305 },
+  towers: { archer: 4, ballista: 3, catapult: 3, fire: 2, drums: 1, post: 1 },   // standing at the end
   masteries: 6, built: 15, sold: 1, wrecks: 1, plots: 1,
-  tray: "a,b,c,f,d,p", ban: "",
-  sp_arrows: 6, sp_frost: 7, sp_wrath: 5, calls: 4, hero_lv: 2, hero_falls: 1, hero_kills: 23,
-  council: "11000", power: 2,                  // tiers in force by branch (bows, engines, captains, heralds, stewards); their worth in stars
-  early: 3, auto: 0 }
+  tray: "archer,ballista,catapult,fire,drums,post", ban: "",
+  spells: { arrows: 6, frost: 7, wrath: 5 }, calls: 4, heroLevel: 2, heroFalls: 1, heroKills: 23,
+  council: { bows: 1, engines: 1, captains: 0, heralds: 0, stewards: 0 }, power: 2,   // power: the stars' worth of tiers in force
+  early: 3, auto: false, aided: false, tutorial: false,
+}
 ```
-
-`battleFacts()` returns both as one object for the page's own use (the share card, the victory page).
 
 The counters, as gameplay keeps them:
 - `sec`: the platform's `simSec`, unchanged: the sum of `dt` in `update` from the first wave's horn to the
@@ -1322,7 +1329,7 @@ The counters, as gameplay keeps them:
   there would make "wait out every cooldown before every wave" the best play on every board. Why that is
   fair: towers can be built, ranked and sold while the game is paused, on every device, so thinking is free
   for everyone. The player is told once, on the Standard switch's line and under the boards: "The battle
-  clock runs between waves too. Pause to plan." `idle_s` in the facts is the part of `sec` run between
+  clock runs between waves too. Pause to plan." `idleS` in the facts is the part of `sec` run between
   waves, for the stats.
 - `spent`: gold laid out on towers, ranks, masteries, land, repairs and rebuilds. A sale gives nothing
   back to it, except the full refund of a placement undone within its 5 seconds.
@@ -1331,7 +1338,7 @@ The counters, as gameplay keeps them:
 - `lost`, `returned`, `held`: defenders lost; defenders an Aid Post returned; `held = lives_max - lost`, the
   defenders never lost. `lives = held + returned`. Stars and records are counted from `held`.
 - `debt` and `lives_board`: what a resume costs on the boards (below). `lives_board = max(0, held - debt)`.
-Counters to add (none exist as totals today): `sec`, `idle_s`, `real_s`, the speeds, `earned` and its parts
+Counters to add (none exist as totals today): `sec`, `idleS`, `realS`, the speeds, `earned` and its parts
 (every `gold +=`), `spent`, its parts and `refunds` (`spendGold` gains a reason), `lost`, `returned`, `built`,
 `sold`, spell and Call counts, `early`, `auto`, `resumed`.
 
@@ -1371,8 +1378,9 @@ speed and 1,500 for thrift; a lost daily is under 4,000 by waves. Gameplay owns 
   a battle slower than 1.4 times par earns none (the platform's sentence "0 at par or slower" becomes "0 at
   1.4 times par or slower").
 - Thrift: `T = clamp(1 - spent / earned, 0, 1)`.
-- A lost daily: the platform's `floor(3999 * wave / waves)`, with `waves` the daily's 12. (A daily board
-  holds one battlefield a day, so nothing finer is needed.)
+- A lost daily: by the waves held of the daily's 12 (`floor(3999 * wave / waves)`), or by their script
+  wave if the platform prefers (N6): a daily board holds one battlefield a day, so both rank its losses in
+  the same order.
 - The endless board: `beyond`, ties by less `sec`.
 - One board a difficulty, no multiplier.
 What must never move a score: the speed chosen, pauses, the device (every device can build while paused),
@@ -1384,7 +1392,8 @@ battle is not kept off.
 
 `rulesetData()` returns the object the platform publishes to its server (its section 2.4), built by the
 page from its own tables so it cannot drift from the game. It holds only what a Standard battle is fought
-under: for each battlefield its `waves`, its `rev`, and for each difficulty `lives`, `fast`, `slow` (6.2)
+under: for each battlefield its `waves`, its `script` table, its `rev`, and for each difficulty `lives`,
+`fast`, `slow` (6.2)
 and `earnMax` (the starting purse, every bounty with the plunder mastery, every clear bonus, the interest
 cap on every wave, the early bonus on every wave, two Stores at Caravan: an upper bound on `earned`, with
 the platform's 10% margin); the score's weights; and the daily's part (6.4). Gameplay also puts in, for its
@@ -1423,7 +1432,8 @@ battlefield's whole tray or a part of it. Only what adds power makes a battle `o
 - The Call is part of the kit, like a hero's level: a Standard battle and a daily are fought with today's
   hero, level 1 and no Call. So the Council and the heroes can ship (R2) without touching a Standard board.
 
-`startDaily(levelIndex, twistId)` (the platform chooses both from `rulesetData()`): Normal; a 12-wave stand
+`startDaily(levelIndex, twistId, day)` (the platform chooses the first two from `rulesetData()` and passes
+the day, as its review settled, so the battle is the same with the platform off): Normal; a 12-wave stand
 on every battlefield (`DAILY_WAVES`, 1.1: `SCRIPT_TABLES[12]`, or the battlefield's `dailyScript`); the
 standard loadout with the whole tray for everyone, whether or not the campaign has reached those towers;
 the twist applied; `mode: "daily"`. Why 12 everywhere: a daily is one sitting, is not saved, and an
@@ -1436,8 +1446,8 @@ battlefield the campaign has not reached (its chronicle is shown first, as befor
 `hs_run` alone, and gives hero experience up to 150 a day. Its chronicle shows the twist's card before
 "Begin the Stand".
 Randomness: the few draws that move foes (an outflanker's entry point, line 11193; its path over a lake,
-line 11210; which side an aircraft circles) come from a small generator seeded from the day
-(`Platform.daily().day`) and the battlefield (`gRnd`), so every player meets the same lines; looks
+line 11210; which side an aircraft circles) come from a small generator seeded from `day` and the
+battlefield (`gRnd`), so every player meets the same lines; looks
 (particles, sheep) keep `Math.random`.
 
 The pool: all 17 battlefields by id. `DAILY_TWISTS = [{ id, name, line, apply }]`: `line` is the one
@@ -1470,15 +1480,15 @@ in SQL, steps to the next twist in the list while the day's pair is in `skip` (N
 the bot and committed with the balance tables.
 
 `rulesetData().daily` therefore holds: `pool`, `twists`, `diff: 1`, `attempts: 3`, `waves: 12`, `skip`,
-`levels: { "<lv>": { fast, slow, earnMax } }` (the daily's own pars on the 12-step table), and `t`, for each
-twist the multipliers it puts on `lives`, `fast`, `slow` and `earnMax` (Forced march makes a battle shorter;
-Thin purse makes it poorer; Few defenders sets `lives`).
+`levels: { "<lv>": { script, fast, slow, earnMax } }` (the daily's own 12-step table and its pars), and `t`,
+for each twist the multipliers it puts on `fast`, `slow` and `earnMax` and, for Few defenders, the lives it
+sets (`livesSet`, the platform's name): Forced march makes a battle shorter; Thin purse makes it poorer.
 
 ## 7. Analytics hooks
 
-Gameplay calls `track(name, props)`; it never waits for it and never reads from it. Props are flat objects of
-numbers, booleans and short strings: no nested object, no array, no free text, nothing personal, and under
-900 bytes as JSON (the server drops an event over 1,024 bytes without an error). The platform's spec (7.2)
+Gameplay calls `track(name, props)`; it never waits for it and never reads from it. Props are objects of
+numbers, booleans and short strings, nested one level at most: no free text, nothing personal, and under
+3 KB as JSON (the server drops an event over 4,096 bytes without an error). The platform's spec (7.2)
 lists the events it expects from gameplay and their props; those names are the contract and are sent
 exactly so. The table gives each call's place in today's code, what gameplay adds to the platform's props
 (in brackets), and the events gameplay adds for the new systems. The first block ships with G1, on today's
@@ -1497,10 +1507,9 @@ game; an event of a later package ships with that package.
 | `tower_sold` | `sellTower` 11954 | `type`, `level`, `wave` |
 | `plot_bought` | `buyPlot` 10189 | `lv`, `wave` |
 | `trick_met` | a trick's first-time card shows | `lv`, `wave`, `trick` |
-| `victory` | `victory` 11451 | the contract's props (6.1) |
-| `defeat` | `defeat` 11839 | the contract's props, with `through` and `road` |
-| `battle_quit` | Settings, Abandon; Replay tutorial from a battle | the contract's props, with `how: "abandon"` |
-| `battle_facts` (new) | right after `victory`, `defeat` and `battle_quit` | gameplay's own numbers (6.1) |
+| `victory` | `victory` 11451 | the contract's props and gameplay's own (6.1) |
+| `defeat` | `defeat` 11839 | the same, with `through` and `road` |
+| `battle_quit` | Settings, Abandon; Replay tutorial from a battle | the same, with `how: "abandon"` |
 | `map_open` (new) | `buildMenu` 55002, when the map is shown | `ch`, `open` (battlefields open), `stars`, `unspent` |
 | `star_gain` (new) | `recordWin` 10970, when the tally rises | `lv`, `diff`, `stars`, `hard` (the seal), `total` |
 | `endless_start` (new) | Hold Forever | `lv`, `diff` |
@@ -1513,9 +1522,9 @@ game; an event of a later package ships with that package.
 
 Not sent (cut from the first version: the per-visit cap is 600 events and these answer no question the
 owner has asked): `foe_card`, `brief_page`, `speed_set`, `auto_set`, `captains_open`. The speeds a battle was
-played at are in `battle_facts`.
+played at are in its facts (`speedS`).
 Volume: the tower events are 30 to 60 a battle and the platform keeps 40 a battle; the counts in `wave_end`
-and `battle_facts` carry the same story.
+and in the battle's facts carry the same story.
 The funnel the gate's cost is read from (D3) runs on through these: the platform's gate events, then
 `brief_open`, `battle_start` with `tutorial`, `tutorial_step` by step, `wave_end` for waves 1 to 3,
 `victory` or `defeat` or `battle_quit`, the second `battle_start`. Under the harness `track` only fills the
@@ -1551,16 +1560,15 @@ Suite 2's checks, by the package that brings them:
   6.1 and its sums hold (`lives = held + returned`, `held = lives_max - lost`,
   `left = earned - spent + refunds`); `sec` grows between waves, does not grow while paused, and is the same
   at 1x and 2x for the same battle; a tower can be built while paused; with the page's event queue, a staged
-  battle sends the events of section 7 in order; every gameplay event's props are flat (no object or array
-  value) and under 900 bytes on the worst case (Stepanakert 1992, seven kinds, every counter at six
-  figures); `rulesetData()` has 17 battlefields, `fast < slow` on each difficulty of each, and its pins hold
+  battle sends the events of section 7 in order; every gameplay event's props are nested one level at most
+  and under 3 KB on the worst case (Stepanakert 1992, seven kinds, every counter at six figures); `rulesetData()` has 17 battlefields, `fast < slow` on each difficulty of each, and its pins hold
   (`RULESET_PIN`, each battlefield's `rev` pin).
 - G1, resumes: a run saved in the middle of a wave with two defenders lost resumes with the wave to fight
   again, its clock kept, and a debt of 2 when the wave is then cleared without loss, of 0 when it loses 2
   or more again; a run saved between waves resumes with no debt; a run saved with a spell cooling and the
   hero fallen resumes with the spell still cooling and the hero still away.
 - G2, Council: stars counted from records with the Hard seal; a tier needs the one under it and its
-  chapter; reset returns everything; `Cloud`-style merge of two `hs_council` values takes the later `t` (a
+  chapter; reset returns everything; the merge of two `hs_council` values takes the larger `n` (a
   reset on one side survives) and a forged value is cut down by `councilSane`; the panel's numbers equal
   `getStats`; the standard order gives 4.8's rows; `KITSET_PIN`; the loadout tag is `std` with the empty
   kit and any tray that is part of the battlefield's, `open` with a tier in force; the page is staged at
@@ -1669,8 +1677,8 @@ on its card); `deploy/check-page.js`; and the self-test, `tools/regress/run-all.
 
 | WP | What | Needs | Done when |
 |---|---|---|---|
-| G1 | Hooks and numbers on today's game, no rule changed: the `track` calls of section 7's first block; the battle's counters, `battleFacts()`, the two flat events; `redo` and the debt of a resumed wave; `rules` on saved runs; `rulesetData()`, `RULESET = 1`, `LEVEL_REV` and their pins for today's 20-wave game; the loadout tag (`std` unless a gift of gold paid); suite 2 and the runner's budget. | the platform's P0 (or a three-line stub of `track`, `CLOUD_KEYS`, `HALL_TABS`) | Suite 1 untouched and green; suite 2's G1 checks; the regression suite green with no edit; the bot's tables equal master's cell for cell; the baseline tables with the clock committed (the pars of ruleset 1); playtest 7. |
-| G2 | The War Council (4.1 to 4.3, 4.6 to 4.8): stars with the Hard seal, the kit inside `getStats`, costs, the panel and its doors, the Standard switch, `hs_council`, `KITSET`, `KIT=` in the bot. | G1 | Suite 2's Council checks; `doors`, `vic`, `iphone` green; the bounds of 5.2 at `KIT=par` and `cap`; with an empty Council the bot's tables equal G1's cell for cell (no battlefield retuned, `RULESET` unchanged, no board restarted); playtest 4. |
+| G1 | Hooks and numbers on today's game, no rule changed: the `track` calls of section 7's first block; the battle's counters, `battleFacts()` and its size test; `redo`, `cd` and the debt of a resumed wave; `rules` on saved runs; `rulesetData()`, `RULESET = 1`, `LEVEL_REV` and their pins for today's 20-wave game; the loadout tag (`std` unless a gift of gold paid); suite 2 and the runner's budget. | the platform's P0 (or a three-line stub of `track`, `CLOUD_KEYS`, `HALL_TABS`) | Suite 1 untouched and green; suite 2's G1 checks; the regression suite green with no edit; the bot's tables equal master's cell for cell; the baseline tables with the clock committed (the pars of ruleset 1); playtest 7. |
+| G2 | The War Council (4.1 to 4.3, 4.6 to 4.8): stars with the Hard seal, the kit inside `getStats`, costs, the panel and its doors, the Standard switch, `hs_council`, `KITSET`, `KIT=` in the bot. | G1, the platform's P0 (the Hall's shell) | Suite 2's Council checks; `doors`, `vic`, `iphone` green; the bounds of 5.2 at `KIT=par` and `cap`; with an empty Council the bot's tables equal G1's cell for cell (no battlefield retuned, `RULESET` unchanged, no board restarted); playtest 4. |
 | G3 | Heroes (4.4): experience per chapter, levels, the Call (Stand Fast), the captains' lines, the chronicle's hero card, `hs_heroes`, `HERO=hold` in the bot. | G2 | Suite 2's hero checks; the hero's worth measured (`HERO=hold` against `off`) and inside the kit's bounds; playtest 4. |
 | G4 | The script map and the 17 lengths (section 1), retuned (5.6): `script` on saved runs, the records' `beyond`, every text, Erebuni's own table, `waves.js`. | G1 | Suite 1 green with its edits; suite 2's waves and old-saves checks; before retuning, the bot's tables for Sis and Sardarapat equal master's cell for cell; after it, the bands of 5.1 on all three difficulties at SEEDS=3 and wave time within 15% of 1.2; `waves.js` green; a 20-wave run saved on master resumes and wins; playtests 1 and 5. |
 | G5 | The tray of n tiles and the Garrison Post (sections 2, 3.7, 3.8): numbers, men, rally by mouse and touch, art, the card, `tray` on saved runs, the bot's rule, its tuning. | G4 | Suite 2's post and tray checks; `padplace`, `probe`, `iphone`, `live` green; "mix7" and the post builds meet 5.2; playtests 2 and 6. |
@@ -1706,7 +1714,7 @@ Already cut by the review, not to be brought back without a reason from the stat
 the captains, a Call of its own for each chapter, experience for the hero's kills and for the endless
 stand, the events of section 7's "not sent" list, the twists `scouts`, `sappers`, `pair`, `wary`, `press`,
 `dusk`.
-Never cut: the flat events and their size test; the clock as 6.1 defines it; runs that finish under the
+Never cut: the events' size test; the clock as 6.1 defines it; runs that finish under the
 rules they began with; the rally point by touch; the kit's bounds; the tutorial's fixture check and
 Erebuni's two-kinds rule; the three design rules of 3.1.
 
@@ -1741,40 +1749,66 @@ Erebuni's two-kinds rule; the three design rules of 3.1.
 
 ### 9.5 What gameplay needs from the platform
 
-The platform's spec already lists what it needs from gameplay (its 0.3); sections 0.1, 6 and 7 here answer
-each item in its own names. The other way (N3 and N6 of the first version are withdrawn: the clock is the
-platform's, and a lost daily is scored as the platform wrote it):
+The platform's spec lists what it needs from gameplay (its 0.3); sections 0.1, 6 and 7 here answer each
+item in its own names. The platform's own review (`docs/specs/platform-critique.md`, its issue 17) settled
+seven seam points against the first version of this spec while this review was being written. Where the two
+reviews agree the settlement is simply adopted here. Where they do not, it is marked DIFFERS: those three
+points must be settled once more between the two final specs, and since gameplay owns the rules a score is
+computed from (the platform's review says so), this spec's rule is the one proposed.
 
+Adopted from the platform's review:
+- The server keeps an event up to 4,096 bytes with one level of nesting; gameplay holds
+  `JSON.stringify(battleFacts())` under 3 KB (6.1).
+- `daily.skip[battlefield]`: the pick walks to the next twist; a twist may set lives outright (`livesSet`).
+- `startDaily(levelIndex, twistId, day)`.
+- The Hall's shell ships with the platform's P0 and works on `file://` and under the harness, so gameplay
+  builds no page of its own (4.6).
+- `hs_records` merges every numeric field per difficulty by the larger, so `beyond` needs no rule of its
+  own. The platform's own stamp says which saved run is newer. After a merge the page calls
+  `onSavesChanged()`, and no merge rewrites gameplay's keys while a battle is on the field.
+- The victory page on a phone held sideways has no room for a new row (4.6).
+
+What gameplay asks:
 - N1. `track`, `CLOUD_KEYS` and `HALL_TABS` declared before gameplay's code (the platform's P0), and
   `track` sending nothing under `file://`, `?selftest` and `?shot`, so the bot, the self-test and the
   regression suite run as today. The gate and the cloud stay off there too.
-- N2. A merge function for each of gameplay's keys, as 4.7 gives them (`hs_council`: the later `t`, then
-  `councilSane`; `hs_heroes`: per chapter the larger; `hs_towers_seen`: union; `hs_records`: `beyond` by
-  the larger, like its stars). After a pull that changed a key, a call to `onSavesChanged()` so the map,
-  the tally and the kit are read again. A pull never lands while a battle is on the field.
+- N2. A merge function for each of gameplay's keys, as 4.7 gives them (`hs_council`: the larger change
+  count `n`, then `councilSane`; `hs_heroes`: per chapter the larger; `hs_towers_seen`: union).
+- N3 (DIFFERS). The battle clock. The first version of this spec asked for wave time only, and the
+  platform's review granted it. This review withdraws that request: the clock is the platform's own first
+  definition, all of `dt` from the first horn, waiting between waves included. Reasons (6.1): the spells,
+  the hero, the Call, a mine and the men all recover between waves, so a clock that stops there makes
+  waiting out every cooldown the best play on every board; and building works while the game is paused
+  (TESTED), so thinking is free for everyone. `fast` and `slow` are in that clock, and `slow` is 1.4 times
+  par ("0 at 1.4 times par or slower").
 - N4. The Hall hosts one gameplay tab, the Council, from `HALL_TABS`, and gives it a content box of at
   least 560 x 280 px on a phone held sideways. The tally's one pip is shared ("stars to spend" or "daily
   unplayed"); the Hall opens on the Council tab while stars are unspent.
-- N5. The Standard boards take `loadout: "std"` battles that are not `legacy`, `aided` or `tutorial`.
-  Resumed battles are taken. `p_stats.lives` is filled from the event's `lives_board` and the stars shown
-  are the event's `stars`. The Open boards may show `power` and the hero's level beside a score.
-- N7. The victory page: one row for gameplay (`#ovGrowth`: the hero's bar and the Council button, 44 px on
-  a phone) between `#ovRecord` and the platform's score strip. The phone's top right corner stays the
-  platform's, as it asks.
+- N5 (DIFFERS). Who is ranked. The Standard boards take `loadout: "std"` battles that are not `legacy`,
+  `aided` or `tutorial`. The platform's review expects a battle with a wave fought twice to arrive as
+  `open`; in this spec it stays `std` and stays ranked, and what it costs is in its numbers:
+  `p_stats.lives` is filled from the event's `lives_board` (never more than `lives`), `sec` already holds
+  the dropped attempt's time, and the stars shown are the event's `stars`. A new player's short tray is
+  also `std` (6.4). The Open boards may show `power` and the hero's level beside a score.
+- N6 (DIFFERS, small). A lost daily. The platform's review scores it by script wave, read from the
+  battlefield's table in the ruleset. With every daily at 12 waves (6.4) the day's table is the daily's:
+  `rulesetData().daily.levels[id].script`. Scoring by `wave / 12` ranks a day's losses in the same order,
+  so either will do; the table is there for whichever the platform keeps.
+- N7. The victory page: on desktop, iPad and the upright phone one row for gameplay (`#ovGrowth`) between
+  `#ovRecord` and the platform's score strip; on a phone held sideways one line of text in place of the
+  last line of the page's prose (4.6). The phone's top right corner stays the platform's.
 - N8. The chronicle: `#briefKit` under the tricks row (it holds the Standard switch). The platform adds
   nothing to the chronicle's left column.
 - N9. The share card may read `battleFacts()` and `renderBriefArt(lvl)`; it needs nothing else from the
   battle.
-- N10. The daily: `rulesetData().daily` gains `waves` (12), `levels` (the daily's own `fast`, `slow`,
-  `earnMax` per battlefield) and `skip`; the pick, in the page and in `hs_private.daily_pick`, steps to
-  the next twist while the day's pair is in `skip`; a daily run's wave count is checked against
-  `daily.waves`; a twist's name for the share text comes from `twistName(id, levelIndex)`.
+- N10. The daily: `rulesetData().daily` gains `waves` (12) and `levels` (for each battlefield the daily's
+  own `script`, `fast`, `slow`, `earnMax`); a daily run's wave count is checked against `daily.waves`; a
+  twist's name for the share text comes from `twistName(id, levelIndex)`.
 - N11. A battlefield's `rev` in the board's key (`c:<level>:<diff>:<loadout>:<rev>`), so a change to three
   battlefields restarts three boards. If declined, boards stay per `RULESET` and every tower release
   restarts all of them: the owner should then weigh shipping the five towers in fewer releases.
-- N12. The words under the boards and on the score's tooltip: "0 at 1.4 times par or slower" for speed, and
-  "The battle clock runs between waves too. Pause to plan."
-- N13. The stats view reads `battle_facts` beside `victory` and `defeat` (same visit, the next event).
+- N12. The words under the boards and on the score's tooltip: "The battle clock runs between waves too.
+  Pause to plan."
 
 ### 9.6 What the owner should decide
 
@@ -1807,21 +1841,23 @@ platform's, and a lost daily is scored as the platform wrote it):
 
 ## Appendix A. Changes made after the review
 
-By the issue numbers of `docs/specs/gameplay-critique.md`.
+By the issue numbers of `docs/specs/gameplay-critique.md`. The platform's own review
+(`docs/specs/platform-critique.md`) was written at the same time against the first version of this spec;
+what this spec adopts from it and where the two still differ is 9.5.
 
 | Issue | Severity | What changed in this spec |
 |---|---|---|
-| 1 | blocker | 6.1, 7, 8.1: the battle's numbers leave in two flat events (`victory` / `defeat` / `battle_quit` with the contract, then `battle_facts`), each under 900 bytes, with a self-test for flatness and size. |
-| 2 | blocker | 0.1, 6.1, 6.2: the clock is the platform's `simSec` (waiting between waves counts, pauses do not); N3 withdrawn; the player is told "Pause to plan"; pars measured in this clock. |
+| 1 | blocker | 0.1, 6.1, 7, 8.1: the platform's review found the same and raised the server's limit to 4,096 bytes with one level of nesting; this spec keeps the battle's numbers in one event and holds them under 3 KB with a self-test. |
+| 2 | blocker | 0.1, 6.1, 6.2, N3: the clock is the platform's first definition (waiting between waves counts, pauses do not); the first version's request for wave time is withdrawn, though the platform's review had granted it (DIFFERS in 9.5); the player is told "Pause to plan"; pars measured in this clock. |
 | 3 | major | 6.4: `std` is "nothing beyond the standard set"; a short tray is `std`. |
-| 4 | major | 6.1, 6.2, 4.7, 8.1, 8.4: resumed battles stay ranked; `redo`, the debt, `lives_board`. |
-| 5 | major | 4.7: `hs_council` carries `t` and the later one wins; the heroes' floor is derived, not written once. |
+| 4 | major | 6.1, 6.2, 4.7, 8.1, 8.4, N5: resumed battles stay `std` and ranked; `redo`, the debt, `lives_board` (DIFFERS in 9.5: the platform's review expects them as `open`). |
+| 5 | major | 4.7: `hs_council` carries a count of its changes and the later change wins; the heroes' floor is derived, not written once. |
 | 6 | major | 6.3, 4.7: `KITSET` apart from `RULESET`; a `rev` for each battlefield (N11). |
-| 7 | major | 6.4: `daily.skip` with a stepping pick (N10); three fixed "no tower" twists; `dusk` cut. |
+| 7 | major | 6.4: `daily.skip` with a stepping pick (the platform's review built the same); three fixed "no tower" twists; `dusk` cut. |
 | 8 | major | 1.1, 1.2, 6.4: every daily is a 12-wave stand; Avarayr's `dailyScript`; the daily's own pars. |
-| 9 | minor | 6.2: N6 withdrawn. |
-| 10 | major | 4.6: the Council panel fits the Hall's box (560 x 280 on a phone), one tab. |
-| 11 | minor | 6.2: `slow` is 1.4 times par in both specs (N12). |
+| 9 | minor | 6.2, N6: `script / 20` is no longer asked for; the daily's table is in the ruleset for whichever way the platform scores a loss. |
+| 10 | major | 4.6: the Council panel fits the Hall's box (560 x 280 on a phone), one tab; no page of gameplay's own; one line of text on the phone's victory page. |
+| 11 | minor | 6.2: `slow` is 1.4 times par in both specs (N3). |
 | 12 | major | 4.8, 5.1, 5.2, 5.6: the Standard battle is the reference; the kit is a bounded bonus; one tuning round fewer. |
 | 13 | major | 5.3: the first six are tuned by their tricks and economies first; Mari's own line. |
 | 14 | major | 1.2, 1.3: Erebuni's own table and its two-kinds rule; its scouts from script wave 7. |

@@ -46,6 +46,9 @@ most 500 bytes). The rest goes in one more event, `battle_facts`, sent right aft
 and short strings only (a tray is `"a,b,c,f,d,p"`, a tower count is `n_archer: 4`), at most 900 bytes. A
 self-test builds the worst case (Stepanakert 1992, every kind, six-figure gold, every counter in two digits)
 and fails over 900 bytes or on any nested value in any gameplay event.
+(Superseded: the platform's review fixed the same finding on the server, 4,096 bytes an event and one level
+of nesting. The final spec adopts that and keeps one event with a size test under 3 KB. See the cross-check
+at the end.)
 
 **2. Blocker. The two specs disagree on the battle clock, and the gameplay spec's clock (wave time only, N3)
 makes waiting the best play on every board.**
@@ -95,8 +98,8 @@ last branch first" when the cost is over the stars earned. A player who resets o
 stars from Bowmen to Stewards has, after the merge with the cloud's older copy, both at once; `councilSane`
 then cuts Stewards first. The respec is silently reversed. A reset is free and stars are derived from records,
 so nothing is lost if the newer choice simply wins.
-Fix: `hs_council = { v: 1, own: {...}, t: <ms of the last change> }`; the merge is the value with the later
-`t`, then `councilSane()`. For `hs_heroes`, keep "the larger number" and also make the veteran's floor a
+Fix: `hs_council = { v: 1, own: {...}, n: <a count of its changes> }`; the merge is the value with the larger
+`n` (a count, not a time: a device's clock cannot be trusted), then `councilSane()`. For `hs_heroes`, keep "the larger number" and also make the veteran's floor a
 derived value, not a one-time write: `heroXp(ch) = max(stored, 300 x battlefields of that chapter already
 won)`, so it is right whatever order the records and the heroes arrive in from the cloud.
 
@@ -143,7 +146,7 @@ buttons in the header" for tabs. But the page is a tab of the platform's Hall, w
 keeps a 64 px column of tabs at the left (platform 5.5). On an SE that leaves about 580 px.
 Fix: the tree's five columns share what is left after the strip: pitch `(W - 170) / 5`, 78 px at the least (44
 px medallions), so it fits a content box of 560 x 280 px. `iphone.js` holds it at the three sideways sizes.
-The same panel must also fit the bare page gameplay uses until the Hall is merged.
+(The platform's review ships the Hall's shell in P0, so gameplay needs no page of its own.)
 
 **11. Minor. `slow` means two things.** The platform's `S` is "0 at par or slower"; 6.2 sets
 `slow = 1.4 x parS` so that "a battle at par earns half the speed points". Keep gameplay's numbers (a par
@@ -339,6 +342,27 @@ no cooldown, and `resumeRun` begins from `resetGame`, so after a reload the thre
 fallen hero is back. With a clock that counts waiting, a reload between waves is then the free way to wait
 out the cooldowns. Fix: the run keeps `cd` (the spells' clocks, the Call's, the hero's strength and seconds
 to return, a mine's arming) as they stood at the save, and a resume restores them.
+
+## Cross-check with the platform's review
+
+`docs/specs/platform-critique.md` was written at the same time, against the same first version of the
+gameplay spec, and its issue 17 settles seven seam points. Read against this critique:
+
+| Point | The platform's review | This review | In `gameplay.final.md` |
+|---|---|---|---|
+| Event size (issue 1 here, 6 there) | The same finding; fixed on the server: 4,096 bytes an event, one level of nesting, `battleFacts()` under 3 KB | A split into two flat events under 900 bytes | The platform's fix is adopted: one event, a size test under 3 KB. The split is dropped. |
+| The battle clock (issue 2 here, 17a there) | Grants gameplay's first request: wave time only | The request was wrong; waiting must count | DIFFERS. The final withdraws the request (N3). Must be settled again. |
+| A lost daily (issue 9 here, 17b there) | By script wave, read from the table in the ruleset | `wave / waves` is enough for one battlefield a day | Either; the daily's table is in the ruleset (N6). |
+| Twists a battlefield may get (issue 7 here, 17c there) | `daily.skip`, the pick walks on | The same | Agreed. |
+| Who is ranked (issue 4 here, 17e there) | A run with a wave fought twice arrives `open` | It stays `std`; the worse attempt counts | DIFFERS (N5). Must be settled again. |
+| The Hall (issue 10 here, 17f there) | Its shell ships in P0 and works under the harness: one page | The Council panel must fit the Hall's box | Agreed; gameplay builds no page of its own. |
+| The daily's dice (17g there) | `startDaily(levelIndex, twistId, day)` | Not raised | Adopted. |
+| The newer of two saves | The platform's stamp, not a device clock | `hs_council` stamped with a time | The final uses a count of changes (`n`), not a time (issue 5). |
+| The phone's victory page | Full to the pixel: no new row | Not measured | Adopted: one line of text there. |
+
+New asks the platform's review has not seen: a battlefield's `rev` in the board key (issue 6), the daily's
+12 waves and its own pars (issue 8), `lives_board` for the boards (issue 4), saved cooldowns (issue 36, a
+gameplay change with no platform part).
 
 ## Rejected on reflection (not issues)
 
