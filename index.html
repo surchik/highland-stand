@@ -2531,6 +2531,25 @@
     }
     #hall .hlBody { margin-top: 6px; font-size: 15px; line-height: 1.4; }
   }
+  /* the trailer on a first visit (Trailer): the video as large as the screen allows at 16:9, the button under it */
+  #trailer {
+    position: fixed; inset: 0; z-index: 9000; background: radial-gradient(ellipse at center, #2a1c0e 0%, #0d0804 75%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    padding: calc(10px + var(--sat, 0px)) calc(10px + var(--sar, 0px)) calc(10px + var(--sab, 0px)) calc(10px + var(--sal, 0px));
+    box-sizing: border-box; font-family: var(--face);
+  }
+  #trailer .tFrame {
+    width: min(92vw, calc((100vh - 110px) * 16 / 9), 1280px); aspect-ratio: 16 / 9;
+    border: 2px solid var(--bronze-sh, #6b4a1f); border-radius: 10px; overflow: hidden; background: #000;
+    box-shadow: 0 10px 40px rgba(0,0,0,.7);
+  }
+  #trailer video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  #trailer .tBtns { display: flex; align-items: center; gap: 18px; }
+  #trailer #trailerPlay { min-height: 48px; font-size: 22px; padding: 10px 44px 12px; }
+  #trailer .tSkip {
+    min-height: 44px; min-width: 64px; background: none; border: none; color: #d9c49a; font: inherit; font-size: 16px;
+    text-decoration: underline; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -77798,6 +77817,64 @@ const Platform = {
   // the defeat page is up: a lost daily's score goes on it here (5.5)
   defeatPage() {},
 };
+// ---------- the trailer: the first thing a new visitor sees ----------
+// A first visit over the web opens on the trailer (trailer.mp4 beside the page, at the site's root so a build
+// under /next/ shows the same file), muted and looping as browsers allow a video to start by itself, with one
+// button into the game. It is shown once: closing it in any way marks it seen. It never shows under the harness,
+// on file://, or to a browser driven by a test (navigator.webdriver), so every test meets the page as before.
+// If the video cannot load, the poster stands in; with reduced motion asked for, the video waits for a tap.
+// While it is open it takes every key, so no hotkey reaches the game behind it.
+const Trailer = (() => {
+  const KEY = "hs_trailer_seen";
+  let el = null;
+  function wanted() {
+    if (HARNESS_ON || !/^https?:$/.test(location.protocol)) return false;
+    try { if (navigator.webdriver) return false; } catch (e) {}
+    try { return !localStorage.getItem(KEY) && !localStorage.getItem("hs_tutorial_done"); } catch (e) { return false; }
+  }
+  function close() {
+    if (!el) return;
+    try { localStorage.setItem(KEY, "1"); } catch (e) {}
+    const v = el.querySelector("video");
+    try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {}
+    el.remove();
+    el = null;
+    try { startBtn.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function open() {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el = document.createElement("div");
+    el.id = "trailer";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "Highland Stand trailer");
+    el.innerHTML = '<div class="tFrame"><video playsinline muted loop preload="auto" poster="/trailer-poster.jpg"' + (still ? ' controls' : ' autoplay') +
+      ' aria-label="Trailer: 30 seconds of the game"><source src="/trailer.mp4" type="video/mp4"><source src="/trailer.webm" type="video/webm"></video></div>' +
+      '<div class="tBtns"><button type="button" class="btn" id="trailerPlay">Play now</button>' +
+      '<button type="button" class="tSkip" id="trailerSkip">Skip</button></div>';
+    document.body.appendChild(el);
+    const v = el.querySelector("video");
+    v.muted = true;   // iOS starts a video by itself only when it is muted in the DOM property too
+    if (!still) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+    v.addEventListener("error", () => { v.removeAttribute("autoplay"); }, true);
+    el.querySelector("#trailerPlay").addEventListener("click", close);
+    el.querySelector("#trailerSkip").addEventListener("click", close);
+    try { el.querySelector("#trailerPlay").focus({ preventScroll: true }); } catch (e) {}
+  }
+  // first in line for every key: Enter, Space and Escape close it, Tab stays between its two buttons
+  window.addEventListener("keydown", (e) => {
+    if (!el) return;
+    e.stopImmediatePropagation();
+    if (e.key === "Escape" || ((e.key === "Enter" || e.key === " ") && !(e.target && e.target.closest && e.target.closest("#trailer button")))) { e.preventDefault(); close(); return; }
+    if (e.key === "Tab") {
+      const b = [...el.querySelectorAll("button")], i = b.indexOf(document.activeElement);
+      e.preventDefault();
+      b[(i + (e.shiftKey ? b.length - 1 : 1)) % b.length].focus();
+    }
+  }, true);
+  return { boot() { if (wanted()) open(); }, isOpen: () => !!el, close };
+})();
+Trailer.boot();
 
 // ---------- main loop ----------
 let last = performance.now();
