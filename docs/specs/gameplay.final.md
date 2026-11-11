@@ -83,11 +83,14 @@ and nothing retuned. Same bot, same seeds:
   an ellipsis ("Defense Army rif…"). So seven tiles fit, and only the longest names need a short form (3.8).
 - The self-test alone takes 117 s of wall time on this machine; two at once take 120 and 121 s each. Two
   suites side by side fit under 125 s with 4 s to spare (8.1).
-- The spec's own example of a battle's numbers is 1,089 bytes as JSON: over the server's limit for one
+- The first version's example of a battle's numbers is 1,063 bytes as JSON: over the server's limit for one
   event. Hence the split in 6.1.
 - `update()` runs the spells' and the hero's clocks in every phase (lines 12052 to 12053), and a tower can be
-  built while the game is paused (no pause test in `placeTower`, `upgradeTower` or the field's `pointerdown`
-  handler; only `startWave` refuses). Hence the clock of 6.1.
+  built while the game is paused: there is no pause test in `placeTower`, `upgradeTower` or the field's
+  `pointerdown` handler (only `startWave` refuses), and it was TESTED on master with the regression
+  library: Pause pressed, a tile pressed, a pad pressed, by mouse at 1600 x 900 and by a finger at
+  667 x 320: one tower built, 50 gold spent, the game still paused (`docs/specs/gameplay-review/`). Hence the
+  clock of 6.1.
 
 ## 1. Wave counts (D4)
 

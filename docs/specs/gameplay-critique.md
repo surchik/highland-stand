@@ -18,6 +18,10 @@ What was checked, and how:
 - MEASURED: the bot plays 4 battles in 10 s with four jobs, so a full table (17 battlefields, 14 builds, 3
   seeds) is about 30 minutes a difficulty. The tuning plan is affordable.
 - MEASURED: the self-test alone and two self-tests side by side on this 4-core machine (issue 31).
+- TESTED on master with the regression library (`tools/regress/lib.js`): Pause pressed, then a tile, then a
+  pad, by mouse at 1600 x 900 and by a finger at 667 x 320: a tower is built and paid for while the game
+  stays paused (issue 2 rests on this).
+- The scripts and the picture of these runs are in `docs/specs/gameplay-review/`.
 - NOT checked: nothing new was built. Every tower, Council and hero number is still a starting value. The
   history items marked CHECK still need a source read in the text audit.
 
@@ -31,7 +35,8 @@ suite, the facts a battle keeps.
 
 **1. Blocker. The battle's result never reaches the stats: `victory`, `defeat` and `battle_quit` are too
 large for the server and are dropped.**
-Evidence: the spec's own example of a battle's numbers (6.1) is 1,089 bytes as JSON with short names and small
+Evidence: the spec's own example of a battle's numbers (6.1) is 1,063 bytes as JSON (1,089 with a longer
+battlefield id and a seventh kind of tower), with short names and small
 numbers, and it holds nested objects and arrays (`trickLost`, `speedS`, `from`, `on`, `towers`, `tray`,
 `spells`, `council`). `platform/schema.sql` line 584 skips any event whose props are over 1,024 bytes, without
 an error, and the platform's 7.2 says props are flat. The spec's own test bound is "under 2 KB". Analytics is
