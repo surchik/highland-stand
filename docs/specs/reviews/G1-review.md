@@ -153,7 +153,7 @@ Name it to the platform track; no gameplay rule changes.
 | reviewer's fixtures from `next` and `master`, checked on `gp/work` | PASS, 4 fixtures |
 | `node tools/ruleset.js` and `--json` | pins match; JSON equals `docs/specs/balance/ruleset-1.json` |
 | `probe.js`, `probe2.js` | results quoted above |
-| `node tools/regress/run-all.js` (full) | RUNALL_RESULT |
+| `node tools/regress/run-all.js` (full, no script edited, load 5 to 14) | PASS, 9 of 9 in 2561 s: padplace 719 s, plots 209 s, probe 214 s, vic 578 s, nag 85 s, dance10 143 s, live 305 s, doors 23 s (1 known: the hidden town's start card, not G1), iphone 285 s (657 states, 10 sizes, 0 fails); no rerun needed |
 
 ## What I could not check
 
