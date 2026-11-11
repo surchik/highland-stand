@@ -734,8 +734,9 @@ $$;
 -- p_events: [ { n: name, q: sequence number, t: device clock in ms, p: { ... } }, ... ] (50 at most, 60 KB at most)
 -- Limits count events, not calls. A visitor's events draw on one pool for all visitors (ev_cap_hour, default
 -- 20000 an hour) and 900 an hour per device id (the pool is charged only for events the device's limit lets through); a signed-in player's draw on his own 1500 an hour and on no pool,
--- so a flood of made-up visitors cannot starve the players' counts. Over ev_max_mb megabytes of events (default
--- 1024) visitors' events are dropped; over one and a half times that, everyone's. Over a limit: dropped, no error.
+-- so a flood of made-up visitors cannot starve the players' counts. Over ev_max_mb megabytes of events and visits
+-- together (hs_events and hs_sessions, which grow about as much; default 1024) visitors' events are dropped; over
+-- one and a half times that, everyone's. Over a limit: dropped, no error.
 create or replace function public.hs_track(p_ctx jsonb, p_events jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_uid uuid := hs_private.uid_or_null(); v_aid uuid; v_sid text; n integer; e jsonb; v_ok integer := 0;
@@ -756,7 +757,7 @@ begin
          coalesce((select hs_private.int_or_null(value #>> '{}') from public.hs_config where key = 'ev_max_mb'), 1024),
          coalesce((select hs_private.int_or_null(value #>> '{}') from public.hs_config where key = 'ev_keep_days'), 180)
     into v_cap, v_max_mb, v_keep;
-  v_mb := pg_total_relation_size('public.hs_events') / 1048576.0;
+  v_mb := (pg_total_relation_size('public.hs_events') + pg_total_relation_size('public.hs_sessions')) / 1048576.0;
   if v_uid is null then
     -- the pool is read first (one row, not added to), so a flood of made-up device ids adds no rows of its own
     -- once the pool is dry; then the device's own limit; and only a batch both let through is charged to the
@@ -1038,6 +1039,18 @@ create or replace view hs_private.v_sessions as
 create or replace view hs_private.v_first_seen as
   select aid, min(day) as first_day from hs_private.v_sessions group by aid;
 
+-- The game's own visits: not the owner's ?stats nor the ?privacy page (page_load's page; a visit whose page_load
+-- has none, from a page before it was sent, is the game's). The funnel and the gate card read only these, so a
+-- reader of the privacy page is no new device that skipped the gate, and the owner's sign-ins on ?stats are no
+-- players' sign-ins. Totals and Devices still count every visit.
+create or replace view hs_private.v_game_sessions as
+  select s.* from hs_private.v_sessions s
+  where not exists (select 1 from public.hs_events e where e.sid = s.sid and e.name = 'page_load'
+                    and coalesce(e.props ->> 'page', 'game') <> 'game');
+
+create or replace view hs_private.v_game_first_seen as
+  select aid, min(day) as first_day from hs_private.v_game_sessions group by aid;
+
 drop view if exists hs_private.v_battles;
 create or replace view hs_private.v_battles as   -- one row per battle ended
   select e.ts, s.day, s.aid, s.person, s.dev_class, e.name,
@@ -1064,26 +1077,27 @@ begin
   -- one kind: "new" (no battlefield held at its first load), "returning" (it had progress: a player from before
   -- the accounts), or "inapp" (its first gate was in another app's browser). Two steps are not taken from the
   -- page's word: signed_in is a visit that carried an account, name_set is that account having a profile.
+  -- A device enters it only through the game's own page (v_game_sessions): ?stats and ?privacy are left out.
   with first_load as (
       select distinct on (s.aid) s.aid, hs_private.int_or_null(e.props ->> 'progress') as progress
-      from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid where e.name = 'page_load' order by s.aid, e.ts),
+      from public.hs_events e join hs_private.v_game_sessions s on s.sid = e.sid where e.name = 'page_load' order by s.aid, e.ts),
     newcomers as (
       select fs.aid, case
-          when exists (select 1 from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
+          when exists (select 1 from public.hs_events e join hs_private.v_game_sessions s on s.sid = e.sid
                        where s.aid = fs.aid and e.name = 'gate_shown' and e.props ->> 'state' = 'inapp') then 'inapp'
           when coalesce(fl.progress, 0) > 0 then 'returning' else 'new' end as kind
-      from hs_private.v_first_seen fs left join first_load fl on fl.aid = fs.aid where fs.first_day >= v_from),
+      from hs_private.v_game_first_seen fs left join first_load fl on fl.aid = fs.aid where fs.first_day >= v_from),
     steps (ord, name) as (values (1, 'page_load'), (2, 'gate_shown'), (3, 'provider_tapped'), (4, 'signed_in'), (5, 'name_set'),
       (6, 'battle_start'), (7, 'tutorial_done'), (8, 'wave_end'), (9, 'victory')),
     kinds (kind) as (values ('new'), ('returning'), ('inapp')),
     did as (
-      select distinct nc.aid, nc.kind, e.name from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid
+      select distinct nc.aid, nc.kind, e.name from newcomers nc join hs_private.v_game_sessions s on s.aid = nc.aid
         join public.hs_events e on e.sid = s.sid
         where e.name in ('page_load', 'gate_shown', 'provider_tapped', 'battle_start', 'tutorial_done', 'wave_end', 'victory')
       union
-      select distinct nc.aid, nc.kind, 'signed_in' from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid where s.uid is not null
+      select distinct nc.aid, nc.kind, 'signed_in' from newcomers nc join hs_private.v_game_sessions s on s.aid = nc.aid where s.uid is not null
       union
-      select distinct nc.aid, nc.kind, 'name_set' from newcomers nc join hs_private.v_sessions s on s.aid = nc.aid
+      select distinct nc.aid, nc.kind, 'name_set' from newcomers nc join hs_private.v_game_sessions s on s.aid = nc.aid
         join public.hs_profiles p on p.user_id = s.uid)
   select jsonb_agg(jsonb_build_object('step', st.name, 'n', (select count(*) from did d where d.name = st.name),
       'new', (select count(*) from did d where d.name = st.name and d.kind = 'new'),
@@ -1127,8 +1141,10 @@ begin
   select jsonb_agg(jsonb_build_object('day', day, 'people', people, 'sessions', sessions, 'signed_in', signed_in) order by day) into v_daily
   from (select day, count(distinct person) as people, count(*) as sessions, count(distinct uid) as signed_in
         from hs_private.v_sessions where day >= v_from group by day) q;
-  select jsonb_build_object('accounts', (select count(*) from public.hs_profiles), 'saves', (select count(*) from public.hs_saves),
-    'scores', (select count(*) from public.hs_scores where created_at >= v_from), 'events', (select count(*) from public.hs_events where ts >= v_from)) into v_tot;
+  -- (the staging page's saves and events are left out, as in every card)
+  select jsonb_build_object('accounts', (select count(*) from public.hs_profiles), 'saves', (select count(*) from public.hs_saves where channel = 'live'),
+    'scores', (select count(*) from public.hs_scores where created_at >= v_from),
+    'events', (select count(*) from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid where e.ts >= v_from)) into v_tot;
   end if;
   if p_cards is null or 'gate' = any(p_cards) then
   -- the gate: what was tapped, what came back, who went round it
@@ -1137,7 +1153,7 @@ begin
   from (select e.name, hs_private.tag(e.props ->> 'provider') as provider,
           hs_private.tag(coalesce(e.props ->> 'why', e.props ->> 'error', e.props ->> 'state')) as why,
           coalesce(e.props ->> 'standalone', '') = 'true' or s.standalone is true as standalone, count(distinct s.aid) as n
-        from public.hs_events e join hs_private.v_sessions s on s.sid = e.sid
+        from public.hs_events e join hs_private.v_game_sessions s on s.sid = e.sid
         where s.day >= v_from and e.name in ('gate_shown', 'provider_tapped', 'signed_in', 'signin_error', 'gate_bypass', 'gate_down')
           -- a sign-in counts only from a visit that carried the account (the server's word, not the page's)
           and (e.name <> 'signed_in' or s.uid is not null)
@@ -1158,7 +1174,7 @@ begin
   end if;
   -- every switch (the public ones and the admin's own), and how full the events are
   select coalesce(jsonb_object_agg(c.key, c.value), '{}'::jsonb) into v_cfg from public.hs_config c;
-  v_mb := round(pg_total_relation_size('public.hs_events') / 1048576.0, 1);
+  v_mb := round((pg_total_relation_size('public.hs_events') + pg_total_relation_size('public.hs_sessions')) / 1048576.0, 1);
   return jsonb_build_object('from', v_from, 'days', p_days, 'funnel', coalesce(v_funnel, '[]'::jsonb), 'retention', coalesce(v_ret, '[]'::jsonb),
     'quits', coalesce(v_quit, '[]'::jsonb), 'fields', coalesce(v_fields, '[]'::jsonb), 'devices', coalesce(v_dev, '[]'::jsonb),
     'daily', coalesce(v_daily, '[]'::jsonb), 'gate', coalesce(v_gate, '[]'::jsonb), 'rulesets', coalesce(v_rules, '[]'::jsonb),

@@ -276,11 +276,18 @@ if (pure && pure.EvQueue) {
   f.release(f.list.length ? { events: f.list } : { events: [] });
   const x = f.take(now, true); f.done(x, 200, now);
   ok(f.list.length === 0 && f.fails === 0 && f.notBefore === 0, "kept by the server: gone from the queue, and the wait cleared");
+  // 429 and 408 (a busy gateway) are waited out like the network's failure: the batch is kept, never a refusal
+  const g = EvQueue({ sid: "visit-0015-aaaa" });
+  g.add("page_load", {}, 0);
+  const gw = [];
+  for (const st of [429, 408, 429, 429]) { const y = g.take(now, true); g.done(y, st, now); gw.push((g.notBefore - now) / 1000); }
+  ok(g.list.length === 1 && g.unsent().length === 1 && !g.stopped && g.refused === 0, "429 and 408 keep the batch and never stop the sending");
+  eq(gw, [30, 60, 120, 240], "and back off as a failure does");
   // three refusals in a row stop sending for the visit; one success between them resets the count
   const r = EvQueue({ sid: "visit-0012-aaaa" });
   for (let i = 0; i < 6; i++) r.add("page_load", { i }, 0);
   const one = () => { const y = r.take(now, true); y.events.splice(1); for (const e of r.list) if (!y.events.includes(e)) delete e.f; return y; };
-  r.done(one(), 400, now); r.done(one(), 429, now); r.done(one(), 200, now); r.done(one(), 401, now); r.done(one(), 404, now);
+  r.done(one(), 400, now); r.done(one(), 403, now); r.done(one(), 200, now); r.done(one(), 401, now); r.done(one(), 404, now);
   ok(!r.stopped && r.list.length === 1, "two refusals, a success, two refusals: still sending (refused batches are not sent again)");
   r.done(one(), 400, now);
   ok(r.stopped && r.due(now) === Infinity && r.take(now, true) === null, "the third refusal in a row: no more sending this visit");

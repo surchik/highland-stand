@@ -614,7 +614,9 @@ the live game has accounts. Players who already have progress on a device keep i
 it is saved to their account.
 
 **Each week.** Open `https://highland.avunjian.com/?stats`. Look at the funnel (how many visitors sign in), at
-"Where players quit", and at "Scores to look at": remove a score that cannot be real, or hide the player.
+"Where players quit", and at "Scores to look at": remove a score that cannot be real, or hide the player. Your
+own visits to `?stats` and anyone's to `?privacy` are not in the funnel or the gate card, so signing in there
+does not change them.
 
 **Names.** The game refuses its own name and words like "admin" in player names. Add the words you want refused
 in the SQL Editor (lower case, no spaces) **[tried]**:

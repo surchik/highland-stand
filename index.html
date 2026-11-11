@@ -78285,11 +78285,12 @@ function EvQueue(o) {
       for (const e of ev) e.f = 1;
       return { sid, events: ev, bytes: size };
     },
-    // a batch's answer: 2xx kept by the server; 0 or 5xx (the network, the service down) waits and goes again; any
-    // other refusal (4xx) will not change, so the batch goes, and after three in a row sending stops for the visit
+    // a batch's answer: 2xx kept by the server; 0, 408, 429 or 5xx (the network, a busy gateway, the service down)
+    // waits and goes again; any other refusal (4xx) will not change, so the batch goes, and after three in a row sending stops for the visit
     done(b, status, now) {
       if (status >= 200 && status < 300) { Q.drop(b); Q.fails = 0; Q.refused = 0; Q.notBefore = 0; return; }
-      if (status === 0 || status >= 500) {
+      // 0 (the network), 408 and 429 (the gateway too busy) and 5xx: the batch is kept and goes again later
+      if (status === 0 || status === 408 || status === 429 || status >= 500) {
         for (const e of b.events) delete e.f;
         Q.fails++;
         Q.notBefore = now + Math.min(EVQ.backoffMax, EVQ.backoff0 * Math.pow(2, Q.fails - 1));
@@ -79062,7 +79063,7 @@ async function pfWithSession(justIn) {
 // gameplay's track() calls land on window.__hsEv as they always did (the self-test reads them there); the platform
 // takes each one from it once, marking it (a fourth field), and leaves the list itself alone.
 let pfEvQ = null, pfEvT = 0, pfEvSaveT = 0, pfEvBusy = false, pfEvCtx = {}, pfEvOwned = new Set(), pfEvHidden = false, pfEvQuit = false, pfEvAnon = false;
-let pfAidNow = "";
+let pfAidNow = "", pfEvSoon = false;
 // why this load counts nothing: a word, or "" when it counts
 function pfEvBarred() {
   if (PF_TEST && PF_TEST.events === true) return "";
@@ -79073,6 +79074,17 @@ function pfEvBarred() {
 // The anonymous id (7.1). HS_ANON_ID "device": made on the first visit and kept on the device. "visit": kept for the
 // tab only (it lives through the trip to a provider and back) until the player signs in or chooses to play, then
 // kept on the device (pfAidKeep). { aid, returning: an id existed before this load }
+// The id as it is, written nowhere: for a load that counts nothing (a robot, a prerender not shown yet), so such a
+// load never leaves an id behind, and a visitor's real first visit still says returning: false. fresh: none was kept
+function pfAidPeek() {
+  const aid = pfRead("hs_pf_aid");
+  if (typeof aid === "string" && /^[0-9a-f-]{36}$/.test(aid)) return { aid, returning: true };
+  try {
+    const t = HS_ANON_ID === "visit" ? sessionStorage.getItem(HS_KEY_PREFIX + "hs_pf_aid") : null;
+    if (t && /^[0-9a-f-]{36}$/.test(t)) return { aid: t, returning: true };
+  } catch (e) {}
+  return { aid: pfUuid(), returning: false, fresh: true };
+}
 function pfAid() {
   let aid = pfRead("hs_pf_aid");
   if (typeof aid === "string" && /^[0-9a-f-]{36}$/.test(aid)) return { aid, returning: true };
@@ -79105,17 +79117,22 @@ function pfEvContext(sid) {
 }
 // The queue begins: what earlier visits left in hs_pf_evq is taken up with it, then everything track() has queued
 // since the page began. Returns the anonymous id's state for page_load
+let pfAidFresh = false;
 function pfEvStart() {
-  const id = pfAid();
+  const barred = !!pfEvBarred(), pre = document.prerendering === true;
+  const id = barred || pre ? pfAidPeek() : pfAid();
   pfAidNow = id.aid;
-  if (pfEvBarred()) return id;
+  pfAidFresh = !!id.fresh;
+  if (barred) return id;
   // a page the browser loads ahead in case it is opened (a prerender) counts nothing while it is one: its queue
   // begins only if it is shown, and then what it queued meanwhile goes as this visit's
-  if (document.prerendering === true) { document.addEventListener("prerenderingchange", pfEvBegin, { once: true }); return id; }
+  if (pre) { document.addEventListener("prerenderingchange", pfEvBegin, { once: true }); return id; }
   pfEvBegin();
   return id;
 }
 function pfEvBegin() {
+  // a prerender shown at last: the id it only looked at is made and kept now (the same as a first visit's)
+  if (pfAidFresh) { pfAidFresh = false; pfAidNow = pfAid().aid; }
   const sid = b64url(pfRandBytes(12));
   const st = pfRead("hs_pf_evq") || {};
   pfEvCtx = st.ctx && typeof st.ctx === "object" && !Array.isArray(st.ctx) ? Object.assign({}, st.ctx) : {};
@@ -79180,13 +79197,14 @@ function pfEvSave() {
 async function pfEvSend(keep) {
   if (!pfEvQ || !PF.on || (pfEvBusy && !keep)) return;
   const b = pfEvQ.take(Date.now(), keep);
-  if (!b) { pfEvPlan(); return; }
+  if (!b) { if (!keep) pfEvSoon = false; pfEvPlan(); return; }
   const ctx = pfEvCtx[b.sid];
   if (!ctx) { pfEvQ.drop(b); pfEvPlan(); return; }
   pfEvBusy = true;
   let status = 0;
   try {
-    let s = pfEvAnon ? null : pfSession();
+    // the account's token goes only with this visit's own events: a visit before the sign-in stays a visitor's
+    let s = pfEvAnon || b.sid !== pfEvQ.sid ? null : pfSession();
     if (s && !keep && s.exp - pfSec() < 90) { await pfFresh(); s = pfSession(); }
     const bearer = s && s.exp - pfSec() > 30 ? s.at : PF_KEY;
     const body = JSON.stringify({ p_ctx: ctx, p_events: b.events.map(e => ({ n: e.n, q: e.q, t: e.t, p: e.p })) });
@@ -79196,19 +79214,30 @@ async function pfEvSend(keep) {
       const res = await fetch(PF_URL + "/rest/v1/rpc/hs_track", { method: "POST", body, keepalive: !!keep, cache: "no-store", credentials: "omit", redirect: "error",
         headers: { apikey: PF_KEY, Authorization: "Bearer " + bearer, "Content-Type": "application/json" }, signal: ctl ? ctl.signal : undefined });
       status = res.status;
-      // a token the server would not take: the events go again at once without it (they still count, as a visitor's)
+      // a token the server would not take: the events go again at once without it (they still count, as a visitor's;
+      // the send at the end of this one)
       if (status === 401 && bearer !== PF_KEY) { pfEvAnon = true; pfEvQ.release(b); b.events = []; status = -1; }
     } finally { clearTimeout(timer); }
   } catch (e) { status = 0; }
   pfEvBusy = false;
   if (status !== -1) pfEvQ.done(b, status, Date.now());
   pfEvSave();
-  // more than one batch waiting: the next goes now (keepalive: one at a time while the page leaves)
-  if (status >= 200 && status < 300 && !keep && pfEvQ.due(Date.now()) === 0) { pfEvSend(false); return; }
+  // the next batch goes now: more than one was waiting, a sign-in asked for it while this one was out (pfEvSoon),
+  // or the events refused with a token go again as a visitor's (keepalive: one at a time while the page leaves)
+  const ok = status >= 200 && status < 300;
+  // (a send takes what waits whatever the queue's 20 s; only a failure's back-off holds it)
+  if (!keep && (status === -1 || (ok && (pfEvSoon || pfEvQ.due(Date.now()) === 0)))) {
+    // pfEvSoon holds until this visit's own events have gone (earlier visits' batches go first)
+    if (ok && b.sid === pfEvQ.sid) pfEvSoon = false;
+    pfEvSend(false);
+    return;
+  }
+  if (!ok) pfEvSoon = false;
   pfEvPlan();
 }
-// now, whatever the timer says (after a sign-in, 7.3)
-function pfEvNow() { if (pfEvQ) { pfEvTake(); pfEvSend(false); } }
+// now, whatever the timer says (after a sign-in, 7.3): batch after batch until this visit's own events have gone
+// (earlier visits' go first), the first when the one already out comes back
+function pfEvNow() { if (pfEvQ) { pfEvTake(); pfEvSoon = true; if (!pfEvBusy) pfEvSend(false); } }
 // The page hidden or closed: where the player was, a battle left in the middle, and the queue sent with the page
 function pfEvWhere() {
   if (!$("statsPage").hidden) return "stats";
@@ -79403,7 +79432,7 @@ function pfStatsDraw(d, settings) {
 function stHealth(d, cfg, settings) {
   const c = stCard("Health");
   const mb = stNum(d.events_mb) || 0, max = stNum(cfg.ev_max_mb) || 1024;
-  c.appendChild(stBar(mb / max, "Events: " + mb.toLocaleString("en-US") + " MB of " + max.toLocaleString("en-US") + " MB (" + stPct(mb, max) + ")", mb > max));
+  c.appendChild(stBar(mb / max, "Events and visits: " + mb.toLocaleString("en-US") + " MB of " + max.toLocaleString("en-US") + " MB (" + stPct(mb, max) + ")", mb > max));
   if (mb > max * 1.5) stLine(c, "Every event is being dropped: the table is past one and a half times its ceiling. Remove old events, or raise the ceiling.", "stRed");
   else if (mb > max) stLine(c, "Visitors' events are being dropped: the table is past its ceiling. Players' events still count.", "stRed");
   if (settings && settings.mailer_autoconfirm === true) stLine(c, "Discord sign-in is held back: the sign-in service confirms emails by itself. See the guide, step 3.", "stRed");
@@ -79521,24 +79550,42 @@ function stDevices(rows) {
   }
 }
 // The switches the owner may change here (hs_admin_set_config), each saved on its own, and the old events removed
+// Each switch answers on its own line under it (the toast is under this page, so it cannot answer here). A save
+// redraws the page, so its "Saved." is kept in stSaid and put back on the new page's line
+let stSaid = null;
 function stSwitches(cfg) {
   const c = stCard("Switches");
-  const set = async (key, value, b) => {
+  // the answer line of one switch: what the last save of it said, if it was saved just now
+  const answer = (key) => {
+    const out = pfEl("p", "stSmall stAnswer");
+    out.dataset.key = key;
+    out.setAttribute("role", "status");
+    if (stSaid && stSaid.key === key) { out.textContent = stSaid.text; stSaid = null; }
+    return out;
+  };
+  // undo: puts the field back to the value in force, so a refused value never reads as saved
+  const set = async (key, value, b, out, undo) => {
     if (b) b.disabled = true;
+    out.textContent = "Saving...";
+    out.classList.remove("stWarn");
     const r = await pfRpc("hs_admin_set_config", { p_key: key, p_value: value }, { auth: true, timeout: 8000 });
     if (b) b.disabled = false;
-    if (r.ok) { toast("Saved."); pfStatsLoad(); } else toast(r.code === "value_invalid" ? "That value is not allowed." : "Not saved. Try again.");
+    if (r.ok) { stSaid = { key, text: "Saved." }; out.textContent = "Saved."; pfStatsLoad(); return; }
+    out.textContent = r.code === "value_invalid" ? "That value is not allowed." : "Not saved. Try again.";
+    out.classList.add("stWarn");
+    if (undo) undo();
   };
   c.appendChild(pfEl("h3", "", "The gate"));
   stLine(c, "Required: sign in before playing. Optional: Play as a guest too. Off: no sign-in card.", "stSmall");
-  const g = pfEl("div", "stBtns"), now = PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : HS_GATE;
+  const g = pfEl("div", "stBtns"), now = PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : HS_GATE, gOut = answer("gate");
   for (const m of PF_GATE_MODES) {
-    const b = pfBtn("btn stGate", m[0].toUpperCase() + m.slice(1), (x) => set("gate", m, x));
+    const b = pfBtn("btn stGate", m[0].toUpperCase() + m.slice(1), (x) => set("gate", m, x, gOut));
     b.dataset.mode = m;
     b.setAttribute("aria-pressed", String(m === now));
     g.appendChild(b);
   }
   c.appendChild(g);
+  c.appendChild(gOut);
   const field = (title, key, value, hint, parse) => {
     c.appendChild(pfEl("h3", "", title));
     if (hint) stLine(c, hint, "stSmall");
@@ -79549,14 +79596,20 @@ function stSwitches(cfg) {
     f.dataset.key = key;
     f.addEventListener("keydown", (e) => e.stopPropagation());
     row.appendChild(f);
-    row.appendChild(pfBtn("btn", "Save", (b) => { const v = parse(f.value); if (v === undefined) { toast("That value is not allowed."); return; } set(key, v, b); }));
+    const out = answer(key), undo = () => { f.value = value == null ? "" : String(value); };
+    row.appendChild(pfBtn("btn", "Save", (b) => {
+      const v = parse(f.value);
+      if (v === undefined) { out.textContent = "That value is not allowed."; out.classList.add("stWarn"); undo(); return; }
+      set(key, v, b, out, undo);
+    }));
     c.appendChild(row);
+    c.appendChild(out);
   };
   const whole = (lo, hi) => (t) => { const v = Number(String(t).trim()); return String(t).trim() !== "" && Number.isInteger(v) && v >= lo && v <= hi ? v : undefined; };
   field("The owner's line", "notice", typeof cfg.notice === "string" ? cfg.notice : "", "Shown on the gate's cards. 140 characters at most. Empty: none.",
     (t) => { const v = String(t).trim(); return v.length > 140 ? undefined : v || null; });
   field("Visitors' events an hour", "ev_cap_hour", stNum(cfg.ev_cap_hour) == null ? 20000 : cfg.ev_cap_hour, "All visitors together. Signed-in players are not counted in it.", whole(0, 10000000));
-  field("Ceiling, MB", "ev_max_mb", stNum(cfg.ev_max_mb) == null ? 1024 : cfg.ev_max_mb, "Above it, visitors' events are dropped; above one and a half times it, everyone's.", whole(1, 1000000));
+  field("Ceiling, MB", "ev_max_mb", stNum(cfg.ev_max_mb) == null ? 1024 : cfg.ev_max_mb, "Events and visits together. Above it, visitors' events are dropped; above one and a half times it, everyone's.", whole(1, 1000000));
   field("Days kept", "ev_keep_days", stNum(cfg.ev_keep_days) == null ? 180 : cfg.ev_keep_days, "Older visits leave by themselves.", whole(7, 3650));
   field("Tower events sampled", "ev_sample", stNum(cfg.ev_sample) == null ? 1 : cfg.ev_sample, "From 0 to 1: the share of devices that send tower events.",
     (t) => { const v = Number(String(t).trim()); return String(t).trim() !== "" && isFinite(v) && v >= 0 && v <= 1 ? v : undefined; });

@@ -37,14 +37,19 @@
 //   10 analytics and the stats page (the events counted only with the test's own switch, __HS_PLATFORM_TEST.events,
 //      since a Playwright page is a webdriver): a scripted first visit for each kind of device (two new devices, a
 //      returning player of before, an arrival in another app's browser) and the funnel the server counts and the
-//      stats page shows, step by step and kind by kind; p_ctx's device words; every R1 card drawn; ?stats for a
-//      visitor (the sign-in line, and its return to ?stats) and for a player ("This page is for the game's owner.");
+//      stats page shows, step by step and kind by kind; the sign-in's events on the server within 8 s of it, from a
+//      visit that carries the account while the visit before stays a visitor's, one sign-in per provider on the gate
+//      card; a hidden page's batch sent with keepalive; p_ctx's device words; every R1 card drawn; ?stats for a
+//      visitor (the sign-in line, and its return to ?stats) and for a player ("This page is for the game's owner."),
+//      and neither that sign-in on ?stats nor a privacy page's reader moves the funnel or the gate card;
 //      hostile events straight to hs_track (markup and text where numbers belong, over 4,096 bytes, nested too deep,
 //      wrong types, a forged user id and a forged token, a borrowed visit id, a flood from one device): the server's
 //      answers, and the owner's page still answers with nothing of theirs made into markup; the period switch; Discord
 //      held back with the Health card's line; the gate switched to optional from the page (a fresh visitor gets Play
-//      as a guest), the owner's line, back to required; Remove old events. Then nothing is sent from a webdriver
-//      without the switch, on file://, or by the page as committed (its constants empty), each with its request log
+//      as a guest), the owner's line, back to required, each switch answering on its own line (a value the page or the
+//      server refuses, and a failed save, put the field back); Remove old events. Then nothing is sent from a
+//      webdriver with an ordinary browser's user agent, from a robot's user agent, without the switch (and neither
+//      keeps an anonymous id, nor does a prerender until shown), on file://, or by the page as committed (its constants empty), each with its request log
 //      (requests-quiet.json with --photos), and the server's count of events does not move. The owner's part from
 //      the visitor's ?stats on runs on the desktop only
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
@@ -751,7 +756,12 @@ const log = (m) => { if (o.verbose) console.log(m); };
   // ================================================================ flow 10: analytics and the stats page
   // The events are counted only with the test's own switch (window.__HS_PLATFORM_TEST.events): a Playwright page is a
   // webdriver, and a webdriver counts nothing (7.3)
-  const EVON = [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { events: true }); }, null]];
+  const EVON = [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { events: true }); }, null],
+    // each call to hs_track says whether it went with keepalive (window.__hsKa, read by the test)
+    [() => {
+      const f0 = window.fetch;
+      window.fetch = function (u, o) { try { if (/hs_track/.test(String(u)) && window.__hsKa) window.__hsKa.push(!!(o && o.keepalive)); } catch (e) {} return f0.apply(this, arguments); };
+    }, null]];
   // a page closed as a player closes it (its pagehide runs, so its last batch leaves with it), its errors read first
   const leave = async (g, where) => {
     const probs = await g.problems().catch(() => g.errs);
@@ -844,6 +854,24 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if ((await buttons(I)).includes("google")) fail(W, "the in-app browser shows Google");
     await S.control("provider", who(C.key, "i"));
     await signIn(I, null, "facebook", "name");
+    // (P4 review 4) the sign-in's events go soon after it, not on the queue's 20 s, even with the visit before's
+    // batch still out as the page comes back from the provider; and that earlier visit stays a visitor's
+    const iSid = await I.ev(() => pfEvQ && pfEvQ.sid), iT0 = Date.now();
+    let iMs = -1;
+    for (let k = 0; k < 60; k++) {
+      const r = await S.query("select count(*)::int n from public.hs_events e join public.hs_sessions s on s.sid = e.sid where e.sid = $1 and e.name = 'signed_in' and s.uid is not null", [iSid]);
+      if (r[0].n > 0) { iMs = Date.now() - iT0; break; }
+      await new Promise(r2 => setTimeout(r2, 250));
+    }
+    notes.flows["signed_in sent after@" + C.key] = iMs;
+    if (iMs < 0 || iMs > 8000) fail(W, "I's signed_in reached the server " + (iMs < 0 ? "not in 15 s" : "after " + iMs + " ms") + ", not soon after the sign-in: " +
+      JSON.stringify(await I.ev(() => ({ busy: pfEvBusy, soon: typeof pfEvSoon === "undefined" ? null : pfEvSoon, anon: pfEvAnon, sid: pfEvQ && pfEvQ.sid, fails: pfEvQ && pfEvQ.fails, wait: pfEvQ && pfEvQ.notBefore - Date.now(),
+        list: pfEvQ && pfEvQ.list.map(e => e.n + "/" + e.s.slice(0, 4) + (e.f ? "*" : "")), ev: (window.__hsEv || []).map(e => e[0] + (e[3] ? "" : "!")) }))));
+    // (B review 10's keepalive) the batch a hidden page sends goes with keepalive, which Safari needs to send it at all
+    await B.ev(() => { window.__hsKa = []; Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
+    await B.wait(300);
+    const ka = await B.ev(() => { delete document.visibilityState; return window.__hsKa; });
+    if (!ka.length || !ka.every(x => x === true)) fail(W, "the batch of a hidden page went without keepalive: " + JSON.stringify(ka));
     // every page leaves (its queue goes with it, keepalive)
     for (const g of [B, I]) await leave(g, W + " funnel visit");
     const want = { page_load: [4, 2, 1, 1], gate_shown: [4, 2, 1, 1], provider_tapped: [3, 1, 1, 1], signed_in: [3, 1, 1, 1], name_set: [2, 1, 1, 0],
@@ -874,6 +902,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     for (const k in want) shown[k] = [want[k][0], ...(["new", "returning", "inapp"].map(kind => seen[k] ? seen[k][kind] : null))];
     if (JSON.stringify(shown) !== JSON.stringify(want)) fail(W, "the funnel the page shows: " + JSON.stringify(seen));
     notes.flows["funnel@" + C.key] = got.page_load ? got.page_load.join("/") + " .. " + (got.victory || []).join("/") : "none";
+    // the gate card: one sign-in for each provider (P4 review 4: Discord was missing when its batch came late)
+    const gRows = await A.ev(() => (stData.gate || []).filter(r => r.event === "signed_in").map(r => r.provider + ":" + r.n).sort());
+    if (JSON.stringify(gRows) !== JSON.stringify(["discord:1", "facebook:1", "google:1"])) fail(W, "the gate card's sign-ins: " + JSON.stringify(gRows));
+    // a visit before a sign-in (it tapped a provider and left for it) is a visitor's, not the account's
+    const early = await S.query(`select count(*)::int n from public.hs_sessions s where s.uid is not null
+      and exists (select 1 from public.hs_events e where e.sid = s.sid and e.name = 'provider_tapped')
+      and not exists (select 1 from public.hs_events e where e.sid = s.sid and e.name = 'signed_in')`);
+    if (early[0].n) fail(W, early[0].n + " visits before a sign-in were joined to the account");
     // what each visit said of its device (p_ctx)
     const ctxs = await S.query("select distinct dev_class, os, browser, standalone, channel from public.hs_sessions where channel = 'live'");
     const dev = C.key === "desk" ? "desktop" : C.key === "ipad" ? "tablet" : "phone";
@@ -898,6 +934,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // --- (the desktop only from here) a player is refused; a visitor gets the sign-in line, and the sign-in comes back to ?stats
     const P = await open(C, { init: EVON });
     await gate(P, "signin");
+    await P.wait(1300);   // (the sign-in card counted: gate_shown is sent after a second on screen)
     await P.page.goto(SITE + "/?stats");
     await statsUp(P);
     const ps = await P.ev(() => ({ text: $("statsBody").innerText, btns: Array.from(document.querySelectorAll("#statsPage .gateBtn")).map(b => b.dataset.p), gate: gateUp }));
@@ -910,7 +947,28 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const pr = await P.ev(() => ({ text: $("statsBody").innerText, search: location.search, gate: gateUp }));
     if (!/This page is for the game's owner\./.test(pr.text) || !/^\?stats=?$/.test(pr.search) || pr.gate) fail(W, "?stats for a player: " + JSON.stringify(pr));
     if (PHOTOS) await P.page.screenshot({ path: path.join(PHOTOS, "stats-desk-player.png") });
+    const pSid = await P.ev(() => pfEvQ && pfEvQ.sid);
+    await P.ev(() => pfEvNow());
     await leave(P, W + " player");
+    // (P4 review 2) a reader of the privacy page on a new device
+    const PV = await open(C, { init: EVON, path: "/?privacy" });
+    await PV.page.waitForFunction(() => !$("privacyPage").hidden, null, { timeout: 20000 });
+    const pvSid = await PV.ev(() => pfEvQ && pfEvQ.sid);
+    await leave(PV, W + " privacy");
+    for (let k = 0; k < 60; k++) {
+      const r = await S.query("select count(distinct e.sid)::int n from public.hs_events e where (e.sid = $1 and e.name = 'signed_in') or (e.sid = $2 and e.name = 'page_load')", [pSid, pvSid]);
+      if (r[0].n >= 2) break;
+      await new Promise(r2 => setTimeout(r2, 500));
+    }
+    // P's game visit (page_load, gate_shown) is a new device's; its sign-in on ?stats and the privacy reader are not
+    await A.ev(() => pfStatsLoad());
+    await statsUp(A);
+    const got2 = {};
+    for (const x of (await A.ev(() => stData && stData.funnel)) || []) got2[x.step] = [x.n, x.new, x.returning, x.inapp];
+    const want2 = Object.assign({}, want, { page_load: [5, 3, 1, 1], gate_shown: [5, 3, 1, 1] });
+    if (JSON.stringify(got2) !== JSON.stringify(want2)) fail(W, "the funnel after a ?stats sign-in and a privacy reader: " + JSON.stringify(got2) + ", not " + JSON.stringify(want2));
+    const g2 = await A.ev(() => (stData.gate || []).filter(r => r.event === "signed_in").map(r => r.provider + ":" + r.n).sort());
+    if (JSON.stringify(g2) !== JSON.stringify(["discord:1", "facebook:1", "google:1"])) fail(W, "the gate card after a ?stats sign-in: " + JSON.stringify(g2));
     // --- hostile events, sent as a stranger can: straight to hs_track with the public key
     const post = async (body, bearer) => {
       const r = await fetch(API + "/rest/v1/rpc/hs_track", { method: "POST", headers: { apikey: S.anonKey, Authorization: "Bearer " + (bearer || S.anonKey), "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1005,6 +1063,36 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await A.page.waitForFunction(() => !stBusy && stData && stData.config && stData.config.notice === "Back at six.", null, { timeout: 20000 });
     await pressStats(A, '#statsPage .stGate[data-mode="required"]');
     await A.page.waitForFunction(() => !stBusy && stData && stData.config && stData.config.gate === "required", null, { timeout: 20000 });
+    // (P4 review 1) the switches answer on the page itself: "Saved." under the gate, and a refused value says so,
+    // over everything, with the field put back to the value in force
+    const said = await A.ev(() => { const e = document.querySelector('#statsPage .stAnswer[data-key="gate"]'); return e ? e.textContent : null; });
+    if (said !== "Saved.") fail(W, "the gate's switch said " + JSON.stringify(said) + " after a save");
+    await A.page.fill('#statsPage .stField[data-key="ev_keep_days"]', "3");
+    await pressStats(A, '#statsPage .stField[data-key="ev_keep_days"] + .btn');
+    await A.wait(200);
+    const refused = await A.ev(() => {
+      const out = document.querySelector('#statsPage .stAnswer[data-key="ev_keep_days"]'), r = out.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2);
+      return { text: out.textContent, field: document.querySelector('#statsPage .stField[data-key="ev_keep_days"]').value, onTop: top === out || out.contains(top) };
+    });
+    if (refused.text !== "That value is not allowed." || refused.field !== "180" || !refused.onTop) fail(W, "a refused value on the switches: " + JSON.stringify(refused));
+    // the server's own refusal (a value the page lets through and the server does not; made here by answering the
+    // call as the server would) and a failed save answer the same way, the field put back each time
+    for (const [code, words] of [["value_invalid", "That value is not allowed."], ["network", "Not saved. Try again."]]) {
+      const route = (r) => code === "network" ? r.abort("connectionrefused") : r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "P0001", message: code }) });
+      await A.page.route("**/rest/v1/rpc/hs_admin_set_config", route);
+      await A.page.fill('#statsPage .stField[data-key="ev_keep_days"]', "200");
+      await pressStats(A, '#statsPage .stField[data-key="ev_keep_days"] + .btn');
+      await A.page.waitForFunction(() => !/Saving/.test(document.querySelector('#statsPage .stAnswer[data-key="ev_keep_days"]').textContent), null, { timeout: 10000 }).catch(() => {});
+      const sv = await A.ev(() => ({ text: document.querySelector('#statsPage .stAnswer[data-key="ev_keep_days"]').textContent, field: document.querySelector('#statsPage .stField[data-key="ev_keep_days"]').value }));
+      await A.page.unroute("**/rest/v1/rpc/hs_admin_set_config", route);
+      if (sv.text !== words || sv.field !== "180") fail(W, "the server's " + code + " on the switches: " + JSON.stringify(sv));
+    }
+    if (PHOTOS) {
+      await A.ev(() => document.querySelector('#statsPage .stAnswer[data-key="ev_keep_days"]').scrollIntoView({ block: "center" }));
+      await A.frames(2);
+      await A.page.screenshot({ path: path.join(PHOTOS, "stats-desk-refused-value.png") });
+    }
     // Remove old events
     await pressStats(A, "#statsPage .stPurge");
     await A.page.waitForFunction(() => /Removed \d+ visits\./.test($("statsBody").innerText), null, { timeout: 20000 }).catch(() => fail(W, "Remove old events said nothing"));
@@ -1012,16 +1100,26 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // --- nothing is sent from a webdriver without the switch, on file://, or with the constants empty
     const before = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
     const logs = {};
-    const Q = await open(C);
-    await gate(Q, "signin");
-    await Q.wait(1500);
-    await Q.ev(() => { track("tower_built", {}); for (let i = 0; i < 25; i++) track("map_open", { i }); });
-    await Q.wait(500);
-    logs.webdriver = Q.reqs.slice();
-    if (Q.reqs.some(u => /hs_track/.test(u))) fail(W, "a webdriver without the switch sent events");
-    const qState = await Q.ev(() => ({ queue: !!pfEvQ, kick: typeof window.__hsEvKick, barred: pfEvBarred(), store: localStorage.getItem("hs_pf_evq") }));
-    if (qState.queue || qState.kick !== "undefined" || qState.store) fail(W, "a webdriver's queue: " + JSON.stringify(qState));
-    await leave(Q, W + " webdriver");
+    // (P4 review 3) a webdriver with an ordinary browser's user agent (Selenium driving Chrome), so only
+    // navigator.webdriver stands between it and the server; then a robot's user agent with webdriver false, so only
+    // the user agent does. Neither leaves an anonymous id behind (P4 review 8)
+    const desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    const quiet = [["webdriver", { ua: desktopUA }, "webdriver"],
+      ["robot", { init: [[() => { Object.defineProperty(Navigator.prototype, "webdriver", { configurable: true, get: () => false }); }, null]] }, "robot"]];
+    for (const [k, x, why] of quiet) {
+      const Q = await open(C, x);
+      await gate(Q, "signin");
+      await Q.wait(1500);
+      await Q.ev(() => { track("tower_built", {}); for (let i = 0; i < 25; i++) track("map_open", { i }); });
+      await Q.wait(500);
+      logs[k] = Q.reqs.slice();
+      if (Q.reqs.some(u => /hs_track/.test(u))) fail(W, "a " + k + " without the switch sent events");
+      const qState = await Q.ev(() => ({ queue: !!pfEvQ, kick: typeof window.__hsEvKick, barred: pfEvBarred(), store: localStorage.getItem("hs_pf_evq"), aid: localStorage.getItem("hs_pf_aid"), ua: navigator.userAgent, wd: navigator.webdriver }));
+      if (qState.queue || qState.kick !== "undefined" || qState.store || qState.aid || qState.barred !== why) fail(W, "a " + k + "'s queue: " + JSON.stringify(qState));
+      if (k === "webdriver" && (/headless/i.test(qState.ua) || qState.wd !== true)) fail(W, "the webdriver page is not as meant: " + JSON.stringify(qState));
+      if (k === "robot" && (!/HeadlessChrome/.test(qState.ua) || qState.wd !== false)) fail(W, "the robot page is not as meant: " + JSON.stringify(qState));
+      await leave(Q, W + " " + k);
+    }
     await new Promise(r => setTimeout(r, 800));
     const afterQ = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
     if (afterQ !== before) fail(W, "events reached the server from a webdriver without the switch (" + before + " to " + afterQ + ")");
@@ -1029,11 +1127,12 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const PR = await open(C, { init: EVON.concat([[() => { window.__pre = true; Object.defineProperty(Document.prototype, "prerendering", { configurable: true, get: () => window.__pre === true }); }, null]]) });
     await gate(PR, "signin");
     await PR.wait(1200);
-    const pr0 = await PR.ev(() => ({ q: !!pfEvQ, kick: typeof window.__hsEvKick }));
+    const pr0 = await PR.ev(() => ({ q: !!pfEvQ, kick: typeof window.__hsEvKick, aid: localStorage.getItem("hs_pf_aid") }));
     await PR.ev(() => { window.__pre = false; document.dispatchEvent(new Event("prerenderingchange")); });
     await PR.wait(300);
-    const pr1 = await PR.ev(() => ({ q: !!pfEvQ, n: pfEvQ ? pfEvQ.list.map(e => e.n) : [] }));
-    if (pr0.q || pr0.kick !== "undefined" || !pr1.q || !pr1.n.includes("page_load") || !pr1.n.includes("gate_shown")) fail(W, "a prerender: " + JSON.stringify({ pr0, pr1 }));
+    const pr1 = await PR.ev(() => ({ q: !!pfEvQ, n: pfEvQ ? pfEvQ.list.map(e => e.n) : [], aid: localStorage.getItem("hs_pf_aid"), now: pfAidNow }));
+    if (pr0.q || pr0.kick !== "undefined" || pr0.aid || !pr1.q || !pr1.n.includes("page_load") || !pr1.n.includes("gate_shown") || !pr1.aid || JSON.parse(pr1.aid) !== pr1.now)
+      fail(W, "a prerender: " + JSON.stringify({ pr0, pr1 }));
     logs.prerender = PR.reqs.slice();
     await leave(PR, W + " prerender");
     const before2 = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
@@ -1080,7 +1179,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const after = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
     if (after !== before2) fail(W, "events reached the server from a page that should send none (" + before2 + " to " + after + ")");
     const strip = (l) => l.map(u => u.replace(SITE, "SITE").replace(API, "API").replace(PLAIN, "PLAIN").replace(/^file:\/\/.*index\.html/, "file://.../index.html"));
-    notes.quiet = { webdriver: strip(logs.webdriver), prerender: strip(logs.prerender), file: strip(logs.file), empty: strip(logs.empty), webdriverEventsBefore: before, webdriverEventsAfter: afterQ, eventsBefore: before2, eventsAfter: after };
+    notes.quiet = { webdriver: strip(logs.webdriver), robot: strip(logs.robot), prerender: strip(logs.prerender), file: strip(logs.file), empty: strip(logs.empty), webdriverEventsBefore: before, webdriverEventsAfter: afterQ, eventsBefore: before2, eventsAfter: after };
     if (PHOTOS) fs.writeFileSync(path.join(PHOTOS, "requests-quiet.json"), JSON.stringify(notes.quiet, null, 2));
   };
 
