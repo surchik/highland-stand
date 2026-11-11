@@ -9335,6 +9335,126 @@ function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
 // the drone war of 2020 and the assault of 2023
 function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 
+// ---------- the ruleset: what a Standard battle is fought under (docs/specs/gameplay.final.md 6.2, 6.3) ----------
+// RULESET names the rules a score is earned under. 1 is the game of twenty waves on every battlefield. It rises
+// with any change to what rulesetData() returns or to the fight itself, and the boards of an older number are then
+// closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
+// self-test's second suite compares the two, so a change of rules without a new number fails it.
+// `node tools/ruleset.js` prints the pins to write here.
+const RULESET = 1;
+const RULESET_PIN = "c5d08f87";
+// A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
+// tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
+// battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
+// them all. LEVEL_PIN holds each battlefield's part of rulesetData() the way RULESET_PIN holds the whole.
+const LEVEL_REV = {
+  erebuni: 1, tushpa: 1, avarayr: 1, dvin: 1, tashir: 1, sevan: 1, ani: 1, mari: 1, sis: 1, gyumri: 1, halidzor: 1,
+  van: 1, musadagh: 1, sardarapat: 1, stepanakert92: 1, shushi: 1, stepanakert23: 1,
+};
+const LEVEL_PIN = {
+  erebuni: "8a20edf2", tushpa: "5a766d0b", avarayr: "47b9a06e", dvin: "978a29ca", tashir: "d722cdff", sevan: "2b668a04",
+  ani: "9e6244b8", mari: "5641d958", sis: "5a9c57e2", gyumri: "11e336a1", halidzor: "ad27745a", van: "ec30f3ce",
+  musadagh: "279f53b9", sardarapat: "5187200e", stepanakert92: "fa6c135b", shushi: "015f7e86", stepanakert23: "12447b02",
+};
+// Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
+// each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
+// shortest battle there can be if that is longer), half at par and nothing at `slow` (1.4 times par). These are
+// ruleset 1's, measured on Normal with one seed (docs/specs/balance/) and used for all three difficulties:
+// ruleset 1 is never published, and the full tables come with the new lengths.
+const LEVEL_PAR = {
+  erebuni: 2311, tushpa: 1968, avarayr: 2855, dvin: 2116, tashir: 1930, sevan: 2219, ani: 1916, mari: 1510, sis: 2537, gyumri: 2659,
+  halidzor: 2037, van: 2492, musadagh: 1695, sardarapat: 2179, stepanakert92: 3421, shushi: 1595, stepanakert23: 1576,
+};
+// the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
+// daily scores under lostMax by the waves it held)
+const SCORE_WEIGHTS = { win: 4000, lives: 3000, speed: 1500, thrift: 1500, lostMax: 3999 };
+// the tiles of the tray, as a battle's numbers and the ruleset name them
+const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
+// The object the platform publishes to its server, built from the page's own tables so it cannot drift from the
+// game. For each battlefield: its length, its script table (the script wave each of its waves stands for), its
+// revision, the most towers it can hold and its tray; for each difficulty the defenders, `min` (the sum over the
+// waves of the moment the wave's last foe comes on: no battle can be shorter, early calls included), `fast` and
+// `slow` (above) and `earnMax` (the starting purse, every bounty with the richest plunder mastery over it, every
+// clear's bonus, the interest and the early call's bonus at their caps on every wave, and a tenth more: no honest
+// battle can earn as much). It reads the wave plans with the battle's own functions, so it borrows the globals
+// they read for a moment and gives them back; nothing of a battle in progress is changed.
+function rulesetData() {
+  const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless];
+  const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
+  const script = [];
+  for (let w = 1; w <= TOTAL_WAVES; w++) script.push(w);
+  const levels = {};
+  try {
+    trickLegacy = false; tutGentle = false; endless = false;
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const par = LEVEL_PAR[L.id] || 0;
+      const d = DIFFS.map((D, di) => {
+        curDiff = di;
+        let min = 0, pay = D.gold + 15 * L.era + (trickEcon("gold") || 0);
+        for (let w = 1; w <= TOTAL_WAVES; w++) {
+          const plan = wavePlan(w), unit = {};
+          if (plan.length) min += plan[plan.length - 1].t;
+          for (const q of plan) {
+            let b = foeBounty(unit[q.type] || (unit[q.type] = eraUnit(q.type)), w);
+            // a hidden scout and a tower hunter pay more (applyTrickToFoe)
+            if (q.trick === "hidden") b = Math.round(b * TRICK_RULES.hidden.bounty);
+            if (q.trick === "hunter") b = Math.round(b * TRICK_RULES.hunters.bounty);
+            pay += b + Math.ceil(b * plunder);
+          }
+          pay += 25 + w * 3 + 60 + 60;   // the clear's bonus, the interest at its cap, an early call at its cap
+        }
+        min = Math.floor(min);
+        return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax: Math.ceil(pay * 1.1) };
+      });
+      levels[L.id] = { waves: TOTAL_WAVES, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
+        pads: L.pads.length + (L.plots || []).length, tray: TRAY_CLASSIC, d };
+    });
+  } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless] = keep; }
+  // the daily's part is empty until the daily's battle is built (6.4): no pool, so no day has a battle
+  return { v: 1, score: Object.assign({}, SCORE_WEIGHTS), levels,
+    daily: { pool: [], twists: [], diff: 1, attempts: 3, waves: 12, skip: {}, levels: {}, t: {} } };
+}
+// the pins as the page works them out now: { all, levels: { id: pin } }
+function rulesetPins() {
+  const R = rulesetData(), levels = {};
+  for (const id in R.levels) levels[id] = rulesHash(JSON.stringify(R.levels[id])).slice(0, 8);
+  return { all: rulesHash(JSON.stringify(R)).slice(0, 8), levels };
+}
+// SHA-256 of a string (of its UTF-8 bytes), in hex, worked out at once: the browser's own digest answers later, and
+// on a page opened from a file not at all. For the pins only
+const SHA_K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+];
+function rulesHash(str) {
+  const bytes = new TextEncoder().encode(String(str)), l = bytes.length, n = ((l + 8) >> 6) + 1;
+  const m = new Uint8Array(n * 64), dv = new DataView(m.buffer), w = new Uint32Array(64);
+  m.set(bytes); m[l] = 0x80;
+  dv.setUint32(n * 64 - 8, Math.floor(l / 0x20000000)); dv.setUint32(n * 64 - 4, (l << 3) >>> 0);
+  let h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+  const rot = (x, k) => (x >>> k) | (x << (32 - k));
+  for (let i = 0; i < n; i++) {
+    for (let t = 0; t < 16; t++) w[t] = dv.getUint32(i * 64 + t * 4);
+    for (let t = 16; t < 64; t++) {
+      const a = w[t - 15], b = w[t - 2];
+      w[t] = (w[t - 16] + (rot(a, 7) ^ rot(a, 18) ^ (a >>> 3)) + w[t - 7] + (rot(b, 17) ^ rot(b, 19) ^ (b >>> 10))) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, k] = h;
+    for (let t = 0; t < 64; t++) {
+      const t1 = (k + (rot(e, 6) ^ rot(e, 11) ^ rot(e, 25)) + ((e & f) ^ (~e & g)) + SHA_K[t] + w[t]) >>> 0;
+      const t2 = ((rot(a, 2) ^ rot(a, 13) ^ rot(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      k = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    h = [h[0] + a, h[1] + b, h[2] + c, h[3] + d, h[4] + e, h[5] + f, h[6] + g, h[7] + k].map(x => x >>> 0);
+  }
+  return h.map(x => x.toString(16).padStart(8, "0")).join("");
+}
+
 // ---------- enemy tricks ----------
 // Four tricks the enemy plays (an ambush road, tower hunters, hidden scouts, shields and armor against one kind of
 // tower) and the adaptive enemy, as general systems driven by each battlefield's own table, L.tricks:
@@ -9678,6 +9798,7 @@ function hurtTower(t, n, why) {
 function wreckTower(t) {
   t.hp = 0; t.wreck = true; t.stunnedT = 0; t.burnFx = 0; t.cd = 0;
   trickStand.wrecks++;
+  battle.wrecks++;
   shakeFort = Math.max(shakeFort, 0.2);
   Snd.play("mine", { x: t.x });
   for (let i = 0; i < 18; i++) {
@@ -9701,7 +9822,8 @@ function repairTower(t) {
   if (towerWorked(t)) { toast("Drive off the attackers first."); return; }
   const cost = repairCost(t);
   if (gold < cost) { needGold(cost); return; }
-  spendGold(cost);
+  spendGold(cost, "repair");
+  battle.wRepairs++;
   trickStand.repairGold += cost;
   t.fixedAt = waveStart;   // bought during this wave: a save made before its clear keeps it whole (saveRun)
   t.hp = t.maxHp = towerMaxHp(t);
@@ -9715,7 +9837,8 @@ function rebuildTower(t) {
   if (!t || !t.wreck) return;
   const cost = rebuildCost(t);
   if (gold < cost) { needGold(cost); return; }
-  spendGold(cost);
+  spendGold(cost, "repair");
+  battle.wRepairs++;
   trickStand.rebuildGold += cost;
   t.fixedAt = waveStart;
   t.wreck = false;
@@ -10031,7 +10154,7 @@ function applyTrickToFoe(e, q, d) {
 // the ambush road, carried an adapted guard (the first that fits)
 function bookTrickLeak(e, lost) {
   const k = e.hid ? "hidden" : e.hunt ? "hunter" : (e.route >= 0 && e.route === ambushRoute()) ? "ambush" : e.adapted ? "adapted" : null;
-  if (k) trickLeaks[k] += lost;
+  if (k) { trickLeaks[k] += lost; battle["t" + k[0].toUpperCase() + k.slice(1)] += lost; }
 }
 // a wave is sent (startWave, once its queue is built): the ambush's tell, an adapted wave's banner line, and the
 // first-time explainer card for a trick this wave brings (before its first foe spawns)
@@ -10230,10 +10353,11 @@ function plotPrice() { return 150 + 125 * plotsBought; }
 function buyPlot(i) {
   const price = plotPrice();
   if (gold < price) { toast("Need 🪙" + Math.ceil(price - gold) + " more gold to claim this ground"); return; }
-  spendGold(price);
+  spendGold(price, "land");
   PADS.push(plots[i]);
   plots.splice(i, 1);
   plotsBought++;
+  track("plot_bought", { lv: levelId(curLevel), wave: waveIdx });
   Snd.play("plot");
   toast("New ground claimed! Build on it.");
   saveRun();
@@ -10470,6 +10594,7 @@ function trySelectSpell(key) {
 function castSpell(key, x, y) {
   const S = SPELLS[key];
   spellCd[key] = S.cd;
+  battle[key]++; battle.wSpells++;
   castingSpell = null;
   updateSpellBar();
   coachEvent("spell");
@@ -10542,6 +10667,7 @@ function heroSpawn() {
 function heroDie() {
   hero.alive = false;
   hero.respawn = 20;
+  battle.heroFalls++;
   hero.engaged = [];
   heroSelected = false;
   const pp0 = { x: hero.x, y: hero.y };
@@ -10593,7 +10719,7 @@ function updateHero(dt) {
       foe.hp -= eff;
       foe.flash = 0.1;
       foe.lastHit = null;
-      if (foe.hp <= 0) hero.kills++;
+      if (foe.hp <= 0) { hero.kills++; battle.heroKills++; }
       // a blade rings on steel and a bayonet thuds home; a gun is fired at arm's length
       const arm = heroArm();
       Snd.play(arm === "fire" || arm === "ak" ? "heroShot" : "heroHit", { x: hero.x, arm });
@@ -10666,6 +10792,238 @@ function sellRefund(t) {
   return { amount: fresh ? inv : Math.floor(inv * 0.7 * (0.4 + 0.6 * towerHpFrac(t))), fresh };
 }
 
+// ---------- the battle's numbers (docs/specs/gameplay.final.md 6.1) ----------
+// What a battle counts while it is fought: its clock, the gold paid in and laid out and for what, the defenders
+// lost, what was built, cast and felled. `battle` holds them. They are saved with the run at every wave's horn
+// (runRecord, markWaveStart), given back by a resume, and read through battleFacts() by the events that end a
+// battle (victory, defeat, battle_quit), which is how the platform hears of a score. Nothing here changes how a
+// battle is fought: these lines only count.
+// The clock (sec) is game time: the sum of dt in update() from the first wave's horn to the last foe's fall.
+// Waiting between waves counts, because the spells, the hero's wounds and his return all recover there, and a
+// clock that stopped would make waiting out every cooldown the best play. The speed button does not change it
+// (a game second is a game second at 1x and 2x), and pauses, menus, cards and the coach's freezes are not in it
+// (update does not run). Towers can be built while the game is paused, so thinking is free on every device.
+function newBattle() {
+  return {
+    on: false,         // the clock runs (from the first wave's horn)
+    started: false,    // battle_start has been sent for this battle on this page
+    rules: RULESET,    // the ruleset the run was begun under: a resumed run keeps its own (0: before the rulesets)
+    tutorial: false,   // begun as the coached first stand
+    resumed: 0,        // how many times the run was resumed
+    sec: 0, idleS: 0,                   // the clock; the part of it run between waves
+    realS: 0, x1: 0, x2: 0, x4: 0,      // the player's own seconds on the same stretch, and at each speed
+    // gold paid in (earned is their sum): the starting purse, bounties, clear bonuses, interest, early calls, the
+    // Stores of a later age, and gifts (the elder's blessing, the town's, the coach's, the test purse)
+    earned: 0, start: 0, bounty: 0, clear: 0, interest: 0, earlyG: 0, stores: 0, gift: 0,
+    // gold laid out (spent is their sum) on towers, ranks, masteries, land, repairs and rebuilds; what sales gave back
+    spent: 0, build: 0, rank: 0, mastery: 0, land: 0, repair: 0, refunds: 0,
+    returned: 0,       // defenders given back (an Aid Post's, of a later age)
+    debt: 0,           // what waves fought again after a resume cost on the boards (battleWaveEnd)
+    redoW: 0, dropped: 0,   // the wave owed a second fight after a resume, and the most its dropped attempts lost
+    cmdMet: 0, cmdFelled: 0, tAmbush: 0, tHidden: 0, tHunter: 0, tAdapted: 0,   // commanders; defenders lost to each trick
+    built: 0, sold: 0, wrecks: 0, masteries: 0,
+    arrows: 0, frost: 0, wrath: 0, calls: 0, heroFalls: 0, heroKills: 0,
+    early: 0, auto: false,   // early calls; a wave was sent with Auto on
+    // since the last wave was cleared, for wave_end
+    wRanks: 0, wMasteries: 0, wSpells: 0, wRepairs: 0, wIdle: 0, wEarly: false,
+  };
+}
+let battle = newBattle();
+// the numbers a saved run keeps: the board's outlay (what stands on the field was paid for, whatever the wave
+// then did), the player's own seconds (time is never fought again), and the rest (as the horn left them)
+const BATTLE_BOARD = ["spent", "build", "rank", "mastery", "land", "repair", "refunds", "built", "sold", "masteries", "gift"];
+const BATTLE_REAL = ["realS", "x1", "x2", "x4"];
+const BATTLE_REST = ["resumed", "sec", "idleS", "earned", "start", "bounty", "clear", "interest", "earlyG", "stores", "returned", "debt",
+  "cmdMet", "cmdFelled", "tAmbush", "tHidden", "tHunter", "tAdapted", "wrecks", "arrows", "frost", "wrath", "calls", "heroFalls", "heroKills", "early"];
+// a new battle (resetGame, once the starting purse is in)
+function resetBattle() {
+  battle = newBattle();
+  battle.start = battle.earned = gold;
+  mapTold = false;
+}
+// one step of update(): the clock and the player's own seconds (a step at 2x is half a second of his)
+function battleTick(dt) {
+  const real = dt / (speedMult || 1);
+  battle.sec += dt;
+  if (phase !== "wave") { battle.idleS += dt; battle.wIdle += dt; }
+  battle.realS += real;
+  battle[speedMult >= 4 ? "x4" : speedMult >= 2 ? "x2" : "x1"] += real;
+}
+// gold paid in, by its reason (a key of `battle`)
+function battleEarn(n, why) { battle.earned += n; battle[why] += n; }
+// What keeps a battle off the Standard boards and still lets it be ranked: a gift of gold. Nothing else adds
+// power in today's game ("std": nothing beyond the standard set)
+function battleLoadout() { return battle.gift > 0 ? "open" : "std"; }
+// never ranked at all: the coached first stand, test mode, an endless stand, a run under older rules
+function battleRanked() { return !(battle.tutorial || tutGentle || testAided || testUnlockAll || endless || battle.rules !== RULESET); }
+// a wave is sent on a clear field (startWave): the clock starts with the first, and the battle is told once
+function battleHorn() {
+  battle.on = true;
+  if (auto) battle.auto = true;
+  if (battle.started) return;
+  battle.started = true;
+  track("battle_start", battleStartProps(false));
+}
+function battleStartProps(resumed) {
+  return { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
+    ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: null,
+    rev: LEVEL_REV[levelId(curLevel)] || 1, waves: TOTAL_WAVES, tray: TRAY_CLASSIC, power: 0, hero: 1, legacy: battle.rules !== RULESET };
+}
+// A wave is cleared (endWaveIfClear, the clear's pay already booked). First the debt of a wave fought again: when
+// a run is left in the middle of a wave, the resume gives back the defenders that attempt lost and the wave is
+// fought again from its horn. That stays, and phones drop tabs, so a resumed battle stays ranked. But a resume must
+// never improve a battle's numbers: the boards count whichever attempt lost more. `dropped` is the most the
+// dropped attempts lost; if this one lost fewer, the difference is owed (lives_board = held - debt). Then the
+// wave is told with what was done in it.
+function battleWaveEnd() {
+  const lostNow = waveStart ? Math.max(0, waveStart.lives - lives) : 0;
+  if (battle.redoW && lastCleared >= battle.redoW) {
+    battle.debt += Math.max(0, battle.dropped - lostNow);
+    battle.redoW = 0; battle.dropped = 0;
+  }
+  track("wave_end", { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", wave: waveIdx, lives,
+    gold: Math.round(gold), towers: towers.length, sec: Math.round(battle.sec), early: battle.wEarly,
+    sw: Math.min(20, waveIdx), lost: lostNow, ranks: battle.wRanks, masteries: battle.wMasteries, spells: battle.wSpells,
+    calls: 0, rallies: 0, fired: 0, repairs: battle.wRepairs, idle: Math.round(battle.wIdle) });
+  battle.wRanks = battle.wMasteries = battle.wSpells = battle.wRepairs = battle.wIdle = 0;
+  battle.wEarly = false;
+}
+// The battle's numbers as one object: first the platform's contract (its names), then gameplay's own for the
+// stats. It is nested one level at most and stays under 3 KB as JSON in the worst case (the server keeps an event
+// up to 4,096 bytes and drops a larger one without a word): the self-test's second suite builds that case.
+// held: the defenders never lost, which stars and records count; lives = held + returned; lives_board is what
+// the boards count (above). left = earned - spent + refunds. The Council's and the hero's fields are those of
+// the kit to come: none is in force today.
+function battleFacts() {
+  const B = battle, L = LEVELS[curLevel] || LEVELS[0], max = (DIFFS[curDiff] || DIFFS[1]).lives, n = x => Math.round(x) || 0;
+  const lost = Math.max(0, max - lives + B.returned), held = max - lost;
+  const won = !endless && gameOver && lives > 0 && lastCleared >= TOTAL_WAVES;
+  const stand = {};
+  for (const t of towers || []) if (!t.wreck) stand[t.type] = (stand[t.type] || 0) + 1;
+  // what got through, as the debrief counts it: the three costliest kinds, and the road that cost most
+  const roles = Object.keys(leaks).filter(k => leaks[k].n > 0).sort((a, b) => leaks[b].lost - leaks[a].lost || leaks[b].n - leaks[a].n);
+  const roads = {};
+  for (const k of roles) for (const rd in leaks[k].roads) roads[rd] = (roads[rd] || 0) + leaks[k].roads[rd];
+  const worst = Object.keys(roads).sort((a, b) => roads[b] - roads[a])[0];
+  return {
+    // the contract (platform spec 0.3 and 7.2)
+    lv: L.id, diff: curDiff, mode: endless ? "endless" : "campaign",
+    ruleset: String(B.rules), rev: LEVEL_REV[L.id] || 1, loadout: battleLoadout(),
+    wave: lastCleared, waves: TOTAL_WAVES,
+    lives, lives_max: max, held, lives_board: Math.max(0, held - B.debt), stars: won ? victoryStars(held, max) : 0,
+    sec: n(B.sec), spent: n(B.spent), earned: n(B.earned),
+    twist: null,
+    through: roles.slice(0, 3).map(k => k + ":" + leaks[k].n).join(","),
+    road: worst === undefined ? null : worst === "off" ? "off" : Number(worst),
+    legacy: B.rules !== RULESET, resumed: B.resumed,
+    // gameplay's own
+    build: BUILD_ID, kitset: 0, ch: CHAPTERS[chapterOf(curLevel)].id,
+    script: Math.min(20, lastCleared), beyond: Math.max(0, lastCleared - TOTAL_WAVES),
+    lost, returned: B.returned, debt: B.debt,
+    cmdMet: B.cmdMet, cmdFelled: B.cmdFelled,
+    trickLost: { ambush: B.tAmbush, hidden: B.tHidden, hunter: B.tHunter, adapted: B.tAdapted },
+    realS: n(B.realS), speedS: { x1: n(B.x1), x2: n(B.x2), x4: n(B.x4) }, idleS: n(B.idleS),
+    left: n(gold), refunds: n(B.refunds),
+    from: { start: n(B.start), bounty: n(B.bounty), clear: n(B.clear), interest: n(B.interest), early: n(B.earlyG), stores: n(B.stores), gift: n(B.gift) },
+    on: { build: n(B.build), rank: n(B.rank), mastery: n(B.mastery), land: n(B.land), repair: n(B.repair) },
+    towers: stand, masteries: B.masteries, built: B.built, sold: B.sold, wrecks: B.wrecks, plots: plotsBought,
+    tray: TRAY_CLASSIC, ban: "",
+    spells: { arrows: B.arrows, frost: B.frost, wrath: B.wrath }, calls: B.calls, heroLevel: 1, heroFalls: B.heroFalls, heroKills: B.heroKills,
+    council: { bows: 0, engines: 0, captains: 0, heralds: 0, stewards: 0 }, power: 0,
+    early: B.early, auto: B.auto, aided: testAided || testUnlockAll, tutorial: B.tutorial || tutGentle,
+  };
+}
+// a battle is left on purpose (Abandon, or Replay tutorial from a battle): told once it had begun
+function battleQuit() { if (battle.started) track("battle_quit", Object.assign(battleFacts(), { how: "abandon" })); }
+// the one line the victory page adds when a wave fought again has cost the boards a defender
+function battleDebtLine() { return battle.debt > 0 && battleRanked() ? " A wave fought again counts its worse attempt on the boards." : ""; }
+// ---- the numbers in a saved run ----
+// the numbers as they stand, in the shape hs_run keeps (runRecord)
+function battleSave() {
+  const out = { on: battle.on, tutorial: battle.tutorial || tutGentle, auto: battle.auto };
+  for (const k of BATTLE_BOARD.concat(BATTLE_REAL, BATTLE_REST)) out[k] = Math.round(battle[k] * 100) / 100;
+  return out;
+}
+// The numbers a save made in the middle of a wave keeps (saveRun), for the wave will be fought again from its
+// horn: what the wave paid and cost goes back to the horn's count, since it will be paid and lost again; the
+// player's own seconds stand; and where the board is kept as it stands now (`kept`), so is what it cost.
+function battleSaveAtHorn(horn, kept) {
+  const now = battleSave(), out = Object.assign({}, horn || now);
+  for (const k of BATTLE_REAL) out[k] = now[k];
+  if (kept) {
+    out.earned = (out.earned || 0) + now.gift - (out.gift || 0);   // a gift since the horn stays in the purse
+    for (const k of BATTLE_BOARD) out[k] = now[k];
+  }
+  return out;
+}
+// the spells' clocks and the hero's state, kept with the run so that a reload gives nothing back: without them
+// every spell came back ready and a fallen hero stood again, and a reload was the free way to wait
+function cdSave() {
+  const r1 = x => Math.round(x * 10) / 10;
+  return { arrows: r1(spellCd.arrows), frost: r1(spellCd.frost), wrath: r1(spellCd.wrath),
+    hp: hero && hero.alive ? Math.round(hero.hp) : 0, away: hero && !hero.alive ? r1(Math.max(0.1, hero.respawn)) : 0 };
+}
+function cdLoad(x) {
+  if (!x || typeof x !== "object") return;   // a run saved before they were kept resumes as it always did
+  const num = v => typeof v === "number" && isFinite(v) && v > 0;
+  for (const k in spellCd) if (num(x[k])) spellCd[k] = Math.min(SPELLS[k].cd, x[k]);
+  if (hero && num(x.away)) { hero.alive = false; hero.respawn = Math.min(60, x.away); hero.engaged = []; heroSelected = false; }
+  else if (hero && num(x.hp)) hero.hp = Math.max(1, Math.min(hero.maxHp, x.hp));
+  updateSpellBar();
+}
+// A saved run's numbers come back (resumeRun, once the board is rebuilt). Every stored value is untrusted: a
+// number in range or nothing. A run saved before the numbers were kept (no `rules`) is fought under today's rules
+// but is never ranked, for its clock and its gold are not known: its outlay is read off the board and its
+// earnings are what that and the purse add up to. redo: { w, lost, sec } is the wave that was on the field when
+// the run was saved, the defenders that attempt had lost and the clock it had run: the wave is fought again, the
+// clock keeps the time (time fought is time fought), and the loss is remembered for the boards (battleWaveEnd).
+function battleResume(r) {
+  const num = (v, hi) => typeof v === "number" && isFinite(v) && v >= 0 && v <= hi;
+  const f = r.facts && typeof r.facts === "object" ? r.facts : null;
+  battle = newBattle();
+  mapTold = false;
+  if (f) {
+    for (const k of BATTLE_BOARD.concat(BATTLE_REAL, BATTLE_REST)) battle[k] = num(f[k], 1e9) ? f[k] : 0;
+    battle.on = f.on === true; battle.tutorial = f.tutorial === true; battle.auto = f.auto === true;
+  } else {
+    for (const t of towers) {
+      const def = TOWER_DEFS[t.type];
+      battle.build += def.cost;
+      for (let i = 1; i <= t.level; i++) battle.rank += def.levels[i].cost;
+      if (t.spec) battle.mastery += def.specs[t.spec].cost;
+    }
+    for (let k = 0; k < plotsBought; k++) battle.land += 150 + 125 * k;   // plotPrice, plot by plot
+    battle.spent = battle.build + battle.rank + battle.mastery + battle.land;
+    battle.earned = battle.start = battle.spent + gold;
+    battle.on = r.cleared > 0;
+  }
+  battle.rules = !trickLegacy && f && Number.isInteger(r.rules) && r.rules >= 0 ? r.rules : 0;
+  battle.resumed++;
+  const redo = r.redo && typeof r.redo === "object" && r.redo.w === r.cleared + 1 ? r.redo : null;
+  if (redo) {
+    if (num(redo.sec, 1e6)) battle.sec += redo.sec;
+    battle.redoW = redo.w;
+    battle.dropped = num(redo.lost, 1e4) ? Math.floor(redo.lost) : 0;
+  }
+  cdLoad(r.cd);
+  // a battle whose first horn had sounded goes on; one left before it begins at its first horn, as any other
+  battle.started = battle.on || !!redo;
+  if (battle.started) track("battle_start", battleStartProps(true));
+}
+// ---- the map page is told once each time it comes up, not for every difficulty tapped on it ----
+let mapTold = false, mapTellT = 0;
+function mapOpenSoon() {
+  if (mapTold || mapTellT) return;
+  // a moment later: the victory page comes up through the map's own page and then puts the map away
+  mapTellT = setTimeout(() => {
+    mapTellT = 0;
+    if (mapTold || menuMode !== "map" || overlayEl.classList.contains("hidden")) return;
+    mapTold = true;
+    const all = LEVELS.map((_, i) => i);
+    track("map_open", { ch: CHAPTERS[mapChapter()].id, open: all.filter(levelOpen).length, stars: starTally(all).won, unspent: 0 });
+  }, 0);
+}
+
 // ---- run persistence: resume a war after closing the tab ----
 // A run saved mid-wave resumes at the start of the wave and fights it again from its first foe. So the save
 // keeps the wave as it was sent: the purse at the horn less what the board has cost since, the lives at
@@ -10674,8 +11032,16 @@ function sellRefund(t) {
 // point: the wave it cut short was never cleared.
 let waveStart = null;   // the run as the first uncleared wave was sent (startWave)
 let waveSpent = 0;      // gold laid out on the board since then, less refunds
-// gold laid out on the board; a refund is a negative outlay
-function spendGold(n) { gold -= n; waveSpent += n; }
+// gold laid out on the board; a refund is a negative outlay. `why` books it in the battle's numbers: what it
+// was laid out on ("build", "rank", "mastery", "land", "repair"); a gift paid in ("gift": booked here as a
+// refund, so a save made during the wave keeps it); a placement undone within its grace ("undo": the outlay is
+// taken back, where a sale only gives gold back)
+function spendGold(n, why) {
+  gold -= n; waveSpent += n;
+  if (why === "gift") { battle.earned -= n; battle.gift -= n; }
+  else if (n < 0) { if (why === "undo") { battle.spent += n; battle.build += n; } else battle.refunds -= n; }
+  else { battle.spent += n; if (why) battle[why] += n; }
+}
 // the run as it stands this moment, in the shape hs_run stores
 // the build that wrote a saved run; a run from any build is resumed only once validRun has passed it
 const BUILD_ID = "2026-11-09";
@@ -10697,6 +11063,9 @@ function runRecord() {
     })),
     leaks: JSON.parse(JSON.stringify(leaks)),   // what got through, for the defeat page's debrief
     adapt: { slot: adapt.slot, step: adapt.step, hist: JSON.parse(JSON.stringify(adapt.hist)) },
+    // the ruleset the run was begun under (a run finishes under the rules it began with), the battle's numbers,
+    // and the spells' clocks with the hero's state (battleSave, cdSave)
+    rules: battle.rules, facts: battleSave(), cd: cdSave(),
   };
 }
 // a fresh wave is sent: remember the run as it stood at the horn
@@ -10720,10 +11089,22 @@ function saveRun() {
         r.kills = was[0]; r.dmg = was[1];
         if (was.length > 2 && towers[i].fixedAt !== waveStart) { r.hp = was[2]; r.wreck = was[3]; } else { delete r.hp; r.wreck = false; }
       });
+      run.facts = battleSaveAtHorn(sent.facts, true);
     } else {
       // what was built this wave was paid for with its bounties: resume from the board as it was sent
       run = Object.assign(sent, { auto, aided: testAided || testUnlockAll });
+      run.facts = battleSaveAtHorn(sent.facts, false);
     }
+    // the spells and the hero as the horn left them; and the attempt in progress, for the boards (battleResume):
+    // the defenders it has lost (or what an earlier dropped attempt of this wave lost, if that was more) and
+    // the clock it has run
+    run.cd = sent.cd;
+    const w = sent.cleared + 1, hornSec = (sent.facts && sent.facts.sec) || 0;
+    run.redo = { w, lost: Math.max(battle.redoW === w ? battle.dropped : 0, waveStart.lives - lives, 0),
+      sec: Math.max(0, Math.round((battle.sec - hornSec) * 100) / 100) };
+  } else if (battle.redoW) {
+    // resumed and not yet fought again: the dropped attempt's loss is still owed
+    run.redo = { w: battle.redoW, lost: battle.dropped, sec: 0 };
   }
   try { localStorage.setItem("hs_run", JSON.stringify(run)); } catch (e) {}
 }
@@ -10822,6 +11203,7 @@ function resumeRun() {
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
   autoBtn.classList.toggle("on", auto);
   if (auto) autoT = 3;
+  battleResume(r);
   syncHud();
   toast("The war resumes: wave " + (waveIdx + 1) + " awaits");
 }
@@ -10837,6 +11219,7 @@ function resetGame() {
   resetTricks();
   ambushPuffs = []; ambushTellT = 0;
   gold = D.gold + 15 * LEVELS[curLevel].era + (trickEcon("gold") || 0); lives = D.lives;
+  resetBattle();
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
   waveStart = null; waveSpent = 0;
@@ -11056,11 +11439,18 @@ function saveBest() {
   // (older saves put them in the campaign's key, where a stand held to wave 34 read only as "Conquered")
   if (endless) return recordEndless();
   const won = gameOver && lives > 0;
+  const all = LEVELS.map((_, i) => i), had = won ? starTally(all).won : 0;
   const news = won ? recordWin(lives) : null;   // before the line below marks the battlefield won
   const key = bestKey(curLevel, curEra);
   const val = won ? 21 : waveIdx;
   const prev = Number(localStorage.getItem(key) || 0);
   if (val > prev) localStorage.setItem(key, val);
+  // the campaign's tally of stars rose: told with the stars this victory earned, and whether it was won on Hard
+  const total = won ? starTally(all).won : 0;
+  if (total > had) {
+    track("star_gain", { lv: levelId(curLevel), diff: curDiff, stars: victoryStars(lives, DIFFS[curDiff].lives),
+      hard: curDiff === 2, total });
+  }
   return news;
 }
 
@@ -11096,8 +11486,9 @@ function startWave() {
     if (spawnQueue.length > 0 || enemies.length === 0) return;
     early = earlyBonus();
     gold += early;
+    battleEarn(early, "earlyG"); battle.early++; battle.wEarly = true;
     Snd.play("coin");
-  } else markWaveStart();
+  } else { markWaveStart(); battleHorn(); }
   waveIdx++;
   phase = "wave";
   waveTime = 0;
@@ -11254,6 +11645,7 @@ function spawnEnemy(type, q) {
     }
   }
   if (type === "ram") e.mechT = 0;
+  if (type === "boss") battle.cmdMet++;
   applyTrickToFoe(e, q, d);
   enemies.push(e);
   if (q && q.road != null && q.road === ambushRoute()) ambushOpens(e);
@@ -11390,6 +11782,8 @@ function endWaveIfClear() {
     const bonus = 25 + waveIdx * 3;
     const interest = Math.min(60, Math.floor(gold * 0.05));   // war chest pays out
     gold += bonus + interest;
+    battleEarn(bonus, "clear"); battleEarn(interest, "interest");
+    battleWaveEnd();
     if (waveIdx >= TOTAL_WAVES && !endless) { victory(); return; }
     if (endless) saveBest();
     toast("Wave " + waveIdx + " repelled! +" + bonus + " gold" +
@@ -11434,8 +11828,8 @@ function defeatClose(L, cleared) {
 // the victory page's tally: the defenders kept, with the time held where the battlefield counts it
 function victoryTally(L, kept, diffName) {
   const own = heldLine(L, true, TOTAL_WAVES);
-  return own ? own.replace(/\.$/, "") + ", with " + kept + " defenders to spare on " + diffName + "."
-    : "You held with " + kept + " defenders to spare on " + diffName + ".";
+  return (own ? own.replace(/\.$/, "") + ", with " + kept + " defenders to spare on " + diffName + "."
+    : "You held with " + kept + " defenders to spare on " + diffName + ".") + battleDebtLine();
 }
 // Sis ends in terms, not a dance: the beat between the last wave and the victory page, while the besiegers'
 // drums beat on and stop and the field holds still; the herald's horn (Snd parley, PARLEY_HORN_S in) sounds as
@@ -11491,6 +11885,7 @@ $("ecBtn").addEventListener("click", () => { Snd.play("uiTick"); closeEndingCard
 const DANCE_MIN_MS = 10000, DANCE_MAX_MS = (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
 function victory() {
   gameOver = true;
+  track("victory", battleFacts());   // the battle's end is decided here: the platform posts the score from this
   syncPauseBtn();
   if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
   const best = saveBest();   // the words of the "New best" ribbon, when the stand beat a record
@@ -11697,6 +12092,8 @@ function leakFoe(e, quiet) {
   if (!quiet) { shakeFort = 1; Snd.play("leak", { x: FORT.x }); }
   livesHit(lost);
   if (lives <= 0) { lives = 0; defeat(); }
+  // the run remembers what this attempt of the wave has lost (saveRun's redo), should the wave be left and fought again
+  else if (lost > 0 && phase === "wave") saveRun();
   syncHud();
 }
 // the lives counter takes the blow: a red flash, and the defenders lost float off it. Leaks in quick succession add
@@ -11879,6 +12276,7 @@ function clearDebrief() { showDebrief("", -1); }
 // the beat has already lost it
 function defeat() {
   gameOver = true;
+  track("defeat", battleFacts());   // the battle's end is decided here (a lost daily is scored from this)
   const best = saveBest();
   clearRun();
   syncPauseBtn();
@@ -11949,7 +12347,9 @@ function towerInvested(t) {
 function placeTower(type, padIdx) {
   const def = TOWER_DEFS[type];
   if (gold < def.cost) { needGold(def.cost); return; }
-  spendGold(def.cost);
+  spendGold(def.cost, "build");
+  battle.built++;
+  track("tower_built", { lv: levelId(curLevel), wave: waveIdx, type, pad: padIdx });
   const [x, y] = PADS[padIdx];
   towers.push({
     type, pad: padIdx, level: 0, spec: null, x, y,
@@ -11968,8 +12368,10 @@ function upgradeTower(t) {
   if (t.spec || t.level >= def.levels.length - 1 || t.wreck) return;
   const cost = def.levels[t.level + 1].cost;
   if (gold < cost) { needGold(cost); return; }
-  spendGold(cost);
+  spendGold(cost, "rank");
   t.level++;
+  battle.wRanks++;
+  track("tower_upgraded", { type: t.type, level: t.level + 1, spec: "" });
   towerSyncHp(t);
   Snd.play("upgrade", { x: t.x });
   saveRun();
@@ -11982,8 +12384,10 @@ function specializeTower(t, key) {
   if (t.spec || t.level < def.levels.length - 1 || t.wreck) return;
   const spec = specInfo(t.type, key);
   if (gold < spec.cost) { needGold(spec.cost); return; }
-  spendGold(spec.cost);
+  spendGold(spec.cost, "mastery");
   t.spec = key;
+  battle.masteries++; battle.wMasteries++;
+  track("tower_upgraded", { type: t.type, level: t.level + 1, spec: key });
   towerSyncHp(t);
   Snd.play("upgrade", { x: t.x });
   toast(spec.name + "!");
@@ -11994,7 +12398,9 @@ function specializeTower(t, key) {
 
 function sellTower(t) {
   const r = sellRefund(t);
-  spendGold(-r.amount);
+  spendGold(-r.amount, r.fresh ? "undo" : "");
+  if (r.fresh) battle.built--; else battle.sold++;
+  track("tower_sold", { type: t.type, level: t.level + 1, wave: waveIdx, spec: t.spec || "", undo: r.fresh });
   if (r.fresh) toast("Placement undone: full refund");
   towers = towers.filter(x => x !== t);
   Snd.play("coin");
@@ -12071,6 +12477,7 @@ function damageEnemy(e, dmg, pierce, src) {
 
 // ---------- update ----------
 function update(dt) {
+  if (battle.on) battleTick(dt);
   if (phase === "wave") {
     waveTime += dt;
     while (spawnQueue.length && spawnQueue[0].t <= waveTime) {
@@ -12289,6 +12696,8 @@ function update(dt) {
         }
       }
       gold += bounty;
+      battleEarn(bounty, "bounty");
+      if (e.type === "boss") battle.cmdFelled++;
       coachEvent("kill");
       Snd.play("death", { x: p.x, kind: e.type, variant: e.def.variant, mounted: !!e.def.mounted, era: curEra });
       Snd.play("coin", { x: p.x });
@@ -53653,6 +54062,7 @@ function trickHold() { return !!((trickCardOn && !trickCardOn.read) || scoutBubb
 function trickCardsDue(keys) { const seen = tricksSeen(); return keys.filter(k => !seen.includes(k)); }
 function showDueCard(due) {
   trickCardQ = due.slice(1);
+  track("trick_met", { lv: levelId(curLevel), wave: waveIdx, trick: due[0] });
   // Erebuni's hidden scouts are taught by a coach's bubble at the Beacon Fire tile, when the coach is not on the field
   if (due[0] === "hidden" && curLevel === 0 && !tut && showScoutBubble()) return;
   showTrickCard(due[0]);
@@ -55061,6 +55471,7 @@ function buildMenu() {
   if (menuMode === "map" && /\p{Extended_Pictographic}/u.test(sub.textContent)) sub.innerHTML = richText(sub.textContent);
   checkNewUnlocks();
   renderWorldMap();
+  mapOpenSoon();
   const dr = $("diffRow");
   dr.innerHTML = "";
   DIFFS.forEach((D, i) => {
@@ -60065,6 +60476,8 @@ function showChapterIntro(c, then) {
   const C = CHAPTERS[c];
   if (!C) return;
   markChapterSeen(c);
+  track("chapter_story", { ch: C.id });
+  mapTold = false;   // back from the story the map is a page opened again
   leaveVictory();
   introThen = then === undefined ? -1 : then;
   $("mapBtn").style.display = "none";
@@ -60147,6 +60560,8 @@ function showBrief() {
   trickLegacy = false;
   introThen = -1;
   menuMode = "brief";
+  track("brief_open", { lv: levelId(curLevel), diff: curDiff, mode: "campaign" });
+  mapTold = false;
   $("mapBtn").style.display = "";
   const L = LEVELS[curLevel];
   const E = ERAS[L.era];
@@ -60610,6 +61025,9 @@ $("hudPause").addEventListener("click", togglePause);
 let pausedOnLeave = false;
 function pauseOnLeave() { if (!HARNESS_ON) holdOnLeave(); }
 function holdOnLeave() {
+  // a wave on the field is saved as it stands, whatever holds the battle: the run then knows what this attempt of
+  // the wave has lost and how long it has run, should the tab be dropped while the page is away (saveRun's redo)
+  if (battleLive() && phase === "wave") saveRun();
   if (!battleLive() || coachFreeze()) return;
   if (settingsHold) { settingsHold = false; pausedOnLeave = true; return; }   // Settings' hold becomes the player's own pause
   if (paused || (tut && phase !== "wave" && !(auto && autoT > 0))) return;
@@ -60669,7 +61087,7 @@ $("tutBtn").addEventListener("click", () => {
   try { localStorage.removeItem(TRICK_SEEN_KEY); } catch (e) {}   // the tricks' cards come again with it
   closeSettings();
   if (!onMenu) {
-    if (!gameOver) saveBest();   // the waves held still count toward the battlefield's best
+    if (!gameOver) { battleQuit(); saveBest(); }   // the waves held still count toward the battlefield's best
     clearRun();
   }
   setTutorialState("0");
@@ -60687,7 +61105,7 @@ $("tutBtn").addEventListener("click", () => {
 $("menuBtn").addEventListener("click", () => {
   if (!abandonConfirm.armed()) { abandonConfirm.arm(); return; }
   closeSettings();
-  if (!gameOver) saveBest();
+  if (!gameOver) { battleQuit(); saveBest(); }
   gameOver = true;
   clearRun();
   celebration = null;
@@ -60729,7 +61147,7 @@ function testUnlock() {
   toast("Test mode: every battlefield is open");
   try { renderWorldMap(); } catch (err) { /* the map is not on screen */ }
 }
-function testGold() { if (gameOver) return; testAided = true; spendGold(-5000); syncHud(); toast("Test mode: +5000 gold"); }
+function testGold() { if (gameOver) return; testAided = true; spendGold(-5000, "gift"); syncHud(); toast("Test mode: +5000 gold"); }
 function onFiveTaps(el, fn) {
   let n = 0, t0 = 0;
   el.addEventListener("pointerdown", () => {
@@ -60841,6 +61259,9 @@ $("startBtn").addEventListener("click", () => {
   const purse = gold;
   nardiBlessBattle();
   townBlessBattle(gold - purse);   // both gifts pay in the same battle (the toast tells both)
+  // a gift of gold is booked in the battle's numbers, and sends the battle to the Open boards (battleLoadout). The
+  // gifts saved the run before this, so it is saved again with the gift in its numbers
+  if (gold > purse) { battleEarn(gold - purse, "gift"); saveRun(); }
   if (auto && !tut) autoT = 1.5;
 });
 
@@ -60859,6 +61280,9 @@ $("endlessBtn").addEventListener("click", () => {
   overlayEl.classList.add("hidden");
   gameOver = false;
   endless = true;
+  // the stand beyond the chronicle is a battle of its own to the stats (never ranked): told at its first horn
+  track("endless_start", { lv: levelId(curLevel), diff: curDiff });
+  battle.started = false;
   endlessFrom = levelRecord(curLevel).endless[curDiff];
   phase = "idle";
   autoT = auto ? 3 : 0;
@@ -60971,7 +61395,7 @@ const TUT_STEPS = [
       if (!t) return;
       const L = TOWER_DEFS[t.type].levels[t.level + 1];
       // the gift is booked as a refund (spendGold), so a run saved during the wave keeps the upgrade it paid for
-      if (L && gold < L.cost) { spendGold(gold - L.cost); syncHud(); refreshPanelBtns(); toast("The king's treasury sends gold for the upgrade"); }
+      if (L && gold < L.cost) { spendGold(gold - L.cost, "gift"); syncHud(); refreshPanelBtns(); toast("The king's treasury sends gold for the upgrade"); }
     },
     done: () => towers.some(t => t.level > 0 || t.spec),
     back: () => (panelEl.style.display !== "block" ? "select" : null) },
@@ -61079,6 +61503,7 @@ function tutGo(i) {
   tut.i = i;
   tut.t0 = performance.now();
   const S = TUT_STEPS[i];
+  track("tutorial_step", { id: S.id, i });
   if (S.enter) S.enter();
   tut.shown = "";
 }
@@ -61104,6 +61529,7 @@ function tutIdleNudge() {
 }
 function endTutorial(skipped) {
   if (!tut) return;
+  track("tutorial_done", { skipped: !!skipped, i: tut.i });
   tut = null;
   coachSkipReset();
   setTutorialState("1");
@@ -78835,8 +79261,571 @@ function runSelftest() {
   }, 400);
 }
 
+// ---------- the self-test's second suite (?selftest=2): the battle's numbers, the hooks, the rules ----------
+// The first suite (runSelftest, above) keeps its checks and its time; what the game gains is checked here, package
+// by package (docs/specs/gameplay.final.md 8.1). The battles of this suite are fought through the game's own steps
+// (resetGame, placeTower, startWave, update), with the purse the battle gives, so its numbers are a real battle's.
+function runSelftestPlay() {
+  const res = { suite: 2, pass: false, checks: 0, errors: [], slow: {} };
+  const late = [];   // checks of what a timer does (the map's event), run just before the result is written
+  const check = (name, fn) => {
+    res.checks++;
+    const t0 = performance.now();
+    try { if (fn() === false) res.errors.push(name + ": assertion failed"); }
+    catch (err) { res.errors.push(name + ": " + (err && err.message || err)); }
+    const ms = performance.now() - t0;
+    if (ms > 1500) res.slow[name] = Math.round(ms);
+  };
+  photo = { time: PHOTO_TIME };   // freeze the rAF loop while the checks drive update
+  const fail = msg => { throw new Error(msg); };
+  const evs = () => window.__hsEv || [];
+  const evClear = () => { window.__hsEv = []; };
+  const evLast = name => { const q = evs().filter(e => e[0] === name); return q.length ? q[q.length - 1][1] : null; };
+  // the save's keys a check may write, put back when it is done
+  const KEYS = ["hs_run", "hs_records", "hs_tutorial_done", "hs_tricks_seen", "hs_chapters_seen", "hs_unlocked_seen", "hs_open_kept",
+    Nardi.BLESS_KEY, "hs_town_bless"].concat(LEVELS.map((L, i) => bestKey(i, L.era)));
+  const guarded = fn => () => {
+    const was = KEYS.map(k => localStorage.getItem(k)), rnd0 = Math.random;
+    try { return fn(); }
+    finally {
+      KEYS.forEach((k, i) => { if (was[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, was[i]); });
+      Math.random = rnd0;
+      dropTrickCards(); stopTutorial();
+      testAided = false; testUnlockAll = false; paused = false; auto = false; speedMult = 1; endless = false;
+      autoBtn.textContent = "Auto: Off"; autoBtn.classList.remove("on");
+      clearRun(); gameOver = true; celebration = null; parley = null; fallen = null;
+    }
+  };
+  const stage = (id, diff) => {
+    localStorage.setItem("hs_tutorial_done", "1");
+    curLevel = levelIndexOf(id); curDiff = diff == null ? 1 : diff;
+    resetGame(); overlayEl.classList.add("hidden");
+  };
+  const run = (secs, dt) => { for (let n = Math.round(secs / (dt || 0.05)); n > 0 && !gameOver; n--) update(dt || 0.05); };
+  // the wave on the field is fought to its end by the test's own hand: every foe falls as it comes on (and pays its
+  // bounty), but the first `through` foot soldiers reach the walls
+  const fight = through => {
+    let left = through || 0, n = 0;
+    while (phase === "wave" && !gameOver && n++ < 40000) {
+      for (const e of enemies) { if (left > 0 && e.dmg === 1 && !e.fly && e.dist < 1e8) { e.dist = 1e9; left--; } else if (e.dist < 1e8) e.hp = 0; }
+      update(0.05);
+    }
+    if (phase === "wave" && !gameOver) fail("the staged wave did not end");
+  };
+  // every foe on the field reaches the walls, wave after wave, until the last defender falls
+  const fall = () => {
+    let n = 0;
+    while (!gameOver && n++ < 40000) {
+      if (phase !== "wave") startWave();
+      for (const e of enemies) e.dist = 1e9;
+      update(0.05);
+    }
+    if (!gameOver) fail("the staged stand did not fall");
+  };
+  const FIELDS = ["lv", "diff", "mode", "ruleset", "rev", "loadout", "wave", "waves", "lives", "lives_max", "held", "lives_board", "stars",
+    "sec", "spent", "earned", "twist", "through", "road", "legacy", "resumed", "build", "kitset", "ch", "script", "beyond", "lost", "returned",
+    "debt", "cmdMet", "cmdFelled", "trickLost", "realS", "speedS", "idleS", "left", "refunds", "from", "on", "towers", "masteries", "built",
+    "sold", "wrecks", "plots", "tray", "ban", "spells", "calls", "heroLevel", "heroFalls", "heroKills", "council", "power", "early", "auto",
+    "aided", "tutorial"];
+  const PARTS = { trickLost: ["ambush", "hidden", "hunter", "adapted"], speedS: ["x1", "x2", "x4"],
+    from: ["bounty", "clear", "interest", "early", "stores"], on: ["build", "rank", "mastery", "land", "repair"],
+    spells: ["arrows", "frost", "wrath"], council: ["bows", "engines", "captains", "heralds", "stewards"] };
+  // a battle's numbers: every field of 6.1, and its sums
+  const sound = (f, what) => {
+    if (!f) fail(what + ": no numbers");
+    const miss = FIELDS.filter(k => !(k in f)).concat(Object.keys(PARTS).flatMap(k => PARTS[k].filter(q => !f[k] || !(q in f[k])).map(q => k + "." + q)));
+    if (miss.length) fail(what + " lacks " + miss.join(", "));
+    if (f.lives !== f.held + f.returned || f.held !== f.lives_max - f.lost) fail(what + ": lives " + f.lives + ", held " + f.held + ", returned " + f.returned + ", lost " + f.lost + " of " + f.lives_max);
+    if (f.left !== f.earned - f.spent + f.refunds) fail(what + ": left " + f.left + " is not earned " + f.earned + " - spent " + f.spent + " + refunds " + f.refunds);
+    const paid = Object.values(f.from).reduce((a, b) => a + b, 0), laid = Object.values(f.on).reduce((a, b) => a + b, 0);
+    if (paid !== f.earned || laid !== f.spent) fail(what + ": the parts of earned sum to " + paid + " of " + f.earned + ", of spent to " + laid + " of " + f.spent);
+    if (f.lives_board !== Math.max(0, f.held - f.debt) || f.lives_board > f.lives) fail(what + ": lives_board " + f.lives_board);
+    if (Math.abs(f.speedS.x1 + f.speedS.x2 + f.speedS.x4 - f.realS) > 2 || f.idleS > f.sec) fail(what + ": the clocks do not agree");
+    if (!Number.isInteger(f.sec) || !Number.isInteger(f.spent) || !Number.isInteger(f.earned) || !Number.isInteger(f.lives)) fail(what + ": sec, spent, earned and lives are whole numbers for the server");
+    if (f.ruleset !== String(RULESET) || f.rev !== LEVEL_REV[f.lv] || f.build !== BUILD_ID) fail(what + ": ruleset, rev or build");
+  };
+  // props of numbers, booleans and short strings, nested one level at most, under 3 KB as JSON
+  const flat = (name, p) => {
+    const plain = v => v === null || ["number", "boolean", "string"].includes(typeof v);
+    for (const k in p || {}) {
+      const v = p[k];
+      if (plain(v)) continue;
+      if (typeof v !== "object" || Array.isArray(v) || !Object.values(v).every(plain)) fail(name + "." + k + " is nested deeper than one level");
+    }
+    const size = new TextEncoder().encode(JSON.stringify(p || {})).length;
+    if (size >= 3000) fail(name + " is " + size + " bytes");
+    return size;
+  };
+
+  check("ruleset: 17 battlefields, pars, pins", () => {
+    if (rulesHash("abc") !== "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" ||
+        rulesHash("") !== "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ||
+        rulesHash("Erebuni ".repeat(40) + "Էրեբունի") !== rulesHash("Erebuni ".repeat(40) + "Էրեբունի") || rulesHash("a".repeat(119)).length !== 64) fail("rulesHash is not SHA-256");
+    const state = () => [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless].join();
+    const was = state(), R = rulesetData(), ids = Object.keys(R.levels);
+    if (state() !== was) fail("rulesetData() moved the battle's globals");
+    if (ids.length !== 17 || ids.join() !== LEVELS.map(L => L.id).join()) fail("battlefields: " + ids.join());
+    if (JSON.stringify(R) !== JSON.stringify(rulesetData())) fail("rulesetData() gave two answers");
+    for (const id of ids) {
+      const V = R.levels[id];
+      if (V.waves !== TOTAL_WAVES || V.script.length !== V.waves || V.script[0] !== 1 || V.script[V.waves - 1] !== 20 ||
+          V.script.some((x, i) => i && x <= V.script[i - 1]) || V.rev !== LEVEL_REV[id] || V.d.length !== DIFFS.length || !(V.pads >= 5) || V.tray !== TRAY_CLASSIC) fail(id + ": " + JSON.stringify(V).slice(0, 200));
+      V.d.forEach((d, i) => {
+        if (!(d.lives === DIFFS[i].lives && d.min > 0 && d.min <= d.fast && d.fast < d.slow && d.earnMax > 0 && [d.min, d.fast, d.slow, d.earnMax].every(Number.isInteger))) fail(id + " on " + DIFFS[i].name + ": " + JSON.stringify(d));
+      });
+      if (!(LEVEL_PAR[id] > 0)) fail(id + " has no par");
+    }
+    const S = R.score;
+    if (S.win !== 4000 || S.lives + S.speed + S.thrift !== 6000 || S.lostMax !== 3999 || R.daily.pool.length || R.daily.waves !== 12) fail("the score's weights or the daily's part");
+    const P = rulesetPins();
+    if (P.all !== RULESET_PIN) fail("the rules changed without a new RULESET: RULESET_PIN would be \"" + P.all + "\" (node tools/ruleset.js)");
+    const off = ids.filter(id => P.levels[id] !== LEVEL_PIN[id]);
+    if (off.length) fail("a battlefield's rules changed without a new rev (LEVEL_REV, LEVEL_PIN): " + off.map(id => id + " " + P.levels[id]).join(", "));
+  });
+
+  // no battle can be shorter than `min`, nor earn more than `earnMax`: a battle whose every wave is called the
+  // moment the last has come on, every foe falling as it comes (the last of each wave left to walk, for the call)
+  check("ruleset: min and earnMax bound the quickest battle", guarded(() => {
+    for (const id of ["tushpa", "stepanakert23"]) {
+      stage(id, 1);
+      let n = 0;
+      while (!gameOver && n++ < 200000) {
+        if (phase !== "wave" || (!spawnQueue.length && enemies.length && waveIdx < TOTAL_WAVES)) startWave();
+        const keep = spawnQueue.length || waveIdx >= TOTAL_WAVES ? null : enemies[enemies.length - 1];
+        for (const e of enemies) if (e !== keep) e.hp = 0;
+        update(0.05);
+      }
+      const f = evLast("victory"), d = rulesetData().levels[id].d[1];
+      if (!f || !gameOver || f.wave !== TOTAL_WAVES) fail(id + ": the quickest battle was not won");
+      if (f.sec < d.min || f.sec > d.min + 30) fail(id + ": the quickest battle took " + f.sec + " s, min is " + d.min);
+      if (f.earned > d.earnMax || f.earned < d.earnMax * 0.5) fail(id + ": it earned " + f.earned + ", earnMax is " + d.earnMax);
+      if (f.early !== TOTAL_WAVES - 1 || f.from.early <= 0) fail(id + ": early calls " + f.early);
+      sound(f, id + " quickest");
+    }
+  }));
+
+  check("numbers: a victory, an endless stand's end, a defeat", guarded(() => {
+    evClear();
+    stage("erebuni", 1);
+    const purse = gold;
+    placeTower("archer", 0); placeTower("archer", 1);
+    if (battle.on || battle.sec !== 0) fail("the clock ran before the first horn");
+    startWave(); fight(1);
+    if (lives !== DIFFS[1].lives - 1 || !battle.on) fail("the first wave: lives " + lives);
+    upgradeTower(towers[0]);
+    const p = routeAt(0, ROUTES[0].len * 0.5);
+    castSpell("arrows", p.x, p.y);
+    run(3);
+    startWave(); fight();
+    towers[1].placedAt = -1e9;   // past its grace: a sale, not a placement undone
+    sellTower(towers[1]);
+    let f = battleFacts();
+    sound(f, "mid battle");
+    if (f.from.start !== purse || f.built !== 2 || f.sold !== 1 || f.spells.arrows !== 1 || f.on.rank !== TOWER_DEFS.archer.levels[1].cost ||
+        f.on.build !== 2 * TOWER_DEFS.archer.cost || f.refunds <= 0 || f.idleS < 3 || f.wave !== 2 || f.stars !== 0 || f.lost !== 1 ||
+        f.towers.archer !== 1 || f.loadout !== "std" || !/^(spearman|raider):1$/.test(f.through) || typeof f.road !== "number") fail("mid battle: " + JSON.stringify(f));
+    // a placement undone inside its grace is no outlay and no sale
+    placeTower("archer", 1); sellTower(towers[towers.length - 1]);
+    f = battleFacts();
+    if (f.built !== 2 || f.sold !== 1 || f.on.build !== 2 * TOWER_DEFS.archer.cost) fail("an undone placement counted: " + JSON.stringify(f.on));
+    sound(f, "after an undo");
+    // the last wave, and the victory's own event
+    waveIdx = lastCleared = TOTAL_WAVES - 1;
+    startWave(); fight();
+    f = evLast("victory");
+    sound(f, "victory");
+    if (!gameOver || f.mode !== "campaign" || f.wave !== TOTAL_WAVES || f.waves !== TOTAL_WAVES || f.script !== 20 || f.beyond !== 0 ||
+        f.stars !== victoryStars(f.held, f.lives_max) || f.stars < 1 || f.cmdMet !== 2 || f.cmdFelled !== 2 || f.legacy || f.resumed !== 0 ||
+        f.ch !== "kingdoms" || f.tray !== TRAY_CLASSIC || f.aided || f.tutorial || f.heroLevel !== 1) fail("victory: " + JSON.stringify(f));
+    const g = evLast("star_gain");
+    if (!g || g.lv !== "erebuni" || g.diff !== 1 || g.stars !== f.stars || g.hard !== false || g.total !== f.stars) fail("star_gain: " + JSON.stringify(g));
+    // Hold Forever: one wave held beyond the chronicle, then the fall
+    endCelebration();
+    $("endlessBtn").click();
+    if (!endless || gameOver || !evLast("endless_start")) fail("the endless stand did not begin");
+    startWave(); fight();
+    const b = evs().filter(e => e[0] === "battle_start").pop()[1];
+    if (b.mode !== "endless" || b.ranked !== false || b.resumed !== false) fail("the endless stand's start: " + JSON.stringify(b));
+    fall();
+    f = evLast("defeat");
+    sound(f, "endless end");
+    if (f.mode !== "endless" || f.beyond !== 1 || f.wave !== TOTAL_WAVES + 1 || f.script !== 20 || f.lives !== 0 || f.stars !== 0 || !f.through || f.road === null) fail("endless end: " + JSON.stringify(f));
+    endFall();
+    // a defeat within the chronicle, on a field with a gift of gold in the purse
+    localStorage.setItem(Nardi.BLESS_KEY, "40");
+    curLevel = levelIndexOf("tushpa"); curDiff = 2; testUnlockAll = true; showBrief(); $("startBtn").click(); testUnlockAll = false;
+    if (gameOver || curLevel !== levelIndexOf("tushpa") || battle.gift !== 40) fail("the battle with the elder's blessing: gift " + battle.gift);
+    if (JSON.parse(localStorage.getItem("hs_run")).facts.gift !== 40) fail("the gift is not in the saved run's numbers");
+    placeTower("archer", 0);
+    startWave(); fight(); fall();
+    f = evLast("defeat");
+    sound(f, "defeat");
+    if (f.mode !== "campaign" || f.diff !== 2 || f.lives_max !== DIFFS[2].lives || !(f.wave >= 1 && f.wave < 5) || f.script !== f.wave || f.lives !== 0 || f.held !== 0 || f.stars !== 0 ||
+        f.loadout !== "open" || f.from.gift !== 40 || f.lv !== "tushpa") fail("defeat: " + JSON.stringify(f));
+    endFall();
+  }));
+
+  check("clock: waits count, pauses do not, 1x and 2x agree", guarded(() => {
+    const raf0 = window.requestAnimationFrame, photo0 = photo, draw0 = draw;
+    let T = 5e6;
+    const frames = n => { for (let i = 0; i < n; i++) { T += 16; frame(T); } };
+    // the same battle at one speed: 60 steps of the game from the horn of its second wave
+    const play = speed => {
+      Math.random = mulberry32(4242);
+      stage("tushpa", 1); spawnSeq = 0;
+      placeTower("archer", 0); placeTower("ballista", 1);
+      last = T;
+      frames(5);
+      if (battle.sec !== 0) fail("the clock ran before the first horn");
+      startWave(); fight();
+      const idle0 = battle.idleS, sec0 = battle.sec;
+      frames(10);
+      if (!(battle.sec > sec0 + 0.1) || !(battle.idleS > idle0 + 0.1)) fail("waiting between waves does not count");
+      paused = true;
+      const sec1 = battle.sec;
+      frames(10);
+      if (battle.sec !== sec1) fail("the clock ran through a pause");
+      paused = false;
+      startWave();
+      const sec2 = battle.sec, real2 = battle.realS;
+      speedMult = speed;
+      frames(60 / speed);
+      return { sec: battle.sec - sec2, real: battle.realS - real2, at: enemies.map(e => e.dist.toFixed(3)).join(), x2: battle.x2 };
+    };
+    try {
+      window.requestAnimationFrame = () => 0; photo = null; draw = () => {};
+      const a = play(1), b = play(2);
+      if (Math.abs(a.sec - b.sec) > 1e-9 || a.at !== b.at || !a.at) fail("the same battle's clock at 1x and 2x: " + a.sec + " and " + b.sec);
+      if (Math.abs(a.real - 2 * b.real) > 1e-9 || !(b.x2 > 0) || a.x2 !== 0) fail("the player's own seconds: " + a.real + " at 1x, " + b.real + " at 2x");
+      if (Math.abs(a.sec - 60 * 0.016) > 1e-6) fail("60 steps of 16 ms are " + a.sec + " s");
+    } finally { window.requestAnimationFrame = raf0; photo = photo0; draw = draw0; last = performance.now(); }
+  }));
+
+  check("a tower is built while the game is paused", guarded(() => {
+    stage("tushpa", 1);
+    paused = true;
+    const g0 = gold;
+    placeTower("archer", 0);
+    if (towers.length !== 1 || gold !== g0 - TOWER_DEFS.archer.cost || !paused) fail("no tower was built under the pause");
+    startWave();
+    if (waveIdx !== 0 || battle.on) fail("a wave was sent under the pause");
+    upgradeTower(towers[0]);
+    if (towers[0].level !== 1 || !paused) fail("no rank was bought under the pause");
+  }));
+
+  check("events: a battle's story in order, with the contract's props", guarded(() => {
+    const has = (name, p, keys) => { const miss = keys.filter(k => !p || !(k in p)); if (miss.length) fail(name + " lacks " + miss.join(", ")); };
+    evClear();
+    localStorage.setItem("hs_tutorial_done", "1");
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "21");   // Erebuni won: Tushpa is open
+    curLevel = levelIndexOf("tushpa"); curDiff = 1;
+    showBrief();
+    $("startBtn").click();
+    if (gameOver || !overlayEl.classList.contains("hidden") || battle.started) fail("the battle did not begin from the chronicle");
+    placeTower("archer", 0);
+    startWave(); fight();
+    if (gold < plotPrice() + TOWER_DEFS.archer.cost) fail("the staged battle cannot pay for its plot: " + gold);
+    buyPlot(0);
+    placeTower("archer", PADS.length - 1);
+    startWave(); fight();
+    if (gold < TOWER_DEFS.archer.levels[1].cost) fail("the staged battle cannot pay for its rank: " + gold);
+    upgradeTower(towers[0]);
+    towers[1].placedAt = -1e9;
+    sellTower(towers[1]);
+    waveIdx = lastCleared = TOTAL_WAVES - 1;
+    startWave(); fight();
+    const names = evs().map(e => e[0]).filter(n => n !== "map_open");
+    const want = ["brief_open", "tower_built", "battle_start", "wave_end", "plot_bought", "tower_built", "wave_end", "tower_upgraded", "tower_sold",
+      "wave_end", "victory", "star_gain"];
+    if (names.join() !== want.join()) fail("the events came as " + names.join() + ", not " + want.join());
+    has("brief_open", evLast("brief_open"), ["lv", "diff", "mode"]);
+    const b = evLast("battle_start");
+    has("battle_start", b, ["lv", "diff", "mode", "loadout", "ruleset", "ranked", "resumed", "tutorial", "twist", "rev", "waves", "tray", "power", "hero", "legacy"]);
+    if (b.lv !== "tushpa" || b.diff !== 1 || b.mode !== "campaign" || b.loadout !== "std" || b.ruleset !== "1" || b.ranked !== true || b.resumed !== false ||
+        b.tutorial !== false || b.twist !== null || b.waves !== TOTAL_WAVES || b.legacy !== false) fail("battle_start: " + JSON.stringify(b));
+    const w = evs().find(e => e[0] === "wave_end")[1];
+    has("wave_end", w, ["lv", "diff", "mode", "wave", "lives", "gold", "towers", "sec", "early", "sw", "lost", "ranks", "masteries", "spells", "calls", "rallies", "fired", "repairs", "idle"]);
+    if (w.wave !== 1 || w.sw !== 1 || w.towers !== 1 || w.early !== false || w.lost !== 0 || w.lives !== DIFFS[1].lives || !(w.sec > 0)) fail("wave_end: " + JSON.stringify(w));
+    const w2 = evLast("wave_end");
+    if (w2.wave !== TOTAL_WAVES || w2.ranks !== 1 || w2.sw !== 20) fail("the last wave_end: " + JSON.stringify(w2));
+    has("tower_built", evLast("tower_built"), ["lv", "wave", "type", "pad"]);
+    has("tower_upgraded", evLast("tower_upgraded"), ["type", "level", "spec"]);
+    has("tower_sold", evLast("tower_sold"), ["type", "level", "wave"]);
+    has("plot_bought", evLast("plot_bought"), ["lv", "wave"]);
+    const v = evLast("victory");
+    has("victory", v, ["lv", "diff", "mode", "lives", "lives_max", "waves", "stars", "sec", "spent", "earned", "loadout", "ruleset", "twist"]);
+    sound(v, "the staged victory");
+    if (v.aided !== false || v.loadout !== "std" || v.plots !== 1 || v.on.land !== 150 || v.stars !== 3 || v.wave !== TOTAL_WAVES) fail("the staged victory: " + JSON.stringify(v));
+    has("star_gain", evLast("star_gain"), ["lv", "diff", "stars", "hard", "total"]);
+    endCelebration();
+    // a battle of the campaign's own is ranked from its first horn, and one abandoned says so
+    evClear();
+    stage("erebuni", 1);
+    placeTower("archer", 0);
+    startWave();
+    if (evLast("battle_start").ranked !== true) fail("a plain battle is not ranked: " + JSON.stringify(evLast("battle_start")));
+    run(2);
+    $("menuBtn").click(); $("menuBtn").click();
+    const q = evLast("battle_quit");
+    has("battle_quit", q, ["lv", "diff", "mode", "wave", "how"].concat(FIELDS));
+    if (q.how !== "abandon" || q.wave !== 0 || q.lv !== "erebuni" || !gameOver) fail("battle_quit: " + JSON.stringify(q));
+    // a battle left before its first horn was never begun: nothing is told
+    evClear();
+    stage("erebuni", 1);
+    placeTower("archer", 0);
+    $("menuBtn").click(); $("menuBtn").click();
+    if (evLast("battle_quit") || evLast("battle_start")) fail("a battle never begun was told as left");
+    // the coached first stand: its steps, its end, and a start that is never ranked
+    evClear();
+    localStorage.setItem("hs_tutorial_done", "0");
+    curLevel = 0; curDiff = 1; showBrief(); $("startBtn").click();
+    const t0 = evLast("tutorial_step");
+    if (!tut || !t0 || t0.i !== 0 || t0.id !== TUT_STEPS[0].id) fail("tutorial_step: " + JSON.stringify(t0));
+    tutAdvance();
+    if (evLast("tutorial_step").i !== 1) fail("the coach's second step was not told");
+    endTutorial(true);
+    const td = evLast("tutorial_done");
+    if (!td || td.skipped !== true || td.i !== 1) fail("tutorial_done: " + JSON.stringify(td));
+    placeTower("archer", 0); startWave();
+    const tb = evLast("battle_start");
+    if (tb.tutorial !== true || tb.ranked !== false) fail("the coached stand's start: " + JSON.stringify(tb));
+    // a chapter's story, a trick's first card, the map
+    evClear();
+    gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showChapterIntro(1);
+    if (!evLast("chapter_story") || evLast("chapter_story").ch !== "faith") fail("chapter_story: " + JSON.stringify(evLast("chapter_story")));
+    closeChapterIntro();
+    stage("tushpa", 1);
+    showDueCard(["guards"]);
+    const tm = evLast("trick_met");
+    dropTrickCards();
+    if (!tm || tm.trick !== "guards" || tm.lv !== "tushpa" || tm.wave !== 0) fail("trick_met: " + JSON.stringify(tm));
+    for (const e of evs()) flat(e[0], e[1]);
+  }));
+
+  check("events: every one is flat and under 3 KB, the worst battle too", guarded(() => {
+    // Stepanakert 1992 with every counter at six figures, every kind standing, every role through the gates
+    stage("stepanakert92", 2);
+    for (const k of BATTLE_BOARD.concat(BATTLE_REAL, BATTLE_REST)) battle[k] = 999999.99;
+    battle.auto = true; battle.tutorial = true; battle.rules = 999999;
+    Object.keys(TOWER_DEFS).forEach((type, i) => towers.push({ type, pad: i, level: 2, spec: "a", x: 0, y: 0 }));
+    for (const role of Object.keys(ENEMY_DEFS)) leaks[role] = { n: 999999, lost: 999999, roads: { 0: 999999, off: 999999 } };
+    plotsBought = 999999; lastCleared = 999999; gold = 999999;
+    const f = battleFacts();
+    // the tray of a later age holds seven kinds: two more, with long names, each standing
+    for (const k of ["garrisonpost", "observation"]) { f.towers[k] = 999999; f.tray += "," + k; }
+    for (const k in f.towers) f.towers[k] = 999999;
+    f.twist = "nocatapult"; f.ban = "catapult"; f.how = "abandon"; f.heroLevel = 5; f.calls = 999999; f.power = 45; f.kitset = 999999;
+    for (const k in f.council) f.council[k] = 5;
+    const size = flat("the worst battle's numbers", f);
+    if (size < 1000) fail("the worst case is only " + size + " bytes: it is not the worst case");
+    res.factsBytes = size;
+    plotsBought = 0;
+    for (const e of evs()) flat(e[0], e[1]);
+    for (const p of [battleStartProps(true)]) flat("battle_start", p);
+  }));
+
+  // ---- resumes ----
+  // the tab is dropped: the battle's memory is gone, and the run on the device is all there is
+  const reload = () => {
+    const raw = localStorage.getItem("hs_run");
+    battle = newBattle(); towers = []; enemies = []; spawnQueue = []; leaks = {}; waveStart = null; waveSpent = 0;
+    gold = 0; lives = 0; waveIdx = 0; lastCleared = 0; phase = "idle"; gameOver = true;
+    spellCd = { arrows: 0, frost: 0, wrath: 0 };
+    evClear();
+    return JSON.parse(raw);
+  };
+  // wave 1 cleared with one tower, wave 2 on the field with `lost` defenders lost and the page hidden
+  const leftInWave2 = lost => {
+    stage("tushpa", 1);
+    placeTower("archer", 0);
+    startWave(); fight();
+    run(5);
+    startWave();
+    run(6);
+    let k = 0;
+    for (const e of enemies) if (k < lost && e.dmg === 1 && !e.fly) { e.dist = 1e9; k++; }
+    update(0.05);
+    if (k !== lost || lives !== DIFFS[1].lives - lost) fail("the staged wave lost " + (DIFFS[1].lives - lives) + ", not " + lost);
+    run(3);
+    holdOnLeave();
+    return battle.sec;
+  };
+  check("resume: a wave fought again keeps its clock and owes its worse attempt", guarded(() => {
+    for (const again of [0, 2, 3]) {
+      const sec = leftInWave2(2), secHorn = JSON.parse(localStorage.getItem("hs_run")).facts.sec;
+      const R = reload();
+      if (R.cleared !== 1 || R.lives !== DIFFS[1].lives || !R.redo || R.redo.w !== 2 || R.redo.lost !== 2 || Math.abs(secHorn + R.redo.sec - sec) > 0.02 || R.rules !== RULESET) fail("the run left in wave 2: " + JSON.stringify(R.redo) + " cleared " + R.cleared + " lives " + R.lives);
+      if (!getSavedRun()) fail("the run left in a wave is not offered");
+      resumeRun();
+      if (waveIdx !== 1 || phase !== "idle" || lives !== DIFFS[1].lives) fail("the wave is not to be fought again: wave " + waveIdx + ", lives " + lives);
+      if (Math.abs(battle.sec - sec) > 0.02 || battle.resumed !== 1 || battle.redoW !== 2 || battle.dropped !== 2 || battle.debt !== 0) fail("resumed: clock " + battle.sec + " (was " + sec + "), dropped " + battle.dropped);
+      const b = evLast("battle_start");
+      if (!b || b.resumed !== true || b.ranked !== true || b.legacy !== false || b.loadout !== "std") fail("the resumed battle's start: " + JSON.stringify(b));
+      // a tower bought before the wave is sent again saves the run, and the loss owed with it
+      placeTower("archer", 1);
+      const S = JSON.parse(localStorage.getItem("hs_run"));
+      if (!S.redo || S.redo.w !== 2 || S.redo.lost !== 2 || S.redo.sec !== 0) fail("the loss owed left the saved run: " + JSON.stringify(S.redo));
+      startWave(); fight(again);
+      const owed = Math.max(0, 2 - again), f = battleFacts();
+      if (battle.debt !== owed || battle.redoW !== 0 || f.debt !== owed || f.lives_board !== f.held - owed || f.lives !== DIFFS[1].lives - again || f.resumed !== 1) fail("fought again losing " + again + ": debt " + battle.debt + ", " + JSON.stringify(f).slice(0, 300));
+      sound(f, "a wave fought again");
+      if (evs().filter(e => e[0] === "battle_start").length !== 1) fail("the battle was told as begun twice");
+      // the victory page says the one line only when a defender is owed
+      const line = victoryTally(LEVELS[curLevel], lives, "Normal");
+      if (line.includes("worse attempt") !== (owed > 0) || /—/.test(line)) fail("the victory page's line with a debt of " + owed + ": " + line);
+    }
+    // dropped twice: the larger loss is the one remembered
+    leftInWave2(3); reload(); resumeRun();
+    startWave(); run(6);
+    let k = 0;
+    for (const e of enemies) if (k < 1 && e.dmg === 1 && !e.fly) { e.dist = 1e9; k++; }
+    update(0.05);
+    holdOnLeave();
+    const R2 = reload();
+    if (R2.redo.lost !== 3 || R2.facts.resumed !== 1) fail("dropped twice: " + JSON.stringify(R2.redo));
+    resumeRun();
+    if (battle.dropped !== 3 || battle.resumed !== 2) fail("dropped twice, resumed: dropped " + battle.dropped + ", resumed " + battle.resumed);
+    startWave(); fight();
+    if (battle.debt !== 3 || battleFacts().lives_board !== DIFFS[1].lives - 3) fail("dropped twice: debt " + battle.debt);
+  }));
+
+  check("resume: between waves nothing is owed; the numbers come back", guarded(() => {
+    stage("tushpa", 1);
+    placeTower("archer", 0);
+    startWave(); fight(2);
+    run(4);
+    upgradeTower(towers[0]);   // a purchase saves the run between waves
+    const before = battleFacts();
+    const R = reload();
+    if (R.redo || R.cleared !== 1 || R.lives !== DIFFS[1].lives - 2) fail("the run left between waves: " + JSON.stringify(R.redo) + " lives " + R.lives);
+    resumeRun();
+    const f = battleFacts();
+    sound(f, "resumed between waves");
+    for (const k of ["sec", "spent", "earned", "lost", "left", "built", "wave", "idleS"]) if (f[k] !== before[k]) fail("resumed between waves: " + k + " " + f[k] + ", was " + before[k]);
+    if (JSON.stringify(f.from) !== JSON.stringify(before.from) || JSON.stringify(f.on) !== JSON.stringify(before.on)) fail("resumed between waves: the gold's parts changed");
+    if (battle.redoW || battle.dropped || f.resumed !== 1) fail("resumed between waves: something is owed");
+    startWave(); fight();
+    if (battle.debt !== 0 || battleFacts().lives_board !== DIFFS[1].lives - 2) fail("resumed between waves: debt " + battle.debt);
+    // a run left before its first horn begins as any battle does, at its first horn
+    stage("tushpa", 1);
+    placeTower("archer", 0);
+    reload(); resumeRun();
+    if (evLast("battle_start") || battle.on) fail("a battle left before its first horn was told as resumed");
+    startWave();
+    const b = evLast("battle_start");
+    if (!b || b.resumed !== false || b.ranked !== true) fail("its first horn: " + JSON.stringify(b));
+  }));
+
+  check("resume: a reload gives back no spell and no hero", guarded(() => {
+    stage("tushpa", 1);
+    placeTower("archer", 0);
+    startWave(); fight();
+    const p = routeAt(0, ROUTES[0].len * 0.5);
+    castSpell("frost", p.x, p.y);
+    heroDie();
+    run(2);
+    placeTower("archer", 1);   // saved now: the frost has 58 s to go, the hero 18 s
+    run(1);
+    let R = reload();
+    if (!R.cd || Math.abs(R.cd.frost - 58) > 0.2 || Math.abs(R.cd.away - 18) > 0.2 || R.cd.arrows !== 0) fail("the clocks in the saved run: " + JSON.stringify(R.cd));
+    resumeRun();
+    if (Math.abs(spellCd.frost - 58) > 0.2 || spellCd.arrows !== 0 || hero.alive || Math.abs(hero.respawn - 18) > 0.2) fail("resumed: frost " + spellCd.frost + ", hero " + (hero.alive ? "stands" : "away " + hero.respawn));
+    if (!$("heroBtn").disabled) fail("the fallen hero's medallion is live after a resume");
+    run(19);
+    if (!hero.alive || spellCd.frost <= 0) fail("the hero did not return in his time");
+    // in a wave the clocks go back to the horn's, as the wave does
+    hero.hp = 123;
+    castSpell("arrows", p.x, p.y);
+    run(5);
+    startWave();
+    const atHorn = spellCd.arrows, frostHorn = spellCd.frost;
+    run(8);
+    castSpell("wrath", p.x, p.y);
+    holdOnLeave();
+    R = reload();
+    if (Math.abs(R.cd.arrows - atHorn) > 0.1 || Math.abs(R.cd.frost - frostHorn) > 0.1 || R.cd.wrath !== 0 || R.cd.away !== 0) fail("the clocks of a run left in a wave: " + JSON.stringify(R.cd) + ", at the horn arrows " + atHorn);
+    if (R.facts.wrath !== 0 || R.facts.arrows !== 1 || R.facts.frost !== 1) fail("the casts of a run left in a wave: " + JSON.stringify(R.facts));
+    resumeRun();
+    if (Math.abs(spellCd.arrows - atHorn) > 0.1 || spellCd.wrath !== 0 || !hero.alive || !(hero.hp < hero.maxHp)) fail("resumed in a wave: arrows " + spellCd.arrows + ", wrath " + spellCd.wrath + ", hero " + hero.hp);
+    // values a save should never hold are not taken
+    R = JSON.parse(localStorage.getItem("hs_run"));
+    R.cd = { arrows: 1e9, frost: -5, wrath: "soon", hp: 1e9, away: "x" }; R.facts.sec = -1; R.facts.earned = "much"; R.redo = { w: 2, lost: -3, sec: 1e12 };
+    localStorage.setItem("hs_run", JSON.stringify(R));
+    resumeRun();
+    if (spellCd.arrows !== SPELLS.arrows.cd || spellCd.frost !== 0 || spellCd.wrath !== 0 || hero.hp !== hero.maxHp || !hero.alive || battle.sec !== 0 || battle.earned !== 0 || battle.dropped !== 0) fail("a forged save's clocks were taken: " + JSON.stringify(spellCd) + " hero " + hero.hp + " sec " + battle.sec);
+  }));
+
+  check("resume: a run saved before the numbers were kept", guarded(() => {
+    for (const mid of [false, true]) {
+      if (mid) leftInWave2(1);
+      else { stage("tushpa", 1); placeTower("archer", 0); startWave(); fight(); upgradeTower(towers[0]); }
+      const R = JSON.parse(localStorage.getItem("hs_run"));
+      for (const k of ["rules", "facts", "cd", "redo"]) delete R[k];
+      localStorage.setItem("hs_run", JSON.stringify(R));
+      reload();
+      if (!getSavedRun()) fail("an older build's run is not offered");
+      resumeRun();
+      const f = battleFacts(), b = evLast("battle_start");
+      sound(Object.assign({}, f, { ruleset: String(RULESET) }), "an older build's run");
+      if (!f.legacy || f.ruleset !== "0" || !b || b.ranked !== false || b.resumed !== true || b.legacy !== true) fail("an older build's run is ranked: " + JSON.stringify(b));
+      if (waveIdx !== 1 || lives !== DIFFS[1].lives || towers.length !== 1 || spellCd.arrows !== 0 || !hero.alive || battle.debt !== 0 || battle.dropped !== 0) fail("an older build's run resumed wrongly");
+      startWave(); fight();
+      if (phase !== "idle" || waveIdx !== 2 || battle.debt !== 0) fail("an older build's run did not fight on");
+      if (JSON.parse(localStorage.getItem("hs_run")).rules !== 0) fail("it was saved again as a run of this ruleset");
+      if (battleDebtLine()) fail("an unranked run speaks of the boards");
+    }
+  }));
+
+  // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt
+  evClear();
+  gameOver = true;
+  showMenu("🏔️", "Highland Stand", "", "Take Command");
+  buildMenu(); buildMenu();
+  late.push(["events: the map is told once", () => {
+    const m = evs().filter(e => e[0] === "map_open");
+    if (m.length !== 1) fail(m.length + " map_open events for one showing of the map");
+    const p = m[0][1];
+    if (typeof p.ch !== "string" || !(p.open >= 1) || !("stars" in p) || !("unspent" in p)) fail("map_open: " + JSON.stringify(p));
+    flat("map_open", p);
+  }]);
+
+  setTimeout(() => {
+    for (const [name, fn] of late) check(name, fn);
+    res.errors.push(...harnessErrors);
+    res.pass = res.errors.length === 0;
+    const pre = document.createElement("pre");
+    pre.id = "selftest-result";
+    pre.textContent = "SELFTEST_RESULT " + JSON.stringify(res);
+    document.body.appendChild(pre);
+    document.title = res.pass ? "SELFTEST PASS" : "SELFTEST FAIL";
+  }, 400);
+}
+
+// A suite's own clock: the time its checks took, written into its result as `ms` once the result is on the page
+// (tools/selftest.js holds each suite to its budget by it). The first suite's result is completed from outside,
+// so that not a line of that suite changes.
+function runSuite(suite) {
+  const t0 = performance.now();
+  let ms = 0;
+  new MutationObserver((_, mo) => {
+    const pre = $("selftest-result");
+    if (!pre) return;
+    mo.disconnect();
+    try {
+      const res = JSON.parse(pre.textContent.replace(/^SELFTEST_RESULT /, ""));
+      res.ms = ms;
+      pre.textContent = "SELFTEST_RESULT " + JSON.stringify(res);
+    } catch (e) {}
+  }).observe(document.body, { childList: true });
+  suite();
+  ms = Math.round(performance.now() - t0);
+}
+
 if (HARNESS.has("shot")) runPhoto();
-else if (HARNESS.has("selftest")) runSelftest();
+else if (HARNESS.get("selftest") === "2") runSuite(runSelftestPlay);
+else if (HARNESS.has("selftest")) runSuite(runSelftest);
 </script>
 </body>
 </html>

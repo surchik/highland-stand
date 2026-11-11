@@ -34,6 +34,14 @@
 //                 without editing the game, e.g. PATCH='TOWER_DEFS.ballista.levels[0].dmg = 50' or
 //                 PATCH='LEVELS[9].hpTune = 1.1' or PATCH='TRICK_RULES.adapt.mult[1] = 0.3'
 //   COUNTERS=0    the bot plays without its answers to the enemy's tricks (below), for an A/B of their worth
+//   CLOCK=1       also print the clock table: for each battlefield and build the battle clock of its victories (the
+//                 game's own clock, battleFacts().sec: game seconds from the first wave's horn to the last foe's
+//                 fall), then for the best build its clock as par, in minutes, the gold it earned, and the shortest
+//                 any battle there can be (minS: the sum over the waves of the moment the wave's last foe comes on).
+//                 The bot sends each wave the moment the last is cleared, so the battles are the same battles as
+//                 without the clock; the clock it reports adds the 4 s a wave is sent after the last is cleared
+//                 (Auto's pause), once per wave after the first. Under the table: the line of pars for LEVEL_PAR
+//                 in index.html. JSON=1 gives sec, waveSec, secs (per wave), earned, spent and minS for every battle
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
@@ -305,12 +313,15 @@ function playBattle(a) {
     }
   };
   let adaptW = 0, adaptOn = 0;   // waves since the adaptive enemy's first, and those it adapted
+  const secs = [];               // game seconds each wave was on the field
+  let minS = 0;                  // the sum of the moments each wave's last foe came on
   while (!gameOver && waveIdx < TOTAL_WAVES) {
     spend();
     if (paused || (tricked && trickHold())) throw new Error("the battle was held before wave " + (waveIdx + 1));
     const was = waveIdx;
     startWave();
     if (waveIdx === was) throw new Error("wave " + (was + 1) + " did not start");
+    if (spawnQueue.length) minS += spawnQueue[spawnQueue.length - 1].t;
     const C = tricked && trickCfg("adapt");
     if (C && waveIdx >= C.from) { adaptW++; if (spawnQueue.some(q => q.adapted)) adaptOn++; }
     let n = 0;
@@ -332,6 +343,7 @@ function playBattle(a) {
       }
     }
     if (lives < before) leaks[waveIdx] = before - Math.max(0, lives);
+    secs.push(+(n * dt).toFixed(1));
     // wave:lives:gold:towers, each tower as its kind's initial and rank (a, b for a mastery)
     trace.push(waveIdx + ":" + Math.max(0, lives) + ":" + Math.round(gold) + ":" +
       towers.map(t => t.type[0] + (t.spec || t.level + 1)).join(""));
@@ -346,11 +358,16 @@ function playBattle(a) {
   // the lives each trick cost (the game books each leak once: hidden, a hunter, the ambush road, an adapted guard)
   const lost = DIFFS[diff].lives - Math.max(0, lives), T = tricked ? trickLeaks : { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
   const toll = Object.assign({}, T, { rest: Math.max(0, lost - T.ambush - T.hidden - T.hunter - T.adapted) });
+  // the clock: the game's own (a page from before it has none: then the waves' own seconds), and the 4 s a wave
+  // is sent after the last is cleared, which the bot does not wait out (the battle is the same battle without it)
+  const F = typeof battleFacts === "function" ? battleFacts() : null;
+  const waveSec = F ? F.sec : Math.round(secs.reduce((x, y) => x + y, 0));
+  const sec = waveSec + 4 * Math.max(0, secs.length - 1);
   return { won: lives > 0 && waveIdx >= TOTAL_WAVES && gameOver, lives: Math.max(0, lives), wave: waveIdx,
     towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
     toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
     adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn, earlyCalls,
-    trace: trace.join(" ") };
+    trace: trace.join(" "), sec, waveSec, secs, minS: Math.floor(minS), earned: F ? F.earned : null, spent: F ? F.spent : null };
 }
 
 (async () => {
@@ -458,6 +475,27 @@ function playBattle(a) {
         }
         console.log(row);
       }
+    }
+    if (process.env.CLOCK === "1") {
+      // the clock of each build's victories (mean over its winning seeds), then the best build's: its par in
+      // seconds and minutes, the gold it earned, and the shortest battle there can be
+      console.log("\nthe clock (CLOCK=1): battle seconds of each build's victories; a wave is sent 4 s after the last is cleared");
+      console.log(pad("battlefield", NW) + builds.map(b => pad(b, W)).join("") + "| best: par s, min, earned, minS");
+      const pars = [];
+      const mean = (rs, k) => { const w = rs.filter(r => r.won && r[k] != null); return w.length ? Math.round(w.reduce((s, r) => s + r[k], 0) / w.length) : null; };
+      for (const lv of levels) {
+        let row = pad(lv + " " + names[lv], NW).slice(0, NW), best = null;
+        for (const b of builds) {
+          const rs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b);
+          const v = mean(rs, "sec");
+          row += pad(v === null ? "-" : v, W);
+          if (!best || score(rs) > score(best.rs)) best = { b, rs };
+        }
+        const par = mean(best.rs, "sec"), earned = mean(best.rs, "earned"), minS = Math.max(...best.rs.map(r => r.minS || 0));
+        if (par !== null) pars.push(ids[lv] + ": " + par);
+        console.log(row + "| " + (par === null ? "no victory" : pad(best.b, 10) + pad(par, 6) + pad((par / 60).toFixed(1), 6) + pad(earned === null ? "-" : earned, 7) + minS));
+      }
+      console.log("pars (the best build's clock), for LEVEL_PAR in index.html:\n  " + pars.join(", "));
     }
     // damage per 100 gold, by tower kind and mastery
     const agg = {};
