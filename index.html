@@ -9342,7 +9342,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 1;
-const RULESET_PIN = "a2186e3f";
+const RULESET_PIN = "b065cbc7";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -9352,9 +9352,9 @@ const LEVEL_REV = {
   van: 1, musadagh: 1, sardarapat: 1, stepanakert92: 1, shushi: 1, stepanakert23: 1,
 };
 const LEVEL_PIN = {
-  erebuni: "01597965", tushpa: "61ca9118", avarayr: "4d985c5c", dvin: "b675faf5", tashir: "54419e97", sevan: "9c0e7630",
-  ani: "7fbb5fae", mari: "2a171694", sis: "da3b4e52", gyumri: "4f07a82e", halidzor: "d78a5c9f", van: "f4c4eb6e",
-  musadagh: "d070b014", sardarapat: "dc2f3a06", stepanakert92: "99a02348", shushi: "3e6bf59e", stepanakert23: "73190c6a",
+  erebuni: "1591222c", tushpa: "32a757cb", avarayr: "f5f90adf", dvin: "b6ceed15", tashir: "fcaf1166", sevan: "06107225",
+  ani: "8f9d18c2", mari: "9d21b5eb", sis: "3f35251c", gyumri: "fb069222", halidzor: "dbaed40e", van: "2992c19c",
+  musadagh: "27dcc88b", sardarapat: "f7b325ad", stepanakert92: "cc0b0f10", shushi: "1a9df3be", stepanakert23: "501a118a",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -9368,6 +9368,11 @@ const LEVEL_PAR = {
 // the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
 // daily scores under lostMax by the waves it held)
 const SCORE_WEIGHTS = { win: 4000, lives: 3000, speed: 1500, thrift: 1500, lostMax: 3999 };
+// How a battle pays, named once: endWaveIfClear (a cleared wave's bonus is clear[0] + clear[1] for each wave, and
+// the war chest pays interestRate of the purse, never more than interestCap), earlyBonus (an early call pays
+// earlyBase and earlyPerFoe for each foe on the field, never more than earlyCap) and sellRefund (a sale gives back
+// `sell` of what was laid out) read it, and so does rulesetData, so a change here moves the pins and earnMax
+const PAY = { clear: [25, 3], interestRate: 0.05, interestCap: 60, earlyBase: 10, earlyPerFoe: 4, earlyCap: 60, sell: 0.7 };
 // the tiles of the tray, as a battle's numbers and the ruleset name them
 const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
 // The object the platform publishes to its server, built from the page's own tables so it cannot drift from the
@@ -9383,8 +9388,8 @@ const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
 // tricks, its roads, pads and plots, the towers of its tray and each wave's groups, with what every battlefield
 // shares (the difficulties, the foes' and the towers' strength tables, the tricks' rules, the spells, the siege
 // powers, the climb of strength and the thinning of bounties by wave). Names, looks and texts are left out
-// (RULE_SKIP): a rename restarts no board. What is written in code and not in a table (the clear's bonus, the
-// interest, a sale's share) is not in it: a change there still needs its author to raise RULESET. If a table is
+// (RULE_SKIP): a rename restarts no board. How a battle pays (PAY) is in what they share. A rule written in code
+// and in no table is not in it: a change there still needs its author to raise RULESET. If a table is
 // only reshaped and the fight is the same, the pins are written anew and RULESET and the revs stay: say so in
 // the commit.
 const RULE_SKIP = new Set(["name", "desc", "depicts", "look", "lorePhrase", "lore", "cue", "color", "trim", "variant", "mounted", "title", "hotkey"]);
@@ -9402,7 +9407,7 @@ function rulesetData() {
   const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
   const script = [];
   for (let w = 1; w <= TOTAL_WAVES; w++) script.push(w);
-  const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER,
+  const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER, PAY,
     script.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
   const levels = {};
   try {
@@ -9423,7 +9428,7 @@ function rulesetData() {
             if (q.trick === "hunter") b = Math.round(b * TRICK_RULES.hunters.bounty);
             pay += b + Math.ceil(b * plunder);
           }
-          pay += 25 + w * 3 + 60 + 60;   // the clear's bonus, the interest at its cap, an early call at its cap
+          pay += PAY.clear[0] + w * PAY.clear[1] + PAY.interestCap + PAY.earlyCap;   // the clear's bonus, the interest at its cap, an early call at its cap
         }
         min = Math.floor(min);
         return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax: Math.ceil(pay * 1.1) };
@@ -10429,7 +10434,7 @@ let sandActive = false;   // retired: the Caliphate era's power is now the ladde
 let smokeClouds = [];     // { x, y, r, t, dur }: world-space smoke the ladder parties light
 
 // bonus for calling the next wave while the field is still contested
-function earlyBonus() { return Math.min(60, 10 + 4 * enemies.length); }
+function earlyBonus() { return Math.min(PAY.earlyCap, PAY.earlyBase + PAY.earlyPerFoe * enemies.length); }
 
 // --- era powers ---
 // what each age's siege engines do, in numbers (update and the powers below play them; the foe card quotes them):
@@ -10819,7 +10824,7 @@ function sellRefund(t) {
   const inv = towerInvested(t);
   const fresh = t.level === 0 && !t.spec && performance.now() - (t.placedAt || 0) < 5000;
   // a damaged tower sells for less (the undo of a placement just made keeps its full refund)
-  return { amount: fresh ? inv : Math.floor(inv * 0.7 * (0.4 + 0.6 * towerHpFrac(t))), fresh };
+  return { amount: fresh ? inv : Math.floor(inv * PAY.sell * (0.4 + 0.6 * towerHpFrac(t))), fresh };
 }
 
 // ---------- the battle's numbers (docs/specs/gameplay.final.md 6.1) ----------
@@ -10895,9 +10900,13 @@ function battleHorn() {
   track("battle_start", battleStartProps(false));
 }
 function battleStartProps(resumed) {
-  return { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
+  const p = { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
     ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: null,
     rev: LEVEL_REV[levelId(curLevel)] || 1, waves: TOTAL_WAVES, tray: TRAY_CLASSIC, power: 0, hero: 1, legacy: battle.rules !== RULESET };
+  // a resume also tells the clock, the debt and the dropped attempt's loss it came back with, so the platform can
+  // see a saved run whose clock went back (a save edited by hand) under the same run token
+  if (resumed) Object.assign(p, { sec: Math.round(battle.sec) || 0, debt: battle.debt, dropped: battle.dropped });
+  return p;
 }
 // A wave is cleared (endWaveIfClear, the clear's pay already booked). First the debt of a wave fought again: when
 // a run is left in the middle of a wave, the resume gives back the defenders that attempt lost and the wave is
@@ -10964,7 +10973,14 @@ function battleFacts() {
   };
 }
 // a battle is left on purpose (Abandon, or Replay tutorial from a battle): told once it had begun
-function battleQuit() { if (battle.started) track("battle_quit", Object.assign(battleFacts(), { how: "abandon" })); }
+function battleQuit() { if (battle.started) trackFacts("battle_quit", { how: "abandon" }); }
+// an event that carries the battle's numbers: a fault in counting them must never stop the battle's end (victory
+// and defeat call this before the best is saved), so the event then goes without them
+function trackFacts(name, extra) {
+  let p = null;
+  try { p = Object.assign(battleFacts(), extra || {}); } catch (e) { p = extra ? Object.assign({}, extra) : null; }
+  track(name, p);
+}
 // the one line the victory page adds when a wave fought again has cost the boards a defender
 function battleDebtLine() { return battle.debt > 0 && battleRanked() ? " A wave fought again counts its worse attempt on the boards." : ""; }
 // ---- the numbers in a saved run ----
@@ -11234,6 +11250,8 @@ function resumeRun() {
   autoBtn.classList.toggle("on", auto);
   if (auto) autoT = 3;
   battleResume(r);
+  // saved at once, so a second reload before the next horn counts its resume too (gameplay 6.1)
+  saveRun();
   syncHud();
   toast("The war resumes: wave " + (waveIdx + 1) + " awaits");
 }
@@ -11809,8 +11827,8 @@ function endWaveIfClear() {
     lastCleared = waveIdx;
     mendTowers();
     const adaptMsg = adaptStep();
-    const bonus = 25 + waveIdx * 3;
-    const interest = Math.min(60, Math.floor(gold * 0.05));   // war chest pays out
+    const bonus = PAY.clear[0] + waveIdx * PAY.clear[1];
+    const interest = Math.min(PAY.interestCap, Math.floor(gold * PAY.interestRate));   // war chest pays out
     gold += bonus + interest;
     battleEarn(bonus, "clear"); battleEarn(interest, "interest");
     battleWaveEnd();
@@ -11915,7 +11933,7 @@ $("ecBtn").addEventListener("click", () => { Snd.play("uiTick"); closeEndingCard
 const DANCE_MIN_MS = 10000, DANCE_MAX_MS = (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
 function victory() {
   gameOver = true;
-  track("victory", battleFacts());   // the battle's end is decided here: the platform posts the score from this
+  trackFacts("victory");   // the battle's end is decided here: the platform posts the score from this
   syncPauseBtn();
   if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
   const best = saveBest();   // the words of the "New best" ribbon, when the stand beat a record
@@ -12306,7 +12324,7 @@ function clearDebrief() { showDebrief("", -1); }
 // the beat has already lost it
 function defeat() {
   gameOver = true;
-  track("defeat", battleFacts());   // the battle's end is decided here (a lost daily is scored from this)
+  trackFacts("defeat");   // the battle's end is decided here (a lost daily is scored from this)
   const best = saveBest();
   clearRun();
   syncPauseBtn();
@@ -79418,6 +79436,12 @@ function runSelftestPlay() {
     const A = TOWER_DEFS.archer.levels[0], tushpa = LEVELS[levelIndexOf("tushpa")], sis = LEVELS[levelIndexOf("sis")];
     let got = moved(() => { A.dmg += 1; return () => { A.dmg -= 1; }; });
     if (got !== ids.join()) fail("an archer's damage moved the pins of: " + got);
+    // how a battle pays is a rule too: a cleared wave's bonus moves every pin, and the bound on what a battle earns
+    const em = R.levels.tushpa.d[1].earnMax;
+    got = moved(() => { PAY.clear[0] += 1; return () => { PAY.clear[0] -= 1; }; });
+    if (got !== ids.join()) fail("a cleared wave's bonus moved the pins of: " + got);
+    PAY.interestCap += 30;
+    try { if (rulesetData().levels.tushpa.d[1].earnMax <= em) fail("a higher cap on the interest left earnMax at " + em); } finally { PAY.interestCap -= 30; }
     got = moved(() => { const was = sis.hpTune; sis.hpTune = 1.07; return () => { sis.hpTune = was; }; });
     if (got !== "sis") fail("Sis's hpTune moved the pins of: " + got);
     got = moved(() => { tushpa.pads[0][0] += 10; return () => { tushpa.pads[0][0] -= 10; }; });
@@ -79507,6 +79531,32 @@ function runSelftestPlay() {
     if (f.mode !== "campaign" || f.diff !== 2 || f.lives_max !== DIFFS[2].lives || !(f.wave >= 1 && f.wave < 5) || f.script !== f.wave || f.lives !== 0 || f.held !== 0 || f.stars !== 0 ||
         f.loadout !== "open" || f.from.gift !== 40 || f.lv !== "tushpa") fail("defeat: " + JSON.stringify(f));
     endFall();
+  }));
+
+  // a fault in counting the numbers never stops a battle's end: the victory is still saved, and the event goes out
+  check("events: a fault in the numbers never stops a victory or a defeat", guarded(() => {
+    const keep = battleFacts;
+    battleFacts = () => { throw new Error("a staged fault"); };
+    try {
+      evClear();
+      stage("erebuni", 1);   // open from the start: its victory is saved
+      localStorage.removeItem(bestKey(curLevel, curEra));
+      placeTower("archer", 0);
+      startWave(); fight();
+      waveIdx = lastCleared = TOTAL_WAVES - 1;
+      startWave(); fight();
+      const v = evs().filter(e => e[0] === "victory");
+      if (!gameOver || v.length !== 1 || v[0][1] !== null) fail("the victory with a fault in its numbers: " + JSON.stringify(v));
+      if (localStorage.getItem(bestKey(curLevel, curEra)) !== "21" || !(levelRecord(curLevel).stars[1] >= 1)) fail("the victory with a fault in its numbers was not saved");
+      endCelebration();
+      evClear();
+      stage("tushpa", 1);
+      placeTower("archer", 0);
+      startWave(); fight(); fall();
+      const d = evs().filter(e => e[0] === "defeat");
+      if (!gameOver || d.length !== 1 || d[0][1] !== null) fail("the defeat with a fault in its numbers: " + JSON.stringify(d));
+      endFall();
+    } finally { battleFacts = keep; }
   }));
 
   check("clock: waits count, pauses do not, 1x and 2x agree", guarded(() => {
@@ -79692,6 +79742,9 @@ function runSelftestPlay() {
     for (const e of enemies) if (k < lost && e.dmg === 1 && !e.fly) { e.dist = 1e9; k++; }
     update(0.05);
     if (k !== lost || lives !== DIFFS[1].lives - lost) fail("the staged wave lost " + (DIFFS[1].lives - lives) + ", not " + lost);
+    // each defender lost saves the run at once (leakFoe), before any later save: a tab dropped now owes the loss
+    const S = JSON.parse(localStorage.getItem("hs_run") || "{}");
+    if (!S.redo || S.redo.w !== 2 || S.redo.lost !== lost) fail("the save at a defender lost: " + JSON.stringify(S.redo));
     run(3);
     holdOnLeave();
     return battle.sec;
@@ -79733,6 +79786,17 @@ function runSelftestPlay() {
     if (battle.dropped !== 3 || battle.resumed !== 2) fail("dropped twice, resumed: dropped " + battle.dropped + ", resumed " + battle.resumed);
     startWave(); fight();
     if (battle.debt !== 3 || battleFacts().lives_board !== DIFFS[1].lives - 3) fail("dropped twice: debt " + battle.debt);
+    // a second reload before anything is bought or sent is a resume too: counted, with the loss still owed and the
+    // clock kept; and a resumed start tells the clock, the debt and the loss it came back with
+    leftInWave2(2); reload(); resumeRun();
+    const sec1 = battle.sec, R3 = reload();
+    if (!R3.redo || R3.redo.w !== 2 || R3.redo.lost !== 2 || R3.redo.sec !== 0 || !R3.facts || R3.facts.resumed !== 1) fail("the run saved by a resume: " + JSON.stringify(R3.redo));
+    resumeRun();
+    if (battle.resumed !== 2 || battle.dropped !== 2 || battle.redoW !== 2 || Math.abs(battle.sec - sec1) > 0.02) fail("resumed twice: resumed " + battle.resumed + ", dropped " + battle.dropped + ", clock " + battle.sec + " (was " + sec1 + ")");
+    const b2 = evLast("battle_start");
+    if (!b2 || b2.resumed !== true || b2.sec !== Math.round(sec1) || b2.dropped !== 2 || b2.debt !== 0) fail("the resumed start's numbers: " + JSON.stringify(b2));
+    startWave(); fight();
+    if (battle.debt !== 2 || battleFacts().resumed !== 2) fail("resumed twice: debt " + battle.debt);
   }));
 
   check("resume: between waves nothing is owed; the numbers come back", guarded(() => {

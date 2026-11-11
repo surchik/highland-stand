@@ -170,3 +170,19 @@ Name it to the platform track; no gameplay rule changes.
   The platform should supply its own steps or name them to gameplay before G6.
 - For the owner (RULINGS S2, by design): a wave about to be lost can be left and fought again; the boards count the
   dropped attempt's loss, but a battle that would have fallen can end as a ranked victory.
+
+## Close-out
+
+1. Fixed: `PAY` names how a battle pays; endWaveIfClear, earlyBonus, sellRefund and rulesetData read it, and it is in
+   the `shared` hash. Suite 2 checks that a cleared wave's bonus moves every pin and a higher interest cap raises
+   earnMax. The pins were written anew (RULESET 1, revs 1): the bot equals the base in all 119 battles.
+2. Fixed: suite 2 reads `hs_run` straight after the leaks and asserts `redo.lost`.
+3. Fixed: resumeRun saves the run at once; suite 2 checks reload, resume, reload, resume (resumed 2, dropped kept,
+   clock kept).
+4. Fixed: trackFacts(name, extra) guards victory, defeat and battle_quit; suite 2 stages a fault in battleFacts and
+   checks the victory is still saved and both events still go out (with null props).
+5. Not changed in G1: waiting the 4 s inside the bot's battle would change its battles, and G1 must equal the base
+   cell for cell. For G4, when the pars are taken again.
+6. Not changed: BUILD_ID is raised by the integrator when next takes G1, so the two tracks do not both edit it.
+7. Fixed on gameplay's side: a resumed `battle_start` also carries `sec`, `debt` and `dropped`. Keeping the largest
+   `sec` under a run token and flagging a clock that went back is the platform's to build, if it agrees.

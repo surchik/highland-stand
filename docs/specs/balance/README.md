@@ -61,3 +61,12 @@ can pay with a tenth more. The table bears them out: in the 119 battles no victo
 than 73% of `earnMax`. The self-test's second suite also plays the quickest battle there can be on two
 battlefields (every wave called the moment the last has come on, every foe falling as it comes) and holds it
 between `min` and `min` plus 30 s.
+
+### The pins written anew at G1's close
+
+How a battle pays (`PAY` in `index.html`: a cleared wave's bonus, the interest and its cap, the early call's bonus
+and its cap, a sale's share) was written in code and not in a table, so the pins did not see it. It is now named
+once, read by the battle and by `rulesetData()`, and part of what every battlefield's `fight` hash covers. No
+number changed: the bot's 119 battles equal the base's in every field, and `earnMax` is the same on every
+battlefield. Only the `fight` hashes, `RULESET_PIN` and `LEVEL_PIN` moved, so RULESET stays 1 and every rev stays
+1. `ruleset-1.json` was written again with `node tools/ruleset.js --json`.
