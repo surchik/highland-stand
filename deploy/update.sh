@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pull the newest commit and publish index.html (and og.jpg, its share picture) if it changed. Run by cron every
+# Pull the newest commit and publish index.html (and the files beside it: og.jpg, the trailer) if it changed. Run by cron every
 # two minutes.
 # Before publishing, deploy/check-page.js makes sure every inline script of the page parses. A page that
 # fails is not published: the failure goes to the log once, the clone goes back to the commit that is live
@@ -15,16 +15,19 @@ WEB=${HS_WEB:-/var/www/highland}
 cd "$REPO"
 git fetch -q origin master
 NEW=$(git rev-parse origin/master)
-# the share picture (og.jpg, which the page's og:image names) goes out beside the page whenever the clone has one
-# the web root lacks or holds in another version. It is checked on every run, not only with a new commit: the run
-# that pulls a commit is still the update.sh from before it (the block is read whole first), so a picture that
-# older script did not know goes out on the run after
+# the files beside the page (og.jpg, the share picture its og:image names; the trailer a first visit opens on and
+# its poster) go out whenever the clone has one the web root lacks or holds in another version. They are checked
+# on every run, not only with a new commit: the run that pulls a commit is still the update.sh from before it (the
+# block is read whole first), so a file that older script did not know goes out on the run after. The page copes
+# with a trailer not yet there (the poster or nothing stands in), so that one run's gap does no harm
 publish_og() {
-  if [ -f og.jpg ] && ! cmp -s og.jpg "$WEB/og.jpg"; then
-    install -m 644 og.jpg "$WEB/og.jpg.new"
-    mv "$WEB/og.jpg.new" "$WEB/og.jpg"
-    echo "$(date -Is) published og.jpg"
-  fi
+  for f in og.jpg trailer.mp4 trailer.webm trailer-poster.jpg; do
+    if [ -f "$f" ] && ! cmp -s "$f" "$WEB/$f"; then
+      install -m 644 "$f" "$WEB/$f.new"
+      mv "$WEB/$f.new" "$WEB/$f"
+      echo "$(date -Is) published $f"
+    fi
+  done
 }
 if [ "$(git rev-parse HEAD)" = "$NEW" ]; then publish_og; exit 0; fi
 # a commit already turned away is not checked and logged again every two minutes (the clone is back on the live one)
