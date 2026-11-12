@@ -79506,9 +79506,16 @@ function gateLeave(how, then) {
 function gateCounted(state, providers, held) {
   clearTimeout(gateShownT);
   const at = gateState;
-  gateShownT = setTimeout(() => {
-    if (gateUp && gateState === at) track("gate_shown", { mode: gateMode, state, providers, held: held || "" });
-  }, 1000);
+  // (a first visit opens on the trailer, which covers the card: its second begins once the trailer is closed)
+  const covered = () => { try { return Trailer.isOpen(); } catch (e) { return false; } };
+  const arm = () => {
+    gateShownT = setTimeout(() => {
+      if (!gateUp || gateState !== at) return;
+      if (covered()) { gateShownT = setTimeout(function wait() { if (covered()) gateShownT = setTimeout(wait, 250); else arm(); }, 250); return; }
+      track("gate_shown", { mode: gateMode, state, providers, held: held || "" });
+    }, 1000);
+  };
+  arm();
 }
 
 // checking: the crest and one line while the switch, the providers, a code's exchange or the profile are asked
