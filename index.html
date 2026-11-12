@@ -3021,6 +3021,14 @@
     <path d="M22.4 1.6 12.2 6.2l5.6 5.6z"/>
     <path d="M9.4 11.8l2.8 2.800" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
   </symbol>
+  <!-- the Garrison Post: a round shield over an upright spear -->
+  <symbol id="i-post" viewBox="0 0 24 24">
+    <path d="M12 1.4v21.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M12 .6 9.9 5.2h4.2z"/>
+    <circle cx="12" cy="13.6" r="7.2"/>
+    <circle cx="12" cy="13.6" r="4.6" fill="none" stroke="#1a120b" stroke-opacity=".45" stroke-width="1.2"/>
+    <circle cx="12" cy="13.6" r="1.6" fill="#1a120b" fill-opacity=".45"/>
+  </symbol>
   <symbol id="i-axe" viewBox="0 0 24 24">
     <path d="M10.800 2.200h2.400v20h-2.400z"/>
     <path d="M10.800 4.600C6 3.600 2.400 6.600 2.400 10.400s3.600 6.800 8.400 5.800C9.200 13 9.200 7.800 10.800 4.600zM13.200 4.600c4.800-1 8.400 2 8.400 5.800s-3.600 6.800-8.400 5.800c1.600-3.200 1.600-8.400 0-11.600z"/>
@@ -3528,6 +3536,13 @@
       <span class="key">5</span>
       <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>100</span>
       <div class="ds kit"><b>War Drums</b>Inspire nearby towers: faster, harder strikes.</div>
+    </div>
+    <div class="card" data-type="post" style="display: none">
+      <div class="pic"><canvas width="284" height="116"></canvas></div>
+      <div class="nm">Garrison Post</div>
+      <span class="key">6</span>
+      <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>90</span>
+      <div class="ds kit"><b>Garrison Post</b>Men who stand on the road and hold foes in melee. Outflankers go round.</div>
     </div>
   </div>
   <div class="trayCap right">
@@ -9562,6 +9577,50 @@ const TOWER_DEFS = {
   },
 };
 
+// ---------- the Garrison Post (docs/specs/gameplay.final.md 2): a sixth slot, men who hold foes on the road ----------
+// The post has no shot (proj null), so the shooting loop passes it by; its men are its own block (postTick). men:
+// soldiers; hp, dmg, rate: each man's strength, blow and seconds between blows (cut by armor like an arrow; Sortie's
+// pierce); reach: how far from the pad the rally point may lie (ground range, the game's ellipse); respawn: seconds
+// before a fallen man walks out again; holds: foes one man holds (1 unless given); guard: the share of a blow a man
+// does not take; chase: px a man follows a foe down the road before he turns back. `range` is the reach again, for the
+// rings every tower draws (the tile's preview, the hover whisper, the panel's next step)
+function postRow(o) { o.range = o.reach; return o; }
+TOWER_DEFS.post = {
+  name: "Garrison Post", cost: 90, proj: null, post: true,
+  levels: [
+    postRow({ men: 2, hp: 130, dmg: 10, rate: 1.0, reach: 150, respawn: 12 }),
+    postRow({ men: 3, hp: 180, dmg: 15, rate: 1.0, reach: 165, respawn: 10, cost: 110 }),
+    postRow({ men: 3, hp: 250, dmg: 22, rate: 0.9, reach: 180, respawn: 9, cost: 190 }),
+  ],
+  specs: {
+    a: { name: "Shield Wall", cost: 300, desc: "Four men behind great shields. Each holds two foes.",
+         stats: postRow({ men: 4, hp: 420, dmg: 20, rate: 1.0, reach: 185, respawn: 8, holds: 2, guard: 0.35 }) },
+    b: { name: "Sortie", cost: 300, desc: "Three picked fighters who strike hard and give chase.",
+         stats: postRow({ men: 3, hp: 300, dmg: 48, rate: 0.8, reach: 215, respawn: 8, pierce: true, chase: 60 }) },
+  },
+};
+// how the men fight, named once (rulesetData reads it). spot/stagger: the line across the road (px apart across it,
+// px along it); catch: how near his spot a foe must come to be held (ground range); walk: px a second; heal: the share
+// of his strength a man out of combat for healAfter s regains a second; cmdHold: the seconds in all one post holds one
+// commander; charge: what a horseman deals on contact; hunterMen: the men who leave the line for a hunter at a tower
+// in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
+// covers more of the field); melee: what a foe deals a second to the man who holds it, times 1 + perWave for each
+// script wave past the first
+const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 8, charge: 30, hunterMen: 2,
+  pick: 70, pickPhone: 110, perWave: 0.05, melee: { raider: 7, spearman: 9, shield: 11, cavalry: 12, boss: 60 } };
+
+// which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
+// built into the game (G7) ageTower answers null and its battlefields play with the post and six tiles
+const AGES = [
+  { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
+  { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
+  { id: "a3", upTo: 5, tower: "mine" },     // eras 3, 4: Gyumri Road, Halidzor
+  { id: "a4", upTo: 6, tower: "aid" },      // era 5: Van, Musa Dagh, Sardarapat
+  { id: "a5", upTo: 99, tower: "spotter" }, // era 6: Stepanakert 1992, Shushi, Stepanakert 2023
+];
+function ageOf(era) { const a = eraAge(era); return AGES.findIndex(A => a < A.upTo); }
+function ageTower(era) { const A = AGES[ageOf(era)]; return A && TOWER_DEFS[A.tower] ? A.tower : null; }
+
 // ---------- enemies ----------
 const ENEMY_DEFS = {
   raider:   { name: "Cimmerian Raiders",      hp: 42,  spd: 88,  armor: 0,  bounty: 8,  r: 9,  dmg: 1,  color: "#b05a3a", trim: "#e8b27a" },
@@ -9862,6 +9921,60 @@ const SKIN_SPECS = {
     get b() { return [["Headquarters", "Mighty blows; kills near the post pay +30% gold"], ["Belfry Lookout", "Mighty blows; kills near the post pay +30% gold"], ["Civil Defense Post", "Mighty blows; kills near the post pay +30% gold"]][a6LabelSite()]; },
   },
 };
+// the Garrison Post in every age (gameplay 2.6): a guardhouse of stone in the ages of spear and shield, a timber
+// palisade corner in 1727, a barricade of sacks and beams in 1915 to 1918, a dugout under logs in Artsakh
+TOWER_SKINS.post = ["postguard", "postguard", "postguard", "postguard", "postpalisade", "postsandbag", "postdugout", "postguard", "postguard"];
+SLOT_NAMES.post = ["Spearmen of Biainili", "Footmen of the Houses", "Gate Guard", "Road Guard", "Fortress Garrison", "Barricade Fighters",
+  "Self-defense squad", "Gate Guard of Ani", "Men-at-Arms"];
+SLOT_BLURB.post = "Men who stand on the road and hold foes in melee. Outflankers go round.";
+for (const k of ["postguard", "postpalisade", "postsandbag", "postdugout"]) SKIN_BLURB[k] = SLOT_BLURB.post;
+// the masteries by age: "Shield wall" is the name of the enemy's guard at Ani, so Ani's own is Locked Shields
+const POST_SPEC_NAMES = {
+  guard: { a: ["Shield Wall", "Four men behind great shields. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
+  ani: { a: ["Locked Shields", "Four men behind great shields. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
+  palisade: { a: ["Palisade Line", "Four men behind a line of stakes. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
+  e5: { a: ["Dug-in Squad", "Four riflemen dug in across the road. Each holds two foes."], b: ["Bayonet Charge", "Three fighters who charge with the bayonet and give chase."] },
+  e6: { a: ["Dug-in Squad", "Four riflemen dug in across the road. Each holds two foes."], b: ["Counterattack", "Three picked fighters who strike hard and give chase."] },
+};
+SKIN_SPECS.postguard = { get a() { return POST_SPEC_NAMES[curEra === 7 ? "ani" : "guard"].a; }, get b() { return POST_SPEC_NAMES[curEra === 7 ? "ani" : "guard"].b; } };
+SKIN_SPECS.postpalisade = POST_SPEC_NAMES.palisade;
+SKIN_SPECS.postsandbag = POST_SPEC_NAMES.e5;
+SKIN_SPECS.postdugout = POST_SPEC_NAMES.e6;
+// each battlefield's own post: its name, what it shows and, where the name is long, its short form for a phone's
+// tile. The units' names are the game's; what they show is drawn from each battlefield's own text or is the age's
+// generic soldier (Gyumri Road is the game's invention, as its battle is)
+const POST_LEVEL = {
+  erebuni: { name: "Spearmen of Biainili", short: "Spearmen", depicts: "Urartian foot soldiers with spears and round bronze-faced shields, holding the road below the walls" },
+  tushpa: { name: "Spearmen of Biainili", short: "Spearmen", depicts: "Urartian foot soldiers with spears and round bronze-faced shields, holding the road below the walls" },
+  avarayr: { name: "Footmen of the Houses", short: "Footmen", depicts: "Foot soldiers of the noble houses standing in line with spears and shields" },
+  dvin: { name: "Gate Guard", depicts: "Armenian foot soldiers with spears and shields barring the road" },
+  tashir: { name: "Gate Guard", depicts: "Armenian foot soldiers with spears and shields barring the road" },
+  sevan: { name: "Shore Guard", depicts: "Armenian foot soldiers with spears and shields barring the road" },
+  ani: { name: "Gate Guard of Ani", short: "Gate Guard", depicts: "Defenders of Ani holding the road before the walls" },
+  mari: { name: "Men-at-Arms", depicts: "Cilician foot soldiers with spears and shields" },
+  sis: { name: "Castle Guard", depicts: "Cilician foot soldiers with spears and shields" },
+  gyumri: { name: "Road Guard", depicts: "Highland villagers with pikes and axes barring the winter road (the game's invention)" },
+  halidzor: { name: "Fortress Garrison", short: "Garrison", depicts: "Fighters of the garrison at the foot of the walls, sabers and matchlocks in hand" },
+  van: { name: "Barricade Fighters", short: "Fighters", depicts: "Defenders with rifles and bayonets behind a barricade across the lane" },
+  musadagh: { name: "Pass Defenders", short: "Defenders", depicts: "Villagers holding a breastwork across the mountain path" },
+  sardarapat: { name: "Infantry Company", short: "Infantry", depicts: "Armenian infantry with fixed bayonets" },
+  stepanakert92: { name: "Self-defense squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
+  shushi: { name: "Trench squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
+  stepanakert23: { name: "Defense Army squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
+};
+// a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
+const TOWER_SHORT = {
+  "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
+  "Barricade and mines": "Barricade", "Bread queue shelter": "Bread shelter", "Modern Rifle Marksmen": "Marksmen",
+  "Barricade and Trench": "Barricade", "Ghevond's Exhortation": "Exhortation", "Ter Avetis' Blessing": "Blessing",
+  "Castle Stone-Thrower": "Stone-Thrower", "Wall Stone-Thrower": "Stone-Thrower", "Cartridge Workshop": "Workshop",
+  "Traction Trebuchet": "Trebuchet", "BM-21 Grad battery": "Grad battery", "Spearmen of Biainili": "Spearmen",
+  "Footmen of the Houses": "Footmen", "Horsemen of Biainili": "Horsemen", "Self-defense squad": "Squad", "Defense Army squad": "Squad",
+};
+function towerShort(type) {
+  const own = levelTower(type), name = towerName(type);
+  return (own && own.short) || TOWER_SHORT[name] || "";
+}
 const WRATH_NAMES = ["Teisheba's Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Highland Storm", "Taurus Storm"];
 // Q and W in each age, as WRATH_NAMES names E: [name, what it does, look]. Only the name, the picture and the
 // sound change with the age; damage, hold time and radius always come from SPELLS. The bow gives way to the
@@ -9910,7 +10023,8 @@ function spellLook(key, era) { return spellRow(key, era)[2]; }
 // a battlefield may call its towers by its own names (L.towers[slot].name) where its era's row does not fit it
 function levelTower(type) {
   const L = LEVELS[curLevel];
-  return (L && L.era === curEra && L.towers && L.towers[type]) || null;
+  if (!(L && L.era === curEra)) return null;
+  return (L.towers && L.towers[type]) || (type === "post" && POST_LEVEL[L.id]) || null;
 }
 // what the tower shows, for the card's tooltip: "" where the battlefield does not say
 function towerDepicts(type) {
@@ -9930,7 +10044,26 @@ function specInfo(type, key) {
   return Object.assign({}, sp, own ? { name: own[0] } : null, own && own[1] ? { desc: own[1] } : null, { cost });
 }
 // rewrite every era-dependent label in the tray and spell bar for the battlefield now chosen
+// the tray's tiles as trayTypes() has them: shown in its order with their keys (1 to 7), the rest hidden; #shop says how
+// many stand (data-n) for the stylesheet's steps
+function syncTray() {
+  const shop = $("shop");
+  if (!shop) return;
+  const kinds = trayTypes();
+  shop.querySelectorAll(".card").forEach(card => {
+    const i = kinds.indexOf(card.dataset.type);
+    card.style.display = i < 0 ? "none" : "";
+    card.style.order = i < 0 ? "" : String(i);
+    const key = card.querySelector(".key"), pr = card.querySelector(".pr");
+    if (key && i >= 0) key.textContent = String(i + 1);
+    // the price is the kit's (the Captains' fourth tier takes 5% off the special tower)
+    if (pr && i >= 0 && pr.lastChild && pr.lastChild.nodeType === 3) pr.lastChild.nodeValue = String(towerCost(card.dataset.type));
+  });
+  shop.dataset.n = String(kinds.length);
+  if (placing && !kinds.includes(placing)) setPlacing(null);
+}
 function applyEraLabels() {
+  syncTray();
   document.querySelectorAll("#shop .card").forEach(card => {
     const type = card.dataset.type;
     if (!TOWER_DEFS[type]) return;
@@ -10252,6 +10385,42 @@ const SCORE_WEIGHTS = { win: 4000, lives: 3000, speed: 1500, thrift: 1500, lostM
 const PAY = { clear: [25, 3], interestRate: 0.05, interestCap: 60, earlyBase: 10, earlyPerFoe: 4, earlyCap: 60, sell: 0.7 };
 // the tiles of the tray, as a battle's numbers and the ruleset name them
 const TRAY_CLASSIC = "archer,ballista,catapult,fire,drums";
+const TRAY_BASE = TRAY_CLASSIC.split(",");
+// The tray grows (gameplay 3.8): the five slots, the Garrison Post once Tushpa is open, the battlefield's special
+// tower once its battlefield is (3.1). One function builds it; a resumed run keeps the tray it began with (runTray),
+// the coached stand keeps the classic five, a daily twist may strike a tile out (trayBan)
+let runTray = null;
+let trayBan = [];
+// the battlefield a kind is first offered on (a kind not built into the game is never offered)
+const TOWER_FIRST = { post: "tushpa", horse: "avarayr", stores: "tashir", mine: "gyumri", aid: "van", spotter: "stepanakert92" };
+function towerUnlocked(kind) {
+  if (!TOWER_DEFS[kind]) return false;
+  if (TRAY_BASE.includes(kind)) return true;
+  const at = levelIndexOf(TOWER_FIRST[kind]);
+  return at >= 0 && (levelOpen(at) || testUnlockAll);
+}
+function trayTypes() {
+  if (runTray) return runTray;
+  if (tutGentle) return TRAY_BASE.slice();
+  const out = TRAY_BASE.filter(k => !trayBan.includes(k));
+  if (towerUnlocked("post")) out.push("post");
+  const a = ageTower(curEra);
+  if (a && towerUnlocked(a)) out.push(a);
+  return out;
+}
+// the battlefield's whole tray, as the Standard battle and the ruleset name it (every tower the campaign offers there)
+function trayStandard(era) {
+  const out = TRAY_BASE.concat("post"), a = ageTower(era);
+  if (a) out.push(a);
+  return out;
+}
+// a saved run's tray, checked: known kinds, the classic five among them, seven at most (a run saved before the tray
+// grew has none: the classic five)
+function savedTray(x) {
+  if (!Array.isArray(x)) return TRAY_BASE.slice();
+  if (x.length > 7 || !TRAY_BASE.every(k => x.includes(k)) || !x.every(k => typeof k === "string" && TOWER_DEFS[k]) || new Set(x).size !== x.length) return null;
+  return x.slice();
+}
 
 // ---------- the War Council: stars spent on a tree, and the kit a battle is fought with (gameplay 4.1 to 4.3) ----------
 // Five branches of five tiers. A tier needs the one under it in its branch, and its chapter: tier t can be taken once
@@ -10736,7 +10905,7 @@ function rulesetData() {
   const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
   // the 20-step script every battlefield plays steps of: its climb of strength and thinning of bounties
   const full = SCRIPT_TABLES[SCRIPT_LEN];
-  const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER, PAY,
+  const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER, PAY, POST_RULES,
     full.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
   const levels = {};
   try {
@@ -10772,11 +10941,11 @@ function rulesetData() {
         units: Object.keys(ENEMY_DEFS).map(role => eraUnit(role)),
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
-        towers: TRAY_CLASSIC.split(",").map(k => TOWER_DEFS[k]),
+        towers: trayStandard(L.era).map(k => TOWER_DEFS[k]),
         waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
-        pads: L.pads.length + (L.plots || []).length, tray: TRAY_CLASSIC, fight, d };
+        pads: L.pads.length + (L.plots || []).length, tray: trayStandard(L.era).join(","), fight, d };
     });
   } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv, rules1Tune] = keep; }
   // the daily's part is empty until the daily's battle is built (6.4): no pool, so no day has a battle
@@ -11084,11 +11253,17 @@ function slotMult(e, slot) {
 // the damage each slot deals is booked for the adaptive enemy (drums deal none): the strength it took off foe e (not
 // a blow's overkill), and only off the foes the enemy could shield, never an outflanker or a commander (the foe
 // cards send the archers and ballistae against those, and following that advice must not draw the answer)
+// The Garrison Post (and the special towers to come) is no slot the enemy answers: what it deals is booked apart
+// (adapt.acc.other) and counts only in the total the shares are taken of (adaptStep), so a board that fights with its
+// garrison is that much less one-sided
 function bookAdapt(slot, eff, e) {
-  if (!slot || !TRICK_SLOTS.includes(slot) || !(eff > 0)) return;
+  if (!slot || !(eff > 0)) return;
+  const own = TRICK_SLOTS.includes(slot);
+  if (!own && !(TOWER_DEFS[slot] && TOWER_DEFS[slot].post)) return;
   if (e && (e.type === "flyer" || e.type === "boss" || e.fly)) return;
   const took = e ? Math.min(eff, Math.max(0, e.hp)) : eff;
-  if (took > 0) adapt.acc[slot] = (adapt.acc[slot] || 0) + took;
+  const k = own ? slot : "other";
+  if (took > 0) adapt.acc[k] = (adapt.acc[k] || 0) + took;
 }
 // a wave is cleared: the enemy studies it. Returns a toast for a change, or ""
 function adaptStep() {
@@ -11102,6 +11277,7 @@ function adaptStep() {
   let total = 0;
   adapt.hist.forEach((h, i) => {
     for (const s of TRICK_SLOTS) { const v = R.weights[i] * (h[s] || 0); share[s] = (share[s] || 0) + v; total += v; }
+    total += R.weights[i] * (h.other || 0);
   });
   const was = adapt.slot;
   const down = () => { adapt.step--; if (adapt.step < 0) { adapt.step = -1; adapt.slot = null; } };
@@ -11127,7 +11303,7 @@ function savedAdapt(x) {
   if (Array.isArray(x.hist)) {
     for (const h of x.hist.slice(0, 3)) {
       const o = {};
-      if (h && typeof h === "object") for (const s of TRICK_SLOTS) if (typeof h[s] === "number" && isFinite(h[s]) && h[s] >= 0) o[s] = h[s];
+      if (h && typeof h === "object") for (const s of TRICK_SLOTS.concat("other")) if (typeof h[s] === "number" && isFinite(h[s]) && h[s] >= 0) o[s] = h[s];
       out.hist.push(o);
     }
   }
@@ -11232,6 +11408,8 @@ function rebuildTower(t) {
 function clearRuin(t) {
   if (!t || !t.wreck) return;
   spendGold(-salvageValue(t));
+  postRelease(t);
+  if (rallying === t) rallying = null;
   towers = towers.filter(x => x !== t);
   Snd.play("coin");
   toast("Ruin cleared.");
@@ -12180,6 +12358,286 @@ function updateHero(dt) {
   if (hero.swing > 0) hero.swing -= dt;
 }
 
+// ---------- the Garrison Post's men (gameplay 2.2 to 2.4) ----------
+// A post: t.rally = { x, y, route, dist } (a point on a road inside its reach) and t.men = [{ x, y, hp, max, state,
+// foes, cd, down, ... }]. A man stands at his spot in a short line across the road at the rally point, takes the
+// nearest foe he may hold that comes within POST_RULES.catch of his spot (e.heldBy = man: the foe stands still, the
+// rule the hero's hold uses), and man and foe trade blows until one falls. Everything here is game time and uses no
+// random number, so the balance bot and a resumed run see the same battle.
+// the road's points every 5 px, per road of this battlefield (the dormant ambush track too), for the reach and the rally
+const POST_SAMPLES = new WeakMap();
+function postRoadSamples() {
+  if (POST_SAMPLES.has(ROUTES)) return POST_SAMPLES.get(ROUTES);
+  const out = [];
+  ROUTES.forEach((R, ri) => {
+    for (let d = 0; d <= R.len; d += 5) { const p = routeAt(ri, d); out.push({ x: p.x, y: p.y, route: ri, dist: d, left: R.len - d }); }
+  });
+  POST_SAMPLES.set(ROUTES, out);
+  return out;
+}
+// the ground distance (the game's ellipse: a step up the screen counts 1 / ELLIPSE)
+function groundGap(ax, ay, bx, by) { return Math.hypot(bx - ax, (by - ay) / ELLIPSE); }
+function postReach(t) { return getStats(t).reach; }
+// the road a post on pad (x, y) with that reach may stand on
+function postRoadIn(x, y, reach) { return postRoadSamples().filter(s => groundGap(x, y, s.x, s.y) <= reach); }
+// the rally point a post gets when it is built: the road point in reach nearest the pad (on a tie, the nearer the
+// walls), or null where no road lies in reach (the pad refuses the post)
+function postDefaultRally(x, y, reach) {
+  let best = null, bd = Infinity;
+  for (const s of postRoadIn(x, y, reach)) {
+    const d = groundGap(x, y, s.x, s.y);
+    if (d < bd - 0.5 || (Math.abs(d - bd) <= 0.5 && best && s.left < best.left)) { best = s; bd = Math.min(bd, d); }
+  }
+  return best && { x: best.x, y: best.y, route: best.route, dist: best.dist };
+}
+function padTakesPost(padIdx) {
+  const p = PADS[padIdx];
+  return !!p && !!postDefaultRally(p[0], p[1], TOWER_DEFS.post.levels[0].reach);
+}
+// a man's strength, his seconds before he walks out again, and the share of a blow he does not take
+function postManMax(t) { return Math.round(getStats(t).hp * kitNow().postMen); }
+function postRespawnS(t) { return getStats(t).respawn * kitNow().postBack; }
+// the spots of the line: across the road 12 px apart, every second man 8 px nearer the walls
+function postSpots(t) {
+  const R = t.rally, n = getStats(t).men, key = R.x + "," + R.y + "," + n;
+  if (t.spotsKey === key) return t.spots;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const along = i % 2 ? POST_RULES.stagger : 0, q = routeAt(R.route, Math.min(ROUTES[R.route].len, R.dist + along));
+    const across = (i - (n - 1) / 2) * POST_RULES.spot;
+    out.push({ x: q.x - Math.sin(q.ang) * across, y: q.y + Math.cos(q.ang) * across * ELLIPSE });
+  }
+  t.spots = out; t.spotsKey = key;
+  return out;
+}
+// a new post, or one resumed: its rally point (a saved one is taken back to the road where it was) and its men, whole
+function postInit(t, saved) {
+  if (t.type !== "post") return;
+  let R = null;
+  if (Array.isArray(saved) && saved.length >= 2 && isFinite(saved[0]) && isFinite(saved[1])) {
+    let bd = Infinity;
+    for (const s of postRoadIn(t.x, t.y, postReach(t))) { const d = Math.hypot(s.x - saved[0], s.y - saved[1]); if (d < bd) { bd = d; R = s; } }
+    if (bd > 12) R = null;
+    if (R) R = { x: R.x, y: R.y, route: R.route, dist: R.dist };
+  }
+  t.rally = R || postDefaultRally(t.x, t.y, postReach(t)) || { x: t.x, y: t.y, route: 0, dist: 0 };
+  t.men = [];
+  t.menFor = "";
+  t.flagT = 0;
+  postSyncMen(t, true);
+}
+// the line follows the post's rank: a rank or a mastery with more men sends them out from the post; every man keeps
+// the share of his strength he had
+function postSyncMen(t, atSpots) {
+  const key = t.level + (t.spec || "") + "|" + postManMax(t);
+  if (t.menFor === key) return;
+  t.menFor = key;
+  const n = getStats(t).men, max = postManMax(t), spots = postSpots(t);
+  while (t.men.length > n) postDrop(t.men.pop());
+  for (const m of t.men) { m.hp = m.down ? 0 : Math.max(1, Math.round(m.hp / (m.max || max) * max)); m.max = max; }
+  while (t.men.length < n) {
+    const i = t.men.length, at = atSpots ? spots[i] : { x: t.x, y: t.y + 6 };
+    t.men.push({ i, post: t, x: at.x, y: at.y, hp: max, max, state: atSpots ? "stand" : "walk", foes: [], cd: 0, combatT: 0,
+      down: false, respawn: 0, swing: 0, face: -1, walk: 0, target: null, flash: 0 });
+  }
+}
+// a man lets go of every foe he holds
+function postDrop(m) {
+  for (const e of m.foes) if (e.heldBy === m) e.heldBy = null;
+  m.foes = [];
+  if (m.target && m.target.heldBy === m) m.target.heldBy = null;
+  m.target = null;
+}
+function postRelease(t) { for (const m of t.men || []) postDrop(m); }
+// what the men may hold: the rank and file on the ground, a hidden scout once seen, a tower hunter (on the road, or at
+// a tower in reach: postTick sends men to it), a commander for a while. Never an outflanker or a siege engine and its
+// crew (role ram in every age: ram, elephant, ladder party, cannon, tank, sappers)
+function postHoldable(e, t) {
+  if (e.dead || e.hp <= 0 || e.fly || e.type === "ram" || e.type === "flyer" || foeUnseen(e)) return false;
+  if (e.type === "boss" && ((e.postT && e.postT[t.pad]) || 0) >= POST_RULES.cmdHold) return false;
+  return true;
+}
+// the blow a foe deals the man who holds it, a second (cavalry's charge apart)
+function postFoeDps(e) {
+  const k = 1 + POST_RULES.perWave * Math.max(0, scriptWave(Math.max(1, waveIdx)) - 1);
+  return (POST_RULES.melee[e.type] || 8) * k;
+}
+// standing fast: the hero's Call covers the men of posts near him (CALL.reach): half damage, one more held
+function postUnderCall(m) { return callT > 0 && !!hero && hero.alive && Math.hypot(m.x - hero.x, m.y - hero.y) <= CALL.reach; }
+let postSndT = 0;   // the men's blows are heard, a few a second at most
+function postTick(dt) {
+  postSndT -= dt;
+  const posts = towers.filter(t => t.type === "post" && t.men);
+  if (!posts.length) return;
+  const PR = POST_RULES;
+  for (const t of posts) {
+    postSyncMen(t, false);
+    const st = getStats(t), spots = postSpots(t), cap0 = st.holds || 1, guard = st.guard || 0, chase = st.chase || 0;
+    const haste = 1 + (t.buffHaste || 0), might = 1 + (t.buffMight || 0), reach = st.reach;
+    if (t.flagT > 0) t.flagT -= dt;
+    // hunters at a tower whose foot lies in the post's reach: up to two free men leave the line for each
+    for (const e of enemies) {
+      if (!(e.hunt && e.off && e.hunt.tower && e.hunt.state !== "back") || e.dead || e.hp <= 0) continue;
+      const T = e.hunt.tower;
+      if (!inGroundRange(t.x, t.y, T.x, T.y, reach)) continue;
+      let sent = t.men.filter(m => !m.down && (m.target === e || m.foes.includes(e))).length;
+      for (const m of t.men) {
+        if (sent >= PR.hunterMen) break;
+        if (m.down || m.target || m.foes.length || e.heldBy) continue;
+        m.target = e; m.state = "walk"; sent++;
+      }
+    }
+    for (const m of t.men) {
+      if (m.swing > 0) m.swing -= dt;
+      if (m.flash > 0) m.flash -= dt;
+      if (m.down) {
+        // a wrecked post sends no one; a stunned one sends no one until it recovers; the drums quicken the return and
+        // a damaged or failing post slows it (towerPace)
+        if (t.wreck || t.stunnedT > 0) continue;
+        m.respawn -= dt * haste * towerPace(t);
+        if (m.respawn <= 0) { m.down = false; m.hp = m.max = postManMax(t); m.x = t.x; m.y = t.y + 6; m.state = "walk"; m.combatT = 0; }
+        continue;
+      }
+      // what he holds, checked: the dead and the no longer holdable go, a commander's time with this post runs
+      m.foes = m.foes.filter(e => {
+        const keep = postHoldable(e, t) && e.heldBy === m && enemies.includes(e);
+        if (!keep && e.heldBy === m) e.heldBy = null;
+        return keep;
+      });
+      // a man sent after a hunter turns back when it is back on its road (unless he gives chase to it)
+      const tg = m.target;
+      if (tg && (tg.dead || tg.hp <= 0 || !enemies.includes(tg) || !postHoldable(tg, t) || (tg.heldBy && tg.heldBy !== m) || (!m.chasing && !tg.off))) {
+        if (m.target && m.target.heldBy === m) m.target.heldBy = null;
+        m.target = null; m.chasing = false;
+      }
+      for (const e of m.foes) if (e.type === "boss") e.postT[t.pad] = (e.postT[t.pad] || 0) + dt;
+      t.holdS = (t.holdS || 0) + m.foes.length * dt;   // seconds of hold, for the balance bot's report
+      const spot = spots[m.i] || spots[0];
+      const cap = m.foes.some(e => e.type === "boss") ? 1 : cap0 + (postUnderCall(m) ? CALL.menMore : 0);
+      // where he goes: to a hunter or a foe he gives chase to, else back to his spot
+      let goal = spot;
+      if (m.target && !m.foes.includes(m.target)) {
+        const p = enemyPos(m.target);
+        goal = { x: p.x - 9 * (m.face || 1), y: p.y };
+        // a chase ends past `chase` px from his spot
+        if (m.chasing && groundGap(spot.x, spot.y, p.x, p.y) > PR.catch + chase) { m.target = null; m.chasing = false; goal = spot; }
+        else if (Math.hypot(p.x - m.x, p.y - m.y) <= 14) {
+          postGrab(t, m, m.target, guard);
+          m.chasing = false; m.target = null; goal = null;
+        }
+      } else if (m.foes.length) goal = null;   // he fights where he stands
+      if (goal) {
+        const dx = goal.x - m.x, dy = goal.y - m.y, d = Math.hypot(dx, dy);
+        if (d > 2) {
+          const step = Math.min(d, PR.walk * dt);
+          m.x += dx / d * step; m.y += dy / d * step; m.walk += dt * 10;
+          if (Math.abs(dx) > 1) m.face = dx > 0 ? 1 : -1;
+          m.state = "walk";
+        } else { m.x = goal.x; m.y = goal.y; m.state = m.target ? "walk" : "stand"; }
+      }
+      // a free man at his spot takes the nearest foe he may hold (a Sortie's man gives chase to one a little further)
+      if (m.state === "stand" && !m.target && m.foes.length < cap) {
+        let best = null, bd = Infinity;
+        for (const e of enemies) {
+          if (e.heldBy || e.off || !postHoldable(e, t)) continue;
+          if (e.type === "boss" && m.foes.length) continue;   // a commander takes a man whole, Shield Wall included
+          const p = enemyPos(e), d = groundGap(spot.x, spot.y, p.x, p.y);
+          if (d <= PR.catch + e.r * 0.5 + (m.foes.length ? 0 : chase) && d < bd) { bd = d; best = e; }
+        }
+        if (best) {
+          if (bd <= PR.catch + best.r * 0.5) postGrab(t, m, best, guard);
+          else { m.target = best; m.chasing = true; }
+        }
+      }
+      // blows: on the first foe he holds, else on an engine or a commander he cannot hold as it passes
+      let foe = m.foes[0] || null;
+      if (!foe && m.state === "stand") {
+        for (const e of enemies) {
+          if (e.dead || e.hp <= 0 || e.fly || foeUnseen(e)) continue;
+          if (e.type !== "ram" && !(e.type === "boss" && !postHoldable(e, t))) continue;
+          const p = enemyPos(e);
+          if (groundGap(m.x, m.y, p.x, p.y) <= PR.catch + e.r * 0.5) { foe = e; break; }
+        }
+      }
+      m.cd -= dt * haste;
+      if (foe && m.cd <= 0) {
+        m.cd = st.rate;
+        m.swing = 0.25;
+        const p = enemyPos(foe);
+        if (Math.abs(p.x - m.x) > 1) m.face = p.x > m.x ? 1 : -1;
+        damageEnemy(foe, st.dmg * might, !!st.pierce, t);
+        if (postSndT <= 0) { postSndT = 0.22; const arm = postArm(); Snd.play(arm === "fire" || arm === "ak" ? "heroShot" : "heroHit", { x: m.x, arm, vol: 0.55 }); }
+      } else if (m.cd < 0) m.cd = 0;
+      // what the foes he holds deal him (a commander's blows are never halved by the Call)
+      if (m.foes.length) {
+        m.combatT = PR.healAfter;
+        const call = postUnderCall(m);
+        let hurt = 0;
+        for (const e of m.foes) hurt += postFoeDps(e) * (call && e.type !== "boss" ? CALL.cut : 1);
+        m.hp -= hurt * (1 - guard) * dt;
+      } else {
+        m.combatT -= dt;
+        if (m.combatT <= 0 && m.hp < m.max) m.hp = Math.min(m.max, m.hp + PR.heal * m.max * dt);
+      }
+      if (m.hp <= 0) postManFalls(t, m);
+    }
+  }
+}
+// a man takes hold of a foe: a commander's time with this post starts, a horseman deals his charge once, on contact
+function postGrab(t, m, e, guard) {
+  m.foes.push(e); e.heldBy = m;
+  if (e.type === "boss") { e.postT = e.postT || {}; if (!e.postT[t.pad]) e.postT[t.pad] = 0; }
+  if (e.type !== "cavalry" || e.postCharged) return;
+  e.postCharged = true;
+  m.hp -= POST_RULES.charge * (1 + POST_RULES.perWave * Math.max(0, scriptWave(Math.max(1, waveIdx)) - 1)) * (1 - guard);
+}
+// a man falls: what he held walks on, and he is back after the post's respawn (no defender is lost)
+function postManFalls(t, m) {
+  postDrop(m);
+  m.down = true; m.hp = 0; m.state = "down"; m.chasing = false;
+  m.respawn = postRespawnS(t);
+  Snd.play("heroDown", { x: m.x, arm: postArm(), vol: 0.35 });
+  for (let i = 0; i < 6; i++) {
+    const a = fxRnd() * Math.PI * 2, s2 = 14 + fxRnd() * 30;
+    particles.push({ x: m.x, y: m.y - 8, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2 * 0.5 - 20, life: 0.5, color: "#c9552e", size: 2.4 });
+  }
+}
+// a held foe stands still (moveMult 0 in update's march), as under the hero's hold
+function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
+
+// ---- the rally point, by mouse and by touch (2.3): a third armed state beside castingSpell and heroSelected ----
+var rallying = null, rallyArmAt = 0;   // var: setPlacing may run before this line is reached
+const RALLY_SETTLE_MS = 80;
+function armRally(t, touch) {
+  if (!t || t.type !== "post" || t.wreck || gameOver) return;
+  setPlacing(null);
+  castingSpell = null; heroSelected = false;
+  hidePanel();
+  closeRallyBubble();
+  rallying = t;
+  rallyArmAt = performance.now();
+  updateSpellBar();
+  toast(touch ? "Tap the road inside the ring." : "Click the road inside the ring.");
+}
+// a press on the field while armed: the nearest road point to it that lies inside the ring and within the catch of the
+// press becomes the rally point. Returns true if it moved
+function rallyPress(t, wx, wy, phone) {
+  const pick = phone ? POST_RULES.pickPhone : POST_RULES.pick;
+  let best = null, bd = Infinity;
+  for (const s of postRoadIn(t.x, t.y, postReach(t))) { const d = Math.hypot(s.x - wx, s.y - wy); if (d < bd) { bd = d; best = s; } }
+  if (!best || bd > pick) return false;
+  setPostRally(t, best);
+  return true;
+}
+function setPostRally(t, s) {
+  postRelease(t);
+  t.rally = { x: s.x, y: s.y, route: s.route, dist: s.dist };
+  for (const m of t.men) if (!m.down) m.state = "walk";
+  t.flagT = 2;
+  Snd.play("rally", { x: s.x, arm: postArm() });
+  saveRun();
+}
+
 function updateSpells(dt) {
   for (const k in spellCd) if (spellCd[k] > 0) spellCd[k] = Math.max(0, spellCd[k] - dt);
   for (const fx of spellFx) {
@@ -12316,7 +12774,7 @@ function battleHorn() {
 function battleStartProps(resumed) {
   const p = { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
     ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: null,
-    rev: LEVEL_REV[levelId(curLevel)] || 1, waves: totalWaves(), tray: TRAY_CLASSIC, power: kitPower(kit), hero: kit.hero || 1, legacy: battle.rules !== RULESET };
+    rev: LEVEL_REV[levelId(curLevel)] || 1, waves: totalWaves(), tray: trayTypes().join(","), power: kitPower(kit), hero: kit.hero || 1, legacy: battle.rules !== RULESET };
   // a resume also tells the clock, the debt and the dropped attempt's loss it came back with, so the platform can
   // see a saved run whose clock went back (a save edited by hand) under the same run token
   if (resumed) Object.assign(p, { sec: Math.round(battle.sec) || 0, debt: battle.debt, dropped: battle.dropped });
@@ -12380,7 +12838,7 @@ function battleFacts() {
     from: { start: n(B.start), bounty: n(B.bounty), clear: n(B.clear), interest: n(B.interest), early: n(B.earlyG), stores: n(B.stores), gift: n(B.gift) },
     on: { build: n(B.build), rank: n(B.rank), mastery: n(B.mastery), land: n(B.land), repair: n(B.repair) },
     towers: stand, masteries: B.masteries, built: B.built, sold: B.sold, wrecks: B.wrecks, plots: plotsBought,
-    tray: TRAY_CLASSIC, ban: "",
+    tray: trayTypes().join(","), ban: trayBan.join(","),
     spells: { arrows: B.arrows, frost: B.frost, wrath: B.wrath }, calls: B.calls, heroLevel: kit.hero || 1, heroFalls: B.heroFalls, heroKills: B.heroKills,
     council: Object.assign({ bows: 0, engines: 0, captains: 0, heralds: 0, stewards: 0 }, kit.own), power: kitPower(kit),
     early: B.early, auto: B.auto, aided: testAided || testUnlockAll, tutorial: B.tutorial || tutGentle,
@@ -12520,7 +12978,11 @@ function runRecord() {
       type: t.type, pad: t.pad, level: t.level, spec: t.spec, prio: t.prio,
       kills: t.kills || 0, dmg: Math.round(t.dmgDone || 0),
       hp: Math.round(t.hp == null ? towerMaxHp(t) : t.hp), wreck: !!t.wreck, paid: towerInvested(t),
+      // a post's rally point (its men are not saved: a resumed wave begins with the garrison whole, as towers reload)
+      rally: t.rally ? [Math.round(t.rally.x), Math.round(t.rally.y)] : undefined,
     })),
+    // the tray it was begun with: a run finishes with it whatever the campaign opens meanwhile
+    tray: trayTypes().slice(),
     leaks: JSON.parse(JSON.stringify(leaks)),   // what got through, for the defeat page's debrief
     adapt: { slot: adapt.slot, step: adapt.step, hist: JSON.parse(JSON.stringify(adapt.hist)) },
     // the ruleset the run was begun under (a run finishes under the rules it began with), the battle's numbers,
@@ -12616,10 +13078,13 @@ function validRun(r) {
   if (r.plotsLeft != null && !(Array.isArray(r.plotsLeft) && r.plotsLeft.every(pt))) return false;
   if (r.plotsBought != null && !num(r.plotsBought, 0, 64)) return false;
   if (!Array.isArray(r.towers)) return false;
+  // a tower kind is taken only if the run's tray holds it (a run saved before the tray grew: the classic five)
+  const tray = savedTray(r.tray);
+  if (!tray) return false;
   const used = new Set();
   for (const tw of r.towers) {
     const def = tw && TOWER_DEFS[tw.type];
-    if (!def || !Number.isInteger(tw.pad) || !r.pads[tw.pad] || used.has(tw.pad)) return false;
+    if (!def || !tray.includes(tw.type) || !Number.isInteger(tw.pad) || !r.pads[tw.pad] || used.has(tw.pad)) return false;
     if (!Number.isInteger(tw.level) || tw.level < 0 || tw.level >= def.levels.length) return false;
     if (tw.spec != null && !(def.specs && def.specs[tw.spec])) return false;
     used.add(tw.pad);
@@ -12673,10 +13138,14 @@ function resumeRun() {
     };
   });
   towers.forEach((t, i) => { const v = r.towers[i].paid; if (typeof v === "number" && isFinite(v) && v >= 0 && v <= 1e6) payTower(t, Math.round(v)); });
+  // the tray it was begun with; a post stands its men where its rally point was
+  runTray = savedTray(r.tray);
+  syncTray();
   // each tower's strength as saved, checked (a bad value stands whole); a legacy run's towers stand whole
   towers.forEach((t, i) => {
     const tw = r.towers[i], hp = !trickLegacy && typeof tw.hp === "number" && isFinite(tw.hp) && tw.hp >= 0 ? tw.hp : null;
     towerInitHp(t, hp, !trickLegacy && tw.wreck === true);
+    postInit(t, tw.rally);
   });
   auto = !!r.auto;
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
@@ -12699,6 +13168,7 @@ function resetGame() {
   // the battle's table: the battlefield's own (a resumed run then puts back the one it was begun with)
   setRunScript(levelScript(LEVELS[curLevel]));
   rules1Tune = false;
+  runTray = null; rallying = null;
   const D = DIFFS[curDiff];
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
   trickLegacy = false;
@@ -13936,11 +14406,14 @@ function showUnlockCard(what) {
     lines: ["Every victory earns stars: one to three for the defenders you never lost, and one more for a victory on Hard.",
       "Spend them at the War Council. Each tier is a small gain that lasts. Reset it whenever you like, for free.",
       // a finger taps and a mouse clicks; the tally stands in a corner of the map or of the page, by the layout
-      (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " the star tally to open it. The Council is a game system, not a record of history."] } }[what];
+      (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " the star tally to open it. The Council is a game system, not a record of history."] },
+    post: { title: "A new tower: the Garrison Post", icon: "post", btn: "Got it",
+      lines: ["Its men stand on the road and hold foes so your towers can shoot. Set where they stand with Rally point.",
+        "Outflankers go round them, and siege engines walk past. A commander is held a few seconds only."] } }[what];
   if (!T) return;
-  $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon("star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
-    T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">To the Council</button>' +
-    '<button type="button" class="btn" id="tcLater">Later</button></div>';
+  $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
+    T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
+    (T.btn ? "" : '<button type="button" class="btn" id="tcLater">Later</button>') + "</div>";
   phoneFold(trickCardEl.querySelector(".tcText"), true);
   unlockCardOn = what;
   trickCardOn = { keys: [], read: true, unlock: what };
@@ -14275,6 +14748,8 @@ function towerInvested(t) {
 
 function placeTower(type, padIdx) {
   const cost = towerCost(type);
+  // a Garrison Post needs road in its reach to stand its men on (2.3)
+  if (TOWER_DEFS[type].post && !padTakesPost(padIdx)) { toast("No road in reach of this pad."); return; }
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost, "build");
   battle.built++;
@@ -14288,6 +14763,7 @@ function placeTower(type, padIdx) {
   });
   payTower(towers[towers.length - 1], cost);
   towerInitHp(towers[towers.length - 1]);
+  postInit(towers[towers.length - 1]);
   Snd.play("build", { x, type, skin: skinDrawn(towerSkin(type)) });
   saveRun();
   syncHud();
@@ -14336,6 +14812,8 @@ function sellTower(t) {
   if (r.fresh) battle.built--; else battle.sold++;
   track("tower_sold", { type: t.type, level: t.level + 1, wave: waveIdx, spec: t.spec || "", undo: r.fresh });
   if (r.fresh) toast("Placement undone: full refund");
+  postRelease(t);
+  if (rallying === t) rallying = null;
   towers = towers.filter(x => x !== t);
   Snd.play("coin");
   hidePanel();
@@ -14356,7 +14834,10 @@ function fireTowerShot(t, target, dmgMult) {
   const art = skinArt(t.type), kind = (art && art.proj) || def.proj;
   if (kind === "stone") {
     // a foe off the road (a tower hunter) is aimed at where it stands
-    const tp = target.off ? enemyPos(target) : routeAt(target.route || 0, target.dist + target.speed * paceOf(target) * 0.9);
+    // and a foe that stands (stunned, held by a post's man or the hero) is led by nothing: held foes bunched at a rally
+    // point are what stones are for
+    const stands = target.stunT > 0 || postHolds(target) || (hero && hero.alive && hero.engaged.includes(target));
+    const tp = target.off ? enemyPos(target) : routeAt(target.route || 0, target.dist + (stands ? 0 : target.speed * paceOf(target) * 0.9));
     projectiles.push({
       kind: "stone", x: t.x, y: t.y - 26, sx: t.x, sy: t.y - 26, tx: tp.x, ty: tp.y,
       t: 0, dur: 0.9, dmg, splash: st.splash, src: t, stagger: st.stagger || 0,
@@ -14402,7 +14883,7 @@ function damageEnemy(e, dmg, pierce, src) {
   if (e.hid) revealFoe(e);
   e.flash = 0.1;
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
-  if (src && Snd.ctx) {
+  if (src && Snd.ctx && !TOWER_DEFS[src.type].post) {
     const art = skinArt(src.type), kind = (art && art.proj) || TOWER_DEFS[src.type].proj;
     // a hit on anything in the air (the flying Harop salvo too) rings off an airframe, not tank plate
     if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind, unit: e.fly ? "flyer" : e.type, era: curEra });
@@ -14433,6 +14914,7 @@ function update(dt) {
   updateSheep(dt);
   updateSpells(dt);
   updateHero(dt);
+  postTick(dt);
 
   // war drums auras
   for (const t of towers) {
@@ -14590,7 +15072,8 @@ function update(dt) {
       }
     }
     if (e.hasteT > 0) e.hasteT -= dt;
-    const blocked = hero && hero.alive && hero.engaged.includes(e);
+    // the hero's hold, or a Garrison Post's man (postHolds): a held foe stands
+    const blocked = (hero && hero.alive && hero.engaged.includes(e)) || postHolds(e);
     // a sapper party under its mantlet stands while it digs; foes the kettle-drums quicken walk faster
     const moveMult = e.stunT > 0 || blocked || e.digT > 0 ? 0 : e.hasteT > 0 ? paceOf(e) * (1 + ERA_POWER.drums.haste) : paceOf(e);
     // a tower hunter off the road walks its own way (hunterStep)
@@ -55804,6 +56287,17 @@ function statText(t) {
   const def = TOWER_DEFS[t.type];
   const st = getStats(t);
   const might = t.buffMight > 0 ? "<em>+" + Math.round(t.buffMight * 100) + "%</em>" : "";
+  if (def.post) {
+    // Men 3 · Strength 180 · Blow 15 · Holds 3 · Reach 165 (2.8)
+    let s = statRow("post", st.men, "men") + statRow("shield", postManMax(t), "strength") +
+      statRow("dmg", st.dmg, "blow", might ? "wide" : "", might) + statRow("lock", st.men * (st.holds || 1), "held at once") +
+      statRow("range", st.reach, "reach") + statRow("rate", st.rate + "s", "between blows");
+    if (st.guard) s += statRow("shield", Math.round(st.guard * 100) + "%", "less damage taken", "wide");
+    if (st.pierce) s += statRow("spear", "", "Blows pierce armor");
+    if (st.chase) s += statRow("road", st.chase, "px of chase", "wide");
+    s += statRow("wing", "", "Holds foes on the road. Outflankers go round.", "wide");
+    return s;
+  }
   if (t.type === "fire") {
     // the drums fan the flame (might) and hasten the stun (haste), as they do a tower's blows and reload
     let s = statRow("frost", Math.round(st.slow * 100) + "%", "slow") + statRow("range", st.range, "range") +
@@ -56113,6 +56607,56 @@ function closeCallBubble() {
   Snd.play("mapSelect");
 }
 window.addEventListener("resize", () => { if (callBubble) placeCallBubble(); });
+
+// ---- the Garrison Post told (2.8): a one-time card on the chronicle the first time the post is in the tray, and one
+// coach's bubble at the Rally point button the first time a post's panel opens in a battle. Both are kept in
+// hs_towers_seen ("post", "rally"). (The regression scripts that are not about them hold them back with window flags)
+function postCardDue() {
+  return !HARNESS_ON && !window.__hsQuietPostCard && menuMode === "brief" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
+    towerUnlocked("post") && !towersSeen().includes("post");
+}
+function postCardSoon() { setTimeout(() => { if (postCardDue()) showUnlockCard("post"); }, 500); }
+var rallyBubble = null;   // the post whose panel shows the bubble (var: hidePanel may run before this line is reached)
+function rallyBubbleDue(t) {
+  return !trickCardsQuiet() && !photo && !window.__hsQuietRallyBubble && !tut && battleLive() && !!t && t.type === "post" && !t.wreck &&
+    !towersSeen().includes("rally") && !callBubble && !scoutBubble && !trickCardOn;
+}
+function maybeRallyBubble(t) {
+  if (!rallyBubbleDue(t) || rallyBubble) return;
+  // the panel is placed after its buttons are built: the bubble is placed a beat later, beside the button
+  setTimeout(() => { if (selected === t && rallyBubbleDue(t) && !rallyBubble) showRallyBubble(t); }, 0);
+}
+function showRallyBubble(t) {
+  const b = $("pRally");
+  if (!b || !b.getBoundingClientRect().width) return false;
+  buildCoach();
+  rallyBubble = t;
+  coachEl.querySelector(".cStep").textContent = "Rally point";
+  coachEl.querySelector(".cSkip").style.display = "none";
+  const tap = matchMedia("(pointer: coarse)").matches ? "Tap" : "Click";
+  coachEl.querySelector(".cText").innerHTML = "<b>" + tap + " here, then " + tap.toLowerCase() + " the road to move your men.</b>";
+  const nb = coachEl.querySelector(".cNext");
+  nb.textContent = "Got it"; nb.style.display = "";
+  coachEl.querySelector(".cFoot").style.display = "";
+  if (!nb.dataset.rally) {
+    nb.dataset.rally = "1";
+    nb.addEventListener("click", (e) => { if (rallyBubble) { e.stopImmediatePropagation(); closeRallyBubble(); } }, true);
+  }
+  coachEl.classList.add("on");
+  const r = b.getBoundingClientRect();
+  haloOn([b]);
+  placeCoach({ l: r.left, t: r.top, r: r.right, b: r.bottom }, ["left", "above", "right", "below"]);
+  return true;
+}
+function closeRallyBubble() {
+  if (!rallyBubble) return;
+  rallyBubble = null;
+  markTowerSeen("rally");
+  track("unlock_seen", { what: "rally" });
+  coachEl.classList.remove("on");
+  coachEl.querySelector(".cSkip").style.display = "";
+  for (const h of coachHalos) h.style.display = "none";
+}
 
 // ---- Erebuni's coached bubble before its first scout wave ----
 // One step of the coach: it halos the Beacon Fire's tile in the tray and rings the free pad that watches most of the
@@ -56537,7 +57081,7 @@ function foeCounters(role, u) {
   const good = [], poor = [];
   for (const type of Object.keys(TOWER_DEFS)) {
     const def = TOWER_DEFS[type], lv0 = def.levels[0], top = def.levels[def.levels.length - 1];
-    if (def.aura) continue;
+    if (def.aura || def.post) continue;   // the drums strike nothing; the post's men hold and are named by the tile
     const reach = def.proj ? !off || !!def.air : !off;
     if (!reach) { poor.push({ type, why: fly ? "cannot reach it in the air" : "cannot reach it off the road" }); continue; }
     const why = [];
@@ -57351,6 +57895,7 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
 function statDps(type, st) {
   const def = TOWER_DEFS[type];
   if (def.aura) return 0;
+  if (def.post) return st.dmg / st.rate * st.men;
   if (!def.proj) return st.burn;
   // a pot's burn on a foe it keeps hitting: as many pots as burn at once, one landing each reload (BURN_STACKS)
   const pots = st.burnHit ? Math.min(BURN_STACKS, st.burnDur / st.rate) : 0;
@@ -57364,7 +57909,16 @@ function statDeltaHtml(type, a, b) {
     if (from !== to) cells.push("<i" + (gain ? "" : ' class="dn"') + ">" + icon(ic) + from + "<s>→</s><b>" + to + "</b></i>");
   };
   const add = (ic, html) => cells.push("<i>" + icon(ic) + html + "</i>");
-  if (def.aura) {
+  if (def.post) {
+    cell("swords", a.men, b.men, b.men >= a.men);
+    cell("shield", a.hp, b.hp, b.hp >= a.hp);
+    cell("dmg", a.dmg, b.dmg, b.dmg >= a.dmg);
+    cell("range", a.reach, b.reach, b.reach >= a.reach);
+    const ha = a.men * (a.holds || 1), hb = b.men * (b.holds || 1);
+    cell("lock", ha, hb, hb >= ha);
+    if (b.guard && !a.guard) add("shield", "<b>" + pc(b.guard) + "</b>&nbsp;less&nbsp;damage");
+    if (b.pierce && !a.pierce) add("spear", "<b>pierce</b>");
+  } else if (def.aura) {
     cell("rate", "+" + pc(a.haste), "+" + pc(b.haste), b.haste >= a.haste);
     cell("dmg", "+" + pc(a.might), "+" + pc(b.might), b.might >= a.might);
     cell("range", a.range, b.range, b.range >= a.range);
@@ -57434,6 +57988,14 @@ function showPanel(t) {
   panelCostBtns = [];
   panelHurt = t.wreck ? "wrecked" : towerHpFrac(t) < 1 ? "hurt" : "whole";
   if (t.wreck) { showRuinPanel(t); placePanel(t); return; }
+  if (def.post) {
+    // the post's first button arms its rally (2.3): the panel goes, and the next press on the road moves the men
+    const rb = mkBtn(icon("flag") + "Rally point", null, "rally", (e) => armRally(t, touchClick(rb, e) || (!!e && e.detail === 0 && matchMedia("(pointer: coarse)").matches)));
+    rb.id = "pRally";
+    rb.title = "Rally point: set where the men stand (G)";
+    acts.appendChild(rb);
+    maybeRallyBubble(t);
+  }
   if (TOWER_DEFS[t.type].proj) {
     acts.appendChild(mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
       t.prio = PRIOS[(PRIOS.indexOf(t.prio || "first") + 1) % PRIOS.length];
@@ -57498,6 +58060,7 @@ let sellAskT = 0;
 function hidePanel() {
   panelEl.style.display = "none";
   panelEl.classList.remove("settling");
+  if (rallyBubble) closeRallyBubble();
   selected = null;
   panelCostBtns = [];
 }
@@ -62641,6 +63204,8 @@ function showBrief() {
   menuMode = "brief";
   track("brief_open", { lv: levelId(curLevel), diff: curDiff, mode: "campaign" });
   mapTold = false;
+  runTray = null; syncTray();   // the tray this battlefield offers now, not a resumed run's
+  postCardSoon();
   $("mapBtn").style.display = "";
   const L = LEVELS[curLevel];
   const E = ERAS[L.era];
@@ -62790,6 +63355,20 @@ canvas.addEventListener("pointerdown", (e) => {
     Snd.play("rally", { x: hero.rally.x, arm: heroArm() });
     return;
   }
+  // a Garrison Post's armed rally (2.3): the road under the press, inside the ring, takes the men. A press on the post
+  // or on the hero puts it down; any other press answers "Out of reach." and stays armed. Nothing else on the field
+  // (a panel, land, the hero) takes a press meant for the road
+  if (rallying) {
+    if (!towers.includes(rallying) || rallying.wreck) { rallying = null; }
+    else {
+      if (performance.now() - rallyArmAt < RALLY_SETTLE_MS) return;
+      if (rallyPress(rallying, v.x, v.y, phoneTouch)) { rallying = null; return; }
+      const onPost = towerUnderPointer(e, phoneTouch) === rallying, onHero = hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26;
+      if (onPost || onHero) { rallying = null; toast("Rally point unchanged."); return; }
+      toast("Out of reach.");
+      return;
+    }
+  }
   if (hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26 && !placing) {
     heroSelected = true;
     heroChoseAt = performance.now();
@@ -62902,6 +63481,7 @@ var touchArmedPad = -1;   // var: setPlacing may run before this line is reached
 function setPlacing(type) {
   placing = type;
   touchArmedPad = -1;
+  rallying = null;   // the post's armed rally is put down by a tile, a spell, the hero, Escape and right-click
   // on a phone a tower chosen in the tray puts down an armed spell or the hero's rally: the next tap builds
   if (type && isPhone() && (castingSpell || heroSelected)) { castingSpell = null; heroSelected = false; updateSpellBar(); }
   document.querySelectorAll("#shop .card").forEach(c =>
@@ -63304,8 +63884,11 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
-  const keys = { Digit1: "archer", Digit2: "ballista", Digit3: "catapult", Digit4: "fire", Digit5: "drums" };
-  if (keys[e.code] && !gameOver) setPlacing(placing === keys[e.code] ? null : keys[e.code]);
+  // keys 1 to 7 are the tray's tiles in its order (the post is 6, the battlefield's special tower 7)
+  const digit = /^Digit([1-7])$/.exec(e.code), kind = digit ? trayTypes()[Number(digit[1]) - 1] : null;
+  if (kind && !gameOver) setPlacing(placing === kind ? null : kind);
+  // G arms the rally of the post whose panel is up
+  if (e.code === "KeyG" && !e.shiftKey && selected && selected.type === "post" && !gameOver) armRally(selected, false);
   if (e.code === "Escape") { setPlacing(null); hidePanel(); closeSettings(); closeFoeCard(); castingSpell = null; heroSelected = false; updateSpellBar(); }
   // Enter on a wave chip or a chronicle medallion reached by Tab opens its foe's card, or puts it away again
   // (Space stays the Send Wave key)
@@ -63592,6 +64175,7 @@ function startTutorial() {
   buildCoach();
   tut = { i: -1, ev: {}, pad: -1, shown: "" };
   tutGentle = true;
+  syncTray();   // the coached stand fights with the classic five
   // the coached stand is the same battle for everyone: no Council tier, today's hero (gameplay 4.3). Begun on a
   // field just set up, so the purse and the hero are set again with the empty kit. Land already bought keeps the
   // kit: the purse it was bought from cannot be set again without giving its price back (the stand is then "open")
