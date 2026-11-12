@@ -10401,12 +10401,13 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // ---------- the ruleset: what a Standard battle is fought under (docs/specs/gameplay.final.md 6.2, 6.3) ----------
 // RULESET names the rules a score is earned under. 1 was the game of twenty waves on every battlefield (it exists for
 // the tests and pins of G1 and is never published); 2 is the 17 lengths of the script map, each battlefield retuned
-// (G4). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// (G4), with the Garrison Post in every battlefield's tray (G5: released together, R3, so the pins were written anew
+// and the number kept, no board having opened on G4's). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
 // number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "f7e79011";
+const RULESET_PIN = "24d7af57";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10418,20 +10419,21 @@ const LEVEL_REV = {
   van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
-  erebuni: "32658c8c", tushpa: "47c39d96", avarayr: "53af5538", dvin: "fcf534ec", tashir: "8bf43010", sevan: "603c3311",
-  ani: "3e27a55a", mari: "aded13c5", sis: "ce73cf5b", gyumri: "12a4b2b3", halidzor: "0f84a20f", van: "d0fb8b3e",
-  musadagh: "ae56e980", sardarapat: "711ef198", stepanakert92: "7b698dc3", shushi: "4ecda8d1", stepanakert23: "5e969715",
+  erebuni: "f936081b", tushpa: "38852b26", avarayr: "4c346712", dvin: "e4290e24", tashir: "598f8d8a", sevan: "da27c3f0",
+  ani: "a7cbec5d", mari: "8abd15ec", sis: "ae18ce5a", gyumri: "a9cfb140", halidzor: "9c02d0a2", van: "40b65f78",
+  musadagh: "c333b317", sardarapat: "3d272011", stepanakert92: "c0c7f280", shushi: "5568f94b", stepanakert23: "e25c9890",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
 // shortest battle there can be if that is longer), half at par and nothing at `slow` (1.4 times par). These are
 // ruleset 2's, [Easy, Normal, Hard]: each the mean clock of the best build's victories at SEEDS=3 on the Standard
-// battle, the bot waiting the 4 s in the battle itself (docs/specs/balance/g4-after-*.txt)
+// battle, the bot waiting the 4 s in the battle itself (docs/specs/balance/g4-after-*.txt). G5: taken again with the
+// Garrison Post in the Standard battle's tray, the best build free to use it (docs/specs/balance/g5-*-seeds3.txt)
 const LEVEL_PAR = {
-  erebuni: [996, 997, 1101], tushpa: [1218, 1317, 1325], avarayr: [1811, 1724, 1756], dvin: [952, 1108, 1144],
-  tashir: [932, 955, 1187], sevan: [1618, 1650, 1696], ani: [1558, 1693, 1881], mari: [854, 999, 936],
-  sis: [2310, 2523, 2547], gyumri: [1432, 1550, 2016], halidzor: [1290, 1624, 1538], van: [1592, 2179, 2176],
-  musadagh: [1215, 1333, 1326], sardarapat: [2026, 2167, 2194], stepanakert92: [2078, 2469, 2501],
+  erebuni: [868, 1242, 1125], tushpa: [1275, 1363, 1403], avarayr: [1811, 1724, 1756], dvin: [952, 1108, 1164],
+  tashir: [932, 955, 1187], sevan: [1618, 1645, 1729], ani: [1558, 1819, 1825], mari: [854, 996, 936],
+  sis: [2311, 2523, 2547], gyumri: [1440, 1550, 2016], halidzor: [1290, 1624, 1538], van: [1592, 1995, 2003],
+  musadagh: [1215, 1334, 1326], sardarapat: [2026, 2184, 2194], stepanakert92: [2078, 2469, 2501],
   shushi: [1094, 1116, 1117], stepanakert23: [923, 953, 928],
 };
 // the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
@@ -10508,7 +10510,7 @@ function savedTray(x) {
 // (the bound from here on is 2.3 at par-hold). The heroes' tables are unchanged. With G5 the Garrison Post is in the
 // game, so the Captains' tiers 3 to 5 open (COUNCIL_LIVE.post)
 const KITSET = 2;
-const KITSET_PIN = "96485c5b";
+const KITSET_PIN = "e58be909";
 const COUNCIL_COSTS = [1, 1, 2, 2, 3];
 const COUNCIL_LIVE = { post: true, call: true };   // the Call came with the heroes (G3), the post with G5
 const COUNCIL = [
