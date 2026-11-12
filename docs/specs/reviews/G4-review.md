@@ -187,10 +187,10 @@ Easy JSON lines from the .75 run.
 
 ### 10. Minor. waves.js is 33 minutes, not "about 10", and close to its limit
 
-The builder measured 1,964 s; run-all gives it 2,400 s. 8.2 says about 10 minutes in full. Under the shared machine's
-load it will time out before it fails on substance. Fix: kill each wave's foes as they come on (the script checks the
+The builder measured 1,964 s, my run 1,453 s; run-all gives it 2,400 s. 8.2 says about 10 minutes in full. Under the
+shared machine's load it can time out before it fails on substance. Fix: kill each wave's foes as they come on (the script checks the
 count, not the balance; `--quick` stays a real fight on Erebuni, Avarayr and Mari), or raise the limit to 3,600 s and
-say why in run-all's comment. (My run-all time for it is in the list below.)
+say why in run-all's comment.
 
 ### 11. Minor. Two measures of 5.1 and 5.6 owed by G4 are missing
 
@@ -240,7 +240,19 @@ G4 on. It is the platform's file (RULINGS S7), named here so the integrator fixe
   legacy, won with 21 written. See finding 1 for what it does not test.
 - `node tools/town-isolation.js`: PASS, 9 cases.
 - `node tools/playtest-lengths.js --only=1`: FAIL (finding 2).
-RUNALL_AND_PT5
+- `NODE_PATH=$(npm root -g) node tools/playtest-lengths.js --only=5 --speed=4` (667 x 320, touch): PASS. The family won
+  all six on Easy: Erebuni 23 of 30 (14.8 min on the battle clock), Tushpa 22 (19.8), Avarayr 7 (27.9), Dvin 30 (19.6,
+  5,092 gold never spent), Tashir 28 (17.9, 4,017 unspent), Sevan 8 (28.5). How it felt: right overall, but uneven.
+  Dvin and Tashir ask nothing of a family (a full board and thousands of gold left over), while Avarayr and Sevan are
+  near losses (the family never answers the reserves' road or the torch-bearers). That is finding 4's Easy row seen
+  from the family's side: thinning Easy's spoils on Dvin and Tashir is safe for it, on Avarayr and Sevan it is not.
+- `NODE_PATH=$(npm root -g) node tools/regress/run-all.js` in full on the final page (3,708 s, my playtest 5 running
+  beside it for the first half): 9 of 10 passed: padplace 404 s, plots 169 s, probe 149 s, vic 555 s (249 pressed),
+  nag 87 s, live 316 s, doors 39 s (one KNOWN line, the hidden town's), iphone 371 s (717 states at the ten sizes, 0
+  fails), waves 1,453 s (17 battlefields; lengths, commanders' banners and the victory's count all as 1.2).
+  dance10 FAILED: "touch 1194x834 avarayr (taps): a tap at 9849 ms ended the dance", under load. Rerun alone
+  (`run-all.js --only=dance10`, load 3.4): PASS, 15 runs, 139 s. A load failure, and the third time dance10 has failed
+  in this package (the builder saw 9593 ms and 9634 to 10358 ms): the known intermittent fault, reported again.
 
 ## What I could not check
 
