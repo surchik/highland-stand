@@ -502,7 +502,7 @@ create function highland.hs_board(p_mode text, p_level text default null, p_diff
   p_limit integer default 50) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_uid uuid := highland._member_or_null(); v_board text; v_period text; v_rows jsonb; me record; v_me jsonb;
-  v_admin boolean := highland._is_admin(); v_now timestamptz := highland._now(); rs highland.hs_rulesets; v_rev integer;
+  v_admin boolean := highland._is_admin() and highland._game_session(); v_now timestamptz := highland._now(); rs highland.hs_rulesets; v_rev integer;
 begin
   if p_mode = 'daily' then
     v_board := highland._daily_board(coalesce(p_day, (v_now at time zone 'utc')::date), highland._channel_of(coalesce(p_ruleset, '')));

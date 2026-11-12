@@ -994,6 +994,8 @@ group("tenants", async () => {
   ok(e3 && e3.msg === "not_admin", "the admin's account in a password session is no admin (" + (e3 && e3.msg) + ")");
   const bpw = await rpc(PW, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
   ok(bpw.me === null && bpw.rows.every(r => !r.me), "the boards mark nothing as the password session's");
+  const apw = await rpc(U.AD + ":password", "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
+  ok(apw.rows.length > 0 && apw.rows.every(r => !("uid" in r)), "and the admin's account in a password session sees no player ids on a board");
 });
 
 // A grant given by mistake (say "grant select on highland.hs_saves to authenticated" typed in the SQL editor): the
