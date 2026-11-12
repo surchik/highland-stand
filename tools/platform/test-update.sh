@@ -5,8 +5,8 @@
 #
 #   bash tools/platform/test-update.sh [path/to/update.sh] [path/to/the/old/update.sh] [path/to/check-page.js]
 #
-# The new script defaults to deploy/update.sh; the old one to deploy/update.sh as master has it (git show
-# master:deploy/update.sh), the script the live server runs today; check-page.js to deploy/check-page.js.
+# The new script defaults to deploy/update.sh; the old one to deploy/update.sh as master had it before the
+# staging channel reached it (git show f905f4a:deploy/update.sh), the script the server handed over from; check-page.js to deploy/check-page.js.
 #
 # Part A, the live flow is what it was: the old and the new script are run side by side on twin clones, through
 # the same pushes to master with no branch next, and must leave byte for byte the same web root, the same log
@@ -31,7 +31,7 @@ ROOT=$(cd "$HERE/../.." && pwd)
 NEW=$(readlink -f "${1:-$ROOT/deploy/update.sh}")
 CHK=$(readlink -f "${3:-$ROOT/deploy/check-page.js}")
 T=$(mktemp -d); trap 'chmod -R u+w "$T" 2>/dev/null; rm -rf "$T"' EXIT
-if [ -n "${2:-}" ]; then OLD=$(readlink -f "$2"); else OLD=$T/old-update.sh; git -C "$ROOT" show master:deploy/update.sh > "$OLD"; fi
+if [ -n "${2:-}" ]; then OLD=$(readlink -f "$2"); else OLD=$T/old-update.sh; git -C "$ROOT" show f905f4a:deploy/update.sh > "$OLD"; fi
 NODE_BIN=$(command -v node)
 fails=0; cases=0
 fail() { echo "FAIL: $*"; fails=$((fails + 1)); }
