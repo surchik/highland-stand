@@ -9,9 +9,11 @@
 //   NODE_PATH=$(npm root -g) node tools/regress/platform.js [index.html] [--quick] [--flows=1,2,3,10,11]
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
-// The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page):
+// The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
+// P8: privacy, deletion and staging):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
-//      buttons in order; the privacy link and back; a provider the server switched off has no button; Discord held
+//      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
+//      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
 //      back while the server confirms emails by itself; an in-app browser's user agent hides Google and shows the
 //      note with its two ways out; a framed page (on the desktop) opens the game in a tab of its own, and has a real
 //      link and Play now as well; Tab and Shift+Tab stay inside the card (the desktop)
@@ -82,12 +84,23 @@
 //      account keeps everything ("Delete my account" is work package P8's). On the desktop and at 667x320 also:
 //      the stash, when this account signs in again and a battle begins before it joins, waits for the battle's
 //      end and loses nothing; sign-out after a load that could not reach the save takes the account's progress off
-//      the device (asked first), the unsent part kept in the stash
+//      the device (asked first), the unsent part kept in the stash. Then "Delete my account" (P8, 1.5, RULINGS S10): the
+//      question's words and its focus on Keep my account; Keep changes nothing; with the database down nothing is
+//      deleted and the tab says so (desktop and 667x320); Delete everything removes every row of that player in
+//      highland (an admin's row too) and none of another player's, leaves auth.users and its identities, clears the
+//      device (progress, session, stash, the account in hs_pf_cfg), replaces the anonymous id, returns to the gate
+//      with its line; account_deleted reaches the server as a visitor's on the new id, nothing of the account comes
+//      back, and the same person signing in again is asked for a name
+//   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
+//      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
+//      there has its own save; /next/ again has its session and its progress
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
-// photographed. Every request must go to the stack's two ports; any page error or console error fails.
+// photographed (and the privacy page, ?privacy#delete, and the deletion's question, failure and end). Every request
+// must go to the stack's two ports; any page error or console error fails. Flow 10 also opens ?privacy#delete on the
+// page as committed (the platform off): shown from the page itself, with no request.
 // --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure. The extra parts
-// alone: --flows=4more,5more,13more.
+// alone: --flows=4more,5more,13more,13del.
 "use strict";
 const path = require("path");
 const fs = require("fs");
