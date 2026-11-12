@@ -409,6 +409,10 @@ foe along the road before he turns back.
 Reading: rank 1 is 20 damage a second for 90 gold against the archers' 22 for 50; its worth is the hold.
 Rank 3 is 73 a second for 390. A post alone loses its men: a rank 1 man (130) against a wave 5 spearman
 (about 11 a second, 2.2) lasts 12 s and needs 21 s to fell him.
+(G5 build: these numbers kept the bot's "mix7" 1.1 defenders below "mix" on Normal at SEEDS=3, so the post was tuned
+under 5.6's G5 step: ranks of 50, 60 and 110 gold, every man three times as strong with three times the blow (rank 1:
+two men of 390 with a blow of 30), and a commander held 12 s in all, not 8 (`POST_RULES.cmdHold`). The masteries keep
+their price and their shape, scaled the same way. See docs/specs/balance/README.md, G5.)
 
 ### 2.2 How it fights
 
@@ -444,7 +448,8 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 ### 2.3 The rally point, by mouse and by touch
 
 - When built, the rally point is the road point in reach nearest the pad (on a tie, the one nearer the
-  walls). A pad with no road in a rank 1 post's reach (up to four pads a battlefield, measured) refuses
+  walls). (G5 build: as written; the road is sampled every 5 px on every road of the battlefield, the dormant ambush
+  track included.) A pad with no road in a rank 1 post's reach (up to four pads a battlefield, measured) refuses
   the tower: its preview ring lights no road and the press answers "No road in reach of this pad."
 - The post's panel has a first button "Rally point" (icon `#i-flag`). Pressing it puts the panel away and
   arms `rallying = tower`: the field draws the reach ring and lights every stretch of road inside it (the
@@ -915,6 +920,8 @@ battle ("Reset the Council"). Once owned a tier counts on every battlefield, old
 | Heralds (`heralds`): hero and spells | Hero 5% stronger (strength) | Spells ready 3% sooner | Hero returns in 16 s, not 20 | Spells ready another 3% sooner | The hero's Call ready 20% sooner |
 | Stewards (`stewards`): gold and walls | 10 more gold at the start | Repairs and rebuilds cost 10% less | The war chest's interest may reach 70 a wave, not 60 | Towers 5% stronger; they mend 2 points more at a clear | A sale returns 80%, not 70%; land costs 10% less |
 
+(G5 build, RULINGS B7: every effect is now half of the table's, KITSET 2: 1% where it says 2%, 1.5% for 3%, 7.5% for
+15%, 18 s for 16 s, 65 for 70, a sale 75%. The Captains' tiers 3 to 5 open with the post.)
 (G2 close: these are the numbers the game ships with KITSET 1. G2 cut the first draft's numbers to hold the
 bounds of 5.2 on the sample of RULINGS E: see docs/specs/balance/README.md, section G2. The Captains' tiers 3
 to 5 and the Heralds' tier 5 are not tuned yet: they are tuned with the post (G5) and the Call (G3).)
@@ -1328,6 +1335,9 @@ time:
   see docs/specs/balance/README.md.)
 - G5 (the post): its numbers, until "mix7" is 1 to 3 lives above "mix" and the post builds lose; the bands
   again, with the best build free to use the post.
+  (G5 build: the numbers of 2.1 were raised (see there) and mix7 puts its posts ninth and last; the fix of 2.2 (a held
+  or stunned foe is led by nothing) moves every build's cells a little, so the bands are read again at the final
+  numbers. Where 5.2 is still missed it is said in docs/specs/balance/README.md, G5.)
 - G6 (the daily): the 12-step tables with `DAILY=1`: the daily's pars per battlefield, and each twist on
   each battlefield (`TWIST=id`, the mix, three seeds): the pairs for `daily.skip` (6.4).
 - G7a to G7e (a special tower each): its numbers and its rows of 5.2, on its own battlefields only.

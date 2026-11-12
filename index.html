@@ -12666,7 +12666,9 @@ function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
 
 // ---- the rally point, by mouse and by touch (2.3): a third armed state beside castingSpell and heroSelected ----
 var rallying = null, rallyArmAt = 0;   // var: setPlacing may run before this line is reached
-const RALLY_SETTLE_MS = 80;
+// Rally point arms on its button's click, which comes when the finger that pressed it is already up (settlePanel's
+// rule kept by the button itself), so the field's next press is always a new one: no wait is added
+const RALLY_SETTLE_MS = 0;
 function armRally(t, touch) {
   if (!t || t.type !== "post" || t.wreck || gameOver) return;
   setPlacing(null);
@@ -12680,10 +12682,23 @@ function armRally(t, touch) {
 }
 // a press on the field while armed: the nearest road point to it that lies inside the ring and within the catch of the
 // press becomes the rally point. Returns true if it moved
-function rallyPress(t, wx, wy, phone) {
+// A press from the pointer (ev: its client point) is measured on the screen, as a pad is chosen (freePadUnderPointer):
+// the world point under it stops at the far edge of the field, where a road may still run. The gap on the screen is
+// read back in world units at the road point's own depth
+function rallyPress(t, wx, wy, phone, ev) {
   const pick = phone ? POST_RULES.pickPhone : POST_RULES.pick;
+  let sx = null, sy = null;
+  if (ev && typeof canvas !== "undefined") {
+    const r = canvas.getBoundingClientRect();
+    sx = (ev.clientX - r.left - offX) / scale; sy = (ev.clientY - r.top - offY) / scale;
+  }
   let best = null, bd = Infinity;
-  for (const s of postRoadIn(t.x, t.y, postReach(t))) { const d = Math.hypot(s.x - wx, s.y - wy); if (d < bd) { bd = d; best = s; } }
+  for (const s of postRoadIn(t.x, t.y, postReach(t))) {
+    let d;
+    if (sx !== null) { const q = proj(s.x, s.y); d = Math.hypot(q.x - sx, q.y - sy) / Math.max(0.35, q.s); }
+    else d = Math.hypot(s.x - wx, s.y - wy);
+    if (d < bd) { bd = d; best = s; }
+  }
   if (!best || bd > pick) return false;
   setPostRally(t, best);
   return true;
@@ -63676,7 +63691,7 @@ canvas.addEventListener("pointerdown", (e) => {
     if (!towers.includes(rallying) || rallying.wreck) { rallying = null; }
     else {
       if (performance.now() - rallyArmAt < RALLY_SETTLE_MS) return;
-      if (rallyPress(rallying, v.x, v.y, phoneTouch)) { rallying = null; return; }
+      if (rallyPress(rallying, v.x, v.y, phoneTouch, e)) { rallying = null; return; }
       const onPost = towerUnderPointer(e, phoneTouch) === rallying, onHero = hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26;
       if (onPost || onHero) { rallying = null; toast("Rally point unchanged."); return; }
       toast("Out of reach.");
