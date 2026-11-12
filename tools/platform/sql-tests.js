@@ -700,6 +700,12 @@ group("analytics", async () => {
     council: { bows: 999999, engines: 999999, captains: 999999, heralds: 999999, stewards: 999999 }, power: 999999, early: 999999, auto: false, aided: false, tutorial: false };
   r = await rpc(null, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "victory", q: 14, p: facts }] });
   ok(r.accepted === 1, "gameplay's worst case of a battle's facts (" + JSON.stringify(facts).length + " characters) is kept");
+  // an event sent again (the page's batch at closing, sent once more on the next load) is kept once
+  r = await rpc(null, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "victory", q: 14, p: facts }, { n: "page_hide", q: 30, p: { where: "map" } }] });
+  ok(r.accepted === 1 && r.dropped === 1, "an event sent again is kept once: the same visit and number (" + JSON.stringify(r) + ")");
+  eq((await su("select count(*)::int n from public.hs_events where sid = 'sess-0001-abcd' and seq = 14"))[0].n, 1, "one row for it");
+  eq((await su("select indexdef from pg_indexes where indexname = 'hs_events_once'"))[0].indexdef.replace(/\s+/g, " ").replace(/public\./g, ""),
+    "CREATE UNIQUE INDEX hs_events_once ON hs_events USING btree (sid, seq) WHERE (seq > 0)", "each event of a visit once (events without a number are not held to it)");
   // the account joins the visit once signed in, and never another's
   await rpc(U.A, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "signed_in", q: 15, p: { provider: "google" } }] });
   eq((await su("select uid::text from public.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "the visit takes the account once signed in");
@@ -754,7 +760,7 @@ group("stats", async () => {
   await rpc(U1, "hs_profile_set_name", { p_name: "Ani Player" });
   const ev = (n, q, p) => ({ n, q, p: p || {} });
   await rpc(null, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("page_load", 1, { progress: 0 }), ev("gate_shown", 2, { state: "signin" }), ev("provider_tapped", 3, { provider: "google" })] });
-  await rpc(U1, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("signed_in", 4, { provider: "google" }), ev("battle_start", 5, { lv: "erebuni" }), ev("tutorial_done", 6),
+  await rpc(U1, "hs_track", { p_ctx: ctx(N1, "st-n1-visit1"), p_events: [ev("signed_in", 4, { provider: "google", standalone: true }), ev("battle_start", 5, { lv: "erebuni" }), ev("tutorial_done", 6),
     ev("wave_end", 7, { lv: "erebuni" }), ev("victory", 8, { lv: "erebuni", diff: 1, mode: "campaign", lives: 17, lives_max: 20, wave: 10, waves: 10 })] });
   await rpc(null, "hs_track", { p_ctx: ctx(N2, "st-n2-visit1", { dev: "desktop", os: "windows", browser: "chrome" }), p_events: [ev("page_load", 1, { progress: 0 }), ev("gate_shown", 2, { state: "signin" })] });
   await rpc(null, "hs_track", { p_ctx: ctx(R1, "st-r1-visit1", { dev: "tablet" }), p_events: [ev("page_load", 1, { progress: 5 }), ev("gate_shown", 2, { state: "signin" }), ev("provider_tapped", 3, { provider: "discord" })] });
@@ -787,9 +793,41 @@ group("stats", async () => {
   const dv = Object.fromEntries(s.devices.map(x => [x.dev + "/" + x.os, x.people]));
   ok(dv["phone/ios"] === 3 && dv["desktop/windows"] === 1 && dv["tablet/ios"] === 1, "people by kind of device (" + JSON.stringify(dv) + ")");
   ok(s.gate.some(x => x.event === "provider_tapped" && x.provider === "discord" && x.n === 1), "the gate card counts what was tapped");
+  ok(s.gate.some(x => x.event === "gate_shown" && x.why === "inapp" && x.n === 1), "and the arrivals in another app's browser");
+  ok(s.gate.every(x => typeof x.standalone === "boolean"), "each of its rows says whether it is the Home Screen app's");
+  ok(s.gate.some(x => x.event === "signed_in" && x.standalone === true && x.n === 1) && s.gate.some(x => x.event === "provider_tapped" && x.provider === "google" && x.standalone === false),
+    "a sign-in in the Home Screen app on a line of its own (1.6)");
   ok(s.rulesets.some(x => x.ruleset === "2" && x.published === true), "the rulesets card says which are published");
   ok(typeof s.events_mb === "number" && s.config && "ev_cap_hour" in s.config, "the stats say how full the events are and show every switch");
   ok(s.totals && s.totals.accounts >= 1, "totals");
+  // P4 review 2: a privacy-page reader and the owner signing in on ?stats on a new device are no new players: the
+  // funnel and the gate card read only the game's own visits; Totals and Devices still count every visit
+  const P1 = "a1000000-0000-4000-8000-000000000006", S1 = "a1000000-0000-4000-8000-000000000007";
+  await rpc(null, "hs_track", { p_ctx: ctx(P1, "st-p1-privacy"), p_events: [ev("page_load", 1, { progress: 0, page: "privacy" }), ev("privacy_open", 2, { from: "link" })] });
+  await rpc(null, "hs_track", { p_ctx: ctx(S1, "st-s1-stats1"), p_events: [ev("page_load", 1, { progress: 0, page: "stats" }), ev("provider_tapped", 2, { provider: "google" })] });
+  await rpc(U1, "hs_track", { p_ctx: ctx(S1, "st-s1-stats2"), p_events: [ev("page_load", 1, { progress: 0, page: "stats" }), ev("signed_in", 2, { provider: "google", page: "stats" })] });
+  const sp = await rpc(U.AD, "hs_stats", { p_days: 30 });
+  eq(Object.fromEntries(sp.funnel.map(x => [x.step, [x.n, x.new, x.returning, x.inapp]])), f, "visits to ?privacy and ?stats leave the funnel as it was");
+  const gateRows = (st) => JSON.stringify(st.gate.map(x => [x.event, x.provider, x.why, x.standalone, x.n]).sort());
+  eq(gateRows(sp), gateRows(s), "and the gate card (the owner's sign-in on ?stats is not a player's)");
+  const dvp = Object.fromEntries(sp.devices.map(x => [x.dev + "/" + x.os, x.people]));
+  eq(dvp["phone/ios"], 5, "Devices still count the two visitors of those pages");
+  // a visit whose page_load is the game's page, said in words, is in the funnel as before
+  const G1 = "a1000000-0000-4000-8000-000000000008";
+  await rpc(null, "hs_track", { p_ctx: ctx(G1, "st-g1-game"), p_events: [ev("page_load", 1, { progress: 0, page: "game" }), ev("gate_shown", 2, { state: "signin" })] });
+  const sg = await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["funnel"] });
+  eq([sg.funnel[0].n, sg.funnel[1].n], [5, 5], "a page_load with page \"game\" enters the funnel");
+  await su("delete from public.hs_events where sid = 'st-g1-game'");
+  await su("delete from public.hs_sessions where sid = 'st-g1-game'");
+  // P4 review 7: Totals leave the staging page out (its events and its saves)
+  await su("insert into public.hs_saves (user_id, channel, data, bytes) values ($1, 'next', '{}', 2) on conflict do nothing", [U2]);
+  const tot = (await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["totals"] })).totals;
+  const liveSaves = (await su("select count(*)::int n from public.hs_saves where channel = 'live'"))[0].n;
+  const ev2 = (await su(`select count(*) filter (where coalesce(s.channel, 'live') = 'live')::int live, count(*)::int alln from public.hs_events e
+    join public.hs_sessions s on s.sid = e.sid where e.ts >= (hs_private.now() at time zone 'utc')::date - 30`))[0];
+  ok(tot.saves === liveSaves && ev2.alln > ev2.live && tot.events === ev2.live,
+    "Totals count the live page's saves and events only (" + JSON.stringify([tot.saves, liveSaves, tot.events, ev2]) + ")");
+  await su("delete from public.hs_saves where user_id = $1 and channel = 'next'", [U2]);
   const one = await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["gate"] });
   ok(one.funnel.length === 0 && one.gate.length > 0, "one card can be asked for alone");
   // a stranger's events: markup where an id belongs, text where a number belongs
@@ -876,15 +914,29 @@ group("ceiling", async () => {
   // above ev_max_mb megabytes of events visitors' events are dropped; above one and a half times it, everyone's
   await su(`insert into public.hs_sessions (sid, aid) values ('fill-0001-aaaa', 'e1000000-0000-4000-8000-000000000001')`);
   await su(`insert into public.hs_events (sid, seq, name, props) select 'fill-0001-aaaa', g, 'pad', jsonb_build_object('p', repeat(md5(g::text), 40)) from generate_series(1, 1700) g`);
-  const mb = (await su("select pg_total_relation_size('public.hs_events') / 1048576.0 as m"))[0].m;
+  const both = "(pg_total_relation_size('public.hs_events') + pg_total_relation_size('public.hs_sessions')) / 1048576.0";
+  const mb = (await su("select " + both + " as m"))[0].m;
   const cap = Math.max(1, Math.ceil(mb / 1.5));
-  ok(mb > cap && mb <= cap * 1.5, "the table holds " + Number(mb).toFixed(2) + " MB for a ceiling of " + cap);
+  ok(mb > cap && mb <= cap * 1.5, "the tables hold " + Number(mb).toFixed(2) + " MB for a ceiling of " + cap);
   await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap)]);
   const V = "e1000000-0000-4000-8000-000000000002";
   eq((await rpc(null, "hs_track", { p_ctx: { aid: V, sid: "ceil-0001-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "over the ceiling a visitor's events are dropped");
   eq((await rpc(U.B, "hs_track", { p_ctx: { aid: V, sid: "ceil-0002-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 1, "a player's are still kept");
   await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(Math.max(0, Math.floor(mb / 2) - 1))]);
   eq((await rpc(U.B, "hs_track", { p_ctx: { aid: V, sid: "ceil-0002-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "over one and a half times it, a player's too");
+  // P4 review 6: the visits count toward the ceiling too. The events alone under it, the visits put it over
+  const evOnly = Number((await su("select pg_total_relation_size('public.hs_events') / 1048576.0 as m"))[0].m);
+  const cap2 = Math.ceil(evOnly + 0.01);
+  for (let i = 0; i < 40 && Number((await su("select " + both + " as m"))[0].m) <= cap2 + 0.1; i++)
+    await su(`insert into public.hs_sessions (sid, aid, build, lang, ref) select 'pad-' || $1 || '-' || g, 'e1000000-0000-4000-8000-000000000003', repeat('b', 60), 'en-US', repeat('r', 60)
+      from generate_series(1, 3000) g`, [i]);
+  const sum2 = Number((await su("select " + both + " as m"))[0].m);
+  ok(evOnly < cap2 && sum2 > cap2 && sum2 <= cap2 * 1.5, "events " + evOnly.toFixed(2) + " MB and with the visits " + sum2.toFixed(2) + " MB, for a ceiling of " + cap2);
+  await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap2)]);
+  eq((await rpc(null, "hs_track", { p_ctx: { aid: V, sid: "ceil-0003-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "a visitor's events are dropped when the visits put the tables over");
+  const st = await rpc(U.AD, "hs_stats", { p_days: 7, p_cards: ["totals"] });
+  ok(Number(st.events_mb) > cap2, "and the stats page's Health card sees the same megabytes (" + st.events_mb + ")");
+  await su("delete from public.hs_sessions where sid like 'pad-%'");
   await su("update public.hs_config set value = '1024' where key = 'ev_max_mb'");
 });
 

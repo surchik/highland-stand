@@ -579,7 +579,8 @@ function refuseWrites() {
     try {
       const first = await g.ev(() => ({ mode: menuMode, keys: Object.keys(Platform).sort().join(","), fns: ["boot", "blocking", "victoryPage", "defeatPage"].every(k => typeof Platform[k] === "function"),
         ch: HS_CHANNEL, url: HS_SUPABASE_URL, key: HS_SUPABASE_ANON_KEY, gate: HS_GATE, mem: HS_STORE_MEM, pf: document.body.classList.contains("pfOn") }));
-      if (first.keys !== "blocking,boot,defeatPage,victoryPage" || !first.fns) fail(tag, "Platform holds " + first.keys);
+      // (the four calls of P0, and from P2 on the three that spec 0.3 gives gameplay to read: player, daily, now)
+      if (first.keys !== "blocking,boot,daily,defeatPage,now,player,victoryPage" || !first.fns) fail(tag, "Platform holds " + first.keys);
       if (first.mode !== "chapter") fail(tag, "a first visit does not open on Chapter I's story (boot did not hand the page back): " + first.mode);
       if (first.ch !== "live" || first.url !== "" || first.key !== "" || first.gate !== "required" || first.mem || first.pf) fail(tag, "the platform's constants: " + JSON.stringify(first));
       const boot = await g.ev(() => { let n = 0; Platform.boot(() => { n++; }); return n; });
