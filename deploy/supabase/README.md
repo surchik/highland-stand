@@ -188,7 +188,7 @@ Then apply them all **[tried]**:
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
-The four migrations, each in one transaction of its own, each followed by the lockdown (the file
+The five migrations, each in one transaction of its own, each followed by the lockdown (the file
 `migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
 `service_role`) and, once 003 is in, 003's grants again:
 
@@ -198,6 +198,7 @@ The four migrations, each in one transaction of its own, each followed by the lo
 | `002_functions` | the 17 `hs_` functions, the 27 helpers (`_...`) and the 5 views; nothing granted | drops each by its full signature |
 | `003_grants_policies` | USAGE on the schema to `anon` and `authenticated`; EXECUTE on the 4 open functions to both and on the 13 others to `authenticated`; `service_role` nothing; the policies; per-schema default privileges revoked | takes every grant back and drops the policies |
 | `004_seed` | the analytics' three ceilings and the name filter's words | deletes those rows |
+| `005_delete_game_session` | "Delete my account" asks for a session of the game's own sign-in (an account signed in by password through the shared email sign-in cannot delete a player's data), and takes the deleted visits' rate counters with them | puts back 002's "Delete my account" |
 
 It runs as `postgres`, never a superuser (a superuser's connection is moved to `postgres`; a superuser
 `postgres` stops it), takes an advisory lock so two runs cannot overlap, waits at most 10 s for any lock another
@@ -212,13 +213,13 @@ before and after every migration and every rollback.
 select highland.hs_config();
 ```
 
-answers one small line with `"now"`, and `status` says `highland at 4 of 4`.
+answers one small line with `"now"`, and `status` says `highland at 5 of 5`.
 
 **Rolling back.** To a given migration, after a backup (step 2), with `--yes` **[tried]**:
 
 <!-- guide-check: migrate-down -->
 ```
-node tools/platform/migrate.js down 3 --dsn="$HS_DB_URL" --yes
+node tools/platform/migrate.js down 4 --dsn="$HS_DB_URL" --yes
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 

@@ -27,7 +27,7 @@ in a Google, Facebook or Discord account PathStream has never seen and keeps the
 | --- | --- | --- |
 | `node tools/platform/migrate.js up --dsn="$HS_DB_URL"` | `pg_dump "$HS_DB_URL" -n highland -Fc -f highland-$(date +%Y%m%d-%H%M%S).dump` (nothing to copy the very first time) | `node tools/platform/migrate.js down 0 --dsn="$HS_DB_URL" --yes` (removes the schema `highland` and all its data, nothing else) |
 
-Check: `migrate.js status` says `highland at 4 of 4`; `select highland.hs_config();` answers with `"now"`.
+Check: `migrate.js status` says `highland at 5 of 5`; `select highland.hs_config();` answers with `"now"`.
 
 ## 3. The shared changes: each one needs the owner's yes, alone, at the time
 

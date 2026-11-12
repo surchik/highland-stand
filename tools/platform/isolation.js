@@ -228,6 +228,20 @@ async function run(S) {
     for (const fn of ["hs_delete_account"]) {
       const v = await api.rpc(null, fn, {});
       ok(v.status === 401, "the visitor is refused " + fn);
+      // (migration 005) the player's own account in a password session cannot delete his game data
+      const rowsA = async () => (await q(`select (select count(*) from highland.hs_profiles where user_id = $1) + (select count(*) from highland.hs_saves where user_id = $1)
+        + (select count(*) from highland.hs_scores where user_id = $1) + (select count(*) from highland.hs_sessions where uid = $1) as n`, [P.A]))[0].n;
+      const before = await rowsA();
+      const pw = await api.rpc("A:password", fn, {});
+      ok(pw.status === 403 && pw.message === "not_game_session", "A's account in a password session is refused " + fn + " (" + pw.status + " " + pw.message + ")");
+      ok(await rowsA() === before && before > 0, "and A's rows are all still there (" + before + ")");
+      const s = await api.rpc("service", fn, {});
+      ok(s.status === 403 && s.code === "42501", "service_role is refused " + fn + " (" + s.status + " " + s.message + ")");
+      // the outsider (another app's account) may call it, and it removes nobody's rows but his own (he has none)
+      const allBefore = (await q("select (select count(*) from highland.hs_profiles) + (select count(*) from highland.hs_saves) + (select count(*) from highland.hs_scores) as n"))[0].n;
+      const o = await api.rpc("O", fn, {});
+      const allAfter = (await q("select (select count(*) from highland.hs_profiles) + (select count(*) from highland.hs_saves) + (select count(*) from highland.hs_scores) as n"))[0].n;
+      ok((o.status === 200 || (o.status === 403 && o.message === "not_game_session")) && allAfter === allBefore, "the outsider's call removes no player's rows (" + o.status + " " + (o.message || "") + ")");
     }
     // the admin's functions: refused to everyone but the admin
     for (const fn of Object.keys(ADMIN)) {
