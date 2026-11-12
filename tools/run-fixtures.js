@@ -10,9 +10,11 @@
 //   check  for every fixture: the page is opened with the run on the device, the map offers it ("Resume: ..."), the
 //          button resumes it with the board, the purse, the defenders and the wave it saved, the wave is then sent
 //          and held through the page's own loop, the run is saved again, and the battle is won (its last wave
-//          staged: the foes of wave 20 fall as they come on) with its record written. A run from before the
-//          numbers were kept is fought on as it was but is never ranked (legacy). Prints one RESULT line; exit 1
-//          when anything failed.
+//          staged: the foes of its last wave fall as they come on) with its record written. A run finishes under the
+//          rules it began with: one saved before the lengths (no `script`) is the 20-wave battle it was, with its
+//          old economy, and its victory page and numbers say 20 waves. A run from before the numbers were kept, or
+//          under an older RULESET, is fought on as it was but is never ranked (legacy). Prints one RESULT line;
+//          exit 1 when anything failed.
 const path = require("path");
 const fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
@@ -102,12 +104,17 @@ async function check(file) {
       await page.click("#resumeBtn");
       await page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
       const st = await page.evaluate(() => ({ lv: levelId(curLevel), diff: curDiff, waveIdx, phase, gold, lives, towers: towers.map(t => t.type + t.level + (t.spec || "") + "@" + t.pad).join(),
+        total: typeof totalWaves === "function" ? totalWaves() : TOTAL_WAVES, ruleset: typeof RULESET === "number" ? RULESET : 0,
+        step: typeof payStep === "function" ? [1, 2, 3, 4, 5, 10, 19, 20].map(w => payStep(w)).join() : "1,1,1,1,1,1,1,1",
         facts: battleFacts(), start: (window.__hsEv || []).filter(e => e[0] === "battle_start").map(e => e[1]), spells: Object.values(spellCd).join(), hero: hero.alive }));
       const want = run.towers.map(t => t.type + t.level + (t.spec || "") + "@" + t.pad).join();
       if (st.lv !== run.lvl || st.diff !== run.diff || st.waveIdx !== run.cleared || st.phase !== "idle" || st.gold !== run.gold || st.lives !== run.lives || st.towers !== want) {
         fail("resumed as " + JSON.stringify({ lv: st.lv, wave: st.waveIdx, gold: st.gold, lives: st.lives, towers: st.towers }) + ", saved as " + JSON.stringify({ lv: run.lvl, wave: run.cleared, gold: run.gold, lives: run.lives, towers: want }));
       }
-      const legacy = run.rules === undefined;
+      // the run's own length: a run saved before the lengths is 20 waves, each paying for itself alone
+      const len = Array.isArray(run.script) ? run.script.length : 20;
+      if (st.total !== len || (!Array.isArray(run.script) && st.step !== "1,1,1,1,1,1,1,1")) fail("the run resumed as " + st.total + " waves (pay steps " + st.step + "), saved as " + len);
+      const legacy = run.rules !== st.ruleset;
       const b = st.start[0];
       if (st.start.length !== 1 || b.resumed !== true || b.legacy !== legacy || b.ranked !== !legacy) fail("battle_start of the resumed run: " + JSON.stringify(st.start));
       if (st.facts.legacy !== legacy || st.facts.left !== st.facts.earned - st.facts.spent + st.facts.refunds || st.facts.resumed !== 1) fail("the resumed run's numbers: " + JSON.stringify(st.facts).slice(0, 400));
@@ -120,10 +127,11 @@ async function check(file) {
       if (after.gameOver) fail("the resumed battle fell on wave " + after.waveIdx);
       else {
         if (!after.saved || after.saved.cleared !== run.cleared + 1 || !after.saved.facts || !after.saved.cd) fail("the run was not saved again with its numbers: " + JSON.stringify(after.saved).slice(0, 200));
-        else if (after.saved.rules !== (legacy ? 0 : run.rules)) fail("the run was saved again under ruleset " + after.saved.rules);
+        else if (after.saved.rules !== (run.rules === undefined ? 0 : run.rules)) fail("the run was saved again under ruleset " + after.saved.rules);
+        else if (JSON.stringify(after.saved.script || null) !== JSON.stringify(Array.isArray(run.script) ? run.script : Array.from({ length: 20 }, (_, k) => k + 1))) fail("the run was saved again with the table " + JSON.stringify(after.saved.script));
         if (legacy && after.debt !== 0) fail("a run that saved no attempt owes " + after.debt);
         // the last wave, staged: its foes fall as they come on; the victory is the campaign's in full
-        await page.evaluate(() => { waveIdx = lastCleared = TOTAL_WAVES - 1; });
+        await page.evaluate(() => { waveIdx = lastCleared = (typeof totalWaves === "function" ? totalWaves() : TOTAL_WAVES) - 1; });
         await page.click("#waveBtn");
         const t0 = Date.now();
         while (!(await page.evaluate(() => { for (const e of enemies) e.hp = 0; return gameOver; }))) {
@@ -131,10 +139,11 @@ async function check(file) {
           await page.waitForTimeout(50);
         }
         const won = await page.evaluate(() => { endCelebration(); const v = (window.__hsEv || []).filter(e => e[0] === "victory").pop();
-          return { v: v && v[1], won: levelConquered(curLevel), stars: levelRecord(curLevel).stars[curDiff], page: menuMode, run: localStorage.getItem("hs_run"), sub: $("ovSub").textContent }; });
-        if (!won.v || !won.won || won.stars < 1 || won.page !== "victory" || won.run !== null) fail("the victory of the resumed run: " + JSON.stringify(won).slice(0, 300));
+          return { v: v && v[1], won: levelConquered(curLevel), best: localStorage.getItem(bestKey(curLevel, curEra)), stars: levelRecord(curLevel).stars[curDiff], page: menuMode, run: localStorage.getItem("hs_run"), sub: $("ovSub").textContent }; });
+        if (!won.v || !won.won || won.best !== "21" || won.stars < 1 || won.page !== "victory" || won.run !== null) fail("the victory of the resumed run: " + JSON.stringify(won).slice(0, 300));
+        else if (won.v.waves !== len || won.v.wave !== len) fail("the victory counts " + won.v.wave + " of " + won.v.waves + " waves, the run had " + len);
         else if (won.v.legacy !== legacy || /worse attempt/.test(won.sub) !== (!legacy && won.v.debt > 0)) fail("the victory's numbers or its page: legacy " + won.v.legacy + ", \"" + won.sub.slice(-80) + "\"");
-        done.push(name + " " + won.v.lives + " kept, " + won.stars + " stars");
+        done.push(name + " " + won.v.lives + " kept, " + won.stars + " stars, " + len + " waves" + (legacy ? ", legacy" : ""));
       }
     } catch (e) { fail(e.message.split("\n")[0]); }
     if (errs.length) fail(errs.join(" | "));

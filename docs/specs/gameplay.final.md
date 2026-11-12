@@ -343,6 +343,12 @@ Text:
 - Comments at 8725, 9246, 9265, 10025, 10987, 54098 are updated to the new facts.
 Self-test lines that assume 20 or stage waves 12 and 19 on every battlefield are listed in 8.1.
 
+(G4 build: the map's line went to the map's subtitle, "782 BC · Assyrian Invasion · 10 waves. ...", not to the chosen
+plate, whose status line keeps its fit and the first suite's check of it. The records' new mark reads "∞ +3" (waves held
+beyond the chronicle) and the ribbon "held 3 waves beyond the chronicle on Normal". A lost stand stores at most 20 in
+`hs_best`. Some suite 1 checks beyond 8.1's list staged a wave by a 20-wave number or read a trick's `from` as a script
+wave; they now read `playedWave`; see the G4 close-out report.)
+
 New on the brief (the chronicle page), under the host of foes: one line,
 "**12 waves.** A commander leads wave 7 and wave 12." (`#briefLen`, the style of `.briefHint`). On the
 map's plate for the chosen battlefield the subtitle gains "· 12 waves".
@@ -1292,6 +1298,9 @@ time:
 - G4 (lengths): the knobs of 5.3 until the bands of 5.1 hold again on all three difficulties; Erebuni's
   own table; Mari; commanders with CMD=probe; wave time within 15% of 1.2. Then Easy and Hard (their own
   entries), then the endless stand's first ten waves on three battlefields.
+  (G4 build: done as written; the bot waits the 4 s between waves in the battle (`WAIT`), the pars are per
+  difficulty, and the numbers and the bands reached are in docs/specs/balance/README.md, G4. Dvin and Sevan on Normal
+  each keep one seed outside 12 to 16, Easy's first five keep 26 to 30, and Gyumri on Hard keeps 11.)
 - G5 (the post): its numbers, until "mix7" is 1 to 3 lives above "mix" and the post builds lose; the bands
   again, with the best build free to use the post.
 - G6 (the daily): the 12-step tables with `DAILY=1`: the daily's pars per battlefield, and each twist on

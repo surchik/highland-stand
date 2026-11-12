@@ -1034,6 +1034,8 @@
   /* one quiet line under the host saying its medallions open a card (a touch screen has no tooltip to tell it) */
   .briefHint { margin-top: -8px; padding-left: 70px; font-size: 11px; line-height: 13px; font-style: italic; text-align: center; color: #7a5a2e; }
   .briefHint:empty { display: none; }
+  .briefLen b { font-style: normal; }
+  .briefLen:not(:empty) + .briefHint { margin-top: 0; }
   /* under the miniature, the hero who holds the field, and his name in Armenian letters when he was a real person */
   .briefHero { display: none; }
   #overlay.brief .briefHero:not(:empty) {
@@ -1139,8 +1141,9 @@
     #overlay.brief #ovPage { display: flex; flex-direction: column; align-items: center; padding: 26px 26px 30px; }
     #overlay.brief #ovPage .briefLeft { max-width: 440px; margin-bottom: 14px; }
     /* the miniature gives up height on a shorter screen (the host row keeps its width), and the height of the
-       foe hint's line under the host, so on an upright iPad the button stays in view */
-    #overlay.brief #briefArt { width: min(100%, calc(30vh - 18px)); align-self: center; }
+       foe hint's line under the host and of the battle's length (#briefLen), so on an upright iPad the button stays
+       in view */
+    #overlay.brief #briefArt { width: min(100%, calc(30vh - 34px)); align-self: center; }
     #overlay.brief #ovPage .sideband, #overlay.brief .crest { display: none; }
     #overlay.brief .ovRule { order: 9; }
     #overlay.brief .ovPager.on { order: 10; }
@@ -3198,7 +3201,7 @@
   <div class="hudPlaque left">
     <div class="stat" title="Gold"><span class="medal"><svg class="ic"><use href="#i-coin"/></svg></span><span id="gold">0</span></div>
     <div class="stat lives" title="Defenders left"><span class="flash" aria-hidden="true"></span><span class="medal"><svg class="ic"><use href="#i-shield"/></svg></span><span id="lives">0</span></div>
-    <div class="stat" title="Wave"><span class="medal"><svg class="ic"><use href="#i-swords"/></svg></span><span id="waveNum">Wave 0/20</span></div>
+    <div class="stat" title="Wave"><span class="medal"><svg class="ic"><use href="#i-swords"/></svg></span><span id="waveNum">Wave 0/10</span></div>
   </div>
   <div class="hudPlaque right">
     <button class="btn icon" id="musicBtn" title="Music (M)"><svg class="ic"><use href="#i-music"/></svg></button>
@@ -3376,6 +3379,7 @@
       <canvas id="briefArt" width="960" height="940"></canvas>
       <div class="briefHero" id="briefHero"></div>
       <div class="briefHost" id="briefHost"></div>
+      <div class="briefHint briefLen" id="briefLen"></div>
       <div class="briefHint" id="briefHint"></div>
       <div class="briefTricks" id="briefTricks" role="group"></div>
       <div class="briefKit" id="briefKit" role="group" aria-label="This battle"></div>
@@ -3826,6 +3830,10 @@ function inGroundRange(cx, cy, px, py, r) {
 const LEVELS = [
   {
     id: "erebuni",
+    // its length (gameplay.final.md 1.2): the script waves its battle plays. Its own table brings new kinds of foe at most
+    // two a wave to a first battle: the shieldbearers on wave 4, the horsemen and rams on 5, the outflankers and scouts
+    // on 6, the commander on 7 and the pair on 10
+    waves: 10, script: [1, 2, 3, 4, 6, 8, 10, 13, 16, 20],
     name: "Erebuni Rise",
     tag: "The newborn fortress of Argishti on Arin Berd.",
     era: 0, date: "782 BC", year: -782,
@@ -3835,7 +3843,7 @@ const LEVELS = [
       boss:    { name: "Shamshi-ilu the Turtan" },
       // the turtan's outflankers, on foot across the hills (named apart from the Etiuni Scouts of the hidden trick,
       // so a leak of one is never read as the other), stand harder here ([Easy, Normal, Hard]; tools/balance.js)
-      flyer:   { name: "Assyrian Flankers", hpMult: [2, 1.3, 2] },
+      flyer:   { name: "Assyrian Flankers", hpMult: [2, 1.8, 2] },
     },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
     towers: {
@@ -3869,15 +3877,15 @@ const LEVELS = [
     // Hidden scouts (the Beacon Fire reveals them): Etiuni rose against Urartu (its facts); the scouts are the game's
     tricks: {
       watch: ["fire"],
-      hidden: { from: [8, 6, 6], every: 2, dense: [null, 12, 12], hp: [1.3, 3, 3], linger: [5, 2, 2], n: [[1, 5], [2, 4], [2, 4]], role: "raider", name: "Etiuni Scouts",
+      hidden: { from: [8, 7, 7], every: 2, dense: [null, 12, 12], hp: [1.3, 3, 3], linger: [5, 2, 2], n: [[1, 5], [3, 3], [3, 3]], role: "raider", name: "Etiuni Scouts",
         lorePhrase: "the Etiunians seem to have risen against Urartu",
         lore: "Etiuni scouts creeping on the young fortress are the game's invention." },
       // thinner spoils from wave 4 on (the coached waves 1-3 keep theirs)
-      econ: { from: 4, gold: [0, 0, 0], bounty: [0.5, 0.5, 0.5] },
+      econ: { from: 4, gold: [0, 0, 0], bounty: [0.4, 0.38, 0.35] },
     },
     // the rank and file climb from wave 4 to wave 18 to these multiples (its coached waves never change): its
     // pressure comes in its later waves, where a full board of mastered towers used to coast
-    hpFrom: { wave: 4, full: 18, mult: [1.1, 1.65, 1.25] },
+    hpFrom: { wave: 4, full: 18, mult: [1.5, 1.9, 1.6] },
     fort: { x: 1290, y: 390 },
     pads: [[170, 300], [420, 300], [170, 120], [470, 520], [540, 330], [760, 320], [760, 120], [1040, 330], [850, 550], [1060, 550], [540, 700], [300, 520], [1240, 240], [1300, 540]],
     rocks: [[80, 500, 15], [540, 120, 13], [1100, 180, 16], [240, 660, 14], [1420, 560, 12], [60, 680, 13]],
@@ -3890,9 +3898,10 @@ const LEVELS = [
   },
   {
     id: "tushpa",
+    waves: 12,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Vale of Tushpa",
     tag: "The royal road to the citadel on Lake Van.",
-    era: 0, date: "735 BC", year: -735, hpTune: [1.29, 1.1, 1.1],
+    era: 0, date: "735 BC", year: -735, hpTune: [1.45, 1.3, 1.45],
     hero: { name: "Sarduri II", title: "King of Urartu" },
     units: {
       raider:  { name: "Itu'aean Archers" },
@@ -3939,7 +3948,7 @@ const LEVELS = [
       hidden: { from: [7, 7, 6], every: 3, n: [[1, 10], [1, 6], [2, 5]], role: "raider", name: "Itu'aean Scouts",
         lorePhrase: "Urartian watchtowers on the mountain peaks",
         lore: "Scouts slipping past the watch-posts here are the game's." },
-      econ: { gold: [0, 0, 0], bounty: [0.58, 0.58, 0.55] },
+      econ: { gold: [0, 0, 0], bounty: [0.5, 0.45, 0.5] },
     },
     fort: { x: 1110, y: 300 },
     pads: [[150, 340], [355, 165], [360, 360], [460, 555], [655, 355], [700, 160], [770, 330], [950, 400], [730, 600], [1010, 240], [1195, 430], [170, 165], [980, 610], [560, 640]],
@@ -3953,6 +3962,9 @@ const LEVELS = [
   },
   {
     id: "avarayr",
+    // its length (gameplay.final.md 1.2). Its own table keeps the reserves' road off the commander's wave: the commander
+    // on wave 7, the tell on 8, the road on 9; the daily's 12 steps the same way (commander 6, tell 7, road 8)
+    waves: 14, script: [1, 2, 3, 5, 6, 8, 10, 11, 12, 14, 15, 17, 18, 20], dailyScript: [1, 2, 3, 5, 7, 10, 11, 12, 14, 16, 18, 20],
     name: "Avarayr Plain",
     tag: "On the Tghmut banks, faith against the shahanshah.",
     era: 1, date: "451 AD", year: 451, hpTune: [1.45, 1.2, 1.2],
@@ -3998,14 +4010,14 @@ const LEVELS = [
     // The ambush road: the Persian reserves surrounded Vardan's men (its chronicle); the road they take is the
     // game's. Wicker shields as Ammianus saw them in 363 (the game's at Avarayr); the elephants fear fire (Amida, 359)
     tricks: {
-      ambush: { route: 1, pad: 14, from: [14, 12, 12], share: [0.1, 0.15, 0.15], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
+      ambush: { route: 1, pad: 14, from: [14, 12, 12], share: [0.1, 0.2, 0.2], mid: 0.4, tell: [2, 1, 1], name: "the reserves' road",
         lorePhrase: "the Persian reserves surrounded Vardan's men",
         lore: "The road they take here is the game's." },
       guards: [{ role: "shield", vs: "archer", from: [9, 5, 5], look: "wicker", name: "Wicker shields", drop: true,
         lorePhrase: "shields of wicker and rawhide",
         lore: "That war came 88 years before Avarayr. Their shield wall here is the game's." }],
       weak: [{ role: "ram", slot: "fire", mult: 1.4, lorePhrase: "firebrands drove the Persian elephants back" }],
-      econ: { gold: [0, 0, 0], bounty: [0.75, 0.75, 0.7] },
+      econ: { gold: [0, 0, 0], bounty: [0.75, 0.7, 0.7] },
     },
     fort: { x: 80, y: 400 },
     // the fifteenth pad watches the reserves' road (and none of road 0)
@@ -4020,9 +4032,10 @@ const LEVELS = [
   },
   {
     id: "dvin",
+    waves: 11,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Dvin Gates",
     tag: "Twin roads besiege the cathedral capital.",
-    era: 2, date: "640 AD", year: 640, hpTune: [0.92, 1, 0.8],
+    era: 2, date: "640 AD", year: 640, hpTune: [0.92, 1, 1],
     hero: { name: "Theodoros Rshtuni", title: "Prince of Rshtunik" },
     foe: "Arab",
     units: {
@@ -4074,6 +4087,8 @@ const LEVELS = [
       //   name: "Archers in the Smoke", look: "smoke", lorePhrase: "with smoke and arrows", lore: "Archers hidden in the smoke are the game's way of showing it." },
       // the adaptive enemy: Dvin's archers held every seed against the hunters alone (owner's R1)
       adapt: {},
+      // thinner spoils on Normal since the lengths (G4): a shorter battle pays ahead, and Dvin came out easier
+      econ: { gold: [0, 0, 0], bounty: [1, 0.86, 1] },
     },
     fort: { x: 1120, y: 370 },
     pads: [[150, 290], [420, 290], [420, 120], [700, 300], [720, 90], [980, 280], [160, 550], [480, 590], [820, 570], [1060, 530], [560, 690], [1200, 250], [1220, 500], [900, 120]],
@@ -4087,6 +4102,7 @@ const LEVELS = [
   },
   {
     id: "tashir",
+    waves: 12,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Tashir Gates",
     tag: "Two forest roads converge in the gorges of Tashir.",
     era: 2, date: "914 AD", year: 914, hpTune: [1.1, 1, 1],
@@ -4148,9 +4164,10 @@ const LEVELS = [
   },
   {
     id: "sevan",
+    waves: 15,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Sevan Shores",
     tag: "The Iron King stands where the lake meets the sky.",
-    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1, 0.82],
+    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1, 1.08],
     hero: { name: "Ashot II Erkat", title: "The Iron King" },
     foe: "Sajid",
     units: {
@@ -4204,7 +4221,7 @@ const LEVELS = [
         name: "Sajid Torch-Bearers",
         lore: "Torch-bearers against your towers are the game's." },
       adapt: {},
-      econ: { gold: [0, 0, 0], bounty: [0.75, 0.9, 0.9] },
+      econ: { gold: [0, 0, 0], bounty: [0.65, 0.85, 0.9] },
     },
     fort: { x: 980, y: 610 },
     pads: [[170, 240], [450, 240], [720, 240], [760, 430], [480, 450], [170, 450], [440, 650], [680, 698], [200, 700], [550, 120], [900, 90], [60, 480], [1000, 698], [860, 540]],
@@ -4223,6 +4240,7 @@ const LEVELS = [
   // ======================================================================================
   {
     id: "ani",
+    waves: 18,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     // ---- TEXT BEGIN ani: the source-checked text (verified/ani.json; the defeat kept to 190 characters, design.md 10).
     // The layout and mechanics below TEXT END stay. ----
     name: "Ani",
@@ -4270,7 +4288,8 @@ const LEVELS = [
       15: { main: "Another Attempt", sub: "The emperor also draws the emir of Dvin into the war against Gagik",
             toast: "The emir's raiders ride in. The sources say he seized fortresses of Gagik's kingdom; his riders at Ani's walls are the game's." },
     },
-    briefNote: "Three assaults come against the walls, and the emir's raiders ride in with the third, from wave 15.",
+    // {wNN}: the played wave that reaches script wave NN (levelNote)
+    briefNote: "Three assaults come against the walls, and the emir's raiders ride in with the third, from wave {w15}.",
     endingCard: { title: "The Summons", button: "The king goes",
       text: "The walls of Ani have held. Now the emperor Constantine IX calls the young King Gagik to Constantinople with promises, and the nobles swear to hold his capital while he is away." },
     // ---- TEXT END ani ----
@@ -4313,11 +4332,12 @@ const LEVELS = [
   },
   {
     id: "mari",
+    waves: 12,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     // ---- TEXT BEGIN mari: the source-checked text (verified/mari.json; the defeat kept to 190 characters, design.md 10).
     // The layout and mechanics below TEXT END stay. ----
     name: "Mari",
     tag: "The king's sons hold the road into Cilicia.",
-    date: "August 1266", year: 1266, hpTune: [1, 1, 0.85],
+    date: "August 1266", year: 1266, hpTune: [1, 0.92, 0.8],
     hero: { name: "Prince Leo", title: "Son and heir of King Hethum I" },
     foe: "Mamluk",
     units: {
@@ -4356,7 +4376,7 @@ const LEVELS = [
     ],
     // The King Is Away: the relief marker, the calls on the waves the king is spoken of, the other road's banner,
     // and the line that tells the time held
-    briefNote: "Watch the mountains behind the camp: from wave 11 a Mamluk column comes down a second road.",
+    briefNote: "Watch the mountains behind the camp: from wave {w11} a Mamluk column comes down a second road.",
     relief: "King Hethum: with the Mongols",
     waveText: {
       1:  { toast: "King Hethum has gone to the Mongols to ask for help. His sons hold the passes." },
@@ -4365,7 +4385,8 @@ const LEVELS = [
       16: { toast: "No relief will come in time." },
       20: { toast: "Hold the way into Cilicia for as long as it can be held." },
     },
-    heldText: { won: "You held the passes all twenty waves.", lost: "You held the passes for {n} of 20 waves." },
+    // {N}: the battle's length as a word, {T}: as a number (heldLine)
+    heldText: { won: "You held the passes all {N} waves.", lost: "You held the passes for {n} of {T} waves." },
     endTitle: "The Passes Hold!",
     // ---- TEXT END mari ----
     era: 8,
@@ -4407,6 +4428,7 @@ const LEVELS = [
   },
   {
     id: "sis",
+    waves: 20,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     // ---- TEXT BEGIN sis: the source-checked text (verified/sis.json; the defeat kept to 190 characters, design.md 10).
     // The layout and mechanics below TEXT END stay. ----
     name: "Sis",
@@ -4479,9 +4501,10 @@ const LEVELS = [
   },
   {
     id: "gyumri",
+    waves: 13,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Gyumri Road",
     tag: "The frontier plain beneath snowbound Aragats.",
-    era: 3, date: "1579 AD", year: 1579, hpTune: [1, 1, 0.7],
+    era: 3, date: "1579 AD", year: 1579, hpTune: [1, 1.3, 1],
     hero: { name: "Captain of Shirak", title: "Highland defender" },
     // what each of the age's five towers shows here (towerDepicts); the names are the age's (SLOT_NAMES)
     towers: {
@@ -4537,9 +4560,10 @@ const LEVELS = [
   // ======================================================================================
   {
     id: "halidzor",
+    waves: 14,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Halidzor",
     tag: "Davit Bek's fortress in the gorges of Syunik.",
-    era: 4, date: "Late winter 1727", year: 1727, hpTune: [1.13, 1.1, 1.08],
+    era: 4, date: "Late winter 1727", year: 1727, hpTune: [1.13, 1.1, 1.18],
     hero: { name: "Davit Bek", title: "Liberator of Syunik" },
     foe: "Ottoman",
     units: {
@@ -4583,6 +4607,8 @@ const LEVELS = [
         lorePhrase: "a large Ottoman army closed around Halidzor",
         lore: "A mantlet is a wooden screen carried in front of an attack. How the Sapper Mantlet Team came at Halidzor is the game's." }],
       adapt: {},
+      // thinner spoils on Normal since the lengths (G4): its ballista and drums board kept every defender
+      econ: { gold: [0, 0, 0], bounty: [1, 0.84, 1] },
     },
     fort: { x: 900, y: 570 },
     pads: [[1150, 290], [1350, 290], [1080, 520], [800, 300], [800, 510], [520, 510], [440, 310], [440, 110], [800, 110], [160, 330], [160, 520], [380, 690], [640, 690], [1000, 670]],
@@ -4596,9 +4622,10 @@ const LEVELS = [
   },
   {
     id: "van",
+    waves: 18,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Van",
     tag: "The self-defense of Van during the Genocide.",
-    era: 5, date: "20 April to mid-May 1915", year: 1915, hpTune: 1.42,
+    era: 5, date: "20 April to mid-May 1915", year: 1915, hpTune: [1.42, 1.46, 1.5],
     hero: { name: "Aram Manukian", title: "Organizer of Van's Self-Defense" },
     foe: "Ottoman",
     units: {
@@ -4654,6 +4681,7 @@ const LEVELS = [
   },
   {
     id: "musadagh",
+    waves: 16,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Musa Dagh",
     tag: "Fifty-three days on the mountain of Moses.",
     era: 5, date: "21 July to 12 September 1915", year: 1915, hpTune: [1.04, 0.97, 0.9],
@@ -4712,9 +4740,10 @@ const LEVELS = [
   },
   {
     id: "sardarapat",
+    waves: 20,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Sardarapat",
     tag: "The stand that saved Armenia, May 1918.",
-    era: 5, date: "21 to 29 May 1918", year: 1918, hpTune: 1.18,
+    era: 5, date: "21 to 29 May 1918", year: 1918, hpTune: [1.18, 1.165, 1.18],
     hero: { name: "Movses Silikyan", title: "Commander at Sardarapat" },
     foe: "Ottoman",
     units: {
@@ -4770,9 +4799,10 @@ const LEVELS = [
   },
   {
     id: "stepanakert92",
+    waves: 14,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Stepanakert",
     tag: "The city under the Grad rockets, 1991-1992.",
-    era: 6, date: "November 1991 to 9 May 1992", year: 1992, hpTune: 1.35,
+    era: 6, date: "November 1991 to 9 May 1992", year: 1992, hpTune: [1.35, 1.5, 1.5],
     hero: { name: "Arkady Ter-Tadevosyan", title: "Komandos, commander of the Shushi operation" },
     foe: "Azerbaijani",
     units: {
@@ -4824,9 +4854,10 @@ const LEVELS = [
   },
   {
     id: "shushi",
+    waves: 14,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Shushi",
     tag: "The 44-day war and the fall of the fortress, 2020.",
-    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: [1.02, 0.98, 0.84],
+    era: 6, date: "27 September to 10 November 2020", year: 2020, hpTune: [1.02, 0.98, 0.95],
     hero: { name: "Defense Army volunteer", title: "Artsakh Defense Army volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -4892,9 +4923,10 @@ const LEVELS = [
   },
   {
     id: "stepanakert23",
+    waves: 12,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Stepanakert 2023",
     tag: "Blockade, offensive and exodus, 2022-2023.",
-    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: [1.02, 0.87, 0.74],
+    era: 6, date: "12 December 2022 to October 2023", year: 2023, hpTune: [1.02, 0.92, 0.85],
     hero: { name: "Civil defense volunteer", title: "Stepanakert civil defense volunteer" },
     foe: "Azerbaijani",
     units: {
@@ -9163,7 +9195,7 @@ const TOWER_DEFS = {
       { dmg: 40, range: 182, rate: 0.40, cost: 130 },
     ],
     // dear and strong masteries: archers are cheap, so a board of them runs out of pads long before it runs out
-    // of gold, and its last rank must still bite through the commanders' armour on waves 10 and 20
+    // of gold, and its last rank must still bite through the commanders' armour on script waves 10 and 20
     specs: {
       a: { name: "Composite Bow Corps", cost: 240, desc: "Great range and heavy shafts",
            stats: { dmg: 76, range: 230, rate: 0.5 } },
@@ -9675,7 +9707,99 @@ if (typeof ResizeObserver === "function") {
   document.querySelectorAll("#shop .card").forEach(c => ro.observe(c));
 }
 
+// ---------- the script map (docs/specs/gameplay.final.md 1.1) ----------
+// The 20-wave script stays the one source of a wave's foes and strength: scriptGroups(s), hpScale, commanderClimb,
+// bountyScale, levelHpFrom and every wave number in a battlefield's data (L.tricks, L.phases, L.flank, L.routeOpen,
+// L.waveText, L.phaseText, L.waveCues, L.hpFrom) are SCRIPT waves, 1 to 20. A battlefield of N waves plays N of
+// those steps, from its table: wave w as it is played stands for script wave scriptWave(w). A battlefield left at
+// 20 is the battle it always was.
+const SCRIPT_LEN = 20;
+const WON_MARK = 21;                 // hs_best's "won" value stays 21 whatever the length (1.6)
+const DAILY_WAVES = 12;              // every daily is a 12-wave stand (6.4)
+// the script steps a battle of N waves plays: 1, 2, 3, then even steps to 20, with 10 always present
+const SCRIPT_TABLES = {
+  10: [1, 2, 3, 5, 8, 10, 13, 15, 18, 20],
+  11: [1, 2, 3, 5, 7, 10, 12, 14, 16, 18, 20],
+  12: [1, 2, 3, 5, 7, 9, 10, 12, 14, 16, 18, 20],
+  13: [1, 2, 3, 5, 6, 8, 10, 12, 13, 15, 17, 18, 20],
+  14: [1, 2, 3, 5, 6, 8, 9, 10, 12, 14, 15, 17, 18, 20],
+  15: [1, 2, 3, 4, 6, 7, 9, 10, 12, 13, 14, 16, 17, 19, 20],
+  16: [1, 2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 19, 20],
+  18: [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20],
+  20: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+};
+// a battlefield's own table (L.script), else the table of its length; the daily's 12-step table (L.dailyScript)
+function levelScript(L, daily) {
+  if (!L) return SCRIPT_TABLES[SCRIPT_LEN];
+  return daily ? (L.dailyScript || SCRIPT_TABLES[DAILY_WAVES]) : (L.script || SCRIPT_TABLES[L.waves || SCRIPT_LEN]);
+}
+// a table is rising whole numbers from 1 to 20, at most 20 long (a saved run's is checked so: validRun)
+function scriptOk(S) {
+  if (!Array.isArray(S) || S.length < 1 || S.length > SCRIPT_LEN || S[0] !== 1 || S[S.length - 1] !== SCRIPT_LEN) return false;
+  for (let i = 0; i < S.length; i++) if (!Number.isInteger(S[i]) || (i && S[i] <= S[i - 1])) return false;
+  return true;
+}
+// the table the battle in progress began with (resetGame: the battlefield's; resumeRun: the saved run's, or the
+// 20-step table for a run saved before the lengths). It is the battle's own: a later change of a battlefield's length
+// never reaches a run in progress. Anything that reads a battlefield without fighting it (the brief, the map, the
+// ruleset) gets the battlefield's own table
+let runScript = null, runScriptLv = -1;
+function setRunScript(S) { runScript = S.slice(); runScriptLv = curLevel; }
+function curScript() { return runScript && runScriptLv === curLevel ? runScript : levelScript(LEVELS[curLevel]); }
+function totalWaves() { return curScript().length; }
+// battlefield i's length, whatever is being fought (the map, the chronicle)
+function levelWaves(i) { return levelScript(LEVELS[i]).length; }
+// played wave w -> script wave. Beyond the chronicle (endless) the script runs on one step a wave
+function scriptWave(w) { const S = curScript(); return w <= 0 ? 0 : w <= S.length ? S[w - 1] : SCRIPT_LEN + (w - S.length); }
+// script wave s -> the first played wave that reaches it (for every `from` in the data)
+function playedWave(s) { const S = curScript(); for (let k = 0; k < S.length; k++) if (S[k] >= s) return k + 1; return S.length + (s - SCRIPT_LEN); }
+// the script waves played wave w stands for when it is FOUGHT: itself and the ones skipped before it
+function coveredWaves(w) { const out = []; for (let i = scriptWave(w - 1) + 1; i <= scriptWave(w); i++) out.push(i); return out; }
+// the script waves played wave w PAYS for: itself and the ones skipped after it (1.4). Waves 1 to 3 pay themselves
+// only (the coached waves never change), and wave 4 also pays a script wave skipped between 3 and it
+function paidWaves(w) {
+  const S = curScript(), n = S.length, out = [];
+  if (w > n || w < 1) return [scriptWave(Math.max(1, w))];   // an endless wave pays itself
+  const a = w === 4 ? 4 : scriptWave(w);
+  const b = w <= 3 ? scriptWave(w) : w < n ? S[w] - 1 : SCRIPT_LEN;
+  for (let s = a; s <= b; s++) out.push(s);
+  return out;
+}
+function payStep(w) { return paidWaves(w).length; }
+// a commander leads wave w (the waves that cover script wave 10 and 20, and every tenth beyond the chronicle)
+function isCommanderWave(w) { return w >= 1 && waveGroups(w).some(g => g.type === "boss"); }
+// the debrief's word on the commanders: the waves they lead here
+function commanderTip() {
+  const C = commanderWaves();
+  return C.length ? "A commander leads " + C.map(w => "wave " + w).join(" and ") + " here" : "A commander leads the last wave here";
+}
+function commanderWaves() { const out = []; for (let w = 1; w <= totalWaves(); w++) if (isCommanderWave(w)) out.push(w); return out; }
+// a battlefield's word kept by script wave (L.phaseText, L.waveText, L.waveCues): a played wave takes the entry of
+// the last script wave it covers that has one
+function scriptEntry(map, w) {
+  if (!map) return null;
+  const S = coveredWaves(w);
+  for (let i = S.length - 1; i >= 0; i--) if (map[S[i]]) return map[S[i]];
+  return null;
+}
+// played wave w's foes: every group a script wave it covers brings, a role at its largest count, in the order
+// spearman, raider, shield, cavalry, ram, flyer, boss. A wave that brings a commander takes its outflankers from its
+// own script wave only (so no commander arrives with the outflankers of a skipped wave), and still the largest ram
+// count of the waves it covers. A wave that covers one script wave is that wave exactly
+const GROUP_ORDER = ["spearman", "raider", "shield", "cavalry", "ram", "flyer", "boss"];
 function waveGroups(w) {
+  const S = coveredWaves(w), own = scriptWave(w);
+  if (S.length <= 1) return scriptGroups(own);
+  const mine = scriptGroups(own), cmd = mine.some(g => g.type === "boss"), out = [];
+  for (const s of S) for (const g of scriptGroups(s)) {
+    if (cmd && g.type === "flyer" && s !== own) continue;
+    const o = out.find(x => x.type === g.type);
+    if (!o) out.push(Object.assign({}, g)); else if (g.n >= o.n) Object.assign(o, g);
+  }
+  return out.sort((a, b) => GROUP_ORDER.indexOf(a.type) - GROUP_ORDER.indexOf(b.type));
+}
+// script wave s's foes (the 20-wave script; beyond it the endless stand's climb)
+function scriptGroups(w) {
   const g = [], L = LEVELS[curLevel], flank = L && L.flank;   // Ani's raiders: every wave from their phase on
   g.push({ type: "spearman", n: 4 + w, gap: 0.9 });
   if (w >= 2) g.push({ type: "raider", n: 2 + w, gap: 0.45 });
@@ -9711,12 +9835,15 @@ function commanderClimb(w) { return w === 10 ? 1.5 : (1 + (w - 1) * 0.13) * (w =
 // six get their pressure from the enemy's tricks (L.tricks, TRICK_RULES: Avarayr's reserves' road takes a sixth of
 // a wave from wave 12 on Normal, Sevan's hill track a quarter, Sevan's torch-bearers and Dvin's ladder parties cost
 // repairs), from the adaptive enemy against one-tower boards (Dvin, Tashir, Sevan) and from their economies
-// (L.tricks.econ: thinner spoils on all but Dvin, on Erebuni only from wave 4). A full mixed board answers Erebuni's
+// (L.tricks.econ: thinner spoils everywhere but Dvin on Easy and Hard, on Erebuni only from script wave 4). A full mixed board answers Erebuni's
 // scouts and Tushpa's shields whatever their numbers (the bot lost nothing to scouts eight times as strong), so there
 // those tricks punish one-tower boards and a missing watch tower, and Erebuni's later waves climb instead (hpFrom),
 // where its full board used to coast. Hit points are fine tuning (hpTune). The outflankers' way is drawn on the field
 // before their first waves (drawFlankLines), so they no longer carry a field's toll (Erebuni's ride at 1.3 times).
-// Calibrated with tools/balance.js (SEEDS=3) to the owner's targets: on Normal the best build keeps 12-16 of 20 on
+// Retuned with the lengths (G4, docs/specs/balance/README.md): a short battle came out 3 to 6 defenders easier, so the
+// first six took thinner spoils, more scouts and outflankers at Erebuni, a wider reserves' road at Avarayr and a little
+// strength at Tushpa, and the later eleven their hpTune (by difficulty) and the commanders of Mari, Musa Dagh and
+// Stepanakert 2023 their own column, below. Calibrated with tools/balance.js (SEEDS=3) to the owner's targets: on Normal the best build keeps 12-16 of 20 on
 // every seed on the first six, Erebuni included (its coached waves 1-3 unchanged), and the balanced mix wins every
 // seed; on the later eleven the best keeps about 10-15 and the mix usually wins, and no field's best build keeps more
 // than it did before the tricks (Halidzor, Musa Dagh and Stepanakert 2023 on Normal stand where their best builds keep
@@ -9730,13 +9857,13 @@ function commanderClimb(w) { return w === 10 ? 1.5 : (1 + (w - 1) * 0.13) * (w =
 // on most battlefields; Musa Dagh's stand lower since its best builds were brought down by the adaptive enemy
 const LEVEL_HP = {
   erebuni: [0, 1.12, 1.12], tushpa: [1, 1.49, 1.49], avarayr: [2, 1.69, 1.69], dvin: [3, 1.72, 1.12], tashir: [4, 1.86, 1.45],
-  sevan: [5, 1.89, 1.89], gyumri: [6, 1.72, 1.5], halidzor: [7, 1, 1.09], van: [8, 1, 0.9], musadagh: [9, 1, 0.68],
-  sardarapat: [10, 1, 0.85], stepanakert92: [11, 1, 1.35], shushi: [12, 1, 0.98], stepanakert23: [13, 1, 0.65],
+  sevan: [5, 1.89, 1.89], gyumri: [6, 1.72, 1.5], halidzor: [7, 1, 1.09], van: [8, 1, 0.9], musadagh: [9, 1, 0.45],
+  sardarapat: [10, 1, 0.85], stepanakert92: [11, 1, 1.35], shushi: [12, 1, 0.98], stepanakert23: [13, 1, 0.55],
   // Chapter III (its own calibration, kept: the best build 8-14 defenders with a balanced mix winning): Ani's two
   // roads stand near the chapter's climb; Mari's short second road, open from wave 11 behind the line, makes its foes
   // and above all its commanders count for more, so both stand lower; Sis's one long road is watched from every pad,
   // so its rank and file stand higher
-  ani: [6, 1.8, 1.5], mari: [6, 1.38, 1], sis: [6, 2.4, 1.5],
+  ani: [6, 1.8, 1.5], mari: [6, 1.38, 0.8], sis: [6, 2.4, 1.5],
 };
 function levelHpMult(type) {
   const L = LEVELS[curLevel], H = LEVEL_HP[L.id] || [6, 1, 1];
@@ -9749,34 +9876,40 @@ function bountyScale(w) { return Math.max(0.75, 1 - 0.015 * (w - 1)); }
 function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 
 // ---------- the ruleset: what a Standard battle is fought under (docs/specs/gameplay.final.md 6.2, 6.3) ----------
-// RULESET names the rules a score is earned under. 1 is the game of twenty waves on every battlefield. It rises
-// with any change to what rulesetData() returns or to the fight itself, and the boards of an older number are then
-// closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
+// RULESET names the rules a score is earned under. 1 was the game of twenty waves on every battlefield (it exists for
+// the tests and pins of G1 and is never published); 2 is the 17 lengths of the script map, each battlefield retuned
+// (G4). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
-const RULESET = 1;
-const RULESET_PIN = "b065cbc7";
+const RULESET = 2;
+const RULESET_PIN = "8549d3a4";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
 // them all. LEVEL_PIN holds each battlefield's part of rulesetData() the way RULESET_PIN holds the whole.
+// 2 everywhere with the lengths (G4): fifteen battlefields changed their length, and the pay rule every battlefield
+// shares (a wave pays for the script waves it stands for) is new, so Sis and Sardarapat, left at twenty, rise too
 const LEVEL_REV = {
-  erebuni: 1, tushpa: 1, avarayr: 1, dvin: 1, tashir: 1, sevan: 1, ani: 1, mari: 1, sis: 1, gyumri: 1, halidzor: 1,
-  van: 1, musadagh: 1, sardarapat: 1, stepanakert92: 1, shushi: 1, stepanakert23: 1,
+  erebuni: 2, tushpa: 2, avarayr: 2, dvin: 2, tashir: 2, sevan: 2, ani: 2, mari: 2, sis: 2, gyumri: 2, halidzor: 2,
+  van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
-  erebuni: "1591222c", tushpa: "32a757cb", avarayr: "f5f90adf", dvin: "b6ceed15", tashir: "fcaf1166", sevan: "06107225",
-  ani: "8f9d18c2", mari: "9d21b5eb", sis: "3f35251c", gyumri: "fb069222", halidzor: "dbaed40e", van: "2992c19c",
-  musadagh: "27dcc88b", sardarapat: "f7b325ad", stepanakert92: "cc0b0f10", shushi: "1a9df3be", stepanakert23: "501a118a",
+  erebuni: "32658c8c", tushpa: "337481fd", avarayr: "f44b531b", dvin: "2d438d58", tashir: "953f2dea", sevan: "e31cdf95",
+  ani: "3e27a55a", mari: "aded13c5", sis: "ce73cf5b", gyumri: "7935b06e", halidzor: "8103e105", van: "a768dc1b",
+  musadagh: "ae56e980", sardarapat: "711ef198", stepanakert92: "7b698dc3", shushi: "4ecda8d1", stepanakert23: "5e969715",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
 // shortest battle there can be if that is longer), half at par and nothing at `slow` (1.4 times par). These are
-// ruleset 1's, measured on Normal with one seed (docs/specs/balance/) and used for all three difficulties:
-// ruleset 1 is never published, and the full tables come with the new lengths.
+// ruleset 2's, [Easy, Normal, Hard]: each the mean clock of the best build's victories at SEEDS=3 on the Standard
+// battle, the bot waiting the 4 s in the battle itself (docs/specs/balance/g4-after-*.txt)
 const LEVEL_PAR = {
-  erebuni: 2311, tushpa: 1968, avarayr: 2855, dvin: 2116, tashir: 1930, sevan: 2219, ani: 1916, mari: 1510, sis: 2537, gyumri: 2659,
-  halidzor: 2037, van: 2492, musadagh: 1695, sardarapat: 2179, stepanakert92: 3421, shushi: 1595, stepanakert23: 1576,
+  erebuni: [996, 997, 1101], tushpa: [1391, 1317, 1344], avarayr: [1811, 1724, 1734], dvin: [920, 1108, 1133],
+  tashir: [913, 955, 1187], sevan: [1618, 1650, 1698], ani: [1558, 1693, 1881], mari: [854, 999, 936],
+  sis: [2310, 2523, 2547], gyumri: [1432, 1550, 1904], halidzor: [1290, 1624, 1480], van: [1592, 2179, 2157],
+  musadagh: [1215, 1333, 1326], sardarapat: [2026, 2167, 2194], stepanakert92: [2078, 2469, 2501],
+  shushi: [1094, 1116, 1117], stepanakert23: [923, 953, 928],
 };
 // the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
 // daily scores under lostMax by the waves it held)
@@ -10021,11 +10154,11 @@ function heroLevel(ch) { return heroLevelOf(heroXp(ch)); }
 function heroNextXp(l) { return l < HERO_XP.length ? HERO_XP[l] : null; }
 // The Call is opened by the campaign, once, for every hero at every level: when Dvin opens (Chapter II)
 function callOpen() { return levelOpen(3); }
-// a battle's experience: D x (10 a wave cleared, and 100 for a victory). Until the lengths come (G4) a script wave is
-// the wave itself, so a full victory on Normal is 300
+// a battle's experience: D x (10 a script wave cleared, and 100 for a victory), so a full victory on Normal is 300
+// whatever the battlefield's length (`cleared` is the played waves cleared, read through the battle's table)
 function heroXpFor(won, cleared, diff) {
   const R = HERO_XP_RULE, D = R.diff[diff] == null ? 1 : R.diff[diff];
-  return Math.round(D * (R.wave * Math.max(0, Math.min(TOTAL_WAVES, cleared | 0)) + (won ? R.win : 0)));
+  return Math.round(D * (R.wave * Math.max(0, Math.min(SCRIPT_LEN, scriptWave(cleared | 0))) + (won ? R.win : 0)));
 }
 // The day a daily is fought on, for its cap of 150 a day; null for every other battle (the daily comes with G6)
 function heroDay() { return null; }
@@ -10256,22 +10389,23 @@ function rulesOnly(v) {
   return v === undefined ? null : v;
 }
 function rulesetData() {
-  const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless];
+  const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv];
   const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
-  const script = [];
-  for (let w = 1; w <= TOTAL_WAVES; w++) script.push(w);
+  // the 20-step script every battlefield plays steps of: its climb of strength and thinning of bounties
+  const full = SCRIPT_TABLES[SCRIPT_LEN];
   const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER, PAY,
-    script.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
+    full.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
   const levels = {};
   try {
-    trickLegacy = false; tutGentle = false; endless = false;
+    trickLegacy = false; tutGentle = false; endless = false; runScript = null; runScriptLv = -1;
     LEVELS.forEach((L, i) => {
       curLevel = i; curEra = L.era;
-      const par = LEVEL_PAR[L.id] || 0;
+      const P = LEVEL_PAR[L.id] || 0, script = levelScript(L), played = script.map((_, k) => k + 1);
       const d = DIFFS.map((D, di) => {
         curDiff = di;
+        const par = Array.isArray(P) ? P[di] || 0 : P;   // a par for each difficulty (ruleset 2), or one for all three
         let min = 0, pay = D.gold + 15 * L.era + (trickEcon("gold") || 0);
-        for (let w = 1; w <= TOTAL_WAVES; w++) {
+        for (const w of played) {
           const plan = wavePlan(w), unit = {};
           if (plan.length) min += plan[plan.length - 1].t;
           for (const q of plan) {
@@ -10281,7 +10415,10 @@ function rulesetData() {
             if (q.trick === "hunter") b = Math.round(b * TRICK_RULES.hunters.bounty);
             pay += b + Math.ceil(b * plunder);
           }
-          pay += PAY.clear[0] + w * PAY.clear[1] + PAY.interestCap + PAY.earlyCap;   // the clear's bonus, the interest at its cap, an early call at its cap
+          // the clear's bonus of every script wave the wave pays for, the interest at its cap and an early call at its cap
+          // as many times (1.4)
+          for (const sw of paidWaves(w)) pay += PAY.clear[0] + sw * PAY.clear[1];
+          pay += (PAY.interestCap + PAY.earlyCap) * payStep(w);
         }
         min = Math.floor(min);
         return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax: Math.ceil(pay * 1.1) };
@@ -10293,12 +10430,12 @@ function rulesetData() {
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
         towers: TRAY_CLASSIC.split(",").map(k => TOWER_DEFS[k]),
-        waves: script.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
+        waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
-      levels[L.id] = { waves: TOTAL_WAVES, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
+      levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
         pads: L.pads.length + (L.plots || []).length, tray: TRAY_CLASSIC, fight, d };
     });
-  } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless] = keep; }
+  } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv] = keep; }
   // the daily's part is empty until the daily's battle is built (6.4): no pool, so no day has a battle
   return { v: 1, score: Object.assign({}, SCORE_WEIGHTS), levels,
     daily: { pool: [], twists: [], diff: 1, attempts: 3, waves: 12, skip: {}, levels: {}, t: {} } };
@@ -10409,21 +10546,23 @@ function levelTricks() {
   return (!trickLegacy && L && L.era === curEra && L.tricks) || null;
 }
 // this battlefield's table for one trick on the difficulty fought, with `from` read for it, or null when it is off
+// The data's `from` is a script wave; the table returned names the first PLAYED wave that reaches it (`from`) and keeps
+// the script wave as `sfrom`, so every `w >= from` test works in played waves (1.3)
 function trickCfg(kind) {
   const T = levelTricks(), c = T && T[kind];
   if (!c) return null;
   if (kind === "guards") {
-    const out = c.filter(g => byDiff(g.from) != null).map(g => Object.assign({}, g, { from: byDiff(g.from) }));
+    const out = c.filter(g => byDiff(g.from) != null).map(g => Object.assign({}, g, { from: playedWave(byDiff(g.from)), sfrom: byDiff(g.from) }));
     return out.length ? out : null;
   }
   if (kind === "weak") return c.length ? c : null;
   if (kind === "adapt") {
     const from = byDiff(c.from != null ? c.from : TRICK_RULES.adapt.from);
-    return from == null ? null : Object.assign({}, c, { from });
+    return from == null ? null : Object.assign({}, c, { from: playedWave(from), sfrom: from });
   }
   if (typeof c !== "object") return c;
   const from = byDiff(c.from);
-  return from == null ? null : Object.assign({}, c, { from });
+  return from == null ? null : Object.assign({}, c, { from: playedWave(from), sfrom: from });
 }
 function trickWatch() { const T = levelTricks(); return (T && T.watch) || ["fire"]; }
 // the seconds a hit keeps a hidden scout seen: the battlefield's own (hidden.linger) or the rule's
@@ -10454,7 +10593,7 @@ function insertAfter(g, type, grp) {
 function trickWave(w) {
   const g = waveGroups(w).map(x => Object.assign({}, x));
   if (curLevel === 0 && tutGentle && !endless && w <= 3) return g;
-  const H = trickCfg("hunters"), S = trickCfg("hidden"), G = trickCfg("guards");
+  const H = trickCfg("hunters"), S = trickCfg("hidden"), G = trickCfg("guards"), s = scriptWave(w);
   if (H && w >= H.from) {
     if (H.add === false) {
       const grp = g.find(x => x.type === H.role);
@@ -10462,15 +10601,22 @@ function trickWave(w) {
     } else {
       const N = byDiff(H.n);
       if (N) {
-        const n = Math.min(N[2], N[0] + Math.floor((w - H.from) / N[1]));
+        // counted in script waves, from the script wave they first come on
+        const n = Math.min(N[2], N[0] + Math.floor((s - H.sfrom) / N[1]));
         if (n > 0) insertAfter(g, "spearman", { type: H.role, n, gap: 1.4, trick: "hunter", name: H.name });
       }
     }
   }
-  // scouts come every `every` waves from `from`, and every wave from `dense` where the battlefield names it
-  if (S && w >= S.from && ((w - S.from) % (S.every || 1) === 0 || w >= (byDiff(S.dense) || Infinity))) {
+  // scouts come every `every` script waves from `from`, and every wave from `dense` where the battlefield names it:
+  // a played wave brings them if any script wave it covers would have
+  let scouts = false;
+  if (S && w >= S.from) {
+    const dense = byDiff(S.dense) || Infinity;
+    for (const i of coveredWaves(w)) if (i >= S.sfrom && ((i - S.sfrom) % (S.every || 1) === 0 || i >= dense)) scouts = true;
+  }
+  if (scouts) {
     const N = byDiff(S.n);
-    const n = N ? Math.min(byDiff(TRICK_RULES.hidden.cap), N[0] + Math.floor(w / N[1])) : 0;
+    const n = N ? Math.min(byDiff(TRICK_RULES.hidden.cap), N[0] + Math.floor(s / N[1])) : 0;
     if (n > 0) insertAfter(g, "raider", { type: S.role, n, gap: 1.0, trick: "hidden", name: S.name });
   }
   if (G) for (const q of G) if (w >= q.from) {
@@ -10549,7 +10695,7 @@ function waveTrickKeys(w) {
 }
 // the waves a trick first comes on this battlefield on the difficulty fought, for the brief's row and the tests
 function trickFirstWaves() {
-  const out = {}, top = TOTAL_WAVES;
+  const out = {}, top = totalWaves();
   const A = trickCfg("ambush");
   if (A) out.ambush = A.from;
   for (let w = 1; w <= top; w++) {
@@ -10991,7 +11137,7 @@ function ambushWaveStart(w) {
       const left = A.from - w;
       const msg = "Dust rises on " + A.name + ". " + (left === 1 ? "Next wave" : "In " + (["two", "three", "four"][left - 2] || left) + " waves") +
         ", part of the host will come that way.";
-      if (w % 10 === 0) trickToastLater(msg, 4000); else trickToastLater(msg, 2000);
+      if (isCommanderWave(w)) trickToastLater(msg, 4000); else trickToastLater(msg, 2000);
     }
   }
 }
@@ -11062,7 +11208,6 @@ function trickFoeSpawned(e) {
 }
 
 // ---------- state ----------
-const TOTAL_WAVES = 20;
 let gold, lives, waveIdx, phase, speedMult, gameOver, auto, autoT;
 let towers, enemies, projectiles, particles, spawnQueue, waveTime;
 let placing = null, selected = null, mouse = { x: -999, y: -999 };
@@ -11074,10 +11219,10 @@ let sheep = [];
 let waveBannerT = 0, waveBannerMain = "", waveBannerSub = "";
 let paused = false;
 
-// the sun crosses the sky over the 20-wave stand; endless nights keep cycling
+// the sun crosses the sky over the battle's waves; endless nights keep cycling, a night every battle's length
 function dayFactor() {
-  const w = endless ? waveIdx % 20 : Math.min(waveIdx, 20);
-  return Math.max(0, Math.min(1, w / 20));
+  const N = totalWaves(), w = endless ? waveIdx % N : Math.min(waveIdx, N);
+  return Math.max(0, Math.min(1, w / N));
 }
 
 function spawnSheep() {
@@ -11290,6 +11435,9 @@ let smokeClouds = [];     // { x, y, r, t, dur }: world-space smoke the ladder p
 
 // bonus for calling the next wave while the field is still contested
 function earlyBonus() { return Math.min(PAY.earlyCap, PAY.earlyBase + PAY.earlyPerFoe * enemies.length); }
+// what an early call pays: the bonus times the script waves the wave it cuts short pays for (1.4). The call gives up
+// that wave's clear bonus, interest and mend, which pay ahead multiplies, so its own bonus grows with them
+function earlyPay() { return earlyBonus() * payStep(waveIdx); }
 
 // --- era powers ---
 // what each age's siege engines do, in numbers (update and the powers below play them; the foe card quotes them):
@@ -11819,7 +11967,7 @@ function battleHorn() {
 function battleStartProps(resumed) {
   const p = { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
     ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: null,
-    rev: LEVEL_REV[levelId(curLevel)] || 1, waves: TOTAL_WAVES, tray: TRAY_CLASSIC, power: kitPower(kit), hero: kit.hero || 1, legacy: battle.rules !== RULESET };
+    rev: LEVEL_REV[levelId(curLevel)] || 1, waves: totalWaves(), tray: TRAY_CLASSIC, power: kitPower(kit), hero: kit.hero || 1, legacy: battle.rules !== RULESET };
   // a resume also tells the clock, the debt and the dropped attempt's loss it came back with, so the platform can
   // see a saved run whose clock went back (a save edited by hand) under the same run token
   if (resumed) Object.assign(p, { sec: Math.round(battle.sec) || 0, debt: battle.debt, dropped: battle.dropped });
@@ -11839,7 +11987,7 @@ function battleWaveEnd() {
   }
   track("wave_end", { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", wave: waveIdx, lives,
     gold: Math.round(gold), towers: towers.length, sec: Math.round(battle.sec), early: battle.wEarly,
-    sw: Math.min(20, waveIdx), lost: lostNow, ranks: battle.wRanks, masteries: battle.wMasteries, spells: battle.wSpells,
+    sw: Math.min(SCRIPT_LEN, scriptWave(waveIdx)), lost: lostNow, ranks: battle.wRanks, masteries: battle.wMasteries, spells: battle.wSpells,
     calls: battle.wCalls, rallies: 0, fired: 0, repairs: battle.wRepairs, idle: Math.round(battle.wIdle) });
   battle.wRanks = battle.wMasteries = battle.wSpells = battle.wRepairs = battle.wIdle = battle.wCalls = 0;
   battle.wEarly = false;
@@ -11853,7 +12001,7 @@ function battleWaveEnd() {
 function battleFacts() {
   const B = battle, L = LEVELS[curLevel] || LEVELS[0], max = (DIFFS[curDiff] || DIFFS[1]).lives, n = x => Math.round(x) || 0;
   const lost = Math.max(0, max - lives + B.returned), held = max - lost;
-  const won = !endless && gameOver && lives > 0 && lastCleared >= TOTAL_WAVES;
+  const won = !endless && gameOver && lives > 0 && lastCleared >= totalWaves();
   const stand = {};
   for (const t of towers || []) if (!t.wreck) stand[t.type] = (stand[t.type] || 0) + 1;
   // what got through, as the debrief counts it: the three costliest kinds, and the road that cost most
@@ -11865,7 +12013,7 @@ function battleFacts() {
     // the contract (platform spec 0.3 and 7.2)
     lv: L.id, diff: curDiff, mode: endless ? "endless" : "campaign",
     ruleset: String(B.rules), rev: LEVEL_REV[L.id] || 1, loadout: battleLoadout(),
-    wave: lastCleared, waves: TOTAL_WAVES,
+    wave: lastCleared, waves: totalWaves(),
     lives, lives_max: max, held, lives_board: Math.max(0, held - B.debt), stars: won ? victoryStars(held, max) : 0,
     sec: n(B.sec), spent: n(B.spent), earned: n(B.earned),
     twist: null,
@@ -11874,7 +12022,7 @@ function battleFacts() {
     legacy: B.rules !== RULESET, resumed: B.resumed,
     // gameplay's own
     build: BUILD_ID, kitset: KITSET, ch: CHAPTERS[chapterOf(curLevel)].id,
-    script: Math.min(20, lastCleared), beyond: Math.max(0, lastCleared - TOTAL_WAVES),
+    script: Math.min(SCRIPT_LEN, scriptWave(lastCleared)), beyond: Math.max(0, lastCleared - totalWaves()),
     lost, returned: B.returned, debt: B.debt,
     cmdMet: B.cmdMet, cmdFelled: B.cmdFelled,
     trickLost: { ambush: B.tAmbush, hidden: B.tHidden, hunter: B.tHunter, adapted: B.tAdapted },
@@ -12031,6 +12179,8 @@ function runRecord() {
     rules: battle.rules, facts: battleSave(), cd: cdSave(),
     // the kit the battle was begun with: a run finishes with it, whatever the Council holds by then
     kit: { own: Object.assign({}, kit.own), hero: kit.hero, call: kit.call },
+    // the script table it was begun with (its length): a run finishes under it whatever the battlefield becomes
+    script: curScript().slice(),
   };
 }
 // a fresh wave is sent: remember the run as it stood at the horn
@@ -12110,7 +12260,9 @@ function validRun(r) {
   const pt = p => Array.isArray(p) && p.length >= 2 && num(p[0], -1e4, 1e4) && num(p[1], -1e4, 1e4);
   if (!Number.isInteger(r.diff) || !DIFFS[r.diff]) return false;
   if (!num(r.gold, 0, 1e9) || !num(r.lives, 1, 1e4) || !Number.isInteger(r.cleared) || !num(r.cleared, 0, 1e5)) return false;
-  if (!r.endless && r.cleared >= TOTAL_WAVES) return false;
+  // the run's own table (a run saved before the lengths has none: the 20-step table)
+  if (r.script != null && !scriptOk(r.script)) return false;
+  if (!r.endless && r.cleared >= (Array.isArray(r.script) ? r.script.length : SCRIPT_LEN)) return false;
   if (!Array.isArray(r.pads) || !r.pads.length || r.pads.length > 64 || !r.pads.every(pt)) return false;
   if (r.plotsLeft != null && !(Array.isArray(r.plotsLeft) && r.plotsLeft.every(pt))) return false;
   if (r.plotsBought != null && !num(r.plotsBought, 0, 64)) return false;
@@ -12132,6 +12284,9 @@ function resumeRun() {
   Snd.init();
   overlayEl.classList.add("hidden");
   resetGame();
+  // the script table it was begun with: a run saved before the lengths is the 20-wave battle it was, with today's
+  // economy (validRun has checked the table)
+  setRunScript(Array.isArray(r.script) ? r.script : SCRIPT_TABLES[SCRIPT_LEN]);
   // the kit it was begun with (none for a run saved before the Council): the hero and the towers stand by it
   setKit(savedKit(r.kit));
   heroSpawn();
@@ -12144,8 +12299,10 @@ function resumeRun() {
   leaks = savedLeaks(r.leaks);
   endless = !!r.endless;
   testAided = !!r.aided;
-  // a run saved before the records began brings no endlessFrom: the record as it stands now takes its place
-  endlessFrom = Number.isInteger(r.endlessFrom) ? r.endlessFrom : levelRecord(curLevel).endless[curDiff];
+  // a run saved before the records began brings no endlessFrom: the record as it stands now takes its place. A run
+  // saved before the lengths kept it as the last wave cleared (twenty and the waves beyond)
+  endlessFrom = Number.isInteger(r.endlessFrom) ? (Array.isArray(r.script) ? r.endlessFrom : Math.max(0, r.endlessFrom - SCRIPT_LEN))
+    : levelRecord(curLevel).beyond[curDiff];
   plotsBought = r.plotsBought || 0;
   lastCleared = r.cleared;
   PADS = r.pads.map(p => p.slice());
@@ -12188,6 +12345,8 @@ function resetGame() {
   dropTrickCards();
   tutGentle = false;
   loadLevel(curLevel);
+  // the battle's table: the battlefield's own (a resumed run then puts back the one it was begun with)
+  setRunScript(levelScript(LEVELS[curLevel]));
   const D = DIFFS[curDiff];
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
   trickLegacy = false;
@@ -12269,8 +12428,8 @@ function syncHud() {
   // last of them falls (resetGame clears the beat and refills the lives, so the next stand starts unlit)
   const low = (lives > 0 || !!fallen) && livesShare() < 0.25;
   if (hudCache.livesLow !== low) { livesEl.parentElement.classList.toggle("low", low); hudCache.livesLow = low; }
-  setHudText(waveNumEl, "wave", endless ? "Wave " + waveIdx + " ∞" : "Wave " + waveIdx + "/" + TOTAL_WAVES);
-  const chips = waveIdx >= TOTAL_WAVES && !endless ? "" : waveChipsHtml(waveIdx + 1);
+  setHudText(waveNumEl, "wave", endless ? "Wave " + waveIdx + " ∞" : "Wave " + waveIdx + "/" + totalWaves());
+  const chips = waveIdx >= totalWaves() && !endless ? "" : waveChipsHtml(waveIdx + 1);
   if (chips !== hudCache.chips) { waveInfoEl.innerHTML = chips; hudCache.chips = chips; refreshFoeCardChip(); }
   updateWaveBtn();
   document.querySelectorAll("#shop .card").forEach(c => {
@@ -12291,7 +12450,7 @@ function setWaveBtnText(txt) {
 
 function updateWaveBtn() {
   if (gameOver) return;
-  if (waveIdx >= TOTAL_WAVES && !endless) {
+  if (waveIdx >= totalWaves() && !endless) {
     waveBtn.disabled = true;
     setWaveBtnText("Final Wave");
     return;
@@ -12301,7 +12460,7 @@ function updateWaveBtn() {
     if (!(auto && autoT > 0)) setWaveBtnText("Send Wave");
   } else if (spawnQueue.length === 0 && enemies.length > 0) {
     if (waveBtn.disabled) waveBtn.disabled = false;
-    setWaveBtnText("Call early +" + earlyBonus());
+    setWaveBtnText("Call early +" + earlyPay());
   } else {
     if (!waveBtn.disabled) waveBtn.disabled = true;
     setWaveBtnText("Wave " + waveIdx + " underway");
@@ -12338,7 +12497,12 @@ function loadRecords() {
 function levelRecord(i) {
   const r = loadRecords()[levelId(i)] || {};
   const row = (k, max) => DIFFS.map((_, d) => Math.max(0, Math.min(max, Math.floor(Number((r[k] || [])[d]) || 0))));
-  return { stars: row("stars", 3), lives: row("lives", 999), endless: row("endless", 9999) };
+  // an endless stand's truth is `beyond`, the waves held beyond the chronicle; a row written before the lengths has
+  // only `endless`, the last wave cleared counted with twenty as the chronicle. Both are written (recordEndless), so
+  // an older page that reads the row still sees a number that means what it meant
+  const endless = row("endless", 9999), had = Array.isArray(r.beyond) ? r.beyond : [];
+  const beyond = DIFFS.map((_, d) => had[d] != null && isFinite(Number(had[d])) ? Math.max(0, Math.min(9999, Math.floor(Number(had[d])))) : Math.max(0, endless[d] - SCRIPT_LEN));
+  return { stars: row("stars", 3), lives: row("lives", 999), endless, beyond };
 }
 function storeRecord(i, rec) {
   const all = loadRecords();
@@ -12351,11 +12515,11 @@ function storeRecord(i, rec) {
 // and the furthest endless wave held. diff and hardest are -1 when nothing is recorded. A battlefield won always
 // shows at least the one star every victory earns, even when the stand that won it set no record (test mode)
 function levelStanding(i) {
-  if (!levelConquered(i)) return { stars: 0, diff: -1, hardest: -1, lives: 0, endless: 0 };
+  if (!levelConquered(i)) return { stars: 0, diff: -1, hardest: -1, lives: 0, endless: 0, beyond: 0 };
   const r = levelRecord(i), best = Math.max(...r.stars);
   let diff = -1, hardest = -1;
   r.stars.forEach((s, d) => { if (s > 0) hardest = d; if (s > 0 && s === best) diff = d; });
-  return { stars: Math.max(1, best), diff, hardest, lives: diff >= 0 ? r.lives[diff] : 0, endless: Math.max(...r.endless) };
+  return { stars: Math.max(1, best), diff, hardest, lives: diff >= 0 ? r.lives[diff] : 0, endless: Math.max(...r.endless), beyond: Math.max(...r.beyond) };
 }
 // the stars won across some battlefields (a chapter, the campaign), and the most there are to win
 function starTally(levels) {
@@ -12387,15 +12551,18 @@ function recordWin(kept) {
   storeRecord(i, rec);
   return news;
 }
-// An endless stand's record is the last wave it cleared beyond the chronicle's twenty (lastCleared), on its own
-// difficulty. endlessFrom is the record that stood when the stand began, so the ribbon's words come back for
-// as long as the stand has gone past it
+// An endless stand's record is the waves it held beyond the chronicle (lastCleared past the battle's length), on its
+// own difficulty: `beyond`, with `endless` written beside it as twenty and those waves for older pages (levelRecord).
+// endlessFrom is the record (in waves beyond) that stood when the stand began, so the ribbon's words come back for as
+// long as the stand has gone past it
 let endlessFrom = 0;
+function heldBeyond(n) { return "held " + n + (n === 1 ? " wave" : " waves") + " beyond the chronicle"; }
 function recordEndless() {
-  if (recordsBarred() || lastCleared <= TOTAL_WAVES) return null;
+  const b = lastCleared - totalWaves();
+  if (recordsBarred() || b <= 0) return null;
   const rec = levelRecord(curLevel);
-  if (lastCleared > rec.endless[curDiff]) { rec.endless[curDiff] = lastCleared; storeRecord(curLevel, rec); }
-  return lastCleared > endlessFrom ? "held to wave " + lastCleared + " on " + DIFFS[curDiff].name : null;
+  if (b > rec.beyond[curDiff]) { rec.beyond[curDiff] = b; rec.endless[curDiff] = SCRIPT_LEN + b; storeRecord(curLevel, rec); }
+  return b > endlessFrom ? heldBeyond(b) + " on " + DIFFS[curDiff].name : null;
 }
 // A record beaten on the victory page rings in with its ribbon: bronze bells climb A, D, F sharp to the high A,
 // notes of the D the victory's bells and the kochari are set in, and the last is left to ring. The end of an
@@ -12421,7 +12588,7 @@ function saveBest() {
   const all = LEVELS.map((_, i) => i), had = won ? starTally(all).won : 0;
   const news = won ? recordWin(lives) : null;   // before the line below marks the battlefield won
   const key = bestKey(curLevel, curEra);
-  const val = won ? 21 : waveIdx;
+  const val = won ? WON_MARK : Math.min(SCRIPT_LEN, waveIdx);   // a lost stand: the wave reached, at most 20
   const prev = Number(localStorage.getItem(key) || 0);
   if (val > prev) localStorage.setItem(key, val);
   // the campaign's tally of stars rose: told with the stars this victory earned, and whether it was won on Hard
@@ -12451,7 +12618,7 @@ function startWave() {
   if (gameOver) return;
   if (paused) { toast("Paused: " + resumeHint()); return; }
   if (trickHold()) return;
-  if (waveIdx >= TOTAL_WAVES && !endless) return;
+  if (waveIdx >= totalWaves() && !endless) return;
   // the coached first stand: the field holds still while a step is read, and the first wave waits for a tower
   if (tut && (coachFreeze() || !towers.length)) {
     if (!towers.length) toast("Build a tower first: tap or click one in the tray");
@@ -12463,7 +12630,7 @@ function startWave() {
     // early call: allowed once the current wave has fully spawned; pays a
     // risk bonus but forfeits the pending wave-clear bonus
     if (spawnQueue.length > 0 || enemies.length === 0) return;
-    early = earlyBonus();
+    early = earlyPay();
     gold += early;
     battleEarn(early, "earlyG"); battle.early++; battle.wEarly = true;
     Snd.play("coin");
@@ -12482,7 +12649,7 @@ function startWave() {
   Snd.play("horn", { era: curEra });
   syncHud();
   waveBannerT = 2.6;
-  const bossWave = waveIdx % 10 === 0 && waveIdx >= 10;
+  const bossWave = isCommanderWave(waveIdx);
   waveBannerMain = bossWave ? eraUnit("boss").name : "Wave " + waveIdx;
   waveBannerSub = bossWave ? (eraUnit("boss").flies ? "flies in: only towers that hit outflankers reach it" : "commands this wave. Stand fast!")
     : waveBannerLine();
@@ -12497,11 +12664,11 @@ function startWave() {
   toast(msg, said && said.toast ? 4200 : 0);
   // a battlefield's own sounds on this wave, after the wave's own call (L.waveCues: { wave: [[sound, options]] }):
   // the drums of Ani's assaults, the horn far beyond Mari's passes
-  const cues = LEVELS[curLevel].waveCues && LEVELS[curLevel].waveCues[waveIdx];
+  const cues = scriptEntry(LEVELS[curLevel].waveCues, waveIdx);
   if (cues) for (const [name, o] of cues) waveCueQ.push({ name, o, left: o.after != null ? o.after : WAVE_CUE_AFTER_S });
   // a road that opens on this wave: dust and glints come down it for a few seconds
   const RO = LEVELS[curLevel].routeOpen;
-  if (RO) for (const k in RO) if (RO[k] === waveIdx && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S };
+  if (RO) for (const k in RO) if (roadOpensOn(k, waveIdx) && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S };
   trickWaveStart(bossWave, !!(said && said.main));
 }
 
@@ -12529,12 +12696,14 @@ function waveBannerLine() {
 // a foe's strength on wave w of the battlefield being fought, at the difficulty chosen: spawnEnemy and the foe
 // card both read it here, so the card's numbers are the battle's (`gentle`: see tutorialHp)
 function foeHp(type, d, w, gentle) {
-  // the commanders climb on their own (commanderClimb) and stand on their own numbers (LEVEL_HP, DIFFS' cmd)
-  const boss = type === "boss", climb = boss ? commanderClimb(w) : hpScale(w);
+  // the commanders climb on their own (commanderClimb) and stand on their own numbers (LEVEL_HP, DIFFS' cmd). The
+  // climb is the script's: played wave w stands as strong as the script wave it stands for (the coached waves are
+  // script waves 1 to 3 on every table)
+  const boss = type === "boss", s = scriptWave(w), climb = boss ? commanderClimb(s) : hpScale(s);
   return Math.round(d.hp * (byDiff(d.hpMult) || 1) * ERAS[curEra].hpMult * climb * levelHpMult(type) *
-    DIFFS[curDiff][boss ? "cmd" : "hp"] * tutorialHp(w, gentle) * levelHpFrom(type, w));
+    DIFFS[curDiff][boss ? "cmd" : "hp"] * tutorialHp(w, gentle) * levelHpFrom(type, s));
 }
-// L.hpFrom = { wave, mult, full? }: the rank and file stand stronger from that wave on, climbing evenly to mult
+// L.hpFrom = { wave, mult, full? } (script waves; w is one): the rank and file stand stronger from that wave on, climbing evenly to mult
 // times by wave `full` (at once without it): Erebuni's knob, so its coached first waves keep their strength
 function levelHpFrom(type, w) {
   const H = LEVELS[curLevel].hpFrom;
@@ -12544,20 +12713,25 @@ function levelHpFrom(type, w) {
 }
 function foeArmor(d) { return d.armor + (d.armorAdd || 0); }
 function foeSpeed(d) { return d.spd * (d.spdMult || 1); }
-function foeBounty(d, w) { return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(w) * (trickEcon("bounty", w) || 1))); }
-// a battlefield's economy knob (L.tricks.econ: gold added at the start, bounty multiplied, from wave `from` if it
-// names one), or null
+// a foe of played wave w pays as the script wave it stands for, times the script waves the wave pays for (1.4: a
+// short battle's board must be as built at its last wave as a long one's)
+function foeBounty(d, w) {
+  const s = scriptWave(w);
+  return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(s) * (trickEcon("bounty", s) || 1) * payStep(w)));
+}
+// a battlefield's economy knob (L.tricks.econ: gold added at the start, bounty multiplied, from script wave `from`
+// if it names one; w is a script wave), or null
 function trickEcon(k, w) {
   const T = levelTricks(), E = T && T.econ;
   if (!E || (k === "bounty" && E.from && w < byDiff(E.from))) return null;
   return byDiff(E[k]);
 }
-// the phase of a battlefield's assault that wave w belongs to (Ani's Testament: L.phases, each from its first
-// wave), or null
+// the phase of a battlefield's assault that played wave w belongs to (Ani's Testament: L.phases, each from its first
+// script wave), or null
 function levelPhase(w) {
-  const P = LEVELS[curLevel].phases;
+  const P = LEVELS[curLevel].phases, s = scriptWave(w);
   let ph = null;
-  if (P) for (const q of P) if (w >= q.from) ph = q;
+  if (P) for (const q of P) if (s >= q.from) ph = q;
   return ph;
 }
 // the roads wave w's foes take, or null for every road: a phase names its own, and a road that opens late (Mari's
@@ -12565,16 +12739,22 @@ function levelPhase(w) {
 function activeRoutes(w) {
   const L = LEVELS[curLevel], ph = levelPhase(w);
   if (ph && ph.routes) return ph.routes;
-  if (L.routeOpen) return ROUTES.map((_, k) => k).filter(k => !(L.routeOpen[k] > w));
+  if (L.routeOpen) return ROUTES.map((_, k) => k).filter(k => !(L.routeOpen[k] > scriptWave(w)));
   // the ambush road is never in the turns: only the queue entries wavePlan sends down it take it
   const amb = ambushRoute();
   if (amb >= 0) return ROUTES.map((_, k) => k).filter(k => k !== amb);
   return null;
 }
-// what a battlefield says on wave w: a phase's or a road's banner (main, sub) and a line for the toast
+// what a battlefield says on played wave w: a phase's or a road's banner (main, sub) and a line for the toast, kept
+// by script wave (scriptEntry)
 function levelWaveText(w) {
   const L = LEVELS[curLevel];
-  return (L.phaseText && L.phaseText[w]) || (L.waveText && L.waveText[w]) || null;
+  return scriptEntry(L.phaseText, w) || scriptEntry(L.waveText, w) || null;
+}
+// a road that opens on played wave w (L.routeOpen: road index to the script wave it is first used on)
+function roadOpensOn(k, w) {
+  const RO = LEVELS[curLevel].routeOpen;
+  return !!RO && RO[k] != null && coveredWaves(w).includes(RO[k]);
 }
 // the wave a battlefield's outflankers were last heard riding in on (L.flank.cue)
 let flankHeard = 0;
@@ -12600,7 +12780,7 @@ function spawnEnemy(type, q) {
     const entry = (flank && flank.entry) || ROUTES[e.route].pts[0];
     // the first of them, on the wave they first ride in, is heard coming on from that corner (the corner lies off
     // the field, so the sound is panned to its left edge, x 0)
-    if (flank && flank.cue && waveIdx === flank.from && flankHeard !== waveIdx) { flankHeard = waveIdx; Snd.play(flank.cue, { x: 0 }); }
+    if (flank && flank.cue && waveIdx === playedWave(flank.from) && flankHeard !== waveIdx) { flankHeard = waveIdx; Snd.play(flank.cue, { x: 0 }); }
     const x0 = entry[0], y0 = entry[1] + (Math.random() - 0.5) * 90;
     let x1 = FORT.x, y1 = FORT.y + 35;
     const prey = type === "flyer" && droneWar() ? droneTarget() : null;
@@ -12757,14 +12937,17 @@ function endWaveIfClear() {
   if (phase === "wave" && spawnQueue.length === 0 && enemies.length === 0) {
     phase = "idle";
     lastCleared = waveIdx;
-    mendTowers();
+    // a wave pays for the script waves it stands for (1.4): the clear's bonus of each, the interest and the free
+    // mend once each
+    const step = payStep(waveIdx);
+    for (let k = 0; k < step; k++) mendTowers();
     const adaptMsg = adaptStep();
-    const bonus = PAY.clear[0] + waveIdx * PAY.clear[1];
-    const interest = Math.min(kitInterestCap(), Math.floor(gold * PAY.interestRate));   // war chest pays out (the Stewards may raise its cap)
+    const bonus = paidWaves(waveIdx).reduce((sum, sw) => sum + PAY.clear[0] + sw * PAY.clear[1], 0);
+    const interest = Math.min(kitInterestCap(), Math.floor(gold * PAY.interestRate)) * step;   // war chest pays out (the Stewards may raise its cap)
     gold += bonus + interest;
     battleEarn(bonus, "clear"); battleEarn(interest, "interest");
     battleWaveEnd();
-    if (waveIdx >= TOTAL_WAVES && !endless) { victory(); return; }
+    if (waveIdx >= totalWaves() && !endless) { victory(); return; }
     if (endless) saveBest();
     toast("Wave " + waveIdx + " repelled! +" + bonus + " gold" +
       (interest > 0 ? " · +" + interest + " interest" : ""));
@@ -12797,8 +12980,19 @@ function waveRepelledCue() {
 const DAYS_PER_WAVE = 3;
 function heldCount(L, waves) { return L.clock === "days" ? waves * DAYS_PER_WAVE : waves; }
 function heldLine(L, won, waves) {
-  const H = L.heldText;
-  return H ? (won ? H.won : H.lost).replace("{n}", String(heldCount(L, waves))) : "";
+  const H = L.heldText, T = totalWaves();
+  return H ? (won ? H.won : H.lost).replace("{n}", String(heldCount(L, waves))).replace("{N}", numWord(T)).replace("{T}", String(T)) : "";
+}
+// a whole number up to twenty as a word ("twelve"), a larger one in figures
+const NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen",
+  "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+function numWord(n) { return NUM_WORDS[n] || String(n); }
+// a battlefield's own note on the chronicle (L.briefNote), its {wNN} read as the played wave that reaches script wave NN
+function levelNote(L) { return (L.briefNote || "").replace(/\{w(\d+)\}/g, (m, d) => String(playedWave(+d))); }
+// the chronicle's line on the battle's length: "12 waves. A commander leads wave 7 and wave 12."
+function briefLenHtml() {
+  const C = commanderWaves(), say = C.length ? " A commander leads " + C.map(w => "wave " + w).join(" and ") + "." : "";
+  return "<b>" + totalWaves() + " waves.</b>" + say;
 }
 // the close of a defeat page after a battlefield's own defeat: the time held where it counts one (none when the
 // first wave broke through: no "0 days"), else the call to try again
@@ -12807,7 +13001,7 @@ function defeatClose(L, cleared) {
 }
 // the victory page's tally: the defenders kept, with the time held where the battlefield counts it
 function victoryTally(L, kept, diffName) {
-  const own = heldLine(L, true, TOTAL_WAVES);
+  const own = heldLine(L, true, totalWaves());
   return (own ? own.replace(/\.$/, "") + ", with " + kept + " defenders to spare on " + diffName + "."
     : "You held with " + kept + " defenders to spare on " + diffName + ".") + battleDebtLine();
 }
@@ -12869,7 +13063,7 @@ function victory() {
   trackFacts("victory");   // the battle's end is decided here: the platform posts the score from this
   // the hero's experience joins his chapter as the battle ends (before the records take the victory: the veteran's
   // floor counts battlefields won before this one)
-  heroGrowth = heroGain(chapterOf(curLevel), heroXpFor(true, TOTAL_WAVES, curDiff), heroDay());
+  heroGrowth = heroGain(chapterOf(curLevel), heroXpFor(true, totalWaves(), curDiff), heroDay());
   syncPauseBtn();
   if (speedMult !== 1) setSpeed(1);   // the victory is watched at the pace of life
   const best = saveBest();   // the words of the "New best" ribbon, when the stand beat a record
@@ -13531,7 +13725,7 @@ function roadName(key) {
   if (key === "off") return eraAge(curEra) >= 6 ? "by air" : "off the road";
   return "on " + roadTitle(key);
 }
-// the kind of breach a foe makes, for the tip: the strongest foe (who leads every tenth wave), armour, an
+// the kind of breach a foe makes, for the tip: the strongest foe (who leads the waves that stand for script waves 10 and 20), armour, an
 // outflanker, a fast rider, or foot
 function breachKind(role) {
   const u = eraUnit(role);
@@ -13547,7 +13741,7 @@ function breachKind(role) {
 // towers"), with the foes of that kind after it in brackets, as this battlefield names them. Towers are named as the
 // battlefield names them too, and each claim is one of the game's own rules: only the archer and ballista slots hit
 // outflankers, the ballista pierces armour, the fire slot slows and its burn ignores armour, the catapult's stone
-// splashes a crowd, the strongest foe leads every tenth wave. Where the ballista slot is an anti-aircraft weapon
+// splashes a crowd, the strongest foe leads the commanders' waves (commanderTip). Where the ballista slot is an anti-aircraft weapon
 // (Stepanakert 1992, Shushi) the tip never sends it against armour or a commander on the ground: the game lets it
 // pierce them, but advice to turn an air-defence launcher on a tank column would read as a slip in the history
 function debriefTip() {
@@ -13587,7 +13781,7 @@ function debriefTip() {
   const airGun = /anti-aircraft|air defen[cs]e/i.test(towerDepicts("ballista"));
   if (!w[kind]) return "Every foe that reaches the gates costs defenders: upgrade your towers between waves, and keep a spell ready for any that slip past.";
   switch (kind) {
-    case "boss": return "The strongest foe got through" + who("boss") + ". Every tenth wave is led by one: have your " +
+    case "boss": return "The strongest foe got through" + who("boss") + ". " + commanderTip() + ": have your " +
       (airGun ? "towers" : T("ballista")) + " upgraded and a spell ready by then.";
     case "armour": return "Armor got through" + who("armour") + ": " +
       (airGun ? "" : "your " + T("ballista") + " " + vb("ballista", "pierces", "pierce") + " it, and ") +
@@ -13677,18 +13871,18 @@ function endFall() {
   // wave counts as held once its every foe has fallen (lastCleared): the wave an early call cut short does not.
   const L = LEVELS[curLevel], lv = curLevel, foes = foeName() + " forces";
   if (endless) {
-    const beyond = Math.max(0, lastCleared - TOTAL_WAVES), diff = DIFFS[curDiff].name;
+    const beyond = Math.max(0, lastCleared - totalWaves()), diff = DIFFS[curDiff].name;
     showMenu("🔥", "The Endless Stand Ends",
       foes + " breach the gates at wave " + waveIdx +
-      (beyond ? ". You held " + beyond + (beyond === 1 ? " wave" : " waves") + " beyond the chronicle's twenty on " + diff + ", and your victory here still stands."
-        : (waveIdx > TOTAL_WAVES + 1 ? ", before a wave beyond the chronicle's twenty is cleared." : ", the first wave beyond the chronicle's twenty.") +
+      (beyond ? ". You held " + beyond + (beyond === 1 ? " wave" : " waves") + " beyond the chronicle on " + diff + ", and your victory here still stands."
+        : (waveIdx > totalWaves() + 1 ? ", before a wave beyond the chronicle is cleared." : ", the first wave beyond the chronicle.") +
           " Your victory here on " + diff + " still stands.") +
       " Choose your ground and try again.",
       "Try Again");
     showRecord(0, 0, best);
   } else {
     showMenu("🔥", "The Citadel Falls",
-      foes + " breach the gates at wave " + waveIdx + " of " + TOTAL_WAVES + ". " +
+      foes + " breach the gates at wave " + waveIdx + " of " + totalWaves() + ". " +
       // a battlefield that counts its time held closes on it (Mari's waves, Sis's days) where others urge a new try
       (L.defeat ? L.defeat + " " + defeatClose(L, lastCleared)
         : "The highlands will remember this stand. Choose your ground and try again."),
@@ -13873,7 +14067,7 @@ function update(dt) {
     }
   }
 
-  if (auto && phase === "idle" && !gameOver && (waveIdx < TOTAL_WAVES || endless) && autoT > 0) {
+  if (auto && phase === "idle" && !gameOver && (waveIdx < totalWaves() || endless) && autoT > 0) {
     autoT -= dt;
     setWaveBtnText("Next in " + Math.ceil(Math.max(0, autoT)) + "…");
     if (autoT <= 0) startWave();
@@ -46684,7 +46878,7 @@ function drawAmbushPuffs(time) {
 // the first brings a toast (flankToast). Drones hunt towers, not the walls, and get none
 function flankWaves() {
   const out = [];
-  for (let w = 1; w <= TOTAL_WAVES && out.length < 2; w++) if (waveGroups(w).some(g => g.type === "flyer")) out.push(w);
+  for (let w = 1; w <= totalWaves() && out.length < 2; w++) if (waveGroups(w).some(g => g.type === "flyer")) out.push(w);
   return out;
 }
 let flankCache = null;
@@ -55215,7 +55409,7 @@ function drawWaveBanner() {
   if (waveBannerT <= 0 || !overlayEl.classList.contains("hidden")) return;
   const a = Math.min(1, waveBannerT / 0.5) * Math.min(1, (2.6 - waveBannerT) / 0.35);
   const rise = (1 - Math.min(1, (2.6 - waveBannerT) / 0.35)) * 14;
-  const boss = waveIdx % 10 === 0 && waveIdx >= 10;
+  const boss = isCommanderWave(waveIdx);
   // the era's emoji prefix becomes a drawn emblem beside the line
   const sub = waveBannerSub.replace(/^[^\p{L}\p{N}]+/u, "");
   ctx.save();
@@ -55489,7 +55683,7 @@ function trickCardTick() {
   if (scoutRingPad >= 0 && !scoutBubble && (phase !== "idle" || !battleLive() || towerAt(scoutRingPad))) dropScoutRing();
   if (trickCardsQuiet() || photo || trickCardOn || scoutBubble || callBubble || !battleLive() || paused || coachFreeze() || phase !== "idle") return;
   if (callBubbleDue() && showCallBubble()) return;
-  if (waveIdx >= TOTAL_WAVES && !endless) return;
+  if (waveIdx >= totalWaves() && !endless) return;
   const due = trickCardsDue(waveTrickKeys(waveIdx + 1));
   if (due.length) showDueCard(due);
 }
@@ -56017,9 +56211,9 @@ function foeCounters(role, u) {
   return { good, poor };
 }
 
-// the wave a foe first marches in (waveGroups), or 0 if it never comes in the twenty
+// the wave a foe first marches in (waveGroups), or 0 if it never comes in this battle
 function foeFirstWave(role) {
-  for (let w = 1; w <= TOTAL_WAVES; w++) if (trickWave(w).some(g => g.type === role)) return w;
+  for (let w = 1; w <= totalWaves(); w++) if (trickWave(w).some(g => g.type === role)) return w;
   return 0;
 }
 // a medallion of a role that carries a static guard on this battlefield wears its mark
@@ -56114,7 +56308,7 @@ function foeCardHtml(role, w, from, trick) {
     if (g && g.name) u.name = g.name;
   }
   const diff = DIFFS[curDiff].name;
-  const first = foeFirstWave(role), last = TOTAL_WAVES;
+  const first = foeFirstWave(role), last = totalWaves();
   let hp, hpLbl, sub;
   if (from === "chip") {
     hp = foeHp(role, u, w).toLocaleString("en-US");
@@ -56126,7 +56320,7 @@ function foeCardHtml(role, w, from, trick) {
     const a = foeHp(role, u, f, gentle), b = foeHp(role, u, last, gentle);
     hp = a.toLocaleString("en-US") + (b !== a ? " → " + b.toLocaleString("en-US") : "");
     hpLbl = "HP, wave " + f + (b !== a ? " → " + last : "");
-    sub = (first ? "From wave " + first : "Not in the twenty waves") + " · " + diff + (gentle && tutorialHp(f, true) < 1 ? " · Tutorial" : "");
+    sub = (first ? "From wave " + first : "Not in this battle") + " · " + diff + (gentle && tutorialHp(f, true) < 1 ? " · Tutorial" : "");
   }
   let gold = foeBounty(u, from === "chip" ? w : first || 1);
   // a trick group's own numbers: a hidden scout stands stronger and slower and pays double; a hunter pays more
@@ -57217,7 +57411,7 @@ function levelBestAnyEra(i) {
   }
   return best;
 }
-function levelConquered(i) { return levelBestAnyEra(i) >= 21; }
+function levelConquered(i) { return levelBestAnyEra(i) >= WON_MARK; }
 // test mode (Shift+U on the menu): every battlefield opens for this visit only; nothing is saved as conquered
 let testUnlockAll = false;
 // The campaign runs in chronological order: the first battlefield is open from the start, and winning a
@@ -58162,11 +58356,13 @@ function drawMapPadlock(m, x, y) {
 // hardest difficulty won (as the difficulty buttons under the map wear it) and, when an endless stand was
 // held there, the infinity sign and its furthest wave. mapRecordWidth measures what drawMapRecord draws.
 const MAP_REC = { star: 4.7, step: 10.4, seal: 6.6, gap: 5 };
+// the endless mark: the waves held beyond the chronicle, whatever the battlefield's length
+function mapBeyondMark(rec) { return "∞ +" + rec.beyond; }
 function mapRecordWidth(m, rec) {
   const R = MAP_REC;
   let w = R.step * 2 + R.star * 2;
   if (rec.diff >= 0) w += R.gap + R.seal * 2;
-  if (rec.endless) { m.font = "700 10.5px " + UI_FONT; w += R.gap + m.measureText("∞ " + rec.endless).width; }
+  if (rec.beyond) { m.font = "700 10.5px " + UI_FONT; w += R.gap + m.measureText(mapBeyondMark(rec)).width; }
   return w;
 }
 function drawMapRecord(m, cx, y, rec) {
@@ -58200,11 +58396,11 @@ function drawMapRecord(m, cx, y, rec) {
     else victorySymbol(m, "i-" + glyph, sx - g / 2, y - g / 2, g, false);
     x += R.seal * 2 + R.gap;
   }
-  if (rec.endless) {
+  if (rec.beyond) {
     m.textAlign = "left";
     m.font = "700 10.5px " + UI_FONT;
     m.fillStyle = "#4a3318";
-    m.fillText("∞ " + rec.endless, x, y + 3.7);
+    m.fillText(mapBeyondMark(rec), x, y + 3.7);
     m.textAlign = "center";
   }
 }
@@ -58394,7 +58590,8 @@ function renderWorldMap() {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
     const unlocked = levelUnlocked(i);
     const sel = i === curLevel;
-    const best = levelBestAnyEra(i), rec = levelStanding(i);
+    // a stand lost before the lengths may have reached a wave past this battlefield's length: shown as its last
+    const best = Math.min(levelBestAnyEra(i), levelWaves(i)), rec = levelStanding(i);
     const status = sel ? (rec.stars ? LEVELS[i].date : [LEVELS[i].date + " · " + ERAS[LEVELS[i].era].name, LEVELS[i].date])
       : rec.stars ? ""
       : !unlocked ? "Locked"
@@ -58444,7 +58641,7 @@ function selectMapLevel(i) {
   applyEraLabels();
   if (menuMode === "map") showRecord(0, 0, null);
   $("ovSub").textContent = LEVELS[i].date + " · " + ERAS[curEra].icon + " " +
-    ERAS[curEra].name + ". " + LEVELS[i].tag;
+    ERAS[curEra].name + " · " + levelWaves(i) + " waves. " + LEVELS[i].tag;
   buildMenu();
 }
 
@@ -62080,8 +62277,9 @@ function showBrief() {
   leaveVictory();
   dropTrickCards();
   // the brief previews a new stand, never a resumed one (Resume skips it): a legacy run resumed earlier must not
-  // hide this stand's tricks
+  // hide this stand's tricks, nor its table (a run saved before the lengths) this battlefield's length
   trickLegacy = false;
+  runScript = null;
   introThen = -1;
   menuMode = "brief";
   track("brief_open", { lv: levelId(curLevel), diff: curDiff, mode: "campaign" });
@@ -62128,7 +62326,8 @@ function showBrief() {
   // the enemy's tricks on the difficulty chosen go in a row under it, and take the hint's place
   const tricksShown = briefTrickRow();
   briefKitRow();
-  $("briefHint").textContent = L.briefNote || (tricksShown ? "" : (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses");
+  $("briefLen").innerHTML = briefLenHtml();
+  $("briefHint").textContent = levelNote(L) || (tricksShown ? "" : (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses");
   renderBriefArt(curLevel);
   startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() ? "Begin the Stand · Tutorial" : "Begin the Stand");
@@ -62413,7 +62612,7 @@ autoBtn.addEventListener("click", () => {
   coachEvent("auto");
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
   autoBtn.classList.toggle("on", auto);
-  if (auto && phase === "idle" && !gameOver && waveIdx < TOTAL_WAVES) {
+  if (auto && phase === "idle" && !gameOver && waveIdx < totalWaves()) {
     autoT = waveIdx === 0 ? 1.5 : 3.5;
   }
   if (!auto) { autoT = 0; syncHud(); }
@@ -62819,7 +63018,7 @@ $("endlessBtn").addEventListener("click", () => {
   // the stand beyond the chronicle is a battle of its own to the stats (never ranked): told at its first horn
   track("endless_start", { lv: levelId(curLevel), diff: curDiff });
   battle.started = false;
-  endlessFrom = levelRecord(curLevel).endless[curDiff];
+  endlessFrom = levelRecord(curLevel).beyond[curDiff];
   phase = "idle";
   autoT = auto ? 3 : 0;
   saveRun();
@@ -62971,7 +63170,7 @@ const TUT_STEPS = [
       ", a powerful specialty. Open its panel to choose.",
     world: () => { const t = tutTower(); return t ? [t.x, t.y, 40, 26] : null; } },
   { id: "ready", freeze: true, next: "To battle!",
-    html: () => "<b>You're ready.</b> Hold Erebuni through all twenty waves: the battle is yours." },
+    html: () => "<b>You're ready.</b> Hold Erebuni through all " + numWord(totalWaves()) + " waves: the battle is yours." },
 ];
 
 let coachEl = null, coachRing = null, coachHalos = [];
@@ -63066,7 +63265,7 @@ function tutNagLevel() {
 // (and Auto is off), a reminder says how to go on: at 15 s, then every 25 s, three times in all.
 let tutIdle = { t: 0, n: 0 };
 function tutIdleNudge() {
-  if (!tutGentle || curLevel !== 0 || tut || gameOver || auto || phase !== "idle" || waveIdx < 1 || waveIdx >= TOTAL_WAVES ||
+  if (!tutGentle || curLevel !== 0 || tut || gameOver || auto || phase !== "idle" || waveIdx < 1 || waveIdx >= totalWaves() ||
       !overlayEl.classList.contains("hidden") || paused) { tutIdle.t = performance.now(); return; }
   if (tutIdle.n >= 3) return;
   if (performance.now() - tutIdle.t > (tutIdle.n ? 25000 : 15000)) {
@@ -78495,7 +78694,7 @@ function migrateRecords() {
       if (all[levelId(i)] || !levelConquered(i)) continue;
       const rec = levelRecord(i), reached = levelBestAnyEra(i);
       rec.stars[1] = 1;
-      if (reached - 1 > TOTAL_WAVES) rec.endless[1] = reached - 1;
+      if (reached - 1 > SCRIPT_LEN) rec.endless[1] = reached - 1;
       all[levelId(i)] = rec;
     }
     localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
@@ -78585,7 +78784,7 @@ function photoStageBattle(lv, wave, o) {
   }
   // a road that opens on this wave (Mari's other road) has its dust half way down it
   const RO = LEVELS[lv].routeOpen;
-  if (RO) for (const k in RO) if (RO[k] === wave && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S * 0.6 };
+  if (RO) for (const k in RO) if (roadOpensOn(k, wave) && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S * 0.6 };
   for (let i = 0; i < 26; i++) update(1 / 30);
   if (o.spell) {
     const tgt = enemies.find(e => !e.fly && e.type !== "spearman") || enemies[0];
@@ -78784,7 +78983,7 @@ function photoMenu(brief) {
   applyEraLabels();
   gameOver = true;
   const L = LEVELS[curLevel], E = ERAS[L.era];
-  showMenu("🏔️", "Highland Stand", L.date + " · " + E.icon + " " + E.name + ". " + L.tag, "Take Command");
+  showMenu("🏔️", "Highland Stand", L.date + " · " + E.icon + " " + E.name + " · " + levelWaves(curLevel) + " waves. " + L.tag, "Take Command");
   if (brief) {
     showBrief();
     if (HARNESS.has("page")) showLeafPage(Math.max(0, Math.min(leafPages.length - 1, Number(HARNESS.get("page")) | 0)));
@@ -78963,7 +79162,9 @@ function runSelftest() {
   photo = { time: PHOTO_TIME };   // freeze the rAF loop while the checks drive update/draw
   const spells = ["arrows", "frost", "wrath"];
   for (let lv = 0; lv < LEVELS.length; lv++) {
-    for (const wave of [1, 12, 19]) {
+    // the first wave, the wave six tenths in and the last but one, of the battlefield's own length
+    const N = levelWaves(lv);
+    for (const wave of [1, Math.ceil(N * 0.6), N - 1]) {
       check("render L" + lv + " w" + wave, () => {
         photoStageBattle(lv, wave, { spell: spells[(lv + wave) % 3], banner: true, panel: 1 });
         draw(PHOTO_TIME);
@@ -79509,11 +79710,11 @@ function runSelftest() {
       waveIdx = 15; spawnEnemy("flyer");
       const f = enemies.pop();
       if (f.fly.x0 !== LEVELS[ani].flank.entry[0] || !f.def.mounted) throw new Error("the raiders' entry or mount");
-      phase = "idle"; waveIdx = 7; spawnQueue = []; startWave();
+      phase = "idle"; waveIdx = playedWave(8) - 1; spawnQueue = []; startWave();
       if (waveBannerMain !== LEVELS[ani].phaseText[8].main) throw new Error("no phase banner on wave 8: " + waveBannerMain);
       // in battle the overlay is inert (syncOverlayUp, run here as its MutationObserver would have run it): the card
       // must still take the focus as the victory page comes up
-      stage(ani); syncOverlayUp(); waveIdx = TOTAL_WAVES; lives = 9; victory();
+      stage(ani); syncOverlayUp(); waveIdx = totalWaves(); lives = 9; victory();
       if (!celebration || parley) throw new Error("Ani's victory has no dance");
       endCelebration();
       if (!endingCardUp() || $("ecTitle").textContent !== "The Summons" || !$("ovSub").textContent.startsWith(LEVELS[ani].victory) || $("ovTitle").textContent !== "Ani Stands!") throw new Error("no Summons over Ani's page");
@@ -79522,29 +79723,29 @@ function runSelftest() {
       if (endingCardUp() || $("endlessBtn").style.display === "none") throw new Error("the Summons did not give the page back");
       // Mari: the other road shut until wave 11, its banner and its dust; the relief marker; the passes' title
       stage(mari);
-      if (routesOn(10) !== "0" || routesOn(11) !== "0,1") throw new Error("Mari's other road opens at " + [routesOn(10), routesOn(11)]);
+      if (routesOn(playedWave(11) - 1) !== "0" || routesOn(playedWave(11)) !== "0,1") throw new Error("Mari's other road opens at " + [routesOn(10), routesOn(11)]);
       syncHud();
       if (!$("hudNote").classList.contains("on") || !$("hudNote").textContent.includes("King Hethum")) throw new Error("no relief marker on Mari");
       // a toast in battle comes down below the note, not over it
       syncOverlayUp(); syncHudNote(true); toast("Wave 3 repelled! +40 gold");
       const noteR = $("hudNote").getBoundingClientRect(), toastR = $("toast").getBoundingClientRect();
       if (toastR.top < noteR.bottom) throw new Error("the toast (top " + toastR.top + ") covers the king's marker (bottom " + noteR.bottom + ")");
-      phase = "idle"; waveIdx = 10; spawnQueue = []; startWave();
+      phase = "idle"; waveIdx = playedWave(11) - 1; spawnQueue = []; startWave();
       if (waveBannerMain !== "Another Road" || !roadCall || roadCall.route !== 1) throw new Error("the other road opened unannounced");
       for (let i = 0; i < 200; i++) update(0.05);
       if (roadCall) throw new Error("the other road's dust never settles");
-      stage(mari); waveIdx = TOTAL_WAVES; lives = 9; victory(); endCelebration();
-      if ($("ovTitle").textContent !== "The Passes Hold!" || endingCardUp() || $("endlessBtn").style.display === "none" || !$("ovSub").textContent.includes("all twenty waves")) throw new Error("Mari's victory page");
+      stage(mari); waveIdx = totalWaves(); lives = 9; victory(); endCelebration();
+      if ($("ovTitle").textContent !== "The Passes Hold!" || endingCardUp() || $("endlessBtn").style.display === "none" || !$("ovSub").textContent.includes("all " + numWord(totalWaves()) + " waves")) throw new Error("Mari's victory page");
       // Sis: the days; no dance, the horn call and the Terms; no endless stand
       stage(sis); syncHud();
       if ($("hudNote").textContent !== "Day 1 of the siege") throw new Error("Sis's first day: " + $("hudNote").textContent);
       lastCleared = 4; syncHud();
       if ($("hudNote").textContent !== "Day " + (1 + 4 * DAYS_PER_WAVE) + " of the siege") throw new Error("Sis's day: " + $("hudNote").textContent);
-      syncOverlayUp(); waveIdx = TOTAL_WAVES; lives = 9; victory();
+      syncOverlayUp(); waveIdx = totalWaves(); lives = 9; victory();
       if (celebration || !parley || !gameOver) throw new Error("Sis danced");
       endCelebration();
       if ($("ovTitle").textContent !== LEVELS[sis].endTitle || !endingCardUp() || $("ecTitle").textContent !== "Terms" || $("endlessBtn").style.display !== "none" ||
-        !$("ovSub").textContent.includes(TOTAL_WAVES * DAYS_PER_WAVE + " days")) throw new Error("Sis's terms: " + $("ovTitle").textContent + " / " + $("ovSub").textContent);
+        !$("ovSub").textContent.includes(totalWaves() * DAYS_PER_WAVE + " days")) throw new Error("Sis's terms: " + $("ovTitle").textContent + " / " + $("ovSub").textContent);
       if (document.activeElement !== $("ecBtn")) throw new Error("the Terms opened with the focus on " + (document.activeElement && document.activeElement.id || document.activeElement));
       window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" }));
       if (endingCardUp()) throw new Error("Escape left the Terms up");
@@ -79686,7 +79887,7 @@ function runSelftest() {
     const sis = levelIndexOf("sis");
     try {
       curLevel = sis; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
-      waveIdx = TOTAL_WAVES; lives = 9; victory();
+      waveIdx = totalWaves(); lives = 9; victory();
       if (!Snd.siegeCalm || Snd.siegeCalm !== Snd.sceneOf().map) throw new Error("the siege sounds on after the terms");
       resetGame();
       if (Snd.siegeCalm) throw new Error("the next stand at Sis is silent");
@@ -79711,12 +79912,12 @@ function runSelftest() {
       stage(mari); waveIdx = 0; startWave(); stage(mari); waveCueTick(60);
       if (heard.filter(n => n === "reliefFar").length !== 1) throw new Error("a stand left behind still sounds its far horn");
       // Ani's riders: not with the third assault's call, but as the first of them sets out, and once
-      stage(ani); waveIdx = LEVELS[ani].flank.from - 1; startWave(); waveCueTick(30);
+      stage(ani); waveIdx = playedWave(LEVELS[ani].flank.from) - 1; startWave(); waveCueTick(30);
       if (heard.includes("ridersIn") || !heard.includes("claimDrums")) throw new Error("Ani's riders were heard with the call");
       spawnEnemy("spearman"); spawnEnemy("flyer"); spawnEnemy("flyer");
       if (heard.filter(n => n === "ridersIn").length !== 1) throw new Error("Ani's riders are heard " + heard.filter(n => n === "ridersIn").length + " times");
       // the record's and the road's chimes wait while the Summons is read, and ring as it is put away
-      stage(ani); waveIdx = TOTAL_WAVES; lives = 9; victory(); endCelebration();
+      stage(ani); waveIdx = totalWaves(); lives = 9; victory(); endCelebration();
       heard.length = 0; chime("record"); chime("unlock", "x");
       if (!endingCardUp() || heard.length) throw new Error("the page's chimes rang over the Summons: " + heard);
       closeEndingCard();
@@ -79735,7 +79936,6 @@ function runSelftest() {
   // endless stand, which never repeats the defeat of a battlefield already won. The campaign is won from a
   // clean save, and the saves these stands overwrite are put back afterwards.
   check("victory, defeat, save on every field", () => {
-    if (TOTAL_WAVES !== 20) throw new Error("the endless defeat page calls the chronicle's waves twenty");
     const keys = ["hs_run", "hs_records", "hs_mig_rec", "hs_open_kept"];   // its victories and endless stands write records too
     for (let i = 0; i < LEVELS.length; i++) for (let e = 0; e < ERAS.length; e++) keys.push(bestKey(i, e));
     const saved = keys.map(k => localStorage.getItem(k));
@@ -79767,7 +79967,7 @@ function runSelftest() {
         const r = getSavedRun();
         if (!r || r.lvl !== lv || r.era !== L.era) throw new Error("saved run lost on " + lv);
         if (lv === LEVELS.length - 1) { resumeRun(); if (lastCleared !== 3) throw new Error("a resumed run lost its cleared waves"); }
-        waveIdx = TOTAL_WAVES; lives = 9;
+        waveIdx = totalWaves(); lives = 9;
         victory(); draw(PHOTO_TIME); endCelebration();
         if (!prose(lv, "victory").startsWith(L.victory + " " + victoryTally(L, 9, "Normal"))) throw new Error("victory text on " + lv + ": " + $("ovSub").textContent);
         // a battlefield that ends in a card (Ani's Summons, Sis's Terms) lays it over the page, which is read under it
@@ -79778,16 +79978,16 @@ function runSelftest() {
         if (getComputedStyle($("ovHy")).display === "none" && lv < LEVELS.length - 1 && hyName("field", L.name)) throw new Error("victory page of " + lv + " hides its Armenian name");
         if (($("endlessBtn").style.display === "none") !== !!L.noEndless) throw new Error("endless offer on " + lv + " (none where the battlefield ends where history did)");
         if (Number(localStorage.getItem(bestKey(lv, L.era))) !== 21) throw new Error("best wave not kept on " + lv);
-        gameOver = false; waveIdx = TOTAL_WAVES - 1; lives = 0; defeat(); endFall();   // a two-figure wave, the longest line
+        gameOver = false; waveIdx = totalWaves() - 1; lives = 0; defeat(); endFall();   // a two-figure wave, the longest line
         if (!/Falls/.test($("ovTitle").textContent)) throw new Error("no defeat page on " + lv);
-        if (prose(lv, "defeat") !== foeName() + " forces breach the gates at wave " + (TOTAL_WAVES - 1) + " of " + TOTAL_WAVES + ". " + L.defeat + " " +
+        if (prose(lv, "defeat") !== foeName() + " forces breach the gates at wave " + (totalWaves() - 1) + " of " + totalWaves() + ". " + L.defeat + " " +
           defeatClose(L, lastCleared)) {
           throw new Error("defeat text on " + lv + ": " + $("ovSub").textContent);
         }
         fits(lv, "defeat");
         // an endless stand counts the waves it cleared, not the wave it reached: wave 23 called early while
         // wave 22 is still on the field has held one wave beyond the chronicle, not two
-        const T = TOTAL_WAVES, beyond = " beyond the chronicle's twenty";
+        const T = totalWaves(), beyond = " beyond the chronicle";
         for (const [w, cleared, held] of [
           [T + 1, T, "at wave " + (T + 1) + ", the first wave" + beyond + ". Your victory here on Normal still stands. "],
           [T + 2, T + 1, "at wave " + (T + 2) + ". You held 1 wave" + beyond + " on Normal, and your victory here still stands. "],
@@ -79798,16 +79998,16 @@ function runSelftest() {
           gameOver = false; endless = true; waveIdx = w; lastCleared = cleared; lives = 0; defeat(); endFall();
           const t = prose(lv, "endless defeat");
           if ($("ovTitle").textContent !== "The Endless Stand Ends" || !t.startsWith(foeName() + " forces breach the gates " + held) ||
-            t.includes(" of " + T) || t.includes(L.defeat)) throw new Error("endless defeat on " + lv + " at wave " + w + ", " + cleared + " cleared: " + t);
+            t.includes(" of " + T) || t.includes(L.defeat) || /twenty/i.test(t)) throw new Error("endless defeat on " + lv + " at wave " + w + ", " + cleared + " cleared: " + t);
           fits(lv, "endless defeat");
         }
       }
       // the game keeps that count itself: a new stand has cleared none, and a wave clears when its last foe falls
       curLevel = 0; resetGame(); overlayEl.classList.add("hidden");
       if (lastCleared !== 0) throw new Error("a new stand starts with " + lastCleared + " waves cleared");
-      endless = true; waveIdx = TOTAL_WAVES + 3; phase = "wave"; spawnQueue = []; enemies = [];
+      endless = true; waveIdx = totalWaves() + 3; phase = "wave"; spawnQueue = []; enemies = [];
       endWaveIfClear();
-      if (lastCleared !== TOTAL_WAVES + 3) throw new Error("a cleared wave was not counted: " + lastCleared);
+      if (lastCleared !== totalWaves() + 3) throw new Error("a cleared wave was not counted: " + lastCleared);
     } finally {
       keys.forEach((k, j) => { if (saved[j] === null) localStorage.removeItem(k); else localStorage.setItem(k, saved[j]); });
       endless = false;
@@ -79825,7 +80025,7 @@ function runSelftest() {
     for (let i = 0; i < LEVELS.length; i++) for (let e = 0; e < ERAS.length; e++) keys.push(bestKey(i, e));
     const saved = keys.map(k => localStorage.getItem(k));
     const ani = levelIndexOf("ani"), endLv = LEVELS.length - 1;
-    const win = lv => { curLevel = lv; curEra = LEVELS[lv].era; curDiff = 1; resetGame(); overlayEl.classList.add("hidden"); waveIdx = TOTAL_WAVES; lives = 9; victory(); endCelebration(); hideEndingCard(); };
+    const win = lv => { curLevel = lv; curEra = LEVELS[lv].era; curDiff = 1; resetGame(); overlayEl.classList.add("hidden"); waveIdx = totalWaves(); lives = 9; victory(); endCelebration(); hideEndingCard(); };
     try {
       testUnlockAll = false;
       keys.forEach(k => localStorage.removeItem(k));
@@ -80018,7 +80218,7 @@ function runSelftest() {
       t = tipFor(levelIndexOf("van"), one("raider", 6));
       if (!t.startsWith("Fast foes outran your towers (<b>" + escapeHtml(eraUnit("raider").name) + "</b> \u00d76)")) throw new Error("fast tip: " + t);
       t = tipFor(levelIndexOf("gyumri"), one("boss", 1));
-      if (!t.startsWith("The strongest foe got through (<b>" + escapeHtml(eraUnit("boss").name) + "</b>). Every tenth wave is led by one")) throw new Error("commander tip: " + t);
+      if (!t.startsWith("The strongest foe got through (<b>" + escapeHtml(eraUnit("boss").name) + "</b>). A commander leads wave 7 and wave 13 here")) throw new Error("commander tip: " + t);
       t = tipFor(levelIndexOf("shushi"), one("boss", 6, "off"));
       if (!t.startsWith("Outflankers got through (<b>Harop")) throw new Error("the Harop flies: " + t);
       // a few foot soldiers are no crowd: the lesson falls to the next kind, or to a general line
@@ -80149,7 +80349,7 @@ function runSelftest() {
       testUnlockAll = false;
       if (levelOpen(lv)) throw new Error("the test needs a battlefield the campaign has not opened");
       resumeRun();
-      waveIdx = TOTAL_WAVES; lives = 9; victory(); endCelebration();
+      waveIdx = totalWaves(); lives = 9; victory(); endCelebration();
       if (curLevel !== lv || !$("startBtn").textContent.includes(LEVELS[lv].name) || !$("nextBtn").textContent.includes(LEVELS[lv + 1].name)) {
         throw new Error("the victory page of a resumed test run: " + curLevel + " / " + $("startBtn").textContent + " / " + $("nextBtn").textContent);
       }
@@ -80183,7 +80383,7 @@ function runSelftest() {
       localStorage.setItem(bestKey(1, 0), "21");
       // win the third battlefield: the call to action is the fourth, in chapter II
       curLevel = 2; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
-      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration();
+      waveIdx = totalWaves(); lives = 12; victory(); endCelebration();
       if (open() !== "0,1,2,3") throw new Error("after the third: " + open());
       if (menuMode !== "victory" || $("nextBtn").style.display === "none" || !$("nextBtn").textContent.includes(LEVELS[3].name)) throw new Error("no next-battle call");
       marchToNext();
@@ -80196,12 +80396,12 @@ function runSelftest() {
       if (menuMode !== "map" || mapChapter() !== chapterOf(3)) throw new Error("map not on chapter II");
       // a second victory there does not show the story again
       curLevel = 2; resetGame(); overlayEl.classList.add("hidden");
-      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration(); marchToNext();
+      waveIdx = totalWaves(); lives = 12; victory(); endCelebration(); marchToNext();
       if (menuMode !== "brief" || curLevel !== 3) throw new Error("chapter story shown twice");
       // the last battlefield ends the campaign
       for (let i = 0; i < LEVELS.length - 1; i++) localStorage.setItem(bestKey(i, LEVELS[i].era), "21");
       curLevel = LEVELS.length - 1; resetGame(); overlayEl.classList.add("hidden");
-      waveIdx = TOTAL_WAVES; lives = 12; victory(); endCelebration();
+      waveIdx = totalWaves(); lives = 12; victory(); endCelebration();
       if ($("nextBtn").style.display !== "none" || !$("mapBtn").classList.contains("lead") || !/Complete/.test($("ovTitle").textContent)) throw new Error("no campaign end");
       $("mapBtn").click();
       if (curLevel !== LEVELS.length - 1) throw new Error("map after the end");
@@ -80333,7 +80533,7 @@ function runSelftest() {
   // a won stand, played out to the victory page: the words of its ribbon come back
   const recordedWin = (lv, diff, kept) => {
     curLevel = lv; curDiff = diff; resetGame(); overlayEl.classList.add("hidden");
-    waveIdx = TOTAL_WAVES; lives = kept;
+    waveIdx = totalWaves(); lives = kept;
     victory();
     const best = celebration.best;
     draw(PHOTO_TIME);   // the plaque, with its sash when a record fell
@@ -80414,7 +80614,7 @@ function runSelftest() {
     if (!getSavedRun().aided) throw new Error("the saved run lost the test purse's mark");
     resumeRun();
     if (!testAided) throw new Error("a resumed run lost the test purse's mark");
-    waveIdx = TOTAL_WAVES; lives = 20; victory();
+    waveIdx = totalWaves(); lives = 20; victory();
     if (celebration.best !== null || loadRecords()[levelId(2)] || !levelConquered(2)) throw new Error("a stand paid by the test purse was recorded");
     endCelebration();
     resetGame();
@@ -80423,19 +80623,19 @@ function runSelftest() {
     recordedWin(0, 1, 20);
     $("endlessBtn").click();
     if (!endless || endlessFrom !== 0) throw new Error("the endless stand began from " + endlessFrom);
-    waveIdx = TOTAL_WAVES + 2; phase = "wave"; spawnQueue = []; enemies = [];
+    waveIdx = totalWaves() + 2; phase = "wave"; spawnQueue = []; enemies = [];
     endWaveIfClear();
-    if (levelRecord(0).endless[1] !== TOTAL_WAVES + 2 || localStorage.getItem(bestKey(0, 0)) !== "21") throw new Error("a wave held beyond the twenty: " + rows(0));
+    if (levelRecord(0).beyond[1] !== 2 || levelRecord(0).endless[1] !== SCRIPT_LEN + 2 || localStorage.getItem(bestKey(0, 0)) !== "21") throw new Error("a wave held beyond the twenty: " + rows(0));
     if (getSavedRun().endlessFrom !== 0) throw new Error("the saved run lost the record its stand began from");
-    waveIdx = TOTAL_WAVES + 4; lastCleared = TOTAL_WAVES + 3; lives = 0; defeat(); endFall();
-    if ($("ovTitle").textContent !== "The Endless Stand Ends" || levelRecord(0).endless[1] !== TOTAL_WAVES + 3 ||
-      $("ovRecord").textContent !== "New bestHeld to wave " + (TOTAL_WAVES + 3) + " on Normal") throw new Error("the endless record: " + $("ovRecord").textContent);
+    waveIdx = totalWaves() + 4; lastCleared = totalWaves() + 3; lives = 0; defeat(); endFall();
+    if ($("ovTitle").textContent !== "The Endless Stand Ends" || levelRecord(0).beyond[1] !== 3 ||
+      $("ovRecord").textContent !== "New bestHeld 3 waves beyond the chronicle on Normal") throw new Error("the endless record: " + $("ovRecord").textContent);
     // a later stand that falls short of it sets none, and leaves it standing
     recordedWin(0, 1, 20);
     $("endlessBtn").click();
-    if (endlessFrom !== TOTAL_WAVES + 3) throw new Error("the second endless stand began from " + endlessFrom);
-    waveIdx = TOTAL_WAVES + 2; lastCleared = TOTAL_WAVES + 1; lives = 0; defeat(); endFall();
-    if ($("ovRecord").classList.contains("on") || levelRecord(0).endless[1] !== TOTAL_WAVES + 3) throw new Error("a shorter endless stand: " + rows(0));
+    if (endlessFrom !== 3) throw new Error("the second endless stand began from " + endlessFrom);
+    waveIdx = totalWaves() + 2; lastCleared = totalWaves() + 1; lives = 0; defeat(); endFall();
+    if ($("ovRecord").classList.contains("on") || levelRecord(0).beyond[1] !== 3) throw new Error("a shorter endless stand: " + rows(0));
     if (localStorage.getItem(bestKey(0, 0)) !== "21") throw new Error("the endless stand wrote the campaign's key");
     // the map: Erebuni's three stars, Tushpa and Avarayr one each (won, nothing recorded); chapter II reached, the rest locked
     showMenu("🏔️", "Highland Stand", "", "Take Command");
@@ -80461,11 +80661,11 @@ function runSelftest() {
     for (const lv of [5, 1]) {
       testUnlockAll = true;
       curLevel = lv; curDiff = 2; resetGame(); overlayEl.classList.add("hidden");
-      waveIdx = 19; phase = "idle"; saveRun();
+      waveIdx = totalWaves() - 1; phase = "idle"; saveRun();
       if (!getSavedRun().aided) throw new Error("a run begun in test mode was saved without its mark");
       testUnlockAll = false; testAided = false;   // the reload
       resumeRun();
-      waveIdx = TOTAL_WAVES; lives = 14; victory();
+      waveIdx = totalWaves(); lives = 14; victory();
       const best = celebration.best;
       endCelebration();
       clearTimeout(overlaySettleT); overlayEl.classList.remove("settling");
@@ -80495,7 +80695,7 @@ function runSelftest() {
     for (const leave of [() => selectMapLevel(1), () => turnChapter(1)]) {
       recordedWin(0, 1, 20);
       $("endlessBtn").click();
-      const from = Math.max(TOTAL_WAVES, endlessFrom);
+      const from = totalWaves() + endlessFrom;
       lastCleared = from + 2; waveIdx = from + 3; lives = 0; defeat(); endFall();
       if (!$("ovRecord").classList.contains("on")) throw new Error("no ribbon for an endless record");
       leave();
@@ -80681,7 +80881,7 @@ function runSelftest() {
           adapt = { slot: "archer", step: 9, hist: [], acc: {} };   // the top step, so the adapted foes are counted too
           const H = trickCfg("hunters");
           let tot = 0;
-          for (let w = 1; w <= TOTAL_WAVES; w++) {
+          for (let w = 1; w <= totalWaves(); w++) {
             const g = trickWave(w), plan = wavePlan(w);
             if (JSON.stringify(g) !== JSON.stringify(trickWave(w)) || JSON.stringify(plan) !== JSON.stringify(wavePlan(w))) throw new Error(LEVELS[i].id + " w" + w + ": the plan is not repeatable");
             for (const q of plan) if ((q.type === "boss" || q.type === "flyer") && (q.trick || q.guard || q.road != null)) throw new Error(LEVELS[i].id + " w" + w + ": a " + q.type + " carries a trick");
@@ -80716,7 +80916,7 @@ function runSelftest() {
     try {
       field("avarayr", 1);
       const A = trickCfg("ambush"), k = ambushRoute();
-      if (k !== 1 || A.from !== 12 || activeRoutes(5).includes(k)) throw new Error("Avarayr's reserves' road");
+      if (k !== 1 || A.sfrom !== 12 || activeRoutes(5).includes(k)) throw new Error("Avarayr's reserves' road");
       // the tell wave: the far horn, the toast, the dust down the track
       waveIdx = lastCleared = A.from - 2;
       waveCueQ = [];
@@ -80751,7 +80951,7 @@ function runSelftest() {
       if (roadTitle("0") !== "the road") throw new Error("the debrief calls Avarayr's only road " + roadTitle("0"));
       // Mari's other road: told on wave 10, after its commander's banner
       field("mari", 1);
-      waveIdx = lastCleared = 9; waveCueQ = [];
+      waveIdx = lastCleared = playedWave(11) - 2; waveCueQ = [];
       startWave();
       if (!waveCueQ.some(q => q.name === "reliefFar" && q.o.far === 0.6) || !toastEl.textContent.includes("goat track")) throw new Error("Mari's tell");
     } finally { trickBack(k0); }
@@ -80762,14 +80962,15 @@ function runSelftest() {
       // shown from the stand's start until its second wave of outflankers is sent, from each road's entry to the walls
       field("avarayr", 1);
       const F = flankWaves();
-      if (F.join() !== "7,9") throw new Error("Avarayr's outflanker waves " + F);
+      // script waves 7 and 11 (9's ride with no one: its played wave is the commander's, who brings only his own)
+      if (F.join() !== playedWave(7) + "," + playedWave(11)) throw new Error("Avarayr's outflanker waves " + F);
       waveIdx = 0; phase = "idle"; flankCache = null;
       const P = flankPaths();
       if (!P || P.length !== 1 || P[0][0][0] !== ROUTES[0].pts[0][0] || P[0][P[0].length - 1][0] !== FORT.x) throw new Error("no line before the first wave");
-      waveIdx = 9; phase = "idle";
+      waveIdx = F[1]; phase = "idle";
       if (flankPaths()) throw new Error("the line outlived the second wave of outflankers");
       // the toast the wave before the first, once
-      trickStand.flankTold = false; waveIdx = 6; flankToast();
+      trickStand.flankTold = false; waveIdx = F[0] - 1; flankToast();
       if (!trickStand.flankTold || !toastEl.textContent.includes("dotted line")) throw new Error("no outflanker toast");
       if (!foeCardHtml("flyer", 7, "chip").includes("dotted line")) throw new Error("the outflanker's card does not tell its way");
       // drones hunt towers: no line
@@ -80860,7 +81061,7 @@ function runSelftest() {
       if (sellRefund(f).amount !== Math.floor(inv * 0.7 * (0.4 + 0.6 * 0.5))) throw new Error("a damaged tower's sale");
       phase = "wave"; spawnQueue = []; enemies = [];
       endWaveIfClear();
-      if (Math.abs(f.hp - f.maxHp * (0.5 + byDiff(TRICK_RULES.tower.mend))) > 1e-6) throw new Error("the free mend");
+      if (Math.abs(f.hp - f.maxHp * Math.min(1, 0.5 + payStep(waveIdx) * byDiff(TRICK_RULES.tower.mend))) > 1e-6) throw new Error("the free mend");
       // the panel of a damaged tower and of a ruin
       f.hp = f.maxHp * 0.5; showPanel(f);
       if (!$("pActions").querySelector(".row2 .repair") || !$("pStats").textContent.includes("Strength")) throw new Error("no Repair beside Sell");
@@ -81261,15 +81462,16 @@ function runSelftestPlay() {
     if (state() !== was) fail("rulesetData() moved the battle's globals");
     if (ids.length !== 17 || ids.join() !== LEVELS.map(L => L.id).join()) fail("battlefields: " + ids.join());
     if (JSON.stringify(R) !== JSON.stringify(rulesetData())) fail("rulesetData() gave two answers");
+    const LENGTHS_OF = id => LEVELS[levelIndexOf(id)].waves;
     for (const id of ids) {
       const V = R.levels[id];
-      if (V.waves !== TOTAL_WAVES || V.script.length !== V.waves || V.script[0] !== 1 || V.script[V.waves - 1] !== 20 ||
+      if (V.waves !== LENGTHS_OF(id) || JSON.stringify(V.script) !== JSON.stringify(levelScript(LEVELS[levelIndexOf(id)])) || V.script.length !== V.waves || V.script[0] !== 1 || V.script[V.waves - 1] !== 20 ||
           V.script.some((x, i) => i && x <= V.script[i - 1]) || V.rev !== LEVEL_REV[id] || V.d.length !== DIFFS.length || !(V.pads >= 5) || V.tray !== TRAY_CLASSIC ||
           !/^[0-9a-f]{12}$/.test(V.fight)) fail(id + ": " + JSON.stringify(V).slice(0, 200));
       V.d.forEach((d, i) => {
         if (!(d.lives === DIFFS[i].lives && d.min > 0 && d.min <= d.fast && d.fast < d.slow && d.earnMax > 0 && [d.min, d.fast, d.slow, d.earnMax].every(Number.isInteger))) fail(id + " on " + DIFFS[i].name + ": " + JSON.stringify(d));
       });
-      if (!(LEVEL_PAR[id] > 0)) fail(id + " has no par");
+      if (!(Array.isArray(LEVEL_PAR[id]) ? LEVEL_PAR[id].length === DIFFS.length && LEVEL_PAR[id].every(x => x > 0) : LEVEL_PAR[id] > 0)) fail(id + " has no par");
     }
     const S = R.score;
     if (S.win !== 4000 || S.lives + S.speed + S.thrift !== 6000 || S.lostMax !== 3999 || R.daily.pool.length || R.daily.waves !== 12) fail("the score's weights or the daily's part");
@@ -81305,16 +81507,18 @@ function runSelftestPlay() {
       stage(id, 1);
       let n = 0;
       while (!gameOver && n++ < 200000) {
-        if (phase !== "wave" || (!spawnQueue.length && enemies.length && waveIdx < TOTAL_WAVES)) startWave();
-        const keep = spawnQueue.length || waveIdx >= TOTAL_WAVES ? null : enemies[enemies.length - 1];
+        if (phase !== "wave" || (!spawnQueue.length && enemies.length && waveIdx < totalWaves())) startWave();
+        const keep = spawnQueue.length || waveIdx >= totalWaves() ? null : enemies[enemies.length - 1];
         for (const e of enemies) if (e !== keep) e.hp = 0;
         update(0.05);
       }
       const f = evLast("victory"), d = rulesetData().levels[id].d[1];
-      if (!f || !gameOver || f.wave !== TOTAL_WAVES) fail(id + ": the quickest battle was not won");
+      if (!f || !gameOver || f.wave !== totalWaves()) fail(id + ": the quickest battle was not won");
       if (f.sec < d.min || f.sec > d.min + 30) fail(id + ": the quickest battle took " + f.sec + " s, min is " + d.min);
-      if (f.earned > d.earnMax || f.earned < d.earnMax * 0.5) fail(id + ": it earned " + f.earned + ", earnMax is " + d.earnMax);
-      if (f.early !== TOTAL_WAVES - 1 || f.from.early <= 0) fail(id + ": early calls " + f.early);
+      // (a wave pays ahead for the script waves it stands for, and earnMax counts the interest and the early call at
+      // their caps that many times, so the quickest battle, which clears no wave, earns a smaller share of it)
+      if (f.earned > d.earnMax || f.earned < d.earnMax * 0.4) fail(id + ": it earned " + f.earned + ", earnMax is " + d.earnMax);
+      if (f.early !== totalWaves() - 1 || f.from.early <= 0) fail(id + ": early calls " + f.early);
       sound(f, id + " quickest");
     }
   }));
@@ -81346,11 +81550,11 @@ function runSelftestPlay() {
     if (f.built !== 2 || f.sold !== 1 || f.on.build !== 2 * TOWER_DEFS.archer.cost) fail("an undone placement counted: " + JSON.stringify(f.on));
     sound(f, "after an undo");
     // the last wave, and the victory's own event
-    waveIdx = lastCleared = TOTAL_WAVES - 1;
+    waveIdx = lastCleared = totalWaves() - 1;
     startWave(); fight();
     f = evLast("victory");
     sound(f, "victory");
-    if (!gameOver || f.mode !== "campaign" || f.wave !== TOTAL_WAVES || f.waves !== TOTAL_WAVES || f.script !== 20 || f.beyond !== 0 ||
+    if (!gameOver || f.mode !== "campaign" || f.wave !== totalWaves() || f.waves !== totalWaves() || f.script !== 20 || f.beyond !== 0 ||
         f.stars !== victoryStars(f.held, f.lives_max) || f.stars < 1 || f.cmdMet !== 2 || f.cmdFelled !== 2 || f.legacy || f.resumed !== 0 ||
         f.ch !== "kingdoms" || f.tray !== TRAY_CLASSIC || f.aided || f.tutorial || f.heroLevel !== 1) fail("victory: " + JSON.stringify(f));
     const g = evLast("star_gain");
@@ -81365,7 +81569,7 @@ function runSelftestPlay() {
     fall();
     f = evLast("defeat");
     sound(f, "endless end");
-    if (f.mode !== "endless" || f.beyond !== 1 || f.wave !== TOTAL_WAVES + 1 || f.script !== 20 || f.lives !== 0 || f.stars !== 0 || !f.through || f.road === null) fail("endless end: " + JSON.stringify(f));
+    if (f.mode !== "endless" || f.beyond !== 1 || f.wave !== totalWaves() + 1 || f.script !== 20 || f.lives !== 0 || f.stars !== 0 || !f.through || f.road === null) fail("endless end: " + JSON.stringify(f));
     endFall();
     // a defeat within the chronicle, on a field with a gift of gold in the purse
     localStorage.setItem(Nardi.BLESS_KEY, "40");
@@ -81391,7 +81595,7 @@ function runSelftestPlay() {
       localStorage.removeItem(bestKey(curLevel, curEra));
       placeTower("archer", 0);
       startWave(); fight();
-      waveIdx = lastCleared = TOTAL_WAVES - 1;
+      waveIdx = lastCleared = totalWaves() - 1;
       startWave(); fight();
       const v = evs().filter(e => e[0] === "victory");
       if (!gameOver || v.length !== 1 || v[0][1] !== null) fail("the victory with a fault in its numbers: " + JSON.stringify(v));
@@ -81476,7 +81680,7 @@ function runSelftestPlay() {
     upgradeTower(towers[0]);
     towers[1].placedAt = -1e9;
     sellTower(towers[1]);
-    waveIdx = lastCleared = TOTAL_WAVES - 1;
+    waveIdx = lastCleared = totalWaves() - 1;
     startWave(); fight();
     const names = evs().map(e => e[0]).filter(n => n !== "map_open");
     const want = ["brief_open", "tower_built", "battle_start", "wave_end", "plot_bought", "tower_built", "wave_end", "tower_upgraded", "tower_sold",
@@ -81485,13 +81689,13 @@ function runSelftestPlay() {
     has("brief_open", evLast("brief_open"), ["lv", "diff", "mode"]);
     const b = evLast("battle_start");
     has("battle_start", b, ["lv", "diff", "mode", "loadout", "ruleset", "ranked", "resumed", "tutorial", "twist", "rev", "waves", "tray", "power", "hero", "legacy"]);
-    if (b.lv !== "tushpa" || b.diff !== 1 || b.mode !== "campaign" || b.loadout !== "std" || b.ruleset !== "1" || b.ranked !== true || b.resumed !== false ||
-        b.tutorial !== false || b.twist !== null || b.waves !== TOTAL_WAVES || b.legacy !== false) fail("battle_start: " + JSON.stringify(b));
+    if (b.lv !== "tushpa" || b.diff !== 1 || b.mode !== "campaign" || b.loadout !== "std" || b.ruleset !== String(RULESET) || b.ranked !== true || b.resumed !== false ||
+        b.tutorial !== false || b.twist !== null || b.waves !== totalWaves() || b.legacy !== false) fail("battle_start: " + JSON.stringify(b));
     const w = evs().find(e => e[0] === "wave_end")[1];
     has("wave_end", w, ["lv", "diff", "mode", "wave", "lives", "gold", "towers", "sec", "early", "sw", "lost", "ranks", "masteries", "spells", "calls", "rallies", "fired", "repairs", "idle"]);
     if (w.wave !== 1 || w.sw !== 1 || w.towers !== 1 || w.early !== false || w.lost !== 0 || w.lives !== DIFFS[1].lives || !(w.sec > 0)) fail("wave_end: " + JSON.stringify(w));
     const w2 = evLast("wave_end");
-    if (w2.wave !== TOTAL_WAVES || w2.ranks !== 1 || w2.sw !== 20) fail("the last wave_end: " + JSON.stringify(w2));
+    if (w2.wave !== totalWaves() || w2.ranks !== 1 || w2.sw !== 20) fail("the last wave_end: " + JSON.stringify(w2));
     has("tower_built", evLast("tower_built"), ["lv", "wave", "type", "pad"]);
     has("tower_upgraded", evLast("tower_upgraded"), ["type", "level", "spec"]);
     has("tower_sold", evLast("tower_sold"), ["type", "level", "wave"]);
@@ -81499,7 +81703,7 @@ function runSelftestPlay() {
     const v = evLast("victory");
     has("victory", v, ["lv", "diff", "mode", "lives", "lives_max", "waves", "stars", "sec", "spent", "earned", "loadout", "ruleset", "twist"]);
     sound(v, "the staged victory");
-    if (v.aided !== false || v.loadout !== "std" || v.plots !== 1 || v.on.land !== 150 || v.stars !== 3 || v.wave !== TOTAL_WAVES) fail("the staged victory: " + JSON.stringify(v));
+    if (v.aided !== false || v.loadout !== "std" || v.plots !== 1 || v.on.land !== 150 || v.stars !== 3 || v.wave !== totalWaves()) fail("the staged victory: " + JSON.stringify(v));
     has("star_gain", evLast("star_gain"), ["lv", "diff", "stars", "hard", "total"]);
     endCelebration();
     // a battle of the campaign's own is ranked from its first horn, and one abandoned says so
@@ -82045,7 +82249,7 @@ function runSelftestPlay() {
     wonTo(1, 3);   // Erebuni's three, and Tushpa's two to come (16 of 20 kept): five to spend
     localStorage.setItem(bestKey(1, LEVELS[1].era), "13");
     stage("tushpa", 1);
-    lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+    lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
     victory();
     endCelebration();
     const g = $("ovGrowth");
@@ -82070,7 +82274,7 @@ function runSelftestPlay() {
       localStorage.removeItem("hs_council"); localStorage.removeItem("hs_heroes");
       wonTo(1, 3); localStorage.setItem(bestKey(1, LEVELS[1].era), "13");
       stage("tushpa", 1);
-      lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+      lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
       victory(); endCelebration();
       const sub = $("ovSub").textContent;
       if (!g.classList.contains("line") || !/^Sarduri II · Level 3 · 5 stars to spend$/.test(g.textContent) || sub.includes(ENDLESS_INVITE) || !/to spare on Normal/.test(sub)) fail("the phone's line on Tushpa: " + g.textContent + " / " + sub);
@@ -82078,7 +82282,7 @@ function runSelftestPlay() {
       const sis = LEVELS.findIndex(L => L.noEndless);
       wonTo(sis, 3); localStorage.setItem(bestKey(sis, LEVELS[sis].era), "13");
       stage(LEVELS[sis].id, 1);
-      lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+      lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
       victory(); endCelebration();
       if (g.classList.contains("on") || !/to spare on Normal/.test($("ovSub").textContent)) fail("Sis lost its tally to the phone's line: " + $("ovSub").textContent);
       leaveVictory();
@@ -82112,8 +82316,16 @@ function runSelftestPlay() {
   const heroesOf = () => heroesLoad().xp;
   const noWins = () => { localStorage.removeItem(RECORDS_KEY); LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era))); };
   check("heroes: experience by battle, the thresholds, the veteran's floor, the daily's cap", guarded(() => {
-    if (heroXpFor(true, TOTAL_WAVES, 1) !== 300 || heroXpFor(true, TOTAL_WAVES, 0) !== 225 || heroXpFor(true, TOTAL_WAVES, 2) !== 450 ||
-        heroXpFor(false, 7, 1) !== 70 || heroXpFor(false, 4, 2) !== 60 || heroXpFor(false, 99, 1) !== 200) fail("a battle's experience");
+    // a victory is worth the same on a 10-wave and on a 20-wave battlefield: experience counts script waves (G4)
+    const lv0 = curLevel;
+    try {
+      for (const id of ["erebuni", "sis"]) {
+        curLevel = levelIndexOf(id); runScript = null;
+        if (heroXpFor(true, totalWaves(), 1) !== 300 || heroXpFor(true, totalWaves(), 0) !== 225 || heroXpFor(true, totalWaves(), 2) !== 450 ||
+            heroXpFor(false, 7, 1) !== 10 * scriptWave(7) || heroXpFor(false, 4, 2) !== 15 * scriptWave(4) || heroXpFor(false, 99, 1) !== 200) fail("a battle's experience on " + id);
+      }
+      if (heroXpFor(false, 7, 1) !== 70) fail("a lost stand's experience on a 20-wave battlefield");
+    } finally { curLevel = lv0; }
     const L = [[149, 1], [150, 2], [449, 2], [450, 3], [899, 3], [900, 4], [1499, 4], [1500, 5], [1e9, 5], [-5, 1], [NaN, 1], ["900", 1], [null, 1]];
     for (const [x, l] of L) if (heroLevelOf(x) !== l) fail("experience " + x + " stands at level " + heroLevelOf(x) + ", not " + l);
     // records without hs_heroes give the first-play levels of 4.8, on every battlefield
@@ -82127,21 +82339,22 @@ function runSelftestPlay() {
     noWins(); localStorage.removeItem("hs_heroes");
     evClear();
     stage("erebuni", 1);
-    lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+    lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
     victory(); endCelebration();
     if (heroesOf().kingdoms !== 300 || heroXp(0) !== 300 || !heroGrowth || heroGrowth.xp !== 300 || heroGrowth.from !== 0) fail("Erebuni's victory: " + JSON.stringify(heroesLoad()) + " " + JSON.stringify(heroGrowth));
     const lv = evs().filter(e => e[0] === "hero_level");
     if (lv.length !== 1 || lv[0][1].ch !== "kingdoms" || lv[0][1].level !== 2) fail("hero_level: " + JSON.stringify(lv));
     flat("hero_level", lv[0][1]);
     leaveVictory();
-    // a lost battle on Hard: 15 for each wave cleared; a veteran's replay adds to his floor
+    // a lost battle on Hard: 15 for each script wave cleared (Tushpa's wave 4 stands for script wave 5); a veteran's
+    // replay adds to his floor
     stage("tushpa", 2);
     lastCleared = 4; waveIdx = 5; lives = 0;
     defeat();
-    if (heroesOf().kingdoms !== 360) fail("a defeat on Hard after four waves: " + heroesOf().kingdoms);
+    if (scriptWave(4) !== 5 || heroesOf().kingdoms !== 300 + 15 * 5) fail("a defeat on Hard after four waves: " + heroesOf().kingdoms);
     localStorage.removeItem("hs_heroes"); noWins(); wonTo(3, 2);   // a veteran of Chapter I with no hs_heroes: 900
     stage("tushpa", 1);
-    lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+    lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
     victory(); endCelebration(); leaveVictory();
     if (heroesOf().kingdoms !== 1200 || heroLevel(0) !== 4) fail("a veteran's victory: " + heroesOf().kingdoms);
     // test mode gives none; the end of an endless stand gives none
@@ -82362,7 +82575,7 @@ function runSelftestPlay() {
     } finally { el.remove(); councilCapts = false; }
     // the victory page: the hero's strip with his level and the bar; on a phone one line in the invitation's place
     stage("tashir", 1);
-    lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+    lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
     victory(); endCelebration();
     const g = $("ovGrowth"), strip = g.querySelector(".ogHero");
     if (!strip || !/Level 3/.test(strip.textContent) || !strip.textContent.includes(LEVELS[curLevel].hero.name) || !/\+300/.test(strip.textContent) || !g.querySelector(".ogBar i")) fail("the hero's strip: " + g.textContent);
@@ -82371,7 +82584,7 @@ function runSelftestPlay() {
     phoneWide = () => true;
     try {
       stage("sevan", 1);
-      lastCleared = TOTAL_WAVES; waveIdx = TOTAL_WAVES; lives = DIFFS[1].lives - 4;
+      lastCleared = totalWaves(); waveIdx = totalWaves(); lives = DIFFS[1].lives - 4;
       victory(); endCelebration();
       if (!g.classList.contains("line") || !new RegExp("^" + LEVELS[curLevel].hero.name + " · Level 4( · \\d+ stars? to spend)?$").test(g.textContent) || $("ovSub").textContent.includes(ENDLESS_INVITE)) fail("the phone's line: " + g.textContent);
       leaveVictory();
@@ -82384,6 +82597,184 @@ function runSelftestPlay() {
     coachEl.querySelector(".cNext").click();
     if (callBubble || coachEl.classList.contains("on") || !towersSeen().includes("call") || !evs().some(e => e[0] === "unlock_seen" && e[1].what === "call")) fail("the bubble put away: " + towersSeen());
     if (callBubbleDue()) fail("the bubble is due again once seen");
+  }));
+
+  // ---- G4: the script map and the 17 lengths (gameplay.final.md 1, 8.1) ----
+  // Erebuni's coached waves 1 to 3 as master played them (taken from the page before the lengths: every foe falls as
+  // it comes on): each wave's queue, a foe's strength and bounty, and the gold after the wave
+  const COACHED = [
+    { q: "spearman@0.50 spearman@1.63 spearman@2.75", hp: { spearman: 32 }, bounty: { spearman: 12 }, gold: 296 },
+    { q: "spearman@0.50 spearman@1.63 spearman@2.75 spearman@3.88 raider@6.60 raider@7.16 raider@7.72", hp: { spearman: 60, raider: 27 }, bounty: { spearman: 12, raider: 8 }, gold: 417 },
+    { q: "spearman@0.50 spearman@1.63 spearman@2.75 spearman@3.88 spearman@5.00 raider@7.72 raider@8.29 raider@8.85", hp: { spearman: 95, raider: 42 }, bounty: { spearman: 12, raider: 8 }, gold: 560 },
+  ];
+  // gameplay 1.2: each battlefield's length and its commanders' waves
+  const LENGTHS = { erebuni: [10, 7], tushpa: [12, 7], avarayr: [14, 7], dvin: [11, 6], tashir: [12, 7], sevan: [15, 8], ani: [18, 9], mari: [12, 7], sis: [20, 10],
+    gyumri: [13, 7], halidzor: [14, 8], van: [18, 9], musadagh: [16, 8], sardarapat: [20, 10], stepanakert92: [14, 8], shushi: [14, 8], stepanakert23: [12, 7] };
+  // gameplay 1.3: where each trick first comes on Normal (played waves)
+  const FIRSTS = { erebuni: { hidden: 6 }, tushpa: { guards: 4, hidden: 5 }, avarayr: { guards: 4, ambush: 9 }, dvin: { hunters: 5, adapt: 6 }, tashir: { adapt: 6 },
+    sevan: { hunters: 6, ambush: 7, adapt: 7 }, ani: { guards: 7 }, mari: { ambush: 8 }, gyumri: { hunters: 7 }, halidzor: { guards: 6 }, shushi: { hidden: 9 } };
+  const tableOk = S => scriptOk(S) && S[1] === 2 && S[2] === 3 && S.includes(10);
+  check("waves: the tables, the map, the pay, the commanders, the tricks", guarded(() => {
+    for (const k in SCRIPT_TABLES) if (!tableOk(SCRIPT_TABLES[k]) || SCRIPT_TABLES[k].length !== +k) fail("the table of " + k + " waves: " + SCRIPT_TABLES[k]);
+    LEVELS.forEach((L, i) => {
+      const want = LENGTHS[L.id];
+      if (!(L.waves >= 10 && L.waves <= 20) || !want || L.waves !== want[0]) fail(L.id + " has " + L.waves + " waves");
+      const S = levelScript(L);
+      if (S.length !== L.waves || !tableOk(S)) fail(L.id + "'s table: " + S);
+      if (L.dailyScript && (!tableOk(L.dailyScript) || L.dailyScript.length !== DAILY_WAVES)) fail(L.id + "'s daily table: " + L.dailyScript);
+      for (const d of [0, 1, 2]) {
+        stage(L.id, d);
+        const N = totalWaves(), cov = [], paid = [];
+        if (N !== L.waves) fail(L.id + " is fought over " + N + " waves");
+        for (let w = 1; w <= N; w++) { cov.push(...coveredWaves(w)); paid.push(...paidWaves(w)); }
+        const all = SCRIPT_TABLES[20].join();
+        if (cov.join() !== all || paid.join() !== all) fail(L.id + ": the waves fought or paid for are " + cov + " / " + paid);
+        // the clear bonuses of a whole battle are the twenty waves' (1,130)
+        let clear = 0;
+        for (let w = 1; w <= N; w++) for (const sw of paidWaves(w)) clear += PAY.clear[0] + sw * PAY.clear[1];
+        if (clear !== 1130) fail(L.id + ": a battle's clear bonuses sum to " + clear);
+        // the commanders come on 1.2's waves, and none brings the outflankers of a wave skipped before it
+        const C = commanderWaves();
+        if (C.join() !== want[1] + "," + N) fail(L.id + "'s commanders lead waves " + C);
+        for (const w of C) if (waveGroups(w).some(g => g.type === "flyer") && !droneWar() && !L.flank) fail(L.id + ": the commander's wave " + w + " brings outflankers");
+        // no ambush road opens or is first told on a commander's wave (Mari's other road keeps its own rule: legacy)
+        const A = trickCfg("ambush");
+        if (A && !A.legacy && (C.includes(A.from) || C.includes(A.from - (byDiff(A.tell) || 0)))) fail(L.id + ": the ambush opens or is told on a commander's wave");
+        if (d === 1) {
+          // and on the daily's 12-step table
+          setRunScript(levelScript(L, true));
+          const CD = commanderWaves(), AD = trickCfg("ambush");
+          if (totalWaves() !== DAILY_WAVES) fail(L.id + "'s daily is " + totalWaves() + " waves");
+          if (AD && !AD.legacy && (CD.includes(AD.from) || CD.includes(AD.from - (byDiff(AD.tell) || 0)))) fail(L.id + ": the daily's ambush meets a commander's wave");
+          setRunScript(levelScript(L));
+          const F = trickFirstWaves();
+          for (const k in FIRSTS[L.id] || {}) if (F[k] !== FIRSTS[L.id][k]) fail(L.id + ": " + k + " first come on wave " + F[k] + ", not " + FIRSTS[L.id][k]);
+        }
+        // a battlefield left at twenty is the battle it was: every wave its script wave, paying for itself alone
+        if (N === 20) for (let w = 1; w <= 20; w++) {
+          if (JSON.stringify(waveGroups(w)) !== JSON.stringify(scriptGroups(w)) || payStep(w) !== 1 || scriptWave(w) !== w) fail(L.id + "'s wave " + w + " is not the script's");
+        }
+      }
+    });
+    // Erebuni: no wave brings more than two kinds of foe or trick that no earlier wave brought
+    for (const d of [0, 1, 2]) {
+      stage("erebuni", d);
+      const seen = new Set();
+      for (let w = 1; w <= totalWaves(); w++) {
+        const now = new Set(trickWave(w).map(g => g.trick || g.type)), fresh = [...now].filter(k => !seen.has(k));
+        if (fresh.length > 2) fail("Erebuni's wave " + w + " brings " + fresh.join(", "));
+        fresh.forEach(k => seen.add(k));
+      }
+    }
+    // Erebuni's coached waves are master's, to the foe, the hit point and the coin
+    stage("erebuni", 1);
+    tutGentle = true;
+    COACHED.forEach((want, k) => {
+      const w = k + 1;
+      startWave();
+      const q = spawnQueue.map(x => x.type + "@" + x.t.toFixed(2)).join(" "), hp = {}, bounty = {};
+      for (const x of spawnQueue) { const u = eraUnit(x.type); hp[x.type] = foeHp(x.type, u, w); bounty[x.type] = foeBounty(u, w); }
+      let n = 0;
+      while (phase === "wave" && n++ < 40000) { for (const e of enemies) e.hp = 0; update(0.05); }
+      if (q !== want.q || JSON.stringify(hp) !== JSON.stringify(want.hp) || JSON.stringify(bounty) !== JSON.stringify(want.bounty) || gold !== want.gold) {
+        fail("Erebuni's coached wave " + w + ": " + JSON.stringify({ q, hp, bounty, gold }));
+      }
+    });
+    tutGentle = false;
+    // a wave pays for the script waves it stands for: its foes' bounties, its clear's bonus, its interest
+    stage("tushpa", 1);
+    waveIdx = lastCleared = 4;   // wave 5 stands for script wave 7 and pays for 7 and 8
+    startWave();
+    if (paidWaves(5).join() !== "7,8" || foeBounty(eraUnit("spearman"), 5) !== 2 * Math.max(1, Math.round(eraUnit("spearman").bounty * ERAS[curEra].bounty * bountyScale(7) * (trickEcon("bounty", 7) || 1)))) fail("wave 5's bounty");
+    spawnQueue = []; enemies = [];
+    const g0 = gold, int = Math.min(kitInterestCap(), Math.floor(g0 * PAY.interestRate));
+    endWaveIfClear();
+    if (gold - g0 !== (25 + 3 * 7) + (25 + 3 * 8) + 2 * int) fail("wave 5's clear paid " + (gold - g0));
+    // an early call pays its bonus times the script waves the wave it cuts short pays for (wave 5 again: 7 and 8)
+    waveIdx = lastCleared = 4;
+    startWave();
+    while (spawnQueue.length) update(0.05);
+    if (!enemies.length) fail("no foe on the field to call early over");
+    const step = payStep(waveIdx), bonus = earlyBonus(), g1 = gold, called = waveIdx;
+    startWave();
+    if (waveIdx !== called + 1 || gold - g1 !== bonus * step || step !== 2) fail("an early call over wave " + called + " paid " + (gold - g1) + ", not " + bonus + " x " + step);
+    // what the player reads: the HUD, the chronicle's line, Mari's held lines, the coach's last words
+    stage("erebuni", 1);
+    waveIdx = 3; syncHud();
+    if (waveNumEl.textContent !== "Wave 3/10") fail("the HUD reads " + waveNumEl.textContent);
+    curLevel = levelIndexOf("tushpa");
+    showBrief();
+    if ($("briefLen").textContent !== "12 waves. A commander leads wave 7 and wave 12.") fail("the chronicle's line: " + $("briefLen").textContent);
+    curLevel = levelIndexOf("ani"); showBrief();
+    if (!$("briefHint").textContent.endsWith("from wave 14.")) fail("Ani's note: " + $("briefHint").textContent);
+    curLevel = levelIndexOf("mari"); showBrief();
+    if (!$("briefHint").textContent.includes("from wave 8 a Mamluk column")) fail("Mari's note: " + $("briefHint").textContent);
+    gameOver = true;
+    stage("mari", 1);
+    const M = LEVELS[curLevel];
+    if (heldLine(M, true, 12) !== "You held the passes all twelve waves." || heldLine(M, false, 5) !== "You held the passes for 5 of 12 waves.") fail("Mari's held lines: " + heldLine(M, true, 12) + " / " + heldLine(M, false, 5));
+    stage("erebuni", 1);
+    const ready = TUT_STEPS.find(x => x.id === "ready").html();
+    if (ready !== "<b>You're ready.</b> Hold Erebuni through all ten waves: the battle is yours.") fail("the coach's last words: " + ready);
+  }));
+  check("old saves: a 20-wave run finishes under its rules; old records read in the new terms", guarded(() => {
+    // a run saved before the lengths (no script, no ruleset, no kit): it resumes as the 20-wave battle it was, with
+    // five tiles and no kit, wins, and records its stars
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "21");
+    stage("tushpa", 1);
+    placeTower("archer", 0);
+    waveIdx = lastCleared = 18; phase = "idle";
+    saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    for (const k of ["script", "rules", "kit", "facts", "cd", "redo"]) delete r[k];
+    localStorage.setItem("hs_run", JSON.stringify(r));
+    gameOver = true; curLevel = 0;
+    resumeRun();
+    if (totalWaves() !== 20 || waveIdx !== 18 || scriptWave(19) !== 19 || payStep(19) !== 1 || battle.rules === RULESET || kitPower(kit) !== 0 || kit.call) {
+      fail("the old run resumed as " + JSON.stringify({ waves: totalWaves(), at: waveIdx, rules: battle.rules, power: kitPower(kit) }));
+    }
+    if (document.querySelectorAll("#shop .card:not([style*='display: none'])").length < 5) fail("the old run's tray");
+    if (waveGroups(19).map(g => g.type + g.n).join() !== scriptGroups(19).map(g => g.type + g.n).join()) fail("the old run's wave 19");
+    startWave(); fight();
+    const saved = JSON.parse(localStorage.getItem("hs_run"));
+    if (!saved || saved.script.length !== 20 || saved.cleared !== 19) fail("the old run saved again as " + JSON.stringify(saved && saved.script));
+    startWave(); fight();
+    endCelebration();
+    if (!gameOver || lives <= 0 || !levelConquered(1) || levelRecord(1).stars[1] < 1 || battleFacts().waves !== 20) fail("the old run's victory: " + JSON.stringify(levelRecord(1)));
+    // a run whose table is not one (falling, too long, not ending at 20) is no run
+    stage("tushpa", 1);
+    waveIdx = 2; phase = "idle"; saveRun();
+    const ok = JSON.parse(localStorage.getItem("hs_run"));
+    for (const bad of [[1, 3, 2, 20], [2, 3, 20], [1, 2, 19], Array.from({ length: 21 }, (_, k) => k), "1,2,20"]) {
+      if (validRun(Object.assign({}, ok, { script: bad }))) fail("a run with the table " + JSON.stringify(bad) + " passed");
+    }
+    if (!validRun(ok) || validRun(Object.assign({}, ok, { cleared: 12 })) || !validRun(Object.assign({}, ok, { script: undefined, cleared: 19 }))) fail("a run's cleared waves against its table");
+    gameOver = true;
+    // an old endless record of 34 reads as 14 beyond the chronicle, and is written back both ways
+    storeRecord(0, { stars: [0, 2, 0], lives: [0, 15, 0], endless: [0, 34, 0] });
+    if (levelRecord(0).beyond[1] !== 14 || levelStanding(0).beyond !== 14) fail("an old endless record reads " + levelRecord(0).beyond);
+    stage("erebuni", 1);
+    endless = true; endlessFrom = levelRecord(0).beyond[1];
+    waveIdx = 10 + 15; phase = "wave"; spawnQueue = []; enemies = [];
+    endWaveIfClear();
+    const all = loadRecords()[levelId(0)];
+    if (levelRecord(0).beyond[1] !== 15 || all.beyond[1] !== 15 || all.endless[1] !== 35) fail("the endless record written as " + JSON.stringify(all));
+    endless = false; gameOver = true;
+    // an hs_best of 15 on a 10-wave battlefield shows as 10 on the map; 21 still opens the next road
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "15");
+    if (levelConquered(0)) fail("a lost stand of 15 counts as won");
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    selectMapLevel(1);
+    const plates = {}, plate0 = drawMapPlate;
+    drawMapPlate = (m, cx, top, name, hy, status, look) => { plates[name] = status; return plate0(m, cx, top, name, hy, status, look); };
+    try { renderWorldMap(); } finally { drawMapPlate = plate0; }
+    if (plates[LEVELS[0].name] !== "Best: wave 10") fail("Erebuni's plate: " + plates[LEVELS[0].name]);
+    if (!$("ovSub").textContent.includes("· 12 waves.")) fail("the map's subtitle: " + $("ovSub").textContent);
+    // (Tushpa's own victory above opens its road too: it is taken back to ask Erebuni's alone)
+    localStorage.removeItem(bestKey(1, LEVELS[1].era));
+    if (levelUnlocked(1)) fail("a lost stand of 15 opened the road");
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "21");
+    if (!levelConquered(0) || !levelUnlocked(1)) fail("21 did not open the road after Erebuni");
   }));
 
   // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt

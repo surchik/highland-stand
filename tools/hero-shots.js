@@ -93,7 +93,7 @@ const SAVE = {
       await page.waitForTimeout(1500);
       await shot("cooling", "#heroBtn");
       // the victory page: the hero's strip
-      await page.evaluate(() => { lastCleared = waveIdx = TOTAL_WAVES; enemies = []; lives = 17; victory(); endCelebration(); });
+      await page.evaluate(() => { lastCleared = waveIdx = totalWaves(); enemies = []; lives = 17; victory(); endCelebration(); });
       await page.waitForTimeout(1600);
       await shot("victory", "#ovGrowth", (await page.evaluate(() => !!$("ovGrowth").textContent)) ? [] : ["no growth row"]);
       // the captains in the Council (held sideways on a phone: its Captains button)
