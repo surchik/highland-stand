@@ -1,695 +1,506 @@
-# Setting up accounts for Highland Stand
+# Highland Stand on the shared Supabase
 
-This guide is for the game's owner. No programming is needed. Each step says what to click or paste, and ends
-with a **Check**: what you should see when the step worked. Do the steps in order, and do not go on past a check
-that does not give what it says.
+This guide is for the game's owner. It puts the game's accounts, cloud saves, boards and counts on the Supabase
+the owner already runs for his other apps, at `https://db.avunjian.com`, without installing anything new and
+without touching what the other apps own. Each step ends with a **Check**. Do the steps in order and do not go
+past a check that does not give what it says. The short owner's checklist of every shared change, with its
+backup and its rollback, is `docs/specs/owner/shared-supabase-plan.md`.
 
-The game's page will talk to **your own Supabase**, the one already running on the same server as the game. The
-guide makes a small part of that Supabase reachable from the internet, lets players sign in with Google, Facebook
-and Discord, creates the game's tables, and ends with a checklist to try everything on the staging address,
-`https://highland.avunjian.com/next/`, before any of it reaches the live game.
+**What is on that server.** One self-hosted Supabase (Postgres 17, GoTrue for sign-in, PostgREST behind Kong) in
+`~/supabase-project`, with the whole REST API public: `/rest/v1`, `/auth/v1`, `/storage/v1`, `/realtime/v1`,
+`/functions/v1`, `/graphql/v1`. Other apps own other schemas: **PathStream owns `public`**, **ReqStream owns
+`reqstream` and `reqstream_meta`**. There is **one `auth.users` for every app**, and its email sign-up is open
+(anyone can make an account; the anon key is public in every app's page). The API runs `pg-safeupdate` (an
+UPDATE or DELETE without a WHERE is refused). `SITE_URL` points at another app.
 
-**How the commands are marked.** Every command in this guide carries one of two marks:
+**What the game owns there.** One schema, `highland`, and nothing else: 13 tables, 17 functions the page may call
+(`hs_...`), 27 helpers no one may call (`_...`), and 5 views. It is made and removed by numbered migrations
+(`deploy/supabase/migrations/`), applied by `tools/platform/migrate.js`. No API role may read or write a table of
+it; the page goes through the `hs_` functions only, naming the schema in two headers (`Accept-Profile` and
+`Content-Profile: highland`).
 
-- **[tried]**: the builder ran it, as written, on a test copy of this setup (a local Supabase stand-in and a real
-  nginx on the builder's machine, `tools/platform/guide-check.sh`), and it gave the answer the guide says.
-- **[your server]**: it can only run on your server or in your accounts (Docker, your `.env`, a provider's
-  console), so it was written with care but could not be tried.
+**How the commands are marked.**
+
+- **[tried]**: run as written on this machine against a local stand-in of the server (a throwaway PostgreSQL with
+  Supabase's roles and default privileges, and a stand-in for PostgREST and GoTrue), by
+  `tools/platform/guide-check.sh`, which reads the commands out of this file.
+- **[your server]**: it can only run on the server (Docker, `~/supabase-project`, the real gateway), so it was
+  written with care but could not be tried.
+- **[asks first]**: a change to something the other apps share. Each one needs the owner's explicit yes, on its
+  own, at the time, after its backup (step 4).
 
 Words used below:
 
-- **the Supabase address**: the public https address your Supabase will have. This guide writes
-  `https://supabase.avunjian.com`. If you choose another name, use yours everywhere.
-- **the callback address**: `https://supabase.avunjian.com/auth/v1/callback`. Each provider asks for it.
-- **the Supabase folder**: the folder on the server that holds Supabase's `docker-compose.yml` and `.env`.
+- **the server**: the machine that runs the Supabase. `ssh server` stands for however you reach it.
+- **the Supabase folder**: `~/supabase-project` on the server (its `.env` and `docker-compose.yml`).
+- **the tunnel**: an SSH tunnel from your computer to the database container (step 1). The database is never
+  opened to the internet for this.
+- **the callback address**: `https://db.avunjian.com/auth/v1/callback`. Each sign-in provider asks for it.
 
 ## Where each secret goes
 
-Some values are secret and some are public by design. Keep them apart:
-
 | value | where it lives | never |
 | --- | --- | --- |
-| Google's, Facebook's and Discord's **client secrets** | the Supabase folder's `.env` on the server, as `GOOGLE_SECRET`, `FACEBOOK_SECRET`, `DISCORD_SECRET` (step 3) | in a chat, an email, the game's repository, the game's page |
-| the **JWT secret**, the **service role key**, the **database password**, the **dashboard password** | already in that same `.env`. Nothing in this guide needs you to copy them anywhere | anywhere else at all |
-| the providers' **client ids** | beside their secrets in the same `.env` (they are not secret, but they belong there) | |
-| the **Supabase address** and the **anon key** | public: the builder puts them into the game's page, which every player's browser loads | |
+| the **database password** (`POSTGRES_PASSWORD`) | the Supabase folder's `.env`; on your computer only in the variable `PGPASSWORD` for the length of a session (step 1) | on a command line, in a DSN, in a file of the repository, in a chat, in a log |
+| the **JWT secret**, the **service role key**, the **dashboard password**, SMTP and hook secrets | the same `.env`. Nothing in this guide copies them anywhere, and no command here prints them | anywhere else at all. The game never uses the service key |
+| Google's, Facebook's and Discord's **client secrets** | the same `.env`, if and when step 4c adds them | in the page, the repository, a chat |
+| the **public address** `https://db.avunjian.com` and the **anon key** | the only two values that go into the game's page | |
 
-The builder needs exactly two values from you: the Supabase address and the anon key (step 5). Nothing else.
-If anyone asks you for a secret from the first two rows, the answer is no, including the builder.
+The commands that read `.env` below print only names and public values (`cut -d= -f1`, or a line that holds no
+secret). If you ever see a secret printed, stop, and change that secret.
 
----
-
-## Step 0. Before anything is public
-
-Until now your Supabase may only have been used from the server itself. This guide makes a small part of it
-reachable from the internet, and the game's page carries its anon key for everyone to read. That key is not
-only the game's: it is the key of **every project in that Supabase**. Check three things first. They protect
-your other projects, not only the game.
-
-1. **The secrets are your own, not the example's.** On the server, in the Supabase folder, run these four
-   lines **[tried]**. Each must print `0`:
-
-   <!-- guide-check: step0-greps -->
-   ```
-   grep -c 'your-super-secret-jwt-token-with-at-least-32-characters-long' .env
-   grep -c 'your-super-secret-and-long-postgres-password' .env
-   grep -c 'this_password_is_insecure_and_should_be_updated' .env
-   grep '^ANON_KEY=' .env | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | grep -c supabase-demo
-   ```
-
-   The first three are the passwords printed in Supabase's own example file. The last looks inside the anon
-   key: `1` there means the keys are the published examples, and then anyone can make an all-powerful key for
-   your database. If any line prints `1`, stop and make new keys first **[your server]**: newer installs have
-   `sh utils/generate-keys.sh` in the Supabase folder, and Supabase's self-hosting guide ("Securing your
-   services") explains it. Your other projects' users are signed out by it, and their apps need the new anon key.
-
-   **Check:** four lines, each `0`.
-2. **The gateway's own ports are closed from outside.** Supabase's gateway listens on port 8000, and on
-   installs with the Kong gateway also on port 8443 (https with a certificate of its own). Either one serves the
-   whole Supabase, every project's tables included, past the narrow address of step 1. From a computer that is
-   **not** the server **[your server]**:
-
-   ```
-   curl -m 5 -I http://76.13.121.176:8000/auth/v1/settings
-   curl -k -m 5 -I https://76.13.121.176:8443/auth/v1/settings
-   ```
-
-   Each should fail or time out. If the first answers: in `.env` set `KONG_HTTP_PORT=127.0.0.1:8000` (newer
-   installs: `API_GW_HTTP_PORT=127.0.0.1:8000`). If the second answers: set `KONG_HTTPS_PORT=127.0.0.1:8443`.
-   Then run `docker compose up -d` in the Supabase folder **[your server]**, and try both `curl` lines again. (A
-   firewall rule is not enough: Docker goes round `ufw`.)
-
-   The database itself may also answer from outside, on 5432 and on 6543 (newer installs, through its pooler).
-   Those need the database password, not the anon key, so the game does not change them. If nothing outside the
-   server needs them, have them closed the same way.
-
-   **Check:** both `curl` lines fail or time out.
-3. **The dashboard's password is strong.** In `.env`, `DASHBOARD_PASSWORD` is long and not used anywhere
-   else. Step 4 also has a query that shows what of your other projects the anon key could reach.
-
-   **Check:** you changed it, or you are sure it is strong.
+**Data on this host is synthetic or non-PHI only.** The server holds no health information, and the game adds
+none: it keeps player names, progress, scores and anonymous counts. Never load real people's data from another
+system into it, and test with made-up accounts.
 
 ---
 
-## Step 1. Give the Supabase a narrow public https address
+## Step 0. Look before changing anything (read only)
 
-The game needs two things from the Supabase and nothing else: the sign-in service (`/auth/v1/`) and the game's
-own functions (`/rest/v1/rpc/hs_...`). The public address serves those two and answers "not found" for
-everything else: the dashboard, your other projects' tables, storage and the rest stay where they are today.
+Each of these reads and prints no secret **[your server]**. Keep the answers: step 4 needs them, and the
+builder may ask for them.
 
-**If your Supabase is already public** because another project of yours uses it (try
-`curl -I https://<its address>/auth/v1/` **[your server]**): leave that address as it is, and still add the
-narrow one below for the game under a name of its own. Narrowing the existing address would break the other
-project. Tell the builder which case you are in.
-
-1. **DNS.** Where avunjian.com's DNS is managed, add an A record: name `supabase`, value `76.13.121.176` (the
-   same server as the game) **[your server]**.
-2. **The web server.** The game's server already runs a web server with https (nginx or Caddy). Add the
-   Supabase to it. Supabase's own gateway listens on port 8000 of the server.
-
-   If it runs **nginx**: put this one line into the `http { ... }` part of `/etc/nginx/nginx.conf` **[tried]**
-   (it keeps one counter per visitor's address, so nobody can flood the game's functions):
-
-   <!-- guide-check: nginx-zone -->
-   ```
-   limit_req_zone $binary_remote_addr zone=hs_rpc:10m rate=10r/s;
-   ```
-
-   Then create the file `/etc/nginx/sites-available/supabase` with this text **[tried]**:
-
-   <!-- guide-check: nginx-site -->
-   ```
-   server {
-       listen 80;
-       server_name supabase.avunjian.com;
-       client_max_body_size 512k;
-
-       # a path written to mean one thing to this server and another to the gateway behind it is refused
-       if ($request_uri ~* "^[^?]*(%2e|%2f|%5c|\.\.|//)") { return 404; }
-
-       # sign-in: only what the game's page uses. Supabase's other sign-in addresses make accounts, sign in
-       # with a password, or send mail and texts to any address: they are not served on this name
-       location ~ ^/auth/v1/(settings|authorize|callback|logout|health)$ {
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-       # a finished sign-in's token, and its renewal; no other kind of token
-       location = /auth/v1/token {
-           if ($arg_grant_type !~ "^(pkce|refresh_token)$") { return 404; }
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-       # who is signed in: read only (a change of email or password is not served)
-       location = /auth/v1/user {
-           limit_except GET OPTIONS { deny all; }
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-       # the game's functions, and only those
-       location /rest/v1/rpc/hs_ {
-           limit_req zone=hs_rpc burst=40 nodelay;
-           limit_req_status 429;
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-       # nothing else of the Supabase is served on this name
-       location / { return 404; }
-   }
-   ```
-
-   Then link it, get its certificate and reload **[your server]**:
-
-   ```
-   ln -s /etc/nginx/sites-available/supabase /etc/nginx/sites-enabled/supabase
-   nginx -t
-   certbot --nginx -d supabase.avunjian.com
-   systemctl reload nginx
-   ```
-
-   `nginx -t` must say `syntax is ok` and `test is successful` before you go on.
-
-   If the server runs **Caddy**, add this to `/etc/caddy/Caddyfile` and run `systemctl reload caddy`
-   **[your server]** (Caddy could not be installed on the builder's machine, so this block was written and not
-   tried; the check below tells you whether it works):
-
-   ```
-   supabase.avunjian.com {
-       request_body {
-           max_size 512KB
-       }
-       @signin path /auth/v1/settings /auth/v1/authorize /auth/v1/callback /auth/v1/logout /auth/v1/health
-       handle @signin {
-           reverse_proxy localhost:8000
-       }
-       @token {
-           path /auth/v1/token
-           query grant_type=pkce grant_type=refresh_token
-       }
-       handle @token {
-           reverse_proxy localhost:8000
-       }
-       @user {
-           path /auth/v1/user
-           method GET HEAD OPTIONS
-       }
-       handle @user {
-           reverse_proxy localhost:8000
-       }
-       @game path /rest/v1/rpc/hs_*
-       handle @game {
-           reverse_proxy localhost:8000
-       }
-       handle {
-           respond 404
-       }
-   }
-   ```
-
-   (Caddy has no limit per visitor's address built in, and this block has no counterpart of the nginx line that
-   refuses paths written to slip past it. The game's database has limits of its own, so these are second lines
-   of defense you do without on Caddy. The checks below and the builder's test of step 5 tell you whether the
-   block works as meant.)
-3. **Tell Supabase its address.** In the Supabase folder's `.env`, set these three lines **[your server]**.
-   **If another project already uses this Supabase, do not change the first two**: they are that project's, and
-   the providers' callback of step 2 is then that address, not the new one.
-
-   ```
-   SUPABASE_PUBLIC_URL=https://supabase.avunjian.com
-   API_EXTERNAL_URL=https://supabase.avunjian.com/auth/v1
-   SITE_URL=https://highland.avunjian.com
-   ```
-
-   `SITE_URL` is the **game's** address, not the Supabase's: it is where players are sent back after signing in,
-   and it covers the staging address `/next/` too. If another project already has its own `SITE_URL`, keep it
-   and add the game instead: `ADDITIONAL_REDIRECT_URLS=https://highland.avunjian.com/**`. If the game is also
-   served under a second name (hyeland.avunjian.com), add it to the same line, separated by a comma.
-4. **Restart Supabase** from its folder so it reads the new lines **[your server]**: `docker compose up -d`
-   (newer installs have a helper for the same: `sh run.sh start`).
-5. The dashboard (Studio) is **not** on the new address. Reach it as you do today. If today that is
-   `http://<server>:8000`, which step 0 has just closed, open it through a tunnel from your own computer
-   **[your server]**: `ssh -L 8000:127.0.0.1:8000 root@76.13.121.176`, then `http://localhost:8000` in your
-   browser.
-
-**Check.** On any computer other than the server **[tried]**:
-
-<!-- guide-check: step1-check -->
 ```
-curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/auth/v1/settings
-curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/
-curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/rest/v1/
-curl -s -o /dev/null -w "%{http_code}\n" https://supabase.avunjian.com/pg/
+ssh server 'cd ~/supabase-project && docker compose ps --format "{{.Service}} {{.State}}"'
+ssh server 'cd ~/supabase-project && grep -E "^(PGRST_DB_SCHEMAS|ADDITIONAL_REDIRECT_URLS|SITE_URL|API_EXTERNAL_URL|ENABLE_EMAIL_SIGNUP|ENABLE_EMAIL_AUTOCONFIRM|DISABLE_SIGNUP|SMTP_HOST|SMTP_SENDER_NAME|SMTP_ADMIN_EMAIL)=" .env'
+ssh server 'cd ~/supabase-project && grep -oE "^[A-Z_]*(GOOGLE|FACEBOOK|DISCORD)[A-Z_]*_ENABLED=[a-z]*" .env; grep -nE "GOTRUE_EXTERNAL_(GOOGLE|FACEBOOK|DISCORD)_[A-Z_]+" docker-compose.yml | cut -d: -f1-2'
+ssh server 'cd ~/supabase-project && grep -nE "GOTRUE_HOOK_[A-Z_]+_(ENABLED|URI)" docker-compose.yml .env'
+curl -s -H "apikey: THE_ANON_KEY" https://db.avunjian.com/auth/v1/settings
 ```
 
-You should see `401` (the sign-in service answered and wants a key), then `404`, `404`, `404`.
+What to look for:
 
-And these, which would make accounts or send mail through the game's address, must be refused too **[tried]**:
+- `PGRST_DB_SCHEMAS` should read `public,graphql_public,reqstream` (step 4a appends `highland`).
+- `ADDITIONAL_REDIRECT_URLS`: the other apps' return addresses (step 4b appends the game's two).
+- In the settings answer: `"external"` says which of `google`, `facebook`, `discord` are on (step 4c),
+  `"mailer_autoconfirm"` whether email addresses are trusted without a mail (see "The mail" below), and
+  `"disable_signup": false` that sign-up is open, as expected.
+- `GOTRUE_HOOK_...`: a hook another app set on sign-in (see "PathStream's hooks" below). The secrets of a hook
+  are in lines named `..._SECRETS`, which these commands do not print.
 
-<!-- guide-check: step1-auth-closed -->
+Then, through the tunnel of step 1, in `psql` **[tried]**:
+
+<!-- guide-check: survey-sql -->
+```sql
+select version();
+select rolname, rolsuper, rolbypassrls from pg_roles where rolname in ('postgres', 'anon', 'authenticated', 'service_role', 'authenticator') order by 1;
+select nspname from pg_namespace where nspname !~ '^pg_' and nspname <> 'information_schema' order by 1;
+select to_regnamespace('highland') is not null as highland_exists;
+select has_table_privilege('postgres', 'auth.users', 'select') as users, has_table_privilege('postgres', 'auth.identities', 'select') as identities;
+select count(*) as global_default_grants from pg_default_acl where defaclnamespace = 0;
+select exists (select 1 from pg_collation where collname = 'und-x-icu') as icu;
 ```
-curl -s -o /dev/null -w "%{http_code}\n" -X POST https://supabase.avunjian.com/auth/v1/signup
-curl -s -o /dev/null -w "%{http_code}\n" -X POST https://supabase.avunjian.com/auth/v1/otp
-curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://supabase.avunjian.com/auth/v1/token?grant_type=password"
-curl -s -o /dev/null -w "%{http_code}\n" -X PUT https://supabase.avunjian.com/auth/v1/user
-```
 
-You should see `404`, `404`, `404`, then `403` on nginx (or `404` on Caddy).
+**Check:** `postgres` is not a superuser (`rolsuper` false); `highland_exists` is false before step 3; `postgres`
+may select from `auth.users` and `auth.identities` (the game reads both, never writes them); the list of schemas
+holds `public`, `reqstream` and `reqstream_meta`, which nothing below touches.
 
 ---
 
-## Step 2. Make the three provider apps
+## Step 1. The tunnel
 
-Each provider needs to know the callback address, and gives you an **id** and a **secret**. Keep the secrets for
-step 3, and only there. You can do one provider now and the others later: the game shows a button only for the
-providers that are switched on. All of this step is in the providers' consoles **[your server]**.
+The database container has an address on the server's Docker network only. Find it **[your server]**:
 
-### Google
+```
+ssh server 'docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}" supabase-db'
+```
 
-1. Go to console.cloud.google.com. Create a project named "Highland Stand".
-2. Open "APIs & Services", then "OAuth consent screen". Choose **External**. Fill in the app name (Highland
-   Stand), your support email, and your contact email.
-3. Under branding or app domain: home page `https://highland.avunjian.com`, privacy policy
-   `https://highland.avunjian.com/?privacy`, authorized domain `avunjian.com`.
-4. Scopes: leave only the basic ones (email, profile, openid). Add nothing.
-5. Open "Credentials", "Create credentials", "OAuth client ID". Type: **Web application**. Under "Authorized
-   redirect URIs" add the callback address: `https://supabase.avunjian.com/auth/v1/callback`
-6. Copy the **client ID** and the **client secret** straight into the `.env` of step 3.
-7. Back on the consent screen (or "Audience"), press **Publish app** so the status reads "In production". While
-   it reads "Testing", only people you list can sign in.
+It prints one address such as `172.18.0.4`. Open the tunnel from your computer to that address's port 5432, on
+your computer's port 55622, and leave it open in its own window **[your server]**:
 
-Google's sign-in screen will say "to continue to supabase.avunjian.com". To show the game's name and logo there
-instead, Google asks for a verification of the brand; it is optional.
+```
+ssh -N -L 127.0.0.1:55622:172.18.0.4:5432 server
+```
 
-### Facebook
+(It goes straight to the database, not through Supavisor's pooler, so the plain user name `postgres` works.)
+Then, in the window you will work in, give the password to the tools without it ever showing on screen or in
+your shell's history. Either type it **[your server]**:
 
-1. Go to developers.facebook.com, "My Apps", "Create App". Choose the use case **Authenticate and request data
-   from users with Facebook Login**.
-2. In the use case's permissions, make sure both `public_profile` and `email` are added. Without `email`,
-   sign-in fails.
-3. Under "Facebook Login", "Settings", put the callback address into **Valid OAuth Redirect URIs**.
-4. Under "App settings", "Basic": an app icon, a category (Games), **Privacy Policy URL**
-   `https://highland.avunjian.com/?privacy`, and under **User data deletion** choose "Data deletion
-   instructions URL" and enter `https://highland.avunjian.com/?privacy#delete`.
-5. Copy the **App ID** and the **App secret** (Basic settings) into the `.env` of step 3.
-6. Switch the app from **Development** to **Live** (the switch at the top). In Development only you and the
-   testers you add can sign in. Meta may ask for a review or a business verification before it lets the app go
-   live; follow what its dashboard says. Until then, the game can open with Google and Discord only.
+```
+read -rs PGPASSWORD && export PGPASSWORD
+```
 
-### Discord
+or read it from the server's `.env` straight into the variable **[your server]**:
 
-1. Go to discord.com/developers/applications. "New Application", name it Highland Stand.
-2. Open "OAuth2". Under "Redirects" add the callback address. Save.
-3. Copy the **Client ID** and the **Client Secret** (press "Reset Secret" to see it once) into the `.env` of
-   step 3.
+```
+export PGPASSWORD="$(ssh server "grep -m1 '^POSTGRES_PASSWORD=' ~/supabase-project/.env | cut -d= -f2-")"
+```
 
-**Check:** each provider you made shows the callback address exactly as written above, with `https` and no
-slash at the end.
+The address of the database, for every command below, has no password in it:
+
+```
+export HS_DB_URL=postgres://postgres@127.0.0.1:55622/postgres
+psql "$HS_DB_URL" -c 'select current_user'
+```
+
+**Check:** the last line answers `postgres`. When you are done, `unset PGPASSWORD` and close the tunnel.
 
 ---
 
-## Step 3. Put the ids and secrets on the server
+## Step 2. A backup of the game's schema, before every change
 
-This is the only place the providers' secrets go.
+Before applying or rolling back a migration, and before restoring, take a copy of the schema `highland` alone,
+through the tunnel **[tried]**:
 
-1. Open the Supabase folder's `.env` and add, with your values **[your server]**:
+<!-- guide-check: backup -->
+```
+pg_dump "$HS_DB_URL" -n highland -Fc -f "highland-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+(Before the first migration there is nothing to copy: `pg_dump` says no schema matched. That is expected.) Use a
+`pg_dump` of version 17 or newer against the server's Postgres 17. Never dump `auth` or the whole database for
+the game: `auth.users` is every app's, with every person's email.
+
+**Each night**, on the server, the same copy from inside the container **[your server]**:
+
+```
+cat > ~/backup-highland.sh <<'END'
+#!/bin/sh
+# the game's schema each night, the last eight kept. The schema highland only: never auth, never another app's.
+set -e
+mkdir -p ~/backups
+docker exec supabase-db pg_dump -U postgres -d postgres -n highland -Fc -f /tmp/highland.dump
+docker cp supabase-db:/tmp/highland.dump ~/backups/highland-$(date +%F).dump
+docker exec supabase-db rm -f /tmp/highland.dump
+find ~/backups -name 'highland-*.dump' -mtime +7 -delete
+END
+chmod 700 ~/backup-highland.sh && ~/backup-highland.sh && ls -l ~/backups
+```
+
+and `crontab -e` with the line `17 3 * * * ~/backup-highland.sh >> ~/backup-highland.log 2>&1`.
+
+---
+
+## Step 3. The migrations
+
+From the game's repository on your computer, with the tunnel and `PGPASSWORD` of step 1 (once:
+`npm install --prefix tools/platform`). First see where the database stands **[tried]**:
+
+<!-- guide-check: migrate-status -->
+```
+node tools/platform/migrate.js status --dsn="$HS_DB_URL"
+```
+
+Then apply them all **[tried]**:
+
+<!-- guide-check: migrate-up -->
+```
+node tools/platform/migrate.js up --dsn="$HS_DB_URL"
+```
+
+The four migrations, each in one transaction of its own, each followed by the lockdown (the file
+`migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
+`service_role`) and, once 003 is in, 003's grants again:
+
+| migration | up | down |
+| --- | --- | --- |
+| `001_schema_tables` | the schema `highland`, the bookkeeping table `highland.schema_migrations`, the 12 tables and their indexes, row level security switched on | drops them, by name, without cascade, then the schema. **All the game's data goes**: back up first |
+| `002_functions` | the 17 `hs_` functions, the 27 helpers (`_...`) and the 5 views; nothing granted | drops each by its full signature |
+| `003_grants_policies` | USAGE on the schema to `anon` and `authenticated`; EXECUTE on the 4 open functions to both and on the 13 others to `authenticated`; `service_role` nothing; the policies; per-schema default privileges revoked | takes every grant back and drops the policies |
+| `004_seed` | the analytics' three ceilings and the name filter's words | deletes those rows |
+
+It runs as `postgres`, never a superuser (a superuser's connection is moved to `postgres`; a superuser
+`postgres` stops it), takes an advisory lock so two runs cannot overlap, waits at most 10 s for any lock another
+app holds, and refuses a migration whose file changed since it was applied. Nothing is created outside
+`highland`: the SQL tests prove the database outside it is the same, object for object and grant for grant,
+before and after every migration and every rollback.
+
+**Check** **[tried]**:
+
+<!-- guide-check: check-config -->
+```sql
+select highland.hs_config();
+```
+
+answers one small line with `"now"`, and `status` says `highland at 4 of 4`.
+
+**Rolling back.** To a given migration, after a backup (step 2), with `--yes` **[tried]**:
+
+<!-- guide-check: migrate-down -->
+```
+node tools/platform/migrate.js down 3 --dsn="$HS_DB_URL" --yes
+node tools/platform/migrate.js up --dsn="$HS_DB_URL"
+```
+
+`down 0 --yes` removes the schema and everything of the game. `--dry-run` shows the plan without changing
+anything. If the optional sign-in handoff (`deploy/supabase/optional/handoff.up.sql`) was ever loaded, take it
+away first (`psql "$HS_DB_URL" -1 -f deploy/supabase/optional/handoff.down.sql`), since it needs 003.
+
+**If a grant was ever given by hand** (someone typed `grant select on highland.hs_saves to authenticated` in a
+SQL editor), put it right **[tried]**:
+
+<!-- guide-check: regrant -->
+```
+node tools/platform/migrate.js regrant --dsn="$HS_DB_URL"
+```
+
+(Even meanwhile, the policies let a player read only his own rows of the per-player tables, and nothing of the
+others, and write nothing; `service_role` bypasses row level security, so for it the missing grants are the only
+wall, which is why nothing is ever granted to it.)
+
+---
+
+## Step 4. The shared changes (each one asks first)
+
+These three change the Supabase every app shares. **Each needs the owner's explicit yes, given for that change
+alone, at the time.** Do them one at a time, with a backup of the two files first, and check each before the
+next. Each restart **blips sign-in and the REST API for every app for a few seconds**: choose a quiet moment
+and tell the other apps' users if they would notice.
+
+The backup, before each change **[your server]**:
+
+```
+ssh server 'cd ~/supabase-project && t=$(date +%Y%m%d-%H%M%S) && cp -p .env .env.bak-$t && cp -p docker-compose.yml docker-compose.yml.bak-$t && ls -l .env.bak-$t docker-compose.yml.bak-$t'
+```
+
+The rollback of any of them: put the backup back and restart the same two services **[your server]**:
+
+```
+ssh server 'cd ~/supabase-project && cp -p .env.bak-THE_TIME .env && cp -p docker-compose.yml.bak-THE_TIME docker-compose.yml && docker compose up -d rest auth'
+```
+
+### 4a. Serve the schema `highland` [asks first]
+
+PostgREST serves only the schemas in `PGRST_DB_SCHEMAS`. Append `highland`, never removing an entry
+**[your server]**:
+
+```
+ssh server 'cd ~/supabase-project && sed -i "s/^PGRST_DB_SCHEMAS=public,graphql_public,reqstream$/PGRST_DB_SCHEMAS=public,graphql_public,reqstream,highland/" .env && grep "^PGRST_DB_SCHEMAS=" .env'
+ssh server 'cd ~/supabase-project && docker compose up -d rest auth'
+```
+
+The `sed` changes the line only if it reads exactly as step 0 found it; if the last line does not end
+`,highland`, stop and look (the line was different). The first schema stays `public`, so PathStream's calls, which
+name no schema, go on reaching `public` as before.
+
+**Check** **[tried]**:
+
+<!-- guide-check: check-rest -->
+```
+curl -s -X POST https://db.avunjian.com/rest/v1/rpc/hs_config -H "apikey: THE_ANON_KEY" -H "Content-Type: application/json" -H "Content-Profile: highland" --data '{}'
+curl -s -o /dev/null -w "%{http_code}\n" https://db.avunjian.com/rest/v1/hs_saves -H "apikey: THE_ANON_KEY" -H "Accept-Profile: highland"
+```
+
+The first answers a line with `"now"`; the second `401` (the table is refused by the database itself). A
+`PGRST106` answer means `highland` is not yet in the list PostgREST read.
+
+### 4b. Let the sign-in come back to the game [asks first]
+
+`SITE_URL` is another app's, so a sign-in returns to the game only if its address is in
+`ADDITIONAL_REDIRECT_URLS`; otherwise GoTrue sends the player to that other app. The page asks to come back to
+its own address with its query: `https://highland.avunjian.com/?hsh=...` from the live game,
+`https://highland.avunjian.com/next/?hsh=...` from the staging page, and `/?stats&hsh=...` or
+`/next/?stats&hsh=...` from the stats page. GoTrue matches the whole address against each pattern, where `*`
+stops at `/` and `.` and `**` does not, so `https://highland.avunjian.com/**` covers all four and
+`https://highland.avunjian.com/next/**` the staging two (it is listed as well, so the staging page keeps working
+even if the first is ever narrowed). Append both, keeping the existing ones **[your server]**:
+
+```
+ssh server 'cd ~/supabase-project && grep "^ADDITIONAL_REDIRECT_URLS=" .env'
+ssh server 'cd ~/supabase-project && sed -i "/^ADDITIONAL_REDIRECT_URLS=./ s|\$|,https://highland.avunjian.com/**,https://highland.avunjian.com/next/**|" .env && grep "^ADDITIONAL_REDIRECT_URLS=" .env'
+ssh server 'cd ~/supabase-project && docker compose up -d rest auth'
+```
+
+(If the first line printed an empty value, `ADDITIONAL_REDIRECT_URLS=` and nothing after it, the `sed` changes
+nothing: then set the line to the two addresses alone, without a leading comma.)
+
+**Check:** after step 4c, a sign-in begun on `https://highland.avunjian.com/next/` comes back to
+`/next/` with `code=` in the address, not to the other app.
+
+### 4c. The sign-in providers, only those not already there [asks first, one provider at a time]
+
+Step 0's settings answer says which of `google`, `facebook` and `discord` are on. A provider already on (for
+another app) needs nothing but the game's callback being the same callback address, which it is, since there is
+one GoTrue: leave it as it is. For each one that is off, and only with the owner's yes for that provider:
+
+1. In the provider's console, make the app (Google: an OAuth client of type Web application; Facebook: Facebook
+   Login with `email` beside `public_profile`; Discord: an application with OAuth2), with the **callback
+   address** `https://db.avunjian.com/auth/v1/callback` as its redirect, home page
+   `https://highland.avunjian.com`, privacy `https://highland.avunjian.com/?privacy`, and for Facebook the
+   deletion instructions `https://highland.avunjian.com/?privacy#delete`. If the provider's app already exists
+   for another app, the game shares it: its name is what the consent screen shows.
+2. Add the provider's three values to `.env` with an editor on the server (not with a command that would put the
+   secret in your shell history), e.g. `DISCORD_ENABLED=true`, `DISCORD_CLIENT_ID=...`, `DISCORD_SECRET=...`
+   **[your server]**.
+3. In `docker-compose.yml`, under the `auth:` service's `environment:`, the provider's lines, if they are not
+   there yet (for Facebook and Discord also `..._EMAIL_OPTIONAL: "true"`, which lets in an account with no
+   email) **[your server]**:
 
    ```
-   GOOGLE_ENABLED=true
-   GOOGLE_CLIENT_ID=...apps.googleusercontent.com
-   GOOGLE_SECRET=...
-
-   FACEBOOK_ENABLED=true
-   FACEBOOK_CLIENT_ID=...
-   FACEBOOK_SECRET=...
-
-   DISCORD_ENABLED=true
-   DISCORD_CLIENT_ID=...
-   DISCORD_SECRET=...
-   ```
-
-   A provider you have not made yet gets `..._ENABLED=false` and no other lines.
-2. Open `docker-compose.yml` in the same folder. Find the `auth:` service and its `environment:` list. The
-   Google lines are already there with a `#` in front: remove the `#`. Add the same four lines for Facebook and
-   Discord, and one more for each of those two (it lets people sign in whose Facebook or Discord account has no
-   email address) **[your server]**:
-
-   ```
-         GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED}
-         GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-         GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
-         GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/callback
-
-         GOTRUE_EXTERNAL_FACEBOOK_ENABLED: ${FACEBOOK_ENABLED}
-         GOTRUE_EXTERNAL_FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID}
-         GOTRUE_EXTERNAL_FACEBOOK_SECRET: ${FACEBOOK_SECRET}
-         GOTRUE_EXTERNAL_FACEBOOK_REDIRECT_URI: ${API_EXTERNAL_URL}/callback
-         GOTRUE_EXTERNAL_FACEBOOK_EMAIL_OPTIONAL: "true"
-
          GOTRUE_EXTERNAL_DISCORD_ENABLED: ${DISCORD_ENABLED}
          GOTRUE_EXTERNAL_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
          GOTRUE_EXTERNAL_DISCORD_SECRET: ${DISCORD_SECRET}
-         GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI: ${API_EXTERNAL_URL}/callback
+         GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
          GOTRUE_EXTERNAL_DISCORD_EMAIL_OPTIONAL: "true"
    ```
 
-   Keep the indentation of the lines around them. The `${...}` parts are names, not values: the secrets stay in
-   `.env` and are not copied into this file.
-3. Restart the sign-in service from the Supabase folder **[your server]**: `sh run.sh recreate auth` (older
-   installs: `docker compose up -d --force-recreate auth`).
+   (`API_EXTERNAL_URL` must be `https://db.avunjian.com`; step 0 printed it. If another provider's
+   `REDIRECT_URI` line in the same file is written differently, copy its form.)
+4. `docker compose up -d rest auth` **[your server]**.
 
-**Check.** Find the anon key: it is the line `ANON_KEY=...` in `.env` (newer installs may call it
-`SUPABASE_PUBLISHABLE_KEY`). Then, on any computer **[tried]**:
+**Check:** the settings answer of step 0 now says `true` for that provider, and
+`curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "https://db.avunjian.com/auth/v1/authorize?provider=discord"`
+answers `302` with the provider's address.
 
-<!-- guide-check: step3-settings -->
-```
-curl -H "apikey: PASTE_THE_ANON_KEY" https://supabase.avunjian.com/auth/v1/settings
-```
+### PathStream's hooks
 
-In the answer, under `"external"`, you should see `"google":true`, `"facebook":true`, `"discord":true`. A
-provider that reads `false` is not switched on: look at its lines in both files again.
+If step 0 found a `GOTRUE_HOOK_..._ENABLED: "true"` line, a hook runs on every sign-in, for every app. Read what
+it does before the game's players sign in, without changing it **[your server]**: its `..._URI` line names it, for
+example `pg-functions://postgres/public/custom_access_token_hook`; in `psql`, `\sf public.custom_access_token_hook`
+shows it. It must let a Google, Facebook or Discord account that PathStream has never seen through: a
+`before_user_created` hook that refuses unknown people would stop every new player, and a
+`custom_access_token` hook must keep the claims `sub`, `role` (`authenticated`) and `amr` (the game asks that a
+session began with a provider: `amr` holds `oauth`). If it does not, tell the builder and PathStream's
+owner; do not edit another app's hook.
 
-**Look for one more word in the same answer: `"mailer_autoconfirm"`. It must read `false`.**
+### The mail
 
-If it reads `true`, your Supabase accepts an email address without checking it. That is common on installs
-without a mail server. For this game it is dangerous with Discord: someone can make a Discord account with
-**your** email address, never confirm it, press "Continue with Discord", and be let into **your** account, which
-step 6 makes the admin. The game's page protects you by itself: while the word reads `true` it shows no Discord
-button, and the stats page says so in red. To have Discord, choose one **[your server]**:
+The server's mail is a placeholder (`SMTP_HOST=supabase-mail`, a fake sender): no email leaves it. The game has
+no email sign-in, so it sends and needs no mail: Google, Facebook and Discord confirm the address themselves. What
+it means all the same:
 
-- set `ENABLE_EMAIL_AUTOCONFIRM=false` in `.env` and restart the sign-in service. Your other projects' sign-ups
-  by email and password then need a working mail server (the `SMTP_` lines) to confirm addresses. If another
-  project relies on sign-ups without confirmation, do not change it, and instead
-- leave Discord off (`DISCORD_ENABLED=false`): Google and Facebook are not affected.
-
-Two more checks that the game's page will be allowed to call the Supabase **[tried]**:
-
-<!-- guide-check: step3-preflight -->
-```
-curl -i -X OPTIONS https://supabase.avunjian.com/rest/v1/rpc/hs_config \
-  -H "Origin: https://highland.avunjian.com" \
-  -H "Access-Control-Request-Method: POST" \
-  -H "Access-Control-Request-Headers: apikey,authorization,content-type"
-```
-
-You should see a `200` or `204` and a line `access-control-allow-origin`.
-
-<!-- guide-check: step3-authorize -->
-```
-curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "https://supabase.avunjian.com/auth/v1/authorize?provider=google"
-```
-
-You should see `302` and an address that begins `https://accounts.google.com/`. (If you see `401`, the gateway
-of your install wants the key on this address too: tell the builder.)
-
----
-
-## Step 4. Create the game's tables
-
-1. Open the dashboard as you do today (step 1, item 5), sign in, open **SQL Editor**.
-2. Open the file `deploy/supabase/schema.sql` from the game's repository, copy all of it, paste it into the
-   editor and press **Run** **[tried]**.
-3. You should see "Success". Running it again later is safe: it only adds what is missing and replaces the
-   game's own functions.
-
-The file may print up to three warnings. Each begins with the word `WARNING`. Copy any you see to the builder:
-that "Delete my account" will fail (the role the editor runs as may not delete accounts on your install); that
-the name rule does not read letters as expected; that some functions are owned by a superuser.
-
-If the editor says `permission denied to set role "postgres"`, tell the builder: your editor runs as a role
-that cannot hand its work to the `postgres` role, and one line is needed.
-
-Do **not** run `schema-handoff.sql`, which lies beside it, unless the builder asks you to after step 6.
-
-**Check.** In the editor run **[tried]**:
-
-<!-- guide-check: step4-config -->
-```sql
-select public.hs_config();
-```
-
-It answers with one small line that contains `"now"`.
-
-**The audit of your other projects.** Run this in the same editor **[tried]**. It lists every table that anyone
-holding the anon key can read or change because it has no row level security, and every function such a visitor
-may run that is not the game's:
-
-<!-- guide-check: step4-audit -->
-```sql
-select 'table without row level security' as what, n.nspname || '.' || c.relname as name
-from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where c.relkind in ('r', 'p') and n.nspname in ('public', 'graphql_public', 'storage') and not c.relrowsecurity
-  and exists (select 1 from (values ('anon'), ('authenticated')) r(role), (values ('select'), ('insert'), ('update'), ('delete')) q(priv)
-              where has_table_privilege(r.role, c.oid, q.priv))
-union all
-select 'policy to read (' || p.cmd || ' for ' || array_to_string(p.roles, ', ') || ')', p.schemaname || '.' || p.tablename || ': ' || p.policyname
-from pg_policies p
-where p.schemaname in ('public', 'graphql_public', 'storage') and p.roles && array['public', 'anon', 'authenticated']::name[]
-union all
-select 'function a visitor may run', n.nspname || '.' || p.proname
-from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public' and p.proname not like 'hs\_%' and has_function_privilege('anon', p.oid, 'execute')
-order by 1, 2;
-```
-
-It looks at three things: tables anyone with the key can read, add to, change or delete from because row level
-security is off; the rules (policies) that let visitors or signed-in people into a table where it is on; and
-functions a visitor may run. The schema `storage` is Supabase's file storage.
-
-No rows: none of those three exists. That is a good sign, not a full audit: whether some other part of a project
-is safe only its author can say. Rows: those belong to your other projects (the game's own tables have row level
-security, no policies, and are not listed). They were just as exposed before, to anyone who had the key and an
-address that reaches this Supabase; the game makes the key easy to find. A table listed without row level
-security: switch it on (`alter table <name> enable row level security;` and then the policies that project
-needs), or ask whoever built that project. A policy: read it with its author, since it may let in more than it
-should. The narrow address of step 1 keeps all of them unreachable **through the game's address** only.
+- Email sign-up is open but no confirmation mail arrives. If `mailer_autoconfirm` is `true`, an address typed at
+  any app's sign-up counts as confirmed without anyone proving it is theirs. GoTrue links accounts that share a
+  confirmed email: someone could sign up with a player's address before that player first comes with Google, and
+  share the account. The game guards against what that would give: an account becomes a player only through the
+  name card and only with a Google, Facebook or Discord sign-in, and every player's function asks that the session
+  itself began with one of them, so a password session of the same account reaches nothing of the game. While
+  `mailer_autoconfirm` is `true` the page also holds the Discord button back (a Discord account may carry an
+  address Discord never checked) and the stats page says so in red. Switching it off would change the other apps'
+  sign-up, so it is theirs to decide.
+- No recovery or magic-link mail reaches anyone: irrelevant to the game, which has no password.
+- "Delete my account" sends no mail.
 
 ---
 
 ## Step 5. Hand over the two public values
 
-Send the builder exactly these two things. They are safe to send in any way you like, chat included: they end up
-in the page that every player's browser loads.
+The builder needs the public address `https://db.avunjian.com` and the anon key (`ANON_KEY` in `.env`, safe to
+send: it is in every app's page). Nothing else. With them he runs the smoke test from outside **[tried]**:
 
-- the Supabase address: `https://supabase.avunjian.com`
-- the anon key (the long `ANON_KEY` value)
-
-**Do not send** the `SERVICE_ROLE_KEY`, the `JWT_SECRET`, a provider's secret, the database password or the
-dashboard password. Nobody needs them, the builder included.
-
-The same day the builder runs a test from outside with only those two values **[tried]**:
-
-<!-- guide-check: step5-smoke -->
+<!-- guide-check: smoke -->
 ```
-node tools/platform/smoke.js https://supabase.avunjian.com PASTE_THE_ANON_KEY
+node tools/platform/smoke.js https://db.avunjian.com THE_ANON_KEY
 ```
 
-It makes thirteen checks: that the key is not an example key, that sign-in answers, that the address is narrow
-(nothing but what the game uses, no sign-up and no mail), that no table can be read, that the gateway's ports
-8000 and 8443 are closed and the certificate valid. It changes nothing on
-your server but one counted visit marked as a test. You get its lines back; anything marked FAIL comes with what
-to do.
+On the shared server **check 11 fails by design**: it was written for a Supabase of the game's own behind a narrow
+public name, and this one serves the whole API, Auth's sign-up included, for the other apps. What stands in its
+place: no table or helper of `highland` is granted to any API role (checks 7 and 8), every table has row level
+security with policies, and an account is a player only by the game's own name card. Any other FAIL comes with
+what to do.
 
-The builder then puts the two values into the game on the branch `next`. Within a few minutes the staging
-address shows it: **https://highland.avunjian.com/next/** . The live game does not change. What you do on the
-staging address is kept apart from the live game: its saves, its scores and its counts are its own. Use a
-private window for it anyway, so the staging page and the live game do not share a browser's memory.
-
-**Check:** the builder has said the smoke test passed, and `https://highland.avunjian.com/next/` opens the game.
+Until the builder puts the two values into the page, the page makes no request at all and plays exactly as it
+does today.
 
 ---
 
-## Step 6. Sign in, and make yourself the admin
+## Step 6. Make yourself the admin
 
-1. **On your iPhone first.** Open `https://highland.avunjian.com/next/` in Safari, tap Share, "Add to Home
-   Screen", open the game from the Home Screen icon, and sign in there with Google. Then tell the builder which
-   of these happened:
-   - the game on the Home Screen said "Welcome" (this is the good case, and nothing more is built for it), or
-   - Safari or a sheet opened and said "Sign-in did not finish here", and the Home Screen game still shows the
-     sign-in page. (Then the builder adds a small piece that hands the sign-in back to the Home Screen game, and
-     you run one more file, `schema-handoff.sql`, the same way as step 4.)
-2. On a computer, open `https://highland.avunjian.com/next/` and sign in with the account you want to be the
-   admin. First make sure step 3's `"mailer_autoconfirm"` reads `false`, or that Discord is off.
-3. In the dashboard's SQL Editor run this, with the email address of that account **[tried]**:
+Sign in on `https://highland.avunjian.com/next/` with the account you want to be the admin, and choose a name.
+Then, through the tunnel, with that account's email **[tried]**:
 
-   <!-- guide-check: step6-admin -->
-   ```sql
-   insert into public.hs_admins (user_id)
-   select id from auth.users where email = 'you@example.com';
-   ```
-
-   It should say one row was added. (If it says zero, the address is not the one you signed in with. Look under
-   **Authentication**, **Users** in the dashboard for the address it has.)
-4. Open `https://highland.avunjian.com/next/?stats`.
-
-**Check:** you see the stats page. Anyone else sees "This page is for the game's owner."
-
----
-
-## Step 7. Publish the ruleset (from the second release on)
-
-The first release has accounts, saved progress and the stats page, and no leaderboards yet: skip this step until
-the builder says the boards are in.
-
-On the stats page, under **Rulesets**, press **Publish ruleset**. This tells the server the rules of the battles
-in this version of the game, so it can check scores. Do it again whenever the stats page says a new version's
-ruleset is waiting (after an update that changes the battles). Until it is published, battles work but scores
-are not ranked. The staging page publishes its own ruleset the same way, from `/next/?stats`; its boards are its
-own.
-
-**Check:** the stats page no longer says a ruleset is waiting.
-
----
-
-## Step 8. The checklist
-
-Try each line on `https://highland.avunjian.com/next/`. Tick it when it does what it says. Lines marked
-"(second release)" or "(third release)" wait until the builder says those are in.
-
-Signing in:
-
-- [ ] On a computer, in Chrome or Edge: Continue with Google signs you in and shows "Welcome".
-- [ ] The same with Facebook, and with Discord.
-- [ ] On an iPhone in Safari: each of the three.
-- [ ] On the iPhone, open the game from its Home Screen icon and sign in (step 6 tried this once; try each
-      provider now). The Home Screen game keeps its own sign-in, apart from Safari's.
-- [ ] Press Google's button, and on Google's page press the browser's Back button. The game shows "Sign-in did
-      not finish". Do it a second time: the game offers **Play now**, and Play now works.
-- [ ] In Safari's settings switch on "Block All Cookies" (or open the page in a browser with this site's data
-      blocked): the game says "This browser is not keeping this site's data" and **Play now** works. Switch it
-      back.
-- [ ] On an iPad, and on an Android phone.
-- [ ] Open the staging address from a link inside the Facebook or Instagram app: the page says to open it in
-      Safari or Chrome for Google, and the Facebook button works. Try **Open in browser** there and tell the
-      builder whether it opened Safari or Chrome.
-- [ ] A name already taken is refused; a name with `<` in it, or with a star or a smiley, is refused; your name
-      in Armenian letters is accepted.
-
-Playing on:
-
-- [ ] Play two waves on the computer and close the tab. Open the staging page on the phone with the same
-      account: the first button says "Resume: ..., Wave 3", and it resumes that battle.
-- [ ] (Second release) Win a battle: the victory page shows a score and a place; the Leaderboard button shows
-      your name. Share makes a picture with the battlefield, the stars and the score.
-- [ ] (Third release) The Hall's Daily tab shows today's challenge; playing it puts you on today's board.
-
-When things go wrong:
-
-- [ ] On the server, in the Supabase folder, stop the sign-in service **[your server]**: `docker compose stop auth`.
-      Open the staging page in a private window: it says "Sign-in is not answering" and **Play now** lets you
-      play. Start it again **[your server]**: `docker compose start auth`.
-- [ ] Turn the phone's airplane mode on in the middle of a battle, clear a wave, turn it off: the Account tab
-      says "Saved to your account" within a minute.
-
-Your data:
-
-- [ ] Account, **Sign out**: the game returns to the sign-in page.
-- [ ] Sign in again, then Account, **Delete my account**: in the dashboard, under Authentication, Users, the
-      account is gone. (Then sign in again and repeat step 6, because the admin went with the account. Do this
-      test with a second account if you prefer.)
-- [ ] `https://highland.avunjian.com/next/?privacy` shows the privacy page with your name, contact and country
-      filled in.
-
-The stats page:
-
-- [ ] The page opens with its cards. (Visits to `/next/` are left out of every card, so the funnel fills only once
-      the live game has visitors.) The gate switch changes to "optional" and a private window then offers
-      "Play as a guest" **the first time it opens the page**; change it back to the mode you want.
-- [ ] The Health card at the top shows nothing in red.
-
-**Check:** every line of the release at hand is ticked. Then tell the builder.
-
----
-
-## Step 9. Going live, and keeping it well
-
-**Going live.** When the checklist is ticked, tell the builder to merge `next` into `master`. Two minutes later
-the live game has accounts. Players who already have progress on a device keep it: the first time they sign in,
-it is saved to their account.
-
-**Each week.** Open `https://highland.avunjian.com/?stats`. Look at the funnel (how many visitors sign in), at
-"Where players quit", and at "Scores to look at": remove a score that cannot be real, or hide the player. Your
-own visits to `?stats` and anyone's to `?privacy` are not in the funnel or the gate card, so signing in there
-does not change them.
-
-**Names.** The game refuses its own name and words like "admin" in player names. Add the words you want refused
-in the SQL Editor (lower case, no spaces) **[tried]**:
-
-<!-- guide-check: step9-names -->
+<!-- guide-check: admin -->
 ```sql
-insert into public.hs_name_blocklist (pattern) values ('someword'), ('anotherword');
+insert into highland.hs_admins (user_id) select id from auth.users where email = 'you@example.com';
 ```
 
-**Backups.** The players' accounts, progress and scores now live in your Supabase database. If it is not backed
-up yet, make a daily copy. First write a small script, by pasting this whole block on the server **[your
-server]**:
+It should say one row was added. **Check:** `https://highland.avunjian.com/next/?stats` shows the stats page.
 
-```
-cat > /root/backup-highland.sh <<'END'
-#!/bin/sh
-# a copy of the Supabase database each day, the last eight days kept
-set -e
-mkdir -p /root/backups
-docker exec supabase-db pg_dump -U postgres -d postgres -Fc -f /tmp/highland.dump
-docker cp supabase-db:/tmp/highland.dump "/root/backups/highland-$(date +%F).dump"
-docker exec supabase-db rm -f /tmp/highland.dump
-find /root/backups -name 'highland-*.dump' -mtime +7 -delete
-END
-chmod 700 /root/backup-highland.sh
-/root/backup-highland.sh && ls -l /root/backups
-```
+**Names.** Words refused in player names, lower case, no spaces **[tried]**:
 
-**Check:** the last line lists one file, `highland-` and today's date, of more than a few kilobytes. (If
-`pg_dump` says "permission denied", change `-U postgres` to `-U supabase_admin` in the script and run it
-again.)
-
-Then have it run every night: run `crontab -e` and add this line at the end **[your server]**:
-
-```
-17 3 * * * /root/backup-highland.sh >> /root/backup-highland.log 2>&1
-```
-
-(The line has no `%` sign, which cron would read as a line break, and the script makes its folder itself, so it
-runs at night as it did by hand. Keep a copy somewhere off the server now and then too. A backup holds the
-players' email addresses: keep it as private as the server.)
-
-**Old counts.** Nothing to do: the game removes visits older than 180 days by itself, a few at a time, as new
-ones arrive. The stats page shows how full the counts are and has a button, "Remove old events", for when you
-want it done at once (press it again while it says there is more). The counts can never grow past the ceiling
-set under Switches (1 GB to begin with): when they reach it, visitors who are not signed in are no longer counted
-until old visits have left.
-
-**The privacy page.** Fill in its bracketed places: your name, a contact address, the country of the server, and
-the number of days your web server keeps its access logs (nginx's default with `logrotate` is 14 weekly files;
-say what yours is, or set it). Have the page read by someone who knows your country's law, and ask that person
-one question in particular: may the game keep a random number in a visitor's browser to count visits before the
-visitor has chosen anything? If the answer is no, tell the builder (one setting changes it).
-
-**Turning things off in a hurry.** On the stats page, under Switches: the gate can be set to `off` (nobody is
-asked to sign in), and boards or the daily can be switched off. To switch the whole account system off for every
-player without a new version of the game, run in the SQL Editor **[tried]**:
-
-<!-- guide-check: step9-cloud-off -->
+<!-- guide-check: names -->
 ```sql
-insert into public.hs_config (key, value) values ('cloud', 'false')
-on conflict (key) do update set value = excluded.value;
+insert into highland.hs_name_blocklist (pattern) values ('someword'), ('anotherword') on conflict do nothing;
 ```
 
-The game then plays as it did before accounts. Delete that row to switch it on again **[tried]**:
+**Switching the accounts off in a hurry**, for every player, without a new page **[tried]**:
 
-<!-- guide-check: step9-cloud-on -->
+<!-- guide-check: cloud-off -->
 ```sql
-delete from public.hs_config where key = 'cloud';
+insert into highland.hs_config (key, value) values ('cloud', 'false') on conflict (key) do update set value = excluded.value;
 ```
 
-**If a provider's secret leaks.** Make a new secret in that provider's console, put it into `.env`, and run
-`sh run.sh recreate auth` **[your server]**. Players stay signed in.
+and on again **[tried]**:
 
-**If the anon key or the JWT secret must change.** Making new keys (step 0) signs every player out once; they
-sign in again and have everything back. Send the builder the new anon key (step 5).
+<!-- guide-check: cloud-on -->
+```sql
+delete from highland.hs_config where key = 'cloud';
+```
+
+---
+
+## Who may do what
+
+- **A visitor** (the anon key alone): `hs_config`, `hs_track`, `hs_board`, `hs_daily_status`.
+- **A signed-in account** proves who it is, nothing more. It becomes a **player** only when the game's name card
+  makes its profile (`hs_profile_set_name`), which it does only for an account that signed in with Google,
+  Facebook or Discord. An account made through another app's email sign-up has no profile and gets what a visitor
+  gets: every player's function answers `no_profile` (403).
+- **A player**, in a session begun with a provider: his own profile, saves, battles and scores, nothing of
+  anyone else's. No function takes another player's id.
+- **An admin** (a row in `highland.hs_admins`, step 6): the stats page and its switches. Every other caller is
+  refused with `not_admin`.
+- **"Delete my account"** removes the player's rows in `highland` only (profile, saves, battles, scores, board
+  rows, visits, rate counters, an admin's row). The sign-in account in `auth.users` is shared with the other apps
+  and is never touched: the person can still sign in to them, and if they sign in to the game again they start
+  as a new player. To have the sign-in itself removed, a person writes to the owner.
+
+---
+
+## Restoring
+
+Rehearse a restore on your computer, never on the server, from a backup of step 2 **[tried]**:
+
+<!-- guide-check: rehearsal -->
+```
+bash deploy/supabase/restore-rehearsal.sh highland-THE_TIME.dump
+```
+
+(Without a file it makes a populated database of its own and backs that up.) It restores into a fresh database
+that has Supabase's stand-ins, as `postgres` (not a superuser), then checks everything below and runs the
+isolation tests against the restored copy. The traps it walks through, which a real restore must handle the same
+way:
+
+1. **Extensions are not in the dump.** A dump of one schema carries no `CREATE EXTENSION`. Make any extension the
+   schema needs first. The game needs none (it uses PostgreSQL's own `gen_random_uuid` and `normalize`); the
+   rehearsal checks the dump for calls into one.
+2. **`auth.users` is not in the dump, and must never be dumped for the game.** The game's tables point at it. On
+   the real server the accounts are there already. In a scratch database, the rehearsal adds stand-in rows (ids
+   only) between the data and the foreign keys, restoring in three sections (`--section=pre-data`, `data`,
+   `post-data`).
+3. **A restore widens the grants.** Supabase's global default privileges grant everything `postgres` makes, in
+   any schema, to `anon`, `authenticated` and `service_role`; restoring re-creates every table and function, so
+   they are all granted again (the rehearsal counts them: dozens). The dump's own grant lines do not take that
+   back. **After every restore run `node tools/platform/migrate.js regrant`** (the lockdown and 003 again). The
+   rehearsal also restores a second copy without it and shows the isolation tests fail on that copy.
+4. **Restore as `postgres`, with `--no-owner`.** A superuser would own what it restores, and a function owned by
+   a superuser runs as one. Do not restore with `--clean` into the live database: drop the schema with the
+   migrations (`down 0`) after a backup, then restore.
+5. **Nothing rides on settings or schedules.** No function reads a role or database setting of its own (only
+   `auth.uid()` and `auth.jwt()` read the request's claims), `search_path` is pinned to `''` on every function in
+   the function itself, and there is no `pg_cron` job (old visits leave by themselves and through the stats
+   page's purge). The rehearsal checks all three on the restored copy, with row level security and its policies
+   on every table and `security_invoker` on every view.
+6. **The bookkeeping comes with the data.** `highland.schema_migrations` is restored with the rest; `migrate.js
+   status` must then say every migration is applied with a matching checksum. A dump from an older version of the
+   migrations restores the older schema: apply `up` after it.
+
+To restore for real (after the owner's yes): back up the current schema (step 2), `migrate.js down 0 --yes`,
+`pg_restore -d "$HS_DB_URL" --no-owner --exit-on-error --single-transaction highland-THE_TIME.dump`, then
+`migrate.js regrant` and `migrate.js status`.
+
+---
+
+## What only the real server can show
+
+- That Kong passes `Accept-Profile` and `Content-Profile` to PostgREST and allows them in its CORS answer (its
+  cors plugin, set with no header list, allows what a preflight asks for, and the stand-in does the same; step
+  4a's check tries the call, and the smoke test's check 4 the preflight).
+- That GoTrue's tokens for a Google, Facebook or Discord sign-in carry `amr` with `oauth`, after a refresh too
+  (decode one access token after signing in on `/next/`; the page never shows it, so use the browser's storage
+  inspector: the key ends `hs_pf_auth`).
+- That `postgres` may read `auth.identities` there (step 0's survey).
+- That pg-safeupdate is loaded for the API's sessions (the tests load a stand-in of it; every UPDATE and DELETE in
+  the migrations has a WHERE, checked by `tools/platform/sqlcheck.js`).
+- That GoTrue matches the two redirect patterns as the stand-in does (step 4b's check).
+- PathStream's hooks (above).

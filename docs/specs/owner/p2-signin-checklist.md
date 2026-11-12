@@ -147,8 +147,8 @@ Send the builder the letter (and, for D, what you saw). Also say which iPhone an
 
 - **A** or **C**: nothing more is built. The Home Screen game signs in as it is.
 - **B**: the builder adds a small piece (work package P2b, "the handoff") that brings the finished sign-in back
-  to the Home Screen game, and you then run one more file on the server, `schema-handoff.sql`, the same way as
-  setup step 4. Until then, players who use the Home Screen game get "Play now" after two tries, and nobody is
+  to the Home Screen game, and you then load one more file into the game's schema,
+  `deploy/supabase/optional/handoff.up.sql`, through the tunnel (setup guide, step 3). Until then, players who use the Home Screen game get "Play now" after two tries, and nobody is
   locked out.
 - **D**: the builder looks at what you saw before deciding.
 

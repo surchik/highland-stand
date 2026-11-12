@@ -420,14 +420,15 @@ cannot push: "Your latest progress could not be saved yet. Sign out anyway?" wit
 either: "Sign out? Your progress stays in your account. This device starts fresh."
 
 **Delete my account** (Account tab, a second tap confirms as Abandon does today, line 60595):
-`POST /rpc/hs_delete_account`, which removes the profile, the save, the runs, the scores and board rows, the
-visits that carried the account and the same devices' visits from before any sign-in, the sign-in service's
-own log of the account, and the account's row in `auth.users` (and with it Supabase's
-identities, sessions and refresh tokens). Then the device is cleared as at sign-out, a new anonymous id is made, and the page reloads to the
-gate. Words: "Delete your account? Your name, progress and scores are removed from our server and from this
-device. This cannot be undone." **Delete everything** / **Keep my account**. GoTrue has no call a player can
-make to delete himself (its delete is admin only **[V]**), hence the function; that the function's owner may
-delete from `auth.users` is checked by `schema.sql`'s last statement on the owner's server **[U]**.
+`POST /rpc/hs_delete_account`, which removes the game's data only (RULINGS S10): the profile, the saves, the
+runs, the scores and board rows, the visits that carried the account and the same devices' visits from before
+any sign-in, the rate counters and an admin's row, all in the schema `highland`. The sign-in account in
+`auth.users`, its identities and the sign-in service's log are **not** touched: the sign-in service is shared
+with the owner's other apps, and the same account may be someone's sign-in there. Then the device is cleared as at
+sign-out, a new anonymous id is made, and the page reloads to the gate. Words: "Delete your account? Your name,
+progress and scores are removed from our server and from this device. This cannot be undone." **Delete
+everything** / **Keep my account**. (The words promise the game's data only, which is what goes.) A player who
+wants the sign-in itself gone asks the owner, or ends the game's access in the provider's settings.
 
 ### 1.6 Safari, the Home Screen app, in-app browsers, frames
 
@@ -534,11 +535,15 @@ Monday 00:00 UTC); `d:<yyyy-mm-dd>` with period `all` for a daily.
 - **No policy and no grant exists on any table.** Row level security with no policy denies every row. The
   page reads no table, and a direct read would be a leak: a player's own `hs_scores` rows carry `flags`, which
   would tell a cheater which of his made-up results were noticed.
-- Everything is a function. All `hs_*` functions in `public` are `security definer` with
-  `set search_path = ''` (every name inside is schema-qualified), `execute` is revoked from `public`, `anon`
-  and `authenticated` and granted as listed in 2.3. Helpers live in the schema `hs_private`, which the API does
-  not serve and no API role may use.
-- The stats are views in `hs_private` read only through `hs_stats()`, which refuses anyone not in `hs_admins`.
+- Everything is a function. All `hs_*` functions are `security definer` with
+  `set search_path = ''` (every name inside is schema-qualified), `execute` is revoked from `public`, `anon`,
+  `authenticated` and `service_role` and granted as listed in 2.3. **RULINGS S9 moves all of it into one schema,
+  `highland`** (the shared Supabase's `public` belongs to another app): the tables, the `hs_*` functions, and the
+  helpers, named `_...` (`highland._uid`, `highland._rate_ok`, ...), which no API role may execute. The SQL is
+  the numbered migrations in `deploy/supabase/migrations/`, applied by `tools/platform/migrate.js`; the page names
+  the schema in `Accept-Profile` and `Content-Profile`.
+- The stats are views in `highland` (`_v_...`, `security_invoker`, granted to nobody) read only through
+  `hs_stats()`, which refuses anyone not in `hs_admins`.
 - What an admin can do if his session is stolen: change the switches, publish a ruleset, rename or hide a
   player, remove a score, remove old events. No function gives an admin a player's save, email or token.
 
@@ -579,7 +584,9 @@ first and charged last, only for a batch the device's limit lets through, so one
 close). What the limits count is what is stored: each call is one transaction, so a refused call (a result
 `score_implausible`, a name refused) is rolled back with its counter and counts against no limit; only the
 proxy's 10 a second per address limits refused calls (none on Caddy). Nothing leaks by it, since the bounds are
-public. An access token of a deleted account answers `not_signed_in` (P1 close).
+public. An access token of an account the sign-in service deleted answers `not_signed_in` (P1 close); one of an
+account whose game data was deleted (RULINGS S10), or that never made a profile, answers `no_profile` to every
+player's function (RULINGS S9).
 
 **What Supabase itself does to every call**, and what the schema does about it:
 
@@ -1595,10 +1602,11 @@ and should have the page read by someone who knows his country's law; this spec 
 >
 > **How to delete your data**
 >
-> In the game, open the Hall from the campaign map, choose Account, then Delete my account. Your account,
-> name, progress, scores and counts are removed from our server at once, and so is the sign-in service's
-> record of your sign-ins. The web server's lines leave when their [number] days are over. Or write to us from the address you
-> signed in with. To remove what is in your browser, sign out, or clear this site's data in your browser.
+> In the game, open the Hall from the campaign map, choose Account, then Delete my account. Your name,
+> progress, scores and counts are removed from our server at once. Your sign-in itself (the email address and
+> the provider it came from) is kept by the sign-in service, which other sites of ours share; to have it removed
+> too, write to us from the address you signed in with. The web server's lines leave when their [number] days
+> are over. To remove what is in your browser, sign out, or clear this site's data in your browser.
 > To end the game's access to your sign-in: in your Google Account under Security, in Facebook's settings
 > under Apps and Websites, or in Discord's settings under Authorized Apps.
 >

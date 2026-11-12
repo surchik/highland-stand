@@ -112,3 +112,32 @@ each battlefield its own length.
   produced once the lengths and the post are in (G4, G5), then per special tower on its own battlefields.
 - The owner's setup guide (`deploy/supabase/README.md`) and the smoke test are finished with P1, not P8:
   the owner's own setup is the longest wait of the platform track and must start early.
+
+## F. The shared Supabase (binding on the platform track)
+
+The game's backend runs on the owner's shared self-hosted Supabase (`https://db.avunjian.com`: Postgres 17,
+GoTrue, PostgREST behind Kong, the whole REST API exposed), not on a Supabase of its own. Other apps own other
+schemas there: PathStream owns `public`, ReqStream owns `reqstream` and `reqstream_meta`. There is one
+`auth.users` for all of them, and its email sign-up is open.
+
+**S9. One schema, `highland`, and players by membership.** Everything the game owns is in the schema
+`highland`: the tables, the `hs_*` functions the page calls (names unchanged), and the helpers, folded in from
+the old `hs_private` and named `_...`. Nothing is created in `public` or anywhere else. The SQL is a set of
+numbered migrations with rollbacks (`deploy/supabase/migrations/`, applied by `tools/platform/migrate.js`), each
+followed by a lockdown that takes back what Supabase's default privileges grant; the only grants are USAGE on the
+schema and EXECUTE on the page's functions, to `anon` and `authenticated` as before; `service_role` gets nothing.
+Row level security is on for every table, with policies as defence in depth (a player's own rows only). The page
+names the schema in `Accept-Profile` and `Content-Profile` on every `/rest/v1/` call. Signing in proves identity
+only: a **player** is an account with a row in `highland.hs_profiles`, made only by the name card
+(`hs_profile_set_name`), and only for an account that signed in with Google, Facebook or Discord. Every player's
+function asks for a player in a session the game's sign-in began (`amr` says `oauth`) and refuses anyone else
+with `42501` (`no_profile`, `not_game_session`); admin functions answer `not_admin`. An account made by
+another app's email sign-up gets what a visitor gets. Reason: the shared server's `public` would collide with
+PathStream's, and its open sign-up would otherwise make anyone who signs up anywhere a player.
+
+**S10. "Delete my account" removes the game's data only.** Approved by the owner: "Delete my account" removes
+only the game's data. `hs_delete_account` deletes the caller's rows in `highland` (profile, saves, runs, scores,
+board rows, visits, rate counters, an admin's row) and never touches `auth.users`, `auth.identities` or the
+sign-in service's log, which belong to every app on the server. The page's words already promise only the game's
+data. The privacy page says that the sign-in itself is kept by the shared sign-in service and how to have it
+removed (by writing to the owner).
