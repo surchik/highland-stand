@@ -418,7 +418,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(g, "#gate .gtGo");
     await gate(g, "welcome");
     if (!(await cardText(g)).startsWith("Welcome, " + sug2 + ".")) fail(W, "Discord's welcome: " + await cardText(g));
-    const names = (await S.query("select name from public.hs_profiles order by created_at")).map(r => r.name);
+    const names = (await S.query("select name from highland.hs_profiles order by created_at")).map(r => r.name);
     if (names.join() !== ["Aram", "Bagrat", sug2].join()) fail(W, "the server's names: " + names.join());
     // a returning player: straight to his welcome card
     await g.page.reload();
@@ -859,7 +859,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const iSid = await I.ev(() => pfEvQ && pfEvQ.sid), iT0 = Date.now();
     let iMs = -1;
     for (let k = 0; k < 60; k++) {
-      const r = await S.query("select count(*)::int n from public.hs_events e join public.hs_sessions s on s.sid = e.sid where e.sid = $1 and e.name = 'signed_in' and s.uid is not null", [iSid]);
+      const r = await S.query("select count(*)::int n from highland.hs_events e join highland.hs_sessions s on s.sid = e.sid where e.sid = $1 and e.name = 'signed_in' and s.uid is not null", [iSid]);
       if (r[0].n > 0) { iMs = Date.now() - iT0; break; }
       await new Promise(r2 => setTimeout(r2, 250));
     }
@@ -883,7 +883,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await Rt.ev(() => pfEvNow());
     let s = null;
     for (let k = 0; k < 60; k++) {
-      const rows = await S.query(`select count(*)::int n from public.hs_events where name = 'page_hide'`);
+      const rows = await S.query(`select count(*)::int n from highland.hs_events where name = 'page_hide'`);
       if (rows[0].n >= 3) break;
       await new Promise(r => setTimeout(r, 500));
     }
@@ -906,12 +906,12 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const gRows = await A.ev(() => (stData.gate || []).filter(r => r.event === "signed_in").map(r => r.provider + ":" + r.n).sort());
     if (JSON.stringify(gRows) !== JSON.stringify(["discord:1", "facebook:1", "google:1"])) fail(W, "the gate card's sign-ins: " + JSON.stringify(gRows));
     // a visit before a sign-in (it tapped a provider and left for it) is a visitor's, not the account's
-    const early = await S.query(`select count(*)::int n from public.hs_sessions s where s.uid is not null
-      and exists (select 1 from public.hs_events e where e.sid = s.sid and e.name = 'provider_tapped')
-      and not exists (select 1 from public.hs_events e where e.sid = s.sid and e.name = 'signed_in')`);
+    const early = await S.query(`select count(*)::int n from highland.hs_sessions s where s.uid is not null
+      and exists (select 1 from highland.hs_events e where e.sid = s.sid and e.name = 'provider_tapped')
+      and not exists (select 1 from highland.hs_events e where e.sid = s.sid and e.name = 'signed_in')`);
     if (early[0].n) fail(W, early[0].n + " visits before a sign-in were joined to the account");
     // what each visit said of its device (p_ctx)
-    const ctxs = await S.query("select distinct dev_class, os, browser, standalone, channel from public.hs_sessions where channel = 'live'");
+    const ctxs = await S.query("select distinct dev_class, os, browser, standalone, channel from highland.hs_sessions where channel = 'live'");
     const dev = C.key === "desk" ? "desktop" : C.key === "ipad" ? "tablet" : "phone";
     if (!ctxs.some(r => r.dev_class === dev)) fail(W, "no visit was counted as a " + dev + ": " + JSON.stringify(ctxs));
     if (!ctxs.some(r => r.browser === "inapp")) fail(W, "the in-app visit was not counted as one: " + JSON.stringify(ctxs));
@@ -956,7 +956,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const pvSid = await PV.ev(() => pfEvQ && pfEvQ.sid);
     await leave(PV, W + " privacy");
     for (let k = 0; k < 60; k++) {
-      const r = await S.query("select count(distinct e.sid)::int n from public.hs_events e where (e.sid = $1 and e.name = 'signed_in') or (e.sid = $2 and e.name = 'page_load')", [pSid, pvSid]);
+      const r = await S.query("select count(distinct e.sid)::int n from highland.hs_events e where (e.sid = $1 and e.name = 'signed_in') or (e.sid = $2 and e.name = 'page_load')", [pSid, pvSid]);
       if (r[0].n >= 2) break;
       await new Promise(r2 => setTimeout(r2, 500));
     }
@@ -971,7 +971,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (JSON.stringify(g2) !== JSON.stringify(["discord:1", "facebook:1", "google:1"])) fail(W, "the gate card after a ?stats sign-in: " + JSON.stringify(g2));
     // --- hostile events, sent as a stranger can: straight to hs_track with the public key
     const post = async (body, bearer) => {
-      const r = await fetch(API + "/rest/v1/rpc/hs_track", { method: "POST", headers: { apikey: S.anonKey, Authorization: "Bearer " + (bearer || S.anonKey), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(API + "/rest/v1/rpc/hs_track", { method: "POST", headers: { apikey: S.anonKey, Authorization: "Bearer " + (bearer || S.anonKey), "Content-Type": "application/json", "Content-Profile": "highland", "Accept-Profile": "highland" }, body: JSON.stringify(body) });
       let j = null; try { j = await r.json(); } catch (e) {}
       return { status: r.status, body: j };
     };
@@ -1009,7 +1009,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (H("a forged token").status !== 401) fail(W, "a forged token was taken: " + hres["a forged token"]);
     if (H("another device's visit id").status !== 400) fail(W, "a borrowed visit id was taken: " + hres["another device's visit id"]);
     if (flood !== 900) fail(W, "one device's flood: " + flood + " kept, not 900");
-    const forged = await S.query("select sid, uid::text from public.hs_sessions where sid in ('evil-0002-aaaa', 'evil-0003-aaaa')");
+    const forged = await S.query("select sid, uid::text from highland.hs_sessions where sid in ('evil-0002-aaaa', 'evil-0003-aaaa')");
     if (forged.some(r => r.uid !== null)) fail(W, "a forged user id joined a visit to an account: " + JSON.stringify(forged));
     // the owner's page with them in the table: it still answers, nothing of theirs is markup, and they show as "other"
     await A.ev(() => pfStatsLoad());
@@ -1098,7 +1098,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await A.page.waitForFunction(() => /Removed \d+ visits\./.test($("statsBody").innerText), null, { timeout: 20000 }).catch(() => fail(W, "Remove old events said nothing"));
     await done(A, W + " owner");
     // --- nothing is sent from a webdriver without the switch, on file://, or with the constants empty
-    const before = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    const before = (await S.query("select count(*)::int n from highland.hs_events"))[0].n;
     const logs = {};
     // (P4 review 3) a webdriver with an ordinary browser's user agent (Selenium driving Chrome), so only
     // navigator.webdriver stands between it and the server; then a robot's user agent with webdriver false, so only
@@ -1121,7 +1121,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await leave(Q, W + " " + k);
     }
     await new Promise(r => setTimeout(r, 800));
-    const afterQ = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    const afterQ = (await S.query("select count(*)::int n from highland.hs_events"))[0].n;
     if (afterQ !== before) fail(W, "events reached the server from a webdriver without the switch (" + before + " to " + afterQ + ")");
     // a prerender (the switch on): no queue while it is one; it begins once the page is shown
     const PR = await open(C, { init: EVON.concat([[() => { window.__pre = true; Object.defineProperty(Document.prototype, "prerendering", { configurable: true, get: () => window.__pre === true }); }, null]]) });
@@ -1135,7 +1135,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       fail(W, "a prerender: " + JSON.stringify({ pr0, pr1 }));
     logs.prerender = PR.reqs.slice();
     await leave(PR, W + " prerender");
-    const before2 = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    const before2 = (await S.query("select count(*)::int n from highland.hs_events"))[0].n;
     // file:// with the constants filled and the switch on: the platform is off there
     const fctx = await browser.newContext({ viewport: { width: C.w, height: C.h } });
     await fctx.addInitScript(EVON[0][0]);
@@ -1176,7 +1176,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (ereqs.some(u => !u.startsWith(PLAIN + "/") && !/^(data|blob):/.test(u)) || est.on || est.gate || est.kick !== "undefined") fail(W, "the page with its constants empty sent or started something: " + JSON.stringify({ est, reqs: ereqs.filter(u => !u.startsWith(PLAIN)) }));
     if (!/the platform is off/.test(est.stats) || !/Supabase address and its public key are not set/.test(est.stats)) fail(W, "?stats with the platform off: " + est.stats);
     await new Promise(r => setTimeout(r, 1000));
-    const after = (await S.query("select count(*)::int n from public.hs_events"))[0].n;
+    const after = (await S.query("select count(*)::int n from highland.hs_events"))[0].n;
     if (after !== before2) fail(W, "events reached the server from a page that should send none (" + before2 + " to " + after + ")");
     const strip = (l) => l.map(u => u.replace(SITE, "SITE").replace(API, "API").replace(PLAIN, "PLAIN").replace(/^file:\/\/.*index\.html/, "file://.../index.html"));
     notes.quiet = { webdriver: strip(logs.webdriver), robot: strip(logs.robot), prerender: strip(logs.prerender), file: strip(logs.file), empty: strip(logs.empty), webdriverEventsBefore: before, webdriverEventsAfter: afterQ, eventsBefore: before2, eventsAfter: after };

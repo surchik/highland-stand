@@ -78893,7 +78893,7 @@ function b64url(bytes) {
 // RFC 7636: the S256 challenge of a verifier, base64url(sha256(verifier))
 function pkceChallenge(verifier) { return b64url(sha256Bytes(new TextEncoder().encode(String(verifier)))); }
 
-// The name rule (5.5): the server's own (hs_private.name_clean), not a weaker one. { name, key } for a name the
+// The name rule (5.5): the server's own (highland._name_clean), not a weaker one. { name, key } for a name the
 // server will take (cleaned: NFKC, outer spaces trimmed, inner runs made one), else { error } with the server's
 // word: name_length, name_chars or name_blocked. Whether a name is taken only the server can say.
 const PF_NAME_BLOCK = [["admin", 1], ["moderator", 1], ["highlandstand", 1], ["support", 0], ["owner", 0], ["official", 1], ["system", 0],
@@ -79140,6 +79140,10 @@ const pfFramed = (() => { try { return window.top !== window.self; } catch (e) {
 const PF_GATE_MODES = ["required", "optional", "off"];
 
 // ---- one helper for every call (section 1). It never throws ----
+// The game's functions live in the schema highland of a Supabase it shares with other apps (RULINGS S9): every call
+// to /rest/v1/ names it in both of PostgREST's profile headers, or PostgREST would look in public and find nothing
+const PF_SCHEMA = "highland";
+const pfProfile = () => ({ "Accept-Profile": PF_SCHEMA, "Content-Profile": PF_SCHEMA });
 // pfApi("POST", "/rest/v1/rpc/hs_profile_get", {}, { auth: true, timeout: 8000 }) -> { ok, status, data, code }
 // status 0: the network failed or the time ran out. code: the "message" of a PostgREST error (the function's own
 // word, such as "name_taken") or the "error_code" of an Auth error. auth: the signed-in player's token, made fresh
@@ -79158,6 +79162,7 @@ async function pfApi(method, path, body, o = {}) {
   let timer = 0;
   try {
     const headers = { apikey: PF_KEY, Authorization: "Bearer " + bearer };
+    if (path.startsWith("/rest/v1/")) Object.assign(headers, pfProfile());
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const req = fetch(PF_URL + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined,
       keepalive: !!o.keepalive, cache: "no-store", credentials: "omit", redirect: "error" });
@@ -79992,7 +79997,7 @@ async function pfEvSend(keep) {
     const timer = ctl ? setTimeout(() => ctl.abort(), 15000) : 0;
     try {
       const res = await fetch(PF_URL + "/rest/v1/rpc/hs_track", { method: "POST", body, keepalive: !!keep, cache: "no-store", credentials: "omit", redirect: "error",
-        headers: { apikey: PF_KEY, Authorization: "Bearer " + bearer, "Content-Type": "application/json" }, signal: ctl ? ctl.signal : undefined });
+        headers: Object.assign({ apikey: PF_KEY, Authorization: "Bearer " + bearer, "Content-Type": "application/json" }, pfProfile()), signal: ctl ? ctl.signal : undefined });
       status = res.status;
       // a token the server would not take: the events go again at once without it (they still count, as a visitor's;
       // the send at the end of this one)
