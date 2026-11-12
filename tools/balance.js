@@ -263,15 +263,21 @@ function playBattle(a) {
     if (trickCfg("hidden") && [w0, w0 + 1].some(x => x <= total() && trickWave(x).some(g => g.trick === "hidden"))) {
       const watch = trickWatch();
       const seenOk = P => towers.some(t => !t.wreck && watch.includes(t.type) && hits(t.x, t.y, watchReach(t), P) * 4 >= 120);
-      if (!tails.every(seenOk)) {
+      // (at most two watch towers of its own: G5 found a tail that no free pad watches 120 px of, and the bot built a
+      // watch tower on the best of them at every look, eight on Erebuni with the post in the order)
+      if (!tails.every(seenOk) && towers.filter(t => t.botWatch).length < 2) {
         const kind = watch[0], r = watchReach({ type: kind, level: 0, spec: null });
         let best = -1, bv = 0;
         for (const i of freePads()) { const v = tails.reduce((s, P) => s + hits(PADS[i][0], PADS[i][1], r, P), 0); if (v > bv) { bv = v; best = i; } }
-        // no free pad watches the last stretch (the build's towers stand there): the one that watches the most road
-        if (best < 0) for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, pts); if (v > bv) { bv = v; best = i; } }
+        // no free pad watches the last stretch (the build's towers stand there): the one that watches the most road,
+        // once (G5: a road's stretch no free pad can watch made the bot build a watch tower at every look before)
+        if (best < 0 && !towers.some(t => !t.wreck && watch.includes(t.type) && t.botFallback)) for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, pts); if (v > bv) { bv = v; best = i; } }
         if (best >= 0) {
           if (gold < costOf(kind)) return false;   // it saves for it
           placeTower(kind, best); extra++;
+          const nt = towerAt(best);
+          if (nt) nt.botWatch = true;
+          if (nt && !tails.some(P => hits(PADS[best][0], PADS[best][1], r, P))) nt.botFallback = true;
         }
       }
     }

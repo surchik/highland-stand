@@ -5,6 +5,9 @@
 // any console error, the game's crash card, an exception inside a sound (the sound engine swallows its own errors;
 // here they are counted), a silent audio graph, or a stand lost in three waves. A trick's first-time card that is up
 // when the stand is left is put away by its button (a fresh save meets each card once). By mouse at 1600x900.
+// The Garrison Post (G5): a post is built from its tile on the best free pad with road in reach, its panel opened by a
+// click on it, Rally point pressed and the road in its ring clicked: its rally must move, and its men fight the three
+// waves. (The battlefield's special tower is built here too once one is in the game, G7.)
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -55,9 +58,41 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
           await g.tapAt(pt.x, pt.y);
           await g.frames(1);
         }
+        // the Garrison Post, and its rally moved by a click on the road in its ring
+        const pp = await g.ev(() => PADS.map((p, i) => i).filter(i => !towerAt(i) && padTakesPost(i))
+          .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], TOWER_DEFS.post.levels[0].reach).length })).sort((a, b) => b.n - a.n).map(x => x.i)[0]);
+        if (pp === undefined) await fail("no free pad takes a post");
+        else {
+          if (await g.ev(() => placing) !== "post") await g.press('#shop .card[data-type="post"]');
+          const p = await g.ev(i => PADS[i], pp);
+          const pt = await g.worldToClient(p[0], p[1], 4);
+          await g.tapAt(pt.x, pt.y);
+          await g.frames(1);
+          await g.page.keyboard.press("Escape");
+          const body = await g.worldToClient(p[0], p[1], -30);
+          await g.tapAt(body.x, body.y);
+          await g.frames(2);
+          if (!(await g.ev(i => selected && selected.pad === i && selected.type === "post", pp))) await fail("a click on the post did not open its panel");
+          else {
+            await g.press("#pRally");
+            const to = await g.ev(i => {
+              const t = towerAt(i), pts = postRoadIn(t.x, t.y, postReach(t));
+              const s = pts.sort((a, b) => Math.hypot(b.x - t.rally.x, b.y - t.rally.y) - Math.hypot(a.x - t.rally.x, a.y - t.rally.y))
+                .find(s => !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40));
+              return s && { x: s.x, y: s.y };
+            }, pp);
+            if (to) {
+              const c = await g.worldToClient(to.x, to.y, 0);
+              await g.tapAt(c.x, c.y);
+              await g.frames(1);
+              const d = await g.ev(([i, to]) => { const t = towerAt(i); return Math.hypot(t.rally.x - to.x, t.rally.y - to.y); }, [pp, to]);
+              if (d > 12) await fail("the click on the road left the rally " + Math.round(d) + " px off");
+            }
+          }
+        }
         await g.page.keyboard.press("Escape");
         const built = await g.ev(() => towers.length);
-        if (built < pads.length) await fail("only " + built + " of " + pads.length + " towers were built");
+        if (built < pads.length + 1) await fail("only " + built + " of " + (pads.length + 1) + " towers were built");
         // the secret fourth gear, Send Wave, and Auto for the waves after
         const sp = await g.reach("#speedBtn");
         if (sp.why) throw new Error("the speed button: " + sp.why);
@@ -76,7 +111,8 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         if (end.voices <= v0) await fail("no sound was played in " + WAVES + " waves");
         if (end.state !== "running") await fail("the audio context is " + end.state);
         if (end.sndErrs.length) { await fail("sounds threw: " + [...new Set(end.sndErrs)].slice(0, 5).join(" | ")); await g.ev(() => { window.__sndErrs.length = 0; }); }
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0 };
+        const post = await g.ev(() => { const t = towers.find(u => u.type === "post"); return t ? { dmg: Math.round(t.dmgDone || 0), hold: Math.round(t.holdS || 0) } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);

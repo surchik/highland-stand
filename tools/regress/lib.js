@@ -66,7 +66,8 @@ async function launch(opts = {}) {
 
 // A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads,
 // councilCard: true to let the War Council's one-time card come up (it counts as seen otherwise);
-// callBubble: true to let the Call's one-time bubble come up in a battle (held back otherwise) }
+// callBubble: true to let the Call's one-time bubble come up in a battle (held back otherwise); postCard, rallyBubble:
+// the same for the Garrison Post's one-time card and its Rally point bubble }
 // and, for a phone (iphone.js): ua (the browser's user agent), standalone (navigator.standalone, as iOS reports a
 // page opened from the Home Screen), insets: { l, r, t, b } the safe-area insets in CSS px, and init: functions run
 // in the page before its own script (each a [fn, arg] pair).
@@ -100,6 +101,9 @@ async function openGame(browser, file, o) {
   if (!o.councilCard) await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; });
   // and the Call's one-time bubble on the hero's medallion (the first battle after Dvin opens), the same way
   if (!o.callBubble) await ctx.addInitScript(() => { window.__hsQuietCallBubble = true; });
+  // and the Garrison Post's one-time card on the chronicle and its Rally point bubble (G5), the same way
+  if (!o.postCard) await ctx.addInitScript(() => { window.__hsQuietPostCard = true; });
+  if (!o.rallyBubble) await ctx.addInitScript(() => { window.__hsQuietRallyBubble = true; });
   if (o.storage) {
     await ctx.addInitScript(st => {
       try { for (const k in st) { if (st[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, st[k]); } } catch (e) {}

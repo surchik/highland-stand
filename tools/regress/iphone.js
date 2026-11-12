@@ -26,7 +26,10 @@
 //         [--only=pages,map,...] [--dpr=3] [--shots=dir] [--photos=dir] [--jobs=n] [--verbose]
 //   --shots   a photo of every state that failed; --photos a photo of every state; --dpr their density (default 1)
 //   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
-//             crash, victory, defeat, nardi, coach, towers (rotate is part of battle)
+//             crash, victory, defeat, nardi, coach, towers, post (rotate is part of battle)
+// The Garrison Post (G5): the tray of six on every battlefield and of seven (a stand-in for the special tower until
+// G7) with every tile 44 x 44 and its name whole or absent; the post's panel as a sheet; the armed rally's toast in
+// the safe area and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
 // nothing in it scrolls) and is held to the bar; a finger takes three tiers, resets the Council (a second tap
@@ -681,6 +684,89 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (bad.length > 12) fail("towers by finger", (bad.length - 12) + " more like these");
       });
       // ---- the foe card from the next-wave row ----
+      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray of six on every battlefield and of seven (a stand-in
+      // special tower until G7 builds one), each tile at least 44 x 44 with its name whole or absent (never cut, never
+      // under 11 px); the post's panel as a sheet, opened by a finger that presses nothing in it; the armed rally's
+      // toast inside the safe area and off the wave's ribbon, and a tap on the road in the ring moving the men ----
+      await step("post", "Garrison Post", async () => {
+        if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }
+        const trayIssues = (n) => g.ev(n => {
+          const out = [], ids = LEVELS.map(L => L.id);
+          const stand = n === 7;
+          if (stand) TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 2, cost: 120 });
+          try {
+            for (const id of ids) {
+              testUnlockAll = true;
+              curLevel = levelIndexOf(id); curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+              if (stand) { const a = AGES.findIndex(A => A.tower === "stores"); AGES[a].upTo = 99; AGES.forEach((A, i) => { if (i !== a) A.hold = A.upTo, A.upTo = -1; }); syncTray(); }
+              fitCardNames();
+              const cards = [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none");
+              if (cards.length !== n) out.push(id + ": " + cards.length + " tiles, not " + n);
+              for (const c of cards) {
+                const r = c.getBoundingClientRect(), nm = c.querySelector(".nm"), cs = getComputedStyle(nm);
+                if (r.width < 43.5 || r.height < 43.5) out.push(id + " " + c.dataset.type + ": the tile is " + Math.round(r.width) + "x" + Math.round(r.height));
+                if (cs.display !== "none" && nm.clientWidth && nm.scrollWidth > nm.clientWidth) out.push(id + " " + c.dataset.type + ": its name \"" + nm.textContent + "\" is cut");
+                if (cs.display !== "none" && parseFloat(cs.fontSize) < 10.95) out.push(id + " " + c.dataset.type + ": its name is " + cs.fontSize);
+              }
+              if (stand) { AGES.forEach(A => { if (A.hold !== undefined) { A.upTo = A.hold; delete A.hold; } }); AGES.find(A => A.tower === "stores").upTo = 3; }
+            }
+          } finally {
+            if (stand) { delete TOWER_DEFS.stores; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); }
+            syncTray();
+          }
+          return out;
+        }, n);
+        for (const n of [6, 7]) for (const m of await trayIssues(n)) fail("tray of " + n, m);
+        // the post's panel as a sheet: Dvin staged, a post at its third rank (its Mastery to choose: the tallest panel)
+        await stage("dvin", 3, { post: 2 });
+        const pad = await g.ev(() => { const t = towers.find(u => u.type === "post"); t.level = 2; t.spec = null; postSyncMen(t, true); gold = 99999; syncHud(); return t.pad; });
+        const before = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+        const at = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), pad);
+        await g.tapAt(at.x, at.y);
+        await settle(3);
+        await panelSettled();
+        if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", pad))) {
+          fail("post panel", "a tap on the post did not open its panel");
+          await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, pad);
+          await settle(2);
+        }
+        if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== before) fail("post panel", "the tap that opened the sheet pressed something in it");
+        await check("post panel", { root: "#panel", primary: ["#pRally", "#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+        // armed: the toast in the safe area, off the wave's ribbon; then the road in the ring takes the men
+        await tap("post rally", "#pRally", "cannot tap Rally point");
+        await settle(2);
+        if (!(await g.ev(() => !!rallying && panelEl.style.display !== "block"))) fail("post rally", "Rally point did not arm, or the sheet stayed");
+        await g.wait(450);
+        await check("post rally (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
+        const tb = await g.ev(() => {
+          if (!toastEl.classList.contains("show")) return { none: true };
+          waveBannerT = 1.7; waveBannerMain = "Wave 4"; waveBannerSub = ""; draw(performance.now());
+          const t = toastEl.getBoundingClientRect(), half = Math.max(42, ...[...ribbonCache.values()].map(sp => sp.hsHalf || 0));
+          const out = { t: t.top, b: t.bottom, bt: offY + (190 - half) * scale, bb: offY + (190 + half) * scale };
+          waveBannerT = 0;
+          return out;
+        });
+        if (tb.none) fail("post rally", "no toast says to tap the road");
+        else if (tb.t < tb.bb - 1 && tb.b > tb.bt + 1 && !(await g.ev(() => toastEl.hsLow))) fail("post rally", "the toast lies over the wave's ribbon");
+        const to = await g.ev(pad => {
+          const t = towers.find(u => u.pad === pad), r = canvas.getBoundingClientRect(), S = __hsAudit.safe();
+          const on = s => { const p = proj(s.x, s.y); return { x: r.left + offX + p.x * scale, y: r.top + offY + p.y * scale }; };
+          const ok = postRoadIn(t.x, t.y, postReach(t)).filter(s => {
+            const c = on(s), e = document.elementFromPoint(c.x, c.y);
+            return e && e.id === "game" && c.x > S.l + 8 && c.x < S.r - 8 && !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40);
+          });
+          const s = ok.sort((a, b) => Math.hypot(b.x - t.rally.x, b.y - t.rally.y) - Math.hypot(a.x - t.rally.x, a.y - t.rally.y))[0];
+          return s ? Object.assign({ wx: s.x, wy: s.y }, on(s)) : null;
+        }, pad);
+        if (!to) fail("post rally", "no road of the ring lies clear on the screen");
+        else {
+          await g.tapAt(to.x, to.y);
+          await settle(2);
+          const r = await g.ev(([pad, to]) => { const t = towers.find(u => u.pad === pad); return { d: Math.hypot(t.rally.x - to.wx, t.rally.y - to.wy), armed: !!rallying, panel: panelEl.style.display === "block", hero: !!(hero && hero.rally) }; }, [pad, to]);
+          if (r.d > 12 || r.armed || r.panel || r.hero) fail("post rally", "a tap on the road in the ring: " + JSON.stringify(r));
+        }
+        await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
+      });
       await step("foe", "foe card (wave row)", async () => {
         if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }
         await stage("tushpa", 5, {});
