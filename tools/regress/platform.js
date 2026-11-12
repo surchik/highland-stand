@@ -102,7 +102,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", "1,2,3,4,5,6,10,11,13")).split(",");
+const FLOWS = (opt("flows", "1,2,3,4,5,6,10,11,13,14")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -301,12 +301,33 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // the privacy link and back
     await pressGo(g, "#gate .gtPrivacy");
     await g.page.waitForFunction(() => typeof Platform !== "undefined" && document.readyState === "complete" && !$("privacyPage").hidden, null, { timeout: 30000 });
-    const pv = await g.ev(() => ({ gate: gateUp, search: location.search, text: $("privacyPage").innerText }));
+    const pv = await g.ev(() => ({ gate: gateUp, search: location.search, text: $("privacyPage").innerText, del: !!document.querySelector("#privacyPage section#delete"),
+      backs: ["privacyBack", "privacyBack2"].map(id => ($(id) || {}).getAttribute && $(id).getAttribute("href")), sound: typeof Snd !== "undefined" && Snd.ctx ? Snd.ctx.state : "none" }));
     if (pv.gate || !/Privacy/.test(pv.text)) fail(W, "the privacy page: " + JSON.stringify(pv).slice(0, 200));
-    await audit(g, W + " privacy page", { root: "#privacyPage", parts: ["#privacyPage .kit"], primary: ["#privacyBack"], primaryRequired: true, scroll: "page" }, C.key === "desk" || C.key === "ses" ? "privacy-" + C.key : null);
+    // (P8) the whole page of 8.1: each of its parts, and the deletion part the providers link to
+    for (const h of ["What we keep when you sign in", "What we count", "What the sign-in service and the web server record", "What we do not do", "Where it is kept", "How long",
+      "How to delete your data", "Children", "Changes", "Delete my account", "kept by the sign-in service", "13 and older", "Authorized Apps"]) if (!pv.text.includes(h)) fail(W, "the privacy page has no \"" + h + "\"");
+    if (!pv.del) fail(W, "the privacy page has no #delete part");
+    if (pv.backs.some(h => h !== "/")) fail(W, "the privacy page's ways back go to " + pv.backs.join(", "));
+    if (/\u2014|\u2013/.test(pv.text)) fail(W, "a long dash on the privacy page");
+    if (pv.sound === "running") fail(W, "the privacy page started the game's sound");
+    await audit(g, W + " privacy page", { root: "#privacyPage", parts: ["#privacyPage .kit"], primary: ["#privacyBack"], primaryRequired: true, scroll: "page" }, "privacy-" + C.key);
     await pressGo(g, "#privacyBack");
     await gate(g, "signin");
     if (new URL(g.page.url()).search) fail(W, "back from the privacy page the address is " + g.page.url());
+    // ?privacy#delete, the address in the providers' consoles: the deletion part in view, and the way back at its end
+    await g.page.goto(SITE + "/?privacy#delete");
+    await g.page.waitForFunction(() => typeof Platform !== "undefined" && document.readyState === "complete" && !$("privacyPage").hidden, null, { timeout: 30000 });
+    await g.frames(3);
+    const dt = await g.ev(() => Math.round(document.getElementById("delete").getBoundingClientRect().top));
+    if (dt < -2 || dt > g.o.h / 2) fail(W, "?privacy#delete does not show the deletion part (its top at " + dt + ")");
+    if (PHOTOS) await g.page.screenshot({ path: path.join(PHOTOS, "privacy-delete-" + C.key + ".png") });
+    await g.ev(() => document.getElementById("privacyBack2").scrollIntoView({ block: "center" }));
+    await g.frames(2);
+    await audit(g, W + " privacy page's end", { root: "#privacyPage", parts: ["#privacyPage .kit"], primary: ["#privacyBack2"], primaryRequired: true, scroll: "page" }, null);
+    await pressGo(g, "#privacyBack2");
+    await gate(g, "signin");
+    if (new URL(g.page.url()).search || new URL(g.page.url()).hash) fail(W, "back from the privacy page's end the address is " + g.page.url());
     // a provider the server switched off has no button
     await S.control("settings", { external: { facebook: false } });
     await g.page.reload(); await gate(g, "signin");
@@ -1199,6 +1220,12 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await ep.waitForTimeout(2500);
     const est = await ep.evaluate(() => ({ on: PF_ON, gate: gateUp, kick: typeof window.__hsEvKick, stats: $("statsPage").hidden ? "" : $("statsBody").innerText.replace(/\s+/g, " ") }));
     if (PHOTOS) await ep.screenshot({ path: path.join(PHOTOS, "stats-desk-off.png") });
+    // (P8) the privacy page with the platform off: read from the page itself, no request, no gate
+    await ep.goto(PLAIN + "/?privacy#delete", { timeout: 120000 });
+    await ep.waitForTimeout(1500);
+    const epv = await ep.evaluate(() => ({ shown: !$("privacyPage").hidden, gate: gateUp, del: !!document.querySelector("#privacyPage #delete"),
+      top: Math.round(document.getElementById("delete").getBoundingClientRect().top) }));
+    if (!epv.shown || epv.gate || !epv.del || epv.top < -2 || epv.top > C.h / 2) fail(W, "?privacy#delete with the platform off: " + JSON.stringify(epv));
     await ep.goto(PLAIN + "/", { timeout: 120000 });
     await ep.waitForTimeout(2500);
     await ep.evaluate(() => { for (let i = 0; i < 25; i++) track("map_open", { i }); });
@@ -1718,7 +1745,115 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const wt = await g.ev(() => ({ held: LEVELS.filter((L, i) => levelConquered(i)).length }));
     if (wt.held !== 0) fail(W, "the next person on this device sees " + wt.held + " battlefields held");
     await done(g, W);
+    await flow13del(C);
     if (C.key === "desk" || C.key === "ses") await flow13more(C);
+  };
+
+  // flow 13, the deletion (work package P8; 1.5, RULINGS S10). The question names what goes and leads with Keep my
+  // account; Keep changes nothing; with no connection nothing is deleted and the tab says so (desktop and 667x320);
+  // Delete everything removes every row of that player in highland and none of another player's, leaves the shared
+  // sign-in (auth.users, its identities) alone, clears the device (the account's progress, its session, its
+  // stash, its traces in hs_pf_cfg, the events not sent), gives the device a new anonymous id, and returns to the
+  // gate, which says it is done; the next visit's account_deleted count is a visitor's. The same person signing in
+  // again is a new player (the name card).
+  const rowsOf = async (uid) => (await S.query(`select (select count(*) from highland.hs_profiles where user_id = $1)::int as profile, (select count(*) from highland.hs_saves where user_id = $1)::int as saves,
+    (select count(*) from highland.hs_runs where user_id = $1)::int as runs, (select count(*) from highland.hs_scores where user_id = $1)::int as scores,
+    (select count(*) from highland.hs_score_best where user_id = $1)::int as boards, (select count(*) from highland.hs_sessions where uid = $1)::int as visits,
+    (select count(*) from highland.hs_admins where user_id = $1)::int as admin, (select count(*) from highland.hs_rate where key = $1::text)::int as rate,
+    (select count(*) from auth.users where id = $1)::int as auth_user, (select count(*) from auth.identities where user_id = $1)::int as auth_ids`, [uid]))[0];
+  // an Account tab's button pressed as the player does, scrolled to first (the Hall scrolls inside on a phone)
+  const pressAc = async (g, words, go) => {
+    await g.ev(w => { const b = Array.from(document.querySelectorAll(".acTab .btn")).find(x => x.textContent === w); if (b) b.scrollIntoView({ block: "nearest" }); }, words);
+    await g.frames(2);
+    if (go) await pressGo(g, acBtn(words)); else await g.press(acBtn(words));
+  };
+  const flow13del = async (C) => {
+    const W = "flow 13 (Delete my account) " + C.name;
+    await resetStack();
+    // another player, whose rows must not move
+    const B = await open(C, { init: EVON });
+    await newPlayer(B, "bagrat", "Bagrat");
+    const ub = await uidOf(B);
+    await pressWelcome(B, "Campaign Map"); await gate(B, ""); await toMap(B);
+    await B.ev(() => storeRecord(0, { stars: [0, 1, 0], lives: [0, 9, 0], endless: [0, 0, 0] }));
+    await until(async () => { const sv = await saveOf(ub); return sv && /erebuni/.test(sv.data.keys.hs_records || ""); }, 10000, "Bagrat's save").catch(e => fail(W, e.message));
+    await done(B, W + " (Bagrat)");
+    const bBefore = await rowsOf(ub);
+    // the player who deletes: signed in, playing, his counts and save on the server
+    const g = await open(C, { init: EVON });
+    await newPlayer(g, "aram", "Aram");
+    const uid = await uidOf(g);
+    await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+    await g.ev(() => { storeRecord(0, { stars: [0, 3, 0], lives: [0, 20, 0], endless: [0, 0, 0] }); storeRecord(1, { stars: [0, 2, 0], lives: [0, 11, 0], endless: [0, 0, 0] }); });
+    await until(async () => { const sv = await saveOf(uid); return sv && /tushpa/.test(sv.data.keys.hs_records || ""); }, 10000, "Aram's save").catch(e => fail(W, e.message));
+    await g.ev(() => window.__hsEvKick && window.__hsEvKick());
+    await until(async () => (await rowsOf(uid)).visits > 0, 15000, "Aram's visit on the server").catch(e => fail(W, e.message));
+    await S.control("admin", { user_id: uid });
+    const before = await rowsOf(uid);
+    if (!(before.profile && before.saves && before.visits && before.admin && before.auth_user && before.auth_ids)) fail(W, "Aram's rows before: " + JSON.stringify(before));
+    const aid0 = JSON.parse(await store(g, "hs_pf_aid"));
+    // the question
+    await accountTab(g);
+    await pressAc(g, "Delete my account");
+    const ask = await g.ev(() => hallBodyEl.innerText.replace(/\s+/g, " "));
+    for (const w of ["Delete your account? Your player name, your progress, your scores and the counts of your play are removed from our server and from this device. This cannot be undone.",
+      "Your sign-in with Google itself stays with our server's sign-in service", "Keep my account", "Delete everything", "Privacy"]) if (!ask.includes(w)) fail(W, "the question lacks \"" + w + "\": " + ask);
+    const focus = await g.ev(() => document.activeElement && document.activeElement.textContent);
+    if (focus !== "Keep my account") fail(W, "the question's focus is on " + JSON.stringify(focus) + ", not Keep my account");
+    const pvl = await g.ev(() => (Array.from(document.querySelectorAll(".acTab a")).find(a => a.textContent === "Privacy") || {}).getAttribute("href"));
+    if (pvl !== "?privacy#delete") fail(W, "the question's privacy link goes to " + pvl);
+    await audit(g, W + " the question", { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: [".acTab .btn"], primaryRequired: true, scroll: "inside" }, "delete-ask-" + C.key);
+    // Keep my account: nothing changes
+    await pressAc(g, "Keep my account");
+    if (!(await g.ev(() => !!Array.from(document.querySelectorAll(".acTab .btn")).find(b => b.textContent === "Delete my account")))) fail(W, "Keep my account did not bring the tab back");
+    if (JSON.stringify(await rowsOf(uid)) !== JSON.stringify(before)) fail(W, "Keep my account changed the server's rows");
+    // no connection: nothing deleted, the tab says so, the player stays signed in
+    if (C.key === "desk" || C.key === "ses") {
+      await S.control("rest", { mode: "down" });
+      await pressAc(g, "Delete my account");
+      await pressAc(g, "Delete everything");
+      await g.page.waitForFunction(() => /could not be deleted/.test((document.querySelector(".acTab .acErr") || {}).textContent || ""), null, { timeout: 40000 })
+        .catch(async () => fail(W, "no word when the deletion could not go: " + await g.ev(() => hallBodyEl.innerText)));
+      const e = await g.ev(() => ({ line: document.querySelector(".acTab .acErr").textContent, auth: !!localStorage.getItem("hs_pf_auth"), btns: Array.from(document.querySelectorAll(".acTab .btn")).map(b => b.textContent + (b.disabled ? "(off)" : "")) }));
+      if (!/Nothing was deleted/.test(e.line) || !e.auth || !e.btns.includes("Delete everything")) fail(W, "after a deletion that could not go: " + JSON.stringify(e));
+      if (PHOTOS) await g.page.screenshot({ path: path.join(PHOTOS, "delete-fail-" + C.key + ".png") });
+      await S.control("rest", { mode: "up" });
+      if (JSON.stringify(await rowsOf(uid)) !== JSON.stringify(before)) fail(W, "the failed deletion changed the server's rows");
+      await pressAc(g, "Keep my account");
+    }
+    // Delete everything
+    await pressAc(g, "Delete my account");
+    await pressAc(g, "Delete everything", true);
+    await gate(g, "signin");
+    const after = await rowsOf(uid);
+    for (const k of ["profile", "saves", "runs", "scores", "boards", "visits", "admin", "rate"]) if (after[k] !== 0) fail(W, "after the deletion Aram still has " + after[k] + " " + k);
+    if (after.auth_user !== 1 || after.auth_ids !== before.auth_ids) fail(W, "the shared sign-in account was touched: " + JSON.stringify(after));
+    const bAfter = await rowsOf(ub);
+    if (JSON.stringify(bAfter) !== JSON.stringify(bBefore)) fail(W, "Bagrat's rows moved: " + JSON.stringify(bBefore) + " to " + JSON.stringify(bAfter));
+    const line = await g.ev(() => (gateCardEl.querySelector(".gtLine") || {}).textContent || "");
+    if (line !== "Your account is deleted. Its name, progress and scores are gone from our server and from this device.") fail(W, "the gate's line after the deletion: " + JSON.stringify(line));
+    if (PHOTOS) await g.page.screenshot({ path: path.join(PHOTOS, "delete-done-" + C.key + ".png") });
+    const dev = await g.ev(() => ({ keys: csNames().concat(["hs_run"]).filter(k => localStorage.getItem(k) != null && localStorage.getItem(k) !== csFresh()[k]),
+      pf: ["hs_pf_auth", "hs_pf_me", "hs_pf_run", "hs_pf_stash", "hs_pf_pkce"].filter(k => localStorage.getItem(k) != null), aid: JSON.parse(localStorage.getItem("hs_pf_aid") || "null"),
+      cfg: JSON.parse(localStorage.getItem("hs_pf_cfg") || "{}"), sync: JSON.parse(localStorage.getItem("hs_pf_sync") || "{}"),
+      held: LEVELS.filter((L, i) => levelConquered(i)).length, ev: (window.__hsEv || []).filter(e => e[0] === "account_deleted").length }));
+    if (dev.keys.length || dev.pf.length) fail(W, "the deletion left on the device: " + dev.keys.concat(dev.pf).join());
+    if (!dev.aid || dev.aid === aid0) fail(W, "the anonymous id was not replaced (" + aid0 + " then " + dev.aid + ")");
+    if (dev.cfg.lastUid === uid || (dev.cfg.seen || []).includes(uid)) fail(W, "hs_pf_cfg still names the account: " + JSON.stringify(dev.cfg));
+    if (dev.sync.owner !== "" || dev.sync.ver) fail(W, "the sync state after the deletion: " + JSON.stringify(dev.sync));
+    if (dev.held) fail(W, "the device still shows " + dev.held + " battlefields held");
+    if (dev.ev !== 1) fail(W, "account_deleted queued " + dev.ev + " times on the next load");
+    // the count reaches the server as a visitor's, on the new id, and nothing of the account's is made again
+    await g.ev(() => pfEvNow());
+    const ad = await until(async () => (await S.query("select s.aid::text, s.uid::text from highland.hs_events e join highland.hs_sessions s on s.sid = e.sid where e.name = 'account_deleted'"))[0], 15000, "account_deleted on the server").catch(e => { fail(W, e.message); return null; });
+    if (ad && (ad.uid !== null || ad.aid !== dev.aid)) fail(W, "account_deleted came as " + JSON.stringify(ad));
+    await g.wait(1500);
+    const again = await rowsOf(uid);
+    if (again.visits || again.saves || again.profile) fail(W, "something of the account came back after the deletion: " + JSON.stringify(again));
+    if ((await S.query("select count(*)::int n from highland.hs_sessions where aid = $1", [aid0]))[0].n) fail(W, "a visit of the old anonymous id is on the server");
+    // the same person again: a new player, asked for a name
+    await signIn(g, "aram", "google", "name");
+    await done(g, W);
   };
 
   // flow 13, more (the P3 review's findings 1 and 5), on the desktop and the small iPhone. (1) This account's stash
@@ -1796,7 +1931,52 @@ const log = (m) => { if (o.verbose) console.log(m); };
     }
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, "4more": flow4more, "5more": flow5more, "13more": flow13more };
+  // flow 14: staging (9.3). The page at /next/ signs in, plays and saves on the channel "next", keeps every key on the
+  // device under "next:", and a page at / in the same browser sees none of it: no session, no progress, its own
+  // save; then /next/ again has all of it
+  const flow14 = async (C) => {
+    const W = "flow 14 " + C.name;
+    await resetStack();
+    const g = await open(C, { path: "/next/" });
+    await newPlayer(g, "aram", "Aram");
+    if (!new URL(g.page.url()).pathname.startsWith("/next/")) fail(W, "the sign-in came back to " + g.page.url() + ", not /next/");
+    await clean(g, W);
+    const uid = await uidOf(g);
+    await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+    await g.ev(() => storeRecord(0, { stars: [0, 3, 0], lives: [0, 20, 0], endless: [0, 0, 0] }));
+    const ch = async (c) => (await S.query("select version, data from highland.hs_saves where user_id = $1 and channel = $2", [uid, c]))[0] || null;
+    await until(async () => { const sv = await ch("next"); return sv && /erebuni/.test(sv.data.keys.hs_records || ""); }, 10000, "the save on the channel next").catch(e => fail(W, e.message));
+    if (await ch("live")) fail(W, "a page at /next/ wrote the live channel's save");
+    // the same browser at /: the real storage, read from there
+    await g.page.goto(SITE + "/");
+    await gate(g, "signin");
+    const raw = await g.ev(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } return o; });
+    const live = Object.keys(raw).filter(k => !k.startsWith("next:"));
+    for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_stash"]) if (k in raw) fail(W, "the live channel holds " + k + " after a sign-in at /next/");
+    if (/erebuni/.test(raw.hs_records || "")) fail(W, "the live channel's records hold the battle won at /next/");
+    for (const k of ["next:hs_pf_auth", "next:hs_pf_me", "next:hs_pf_sync"]) if (!(k in raw)) fail(W, "no " + k + " on the device");
+    if (!/erebuni/.test(raw["next:hs_records"] || "")) fail(W, "the records of /next/ are not under next:");
+    log("  live keys at /: " + live.join(","));
+    // signed in at / too: the live channel's own save, empty of what /next/ won
+    await signIn(g, "aram", "google", "welcome");
+    await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+    if (await g.ev(() => (localStorage.getItem(RECORDS_KEY) || "").includes(LEVELS[0].id))) fail(W, "signed in at /, the page shows what /next/ won");
+    const third = await g.ev(() => LEVELS[2].id);
+    await g.ev(() => storeRecord(2, { stars: [0, 1, 0], lives: [0, 3, 0], endless: [0, 0, 0] }));
+    await until(async () => { const sv = await ch("live"); return sv && (sv.data.keys.hs_records || "").includes(third); }, 10000, "the live save").catch(e => fail(W, e.message));
+    const lv = await ch("live"), nx = await ch("next");
+    if (lv && /erebuni/.test(lv.data.keys.hs_records || "")) fail(W, "the live save holds the battle won at /next/");
+    if (!nx || (nx.data.keys.hs_records || "").includes(third)) fail(W, "the next save took the live channel's battle: " + JSON.stringify(nx && nx.data.keys.hs_records));
+    // and /next/ again: its session and its progress, as left
+    await g.page.goto(SITE + "/next/");
+    await gate(g, "welcome");
+    await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+    const rec = await g.ev(() => localStorage.getItem(RECORDS_KEY) || "");
+    if (!rec.includes(await g.ev(() => LEVELS[0].id)) || rec.includes(third)) fail(W, "back at /next/ the records are " + rec);
+    await done(g, W);
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
