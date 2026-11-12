@@ -715,7 +715,7 @@ function refuseWrites() {
       const cev = await g.ev(() => JSON.stringify(window.__hsEv.map(e => [e[0], e[1]])));
       if (cev !== '[["error",{"msg":"p0 test crash"}]]') fail(tag, "the crash card queued " + cev);
       await g.ev(() => $("crashCard").classList.remove("on"));
-      await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+      await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
       await g.page.waitForFunction(() => gameOver && (celebration || parley), null, { timeout: 15000 });
       await g.ev(() => endCelebration());
       await g.page.waitForFunction(() => menuMode === "victory" && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
@@ -822,7 +822,7 @@ function refuseWrites() {
     const win = async (g) => {
       await g.toMap();
       await g.enterBattle(0);
-      await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+      await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
       await g.page.waitForFunction(() => gameOver && (celebration || parley), null, { timeout: 15000 });
       await g.ev(() => endCelebration());
       await g.page.waitForFunction(() => menuMode === "victory" && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });

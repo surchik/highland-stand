@@ -799,7 +799,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 });
     await g.ev(() => { spawnQueue = []; enemies = []; });
     await g.page.waitForFunction(() => (window.__hsEv || []).some(e => e[0] === "wave_end"), null, { timeout: 20000 });
-    await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+    await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
     await g.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
     if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
     await g.page.waitForFunction(() => menuMode === "victory", null, { timeout: 15000 });
