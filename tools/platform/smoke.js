@@ -63,6 +63,8 @@ function request(method, url, o = {}) {
     const u = new URL(url);
     const isHttps = u.protocol === "https:";
     const headers = { ...(o.headers || {}) };
+    // the game's calls name its schema in PostgREST's two profile headers, as the page does (RULINGS S9)
+    if (u.pathname.startsWith("/rest/v1/") && o.profile !== false) { headers["accept-profile"] = "highland"; headers["content-profile"] = "highland"; }
     let body = o.body;
     if (body !== undefined && typeof body !== "string") { body = JSON.stringify(body); headers["content-type"] = "application/json"; }
     if (body !== undefined) headers["content-length"] = Buffer.byteLength(body);
@@ -169,7 +171,7 @@ function report(n, status, what, help) {
   // 4. the preflight
   {
     const r = await request("OPTIONS", base.origin + "/rest/v1/rpc/hs_config", { headers: { origin: ORIGIN, "access-control-request-method": "POST",
-      "access-control-request-headers": "apikey, authorization, content-type" }, timeout: 4000 });
+      "access-control-request-headers": "apikey, authorization, content-type, accept-profile, content-profile" }, timeout: 4000 });
     const ao = !r.error && r.headers["access-control-allow-origin"];
     if (ao && (ao === "*" || ao === ORIGIN)) {
       const ma = r.headers["access-control-max-age"];
@@ -192,7 +194,7 @@ function report(n, status, what, help) {
     const r = await request("POST", base.origin + "/rest/v1/rpc/hs_config", { headers: keyHeaders(), body: {}, timeout: 4000 });
     const j = !r.error && r.status === 200 ? json(r) : null;
     if (j && j.now) report(6, "pass", "hs_config answers (the server's clock: " + j.now + ")");
-    else report(6, "fail", "hs_config did not answer (" + describe(r) + ")", r.status === 404 ? "run deploy/supabase/schema.sql in the Studio's SQL editor (step 4); then wait a minute for PostgREST to see it" : "see the answer above");
+    else report(6, "fail", "hs_config did not answer (" + describe(r) + ")", r.status === 404 ? "apply the migrations (node tools/platform/migrate.js up) and add highland to PGRST_DB_SCHEMAS (deploy/supabase/README.md); then wait a minute for PostgREST to see it" : "see the answer above");
   }
   // 7. no table is readable
   {
@@ -202,7 +204,7 @@ function report(n, status, what, help) {
       if (r.error || ![401, 403, 404].includes(r.status)) bad.push(t + ": " + describe(r));
     }
     if (!bad.length) report(7, "pass", "the tables hs_saves and hs_events are refused or not served");
-    else report(7, "fail", "a table answered: " + bad.join("; "), "do not hand over the key; run schema.sql again (it takes every grant away) and tell the builder");
+    else report(7, "fail", "a table answered: " + bad.join("; "), "do not hand over the key; run node tools/platform/migrate.js regrant (it takes every grant away but 003's) and tell the builder");
   }
   // 8. a signed-in function and the stats are refused to a visitor
   {
@@ -212,7 +214,7 @@ function report(n, status, what, help) {
       if (r.error || ![401, 403].includes(r.status)) bad.push(f + ": " + describe(r));
     }
     if (!bad.length) report(8, "pass", "hs_save_get and hs_stats are refused to a visitor");
-    else report(8, "fail", "a visitor was not refused: " + bad.join("; "), "run schema.sql again and tell the builder");
+    else report(8, "fail", "a visitor was not refused: " + bad.join("; "), "run node tools/platform/migrate.js regrant and tell the builder");
   }
   // 9. one event in, and not one of 5 KB
   {
@@ -223,7 +225,7 @@ function report(n, status, what, help) {
       body: { p_ctx: ctx, p_events: [{ n: "smoke_test", q: 2, t: Date.now(), p: { pad: "x".repeat(5000) } }] } });
     const a = json(r1), b = json(r2);
     if (a && a.accepted === 1 && b && b.accepted === 0) report(9, "pass", "hs_track took one event (channel smoke) and refused one of 5 KB");
-    else report(9, "fail", "hs_track: " + describe(r1) + " / " + describe(r2), "run schema.sql again; if it says accepted 0 for the small one, the events table may be over its ceiling (the stats page says)");
+    else report(9, "fail", "hs_track: " + describe(r1) + " / " + describe(r2), "run node tools/platform/migrate.js regrant; if it says accepted 0 for the small one, the events table may be over its ceiling (the stats page says)");
   }
   // 10. an empty board
   {
@@ -231,7 +233,7 @@ function report(n, status, what, help) {
     const r = await request("POST", base.origin + "/rest/v1/rpc/hs_board", { headers: keyHeaders(), body: { p_mode: "daily", p_day: "2000-01-01" }, timeout: 3000 });
     const j = !r.error && r.status === 200 ? json(r) : null;
     if (j && Array.isArray(j.rows) && j.rows.length === 0) report(10, "pass", "hs_board for a board that does not exist answered an empty list in " + (Date.now() - t0) + " ms");
-    else report(10, "fail", "hs_board: " + describe(r), "run schema.sql again; a slow answer means the database is overloaded");
+    else report(10, "fail", "hs_board: " + describe(r), "run node tools/platform/migrate.js regrant; a slow answer means the database is overloaded");
   }
   // 11. nothing but the two prefixes
   {

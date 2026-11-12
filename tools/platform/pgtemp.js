@@ -7,7 +7,8 @@
 // a process that died without either (owner.pid names a process that is gone) is swept by the next start().
 //
 // const db = await require("./pgtemp").start();
-// await db.createDatabase("hs", { schema: true });     // standins.sql, schema.sql (twice when asked), test-clock.sql
+// await db.createDatabase("hs", { schema: true });     // standins.sql, the migrations (and back and up again when
+//                                                       // asked: roundTrip), test-clock.sql
 // const c = await db.client("hs", "supabase_admin");     // a pg Client; also "postgres" and "authenticator"
 // await db.stop();
 "use strict";
@@ -17,12 +18,19 @@ const os = require("os");
 const { execFileSync, spawnSync } = require("child_process");
 
 const BIN = process.env.HS_PG_BIN || "/usr/lib/postgresql/16/bin";
+// the tests' stand-in for pg-safeupdate, when built (tools/platform/safeupdate/build.sh); HS_SAFEUPDATE=off leaves it out
+const SAFEUPDATE = (() => {
+  if (process.env.HS_SAFEUPDATE === "off") return null;
+  const f = process.env.HS_SAFEUPDATE || path.join(process.env.HS_SAFEUPDATE_DIR || "/var/tmp/hs-stack-lib", "safeupdate.so");
+  return /^[A-Za-z0-9_./-]+$/.test(f) && fs.existsSync(f) ? f : null;
+})();
 const BASE = process.env.HS_STACK_DIR || "/var/tmp/hs-stack";
 const ROOT = path.resolve(__dirname, "..", "..");
 const FILES = {
   standins: path.join(__dirname, "standins.sql"),
-  schema: path.join(ROOT, "deploy", "supabase", "schema.sql"),
-  handoff: path.join(ROOT, "deploy", "supabase", "schema-handoff.sql"),
+  migrations: path.join(ROOT, "deploy", "supabase", "migrations"),
+  handoff: path.join(ROOT, "deploy", "supabase", "optional", "handoff.up.sql"),
+  handoffDown: path.join(ROOT, "deploy", "supabase", "optional", "handoff.down.sql"),
   clock: path.join(__dirname, "test-clock.sql"),
 };
 
@@ -114,7 +122,7 @@ async function start(opts = {}) {
   if (isRoot) execFileSync("chown", ["postgres", path.join(data, "postgresql.conf")]);
   asPostgres("pg_ctl", ["-D", data, "-w", "-t", "60", "-l", path.join(dir, "server.log"), "start"]);
   const db = {
-    dir, port, host: dir,
+    dir, port, host: dir, safeupdate: SAFEUPDATE,
     async client(database, user) {
       const P = needPg();
       const c = new P.Client({ host: dir, port, user: user || "supabase_admin", database: database || "postgres" });
@@ -125,7 +133,9 @@ async function start(opts = {}) {
       const P = needPg();
       return new P.Pool({ host: dir, port, user: user || "supabase_admin", database, max: max || 10 });
     },
-    // a fresh database owned by postgres, with Supabase's stand-ins and, when asked, the game's schema
+    // a fresh database owned by postgres, with Supabase's stand-ins and, when asked, the game's schema: the
+    // migrations, applied by migrate.js as postgres (o.target: up to that version only; o.roundTrip: up, all the
+    // way down and up again), the optional handoff (o.handoff) and the test clock
     async createDatabase(name, o = {}) {
       const a = await db.client("postgres");
       try {
@@ -137,13 +147,27 @@ async function start(opts = {}) {
       const c = await db.client(name);
       try {
         await db.runFile(c, FILES.standins);
-        if (o.schema) {
-          const times = o.schemaTwice ? 2 : 1;
-          for (let i = 0; i < times; i++) await db.runFile(c, FILES.schema, o.onNotice);
-          if (o.handoff) for (let i = 0; i < times; i++) await db.runFile(c, FILES.handoff, o.onNotice);
-          if (o.clock !== false) await db.runFile(c, FILES.clock);
-        }
+        // the shared Supabase loads pg-safeupdate for the API's sessions: where the tests' stand-in is built
+        // (safeupdate/build.sh), the API's login role loads it too, so an UPDATE or DELETE without a WHERE fails
+        if (SAFEUPDATE) await c.query("alter role authenticator in database " + quoteIdent(name) + " set session_preload_libraries = '" + SAFEUPDATE + "'");
       } finally { await c.end(); }
+      if (o.schema) await db.migrate(name, o);
+    },
+    // the migrations on a database that has the stand-ins, as postgres (the migrating role)
+    async migrate(name, o = {}) {
+      const { migrate } = require("./migrate");
+      const c = await db.client(name, "postgres");
+      const h = m => { if (o.onNotice) o.onNotice(m, "migrations"); };
+      c.on("notice", h);
+      try {
+        if (o.roundTrip) { await migrate({ client: c }); await migrate({ client: c, target: 0 }); }
+        await migrate({ client: c, target: o.target });
+        if (o.handoff) await db.runFile(c, FILES.handoff, o.onNotice);
+      } finally { c.removeListener("notice", h); await c.end(); }
+      if (o.clock !== false && (o.target === undefined || o.target >= 2)) {
+        const a = await db.client(name, "postgres");
+        try { await db.runFile(a, FILES.clock); } finally { await a.end(); }
+      }
     },
     async runFile(c, file, onNotice) {
       const sql = fs.readFileSync(file, "utf8");

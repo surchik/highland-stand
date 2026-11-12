@@ -6,7 +6,7 @@
 
 const clamp01 = x => Math.max(0, Math.min(1, x));
 
-// the bounds of a battle, as hs_private.bounds reads them from a ruleset
+// the bounds of a battle, as highland._bounds reads them from a ruleset
 function boundsOf(rules, level, diff, twist, daily) {
   const lv = rules.levels[level];
   if (!lv) throw new Error("level_unknown");
@@ -80,7 +80,7 @@ const LOST_CASES = [
   { cleared: 0, score: 0 }, { cleared: 1, score: 333 }, { cleared: 5, score: 1666 }, { cleared: 6, score: 2000 }, { cleared: 11, score: 3666 },
 ];
 
-// The name rule (5.5), as hs_private.name_clean judges it: the cleaned name, or the refusal's word. The page's
+// The name rule (5.5), as highland._name_clean judges it: the cleaned name, or the refusal's word. The page's
 // own check (P2) must agree with it on NAME_CASES, which sql-tests.js also holds the server to.
 const BLOCKLIST = [["admin", "contains"], ["moderator", "contains"], ["highlandstand", "contains"], ["support", "exact"], ["owner", "exact"],
   ["official", "contains"], ["system", "exact"], ["null", "exact"], ["undefined", "exact"], ["\u5350", "contains"], ["\u534d", "contains"]];

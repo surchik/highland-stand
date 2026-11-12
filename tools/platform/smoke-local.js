@@ -33,7 +33,9 @@ const failedChecks = (out) => [...out.matchAll(/^FAIL +(\d+)\./gm)].map(m => Num
 
 (async () => {
   let bad = 0;
-  const stack = await stackLib.start({});
+  // narrow, as the old dedicated layout's public name served it (the shared server serves the whole API, where
+  // check 11 fails by design: deploy/supabase/README.md)
+  const stack = await stackLib.start({ narrow: true });
   try {
     console.log("== 1. the local stack, narrow as the guide's public name");
     let r = await smoke(stack.url, stack.anonKey);

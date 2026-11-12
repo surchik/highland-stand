@@ -1,17 +1,24 @@
 #!/usr/bin/env node
-// The SQL suite (docs/specs/platform.final.md 10.2, with docs/specs/RULINGS.md S1 to S5 and S8).
+// The SQL suite (docs/specs/platform.final.md 10.2, with docs/specs/RULINGS.md S1 to S5, S8, S9 and S10).
 //
 //   node tools/platform/sql-tests.js [--only=group,group] [--keep] [--verbose]
 //
-// It starts a throwaway PostgreSQL 16 (pgtemp.js), makes a fresh database with Supabase's stand-ins
-// (standins.sql), runs deploy/supabase/schema.sql in it TWICE (the file must be safe to run again), loads the
-// test clock (test-clock.sql) and then holds every rule of the spec to account, as the three callers a rule
-// concerns: a visitor (anon), a player (authenticated) and an admin. A caller's call is made the way PostgREST
-// makes it: on a connection logged in as "authenticator", in a transaction of its own, after
-// "set local role anon|authenticated" and the JWT claims set for the transaction; a function marked stable runs
-// in a read-only transaction. So the grants and row level security are the database's own, really enforced.
-// A second database is then made with the optional schema-handoff.sql loaded as well, for the handoff's cases
-// and to show the main file's rules still hold beside it.
+// It starts a throwaway PostgreSQL 16 (pgtemp.js). First the migrations themselves (the group "migrations", a
+// database of their own): the static checks of every SQL file (sqlcheck.js: every UPDATE and DELETE has a WHERE,
+// nothing outside highland, no CASCADE, search_path pinned), the lockdown after each one against Supabase's
+// default privileges, each migration's down and up again giving the same schema, nothing outside highland changed
+// by any of them (the neighbours' schemas, the default privileges, the roles' settings), a full rollback leaving
+// nothing, a changed or failing migration refused whole. Then a fresh database with Supabase's stand-ins
+// (standins.sql) where the migrations are applied, rolled back to 0 and applied again (migrate.js), the test
+// clock (test-clock.sql) is loaded, and every rule of the spec is held to account, as the callers a rule concerns:
+// a visitor (anon), a player (authenticated), an outsider (an account of another app's email sign-up, no
+// profile), an admin and service_role. A caller's call is made the way PostgREST makes it: on a connection logged
+// in as "authenticator", in a transaction of its own, after "set local role anon|authenticated|service_role" and
+// the JWT claims set for the transaction; a function marked stable runs in a read-only transaction. So the grants,
+// policies and row level security are the database's own, really enforced; where pg-safeupdate's test stand-in is
+// built (safeupdate/build.sh) the API's sessions load it too. A second database is then made with the optional
+// handoff (deploy/supabase/optional/handoff.up.sql) loaded as well, for its cases and to show the rules still hold
+// beside it.
 //
 // Prints one line per group and a FAIL line per broken rule, then "RESULT sql-tests: N assertions, F failed".
 // Exit 0 only when nothing failed. Needs the npm package pg (npm install --prefix tools/platform).
@@ -63,9 +70,13 @@ async function as(who, sql, params, o = {}) {
   const c = o.conn || api;
   await c.query(o.readOnly ? "begin isolation level read committed read only" : "begin");
   try {
-    const claims = who ? { sub: who, role: "authenticated", aud: "authenticated" } : { role: "anon" };
+    // a player's token as GoTrue makes it for a sign-in with a provider (amr: oauth); "<id>:password" is the same
+    // account signed in by password (the shared sign-in service's email sign-in)
+    const role = who === "service_role" ? "service_role" : who ? "authenticated" : "anon";
+    const [sub, how] = String(who || "").split(":");
+    const claims = who === "service_role" ? { role } : who ? { sub, role, aud: "authenticated", amr: [{ method: how || "oauth", timestamp: 1700000000 }] } : { role };
     await c.query("select set_config('request.jwt.claims', $1, true), set_config('hs_test.clock', $2, true)", [JSON.stringify(claims), clock]);
-    await c.query(who ? "set local role authenticated" : "set local role anon");
+    await c.query("set local role " + role);
     const r = await c.query(sql, params);
     if (o.hold) return { rows: r.rows, commit: () => c.query("commit"), rollback: () => c.query("rollback") };
     await c.query("commit");
@@ -79,7 +90,7 @@ const SIG = new Map();
 async function argTypes(fn) {
   if (!SIG.has(fn)) {
     const rows = (await admin.query(`select p.proargnames as n, array(select format_type(t, null) from unnest(p.proargtypes) t) as t
-      from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = $1`, [fn])).rows;
+      from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'highland' and p.proname = $1`, [fn])).rows;
     const m = {};
     for (const r of rows) (r.n || []).forEach((n, i) => { m[n] = r.t[i]; });
     SIG.set(fn, m);
@@ -90,7 +101,7 @@ async function rpc(who, fn, args, o = {}) {
   const keys = Object.keys(args || {});
   const types = await argTypes(fn);
   const vals = keys.map(k => { const v = args[k]; return types[k] === "jsonb" ? JSON.stringify(v) : v; });
-  const sql = "select public." + fn + "(" + keys.map((k, i) => k + " => $" + (i + 1)).join(", ") + ") as r";
+  const sql = "select highland." + fn + "(" + keys.map((k, i) => k + " => $" + (i + 1)).join(", ") + ") as r";
   const rows = await as(who, sql, vals, { readOnly: STABLE.has(fn), ...o });
   return o.hold ? rows : rows[0].r;
 }
@@ -131,9 +142,9 @@ const R2 = rules(), R3 = rules({ tushpaRev: 2 });
 
 function dayNumber(dateStr) { return Math.floor(Date.parse(dateStr + "T00:00:00Z") / 86400000); }
 function dayString(n) { return new Date(n * 86400000).toISOString().slice(0, 10); }
-async function serverDay() { return (await su("select (hs_private.now() at time zone 'utc')::date::text as d"))[0].d; }
+async function serverDay() { return (await su("select (highland._now() at time zone 'utc')::date::text as d"))[0].d; }
 async function backRuns(user, interval) {
-  await su("update public.hs_runs set started_at = started_at - $2::interval where user_id = $1", [user, interval]);
+  await su("update highland.hs_runs set started_at = started_at - $2::interval where user_id = $1", [user, interval]);
 }
 async function runBegin(who, mode, level, diff, ruleset, twist) {
   const a = { p_mode: mode, p_level: level, p_diff: diff, p_ruleset: ruleset };
@@ -144,10 +155,10 @@ async function runBegin(who, mode, level, diff, ruleset, twist) {
 async function play(who, ruleset, level, diff, stats, o = {}) {
   const b = await runBegin(who, o.mode || "campaign", level, diff, ruleset, o.twist);
   if (!b.ok) return { begin: b };
-  await su("update public.hs_runs set started_at = started_at - $2::interval where id = $1", [b.run_id, o.back || "40 minutes"]);
+  await su("update highland.hs_runs set started_at = started_at - $2::interval where id = $1", [b.run_id, o.back || "40 minutes"]);
   const e = await err(rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: stats }));
   if (e) return { error: e.msg, detail: e.detail, run: b.run_id };
-  return { ...(await su("select score, stars, flags, board from public.hs_scores where run_id = $1", [b.run_id]))[0], run: b.run_id };
+  return { ...(await su("select score, stars, flags, board from highland.hs_scores where run_id = $1", [b.run_id]))[0], run: b.run_id };
 }
 
 // ------------------------------------------------------------------ the groups
@@ -171,76 +182,109 @@ const SAMPLE = {
 group("structure", async (ctx) => {
   const tables = TABLES.concat(ctx.handoff ? ["hs_handoff"] : []);
   const rows = await su(`select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relname like 'hs\\_%' and c.relkind = 'r' order by 1`);
-  eq(rows.map(r => r.relname).sort(), tables.slice().sort(), "the hs_ tables are the spec's " + tables.length);
-  ok(rows.every(r => r.relrowsecurity), "row level security is on for every hs_ table");
+    where n.nspname = 'highland' and c.relkind in ('r', 'p') order by 1`);
+  eq(rows.map(r => r.relname).sort(), tables.concat(["schema_migrations"]).sort(), "the tables of highland are the spec's " + tables.length + " and the bookkeeping");
+  ok(rows.every(r => r.relrowsecurity), "row level security is on for every table of highland");
+  eq(await su(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'highland' and c.relkind in ('r', 'p') and not exists (select 1 from pg_policy p where p.polrelid = c.oid) order by 1`), [],
+    "and every one of them has at least one policy");
+  eq((await su(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'highland' and c.relkind = 'v'
+    and not coalesce(c.reloptions @> array['security_invoker=true'], false)`)), [], "every view reads with its caller's rights (security_invoker)");
+  // nothing of the schema for any API role: tables, views, sequences, the schema's functions
   const privs = await su(`select c.relname, r.role, q.priv from pg_class c join pg_namespace n on n.oid = c.relnamespace,
-      (values ('anon'), ('authenticated'), ('public')) r(role),
+      (values ('anon'), ('authenticated'), ('service_role'), ('public')) r(role),
       (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) q(priv)
-    where n.nspname = 'public' and c.relname like 'hs\\_%' and c.relkind = 'r'
+    where n.nspname = 'highland' and c.relkind in ('r', 'p', 'v', 'm')
       and has_table_privilege(case when r.role = 'public' then 'anon' else r.role end, c.oid, q.priv)`);
-  eq(privs, [], "no API role holds any privilege on any hs_ table");
-  const seq = await su(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace, (values ('anon'), ('authenticated')) r(role)
-    where n.nspname = 'public' and c.relname like 'hs\\_%' and c.relkind = 'S'
+  eq(privs, [], "no API role (anon, authenticated, service_role) holds any privilege on any table or view of highland");
+  eq(await su(`select c.relname, a.attname, r.role from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace,
+      (values ('anon'), ('authenticated'), ('service_role')) r(role)
+    where n.nspname = 'highland' and a.attnum > 0 and not a.attisdropped and has_column_privilege(r.role, c.oid, a.attnum, 'SELECT')`), [],
+    "nor on any column");
+  const seq = await su(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+    where n.nspname = 'highland' and c.relkind = 'S'
       and (has_sequence_privilege(r.role, c.oid, 'USAGE') or has_sequence_privilege(r.role, c.oid, 'SELECT') or has_sequence_privilege(r.role, c.oid, 'UPDATE'))`);
-  eq(seq, [], "nor on any hs_ sequence");
-  eq(await su(`select tablename from pg_policies where schemaname = 'public' and tablename like 'hs\\_%'`), [], "no policy exists on any hs_ table");
+  eq(seq, [], "nor on any sequence");
+  eq((await su(`select has_schema_privilege('anon', 'highland', 'usage') a, has_schema_privilege('authenticated', 'highland', 'usage') u,
+    has_schema_privilege('service_role', 'highland', 'usage') s, has_schema_privilege('anon', 'highland', 'create') or has_schema_privilege('authenticated', 'highland', 'create')
+    or has_schema_privilege('service_role', 'highland', 'create') c`))[0], { a: true, u: true, s: false, c: false },
+    "the schema: USAGE for anon and authenticated, nothing for service_role, CREATE for nobody");
   eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where (n.nspname = 'hs_private' or (n.nspname = 'public' and p.proname like 'hs\\_%')) and has_function_privilege('public', p.oid, 'execute')`), [],
-    "no hs_ function and no helper is executable by PUBLIC");
+    where n.nspname = 'highland' and has_function_privilege('public', p.oid, 'execute')`), [],
+    "no function of highland is executable by PUBLIC");
   eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where (n.nspname = 'hs_private' or (n.nspname = 'public' and p.proname like 'hs\\_%'))
-      and (p.proconfig is null or not p.proconfig @> array['search_path=""'])`), [], "every function of the game pins its search_path (security definer or not)");
+    where n.nspname = 'highland' and (p.proconfig is null or not p.proconfig @> array['search_path=""'])`), [], "every function of highland pins its search_path (security definer or not)");
   eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname like 'hs\\_%' and not p.prosecdef`), [], "every hs_ function in public is security definer");
-  ok((await su(`select has_schema_privilege('anon', 'hs_private', 'usage') or has_schema_privilege('authenticated', 'hs_private', 'usage') as u`))[0].u === false,
-    "no API role may use the schema hs_private");
-  const exec = await su(`select p.proname, has_function_privilege('anon', p.oid, 'execute') as a, has_function_privilege('authenticated', p.oid, 'execute') as u
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'hs\\_%' order by 1`);
+    where n.nspname = 'highland' and p.proname like 'hs\\_%' and not p.prosecdef`), [], "every hs_ function is security definer");
+  eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+    where n.nspname = 'highland' and p.proname not like 'hs\\_%' and has_function_privilege(r.role, p.oid, 'execute')`), [],
+    "no helper (_...) is executable by anon, authenticated or service_role");
+  ok((await su(`select count(*)::int n from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'highland' and p.proname like '\\_%'`))[0].n >= 25,
+    "and the helpers are there, all named _...");
+  eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'highland' and p.proname not like 'hs\\_%' and p.proname not like '\\_%'`), [], "every function of highland is named hs_ (a door) or _ (a helper)");
+  const exec = await su(`select p.proname, has_function_privilege('anon', p.oid, 'execute') as a, has_function_privilege('authenticated', p.oid, 'execute') as u,
+      has_function_privilege('service_role', p.oid, 'execute') as s
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'highland' and p.proname like 'hs\\_%' order by 1`);
   const open = OPEN_FNS.concat(ctx.handoff ? ["hs_handoff_put", "hs_handoff_take"] : []);
   eq(exec.filter(r => r.a).map(r => r.proname).sort(), open.slice().sort(), "a visitor may run exactly the open functions");
-  eq(exec.filter(r => r.u).map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "a player may run exactly the open, the player's and the admin's (which refuse him)");
-  eq(exec.map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "no other hs_ function exists in public");
+  eq(exec.filter(r => r.u).map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "a signed-in account may run exactly the open, the player's and the admin's (which ask for a player or an admin themselves)");
+  eq(exec.filter(r => r.s).map(r => r.proname), [], "service_role may run none");
+  eq(exec.map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "no other hs_ function exists in highland");
   eq((await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname like 'hs\\_%' and p.provolatile <> 'v' order by 1`)).map(r => r.proname), [...STABLE].sort(),
+    where n.nspname = 'highland' and p.proname like 'hs\\_%' and p.provolatile <> 'v' order by 1`)).map(r => r.proname), [...STABLE].sort(),
     "exactly six hs_ functions are stable (PostgREST runs those read-only), and no seventh");
   eq(await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_roles r on r.oid = p.proowner
-    where (n.nspname = 'hs_private' or (n.nspname = 'public' and p.proname like 'hs\\_%')) and (r.rolsuper or r.rolname <> 'postgres')`), [],
+    where n.nspname = 'highland' and (r.rolsuper or r.rolname <> 'postgres')`), [],
     "every function belongs to postgres, which is not a superuser");
+  eq(await su(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace join pg_roles r on r.oid = c.relowner
+    where n.nspname = 'highland' and r.rolname <> 'postgres'`), [], "and every table, view, index and sequence");
+  // nothing of the game anywhere else: no hs_ object and no helper outside highland, no other schema of its own
+  eq(await su(`select n.nspname || '.' || c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname <> 'highland' and (c.relname like 'hs\\_%' or c.relname like 'schema_migrations') union all
+    select n.nspname || '.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname <> 'highland' and p.proname like 'hs\\_%'`), [],
+    "no hs_ object exists outside highland (nothing in public)");
+  eq(await su(`select nspname from pg_namespace where nspname in ('hs_private') or nspname like 'hs\\_%'`), [], "and no second schema of the game's");
   const tmo = await su(`select p.proname, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname in ('hs_stats', 'hs_admin_purge_events', 'hs_delete_account') order by 1`);
+    where n.nspname = 'highland' and p.proname in ('hs_stats', 'hs_admin_purge_events', 'hs_delete_account') order by 1`);
   eq(tmo.map(r => r.proname + ":" + (r.proconfig.find(x => x.startsWith("statement_timeout")) || "")),
     ["hs_admin_purge_events:statement_timeout=60s", "hs_delete_account:statement_timeout=30s", "hs_stats:statement_timeout=30s"],
     "the three heavy functions carry their own statement timeout");
-  eq(ctx.warnings, [], "schema.sql's closing checks warn of nothing on this stand-in, run twice");
+  eq(ctx.warnings, [], "the migrations' closing checks warn of nothing on this stand-in (applied, rolled back to 0 and applied again)");
 });
 
 group("refusals", async () => {
-  // every table, every way, as a visitor and as a player: refused by the database itself
+  // every table, every way, as a visitor, a player and service_role: refused by the database itself
   const sqlOf = {
-    select: t => "select * from public." + t + " limit 1",
-    insert: t => "insert into public." + t + " default values",
-    update: t => "update public." + t + " set " + (t === "hs_rate" ? "n = 0" : t === "hs_config" ? "key = key" : t === "hs_name_blocklist" ? "kind = kind" : "user_id = user_id") +
-      (["hs_rulesets", "hs_sessions", "hs_events"].includes(t) ? "" : ""),
-    delete: t => "delete from public." + t,
+    select: t => "select * from highland." + t + " limit 1",
+    insert: t => "insert into highland." + t + " default values",
+    delete: t => "delete from highland." + t + " where true",
   };
-  for (const who of [null, U.A]) {
-    const label = who ? "a player" : "a visitor";
-    for (const t of TABLES) {
+  for (const who of [null, U.A, "service_role"]) {
+    const label = who === "service_role" ? "service_role" : who ? "a player" : "a visitor";
+    for (const t of TABLES.concat(["schema_migrations"])) {
       for (const op of ["select", "insert", "delete"]) {
         const m = await errMsg(as(who, sqlOf[op](t)));
-        ok(/permission denied for table/.test(m), label + " cannot " + op + " " + t + (m ? "" : " (it ran)"));
+        ok((who === "service_role" ? /permission denied for (schema highland|table)/ : /permission denied for table/).test(m), label + " cannot " + op + " " + t + (m ? "" : " (it ran)"));
       }
-      const m = await errMsg(as(who, "update public." + t + " set " + firstColumn[t] + " = " + firstColumn[t]));
-      ok(/permission denied for table/.test(m), label + " cannot update " + t);
+      const m = await errMsg(as(who, "update highland." + t + " set " + firstColumn[t] + " = " + firstColumn[t] + " where true"));
+      ok((who === "service_role" ? /permission denied for (schema highland|table)/ : /permission denied for table/).test(m), label + " cannot update " + t);
     }
-    const m = await errMsg(as(who, "select hs_private.is_admin()"));
-    ok(/permission denied for schema hs_private/.test(m), label + " cannot call a private helper");
+    for (const v of ["_v_sessions", "_v_battles"]) ok(/permission denied for (view|table|schema highland)/.test(await errMsg(as(who, "select * from highland." + v))), label + " cannot read the view " + v);
+    for (const h of ["highland._is_admin()", "highland._uid()", "highland._member()", "highland._now()", "highland._rate_ok('x', 'y', 60, 9)", "highland._name_clean('Abcdef')"]) {
+      const m = await errMsg(as(who, "select " + h));
+      ok(who === "service_role" ? /permission denied for (schema highland|function)/.test(m) : /permission denied for function/.test(m), label + " cannot call the helper " + h + " (" + m + ")");
+    }
   }
   // a visitor may not run any function but the open ones
   for (const fn of PLAYER_FNS.concat(ADMIN_FNS)) {
     const m = await errMsg(rpc(null, fn, SAMPLE[fn]));
     ok(/permission denied for function/.test(m), "a visitor is refused " + fn + " (" + m + ")");
+  }
+  // service_role (the service key's role) may run none of them, not even the open ones
+  for (const fn of OPEN_FNS.concat(PLAYER_FNS, ADMIN_FNS)) {
+    const m = await errMsg(as("service_role", "select highland." + fn + "()"));
+    ok(/permission denied for (schema highland|function)/.test(m), "service_role is refused " + fn + " (" + m + ")");
   }
   // a player is refused every admin function, by the function's own word
   for (const fn of ADMIN_FNS) {
@@ -248,12 +292,12 @@ group("refusals", async () => {
     ok(e && e.msg === "not_admin" && e.code === "42501", "a player is refused " + fn + " with not_admin (" + (e && e.msg) + ")");
   }
   // an unknown name and an overload that does not exist
-  ok(/does not exist/.test(await errMsg(as(null, "select public.hs_secret()"))), "a function that does not exist");
-  ok(/does not exist/.test(await errMsg(as(null, "select public.hs_config(p_x => 1)"))), "an argument a function does not have");
+  ok(/does not exist/.test(await errMsg(as(null, "select highland.hs_secret()"))), "a function that does not exist");
+  ok(/does not exist/.test(await errMsg(as(null, "select highland.hs_config(p_x => 1)"))), "an argument a function does not have");
   // auth.users, as on Supabase, is not the API's either
   ok(/permission denied/.test(await errMsg(as(U.A, "select * from auth.users"))), "a player cannot read auth.users");
 });
-const firstColumn = { hs_profiles: "name", hs_saves: "version", hs_rulesets: "active", hs_runs: "diff", hs_scores: "score",
+const firstColumn = { schema_migrations: "name", hs_profiles: "name", hs_saves: "version", hs_rulesets: "active", hs_runs: "diff", hs_scores: "score",
   hs_score_best: "score", hs_sessions: "build", hs_events: "seq", hs_admins: "note", hs_config: "value", hs_name_blocklist: "kind", hs_rate: "n" };
 
 group("names", async () => {
@@ -266,10 +310,10 @@ group("names", async () => {
   }
   for (const [n, want, what] of ref.NAME_CASES) {
     if (/^name_/.test(want)) continue;
-    eq((await su("select hs_private.name_clean($1) as n", [n]))[0].n, want, "accepted: " + what);
+    eq((await su("select highland._name_clean($1) as n", [n]))[0].n, want, "accepted: " + what);
   }
   eq((await rpc(U.A, "hs_profile_set_name", { p_name: "  Արամ   Aram " })).name, "Արամ Aram", "Armenian letters accepted, spaces trimmed and made one");
-  eq((await errMsg(as(U.A, "select count(*) from public.hs_profiles"))).includes("permission denied"), true, "a player reads not even his own profile row");
+  eq((await errMsg(as(U.A, "select count(*) from highland.hs_profiles"))).includes("permission denied"), true, "a player reads not even his own profile row");
   eq(await errMsg(rpc(U.B, "hs_profile_set_name", { p_name: "արամ_aram" })), "name_taken", "the same name folded (case, underscore) is taken");
   eq(await errMsg(rpc(U.B, "hs_profile_set_name", { p_name: "Արամ A.r.a.m" })), "name_taken", "dots folded away too");
   eq((await rpc(U.B, "hs_profile_set_name", { p_name: "Ar4m" })).ok, true, "Ar4m is not Արամ Aram");
@@ -278,7 +322,7 @@ group("names", async () => {
   eq((await rpc(U.B, "hs_profile_get", {})).name, "Bagrat", "the player reads his own name through the function");
   eq((await rpc(U.B, "hs_profile_set_name", { p_name: "Bagrat" })).ok, true, "the same name again is no change");
   for (const [who, n] of [[U.C, "Нарек"], [U.D, "山田太郎"]]) eq((await rpc(who, "hs_profile_set_name", { p_name: n })).name, n, "letters of another alphabet: " + n);
-  const L = await su(`select hs_private.name_letters('محمد') a, hs_private.name_letters('Zoë 7') b, hs_private.name_letters('Ελένη') c, hs_private.name_letters('a😀b') d`);
+  const L = await su(`select highland._name_letters('محمد') a, highland._name_letters('Zoë 7') b, highland._name_letters('Ελένη') c, highland._name_letters('a😀b') d`);
   ok(L[0].a && L[0].b && L[0].c && !L[0].d, "Arabic, accented Latin and Greek are letters; a picture is not");
   eq(await errMsg(rpc(U.S, "hs_profile_set_name", { p_name: "Supporters" })), "", "an exact reserved word inside a longer name is allowed");
   // the weekly limit: past the first ten minutes, one change in seven days
@@ -311,8 +355,8 @@ group("saves", async () => {
   const g = await rpc(U.A, "hs_save_get", {});
   ok(g.version === 2 && g.device === "iPad" && typeof g.updated_at === "string" && typeof g.now === "string", "the save reads back with its version, device and time");
   eq(await errMsg(rpc(U.A, "hs_save_put", { p_expected: 2, p_data: { k: "x".repeat(270000) } })), "save_too_large", "a save over 256 KB");
-  eq(await errMsg(as(U.A, "select public.hs_save_put(2, '[1]')")), "save_invalid", "a save that is not an object");
-  eq(await errMsg(as(U.A, "select public.hs_save_put(2, null)")), "save_invalid", "a save that is null");
+  eq(await errMsg(as(U.A, "select highland.hs_save_put(2, '[1]')")), "save_invalid", "a save that is not an object");
+  eq(await errMsg(as(U.A, "select highland.hs_save_put(2, null)")), "save_invalid", "a save that is null");
   eq((await rpc(U.A, "hs_save_get", { p_channel: "next" })).version, 0, "the staging channel has a save of its own");
   eq((await rpc(U.A, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: { hs_records: "{\"staging\":1}" } }, p_device: "next:test", p_channel: "next" })).version, 1, "and writes it");
   ok(/erebuni/.test((await rpc(U.A, "hs_save_get", {})).data.keys.hs_records), "the live save is untouched by it");
@@ -397,8 +441,8 @@ group("rulesets", async () => {
     "lostMax alone may change (it is no campaign board's)");
   eq((await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9-next", p_data: bad(r => { r.levels.erebuni.d[1].lives = 25; r.levels.erebuni.rev = 8; r.levels.tushpa.rev = 2; }) })).ok, true,
     "a staging ruleset is held only to the staging channel's (Erebuni's rev 8 means another battle on the live boards)");
-  await su("delete from public.hs_rulesets where id in ('9', '9-next')");
-  ok((await su("select count(*)::int as n from public.hs_rulesets where id = '9'"))[0].n === 0, "none of them was stored");
+  await su("delete from highland.hs_rulesets where id in ('9', '9-next')");
+  ok((await su("select count(*)::int as n from highland.hs_rulesets where id = '9'"))[0].n === 0, "none of them was stored");
   // the switches
   eq(await errMsg(rpc(U.A, "hs_admin_set_config", { p_key: "gate", p_value: "off" })), "not_admin", "a player sets the gate");
   eq((await rpc(U.AD, "hs_admin_set_config", { p_key: "gate", p_value: "optional" })).gate, "optional", "the admin sets the gate");
@@ -409,14 +453,14 @@ group("rulesets", async () => {
     eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: k, p_value: v })), "value_invalid", "refused: " + what);
   }
   eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: "secret", p_value: 1 })), "key_unknown", "a switch that does not exist");
-  eq(await errMsg(as(U.AD, "select public.hs_admin_set_config(null, '1'::jsonb)")), "key_unknown", "a switch with no name");
+  eq(await errMsg(as(U.AD, "select highland.hs_admin_set_config(null, '1'::jsonb)")), "key_unknown", "a switch with no name");
   eq(await errMsg(rpc(U.AD, "hs_admin_set_config", { p_key: "boards", p_value: { pad: "x".repeat(4100) } })), "value_invalid", "a switch over 4 KB (hs_config sends it to every visitor)");
   eq((await rpc(U.AD, "hs_admin_set_config", { p_key: "boards", p_value: { pad: "x".repeat(3000) } })).boards.pad.length, 3000, "one of 3 KB is kept");
-  await as(U.AD, "select public.hs_admin_set_config('boards', 'null'::jsonb)");
-  await as(U.AD, "select public.hs_admin_set_config('gate', 'null'::jsonb)");
+  await as(U.AD, "select highland.hs_admin_set_config('boards', 'null'::jsonb)");
+  await as(U.AD, "select highland.hs_admin_set_config('gate', 'null'::jsonb)");
   ok(!("gate" in (await rpc(null, "hs_config", {}))), "a null value removes the switch");
   eq((await rpc(U.AD, "hs_admin_set_config", { p_key: "notice", p_value: "Back at six." })).notice, "Back at six.", "a notice for the gate's cards");
-  await as(U.AD, "select public.hs_admin_set_config('notice', 'null'::jsonb)");
+  await as(U.AD, "select highland.hs_admin_set_config('notice', 'null'::jsonb)");
 });
 
 group("scores", async () => {
@@ -433,7 +477,7 @@ group("scores", async () => {
   const good = { won: true, lives: 20, waves: 10, sim_sec: 600, spent: 900, earned: 3000, loadout: "std", build: "2026-11-20" };
   const e0 = await err(rpc(U.A, "hs_score_submit", { p_run: b0.run_id, p_stats: good }));
   ok(e0 && e0.msg === "score_implausible" && e0.detail === "clock", "a ten-minute battle sent at once cannot have been played (clock)");
-  await su("update public.hs_runs set started_at = started_at - interval '20 minutes' where id = $1", [b0.run_id]);
+  await su("update highland.hs_runs set started_at = started_at - interval '20 minutes' where id = $1", [b0.run_id]);
   const refuse = [
     [{ ...good, lives: 21 }, "lives or waves", "more defenders than the difficulty has"],
     [{ ...good, lives: -1 }, "lives or waves", "fewer than none"],
@@ -461,9 +505,9 @@ group("scores", async () => {
   eq(await errMsg(rpc(U.A, "hs_score_submit", { p_run: crypto.randomUUID(), p_stats: good })), "run_unknown", "a run that does not exist");
   const bB = await runBegin(U.B, "campaign", "erebuni", 1, "2");
   eq(await errMsg(rpc(U.A, "hs_score_submit", { p_run: bB.run_id, p_stats: good })), "run_unknown", "A cannot post on B's run");
-  await su("update public.hs_runs set started_at = started_at - interval '31 days' where id = $1", [bB.run_id]);
+  await su("update highland.hs_runs set started_at = started_at - interval '31 days' where id = $1", [bB.run_id]);
   eq(await errMsg(rpc(U.B, "hs_score_submit", { p_run: bB.run_id, p_stats: good })), "run_expired", "a run begun over 30 days ago");
-  ok(/permission denied/.test(await errMsg(as(U.A, "select flags from public.hs_scores"))), "a player cannot read his flags");
+  ok(/permission denied/.test(await errMsg(as(U.A, "select flags from highland.hs_scores"))), "a player cannot read his flags");
   // the table of score cases, the same as unit.js holds the page's scoreOf to
   for (const c of ref.SCORE_CASES) {
     const r = await play(U.S, "2", "erebuni", 1, { ...c.stats, loadout: "open" });
@@ -511,7 +555,7 @@ group("scores", async () => {
   eq(await errMsg(rpc(null, "hs_board", { p_mode: "campaign", p_level: "nowhere", p_diff: 1, p_loadout: "std", p_ruleset: "2" })), "board_unknown", "a battlefield the ruleset lacks");
   eq(await errMsg(rpc(null, "hs_board", { p_mode: "arena" })), "mode_unknown", "a board mode that does not exist");
   // the week: this week's key across a Sunday midnight UTC, and a new week's board starts empty
-  const wk = await su(`select hs_private.week_key('2026-11-15 23:59:59+00') a, hs_private.week_key('2026-11-16 00:00:00+00') b, hs_private.week_key('2026-11-16 00:00:00+01') c`);
+  const wk = await su(`select highland._week_key('2026-11-15 23:59:59+00') a, highland._week_key('2026-11-16 00:00:00+00') b, highland._week_key('2026-11-16 00:00:00+01') c`);
   ok(wk[0].a === "w:2026-11-09" && wk[0].b === "w:2026-11-16" && wk[0].c === "w:2026-11-09", "the week turns at Monday 00:00 UTC, not at local midnight");
   const now = new Date((await su("select extract(epoch from pg_catalog.now()) as e"))[0].e * 1000);
   const toMonday = ((8 - now.getUTCDay()) % 7 || 7) * 86400 - (now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()) + 60;
@@ -590,7 +634,7 @@ group("daily", async () => {
   const won = await rpc(U.A, "hs_score_submit", { p_run: b[1].run_id, p_stats: { won: true, lives: Math.min(10, bd.lives), waves: 12, sim_sec: bd.slow, spent: 1000, earned: 2000, loadout: "open" } });
   const want = ref.scoreOf({ won: true, lives: Math.min(10, bd.lives), sim_sec: bd.slow, spent: 1000, earned: 2000 }, bd);
   ok(won.score === want, "a won daily is scored on the daily's own pars (" + won.score + ", wanted " + want + ")");
-  ok((await su("select loadout from public.hs_scores where run_id = $1", [b[1].run_id]))[0].loadout === "std", "a daily is always standard, whatever is posted");
+  ok((await su("select loadout from highland.hs_scores where run_id = $1", [b[1].run_id]))[0].loadout === "std", "a daily is always standard, whatever is posted");
   const st2 = await rpc(U.A, "hs_daily_status", { p_ruleset: "2" });
   ok(st2.used === 3 && st2.best === want && st2.rank === 1 && st2.total === 1, "the status counts three attempts used and the best");
   for (const c of ref.LOST_CASES) eq(ref.scoreOf({ won: false, waves: c.cleared }, { waves: 12 }), c.score, "reference: a loss with " + c.cleared + " of 12 cleared");
@@ -614,11 +658,11 @@ group("daily", async () => {
   const b8 = await runBegin(U.B, "daily", sn.level, 1, "8-next", sn.twist);
   ok(b8.ok === true, "the newest ruleset's daily begins");
   eq((await runBegin(U.B, "daily", pick.level, 1, "2", pick.twist)).ok, true, "and the live channel is not touched by a staging ruleset");
-  await su("delete from public.hs_runs where ruleset = '8-next' or (user_id = $1 and mode = 'daily')", [U.B]);
-  await su("delete from public.hs_rulesets where id = '8-next'");
+  await su("delete from highland.hs_runs where ruleset = '8-next' or (user_id = $1 and mode = 'daily')", [U.B]);
+  await su("delete from highland.hs_rulesets where id = '8-next'");
   // the bounds of a twist
-  const bb = await su(`select (hs_private.bounds($1::jsonb, 'erebuni', 1, 'few', true)).lives a, (hs_private.bounds($1::jsonb, 'erebuni', 1, 'thin', true)).earn_max b,
-      (hs_private.bounds($1::jsonb, 'erebuni', 1, null, false)).earn_max c, (hs_private.bounds($1::jsonb, 'erebuni', 1, 'thin', true)).waves d`, [JSON.stringify(R2)]);
+  const bb = await su(`select (highland._bounds($1::jsonb, 'erebuni', 1, 'few', true)).lives a, (highland._bounds($1::jsonb, 'erebuni', 1, 'thin', true)).earn_max b,
+      (highland._bounds($1::jsonb, 'erebuni', 1, null, false)).earn_max c, (highland._bounds($1::jsonb, 'erebuni', 1, 'thin', true)).waves d`, [JSON.stringify(R2)]);
   ok(bb[0].a === 12 && bb[0].b === 3200 && bb[0].c === 5500 && bb[0].d === 12, "Few defenders sets 12; Thin purse scales the daily's purse; the campaign's is its own");
   // the next day: a new challenge, the attempts back, yesterday's board kept
   await setClock("1 day");
@@ -649,7 +693,7 @@ group("daily", async () => {
   ];
   for (const p of pools) {
     p.k = ref.kOf(p.pool.length); p.j = ref.jOf(p.twists.length);
-    const rows = await su(`select g, (hs_private.daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + 364) g order by g`,
+    const rows = await su(`select g, (highland._daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + 364) g order by g`,
       [JSON.stringify(p), dn]);
     const bad = rows.filter(x => { const w = ref.dailyOf(p, x.g); return w.level !== x.level_id || w.twist !== x.twist; });
     ok(bad.length === 0, "the server's pick equals the page's for 365 days, " + p.pool.length + " battlefields by " + p.twists.length + " twists (" + bad.length + " differ)");
@@ -658,7 +702,7 @@ group("daily", async () => {
   }
   for (const m of [6, 12]) {
     const p = { pool: Array.from({ length: 17 }, (_, i) => "b" + i), twists: Array.from({ length: m }, (_, i) => "t" + i), k: 5, j: ref.jOf(m) };
-    const rows = await su(`select g, (hs_private.daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + $3::int - 1) g order by g`,
+    const rows = await su(`select g, (highland._daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + $3::int - 1) g order by g`,
       [JSON.stringify(p), dn, 2 * 17 * m]);
     const first = rows.slice(0, 17 * m), seen = new Set(first.map(x => x.level_id + "/" + x.twist));
     ok(seen.size === 17 * m, "over 17 x " + m + " days every battlefield meets every twist exactly once");
@@ -679,7 +723,7 @@ group("analytics", async () => {
       [ctx(D2, "sess<0002>"), "a session id with markup"], [{ sid: "sess-0002-abcd" }, "no device id"]]) {
     eq(await errMsg(rpc(null, "hs_track", { p_ctx: c, p_events: [{ n: "page_load" }] })), "ctx_invalid", "refused: " + what);
   }
-  eq(await errMsg(as(null, "select public.hs_track($1::jsonb, '{}'::jsonb)", [JSON.stringify(ctx(D2, "sess-0002-abcd"))])), "ctx_invalid", "events that are not a list");
+  eq(await errMsg(as(null, "select highland.hs_track($1::jsonb, '{}'::jsonb)", [JSON.stringify(ctx(D2, "sess-0002-abcd"))])), "ctx_invalid", "events that are not a list");
   eq(await errMsg(rpc(null, "hs_track", { p_ctx: ctx(D2, "sess-0002-abcd"), p_events: Array.from({ length: 51 }, (_, i) => ({ n: "page_load", q: i })) })), "batch_too_large", "a batch of 51 events");
   eq(await errMsg(rpc(null, "hs_track", { p_ctx: ctx(D2, "sess-0002-abcd"), p_events: Array.from({ length: 20 }, (_, i) => ({ n: "wave_end", q: i, p: { pad: "x".repeat(3500) } })) })),
     "batch_too_large", "a batch over 60 KB");
@@ -703,15 +747,15 @@ group("analytics", async () => {
   // an event sent again (the page's batch at closing, sent once more on the next load) is kept once
   r = await rpc(null, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "victory", q: 14, p: facts }, { n: "page_hide", q: 30, p: { where: "map" } }] });
   ok(r.accepted === 1 && r.dropped === 1, "an event sent again is kept once: the same visit and number (" + JSON.stringify(r) + ")");
-  eq((await su("select count(*)::int n from public.hs_events where sid = 'sess-0001-abcd' and seq = 14"))[0].n, 1, "one row for it");
-  eq((await su("select indexdef from pg_indexes where indexname = 'hs_events_once'"))[0].indexdef.replace(/\s+/g, " ").replace(/public\./g, ""),
+  eq((await su("select count(*)::int n from highland.hs_events where sid = 'sess-0001-abcd' and seq = 14"))[0].n, 1, "one row for it");
+  eq((await su("select indexdef from pg_indexes where indexname = 'hs_events_once'"))[0].indexdef.replace(/\s+/g, " ").replace(/highland\./g, ""),
     "CREATE UNIQUE INDEX hs_events_once ON hs_events USING btree (sid, seq) WHERE (seq > 0)", "each event of a visit once (events without a number are not held to it)");
   // the account joins the visit once signed in, and never another's
   await rpc(U.A, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "signed_in", q: 15, p: { provider: "google" } }] });
-  eq((await su("select uid::text from public.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "the visit takes the account once signed in");
+  eq((await su("select uid::text from highland.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "the visit takes the account once signed in");
   await rpc(U.B, "hs_track", { p_ctx: ctx(D1, "sess-0001-abcd"), p_events: [{ n: "page_load", q: 16 }] });
-  eq((await su("select uid::text from public.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "and keeps it when another account sends on it");
-  ok(/permission denied/.test(await errMsg(as(U.A, "select count(*) from public.hs_events"))), "a player cannot read events");
+  eq((await su("select uid::text from highland.hs_sessions where sid = 'sess-0001-abcd'"))[0].uid, U.A, "and keeps it when another account sends on it");
+  ok(/permission denied/.test(await errMsg(as(U.A, "select count(*) from highland.hs_events"))), "a player cannot read events");
   // limits count events, not calls
   const D3 = "33333333-3333-4333-8333-333333333333";
   let acc = 0; for (let i = 0; i < 18; i++) acc += (await rpc(null, "hs_track", { p_ctx: ctx(D3, "sess-0003-cap"), p_events: Array.from({ length: 50 }, (_, j) => ({ n: "tower_built", q: i * 50 + j })) })).accepted;
@@ -720,29 +764,29 @@ group("analytics", async () => {
   acc = 0; for (let i = 0; i < 30; i++) acc += (await rpc(U.D, "hs_track", { p_ctx: ctx(D3, "sess-0004-user"), p_events: Array.from({ length: 50 }, (_, j) => ({ n: "tower_built", q: i * 50 + j })) })).accepted;
   r = await rpc(U.D, "hs_track", { p_ctx: ctx(D3, "sess-0004-user"), p_events: [{ n: "tower_built", q: 9999 }] });
   ok(acc === 1500 && r.accepted === 0, "a signed-in player: his own 1,500 an hour, from the same device too (" + acc + ")");
-  await su("update public.hs_config set value = '60' where key = 'ev_cap_hour'");
-  await su("delete from public.hs_rate where bucket like 'evanon:%'");
+  await su("update highland.hs_config set value = '60' where key = 'ev_cap_hour'");
+  await su("delete from highland.hs_rate where bucket like 'evanon:%'");
   const D4 = "44444444-4444-4444-8444-444444444444", D5 = "55555555-5555-4555-8555-555555555555";
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D4, "sess-0005-pool"), p_events: Array.from({ length: 50 }, (_, g) => ({ n: "page_load", q: g })) })).accepted, 50, "fifty events inside a pool of sixty");
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: Array.from({ length: 11 }, (_, g) => ({ n: "page_load", q: g })) })).accepted, 0, "eleven more would pass the pool: dropped");
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: Array.from({ length: 10 }, (_, g) => ({ n: "page_load", q: 20 + g })) })).accepted, 10,
     "a dropped batch is not charged to the pool: ten more fill it exactly");
   eq((await rpc(null, "hs_track", { p_ctx: ctx(D5, "sess-0006-pool"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 0, "and a single one after that is dropped (the pool counts events)");
-  const before = (await su("select count(*)::int n from public.hs_rate where bucket like 'ev:%'"))[0].n;
+  const before = (await su("select count(*)::int n from highland.hs_rate where bucket like 'ev:%'"))[0].n;
   for (let i = 0; i < 20; i++) await rpc(null, "hs_track", { p_ctx: ctx(crypto.randomUUID(), "sess-flood-" + i), p_events: [{ n: "page_load" }] });
-  eq((await su("select count(*)::int n from public.hs_rate where bucket like 'ev:%'"))[0].n, before, "once the pool is dry, made-up device ids add no rate rows");
-  eq((await su("select count(*)::int n from public.hs_sessions where sid like 'sess-flood-%'"))[0].n, 0, "nor visits");
+  eq((await su("select count(*)::int n from highland.hs_rate where bucket like 'ev:%'"))[0].n, before, "once the pool is dry, made-up device ids add no rate rows");
+  eq((await su("select count(*)::int n from highland.hs_sessions where sid like 'sess-flood-%'"))[0].n, 0, "nor visits");
   eq((await rpc(U.B, "hs_track", { p_ctx: ctx(D5, "sess-0007-user"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 1, "a signed-in player is not starved by the visitors' pool");
-  await su("update public.hs_config set value = '20000' where key = 'ev_cap_hour'");
+  await su("update highland.hs_config set value = '20000' where key = 'ev_cap_hour'");
   // one device id flooding past its own 900 does not drain the pool for every other visitor
-  await su("update public.hs_config set value = '2000' where key = 'ev_cap_hour'");
-  await su("delete from public.hs_rate where bucket like 'evanon:%' or bucket like 'ev:%'");
+  await su("update highland.hs_config set value = '2000' where key = 'ev_cap_hour'");
+  await su("delete from highland.hs_rate where bucket like 'evanon:%' or bucket like 'ev:%'");
   const D6 = "66666666-6666-4666-8666-666666666666";
   acc = 0; for (let i = 0; i < 60; i++) acc += (await rpc(null, "hs_track", { p_ctx: ctx(D6, "sess-0008-flood"), p_events: Array.from({ length: 50 }, (_, j) => ({ n: "tower_built", q: i * 50 + j })) })).accepted;
-  const pool = (await su("select n from public.hs_rate where bucket like 'evanon:%' and key = 'all'"))[0].n;
+  const pool = (await su("select n from highland.hs_rate where bucket like 'evanon:%' and key = 'all'"))[0].n;
   ok(acc === 900 && pool === 900, "one device sends 3,000 events: 900 kept, and the pool is charged only those 900 (" + acc + ", pool " + pool + ")");
   eq((await rpc(null, "hs_track", { p_ctx: ctx(crypto.randomUUID(), "sess-0009-after"), p_events: [{ n: "page_load", q: 1 }] })).accepted, 1, "a new visitor after the flood is still counted");
-  await su("update public.hs_config set value = '20000' where key = 'ev_cap_hour'");
+  await su("update highland.hs_config set value = '20000' where key = 'ev_cap_hour'");
 });
 
 group("stats", async () => {
@@ -750,12 +794,13 @@ group("stats", async () => {
   const base = 400;
   const at = d => setClock((base + d) + " days");
   // (old visits leave by themselves, now and then, on any call: here today's would look 400 days old)
-  await su("update public.hs_config set value = '5000' where key = 'ev_keep_days'");
+  await su("update highland.hs_config set value = '5000' where key = 'ev_keep_days'");
   const ctx = (aid, sid, more) => ({ aid, sid, build: "b", ruleset: "2", channel: "live", dev: "phone", os: "ios", browser: "safari", ...more });
   const N1 = "a1000000-0000-4000-8000-000000000001", N2 = "a1000000-0000-4000-8000-000000000002",
     R1 = "a1000000-0000-4000-8000-000000000003", I1 = "a1000000-0000-4000-8000-000000000004", X1 = "a1000000-0000-4000-8000-000000000005";
   const U1 = "b1000000-0000-4000-8000-000000000001", U2 = "b1000000-0000-4000-8000-000000000002";
   await su("insert into auth.users (id, email) values ($1, 'u1@example.com'), ($2, 'u2@example.com')", [U1, U2]);
+  await su("insert into auth.identities (provider, provider_id, user_id) values ('google', 'g-u1', $1), ('discord', 'd-u2', $2)", [U1, U2]);
   await at(0);
   await rpc(U1, "hs_profile_set_name", { p_name: "Ani Player" });
   const ev = (n, q, p) => ({ n, q, p: p || {} });
@@ -817,17 +862,17 @@ group("stats", async () => {
   await rpc(null, "hs_track", { p_ctx: ctx(G1, "st-g1-game"), p_events: [ev("page_load", 1, { progress: 0, page: "game" }), ev("gate_shown", 2, { state: "signin" })] });
   const sg = await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["funnel"] });
   eq([sg.funnel[0].n, sg.funnel[1].n], [5, 5], "a page_load with page \"game\" enters the funnel");
-  await su("delete from public.hs_events where sid = 'st-g1-game'");
-  await su("delete from public.hs_sessions where sid = 'st-g1-game'");
+  await su("delete from highland.hs_events where sid = 'st-g1-game'");
+  await su("delete from highland.hs_sessions where sid = 'st-g1-game'");
   // P4 review 7: Totals leave the staging page out (its events and its saves)
-  await su("insert into public.hs_saves (user_id, channel, data, bytes) values ($1, 'next', '{}', 2) on conflict do nothing", [U2]);
+  await su("insert into highland.hs_saves (user_id, channel, data, bytes) values ($1, 'next', '{}', 2) on conflict do nothing", [U2]);
   const tot = (await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["totals"] })).totals;
-  const liveSaves = (await su("select count(*)::int n from public.hs_saves where channel = 'live'"))[0].n;
-  const ev2 = (await su(`select count(*) filter (where coalesce(s.channel, 'live') = 'live')::int live, count(*)::int alln from public.hs_events e
-    join public.hs_sessions s on s.sid = e.sid where e.ts >= (hs_private.now() at time zone 'utc')::date - 30`))[0];
+  const liveSaves = (await su("select count(*)::int n from highland.hs_saves where channel = 'live'"))[0].n;
+  const ev2 = (await su(`select count(*) filter (where coalesce(s.channel, 'live') = 'live')::int live, count(*)::int alln from highland.hs_events e
+    join highland.hs_sessions s on s.sid = e.sid where e.ts >= (highland._now() at time zone 'utc')::date - 30`))[0];
   ok(tot.saves === liveSaves && ev2.alln > ev2.live && tot.events === ev2.live,
     "Totals count the live page's saves and events only (" + JSON.stringify([tot.saves, liveSaves, tot.events, ev2]) + ")");
-  await su("delete from public.hs_saves where user_id = $1 and channel = 'next'", [U2]);
+  await su("delete from highland.hs_saves where user_id = $1 and channel = 'next'", [U2]);
   const one = await rpc(U.AD, "hs_stats", { p_days: 30, p_cards: ["gate"] });
   ok(one.funnel.length === 0 && one.gate.length > 0, "one card can be asked for alone");
   // a stranger's events: markup where an id belongs, text where a number belongs
@@ -844,24 +889,159 @@ group("stats", async () => {
   ok(JSON.stringify(s2).includes('"other"'), "it shows as \"other\"");
   ok(s2.funnel[0].n === 5, "the stranger counts once, as a device");
   await setClock("");
-  await su("update public.hs_config set value = '180' where key = 'ev_keep_days'");
+  await su("update highland.hs_config set value = '180' where key = 'ev_keep_days'");
 });
 
 group("purge", async () => {
   const P = "c1000000-0000-4000-8000-000000000001";
-  await su(`insert into public.hs_sessions (sid, aid, started_at, day) values ('old-0001-aaaa', $1, now() - interval '200 days', current_date - 200),
+  await su(`insert into highland.hs_sessions (sid, aid, started_at, day) values ('old-0001-aaaa', $1, now() - interval '200 days', current_date - 200),
     ('old-0002-aaaa', $1, now() - interval '190 days', current_date - 190), ('new-0003-aaaa', $1, now() - interval '3 days', current_date - 3)`, [P]);
-  await su(`insert into public.hs_events (sid, seq, name) values ('old-0001-aaaa', 1, 'page_load'), ('new-0003-aaaa', 1, 'page_load')`);
+  await su(`insert into highland.hs_events (sid, seq, name) values ('old-0001-aaaa', 1, 'page_load'), ('new-0003-aaaa', 1, 'page_load')`);
   const run = await runBegin(U.D, "campaign", "erebuni", 1, "2");
-  await su("update public.hs_runs set started_at = now() - interval '31 days' where id = $1", [run.run_id]);
+  await su("update highland.hs_runs set started_at = now() - interval '31 days' where id = $1", [run.run_id]);
   const r = await rpc(U.AD, "hs_admin_purge_events", { p_days: 180 });
   ok(r.ok && r.sessions_removed === 2 && r.more === false, "the purge removes visits older than 180 days, and says there is no more");
-  eq((await su("select count(*)::int n from public.hs_events where sid like 'old-%'"))[0].n, 0, "with their events");
-  eq((await su("select count(*)::int n from public.hs_sessions where sid = 'new-0003-aaaa'"))[0].n, 1, "and keeps the recent ones");
-  eq((await su("select count(*)::int n from public.hs_runs where id = $1", [run.run_id]))[0].n, 0, "a run begun over 30 days ago and never finished goes too");
-  ok((await su("select count(*)::int n from public.hs_runs where finished_at is not null"))[0].n > 0, "finished runs stay");
+  eq((await su("select count(*)::int n from highland.hs_events where sid like 'old-%'"))[0].n, 0, "with their events");
+  eq((await su("select count(*)::int n from highland.hs_sessions where sid = 'new-0003-aaaa'"))[0].n, 1, "and keeps the recent ones");
+  eq((await su("select count(*)::int n from highland.hs_runs where id = $1", [run.run_id]))[0].n, 0, "a run begun over 30 days ago and never finished goes too");
+  ok((await su("select count(*)::int n from highland.hs_runs where finished_at is not null"))[0].n > 0, "finished runs stay");
   eq((await rpc(U.AD, "hs_admin_purge_events", { p_days: 1 })).sessions_removed >= 0, true, "a window under seven days is read as seven");
-  ok((await su("select count(*)::int n from public.hs_sessions where sid = 'new-0003-aaaa'"))[0].n === 1, "so a visit of three days ago stays");
+  ok((await su("select count(*)::int n from highland.hs_sessions where sid = 'new-0003-aaaa'"))[0].n === 1, "so a visit of three days ago stays");
+});
+
+// ------------------------------------------------------------------ tenants (RULINGS S9): who reaches whose rows
+// Player A and player B (both with a profile), an outsider O who signed up through another app's open email sign-up
+// (an account in the shared auth.users with an email identity, no profile), a visitor, and the admin.
+const O = "00000000-0000-4000-8000-0000000000e1", O2 = "00000000-0000-4000-8000-0000000000e2";
+group("tenants", async () => {
+  await su("insert into auth.users (id, email) values ($1, 'outsider@example.com'), ($2, 'outsider2@example.com') on conflict do nothing", [O, O2]);
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('email', $1::text, $1::uuid, 'outsider@example.com'), ('email', $2::text, $2::uuid, 'outsider2@example.com') on conflict do nothing", [O, O2]);
+  const pa = await rpc(U.A, "hs_profile_get", {}), pb = await rpc(U.B, "hs_profile_get", {});
+  ok(!!pa.name && !!pb.name, "A and B are players (each has a name: " + pa.name + ", " + pb.name + ")");
+  // A's save, B's save: each reads and writes his own only, whatever he sends
+  await rpc(U.A, "hs_save_put", { p_expected: (await rpc(U.A, "hs_save_get", { p_channel: "next" })).version, p_data: { secret: "A-only" }, p_channel: "next" });
+  const bs = await rpc(U.B, "hs_save_get", { p_channel: "next" });
+  ok(!JSON.stringify(bs).includes("A-only"), "B's hs_save_get never answers A's save");
+  const before = (await su("select version, data from highland.hs_saves where user_id = $1 and channel = 'next'", [U.A]))[0];
+  await rpc(U.B, "hs_save_put", { p_expected: bs.version, p_data: { secret: "B wrote" }, p_channel: "next" });
+  eq((await su("select version, data from highland.hs_saves where user_id = $1 and channel = 'next'", [U.A]))[0], before, "B's hs_save_put writes B's save, never A's");
+  // there is no argument that names another player: every per-player function takes the caller from the token
+  const args = await su(`select p.proname, coalesce(p.proargnames, '{}') as n from pg_proc p join pg_namespace s on s.oid = p.pronamespace
+    where s.nspname = 'highland' and p.proname = any($1)`, [PLAYER_FNS]);
+  eq(args.filter(r => r.n.some(a => /user|uid|player|account/.test(a))).map(r => r.proname), [], "no player's function takes a user id (the caller is auth.uid())");
+  eq((await rpc(U.B, "hs_profile_get", {})).user_id, U.B, "hs_profile_get answers the caller's own profile");
+  // B cannot finish A's battle, nor read it
+  const aRun = (await su("select id from highland.hs_runs where user_id = $1 and finished_at is null limit 1", [U.A]))[0]
+    || (await su("select id from highland.hs_runs where user_id = $1 limit 1", [U.A]))[0];
+  ok(!!aRun, "A has a run");
+  eq(await errMsg(rpc(U.B, "hs_score_submit", { p_run: aRun.id, p_stats: { won: true, lives: 1, waves: 10, sim_sec: 500, spent: 10, earned: 20 } })), "run_unknown",
+    "B posting a result on A's run: run_unknown (as if it did not exist)");
+  // the boards show names and numbers, never another player's id (an admin's rows carry ids, for moderation)
+  const board = await rpc(U.B, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
+  ok(board.rows.length > 0 && board.rows.every(r => !("uid" in r) && !("id" in r)), "a player's board rows carry no user id and no score id (" + board.rows.length + " rows)");
+  ok(board.rows.filter(r => r.me).length <= 1, "and mark at most his own row as his");
+  const aBoard = await rpc(U.AD, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
+  ok(aBoard.rows.every(r => "uid" in r), "the admin's rows carry them");
+  // the outsider: signed in, no profile. He gets exactly what a visitor gets
+  const o = await rpc(O, "hs_profile_get", {});
+  ok(o.name === null && o.admin === false && o.user_id === O, "the outsider reads a profile with no name");
+  for (const fn of ["hs_save_get", "hs_save_put", "hs_run_begin", "hs_score_submit"]) {
+    const e = await err(rpc(O, fn, SAMPLE[fn]));
+    ok(e && e.msg === "no_profile" && e.code === "42501", "the outsider is refused " + fn + " with no_profile, 42501 (" + (e && e.msg) + ")");
+  }
+  for (const fn of ADMIN_FNS) {
+    const e = await err(rpc(O, fn, SAMPLE[fn]));
+    ok(e && e.msg === "not_admin" && e.code === "42501", "the outsider is refused " + fn + " with not_admin (" + (e && e.msg) + ")");
+  }
+  for (const fn of ADMIN_FNS) {
+    const e = await err(rpc(U.B, fn, SAMPLE[fn]));
+    ok(e && e.msg === "not_admin", "player B is refused " + fn + " (" + (e && e.msg) + ")");
+  }
+  for (const fn of PLAYER_FNS.concat(ADMIN_FNS)) ok(/permission denied for function/.test(await errMsg(rpc(null, fn, SAMPLE[fn]))), "the visitor is refused " + fn);
+  // the outsider cannot make himself a player by calling the name card's function by hand: his account never signed
+  // in with Google, Facebook or Discord
+  const e1 = await err(rpc(O, "hs_profile_set_name", { p_name: "Sneaky Outsider" }));
+  ok(e1 && e1.msg === "not_game_account" && e1.code === "42501", "the outsider's hs_profile_set_name is refused: not_game_account (" + (e1 && e1.msg) + ")");
+  eq((await su("select count(*)::int n from highland.hs_profiles where user_id = $1", [O]))[0].n, 0, "and no profile was made");
+  // what the open functions answer him is what they answer a visitor
+  const strip = (x) => JSON.parse(JSON.stringify(x, (k, v) => (k === "now" || k === "ends_in" ? undefined : v)));
+  eq(strip(await rpc(O, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" })),
+    strip(await rpc(null, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" })), "hs_board: the outsider's answer is the visitor's");
+  eq(strip(await rpc(O, "hs_daily_status", { p_ruleset: "2" })), strip(await rpc(null, "hs_daily_status", { p_ruleset: "2" })), "hs_daily_status: the same");
+  eq(strip(await rpc(O, "hs_config", {})), strip(await rpc(null, "hs_config", {})), "hs_config: the same");
+  // his events go on the visitors' limits (the per-device 900 an hour), not on a player's own 1,500
+  await su("delete from highland.hs_rate where bucket like 'ev:%' or bucket like 'evu:%' or bucket like 'evanon:%'");
+  const OD = "e2000000-0000-4000-8000-000000000001";
+  await rpc(O, "hs_track", { p_ctx: { aid: OD, sid: "outs-0001-aaaa" }, p_events: [{ n: "page_load", q: 1 }] });
+  eq((await su("select bucket from highland.hs_rate where key = $1 or key = $2 order by 1", [O, OD])).map(r => r.bucket.split(":")[0]), ["ev"],
+    "the outsider's events are counted on his device's visitor limit, never on a player's");
+  eq((await su("select uid::text from highland.hs_sessions where sid = 'outs-0001-aaaa'"))[0].uid, O, "(his visit still names the account, for the funnel's sign-in step)");
+  // an outsider whose account later signs in with Google (GoTrue links it by the verified email) may join
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('google', 'g-o2', $1, 'outsider2@example.com')", [O2]);
+  eq((await rpc(O2, "hs_profile_set_name", { p_name: "Linked Later" })).ok, true, "an account that also signed in with Google may become a player");
+  eq((await rpc(O2, "hs_save_get", {})).version, 0, "and is one");
+  await rpc(O2, "hs_delete_account", {});
+  // A's own account signed in by password (an account someone made with A's email through the open email sign-up
+  // before A first came with Google, which the sign-in service then linked to it): reaches nothing of A's
+  const PW = U.A + ":password";
+  for (const fn of ["hs_save_get", "hs_save_put", "hs_run_begin", "hs_score_submit"]) {
+    const e = await err(rpc(PW, fn, SAMPLE[fn]));
+    ok(e && e.msg === "not_game_session" && e.code === "42501", "A's account in a password session is refused " + fn + " (" + (e && e.msg) + ")");
+  }
+  const e2 = await err(rpc(PW, "hs_profile_set_name", { p_name: "Renamed By Pw" }));
+  ok(e2 && e2.msg === "not_game_session", "and cannot rename A (" + (e2 && e2.msg) + ")");
+  const e3 = await err(rpc(U.AD + ":password", "hs_stats", { p_days: 7 }));
+  ok(e3 && e3.msg === "not_admin", "the admin's account in a password session is no admin (" + (e3 && e3.msg) + ")");
+  const bpw = await rpc(PW, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
+  ok(bpw.me === null && bpw.rows.every(r => !r.me), "the boards mark nothing as the password session's");
+});
+
+// A grant given by mistake (say "grant select on highland.hs_saves to authenticated" typed in the SQL editor): the
+// policies still give a player his own rows only, and nothing of the shared tables, and no write.
+group("mistaken_grant", async () => {
+  const OWN = { hs_profiles: "user_id", hs_saves: "user_id", hs_runs: "user_id", hs_sessions: "uid", hs_admins: "user_id" };
+  await su("insert into highland.hs_admins (user_id, note) values ($1, 'test') on conflict do nothing", [U.B]);
+  for (const t of TABLES.concat(["schema_migrations"])) {
+    const total = (await su("select count(*)::int n from highland." + t))[0].n;
+    await su("grant usage on schema highland to service_role; grant select, insert, update, delete on highland." + t + " to authenticated, anon");
+    try {
+      const rows = await as(U.B, "select * from highland." + t);
+      if (OWN[t]) {
+        const mine = (await su("select count(*)::int n from highland." + t + " where " + OWN[t] + " = $1", [U.B]))[0].n;
+        ok(rows.length === mine && rows.every(r => r[OWN[t]] === U.B), t + ": with a mistaken grant, player B reads his own " + mine + " of its " + total + " rows, no one else's");
+      } else {
+        ok(rows.length === 0, t + ": with a mistaken grant, player B reads none of its " + total + " rows (" + rows.length + ")");
+      }
+      eq((await as(null, "select * from highland." + t)).length, 0, t + ": and a visitor none");
+      const up = await as(U.B, "with u as (update highland." + t + " set " + firstColumn[t] + " = " + firstColumn[t] + " where true returning 1) select count(*)::int n from u");
+      eq(up[0].n, 0, t + ": an update through the mistaken grant changes no row");
+      const del = await as(U.B, "with d as (delete from highland." + t + " where true returning 1) select count(*)::int n from d");
+      eq(del[0].n, 0, t + ": a delete through it removes no row");
+      eq((await su("select count(*)::int n from highland." + t))[0].n, total, t + ": every row is still there");
+    } finally {
+      await su("revoke all on highland." + t + " from authenticated, anon; revoke usage on schema highland from service_role");
+    }
+  }
+  // an insert of a forged row is refused by the policies
+  await su("grant insert on highland.hs_saves, highland.hs_admins to authenticated");
+  try {
+    ok(/row-level security/.test(await errMsg(as(U.B, "insert into highland.hs_saves (user_id, channel, data, bytes) values ($1, 'live', '{}', 2)", [U.A]))),
+      "a forged save for A, inserted by B through a mistaken grant: refused by row level security");
+    ok(/row-level security/.test(await errMsg(as(U.B, "insert into highland.hs_admins (user_id) values ($1)", [U.B]))), "B making himself an admin through one: refused");
+  } finally { await su("revoke all on highland.hs_saves, highland.hs_admins from authenticated"); }
+  await su("delete from highland.hs_admins where user_id = $1", [U.B]);
+  // service_role bypasses row level security on Supabase (as here): for it the missing grants are the only wall
+  ok((await su("select rolbypassrls from pg_roles where rolname = 'service_role'"))[0].rolbypassrls === true,
+    "(service_role bypasses row level security: it is granted nothing, and the game never uses its key)");
+});
+
+// The shared server loads pg-safeupdate for the API's sessions. Where its stand-in is built (safeupdate/build.sh)
+// the tests' API sessions load it too, and every function runs under it.
+group("safeupdate", async (ctx) => {
+  if (!ctx.safeupdate) { ok(true, "(pg-safeupdate's stand-in is not built here: the static check in the migrations suite stands for it)"); return; }
+  eq((await as(U.B, "select current_setting('safeupdate.enabled', true) as v"))[0].v, "on", "the API's sessions run with pg-safeupdate loaded");
+  ok(/DELETE requires a WHERE clause/.test(await errMsg(as(U.B, "create temp table t_su (a int); delete from t_su"))), "it refuses a DELETE without a WHERE");
+  ok(/UPDATE requires a WHERE clause/.test(await errMsg(as(U.B, "create temp table t_su2 (a int); update t_su2 set a = 1"))), "and an UPDATE");
 });
 
 group("readonly", async () => {
@@ -872,77 +1052,97 @@ group("readonly", async () => {
   ok((await err(rpc(U.B, "hs_profile_get", {}))) === null && (await err(rpc(U.B, "hs_save_get", {}))) === null, "a player's reads run read-only");
   ok((await err(rpc(U.AD, "hs_stats", { p_days: 7 }))) === null, "the stats run read-only");
   // and a function that writes fails in a read-only transaction, so the check above means something
-  const e = await err(as(null, "select public.hs_track($1::jsonb, '[{\"n\":\"page_load\"}]'::jsonb)", [JSON.stringify({ aid: "d1000000-0000-4000-8000-000000000001", sid: "ro-0001-aaaa" })], { readOnly: true }));
+  const e = await err(as(null, "select highland.hs_track($1::jsonb, '[{\"n\":\"page_load\"}]'::jsonb)", [JSON.stringify({ aid: "d1000000-0000-4000-8000-000000000001", sid: "ro-0001-aaaa" })], { readOnly: true }));
   ok(e && e.code === "25006", "hs_track (which writes) fails in a read-only transaction (" + (e && e.code) + ")");
 });
 
 group("delete", async () => {
   const D1 = "11111111-1111-4111-8111-111111111111";
   // what A has by now: a profile, saves on both channels, runs, scores, board rows, visits that carried him and
-  // the same device's visits before any sign-in, rate counters; and the sign-in service's log and identities
+  // the same device's visits from before any sign-in, rate counters; and, outside the game, the shared sign-in
+  // service's account, its identities and its log, which "Delete my account" must leave alone (RULINGS S10)
   await rpc(null, "hs_track", { p_ctx: { aid: D1, sid: "sess-pre-signin" }, p_events: [{ n: "page_load", q: 1 }] });
   await su(`insert into auth.audit_log_entries (payload, ip_address) values
     (json_build_object('actor_id', $1::text, 'actor_username', 'a@example.com', 'action', 'login'), '203.0.113.7'),
     (json_build_object('actor_id', $2::text, 'actor_username', 'b@example.com', 'action', 'login'), '203.0.113.8')`, [U.A, U.B]);
-  await su(`insert into auth.identities (provider, provider_id, user_id, email) values ('google', 'g-a', $1, 'a@example.com'), ('google', 'g-b', $2, 'b@example.com')`, [U.A, U.B]);
-  const has = async (u) => (await su(`select (select count(*) from public.hs_profiles where user_id = $1) + (select count(*) from public.hs_saves where user_id = $1)
-    + (select count(*) from public.hs_runs where user_id = $1) + (select count(*) from public.hs_scores where user_id = $1)
-    + (select count(*) from public.hs_score_best where user_id = $1) + (select count(*) from public.hs_sessions where uid = $1)
-    + (select count(*) from auth.identities where user_id = $1) as n`, [u]))[0].n;
-  ok(await has(U.A) > 8, "A has rows in every table before (" + await has(U.A) + ")");
-  const bBefore = await has(U.B);
+  await su("insert into highland.hs_admins (user_id, note) values ($1, 'for the test') on conflict do nothing", [U.A]);
+  const has = async (u) => (await su(`select (select count(*) from highland.hs_profiles where user_id = $1) + (select count(*) from highland.hs_saves where user_id = $1)
+    + (select count(*) from highland.hs_runs where user_id = $1) + (select count(*) from highland.hs_scores where user_id = $1)
+    + (select count(*) from highland.hs_score_best where user_id = $1) + (select count(*) from highland.hs_sessions where uid = $1)
+    + (select count(*) from highland.hs_admins where user_id = $1) + (select count(*) from highland.hs_rate where key = $1::text) as n`, [u]))[0].n;
+  const shared = async (u) => (await su(`select (select count(*) from auth.users where id = $1)::int as users, (select count(*) from auth.identities where user_id = $1)::int as ids,
+    (select count(*) from auth.audit_log_entries where payload ->> 'actor_id' = $1::text)::int as log`, [u]))[0];
+  ok(await has(U.A) > 8, "A has rows in every table of highland before (" + await has(U.A) + ")");
+  const bBefore = await has(U.B), sharedA = await shared(U.A), sharedB = await shared(U.B), users = (await su("select count(*)::int n from auth.users"))[0].n;
+  ok(sharedA.users === 1 && sharedA.ids >= 1 && sharedA.log === 1, "and an account, an identity and a log line in the shared auth schema");
   eq((await rpc(U.A, "hs_delete_account", {})).ok, true, "A deletes his account");
-  eq((await su("select count(*)::int n from auth.users where id = $1", [U.A]))[0].n, 0, "the account is gone from auth.users");
-  eq(await has(U.A), 0, "and every row that was his: profile, saves, runs, scores, board rows, visits, identities");
-  eq(await su("select sid, uid::text from public.hs_sessions where aid = $1", [D1]), [], "and his device's visits from before the sign-in");
-  eq((await su("select count(*)::int n from public.hs_rate where key = $1", [U.A]))[0].n, 0, "and his rate counters");
-  eq((await su("select payload->>'actor_username' u from auth.audit_log_entries")).map(x => x.u), ["b@example.com"], "and the sign-in service's log of him, not of anyone else");
+  eq(await has(U.A), 0, "every row of his in highland is gone: profile, saves, runs, scores, board rows, visits, rate counters, the admin's row");
+  eq(await su("select sid, uid::text from highland.hs_sessions where aid = $1", [D1]), [], "and his device's visits from before the sign-in");
+  eq(await shared(U.A), sharedA, "the shared sign-in account is untouched: auth.users, auth.identities and the sign-in log keep their rows");
+  eq((await su("select count(*)::int n from auth.users"))[0].n, users, "nobody's account left auth.users");
   eq(await has(U.B), bBefore, "B is untouched");
-  // the deleted account's access token still holds its signature for up to an hour: it is no longer signed in
-  for (const [fn, args] of [["hs_profile_get", {}], ["hs_profile_set_name", { p_name: "Ghost" }], ["hs_save_get", {}], ["hs_save_put", { p_expected: 0, p_data: { v: 1 } }],
-      ["hs_run_begin", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_ruleset: "2" }], ["hs_score_submit", { p_run: crypto.randomUUID(), p_stats: { won: true } }],
-      ["hs_delete_account", {}]]) {
-    eq(await errMsg(rpc(U.A, fn, args)), "not_signed_in", "a token of the deleted account: " + fn + " answers not_signed_in");
+  eq(await shared(U.B), sharedB, "and so is B's account");
+  // the account's token still holds: it is an account that is no player any more, as an outsider's is
+  eq((await rpc(U.A, "hs_profile_get", {})).name, null, "his token reads a profile with no name (the page shows the name card, or signs out)");
+  for (const [fn, args] of [["hs_save_get", {}], ["hs_save_put", { p_expected: 0, p_data: { v: 1 } }],
+      ["hs_run_begin", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_ruleset: "2" }], ["hs_score_submit", { p_run: crypto.randomUUID(), p_stats: { won: true } }]]) {
+    const e = await err(rpc(U.A, fn, args));
+    ok(e && e.msg === "no_profile" && e.code === "42501", "after the deletion " + fn + " answers no_profile (" + (e && e.msg) + ")");
   }
+  ok((await err(rpc(U.AD, "hs_stats", { p_days: 7 }))) === null, "the admin who stayed still reads the stats");
+  ok((await errMsg(rpc(U.A, "hs_stats", { p_days: 7 }))) === "not_admin", "A's admin row went with his data");
   eq((await rpc(U.A, "hs_track", { p_ctx: { aid: "77777777-7777-4777-8777-777777777777", sid: "sess-ghost-0001" }, p_events: [{ n: "page_load", q: 1 }] })).accepted, 1,
-    "its events are counted as a visitor's");
-  eq(await has(U.A), 0, "and leave nothing that carries the deleted account");
-  eq((await su("select count(*)::int n from public.hs_rate where key = $1", [U.A]))[0].n, 0, "not even a rate counter");
+    "its events are counted on a visitor's limits");
+  eq((await su("select count(*)::int n from highland.hs_rate where key = $1", [U.A]))[0].n, 0, "not on a player's counter");
+  eq((await rpc(U.A, "hs_delete_account", {})).ok, true, "deleting again (now not a player) removes that visit too");
+  eq(await has(U.A), 0, "and leaves nothing of his in highland");
+  // an account deleted from the shared sign-in service itself (by its admin, or another app): its token is no
+  // longer signed in, and the foreign keys took its game rows with it
+  const G = "00000000-0000-4000-8000-0000000000aa";
+  await su("insert into auth.users (id, email) values ($1, 'gone@example.com')", [G]);
+  await su("insert into auth.identities (provider, provider_id, user_id) values ('discord', 'd-gone', $1)", [G]);
+  eq((await rpc(G, "hs_profile_set_name", { p_name: "Leaving Soon" })).ok, true, "a player joins");
+  await su("delete from auth.users where id = $1", [G]);
+  eq((await has(G)) - (await su("select count(*)::int n from highland.hs_rate where key = $1", [G]))[0].n, 0,
+    "the sign-in service deletes his account: his game rows go with it (on delete cascade; a rate counter, keyed by text, ends within two days)");
+  for (const [fn, args] of [["hs_profile_get", {}], ["hs_profile_set_name", { p_name: "Ghost" }], ["hs_save_get", {}], ["hs_delete_account", {}]]) {
+    eq(await errMsg(rpc(G, fn, args)), "not_signed_in", "a token of an account the sign-in service deleted: " + fn + " answers not_signed_in");
+  }
 });
 
 group("ceiling", async () => {
   // above ev_max_mb megabytes of events visitors' events are dropped; above one and a half times it, everyone's
-  await su(`insert into public.hs_sessions (sid, aid) values ('fill-0001-aaaa', 'e1000000-0000-4000-8000-000000000001')`);
-  await su(`insert into public.hs_events (sid, seq, name, props) select 'fill-0001-aaaa', g, 'pad', jsonb_build_object('p', repeat(md5(g::text), 40)) from generate_series(1, 1700) g`);
-  const both = "(pg_total_relation_size('public.hs_events') + pg_total_relation_size('public.hs_sessions')) / 1048576.0";
+  await su(`insert into highland.hs_sessions (sid, aid) values ('fill-0001-aaaa', 'e1000000-0000-4000-8000-000000000001')`);
+  await su(`insert into highland.hs_events (sid, seq, name, props) select 'fill-0001-aaaa', g, 'pad', jsonb_build_object('p', repeat(md5(g::text), 40)) from generate_series(1, 1700) g`);
+  const both = "(pg_total_relation_size('highland.hs_events') + pg_total_relation_size('highland.hs_sessions')) / 1048576.0";
   const mb = (await su("select " + both + " as m"))[0].m;
   const cap = Math.max(1, Math.ceil(mb / 1.5));
   ok(mb > cap && mb <= cap * 1.5, "the tables hold " + Number(mb).toFixed(2) + " MB for a ceiling of " + cap);
-  await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap)]);
+  await su("update highland.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap)]);
   const V = "e1000000-0000-4000-8000-000000000002";
   eq((await rpc(null, "hs_track", { p_ctx: { aid: V, sid: "ceil-0001-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "over the ceiling a visitor's events are dropped");
   eq((await rpc(U.B, "hs_track", { p_ctx: { aid: V, sid: "ceil-0002-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 1, "a player's are still kept");
-  await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(Math.max(0, Math.floor(mb / 2) - 1))]);
+  await su("update highland.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(Math.max(0, Math.floor(mb / 2) - 1))]);
   eq((await rpc(U.B, "hs_track", { p_ctx: { aid: V, sid: "ceil-0002-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "over one and a half times it, a player's too");
   // P4 review 6: the visits count toward the ceiling too. The events alone under it, the visits put it over
-  const evOnly = Number((await su("select pg_total_relation_size('public.hs_events') / 1048576.0 as m"))[0].m);
+  const evOnly = Number((await su("select pg_total_relation_size('highland.hs_events') / 1048576.0 as m"))[0].m);
   const cap2 = Math.ceil(evOnly + 0.01);
   for (let i = 0; i < 40 && Number((await su("select " + both + " as m"))[0].m) <= cap2 + 0.1; i++)
-    await su(`insert into public.hs_sessions (sid, aid, build, lang, ref) select 'pad-' || $1 || '-' || g, 'e1000000-0000-4000-8000-000000000003', repeat('b', 60), 'en-US', repeat('r', 60)
+    await su(`insert into highland.hs_sessions (sid, aid, build, lang, ref) select 'pad-' || $1 || '-' || g, 'e1000000-0000-4000-8000-000000000003', repeat('b', 60), 'en-US', repeat('r', 60)
       from generate_series(1, 3000) g`, [i]);
   const sum2 = Number((await su("select " + both + " as m"))[0].m);
   ok(evOnly < cap2 && sum2 > cap2 && sum2 <= cap2 * 1.5, "events " + evOnly.toFixed(2) + " MB and with the visits " + sum2.toFixed(2) + " MB, for a ceiling of " + cap2);
-  await su("update public.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap2)]);
+  await su("update highland.hs_config set value = $1 where key = 'ev_max_mb'", [JSON.stringify(cap2)]);
   eq((await rpc(null, "hs_track", { p_ctx: { aid: V, sid: "ceil-0003-aaaa" }, p_events: [{ n: "page_load" }] })).accepted, 0, "a visitor's events are dropped when the visits put the tables over");
   const st = await rpc(U.AD, "hs_stats", { p_days: 7, p_cards: ["totals"] });
   ok(Number(st.events_mb) > cap2, "and the stats page's Health card sees the same megabytes (" + st.events_mb + ")");
-  await su("delete from public.hs_sessions where sid like 'pad-%'");
-  await su("update public.hs_config set value = '1024' where key = 'ev_max_mb'");
+  await su("delete from highland.hs_sessions where sid like 'pad-%'");
+  await su("update highland.hs_config set value = '1024' where key = 'ev_max_mb'");
 });
 
 group("handoff", async (ctx) => {
   if (!ctx.handoff) {
-    ok((await su("select to_regprocedure('public.hs_handoff_put(text, text)') is null as x"))[0].x === true, "without its file the handoff does not exist");
+    ok((await su("select to_regprocedure('highland.hs_handoff_put(text, text)') is null as x"))[0].x === true, "without its file the handoff does not exist");
     return;
   }
   const id = "h".repeat(40), code = "009e5066-fc11-4eca-8c8c-6fd82aa263f2";
@@ -960,20 +1160,25 @@ group("handoff", async (ctx) => {
   await setClock("6 minutes");
   ok((await rpc(null, "hs_handoff_take", { p_id: id3 })).code === null, "a code older than five minutes is not handed over");
   await setClock("");
-  ok(/permission denied/.test(await errMsg(as(null, "select * from public.hs_handoff"))), "nobody reads the table");
+  ok(/permission denied/.test(await errMsg(as(null, "select * from highland.hs_handoff"))), "nobody reads the table");
 });
 
 // ------------------------------------------------------------------ run
 async function suite(db, name, handoff) {
   const warnings = [];
-  await db.createDatabase(name, { schema: true, schemaTwice: true, handoff, onNotice: m => { if (m.severity === "WARNING") warnings.push(m.message); } });
+  await db.createDatabase(name, { schema: true, roundTrip: true, handoff, onNotice: m => { if (m.severity === "WARNING") warnings.push(m.message); } });
   admin = await db.client(name, "supabase_admin");
   api = await db.client(name, "authenticator");
   api2 = await db.client(name, "authenticator");
   clock = "";
-  for (const [k, id] of Object.entries(U)) await admin.query("insert into auth.users (id, email) values ($1, $2)", [id, k.toLowerCase() + "@example.com"]);
-  await admin.query("insert into public.hs_admins (user_id) values ($1)", [U.AD]);
-  const ctx = { handoff, warnings };
+  // the test accounts, each of the game's own sign-in (an identity with Google, Facebook or Discord)
+  for (const [k, id] of Object.entries(U)) {
+    await admin.query("insert into auth.users (id, email) values ($1, $2)", [id, k.toLowerCase() + "@example.com"]);
+    await admin.query("insert into auth.identities (provider, provider_id, user_id, email) values ($1, $2, $3, $4)",
+      [["google", "facebook", "discord"][id.charCodeAt(id.length - 1) % 3], "p-" + k, id, k.toLowerCase() + "@example.com"]);
+  }
+  await admin.query("insert into highland.hs_admins (user_id) values ($1)", [U.AD]);
+  const ctx = { handoff, warnings, safeupdate: !!db.safeupdate };
   for (const g of GROUPS) {
     if (ONLY.length && !ONLY.includes(g.name)) continue;
     groupName = g.name + (handoff ? "+handoff" : ""); groupCount = 0; groupFail = 0;
@@ -988,6 +1193,146 @@ async function suite(db, name, handoff) {
   await admin.end(); await api.end(); await api2.end();
 }
 
+// ------------------------------------------------------------------ the migrations themselves
+// What the database holds of highland, as text that two states can be compared by: every table's columns,
+// constraints, indexes, row level security and grants; every function's signature, body, settings and grants; the
+// views, the policies, the schema's grants and default privileges; the bookkeeping (without its times) and the
+// starting rows.
+const INSIDE = `
+  select 'col ' || c.relname || '.' || a.attname || ' ' || format_type(a.atttypid, a.atttypmod) || ' ' || a.attnotnull || ' ' || coalesce(pg_get_expr(d.adbin, d.adrelid), '') || ' ' || a.attidentity::text
+    from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
+    where n.nspname = 'highland' and a.attnum > 0 and not a.attisdropped
+  union all select 'rel ' || c.relname || ' ' || c.relkind::text || ' rls=' || c.relrowsecurity || ' force=' || c.relforcerowsecurity || ' acl=' || coalesce(c.relacl::text, '') || ' opt=' || coalesce(c.reloptions::text, '') || ' owner=' || pg_get_userbyid(c.relowner)
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'highland'
+  union all select 'con ' || conrelid::regclass::text || ' ' || conname || ' ' || pg_get_constraintdef(oid) from pg_constraint where connamespace = 'highland'::regnamespace
+  union all select 'idx ' || pg_get_indexdef(i.indexrelid) from pg_index i join pg_class c on c.oid = i.indexrelid where c.relnamespace = 'highland'::regnamespace
+  union all select 'fn ' || p.oid::regprocedure::text || ' ' || md5(p.prosrc) || ' ' || p.prosecdef || ' ' || p.provolatile::text || ' ' || coalesce(p.proconfig::text, '') || ' acl=' || coalesce(p.proacl::text, '') || ' owner=' || pg_get_userbyid(p.proowner)
+    from pg_proc p where p.pronamespace = 'highland'::regnamespace
+  union all select 'view ' || c.relname || ' ' || md5(pg_get_viewdef(c.oid)) from pg_class c where c.relnamespace = 'highland'::regnamespace and c.relkind = 'v'
+  union all select 'pol ' || polrelid::regclass::text || ' ' || polname || ' ' || polcmd::text || ' ' || polpermissive || ' ' || polroles::regrole[]::text || ' ' || coalesce(pg_get_expr(polqual, polrelid), '') || ' ' || coalesce(pg_get_expr(polwithcheck, polrelid), '')
+    from pg_policy where polrelid in (select oid from pg_class where relnamespace = 'highland'::regnamespace)
+  union all select 'schema acl=' || coalesce(nspacl::text, '') || ' owner=' || pg_get_userbyid(nspowner) from pg_namespace where nspname = 'highland'
+  union all select 'defacl ' || pg_get_userbyid(defaclrole) || ' ' || defaclobjtype::text || ' ' || defaclacl::text from pg_default_acl where defaclnamespace = 'highland'::regnamespace
+  union all select 'mig ' || version || ' ' || name || ' ' || checksum from highland.schema_migrations
+  union all select 'cfg ' || key || '=' || value::text from highland.hs_config
+  union all select 'blk ' || pattern || ' ' || kind from highland.hs_name_blocklist
+  order by 1`;
+// and everything else in the database: the other apps' schemas, tables, functions, grants and policies, the
+// default privileges (global and per schema), extensions, and the roles' settings
+const OUTSIDE = `
+  select 'ns ' || nspname || ' acl=' || coalesce(nspacl::text, '') from pg_namespace where nspname <> 'highland' and nspname !~ '^pg_(toast|temp)'
+  union all select 'rel ' || n.nspname || '.' || c.relname || ' ' || c.relkind::text || ' rls=' || c.relrowsecurity || ' acl=' || coalesce(c.relacl::text, '')
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname not in ('highland', 'pg_catalog', 'information_schema', 'pg_toast')
+  union all select 'fn ' || p.oid::regprocedure::text || ' ' || md5(p.prosrc) || ' acl=' || coalesce(p.proacl::text, '')
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname not in ('highland', 'pg_catalog', 'information_schema')
+  union all select 'pol ' || polrelid::regclass::text || ' ' || polname from pg_policy where polrelid not in (select oid from pg_class where relnamespace = to_regnamespace('highland'))
+  union all select 'defacl ' || pg_get_userbyid(defaclrole) || ' ' || coalesce(defaclnamespace::regnamespace::text, '(global)') || ' ' || defaclobjtype::text || ' ' || defaclacl::text
+    from pg_default_acl where defaclnamespace is distinct from to_regnamespace('highland')
+  union all select 'ext ' || extname || ' ' || extversion from pg_extension
+  union all select 'roleset ' || coalesce(setrole::regrole::text, '*') || ' ' || coalesce((select datname from pg_database where oid = setdatabase), '*') || ' ' || setconfig::text from pg_db_role_setting
+  union all select 'role ' || rolname || ' ' || rolsuper || rolbypassrls || rolcanlogin || ' ' || coalesce(rolconfig::text, '') from pg_roles where rolname !~ '^pg_'
+  union all select 'trg ' || tgrelid::regclass::text || ' ' || tgname from pg_trigger where not tgisinternal
+  union all select 'evt ' || evtname from pg_event_trigger
+  order by 1`;
+
+async function migrationsSuite(db) {
+  const { migrate, list } = require("./migrate");
+  const sqlcheck = require("./sqlcheck");
+  groupName = "migrations"; groupCount = 0; groupFail = 0;
+  const t0 = Date.now();
+  const all = list();
+  // static checks of every file: the shared server's rules, read from the text
+  const files = sqlcheck.allFiles();
+  ok(files.length >= all.length * 2 + 1, "the files: " + files.map(f => require("path").basename(f)).join(", "));
+  for (const f of files) {
+    const p = sqlcheck.problems(f);
+    eq(p, [], require("path").basename(f) + ": every UPDATE and DELETE has a WHERE, nothing is made, granted or dropped outside highland, no CASCADE, search_path pinned");
+  }
+  // and the static check can fail: a file with each mistake it looks for
+  const tmp = require("path").join(require("os").tmpdir(), "hs-sqlcheck-" + process.pid + ".sql");
+  require("fs").writeFileSync(tmp, "delete from highland.hs_rate;\nupdate highland.hs_config set value = '1';\ncreate table public.x (a int);\ndrop table highland.hs_rate cascade;\n" +
+    "create function highland.f() returns int language sql as $$ select 1 $$;\ngrant select on table public.t to anon;\ncreate schema hs_private;\n" +
+    "insert into highland.a (k) values (1) on conflict (k) do update set k = 2 where highland.a.k = 1;\nselect 1 from highland.t for update;\n");
+  const caught = sqlcheck.problems(tmp).map(x => x.replace(/^.*?:(\d+): /, "$1 "));
+  require("fs").unlinkSync(tmp);
+  eq(caught.map(x => x.split(" ")[0]).sort(), ["1", "2", "3", "3", "4", "5", "6", "7"], "the static check finds each of seven planted mistakes, and nothing in the two lawful lines (" + caught.join("; ") + ")");
+
+  await db.createDatabase("hs_mig", {});
+  const pgc = await db.client("hs_mig", "postgres");
+  const sup = await db.client("hs_mig", "supabase_admin");
+  const q = async (sql) => (await sup.query(sql)).rows.map(r => Object.values(r)[0]);
+  try {
+    const outside0 = await q(OUTSIDE);
+    ok(outside0.some(x => /public\.pathstream_items/.test(x)) && outside0.some(x => /reqstream\.requests/.test(x)), "the neighbours are there before (public.pathstream_items, reqstream.requests)");
+    // Supabase's global default privileges grant what postgres makes, in any schema: the reason for the lockdown
+    await pgc.query("begin; create schema highland_probe; create table highland_probe.t (a int)");
+    const wide = (await pgc.query("select has_table_privilege('anon', 'highland_probe.t', 'select') a, has_table_privilege('service_role', 'highland_probe.t', 'delete') s")).rows[0];
+    await pgc.query("rollback");
+    ok(wide.a && wide.s, "on this stand-in as on Supabase, a table postgres makes in a new schema is granted to anon and service_role at once");
+    // up, one at a time, as postgres; the superuser's connection is moved to postgres
+    for (let v = 1; v <= all.length; v++) {
+      const at = await migrate({ client: v === 1 ? sup : pgc, target: v });
+      eq(at, v, "up to " + v + (v === 1 ? " (from a superuser's connection, moved to postgres)" : ""));
+      const g = await q(`select c.relname || ':' || r.role from pg_class c join pg_namespace n on n.oid = c.relnamespace, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+        where n.nspname = 'highland' and c.relkind in ('r', 'v', 'S') and (has_table_privilege(r.role, c.oid, 'select') or has_table_privilege(r.role, c.oid, 'insert'))
+        union all select p.proname || ':' || r.role from pg_proc p join pg_namespace n on n.oid = p.pronamespace, (values ('anon'), ('authenticated'), ('service_role')) r(role)
+        where n.nspname = 'highland' and has_function_privilege(r.role, p.oid, 'execute')`);
+      eq(g.filter(x => !/^hs_[a-z_]+:(anon|authenticated)$/.test(x)), [], "after migration " + v + ": no table, view, sequence or helper is granted to an API role, whatever the default privileges gave");
+      if (v === 2) eq((await q(`select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'highland' and has_function_privilege('authenticated', p.oid, 'execute')`))[0], 0,
+        "after 002 (before 003) no function of highland is executable by authenticated");
+    }
+    eq(await q("select owner from (select pg_get_userbyid(proowner) owner from pg_proc where pronamespace = 'highland'::regnamespace union select pg_get_userbyid(relowner) from pg_class where relnamespace = 'highland'::regnamespace) x"),
+      ["postgres"], "everything of highland belongs to postgres");
+    const full = await q(INSIDE);
+    const outsideUp = await q(OUTSIDE);
+    eq(outsideUp.filter(x => !outside0.includes(x)), [], "applying the migrations changed nothing outside highland (new: none)");
+    eq(outside0.filter(x => !outsideUp.includes(x)), [], "and removed nothing outside it");
+    // each migration's down, then its up again: the schema comes back the same
+    const states = { [all.length]: full };
+    for (let v = all.length; v >= 1; v--) {
+      await migrate({ client: pgc, target: v - 1 });
+      const below = (await q("select to_regnamespace('highland') is not null"))[0] ? await q(INSIDE) : [];
+      states[v - 1] = below;
+      await migrate({ client: pgc, target: v });
+      const again = await q(INSIDE);
+      eq(again.filter(x => !states[v].includes(x)).concat(states[v].filter(x => !again.includes(x)).map(x => "missing: " + x)), [],
+        "migration " + String(v).padStart(3, "0") + ": down then up again gives the same schema (" + states[v].length + " facts)");
+      await migrate({ client: pgc, target: v - 1 });
+      eq(await q(OUTSIDE), outside0, "migration " + String(v).padStart(3, "0") + "'s down left everything outside highland as it was");
+    }
+    eq((await q("select to_regnamespace('highland') is null"))[0], true, "rolled back to 0: the schema highland is gone");
+    eq(await q(`select n.nspname || '.' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relname like 'hs\\_%' or c.relname = 'schema_migrations'
+      union all select proname from pg_proc where proname like 'hs\\_%' or proname like '\\_member%'`), [], "and nothing of the game is left anywhere");
+    eq(await q(OUTSIDE), outside0, "everything outside highland is as it was before the first migration");
+    await migrate({ client: pgc });
+    eq(await q(INSIDE), full, "applied again from nothing: the same schema as the first time");
+    // a migration whose file changed after it was applied stops the run
+    const fs = require("fs"), path = require("path");
+    const dir = fs.mkdtempSync(path.join(require("os").tmpdir(), "hs-mig-"));
+    for (const f of fs.readdirSync(require("./migrate").DIR)) fs.copyFileSync(path.join(require("./migrate").DIR, f), path.join(dir, f));
+    fs.appendFileSync(path.join(dir, "002_functions.up.sql"), "\n-- changed\n");
+    const e = await err(migrate({ client: pgc, dir, target: 3 }));
+    ok(e && /changed since/.test(e.msg), "a migration applied from a file that changed since stops the run (" + (e && e.msg.slice(0, 80)) + ")");
+    fs.rmSync(dir, { recursive: true, force: true });
+    eq(await q(INSIDE), full, "and changed nothing");
+    // a failing migration keeps nothing of itself
+    const dir2 = fs.mkdtempSync(path.join(require("os").tmpdir(), "hs-mig-"));
+    for (const f of fs.readdirSync(require("./migrate").DIR)) fs.copyFileSync(path.join(require("./migrate").DIR, f), path.join(dir2, f));
+    fs.writeFileSync(path.join(dir2, "005_broken.up.sql"), "create table highland.hs_half (a int);\nselect 1/0;\n");
+    fs.writeFileSync(path.join(dir2, "005_broken.down.sql"), "drop table highland.hs_half;\n");
+    const e2 = await err(migrate({ client: pgc, dir: dir2 }));
+    ok(e2 && /division by zero/.test(e2.msg), "a migration that fails stops the run (" + (e2 && e2.msg) + ")");
+    fs.rmSync(dir2, { recursive: true, force: true });
+    eq(await q(INSIDE), full, "and leaves nothing of itself (one transaction)");
+    // a mistaken wide grant, put right by the next run
+    await sup.query("grant select on all tables in schema highland to anon, authenticated, service_role; grant execute on all functions in schema highland to anon, service_role");
+    ok((await q("select has_table_privilege('anon', 'highland.hs_saves', 'select')"))[0] === true, "(a mistaken wide grant, typed by hand)");
+    await migrate({ client: pgc, regrant: true });
+    eq(await q(INSIDE), full, "migrate.js regrant takes it all back to exactly 003's grants");
+  } finally { await pgc.end(); await sup.end(); }
+  console.log((groupFail ? "FAIL " : "ok   ") + groupName.padEnd(18) + String(groupCount).padStart(4) + " assertions" + (groupFail ? ", " + groupFail + " failed" : "") + "  (" + (Date.now() - t0) + " ms)");
+}
+
 (async () => {
   const t0 = Date.now();
   let db;
@@ -995,10 +1340,14 @@ async function suite(db, name, handoff) {
     db = await pgtemp.start({ name: "sqltests" });
     const v = await (async () => { const c = await db.client("postgres"); const r = await c.query("show server_version"); await c.end(); return r.rows[0].server_version; })();
     console.log("PostgreSQL " + v + " at " + db.dir + " (thrown away at the end)");
-    console.log("-- schema.sql loaded twice into a fresh database");
+    if (!ONLY.length || ONLY.includes("migrations")) {
+      console.log("-- the migrations: static checks, each one's down and up again, nothing outside highland touched" + (db.safeupdate ? "" : " (pg-safeupdate's stand-in not built: the static check stands for it)"));
+      try { await migrationsSuite(db); } catch (e) { failed++; total++; console.log("FAIL [migrations] stopped: " + (e.stack || e.message)); }
+    }
+    console.log("-- the migrations applied, rolled back to 0 and applied again in a fresh database" + (db.safeupdate ? ", the API's sessions under pg-safeupdate (its test stand-in)" : ""));
     await suite(db, "hs_main", false);
     if (!ONLY.length || ONLY.includes("handoff") || ONLY.includes("structure")) {
-      console.log("-- again with schema-handoff.sql loaded beside it");
+      console.log("-- again with the optional handoff (deploy/supabase/optional/handoff.up.sql) loaded beside it");
       const keep = GROUPS.slice();
       GROUPS.length = 0; GROUPS.push(...keep.filter(g => ["structure", "handoff"].includes(g.name)));
       await suite(db, "hs_handoff", true);

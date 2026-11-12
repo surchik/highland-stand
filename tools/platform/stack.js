@@ -2,34 +2,46 @@
 // The local stack (docs/specs/platform.final.md 10.1): everything the real Supabase gives the page, on this
 // machine, so the page and its tests can be run against something that enforces the same rules.
 //
-//   node tools/platform/stack.js [--api-port=N] [--site-port=N] [--page=DIR] [--next=DIR] [--handoff] [--wide] [--verbose]
+//   node tools/platform/stack.js [--api-port=N] [--site-port=N] [--page=DIR] [--next=DIR] [--handoff] [--narrow] [--schemas=a,b]
+//                                [--no-clock] [--verbose]
 //
 // or from a test:  const stack = await require("./stack").start({ page: dir });  ...  await stack.stop();
 //
 // What it runs:
 // - PostgreSQL 16 (pgtemp.js: a throwaway cluster under /var/tmp/hs-stack, removed at the end) with the stand-ins
-//   for Supabase's roles and auth schema (standins.sql), deploy/supabase/schema.sql (and schema-handoff.sql with
-//   --handoff), and the test clock (test-clock.sql).
+//   for Supabase's roles and auth schema (standins.sql), the migrations (deploy/supabase/migrations, applied by
+//   migrate.js as postgres; deploy/supabase/optional/handoff.up.sql with --handoff), and the test clock
+//   (test-clock.sql).
 // - On the API port, the address the page calls (HS_SUPABASE_URL):
-//   - a stand-in for PostgREST at POST /rest/v1/rpc/<function>. Every call runs as PostgREST runs it: on a
-//     connection logged in as "authenticator", in one transaction, after "set local role anon|authenticated"
-//     and the JWT's claims set as request.jwt.claims, read-only for a stable function, under the role's
-//     statement timeout (3 s for a visitor, 8 s for a player) unless the function carries its own. So the
-//     database's grants and row level security decide, as on the real service. Errors come back as PostgREST
-//     sends them: { code, details, hint, message } with 400 for P0001, 401 or 403 for 42501, 429 for PT429.
+//   - a stand-in for PostgREST at POST /rest/v1/rpc/<function> and at /rest/v1/<table> (GET, POST, PATCH,
+//     DELETE). Every call runs as PostgREST runs it: on a connection logged in as "authenticator", in one
+//     transaction, after "set local role anon|authenticated|service_role" and the JWT's claims set as
+//     request.jwt.claims, read-only for a stable function and for a GET, under the role's statement timeout (3 s
+//     for a visitor, 8 s for a player) unless the function carries its own. So the database's grants and row
+//     level security decide, as on the real service. Errors come back as PostgREST sends them:
+//     { code, details, hint, message } with 400 for P0001, 401 or 403 for 42501, 429 for PT429.
+//     The schemas it serves are PGRST_DB_SCHEMAS' (opts.schemas, --schemas, or the environment variable; by
+//     default "public,graphql_public,reqstream,highland", as the shared server will have them once highland is
+//     added). As PostgREST does, it reads the schema of a call from Accept-Profile (GET, HEAD) or Content-Profile
+//     (POST, PATCH, PUT, DELETE), takes the first in the list (public) when there is none, and answers a schema
+//     not in the list 406 with PGRST106. So a call without the page's two headers looks for the game in public,
+//     and finds nothing there.
 //   - a stand-in for Supabase Auth (GoTrue) at /auth/v1: settings, health, authorize (PKCE, and the implicit flow
 //     when no challenge is given), callback, token (pkce, refresh_token with rotation), user, logout.
 //     authorize and callback need no apikey, the others do, as on Supabase's gateway.
 //   - CORS as the gateway answers it (the page's origin is the site port, so it is a real cross-origin call),
-//     the preflight remembered for an hour as the Envoy gateway does.
-//   - By default the port serves only what the owner's public name serves (the guide's step 1, publicName below):
-//     the six Auth routes the page uses (settings, authorize, callback, token for pkce and refresh_token, user to
-//     read, logout) plus health, and /rest/v1/rpc/hs_. Everything else answers 404, as the narrow proxy does
-//     (and a write to /auth/v1/user 403, as nginx's limit_except). --wide serves the rest of the API as a gateway
-//     with no such proxy would: GET /rest/v1/<table> is then answered by the database itself, which refuses it,
-//     and Auth's routes that make accounts or send mail (signup, otp, recover, magiclink, token with a password,
-//     a write to user) answer 200 as an open GoTrue would, without doing anything. So a test can show both walls,
-//     and that it is the proxy, not the stand-in, that refuses those routes.
+//     the preflight remembered for an hour as the Envoy gateway does. Like Supabase's Kong (its cors plugin has no
+//     header list), it allows the headers a preflight asks for, so the page's Accept-Profile and Content-Profile
+//     pass as they do on the real gateway.
+//   - By default the port serves the whole API, as the shared server's gateway does (https://db.avunjian.com
+//     exposes all of /rest/v1, /auth/v1 and the rest): /rest/v1/<table> is answered by the database itself, which
+//     refuses the game's tables, and Auth's routes that make accounts or send mail (signup, otp, recover,
+//     magiclink, token with a password, a write to user) answer 200 as an open GoTrue would, without doing
+//     anything. --narrow (or opts.narrow, or the control "narrow") serves only what the old dedicated layout's
+//     public name served (publicName below): the six Auth routes the page uses (settings, authorize, callback,
+//     token for pkce and refresh_token, user to read, logout) plus health, and /rest/v1/rpc/hs_; everything else
+//     404 (and a write to /auth/v1/user 403, as nginx's limit_except). So a test can show both walls. (--wide is
+//     still accepted and changes nothing.)
 //   - a fake OAuth provider at /provider/ (on the real thing this is Google, Facebook or Discord): a page of test
 //     people, or an identity a test chooses beforehand, including one with no email, one with an unverified
 //     email, a cancel, an error and one that never answers.
@@ -125,15 +137,28 @@ const PEOPLE = {
 async function start(opts = {}) {
   const verbose = !!opts.verbose;
   const log = (...a) => { if (verbose) console.log("[stack]", ...a); };
-  const db = await pgtemp.start({ name: "stack" });
-  try {
-    await db.createDatabase("hs", { schema: true, handoff: !!opts.handoff });
-  } catch (e) { await db.stop(); throw e; }
-  const api = db.pool("hs", "authenticator", 12);
-  const su = db.pool("hs", "supabase_admin", 4);
+  // opts.attach = { host, port, database }: a database already there (the restore rehearsal's restored copy, with the
+  // stand-ins and the game's schema), served as it is and left in place at the end; else a throwaway one of our own
+  let db, dbName = "hs";
+  if (opts.attach) {
+    const P = pgtemp.needPg();
+    const a = opts.attach;
+    dbName = a.database;
+    db = { dir: a.host, port: a.port, attached: true,
+      pool: (database, user, max) => new P.Pool({ host: a.host, port: a.port, user, database, max: max || 10 }),
+      client: async (database, user) => { const c = new P.Client({ host: a.host, port: a.port, user: user || "supabase_admin", database: database || dbName }); await c.connect(); return c; },
+      stop: async () => {} };
+  } else {
+    db = await pgtemp.start({ name: "stack" });
+    try {
+      await db.createDatabase("hs", { schema: true, handoff: !!opts.handoff, clock: opts.clock !== false });
+    } catch (e) { await db.stop(); throw e; }
+  }
+  const api = db.pool(dbName, "authenticator", 12);
+  const su = db.pool(dbName, "supabase_admin", 4);
   const secret = crypto.randomBytes(48);            // made here, kept here, never written
   const state = {
-    auth: "up", rest: "up", narrow: opts.wide ? false : true,
+    auth: "up", rest: "up", narrow: opts.narrow === true,
     clock: "", authClock: 0,
     settings: { mailer_autoconfirm: false, external: { google: true, facebook: true, discord: true }, email_optional: { facebook: true, discord: true } },
     allow: [],                // ADDITIONAL_REDIRECT_URLS globs
@@ -147,6 +172,12 @@ async function start(opts = {}) {
   };
   const nowSec = () => Math.floor(Date.now() / 1000) + state.authClock;
   const anonKey = signJwt(secret, { iss: "supabase", ref: "local-stack", role: "anon", iat: nowSec(), exp: nowSec() + 10 * 365 * 86400 });
+  // the service key, as the gateway knows one: never printed, never given to the page; a test may use it (through
+  // stack.serviceKey) to show the database refuses it the game's tables and functions too
+  const serviceKey = signJwt(secret, { iss: "supabase", ref: "local-stack", role: "service_role", iat: nowSec(), exp: nowSec() + 10 * 365 * 86400 });
+  // PostgREST's db-schemas: the first is the default when a call names none
+  const SCHEMAS = String(opts.schemas || process.env.PGRST_DB_SCHEMAS || "public,graphql_public,reqstream,highland")
+    .split(",").map(x => x.trim()).filter(Boolean);
 
   // ---------------------------------------------------------------- servers
   const apiServer = http.createServer((req, res) => handleApi(req, res).catch(e => {
@@ -206,6 +237,8 @@ async function start(opts = {}) {
       if (refused) { res.writeHead(refused, { "content-type": "text/plain" }); res.end(refused === 403 ? "Forbidden" : "Not found"); return; }
     }
     if (req.method === "OPTIONS") {
+      // Supabase's Kong runs its cors plugin with no header list, which allows the headers the preflight asks for:
+      // the page's apikey, authorization, content-type and the two profile headers pass, as there
       res.writeHead(200, {
         "access-control-allow-methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
         "access-control-allow-headers": req.headers["access-control-request-headers"] || "*",
@@ -223,10 +256,12 @@ async function start(opts = {}) {
       if (state.rest === "hang") return hang(req, res);
       if (state.rest === "down") return sendJson(res, 503, { message: "An invalid response was received from the upstream server" });
       if (!keyOk(req, res)) return;
-      if (p.startsWith("/rest/v1/rpc/") && req.method === "POST") return rpc(req, res, decodeURIComponent(p.slice(13)));
+      const schema = profileOf(req, res);
+      if (!schema) return;
+      if (p.startsWith("/rest/v1/rpc/") && req.method === "POST") return rpc(req, res, schema, decodeURIComponent(p.slice(13)));
       if (p.startsWith("/rest/v1/rpc/")) return sendJson(res, 405, { code: "PGRST101", details: null, hint: null, message: "Only POST is used for functions here" });
       if (p === "/rest/v1/" || p === "/rest/v1") return sendJson(res, 200, { swagger: "2.0", info: { description: "the stack does not describe the schema" } });
-      if (req.method === "GET") return table(req, res, decodeURIComponent(p.slice(9)));
+      if (["GET", "HEAD", "POST", "PATCH", "DELETE"].includes(req.method)) return table(req, res, schema, decodeURIComponent(p.slice(9)), u);
       return sendJson(res, 405, { code: "PGRST117", details: null, hint: null, message: "Unsupported HTTP method" });
     }
     res.writeHead(404, { "content-type": "text/plain" }); res.end("Not found");
@@ -243,12 +278,23 @@ async function start(opts = {}) {
     state.hanging.add(res);
     res.on("close", () => state.hanging.delete(res));
   }
-  // the gateway's key check: the anon key in the apikey header (or, as Kong also allows, ?apikey=)
+  // the gateway's key check: the anon key (or the service key) in the apikey header (or, as Kong also allows, ?apikey=)
   function keyOk(req, res) {
     const k = req.headers.apikey || new URL(req.url, url).searchParams.get("apikey");
     if (!k) { sendJson(res, 401, { message: "No API key found in request" }); return false; }
-    if (k !== anonKey) { sendJson(res, 401, { message: "Invalid authentication credentials" }); return false; }
+    if (k !== anonKey && k !== serviceKey) { sendJson(res, 401, { message: "Invalid authentication credentials" }); return false; }
     return true;
+  }
+  // PostgREST's schema for a call: Accept-Profile for GET and HEAD, Content-Profile for the others; none: the first
+  // of db-schemas. One that is not served: 406, PGRST106. Returns the schema, or null with the answer sent
+  function profileOf(req, res) {
+    const h = ["GET", "HEAD"].includes(req.method) ? req.headers["accept-profile"] : req.headers["content-profile"];
+    if (h === undefined || h === "") return SCHEMAS[0];
+    if (!SCHEMAS.includes(h)) {
+      sendJson(res, 406, { code: "PGRST106", details: null, hint: null, message: "The schema must be one of the following: " + SCHEMAS.join(", ") });
+      return null;
+    }
+    return h;
   }
   // the caller as PostgREST sees him: { role, claims } or an answer already sent
   function caller(req, res, forRest) {
@@ -264,18 +310,18 @@ async function start(opts = {}) {
       const s = state.sessions.get(c.session_id);
       if (s && s.notBefore && c.iat < s.notBefore) return fail(401, "PGRST303", "JWT expired");
     }
-    if (c.role !== "anon" && c.role !== "authenticated") return fail(401, "PGRST301", "the stack knows the roles anon and authenticated only");
+    if (!["anon", "authenticated", "service_role"].includes(c.role)) return fail(401, "PGRST301", "the stack knows the roles anon, authenticated and service_role only");
     return { role: c.role, claims: c };
   }
 
   // ---------------------------------------------------------------- PostgREST: functions
-  async function functionsNamed(fn) {
+  async function functionsNamed(schema, fn) {
     const rows = (await su.query(`select p.oid, p.proname, p.proargnames as names, p.pronargs as nargs, p.pronargdefaults as ndef, p.provolatile as vol,
         array(select format_type(t, null) from unnest(p.proargtypes) t) as types, p.proconfig as config
-      from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1`, [fn])).rows;
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = $2 and p.proname = $1`, [fn, schema])).rows;
     return rows;
   }
-  async function rpc(req, res, fn) {
+  async function rpc(req, res, schema, fn) {
     const who = caller(req, res, true);
     if (!who) return;
     let body;
@@ -285,10 +331,10 @@ async function start(opts = {}) {
     }
     if (!body || typeof body !== "object" || Array.isArray(body)) return sendJson(res, 400, { code: "PGRST102", details: null, hint: null, message: "the arguments must be a JSON object" });
     const keys = Object.keys(body);
-    const notFound = () => sendJson(res, 404, { code: "PGRST202", details: "Searched for the function public." + fn + " with parameters " + keys.join(", ") + " or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
-      hint: null, message: "Could not find the function public." + fn + "(" + keys.join(", ") + ") in the schema cache" });
+    const notFound = () => sendJson(res, 404, { code: "PGRST202", details: "Searched for the function " + schema + "." + fn + " with parameters " + keys.join(", ") + " or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+      hint: null, message: "Could not find the function " + schema + "." + fn + "(" + keys.join(", ") + ") in the schema cache" });
     if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(fn)) return notFound();
-    const cands = await functionsNamed(fn);
+    const cands = await functionsNamed(schema, fn);
     const f = cands.find(c => {
       const names = c.names || [];
       if (!keys.every(k => names.includes(k))) return false;
@@ -309,14 +355,14 @@ async function start(opts = {}) {
     });
     const readOnly = f.vol === "s" || f.vol === "i";
     const own = (f.config || []).find(x => x.startsWith("statement_timeout="));
-    const timeout = own ? own.split("=")[1] : (who.role === "anon" ? "3s" : "8s");
+    const timeout = own ? own.split("=")[1] : (who.role === "anon" ? "3s" : "8s");   // (service_role: Supabase sets none; 8 s here)
     const c = await api.connect();
     try {
       await c.query(readOnly ? "begin isolation level read committed read only" : "begin isolation level read committed");
       await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.method', 'POST', true), set_config('hs_test.clock', $2, true), set_config('statement_timeout', $3, true)",
         [JSON.stringify(who.claims), state.clock, timeout]);
       await c.query("set local role " + who.role);
-      const r = await c.query("select public." + pgtemp.quoteIdent(fn) + "(" + parts.join(", ") + ") as r", vals);
+      const r = await c.query("select " + pgtemp.quoteIdent(schema) + "." + pgtemp.quoteIdent(fn) + "(" + parts.join(", ") + ") as r", vals);
       await c.query("commit");
       const out = r.rows[0].r;
       return sendJson(res, 200, out === undefined ? null : out);
@@ -340,24 +386,77 @@ async function start(opts = {}) {
     else if (!e.code) status = 500;
     sendJson(res, status, { code, details: e.detail || null, hint: e.hint || null, message: e.message });
   }
-  // ---------------------------------------------------------------- PostgREST: a table read (only with --wide)
-  async function table(req, res, name) {
+  // ---------------------------------------------------------------- PostgREST: a table (GET, POST, PATCH, DELETE)
+  // As PostgREST builds them: GET selects (?select=a,b and filters), POST inserts the body's object or list, PATCH
+  // updates with the body's columns, DELETE deletes; filters are col=op.value with eq, neq, gt, gte, lt, lte, is.
+  // A PATCH or DELETE with no filter is sent with no WHERE, as PostgREST sends it (pg-safeupdate refuses it where
+  // it is loaded). The database's grants and policies decide, as on the real service.
+  const OPS = { eq: "=", neq: "<>", gt: ">", gte: ">=", lt: "<", lte: "<=" };
+  async function table(req, res, schema, name, u) {
     const who = caller(req, res, true);
     if (!who) return;
-    if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(name)) return sendJson(res, 404, { code: "PGRST205", details: null, hint: null, message: "Could not find the table 'public." + name + "' in the schema cache" });
-    const c = await api.connect();
+    const missing = () => sendJson(res, 404, { code: "PGRST205", details: null, hint: null, message: "Could not find the table '" + schema + "." + name + "' in the schema cache" });
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(name)) return missing();
+    const exists = (await su.query("select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = $1 and c.relname = $2 and c.relkind in ('r', 'v', 'm', 'p', 'f')", [schema, name])).rows.length;
+    if (!exists) return missing();
+    let body = null;
+    if (["POST", "PATCH"].includes(req.method)) {
+      try { const t = await readBody(req); body = t.trim() ? JSON.parse(t) : {}; } catch (e) {
+        if (e.status === 413) throw e;
+        return sendJson(res, 400, { code: "PGRST102", details: null, hint: null, message: "Empty or invalid json" });
+      }
+    }
+    const q = pgtemp.quoteIdent, rel = q(schema) + "." + q(name), vals = [], where = [];
+    const col = (c) => { if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(c)) throw Object.assign(new Error("bad column " + c), { code: "42703" }); return q(c); };
+    let cols = "*";
     try {
-      await c.query("begin isolation level read committed read only");
-      await c.query("select set_config('request.jwt.claims', $1, true), set_config('statement_timeout', $2, true)", [JSON.stringify(who.claims), who.role === "anon" ? "3s" : "8s"]);
-      await c.query("set local role " + who.role);
-      const r = await c.query("select * from public." + pgtemp.quoteIdent(name) + " limit 1000");
-      await c.query("commit");
-      return sendJson(res, 200, r.rows);
+      for (const [k, v] of u.searchParams) {
+        if (k === "select") { cols = v === "*" ? "*" : v.split(",").map(col).join(", "); continue; }
+        if (["limit", "offset", "order", "apikey", "columns", "on_conflict"].includes(k)) continue;
+        const m = /^(eq|neq|gt|gte|lt|lte|is)\.(.*)$/.exec(v);
+        if (!m) throw Object.assign(new Error("unknown filter " + v), { code: "PGRST100" });
+        if (m[1] === "is") { where.push(col(k) + (m[2] === "null" ? " is null" : m[2] === "true" ? " is true" : " is false")); continue; }
+        vals.push(m[2]); where.push(col(k) + "::text " + OPS[m[1]] + " $" + vals.length);
+      }
+      let sql;
+      const w = where.length ? " where " + where.join(" and ") : "";
+      if (req.method === "GET" || req.method === "HEAD") sql = "select " + cols + " from " + rel + w + " limit " + Math.min(Number(u.searchParams.get("limit")) || 1000, 1000);
+      else if (req.method === "DELETE") sql = "delete from " + rel + w + " returning *";
+      else {
+        const rows = Array.isArray(body) ? body : [body];
+        if (!rows.length || rows.some(r => !r || typeof r !== "object")) return sendJson(res, 400, { code: "PGRST102", details: null, hint: null, message: "the body must be an object or a list of objects" });
+        const keys = [...new Set(rows.flatMap(r => Object.keys(r)))];
+        if (req.method === "PATCH") {
+          const set = keys.map(k => { vals.push(rows[0][k] !== null && typeof rows[0][k] === "object" ? JSON.stringify(rows[0][k]) : rows[0][k]); return col(k) + " = $" + vals.length; });
+          if (!set.length) return sendJson(res, 400, { code: "PGRST102", details: null, hint: null, message: "nothing to update" });
+          sql = "update " + rel + " set " + set.join(", ") + w + " returning *";
+        } else {
+          const tuples = rows.map(r => "(" + keys.map(k => { vals.push(r[k] !== null && typeof r[k] === "object" ? JSON.stringify(r[k]) : r[k]); return "$" + vals.length; }).join(", ") + ")");
+          sql = "insert into " + rel + (keys.length ? " (" + keys.map(col).join(", ") + ") values " + tuples.join(", ") : " default values") + " returning *";
+        }
+      }
+      const c = await api.connect();
+      try {
+        const ro = req.method === "GET" || req.method === "HEAD";
+        await c.query(ro ? "begin isolation level read committed read only" : "begin isolation level read committed");
+        await c.query("select set_config('request.jwt.claims', $1, true), set_config('request.method', $3, true), set_config('statement_timeout', $2, true)",
+          [JSON.stringify(who.claims), who.role === "anon" ? "3s" : "8s", req.method]);
+        await c.query("set local role " + who.role);
+        const r = await c.query(sql, vals);
+        await c.query("commit");
+        const prefer = String(req.headers.prefer || "");
+        if (req.method === "GET" || req.method === "HEAD") return sendJson(res, 200, r.rows);
+        if (/return=representation/.test(prefer)) return sendJson(res, req.method === "POST" ? 201 : 200, r.rows);
+        res.writeHead(req.method === "POST" ? 201 : 204); res.end(); return;
+      } catch (e) {
+        await c.query("rollback").catch(() => {});
+        throw e;
+      } finally { c.release(); }
     } catch (e) {
-      await c.query("rollback").catch(() => {});
-      if (e.code === "42P01") return sendJson(res, 404, { code: "PGRST205", details: null, hint: null, message: "Could not find the table 'public." + name + "' in the schema cache" });
+      if (e.code === "42P01") return missing();
+      if (e.code === "PGRST100") return sendJson(res, 400, { code: "PGRST100", details: null, hint: null, message: e.message });
       return pgError(res, e, who.role);
-    } finally { c.release(); }
+    }
   }
 
   // ---------------------------------------------------------------- Auth (GoTrue)
@@ -583,17 +682,17 @@ async function start(opts = {}) {
     expire: async (b) => { let n = 0; for (const s of state.sessions.values()) if (!b.user_id || s.user === b.user_id) { s.notBefore = nowSec() + 1; n++; } return { sessions: n }; },
     // a run's start moved back by seconds (the SQL test's trick for a score's wall-clock check)
     runback: async (b) => {
-      const r = await su.query(`update public.hs_runs set started_at = started_at - make_interval(secs => $1)
+      const r = await su.query(`update highland.hs_runs set started_at = started_at - make_interval(secs => $1)
         where ($2::uuid is null or id = $2::uuid) and ($3::uuid is null or user_id = $3::uuid) and finished_at is null`, [Number(b.seconds) || 600, b.run_id || null, b.user_id || null]);
       return { runs: r.rowCount };
     },
     // the database emptied: every player, visit, run, score and ruleset gone; the switches back to their start
     reset: async () => {
-      await su.query(`truncate public.hs_events, public.hs_sessions, public.hs_score_best, public.hs_scores, public.hs_runs, public.hs_saves, public.hs_profiles,
-        public.hs_admins, public.hs_rulesets, public.hs_rate cascade`);
-      if (opts.handoff) await su.query("truncate public.hs_handoff");
-      await su.query("delete from public.hs_config where key not in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
-      await su.query("update public.hs_config set value = case key when 'ev_cap_hour' then '20000'::jsonb when 'ev_max_mb' then '1024'::jsonb else '180'::jsonb end");
+      await su.query(`truncate highland.hs_events, highland.hs_sessions, highland.hs_score_best, highland.hs_scores, highland.hs_runs, highland.hs_saves, highland.hs_profiles,
+        highland.hs_admins, highland.hs_rulesets, highland.hs_rate cascade`);
+      if (opts.handoff) await su.query("truncate highland.hs_handoff");
+      await su.query("delete from highland.hs_config where key not in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
+      await su.query("update highland.hs_config set value = case key when 'ev_cap_hour' then '20000'::jsonb when 'ev_max_mb' then '1024'::jsonb else '180'::jsonb end where key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("delete from auth.audit_log_entries; delete from auth.users");
       for (const m of [state.flows, state.pcodes, state.codes, state.sessions, state.refresh]) m.clear();
       state.nextPerson.length = 0; state.clock = ""; state.authClock = 0;
@@ -618,7 +717,7 @@ async function start(opts = {}) {
     // serve only the two prefixes (the guide's proxy), or the whole API
     narrow: async (b) => { state.narrow = b.on !== false; return { narrow: state.narrow }; },
     // make an account an admin (the guide's one line of SQL, step 6)
-    admin: async (b) => { await su.query("insert into public.hs_admins (user_id) values ($1) on conflict do nothing", [b.user_id]); return { ok: true }; },
+    admin: async (b) => { await su.query("insert into highland.hs_admins (user_id) values ($1) on conflict do nothing", [b.user_id]); return { ok: true }; },
     // read the database as its superuser, read-only (a test reads back what the page stored)
     query: async (b) => {
       const c = await su.connect();
@@ -643,7 +742,10 @@ async function start(opts = {}) {
   }
 
   const stack = {
-    url, site, anonKey, db,
+    url, site, anonKey, db, schemas: SCHEMAS,
+    // for tests only: a token signed with the stack's secret (the secret itself never leaves this process), and the
+    // service key a gateway would accept
+    sign: (claims) => signJwt(secret, claims), serviceKey,
     // the same controls, from the test's own process
     control: (name, body) => CONTROLS[name](body || {}),
     query: async (sql, params) => (await CONTROLS.query({ sql, params })).rows,
@@ -665,13 +767,14 @@ if (require.main === module) {
   const arg = (k) => { const a = process.argv.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : undefined; };
   const flag = (k) => process.argv.includes("--" + k);
   start({ apiPort: Number(arg("api-port")) || 0, sitePort: Number(arg("site-port")) || 0, page: arg("page"), next: arg("next"),
-    handoff: flag("handoff"), wide: flag("wide"), verbose: flag("verbose") }).then(stack => {
+    handoff: flag("handoff"), narrow: flag("narrow"), schemas: arg("schemas"), clock: !flag("no-clock"), verbose: flag("verbose") }).then(stack => {
     console.log("STACK READY");
     console.log("  Supabase address (HS_SUPABASE_URL): " + stack.url);
     console.log("  anon key (HS_SUPABASE_ANON_KEY):    " + stack.anonKey);
     console.log("  the game:                           " + stack.site + "/  and  " + stack.site + "/next/");
+    console.log("  PostgREST serves (db-schemas):      " + stack.schemas.join(",") + "  (the game: Accept-Profile / Content-Profile: highland)");
     console.log("  test provider and controls:         " + stack.url + "/provider/  " + stack.url + "/__test/<control>");
-    console.log("  the database, as the SQL editor:    psql -h " + stack.db.dir + " -p " + stack.db.port + " -U postgres hs");
+    console.log("  the database, as the migrating role: psql -h " + stack.db.dir + " -p " + stack.db.port + " -U postgres hs");
     console.log("  (a throwaway key: signed with a secret made at start that lives in this process only)");
     let stopping = false;
     const stop = () => { if (stopping) return; stopping = true; stack.stop().then(() => process.exit(0)); };

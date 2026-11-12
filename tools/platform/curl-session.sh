@@ -6,8 +6,8 @@
 #   2. the sign-in's refusals: a code used twice, a wrong verifier, a refresh token used again too late;
 #   3. as a visitor and as a signed-in player, try to read every hs_ table and to run every function outside the
 #      ones granted to that caller, and show each refusal;
-#   4. the same address as the owner's narrow public name serves it: the tables are not served at all, nor Auth's
-#      routes that make accounts or send mail;
+#   4. the same address as the old dedicated layout's narrow public name served it: the tables are not served at
+#      all, nor Auth's routes that make accounts or send mail (the shared server serves the whole API: 3 is its wall);
 #   5. the stack's controls, and its site port: the page and og.jpg and nothing else of the repository, and 413 for
 #      a body over 512 KB.
 # Every attempt is printed with the answer's status and message. Exit 0 only when every answer is the expected one.
@@ -16,7 +16,7 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=$(mktemp -d); trap 'kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null; rm -rf "$OUT"' EXIT
-node "$HERE/stack.js" --wide > "$OUT/stack.log" 2>&1 &
+node "$HERE/stack.js" > "$OUT/stack.log" 2>&1 &
 SPID=$!
 for i in $(seq 1 60); do grep -q 'STACK READY' "$OUT/stack.log" 2>/dev/null && break; sleep 0.5; done
 grep -q 'STACK READY' "$OUT/stack.log" || { echo "FAIL the stack did not start"; cat "$OUT/stack.log"; exit 1; }
@@ -26,10 +26,12 @@ SITE=$(sed -n 's/.*the game: *\([^ ]*\)\/ .*/\1/p' "$OUT/stack.log")
 echo "stack: $B (the game at $SITE)"
 fails=0; refusals=0
 bad() { echo "FAIL $*"; fails=$((fails + 1)); }
-# call METHOD PATH [BODY] [TOKEN]: prints "status body" into $S and $R
+# call METHOD PATH [BODY] [TOKEN]: prints "status body" into $S and $R. A call to /rest/v1/ names the game's schema
+# in both profile headers, as the page does (PostgREST serves public when a call names none)
 call() {
   local auth=()
   [ -n "${4:-}" ] && auth=(-H "Authorization: Bearer $4")
+  case "$2" in /rest/v1/*) auth+=(-H "Accept-Profile: highland" -H "Content-Profile: highland");; esac
   if [ -n "${3:-}" ]; then
     R=$(curl -s -o "$OUT/body" -w '%{http_code}' -X "$1" "$B$2" -H "apikey: $K" "${auth[@]}" -H 'Content-Type: application/json' --data "$3")
   else
@@ -102,8 +104,12 @@ echo "and the same code again -> $S $(echo "$R" | jq -r .error_code)"; [ "$S" = 
 curl -s -X POST "$B/__test/authclock" --data '{"seconds":0}' > /dev/null
 call POST /rest/v1/rpc/hs_profile_get '{}' "${AT%?}x"
 echo "a forged token -> $S $(echo "$R" | jq -r .code) $(echo "$R" | jq -r .message)"; [ "$S" = 401 ] || bad "a forged token was taken"
-R0=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_config" -H 'Content-Type: application/json' --data '{}')
+R0=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_config" -H 'Content-Type: application/json' -H 'Content-Profile: highland' --data '{}')
 echo "no apikey -> $R0"; [ "$R0" = 401 ] || bad "a call without the key"
+R0=$(curl -s -o "$OUT/body" -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_config" -H "apikey: $K" -H 'Content-Type: application/json' --data '{}')
+echo "no Content-Profile -> $R0 $(jq -r .code "$OUT/body") (PostgREST looks in public, where the game has nothing)"; [ "$R0" = 404 ] || bad "a call without the profile header"
+R0=$(curl -s -o "$OUT/body" -w '%{http_code}' -X POST "$B/rest/v1/rpc/hs_config" -H "apikey: $K" -H 'Content-Type: application/json' -H 'Content-Profile: hs_private' --data '{}')
+echo "Content-Profile: hs_private -> $R0 $(jq -r .code "$OUT/body") (a schema PostgREST does not serve)"; [ "$R0" = 406 ] || bad "a schema not served"
 
 echo "== 3. every table and every function outside the grants, as a visitor and as a player"
 TABLES="hs_profiles hs_saves hs_rulesets hs_runs hs_scores hs_score_best hs_sessions hs_events hs_admins hs_config hs_name_blocklist hs_rate"
@@ -137,9 +143,9 @@ for f in $ADMIN_FNS; do
 done
 for who in visitor player; do
   tok=""; [ $who = player ] && tok=$AT2
-  for f in rate_ok is_admin name_clean; do
+  for f in _uid _is_admin _now; do
     call POST "/rest/v1/rpc/$f" '{}' "$tok"
-    if [ "$S" = 404 ]; then refusals=$((refusals + 1)); echo "REFUSED $who POST /rest/v1/rpc/$f (a private helper) -> $S $(echo "$R" | jq -r .code)"; else bad "$who $f -> $S $R"; fi
+    if [ "$S" = 401 ] || [ "$S" = 403 ]; then refusals=$((refusals + 1)); echo "REFUSED $who POST /rest/v1/rpc/$f (a helper) -> $S $(echo "$R" | jq -r .message)"; else bad "$who $f -> $S $R"; fi
   done
 done
 for f in hs_config hs_board hs_daily_status hs_track; do
@@ -148,7 +154,7 @@ for f in hs_config hs_board hs_daily_status hs_track; do
   echo "allowed visitor POST /rest/v1/rpc/$f -> $S $(echo "$R" | jq -c . | cut -c1-90)"
 done
 
-echo "== 4. the narrow public name (the guide's proxy): nothing but the two prefixes is served"
+echo "== 4. the old narrow public name (a proxy the shared server does not have): nothing but the two prefixes is served"
 curl -s -X POST "$B/__test/narrow" --data '{"on":true}' > /dev/null
 for p in / /rest/v1/ /rest/v1/hs_saves /rest/v1/hs_events /rest/v1/rpc/pg_sleep /pg/meta /storage/v1/bucket /realtime/v1/ /graphql/v1; do
   st=$(curl -s -o /dev/null -w '%{http_code}' "$B$p" -H "apikey: $K" -H "Authorization: Bearer $AT2")
@@ -178,9 +184,9 @@ ctl clock '{"offset":""}'
 ctl expire '{}'; call POST /rest/v1/rpc/hs_profile_get '{}' "$AT2"; echo "tokens expired -> $S $(echo "$R" | jq -r .message)"; [ "$S" = 401 ] || bad "expire"
 ctl settings '{"mailer_autoconfirm":true}'; call GET /auth/v1/settings; echo "settings say mailer_autoconfirm: $(echo "$R" | jq -r .mailer_autoconfirm)"; [ "$(echo "$R" | jq -r .mailer_autoconfirm)" = true ] || bad "settings control"
 ctl settings '{"mailer_autoconfirm":false}'
-n=$(curl -s -X POST "$B/__test/query" --data '{"sql":"select count(*)::int as n from public.hs_profiles"}' | jq -r '.rows[0].n')
+n=$(curl -s -X POST "$B/__test/query" --data '{"sql":"select count(*)::int as n from highland.hs_profiles"}' | jq -r '.rows[0].n')
 ctl reset '{}'
-n2=$(curl -s -X POST "$B/__test/query" --data '{"sql":"select (select count(*) from public.hs_profiles) + (select count(*) from auth.users) as n"}' | jq -r '.rows[0].n')
+n2=$(curl -s -X POST "$B/__test/query" --data '{"sql":"select (select count(*) from highland.hs_profiles) + (select count(*) from auth.users) as n"}' | jq -r '.rows[0].n')
 echo "the database emptied: $n profile(s) before, $n2 rows of players after"; [ "$n2" = 0 ] || bad "reset"
 curl -s -X POST "$B/__test/provider" --data '{"who":"cancel"}' > /dev/null
 A3=$(curl -s -o /dev/null -w '%{redirect_url}' "$(curl -s -o /dev/null -w '%{redirect_url}' "$(curl -s -o /dev/null -w '%{redirect_url}' "$B/auth/v1/authorize?provider=google&redirect_to=$SITE/%3Fhsh%3D$H&code_challenge=$C&code_challenge_method=s256")")")
