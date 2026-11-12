@@ -135,6 +135,8 @@ const wavesOpt = +((o.rest.find(a => a.startsWith("--waves=")) || "--waves=0").s
             // every tower at its third rank with its first mastery, so the stand lasts the twenty waves being measured
             const t = towerAt(i); if (t) { t.level = 2; t.spec = "a"; if (t.type === "post") postSyncMen(t, true); towerSyncHp(t); }
           }
+          // the enemy's tricks were each told on an earlier play: no first-time card holds the battle (Auto keeps it going)
+          trickCardsQuiet = () => true;
           setSpeed(2); auto = true; autoBtn.textContent = "Auto: On"; autoBtn.classList.add("on");
           window.__frames = []; let last = 0;
           const tick = ts => { if (last && !paused) window.__frames.push(ts - last); last = ts; if (!gameOver) requestAnimationFrame(tick); };
