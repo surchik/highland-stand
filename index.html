@@ -385,7 +385,12 @@
   @media (hover: none) {
     .card:hover .ds { display: none; }
     .card.selected .ds { display: block; pointer-events: none; animation: dsTouch 3.2s forwards; }
+    /* no keys on a touch screen: the hotkey badge goes, which frees the tile's top left corner (3.8) */
+    .card .key { display: none; }
   }
+  /* a tile whose name fits neither whole nor short gives its row to the picture (fitCardNames, on a phone) */
+  .card.noNm .nm { display: none; }
+  .card.noNm .pic { height: calc(100% - 4px); }
   /* a portrait tablet: the 16:9 field fills only a band of the screen, so in battle a plaque asks for a turn
      (it can be waved away to play on in portrait; a battle turned to portrait mid-fight pauses under it) */
   #rotateHint { display: none; position: fixed; inset: 0; z-index: 40; align-items: center; justify-content: center;
@@ -1278,10 +1283,26 @@
   @media (max-width: 980px) {
     .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
   }
+  /* the tray grows to six or seven tiles (gameplay 3.8): the same steps, taken earlier. Only where the window is
+     taller than a phone held sideways, whose own rules below lay the tiles across the whole width */
+  @media (max-width: 1680px) and (min-height: 501px) { #shop[data-n="7"] .trayCap.left { display: none; } #shop[data-n="7"] .trayCap.right { flex: 0 1 320px; } }
+  @media (max-width: 1500px) and (min-height: 501px) { #shop[data-n="6"] .trayCap.left { display: none; } #shop[data-n="6"] .trayCap.right { flex: 0 1 320px; } }
+  @media (max-width: 1440px) and (min-height: 501px) { #shop[data-n="7"] .card { flex-basis: 128px; } }
+  @media (max-width: 1300px) and (min-height: 501px) { #shop[data-n="7"] .card { flex-basis: 112px; } }
+  @media (max-width: 1260px) and (min-height: 501px) { #shop[data-n="6"] .card { flex-basis: 128px; } }
+  @media (max-width: 1170px) and (min-height: 501px) {
+    #shop[data-n="7"] .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
+    #shop[data-n="7"] .card { flex-basis: 128px; }
+  }
+  @media (max-width: 1100px) and (min-height: 501px) {
+    #shop[data-n="6"] .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
+  }
   @media (max-width: 760px) {
     #shop { padding: 0 calc(4px + var(--sar)) calc(1px + var(--sab)) calc(4px + var(--sal)); gap: 0; }
     .trayPanel { gap: 5px; }
     .card { flex-basis: calc((100vw - 28px) / 5); }
+    #shop[data-n="6"] .card { flex-basis: calc((100vw - 28px) / 6); }
+    #shop[data-n="7"] .card { flex-basis: calc((100vw - 28px) / 7); }
     .card .nm { font-size: 10.5px; }
     .card .pr { right: 2px; top: 2px; height: 19px; font-size: 12px; padding: 0 5px 0 1px; }
     .card .pr .ic { width: 14px; height: 14px; }
@@ -10118,9 +10139,25 @@ function syncHeroTitle() {
 }
 // a tile's name stays on its one line: a long one ("Modern Rifle Marksmen") is set smaller and tighter until
 // it fits the tile, which narrows with the window; re-fit whenever a tile changes size (or first shows)
+// On a phone a name is chosen by measure (3.8): the full name if it fits its box at the tile's own size (never under
+// 11 px, never cut), else its short form, else none (the picture takes the row); the line over a chosen tile always
+// names it whole
 function fitCardNames() {
+  const phone = isPhone();
   document.querySelectorAll("#shop .card .nm").forEach(nm => {
     nm.style.fontSize = ""; nm.style.letterSpacing = "";
+    const card = nm.closest(".card"), type = card && card.dataset.type;
+    if (phone && type && TOWER_DEFS[type]) {
+      card.classList.remove("noNm");
+      nm.textContent = towerName(type);
+      if (!nm.clientWidth || nm.scrollWidth <= nm.clientWidth) return;
+      const short = towerShort(type);
+      if (short) { nm.textContent = short; if (nm.scrollWidth <= nm.clientWidth) return; }
+      nm.textContent = towerName(type);
+      card.classList.add("noNm");
+      return;
+    }
+    if (card) card.classList.remove("noNm");
     if (!nm.clientWidth || nm.scrollWidth <= nm.clientWidth) return;
     // never under 10 px: a name still too long there is cut with an ellipsis
     const fs = parseFloat(getComputedStyle(nm).fontSize);
@@ -26001,6 +26038,7 @@ function draw(time) {
     queueGradedOccluders(objs, hero.x, hero.y, 34, 66, 14);
   }
   for (const t of towers) objs.push({ y: t.y, fn: () => drawTower(t, time) });
+  queuePostMen(objs, time);
   if (plots.length && overlayEl.classList.contains("hidden")) {
     const m = ctx.getTransform();
     for (const plot of plots) {
@@ -26035,8 +26073,10 @@ function draw(time) {
   for (const e of enemies) drawEnemyMarks(e);
   drawHuntLines(time);
   if (hero && hero.alive && !celebration) drawHeroBar();
+  drawPostBars();
   drawHoverRange();
   drawSelectedGhosts();
+  drawPostMarks(time);
   drawPlacement();
   drawCastPreview();
   drawWaveBanner();
@@ -44439,6 +44479,252 @@ SKIN_ART.commandpost = {
 };
 // ====================================== END SKIN SECTION: commandpost ======================================
 
+// ======================================================================================
+// SKIN SECTION: the Garrison Post (gameplay 2.7). One painter with four variants, put together from parts the other
+// skins already use: a low stone guardhouse with a spear rack and the age's banner (eras 0, 1, 2, 3, 7, 8), a timber
+// palisade corner (1727), a barricade of sacks and beams (1915 to 1918), a dugout under a roof of logs and earth
+// (Artsakh). Baked once per rank like every structure, with the ruin every tower has. The men are drawn live
+// (drawPostMen), in the defenders' colors: the infantry painter with one kit row per age (POST_KITS), and from 1727 on
+// a plainer copy of the battlefield's hero figure at 0.78 of his size.
+// ======================================================================================
+TOWER_BOX.post = [-44, -86, 48, 22];
+TOWER_SCALE.post = 1;
+TOWER_ACCENT.post = "#8e2b22";
+// the banner's colors by age: Urartu's red and gold, the houses' crimson, the Bagratid gold on red, the villagers'
+// homespun; the later ages fly none
+const POST_BANNER = { 0: ["#a8322a", "#f0cf85"], 1: ["#8e1f2a", "#e8c15a"], 2: ["#a8322a", "#e8c15a"], 3: ["#6e5a3a", "#d8c08a"],
+  7: ["#8e1f2a", "#f0cf85"], 8: ["#7a2a24", "#e8c15a"] };
+function postBase(lvl, spec) { return { w: (spec ? 38 : [33, 35, 37][lvl]), d: 16, h: 4.6 }; }
+function postFooting(lvl, spec) {
+  const b = postBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.post, stepped = !!spec || lvl === 2;
+  return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+}
+function paintPost(kind, lvl, spec) {
+  const c = sctx, S = footStone(), base = postBase(lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 91 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const A = spec === "a", B = spec === "b", W = base.w - 6;
+  if (kind === "guard") {
+    // a low guardhouse of the site's stone, a dark door toward the road, a flat roof of beams and earth
+    const H = 18 + lvl * 4 + (spec ? 4 : 0), wallHex = mixHex(S[0], S[1], 0.3);
+    c.save();
+    c.translate(-4, 0);
+    box3(W - 10, H, 11, wallHex, { masonry: true, side: toneHex(S[1], -16), top: toneHex(S[0], 4), block: 9, seed: 97 + lvl });
+    inkRect(-3.2, -9.5, 6.4, 9.5, "#2a1c12", 0.9);
+    // the roof's beam ends over the door
+    for (let x = -(W - 10) / 2 + 2; x < (W - 10) / 2; x += 4) inkDisc(x, -H + 0.6, 0.9, 0.9, TIMBER_DARK, 0.5);
+    structCrown(-H - 4);
+    // round shields hung on the wall (Shield Wall), or the door thrown open (Sortie)
+    if (A) for (const x of [-7.5, 7.5]) { inkDisc(x, -H * 0.55, 3.2, 3.2, "#b98538", 0.9); inkDisc(x, -H * 0.55, 1.1, 1.1, "#5a3d17", 0); }
+    if (B) inkPoly([3.2, -9.5, 6.4, -8.2, 6.4, 0.8, 3.2, 0], toneHex(TIMBER, -10), 0.8);
+    c.restore();
+    // the spear rack at the side: two posts and a bar, three spears leaning on it
+    const rx = W / 2 - 3;
+    beam(rx - 4, 0, rx - 4, -12, 1.2, TIMBER_DARK);
+    beam(rx + 3, 0, rx + 3, -12, 1.2, TIMBER_DARK);
+    beam(rx - 5, -10, rx + 4, -10, 1, TIMBER);
+    const spears = 3 + (lvl >= 1 ? 1 : 0) + (B ? 1 : 0);
+    for (let i = 0; i < spears; i++) {
+      const x = rx - 3 + i * 1.8;
+      beam(x, 0.5, x + 2.2, -22, 0.8, "#8a6a3e");
+      inkPoly([x + 2.2, -22, x + 1.4, -25.6, x + 3, -22.4], "#c9cdd2", 0.5);
+    }
+    // the age's banner on a pole at the corner
+    const col = POST_BANNER[curEra] || POST_BANNER[0], ph = 30 + lvl * 3 + (spec ? 4 : 0), px = -W / 2 + 1;
+    beam(px, 0, px, -ph, 1.2, TIMBER_DARK);
+    inkPoly([px + 0.6, -ph + 1, px + 11, -ph + 2.4, px + 9.4, -ph + 6.4, px + 11, -ph + 10.4, px + 0.6, -ph + 9.4], col[0], 0.8);
+    inkPoly([px + 0.6, -ph + 4.6, px + 9.8, -ph + 5.6, px + 9.6, -ph + 6.6, px + 0.6, -ph + 5.8], col[1], 0);
+    structCrown(-ph - 2);
+  } else if (kind === "palisade") {
+    // a corner of sharpened stakes, a walk of planks behind it, a gap the garrison sallies out by
+    const n = 8 + lvl * 2 + (A ? 3 : 0), h0 = 18 + lvl * 3;
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + 1 + i * (W - 2) / (n - 1);
+      if (B && i === Math.floor(n / 2)) continue;
+      const h = h0 + ((i * 7) % 5) - 2;
+      beam(x, 0.5, x, -h, 2.2, i % 2 ? TIMBER : toneHex(TIMBER, -14));
+      inkPoly([x - 1.1, -h, x, -h - 3.2, x + 1.1, -h], toneHex(TIMBER, 18), 0.5);
+    }
+    beam(-W / 2, -h0 * 0.45, W / 2, -h0 * 0.45, 1.1, TIMBER_DARK);
+    // the side run of the corner, going back into the field
+    c.save();
+    c.transform(OBQ.dx, OBQ.dy, 0, 1, W / 2, 0);
+    for (let i = 0; i < 5; i++) { const x = 1 + i * 3; beam(x, 0.5, x, -(h0 - 2), 2, toneHex(TIMBER, -24)); }
+    c.restore();
+    structCrown(-h0 - 6);
+  } else if (kind === "sandbag") {
+    // a barricade of sacks with beams thrown across it, a loophole in the middle
+    const H = 9 + lvl * 2 + (A ? 3 : 0);
+    e5Bags(W, H, 7, null, 501 + lvl);
+    beam(-W / 2 + 2, -H - 0.6, W / 2 - 3, -H - 2.4, 1.6, TIMBER_DARK);
+    if (lvl >= 1 || spec) beam(-W / 2 + 6, -H - 1.4, -W / 2 + 14, -H - 7, 1.4, TIMBER);
+    inkRect(-2.6, -H + 2.4, 5.2, 2.2, "#1e1712", 0.6);
+    structCrown(-H - 8);
+  } else {
+    // a dugout: a mound of earth with a roof of logs and the dark slit of its firing port
+    const H = 9 + lvl * 2 + (spec ? 2 : 0), earth = backdropSnowy() ? "#d9dde2" : "#6e5a42";
+    inkPoly([-W / 2, 0, -W / 2 + 4, -H, W / 2 - 4, -H, W / 2, 0], earth, 1);
+    for (let i = 0; i < 5 + lvl; i++) { const y = -H + 1.4 + i * 0.1; beam(-W / 2 + 4, y - i * 0.05, W / 2 - 4, y - 0.4, 1.8, i % 2 ? TIMBER : toneHex(TIMBER, -18)); }
+    inkPoly([-W / 2 + 6, -H - 1, W / 2 - 6, -H - 1, W / 2 - 9, -H - 4.2, -W / 2 + 9, -H - 4.2], toneHex(earth, 10), 0.8);
+    inkRect(-6, -H * 0.55, 12, 2.4, "#14100c", 0.6);
+    if (A) e5Bags(14, 5, 5, null, 517);
+    structCrown(-H - 6);
+  }
+  c.restore();
+}
+// in a portrait (the tile, the panel) two of the age's men stand before the post
+function postLive(t, cx) {
+  if (t.pad >= 0) return;
+  const men = [{ x: t.x - 24, y: t.y + 14, face: 1 }, { x: t.x + 10, y: t.y + 18, face: -1 }];
+  for (const m of men) drawPostMan(Object.assign({ state: "stand", swing: 0, walk: 0, hp: 1, max: 1 }, m), cx.time);
+}
+for (const [id, kind] of [["postguard", "guard"], ["postpalisade", "palisade"], ["postsandbag", "sandbag"], ["postdugout", "dugout"]]) {
+  SKIN_ART[id] = {
+    box: [-44, -86, 48, 22], scale: 1,
+    paint(lvl, spec) { paintPost(kind, lvl, spec); },
+    // the banner and the snow differ by age and map: a variant each, so one map's post is never another's
+    variant() { return kind === "guard" ? curEra : backdropSnowy() ? 1 : 0; },
+    live: postLive,
+    footing: postFooting,
+  };
+}
+
+// ---- the men ----
+// the infantry painter's kit for the defenders of each age (the parts it already draws)
+const POST_KITS = {
+  0: { helm: "cone", metal: "bronze", beard: "square", beardLen: 5, skin: "#d4a172", hem: -6.8, hemW: 5.7, strap: true,
+       leg: "#d4a172", boot: "#a87644", sandal: true, weapon: "spear", tilt: 0.16, reach: -39.5, shield: "roundSmall", top: 34 },
+  1: { helm: "round", metal: "steel", beard: "full", skin: "#d8aa80", hem: -6, hemW: 6.2, armor: "mail",
+       leg: "#6a4a32", boot: "#3d2a1a", weapon: "spear", tilt: 0.2, reach: -38, shield: "oval", top: 33 },
+  2: { helm: "cone", metal: "steel", aventail: true, beard: "full", skin: "#d4a67c", hem: -6, hemW: 6.2, armor: "mail",
+       leg: "#5e4a36", boot: "#3a2a1c", weapon: "spear", tilt: 0.2, reach: -38, shield: "oval", top: 33 },
+  3: { helm: "felt", cap: "#6b4a30", capShade: "#4a3220", beard: "full", skin: "#d6a67a", hem: -6.4, hemW: 6, kaftan: true,
+       leg: "#5a4632", boot: "#3a2616", weapon: "axe", tilt: 0.34, hold: [0.9, -8.6], top: 32 },
+  7: { helm: "round", metal: "steel", nasal: true, beard: "full", skin: "#d6a67a", hem: -6, hemW: 6.2, armor: "mail",
+       leg: "#4e4a5e", boot: "#2a2018", weapon: "spear", tilt: 0.2, reach: -38, shield: "kite", top: 33 },
+  8: { helm: "round", metal: "steel", nasal: true, beard: "full", skin: "#d8aa80", hem: -6, hemW: 6.2, armor: "mail",
+       leg: "#5a3a2a", boot: "#2e2016", weapon: "spear", tilt: 0.2, reach: -38, shield: "kite", top: 33 },
+};
+const POST_PAL = ["#8e2b22", "#e8c15a"];
+// 1727 on: the battlefield's hero figure, plainer (no field glasses, shoulder boards, pistol or sash of rank), and the
+// arm the post's tile names (sabers at Halidzor, bayonets at Van and Sardarapat, an old rifle on Musa Dagh, rifles in
+// Artsakh)
+const POST_ARM = { halidzor: "sabre", van: "bayonet", musadagh: "fire", sardarapat: "bayonet", stepanakert92: "ak", shushi: "ak", stepanakert23: "ak" };
+let postLookCache = null;
+function postLook() {
+  const lk = heroLook();
+  if (!lk) return null;
+  if (postLookCache && postLookCache.of === lk) return postLookCache.look;
+  const look = Object.assign({}, lk, { id: lk.id + "-man", glasses: false, boards: null, pistol: false, strap: false,
+    arm: POST_ARM[THEME && THEME.id] || lk.arm, coat: toneHex(lk.coat, -6), coatShade: toneHex(lk.coatShade, -6) });
+  postLookCache = { of: lk, look };
+  return look;
+}
+function postModern() { return eraAge(curEra) >= 4 && !!heroLook(); }
+// the weapon the men's blows sound with
+function postArm() { const lk = postModern() ? postLook() : null; return lk ? lk.arm : undefined; }
+function drawPostMan(m, time) {
+  const sp = proj(m.x, m.y), s = sp.s, modern = postModern(), look = modern ? UNIT_HERO_LOOK : UNIT_LOOKS.foot;
+  const M = ctx.getTransform(), pxScale = Math.hypot(M.a, M.b) || 1;
+  const size = modern ? s * 1.85 * 0.78 : s * look.f * 0.9;
+  const step = Math.round(Math.log(Math.max(0.2, Math.min(16, size * pxScale))) / UNIT_SCALE_STEP);
+  const q = Math.exp(step * UNIT_SCALE_STEP), k = q / pxScale, turn = Math.PI * 2;
+  const walking = m.state === "walk";
+  const frame = walking ? Math.floor((((m.walk || 0) % turn + turn) % turn) / turn * UNIT_FRAMES) % UNIT_FRAMES : 0;
+  const face = m.face >= 0 ? 1 : -1, sw = m.swing > 0.06 ? 1 : 0;
+  shadow(sp.x, sp.y + 1.2 * k, 7 * k, 2.6 * k);
+  const plk = modern ? postLook() : null, era = curEra;
+  const key = "post|" + (plk ? plk.id : "e" + era) + (walking ? "w" : "i") + face + "|" + frame + "|" + sw + "|" + step;
+  const sprite = unitSprite(key, q, look, face < 0, () => {
+    unitPhase = frame / UNIT_FRAMES * turn;
+    const wave = Math.sin(unitPhase);
+    unitFace(face);
+    if (plk) {
+      hfBody(plk, walking ? wave : 0, walking ? wave : 0, walking ? Math.cos(unitPhase) : 0);
+      uc.save();
+      uc.translate(3.2, -14.6);
+      const pose = hfArmPose(plk, sw ? 0.15 : 0);
+      uc.rotate(pose.rot); uc.translate(pose.dx, 0);
+      hfArm(plk, pose.flash);
+      uc.restore();
+    } else {
+      const kit = POST_KITS[era] || POST_KITS[0];
+      unitPaintInfantry(sw ? Object.assign({}, kit, { tilt: (kit.tilt || 0) + 0.55 }) : kit, unitPalette(POST_PAL[0], POST_PAL[1]), walking ? wave : 0);
+    }
+  });
+  const bob = walking ? Math.abs(Math.sin(m.walk || 0)) * 1.2 * k : 0;
+  unitBlit(sprite, M, sp.x, sp.y - bob);
+  m.markX = sp.x; m.markY = sp.y - bob - (modern ? 30 : 34) * k - 4; m.markS = s;
+}
+// every man of every post on the field, in the depth sort with everything else that stands
+function queuePostMen(objs, time) {
+  for (const t of towers) {
+    if (t.type !== "post" || !t.men) continue;
+    for (const m of t.men) if (!m.down) objs.push({ y: m.y, fn: () => drawPostMan(m, time) });
+  }
+}
+// a small strength bar over a man, only when he is hurt (the hero's bar at half size)
+function drawPostBars() {
+  for (const t of towers) {
+    if (t.type !== "post" || !t.men) continue;
+    for (const m of t.men) {
+      if (m.down || !(m.markS > 0) || m.hp >= m.max) continue;
+      const bw = 13, frac = Math.max(0, Math.min(1, m.hp / m.max)), bx = m.markX - bw / 2, by = m.markY;
+      ctx.fillStyle = "rgba(22, 13, 6, .9)";
+      ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
+      ctx.fillStyle = frac > 0.5 ? "#8fd45e" : frac > 0.25 ? "#f0c040" : "#e8553a";
+      ctx.fillRect(bx, by, bw * frac, 2);
+    }
+  }
+}
+// the road a post's men may stand on, lit inside its reach: the armed rally, the tile's preview on a pad
+function drawPostRoad(x, y, reach, alpha) {
+  const pts = postRoadIn(x, y, reach);
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const pass of [["rgba(40, 24, 8, " + (0.5 * alpha).toFixed(3) + ")", 9], ["rgba(255, 220, 110, " + (0.75 * alpha).toFixed(3) + ")", 5]]) {
+    ctx.strokeStyle = pass[0];
+    ctx.beginPath();
+    let prev = null;
+    for (const p of pts) {
+      const q = proj(p.x, p.y);
+      ctx.lineWidth = pass[1] * q.s;
+      if (prev && prev.route === p.route && Math.abs(prev.dist - p.dist) <= 5.01) ctx.lineTo(q.x, q.y);
+      else ctx.moveTo(q.x, q.y);
+      prev = p;
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  return pts.length;
+}
+// the flag at a rally point: for 2 s after it is set, and while the post's panel is up or its rally is armed
+function drawRallyFlag(t, time) {
+  const R = t.rally, p = proj(R.x, R.y), s = p.s, a = t.flagT > 0 ? Math.min(1, t.flagT / 0.4) : 0.85;
+  ctx.globalAlpha = a;
+  ctx.strokeStyle = "rgba(40, 24, 8, .9)"; ctx.lineWidth = 2.4 * s;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 22 * s); ctx.stroke();
+  const wv = Math.sin(time / 180) * 1.4 * s;
+  ctx.fillStyle = TOWER_ACCENT.post;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y - 22 * s); ctx.lineTo(p.x + 12 * s, p.y - 18.5 * s + wv); ctx.lineTo(p.x, p.y - 14 * s); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#f0cf85"; ctx.lineWidth = 1 * s; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function drawPostMarks(time) {
+  for (const t of towers) {
+    if (t.type !== "post" || !t.rally || t.wreck) continue;
+    if (rallying === t) {
+      const pp = proj(t.x, t.y);
+      drawRange(pp.x, pp.y, postReach(t), "rgba(255, 214, 110, .8)", pp.s);
+      drawPostRoad(t.x, t.y, postReach(t), 1);
+    }
+    if (t.flagT > 0 || rallying === t || (selected === t && panelEl.style.display === "block")) drawRallyFlag(t, time);
+  }
+}
+// ====================================== END SKIN SECTION: post ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
@@ -56189,7 +56475,10 @@ function drawPlacement() {
   const def = TOWER_DEFS[placing];
   if (padIdx >= 0) {
     const pp = proj(PADS[padIdx][0], PADS[padIdx][1]);
-    drawRange(pp.x, pp.y, kitStatsOf(placing, 0, null).range, "rgba(140, 220, 140, .6)", pp.s);
+    // a post's preview lights the road its men may stand on; a pad with none in reach shows its ring red (2.3)
+    const postNo = def.post && !padTakesPost(padIdx);
+    drawRange(pp.x, pp.y, kitStatsOf(placing, 0, null).range, postNo ? "rgba(230, 110, 90, .7)" : "rgba(140, 220, 140, .6)", pp.s);
+    if (def.post) drawPostRoad(PADS[padIdx][0], PADS[padIdx][1], kitStatsOf(placing, 0, null).reach, 0.8);
     drawWatchReach({ type: placing, level: 0, spec: null }, pp.x, pp.y, pp.s);
     ctx.fillStyle = "rgba(140, 220, 140, .3)";
     ctx.beginPath(); ctx.ellipse(pp.x, pp.y + 2 * pp.s, PAD_OPEN.rx * pp.s, PAD_OPEN.ry * pp.s, 0, 0, Math.PI * 2); ctx.fill();
@@ -57641,7 +57930,7 @@ function renderTowerPortrait(cv, type, level, spec, maxUnitPx, anchorX, sink) {
 }
 
 // tall towers lose their plinth to the tile's lower edge; the low engines are shown whole
-const SHOP_PORTRAIT_SINK = { archer: 0.3, ballista: 0.24, catapult: 0.14, fire: 0.2, drums: 0.18 };
+const SHOP_PORTRAIT_SINK = { archer: 0.3, ballista: 0.24, catapult: 0.14, fire: 0.2, drums: 0.18, post: 0.16 };
 function renderShopPortraits() {
   document.querySelectorAll("#shop .card").forEach(card => {
     // centred between the key cap and the price pill, which keep to the tile's top corners
@@ -81446,6 +81735,8 @@ function photoStageBattle(lv, wave, o) {
     const p = enemyPos(foe);
     hero.x = p.x - 16; hero.y = p.y + 2; hero.rally = null;
   }
+  // &post=N: N Garrison Posts on free pads with road in reach, each with foes come up to its line (the men hold them)
+  if (o.post) photoPostStage(o.post);
   // a road that opens on this wave (Mari's other road) has its dust half way down it
   const RO = LEVELS[lv].routeOpen;
   if (RO) for (const k in RO) if (roadOpensOn(k, wave) && ROUTES[k]) roadCall = { route: Number(k), t: ROAD_CALL_S * 0.6 };
@@ -81466,6 +81757,30 @@ function photoStageBattle(lv, wave, o) {
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
+  const firstPost = towers.find(t => t.type === "post");
+  if (o.postPanel && firstPost) showPanel(firstPost);
+  if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
+}
+function photoPostStage(n) {
+  gold = 99999;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i) && padTakesPost(i));
+  // a post where the field has none free: the last shooting towers give their pads up
+  while (free.length < n && towers.length) { const t = towers.pop(); if (padTakesPost(t.pad)) free.unshift(t.pad); }
+  for (let k = 0; k < n && k < free.length; k++) {
+    placeTower("post", free[k]);
+    const t = towers[towers.length - 1];
+    t.level = k % 3; if (k === 2) { t.level = 2; t.spec = "a"; }
+    t.placedAt = -1e9;
+    postSyncMen(t, true);
+    for (const role of ["spearman", "raider", "shield"]) {
+      spawnEnemy(role);
+      const e = enemies[enemies.length - 1];
+      if (e.fly) continue;
+      e.route = t.rally.route; e.dist = Math.max(0, t.rally.dist - 4 - enemies.length % 3 * 3);
+      e.maxHp *= 6; e.hp = e.maxHp;
+    }
+  }
+  gold = 640;
 }
 
 // the photo harness's trick scenes (&trick=): each trick's tell on the field as a player meets it, for tools/shot.js.
@@ -81748,6 +82063,8 @@ function runPhoto() {
         spell: HARNESS.get("spell"), banner: HARNESS.has("banner"), panel: num("panel", 0),
         // &trick=ambush|hunt|hidden|guards|adapt|card (&card=key, &read): a trick's tell or its explainer card
         trick: HARNESS.get("trick"), card: HARNESS.get("card"), read: HARNESS.has("read"),
+        // &post=N Garrison Posts holding foes, &postpanel its panel, &rally its rally armed (the ring and the lit road)
+        post: num("post", 0), postPanel: HARNESS.has("postpanel"), rally: HARNESS.has("rally"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
