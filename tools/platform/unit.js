@@ -389,6 +389,24 @@ if (pure && pure.Cloud) {
   ok(C.merge(doc({ a: "1" }), null, o()).changed === true, "no save in the cloud: the merge must be sent");
   m = C.merge(doc({ hs_best_erebuni_0: "3" }), doc({ hs_best_erebuni_0: "3" }), o());
   ok(m.changed === false && Object.keys(m.local).length === 0, "the same progress on both sides: nothing to send, nothing to write");
+  const RN = (val, at, dev) => ({ at, dev: dev || "bbbb", label: "iPad", val, tok: null });
+  // changed: whether the cloud's document differs from the merge's (the save must then be sent)
+  m = C.merge(doc({ hs_best_erebuni_0: "3" }, { at: NOW, dev: "aaaa" }), doc({ hs_best_erebuni_0: "3" }), o());
+  ok(m.changed === false, "changed: equal keys, keysAt and battle (the documents' own times and devices do not count)");
+  ok(C.merge(doc({}), null, o()).changed === true, "changed: no save in the cloud at all, even with nothing here: the first document must be written");
+  ok(C.merge(doc({ hs_best_erebuni_0: "3", hs_tricks_seen: '["x"]' }), doc({ hs_best_erebuni_0: "3" }), o()).changed === true, "changed: a key this device has and the cloud lacks");
+  ok(C.merge(doc({ hs_best_erebuni_0: "2" }), doc({ hs_best_erebuni_0: "3" }), o()).changed === false, "changed: the cloud's larger value already is the merge");
+  ok(C.merge(doc({ hs_nardi: "a" }, { keysAt: { hs_nardi: 7 } }), doc({ hs_nardi: "a" }, { keysAt: { hs_nardi: 5 } }), o()).changed === true, "changed: a later keysAt");
+  ok(C.merge(doc({}, { run: RN("NEW", NOW - 60000, "aaaa") }), doc({}, { run: RN("OLD", NOW - 30 * H) }), o()).changed === true, "changed: this device's later battle");
+  ok(C.merge(doc({}, { run: RN("SAME", NOW - H, "bbbb") }), doc({}, { run: RN("SAME", NOW - H, "bbbb") }), o()).changed === false, "changed: the same battle");
+  ok(C.merge(doc({}), doc({}, { run: RN("THEIRS", NOW - H) }), o()).changed === false, "changed: a device with no claim takes the cloud's battle and has nothing to send");
+  // an endless row of the live game (endless only) against a newer one (beyond): the waves held are kept (finding 11)
+  eq(JSON.parse(K(C.merge(doc({ hs_records: '{"erebuni":{"stars":[0,3,0],"endless":[0,30,0]}}' }), doc({ hs_records: '{"erebuni":{"stars":[0,3,0],"endless":[0,25,0],"beyond":[0,5,0]}}' }), o())).hs_records),
+    { erebuni: { stars: [0, 3, 0], endless: [0, 30, 0], beyond: [0, 10, 0] } }, "records: an older row's endless counts as its beyond (endless less twenty) against a row with beyond");
+  eq(JSON.parse(K(C.merge(doc({ hs_records: '{"erebuni":{"endless":[0,25,0],"beyond":[0,9,0]}}' }), doc({ hs_records: '{"erebuni":{"endless":[3,22,0]}}' }), o())).hs_records),
+    { erebuni: { endless: [3, 25, 0], beyond: [0, 9, 0] } }, "records: and from the other side, the larger beyond stands");
+  eq(JSON.parse(K(C.merge(doc({ hs_records: '{"erebuni":{"endless":[0,25,0]}}' }), doc({ hs_records: '{"erebuni":{"endless":[0,30,0]}}' }), o())).hs_records),
+    { erebuni: { endless: [0, 30, 0] } }, "records: two older rows stay older rows");
   m = C.merge(doc({ hs_records: JSON.stringify(recA), hs_chapters_seen: '["kingdoms"]', hs_best_erebuni_0: "21" }), doc({}), o());
   ok(Object.keys(m.local).length === 0 && K(m).hs_best_erebuni_0 === "21" && /tushpa/.test(K(m).hs_records), "nothing a player has won is lost by a merge with an empty save");
   ok(C.has(doc({ hs_tutorial_done: "1" })) && !C.has(doc({})) && C.has(doc({}, { run: { at: 1, val: "{}" } })) && !C.has(doc({}, { run: { at: 1, val: null } })), "has: any synced key, or a battle");
@@ -442,6 +460,38 @@ if (pure && pure.Cloud) {
   m = run(R("MINE", NOW - 3 * H, "aaaa"), R("THEIRS", NOW - 2 * H, "aaaa"), { ask: true });
   eq([m.run, m.runVal], ["theirs", "THEIRS"], "run 5: two battles of the same device: the later wins, no question");
   // run 6 (a battle this build cannot fight is not adopted) needs the page's getSavedRun: tools/regress/platform.js, flow 5
+  // a mark names the battle it ended (P3 review, finding 2): it ends that battle and no other
+  {
+    const RB = (val, at, dev, bid) => Object.assign(R(val, at, dev), bid ? { bid } : {});
+    const MK = (at, dev, end) => Object.assign(R(null, at, dev), end ? { end } : {});
+    m = run(RB("TUSHPA", NOW - 2 * H, "aaaa", "t1"), MK(NOW - H, "bbbb", "a1"));
+    eq([m.run, m.doc.run.val, m.runVal], ["mine", "TUSHPA", undefined], "run 3: a later mark of another battle does not drop this device's battle");
+    m = run(MK(NOW - H, "aaaa", "a1"), RB("TUSHPA", NOW - 2 * H, "bbbb", "t1"));
+    eq([m.run, m.doc.run.val, m.runVal], ["theirs", "TUSHPA", "TUSHPA"], "run 3: this device's mark of its own battle does not drop the cloud's other battle");
+    m = run(RB("SAVE2", NOW - 2 * H, "aaaa", "t1"), MK(NOW - H, "bbbb", "t1"));
+    eq([m.run, m.runVal], ["theirs", null], "run 3: a later mark of the same battle (saved since under another hs_run) drops it here");
+    m = run(RB("MINE", NOW - 2 * H, "aaaa", "t1"), MK(NOW - H, "bbbb"));
+    eq([m.run, m.runVal], ["theirs", null], "run 3: a mark with no name keeps the time rule");
+    m = run(RB("MINE", NOW - 2 * H, "aaaa"), MK(NOW - H, "bbbb", "a1"));
+    eq([m.run, m.runVal], ["theirs", null], "run 3: a battle with no name keeps the time rule");
+    // the hook names a battle at its first save, keeps the name through its saves, and the mark carries it
+    let b1 = C.touched({}, "hs_run", "set", 10, "run", "n1");
+    eq(b1.run, { at: 10, bid: "n1" }, "the hook: a battle's first save names it");
+    b1 = C.touched(b1, "hs_run", "set", 20, "run", "n2");
+    eq(b1.run, { at: 20, bid: "n1" }, "the hook: a later save of the same battle keeps its name");
+    b1 = C.touched(b1, "hs_run", "remove", 30, "run", "n3");
+    eq([b1.run, b1.gone], [null, "n1"], "the hook: the removal leaves no claim and remembers the battle it removed");
+    b1 = C.ended(b1, 31);
+    eq([b1.run, "gone" in b1], [{ at: 31, mark: true, end: "n1" }, false], "a battle's end: the mark names the battle that ended");
+    eq(C.local(() => null, ["hs_run"], b1, { now: 40, dev: "aaaa", label: "iPhone" }).run, { at: 31, dev: "aaaa", label: "iPhone", val: null, tok: null, end: "n1" }, "and this device's document carries the name with the mark");
+    b1 = C.touched(b1, "hs_run", "set", 50, "run", "n4");
+    eq(b1.run, { at: 50, bid: "n4" }, "the hook: a battle saved after a mark is a new battle");
+    eq(C.local((k) => (k === "hs_run" ? "V" : null), ["hs_run"], b1, { now: 60, dev: "aaaa", label: "iPhone" }).run.bid, "n4", "this device's document carries its battle's name");
+    // a battle taken from another device keeps its name on this one, and so does its end
+    const took = Object.assign(C.claim(5, false, RB("X", 5, "bbbb", "b9")), { dev: "bbbb", label: "iPad" });
+    eq(C.ended(C.touched(C.touched({ run: took }, "hs_run", "set", 6, "run", "zz"), "hs_run", "remove", 7, "run", "zz"), 8).run.end, "b9", "a battle taken from another device ends under its own name");
+    eq(C.claim(9, true, MK(8, "bbbb", "b9")), { at: 9, mark: true, end: "b9" }, "a mark taken from the cloud keeps the name of the battle it ended");
+  }
   // words
   eq([C.ago(30000), C.ago(5 * 60000), C.ago(60000), C.ago(2 * H), C.ago(H), C.ago(30 * H), C.ago(72 * H)],
     ["just now", "5 minutes ago", "1 minute ago", "2 hours ago", "1 hour ago", "yesterday", "3 days ago"], "times as words");

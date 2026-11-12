@@ -169,6 +169,8 @@ async function start(opts = {}) {
     refresh: new Map(),       // refresh token -> session id
     nextPerson: [],           // identities a test chose for the next sign-ins
     hanging: new Set(),
+    calls: {},                // how many times each rpc was asked for, answered or not (a test's count of a page's writes)
+    hold: null,               // { rpc, ms }: the next call of that function waits ms before it is answered
   };
   const nowSec = () => Math.floor(Date.now() / 1000) + state.authClock;
   const anonKey = signJwt(secret, { iss: "supabase", ref: "local-stack", role: "anon", iat: nowSec(), exp: nowSec() + 10 * 365 * 86400 });
@@ -253,6 +255,7 @@ async function start(opts = {}) {
       return auth(req, res, u, p.slice(8));
     }
     if (p.startsWith("/rest/v1/")) {
+      if (p.startsWith("/rest/v1/rpc/") && req.method === "POST") { const n = decodeURIComponent(p.slice(13)); state.calls[n] = (state.calls[n] || 0) + 1; }
       if (state.rest === "hang") return hang(req, res);
       if (state.rest === "down") return sendJson(res, 503, { message: "An invalid response was received from the upstream server" });
       if (!keyOk(req, res)) return;
@@ -331,6 +334,8 @@ async function start(opts = {}) {
     }
     if (!body || typeof body !== "object" || Array.isArray(body)) return sendJson(res, 400, { code: "PGRST102", details: null, hint: null, message: "the arguments must be a JSON object" });
     const keys = Object.keys(body);
+    // the next call of a function held a while once it has arrived whole (a write the server has, and answers late)
+    if (state.hold && state.hold.rpc === fn) { const ms = state.hold.ms; state.hold = null; await new Promise(r => setTimeout(r, ms)); }
     const notFound = () => sendJson(res, 404, { code: "PGRST202", details: "Searched for the function " + schema + "." + fn + " with parameters " + keys.join(", ") + " or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
       hint: null, message: "Could not find the function " + schema + "." + fn + "(" + keys.join(", ") + ") in the schema cache" });
     if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(fn)) return notFound();
@@ -680,6 +685,8 @@ async function start(opts = {}) {
     authclock: async (b) => { state.authClock = Number(b.seconds) || 0; return { authClock: state.authClock }; },
     // a user's sessions' access tokens taken as expired (all users without user_id)
     expire: async (b) => { let n = 0; for (const s of state.sessions.values()) if (!b.user_id || s.user === b.user_id) { s.notBefore = nowSec() + 1; n++; } return { sessions: n }; },
+    // the next call of one function held on its way: { rpc: "hs_save_put", ms: 6000 } ({} to stop holding)
+    hold: async (b) => { state.hold = b.rpc ? { rpc: String(b.rpc), ms: Math.max(0, Math.min(60000, Number(b.ms) || 0)) } : null; return { hold: state.hold }; },
     // a run's start moved back by seconds (the SQL test's trick for a score's wall-clock check)
     runback: async (b) => {
       const r = await su.query(`update highland.hs_runs set started_at = started_at - make_interval(secs => $1)
@@ -695,7 +702,7 @@ async function start(opts = {}) {
       await su.query("update highland.hs_config set value = case key when 'ev_cap_hour' then '20000'::jsonb when 'ev_max_mb' then '1024'::jsonb else '180'::jsonb end where key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("delete from auth.audit_log_entries; delete from auth.users");
       for (const m of [state.flows, state.pcodes, state.codes, state.sessions, state.refresh]) m.clear();
-      state.nextPerson.length = 0; state.clock = ""; state.authClock = 0;
+      state.nextPerson.length = 0; state.clock = ""; state.authClock = 0; state.hold = null;
       return { ok: true };
     },
     // what /settings answers: { mailer_autoconfirm, external: { google, facebook, discord }, email_optional: {...} }
@@ -730,7 +737,7 @@ async function start(opts = {}) {
       } catch (e) { await c.query("rollback").catch(() => {}); throw Object.assign(e, { status: 400 }); } finally { c.release(); }
     },
     state: async () => ({ auth: state.auth, rest: state.rest, narrow: state.narrow, clock: state.clock, authClock: state.authClock,
-      sessions: [...state.sessions.values()].filter(s => !s.revoked).length, settings: state.settings }),
+      sessions: [...state.sessions.values()].filter(s => !s.revoked).length, settings: state.settings, calls: Object.assign({}, state.calls) }),
   };
   async function control(req, res, name) {
     if (req.method === "OPTIONS") { res.writeHead(200, { "access-control-allow-methods": "POST,GET,OPTIONS", "access-control-allow-headers": "*" }); res.end(); return; }

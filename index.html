@@ -79120,12 +79120,17 @@ function evDevice(o) {
 const EV_BOT_UA = /bot|crawl|spider|slurp|preview|lighthouse|headless/i;
 // ---- cloud saves: the merge (section 4.4, 4.5) and the hook's bookkeeping (4.2) ----
 // A save document (4.1): { v, at, dev, label, keys: { key: raw string }, keysAt: { key: ms }, run }. run is the
-// battle in progress, { at, dev, label, val, tok }, where val null is the mark "no battle as of at" that only a
+// battle in progress, { at, dev, label, val, tok, bid }, where val null is the mark "no battle as of at" that only a
 // battle's end writes; a document (or a device) with no run part at all has no claim on the battle in progress.
+// bid names one battle from its first save to its end, on every device that plays it (hs_run itself changes with
+// every save), and a mark carries end, the bid of the battle it ended: a mark ends that battle and no other.
 const CLOUD_V = 1;                      // the document's format this build writes and can read
 const CLOUD_FRESH = 24 * 3600 * 1000;   // two battles saved within this long of now, on two devices: the player is asked
 // the largest value each of hs_records' known fields may hold, as levelRecord reads them
 const CLOUD_REC_MAX = { stars: 3, lives: 999, endless: 9999, beyond: 9999 };
+// a row of hs_records written before the battlefields had their own lengths has endless only: the last wave cleared,
+// counted with the chronicle as twenty waves (levelRecord reads its beyond as endless less twenty)
+const CLOUD_OLD_CHRONICLE = 20;
 const Cloud = {
   V: CLOUD_V,
   // the rule CLOUD_KEYS names for a key: "max", "flag", "union", "records", "newer", "run", a function, or null
@@ -79137,19 +79142,32 @@ const Cloud = {
     return null;
   },
   // The hook's bookkeeping for one write the game made (4.2): the sync state st as it is after it. op "set" or
-  // "remove". A removal of hs_run leaves no claim at all (only a battle's end writes the mark: Cloud.ended)
-  touched(st, key, op, now, rule) {
+  // "remove". A removal of hs_run leaves no claim at all (only a battle's end writes the mark: Cloud.ended); the
+  // battle it removed is remembered (gone) for the mark that follows it. id: a new battle's bid, if this save begins one
+  touched(st, key, op, now, rule, id) {
     const s = Object.assign({}, st || {});
     s.dirty = true;
     if (rule === "newer") s.kat = Object.assign({}, s.kat || {}, { [key]: now });
     // (the battles a player's choice dropped stay dropped: drop, kept with the claim)
-    if (key === "hs_run") s.run = op === "set" ? Cloud.claim(now, false, s.run) : null;
+    if (key === "hs_run") {
+      if (op === "set") { s.run = Cloud.claim(now, false, s.run, id); delete s.gone; }
+      else { const b = s.run && !s.run.mark && s.run.bid; s.run = null; if (b) s.gone = b; else delete s.gone; }
+    }
     return s;
   },
-  // a battle's end (a victory, a defeat, an abandon): the mark "no battle as of now"
-  ended(st, now) { return Object.assign({}, st || {}, { dirty: true, run: Cloud.claim(now, true, (st || {}).run) }); },
-  claim(at, mark, was) {
+  // a battle's end (a victory, a defeat, an abandon): the mark "no battle as of now", naming the battle it ended
+  ended(st, now) {
+    const s = Object.assign({}, st || {}), was = s.run || (s.gone ? { bid: s.gone } : null);
+    delete s.gone;
+    return Object.assign(s, { dirty: true, run: Cloud.claim(now, true, was) });
+  },
+  // A device's claim: { at } (a save of the battle, with its bid) or { at, mark, end } (a battle's end). A save goes
+  // on with the battle it saves (was, unless that was a mark), else begins a new one (id)
+  claim(at, mark, was, id) {
     const c = mark ? { at, mark: true } : { at };
+    const b = was && !was.mark && was.val !== null ? was.bid : null;
+    if (mark) { const e = b || (was && was.end); if (e) c.end = e; }
+    else if (b || id) c.bid = b || id;
     if (was && Array.isArray(was.drop) && was.drop.length) c.drop = was.drop.slice(-4);
     return c;
   },
@@ -79171,8 +79189,8 @@ const Cloud = {
     if (s.run && typeof s.run.at === "number") {
       // (a battle taken from another device is still that device's, until this one saves it: its dev and label)
       const dev = typeof s.run.dev === "string" ? s.run.dev : o.dev, label = typeof s.run.label === "string" ? s.run.label : o.label;
-      if (val != null) run = { at: s.run.at, dev, label, val: String(val), tok: o.tok || null };
-      else if (s.run.mark) run = { at: s.run.at, dev, label, val: null, tok: null };
+      if (val != null) { run = { at: s.run.at, dev, label, val: String(val), tok: o.tok || null }; if (s.run.bid) run.bid = s.run.bid; }
+      else if (s.run.mark) { run = { at: s.run.at, dev, label, val: null, tok: null }; if (s.run.end) run.end = s.run.end; }
       if (run && Array.isArray(s.run.drop) && s.run.drop.length) run.drop = s.run.drop.slice(-4);
     } else if (val != null) run = { at: o.now, dev: o.dev, label: o.label, val: String(val), tok: o.tok || null };
     return { v: CLOUD_V, at: o.now, dev: o.dev, label: o.label, keys, keysAt, run };
@@ -79210,10 +79228,19 @@ const Cloud = {
     if (!A) return B ? b : a;
     if (!B) return a;
     const out = {};
+    // a side with beyond and one with an older row's endless only: that row's beyond is read as levelRecord reads
+    // it (endless less the old chronicle), so the waves it held are not lost to the other side's smaller beyond
+    const withBeyond = (z, other) => {
+      if (Array.isArray(z.beyond) || !Array.isArray(z.endless) || !Array.isArray(other.beyond)) return z;
+      const n = Math.max(z.endless.length, other.beyond.length), had = [];
+      for (let d = 0; d < n; d++) { const e = Number(z.endless[d]); had.push(isFinite(e) ? Math.max(0, Math.floor(e) - CLOUD_OLD_CHRONICLE) : 0); }
+      return Object.assign({}, z, { beyond: had });
+    };
     for (const id of Object.keys(A).concat(Object.keys(B).filter(k => !(k in A)))) {
-      const x = A[id], y = B[id];
+      let x = A[id], y = B[id];
       if (!(id in B) || !y || typeof y !== "object" || Array.isArray(y)) { out[id] = id in A ? x : y; continue; }
       if (!(id in A) || !x || typeof x !== "object" || Array.isArray(x)) { out[id] = y; continue; }
+      x = withBeyond(x, y); y = withBeyond(y, x);
       const r = {};
       for (const f of Object.keys(x).concat(Object.keys(y).filter(k => !(k in x)))) {
         const p = x[f], q = y[f];
@@ -79248,7 +79275,13 @@ const Cloud = {
     if (!o.live && dropped(B, A)) return { run: B, how: "theirs" };
     if (dropped(A, B)) return { run: A, how: "mine" };
     if (o.live) return { run: Object.assign({}, A, { at: Math.max(o.now, at(A), at(B) + 1) }), how: "mine" };
-    if (A.val == null || B.val == null) return at(B) > at(A) ? { run: B, how: "theirs" } : { run: A, how: "mine" };
+    if (A.val == null || B.val == null) {
+      // a mark ends the battle it names and no other: a different battle (saved here, or begun on another device
+      // while that one was fought) stands, whatever the times. A mark or a battle with no name: the later wins
+      const mk = A.val == null ? A : B, bt = mk === A ? B : A;
+      if (mk.end && bt.bid && mk.end !== bt.bid) return bt === A ? { run: A, how: "mine" } : { run: B, how: "theirs" };
+      return at(B) > at(A) ? { run: B, how: "theirs" } : { run: A, how: "mine" };
+    }
     // two fresh battles of two devices: the player is asked on the welcome card. Where nobody can be asked now (a
     // push from the map, the page seen again), neither is replaced: the cloud keeps its battle, this device its own,
     // and the question waits for the next welcome card
@@ -79627,11 +79660,13 @@ function csState() {
     if (typeof CS.st.owner !== "string") CS.st.owner = "";
     if (isFinite(Number(CS.st.off)) && !pfClockOff) pfClockOff = Number(CS.st.off);
     // a battle saved before the sync kept its time (today's players): it counts from when it was first seen
-    if (!CS.st.run && csGet("hs_run") != null) CS.st.run = { at: pfNow() };
+    if (!CS.st.run && csGet("hs_run") != null) CS.st.run = { at: pfNow(), bid: csBid() };
   }
   return CS.st;
 }
 function csSave() { const s = csState(); s.off = pfClockOff; pfWrite("hs_pf_sync", s); }
+// a new battle's name (Cloud.claim's bid)
+function csBid() { return b64url(pfRandBytes(6)); }
 // every key the build knows by name: the listed ones, and the hs_best_ keys of every battlefield and age (there is
 // no walk through storage: the memory fallback and the harness's storage have no list of their keys, 4.2)
 function csNames() {
@@ -79659,7 +79694,7 @@ function csHook() {
   const after = (key, op) => {
     if (CS.quiet || !csSynced(key)) return;
     CS.gen++;
-    CS.st = Cloud.touched(csState(), String(key), op, pfNow(), Cloud.ruleOf(CLOUD_KEYS, key));
+    CS.st = Cloud.touched(csState(), String(key), op, pfNow(), Cloud.ruleOf(CLOUD_KEYS, key), key === "hs_run" ? csBid() : null);
     csSave();
     csSoon("change");
   };
@@ -79789,13 +79824,13 @@ async function csGetSave(timeout) {
   return { ok: true, ver: Math.floor(Number(r.data.version)) || 0, doc };
 }
 // a failure counted: after the third in a row the owner hears of it; the next try waits 5 s, 15 s, 60 s, then 5 minutes
-function csFailed(op, status, why) {
+function csFailed(op, status, why, quiet) {
   CS.fails++;
   CS.notBefore = Date.now() + [5000, 15000, 60000, 300000][Math.min(3, CS.fails - 1)];
   const s = csState();
   s.fail = (s.fail || 0) + 1;
   csSave();
-  if (CS.fails === 3) track("sync_fail", { op, status: status | 0, why: why || "network" });
+  if (CS.fails === 3 && !quiet) track("sync_fail", { op, status: status | 0, why: why || "network" });
   csLineNow();
   // the save is sent whole the next time (by state, not by a log of changes): that time is planned now
   if (op === "push" && s.dirty) csSoon("now");
@@ -79848,17 +79883,19 @@ function csPush(keep) {
       if (i > 0 || !keep) csApply(m, CS.doc);
       let data = m.doc, body = JSON.stringify(data);
       // the page builds at most 200 KB: over that the battle is left out, and the owner hears of it (4.3)
+      // (told once a load; a save still too big waits as a failed one does, so it is not tried every 2 s)
       if (body.length > 200 * 1024) {
         data = Object.assign({}, data, { run: CS.doc ? CS.doc.run || null : null });
         body = JSON.stringify(data);
-        track("sync_fail", { op: "push", status: 0, why: "size" });
-        if (body.length > 200 * 1024) return false;
+        if (!CS.sizeTold) { CS.sizeTold = true; track("sync_fail", { op: "push", status: 0, why: "size" }); }
+        if (body.length > 200 * 1024) { csFailed("push", 0, "size", true); return false; }
       }
       if (keep && body.length > 60 * 1024) return false;   // a keepalive body has a limit: the next load sends it
-      // A page that goes while a write is still out cannot wait for its answer: its last write counts on that one
-      // being taken (the version after it). It holds all that one held and more, as nothing else was merged in
-      // between; if the one out was turned away after all, so is this one, and the next load sends the save.
-      const exp = (s.ver || 0) + (keep && CS.putting ? 1 : 0);
+      // A page that goes while a write is still out cannot wait for its answer, and still expects the version last
+      // seen: when the one out is taken, the server turns this one away, the change stays unsent (dirty) and the
+      // next load sends it. Slower, never lossy: expecting the version after it would match another device's
+      // write, if the one out was turned away for it, and replace that device's save without merging it
+      const exp = s.ver || 0;
       if (!keep) CS.putting = true;
       const r = await pfRpc("hs_save_put", { p_expected: exp, p_data: data, p_device: pfDev().label, p_channel: csChannel() }, { auth: true, timeout: keep ? 4000 : 8000, keepalive: !!keep });
       if (!keep) CS.putting = false;
@@ -79911,8 +79948,11 @@ function csJoin() {
     if (!s0 || !PF.on) return { failed: true };
     const uid = s0.uid;
     let s = csState();
-    // another account's progress is never set aside under a battle: the join waits for its end
-    if (csState().owner && csState().owner !== uid && battleLive()) { csRejoin(p, 5000); return { failed: true }; }
+    // another account's progress is never set aside under a battle, and this account's stash never joined under
+    // one (the device's keys wait for the battle's end, and the stash would be gone): the join waits for its end
+    const stashFor = () => { const x = pfRead("hs_pf_stash"); return x && x.uid === uid && x.doc && typeof x.doc === "object" ? x.doc : null; };
+    const waits = () => battleLive() && ((csState().owner && csState().owner !== uid) || !!stashFor());
+    if (waits()) { csRejoin(p, 5000); return { failed: true }; }
     const g = await csGetSave(4000);
     if (!g.ok) {
       // no profile yet: the name card asks again once the player has one. Else the service is not answering: the
@@ -79922,9 +79962,9 @@ function csJoin() {
       return { failed: true, code: g.code };
     }
     csOk();
-    // another account's progress waiting for this one in the stash: it is joined to this account's save
-    const stash = pfRead("hs_pf_stash");
-    const stashed = stash && stash.uid === uid && stash.doc && typeof stash.doc === "object" ? stash.doc : null;
+    if (waits()) { csRejoin(p, 5000); return { failed: true }; }   // (a battle begun while the save was read)
+    // this account's progress waiting in the stash (a sign-out with progress unsent): it is joined to the save
+    const stashed = stashFor();
     let kase = "same";
     if (s.owner === uid) kase = "same";
     else {
@@ -79951,10 +79991,14 @@ function csJoin() {
       const m = Cloud.merge(stashed, null, { rules: CLOUD_KEYS, now: pfNow(), dev: d.id, label: d.label });
       const j = Cloud.merge(csLocal(), m.doc, { rules: CLOUD_KEYS, now: pfNow(), dev: d.id, label: d.label, live: battleLive() });
       csApply(j, m.doc);
-      pfDrop("hs_pf_stash");
+      // (the slot may hold another account's unsent progress by now, set aside above: that stays)
+      if (stashFor()) pfDrop("hs_pf_stash");
       csState().dirty = true;
     }
     const t = await csTake(g.ver, g.doc, gateUp);
+    // the gate left with no welcome card (the gate off, a sign-in begun on the Account tab): nobody is asked, and
+    // the battles stay as they are until the next welcome card (pushes go on meanwhile)
+    if (CS.ask && !gateUp) csAskDrop();
     track("save_merge", { case: kase, run: t.run === "asked" ? "asked" : t.run === "theirs" ? "theirs" : t.run === "mine" ? "mine" : "none" });
     const line = kase === "upload" ? "Your progress on this device is now saved to your account." : kase === "merge" ? "Your progress on this device was joined with your account." : "";
     return { case: kase, line, ask: t.ask || null };
@@ -79974,16 +80018,16 @@ function csChoose(keep) {
   CS.ask = null;
   const s = csState(), now = pfNow();
   // the battle kept is stamped now, and the other one is named as dropped, so no device asks again for it
-  const drop = (x) => ({ at: now, drop: [Cloud.tag(x.val)] });
-  if (keep === "mine") s.run = drop(a.theirs);
+  const drop = (x, kept) => Object.assign({ at: now, drop: [Cloud.tag(x.val)] }, kept && kept.bid ? { bid: kept.bid } : {});
+  if (keep === "mine") s.run = drop(a.theirs, a.mine);
   else {
     const r = a.theirs;
     csQuiet(() => { try { localStorage.setItem("hs_run", r.val); } catch (e) {} });
-    if (getSavedRun()) { s.run = drop(a.mine); if (r.tok) pfWrite("hs_pf_run", r.tok); }
+    if (getSavedRun()) { s.run = drop(a.mine, r); if (r.tok) pfWrite("hs_pf_run", r.tok); }
     else {
       // this build cannot fight it after all: this device's battle stays
       csQuiet(() => { try { localStorage.setItem("hs_run", a.mine.val); } catch (e) {} });
-      s.run = drop(a.theirs);
+      s.run = drop(a.theirs, a.mine);
     }
     try { if (typeof onSavesChanged === "function") onSavesChanged(); } catch (e) {}
   }
@@ -80009,7 +80053,9 @@ function csLineNow() { const e = hallOpen ? hallBodyEl.querySelector(".acSync") 
 function csLine() {
   const s = csState();
   const t = Math.max(Number(s.pushed) || 0, Number(s.pulled) || 0);
-  if (!CS.ready || (s.dirty && (CS.fails > 0 || navigator.onLine === false)) || !t) return "Waiting for a connection. Your progress is safe on this device.";
+  if (CS.stopped) return "A newer version of the game saved your progress. Reload to update.";
+  // (a question waiting on the welcome card holds the pushes back: nothing is being saved meanwhile)
+  if (!CS.ready || CS.ask || (s.dirty && (CS.fails > 0 || navigator.onLine === false)) || !t) return "Waiting for a connection. Your progress is safe on this device.";
   const a = Cloud.ago(pfNow() - t);
   return "Saved to your account " + a + ".";
 }
@@ -80018,13 +80064,16 @@ function csLine() {
 // The save goes first. Once the account has it, this device forgets the session and the account's progress (the
 // synced keys and the platform's keys of 0.5), so a shared tablet starts fresh for the next person. A save that
 // cannot go answers "unsaved", and the Account tab asks; anyway: the progress not yet sent waits in hs_pf_stash
-// for this account's next sign-in here (4.6). Progress that never became the account's (a sign-in whose first
-// pull never came, the name card's way back) is not the account's to clear: it stays, as a guest's.
+// for this account's next sign-in here (4.6). The account's progress is what this device last joined to it (owner
+// is its id), even on a load whose first pull has not come yet: that is tried once more first. Progress that never
+// became the account's (a first sign-in whose first pull never came, the name card's way back) is not the account's
+// to clear: it stays, as a guest's.
 async function pfSignOut(o) {
   o = o || {};
-  const s = pfSession(), ours = !!s && PF.on && CS.ready && csState().owner === s.uid;
+  const s = pfSession(), ours = pfSignOutOurs();
   if (ours && !o.anyway) {
     clearTimeout(CS.timer); CS.timer = 0;
+    if (csState().dirty && !CS.ready && !CS.stopped) { try { await (CS.join || csJoin()); } catch (e) {} }
     const saved = !csState().dirty || await csPush();
     if (!saved) return "unsaved";
   }
@@ -80043,6 +80092,8 @@ async function pfSignOut(o) {
   return "out";
 }
 
+// whether the synced keys here are the signed-in account's (sign-out then clears them)
+function pfSignOutOurs() { const s = pfSession(); return !!s && PF.on && csState().owner === s.uid; }
 // ---- the gate (section 3) ----
 const gateEl = $("gate"), gateCardEl = $("gateCard");
 let gateUp = false, gateState = "", gateLine = "", gateShownT = 0, gateFocusT = 0, gateMode = HS_GATE;
@@ -80167,6 +80218,8 @@ function gateLeave(how, then) {
   clearTimeout(gateShownT);
   gateUp = false;
   gateState = "";
+  // (two battles' question is asked on the welcome card only: with the gate gone, nobody is asked)
+  if (CS.ask) csAskDrop();
   gateEl.classList.add("gtHidden");
   gateCardEl.textContent = "";
   for (const id of ["overlay", "topbar", "shop", "spellbar", "hall"]) { const el = $(id); if (el) el.removeAttribute("inert"); }
@@ -81160,7 +81213,7 @@ function renderAccount(el) {
     }));
     row.appendChild(pfBtn("btn", "Sign out", () => {
       // the account's progress leaves this device with the session; progress that never became the account's stays
-      const ours = CS.ready && csState().owner === s.uid;
+      const ours = pfSignOutOurs();
       const ask = (words, yes, anyway) => {
         box.textContent = "";
         box.appendChild(pfEl("p", "acAsk", words));

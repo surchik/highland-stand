@@ -54,14 +54,21 @@
 //      the visitor's ?stats on runs on the desktop only
 //   4  play and save: a new player begins Erebuni from the welcome card, skips the coach and holds the first wave: the
 //      server's save holds that battle at once (its device and time); a change in battle, then the page closed:
-//      the change goes with the page (keepalive), as one write
+//      the change goes with the page (keepalive), as one write (a change waits to be sent at the close, a write
+//      reaches the stack after it, and a run where every close fell back to the next load fails). On the desktop
+//      and at 667x320 also: the close's write sent while another write is out, after another device wrote the
+//      version that write expects, does not take that device's place (the stack holds the first write a while)
 //   5  a second device: the same person signs in elsewhere, "Resume: Erebuni Rise, Wave 3", and resumes it there.
 //      Both play other battles with the database down and come back: the second to come back is asked ("Two
 //      battles in progress", both battles in words, the two buttons, "The other one is dropped."); "Keep this
 //      device's battle" keeps it, and the other device then takes it without a question (the choice wins
 //      everywhere); a battle played offline and still on the field goes up when the device is online again, and
 //      the other device, asked, takes it ("Take the other device's battle"); a battle this build cannot fight is
-//      not adopted by a device with none, and the cloud keeps it for the device that can
+//      not adopted by a device with none, and the cloud keeps it for the device that can. On the desktop and at
+//      667x320 also: a battle's end on one device ends that battle only (the mark names it): the other device's
+//      own battle stays with no word of a battle finished, and goes back up; the same battle finished elsewhere
+//      still ends there, with its words; two battles with no welcome card to ask (the gate off, the profile's or
+//      the save's answer late): nobody is asked, the battle stays, and the saves go on
 //   6  a guest's progress: the keys of a player of the live game who has won five battlefields, with a battle in
 //      progress from tools/fixtures, signed in to a new account: "now saved to your account", the server's save is
 //      the device's synced keys whole and the battle as the live game saved it, nothing unsynced uploaded; a second
@@ -72,11 +79,15 @@
 //      database is down; sign-out then asks "Your latest progress could not be saved yet. Sign out anyway?"; "Sign out
 //      anyway" clears the device and keeps the unsent progress in hs_pf_stash for that account, which joins his save
 //      at his next sign-in here; sign-out with a connection ends the server's session and clears the device, and the
-//      account keeps everything ("Delete my account" is work package P8's)
+//      account keeps everything ("Delete my account" is work package P8's). On the desktop and at 667x320 also:
+//      the stash, when this account signs in again and a battle begins before it joins, waits for the battle's
+//      end and loses nothing; sign-out after a load that could not reach the save takes the account's progress off
+//      the device (asked first), the unsent part kept in the stash
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
 // photographed. Every request must go to the stack's two ports; any page error or console error fails.
-// --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure.
+// --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure. The extra parts
+// alone: --flows=4more,5more,13more.
 "use strict";
 const path = require("path");
 const fs = require("fs");
@@ -144,7 +155,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     g.reqs = [];
     page.on("request", r => { const u = r.url(); if (!/^(data|blob|about):/.test(u)) g.reqs.push(u); });
     page.on("pageerror", e => g.errs.push("pageerror: " + e.message));
-    page.on("console", m => { if (m.type() === "error" && !/Failed to load resource: the server responded with a status of (400|401|403|404|503)|net::ERR_ABORTED|ERR_CONNECTION/.test(m.text())) g.errs.push("console.error: " + m.text()); });
+    page.on("console", m => { if (m.type() === "error" && !/Failed to load resource: the server responded with a status of (400|401|403|404|503)|net::ERR_ABORTED|ERR_CONNECTION|ERR_INTERNET_DISCONNECTED/.test(m.text())) g.errs.push("console.error: " + m.text()); });
     page.on("crash", () => g.errs.push("the page crashed"));
     g.cdp = await ctx.newCDPSession(page);
     await page.goto(SITE + (x.path || "/"), { timeout: 120000 });
@@ -1251,8 +1262,17 @@ const log = (m) => { if (o.verbose) console.log(m); };
   // The page closed with a change waiting: the change goes with the page (keepalive). That write is the browser's to
   // deliver as the page dies, and is not certain; when it does not land, the next load sends the save (4.3). Both
   // are tried here: the close first, then, only if it was lost, a load of the page (counted in notes.closeLost)
+  // (the close is checked itself: a change waits to be sent as the page goes, and a write begins with the page's
+  // close. A run where every close fell back to the next load fails at its end)
   const closeSends = async (g, uid, want, what) => {
+    const dirty = await g.ev(() => !!csState().dirty);
+    if (!dirty) fail(g.o.name, what + ": no change waits to be sent as the page closes, so the close is not tried");
+    // (counted where they arrive, at the stack: a keepalive write of a page that is going is not one Playwright's page
+    // lists. Only this page writes now: the other pages of a flow are quiet, and none of its changes waits)
+    const puts = async () => ((await S.control("state")).calls || {}).hs_save_put || 0, n0 = await puts();
+    notes.closeTried = (notes.closeTried || 0) + 1;
     await away(g);
+    if (!(await until(async () => (await puts()) > n0, 5000, "").catch(() => false))) fail(g.o.name, what + ": no write went with the closing page");
     const sv = await serverRun(uid, want, what, 10000).catch(() => null);
     if (sv) return sv;
     notes.closeLost = (notes.closeLost || 0) + 1;
@@ -1301,6 +1321,45 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const late = await closeSends(g, uid, r => r.gold === gold, "the save sent as the page closed");
     if (late && !notes.closeLost && late.version !== v0 + 1) fail(W, "the page's close wrote " + (late.version - v0) + " versions");
     await done(g, W);
+    if (C.key === "desk" || C.key === "ses") await flow4more(C);
+  };
+  // flow 4, more (the P3 review's finding 4): the write that goes with a closing page, sent while another write is
+  // still out and another device has written the version after the one that write expects. It must not take that
+  // device's place: it expects the version this page last saw, is turned away, and the change waits for the next
+  // load. (The close's write is called here as csHide calls it, with the page kept: a browser cancels the write
+  // out as the page goes, and the race is the server's, not the page's)
+  const flow4more = async (C) => {
+    const W = "flow 4 (the close's write while a write is out) " + C.name;
+    await resetStack();
+    const A = await open(C);
+    await newPlayer(A, "aram", "Aram");
+    const uid = await uidOf(A);
+    await pressWelcome(A, "Campaign Map"); await gate(A, ""); await toMap(A);
+    const B = await open(C);
+    await returning(B, "aram");
+    await pressWelcome(B, "Campaign Map"); await gate(B, ""); await toMap(B);
+    for (const g of [A, B]) await g.page.waitForFunction(() => !CS.busy && !CS.timer && !csState().dirty, null, { timeout: 15000 }).catch(() => {});
+    await A.ev(() => csPull());
+    const vs = await saveOf(uid);
+    if ((await A.ev(() => csState().ver)) !== vs.version || (await B.ev(() => csState().ver)) !== vs.version) fail(W, "the two devices are not at the server's version " + vs.version);
+    // A's next write is held 5 s at the server, under the page's own 8 s
+    await S.control("hold", { rpc: "hs_save_put", ms: 5000 });
+    await A.ev(() => { localStorage.setItem("hs_tricks_seen", JSON.stringify(["fromA"])); clearTimeout(CS.timer); CS.timer = 0; csPush(); });
+    await A.page.waitForFunction(() => CS.putting, null, { timeout: 5000 }).catch(() => fail(W, "A's write did not go"));
+    // meanwhile B saves: the version after the one A's write expects (one write: its change's timer is not left to write again)
+    await B.ev(() => { localStorage.setItem("hs_open_kept", JSON.stringify(["fromB"])); clearTimeout(CS.timer); CS.timer = 0; return csPush(); });
+    const sB = await saveOf(uid);
+    if (sB.version !== vs.version + 1 || !/fromB/.test(sB.data.keys.hs_open_kept || "")) fail(W, "B's save is not the version after: " + sB.version);
+    // A changes again, and its page's close sends the save, its first write still out
+    const r = await A.ev(() => { localStorage.setItem("hs_tricks_seen", JSON.stringify(["fromA", "fromA2"])); clearTimeout(CS.timer); CS.timer = 0; const out = CS.putting; return csPush(true).then(ok => ({ ok, out })); });
+    if (!r.out) fail(W, "A's first write was no longer out at the close");
+    const s1 = await saveOf(uid);
+    if (!/fromB/.test(s1.data.keys.hs_open_kept || "")) fail(W, "the close's write took the other device's place, and its progress is gone: " + JSON.stringify(s1.data.keys).slice(0, 200));
+    // (turned away, the write merges what the server sent back and goes again while the page is there to do it)
+    // the write out is answered (turned away), merges B's, and goes again: both devices' progress is on the server
+    const s2 = await until(async () => { const s = await saveOf(uid); return s && /fromA2/.test(s.data.keys.hs_tricks_seen || "") ? s : null; }, 20000, "A's change on the server").catch(e => { fail(W, e.message); return null; });
+    if (s2 && !/fromB/.test(s2.data.keys.hs_open_kept || "")) fail(W, "the merge lost B's progress");
+    await done(A, W); await done(B, W + " second device");
   };
 
   // flow 5: a second device. The battle resumed there; then both play other battles offline and come back
@@ -1422,6 +1481,105 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(D, W + " third device");
     await done(A, W);
     await done(B, W + " second device");
+    if (C.key === "desk" || C.key === "ses") await flow5more(C);
+  };
+
+  // flow 5, more (the P3 review's findings 2 and 3), on the desktop and the small iPhone: the faults are in rules
+  // that have no size. (1) A battle's end on one device ends that battle only: B's own battle, never played on A,
+  // stays when A ends a different one, and goes back up. (2) Two battles' question with no welcome card to ask it
+  // (the gate off; the answers in either order): nobody is asked, and the saves go on.
+  const abandon = async (g) => {
+    for (let k = 0; k < 3; k++) {
+      await g.ev(() => { if (battleLive()) { abandonConfirm.arm(); document.getElementById("menuBtn").click(); } });
+      if (await g.page.waitForFunction(() => !battleLive() && localStorage.getItem("hs_run") == null, null, { timeout: 5000 }).then(() => true, () => false)) return;
+    }
+    fail(g.o.name, "the battle could not be abandoned: " + JSON.stringify(await g.ev(() => ({ live: battleLive(), menu: menuMode, over: gameOver }))));
+  };
+  const toasts = async (g) => { await g.ev(() => { if (window.__hsToasts) return; window.__hsToasts = []; const t = window.toast; window.toast = function (m) { window.__hsToasts.push(String(m)); return t.apply(this, arguments); }; }); };
+  // two devices of one player on the map, B holding a Tushpa battle it saved (and the cloud holding it too)
+  const twoOnMap = async (C) => {
+    await resetStack();
+    const A = await open(C);
+    await newPlayer(A, "aram", "Aram");
+    const uid = await uidOf(A);
+    await pressWelcome(A, "Campaign Map"); await gate(A, ""); await toMap(A);
+    const B = await open(C);
+    await returning(B, "aram");
+    await pressWelcome(B, "Campaign Map"); await gate(B, ""); await toMap(B);
+    return { A, B, uid };
+  };
+  const flow5more = async (C) => {
+    let W = "flow 5 (a mark ends its own battle) " + C.name;
+    {
+      const { A, B, uid } = await twoOnMap(C);
+      await fight(B, 1, 1);
+      const bRun = await store(B, "hs_run");
+      await serverRun(uid, r => r.lvl === "tushpa", "B's Tushpa on the server").catch(e => fail(W, e.message));
+      // B leaves its battle saved, and comes back to the map with it
+      await B.ev(() => { gameOver = true; });
+      await B.page.reload(); await gate(B, "welcome");
+      await pressWelcome(B, "Campaign Map"); await gate(B, ""); await toMap(B);
+      if ((await store(B, "hs_run")) !== bRun) fail(W, "B's battle did not stay through its welcome card");
+      await toasts(B);
+      // A fights Avarayr (live, so it goes up over B's battle: rule 2), then abandons it: the mark
+      await fight(A, 2, 1);
+      await serverRun(uid, r => r.lvl === "avarayr", "A's Avarayr on the server").catch(e => fail(W, e.message));
+      const aBid = await A.ev(() => csState().run && csState().run.bid);
+      await abandon(A);
+      log("  A after abandon: " + JSON.stringify(await A.ev(() => ({ live: battleLive(), run: localStorage.getItem("hs_run") && 1, st: csState(), menu: menuMode, over: gameOver, ev: (window.__hsEv || []).slice(-4).map(e => e[0]) }))));
+      const mk = await until(async () => { const s = await saveOf(uid); return s && s.data.run && s.data.run.val === null ? s.data.run : null; }, 15000, "the mark on the server").catch(e => { fail(W, e.message); return null; });
+      if (mk && (!aBid || mk.end !== aBid)) fail(W, "the mark does not name the battle it ended: " + JSON.stringify(mk) + " (A's battle " + aBid + ")");
+      // B's page seen again: its own battle stays, with no word of a battle finished elsewhere, and goes back up
+      await B.ev(() => csPull());
+      await B.wait(500);
+      if ((await store(B, "hs_run")) !== bRun) fail(W, "B's own battle was dropped by A's end of another battle");
+      const said = await B.ev(() => window.__hsToasts.join(" | "));
+      if (/was finished on/.test(said)) fail(W, "B was told a battle was finished: " + said);
+      await serverRun(uid, r => r.lvl === "tushpa", "B's battle back on the server").catch(e => fail(W, e.message));
+      // and the same battle finished on the other device still ends here, with its words: B's Tushpa, taken by A
+      await A.page.reload(); await gate(A, "welcome");
+      if (!(await cardText(A)).includes("Resume: Vale of Tushpa, Wave 2")) fail(W, "A is not offered B's battle: " + await cardText(A));
+      await pressWelcome(A, "Resume: ");
+      await A.page.waitForFunction(() => battleLive(), null, { timeout: 10000 }).catch(() => {});
+      await clearWaves(A, 1);
+      await serverRun(uid, r => r.lvl === "tushpa" && r.cleared === 2, "A's save of the battle it took").catch(e => fail(W, e.message));
+      await abandon(A);
+      await until(async () => { const s = await saveOf(uid); return s && s.data.run && s.data.run.val === null ? s : null; }, 15000, "A's end of the battle on the server").catch(e => fail(W, e.message));
+      await B.ev(() => csPull());
+      await B.wait(500);
+      if ((await store(B, "hs_run")) !== null) fail(W, "the battle finished on the other device stayed here");
+      const said2 = await B.ev(() => window.__hsToasts.join(" | "));
+      if (!/That battle was finished on /.test(said2)) fail(W, "no word of the battle finished elsewhere: " + said2);
+      await done(A, W); await done(B, W + " second device");
+    }
+    for (const late of ["hs_profile_get", "hs_save_get"]) {
+      W = "flow 5 (the question with no welcome card, " + late + " late) " + C.name;
+      const { A, B, uid } = await twoOnMap(C);
+      // two fresh battles: B's offline, then A's up
+      await B.ctx.setOffline(true);
+      await fight(B, 1, 1);
+      await B.ev(() => { gameOver = true; });
+      await fight(A, 2, 1);
+      await serverRun(uid, r => r.lvl === "avarayr", "A's battle up").catch(e => fail(W, e.message));
+      await A.ev(() => { gameOver = true; });
+      await done(A, W);
+      // B back with the gate off (no welcome card), one of the two answers held back so they come in either order
+      await B.ctx.addInitScript(() => { window.__HS_PLATFORM_TEST = Object.assign({}, window.__HS_PLATFORM_TEST || {}, { gate: "off" }); });
+      await B.page.route("**/rpc/" + late, async (r) => { await new Promise(ok => setTimeout(ok, 2500)); r.continue().catch(() => {}); });
+      await B.ctx.setOffline(false);
+      await B.page.reload();
+      await gate(B, "", 20000);
+      await B.page.waitForFunction(() => CS.ready && !CS.busy, null, { timeout: 15000 }).catch(() => {});
+      await B.wait(1500);
+      const st = await B.ev(() => ({ ask: !!CS.ask, ready: CS.ready, line: csLine(), run: localStorage.getItem("hs_run") && JSON.parse(localStorage.getItem("hs_run")).lvl }));
+      if (st.ask || !st.ready) fail(W, "the question is still pending with no card to ask it: " + JSON.stringify(st));
+      if (st.run !== "tushpa") fail(W, "B's battle was replaced with nobody asked: " + JSON.stringify(st));
+      // a change on the map goes up
+      const v0 = (await saveOf(uid)).version;
+      await B.ev(() => { localStorage.setItem("hs_tricks_seen", JSON.stringify(["review"])); });
+      await until(async () => { const s = await saveOf(uid); return s && s.version > v0 && /review/.test(s.data.keys.hs_tricks_seen || "") ? s : null; }, 15000, "B's change on the server").catch(e => fail(W, e.message));
+      await done(B, W + " second device");
+    }
   };
 
   // flow 6: a guest's progress. Today's saves upload whole, come back whole on a second device, and join another's
@@ -1560,9 +1718,85 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const wt = await g.ev(() => ({ held: LEVELS.filter((L, i) => levelConquered(i)).length }));
     if (wt.held !== 0) fail(W, "the next person on this device sees " + wt.held + " battlefields held");
     await done(g, W);
+    if (C.key === "desk" || C.key === "ses") await flow13more(C);
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13 };
+  // flow 13, more (the P3 review's findings 1 and 5), on the desktop and the small iPhone. (1) This account's stash
+  // that would join while a battle is on the field waits for the battle's end, and loses nothing. (2) A load that
+  // could not reach the save: sign-out still takes the account's progress off the device (asked first, as it
+  // cannot be saved), and keeps the unsent part in the stash.
+  const flow13more = async (C) => {
+    let W = "flow 13 (a stash and a battle) " + C.name;
+    {
+      await resetStack();
+      const g = await open(C);
+      await newPlayer(g, "aram", "Aram");
+      const uid = await uidOf(g);
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      await g.ev(() => { storeRecord(0, { stars: [0, 2, 0], lives: [0, 15, 0], endless: [0, 0, 0] }); });
+      await until(async () => { const s = await saveOf(uid); return s && /erebuni/.test(s.data.keys.hs_records || ""); }, 10000, "erebuni on the server").catch(e => fail(W, e.message));
+      await S.control("rest", { mode: "down" });
+      await g.ev(() => storeRecord(1, { stars: [0, 3, 0], lives: [0, 5, 0], endless: [0, 0, 0] }));   // Tushpa won offline: unsent
+      await accountTab(g);
+      await g.press(acBtn("Sign out"));
+      await g.press(acBtn("Sign out"));
+      await g.page.waitForFunction(() => /could not be saved yet/.test(hallBodyEl.innerText), null, { timeout: 30000 }).catch(() => {});
+      await pressGo(g, acBtn("Sign out anyway"));
+      await gate(g, "signin");
+      if (!(await store(g, "hs_pf_stash"))) fail(W, "no stash after Sign out anyway");
+      // back, with Auth up and the database still down: the join fails and waits; a battle begins; the database is back
+      await returning(g, "aram");
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      const upright = C.w < C.h && C.w <= 500;
+      if (upright) await g.page.setViewportSize({ width: C.h, height: C.w });
+      await g.enterBattle(2);
+      await S.control("rest", { mode: "up" });
+      await g.ev(() => window.dispatchEvent(new Event("online")));
+      await g.wait(8000);
+      const r = await g.ev(() => ({ live: battleLive(), stash: !!localStorage.getItem("hs_pf_stash") }));
+      if (r.live && !r.stash) fail(W, "the stash was taken while a battle was on the field");
+      await abandon(g);
+      if (upright) await g.page.setViewportSize({ width: C.w, height: C.h });
+      const sv = await until(async () => { const s = await saveOf(uid); return s && /tushpa/.test(s.data.keys.hs_records || "") ? s : null; }, 30000, "the stash's Tushpa on the server after the battle").catch(e => { fail(W, e.message); return null; });
+      if (sv && !/erebuni/.test(sv.data.keys.hs_records || "")) fail(W, "the save lost Erebuni");
+      if (!/tushpa/.test((await synced(g)).hs_records || "")) fail(W, "the stash's progress is not on the device after the battle");
+      if (await store(g, "hs_pf_stash")) fail(W, "the stash was kept after it joined the save");
+      await done(g, W);
+    }
+    W = "flow 13 (sign-out after a load that could not reach the save) " + C.name;
+    {
+      await resetStack();
+      const g = await open(C);
+      await newPlayer(g, "aram", "Aram");
+      const uid = await uidOf(g);
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      await g.ev(() => { storeRecord(0, { stars: [0, 2, 0], lives: [0, 15, 0], endless: [0, 0, 0] }); });
+      await until(async () => { const s = await saveOf(uid); return s && /erebuni/.test(s.data.keys.hs_records || ""); }, 10000, "erebuni on the server").catch(e => fail(W, e.message));
+      await S.control("rest", { mode: "down" });
+      await g.page.reload();
+      await gate(g, "welcome");
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      // progress made on this load, unsent
+      await g.ev(() => storeRecord(1, { stars: [0, 1, 0], lives: [0, 4, 0], endless: [0, 0, 0] }));
+      await accountTab(g);
+      const line = await g.ev(() => (document.querySelector(".acTab .acSync") || {}).textContent || "");
+      if (!/^Waiting for a connection/.test(line)) fail(W, "the sync line on a load that could not reach the save: " + line);
+      await g.press(acBtn("Sign out"));
+      const words = await g.ev(() => hallBodyEl.innerText.replace(/\s+/g, " "));
+      if (!words.includes("Sign out? Your progress stays in your account. This device starts fresh.")) fail(W, "sign-out's words: " + words);
+      await g.press(acBtn("Sign out"));
+      await g.page.waitForFunction(() => /could not be saved yet/.test(hallBodyEl.innerText), null, { timeout: 30000 }).catch(async () => fail(W, "not asked before signing out unsaved: " + await g.ev(() => hallBodyEl.innerText)));
+      await pressGo(g, acBtn("Sign out anyway"));
+      await gate(g, "signin");
+      const left = await g.ev(() => ({ keys: csNames().concat(["hs_run"]).filter(k => localStorage.getItem(k) != null && localStorage.getItem(k) !== csFresh()[k]), owner: JSON.parse(localStorage.getItem("hs_pf_sync") || "{}").owner, stash: JSON.parse(localStorage.getItem("hs_pf_stash") || "null") }));
+      if (left.keys.length || left.owner !== "") fail(W, "sign-out left the account's progress on the device: " + JSON.stringify(left).slice(0, 200));
+      if (!left.stash || left.stash.uid !== uid || !/tushpa/.test(left.stash.doc.keys.hs_records || "")) fail(W, "the unsent progress is not in the stash");
+      await S.control("rest", { mode: "up" });
+      await done(g, W);
+    }
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, "4more": flow4more, "5more": flow5more, "13more": flow13more };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
@@ -1580,5 +1814,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     fs.rmSync(dir, { recursive: true, force: true });
   }
   notes.addresses = [...new Set(notes.addresses)];
+  // a close that never once landed by itself: the save that goes with a closing page is not working at all
+  if (notes.closeTried && (notes.closeLost || 0) >= notes.closeTried) fail("close", "every one of the " + notes.closeTried + " closes fell back to the next load: no write with a closing page landed");
   R.finish("platform", fails, notes, t0);
 })().catch(e => { console.log("FAIL platform: " + (e && e.stack || e)); process.exit(1); });
