@@ -737,7 +737,6 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await settle(2);
         if (!(await g.ev(() => !!rallying && panelEl.style.display !== "block"))) fail("post rally", "Rally point did not arm, or the sheet stayed");
         await g.wait(450);
-        await check("post rally (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
         const tb = await g.ev(() => {
           if (!toastEl.classList.contains("show")) return { none: true };
           waveBannerT = 1.7; waveBannerMain = "Wave 4"; waveBannerSub = ""; draw(performance.now());
@@ -746,6 +745,7 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           waveBannerT = 0;
           return out;
         });
+        if (!tb.none) await check("post rally (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
         if (tb.none) fail("post rally", "no toast says to tap the road");
         else if (tb.t < tb.bb - 1 && tb.b > tb.bt + 1 && !(await g.ev(() => toastEl.hsLow))) fail("post rally", "the toast lies over the wave's ribbon");
         const to = await g.ev(pad => {

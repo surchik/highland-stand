@@ -132,7 +132,8 @@ const wavesOpt = +((o.rest.find(a => a.startsWith("--waves=")) || "--waves=0").s
           for (const i of rank) {
             if (posts.includes(i)) { placeTower(withPosts ? "post" : "archer", i); }
             else placeTower(kinds[n++ % 5], i);
-            const t = towerAt(i); if (t) { t.level = 2; if (t.type === "post") postSyncMen(t, true); towerSyncHp(t); }
+            // every tower at its third rank with its first mastery, so the stand lasts the twenty waves being measured
+            const t = towerAt(i); if (t) { t.level = 2; t.spec = "a"; if (t.type === "post") postSyncMen(t, true); towerSyncHp(t); }
           }
           setSpeed(2); auto = true; autoBtn.textContent = "Auto: On"; autoBtn.classList.add("on");
           window.__frames = []; let last = 0;
@@ -141,7 +142,7 @@ const wavesOpt = +((o.rest.find(a => a.startsWith("--waves=")) || "--waves=0").s
           startWave();
         }, [withPosts]);
         const W = wavesOpt || 20;
-        await g.page.waitForFunction(W => gameOver || waveIdx >= W && phase === "idle", W, { timeout: 40 * 60000, polling: 1000 });
+        await g.page.waitForFunction(W => gameOver || waveIdx >= W && phase === "idle", W, { timeout: 90 * 60000, polling: 1000 });
         const r = await g.ev(() => {
           const f = window.__frames.slice().sort((a, b) => a - b), med = f[Math.floor(f.length / 2)] || 0;
           const men = towers.filter(t => t.type === "post").reduce((s, t) => s + t.men.length, 0);
