@@ -121,6 +121,14 @@
 //     does). These towers do not advance the build order, and it saves for the first of
 //     each. Its first pad ranking leaves the ambush roads out (they are dormant)
 //   - The page plays with no town gift and no Nardi gift (R7: the town is hidden on a plain load)
+//   - The Garrison Post (G5, gameplay 5.4): a build's "post" goes on the free pad whose reach holds the most road (the
+//     same greedy ranking at the post's own reach, among the pads with road in reach); its rally point is the road
+//     point in its reach that the most standing shooting towers reach (on a tie the one nearest the walls), set again
+//     after each purchase; while the ambush road is told and no shooting tower covers it, a post that reaches it
+//     stands there. "age" is the battlefield's special tower (none until G7: passed over, as is a kind no free pad
+//     takes). The report adds the posts' seconds of hold per 100 gold. The bot builds at most two watch towers of its
+//     own for hidden scouts (G5: with the post in its order it found a road's last stretch no free pad watches and
+//     built a watch tower at every look)
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -145,8 +153,9 @@ const BUILDS = {
   // offered or its limit is reached, as a kind is wherever no free pad takes it). mix7 is the mix with both in its
   // order; posts and postdrum are the one-recipe builds that must lose. (agemix, harriers, greedy, bazaar and aid come
   // with the special towers, G7: until then "age" is never offered and they would be posts or the mix again)
-  mix7:      ["archer", "ballista", "catapult", "post", "fire", "archer", "drums", "ballista", "age", "catapult", "archer",
-              "post", "fire", "ballista", "drums", "catapult", "archer"],
+  // (the posts come ninth and last: put fourth they took the pad of a shooting tower the commanders needed, G5)
+  mix7:      ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "post", "archer", "fire",
+              "age", "ballista", "drums", "catapult", "archer", "post"],
   posts:     ["post"],
   postdrum:  ["post", "post", "post", "drums"],
 };

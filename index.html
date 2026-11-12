@@ -1284,25 +1284,23 @@
     .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
   }
   /* the tray grows to six or seven tiles (gameplay 3.8): the same steps, taken earlier. Only where the window is
-     taller than a phone held sideways, whose own rules below lay the tiles across the whole width */
-  @media (max-width: 1680px) and (min-height: 501px) { #shop[data-n="7"] .trayCap.left { display: none; } #shop[data-n="7"] .trayCap.right { flex: 0 1 320px; } }
-  @media (max-width: 1500px) and (min-height: 501px) { #shop[data-n="6"] .trayCap.left { display: none; } #shop[data-n="6"] .trayCap.right { flex: 0 1 320px; } }
-  @media (max-width: 1440px) and (min-height: 501px) { #shop[data-n="7"] .card { flex-basis: 128px; } }
-  @media (max-width: 1300px) and (min-height: 501px) { #shop[data-n="7"] .card { flex-basis: 112px; } }
-  @media (max-width: 1260px) and (min-height: 501px) { #shop[data-n="6"] .card { flex-basis: 128px; } }
-  @media (max-width: 1170px) and (min-height: 501px) {
+     larger than a phone held either way, whose own rules below lay the tiles across the whole width */
+  @media (max-width: 1680px) and (min-height: 501px) and (min-width: 501px) { #shop[data-n="7"] .trayCap.left { display: none; } #shop[data-n="7"] .trayCap.right { flex: 0 1 320px; } }
+  @media (max-width: 1500px) and (min-height: 501px) and (min-width: 501px) { #shop[data-n="6"] .trayCap.left { display: none; } #shop[data-n="6"] .trayCap.right { flex: 0 1 320px; } }
+  @media (max-width: 1440px) and (min-height: 501px) and (min-width: 501px) { #shop[data-n="7"] .card { flex-basis: 128px; } }
+  @media (max-width: 1300px) and (min-height: 501px) and (min-width: 501px) { #shop[data-n="7"] .card { flex-basis: 112px; } }
+  @media (max-width: 1260px) and (min-height: 501px) and (min-width: 501px) { #shop[data-n="6"] .card { flex-basis: 128px; } }
+  @media (max-width: 1170px) and (min-height: 501px) and (min-width: 501px) {
     #shop[data-n="7"] .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
     #shop[data-n="7"] .card { flex-basis: 128px; }
   }
-  @media (max-width: 1100px) and (min-height: 501px) {
+  @media (max-width: 1100px) and (min-height: 501px) and (min-width: 501px) {
     #shop[data-n="6"] .trayCap.right { position: fixed; top: calc(58px + var(--sat)); right: calc(6px + var(--sar)); width: 252px; max-width: calc(100vw - 12px); }
   }
   @media (max-width: 760px) {
     #shop { padding: 0 calc(4px + var(--sar)) calc(1px + var(--sab)) calc(4px + var(--sal)); gap: 0; }
     .trayPanel { gap: 5px; }
     .card { flex-basis: calc((100vw - 28px) / 5); }
-    #shop[data-n="6"] .card { flex-basis: calc((100vw - 28px) / 6); }
-    #shop[data-n="7"] .card { flex-basis: calc((100vw - 28px) / 7); }
     .card .nm { font-size: 10.5px; }
     .card .pr { right: 2px; top: 2px; height: 19px; font-size: 12px; padding: 0 5px 0 1px; }
     .card .pr .ic { width: 14px; height: 14px; }
@@ -1312,6 +1310,10 @@
     .stat { padding-right: 9px; font-size: 14.5px; }
     #autoBtn, #speedBtn { display: none; }
     #waveBtn { font-size: 13.5px; padding: 0 9px; }
+  }
+  @media (max-width: 760px) and (min-width: 501px) and (min-height: 501px) {
+    #shop[data-n="6"] .card { flex-basis: calc((100vw - 28px) / 6); }
+    #shop[data-n="7"] .card { flex-basis: calc((100vw - 28px) / 7); }
   }
   /* ---------- nardi ---------- */
   /* the village elder's board: a room of its own over the menu pages, walnut and bronze like the title page.
@@ -3562,7 +3564,7 @@
       <div class="pic"><canvas width="284" height="116"></canvas></div>
       <div class="nm">Garrison Post</div>
       <span class="key">6</span>
-      <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>90</span>
+      <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>50</span>
       <div class="ds kit"><b>Garrison Post</b>Men who stand on the road and hold foes in melee. Outflankers go round.</div>
     </div>
   </div>
@@ -9606,18 +9608,22 @@ const TOWER_DEFS = {
 // does not take; chase: px a man follows a foe down the road before he turns back. `range` is the reach again, for the
 // rings every tower draws (the tile's preview, the hover whisper, the panel's next step)
 function postRow(o) { o.range = o.reach; return o; }
+// (G5 tuning, gameplay 5.2 and 5.6: 2.1's first numbers, 90 gold and men of 130 with a blow of 10, kept the balance
+// bot's "mix7" 1.1 defenders below "mix" on Normal at SEEDS=3, a post costing more than the shooting tower whose pad
+// it took. Men three times as strong with three times the blow, ranks of 50, 60 and 110 gold and a commander held 12 s
+// in all keep it 0.8 above. docs/specs/balance/README.md, G5)
 TOWER_DEFS.post = {
-  name: "Garrison Post", cost: 90, proj: null, post: true,
+  name: "Garrison Post", cost: 50, proj: null, post: true,
   levels: [
-    postRow({ men: 2, hp: 130, dmg: 10, rate: 1.0, reach: 150, respawn: 12 }),
-    postRow({ men: 3, hp: 180, dmg: 15, rate: 1.0, reach: 165, respawn: 10, cost: 110 }),
-    postRow({ men: 3, hp: 250, dmg: 22, rate: 0.9, reach: 180, respawn: 9, cost: 190 }),
+    postRow({ men: 2, hp: 390, dmg: 30, rate: 1.0, reach: 150, respawn: 12 }),
+    postRow({ men: 3, hp: 540, dmg: 45, rate: 1.0, reach: 165, respawn: 10, cost: 60 }),
+    postRow({ men: 3, hp: 750, dmg: 66, rate: 0.9, reach: 180, respawn: 9, cost: 110 }),
   ],
   specs: {
     a: { name: "Shield Wall", cost: 300, desc: "Four men behind great shields. Each holds two foes.",
-         stats: postRow({ men: 4, hp: 420, dmg: 20, rate: 1.0, reach: 185, respawn: 8, holds: 2, guard: 0.35 }) },
+         stats: postRow({ men: 4, hp: 1260, dmg: 60, rate: 1.0, reach: 185, respawn: 8, holds: 2, guard: 0.35 }) },
     b: { name: "Sortie", cost: 300, desc: "Three picked fighters who strike hard and give chase.",
-         stats: postRow({ men: 3, hp: 300, dmg: 48, rate: 0.8, reach: 215, respawn: 8, pierce: true, chase: 60 }) },
+         stats: postRow({ men: 3, hp: 900, dmg: 144, rate: 0.8, reach: 215, respawn: 8, pierce: true, chase: 60 }) },
   },
 };
 // how the men fight, named once (rulesetData reads it). spot/stagger: the line across the road (px apart across it,
@@ -9627,7 +9633,7 @@ TOWER_DEFS.post = {
 // in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
 // covers more of the field); melee: what a foe deals a second to the man who holds it, times 1 + perWave for each
 // script wave past the first
-const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 8, charge: 30, hunterMen: 2,
+const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, charge: 30, hunterMen: 2,
   pick: 70, pickPhone: 110, perWave: 0.05, melee: { raider: 7, spearman: 9, shield: 11, cavalry: 12, boss: 60 } };
 
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
@@ -82079,6 +82085,8 @@ function runPhoto() {
   const num = (k, d) => (HARNESS.has(k) ? Number(HARNESS.get(k)) : d);
   try {
     if (scene === "battle") {
+      // &open: every battlefield open (as Shift+U leaves it), so the tray shows what the campaign offers there
+      if (HARNESS.has("open")) testUnlockAll = true;
       photoStageBattle(harnessLv(1), num("wave", 3), {
         spell: HARNESS.get("spell"), banner: HARNESS.has("banner"), panel: num("panel", 0),
         // &trick=ambush|hunt|hidden|guards|adapt|card (&card=key, &read): a trick's tell or its explainer card
@@ -85937,7 +85945,7 @@ function runSelftestPlay() {
     const R = t.rally, near = postRoadIn(t.x, t.y, postReach(t));
     if (!near.some(s => s.x === R.x && s.y === R.y) || groundGap(t.x, t.y, R.x, R.y) > postReach(t)) fail("the rally point is not on a road in reach: " + JSON.stringify(R));
     if (near.some(s => groundGap(t.x, t.y, s.x, s.y) < groundGap(t.x, t.y, R.x, R.y) - 0.6)) fail("the rally point is not the nearest road point");
-    if (t.men.length !== 2 || t.men.some(m => m.max !== 130)) fail("rank 1: two men of 130, not " + t.men.map(m => m.max));
+    if (t.men.length !== 2 || t.men.some(m => m.max !== TOWER_DEFS.post.levels[0].hp)) fail("rank 1: two men of " + TOWER_DEFS.post.levels[0].hp + ", not " + t.men.map(m => m.max));
     // a press on another road point in the ring moves it; a press out of reach does not
     const far = near.reduce((a, b) => (Math.hypot(b.x - R.x, b.y - R.y) > Math.hypot(a.x - R.x, a.y - R.y) ? b : a));
     armRally(t, false);
@@ -85984,6 +85992,7 @@ function runSelftestPlay() {
     hero.alive = true;
   }));
   check("post: hunters, commanders, stones, the drums, a wreck, a resumed run's rally", guarded(() => {
+    wonTo(1, 2);   // Tushpa open: the post is in the tray (a saved run keeps only what its tray holds)
     stage("tushpa", 1);
     // a post and, in its reach, a pad for the hunter's mark (the pads of most battlefields lie further apart)
     let postPad = -1, pad = -1;
