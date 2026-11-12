@@ -4,7 +4,10 @@
 // the mix's wins and seeds, the best build's wave time in minutes against 1.2's target, and a flag where a band is
 // missed: BAND (Normal: 12-16 on every seed on the first six, 10-15 on two of three on the later eleven), MIX (the
 // mix lost a seed where it must win), CMD (commanders reached the walls), TIME (more than 15% off 1.2's target),
-// MIXBAND (Easy: the mix keeps about 22-27 of 30 on the first six), KEEP (Hard: a victory kept outside 2-8 of 14).
+// MIXBAND (Easy: the mix keeps about 22-27 of 30 on the first six), KEEP (Hard: a victory kept outside 2-8 of 14),
+// TOLL (two or more tricks cost defenders here and one of them is more than 75% of the best build's toll; the column
+// "toll" names the largest trick's share where two or more are active). With ENDLESS=n lines, a last block gives each
+// build's waves held beyond the chronicle.
 const fs = require("fs");
 const rs = [];
 for (const f of process.argv.slice(2)) for (const l of fs.readFileSync(f, "utf8").split("\n")) if (l.startsWith("{")) rs.push(JSON.parse(l));
@@ -35,8 +38,16 @@ for (const d of [...new Set(rs.map(r => r.diff))].sort()) {
     }
     if (d === 0) { if (mw < mix.length) flag += " MIX"; if (lv <= 5 && mix.some(r => r.lives < 22 || r.lives > 27)) flag += " MIXBAND(22-27)"; }
     if (d === 2) { const w = best.x.filter(r => r.won).length; if (w >= 2) hardWins++; if (best.x.some(r => r.won && (r.lives < 2 || r.lives > 8))) flag += " KEEP(2-8)"; }
+    // 5.1: where two or more tricks are active, no one trick is more than 75% of the best build's toll (its defenders
+    // lost, summed over its seeds). A trick counts as active where it cost any build here a defender
+    const TR = ["ambush", "hidden", "hunter", "adapted"], active = TR.filter(k => here.some(r => r.toll && r.toll[k] > 0));
+    const lostAll = best.x.reduce((s, r) => s + Object.values(r.toll || {}).reduce((a, b) => a + b, 0), 0);
+    const share = k => lostAll ? best.x.reduce((s, r) => s + ((r.toll || {})[k] || 0), 0) / lostAll : 0;
+    const top = TR.map(k => [k, share(k)]).sort((a, b) => b[1] - a[1])[0];
+    const tollCol = active.length >= 2 ? " toll " + top[0] + " " + Math.round(100 * top[1]) + "%" : "";
+    if (active.length >= 2 && top[1] > 0.75) flag += " TOLL";
     console.log("  " + String(lv).padStart(2) + " " + IDS[lv].padEnd(14) + (best.b + "").padEnd(10) + lives.padEnd(14) + " mix " + mw + "/" + mix.length + " " + mix.map(r => r.won ? r.lives : "L" + r.wave).join(" ").padEnd(12) +
-      (wmin !== null ? " wave " + wmin.toFixed(1) + "/" + tg : "") + flag);
+      (wmin !== null ? " wave " + wmin.toFixed(1) + "/" + tg : "") + tollCol + flag);
   }
   if (d === 1) console.log("  later eleven: mix wins 2+/3 on " + mix2 + " (need 8), 0/3 on " + mix0 + " (at most 1)");
   if (d === 2) {
@@ -49,5 +60,8 @@ for (const d of [...new Set(rs.map(r => r.diff))].sort()) {
     if (x.length) console.log("  " + b + " loses " + x.filter(r => !r.won).length + " of " + x.length + " on the first six");
   }
   const adapt = b => { const x = rs.filter(r => r.diff === d && r.build === b); const w = x.reduce((s, r) => s + r.adaptW, 0); return w ? Math.round(100 * x.reduce((s, r) => s + r.adaptOn, 0) / w) + "%" : "-"; };
+  const end = rs.filter(r => r.diff === d && r.beyond != null);
+  if (end.length) for (const lv of [...new Set(end.map(r => r.lv))]) console.log("  beyond the chronicle, " + IDS[lv] + ": " +
+    [...new Set(end.filter(r => r.lv === lv).map(r => r.build))].map(b => b + " " + end.filter(r => r.lv === lv && r.build === b).map(r => r.beyond).join(",")).join("  "));
   console.log("  adapted: " + ["mix", "balldrum", "ballista", "archers", "archdrum", "catapults", "firemix"].map(b => b + " " + adapt(b)).join(" "));
 }

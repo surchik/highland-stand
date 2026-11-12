@@ -4,8 +4,9 @@
 // speed by Shift+click on the speed button and Send Wave pressed as soon as each wave is cleared. Checked on every battlefield: the HUD counts "Wave 1/N" to "Wave N/N" with N the battlefield's length
 // (gameplay 1.2), every wave is sent once and in order, a commander's banner comes up on the table's waves and on
 // no other, the wave button reads "Final Wave" on the last, and the victory page comes up after wave N with that
-// count in its numbers. The script checks the count, not the balance: the walls are manned again before they would
-// fall. Fails on any page error or console error. By mouse at 1600x900, four battlefields at a time (--jobs).
+// count in its numbers. The script checks the count, not the balance: every foe on the field falls at each look (a
+// quarter second apart, so a wave lasts about as long as it takes to come on), and the walls are manned again before
+// they would fall. Fails on any page error or console error. By mouse at 1600x900, four battlefields at a time (--jobs).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/waves.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 //   --quick   Erebuni, Avarayr and Mari (a coached first battle, its own table with an ambush road, a road that opens)
 "use strict";
@@ -79,6 +80,7 @@ const SEEN = { hs_tricks_seen: JSON.stringify(["ambush", "hunters", "hidden", "g
             if (gold < 5000) gold += 20000;   // the test purse, refilled
             // this script checks the count of the waves, not the balance: the walls are manned again before they fall
             if (lives < 30) lives = 60;   // more than a commanders' pair can take at a stroke
+            for (const e of enemies) e.hp = 0;   // the count, not the fight: the field is cleared as the foes come on
             for (const t of towers) if (!t.spec && !t.wreck && t.level === TOWER_DEFS[t.type].levels.length - 1 && gold >= specInfo(t.type, "a").cost) specializeTower(t, "a");
           });
           await g.wait(250);

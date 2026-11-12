@@ -65,6 +65,9 @@
 //                 defenders by itself (KIT=none HERO=park against off on G3's sample: Dvin 13 to 4, Van lost, Tashir
 //                 16 to 11; parked anywhere on the road it cost 4 to 19 a battle), so a kit measured on top of it
 //                 looks smaller than it is. A measure whose base loses a battlefield HERO=off wins is not a measure
+//   ENDLESS=n     a victory goes on into the endless stand (the victory page's button) for at most n waves beyond the
+//                 chronicle; each battle's JSON line then has `beyond`, the waves held there before the walls fell
+//                 (n if they never fell). The table itself is the chronicle's, as without it (gameplay 5.2, 5.6)
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
@@ -161,7 +164,7 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN } = a;
   let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
   // the battle's length (a page from before the lengths has 20 waves everywhere), and the script wave a played wave
@@ -382,7 +385,7 @@ function playBattle(a) {
   const secs = [];               // game seconds each wave was on the field
   let minS = 0;                  // the sum of the moments each wave's last foe came on
   let waited = 0;                // game seconds waited between waves (WAIT)
-  while (!gameOver && waveIdx < total()) {
+  const oneWave = () => {
     // WAIT: the seconds a wave is sent after the last is cleared (Auto's pause), fought in the battle itself: the
     // spells and the hero recover in them, and the battle clock runs on
     if (wait > 0 && waveIdx > 0) {
@@ -422,6 +425,18 @@ function playBattle(a) {
     // wave:lives:gold:towers, each tower as its kind's initial and rank (a, b for a mastery)
     trace.push(waveIdx + ":" + Math.max(0, lives) + ":" + Math.round(gold) + ":" +
       towers.map(t => t.type[0] + (t.spec || t.level + 1)).join(""));
+  };
+  while (!gameOver && waveIdx < total()) oneWave();
+  const wonChronicle = lives > 0 && waveIdx >= total() && gameOver, livesChronicle = Math.max(0, lives), waveChronicle = waveIdx;
+  // ENDLESS=n: a victory goes on into the endless stand (the victory page's own button), up to n waves beyond the
+  // chronicle; `beyond` is the waves held there before the walls fell (n: never fell)
+  let beyond = null;
+  if (endlessN > 0 && wonChronicle) {
+    if (typeof endCelebration === "function") endCelebration();
+    document.getElementById("endlessBtn").click();
+    const top = total();
+    while (!gameOver && waveIdx < top + endlessN) oneWave();
+    beyond = Math.max(0, (gameOver ? waveIdx - 1 : waveIdx) - top);
   }
   // damage and gold by tower kind and mastery ("archer" for an unmastered one, "archer.a" for a mastery)
   const by = {};
@@ -440,7 +455,7 @@ function playBattle(a) {
   // the first, as before
   const waveSec = F ? F.sec - waited : Math.round(secs.reduce((x, y) => x + y, 0));
   const sec = wait > 0 ? waveSec + waited : waveSec + 4 * Math.max(0, secs.length - 1);
-  return { won: lives > 0 && waveIdx >= total() && gameOver, lives: Math.max(0, lives), wave: waveIdx,
+  return { won: wonChronicle, lives: livesChronicle, wave: waveChronicle, beyond,
     towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
     toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
     adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn, earlyCalls,
@@ -493,7 +508,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait });
+      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)) });
   }
   const results = [];
   let done = 0;

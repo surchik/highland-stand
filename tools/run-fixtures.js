@@ -1,18 +1,26 @@
 // Saved runs of an older page, resumed in this one: a run finishes under the rules it began with.
-// Usage: NODE_PATH=$(npm root -g) node tools/run-fixtures.js check [path/to/index.html]
+// Usage: NODE_PATH=$(npm root -g) node tools/run-fixtures.js check [path/to/index.html] [a part of a fixture name]
 //        NODE_PATH=$(npm root -g) node tools/run-fixtures.js make <older index.html> <name>
+//        NODE_PATH=$(npm root -g) node tools/run-fixtures.js make-late <older index.html> <name>
 //
 //   make   plays Erebuni on Normal in the older page (the page's own loop at 4x, three towers) and writes two of its
 //          hs_run values to tools/fixtures/: run-<name>-between.json, saved by the clear of wave 3, and
 //          run-<name>-midwave.json, saved by a rank bought while wave 4 was on the field with a defender lost.
 //          The fixtures in the repo were made this way from the page before the battle's numbers were kept
 //          (branch next at 3714b0d: `make /home/user/hs-wt/next/index.html base`).
+//   make-late  the same, late in battlefields the lengths retuned, in the older page (a full board of test gold, the
+//          late wave staged): run-<name>-late-between.json, Tushpa on Normal saved by the clear of wave 12, and
+//          run-<name>-late-midwave.json, Avarayr on Normal saved by a rank bought in the middle of wave 11. Beside each,
+//          expect-<name>-late-<kind>.json: what the older page sends on the three waves fought next (the queue, every
+//          foe's kind, trick, guard and road, and each kind's strength and spoils). Made from master f905f4a with
+//          `make-late /home/user/highland-stand/index.html master` (master's working tree is only read).
 //   check  for every fixture: the page is opened with the run on the device, the map offers it ("Resume: ..."), the
 //          button resumes it with the board, the purse, the defenders and the wave it saved, the wave is then sent
 //          and held through the page's own loop, the run is saved again, and the battle is won (its last wave
 //          staged: the foes of its last wave fall as they come on) with its record written. A run finishes under the
 //          rules it began with: one saved before the lengths (no `script`) is the 20-wave battle it was, with its
-//          old economy, and its victory page and numbers say 20 waves. A run from before the numbers were kept, or
+//          old economy, and its victory page and numbers say 20 waves. A fixture with an expect file is fought three
+//          waves on, and every wave sent must equal the older page's (ruleset 1's numbers, RULES1_TUNE). A run from before the numbers were kept, or
 //          under an older RULESET, is fought on as it was but is never ranked (legacy). Prints one RESULT line;
 //          exit 1 when anything failed.
 const path = require("path");
@@ -89,13 +97,72 @@ async function make(file, name) {
   }
 }
 
-async function check(file) {
-  const names = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter(f => /^run-.*\.json$/.test(f)).sort() : [];
+// what the page sends on played wave w, in the terms both pages have (the adaptive enemy's marks left out: they follow
+// the damage each tower dealt, which a fought wave never repeats to the hit point)
+const WAVE_SENT = w => {
+  const plan = wavePlan(w), hp = {}, b = {};
+  for (const q of plan) if (!q.trick && hp[q.type] == null) { const u = eraUnit(q.type); hp[q.type] = foeHp(q.type, u, w); b[q.type] = foeBounty(u, w); }
+  return { w, q: plan.map(q => q.type + (q.trick || "") + (q.guard && !q.adapted ? q.guard : "") + (q.road != null ? "@" + q.road : "")).join(), hp, b };
+};
+async function makeLate(file, name) {
+  const browser = await chromium.launch();
+  const out = [];
+  for (const [kind, lv, at] of [["between", "tushpa", 12], ["midwave", "avarayr", 11]]) {
+    const { ctx, page, errs } = await openPage(browser, file, SEEN);
+    await toMap(page);
+    await page.evaluate(([lv, at, mid]) => {
+      curLevel = levelIndexOf(lv); curDiff = 1;
+      resetGame(); overlayEl.classList.add("hidden");
+      // a full board: every pad built in the five classic kinds and ranked to the top, but one tower left a rank low
+      // (the midwave save is a rank bought)
+      gold = 1e6;
+      const kinds = ["archer", "ballista", "catapult", "fire", "drums"];
+      PADS.forEach((p, i) => placeTower(kinds[i % kinds.length], i));
+      towers.forEach((t, i) => { while (t.level < TOWER_DEFS[t.type].levels.length - 1 && !(mid && i === 0 && t.level >= 1)) upgradeTower(t); });
+      gold = 2000;
+      waveIdx = lastCleared = at - 1;
+      phase = "idle";
+      setSpeed(4);
+    }, [lv, at, kind === "midwave"]);
+    let raw;
+    if (kind === "between") {
+      await page.click("#waveBtn");
+      await page.waitForFunction(w => gameOver || (waveIdx === w && phase === "idle"), at, { timeout: 300000, polling: 100 });
+      if (await page.evaluate(() => gameOver)) throw new Error("the older page lost " + lv);
+      raw = await page.evaluate(() => localStorage.getItem("hs_run"));
+    } else {
+      await page.click("#waveBtn");
+      await page.waitForFunction(() => enemies.length >= 3, null, { timeout: 60000, polling: 50 });
+      await page.evaluate(() => { const e = enemies.find(x => !x.fly && x.dmg === 1); e.dist = ROUTES[e.route || 0].len; });
+      await page.waitForFunction(() => lives < DIFFS[curDiff].lives, null, { timeout: 20000, polling: 50 });
+      const ok = await page.evaluate(() => { const t = towers[0]; if (phase !== "wave" || gold < TOWER_DEFS[t.type].levels[t.level + 1].cost) return false; upgradeTower(t); return true; });
+      if (!ok) throw new Error("the older page's wave ended before the save");
+      raw = await page.evaluate(() => localStorage.getItem("hs_run"));
+    }
+    const run = JSON.parse(raw);
+    // what the older page sends on the three waves fought next, under the run's own state
+    const expect = await page.evaluate(([src, from]) => { const f = (0, eval)("(" + src + ")"); return [from, from + 1, from + 2].map(w => f(w)); },
+      [WAVE_SENT.toString(), run.cleared + 1]);
+    await ctx.close();
+    if (errs.length) throw new Error(errs.join(" | "));
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.writeFileSync(path.join(DIR, "run-" + name + "-late-" + kind + ".json"), JSON.stringify(run, null, 1) + "\n");
+    fs.writeFileSync(path.join(DIR, "expect-" + name + "-late-" + kind + ".json"), JSON.stringify(expect, null, 1) + "\n");
+    out.push("run-" + name + "-late-" + kind + ".json: " + run.lvl + ", wave " + (run.cleared + 1) + " next, " + run.lives + " defenders, " + run.gold + " gold, " +
+      run.towers.length + " towers, build " + run.build + (run.rules === undefined ? ", no ruleset" : ", ruleset " + run.rules));
+  }
+  await browser.close();
+  console.log(out.join("\n"));
+}
+
+async function check(file, only) {
+  const names = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter(f => /^run-.*\.json$/.test(f)).filter(f => !only || f.includes(only)).sort() : [];
   const fails = [], done = [];
   const browser = await chromium.launch();
   for (const name of names) {
     const run = JSON.parse(fs.readFileSync(path.join(DIR, name), "utf8"));
     const fail = m => fails.push(name + ": " + m);
+    const exFile = path.join(DIR, name.replace(/^run-/, "expect-")), expect = fs.existsSync(exFile) ? JSON.parse(fs.readFileSync(exFile, "utf8")) : null;
     const { ctx, page, errs } = await openPage(browser, file, Object.assign({ hs_run: JSON.stringify(run) }, SEEN));
     try {
       await toMap(page);
@@ -119,14 +186,36 @@ async function check(file) {
       if (st.start.length !== 1 || b.resumed !== true || b.legacy !== legacy || b.ranked !== !legacy) fail("battle_start of the resumed run: " + JSON.stringify(st.start));
       if (st.facts.legacy !== legacy || st.facts.left !== st.facts.earned - st.facts.spent + st.facts.refunds || st.facts.resumed !== 1) fail("the resumed run's numbers: " + JSON.stringify(st.facts).slice(0, 400));
       if (legacy && (st.spells !== "0,0,0" || !st.hero)) fail("a run without saved clocks did not resume ready: spells " + st.spells);
-      // the wave it saved is sent and held through the page's own loop
-      await page.evaluate(() => setSpeed(4));
-      await page.click("#waveBtn");
-      await page.waitForFunction(w => gameOver || (waveIdx === w && phase === "idle"), run.cleared + 1, { timeout: 180000, polling: 100 });
+      // a late fixture is of a battlefield further on: the roads to it were won (a victory is saved only where the
+      // campaign has reached)
+      await page.evaluate(lv => { for (let i = 0; i < levelIndexOf(lv); i++) localStorage.setItem(bestKey(i, LEVELS[i].era), "21"); }, run.lvl);
+      // the wave it saved is sent and held through the page's own loop (three waves where the older page's are known:
+      // each must be sent as the older page sent it, and every foe of it must stand and pay as there)
+      await page.evaluate(src => {
+        setSpeed(4);
+        const f = (0, eval)("(" + src + ")"), sw = startWave, sp = spawnEnemy;
+        window.__sent = []; window.__spawned = [];
+        startWave = function () { const r = sw.apply(this, arguments); if (!__sent.some(x => x.w === waveIdx)) __sent.push(f(waveIdx)); return r; };
+        spawnEnemy = function (type, q) { const r = sp.apply(this, arguments); const e = enemies[enemies.length - 1]; if (e && !(q && q.trick)) __spawned.push([waveIdx, type, e.maxHp, e.bounty]); return r; };
+      }, WAVE_SENT.toString());
+      for (let k = 1; k <= (expect ? 3 : 1); k++) {
+        await page.click("#waveBtn");
+        await page.waitForFunction(w => gameOver || (waveIdx === w && phase === "idle"), run.cleared + k, { timeout: 300000, polling: 100 });
+        if (await page.evaluate(() => gameOver)) break;
+      }
+      if (expect) {
+        const got = await page.evaluate(() => ({ sent: __sent, spawned: __spawned }));
+        for (const want of expect) {
+          const s = got.sent.find(x => x.w === want.w);
+          if (!s || JSON.stringify(s) !== JSON.stringify(want)) fail("wave " + want.w + " was sent as " + JSON.stringify(s).slice(0, 300) + ", the older page sent " + JSON.stringify(want).slice(0, 300));
+          for (const [w, type, hp, b] of got.spawned) if (w === want.w && want.hp[type] != null && (hp !== want.hp[type] || b !== want.b[type])) { fail("wave " + w + ": a " + type + " stood " + hp + " and paid " + b + ", the older page's " + want.hp[type] + " and " + want.b[type]); break; }
+        }
+        if (!got.spawned.length) fail("no foe was seen to come on");
+      }
       const after = await page.evaluate(() => ({ gameOver, waveIdx, lives, saved: JSON.parse(localStorage.getItem("hs_run") || "null"), debt: battle.debt }));
       if (after.gameOver) fail("the resumed battle fell on wave " + after.waveIdx);
       else {
-        if (!after.saved || after.saved.cleared !== run.cleared + 1 || !after.saved.facts || !after.saved.cd) fail("the run was not saved again with its numbers: " + JSON.stringify(after.saved).slice(0, 200));
+        if (!after.saved || after.saved.cleared !== run.cleared + (expect ? 3 : 1) || !after.saved.facts || !after.saved.cd) fail("the run was not saved again with its numbers: " + JSON.stringify(after.saved).slice(0, 200));
         else if (after.saved.rules !== (run.rules === undefined ? 0 : run.rules)) fail("the run was saved again under ruleset " + after.saved.rules);
         else if (JSON.stringify(after.saved.script || null) !== JSON.stringify(Array.isArray(run.script) ? run.script : Array.from({ length: 20 }, (_, k) => k + 1))) fail("the run was saved again with the table " + JSON.stringify(after.saved.script));
         if (legacy && after.debt !== 0) fail("a run that saved no attempt owes " + after.debt);
@@ -159,6 +248,7 @@ async function check(file) {
 (async () => {
   const [cmd, a, b] = process.argv.slice(2);
   if (cmd === "make" && a && b) await make(path.resolve(a), b);
-  else if (cmd === "check" || !cmd) await check(path.resolve(a || path.join(__dirname, "..", "index.html")));
-  else { console.error("usage: node tools/run-fixtures.js check [index.html] | make <older index.html> <name>"); process.exit(2); }
+  else if (cmd === "make-late" && a && b) await makeLate(path.resolve(a), b);
+  else if (cmd === "check" || !cmd) await check(path.resolve(a || path.join(__dirname, "..", "index.html")), b);
+  else { console.error("usage: node tools/run-fixtures.js check [index.html] [name part] | make <older index.html> <name> | make-late <older index.html> <name>"); process.exit(2); }
 })().catch(e => { console.error(e); process.exit(1); });

@@ -278,6 +278,11 @@ the foe, the hit point and the coin. Changes: the coach's last bubble (line 6097
 and the reminder at line 61055 tests `totalWaves()`. The tutorial's tray is the five classic tiles whatever
 the save owns (section 3.8).
 
+(G4 close: the coached stand's waves 4 to 10 stand at 0.8 of their strength (`TUT_LATE_HP`). At full strength the
+coached newcomer of playtest 1, a board ranked to 3 without a mastery, lost Erebuni on wave 9 of 10 (it lost the
+20-wave Erebuni of G3 on wave 18 too); with it, it wins with 8 of 20 kept in 16 minutes. The coached stand is never
+ranked, so the bands of 5.1 and the boards are not moved; waves 1 to 3 keep master's numbers.)
+
 ### 1.6 Stars, records, the endless stand
 
 - Stars: unchanged in their thresholds. `victoryStars(held, max)` is a share of the lives the difficulty
@@ -319,6 +324,15 @@ change of a battlefield's length never breaks a run in progress.
 `script` (rising whole numbers, first 1, last 20, at most 20 long), and accepts a tower kind only if it is in
 the run's tray.
 
+(G4 close: a run without `script` also keeps ruleset 1's numbers, not only its table. `RULES1_TUNE` in index.html holds
+every number the lengths retuned as it stood under ruleset 1 (hpTune, Erebuni's hpFrom and outflankers, the scouts'
+`from` and `n`, the reserves' road's share, every `econ`, the commanders' column); `resumeRun` sets `rules1Tune` for such
+a run and `resetGame` and the brief clear it. Suite 2 resumes such a run on every battlefield and difficulty and pins
+what it is fought under against the page before the lengths (`RULES1_PIN`, made by `tools/rules1-pin.js` from the G3
+close and from master, which give the same); `tools/run-fixtures.js` fights three waves of two late master runs, Tushpa
+at wave 13 and Avarayr in the middle of wave 11, and compares every wave sent with master's. A retune that forgets to
+add the old number to `RULES1_TUNE` fails both.)
+
 ### 1.8 Every place that says twenty
 
 Code (replace `TOTAL_WAVES` by `totalWaves()` unless noted): 9503, 10726 (1.7), 10869 ("Wave 3/10"), 10870,
@@ -352,6 +366,11 @@ wave; they now read `playedWave`; see the G4 close-out report.)
 New on the brief (the chronicle page), under the host of foes: one line,
 "**12 waves.** A commander leads wave 7 and wave 12." (`#briefLen`, the style of `.briefHint`). On the
 map's plate for the chosen battlefield the subtitle gains "· 12 waves".
+
+(G4 close: on a phone held sideways the length rides in the date line instead, "782 BC · Assyrian Invasion · 10 waves",
+and `#briefLen` is left out, so the trick chips stay in view in the left column. In the Artsakh wars, where the strongest
+foe is a battery, a strike wave or a column, the line and the debrief's tip say "The strongest foe comes on wave 8 and
+wave 14.")
 
 ## 2. The road-blocking tower: the Garrison Post
 
@@ -1301,6 +1320,12 @@ time:
   (G4 build: done as written; the bot waits the 4 s between waves in the battle (`WAIT`), the pars are per
   difficulty, and the numbers and the bands reached are in docs/specs/balance/README.md, G4. Dvin and Sevan on Normal
   each keep one seed outside 12 to 16, Easy's first five keep 26 to 30, and Gyumri on Hard keeps 11.)
+  (G4 close: Easy and Hard retuned on their own entries; Hard now keeps 2 to 8 on every victory of a best build. Still
+  outside: Dvin and Sevan on Normal, one seed each (no knob of 5.3 brought all three seeds in: the cells jump by 5 to 10
+  between neighboring settings), and Erebuni, Dvin (one seed) and Avarayr on Easy at 28 to 30, held there for the
+  family of playtest 5. Both are the owner's to rule on. The endless stand's first ten waves are measured
+  (`ENDLESS=10`, `g4-endless-normal-seeds3.txt`), and the kit's gate of 5.2 is run at the final numbers: it fails,
+  see docs/specs/balance/README.md.)
 - G5 (the post): its numbers, until "mix7" is 1 to 3 lives above "mix" and the post builds lose; the bands
   again, with the best build free to use the post.
 - G6 (the daily): the 12-step tables with `DAILY=1`: the daily's pars per battlefield, and each twist on
