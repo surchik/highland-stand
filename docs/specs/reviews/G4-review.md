@@ -69,8 +69,7 @@ waves, at most two new kinds a wave: 4 shields, 5 horse and rams, 6 scouts and o
 
 How it felt: too hard, at the end. The walls fall on wave 9, which stands for script waves 14 to 16 (wave 8 for 11 to
 13), with Erebuni's late `hpFrom` now 1.9 and its outflankers 1.8: a full board of rank 3 towers without a mastery
-cannot hold it. The
-G3 page with the same finger also lost (wave 18 of 20), so the newcomer's trouble is older than G4, but G4's retune made
+cannot hold it. The G3 page with the same finger also lost (wave 18 of 20), so the newcomer's trouble is older than G4, but G4's retune made
 Erebuni's late waves harder still (the owner's band asks the best build to lose 4 to 8, and it does: mix 13, 14, 13).
 The band and a first battle a newcomer can win pull against each other on the one battlefield that is both.
 
@@ -158,9 +157,9 @@ which nothing needs).
 index.html 80846 to 80853: `f % 10 === 0 || (f - t) % 10 === 0`, with `f` the data's script wave and `t` the tell in
 played waves. 8.1 asks for `isCommanderWave(playedWave(f))`. It passes today by luck of the numbers and would pass a
 table that put Avarayr's road on its commander's wave (suite 2's own check catches that: mutant avarayr-amb-cmd).
-Two comments in the same suite are stale: "Mari's other road: told on wave 10" (it is `playedWave(11) - 2`, wave 6).
+A comment in the same suite is stale: "Mari's other road: told on wave 10" (the check now starts wave 7).
 Fix: for each difficulty, `stage` the battlefield, then `A = trickCfg("ambush")` and test
-`isCommanderWave(A.from) || isCommanderWave(A.from - byDiff(A.tell))`; update the two comments.
+`isCommanderWave(A.from) || isCommanderWave(A.from - byDiff(A.tell))`; update the comment.
 
 ### 7. Minor. On a phone held sideways the new length line pushes the trick chip out of sight on the chronicle
 
@@ -185,11 +184,11 @@ docs/specs/balance/g4-after-bands.txt reads Avarayr Easy "mix 3/3 29 26 28", fro
 g4-after-easy-avarayr-seeds3.txt and my rerun read 29.7 (30, 30, 29). Fix: regenerate the bands file with Avarayr's
 Easy JSON lines from the .75 run.
 
-### 10. Minor. waves.js is 33 minutes, not "about 10", and close to its limit
+### 10. Minor. waves.js takes 24 to 33 minutes, not "about 10", and runs close to its limit
 
 The builder measured 1,964 s, my run 1,453 s; run-all gives it 2,400 s. 8.2 says about 10 minutes in full. Under the
-shared machine's load it can time out before it fails on substance. Fix: kill each wave's foes as they come on (the script checks the
-count, not the balance; `--quick` stays a real fight on Erebuni, Avarayr and Mari), or raise the limit to 3,600 s and
+shared machine's load it can time out before it fails on substance. Fix: kill each wave's foes as they come on (the
+script checks the count, not the balance; `--quick` stays a real fight on Erebuni, Avarayr and Mari), or raise the limit to 3,600 s and
 say why in run-all's comment.
 
 ### 11. Minor. Two measures of 5.1 and 5.6 owed by G4 are missing
