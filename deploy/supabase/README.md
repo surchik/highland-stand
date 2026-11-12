@@ -319,7 +319,10 @@ one GoTrue: leave it as it is. For each one that is off, and only with the owner
    address** `https://db.avunjian.com/auth/v1/callback` as its redirect, home page
    `https://highland.avunjian.com`, privacy `https://highland.avunjian.com/?privacy`, and for Facebook the
    deletion instructions `https://highland.avunjian.com/?privacy#delete`. If the provider's app already exists
-   for another app, the game shares it: its name is what the consent screen shows.
+   for another app, the game shares it: its name is what the consent screen shows. The privacy page has places
+   in square brackets for you to fill first (your name, a contact address, the country, how many days the web
+   server keeps its logs, the date): `docs/specs/owner/p8-privacy-checklist.md`. Until the live game has the
+   build with the full page, the same page is at `https://highland.avunjian.com/next/?privacy`.
 2. Add the provider's three values to `.env` with an editor on the server (not with a command that would put the
    secret in your shell history), e.g. `DISCORD_ENABLED=true`, `DISCORD_CLIENT_ID=...`, `DISCORD_SECRET=...`
    **[your server]**.
@@ -442,9 +445,12 @@ delete from highland.hs_config where key = 'cloud';
 - **An admin** (a row in `highland.hs_admins`, step 6): the stats page and its switches. Every other caller is
   refused with `not_admin`.
 - **"Delete my account"** removes the player's rows in `highland` only (profile, saves, battles, scores, board
-  rows, visits, rate counters, an admin's row). The sign-in account in `auth.users` is shared with the other apps
-  and is never touched: the person can still sign in to them, and if they sign in to the game again they start
-  as a new player. To have the sign-in itself removed, a person writes to the owner.
+  rows, visits and the same devices' visits from before the sign-in, rate counters, an admin's row). It asks for a
+  session begun with a provider (migration 005): the same account signed in by password through the shared email
+  sign-in is refused (`not_game_session`). The sign-in account in `auth.users` is shared with the other apps and
+  is never touched: the person can still sign in to them, and if they sign in to the game again they start as a
+  new player. To have the sign-in itself removed, a person writes to the owner; what to do then is in
+  `docs/specs/owner/p8-privacy-checklist.md`.
 
 ---
 
