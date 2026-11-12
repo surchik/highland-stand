@@ -319,3 +319,16 @@ missing tower would have felled.
 
 `KIT=par HERO=hold` against the Standard battle, all 17, SEEDS=3: +2.29 on the mean (RULINGS B7's bound 2.3: inside),
 most +6.7 (Van; 5.2's bound of 6 on any battlefield: over), Halidzor +6.3, Gyumri +5.0.
+
+### Playtests 2 and 6 (gameplay 8.4), by the touch helpers (`tools/playtest-post.js`, 667 x 320, an iPhone's Safari)
+
+- 2, Tushpa: the card "A new tower: the Garrison Post" came up on the chronicle and its Got it kept it; the post was
+  built by its tile and two taps; at 2x, twenty times during waves 1 to 3 the post was tapped, Rally point pressed and
+  the road tapped at either end of its stretch: the rally moved 20 times of 20, no slip (no panel, no land, no hero).
+  The first build missed 4 or 5 of 20 at the far edge of the field (the world point under a finger stops there, as a
+  pad's does) and when the tap came within 80 ms of the arming: the press is now measured on the screen and taken at
+  once (the button arms on its click, the finger already up).
+- 6, Sardarapat's 20 waves at 2x, four posts (Shield Wall) against four archers on the same pads, side by side: the
+  median frame 16.7 ms both, frames over 22 ms 6.1% against 5.1%, and the frame governor left the posts' page at its
+  full density (2) while it stepped the archers' page down to 1.5 (the machine's load, not the men). Sixteen men on the
+  field cost nothing that shows. (That board of posts fell on the last wave; the archers' kept 10.)
