@@ -141,3 +141,25 @@ board rows, visits, rate counters, an admin's row) and never touches `auth.users
 sign-in service's log, which belong to every app on the server. The page's words already promise only the game's
 data. The privacy page says that the sign-in itself is kept by the shared sign-in service and how to have it
 removed (by writing to the owner).
+
+## G. Balance and boards (taken November 12, 2026, as the owner's defaults; he may overturn them before P5)
+
+The owner asked to "finish all the other stages" without ruling on the three questions of stage 2's status page,
+so the builder's recommendations are built:
+
+**B7. The War Council is halved.** Every Council effect is half of KITSET 1's value (a new KITSET, its pin
+raised). G4 measured this at par-hold +2.20 against the bound of 2 of gameplay 5.2; the owner accepts the
+overshoot. The bound for later packages is 2.3 at par-hold.
+
+**B8. A battle is "open" only by the Council.** `battleLoadout` tags a battle open when any Council tier is in
+force; a hero above level 1 alone does not make it open (the hero's worth at hold is about +0.67 on the five
+worst battlefields, inside the bound). The Standard switch still turns both off. Reason: with the old rule every
+battle after Erebuni was open, and the Standard boards would stay empty.
+
+**B9. The bands stand as they are.** Normal Dvin and Sevan (one seed each out of band) and Easy Erebuni, Dvin and
+Avarayr (about 28 to 30 of 30 kept) are accepted. No more tuning for the bands alone.
+
+**B10. Deploying.** Each finished stage is merged into `next` and published at `/next/`. When every package is
+built, `master` gets the whole game with the two Supabase constants empty (the platform off), after the full
+regression suite and the fixtures of today's saves pass. The constants are filled only after the owner has run
+the migrations and the shared changes on his server (`docs/specs/owner/shared-supabase-plan.md`).
