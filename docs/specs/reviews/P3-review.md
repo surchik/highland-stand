@@ -227,7 +227,31 @@ version is wrong (finding 4).
 
 ## What was rerun, and the results
 
-RESULTS_PLACEHOLDER
+All on 73a4e27, from /home/user/hs-wt/pf, each run to its end; the other track was running tests at the same time
+(load 4 to 13).
+
+- `node deploy/check-page.js index.html`: OK (1 inline script parse).
+- `timeout 900 node tools/selftest.js --suite=all`: suite 1 PASS, 151 checks, 110.8 s of 125; suite 2 PASS, 30
+  checks, 46.0 s of 125. `tools/selftest.js` is not in the package's diff.
+- `node tools/run-fixtures.js check`: PASS, 8 fixtures, 0 fails.
+- `node tools/town-isolation.js`: PASS, 9 cases.
+- `node tools/platform/unit.js`: 275 checks, 0 failed (scoreOf, dailyOf waiting for P5, P6).
+- `node tools/platform/sql-tests.js`: 806 assertions, 0 failed.
+- `node tools/platform/isolation.js`: 329 checks, 0 failed.
+- `bash deploy/supabase/restore-rehearsal.sh`: 22 passed, 0 failed.
+- `bash tools/platform/test-update.sh`: PASS, 36 cases.
+- `NODE_PATH=$(npm root -g) node tools/platform/p0.js`: PASS, 237.6 s.
+- `NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick`: SUMMARY 11/11 passed in 1488 s (dance10 PASS
+  this time; platform PASS in 537 s).
+- `NODE_PATH=$(npm root -g) node tools/regress/platform.js` (full: flows 1, 2, 3, 4, 5, 6, 10, 11, 13 at desk,
+  ipad, ses, i15h, i15u): RESULT PASS, 0 fails, 871.7 s, every flow at every size passes. `closeLost` 1: in flow 5
+  one close's write did not land and the next load sent it (see finding 6).
+- Probes: p1 FAIL (finding 2), p2 FAIL with the profile answer held 2.5 s and PASS without (finding 3), p3 PASS,
+  p4 PASS (3 writes in 3 minutes), p5 FAIL (finding 1), p6 FAIL (finding 5); `mutate.js` 20 of 21 caught (finding
+  7); mut-hook.html: flow 4 PASS (finding 6), flow 13 FAIL as it should; mut-rec.html: flow 6 FAIL as it should.
+- The acceptance claims of the builder: flow 6 (a live-game save uploaded whole and back whole on a second device,
+  two devices in turn keeping records, a Council tier and a hero's experience) passes at every size in the full
+  run above. Photos exist at 1600x900, 1194x834 and 667x320 (not remade by this review).
 
 ## What could not be checked
 
