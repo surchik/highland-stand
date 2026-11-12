@@ -77,7 +77,7 @@ const { chromium } = require(process.env.PW_PATH || "playwright");
         const Ac = trickCfg("ambush");
         if (Ac) parts.push("ambush tell " + mark(Ac.from - (byDiff(Ac.tell) || 0)) + " open " + mark(Ac.from) + (Ac.legacy ? "" : " share " + byDiff(Ac.share)));
         const sc = [], hu = [], gu = [];
-        for (let w = 1; w <= TOTAL_WAVES; w++) for (const g of trickWave(w)) {
+        for (let w = 1; w <= totalWaves(); w++) for (const g of trickWave(w)) {
           if (g.trick === "hidden") sc.push(mark(w) + "x" + g.n);
           if (g.trick === "hunter") hu.push(mark(w) + "x" + g.n);
           if (g.hunt) hu.push(mark(w) + "x" + g.hunt);

@@ -119,7 +119,7 @@ const DEVICE = { hs_tutorial_done: "1", hs_mig_7lv: "1", hs_mig_ids: "1", hs_mig
       if (again.gameOver) fail("the stand fell in the wave fought again");
       if (again.debt !== owed || again.redoW !== 0) fail("the wave fought again lost " + lostAgain + " after " + lostBefore + ": debt " + again.debt + ", not " + owed);
       // the last wave, staged; then the dance, ended by a tap once the dancers have had their ten seconds
-      await g.ev(() => { waveIdx = lastCleared = TOTAL_WAVES - 1; syncHud(); });
+      await g.ev(() => { waveIdx = lastCleared = totalWaves() - 1; syncHud(); });
       await g.press("#waveBtn");
       const t1 = Date.now();
       while (!(await g.ev(() => { for (const e of enemies) e.hp = 0; return gameOver; }))) {

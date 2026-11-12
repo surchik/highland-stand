@@ -59,7 +59,7 @@ const MIN_TAP = 40;
     // a victory as the game wins one: the last wave's field cleared in its own loop, the dance cut short by a tap
     const winReal = async (lv) => {
       await g.enterBattle(lv);
-      await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+      await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
       await g.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 10000 });
       if (await g.ev(() => !!celebration)) {
         await g.ev(() => { celebration.start = performance.now() - DANCE_MIN_MS - 50; });
@@ -72,7 +72,7 @@ const MIN_TAP = 40;
       await g.ev(lv => {
         if (Nardi.isOpen()) Nardi.close();
         curLevel = lv; curEra = LEVELS[lv].era; curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
-        waveIdx = TOTAL_WAVES; lives = 17; victory(); endCelebration();
+        waveIdx = totalWaves(); lives = 17; victory(); endCelebration();
       }, lv);
     };
     for (const lv of levels) {
@@ -147,8 +147,8 @@ const MIN_TAP = 40;
             if (s.mode !== "map" || !s.map || s.vic || !s.up) await fail(tag + ": the Campaign Map did not open the map " + JSON.stringify(s));
           } else if (sel === "#endlessBtn") {
             await g.frames(3);
-            const s = await g.ev(() => ({ endless, gameOver, hidden: overlayEl.classList.contains("hidden"), waveIdx }));
-            if (!s.endless || s.gameOver || !s.hidden || s.waveIdx !== 20) await fail(tag + ": Hold Forever did not go back into the battle " + JSON.stringify(s));
+            const s = await g.ev(() => ({ endless, gameOver, hidden: overlayEl.classList.contains("hidden"), waveIdx, n: totalWaves() }));
+            if (!s.endless || s.gameOver || !s.hidden || s.waveIdx !== s.n) await fail(tag + ": Hold Forever did not go back into the battle " + JSON.stringify(s));
             await g.ev(() => { gameOver = true; endless = false; clearRun(); });
           } else if (sel === "#startBtn") {
             const s = await g.ev(() => ({ mode: menuMode, lv: curLevel }));

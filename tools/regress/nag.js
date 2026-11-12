@@ -116,7 +116,11 @@ const CONFIGS = [R.SIZES.desk, R.SIZES.ipad];
       if (!on.auto || on.label !== "Auto: On" || !on.lit) await fail("Auto did not turn on: " + JSON.stringify(on));
       await waitStep("plots"); await g.press("#coach .cNext");
       await waitStep("mastery"); await g.press("#coach .cNext");
-      await waitStep("ready"); await g.press("#coach .cNext");
+      await waitStep("ready");
+      // the coach's last words name the battle's length: Erebuni is ten waves (gameplay 1.5)
+      const r0 = await text();
+      if (!/through all ten waves/.test(r0)) await fail("the last bubble says: " + r0);
+      await g.press("#coach .cNext");
       await g.frames(2);
       if (await g.ev(() => tut !== null || localStorage.getItem("hs_tutorial_done") !== "1")) await fail("To battle! did not end the tutorial and mark it done");
       log("tutorial walked");

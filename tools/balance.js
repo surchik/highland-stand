@@ -38,16 +38,36 @@
 //                 game's own clock, battleFacts().sec: game seconds from the first wave's horn to the last foe's
 //                 fall), then for the best build its clock as par, in minutes, the gold it earned, and the shortest
 //                 any battle there can be (minS: the sum over the waves of the moment the wave's last foe comes on).
-//                 The bot sends each wave the moment the last is cleared, so the battles are the same battles as
-//                 without the clock; the clock it reports adds the 4 s a wave is sent after the last is cleared
-//                 (Auto's pause), once per wave after the first. Under the table: the line of pars for LEVEL_PAR
-//                 in index.html. JSON=1 gives sec, waveSec, secs (per wave), earned, spent and minS for every battle
-//   KIT=none|floor|par|cap  the War Council's tiers a battle is fought with (gameplay 4.8, 5.2): none (the Standard
-//                 battle, the default), or what a player owns on first arrival at the battlefield played having won
-//                 every earlier one once with one star (floor), two (par), or everything the chapter lets be owned
-//                 (cap), bought in the standard order (councilStandard). The bounds of 5.2: with the best build on
-//                 Normal, par keeps at most 2 more defenders than none (the mean over the battlefields), cap at most 4,
-//                 and on no battlefield more than 6. The hero's level joins the kit with the heroes (G3, HERO=hold)
+//                 With CLOCK=1 the bot waits 4 s after each wave is cleared before it sends the next (Auto's pause),
+//                 in the battle itself (WAIT), so spells and the hero recover in them as they would for a player. Beside
+//                 the best build's par: its wave time (the foes' time on the field, without the waits) in minutes
+//                 against gameplay 1.2's target for the battlefield's length. Under the table: the line of pars for
+//                 LEVEL_PAR in index.html. JSON=1 gives sec, waveSec, secs (per wave), earned, spent and minS for every battle
+//   WAIT=s        the seconds waited between waves (default 4 with CLOCK=1, else 0). WAIT=0 is the bot as it played
+//                 before G4: it sends each wave the moment the last is cleared, so its battles equal an older page's
+//                 battle for battle, and the clock it reports adds 4 s for each wave after the first
+//   KIT=none|hero|floor|par|cap  the kit a battle is fought with (gameplay 4.8, 5.2): none (the Standard battle, the
+//                 default: no Council tier, the hero at level 1 without the Call), or what a player owns on first arrival
+//                 at the battlefield played having won every earlier one once: hero (his chapter's level, 1 to 4, and
+//                 the Call from Dvin on, with no Council tier: the hero alone), and the same hero with the Council
+//                 bought in the standard order (councilStandard) with one star a battlefield (floor), two (par), or
+//                 everything the chapter lets be owned (cap). The bounds of 5.2: with the best build on Normal, par keeps
+//                 at most 2 more defenders than none (the mean over the battlefields), cap at most 4, and on no
+//                 battlefield more than 6; each bound is read as the worse of HERO=off and HERO=hold
+//   HERO=off|hold|park  off (the default) is the bot as it always played: it never moves its hero, who stands where
+//                 he appears by the walls, and never sounds the Call. hold leaves him there too and sounds the Call
+//                 (where the kit has it) when three or more ground foes are within its reach: the hero's worth is
+//                 HERO=hold against HERO=off on the same kit, and KIT=none HERO=hold is KIT=none HERO=off battle for
+//                 battle (no Call to sound), so the base of the comparison is the Standard battle itself. park is hold
+//                 and also parks him at the road point the most standing towers reach, on a tie the one nearest the
+//                 walls, among the road points within 150 px of where he appears (set again each time it spends and
+//                 after he returns from a fall): gameplay 5.4's first wording. park is not used for a bound: it costs
+//                 defenders by itself (KIT=none HERO=park against off on G3's sample: Dvin 13 to 4, Van lost, Tashir
+//                 16 to 11; parked anywhere on the road it cost 4 to 19 a battle), so a kit measured on top of it
+//                 looks smaller than it is. A measure whose base loses a battlefield HERO=off wins is not a measure
+//   ENDLESS=n     a victory goes on into the endless stand (the victory page's button) for at most n waves beyond the
+//                 chronicle; each battle's JSON line then has `beyond`, the waves held there before the walls fell
+//                 (n if they never fell). The table itself is the chronicle's, as without it (gameplay 5.2, 5.6)
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
@@ -89,7 +109,7 @@
 //     Each new tower is the next kind in the build's order.
 //   - It spends and casts before every wave and every two seconds of battle (see SEEDS). A spell goes on the
 //     knot of ground foes with the most hit points within its radius, if they hold more than 600.
-//   - It never moves its hero, never sells, never changes a tower's target, and calls a wave early only with EARLY=1.
+//   - It never moves its hero (HERO=park does), never sells, never changes a tower's target, and calls a wave early only with EARLY=1.
 //   - Its answers to the enemy's tricks (COUNTERS=0 turns them off), the same for every build and only on what a
 //     player is shown at that moment (the next-wave row, the ambush's tell), before any other spending:
 //     it rebuilds its wrecked towers (the most invested first), then repairs towers under 60% strength that no
@@ -134,15 +154,23 @@ function parseList(s, all) {
   return out;
 }
 
+// gameplay.final.md 1.2: each battlefield's wave time at 1x for the best build on Normal (minutes), the target G4's
+// lengths are tuned to within 15%
+const TARGET_MIN = { erebuni: 17, tushpa: 19, avarayr: 30, dvin: 19, tashir: 17, sevan: 27, ani: 29, mari: 15, sis: 40, gyumri: 28,
+  halidzor: 26, van: 35, musadagh: 23, sardarapat: 35, stepanakert92: 38, shushi: 20, stepanakert23: 15 };
 // each battlefield's seed slot, by id: the 14 first in their old order, then each new one as it was added
 const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan: 5, gyumri: 6, halidzor: 7, van: 8,
   musadagh: 9, sardarapat: 10, stepanakert92: 11, shushi: 12, stepanakert23: 13, ani: 14, mari: 15, sis: 16 };
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN } = a;
   let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
+  // the battle's length (a page from before the lengths has 20 waves everywhere), and the script wave a played wave
+  // stands for (the commanders' waves are read by it: script wave 10 and 20)
+  const total = () => (typeof totalWaves === "function" ? totalWaves() : TOTAL_WAVES);
+  const sw = w => (typeof scriptWave === "function" ? scriptWave(w) : w);
   Math.random = mulberry32(seed);
   toast = () => {};
   curDiff = diff; curLevel = lv;
@@ -217,7 +245,7 @@ function playBattle(a) {
     }
     // 2. the reveal: hidden scouts this wave or the next
     const w0 = phase === "wave" ? waveIdx : waveIdx + 1;
-    if (trickCfg("hidden") && [w0, w0 + 1].some(x => x <= TOTAL_WAVES && trickWave(x).some(g => g.trick === "hidden"))) {
+    if (trickCfg("hidden") && [w0, w0 + 1].some(x => x <= total() && trickWave(x).some(g => g.trick === "hidden"))) {
       const watch = trickWatch();
       const seenOk = P => towers.some(t => !t.wreck && watch.includes(t.type) && hits(t.x, t.y, watchReach(t), P) * 4 >= 120);
       if (!tails.every(seenOk)) {
@@ -285,6 +313,37 @@ function playBattle(a) {
       if (!done) break;
     }
   };
+  // HERO=park: the road point near his place by the walls that the most standing towers reach; HERO=hold and park:
+  // the Call on a crowd
+  const heroPts = [];
+  for (let ri = 0; ri < ROUTES.length; ri++) {
+    if (ri === amb || (ROUTES[ri].track && !(LEVELS[curLevel].routeOpen || {})[ri])) continue;
+    // (only the road within 150 px of where he stands by the walls: the walls' last line, see the header)
+    const home = routeAt(0, Math.max(0, ROUTES[0].len - 90));
+    for (let k = 0; k <= 240; k++) {
+      const q = routeAt(ri, ROUTES[ri].len * k / 240);
+      if (Math.hypot(q.x - home.x - 24, q.y - home.y - 26) <= 150) heroPts.push({ x: q.x, y: q.y, left: ROUTES[ri].len * (1 - k / 240) });
+    }
+  }
+  const parkHero = () => {
+    if (heroMode !== "park" || !hero || !hero.alive) return;
+    let best = null, bv = -1;
+    for (const q of heroPts) {
+      let v = 0;
+      for (const t of towers) if (!t.wreck && inGroundRange(t.x, t.y, q.x, q.y, getStats(t).range)) v++;
+      if (v > bv || (v === bv && q.left < best.left)) { bv = v; best = q; }
+    }
+    if (!best) return;
+    const x = Math.max(20, Math.min(VW - 20, best.x)), y = Math.max(HORIZON + 25, Math.min(VH - 15, best.y));
+    if (Math.hypot(hero.x - x, hero.y - y) > 6 && !(hero.rally && Math.hypot(hero.rally.x - x, hero.rally.y - y) < 1)) hero.rally = { x, y };
+  };
+  const callReach = typeof CALL === "object" ? CALL.reach : 0;
+  const tryCall = () => {
+    if (heroMode === "off" || typeof soundCall !== "function" || !callReady()) return;
+    let n = 0;
+    for (const e of enemies) if (!e.fly && !e.dead && e.hp > 0) { const p = enemyPos(e); if (Math.hypot(p.x - hero.x, p.y - hero.y) < callReach) n++; }
+    if (n >= 3) soundCall();
+  };
   const castAll = () => {
     for (const k of Object.keys(SPELLS)) {
       if (spellCd[k] > 0 || enemies.length < 4) continue;
@@ -317,16 +376,24 @@ function playBattle(a) {
       bosses.delete(b);
       if (!b.dead) continue;   // the battle ended around it
       const leaked = b.dist >= roadOf(b);
-      boss.push(probe ? { w: waveIdx, took: +((b.maxHp - b.hp) / b.hp0).toFixed(3) } :
-        { w: waveIdx, leaked, left: leaked ? +Math.max(0, b.hp / b.maxHp).toFixed(3) : 0,
+      boss.push(probe ? { w: sw(waveIdx), took: +((b.maxHp - b.hp) / b.hp0).toFixed(3) } :
+        { w: sw(waveIdx), leaked, left: leaked ? +Math.max(0, b.hp / b.maxHp).toFixed(3) : 0,
           walked: +Math.min(1, b.dist / roadOf(b)).toFixed(3) });
     }
   };
   let adaptW = 0, adaptOn = 0;   // waves since the adaptive enemy's first, and those it adapted
   const secs = [];               // game seconds each wave was on the field
   let minS = 0;                  // the sum of the moments each wave's last foe came on
-  while (!gameOver && waveIdx < TOTAL_WAVES) {
-    spend();
+  let waited = 0;                // game seconds waited between waves (WAIT)
+  const oneWave = () => {
+    // WAIT: the seconds a wave is sent after the last is cleared (Auto's pause), fought in the battle itself: the
+    // spells and the hero recover in them, and the battle clock runs on
+    if (wait > 0 && waveIdx > 0) {
+      spend(); parkHero();
+      for (let k = Math.round(wait / dt); k > 0 && !gameOver; k--) update(dt);
+      waited += wait;
+    }
+    spend(); parkHero();
     if (paused || (tricked && trickHold())) throw new Error("the battle was held before wave " + (waveIdx + 1));
     const was = waveIdx;
     startWave();
@@ -339,9 +406,10 @@ function playBattle(a) {
     while (phase === "wave" && !gameOver && n < 2400 / dt) {
       update(dt); n++;
       watchBosses();
-      if (n % every === 0) { spend(); if (spells) castAll(); }
+      if (n % every === 0) { spend(); if (spells) castAll(); parkHero(); }
+      if (heroMode !== "off" && n % 15 === 0) tryCall();   // a quarter of a second at 60 Hz
       // EARLY=1: call the next wave once the current one has fully spawned and at most EARLY_N foes still walk
-      if (early && phase === "wave" && !spawnQueue.length && enemies.length > 0 && enemies.length <= earlyN && waveIdx < TOTAL_WAVES && !gameOver) {
+      if (early && phase === "wave" && !spawnQueue.length && enemies.length > 0 && enemies.length <= earlyN && waveIdx < total() && !gameOver) {
         spend();
         const w0 = waveIdx;
         startWave();
@@ -357,6 +425,18 @@ function playBattle(a) {
     // wave:lives:gold:towers, each tower as its kind's initial and rank (a, b for a mastery)
     trace.push(waveIdx + ":" + Math.max(0, lives) + ":" + Math.round(gold) + ":" +
       towers.map(t => t.type[0] + (t.spec || t.level + 1)).join(""));
+  };
+  while (!gameOver && waveIdx < total()) oneWave();
+  const wonChronicle = lives > 0 && waveIdx >= total() && gameOver, livesChronicle = Math.max(0, lives), waveChronicle = waveIdx;
+  // ENDLESS=n: a victory goes on into the endless stand (the victory page's own button), up to n waves beyond the
+  // chronicle; `beyond` is the waves held there before the walls fell (n: never fell)
+  let beyond = null;
+  if (endlessN > 0 && wonChronicle) {
+    if (typeof endCelebration === "function") endCelebration();
+    document.getElementById("endlessBtn").click();
+    const top = total();
+    while (!gameOver && waveIdx < top + endlessN) oneWave();
+    beyond = Math.max(0, (gameOver ? waveIdx - 1 : waveIdx) - top);
   }
   // damage and gold by tower kind and mastery ("archer" for an unmastered one, "archer.a" for a mastery)
   const by = {};
@@ -371,13 +451,16 @@ function playBattle(a) {
   // the clock: the game's own (a page from before it has none: then the waves' own seconds), and the 4 s a wave
   // is sent after the last is cleared, which the bot does not wait out (the battle is the same battle without it)
   const F = typeof battleFacts === "function" ? battleFacts() : null;
-  const waveSec = F ? F.sec : Math.round(secs.reduce((x, y) => x + y, 0));
-  const sec = waveSec + 4 * Math.max(0, secs.length - 1);
-  return { won: lives > 0 && waveIdx >= TOTAL_WAVES && gameOver, lives: Math.max(0, lives), wave: waveIdx,
+  // with WAIT the game's clock already holds the waits; without it the clock reported adds 4 s for each wave after
+  // the first, as before
+  const waveSec = F ? F.sec - waited : Math.round(secs.reduce((x, y) => x + y, 0));
+  const sec = wait > 0 ? waveSec + waited : waveSec + 4 * Math.max(0, secs.length - 1);
+  return { won: wonChronicle, lives: livesChronicle, wave: waveChronicle, beyond,
     towers: towers.length, plots: plotsBought, leaks, cmd: probe ? 0 : boss.filter(b => b.leaked).length, boss, by,
     toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
     adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn, earlyCalls,
-    trace: trace.join(" "), sec, waveSec, secs, minS: Math.floor(minS), earned: F ? F.earned : null, spent: F ? F.spent : null };
+    trace: trace.join(" "), sec, waveSec, secs, minS: Math.floor(minS), earned: F ? F.earned : null, spent: F ? F.spent : null,
+    calls: F ? F.calls : 0, heroFalls: F ? F.heroFalls : 0, heroLevel: F ? F.heroLevel : 1 };
 }
 
 (async () => {
@@ -395,7 +478,12 @@ function playBattle(a) {
   const probe = process.env.CMD === "probe";
   const counters = process.env.COUNTERS !== "0";
   const kit = process.env.KIT || "none";
-  if (!["none", "floor", "par", "cap"].includes(kit)) { console.error("KIT is none, floor, par or cap"); process.exit(2); }
+  if (!["none", "hero", "floor", "par", "cap"].includes(kit)) { console.error("KIT is none, hero, floor, par or cap"); process.exit(2); }
+  const heroMode = process.env.HERO || "off";
+  // the 4 s Auto waits between waves, fought in the battle (G4: the pars are taken with it); WAIT=0 is the bot as it
+  // played before, whose battles equal an older page's battle for battle
+  const wait = Math.max(0, +(process.env.WAIT != null ? process.env.WAIT : process.env.CLOCK === "1" ? 4 : 0));
+  if (!["off", "hold", "park"].includes(heroMode)) { console.error("HERO is off, hold or park"); process.exit(2); }
 
   const browser = await chromium.launch();
   const errors = [];
@@ -420,7 +508,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit });
+      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)) });
   }
   const results = [];
   let done = 0;
@@ -450,7 +538,7 @@ function playBattle(a) {
   const score = rs => rs.filter(r => r.won).length * 1000 + rs.reduce((s, r) => s + r.lives + r.wave * 10 * !r.won, 0) / rs.length;
   for (const diff of diffs) {
     console.log("\n" + DN[diff] + ": " + levels.length + " battlefields, " + seeds + " seed" + (seeds > 1 ? "s" : "") +
-      ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4) + (kit !== "none" ? ", kit " + kit : ""));
+      ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4) + (kit !== "none" ? ", kit " + kit : "") + (heroMode !== "off" ? ", hero " + heroMode : ""));
     const W = 12, NW = 25;
     console.log(pad("battlefield", NW) + builds.map(b => pad(b, W)).join("") + "| best");
     const wins = {}, cmds = {}, held = {};
@@ -477,7 +565,7 @@ function playBattle(a) {
     if (probe) {
       // the commanders' margins: the least any seed's wave-10 commander took (as a share of its hit points),
       // then the least of the wave-20 pair; "-" where no battle reached that wave
-      console.log("\ncommander margins (CMD=probe): wave 10, wave 20; the least over the seeds");
+      console.log("\ncommander margins (CMD=probe): the first commander (script wave 10), the pair (script wave 20); the least over the seeds");
       for (const lv of levels) {
         let row = pad(lv + " " + names[lv], NW).slice(0, NW);
         for (const b of builds) {
@@ -505,7 +593,10 @@ function playBattle(a) {
         }
         const par = mean(best.rs, "sec"), earned = mean(best.rs, "earned"), minS = Math.max(...best.rs.map(r => r.minS || 0));
         if (par !== null) pars.push(ids[lv] + ": " + par);
-        console.log(row + "| " + (par === null ? "no victory" : pad(best.b, 10) + pad(par, 6) + pad((par / 60).toFixed(1), 6) + pad(earned === null ? "-" : earned, 7) + minS));
+        // wave time (the seconds foes were on the field, no waiting) against gameplay 1.2's target for this length
+        const wt = mean(best.rs, "waveSec"), tg = TARGET_MIN[ids[lv]];
+        const tcol = wt === null || !tg ? "" : "  wave " + (wt / 60).toFixed(1) + " min, target " + tg + " (" + (wt / 60 / tg * 100 - 100 >= 0 ? "+" : "") + Math.round(wt / 60 / tg * 100 - 100) + "%)";
+        console.log(row + "| " + (par === null ? "no victory" : pad(best.b, 10) + pad(par, 6) + pad((par / 60).toFixed(1), 6) + pad(earned === null ? "-" : earned, 7) + minS + tcol));
       }
       console.log("pars (the best build's clock), for LEVEL_PAR in index.html:\n  " + pars.join(", "));
     }

@@ -14,10 +14,12 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
-const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors", "iphone"];
+const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors", "iphone", "waves"];
 // a script that runs past this is stopped and fails
-// (vic plays a victory on every battlefield at three sizes: 444 s on a quiet machine, over 900 s on a busy one)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 600 };
+// (vic plays a victory on every battlefield at three sizes: 444 s on a quiet machine, over 900 s on a busy one;
+// iphone walks over 700 states at ten sizes: about 500 s on a quiet machine since G3, past 600 s on a busy one;
+// waves plays all 245 waves of the campaign at 4x, four battlefields at a time)
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
