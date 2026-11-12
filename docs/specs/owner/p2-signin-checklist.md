@@ -21,9 +21,10 @@ At the end there is **one question** for you. Its answer decides whether one mor
 
 Use a private window on the computer, so the staging page and the live game do not share the browser's memory.
 
-What this version has: sign-in, the name you choose, the welcome card, the Account tab with **Sign out**. What it
-does not have yet: your progress saved to your account (it stays on each device for now), the stats page,
-"Delete my account" and the full privacy page. Those come in the next pieces of work.
+What this version has: sign-in, the name you choose, the welcome card, the Account tab with **Sign out**, and
+the stats page for you alone (`/next/?stats`, step 6 of the guide). What it does not have yet: your progress saved
+to your account (it stays on each device for now), "Delete my account" and the full privacy page. Those come in the
+next pieces of work.
 
 ---
 
