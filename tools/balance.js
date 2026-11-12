@@ -141,6 +141,14 @@ const BUILDS = {
   archdrum:  ["archer", "archer", "archer", "drums"],
   catapults: ["catapult", "archer", "catapult", "drums"],
   firemix:   ["ballista", "fire", "archer", "fire", "catapult", "drums"],
+  // G5 (gameplay 5.2, 5.4): "post" is a Garrison Post, "age" the battlefield's special tower (skipped where it is not
+  // offered or its limit is reached, as a kind is wherever no free pad takes it). mix7 is the mix with both in its
+  // order; posts and postdrum are the one-recipe builds that must lose. (agemix, harriers, greedy, bazaar and aid come
+  // with the special towers, G7: until then "age" is never offered and they would be posts or the mix again)
+  mix7:      ["archer", "ballista", "catapult", "post", "fire", "archer", "drums", "ballista", "age", "catapult", "archer",
+              "post", "fire", "ballista", "drums", "catapult", "archer"],
+  posts:     ["post"],
+  postdrum:  ["post", "post", "post", "drums"],
 };
 
 function parseList(s, all) {
@@ -194,7 +202,8 @@ function playBattle(a) {
     for (let k = 0; k <= 40; k++) { f.dist = f.fly.len * k / 40; sky.push(enemyPos(f)); }
   }
   spawnSeq = seq0;
-  const near = (q, x, y) => Math.hypot(q.x - x, q.y - y) < 170;
+  let reachR = 170;
+  const near = (q, x, y) => Math.hypot(q.x - x, q.y - y) < reachR;
   const rankOver = P => {
     const cover = P.map(() => 0), rank = [], left = PADS.map((p, i) => i);
     while (left.length) {
@@ -210,6 +219,12 @@ function playBattle(a) {
     return rank;
   };
   const rankRoad = rankOver(pts), rankAir = rankOver(pts.concat(sky));
+  // a Garrison Post: the pad that reaches the most road, by the same ranking at the post's own reach, among the pads
+  // whose reach holds road (a page before the post has none)
+  const hasPost = typeof padTakesPost === "function" && !!TOWER_DEFS.post;
+  reachR = hasPost ? TOWER_DEFS.post.levels[0].reach : 170;
+  const rankPost = hasPost ? rankOver(pts).filter(i => padTakesPost(i)) : [];
+  reachR = 170;
   const specCount = {};
   const specFor = t => {
     const fixed = spec === "a" || spec === "b" ? spec : (spec.match(new RegExp("\\b" + t.type + "=([ab])")) || [])[1];
@@ -267,7 +282,7 @@ function playBattle(a) {
       if (cov < 2) {
         // a road that opens for the whole host (Mari's) brings its outflankers too: then a kind that hits them
         let kind = null;
-        const ok = k2 => k2 !== "drums" && (!ambush.A.legacy || TOWER_DEFS[k2].air);
+        const ok = k2 => k2 !== "drums" && TOWER_DEFS[k2] && !TOWER_DEFS[k2].post && (!ambush.A.legacy || TOWER_DEFS[k2].air);
         for (let j = 0; j < plan.length && !kind; j++) { const k2 = plan[(towers.length - extra + j) % plan.length]; if (ok(k2)) kind = k2; }
         kind = kind || "archer";
         const r = TOWER_DEFS[kind].levels[0].range;
@@ -288,15 +303,31 @@ function playBattle(a) {
     }
     return true;
   };
+  // the build's order: `placed` towers of it stand so far. A kind that cannot be built here (the special tower where
+  // none is offered or at its limit, a post where no free pad has road in reach) is passed over
+  let placed = 0;
+  const padFor = k => (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad).find(i => !towerAt(i));
+  const kindAt = j => {
+    let k = plan[j % plan.length];
+    if (k === "age") {
+      const a = typeof ageTower === "function" ? ageTower(curEra) : null, lim = a && TOWER_DEFS[a].max;
+      k = a && !(lim && towers.filter(t => t.type === a).length >= lim) ? a : null;
+    }
+    return k && TOWER_DEFS[k] && padFor(k) !== undefined ? k : null;
+  };
+  const nextKind = () => {
+    for (let j = 0; j < plan.length; j++) { const k = kindAt(placed + j); if (k) return { k, skip: j }; }
+    return null;
+  };
   const spend = () => {
     if (!counter()) return;
     for (let guard = 0; guard < 200; guard++) {
       const n = towers.length;
       const up = towers.filter(t => !t.spec && !t.wreck && t.level < TOWER_DEFS[t.type].levels.length - 1).sort((x, y) => x.level - y.level)[0];
-      const build = PADS.some((p, i) => !towerAt(i)) ? plan[Math.max(0, n - extra) % plan.length] : null;
-      const nextPad = build && (TOWER_DEFS[build].air ? rankAir : rankRoad).find(i => !towerAt(i));
+      const nk = PADS.some((p, i) => !towerAt(i)) ? nextKind() : null, build = nk && nk.k;
+      const nextPad = build && padFor(build);
       let done = false;
-      if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); done = true; }
+      if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); placed += nk.skip + 1; done = true; rallyPosts(); }
       else if (up && gold >= rankOf(up)) { upgradeTower(up); done = true; }
       else if (!up && !build) {
         const sp = towers.find(t => !t.spec && !t.wreck);
@@ -311,6 +342,28 @@ function playBattle(a) {
         }
       }
       if (!done) break;
+    }
+  };
+  // the posts' rally (gameplay 5.4): the road point in a post's reach that lies in the range of the most standing
+  // shooting towers (on a tie the one nearest the walls), set again after each purchase. Where the ambush road is
+  // told and no shooting tower covers it, a post that reaches its stretch stands there instead
+  const rallyPosts = () => {
+    if (!hasPost) return;
+    const shooters = towers.filter(t => !t.wreck && (TOWER_DEFS[t.type].proj || t.type === "fire"));
+    const ambushOpen = ambush && ambushTold(waveIdx) &&
+      !shooters.some(t => hits(t.x, t.y, getStats(t).range, ambush.P) * 4 >= 60);
+    for (const t of towers) {
+      if (t.type !== "post" || t.wreck || !t.rally) continue;
+      let cand = postRoadIn(t.x, t.y, getStats(t).reach);
+      if (ambushOpen) { const amb = cand.filter(s => s.route === ambush.k); if (amb.length) cand = amb; }
+      let best = null, bv = -1;
+      for (let i = 0; i < cand.length; i += 2) {
+        const s2 = cand[i];
+        let v = 0;
+        for (const u of shooters) if (inGroundRange(u.x, u.y, s2.x, s2.y, getStats(u).range)) v++;
+        if (v > bv || (v === bv && s2.left < best.left)) { bv = v; best = s2; }
+      }
+      if (best && Math.hypot(best.x - t.rally.x, best.y - t.rally.y) > 10) setPostRally(t, best);
     }
   };
   // HERO=park: the road point near his place by the walls that the most standing towers reach; HERO=hold and park:
@@ -443,7 +496,7 @@ function playBattle(a) {
   for (const t of towers) {
     const k = t.type + (t.spec ? "." + t.spec : "");
     const o = by[k] || (by[k] = { n: 0, dmg: 0, gold: 0 });
-    o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t);
+    o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t); o.hold = (o.hold || 0) + (t.holdS || 0);
   }
   // the lives each trick cost (the game books each leak once: hidden, a hunter, the ambush road, an adapted guard)
   const lost = DIFFS[diff].lives - Math.max(0, lives), T = tricked ? trickLeaks : { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
@@ -604,10 +657,12 @@ function playBattle(a) {
     const agg = {};
     for (const r of results) if (r.diff === diff) for (const k in r.by) {
       const o = agg[k] || (agg[k] = { n: 0, dmg: 0, gold: 0 });
-      o.n += r.by[k].n; o.dmg += r.by[k].dmg; o.gold += r.by[k].gold;
+      o.n += r.by[k].n; o.dmg += r.by[k].dmg; o.gold += r.by[k].gold; o.hold = (o.hold || 0) + (r.by[k].hold || 0);
     }
     const keys = Object.keys(agg).filter(k => agg[k].dmg > 0).sort();
     console.log("damage per 100 gold: " + keys.map(k => k + " " + Math.round(agg[k].dmg / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
+    const holds = Object.keys(agg).filter(k => agg[k].hold > 0).sort();
+    if (holds.length) console.log("seconds of hold per 100 gold: " + holds.map(k => k + " " + Math.round(agg[k].hold / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
     // the tricks' toll on each battlefield's best build, and how often the enemy adapted to each build
     const bestOf = lv => {
       let best = null;

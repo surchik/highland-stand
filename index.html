@@ -10067,10 +10067,26 @@ function specInfo(type, key) {
 // rewrite every era-dependent label in the tray and spell bar for the battlefield now chosen
 // the tray's tiles as trayTypes() has them: shown in its order with their keys (1 to 7), the rest hidden; #shop says how
 // many stand (data-n) for the stylesheet's steps
+// the seventh tile (a battlefield's special tower) is made once, from the post's, the first time a tray offers it
+function trayCard(kind) {
+  let card = document.querySelector('#shop .card[data-type="' + kind + '"]');
+  if (card || !TOWER_DEFS[kind]) return card;
+  const from = document.querySelector('#shop .card[data-type="post"]');
+  if (!from) return null;
+  card = from.cloneNode(true);
+  card.dataset.type = kind;
+  card.classList.remove("selected", "poor", "noNm");
+  from.parentNode.appendChild(card);
+  if (typeof bindTrayCard === "function") bindTrayCard(card);
+  if (trayCardRO) trayCardRO.observe(card);
+  return card;
+}
+var trayCardRO = null;   // var: the tray is laid out before its observer's line is reached
 function syncTray() {
   const shop = $("shop");
   if (!shop) return;
   const kinds = trayTypes();
+  for (const k of kinds) trayCard(k);
   shop.querySelectorAll(".card").forEach(card => {
     const i = kinds.indexOf(card.dataset.type);
     card.style.display = i < 0 ? "none" : "";
@@ -10169,8 +10185,8 @@ function fitCardNames() {
   });
 }
 if (typeof ResizeObserver === "function") {
-  const ro = new ResizeObserver(() => fitCardNames());
-  document.querySelectorAll("#shop .card").forEach(c => ro.observe(c));
+  trayCardRO = new ResizeObserver(() => fitCardNames());
+  document.querySelectorAll("#shop .card").forEach(c => trayCardRO.observe(c));
 }
 
 // ---------- the script map (docs/specs/gameplay.final.md 1.1) ----------
@@ -13292,7 +13308,7 @@ function syncHud() {
   if (chips !== hudCache.chips) { waveInfoEl.innerHTML = chips; hudCache.chips = chips; refreshFoeCardChip(); }
   updateWaveBtn();
   document.querySelectorAll("#shop .card").forEach(c => {
-    c.classList.toggle("poor", towerCost(c.dataset.type) > gold);
+    if (TOWER_DEFS[c.dataset.type]) c.classList.toggle("poor", towerCost(c.dataset.type) > gold);
   });
   refreshPanelBtns();
   syncPauseBtn();
@@ -14787,6 +14803,9 @@ function placeTower(type, padIdx) {
   const cost = towerCost(type);
   // a Garrison Post needs road in its reach to stand its men on (2.3)
   if (TOWER_DEFS[type].post && !padTakesPost(padIdx)) { toast("No road in reach of this pad."); return; }
+  // a kind with a limit on one field (def.max: the special towers, 3.7) refuses the next one with its own sentence
+  const lim = TOWER_DEFS[type].max;
+  if (lim && towers.filter(t => t.type === type).length >= lim) { toast(TOWER_DEFS[type].maxSay || ("No more than " + lim + " on one field.")); return; }
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost, "build");
   battle.built++;
@@ -63797,7 +63816,7 @@ document.querySelectorAll("#spellbar .spell").forEach(b => {
 // the hero's tooltip reads the Call's clock as it is when the pointer comes over him (ready, or ready in N s)
 if ($("heroBtn")) $("heroBtn").addEventListener("pointerenter", syncHeroTitle);
 
-document.querySelectorAll("#shop .card").forEach(card => {
+function bindTrayCard(card) {
   card.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
     if (gameOver) return;   // the field holds still in the beat after the last defender falls
@@ -63806,7 +63825,8 @@ document.querySelectorAll("#shop .card").forEach(card => {
     if (placing !== type && gold < towerCost(type)) needGold(towerCost(type));
     setPlacing(placing === type ? null : type);
   });
-});
+}
+document.querySelectorAll("#shop .card").forEach(bindTrayCard);
 
 // a Send Wave still holding focus when a menu page comes up is no way to start a battle behind it
 waveBtn.addEventListener("click", () => { if (overlayEl.classList.contains("hidden")) startWave(); });
@@ -85002,7 +85022,7 @@ function runSelftestPlay() {
     localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { bows: 1, engines: 1, captains: 1, heralds: 1, stewards: 1 }, n: 5 }));
     if (councilBuy("bows") !== 2 || councilBuy("captains") !== 2 || councilBuy("heralds") !== 2 || councilBuy("stewards") !== 2) fail("the second tiers in Chapter II");
     if (councilBuy("engines") !== 0 || councilUnspent() !== 0) fail("a tier bought without its star: " + councilUnspent());
-    if (tierState(ownOf(), "bows", 3, 9) !== "chapter" || tierState(ownOf(), "captains", 3, 9) !== "later" || tierState(ownOf(), "heralds", 5, 9) !== "chapter") fail("the closed tiers");
+    if (tierState(ownOf(), "bows", 3, 9) !== "chapter" || tierState(ownOf(), "captains", 3, 9) !== "chapter" || tierState(ownOf(), "heralds", 5, 9) !== "chapter") fail("the closed tiers");
     const n0 = councilParse(localStorage.getItem("hs_council")).n;
     if (councilReset() !== 9 || councilUnspent() !== 9 || COUNCIL_IDS.some(id => ownOf()[id]) || councilParse(localStorage.getItem("hs_council")).n !== n0 + 1) fail("the reset did not give everything back");
     if (councilReset() !== 0) fail("a second reset gave stars");
@@ -85095,7 +85115,7 @@ function runSelftestPlay() {
     castSpell("frost", 600, 400);
     if (Math.abs(spellCd.frost - SPELLS.frost.cd * 0.97) > 0.01) fail("a spell's wait: " + spellCd.frost);
     heroDie();
-    if (hero.respawn !== 18) fail("the hero returns in " + hero.respawn);
+    if (hero.respawn !== Math.min(heroLv().back, 18)) fail("the hero returns in " + hero.respawn);
     // the battle's numbers and its tag: open, with the kit
     const f = battleFacts();
     if (f.loadout !== "open" || f.power !== 32 || f.kitset !== KITSET || f.council.bows !== 5 || f.council.engines !== 4) fail("the facts: " + JSON.stringify({ l: f.loadout, p: f.power, c: f.council }));
@@ -85178,10 +85198,11 @@ function runSelftestPlay() {
     }
     const par4 = councilStandard(6, 1);
     if (JSON.stringify(par4) !== JSON.stringify({ bows: 2, engines: 1, captains: 1, heralds: 1, stewards: 1 })) fail("Dvin's PAR: " + JSON.stringify(par4));
-    // the tiers of what is not in the game yet are skipped: Sis's PAR (16 stars over tiers 1 to 3) leaves the Captains at 2
+    // Sis's PAR (16 stars over tiers 1 to 3): with the post in the game (G5) the Captains' third tier is bought in its
+    // turn, before the Heralds'
     const sis = councilStandard(16, 2);
-    if (sis.captains !== 2 || sis.heralds !== 3 || councilSpent(sis) !== 16) fail("Sis's PAR: " + JSON.stringify(sis));
-    if (kitForTest("none", 5) !== KIT_EMPTY || kitPower(kitForTest("par", 5)) !== 10 || kitPower(kitForTest("cap", 16)) !== 38 ||
+    if (sis.captains !== 3 || sis.heralds !== 2 || councilSpent(sis) !== 16) fail("Sis's PAR: " + JSON.stringify(sis));
+    if (kitForTest("none", 5) !== KIT_EMPTY || kitPower(kitForTest("par", 5)) !== 10 || kitPower(kitForTest("cap", 16)) !== 45 ||
         kitForTest("hero", 0) !== KIT_EMPTY || kitPower(kitForTest("hero", 8)) !== 0 || kitForTest("hero", 8).hero !== 3 || !kitForTest("hero", 8).call ||
         kitForTest("par", 1).hero !== 2 || kitForTest("par", 1).call || kitForTest("cap", 9).hero !== 4) fail("the bot's kits");
     if (kitsetPin() !== KITSET_PIN) fail("the Council's tables changed without a new KITSET: KITSET_PIN would be \"" + kitsetPin() + "\" (node tools/ruleset.js)");
@@ -85217,7 +85238,8 @@ function runSelftestPlay() {
           for (const t of el.querySelectorAll(".wcCount, .wcWho, .wcLine, .wcWhy, .wcName b, .wcRn, .wcCost")) if (parseFloat(getComputedStyle(t).fontSize) < 11) out.push(lay + ": text under 11 px in " + t.className);
         }
         // the numbers on the panel: what each tier's line names
-        if (el.querySelectorAll(".wcMed").length !== 25 || !el.querySelector(".wcMed.s-later") || !el.querySelector(".wcMed.s-chapter") || !el.querySelector(".wcMed.s-own")) out.push(lay + ": the tree's states");
+        // (since G5 every tier is in the game: none is shown closed for "Comes with ...")
+        if (el.querySelectorAll(".wcMed").length !== 25 || el.querySelector(".wcMed.s-later") || !el.querySelector(".wcMed.s-chapter") || !el.querySelector(".wcMed.s-own")) out.push(lay + ": the tree's states");
         if (lay === "side" && el.scrollHeight > el.clientHeight + 1) out.push("side " + w + "x" + h + ": the panel scrolls (" + el.scrollHeight + ")");
         // held sideways the strip is the 170 px column of 4.6 and the tree has the rest
         if (lay === "side") { const sw = el.querySelector(".wcStrip").getBoundingClientRect().width; if (Math.abs(sw - 170) > 0.5) out.push("side " + w + "x" + h + ": the strip is " + sw + " px, not 170"); }
@@ -85232,7 +85254,7 @@ function runSelftestPlay() {
       renderCouncil(el, "side");
       const before = councilSpent(ownOf());
       el.querySelector('.wcMed[data-b="engines"][data-t="3"]').click();
-      if (!el.querySelector('.wcMed.sel[data-b="engines"][data-t="3"]') || !/Catapult slot: stagger lasts 0\.05 s longer/.test(el.querySelector(".wcLine").textContent)) fail("a medallion pressed is not the one shown");
+      if (!el.querySelector('.wcMed.sel[data-b="engines"][data-t="3"]') || !/Catapult slot: stagger lasts 0\.025 s longer/.test(el.querySelector(".wcLine").textContent)) fail("a medallion pressed is not the one shown");
       if (councilSpent(ownOf()) !== before) fail("choosing a tier bought it");
       el.querySelector("#wcTake").click();
       if (ownOf().engines !== 3 || councilSpent(ownOf()) !== before + 2) fail("Take it did not buy the tier: " + JSON.stringify(ownOf()));
@@ -85875,6 +85897,243 @@ function runSelftestPlay() {
     gameOver = true; resumeRun(); gameOver = true;
     showBrief();
     if (rules1Tune || $("briefLen").textContent !== "12 waves. A commander leads wave 7 and wave 12.") fail("the chronicle after an old run: " + $("briefLen").textContent);
+  }));
+
+  // ---- the Garrison Post (G5, gameplay 2, 8.1) ----
+  // a post on the first free pad with road in reach, with its men out at their spots; a foe of that role on its rally
+  // point's road a step short of the line
+  const postAt = (pad) => {
+    gold = 1e5;
+    const i = pad != null ? pad : PADS.findIndex((p, k) => !towerAt(k) && padTakesPost(k));
+    placeTower("post", i);
+    const t = towers[towers.length - 1];
+    if (!t || t.type !== "post") fail("no post was built on pad " + i);
+    postSyncMen(t, true);
+    return t;
+  };
+  const foeAt = (t, role, q, back) => {
+    spawnEnemy(role, q || { type: role });
+    const e = enemies[enemies.length - 1];
+    e.route = t.rally.route; e.dist = Math.max(0, t.rally.dist - (back == null ? 6 : back));
+    return e;
+  };
+  const quiet = () => { startWave(); spawnQueue = []; enemies = []; };
+  check("post: pads with road in reach, the rally, by a press, held foes, what is never held", guarded(() => {
+    // at least ten pads of every battlefield take a post; a pad with no road in reach refuses it
+    for (let i = 0; i < LEVELS.length; i++) {
+      stage(LEVELS[i].id, 1);
+      const ok = PADS.filter((p, k) => padTakesPost(k)).length;
+      if (ok < 10) fail(LEVELS[i].id + ": only " + ok + " pads take a post");
+      const no = PADS.findIndex((p, k) => !padTakesPost(k));
+      if (no >= 0) {
+        gold = 1e5; const n = towers.length;
+        placeTower("post", no);
+        if (towers.length !== n || !/No road in reach/.test($("toast").textContent)) fail(LEVELS[i].id + ": pad " + no + " took a post with no road in reach");
+      }
+    }
+    stage("tushpa", 1);
+    const t = postAt();
+    // its rally point lies on a road, in its reach, the road point nearest the pad
+    const R = t.rally, near = postRoadIn(t.x, t.y, postReach(t));
+    if (!near.some(s => s.x === R.x && s.y === R.y) || groundGap(t.x, t.y, R.x, R.y) > postReach(t)) fail("the rally point is not on a road in reach: " + JSON.stringify(R));
+    if (near.some(s => groundGap(t.x, t.y, s.x, s.y) < groundGap(t.x, t.y, R.x, R.y) - 0.6)) fail("the rally point is not the nearest road point");
+    if (t.men.length !== 2 || t.men.some(m => m.max !== 130)) fail("rank 1: two men of 130, not " + t.men.map(m => m.max));
+    // a press on another road point in the ring moves it; a press out of reach does not
+    const far = near.reduce((a, b) => (Math.hypot(b.x - R.x, b.y - R.y) > Math.hypot(a.x - R.x, a.y - R.y) ? b : a));
+    armRally(t, false);
+    if (rallying !== t) fail("Rally point did not arm");
+    if (!rallyPress(t, far.x + 20, far.y, false) || Math.hypot(t.rally.x - far.x, t.rally.y - far.y) > 30) fail("a press on the road in the ring did not move the rally");
+    const was = Object.assign({}, t.rally);
+    if (rallyPress(t, t.x + 600, t.y + 400, false) || t.rally.x !== was.x || t.rally.y !== was.y) fail("a press out of reach moved the rally");
+    // a press 90 world units off the road takes it on a phone (110) and not with a mouse (70)
+    setPlacing(null);
+    if (rallying) fail("a tile did not put the armed rally down");
+    // held: the foe stands while the man holds it, and walks on when he falls
+    quiet();
+    t.rally = was; postInit(t, [was.x, was.y]);
+    const e = foeAt(t, "spearman");
+    e.hp = e.maxHp = 1e6;
+    run(1.5);
+    const d0 = e.dist;
+    run(2);
+    if (!e.heldBy || e.dist !== d0) fail("a held foe walked on: " + d0 + " to " + e.dist);
+    const m = e.heldBy;
+    t.men.forEach(x => { x.hp = 0.01; });
+    run(0.1);
+    if (!m.down || e.heldBy) fail("the foe was not let go when its man fell");
+    run(0.5);
+    if (!(e.dist > d0)) fail("the foe let go did not walk on");
+    if (!(m.respawn > 0) || lives !== DIFFS[1].lives) fail("a fallen man cost a defender or never returns");
+    // engines and outflankers are never held; an unseen scout passes, a seen one is held
+    quiet(); postInit(t, [was.x, was.y]);
+    const ram = foeAt(t, "ram"), fly = (spawnEnemy("flyer"), enemies[enemies.length - 1]);
+    ram.hp = ram.maxHp = 1e6;
+    run(1);
+    if (ram.heldBy || fly.heldBy) fail("an engine or an outflanker was held");
+    if (ram.lastHit !== t) fail("a man did not strike the engine passing him");
+    quiet(); postInit(t, [was.x, was.y]);
+    trickCfg("hidden") || fail("Tushpa has no hidden scouts to test with");
+    const sc = foeAt(t, "raider", { type: "raider", trick: "hidden", name: "Scouts" }, 4);
+    sc.hp = sc.maxHp = 1e6;
+    towers.filter(u => trickWatch().includes(u.type)).forEach(u => { u.wreck = true; });
+    hero.alive = false;
+    sc.seenT = 0; update(0.05);
+    if (sc.heldBy || !foeUnseen(sc)) fail("an unseen scout was held");
+    sc.dist = Math.max(0, t.rally.dist - 4); revealFoe(sc); run(0.4);
+    if (!sc.heldBy) fail("a seen scout was not held");
+    hero.alive = true;
+  }));
+  check("post: hunters, commanders, stones, the drums, a wreck, a resumed run's rally", guarded(() => {
+    stage("tushpa", 1);
+    // a post and, in its reach, a pad for the hunter's mark (the pads of most battlefields lie further apart)
+    let postPad = -1, pad = -1;
+    for (let i = 0; i < PADS.length && postPad < 0; i++) {
+      if (!padTakesPost(i)) continue;
+      const j = PADS.findIndex((p, k) => k !== i && inGroundRange(PADS[i][0], PADS[i][1], p[0], p[1], TOWER_DEFS.post.levels[0].reach - 10));
+      if (j >= 0) { postPad = i; pad = j; }
+    }
+    if (pad < 0) fail("no pad near a post for a hunter's mark");
+    const t = postAt(postPad);
+    quiet();
+    // a hunter at a tower in the post's reach: a man goes to it, and it stops working
+    placeTower("archer", pad);
+    const A = towers[towers.length - 1];
+    spawnEnemy("spearman", { type: "spearman", trick: "hunter" });
+    const h = enemies[enemies.length - 1];
+    h.hp = h.maxHp = 1e6;
+    const p0 = routeAt(t.rally.route, t.rally.dist);
+    h.route = t.rally.route; h.dist = t.rally.dist;
+    h.hunt = { state: "work", scan: 0, jobs: 1, tower: A, t: 0, leave: h.dist, from: { x: p0.x, y: p0.y }, foot: hunterFoot(A, p0), work: 0, snd: 0 };
+    h.off = { x: h.hunt.foot.x, y: h.hunt.foot.y, ang: 0 };
+    run(6);
+    if (!h.heldBy) fail("no man went to the hunter at a tower in reach");
+    const hp = A.hp, w = h.hunt.work;
+    run(1);
+    if (A.hp < hp) fail("a held hunter went on working: " + hp + " to " + A.hp);
+    if (t.men.filter(m => m.foes.includes(h) || m.target === h).length > POST_RULES.hunterMen) fail("more than two men went to one hunter");
+    // a commander: one post holds him 8 s in all, then he rides on
+    quiet(); postInit(t, [t.rally.x, t.rally.y]);
+    const c = foeAt(t, "boss");
+    c.hp = c.maxHp = 1e7;
+    t.men.forEach(m => { m.hp = m.max = 1e6; });
+    let held = 0;
+    for (let k = 0; k < 400; k++) { update(0.05); if (c.heldBy) held += 0.05; }
+    if (held > POST_RULES.cmdHold + 0.11 || held < POST_RULES.cmdHold - 0.6) fail("one post held a commander " + held.toFixed(2) + " s");
+    if (t.men.filter(m => m.foes.length > 1 && m.foes.includes(c)).length) fail("a man held a commander and another foe");
+    // a stone aimed at a held foe lands on it
+    quiet(); postInit(t, [t.rally.x, t.rally.y]);
+    const s = foeAt(t, "shield");
+    s.hp = s.maxHp = 1e6;
+    run(1.5);
+    if (!s.heldBy) fail("the shieldbearer was not held");
+    const cat = { type: "catapult", level: 0, spec: null, x: t.x, y: t.y, aim: 0 };
+    fireTowerShot(cat, s, 1);
+    const pr = projectiles[projectiles.length - 1], sp = enemyPos(s);
+    if (Math.hypot(pr.tx - sp.x, pr.ty - sp.y) > 0.5) fail("a stone at a held foe was led: " + Math.round(Math.hypot(pr.tx - sp.x, pr.ty - sp.y)) + " px");
+    projectiles = [];
+    // the drums quicken the men's blows and their return
+    quiet(); postInit(t, [t.rally.x, t.rally.y]);
+    t.buffHaste = 0.5;
+    const m0 = t.men[0]; m0.cd = 1; postTick(0.1);
+    if (Math.abs(m0.cd - (1 - 0.15)) > 1e-6) fail("the drums did not quicken a man's blow: cd " + m0.cd);
+    postManFalls(t, m0); const r0 = m0.respawn; t.buffHaste = 0.5; postTick(0.1);
+    if (Math.abs((r0 - m0.respawn) - 0.15) > 1e-6) fail("the drums did not quicken a man's return");
+    // a wrecked post sends no one
+    t.wreck = true; m0.respawn = 0.01; postTick(0.2);
+    if (!m0.down) fail("a wrecked post sent a man out");
+    t.wreck = false; t.hp = t.maxHp;
+    // a resumed run keeps the rally point
+    const near = postRoadIn(t.x, t.y, postReach(t)), spot = near[Math.floor(near.length / 2)];
+    setPostRally(t, spot);
+    gameOver = false; phase = "idle"; enemies = []; waveIdx = lastCleared = 2; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    const tw = r.towers.find(x => x.type === "post");
+    if (!tw || !tw.rally || !Array.isArray(r.tray) || !r.tray.includes("post")) fail("the saved run lacks the rally or the tray: " + JSON.stringify(tw) + " " + r.tray);
+    gameOver = true; resumeRun();
+    const t2 = towers.find(x => x.type === "post");
+    if (!t2 || Math.hypot(t2.rally.x - spot.x, t2.rally.y - spot.y) > 0.5 || t2.men.length !== 2 || t2.men.some(m => m.down)) fail("the resumed post's rally or men: " + JSON.stringify(t2 && t2.rally));
+    // a run whose tray lacks the post cannot bring one back
+    r.tray = TRAY_BASE.slice(); localStorage.setItem("hs_run", JSON.stringify(r));
+    if (getSavedRun()) fail("a run with a post and no post in its tray was taken");
+  }));
+  check("tray: 5, 6 or 7 tiles as the campaign stands, the coached five, a run's own tray, keys 6 and 7, the kit's price, a limit", guarded(() => {
+    const shown = () => [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none").sort((a, b) => +a.style.order - +b.style.order).map(c => c.dataset.type);
+    LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era)));
+    localStorage.removeItem(RECORDS_KEY);
+    stage("erebuni", 1);
+    if (shown().join() !== TRAY_CLASSIC || $("shop").dataset.n !== "5") fail("a fresh save's tray: " + shown());
+    wonTo(1, 2);
+    stage("erebuni", 1);
+    if (shown().join() !== TRAY_CLASSIC + ",post" || $("shop").dataset.n !== "6") fail("Tushpa open: " + shown());
+    const key6 = document.querySelector('#shop .card[data-type="post"] .key');
+    if (!key6 || key6.textContent !== "6") fail("the post's key badge: " + (key6 && key6.textContent));
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit6", key: "6", bubbles: true }));
+    if (placing !== "post") fail("key 6 did not choose the post: " + placing);
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "post") fail("key 7 with six tiles changed the choice: " + placing);
+    setPlacing(null);
+    // the coached stand fights with the classic five
+    localStorage.setItem("hs_tutorial_done", "0");
+    curLevel = 0; resetGame(); overlayEl.classList.add("hidden"); maybeStartTutorial();
+    if (shown().join() !== TRAY_CLASSIC || trayTypes().length !== 5) fail("the coached stand's tray: " + shown());
+    stopTutorial();
+    // a resumed run's own tray: one begun before Tushpa opened resumes with five, whatever is open now
+    stage("erebuni", 1);
+    gold = 300; waveIdx = lastCleared = 1; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    r.tray = TRAY_BASE.slice(); localStorage.setItem("hs_run", JSON.stringify(r));
+    gameOver = true; resumeRun();
+    if (shown().join() !== TRAY_CLASSIC || battleFacts().tray !== TRAY_CLASSIC) fail("a run's own tray: " + shown());
+    // and a run saved before the tray grew (no tray) is the classic five
+    delete r.tray; localStorage.setItem("hs_run", JSON.stringify(r));
+    gameOver = true; resumeRun();
+    if (shown().join() !== TRAY_CLASSIC) fail("a run without a tray: " + shown());
+    // seven: a special tower once one is built into the game (G7), staged here with a stand-in kind
+    TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Stores", max: 2, maxSay: "Two stores at most on one field.", cost: 120 });
+    try {
+      wonTo(17, 2);
+      stage("tashir", 1);
+      if (ageTower(curEra) !== "stores" || trayTypes().join() !== TRAY_CLASSIC + ",post,stores") fail("the seventh tile: " + trayTypes());
+      // the tile's price is the kit's: the Captains' fourth tier takes 5% off the special tower
+      localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { captains: 4 }, n: 1 }));
+      stage("tashir", 1);
+      const pr = document.querySelector('#shop .card[data-type="stores"] .pr');
+      if (towerCost("stores") !== Math.round(120 * 0.95) || !pr || pr.textContent.replace(/\D/g, "") !== String(towerCost("stores"))) fail("the tile's price under the kit: " + (pr && pr.textContent));
+      // a kind at its limit is refused with its sentence
+      gold = 1e5;
+      const free = PADS.map((p, k) => k).filter(k => !towerAt(k));
+      placeTower("stores", free[0]); placeTower("stores", free[1]); placeTower("stores", free[2]);
+      if (towers.filter(x => x.type === "stores").length !== 2 || !/Two stores at most/.test($("toast").textContent)) fail("the limit: " + towers.filter(x => x.type === "stores").length);
+    } finally { delete TOWER_DEFS.stores; towers = []; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); syncTray(); }
+  }));
+  // G5 close: the rally's coach bubble and the post's one-time card are told once
+  check("post: the one-time card and the rally bubble", guarded(() => {
+    localStorage.removeItem("hs_towers_seen");
+    wonTo(1, 2);
+    curLevel = 1; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (!towerUnlocked("post")) fail("the post is not offered with Tushpa open");
+    // (the harness shows no card on its own: it is shown here as postCardSoon would)
+    showUnlockCard("post");
+    if (unlockCardOn !== "post" || !/the Garrison Post/.test($("tcTitle").textContent) || $("tcLater")) fail("the post's card: " + $("tcBody").textContent);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("post")) fail("the card was not put away and kept");
+    trickCardTest = true;
+    const ph = photo;
+    photo = null;
+    try {
+      stage("tushpa", 1);
+      const t = postAt();
+      showPanel(t);
+      if (!$("pRally") || !/Rally point/.test($("pRally").textContent) || $("pActions").firstElementChild !== $("pRally")) fail("Rally point is not the panel's first button");
+      if (!rallyBubbleDue(t)) fail("the rally bubble is not due on the first panel");
+      showRallyBubble(t);
+      if (!rallyBubble || !/then click the road/.test(coachEl.textContent)) fail("the rally bubble: " + coachEl.textContent);
+      $("pRally").click();
+      if (rallyBubble || !towersSeen().includes("rally") || rallying !== t || panelEl.style.display === "block") fail("pressing Rally point did not arm it and put the bubble away");
+      if (rallyBubbleDue(t)) fail("the bubble is due again once seen");
+    } finally { trickCardTest = false; rallying = null; photo = ph; }
   }));
 
   // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt
