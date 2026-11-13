@@ -427,13 +427,19 @@ Shushi, whose drums keep watch:
 | Twist | Battlefields skipped | Mix wins of 51 |
 | --- | --- | --- |
 | Thin purse | erebuni, avarayr, dvin, sevan, ani, gyumri, van, sardarapat, stepanakert92, shushi, stepanakert23 (11) | 17 |
-| Forced march | tushpa, dvin, tashir, van, musadagh, sardarapat, shushi, stepanakert23 (8) | 27 |
+| Forced march | tushpa, dvin, tashir, van, musadagh, sardarapat, shushi, stepanakert23 (8) | 28 |
 | Iron ranks | van (1) | 47 |
-| Few defenders | erebuni, dvin, halidzor, musadagh, sardarapat (5) | 37 |
-| No spells | tushpa, dvin, tashir, van, shushi (5) | 34 |
+| Few defenders | erebuni, dvin, halidzor, musadagh, sardarapat (5) | 38 |
+| No spells | tushpa, dvin, tashir, van, shushi (5) | 35 |
 | No {ballista} | tushpa, avarayr, dvin, ani, mari, halidzor, van, musadagh, sardarapat, shushi, stepanakert23 (11) | 18 |
-| No {catapult} | erebuni, dvin, mari, van, stepanakert23 (5) | 36 |
+| No {catapult} | erebuni, dvin, mari, van, stepanakert23 (5) | 37 |
 | No {drums} | erebuni, tashir, mari, sis, van (5), and shushi by the watch rule | 38 |
+
+The list is measured on one day's outflanker lines (DAY=20406). The day's seed moves only the outflankers (their
+entry, their line over a lake, the side an aircraft circles), so the G6 close reran the five served pairs that the mix
+won on exactly two of three seeds on a second day, `DAILY=1 TWIST=t DAY=20407 CLOCK=1 SEEDS=3 node tools/balance.js 1
+<field> mix`: Thin purse on Musa Dagh, Forced march on Sevan, Iron ranks and Few defenders on Tashir, No spells on
+Musa Dagh. Each again won two of three, so none drops into the list.
 
 Every battlefield keeps at least one twist: Van keeps only Few defenders, Dvin Iron ranks and No drums. Thin purse and
 No ballista are served on six battlefields each: a fifth less in bounties is a heavier blow at 12 waves than it reads, and
