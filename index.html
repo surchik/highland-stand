@@ -9629,11 +9629,11 @@ TOWER_DEFS.post = {
 // how the men fight, named once (rulesetData reads it). spot/stagger: the line across the road (px apart across it,
 // px along it); catch: how near his spot a foe must come to be held (ground range); walk: px a second; heal: the share
 // of his strength a man out of combat for healAfter s regains a second; cmdHold: the seconds in all one post holds one
-// commander; charge: what a horseman deals on contact; hunterMen: the men who leave the line for a hunter at a tower
-// in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
+// commander; cmdBlow: the share of a man's blow a commander takes, never through his armor; charge: what a horseman
+// deals on contact; hunterMen: the men who leave the line for a hunter at a tower in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
 // covers more of the field); melee: what a foe deals a second to the man who holds it, times 1 + perWave for each
 // script wave past the first
-const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, charge: 30, hunterMen: 2,
+const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, cmdBlow: 0.25, charge: 30, hunterMen: 2,
   pick: 70, pickPhone: 110, perWave: 0.05, melee: { raider: 7, spearman: 9, shield: 11, cavalry: 12, boss: 60 } };
 
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
@@ -12627,7 +12627,10 @@ function postTick(dt) {
         m.swing = 0.25;
         const p = enemyPos(foe);
         if (Math.abs(p.x - m.x) > 1) m.face = p.x > m.x ? 1 : -1;
-        damageEnemy(foe, st.dmg * might, !!st.pierce, t);
+        // a commander takes only cmdBlow of a man's blow, through his armor never (gameplay 2.4, 5.2: a post is a delay on
+        // him, never a wall; with the full blow a board of posts alone felled the first commander, G5 review)
+        const boss = foe.type === "boss";
+        damageEnemy(foe, st.dmg * might * (boss ? POST_RULES.cmdBlow : 1), !!st.pierce && !boss, t);
         if (postSndT <= 0) { postSndT = 0.22; const arm = postArm(); Snd.play(arm === "fire" || arm === "ak" ? "heroShot" : "heroHit", { x: m.x, arm, vol: 0.55 }); }
       } else if (m.cd < 0) m.cd = 0;
       // what the foes he holds deal him (a commander's blows are never halved by the Call)
