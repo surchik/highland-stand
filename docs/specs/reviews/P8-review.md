@@ -125,7 +125,7 @@ Evidence (mutants of 005 up, full suites run on each):
 
 M4 would wipe every visitor's analytics on each deletion, and nothing notices. M5 shows that "B's devices'
 counters stay" (sql-tests.js 1086 to 1089) is vacuous: B's devices have no counter keyed by their aid at that
-point (bRate is 0).
+point (a print added in the mutant worktree shows `bRate = 0`).
 
 Fix: in sql-tests' delete group, add a visitor's anonymous visit on a third device (D3) and a `hs_track` by B
 on his own device before the deletion. Then assert that D3's visit and B's aid counter are still there, with
@@ -199,9 +199,37 @@ Fix: "... its system and browser, whether the game was added to the Home Screen,
 
 ## What I reran (each to its end)
 
-(see the table below; load figures are the 1-minute load average when the run began)
+Builder's figures matched wherever the run was quiet enough. Load is the other track's full run-all, which ran
+at the same time (a 1-minute load of 7 to 17).
 
-RERUN_TABLE
+| command | result |
+| --- | --- |
+| `node deploy/check-page.js index.html` | OK, exit 0 |
+| `timeout 900 node tools/selftest.js --suite=all` (load about 17) | every check passed (suite 1: 151, suite 2: 30), but both suites were over budget: 242.2 s and 151.3 s of 125. That was load (see the two runs alone below) |
+| `--suite=1` alone (load 4 to 7) | PASS, 151 checks, 125.0 s of 125 (right at the budget) |
+| `--suite=2` alone | PASS, 30 checks, 48.2 s |
+| `node tools/run-fixtures.js check` (with NODE_PATH) | PASS, 8 fixtures. (A first try without NODE_PATH was killed by me, not counted.) |
+| `node tools/town-isolation.js` | PASS, 9 cases |
+| `node tools/platform/p0.js` | PASS, 347.8 s |
+| `node tools/platform/sql-tests.js` | 817 assertions, 0 failed |
+| `node tools/platform/isolation.js` | 333 checks, 0 failed |
+| `bash deploy/supabase/restore-rehearsal.sh` | 22 passed, 0 failed |
+| `node tools/platform/unit.js` | 300 checks, 0 failed (2 subjects wait for P5, P6) |
+| `bash tools/platform/test-update.sh` | PASS, 36 cases |
+| `bash tools/platform/guide-check.sh` | 17 passed, 0 failed |
+| `node tools/platform/owner-delete-check.js` | PASS |
+| `node tools/regress/run-all.js --quick` (load about 10) | 9/11 in 2181 s. dance10 failed 2 (touch 1194x834: erebuni "a tap at 9645 ms ended the dance"; sis "a tap at -1 ms ended the horn call"). platform failed 1 (flow 11 at 667x320: "the checking card stayed 6.3 s") |
+| `run-all.js --quick --only=dance10` alone | PASS, 61 s. Load failure (the dance10 tap near 9.5 s, reported as asked) |
+| `platform.js --flows=11 --sizes=ses` alone | PASS, 26.9 s. Load failure, the same one as in P3 and the builder's run |
+| `platform.js` every flow (1 to 6, 10, 11, 13 with 13del, 14) at desk, ipad, ses, i15h, i15u, `--photos` | PASS, 0 fails, 1494 s, 73 audited states |
+| probe `pA`, `pB` (desk) | FAIL, findings 1 and 2 |
+| mutants M1, M2, M4, M5 (sql-tests, isolation), M6 (platform.js 13del desk) | finding 6 |
+
+Photos from my platform.js run are in
+`/tmp/claude-0/-home-user/169f7cc7-9178-569c-b36f-88a849db13cf/scratchpad/top/build/review/P8/shots/`
+(privacy-*, privacy-delete-*, delete-ask-*, delete-done-*, delete-fail-desk and -ses, at all five sizes). I looked
+at privacy-ses, delete-ask-ses, delete-ask-i15u, delete-ask-ipad, delete-done-ses, delete-fail-ses and
+privacy-delete-desk (the builder's and mine): nothing is clipped, and every control is in reach.
 
 ## What I could not check
 
@@ -211,3 +239,11 @@ RERUN_TABLE
 - Safari and a real iPhone: the scroll to `#delete` on an iPhone, and `-webkit-overflow-scrolling`.
 - Meta's acceptance of the instructions URL. That is the owner's console.
 - The legal reading of the page (the owner's, per the checklist).
+
+## For the other track and the owner
+
+- Gameplay: finding 8 asks for one check in suite 2 (10.5 item 1). No gameplay line or line of table 0.4 is
+  touched by P8.
+- Owner: findings 3 and 4 change what you do when someone writes in, so read them before you answer such a
+  letter. Migration 005 is still yours to apply. After it, try one deletion on /next/ after an hour of play (the
+  refreshed-token case above).
