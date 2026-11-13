@@ -735,7 +735,7 @@
      tip. It stays while the map is browsed, so the map keeps its size, and steps back (.past) once another
      battlefield is chosen */
   .ovDebrief { display: none; }
-  #overlay:not(.brief):not(.victory) .ovDebrief.on {
+  #overlay:not(.brief):not(.victory) .ovDebrief.on, #overlay.victory.dailyEnd .ovDebrief.on {
     display: flex; flex-direction: column; align-items: center; gap: 3px; box-sizing: border-box;
     width: min(900px, calc(100vw - 40px)); padding: 5px 16px 6px;
     border-top: 1px solid rgba(185,138,62,.5); border-bottom: 1px solid rgba(185,138,62,.5);
@@ -761,7 +761,7 @@
   .ovDebrief .dbTip b { color: #ffe2b0; }
   /* on a short window (a laptop at 720 px, an iPad Mini held wide) every pixel saved goes to the map */
   @media (max-height: 780px) {
-    #overlay:not(.brief):not(.victory) .ovDebrief.on { padding: 3px 14px 4px; gap: 2px; font-size: 13px; line-height: 1.3; }
+    #overlay:not(.brief):not(.victory) .ovDebrief.on, #overlay.victory.dailyEnd .ovDebrief.on { padding: 3px 14px 4px; gap: 2px; font-size: 13px; line-height: 1.3; }
     .ovDebrief .dbChip { height: 23px; }
     .ovDebrief .dbChip .ic { width: 18px; height: 18px; }
   }
@@ -888,6 +888,8 @@
   #overlay #endlessBtn { background: linear-gradient(180deg, #a57a34, #7a5622 50%, #523815); text-shadow: 0 1px 0 rgba(50,30,5,.9); }
   /* the daily's door on the map (dailyEntry): only on the map's own page */
   #overlay.brief #dailyBtn, #overlay.victory #dailyBtn { display: none !important; }
+  /* the door's one-word caption, for the phone's square (a finger cannot hover for its title) */
+  #dailyBtn .dlyCap { display: none; }
   /* the victory page: no map; the next battle leads on a line of its own, the quieter choices sit under it */
   #overlay.victory .chapterBar { display: none; }
   #overlay.settling { pointer-events: none; }
@@ -2074,13 +2076,13 @@
       padding: 2px 2px 4px;
     }
     #overlay:not(.brief):not(.victory) .sub, #overlay:not(.brief):not(.victory) .ovDebrief.on { width: 100%; height: auto; max-width: none; }
-    #overlay:not(.brief):not(.victory) .ovDebrief.on { padding: 4px 4px 5px; font-size: 12.5px; line-height: 1.3; }
+    #overlay:not(.brief):not(.victory) .ovDebrief.on, #overlay.victory.dailyEnd .ovDebrief.on { padding: 4px 4px 5px; font-size: 12.5px; line-height: 1.3; }
     /* the defeat page: what got through and the tip come first, under the title; the history follows them */
     #overlay:not(.brief):not(.victory):has(.ovDebrief.on) .sub { order: 1; }
     #overlay:not(.brief):not(.victory):has(.ovDebrief.on) h1 { font-size: 18px; letter-spacing: 1px; }
     /* and in the debrief the tip leads (what to do next), then what got through and the roads */
-    #overlay:not(.brief):not(.victory) .ovDebrief .dbTip { order: -1; padding-bottom: 3px; }
-    #overlay:not(.brief):not(.victory) .ovDebrief .dbRow { gap: 4px 5px; }
+    #overlay:not(.brief):not(.victory) .ovDebrief .dbTip, #overlay.victory.dailyEnd .ovDebrief .dbTip { order: -1; padding-bottom: 3px; }
+    #overlay:not(.brief):not(.victory) .ovDebrief .dbRow, #overlay.victory.dailyEnd .ovDebrief .dbRow { gap: 4px 5px; }
     /* a column that scrolls fades at its fold while more lies below it (phoneFold) */
     #overlay:not(.brief):not(.victory) #ovPage.more, #overlay.brief #ovPage .briefLeft.more, #overlay.brief #ovPage .sub.more {
       -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
@@ -2104,7 +2106,9 @@
     #overlay:not(.brief):not(.victory) .bigRow.hasDaily > .big { grid-column: 2; }
     #overlay:not(.brief):not(.victory) .bigRow.hasDaily > #dailyBtn { grid-column: 1; grid-row: 1 / span 4; align-self: end; width: 46px; height: 46px; padding: 0; }
     #overlay:not(.brief):not(.victory) #dailyBtn span { display: none; }
-    #overlay:not(.brief):not(.victory) #dailyBtn .ic { width: 22px; height: 22px; }
+    #overlay:not(.brief):not(.victory) #dailyBtn { flex-direction: column; gap: 1px; }
+    #overlay:not(.brief):not(.victory) #dailyBtn .ic { width: 20px; height: 20px; }
+    #overlay:not(.brief):not(.victory) #dailyBtn .dlyCap { display: block; font-size: 10.5px; line-height: 1; font-weight: 700; letter-spacing: .3px; }
     #overlay:not(.brief):not(.victory) .big { width: 100%; min-width: 0; min-height: 46px; margin: 0; padding: 6px 10px; justify-content: center; font-size: 15px; white-space: normal; line-height: 1.15; }
     #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
     #overlay:not(.brief):not(.victory) .big .ic { width: 18px; height: 18px; }
@@ -3733,7 +3737,7 @@
   <div class="ovFoot">
   <div class="diffRow" id="diffRow"></div>
   <div class="bigRow">
-    <button class="big quiet" id="dailyBtn" style="display:none"><svg class="ic"><use href="#i-horn"/></svg><span>Today's challenge</span></button>
+    <button class="big quiet" id="dailyBtn" style="display:none"><svg class="ic"><use href="#i-horn"/></svg><span>Today's challenge</span><b class="dlyCap">Daily</b></button>
     <button class="big" id="resumeBtn" style="display:none"><svg class="ic"><use href="#i-play"/></svg>Resume</button>
     <button class="big" id="endlessBtn" style="display:none"><svg class="ic"><use href="#i-shield"/></svg>Hold Forever</button>
     <button class="big quietable" id="mapBtn" style="display:none"><svg class="ic"><use href="#i-flag"/></svg>Campaign Map</button>
@@ -10637,7 +10641,9 @@ function dailyRulesMake() {
 function dailyDayNum(day) {
   if (typeof day === "number") return Number.isInteger(day) && day >= 0 && day < 1e6 ? day : NaN;
   const m = typeof day === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 : NaN;
+  const d = m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 : NaN;
+  // (a date that is not on the calendar, "2026-02-31", is refused, not rolled on into March)
+  return d >= 0 && d < 1e6 && dailyDate(d) === day ? d : NaN;
 }
 function dailyDate(d) { return new Date(d * 86400000).toISOString().slice(0, 10); }
 // "November 13", the day's own words on its card
@@ -10697,6 +10703,8 @@ function dailyBegin(levelIndex, twistId, day) {
 function dailyLeave() {
   if (!dailyRun) return;
   dailyRun = null; trayBan = [];
+  // (a lost daily's debrief speaks of the daily's battle: it does not stay on the campaign's map)
+  if (debriefLevel >= 0) clearDebrief();
   curDiff = prefDiff;
 }
 
@@ -13152,7 +13160,7 @@ function battleFacts() {
     lv: L.id, diff: curDiff, mode: battleMode(),
     ruleset: String(B.rules), rev: LEVEL_REV[L.id] || 1, loadout: battleLoadout(),
     wave: lastCleared, waves: totalWaves(),
-    lives, lives_max: max, held, lives_board: Math.max(0, held - B.debt), stars: won ? victoryStars(held, max) : 0,
+    lives, lives_max: max, held, lives_board: Math.max(0, held - B.debt), stars: won && !dailyRun ? victoryStars(held, max) : 0,   // (a daily gives no stars)
     sec: n(B.sec), spent: n(B.spent), earned: n(B.earned),
     twist: dailyRun ? dailyRun.twist : null,
     through: roles.slice(0, 3).map(k => k + ":" + leaks[k].n).join(","),
@@ -13558,7 +13566,7 @@ function syncHudNote(force) {
   const L = LEVELS[curLevel], el = $("hudNote");
   if (!el) return;
   const html = L.relief ? '<span class="hnRoad">' + icon("r-horse") + "</span>" + escapeHtml(L.relief)
-    : L.clock === "days" ? escapeHtml("Day " + (1 + DAYS_PER_WAVE * lastCleared) + " of the siege") : "";
+    : L.clock === "days" ? escapeHtml("Day " + (1 + heldCount(L, lastCleared)) + " of the siege") : "";
   if (html === hudCache.note && !force) return;
   hudCache.note = html;
   el.innerHTML = html;
@@ -14139,7 +14147,8 @@ function waveRepelledCue() {
 // The time a battlefield counts as held (L.heldText): Mari the waves the passes held, Sis the days of the siege,
 // DAYS_PER_WAVE a wave. The days are game time, never a claim: how long Leo held out the sources do not agree
 const DAYS_PER_WAVE = 3;
-function heldCount(L, waves) { return L.clock === "days" ? waves * DAYS_PER_WAVE : waves; }
+// (by script wave: a 12-wave daily on Sis still ends on day 60, its wave w standing for script wave scriptWave(w))
+function heldCount(L, waves) { return L.clock === "days" ? DAYS_PER_WAVE * scriptWave(waves) : waves; }
 function heldLine(L, won, waves) {
   const H = L.heldText, T = totalWaves();
   return H ? (won ? H.won : H.lost).replace("{n}", String(heldCount(L, waves))).replace("{N}", numWord(T)).replace("{T}", String(T)) : "";
@@ -14334,6 +14343,8 @@ function showVictoryScreen() {
   victoryNext = dailyRun ? -1 : nextBattleAfter(curLevel);
   menuMode = "victory";
   overlayEl.classList.add("victory");
+  // (a lost daily's page keeps the defeat's debrief, what got through and the tip, under its line: .dailyEnd)
+  overlayEl.classList.toggle("dailyEnd", !!dailyRun);
   phonePageTop();
   $("worldMap").style.display = "none";
   $("diffRow").style.display = "none";
@@ -14372,7 +14383,7 @@ function showRecord(stars, diff, news) {
 }
 function leaveVictory() {
   if (menuMode === "victory") menuMode = "map";
-  overlayEl.classList.remove("victory");
+  overlayEl.classList.remove("victory", "dailyEnd");
   showRecord(0, 0, null);
   if ($("ovGrowth")) { $("ovGrowth").innerHTML = ""; $("ovGrowth").classList.remove("on", "line"); }
   $("nextBtn").style.display = "none";
@@ -14650,13 +14661,22 @@ function dailyEntry() {
   if (!show) return;
   const T = dailyToday(), L = T && LEVELS[T.levelIndex];
   if (!L) return;
-  const words = "Today's challenge: " + L.name + ", " + twistName(T.twist, T.levelIndex) + ". " + DAILY_WAVES + " waves on Normal, the same for everyone";
+  const words = "Today's challenge: " + dailyTitle(T.levelIndex) + ", " + twistName(T.twist, T.levelIndex) + ". " + DAILY_WAVES + " waves on Normal, the same for everyone";
   b.title = words;
   b.setAttribute("aria-label", words);
 }
+// a battlefield's name as the daily's door and share text give it: with its year where two battlefields share a name
+// (Stepanakert, 1992 and 2023), so the day's battle is never in doubt
+function dailyTitle(levelIndex) {
+  const L = LEVELS[levelIndex];
+  if (!L) return "";
+  return LEVELS.some(M => M !== L && M.name === L.name) && L.year ? L.name + " " + L.year : L.name;
+}
 // the daily's line on its end page: a victory, or the waves a lost one held (what a lost daily is scored by)
 function dailyDoneLine(won) {
-  if (won) return "Today's challenge is won. A daily gives your hero experience, but no stars.";
+  // (the hero's experience is promised only while the day's share of it is not used up: heroDay's cap)
+  if (won) return heroGrowth && heroGrowth.xp > 0 ? "Today's challenge is won. A daily gives your hero experience, but no stars."
+    : "Today's challenge is won. A daily gives no stars, and your hero has had today's experience.";
   const n = Math.min(lastCleared, DAILY_WAVES);
   return "You held " + n + " of " + DAILY_WAVES + (DAILY_WAVES === 1 ? " wave" : " waves") + " of today's challenge.";
 }
@@ -29488,8 +29508,8 @@ function paintVictoryCard(c, tally) {
     c.restore();
   }
 
-  // three stars for the defenders kept, the middle one raised into the crest
-  for (let i = 0; i < 3; i++) {
+  // three stars for the defenders kept, the middle one raised into the crest (none on a daily's: it gives no stars)
+  for (let i = 0; i < 3 && !tally.daily; i++) {
     victoryStar(c, cx + (i - 1) * 45, i === 1 ? 28 : 34.5, i === 1 ? 17 : 14.5, i < tally.stars, tally.k);
   }
 
@@ -29629,9 +29649,9 @@ function drawVictoryCard(alpha) {
   const tally = {
     k, lives: kept, maxLives: max, gold: Math.floor(gold || 0),
     kills: towers.reduce((n, t) => n + (t.kills || 0), 0),
-    stars: victoryStars(kept, max), best: !!celebration.best,
+    stars: victoryStars(kept, max), best: !!celebration.best, daily: !!dailyRun,
   };
-  const key = [tally.lives, tally.maxLives, tally.gold, tally.kills, k, tally.best].join("|");
+  const key = [tally.lives, tally.maxLives, tally.gold, tally.kills, k, tally.best, tally.daily].join("|");
   let sprite = victoryCards.get(key);
   if (!sprite) {
     if (victoryCards.size >= 4) victoryCards.clear();
