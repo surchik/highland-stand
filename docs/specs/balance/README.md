@@ -394,3 +394,54 @@ from these tables (RULESET stays 2, as at the build).
 par-hold +2.12 on the mean (bound 2.3: inside), most +6.7 (Van) and +6.3 (Halidzor): over 5.2's 6 on one battlefield,
 as at the build. `tools/balance-kit.js` now reads the par bound as 2.3; it needs JSON=1 lines, so the close's gate was
 worked from the tables' best columns.
+
+## G6: the daily's battle (gameplay 6.4, 8.3 (e))
+
+| File | What it is |
+| --- | --- |
+| `g6-daily-normal-seeds3.txt` | `DAILY=1 CLOCK=1 SEEDS=3`, every build, all 17 battlefields: the daily's 12-wave tables (Normal, the whole tray, the standard loadout) with no twist. Its line of pars is `DAILY_PAR` in `index.html`. |
+| `g6-daily-twists-normal-seeds3.txt` | `DAILY=1 TWIST=id CLOCK=1 SEEDS=3`, the mix, all 17 battlefields, for each of the eight twists (and `none` again, the base of the ratios). |
+| `ruleset-2.json` | `rulesetData()` again, now with its daily part (pool, twists, k 5, j 3, skip, levels, t). |
+
+How they were made (4 cores, shared with the other track; DAY=20406, the bot's default, seeds the outflankers' lines):
+
+```
+DAILY=1 CLOCK=1 SEEDS=3 JOBS=3 node tools/balance.js 1 all                       # 561 battles, 416 s
+for t in none thin swift iron few quiet noballista nocatapult nodrums; do
+  DAILY=1 TWIST=$t CLOCK=1 SEEDS=3 JOBS=3 node tools/balance.js 1 all mix          # 51 battles each, about 40 s
+done
+```
+
+The daily without a twist: the mix wins all 51 battles, and so the daily's own table is no harder than the campaign for
+the build that 6.4 measures against. The best build keeps 8.0 (Erebuni, whose daily is the default table of 12, not its
+coached table of 10) to 19.3 (Tashir). The pars (the best build's mean clock, waiting 4 s between waves):
+
+```
+erebuni 1494, tushpa 1353, avarayr 1543, dvin 1383, tashir 1132, sevan 1373, ani 1188, mari 997, sis 1579,
+gyumri 1739, halidzor 1680, van 1287, musadagh 972, sardarapat 1259, stepanakert92 2028, shushi 1117, stepanakert23 1309
+```
+
+The skip list (6.4: the pairs the mix wins on fewer than two of three seeds), 52 of the 136 pairs, plus No drums on
+Shushi, whose drums keep watch:
+
+| Twist | Battlefields skipped | Mix wins of 51 |
+| --- | --- | --- |
+| Thin purse | erebuni, avarayr, dvin, sevan, ani, gyumri, van, sardarapat, stepanakert92, shushi, stepanakert23 (11) | 17 |
+| Forced march | tushpa, dvin, tashir, van, musadagh, sardarapat, shushi, stepanakert23 (8) | 27 |
+| Iron ranks | van (1) | 47 |
+| Few defenders | erebuni, dvin, halidzor, musadagh, sardarapat (5) | 37 |
+| No spells | tushpa, dvin, tashir, van, shushi (5) | 34 |
+| No {ballista} | tushpa, avarayr, dvin, ani, mari, halidzor, van, musadagh, sardarapat, shushi, stepanakert23 (11) | 18 |
+| No {catapult} | erebuni, dvin, mari, van, stepanakert23 (5) | 36 |
+| No {drums} | erebuni, tashir, mari, sis, van (5), and shushi by the watch rule | 38 |
+
+Every battlefield keeps at least one twist: Van keeps only Few defenders, Dvin Iron ranks and No drums. Thin purse and
+No ballista are served on six battlefields each: a fifth less in bounties is a heavier blow at 12 waves than it reads, and
+the ballista slot is the mix's answer to armor and to the sky on most battlefields. The owner may want either softened
+(Thin purse at a tenth; a second struck slot instead of the ballista); nothing here changes without a new skip list.
+
+The twists' bounds for the server (`daily.t`): Few defenders sets 12 (`livesSet`); Thin purse's `earn` is worked out
+by the page as the largest share of `earnMax` any battlefield keeps under it (0.88, an upper bound); `fast` and `slow`
+are the mean ratio of the mix's clock with the twist to its clock without, over the battlefields it won both ways:
+Thin purse 1.07, Forced march 0.98, Iron ranks 1.01, No spells 1.04, No ballista 1.09, No catapult 1.07, No drums 1.06.
+The clock is mostly the foes' coming on, so a forced march is only 2% quicker; a weaker board is up to 9% slower.

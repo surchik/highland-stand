@@ -71,6 +71,12 @@
 //   EARLY=1       the bot calls each next wave early, once the current one has fully spawned and at most EARLY_N
 //                 (default 3) of its foes still walk: it gives up the clear's bonus and the free mend, and the
 //                 enemy studies the wave it cut short all the same (an A/B of the early call against the adaptive enemy)
+//   DAILY=1       the daily's battle (G6, gameplay 6.4): Normal, the battlefield's 12-wave daily table, the whole tray and
+//                 the standard loadout (KIT= is ignored), never saved. TWIST=id applies one of the page's DAILY_TWISTS
+//                 (none, the default, is the table alone: the daily's pars); a struck slot is passed over in every
+//                 build's order and in the bot's answers, and with No spells the bot casts none. DAY=n (whole days since
+//                 1 January 1970, default 20406) seeds the day's outflanker lines (gRnd). The skip list of 6.4 is the
+//                 pairs the mix wins on fewer than two of three seeds (SEEDS=3)
 //
 // What it prints, for each difficulty: one row per battlefield and one column per build. With one seed, "W 14"
 // is a stand held with 14 lives left and "L 12" a stand lost on wave 12; with several, "2/3 9.7" is two wins in
@@ -183,7 +189,7 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN, daily, twist, day } = a;
   let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
   // the battle's length (a page from before the lengths has 20 waves everywhere), and the script wave a played wave
@@ -192,8 +198,11 @@ function playBattle(a) {
   const sw = w => (typeof scriptWave === "function" ? scriptWave(w) : w);
   Math.random = mulberry32(seed);
   toast = () => {};
+  if (typeof dailyLeave === "function") dailyLeave();   // a daily played before on this page is over
   curDiff = diff; curLevel = lv;
   if (typeof setKitForTest === "function") setKitForTest(kit || "none");   // KIT= (a page before the Council has none)
+  // DAILY=1: the daily's battle (Normal, its 12-wave table, the whole tray, the standard loadout) with the twist TWIST=
+  if (daily && !dailyBegin(lv, twist, day)) throw new Error("the page refuses the daily " + twist + " on day " + day);
   resetGame();
   // what a tower and a rank cost under the kit (the page's own prices; a page before the Council has only the table's)
   const costOf = k => (typeof towerCost === "function" ? towerCost(k) : TOWER_DEFS[k].cost);
@@ -299,9 +308,9 @@ function playBattle(a) {
       if (cov < 2) {
         // a road that opens for the whole host (Mari's) brings its outflankers too: then a kind that hits them
         let kind = null;
-        const ok = k2 => k2 !== "drums" && TOWER_DEFS[k2] && !TOWER_DEFS[k2].post && (!ambush.A.legacy || TOWER_DEFS[k2].air);
+        const ok = k2 => k2 !== "drums" && TOWER_DEFS[k2] && !TOWER_DEFS[k2].post && (!ambush.A.legacy || TOWER_DEFS[k2].air) && !(typeof trayBan !== "undefined" && trayBan.includes(k2));
         for (let j = 0; j < plan.length && !kind; j++) { const k2 = plan[(towers.length - extra + j) % plan.length]; if (ok(k2)) kind = k2; }
-        kind = kind || "archer";
+        kind = kind || ["archer", "ballista"].find(k2 => !(typeof trayBan !== "undefined" && trayBan.includes(k2)));
         const r = TOWER_DEFS[kind].levels[0].range;
         let best = -1, bv = 0;
         for (const i of freePads()) { const v = hits(PADS[i][0], PADS[i][1], r, ambush.P); if (v * 4 >= 60 && v > bv) { bv = v; best = i; } }
@@ -330,6 +339,8 @@ function playBattle(a) {
       const a = typeof ageTower === "function" ? ageTower(curEra) : null, lim = a && TOWER_DEFS[a].max;
       k = a && !(lim && towers.filter(t => t.type === a).length >= lim) ? a : null;
     }
+    // a slot the daily's twist struck from the tray is passed over like a kind no free pad takes
+    if (k && typeof trayBan !== "undefined" && trayBan.includes(k)) return null;
     return k && TOWER_DEFS[k] && padFor(k) !== undefined ? k : null;
   };
   const nextKind = () => {
@@ -415,6 +426,7 @@ function playBattle(a) {
     if (n >= 3) soundCall();
   };
   const castAll = () => {
+    if (typeof spellsOff === "function" && spellsOff()) return;   // the daily's No spells
     for (const k of Object.keys(SPELLS)) {
       if (spellCd[k] > 0 || enemies.length < 4) continue;
       const ps = enemies.filter(e => !e.fly).map(e => ({ e, p: enemyPos(e) }));
@@ -554,6 +566,11 @@ function playBattle(a) {
   // played before, whose battles equal an older page's battle for battle
   const wait = Math.max(0, +(process.env.WAIT != null ? process.env.WAIT : process.env.CLOCK === "1" ? 4 : 0));
   if (!["off", "hold", "park"].includes(heroMode)) { console.error("HERO is off, hold or park"); process.exit(2); }
+  // DAILY=1: the daily's battle on each battlefield, Normal whatever the diff argument says, with TWIST= (none, the
+  // default, is the daily's table without a twist: its pars) on day DAY= (the day's seed moves its outflankers' lines)
+  const daily = process.env.DAILY === "1", twist = process.env.TWIST && process.env.TWIST !== "none" ? process.env.TWIST : null;
+  const day = +(process.env.DAY || 20406);
+  if (daily && diffs.join() !== "1") { console.error("DAILY=1 plays Normal only"); process.exit(2); }
 
   const browser = await chromium.launch();
   const errors = [];
@@ -578,7 +595,8 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)) });
+      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
+      daily, twist, day });
   }
   const results = [];
   let done = 0;
@@ -607,7 +625,7 @@ function playBattle(a) {
   };
   const score = rs => rs.filter(r => r.won).length * 1000 + rs.reduce((s, r) => s + r.lives + r.wave * 10 * !r.won, 0) / rs.length;
   for (const diff of diffs) {
-    console.log("\n" + DN[diff] + ": " + levels.length + " battlefields, " + seeds + " seed" + (seeds > 1 ? "s" : "") +
+    console.log("\n" + DN[diff] + (daily ? " daily (12 waves), twist " + (twist || "none") + ", day " + day : "") + ": " + levels.length + " battlefields, " + seeds + " seed" + (seeds > 1 ? "s" : "") +
       ", spells " + (spells ? "on" : "off") + ", masteries " + spec + ", dt " + dt.toFixed(4) + (kit !== "none" ? ", kit " + kit : "") + (heroMode !== "off" ? ", hero " + heroMode : ""));
     const W = 12, NW = 25;
     console.log(pad("battlefield", NW) + builds.map(b => pad(b, W)).join("") + "| best");

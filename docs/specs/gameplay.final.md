@@ -1563,6 +1563,22 @@ the bot and committed with the balance tables.
 for each twist the multipliers it puts on `fast`, `slow` and `earnMax` and, for Few defenders, the lives it
 sets (`livesSet`, the platform's name): Forced march makes a battle shorter; Thin purse makes it poorer.
 
+(G6 build: built as written, with these choices. `rulesetData().daily` also carries `k` (5) and `j` (3), the steps of the
+platform's pick, worked out by the page, and each battlefield's daily `min`. `dailyPick(day)` is the platform's 5.6 in
+the page, and `dailyToday()` takes `Platform.daily()` when it answers, else the device's day; `startDaily` refuses a
+battlefield, twist or day it does not know and any call while a battle is on the field. The seeded draws are a hash of
+the day's seed, the outflanker's number in the battle and the draw (`gRnd(n, k)`), not a running generator, so a
+player's spells cannot shift the next outflanker's line; the side an aircraft circles over the smoke is the same draw.
+They are used only in a daily: every other battle keeps `Math.random`, so the balance bot's seeded battles are
+unchanged. `t` gives every twist its measured `fast` and `slow` (the mix's clock with and without it: 0.98 to 1.09;
+a forced march is only 2% quicker, for the clock is mostly the foes' coming on), Thin purse's `earn` worked out as an
+upper bound (0.88), and Few defenders' `livesSet`. The skip list is 52 of the 136 pairs (docs/specs/balance/README.md,
+G6): Thin purse and No ballista are each served on six battlefields only. The way in from the map is a "Today's
+challenge" button beside the march (on a phone held sideways a 46 px square at the left of the column), shown once
+Erebuni has been fought; the card stands where "Did you know?" stands on the chronicle. A daily's end page, won or
+lost, has two doors, Fight again and the campaign map; a daily gives no stars and the page shows none. `RULESET` stays
+2: no board has opened on it, and no battlefield's pin moved.)
+
 ## 7. Analytics hooks
 
 Gameplay calls `track(name, props)`; it never waits for it and never reads from it. Props are objects of

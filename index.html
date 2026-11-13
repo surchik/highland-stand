@@ -886,6 +886,8 @@
   #overlay .bigRow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
   #overlay #resumeBtn { background: linear-gradient(180deg, #75a652, var(--green) 50%, #33552a); text-shadow: 0 1px 0 rgba(20,45,10,.9); }
   #overlay #endlessBtn { background: linear-gradient(180deg, #a57a34, #7a5622 50%, #523815); text-shadow: 0 1px 0 rgba(50,30,5,.9); }
+  /* the daily's door on the map (dailyEntry): only on the map's own page */
+  #overlay.brief #dailyBtn, #overlay.victory #dailyBtn { display: none !important; }
   /* the victory page: no map; the next battle leads on a line of its own, the quieter choices sit under it */
   #overlay.victory .chapterBar { display: none; }
   #overlay.settling { pointer-events: none; }
@@ -1185,6 +1187,7 @@
   .spell.ready { box-shadow: inset 0 0 0 2px var(--bronze-hi), inset 0 0 0 3px rgba(0,0,0,.5), 0 0 13px rgba(255,200,100,.55), 0 3px 8px rgba(0,0,0,.6); }
   .spell.casting { box-shadow: inset 0 0 0 2px #9fdc8f, inset 0 0 0 3px rgba(0,0,0,.5), 0 0 16px rgba(140,220,120,.75), 0 3px 8px rgba(0,0,0,.6); }
   .spell:disabled { cursor: default; }
+  .spell.struck { opacity: .5; }   /* a daily without spells (No spells) */
   /* cooling: the spell stays recognisable, greyed and lifted a little to leave the seconds their own line */
   .spell:disabled > .ic { filter: grayscale(.8) brightness(.62); transform: translateY(-7px) scale(.84); }
   /* the dark wedge is what is still to wait (--cd runs 1 to 0) */
@@ -2096,6 +2099,12 @@
     #overlay:not(.brief):not(.victory) .diffBtn { flex: 1 1 0; min-width: 0; min-height: 40px; justify-content: center; padding: 2px 4px; font-size: 13px; }
     #overlay:not(.brief):not(.victory) .diffBtn .seal { display: none; }
     #overlay:not(.brief):not(.victory) .bigRow { flex-direction: column; gap: 6px; flex-wrap: nowrap; }
+    /* the daily's door: a 46 px square at the left of the column, its words in its title */
+    #overlay:not(.brief):not(.victory) .bigRow.hasDaily { display: grid; grid-template-columns: 46px minmax(0, 1fr); }
+    #overlay:not(.brief):not(.victory) .bigRow.hasDaily > .big { grid-column: 2; }
+    #overlay:not(.brief):not(.victory) .bigRow.hasDaily > #dailyBtn { grid-column: 1; grid-row: 1 / span 4; align-self: end; width: 46px; height: 46px; padding: 0; }
+    #overlay:not(.brief):not(.victory) #dailyBtn span { display: none; }
+    #overlay:not(.brief):not(.victory) #dailyBtn .ic { width: 22px; height: 22px; }
     #overlay:not(.brief):not(.victory) .big { width: 100%; min-width: 0; min-height: 46px; margin: 0; padding: 6px 10px; justify-content: center; font-size: 15px; white-space: normal; line-height: 1.15; }
     #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
     #overlay:not(.brief):not(.victory) .big .ic { width: 18px; height: 18px; }
@@ -2453,6 +2462,26 @@
   @media (max-width: 500px) and (min-height: 500.02px) { #ovGrowth .ogCouncil { min-height: 44px; } }
   /* a phone's top row has no room for the seals' count beside the tally's (its words still give all 68) */
   @media (max-height: 500px), (max-width: 500px) { .briefKit { padding-left: 0; } .briefKit .bkChip { min-height: 44px; } #ovStars .num .hs { display: none; } }
+  /* the daily's card on its chronicle (dailyBrief): the day, the twist and its line, and what is the same for everyone.
+     It takes the place of the "Did you know?" line under the pager (on a phone held sideways, at the foot of the left
+     column), so it stands in view beside Begin the Stand at every size */
+  #ovDaily { display: none; justify-content: center; margin: 10px 0 0; }
+  #ovDaily.on { display: flex; grid-column: 2; grid-row: 9; order: 11; }
+  #overlay.brief.daily .ovFact { display: none !important; }
+  #ovDaily .dlyCard { display: flex; flex-direction: column; align-items: center; gap: 1px; max-width: 520px; padding: 6px 14px; border-radius: 8px; text-align: center;
+    color: #3a2408; border: 1.5px solid #8a2a1e; background: linear-gradient(180deg, rgba(246,232,196,.95), rgba(233,212,160,.95));
+    box-shadow: inset 0 0 0 2px rgba(255,246,220,.6); line-height: 1.25; }
+  #ovDaily .dlyK { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #8a2a1e; }
+  #ovDaily .dlyK .ic { width: 13px; height: 13px; }
+  #ovDaily .dlyT { font-size: 16px; }
+  #ovDaily .dlyT b { color: #5a1a10; }
+  #ovDaily .dlyS { font-size: 12px; color: #5a4020; font-style: italic; }
+  @media (max-height: 500px) {
+    #ovDaily { margin: 4px 0 0; }
+    #overlay.brief #ovDaily.on { grid-column: 1; grid-row: 5; align-self: center; }
+    #ovDaily .dlyCard { flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: 6px; padding: 2px 10px; }
+    #ovDaily .dlyT { font-size: 13px; } #ovDaily .dlyK { font-size: 11px; letter-spacing: 0; text-transform: none; } #ovDaily .dlyS { display: none; }
+  }
 
   /* ================= platform (docs/specs/platform.final.md) =================
      Everything of the platform's that is styled: the Hall and its doors here; the gate, the score strip, the
@@ -3672,6 +3701,7 @@
     <div id="ovRecord"></div>
     <div id="ovGrowth"></div>
     <div id="ovRubric"></div>
+    <div id="ovDaily" role="note"></div>
     <div class="sub" id="ovSub">
       Kingdom of Urartu, 8th century BC. The armies of Assyria march across the Armenian
       Highlands. Raise towers along the mountain roads, upgrade them into masteries,
@@ -3703,6 +3733,7 @@
   <div class="ovFoot">
   <div class="diffRow" id="diffRow"></div>
   <div class="bigRow">
+    <button class="big quiet" id="dailyBtn" style="display:none"><svg class="ic"><use href="#i-horn"/></svg><span>Today's challenge</span></button>
     <button class="big" id="resumeBtn" style="display:none"><svg class="ic"><use href="#i-play"/></svg>Resume</button>
     <button class="big" id="endlessBtn" style="display:none"><svg class="ic"><use href="#i-shield"/></svg>Hold Forever</button>
     <button class="big quietable" id="mapBtn" style="display:none"><svg class="ic"><use href="#i-flag"/></svg>Campaign Map</button>
@@ -9816,7 +9847,14 @@ function levelUnits(L) { return (L && L.units) || {}; }
 function eraUnit(role) {
   const L = LEVELS[curLevel];
   const own = L && L.era === curEra ? levelUnits(L)[role] : null, O = own && rules1Row();
-  return Object.assign({}, ENEMY_DEFS[role], ERAS[curEra].units[role], own, O && O.units && O.units[role]);
+  const u = Object.assign({}, ENEMY_DEFS[role], ERAS[curEra].units[role], own, O && O.units && O.units[role]);
+  // a daily's twist: every foe marches faster (Forced march), the rank and file wear more armor (Iron ranks)
+  if (dailyRun) {
+    const fx = dailyRun.fx;
+    if (fx.spd !== 1) u.spdMult = (u.spdMult || 1) * fx.spd;
+    if (fx.armor && fx.armorRoles.includes(role)) u.armorAdd = (u.armorAdd || 0) + fx.armor;
+  }
+  return u;
 }
 // the word in "<foe> forces advance" (and "<foe> host on the march" under the oldest ages' wave banners)
 function foeName() {
@@ -10236,7 +10274,7 @@ function scriptOk(S) {
 // ruleset) gets the battlefield's own table
 let runScript = null, runScriptLv = -1;
 function setRunScript(S) { runScript = S.slice(); runScriptLv = curLevel; }
-function curScript() { return runScript && runScriptLv === curLevel ? runScript : levelScript(LEVELS[curLevel]); }
+function curScript() { return runScript && runScriptLv === curLevel ? runScript : levelScript(LEVELS[curLevel], !!dailyRun); }
 function totalWaves() { return curScript().length; }
 // the old constant's name, read as the battle's length: the platform's tests (tools/platform/p0.js) stage a victory with
 // `waveIdx = TOTAL_WAVES`, a file this track does not edit (RULINGS S7); this keeps them true until they read totalWaves()
@@ -10405,12 +10443,13 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // RULESET names the rules a score is earned under. 1 was the game of twenty waves on every battlefield (it exists for
 // the tests and pins of G1 and is never published); 2 is the 17 lengths of the script map, each battlefield retuned
 // (G4), with the Garrison Post in every battlefield's tray (G5: released together, R3, so the pins were written anew
-// and the number kept, no board having opened on G4's). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// and the number kept, no board having opened on G4's), and the daily's part (G6: the same, no board having opened yet;
+// every battlefield's own pin is unmoved). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
 // number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "450cadda";
+const RULESET_PIN = "e25854e1";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10466,6 +10505,8 @@ function towerUnlocked(kind) {
 function trayTypes() {
   if (runTray) return runTray;
   if (tutGentle) return TRAY_BASE.slice();
+  // a daily: the battlefield's whole tray for everyone, less the slot the twist strikes
+  if (dailyRun) return trayStandard(curEra).filter(k => TOWER_DEFS[k] && !trayBan.includes(k));
   const out = TRAY_BASE.filter(k => !trayBan.includes(k));
   if (towerUnlocked("post")) out.push("post");
   const a = ageTower(curEra);
@@ -10484,6 +10525,179 @@ function savedTray(x) {
   if (!Array.isArray(x)) return TRAY_BASE.slice();
   if (x.length > 7 || !TRAY_BASE.every(k => x.includes(k)) || !x.every(k => typeof k === "string" && TOWER_DEFS[k]) || new Set(x).size !== x.length) return null;
   return x.slice();
+}
+
+// ---------- the daily's battle (docs/specs/gameplay.final.md 6.4) ----------
+// One battlefield and one twist a day, the same for everyone: Normal, a 12-wave stand on the battlefield's daily table
+// (DAILY_WAVES, levelScript(L, true)), the standard loadout with the battlefield's whole tray (whether or not the
+// campaign has reached those towers), and the twist applied. A daily is one sitting: it is never saved to resume, it
+// writes no record and opens no road, and it leaves a campaign battle in progress (hs_run) alone. The platform picks
+// the day's pair from rulesetData().daily and passes the day (startDaily); with the platform off the page picks it the
+// same way from the device's clock (dailyToday), so the battle is the same either way.
+// dailyRun, while a daily is chosen (its chronicle) or fought: { day, date, lv, twist, seed, fx }. day: whole days since
+// 1 January 1970 UTC; date: that day as "YYYY-MM-DD" (the hero's daily cap counts by it); seed: the day's and the
+// battlefield's, for gRnd; fx: what the twist sets (dailyFx)
+let dailyRun = null;
+// A twist sets knobs the game already has, so none needs new art: bounties (foeBounty), the foes' march (spdMult) and
+// armor (armorAdd, eraUnit), the defenders a battle begins with (livesMax), the spells (spellsOff) and a slot struck
+// from the tray (trayBan). `name` and `line` are its card; "{name}" is the battlefield's own name for the struck slot
+// (twistName). The fire slot is never struck: it is the watch tower on most battlefields. Held back until these eight
+// have run a month: scouts, sappers, pair, wary, press (6.4)
+const DAILY_TWISTS = [
+  { id: "thin", name: "Thin purse", line: "Bounties are a fifth lower today.", apply: fx => { fx.bounty = 0.8; } },
+  { id: "swift", name: "Forced march", line: "Every foe marches 15% faster today.", apply: fx => { fx.spd = 1.15; } },
+  { id: "iron", name: "Iron ranks", line: "The rank and file wear 3 more armor today.",
+    apply: fx => { fx.armor = 3; fx.armorRoles = ["raider", "spearman", "shield", "cavalry"]; } },
+  { id: "few", name: "Few defenders", line: "You have 12 defenders today.", apply: fx => { fx.lives = 12; } },
+  { id: "quiet", name: "No spells", line: "No spells today.", apply: fx => { fx.spells = false; } },
+  { id: "noballista", slot: "ballista", name: "No {name}", line: "No {name} today.", apply: fx => { fx.ban = ["ballista"]; } },
+  { id: "nocatapult", slot: "catapult", name: "No {name}", line: "No {name} today.", apply: fx => { fx.ban = ["catapult"]; } },
+  { id: "nodrums", slot: "drums", name: "No {name}", line: "No {name} today.", apply: fx => { fx.ban = ["drums"]; } },
+];
+function twistById(id) { return DAILY_TWISTS.find(T => T.id === id) || null; }
+// a slot's name on a battlefield (its own, else its age's), read without moving the battle's globals
+function slotNameAt(type, levelIndex) {
+  const keep = [curLevel, curEra];
+  try { curLevel = levelIndex; curEra = LEVELS[levelIndex].era; return towerName(type); } finally { [curLevel, curEra] = keep; }
+}
+// a twist's name and its card's line on a battlefield (the share text reads twistName, RULINGS S5)
+function twistName(id, levelIndex) {
+  const T = twistById(id);
+  if (!T) return "";
+  return T.slot && LEVELS[levelIndex] ? T.name.replace("{name}", slotNameAt(T.slot, levelIndex)) : T.name.replace("{name}", T.slot ? towerName(T.slot) : "");
+}
+function twistLine(id, levelIndex) {
+  const T = twistById(id);
+  if (!T) return "";
+  return T.slot ? twistName(id, levelIndex) + " today." : T.line;
+}
+// what the twist of the daily being fought sets; the neutral knobs outside a daily
+const DAILY_FX_NONE = Object.freeze({ bounty: 1, spd: 1, armor: 0, armorRoles: Object.freeze([]), lives: 0, spells: true, ban: Object.freeze([]) });
+function dailyFxOf(id) {
+  const fx = { bounty: 1, spd: 1, armor: 0, armorRoles: [], lives: 0, spells: true, ban: [] }, T = twistById(id);
+  if (T) T.apply(fx);
+  return fx;
+}
+function dailyFx() { return dailyRun ? dailyRun.fx : DAILY_FX_NONE; }
+// the defenders this battle began with: the difficulty's, or the twist's (Few defenders)
+function livesMax() { return (dailyRun && dailyRun.fx.lives) || (DIFFS[curDiff] || DIFFS[1]).lives; }
+// the three spells are off (No spells)
+function spellsOff() { return !!dailyRun && !dailyRun.fx.spells; }
+// The pairs the daily never serves, by battlefield: those the balance bot's mix cannot win on two of three seeds on
+// the daily's table (DAILY=1 TWIST=id, docs/specs/balance/g6-daily-twists-normal-seeds3.txt): 52 of the 136. dailyRules
+// adds No drums wherever the drums are the watch tower (Shushi's lookouts). Every battlefield keeps at least one twist
+// (Van only Few defenders)
+const DAILY_SKIP = {
+  erebuni: ["thin", "few", "nocatapult", "nodrums"], tushpa: ["swift", "quiet", "noballista"], avarayr: ["thin", "noballista"],
+  dvin: ["thin", "swift", "few", "quiet", "noballista", "nocatapult"], tashir: ["swift", "quiet", "nodrums"], sevan: ["thin"],
+  ani: ["thin", "noballista"], mari: ["noballista", "nocatapult", "nodrums"], sis: ["nodrums"], gyumri: ["thin"], halidzor: ["few", "noballista"],
+  van: ["thin", "swift", "iron", "quiet", "noballista", "nocatapult", "nodrums"], musadagh: ["swift", "few", "noballista"],
+  sardarapat: ["thin", "swift", "few", "noballista"], stepanakert92: ["thin"], shushi: ["thin", "swift", "quiet", "noballista"],
+  stepanakert23: ["thin", "swift", "noballista", "nocatapult"],
+};
+// The daily's par on each battlefield: the battle clock of the bot's best build on the daily's 12-wave table, Normal,
+// the mean of its victories at SEEDS=3, waiting the 4 s between waves (docs/specs/balance/g6-daily-normal-seeds3.txt)
+const DAILY_PAR = {
+  erebuni: 1494, tushpa: 1353, avarayr: 1543, dvin: 1383, tashir: 1132, sevan: 1373, ani: 1188, mari: 997, sis: 1579,
+  gyumri: 1739, halidzor: 1680, van: 1287, musadagh: 972, sardarapat: 1259, stepanakert92: 2028, shushi: 1117, stepanakert23: 1309,
+};
+// What a twist does to a daily's bounds on the server (platform 2.4): multipliers on fast and slow (a forced march
+// makes a battle shorter) and on earnMax (a thin purse makes it poorer), or the defenders set outright (livesSet).
+// earn is worked out in rulesetData (an upper bound over every battlefield). fast and slow are measured: the mean, over
+// the battlefields the mix won both ways, of its clock with the twist against without (docs/specs/balance/
+// g6-daily-twists-normal-seeds3.txt). The clock is mostly the foes' coming on, so no twist moves it by more than a tenth
+const DAILY_T = {
+  thin: { fast: 1.07, slow: 1.07 }, swift: { fast: 0.98, slow: 0.98 }, iron: { fast: 1.01, slow: 1.01 }, few: { livesSet: 12 },
+  quiet: { fast: 1.04, slow: 1.04 }, noballista: { fast: 1.09, slow: 1.09 }, nocatapult: { fast: 1.07, slow: 1.07 }, nodrums: { fast: 1.06, slow: 1.06 },
+};
+const gcdOf = (a, b) => (b ? gcdOf(b, a % b) : a);
+// The pool, the twists, the two steps and the skip lists (platform 5.6): k the smallest whole number from 5 that
+// shares no factor with the pool's size (17: 5), j the smallest from 3 that shares none with the twists' (8: 3)
+// (worked out once: every part of it is fixed in the page; a copy is handed out, so no caller can change it)
+let dailyRulesOnce = null;
+function dailyRules() {
+  if (!dailyRulesOnce) dailyRulesOnce = dailyRulesMake();
+  return JSON.parse(dailyRulesOnce);
+}
+function dailyRulesMake() {
+  const pool = LEVELS.map(L => L.id), twists = DAILY_TWISTS.map(T => T.id);
+  let k = 5, j = 3;
+  while (gcdOf(k, pool.length) !== 1) k++;
+  while (gcdOf(j, twists.length) !== 1) j++;
+  const skip = {};
+  for (const L of LEVELS) {
+    const s = (DAILY_SKIP[L.id] || []).slice();
+    if (((L.tricks && L.tricks.watch) || ["fire"]).includes("drums")) s.push("nodrums");
+    const list = twists.filter(t => s.includes(t));
+    if (list.length) skip[L.id] = list;
+  }
+  return JSON.stringify({ pool, twists, k, j, skip });
+}
+// a day as whole days since 1 January 1970 UTC: a number, or a date "YYYY-MM-DD"; NaN for anything else
+function dailyDayNum(day) {
+  if (typeof day === "number") return Number.isInteger(day) && day >= 0 && day < 1e6 ? day : NaN;
+  const m = typeof day === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 : NaN;
+}
+function dailyDate(d) { return new Date(d * 86400000).toISOString().slice(0, 10); }
+// "November 13", the day's own words on its card
+function dailyDateWords(d) {
+  const t = new Date(d * 86400000);
+  return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][t.getUTCMonth()] + " " + t.getUTCDate();
+}
+// The day's battlefield and twist, from the day alone (platform 5.6, the same lines as the server's _daily_pick):
+// every battlefield once in 17 days and never two days running; over 17 x 8 days every pair once; a pair in the skip
+// list steps on to the next twist
+function dailyPick(day) {
+  const R = dailyRules(), d = dailyDayNum(day), n = R.pool.length, m = R.twists.length;
+  if (!(d >= 0)) return null;
+  const id = R.pool[(d * R.k) % n], i = ((d % n) * R.j + Math.floor(d / n)) % m, skip = R.skip[id] || [];
+  let twist = R.twists[i];
+  for (let s = 0; s < m; s++) { twist = R.twists[(i + s) % m]; if (!skip.includes(twist)) break; }
+  return { levelIndex: levelIndexOf(id), twist, day: d };
+}
+// Today's daily: the platform's when it has one (the server's day, P6), else the page's own pick from the device's
+// clock (the platform's clock, corrected by the server's when it has heard from it). { levelIndex, twist, day, server }
+function dailyToday() {
+  let P = null, now = Date.now();
+  try { P = Platform.daily(); } catch (e) { P = null; }
+  if (P && LEVELS[P.levelIndex] && twistById(P.twist) && dailyDayNum(P.day) >= 0) return { levelIndex: P.levelIndex, twist: P.twist, day: dailyDayNum(P.day), server: true };
+  try { now = Platform.now(); } catch (e) {}
+  return Object.assign(dailyPick(Math.floor(now / 86400000)), { server: false });
+}
+// The few draws that move foes in a daily (an outflanker's entry, its line over a lake, the side an aircraft circles)
+// come from the day and the battlefield, so every player meets the same lines: gRnd(n, k) is the k-th draw of the n-th
+// outflanker of the battle, a hash of the two and the day's seed, the same whatever else the player does. Looks
+// (particles, sheep) keep Math.random, and so does every battle that is not a daily (the balance bot's seeded battles)
+function hashStr(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  return h >>> 0;
+}
+function gRnd(n, k) {
+  let h = ((dailyRun ? dailyRun.seed : 0) ^ Math.imul(n + 1, 0x9e3779b1) ^ Math.imul(k + 1, 0x85ebca6b)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d); h = Math.imul(h ^ (h >>> 15), 0x846ca68b); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+let dailyFlyers = 0;   // the outflankers a daily has sent so far (resetGame): each one's number for gRnd
+// The daily's state set for a battle, without a page: its battlefield, Normal, the twist and the day. The chronicle
+// (startDaily) and the balance bot (DAILY=1) begin from here; resetGame then lays out the battle. A null twist is the
+// daily's table with no twist, for the bot's pars and the tests
+function dailyBegin(levelIndex, twistId, day) {
+  const d = dailyDayNum(day);
+  if (!(Number.isInteger(levelIndex) && LEVELS[levelIndex]) || (twistId != null && !twistById(twistId)) || !(d >= 0)) return false;
+  const L = LEVELS[levelIndex], fx = dailyFxOf(twistId);
+  dailyRun = { day: d, date: dailyDate(d), lv: L.id, twist: twistId || null, seed: hashStr(d + ":" + L.id), fx };
+  trayBan = fx.ban.slice();
+  curLevel = levelIndex; curEra = L.era; curDiff = 1;
+  return true;
+}
+// a daily left for the campaign (the map, a campaign chronicle, a resumed run): its state goes, and the difficulty the
+// player chose comes back
+function dailyLeave() {
+  if (!dailyRun) return;
+  dailyRun = null; trayBan = [];
+  curDiff = prefDiff;
 }
 
 // ---------- the War Council: stars spent on a tree, and the kit a battle is fought with (gameplay 4.1 to 4.3) ----------
@@ -10686,6 +10900,7 @@ function kitEmpty(k) { return !k || (kitPower(k) === 0 && (k.hero | 0) <= 1 && !
 // The kit of a battle about to begin: none in a Standard battle and in the coached stand (the tutorial is the same
 // battle for everyone), else what the player owns. The balance bot sets its own (KIT=, setKitForTest)
 function battleKit() {
+  if (dailyRun) return KIT_EMPTY;   // a daily is fought in the standard loadout, whatever the bot's KIT= says
   if (kitTest) return kitForTest(kitTest, curLevel);
   return standardBattle || tutGentle ? KIT_EMPTY : playerKit();
 }
@@ -10738,8 +10953,8 @@ function heroXpFor(won, cleared, diff) {
   const R = HERO_XP_RULE, D = R.diff[diff] == null ? 1 : R.diff[diff];
   return Math.round(D * (R.wave * Math.max(0, Math.min(SCRIPT_LEN, scriptWave(cleared | 0))) + (won ? R.win : 0)));
 }
-// The day a daily is fought on, for its cap of 150 a day; null for every other battle (the daily comes with G6)
-function heroDay() { return null; }
+// The day a daily is fought on, for its cap of 150 a day; null for every other battle
+function heroDay() { return dailyRun ? dailyRun.date : null; }
 // Experience joins a chapter (a battle's end). Test mode gives none. Written on top of what the chapter reads now
 // (the veteran's floor included), so a battle always adds what it earned. Tells hero_level when the level rises.
 // Returns { ch, from, to, xp }: what the victory page's strip fills
@@ -10967,39 +11182,47 @@ function rulesOnly(v) {
   return v === undefined ? null : v;
 }
 function rulesetData() {
-  const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv, rules1Tune];
+  const keep = [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv, rules1Tune, dailyRun, trayBan];
   const plunder = Math.max(0, ...Object.values(TOWER_DEFS).map(T => Math.max(0, ...Object.values(T.specs || {}).map(s => s.stats.plunder || 0))));
   // the 20-step script every battlefield plays steps of: its climb of strength and thinning of bounties
   const full = SCRIPT_TABLES[SCRIPT_LEN];
   const shared = rulesHash(JSON.stringify(rulesOnly([DIFFS, ENEMY_DEFS, TRICK_RULES, TOWER_HP, SPELLS, HERO_DPS, ERA_POWER, PAY, POST_RULES,
     full.map(w => [hpScale(w), commanderClimb(w), bountyScale(w)])])));
-  const levels = {};
+  const levels = {}, dLevels = {};
+  let thinEarn = 0;
+  // the shortest a battle can be (min: the sum over its waves of the moment its last foe comes on) and the most it can
+  // pay (the starting purse, every bounty with the plunder mastery, every clear's bonus, the interest and an early call
+  // at their caps on every wave), on the battlefield, difficulty and table in force
+  const bounds = (L, D) => {
+    const played = curScript().map((_, k) => k + 1);
+    let min = 0, pay = D.gold + 15 * L.era + (trickEcon("gold") || 0);
+    for (const w of played) {
+      const plan = wavePlan(w), unit = {};
+      if (plan.length) min += plan[plan.length - 1].t;
+      for (const q of plan) {
+        let b = foeBounty(unit[q.type] || (unit[q.type] = eraUnit(q.type)), w);
+        // a hidden scout and a tower hunter pay more (applyTrickToFoe)
+        if (q.trick === "hidden") b = Math.round(b * TRICK_RULES.hidden.bounty);
+        if (q.trick === "hunter") b = Math.round(b * TRICK_RULES.hunters.bounty);
+        pay += b + Math.ceil(b * plunder);
+      }
+      // the clear's bonus of every script wave the wave pays for, the interest at its cap and an early call at its cap
+      // as many times (1.4)
+      for (const sw of paidWaves(w)) pay += PAY.clear[0] + sw * PAY.clear[1];
+      pay += (PAY.interestCap + PAY.earlyCap) * payStep(w);
+    }
+    return { min: Math.floor(min), earnMax: Math.ceil(pay * 1.1) };
+  };
   try {
-    trickLegacy = false; tutGentle = false; endless = false; runScript = null; runScriptLv = -1; rules1Tune = false;
+    trickLegacy = false; tutGentle = false; endless = false; runScript = null; runScriptLv = -1; rules1Tune = false; dailyRun = null; trayBan = [];
     LEVELS.forEach((L, i) => {
-      curLevel = i; curEra = L.era;
+      curLevel = i; curEra = L.era; dailyRun = null;
       const P = LEVEL_PAR[L.id] || 0, script = levelScript(L), played = script.map((_, k) => k + 1);
       const d = DIFFS.map((D, di) => {
         curDiff = di;
         const par = Array.isArray(P) ? P[di] || 0 : P;   // a par for each difficulty (ruleset 2), or one for all three
-        let min = 0, pay = D.gold + 15 * L.era + (trickEcon("gold") || 0);
-        for (const w of played) {
-          const plan = wavePlan(w), unit = {};
-          if (plan.length) min += plan[plan.length - 1].t;
-          for (const q of plan) {
-            let b = foeBounty(unit[q.type] || (unit[q.type] = eraUnit(q.type)), w);
-            // a hidden scout and a tower hunter pay more (applyTrickToFoe)
-            if (q.trick === "hidden") b = Math.round(b * TRICK_RULES.hidden.bounty);
-            if (q.trick === "hunter") b = Math.round(b * TRICK_RULES.hunters.bounty);
-            pay += b + Math.ceil(b * plunder);
-          }
-          // the clear's bonus of every script wave the wave pays for, the interest at its cap and an early call at its cap
-          // as many times (1.4)
-          for (const sw of paidWaves(w)) pay += PAY.clear[0] + sw * PAY.clear[1];
-          pay += (PAY.interestCap + PAY.earlyCap) * payStep(w);
-        }
-        min = Math.floor(min);
-        return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax: Math.ceil(pay * 1.1) };
+        const { min, earnMax } = bounds(L, D);
+        return { lives: D.lives, min, fast: Math.max(min, Math.round(0.6 * par)), slow: Math.round(1.4 * par), earnMax };
       });
       const fight = rulesHash(shared + JSON.stringify(rulesOnly({
         era: [ERAS[L.era].hpMult, ERAS[L.era].bounty, eraPower(), droneWar()],
@@ -11012,11 +11235,27 @@ function rulesetData() {
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
         pads: L.pads.length + (L.plots || []).length, tray: trayStandard(L.era).join(","), fight, d };
+      // the daily's own table on this battlefield (RULINGS S5): Normal, 12 waves, its own par. A Thin purse pays less:
+      // its multiplier on earnMax is the largest share any battlefield keeps, so it is an upper bound everywhere
+      curDiff = 1;
+      dailyRun = { day: 0, date: "", lv: L.id, twist: null, seed: 0, fx: dailyFxOf(null) };
+      const dS = levelScript(L, true), dPar = DAILY_PAR[L.id] || 0, b = bounds(L, DIFFS[1]);
+      dLevels[L.id] = { script: dS.slice(), min: b.min, fast: Math.max(b.min, Math.round(0.6 * dPar)), slow: Math.round(1.4 * dPar), earnMax: b.earnMax };
+      dailyRun.fx = dailyFxOf("thin");
+      thinEarn = Math.max(thinEarn, bounds(L, DIFFS[1]).earnMax / b.earnMax);
+      dailyRun = null;
     });
-  } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv, rules1Tune] = keep; }
-  // the daily's part is empty until the daily's battle is built (6.4): no pool, so no day has a battle
+  } finally { [curLevel, curDiff, curEra, trickLegacy, tutGentle, endless, runScript, runScriptLv, rules1Tune, dailyRun, trayBan] = keep; }
+  // The daily's part (6.4, platform 2.4 and 5.6): its pool and twists, the two steps of its pick, its difficulty,
+  // attempts and length, the pairs it never serves, each battlefield's own table, and what each twist does to the bounds
+  const R = dailyRules(), t = {};
+  for (const id of R.twists) {
+    const m = Object.assign({}, DAILY_T[id] || {});
+    if (id === "thin") m.earn = Math.ceil(thinEarn * 100) / 100;
+    if (Object.keys(m).length) t[id] = m;
+  }
   return { v: 1, score: Object.assign({}, SCORE_WEIGHTS), levels,
-    daily: { pool: [], twists: [], diff: 1, attempts: 3, waves: 12, skip: {}, levels: {}, t: {} } };
+    daily: { pool: R.pool, twists: R.twists, k: R.k, j: R.j, diff: 1, attempts: 3, waves: DAILY_WAVES, skip: R.skip, levels: dLevels, t } };
 }
 // the pins as the page works them out now: { all, levels: { id: pin } }
 function rulesetPins() {
@@ -12208,20 +12447,22 @@ function updateSpellBar() {
   document.querySelectorAll("#spellbar .spell").forEach(b => {
     const key = b.dataset.spell;
     if (!key) return;
-    const cd = spellCd[key];
+    const cd = spellCd[key], off = spellsOff();
     const label = cd > 0 ? String(Math.ceil(cd)) : SPELLS[key].hotkey;
-    const state = (cd > 0 ? "cd" : "rdy") + (castingSpell === key ? "+cast" : "") + label;
+    const state = (off ? "off" : cd > 0 ? "cd" : "rdy") + (castingSpell === key ? "+cast" : "") + label;
     if (spellBtnCache[key] === state) return;
     spellBtnCache[key] = state;
-    b.classList.toggle("ready", cd <= 0);
+    b.classList.toggle("ready", cd <= 0 && !off);
     b.classList.toggle("casting", castingSpell === key);
-    b.disabled = cd > 0;
+    b.classList.toggle("struck", off);   // a daily without spells: the buttons stand dimmed
+    b.disabled = cd > 0 || off;
     setSpellCooldown(b, cd, spellWait(key));
   });
 }
 
 function trySelectSpell(key) {
   if (gameOver || !overlayEl.classList.contains("hidden")) return;
+  if (spellsOff()) { toast("No spells today."); return; }   // a daily's twist (No spells)
   if (spellCd[key] > 0) return;
   castingSpell = castingSpell === key ? null : key;
   if (castingSpell) setPlacing(null);
@@ -12229,6 +12470,7 @@ function trySelectSpell(key) {
 }
 
 function castSpell(key, x, y) {
+  if (spellsOff()) { castingSpell = null; return; }
   const S = SPELLS[key];
   spellCd[key] = spellWait(key);
   battle[key]++; battle.wSpells++;
@@ -12255,7 +12497,8 @@ function castSpell(key, x, y) {
       const p = enemyPos(e);
       // e.hold: what holds the foe, so it is drawn iced, behind a barricade or simply halted in the smoke
       if (inGroundRange(x, y, p.x, p.y, S.radius + e.r)) {
-        e.stunT = Math.max(e.stunT, 3); e.flash = 0.1; e.hold = look; e.holdSeed = Math.random();
+        // (holdSeed sets the side an aircraft circles: the day's draw for a daily's outflanker)
+        e.stunT = Math.max(e.stunT, 3); e.flash = 0.1; e.hold = look; e.holdSeed = e.fn >= 0 ? gRnd(e.fn, 4) : Math.random();
         // the frost of the old ages holds what it touches; a smoke screen cannot stop an aircraft in the air,
         // so one caught over it goes round instead (circleAircraft)
         if (look !== "frost" && unitAirborne(e, p)) circleAircraft(e);
@@ -12847,6 +13090,8 @@ function battleEarn(n, why) { battle.earned += n; battle[why] += n; }
 // Call alone leave it "std": they are worth about +0.67 at hold on the five worst battlefields, inside the bound, and
 // with them every battle after Erebuni would be open and the Standard boards would stay empty
 function battleLoadout() { return battle.gift > 0 || kitPower(kit) > 0 ? "open" : "std"; }
+// the battle's mode as the events name it: "campaign", "daily" or "endless"
+function battleMode() { return endless ? "endless" : dailyRun ? "daily" : "campaign"; }
 // never ranked at all: the coached first stand, test mode, an endless stand, a run under older rules
 function battleRanked() { return !(battle.tutorial || tutGentle || testAided || testUnlockAll || endless || battle.rules !== RULESET); }
 // a wave is sent on a clear field (startWave): the clock starts with the first, and the battle is told once
@@ -12858,8 +13103,8 @@ function battleHorn() {
   track("battle_start", battleStartProps(false));
 }
 function battleStartProps(resumed) {
-  const p = { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", loadout: battleLoadout(),
-    ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: null,
+  const p = { lv: levelId(curLevel), diff: curDiff, mode: battleMode(), loadout: battleLoadout(),
+    ruleset: String(battle.rules), ranked: battleRanked(), resumed: !!resumed, tutorial: battle.tutorial || tutGentle, twist: dailyRun ? dailyRun.twist : null,
     rev: LEVEL_REV[levelId(curLevel)] || 1, waves: totalWaves(), tray: trayTypes().join(","), power: kitPower(kit), hero: kit.hero || 1, legacy: battle.rules !== RULESET };
   // a resume also tells the clock, the debt and the dropped attempt's loss it came back with, so the platform can
   // see a saved run whose clock went back (a save edited by hand) under the same run token
@@ -12878,7 +13123,7 @@ function battleWaveEnd() {
     battle.debt += Math.max(0, battle.dropped - lostNow);
     battle.redoW = 0; battle.dropped = 0;
   }
-  track("wave_end", { lv: levelId(curLevel), diff: curDiff, mode: endless ? "endless" : "campaign", wave: waveIdx, lives,
+  track("wave_end", { lv: levelId(curLevel), diff: curDiff, mode: battleMode(), wave: waveIdx, lives,
     gold: Math.round(gold), towers: towers.length, sec: Math.round(battle.sec), early: battle.wEarly,
     sw: Math.min(SCRIPT_LEN, scriptWave(waveIdx)), lost: lostNow, ranks: battle.wRanks, masteries: battle.wMasteries, spells: battle.wSpells,
     calls: battle.wCalls, rallies: 0, fired: 0, repairs: battle.wRepairs, idle: Math.round(battle.wIdle) });
@@ -12892,7 +13137,7 @@ function battleWaveEnd() {
 // the boards count (above). left = earned - spent + refunds. The Council's and the hero's fields are those of
 // the kit to come: none is in force today.
 function battleFacts() {
-  const B = battle, L = LEVELS[curLevel] || LEVELS[0], max = (DIFFS[curDiff] || DIFFS[1]).lives, n = x => Math.round(x) || 0;
+  const B = battle, L = LEVELS[curLevel] || LEVELS[0], max = livesMax(), n = x => Math.round(x) || 0;
   const lost = Math.max(0, max - lives + B.returned), held = max - lost;
   const won = !endless && gameOver && lives > 0 && lastCleared >= totalWaves();
   const stand = {};
@@ -12904,12 +13149,12 @@ function battleFacts() {
   const worst = Object.keys(roads).sort((a, b) => roads[b] - roads[a])[0];
   return {
     // the contract (platform spec 0.3 and 7.2)
-    lv: L.id, diff: curDiff, mode: endless ? "endless" : "campaign",
+    lv: L.id, diff: curDiff, mode: battleMode(),
     ruleset: String(B.rules), rev: LEVEL_REV[L.id] || 1, loadout: battleLoadout(),
     wave: lastCleared, waves: totalWaves(),
     lives, lives_max: max, held, lives_board: Math.max(0, held - B.debt), stars: won ? victoryStars(held, max) : 0,
     sec: n(B.sec), spent: n(B.spent), earned: n(B.earned),
-    twist: null,
+    twist: dailyRun ? dailyRun.twist : null,
     through: roles.slice(0, 3).map(k => k + ":" + leaks[k].n).join(","),
     road: worst === undefined ? null : worst === "off" ? "off" : Number(worst),
     legacy: B.rules !== RULESET, resumed: B.resumed,
@@ -13087,7 +13332,7 @@ function markWaveStart() {
   waveSpent = 0;
 }
 function saveRun() {
-  if (gameOver) return;
+  if (gameOver || dailyRun) return;   // a daily is one sitting: never saved to resume, and hs_run is left as it was
   let run = runRecord();
   if (phase === "wave" && waveStart) {
     const sent = JSON.parse(waveStart.json), purse = waveStart.gold - waveSpent;
@@ -13120,7 +13365,8 @@ function saveRun() {
   }
   try { localStorage.setItem("hs_run", JSON.stringify(run)); } catch (e) {}
 }
-function clearRun() { localStorage.removeItem("hs_run"); }
+// (a daily leaves the campaign's saved run alone: its end, a defeat or Abandon clear nothing)
+function clearRun() { if (!dailyRun) localStorage.removeItem("hs_run"); }
 // the leak tally of a saved run, checked entry by entry (a run saved before the tally existed has none). A road is
 // kept only if this battlefield still has it ("off", or a route of ROUTES, which resumeRun has loaded by now): a run
 // saved before its roads were redrawn may name one that is gone
@@ -13180,6 +13426,7 @@ function validRun(r) {
 function resumeRun() {
   const r = getSavedRun();
   if (!r) return;
+  dailyLeave();   // a campaign battle resumed (from the map): no daily is in force
   curLevel = r.lvl; curEra = r.era; curDiff = r.diff;
   Snd.init();
   overlayEl.classList.add("hidden");
@@ -13252,17 +13499,17 @@ function resetGame() {
   tutGentle = false;
   loadLevel(curLevel);
   // the battle's table: the battlefield's own (a resumed run then puts back the one it was begun with)
-  setRunScript(levelScript(LEVELS[curLevel]));
+  setRunScript(levelScript(LEVELS[curLevel], !!dailyRun));
   rules1Tune = false;
+  dailyFlyers = 0;
   runTray = null; rallying = null;
-  const D = DIFFS[curDiff];
   curEra = LEVELS[curLevel].era;   // each battlefield fights its own age
   trickLegacy = false;
   resetTricks();
   ambushPuffs = []; ambushTellT = 0;
   // the kit is fixed as the battle begins (the War Council's tiers): the purse, the hero and every tower read it
   setKit(battleKit());
-  gold = startPurse(); lives = D.lives;
+  gold = startPurse(); lives = livesMax();
   resetBattle();
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
@@ -13485,6 +13732,8 @@ Snd.SFX.record = function (v, t) {
 // the end of a stand (and every wave an endless stand clears) is written to the save. It returns the words of
 // a "New best" ribbon, or null
 function saveBest() {
+  // a daily writes no record and opens no road (hs_best_*, hs_records): it gives no stars
+  if (dailyRun) return null;
   // test mode opens every battlefield for a visit: a stand won there out of turn is not saved as conquered.
   // Only test mode can fight where the campaign has not reached, and its run may have been saved and resumed
   // after a reload that forgot it, so the road itself is asked, not the mode
@@ -13625,7 +13874,7 @@ function foeSpeed(d) { return d.spd * (d.spdMult || 1); }
 // short battle's board must be as built at its last wave as a long one's)
 function foeBounty(d, w) {
   const s = scriptWave(w);
-  return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(s) * (trickEcon("bounty", s) || 1) * payStep(w)));
+  return Math.max(1, Math.round(d.bounty * ERAS[curEra].bounty * bountyScale(s) * (trickEcon("bounty", s) || 1) * dailyFx().bounty * payStep(w)));
 }
 // a battlefield's economy knob (L.tricks.econ: gold added at the start, bounty multiplied, from script wave `from`
 // if it names one; w is a script wave), or null
@@ -13684,13 +13933,16 @@ function spawnEnemy(type, q) {
     e.route = roads ? roads[spawnSeq++ % roads.length] : spawnSeq++ % ROUTES.length;
   }
   if (type === "flyer" || d.flies) {
+    // in a daily the draws that set its line are the day's (gRnd: the same for every player), else Math.random
+    const fn = dailyRun ? dailyFlyers++ : -1, rnd = k => (fn >= 0 ? gRnd(fn, k) : Math.random());
+    if (fn >= 0) e.fn = fn;
     // a battlefield's outflankers may ride in from a corner of their own (Ani's raiders: L.flank.entry)
     const flank = type === "flyer" && LEVELS[curLevel].flank;
     const entry = (flank && flank.entry) || ROUTES[e.route].pts[0];
     // the first of them, on the wave they first ride in, is heard coming on from that corner (the corner lies off
     // the field, so the sound is panned to its left edge, x 0)
     if (flank && flank.cue && waveIdx === playedWave(flank.from) && flankHeard !== waveIdx) { flankHeard = waveIdx; Snd.play(flank.cue, { x: 0 }); }
-    const x0 = entry[0], y0 = entry[1] + (Math.random() - 0.5) * 90;
+    const x0 = entry[0], y0 = entry[1] + (rnd(1) - 0.5) * 90;
     let x1 = FORT.x, y1 = FORT.y + 35;
     const prey = type === "flyer" && droneWar() ? droneTarget() : null;
     if (prey) { e.strike = prey; x1 = prey.x; y1 = prey.y - 4; }
@@ -13707,7 +13959,7 @@ function spawnEnemy(type, q) {
     if (LAKE && !e.strike && !e.dive) {
       // Tushpa's skin-float raiders and Avarayr's fording party take to the water where it lies
       // near their line; a lake far off the line (Sevan, beyond the fortress) is left alone
-      const mx = LAKE.x + LAKE.rx * 0.35 + (Math.random() - 0.5) * 30, my = LAKE.y - LAKE.ry * 0.2 + (Math.random() - 0.5) * 30;
+      const mx = LAKE.x + LAKE.rx * 0.35 + (rnd(2) - 0.5) * 30, my = LAKE.y - LAKE.ry * 0.2 + (rnd(3) - 0.5) * 30;
       const a = Math.hypot(mx - x0, my - y0), b = Math.hypot(x1 - mx, y1 - my);
       if (a + b < e.fly.len * 1.3) Object.assign(e.fly, { mx, my, a, len: a + b });
     }
@@ -14006,30 +14258,32 @@ function endCelebration() {
   // the endless offer unless the battlefield ends where history did (L.noEndless: Sis, whose king yields)
   // the closing page follows the last battlefield only once every battlefield is won: a save from before Chapter III
   // can win Stepanakert 2023 with Ani, Mari and Sis still to fight, and its page then offers the first of them
-  const lv = curLevel, L = LEVELS[lv], last = lv >= LEVELS.length - 1 && LEVELS.every((_, i) => levelConquered(i));
-  chimesHeld = L.endingCard && !last ? [] : null;   // the road's and the record's chimes wait for the card (chime)
+  const lv = curLevel, L = LEVELS[lv], last = !dailyRun && lv >= LEVELS.length - 1 && LEVELS.every((_, i) => levelConquered(i));
+  // (a daily's victory has no ending card: the campaign's story is told by the campaign)
+  const card = L.endingCard && !last && !dailyRun;
+  chimesHeld = card ? [] : null;   // the road's and the record's chimes wait for the card (chime)
   // a stand that ends in terms is crowned with no trophy: the page wears the game's own crest
   showMenu(L.ending === "terms" && !last ? "🛡" : "🏆", last ? "The Chronicle Is Complete" : L.endTitle || L.name + " Stands!",
     (L.victory ? L.victory + " " : foeName() + " forces break against your towers like water against the highland rocks. " +
     "A circle dance turns before the gates, and the fires of the citadel burn on. ") +
-    victoryTally(L, heldLives, DIFFS[curDiff].name) +
+    victoryTally(L, heldLives, DIFFS[curDiff].name) + (dailyRun ? " " + dailyDoneLine(true) : "") +
     (last ? " Every battlefield of the campaign, from the founding of Erebuni, usually dated 782 BC, to Stepanakert in 2023, has now been held. " +
-      "Return to any of them on a harder difficulty, or hold forever here." : L.noEndless ? "" : " " + ENDLESS_INVITE),
-    "Defend Again", !L.noEndless);
+      "Return to any of them on a harder difficulty, or hold forever here." : L.noEndless || dailyRun ? "" : " " + ENDLESS_INVITE),
+    "Defend Again", !L.noEndless && !dailyRun);
   // showMenu's buildMenu moves a battlefield the campaign has not opened (a test-mode run resumed after a reload,
   // when every road is shut again) to the furthest open one; the victory page stays this battlefield's
   curLevel = lv; curEra = L.era;
   // under "<battlefield> Stands!" its name in Armenian letters; the campaign's closing page names no one field
   if (!last) $("ovHy").textContent = hyName("field", L.name);
   showVictoryScreen();
-  showRecord(victoryStars(heldLives, DIFFS[curDiff].lives), curDiff, best);
+  showRecord(dailyRun ? 0 : victoryStars(heldLives, livesMax()), curDiff, best);   // a daily gives no stars
   victoryGrowth(starsEarned() - growthStars);
   Platform.victoryPage();   // the score's strip and its two doors (nothing while the platform is off)
   if (best) chime("record");
-  if (L.endingCard && !last) showEndingCard(L.endingCard);
+  if (card) showEndingCard(L.endingCard);
   // Ani's Summons interrupts the celebration: what is left of the dance fades, the field's music (its tune, drums
   // and drone) is hushed until the cue has died away, as the Terms hush it at Sis, and the seal is broken
-  if (L.ending === "summons" && !last && Snd.ctx) {
+  if (L.ending === "summons" && card && Snd.ctx) {
     Snd.danceOut();
     Snd.hush(SUMMONS_HUSH_S);
     Snd.play("summons", { at: Snd.ctx.currentTime + 0.35 });
@@ -14076,7 +14330,8 @@ function nextBattleAfter(lv) {
   return LEVELS.findIndex((_, i) => i !== lv && levelUnlocked(i) && !levelConquered(i));
 }
 function showVictoryScreen() {
-  victoryNext = nextBattleAfter(curLevel);
+  // a daily's end, won or lost, has its own two doors: Fight again (its chronicle) and the campaign map
+  victoryNext = dailyRun ? -1 : nextBattleAfter(curLevel);
   menuMode = "victory";
   overlayEl.classList.add("victory");
   phonePageTop();
@@ -14092,7 +14347,7 @@ function showVictoryScreen() {
   } else nb.style.display = "none";
   mb.style.display = "";
   mb.classList.toggle("lead", victoryNext < 0);
-  sb.innerHTML = icon("swords") + escapeHtml("Replay " + LEVELS[curLevel].name);
+  sb.innerHTML = icon("swords") + escapeHtml(dailyRun ? "Fight again" : "Replay " + LEVELS[curLevel].name);
   sb.classList.add("quiet");
   // the tap that ended the dance must not land on a button of the page that replaces it (settleOverlay)
   settleOverlay();
@@ -14140,6 +14395,9 @@ function marchToNext() {
 }
 // the campaign map, opened on the chapter of the battlefield given (the furthest reached by default)
 function openCampaignMap(lv) {
+  // out of a daily (its chronicle or its end page): the map opens where the campaign stands, for the daily's
+  // battlefield may be one the campaign has not reached
+  if (dailyRun) { dailyLeave(); lv = undefined; }
   leaveVictory();
   dropTrickCards();   // no path out of a battle leaves a trick card up over the map
   curLevel = lv === undefined ? furthestOpen() : lv;
@@ -14296,7 +14554,7 @@ function onSavesChanged() {
 }
 // the chronicle's hero line: his chapter's level, or level 1 when the Standard switch is on (a Standard battle is
 // fought with today's hero, so the line must not promise more)
-function briefHeroLevel() { return standardBattle ? "Level 1 · Standard" : "Level " + heroLevel(chapterOf(curLevel)); }
+function briefHeroLevel() { return dailyRun ? "Level 1 · Daily" : standardBattle ? "Level 1 · Standard" : "Level " + heroLevel(chapterOf(curLevel)); }
 // The Council's doors follow its stars: the map's tally (its words), and on a chronicle the chip in #briefKit
 function syncCouncilDoors() {
   if (menuMode === "map" || $("ovStars").innerHTML) syncCampaignTally();
@@ -14333,6 +14591,12 @@ function briefKitRow(squeeze) {
   const el = $("briefKit");
   if (!el) return;
   for (const x of document.querySelectorAll("#briefTricks .bkInline")) x.remove();
+  // a daily's chronicle: no Council chip and no switch (a daily is always the standard loadout); its card is #ovDaily
+  if (dailyRun) {
+    el.innerHTML = "";
+    el.classList.remove("on");
+    return;
+  }
   // the switch is for a player who owns something here: a tier, a hero level or the Call
   const unspent = councilUnspent(), owns = !kitEmpty(playerKit()), inline = squeeze || briefKitInline(), side = phoneWide() || inline;
   let html = "";
@@ -14363,6 +14627,68 @@ function briefKitRow(squeeze) {
   }
 }
 addEventListener("resize", () => { if (menuMode === "brief" && !overlayEl.classList.contains("hidden")) briefKitRow(); });
+// The daily's card: the day, the twist (its name and line; a struck slot says it in one line) and the rules every
+// player shares. It stands on the daily's chronicle before "Begin the Stand" (6.4)
+function dailyCardHtml() {
+  const D = dailyRun, T = twistById(D.twist);
+  if (!T) return "";
+  // (a line that already begins with the name, "No spells today.", stands alone)
+  const nm = twistName(D.twist, curLevel), ln = twistLine(D.twist, curLevel);
+  const twist = ln.startsWith(nm) ? "<b>" + escapeHtml(ln) + "</b>" : "<b>" + escapeHtml(nm) + ".</b> " + escapeHtml(ln);
+  return '<div class="dlyCard"><span class="dlyK">' + icon("horn") + escapeHtml("Today's challenge · " + dailyDateWords(D.day)) + "</span>" +
+    '<span class="dlyT">' + twist + '</span><span class="dlyS">Normal · ' + DAILY_WAVES + " waves · Every tower, no Council, hero at level 1 · The same for everyone</span></div>";
+}
+// The daily's door on the map (buildMenu): shown once Erebuni has been fought (the coached first stand comes first, as
+// the platform's daily tab asks too), with today's battlefield and twist in its title. Until the platform's daily (P6)
+// the day is the device's: the same pick as the server's from the same day
+function dailyEntry() {
+  const b = $("dailyBtn");
+  if (!b) return;
+  const show = levelBestAnyEra(0) > 0 && !tutorialPending();
+  b.style.display = show ? "" : "none";
+  b.parentNode.classList.toggle("hasDaily", show);
+  if (!show) return;
+  const T = dailyToday(), L = T && LEVELS[T.levelIndex];
+  if (!L) return;
+  const words = "Today's challenge: " + L.name + ", " + twistName(T.twist, T.levelIndex) + ". " + DAILY_WAVES + " waves on Normal, the same for everyone";
+  b.title = words;
+  b.setAttribute("aria-label", words);
+}
+// the daily's line on its end page: a victory, or the waves a lost one held (what a lost daily is scored by)
+function dailyDoneLine(won) {
+  if (won) return "Today's challenge is won. A daily gives your hero experience, but no stars.";
+  const n = Math.min(lastCleared, DAILY_WAVES);
+  return "You held " + n + " of " + DAILY_WAVES + (DAILY_WAVES === 1 ? " wave" : " waves") + " of today's challenge.";
+}
+// the card under the chronicle's date line: the daily's while its chronicle is up, else nothing
+function syncDailyCard() {
+  const el = $("ovDaily");
+  if (!el) return;
+  const html = dailyRun && menuMode === "brief" ? dailyCardHtml() : "";
+  el.innerHTML = html;
+  el.classList.toggle("on", !!html);
+  overlayEl.classList.toggle("daily", !!html);
+}
+// startDaily(levelIndex, twistId, day) (6.4, platform 0.3 (5)): the day's battle, chosen by the platform from
+// rulesetData().daily with the server's day, or by the page (dailyToday) with the platform off. It opens the
+// battlefield's chronicle with the twist's card (the battle is begun from it, so its first horn is the attempt); a
+// battlefield the campaign has not reached is open to it. It refuses (false) a battlefield, twist or day it does not
+// know, and while a battle is on the field
+function startDaily(levelIndex, twistId, day) {
+  if (!twistById(twistId) || battleLive()) return false;
+  if (!dailyBegin(levelIndex, twistId, day)) return false;
+  standardBattle = false;
+  applyEraLabels();
+  dailyBrief();
+  return true;
+}
+// the daily's chronicle, again after its end (Fight again)
+function dailyBrief() {
+  if (!dailyRun) return;
+  curLevel = levelIndexOf(dailyRun.lv); curEra = LEVELS[curLevel].era; curDiff = 1;
+  trayBan = dailyRun.fx.ban.slice();
+  briefPage();
+}
 // the chronicle with the Standard switch already on: a door for the platform's "Fight for this board"
 // (false, and nothing done, for a battlefield that is not open: the switch is never set on another field's page)
 function openBriefStandard(levelIndex) {
@@ -14548,7 +14874,7 @@ let fallen = null;         // the beat on the field between the breach and the d
 const FALL_MS = 1500;
 let heartT = 0;            // seconds to the next heartbeat
 // the share of the stand's defenders still standing: 1 at the start of a stand on any difficulty
-function livesShare() { return lives / Math.max(1, DIFFS[curDiff].lives); }
+function livesShare() { return lives / Math.max(1, livesMax()); }
 let reduceMotionQ = null;
 function reducedMotion() {
   if (reduceMotionQ === null) reduceMotionQ = (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)")) || false;
@@ -14796,11 +15122,13 @@ function endFall() {
     showMenu("🔥", "The Citadel Falls",
       foes + " breach the gates at wave " + waveIdx + " of " + totalWaves() + ". " +
       // a battlefield that counts its time held closes on it (Mari's waves, Sis's days) where others urge a new try
-      (L.defeat ? L.defeat + " " + defeatClose(L, lastCleared)
+      (dailyRun ? dailyDoneLine(false) : L.defeat ? L.defeat + " " + defeatClose(L, lastCleared)
         : "The highlands will remember this stand. Choose your ground and try again."),
       "Try Again");
   }
   showDebrief(debrief, lv);
+  // a lost daily: its page has the daily's two doors (Fight again, the campaign map) and no map to choose from
+  if (dailyRun) showVictoryScreen();
   Platform.defeatPage();    // a lost daily shows its score (nothing while the platform is off)
   // a tap meant for the field in the beat must not land on a button of the page that replaces it (settleOverlay)
   settleOverlay();
@@ -29296,7 +29624,7 @@ function paintVictoryCard(c, tally) {
 }
 function drawVictoryCard(alpha) {
   const C = CELEBRATION, pad = 30;
-  const max = DIFFS[curDiff].lives, kept = Math.max(0, celebration.lives || 0);
+  const max = livesMax(), kept = Math.max(0, celebration.lives || 0);
   const k = Math.max(1, Math.min(3, Math.ceil(ctx.getTransform().a * 4) / 4));
   const tally = {
     k, lives: kept, maxLives: max, gold: Math.floor(gold || 0),
@@ -58442,6 +58770,7 @@ function buildMenu() {
   const saved = getSavedRun();
   const rb = $("resumeBtn");
   rb.style.display = saved ? "" : "none";
+  dailyEntry();
   if (saved) {
     rb.innerHTML = icon("play") + escapeHtml("Resume: " + LEVELS[saved.lvl].name + ", Wave " + (saved.cleared + 1) +
       (saved.endless ? " ∞" : ""));
@@ -60119,6 +60448,7 @@ function showMenu(crest, title, sub, btnText, offerEndless) {
   $("ovTitle").textContent = title;
   $("ovHy").textContent = "";
   $("ovRubric").textContent = "";
+  syncDailyCard();
   clearLeaf();
   introReturn = null;
   $("ovSub").innerHTML = richText(sub);
@@ -63470,6 +63800,7 @@ function showChapterIntro(c, then) {
       title: $("ovTitle").textContent, hy: $("ovHy").textContent, sub: $("ovSub").innerHTML, endless: $("endlessBtn").style.display };
   }
   menuMode = "chapter";
+  syncDailyCard();
   const first = LEVELS[C.levels[0]];
   $("worldMap").style.display = "none";
   $("diffRow").style.display = "none";
@@ -63536,7 +63867,12 @@ function fitRubric() {
   }
 }
 window.addEventListener("resize", fitRubric);
+// a campaign battlefield's chronicle (a daily left on the way is over: dailyLeave); the daily's is dailyBrief
 function showBrief() {
+  dailyLeave();
+  briefPage();
+}
+function briefPage() {
   leaveVictory();
   dropTrickCards();
   // the brief previews a new stand, never a resumed one (Resume skips it): a legacy run resumed earlier must not
@@ -63546,7 +63882,7 @@ function showBrief() {
   rules1Tune = false;
   introThen = -1;
   menuMode = "brief";
-  track("brief_open", { lv: levelId(curLevel), diff: curDiff, mode: "campaign" });
+  track("brief_open", { lv: levelId(curLevel), diff: curDiff, mode: dailyRun ? "daily" : "campaign" });
   mapTold = false;
   runTray = null; syncTray();   // the tray this battlefield offers now, not a resumed run's
   postCardSoon();
@@ -63568,14 +63904,15 @@ function showBrief() {
   $("ovHy").textContent = hyName("field", L.name);
   // on a phone held sideways the battle's length rides in the date line (rubLen), and #briefLen's own line is left out,
   // so the left column keeps its trick chips in view
-  $("ovRubric").innerHTML = escapeHtml(L.date + " · " + E.name) + '<span class="rubLen"> · ' + levelWaves(curLevel) + " waves</span>";
+  $("ovRubric").innerHTML = escapeHtml(L.date + " · " + E.name) + '<span class="rubLen"> · ' + (dailyRun ? DAILY_WAVES : levelWaves(curLevel)) + " waves</span>";
+  syncDailyCard();
   fitRubric();
   setLeafPages(levelPages(L));
   showLeafFact(L);
   // under the miniature, the hero who holds this field, with his name in Armenian letters when he was a real,
   // named person (the anonymous defenders of Shirak, 2020 and 2023 stay English-only)
   // with his chapter's level; pressed, it shows his card (openHeroCard)
-  const H = L.hero || {}, hh = hyName("hero", H.name), hlv = standardBattle ? 1 : heroLevel(chapterOf(curLevel));
+  const H = L.hero || {}, hh = hyName("hero", H.name), hlv = standardBattle || dailyRun ? 1 : heroLevel(chapterOf(curLevel));
   $("briefHero").innerHTML = H.name ? '<span class="k">Your hero</span><b title="' + escapeHtml(H.title || "") + '">' + escapeHtml(H.name) + "</b>" +
     '<span class="lv">' + briefHeroLevel() + "</span>" + (hh ? '<span class="hy" lang="hy">' + escapeHtml(hh) + "</span>" : "") : "";
   if (H.name) {
@@ -63598,7 +63935,7 @@ function showBrief() {
   $("briefHint").textContent = levelNote(L) || (tricksShown ? "" : (matchMedia("(hover: none)").matches ? "Tap" : "Click") + " a foe for its strengths and weaknesses");
   renderBriefArt(curLevel);
   startBriefMosaic();
-  $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() ? "Begin the Stand · Tutorial" : "Begin the Stand");
+  $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() && !dailyRun ? "Begin the Stand · Tutorial" : "Begin the Stand");
   Snd.play("horn", { era: LEVELS[curLevel].era });
 }
 
@@ -64092,7 +64429,7 @@ const abandonConfirm = tapAgain($("menuBtn"), "Abandon & Level Select", "Tap aga
 // leaving it for Erebuni's chronicle, where it then runs
 $("tutBtn").addEventListener("click", () => {
   const onMenu = !overlayEl.classList.contains("hidden");
-  const fresh = !onMenu && curLevel === 0 && !gameOver && waveIdx === 0 && towers.length === 0;
+  const fresh = !onMenu && curLevel === 0 && !gameOver && waveIdx === 0 && towers.length === 0 && !dailyRun;
   if (fresh) {
     closeSettings();
     paused = false; syncPauseBtn();
@@ -64125,6 +64462,7 @@ $("menuBtn").addEventListener("click", () => {
   if (!gameOver) { battleQuit(); saveBest(); }
   gameOver = true;
   clearRun();
+  dailyLeave();   // (a daily left: it saved nothing, and the campaign's saved run stays)
   celebration = null;
   fallen = null;
   paused = false;
@@ -64267,7 +64605,8 @@ window.addEventListener("keydown", (e) => {
 $("startBtn").addEventListener("click", () => {
   Snd.init();
   if (menuMode === "map") { showBrief(); return; }
-  if (menuMode === "victory") { leaveVictory(); showBrief(); return; }
+  // (a daily's end page: Fight again opens the daily's chronicle once more)
+  if (menuMode === "victory") { leaveVictory(); if (dailyRun) dailyBrief(); else showBrief(); return; }
   if (menuMode === "chapter") {
     Snd.play("mapSelect");
     const n = introThen;
@@ -64275,10 +64614,12 @@ $("startBtn").addEventListener("click", () => {
     if (n >= 0) { curLevel = n; curEra = LEVELS[n].era; applyEraLabels(); showBrief(); }
     return;
   }
-  clearRun();
+  clearRun();   // (a daily's clears nothing: the campaign's saved run is left as it was)
   menuMode = "map";
   overlayEl.classList.add("hidden");
   resetGame();
+  // a daily has no coach and no gift of gold (the standard loadout), and is never saved
+  if (dailyRun) { toast("Today's challenge: " + twistLine(dailyRun.twist, curLevel), 3200); if (auto) autoT = 1.5; return; }
   maybeStartTutorial();
   const purse = gold;
   nardiBlessBattle();
@@ -64290,6 +64631,13 @@ $("startBtn").addEventListener("click", () => {
 });
 
 $("resumeBtn").addEventListener("click", resumeRun);
+// the daily's door on the map: today's battle, the platform's pick when it has one (P6), else the page's own
+$("dailyBtn").addEventListener("click", () => {
+  Snd.init();
+  Snd.play("mapSelect");
+  const T = dailyToday();
+  if (T) startDaily(T.levelIndex, T.twist, T.day);
+});
 $("nextBtn").addEventListener("click", () => { Snd.init(); marchToNext(); });
 // from the victory page: the map on the furthest chapter reached; from a chronicle: back to its own chapter
 $("mapBtn").addEventListener("click", () => {
@@ -82116,6 +82464,8 @@ function runPhoto() {
   const scene = HARNESS.get("shot");
   const num = (k, d) => (HARNESS.has(k) ? Number(HARNESS.get(k)) : d);
   try {
+    // &daily=<twist>: the battle staged (a victory, a defeat, a battle) is that day's daily on &lv (&day=, whole days)
+    if (HARNESS.has("daily") && scene !== "daily") dailyBegin(harnessLv(1), HARNESS.get("daily"), num("day", 20406));
     if (scene === "battle") {
       // &open: every battlefield open (as Shift+U leaves it), so the tray shows what the campaign offers there
       if (HARNESS.has("open")) testUnlockAll = true;
@@ -82139,6 +82489,11 @@ function runPhoto() {
       });
     } else if (scene === "menu" || scene === "brief") {
       photoMenu(scene === "brief");
+    } else if (scene === "daily") {
+      // the daily's chronicle: today's (dailyToday), or &lv=, &twist= and &day= (whole days since 1970, or a date)
+      photoMenu(false);
+      const T = dailyToday(), day = HARNESS.has("day") ? (/-/.test(HARNESS.get("day")) ? HARNESS.get("day") : Number(HARNESS.get("day"))) : T.day;
+      startDaily(HARNESS.has("lv") ? harnessLv(0) : T.levelIndex, HARNESS.get("twist") || T.twist, day);
     } else if (scene === "chapter") {
       photoChapter(num("ch", 0));
     } else if (scene === "dance") {
@@ -84447,6 +84802,7 @@ function runSelftestPlay() {
       dropTrickCards(); stopTutorial();
       testAided = false; testUnlockAll = false; paused = false; auto = false; speedMult = 1; endless = false;
       autoBtn.textContent = "Auto: Off"; autoBtn.classList.remove("on");
+      dailyLeave(); syncDailyCard();
       clearRun(); gameOver = true; celebration = null; parley = null; fallen = null;
       standardBattle = false; kitTest = null; setKit(KIT_EMPTY); callCd = 0; callT = 0; heroGrowth = null; councilCapts = false;
       closeFoeCard(); if (callBubble) dropTrickCards();
@@ -84535,7 +84891,7 @@ function runSelftestPlay() {
       if (!(Array.isArray(LEVEL_PAR[id]) ? LEVEL_PAR[id].length === DIFFS.length && LEVEL_PAR[id].every(x => x > 0) : LEVEL_PAR[id] > 0)) fail(id + " has no par");
     }
     const S = R.score;
-    if (S.win !== 4000 || S.lives + S.speed + S.thrift !== 6000 || S.lostMax !== 3999 || R.daily.pool.length || R.daily.waves !== 12) fail("the score's weights or the daily's part");
+    if (S.win !== 4000 || S.lives + S.speed + S.thrift !== 6000 || S.lostMax !== 3999 || R.daily.pool.length !== 17 || R.daily.waves !== 12) fail("the score's weights or the daily's part");
     const P = rulesetPins();
     if (P.all !== RULESET_PIN) fail("the rules changed without a new RULESET: RULESET_PIN would be \"" + P.all + "\" (node tools/ruleset.js)");
     const off = ids.filter(id => P.levels[id] !== LEVEL_PIN[id]);
@@ -86219,6 +86575,189 @@ function runSelftestPlay() {
       if (rallyBubble || !towersSeen().includes("rally") || rallying !== t || panelEl.style.display === "block") fail("pressing Rally point did not arm it and put the bubble away");
       if (rallyBubbleDue(t)) fail("the bubble is due again once seen");
     } finally { trickCardTest = false; rallying = null; photo = ph; }
+  }));
+
+  // ---- G6, the daily (gameplay 6.4, 8.1) ----
+  const DAY0 = 20406;   // 14 November 2025, whole days since 1970: any day will do
+  check("daily: 12 waves on every battlefield, the standard loadout, the whole tray, each twist", guarded(() => {
+    // a player who owns tiers, a hero level and the Call: none of it reaches a daily; and a campaign that has reached
+    // nothing beyond Erebuni: the whole tray all the same
+    localStorage.setItem("hs_tutorial_done", "1");
+    for (let i = 0; i < LEVELS.length; i++) localStorage.removeItem(bestKey(i, LEVELS[i].era));
+    localStorage.setItem(bestKey(3, LEVELS[3].era), String(WON_MARK));
+    localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { bows: 2, engines: 1, captains: 0, heralds: 0, stewards: 0 }, n: 1 }));
+    localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { kingdoms: 99999, faith: 99999, crowns: 99999, night: 99999, artsakh: 99999 } }));
+    LEVELS.forEach((L, i) => {
+      if (!dailyBegin(i, null, DAY0)) fail("dailyBegin refused " + L.id);
+      resetGame();
+      const want = trayStandard(L.era).filter(k => TOWER_DEFS[k]).join();
+      if (totalWaves() !== DAILY_WAVES || curScript().join() !== levelScript(L, true).join() || curDiff !== 1) fail(L.id + ": " + totalWaves() + " waves on " + curDiff);
+      if (L.dailyScript && curScript().join() !== L.dailyScript.join()) fail(L.id + " is not fought on its own daily table");
+      if (kitPower(kit) !== 0 || (kit.hero | 0) !== 1 || kit.call || battleLoadout() !== "std") fail(L.id + ": the kit " + JSON.stringify(kit));
+      if (trayTypes().join() !== want || !trayTypes().includes("post")) fail(L.id + "'s tray: " + trayTypes());
+      const f = battleFacts();
+      if (f.mode !== "daily" || f.waves !== 12 || f.lives_max !== DIFFS[1].lives || f.twist !== null) fail(L.id + "'s numbers: " + JSON.stringify(f).slice(0, 160));
+      dailyLeave();
+    });
+    // each twist on one battlefield (Dvin: no age tower of its own beside the post), against the same battle without it
+    const dv = levelIndexOf("dvin"), at = (twist, fn) => { dailyBegin(dv, twist, DAY0); resetGame(); try { return fn(); } finally { dailyLeave(); } };
+    const base = at(null, () => ({ b: foeBounty(eraUnit("spearman"), 5), u: Object.fromEntries(Object.keys(ENEMY_DEFS).map(r => [r, eraUnit(r)])), lives, gold }));
+    for (const T of DAILY_TWISTS) {
+      const nm = twistName(T.id, dv), ln = twistLine(T.id, dv);
+      if (!nm || /[{}]/.test(nm + ln) || !/ today\.$/.test(ln) || /\u2014|\u2013/.test(nm + ln)) fail(T.id + "'s card: " + nm + " / " + ln);
+      at(T.id, () => {
+        const f = battleFacts();
+        if (f.twist !== T.id || f.mode !== "daily") fail(T.id + ": the numbers say " + f.twist);
+        const b = foeBounty(eraUnit("spearman"), 5), off = T.id === "quiet";
+        if (T.id === "thin" ? Math.abs(b / base.b - 0.8) > 0.05 : b !== base.b) fail(T.id + ": a bounty of " + b + " against " + base.b);
+        for (const r of Object.keys(ENEMY_DEFS)) {
+          const u = eraUnit(r), w = base.u[r];
+          const spd = foeSpeed(u) / foeSpeed(w), arm = foeArmor(u) - foeArmor(w);
+          if (Math.abs(spd - (T.id === "swift" ? 1.15 : 1)) > 1e-9) fail(T.id + ": " + r + " marches " + spd.toFixed(3) + " times");
+          if (arm !== (T.id === "iron" && ["raider", "spearman", "shield", "cavalry"].includes(r) ? 3 : 0)) fail(T.id + ": " + r + " wears " + arm + " more armor");
+        }
+        if (lives !== (T.id === "few" ? 12 : base.lives) || livesMax() !== lives || f.lives_max !== lives) fail(T.id + ": " + lives + " defenders of " + livesMax());
+        if (gold !== base.gold) fail(T.id + ": the purse is " + gold);
+        if (spellsOff() !== off) fail(T.id + ": the spells are " + (spellsOff() ? "off" : "on"));
+        if (off) {
+          const cd = Object.assign({}, spellCd);
+          trySelectSpell("arrows");
+          castSpell("frost", 300, 300);
+          updateSpellBar();
+          if (castingSpell || JSON.stringify(spellCd) !== JSON.stringify(cd) || battle.frost) fail("No spells: a spell was chosen or cast");
+          if (![...document.querySelectorAll("#spellbar .spell[data-spell]")].every(b => b.disabled)) fail("No spells: a spell's button is still pressable");
+        }
+        const tray = trayTypes();
+        if (tray.includes(T.slot || "-") || !tray.includes("fire") || tray.length !== trayStandard(curEra).length - (T.slot ? 1 : 0)) fail(T.id + "'s tray: " + tray);
+        if (T.slot) {
+          syncTray();
+          const card = document.querySelector('#shop .card[data-type="' + T.slot + '"]');
+          if (!card || card.style.display !== "none") fail(T.id + ": the struck tile is still shown");
+          if (f.ban !== T.slot) fail(T.id + ": ban " + f.ban);
+        }
+      });
+    }
+    // a struck slot is named as its own battlefield names it, whatever battlefield is in force
+    const sk = levelIndexOf("stepanakert92");
+    curLevel = sk; curEra = LEVELS[sk].era;
+    const own = "No " + towerName("ballista");
+    curLevel = 0; curEra = LEVELS[0].era;
+    if (twistName("noballista", sk) !== own || curLevel !== 0 || twistName("noballista", 0) !== "No " + towerName("ballista") || own === twistName("noballista", 0)) fail("a struck slot is named " + twistName("noballista", sk));
+  }));
+  check("daily: a victory and a defeat leave hs_best, hs_records and hs_run as they were; the hero's day", guarded(() => {
+    localStorage.setItem("hs_tutorial_done", "1");
+    const RUN = JSON.stringify({ v: 9, lvl: 2, note: "a campaign battle in progress" }), REC = JSON.stringify({ erebuni: { stars: [0, 2, 0], lives: [0, 14, 0], endless: [0, 0, 0] } });
+    localStorage.setItem("hs_run", RUN); localStorage.setItem("hs_records", REC);
+    localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { kingdoms: 0, faith: 0, crowns: 0, night: 0, artsakh: 0 } }));
+    for (let i = 0; i < LEVELS.length; i++) localStorage.removeItem(bestKey(i, LEVELS[i].era));
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "4");
+    const bests = () => LEVELS.map((L, i) => localStorage.getItem(bestKey(i, L.era))).join();
+    const before = bests(), lv = levelIndexOf("mari");   // a battlefield the campaign has not reached
+    if (levelOpen(lv)) fail("the test wants a battlefield not yet open");
+    evClear();
+    if (!startDaily(lv, "thin", DAY0)) fail("startDaily refused today's battle");
+    if (menuMode !== "brief" || !$("ovDaily").classList.contains("on") || !/Thin purse/.test($("ovDaily").textContent)) fail("the chronicle shows no twist card");
+    $("startBtn").click();
+    if (!dailyRun || overlayEl.classList.contains("hidden") === false || totalWaves() !== 12) fail("Begin the Stand did not begin the daily");
+    for (let w = 1; w <= 12 && !gameOver; w++) {
+      startWave();
+      saveRun();   // (every save a battle makes is a no-op in a daily)
+      if (localStorage.getItem("hs_run") !== RUN) fail("a daily wrote hs_run on wave " + w);
+      fight(0);
+    }
+    if (!gameOver || lastCleared !== 12) fail("the staged daily did not end in victory: " + lastCleared);
+    const f = evLast("victory"), st = evLast("battle_start");
+    sound(f, "a daily's victory");
+    if (f.mode !== "daily" || f.twist !== "thin" || f.waves !== 12 || f.wave !== 12 || f.loadout !== "std" || f.stars !== victoryStars(f.held, f.lives_max)) fail("the victory's numbers: " + JSON.stringify(f).slice(0, 200));
+    if (!st || st.mode !== "daily" || st.twist !== "thin" || st.loadout !== "std") fail("battle_start: " + JSON.stringify(st));
+    if (localStorage.getItem("hs_run") !== RUN || localStorage.getItem("hs_records") !== REC || bests() !== before || levelOpen(lv)) fail("a daily's victory wrote a record or opened a road");
+    const h = heroesLoad(), ch = CHAPTERS[chapterOf(lv)].id;
+    if (h.daily.day !== dailyDate(DAY0) || h.daily.xp !== 150 || h.xp[ch] !== 150) fail("the hero's daily cap: " + JSON.stringify(h));
+    endCelebration();
+    if (menuMode !== "victory" || $("nextBtn").style.display !== "none" || !$("mapBtn").classList.contains("lead") || !/Fight again/.test($("startBtn").textContent) ||
+      $("endlessBtn").style.display !== "none" || $("ovRecord").textContent) fail("the daily's victory page");
+    // Fight again: the daily's chronicle once more; then a lost attempt
+    $("startBtn").click();
+    if (menuMode !== "brief" || !dailyRun || dailyRun.twist !== "thin") fail("Fight again did not open the daily's chronicle");
+    $("startBtn").click();
+    fall();
+    endFall();
+    const d = evLast("defeat");
+    if (!d || d.mode !== "daily" || d.waves !== 12 || !(d.wave < 12) || d.twist !== "thin") fail("the defeat's numbers: " + JSON.stringify(d).slice(0, 160));
+    if (localStorage.getItem("hs_run") !== RUN || localStorage.getItem("hs_records") !== REC || bests() !== before) fail("a daily's defeat wrote a record or cleared the campaign's run");
+    if (menuMode !== "victory" || !/of 12 waves of today's challenge/.test($("ovSub").textContent) || !/Fight again/.test($("startBtn").textContent)) fail("the daily's defeat page");
+    // the campaign map leaves the daily: Normal gives way to the player's own difficulty, and the campaign's run is there
+    prefDiff = 0;
+    localStorage.setItem("hs_chapters_seen", JSON.stringify(CHAPTERS.map(C => C.id)));
+    $("mapBtn").click();
+    if (dailyRun || trayBan.length || curDiff !== 0 || menuMode !== "map" || localStorage.getItem("hs_run") !== RUN || overlayEl.classList.contains("victory"))
+      fail("the map after a daily: " + JSON.stringify({ daily: !!dailyRun, ban: trayBan, curDiff, menuMode, run: localStorage.getItem("hs_run") === RUN, cls: overlayEl.className }));
+    prefDiff = 1; curDiff = 1;
+  }));
+  check("daily: two battles of one day draw the same outflanker lines; the pick, its steps and daily.skip", guarded(() => {
+    const tu = levelIndexOf("tushpa");   // its outflankers cross the lake
+    const lines = (day, rnd) => {
+      dailyBegin(tu, "swift", day); resetGame();
+      Math.random = rnd;
+      const out = [];
+      for (let k = 0; k < 6; k++) { spawnEnemy("flyer"); const e = enemies.pop(); out.push([e.fn, e.fly.y0, e.fly.mx, e.fly.my].map(v => v == null ? "-" : Math.round(v * 100)).join(":")); }
+      dailyLeave();
+      return out.join(" ");
+    };
+    const a = lines(DAY0, mulberry32(1)), b = lines(DAY0, mulberry32(99)), c = lines(DAY0 + 1, mulberry32(1));
+    if (a !== b) fail("one day, two lines: " + a + " / " + b);
+    if (a === c) fail("two days drew the same lines");
+    if (!/^0:/.test(a)) fail("the outflankers are not numbered: " + a);
+    // a battle that is not a daily keeps Math.random (the bot's seeded battles)
+    curLevel = tu; curDiff = 1; resetGame();
+    Math.random = () => 0;
+    spawnEnemy("flyer");
+    const e = enemies.pop(), entry = (LEVELS[tu].flank && LEVELS[tu].flank.entry) || ROUTES[e.route].pts[0];
+    if (e.fn !== undefined || Math.abs(e.fly.y0 - (entry[1] - 45)) > 1e-6) fail("a campaign battle's outflanker took the day's draw");
+    // the part of the ruleset the platform reads
+    const R = rulesetData().daily, ids = LEVELS.map(L => L.id), tw = DAILY_TWISTS.map(T => T.id);
+    if (R.pool.join() !== ids.join() || R.twists.join() !== tw.join() || tw.length !== 8 || R.k !== 5 || R.j !== 3 || R.diff !== 1 || R.attempts !== 3 || R.waves !== 12) fail("the daily's part: " + JSON.stringify(R).slice(0, 200));
+    for (const id in R.skip) {
+      if (!ids.includes(id) || !R.skip[id].length || !R.skip[id].every(t => tw.includes(t)) || R.skip[id].length >= tw.length) fail("daily.skip[" + id + "]: " + R.skip[id]);
+    }
+    for (const id in DAILY_SKIP) if (!ids.includes(id) || !DAILY_SKIP[id].every(t => tw.includes(t))) fail("DAILY_SKIP[" + id + "]");
+    LEVELS.forEach(L => { if (((L.tricks && L.tricks.watch) || ["fire"]).includes("drums") && !(R.skip[L.id] || []).includes("nodrums")) fail(L.id + ": No drums where the drums keep watch"); });
+    for (const id of ids) {
+      const V = R.levels[id];
+      if (!V || V.script.length !== 12 || V.script[11] !== 20 || JSON.stringify(V.script) !== JSON.stringify(levelScript(LEVELS[levelIndexOf(id)], true)) ||
+        !(V.min > 0 && V.min <= V.fast && V.fast < V.slow && V.earnMax > 0) || ![V.min, V.fast, V.slow, V.earnMax].every(Number.isInteger) || !(DAILY_PAR[id] > 0)) fail(id + "'s daily table: " + JSON.stringify(V));
+      for (const t of tw) {
+        const m = R.t[t] || {};
+        if (V.slow * (m.slow || 1) <= V.fast * (m.fast || 1)) fail(id + " under " + t + ": slow is not above fast");
+      }
+    }
+    if (!R.t.few || R.t.few.livesSet !== 12 || !(R.t.thin && R.t.thin.earn > 0.8 && R.t.thin.earn <= 1)) fail("the twists' bounds: " + JSON.stringify(R.t));
+    // the pick (platform 5.6), from the day alone: the same as the lines written out here, every battlefield once in 17
+    // days and never two days running; and without skips every pair once over 17 x 8 days
+    const ref = (D, day, skip) => {
+      const n = D.pool.length, m = D.twists.length, lvl = D.pool[(day * D.k) % n], i = ((day % n) * D.j + Math.floor(day / n)) % m, s = skip[lvl] || [];
+      let t = D.twists[i];
+      for (let q = 0; q < m; q++) { t = D.twists[(i + q) % m]; if (!s.includes(t)) break; }
+      return lvl + "/" + t;
+    };
+    const seen = new Set();
+    let prev = "";
+    for (let day = DAY0; day < DAY0 + 17 * 8 * 2; day++) {
+      const P = dailyPick(day), got = levelId(P.levelIndex) + "/" + P.twist;
+      if (got !== ref(R, day, R.skip)) fail("day " + day + ": " + got + ", not " + ref(R, day, R.skip));
+      if ((R.skip[levelId(P.levelIndex)] || []).includes(P.twist)) fail("day " + day + " serves a skipped pair");
+      if (got.split("/")[0] === prev) fail("day " + day + " repeats yesterday's battlefield");
+      prev = got.split("/")[0];
+      if (day < DAY0 + 136) seen.add(ref(R, day, {}));
+    }
+    if (seen.size !== 136) fail("over 136 days " + seen.size + " pairs, not every one once");
+    if (dailyDayNum("2026-11-13") !== 20770 || dailyDate(20770) !== "2026-11-13" || dailyDateWords(20770) !== "November 13" || !(isNaN(dailyDayNum("13/11/2026")) && isNaN(dailyDayNum(-1)))) fail("the day's arithmetic");
+    const T = dailyToday();
+    if (!T || !LEVELS[T.levelIndex] || !twistById(T.twist) || T.server) fail("today's daily with the platform off: " + JSON.stringify(T));
+    // startDaily refuses what it does not know, and a battle on the field
+    if (startDaily(99, "thin", DAY0) || startDaily(0, "dusk", DAY0) || startDaily(0, "thin", "yesterday") || startDaily(0, null, DAY0) || dailyRun) fail("startDaily took a battle it does not know");
+    curLevel = 0; resetGame(); gameOver = false; overlayEl.classList.add("hidden");
+    if (startDaily(0, "thin", DAY0) || dailyRun) fail("startDaily began a daily over a battle on the field");
   }));
 
   // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt
