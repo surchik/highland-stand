@@ -188,7 +188,7 @@ Then apply them all **[tried]**:
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
-The four migrations, each in one transaction of its own, each followed by the lockdown (the file
+The five migrations, each in one transaction of its own, each followed by the lockdown (the file
 `migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
 `service_role`) and, once 003 is in, 003's grants again:
 
@@ -198,6 +198,7 @@ The four migrations, each in one transaction of its own, each followed by the lo
 | `002_functions` | the 17 `hs_` functions, the 27 helpers (`_...`) and the 5 views; nothing granted | drops each by its full signature |
 | `003_grants_policies` | USAGE on the schema to `anon` and `authenticated`; EXECUTE on the 4 open functions to both and on the 13 others to `authenticated`; `service_role` nothing; the policies; per-schema default privileges revoked | takes every grant back and drops the policies |
 | `004_seed` | the analytics' three ceilings and the name filter's words | deletes those rows |
+| `005_delete_game_session` | "Delete my account" asks for a session of the game's own sign-in (an account signed in by password through the shared email sign-in cannot delete a player's data), and takes the deleted visits' rate counters with them | puts back 002's "Delete my account" |
 
 It runs as `postgres`, never a superuser (a superuser's connection is moved to `postgres`; a superuser
 `postgres` stops it), takes an advisory lock so two runs cannot overlap, waits at most 10 s for any lock another
@@ -212,13 +213,13 @@ before and after every migration and every rollback.
 select highland.hs_config();
 ```
 
-answers one small line with `"now"`, and `status` says `highland at 4 of 4`.
+answers one small line with `"now"`, and `status` says `highland at 5 of 5`.
 
 **Rolling back.** To a given migration, after a backup (step 2), with `--yes` **[tried]**:
 
 <!-- guide-check: migrate-down -->
 ```
-node tools/platform/migrate.js down 3 --dsn="$HS_DB_URL" --yes
+node tools/platform/migrate.js down 4 --dsn="$HS_DB_URL" --yes
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
@@ -318,7 +319,10 @@ one GoTrue: leave it as it is. For each one that is off, and only with the owner
    address** `https://db.avunjian.com/auth/v1/callback` as its redirect, home page
    `https://highland.avunjian.com`, privacy `https://highland.avunjian.com/?privacy`, and for Facebook the
    deletion instructions `https://highland.avunjian.com/?privacy#delete`. If the provider's app already exists
-   for another app, the game shares it: its name is what the consent screen shows.
+   for another app, the game shares it: its name is what the consent screen shows. The privacy page has places
+   in square brackets for you to fill first (your name, a contact address, the country, how many days the web
+   server keeps its logs, the date): `docs/specs/owner/p8-privacy-checklist.md`. Until the live game has the
+   build with the full page, the same page is at `https://highland.avunjian.com/next/?privacy`.
 2. Add the provider's three values to `.env` with an editor on the server (not with a command that would put the
    secret in your shell history), e.g. `DISCORD_ENABLED=true`, `DISCORD_CLIENT_ID=...`, `DISCORD_SECRET=...`
    **[your server]**.
@@ -441,9 +445,12 @@ delete from highland.hs_config where key = 'cloud';
 - **An admin** (a row in `highland.hs_admins`, step 6): the stats page and its switches. Every other caller is
   refused with `not_admin`.
 - **"Delete my account"** removes the player's rows in `highland` only (profile, saves, battles, scores, board
-  rows, visits, rate counters, an admin's row). The sign-in account in `auth.users` is shared with the other apps
-  and is never touched: the person can still sign in to them, and if they sign in to the game again they start
-  as a new player. To have the sign-in itself removed, a person writes to the owner.
+  rows, visits and the same devices' visits from before the sign-in, rate counters, an admin's row). It asks for a
+  session begun with a provider (migration 005): the same account signed in by password through the shared email
+  sign-in is refused (`not_game_session`). The sign-in account in `auth.users` is shared with the other apps and
+  is never touched: the person can still sign in to them, and if they sign in to the game again they start as a
+  new player. To have the sign-in itself removed, a person writes to the owner; what to do then is in
+  `docs/specs/owner/p8-privacy-checklist.md`.
 
 ---
 

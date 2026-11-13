@@ -1077,7 +1077,16 @@ group("delete", async () => {
   ok(await has(U.A) > 8, "A has rows in every table of highland before (" + await has(U.A) + ")");
   const bBefore = await has(U.B), sharedA = await shared(U.A), sharedB = await shared(U.B), users = (await su("select count(*)::int n from auth.users"))[0].n;
   ok(sharedA.users === 1 && sharedA.ids >= 1 && sharedA.log === 1, "and an account, an identity and a log line in the shared auth schema");
+  // (migration 005) A's own account signed in by password, the shared email sign-in, cannot delete A's game data
+  const aBefore = await has(U.A);
+  const pw = await err(rpc(U.A + ":password", "hs_delete_account", {}));
+  ok(pw && pw.msg === "not_game_session" && pw.code === "42501", "A's account in a password session is refused hs_delete_account (" + (pw && pw.msg) + ")");
+  eq(await has(U.A), aBefore, "and every row of A's is still there");
+  ok((await su("select count(*)::int n from highland.hs_rate where key = $1", [D1]))[0].n > 0, "his device has a visitor's rate counter before");
+  const bRate = (await su("select count(*)::int n from highland.hs_rate where key in (select aid::text from highland.hs_sessions where uid = $1)", [U.B]))[0].n;
   eq((await rpc(U.A, "hs_delete_account", {})).ok, true, "A deletes his account");
+  eq((await su("select count(*)::int n from highland.hs_rate where key = $1", [D1]))[0].n, 0, "his devices' rate counters went with their visits");
+  eq((await su("select count(*)::int n from highland.hs_rate where key in (select aid::text from highland.hs_sessions where uid = $1)", [U.B]))[0].n, bRate, "B's devices' counters stay");
   eq(await has(U.A), 0, "every row of his in highland is gone: profile, saves, runs, scores, board rows, visits, rate counters, the admin's row");
   eq(await su("select sid, uid::text from highland.hs_sessions where aid = $1", [D1]), [], "and his device's visits from before the sign-in");
   eq(await shared(U.A), sharedA, "the shared sign-in account is untouched: auth.users, auth.identities and the sign-in log keep their rows");
@@ -1320,8 +1329,10 @@ async function migrationsSuite(db) {
     // a failing migration keeps nothing of itself
     const dir2 = fs.mkdtempSync(path.join(require("os").tmpdir(), "hs-mig-"));
     for (const f of fs.readdirSync(require("./migrate").DIR)) fs.copyFileSync(path.join(require("./migrate").DIR, f), path.join(dir2, f));
-    fs.writeFileSync(path.join(dir2, "005_broken.up.sql"), "create table highland.hs_half (a int);\nselect 1/0;\n");
-    fs.writeFileSync(path.join(dir2, "005_broken.down.sql"), "drop table highland.hs_half;\n");
+    // (numbered after the newest real one)
+    const nb = String(list().length + 1).padStart(3, "0");
+    fs.writeFileSync(path.join(dir2, nb + "_broken.up.sql"), "create table highland.hs_half (a int);\nselect 1/0;\n");
+    fs.writeFileSync(path.join(dir2, nb + "_broken.down.sql"), "drop table highland.hs_half;\n");
     const e2 = await err(migrate({ client: pgc, dir: dir2 }));
     ok(e2 && /division by zero/.test(e2.msg), "a migration that fails stops the run (" + (e2 && e2.msg) + ")");
     fs.rmSync(dir2, { recursive: true, force: true });
