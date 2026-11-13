@@ -90,7 +90,10 @@
 //      highland (an admin's row too) and none of another player's, leaves auth.users and its identities, clears the
 //      device (progress, session, stash, the account in hs_pf_cfg), replaces the anonymous id, returns to the gate
 //      with its line; account_deleted reaches the server as a visitor's on the new id, nothing of the account comes
-//      back, and the same person signing in again is asked for a name
+//      back, and the same person signing in again is asked for a name. With the call cut off (desktop and 667x320)
+//      the words say there is no connection; with the server's answer lost after it deleted (desktop) they say it may
+//      be done, and the retry is safe. Deleted elsewhere (desktop and 667x320): another device still signed in, and a
+//      second tab of the same browser, forget the account too, say so on the gate, and bring none of it back
 //   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
 //      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
 //      there has its own save; /next/ again has its session and its progress
@@ -100,7 +103,7 @@
 // must go to the stack's two ports; any page error or console error fails. Flow 10 also opens ?privacy#delete on the
 // page as committed (the platform off): shown from the page itself, with no request.
 // --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure. The extra parts
-// alone: --flows=4more,5more,13more,13del.
+// alone: --flows=4more,5more,13more,13del,13gone.
 "use strict";
 const path = require("path");
 const fs = require("fs");
@@ -1759,7 +1762,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (wt.held !== 0) fail(W, "the next person on this device sees " + wt.held + " battlefields held");
     await done(g, W);
     await flow13del(C);
-    if (C.key === "desk" || C.key === "ses") await flow13more(C);
+    if (C.key === "desk" || C.key === "ses") { await flow13more(C); await flow13gone(C); }
   };
 
   // flow 13, the deletion (work package P8; 1.5, RULINGS S10). The question names what goes and leads with Keep my
@@ -1833,6 +1836,35 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await S.control("rest", { mode: "up" });
       if (JSON.stringify(await rowsOf(uid)) !== JSON.stringify(before)) fail(W, "the failed deletion changed the server's rows");
       await pressAc(g, "Keep my account");
+      // no connection at all (the call never leaves the browser): the "no connection" words, nothing deleted
+      await g.page.route("**/rest/v1/rpc/hs_delete_account", r => r.abort("internetdisconnected"));
+      await pressAc(g, "Delete my account");
+      await pressAc(g, "Delete everything");
+      await g.page.waitForFunction(() => /could not be deleted/.test((document.querySelector(".acTab .acErr") || {}).textContent || ""), null, { timeout: 20000 }).catch(() => {});
+      const e2 = await g.ev(() => ({ line: (document.querySelector(".acTab .acErr") || {}).textContent || "", auth: !!localStorage.getItem("hs_pf_auth") }));
+      if (e2.line !== "Your account could not be deleted: there is no connection. Nothing was deleted. Try again when you are online." || !e2.auth) fail(W, "offline, the deletion said: " + JSON.stringify(e2));
+      await g.page.unroute("**/rest/v1/rpc/hs_delete_account");
+      if (JSON.stringify(await rowsOf(uid)) !== JSON.stringify(before)) fail(W, "the deletion that never left changed the server's rows");
+      await pressAc(g, "Keep my account");
+    }
+    if (C.key === "desk") {
+      // the call reached the server, which deleted, but its answer did not come back in time (the page waits 40 s):
+      // the words cannot say that nothing was deleted, and trying again (below) is safe and clears the device
+      await g.page.route("**/rest/v1/rpc/hs_delete_account", async (r) => {
+        let res = null;
+        try { res = await r.fetch(); } catch (e) {}
+        await new Promise(ok => setTimeout(ok, 45000));
+        try { if (res) await r.fulfill({ response: res }); else await r.abort(); } catch (e) {}
+      });
+      await pressAc(g, "Delete my account");
+      await pressAc(g, "Delete everything");
+      await g.page.waitForFunction(() => /answer in time/.test((document.querySelector(".acTab .acErr") || {}).textContent || ""), null, { timeout: 60000 }).catch(() => {});
+      const e3 = await g.ev(() => (document.querySelector(".acTab .acErr") || {}).textContent || "");
+      if (e3 !== "The server did not answer in time. Your account may be deleted already. It is safe to try again.") fail(W, "a deletion whose answer was lost said: " + JSON.stringify(e3));
+      await g.page.unroute("**/rest/v1/rpc/hs_delete_account");
+      const mid = await rowsOf(uid);
+      if (mid.profile !== 0 || mid.auth_user !== 1) fail(W, "the server did not delete behind the lost answer: " + JSON.stringify(mid));
+      await pressAc(g, "Keep my account");
     }
     // Delete everything
     await pressAc(g, "Delete my account");
@@ -1847,11 +1879,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (line !== "Your account is deleted. Its name, progress and scores are gone from our server and from this device.") fail(W, "the gate's line after the deletion: " + JSON.stringify(line));
     if (PHOTOS) await g.page.screenshot({ path: path.join(PHOTOS, "delete-done-" + C.key + ".png") });
     const dev = await g.ev(() => ({ keys: csNames().concat(["hs_run"]).filter(k => localStorage.getItem(k) != null && localStorage.getItem(k) !== csFresh()[k]),
-      pf: ["hs_pf_auth", "hs_pf_me", "hs_pf_run", "hs_pf_stash", "hs_pf_pkce"].filter(k => localStorage.getItem(k) != null), aid: JSON.parse(localStorage.getItem("hs_pf_aid") || "null"),
+      pf: ["hs_pf_auth", "hs_pf_me", "hs_pf_run", "hs_pf_stash", "hs_pf_pkce", "hs_pf_out", "hs_pf_daily", "hs_pf_gone"].filter(k => localStorage.getItem(k) != null), aid: JSON.parse(localStorage.getItem("hs_pf_aid") || "null"),
+      // (the new visit may have written its own queue by now: none of it may be the old id's)
+      evq: Object.values((JSON.parse(localStorage.getItem("hs_pf_evq") || "{}") || {}).ctx || {}).map(c => c && c.aid),
       cfg: JSON.parse(localStorage.getItem("hs_pf_cfg") || "{}"), sync: JSON.parse(localStorage.getItem("hs_pf_sync") || "{}"),
       held: LEVELS.filter((L, i) => levelConquered(i)).length, ev: (window.__hsEv || []).filter(e => e[0] === "account_deleted").length }));
     if (dev.keys.length || dev.pf.length) fail(W, "the deletion left on the device: " + dev.keys.concat(dev.pf).join());
     if (!dev.aid || dev.aid === aid0) fail(W, "the anonymous id was not replaced (" + aid0 + " then " + dev.aid + ")");
+    if (dev.evq.includes(aid0)) fail(W, "hs_pf_evq still holds events of the old anonymous id");
     if (dev.cfg.lastUid === uid || (dev.cfg.seen || []).includes(uid)) fail(W, "hs_pf_cfg still names the account: " + JSON.stringify(dev.cfg));
     if (dev.sync.owner !== "" || dev.sync.ver) fail(W, "the sync state after the deletion: " + JSON.stringify(dev.sync));
     if (dev.held) fail(W, "the device still shows " + dev.held + " battlefields held");
@@ -1867,6 +1902,106 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // the same person again: a new player, asked for a name
     await signIn(g, "aram", "google", "name");
     await done(g, W);
+  };
+
+  // flow 13, the deletion seen elsewhere (the P8 review's findings 1 and 2), on the desktop and at 667x320.
+  // (1) Another device of the same account, still signed in with the progress on it, loads again after the
+  // deletion: it forgets the account too, signs out, the gate says why, and the same person named again on it has
+  // none of the old progress on the server. (2) A second tab of the same browser, open on the map: it stops at once
+  // (a battle it wins right then is not written), reloads to the gate with the same line, and the same person signing
+  // in again has none of the old progress on the server or the device.
+  const goneLine = "Your account was deleted in another tab or on another device. Its progress is gone from here too.";
+  const flow13gone = async (C) => {
+    let W = "flow 13 (deleted on another device) " + C.name;
+    {
+      await resetStack();
+      const g = await open(C);
+      await newPlayer(g, "aram", "Aram");
+      const uid = await uidOf(g);
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      await g.ev(() => storeRecord(0, { stars: [0, 3, 0], lives: [0, 20, 0], endless: [0, 0, 0] }));
+      await until(async () => { const sv = await saveOf(uid); return sv && /erebuni/.test(sv.data.keys.hs_records || ""); }, 10000, "Aram's save").catch(e => fail(W, e.message));
+      const h = await open(C);
+      await returning(h, "aram");
+      await pressWelcome(h, "Campaign Map"); await gate(h, ""); await toMap(h);
+      await h.page.waitForFunction(() => /erebuni/.test(localStorage.getItem("hs_records") || "") && csState().owner && !csState().dirty, null, { timeout: 15000 }).catch(() => fail(W, "the second device did not get the progress"));
+      const aidH = JSON.parse(await store(h, "hs_pf_aid"));
+      await accountTab(g);
+      await pressAc(g, "Delete my account");
+      await pressAc(g, "Delete everything", true);
+      await gate(g, "signin");
+      await done(g, W + " (device 1)");
+      await h.page.reload();
+      await gate(h, "signin");
+      const line = await h.ev(() => (gateCardEl.querySelector(".gtLine") || {}).textContent || "");
+      if (line !== goneLine) fail(W, "the second device's gate says " + JSON.stringify(line));
+      const dev = await h.ev(() => ({ keys: csNames().concat(["hs_run"]).filter(k => localStorage.getItem(k) != null && localStorage.getItem(k) !== csFresh()[k]),
+        pf: ["hs_pf_auth", "hs_pf_me", "hs_pf_run", "hs_pf_stash", "hs_pf_gone"].filter(k => localStorage.getItem(k) != null),
+        sync: JSON.parse(localStorage.getItem("hs_pf_sync") || "{}"), aid: JSON.parse(localStorage.getItem("hs_pf_aid") || "null"), ev: (window.__hsEv || []).filter(e => e[0] === "account_deleted").length }));
+      if (dev.keys.length || dev.pf.length) fail(W, "the second device kept " + dev.keys.concat(dev.pf).join());
+      if (dev.sync.owner !== "") fail(W, "the second device's sync state: " + JSON.stringify(dev.sync));
+      if (!dev.aid || dev.aid === aidH) fail(W, "the second device's anonymous id was not replaced");
+      if (dev.ev) fail(W, "the second device counted account_deleted again");
+      await signIn(h, "aram", "google", "name");
+      await h.page.fill("#gate .gtField", "Aram Two");
+      await pressGo(h, "#gate .gtGo");
+      await gate(h, "welcome");
+      await h.wait(4000);
+      const sv = await saveOf(uid);
+      if (sv && /erebuni/.test(sv.data.keys.hs_records || "")) fail(W, "the deleted progress came back to the server from the second device");
+      await done(h, W + " (device 2)");
+    }
+    W = "flow 13 (deleted in another tab) " + C.name;
+    {
+      await resetStack();
+      const g = await open(C);
+      await newPlayer(g, "aram", "Aram");
+      const uid = await uidOf(g);
+      await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+      await g.ev(() => storeRecord(0, { stars: [0, 3, 0], lives: [0, 20, 0], endless: [0, 0, 0] }));
+      await until(async () => { const sv = await saveOf(uid); return sv && /erebuni/.test(sv.data.keys.hs_records || ""); }, 10000, "Aram's save").catch(e => fail(W, e.message));
+      const p2 = await g.ctx.newPage();
+      const errs2 = [];
+      p2.on("pageerror", e => errs2.push(e.message));
+      await p2.goto(SITE + "/");
+      await p2.waitForFunction(() => typeof gateState !== "undefined" && typeof Platform !== "undefined" && document.readyState === "complete" && gateUp && gateState === "welcome" && !gateCardEl.querySelector("button:disabled"), null, { timeout: 30000 });
+      await p2.evaluate(() => { const b = Array.from(gateCardEl.querySelectorAll("button")).find(b => b.textContent.startsWith("Campaign Map")); b.click(); });
+      await p2.waitForFunction(() => !gateUp, null, { timeout: 15000 });
+      // the second tab wins a battle while the first is clearing the device (as its session goes)
+      await p2.evaluate(() => window.addEventListener("storage", (e) => {
+        if (e.key === "hs_pf_auth" && !e.newValue) { try { storeRecord(1, { stars: [0, 2, 0], lives: [0, 11, 0], endless: [0, 0, 0] }); window.__wonAfter = 1; } catch (x) { window.__wonAfter = String(x); } }
+      }));
+      await accountTab(g);
+      await pressAc(g, "Delete my account");
+      await pressAc(g, "Delete everything", true);
+      await gate(g, "signin");
+      // the second tab reloads to the gate by itself
+      const t2 = Date.now();
+      let st2 = null;
+      for (;;) {
+        st2 = await p2.evaluate(() => typeof gateState === "undefined" || document.readyState !== "complete" ? null : { up: gateUp, st: gateState, line: (gateCardEl.querySelector(".gtLine") || {}).textContent || "", won: window.__wonAfter || 0 }).catch(() => null);
+        if (st2 && st2.up && st2.st === "signin" && !st2.won) break;
+        if (Date.now() - t2 > 20000) break;
+        await new Promise(r => setTimeout(r, 300));
+      }
+      if (!st2 || !st2.up || st2.st !== "signin" || st2.won) fail(W, "the second tab did not reload to the gate: " + JSON.stringify(st2));
+      else if (st2.line !== goneLine) fail(W, "the second tab's gate says " + JSON.stringify(st2.line));
+      for (const e of errs2) fail(W, "second tab: " + e);
+      await p2.close();
+      const left = await g.ev(() => ({ keys: csNames().concat(["hs_run"]).filter(k => localStorage.getItem(k) != null && localStorage.getItem(k) !== csFresh()[k]),
+        sync: JSON.parse(localStorage.getItem("hs_pf_sync") || "{}"), gone: localStorage.getItem("hs_pf_gone") }));
+      if (left.keys.length) fail(W, "the device holds " + left.keys.join() + " after the second tab");
+      if (left.sync.owner !== "" || left.gone != null) fail(W, "the device's sync state or mark after the second tab: " + JSON.stringify(left));
+      await signIn(g, "aram", "google", "name");
+      await g.page.fill("#gate .gtField", "Aram Again");
+      await pressGo(g, "#gate .gtGo");
+      await gate(g, "welcome");
+      await g.wait(4000);
+      const sv = await saveOf(uid);
+      if (sv && /erebuni|tushpa/.test(sv.data.keys.hs_records || "")) fail(W, "the deleted progress came back to the server from the second tab");
+      if (/erebuni|tushpa/.test((await store(g, "hs_records")) || "")) fail(W, "the device shows the deleted progress again");
+      await done(g, W);
+    }
   };
 
   // flow 13, more (the P3 review's findings 1 and 5), on the desktop and the small iPhone. (1) This account's stash
@@ -1989,7 +2124,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(g, W);
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del };
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {

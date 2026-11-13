@@ -302,9 +302,19 @@ async function run(S) {
       + (select count(*) from highland.hs_score_best where user_id = $1) + (select count(*) from highland.hs_sessions where uid = $1) as n`, [P.B]))[0].n;
     ok(await bRows() >= 5, "B has rows in highland before (" + await bRows() + ")");
     const aRowsBefore = (await q("select count(*)::int n from highland.hs_scores where user_id = $1", [P.A]))[0].n;
+    // everyone else's visits and counters (a visitor's anonymous visit on a device of his own is made first): B's
+    // deletion takes his devices' anonymous visits and counters, and nobody else's
+    const vis = await api.rpc(null, "hs_track", { p_ctx: { aid: "e1000000-0000-4000-8000-0000000000e1", sid: "iso-visitor-del-01" }, p_events: [{ n: "page_load", q: 1 }] });
+    ok(vis.status === 200, "a visitor's visit on his own device before the deletion (" + vis.status + ")");
+    const others = async () => (await q(`select (select count(*) from highland.hs_sessions where uid is null and aid not in (select aid from highland.hs_sessions where uid = $1))::int as anon,
+      (select count(*) from highland.hs_sessions where uid is not null and uid <> $1)::int as players,
+      (select count(*) from highland.hs_rate where key <> $1::text and key not in (select aid::text from highland.hs_sessions where uid = $1))::int as rate`, [P.B]))[0];
+    const othersBefore = await others();
+    ok(othersBefore.anon > 0 && othersBefore.rate > 0, "there are other visitors' visits and counters before (" + JSON.stringify(othersBefore) + ")");
     const d = await api.rpc("B", "hs_delete_account", {});
     ok(d.status === 200 && d.body.ok === true, "B deletes his account");
     ok(await bRows() === 0, "every row of B's in highland is gone");
+    ok(JSON.stringify(await others()) === JSON.stringify(othersBefore), "every other visit and counter stays: visitors' anonymous visits, other players' visits, their counters (" + JSON.stringify(await others()) + ")");
     ok(JSON.stringify(await q("select id::text, email from auth.users order by id")) === JSON.stringify(authBefore), "auth.users is exactly as it was: B's sign-in account, shared with the other apps, stays");
     ok((await q("select count(*)::int n from auth.identities where user_id = $1", [P.B]))[0].n >= 1, "and so do his identities");
     ok((await q("select count(*)::int n from highland.hs_scores where user_id = $1", [P.A]))[0].n === aRowsBefore, "A's scores are untouched");

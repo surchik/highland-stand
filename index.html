@@ -3743,7 +3743,7 @@
       <li>Your scores.</li>
     </ul>
     <h2>What we count</h2>
-    <p>We count what happens in the game: pages opened, battles begun, won and lost, towers built, and where players stop. Each count carries a random number kept in your browser, the kind of device (phone, tablet or desktop), its system and browser, the size of its window, your language, and the name of the site you came from. Once you sign in, your counts are tied to your account. We use them only to make the game better. Our counts do not include your IP address.</p>
+    <p>We count what happens in the game: pages opened, battles begun, won and lost, towers built, and where players stop. Each count carries a random number kept in your browser, the kind of device (phone, tablet or desktop), its system and browser, whether the game was added to its Home Screen, the size of its window, your language, and the name of the site you came from. Once you sign in, your counts are tied to your account. We use them only to make the game better. Our counts do not include your IP address.</p>
     <h2>What the sign-in service and the web server record</h2>
     <p>When you sign in, the sign-in service on our server records the time, your IP address and the kind of browser, as sign-in services do, to keep accounts safe. Like every web server, ours writes a line for each request with the IP address, and keeps those lines for <span class="pvFill" data-fill="days">[number]</span> days.</p>
     <h2>What we do not do</h2>
@@ -79446,14 +79446,14 @@ async function pfApi(method, path, body, o = {}) {
     bearer = s.at;
   }
   const ctl = typeof AbortController === "function" ? new AbortController() : null;
-  let timer = 0;
+  let timer = 0, timedOut = false;
   try {
     const headers = { apikey: PF_KEY, Authorization: "Bearer " + bearer };
     if (path.startsWith("/rest/v1/")) Object.assign(headers, pfProfile());
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const req = fetch(PF_URL + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined,
       keepalive: !!o.keepalive, cache: "no-store", credentials: "omit", redirect: "error" });
-    const late = new Promise((_, no) => { timer = setTimeout(() => { if (ctl) ctl.abort(); no(new Error("timeout")); }, o.timeout || 8000); });
+    const late = new Promise((_, no) => { timer = setTimeout(() => { timedOut = true; if (ctl) ctl.abort(); no(new Error("timeout")); }, o.timeout || 8000); });
     const res = await Promise.race([req, late]);
     const text = await Promise.race([res.text(), late]);
     let data = null;
@@ -79463,7 +79463,9 @@ async function pfApi(method, path, body, o = {}) {
     const code = res.ok ? "" : String((data && (data.error_code || data.message || data.error)) || "");
     return { ok: res.ok, status: res.status, data, code };
   } catch (e) {
-    return { ok: false, status: 0, data: null, code: "network" };
+    // timeout: the request may have reached the server (its answer did not come back in time), unlike a request that
+    // never left. A caller whose call cannot be taken back (Delete my account) says so
+    return { ok: false, status: 0, data: null, code: "network", timeout: timedOut };
   } finally { clearTimeout(timer); }
 }
 const pfRpc = (fn, args, o) => pfApi("POST", "/rest/v1/rpc/" + fn, args || {}, o);
@@ -79701,6 +79703,7 @@ const CS = {
   told: new Set(),
   joined: new Map(),   // a join's answer, once it came (the welcome card reads it)
   joinWait: new Set(), joinLate: new Set(), joinAt: new Map(),   // the joins the welcome card waits on, and those it stopped waiting on
+  gone: false,         // the account was deleted in another tab: this tab writes nothing of it back, and reloads
 };
 function csState() {
   if (!CS.st) {
@@ -79713,7 +79716,7 @@ function csState() {
   }
   return CS.st;
 }
-function csSave() { const s = csState(); s.off = pfClockOff; pfWrite("hs_pf_sync", s); }
+function csSave() { if (CS.gone) return; const s = csState(); s.off = pfClockOff; pfWrite("hs_pf_sync", s); }
 // a new battle's name (Cloud.claim's bid)
 function csBid() { return b64url(pfRandBytes(6)); }
 // every key the build knows by name: the listed ones, and the hs_best_ keys of every battlefield and age (there is
@@ -79749,7 +79752,12 @@ function csHook() {
   };
   const wrap = (obj, test) => {
     const set = obj.setItem, rem = obj.removeItem;
-    obj.setItem = function (k, v) { const r = set.apply(this, arguments); if (test(this)) after(k, "set"); return r; };
+    obj.setItem = function (k, v) {
+      // the account was deleted in another tab: what this tab still holds of it (a battle won, a battle's save as the
+      // page goes) never reaches the device again
+      if (CS.gone && test(this) && csSynced(k)) return;
+      const r = set.apply(this, arguments); if (test(this)) after(k, "set"); return r;
+    };
     obj.removeItem = function (k) { const r = rem.apply(this, arguments); if (test(this)) after(k, "remove"); return r; };
   };
   if (typeof Storage !== "undefined" && ls instanceof Storage) wrap(Storage.prototype, (t) => t === window.localStorage);
@@ -80629,6 +80637,7 @@ async function pfWithSession(justIn) {
   if (!late) asked.then(x => {
     if (!x || x.gone || !x.r.ok || !x.r.data) return;
     const nm = typeof x.r.data.name === "string" && x.r.data.name ? x.r.data.name : null;
+    if (!nm && csState().owner === s.uid) { pfGoneOnLoad(s); return; }   // (as below, the answer late)
     if (nm && PF.me && PF.me.uid === s.uid && !PF.me.name) { PF.me = { uid: s.uid, name: nm }; pfAccountRedraw(); }
   });
   if (late && late.gone) { pfNoSession(""); return; }    // the server ended the session: as if none was held
@@ -80637,6 +80646,8 @@ async function pfWithSession(justIn) {
   if (r.ok && r.data && typeof r.data === "object") {
     name = typeof r.data.name === "string" && r.data.name ? r.data.name : null;
     named = !!name;
+    // the progress here was this account's, and the account has no profile any more: deleted elsewhere (pfGoneOnLoad)
+    if (!named && csState().owner === s.uid) { pfGoneOnLoad(s); return; }
   }
   if (justIn) {
     pfAidKeep();
@@ -81331,7 +81342,10 @@ function pfDeleteAsk(box, s) {
     if (r === "out") return;
     for (const x of r2.querySelectorAll("button")) x.disabled = false;
     b.textContent = "Delete everything";
+    // (a call that timed out may have been done by the server: then nobody can say that nothing was deleted. Trying
+    // again is safe: the server answers ok for an account that has nothing left)
     err.textContent = r === "offline" ? "Your account could not be deleted: there is no connection. Nothing was deleted. Try again when you are online."
+      : r === "unknown" ? "The server did not answer in time. Your account may be deleted already. It is safe to try again."
       : "Your account could not be deleted just now. Nothing was deleted. Try again in a minute.";
   });
   r2.appendChild(keep);
@@ -81344,11 +81358,11 @@ function pfDeleteAsk(box, s) {
   try { keep.focus({ preventScroll: true }); } catch (e) {}
 }
 // "Delete my account" (1.5; RULINGS S10): the server removes the game's data of this account, then this device
-// forgets it as at sign-out, and more: the account's progress always (the words promise it), its stash, its traces
-// in hs_pf_cfg, the events not sent yet (their visits are the ones the server removed) and the anonymous id, which a
-// new one replaces. The page then reloads to the gate, which says it is done; the account_deleted count goes from
-// that new visit, as a visitor's, so nothing of the old account is made again. Answers "out" (the page is
-// reloading), "offline" or "failed" (nothing was deleted, nothing on the device changed)
+// forgets it (pfForget) and signs out. The page then reloads to the gate, which says it is done; the account_deleted
+// count goes from that new visit, as a visitor's, so nothing of the old account is made again. Another tab of this
+// browser hears the mark hs_pf_gone and stops writing (pfGoneHeard). Answers "out" (the page is reloading),
+// "offline" or "failed" (nothing was deleted, nothing on the device changed), or "unknown" (the server's answer did
+// not come back in time: it may have been done)
 let pfDeleting = false;
 async function pfDeleteAccount() {
   const s = pfSession();
@@ -81362,39 +81376,82 @@ async function pfDeleteAccount() {
   const settle = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise(r => setTimeout(r, 10000))]);
   await settle(Promise.all([CS.busy, CS.join].filter(Boolean)));
   for (let i = 0; i < 100 && pfEvBusy; i++) await new Promise(r => setTimeout(r, 100));
-  const r = await pfRpc("hs_delete_account", {}, { auth: true, timeout: 30000 });
+  // (longer than the function's own statement_timeout of 30 s, so a slow deletion still answers)
+  const r = await pfRpc("hs_delete_account", {}, { auth: true, timeout: 40000 });
   if (!(r.ok && r.data && r.data.ok === true)) {
     pfDeleting = false;
     CS.ready = wasReady;
     if (wasReady && csState().dirty) csSoon("now");
-    return r.status === 0 ? "offline" : "failed";
+    return r.timeout ? "unknown" : r.status === 0 ? "offline" : "failed";
   }
+  // the other tabs of this browser stop at once, before this one clears the device (they reload once it is done)
+  pfWrite("hs_pf_gone", s.uid);
   // the events of this visit are not sent any more: the queue goes, and nothing writes it back
-  clearTimeout(pfEvT); pfEvT = 0; clearTimeout(pfEvSaveT); pfEvSaveT = 0;
-  pfEvQ = null;
+  pfEvStop();
   await pfApi("POST", "/auth/v1/logout?scope=local", undefined, { auth: true, timeout: 4000 });
-  for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_pkce", "hs_pf_run", "hs_pf_out", "hs_pf_daily", "hs_pf_evq"]) pfDrop(k);
-  const st = pfRead("hs_pf_stash");
-  if (st && st.uid === s.uid) pfDrop("hs_pf_stash");
-  csClearKeys();
-  csQuiet(() => { try { localStorage.removeItem("hs_run"); } catch (e) {} });
-  const cfg = pfCfg();
-  if (cfg.lastUid === s.uid || Array.isArray(cfg.seen)) {
-    const was = cfg.lastUid === s.uid;
-    pfCfgSet(Object.assign({ seen: (Array.isArray(cfg.seen) ? cfg.seen : []).filter(u => u !== s.uid) }, was ? { lastUid: "", lastProv: "" } : {}));
-  }
-  // a new anonymous id: this device's counts from now on are not tied to the ones removed
-  pfWrite("hs_pf_aid", pfUuid());
-  try { sessionStorage.removeItem(HS_KEY_PREFIX + "hs_pf_aid"); } catch (e) {}
-  try { sessionStorage.setItem(HS_KEY_PREFIX + "hs_pf_deleted", "1"); } catch (e) {}
+  pfForget(s.uid, "1");
   location.reload();
   return "out";
 }
+// The events of this load end here: none is sent or kept any more (their visit is one the server removed)
+function pfEvStop() { clearTimeout(pfEvT); pfEvT = 0; clearTimeout(pfEvSaveT); pfEvSaveT = 0; pfEvQ = null; }
+// This device forgets a deleted account: as at sign-out, and more. The session and the platform's keys, the
+// account's progress always (the words promise it), its stash, its traces in hs_pf_cfg, the events not sent yet and
+// the anonymous id (the server removed that device's visits: a new one replaces it under "device", and under "visit"
+// none is kept). how: "1" this device deleted it (the next load counts account_deleted), "2" it was deleted
+// elsewhere (only the gate's line)
+function pfForget(uid, how) {
+  for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_pkce", "hs_pf_run", "hs_pf_out", "hs_pf_daily", "hs_pf_evq"]) pfDrop(k);
+  const st = pfRead("hs_pf_stash");
+  if (st && st.uid === uid) pfDrop("hs_pf_stash");
+  csClearKeys();
+  csQuiet(() => { try { localStorage.removeItem("hs_run"); } catch (e) {} });
+  const cfg = pfCfg();
+  if (cfg.lastUid === uid || Array.isArray(cfg.seen)) {
+    const was = cfg.lastUid === uid;
+    pfCfgSet(Object.assign({ seen: (Array.isArray(cfg.seen) ? cfg.seen : []).filter(u => u !== uid) }, was ? { lastUid: "", lastProv: "" } : {}));
+  }
+  if (HS_ANON_ID === "device") pfWrite("hs_pf_aid", pfUuid()); else pfDrop("hs_pf_aid");
+  try { sessionStorage.removeItem(HS_KEY_PREFIX + "hs_pf_aid"); } catch (e) {}
+  try { sessionStorage.setItem(HS_KEY_PREFIX + "hs_pf_deleted", how); } catch (e) {}
+  pfDrop("hs_pf_gone");
+}
+// A device still signed in to an account deleted elsewhere (another device, or the owner by hand): its progress was
+// this account's (the sync's owner is its id, which only a join with a profile writes), and the server has no
+// profile for it any more. Without this the name card would make a new player of it and push the old progress
+// back up. The device forgets the account as the deleting one did, signs out, and the gate says why
+async function pfGoneOnLoad(s) {
+  if (pfDeleting) return;
+  pfDeleting = true;
+  CS.ready = false; clearTimeout(CS.timer); CS.timer = 0;
+  pfEvStop();
+  await pfApi("POST", "/auth/v1/logout?scope=local", undefined, { auth: true, timeout: 4000 });
+  pfForget(s.uid, "2");
+  location.reload();
+}
+// Another tab of this browser deleted the account: this tab stops sending and writing at once (CS.gone also keeps
+// the game's own writes of the synced keys off the device), and reloads to the gate once that tab has cleared the
+// device (its mark goes then), or after 8 s
+function pfGoneHeard() {
+  if (CS.gone) return;
+  CS.gone = true; CS.ready = false; CS.stopped = true;
+  clearTimeout(CS.timer); CS.timer = 0;
+  pfEvStop();
+  try { sessionStorage.setItem(HS_KEY_PREFIX + "hs_pf_deleted", "2"); } catch (e) {}
+  setTimeout(() => location.reload(), 8000);
+}
+// (the mark under this channel's name only: a /next/ tab's deletion is not the live game's, and the other way round)
+if (PF_ON) window.addEventListener("storage", (e) => {
+  if (e.key !== HS_KEY_PREFIX + "hs_pf_gone") return;
+  if (e.newValue) pfGoneHeard();
+  else if (CS.gone) location.reload();
+});
 // The load after a deletion: the gate's line, and the count (a visitor's: this load has no session)
 function pfDeletedLine() {
   let was = null;
   try { was = sessionStorage.getItem(HS_KEY_PREFIX + "hs_pf_deleted"); sessionStorage.removeItem(HS_KEY_PREFIX + "hs_pf_deleted"); } catch (e) {}
   if (!was || pfSession()) return "";
+  if (was !== "1") return "Your account was deleted in another tab or on another device. Its progress is gone from here too.";
   track("account_deleted", {});
   return "Your account is deleted. Its name, progress and scores are gone from our server and from this device.";
 }

@@ -98,15 +98,23 @@ commit;
 If the first `select` finds no row or more than one, type `rollback;` and stop. A person may have signed in with
 two providers that gave two addresses: ask which.
 
-**"Remove my sign-in too."** The sign-in account belongs to the shared sign-in service, which your other apps
-(PathStream, ReqStream) use as well. The game never removes it by itself. Removing it signs the person out of
-every app on the server and removes what those apps keep for that account where their tables say so. Only you
-can judge that. If you do remove it, do it in Supabase Studio (Authentication, Users, the person, Delete user),
-or in `psql` with `delete from auth.users where id = '...';`. The game's rows of that account go with it on their
-own (their foreign keys cascade), so the game needs nothing more.
+**"Remove my sign-in too."** First remove the game data with the block above. Do not skip it: not every game
+row goes with the sign-in account. The visits (`hs_sessions.uid`) have no foreign key, so the visits and their
+counts would stay; the rate counters are keyed by text; and a ruleset keeps its publisher's id. Then remove the
+sign-in account. It belongs to the shared sign-in service, which your other apps (PathStream, ReqStream) use as
+well. The game never removes it by itself. Removing it signs the person out of every app on the server and
+removes what those apps keep for that account where their tables say so. Only you can judge that. If you do
+remove it, do it in Supabase Studio (Authentication, Users, the person, Delete user), or in `psql` with
+`delete from auth.users where id = '...';`.
 
-**"A child under 13 has an account."** Remove the game data as in the first case. Say in your answer that it
-is done.
+**"A child under 13 has an account."** The privacy page says "we will delete it", and that means the account,
+not only its game data. Remove the game data with the block above, then the sign-in account as in "Remove my
+sign-in too" (check first what your other apps keep for that address). Say in your answer that it is done.
+If you would rather not remove sign-in accounts for the game, change that sentence of the privacy page before
+the platform is switched on (it is the "Children" part of `#privacyPage` in `index.html`).
+
+- [ ] Decide which of the two you will do for a child: remove the sign-in account too (the page as it is), or
+      change the page's sentence.
 
 Answer each from the address on the privacy page, and keep a note of the day you did it.
 
@@ -127,8 +135,11 @@ you want its admin row gone too):
 5. In `psql`: `select count(*) from highland.hs_profiles where user_id = '<that id>';` gives 0, and
    `select count(*) from auth.users where id = '<that id>';` still gives 1.
 6. Sign in again with the same provider: the game asks for a name, as for a new player.
+7. If that account was also signed in on a second device (or in a second tab), open the game there.
+   **You see** the sign-in card, with "Your account was deleted in another tab or on another device. Its progress
+   is gone from here too." Nothing of the old progress comes back if you sign in there again.
 
-- [ ] Steps 1 to 6 as written, on the computer.
+- [ ] Steps 1 to 7 as written, on the computer.
 - [ ] Steps 2 to 4 on the iPhone held sideways (the buttons fit and answer a finger).
 
 ## 5. What changed on the server
