@@ -19,7 +19,9 @@ const serial = args.includes("--serial") || os.cpus().length < 4;
 const file = path.resolve(args.find(a => !a.startsWith("--")) || path.join(__dirname, "..", "index.html"));
 
 async function runSuite(browser, n) {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  // suite 2 runs on a clock fourteen hours ahead of UTC (Pacific/Kiritimati), so a day read in the device's own zone
+  // instead of UTC (the daily's day, gameplay 6.4) fails it; suite 1 keeps the machine's zone
+  const page = await browser.newPage(Object.assign({ viewport: { width: 1600, height: 900 } }, n === 2 ? { timezoneId: "Pacific/Kiritimati" } : {}));
   const logs = [];
   page.on("pageerror", e => logs.push("pageerror: " + e.message));
   // the checks run synchronously while the page loads, so its load can take the whole run

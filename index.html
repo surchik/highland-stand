@@ -14665,12 +14665,13 @@ function dailyEntry() {
   b.title = words;
   b.setAttribute("aria-label", words);
 }
-// a battlefield's name as the daily's door and share text give it: with its year where two battlefields share a name
-// (Stepanakert, 1992 and 2023), so the day's battle is never in doubt
+// a battlefield's name as the daily's door and share text give it: with its year where another battlefield's name
+// begins the same ("Stepanakert" of 1992 beside "Stepanakert 2023"), so the day's battle is never in doubt
 function dailyTitle(levelIndex) {
   const L = LEVELS[levelIndex];
   if (!L) return "";
-  return LEVELS.some(M => M !== L && M.name === L.name) && L.year ? L.name + " " + L.year : L.name;
+  const clash = LEVELS.some(M => M !== L && (M.name.startsWith(L.name) || L.name.startsWith(M.name)));
+  return clash && L.year > 0 && !L.name.includes(String(L.year)) ? L.name + " " + L.year : L.name;
 }
 // the daily's line on its end page: a victory, or the waves a lost one held (what a lost daily is scored by)
 function dailyDoneLine(won) {
@@ -86688,7 +86689,7 @@ function runSelftestPlay() {
     if (!gameOver || lastCleared !== 12) fail("the staged daily did not end in victory: " + lastCleared);
     const f = evLast("victory"), st = evLast("battle_start");
     sound(f, "a daily's victory");
-    if (f.mode !== "daily" || f.twist !== "thin" || f.waves !== 12 || f.wave !== 12 || f.loadout !== "std" || f.stars !== victoryStars(f.held, f.lives_max)) fail("the victory's numbers: " + JSON.stringify(f).slice(0, 200));
+    if (f.mode !== "daily" || f.twist !== "thin" || f.waves !== 12 || f.wave !== 12 || f.loadout !== "std" || f.stars !== 0) fail("the victory's numbers: " + JSON.stringify(f).slice(0, 200));
     if (!st || st.mode !== "daily" || st.twist !== "thin" || st.loadout !== "std") fail("battle_start: " + JSON.stringify(st));
     if (localStorage.getItem("hs_run") !== RUN || localStorage.getItem("hs_records") !== REC || bests() !== before || levelOpen(lv)) fail("a daily's victory wrote a record or opened a road");
     const h = heroesLoad(), ch = CHAPTERS[chapterOf(lv)].id;
@@ -86778,6 +86779,87 @@ function runSelftestPlay() {
     if (startDaily(99, "thin", DAY0) || startDaily(0, "dusk", DAY0) || startDaily(0, "thin", "yesterday") || startDaily(0, null, DAY0) || dailyRun) fail("startDaily took a battle it does not know");
     curLevel = 0; resetGame(); gameOver = false; overlayEl.classList.add("hidden");
     if (startDaily(0, "thin", DAY0) || dailyRun) fail("startDaily began a daily over a battle on the field");
+  }));
+  // G6 close (the review's findings 1, 2, 3, 5, 6, 8, 9, 10)
+  check("daily: an open battlefield's victory keeps its records; Sis's days; the lost page's debrief; Abandon, Resume, the clock", guarded(() => {
+    localStorage.setItem("hs_tutorial_done", "1");
+    const REC = JSON.stringify({ erebuni: { stars: [0, 2, 0], lives: [0, 14, 0], endless: [0, 0, 0] } });
+    localStorage.setItem("hs_records", REC); localStorage.removeItem("hs_run");
+    localStorage.setItem("hs_heroes", JSON.stringify({ v: 1, xp: { kingdoms: 0, faith: 0, crowns: 0, night: 0, artsakh: 0 } }));
+    for (let i = 0; i < LEVELS.length; i++) localStorage.removeItem(bestKey(i, LEVELS[i].era));
+    localStorage.setItem(bestKey(0, LEVELS[0].era), "4");
+    const bests = () => LEVELS.map((L, i) => localStorage.getItem(bestKey(i, L.era))).join(), before = bests();
+    if (!levelOpen(0)) fail("the test wants Erebuni open");
+    // a daily won on a battlefield the campaign has opened (and holds a best on): no best, record, star or run
+    const win = (lv, twist) => {
+      if (!startDaily(lv, twist, DAY0)) fail("startDaily refused " + levelId(lv));
+      $("startBtn").click();
+      for (let w = 1; w <= 12 && !gameOver; w++) { startWave(); fight(0); }
+      if (!gameOver || lastCleared !== 12 || lives <= 0) fail(levelId(lv) + "'s staged daily did not end in victory");
+      if (celebration || parley) endCelebration();
+    };
+    evClear();
+    win(0, "swift");
+    const f = evLast("victory");
+    if (!f || f.mode !== "daily" || f.stars !== 0 || evLast("star_gain")) fail("a daily's victory sent stars: " + JSON.stringify(f && f.stars) + " " + JSON.stringify(evLast("star_gain")));
+    if (bests() !== before || localStorage.getItem("hs_records") !== REC || localStorage.getItem("hs_run") !== null) fail("a daily on Erebuni wrote a record: " + bests());
+    if ($("ovRecord").textContent || !/gives your hero experience/.test($("ovSub").textContent)) fail("the first daily's victory page: " + $("ovSub").textContent);
+    // the day's share of experience used up: the page no longer promises any
+    heroesStore(Object.assign(heroesLoad(), { daily: { day: dailyDate(DAY0), xp: 150 } }));
+    $("startBtn").click();   // Fight again
+    $("startBtn").click();
+    for (let w = 1; w <= 12 && !gameOver; w++) { startWave(); fight(0); }
+    if (celebration || parley) endCelebration();
+    if (!heroGrowth || heroGrowth.xp !== 0 || /gives your hero experience/.test($("ovSub").textContent) || !/had today's experience/.test($("ovSub").textContent))
+      fail("a second daily of the day promised experience: " + $("ovSub").textContent);
+    if (bests() !== before || localStorage.getItem("hs_records") !== REC) fail("the second daily wrote a record");
+    // Sis counts its days by script wave: its twelfth daily wave is still the siege's sixtieth day
+    const sis = levelIndexOf("sis");
+    if (!startDaily(sis, "swift", DAY0)) fail("startDaily refused Sis");
+    $("startBtn").click();
+    lastCleared = 6; syncHud();
+    if ($("hudNote").textContent !== "Day " + (1 + DAYS_PER_WAVE * scriptWave(6)) + " of the siege" || scriptWave(6) === 6) fail("Sis's daily day: " + $("hudNote").textContent);
+    lastCleared = 0;
+    for (let w = 1; w <= 12 && !gameOver; w++) { startWave(); fight(0); }
+    if (celebration || parley) endCelebration();
+    if (!$("ovSub").textContent.includes(DAYS_PER_WAVE * SCRIPT_LEN + " days")) fail("Sis's daily victory: " + $("ovSub").textContent);
+    // a lost daily: the victory page's two doors, and the defeat's debrief under its line
+    $("startBtn").click(); $("startBtn").click();
+    fall(); endFall();
+    if (menuMode !== "victory" || !overlayEl.classList.contains("dailyEnd") || !$("ovDebrief").classList.contains("on") || getComputedStyle($("ovDebrief")).display === "none")
+      fail("a lost daily's page hides its debrief: " + overlayEl.className);
+    $("mapBtn").click();
+    if (dailyRun || overlayEl.classList.contains("dailyEnd") || $("ovDebrief").classList.contains("on")) fail("the daily's debrief stayed on the map");
+    // Abandon in a daily: the daily is left, the campaign's run and difficulty come back
+    curLevel = 0; curDiff = 0; prefDiff = 0; resetGame(); startWave(); fight(0); saveRun();
+    const RUN = localStorage.getItem("hs_run");
+    if (!RUN) fail("the campaign battle saved no run");
+    gameOver = true; showMenu("🏔️", "Highland Stand", "", "Take Command");
+    if (!startDaily(levelIndexOf("ani"), "noballista", DAY0)) fail("startDaily refused Ani");
+    $("startBtn").click();
+    startWave();
+    $("menuBtn").click(); $("menuBtn").click();
+    if (dailyRun || trayBan.length || curDiff !== 0 || menuMode !== "map" || localStorage.getItem("hs_run") !== RUN) fail("Abandon left the daily in force: " + JSON.stringify({ d: !!dailyRun, ban: trayBan, curDiff, menuMode }));
+    // and the campaign's run resumed from a daily's chronicle is the campaign's battle
+    if (!startDaily(levelIndexOf("ani"), "noballista", DAY0)) fail("startDaily refused Ani again");
+    resumeRun();
+    if (dailyRun || trayBan.length || curDiff !== 0 || curLevel !== 0 || battleMode() === "daily") fail("Resume kept the daily: " + JSON.stringify({ d: !!dailyRun, ban: trayBan, curDiff, curLevel }));
+    gameOver = true; prefDiff = 1; curDiff = 1;
+    // the day is the UTC day, whatever the device's zone (suite 2 runs at UTC+14, Pacific/Kiritimati): noon UTC on
+    // 13 November is already the 14th there
+    const now0 = Platform.now;
+    try {
+      Platform.now = () => Date.UTC(2026, 10, 13, 12, 0);
+      if (dailyToday().day !== 20770) fail("today's daily took the device's own day: " + dailyToday().day);
+      Platform.now = () => Date.UTC(2026, 10, 13, 23, 59);
+      if (dailyToday().day !== 20770) fail("a minute before UTC midnight: " + dailyToday().day);
+    } finally { Platform.now = now0; }
+    if (dailyDayNum("2026-11-13") !== 20770 || dailyDayNum("2024-02-29") !== 19782) fail("a date read in the device's zone");
+    // a date not on the calendar is refused
+    if (!isNaN(dailyDayNum("2026-02-31")) || !isNaN(dailyDayNum("2026-13-01")) || !isNaN(dailyDayNum("2025-02-29")) || startDaily(0, "thin", "2026-02-31")) fail("a day that does not exist was taken");
+    // the two Stepanakerts are told apart by their years; other names stand alone
+    const s92 = dailyTitle(levelIndexOf("stepanakert92")), s23 = dailyTitle(levelIndexOf("stepanakert23"));
+    if (s92 === s23 || !/1992/.test(s92) || !/2023/.test(s23) || dailyTitle(0) !== LEVELS[0].name) fail("the daily's titles: " + [s92, s23, dailyTitle(0)].join(" / "));
   }));
 
   // the map comes up: it is told once, a moment later (mapOpenSoon's timer), however often the page is rebuilt
