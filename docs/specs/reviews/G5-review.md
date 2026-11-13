@@ -4,7 +4,7 @@ Reviewer: an independent agent, on branch gp/work at 4db55f7 (base 44689a2, the 
 changed. Probes, mutants and logs are in the session scratchpad under `top/build/review/G5/`, photos under
 `top/build/shots/g5-review/`.
 
-REVIEW G5: 0 blockers, 4 majors, 11 minors.
+REVIEW G5: 0 blockers, 4 majors, 12 minors.
 
 Nothing found breaks the game, an old save or a test. The post plays as 2.2 to 2.4 say. The rally works by mouse and by
 finger. The tray fits. B7 and B8 are built as ruled. The majors are balance rows of 5.2 that the build misses (the builder
@@ -168,9 +168,48 @@ reviewer took them again on the final page: `shots/g5-review/age-<9 battlefields
 
 Fix proposed: none needed beyond using the new photos.
 
+### 16. Minor: playtest 6 reads only the median frame; the tail was worse with the posts in the reviewer's run
+
+Evidence: `node tools/playtest-post.js --verbose` (reviewer's run, the machine shared with the other track): with four
+posts (16 men) the median frame 16.7 ms, frames over 22 ms 27.8%, p90 50 ms, the governor at 1.5; with archers on the
+same pads 16.7 ms, 19.7%, p90 33.4 ms, the governor at 1. The script passes on the median and the governor only. The
+builder's run had 6.1% against 5.1%. Under load this proves nothing either way, but the check cannot see a cost in the
+tail.
+
+Fix proposed: the playtest also fails when the share over 22 ms with posts exceeds the share without by more than half
+again, and the run is repeated on a quiet machine before the owner reads it.
+
 ## What the reviewer reran, and the results
 
-RUN_RESULTS
+Each run to its end on 4db55f7 (the machine shared with the other track; load 7 to 18 for most of it):
+
+- `node deploy/check-page.js index.html`: OK (exit 0).
+- `timeout 900 node tools/selftest.js --suite=all`: suite 1 151 checks, all pass, but 178.1 s of 125 under load (FAIL on
+  budget); suite 2 PASS, 35 checks, 117.5 s of 125. Rerun alone, `--suite=1` (load 3.3): PASS, 151 checks, 87.8 s. Suite 1's
+  code (runSelftest) has no line changed by the package.
+- `node tools/run-fixtures.js check`: PASS, 8 fixtures (the base page's, G3's and master's runs, between waves and mid-wave).
+  (A first try under `timeout 600` was cut at 600 s by the load; rerun with a longer limit.)
+- `node tools/town-isolation.js`: PASS, 9 cases.
+- `node tools/regress/run-all.js` full: SUMMARY 11/11 passed in 5,114 s. padplace PASS (1,265 placed, 29 refused, phone
+  pass included), plots PASS, probe PASS (759 probed, 54 rallies, phone included), vic PASS, nag PASS, dance10 PASS (15 of
+  15), live PASS (a post and its rally on all 17), doors PASS (one KNOWN line about the town's card, not G5), iphone PASS
+  (737 states, all ten sizes), waves PASS, platform PASS.
+- `node tools/playtest-post.js --verbose`: PASS. Playtest 2: the card came up and Got it kept it; 20 presses during waves
+  1 to 3 at 2x moved the rally 20 times, 0 slips, the bubble shown. Playtest 6: see finding 16.
+- Balance, Normal, SEEDS=3: `CLOCK=1 ... mix,mix7,posts,postdrum`: every cell equal to the builder's table.
+  `CMD=probe ... posts,mix7`: finding 1. `BUILD_halfpost=... halfpost,mix`: finding 3.
+- Mutants of the page through suite 2 (finding 6): 11 caught of 13 tried (one the reviewer's own mistake, rebuilt and caught).
+- The reviewer's own probes: `probe1.js` (in the page: a post sold mid-fight lets go and the foe walks on; two posts on one
+  road hold a commander 12 s each, 24 s in all; a press off the road is refused; an upgrade mid-hold keeps the hold and adds
+  a man; Shield Wall holds 8 at once; a wrecked post's living men keep holding; a held foe costs no life over 20 s; a foe
+  killed by others frees its man; a horseman's charge lands once; a press 90 world units off the road is taken on a phone
+  and not with a mouse; the armed rally goes with the post's sale) and `touch1.js` (finding 10). No page error in any.
+- Photos on the final page (finding 15).
+
+How the touch play felt (the helpers' fingers on the iPad and the SE): the ring and the lit road are clear on the iPad and
+thin but readable on the SE; the toast sits above the ring and does not cover it; tapping the road anywhere in the ring
+always took the men, at the field's edge too; a tap on the post puts the rally down as expected. On the SE upright the
+post's tile has no name (finding 13), which is the one place the new tower was hard to tell apart.
 
 ## What the reviewer could not check
 
