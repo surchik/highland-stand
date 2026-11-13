@@ -47,7 +47,7 @@ is below its length (Erebuni with `hs_best` "4", which the check already sets) a
 
 ### 3. Major: a daily's events still carry stars (seam with P6 and the share card)
 
-`battleFacts().stars` is `victoryStars(held, max)` for a daily (`index.html:13152`), and suite 2 asserts it
+`battleFacts().stars` is `victoryStars(held, max)` for a daily (`index.html:13155`), and suite 2 asserts it
 (`f.stars !== victoryStars(f.held, f.lives_max)` in the daily check). The page says the opposite: "A daily gives your hero
 experience, but no stars", and `showRecord(0, ...)`. RULINGS S2 makes "the stars shown are the event's stars", and the share
 card (platform 6) draws "the three stars, won ones gold" from them. So once P6 and P7 land, a won daily's strip and share
@@ -61,8 +61,9 @@ agree.
 ### 4. Minor: Iron ranks is nearly no twist, and the skip walk serves it most (lens 2)
 
 From `docs/specs/balance/g6-daily-twists-normal-seeds3.txt`, the mix's defenders kept with Iron ranks against no twist
-are identical on 9 of the 16 battlefields that serve it (Erebuni 8.0, Tushpa 11.7, Avarayr 11.0, Sevan 15.0, Mari 12.0,
-Gyumri 17.0, Halidzor 7.7, Shushi 11.0, and Sis 16.0 against 15.3), and its clock moves 1%. With 52 pairs skipped, the
+are identical on 8 of the 16 battlefields that serve it (Erebuni 8.0, Tushpa 11.7, Avarayr 11.0, Sevan 15.0, Mari 12.0,
+Gyumri 17.0, Halidzor 7.7, Shushi 11.0) and within one defender on two more (Ani 15.0 against 16.0, Sis 16.0 against
+15.3), and its clock moves 1%. With 52 pairs skipped, the
 pick's walk to "the next twist in the list" lands on Iron ranks far more than on others. Over 136 days from day 20406
 (the page's own lines on the committed skip list): iron 28, nocatapult 21, few 19, swift 17, nodrums 17, quiet 16,
 thin 11, noballista 7. The same twist comes two days running 7 times in those 136 days (platform 5.6 promises "no twist
@@ -159,7 +160,9 @@ that drop; say in the README that the list is one day's.
 | `probe.js` | the flows of findings 5, 7, 8, 9 and the timezones; no page errors |
 | `probe2.js` | the door shows on the map and the campaign defeat (which is the map), hidden on victory, chronicle and chapter pages |
 | skip list recomputed from the committed table | equal to `daily.skip` |
-RUNALL_PLACEHOLDER
+| `node tools/regress/run-all.js --quick` | 11 of 11 PASS in 992 s: padplace, plots, probe, vic, nag, dance10 (6 of 6), live, doors (1 known town line), iphone, waves, platform. Load average 3 to 4 (the other track at work). |
+| `node tools/regress/run-all.js --only=iphone,doors,vic` (full) | 3 of 3 PASS in 1011 s: iphone 737 states at 10 sizes; doors 18 doors, 6 battles (1 known town line); vic 249 presses on 17 battlefields. The builder's doors failure did not occur here. |
+| `node tools/shot.js "shot=daily&lv=12&twist=few&day=2026-11-13"` at 1194 x 834 | the chronicle with its card, as the builder's photos show |
 
 ## What I could not check
 
