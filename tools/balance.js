@@ -156,6 +156,8 @@ const BUILDS = {
   // (the posts come ninth and last: put fourth they took the pad of a shooting tower the commanders needed, G5)
   mix7:      ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "post", "archer", "fire",
               "age", "ballista", "drums", "catapult", "archer", "post"],
+  // halfpost (G5 review): a post on every second pad, the post-heavy board no other build tries; bounded like mix7
+  halfpost:  ["archer", "post", "ballista", "post", "catapult", "post", "fire", "post", "drums", "post", "archer", "post", "catapult", "post"],
   posts:     ["post"],
   postdrum:  ["post", "post", "post", "drums"],
 };

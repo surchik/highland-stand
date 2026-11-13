@@ -44,7 +44,8 @@ for (const lv of lvs) {
 const out = {};
 for (const k of kits) {
   const x = diffs[k], mean = x.reduce((a, b) => a + b, 0) / x.length, top = Math.max(...x);
-  const kind = k.split("-")[0], bound = kind === "par" ? 2 : kind === "cap" ? 4 : null;
+  // par's bound is 2.3 since RULINGS B7 (the halved Council was accepted at +2.20 against gameplay 5.2's 2)
+  const kind = k.split("-")[0], bound = kind === "par" ? 2.3 : kind === "cap" ? 4 : null;
   out[k] = { mean: +mean.toFixed(2), most: +top.toFixed(1) };
   const bad = bound != null && (mean > bound || top > 6);
   if (bad) fail = true;

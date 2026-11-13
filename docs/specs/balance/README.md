@@ -332,3 +332,65 @@ most +6.7 (Van; 5.2's bound of 6 on any battlefield: over), Halidzor +6.3, Gyumr
   median frame 16.7 ms both, frames over 22 ms 6.1% against 5.1%, and the frame governor left the posts' page at its
   full density (2) while it stepped the archers' page down to 1.5 (the machine's load, not the men). Sixteen men on the
   field cost nothing that shows. (That board of posts fell on the last wave; the archers' kept 10.)
+
+## G5 close: after the review (docs/specs/reviews/G5-review.md)
+
+Tables: `g5-close-normal-seeds3.txt`, `g5-close-easy-seeds3.txt`, `g5-close-hard-seeds3.txt` (all 17, SEEDS=3, CLOCK=1,
+every build, the new "halfpost" included), `g5-close-probe-posts-normal-seeds3.txt` (CMD=probe: posts, mix7, halfpost),
+`g5-close-kit-par-hold-normal-seeds3.txt` and `g5-close-kit-bounds.txt` (worked from the two tables' best columns), and
+every trial below in `g5-close-trials/`. `LEVEL_PAR`, the pins of ruleset 2 and `ruleset-2.json` were taken again
+from these tables (RULESET stays 2, as at the build).
+
+### What changed
+
+- A commander takes 0.18 of a man's blow, never through his armor (`POST_RULES.cmdBlow`). Tried on CMD=probe, a board
+  of posts alone, the least share of the first commander's strength taken on his road over the 17:
+
+  | cmdBlow | most taken | battlefields over 0.40 | mix7 on Normal |
+  | --- | --- | --- | --- |
+  | 1 (the build) | 4.92 | 17 | as the build |
+  | 0.25 | 0.75 | 7 | as the build, Sevan 13.7 |
+  | 0.22 | 0.50 (on 5 tried) | 3 | Erebuni 9.7c1 |
+  | 0.2 | 0.43 (on 5 tried) | 2 | Erebuni 9.7c1 |
+  | 0.18 (built) | 0.39 | 0 | Erebuni 9.7c1 |
+  | 0.1 | 0.45 (Erebuni: the hero and the bot's watch archer) | 1 | Musa Dagh 0/3 w9c3 |
+
+  At 0.18 the row of 5.2 is met: a board of posts alone leaves the first commander above 61% of his strength at the
+  walls on every battlefield (posts never reach the wave-20 pair). The cost: one of mix7's three Erebuni battles lets a
+  commander through (9.7c1, 13.0 without it), on every value under 0.25. With SPELLS=0 the probe is the same, so the
+  floor on Erebuni is the hero and the watch archer, not the spells.
+- Rank 1 costs 70, not 50. "halfpost" (a post on every second pad, the review's board) was the best build on 7 of 17 at
+  50; at 70 on 2 (Tashir, Musa Dagh). mix7 moves by at most a seed's worth either way. Rank 1 at 90, or men of 260
+  with a blow of 20, left Tashir's halfpost at 19.0 all the same: Tashir's cell is the battlefield's, not the post's
+  price (`w-c90.txt`, `w-r1x2.txt`).
+- Sevan on Normal: `hpTune` 1.1 (was 1). The stones' fix had taken the mix from 13.3 (G4) to 18.0. At 1.05 the mix lost
+  a seed (2/3 11.3c1), at 1.1 it wins all three with 11.0 and the best build (mix7) keeps 13.3, at 1.15 the mix keeps
+  12.3 and archdrum loses all three. Easy and Hard are untouched.
+- mix7's order was tried with the post 7th ("mix7b": worse on Erebuni 1.0c3, Van, Sevan) and with one post only
+  ("mix7e": the same battles as mix7: its second post never finds a free pad). The order stays.
+
+### 5.2's rows for the post at the close (Normal, SEEDS=3)
+
+- mix7 against mix: +0.82 on the mean (bound 1 to 3: MISSED, under it). Van +9.3 and Musa Dagh +7.0 (bound 5: MISSED);
+  Mari -10.0 (its third commander reaches the walls on every seed, as at the build) and Sis -5.0. Owner's ruling.
+- The post in the best build: Tushpa, Tashir (halfpost), Sevan, Ani, Van, Musa Dagh (halfpost), Sardarapat: 7 of 17
+  (bound 6: met).
+- posts and postdrum lose every battle on every battlefield on Normal (met).
+- CMD=probe: met (above).
+- halfpost: wins 27 of 51 on Normal; the best build on Tashir (19.3, above 16) and Musa Dagh (14.3). On Hard it keeps
+  13.0 on Tashir and 9.0 on Musa Dagh (Hard's band 2 to 8: over). Owner's ruling: a Tashir knob, or the "Wedge" of 5.5.
+
+### The bands again
+
+- Normal: the best build keeps 14.3, 17.3 (Tushpa, mix7), 13.7, 14.3, 19.3 (Tashir, halfpost), 13.3 on the first six;
+  10.0 to 14.3 on the later eleven. Tushpa and Tashir above 16. The mix wins every seed on the six (Sevan 11.0).
+- Easy: every best build wins every seed (27.0 to 30.0).
+- Hard: the best build wins two of three or more on 16 of 17 (Van 1 of 3); Erebuni 1.7, Van 1.0, Tashir 13.0 and Musa
+  Dagh 9.0 outside 2 to 8.
+- Wave time on Normal: Erebuni +18% and Tushpa +16% (as at the build); every other inside 15%.
+
+### The Council after RULINGS B7 at the close
+
+par-hold +2.12 on the mean (bound 2.3: inside), most +6.7 (Van) and +6.3 (Halidzor): over 5.2's 6 on one battlefield,
+as at the build. `tools/balance-kit.js` now reads the par bound as 2.3; it needs JSON=1 lines, so the close's gate was
+worked from the tables' best columns.

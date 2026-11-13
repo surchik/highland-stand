@@ -413,6 +413,9 @@ Rank 3 is 73 a second for 390. A post alone loses its men: a rank 1 man (130) ag
 under 5.6's G5 step: ranks of 50, 60 and 110 gold, every man three times as strong with three times the blow (rank 1:
 two men of 390 with a blow of 30), and a commander held 12 s in all, not 8 (`POST_RULES.cmdHold`). The masteries keep
 their price and their shape, scaled the same way. See docs/specs/balance/README.md, G5.)
+(G5 close: rank 1 costs 70, not 50: at 50 a board with a post on every second pad ("halfpost") was the best build on 7 of
+17. A commander takes only 0.18 of a man's blow, never through his armor (`POST_RULES.cmdBlow`): with the full blow a
+board of posts alone felled the first commander at 1.3 to 4.9 times his strength, against 2.4's "a delay, never a wall".)
 
 ### 2.2 How it fights
 
@@ -467,6 +470,8 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
   put away on arming so the whole field is free. The 70 px catch is world units: at the phone's scale
   (about 0.45) that is a 31 px radius under the finger, so the nearest road in the ring within 110 world
   units is taken on a phone (`isPhone()`).
+- (G5 close: the press is read for the post and the hero first, so a hero standing on the road inside the ring puts the
+  rally down rather than moving the men under him.)
 - Keyboard: `G` arms the rally of the selected post.
 - The reach ring a tile shows before building (and the tutorial's pad preview) is the post's `reach`, with
   the road inside it lit, so a player sees where the men can stand before paying.
@@ -522,6 +527,11 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 | 6 Artsakh | 1992: Self-defense squad. 2020: Trench squad. 2023: Defense Army squad | "A rifle squad dug in beside the road" | Dug-in Squad / Counterattack | Generic of these wars. |
 
 Blurb (`SLOT_BLURB.post`): "Men who stand on the road and hold foes in melee. Outflankers go round."
+
+(G5 close: no source names bayonets, so Sardarapat's post shows "Armenian infantry in the counterattack across the
+plain" (its own text: "the Armenians counterattacked across the plain"), Van's "Defenders with rifles behind a barricade
+across the lane", and era 5's second mastery is "Counterattack", as era 6's. Mari's and Sis's lines stay the age's generic
+soldier, unsourced and unclaimed.)
 
 ### 2.7 Art, all drawn in code
 

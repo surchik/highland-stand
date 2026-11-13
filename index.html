@@ -3564,7 +3564,7 @@
       <div class="pic"><canvas width="284" height="116"></canvas></div>
       <div class="nm">Garrison Post</div>
       <span class="key">6</span>
-      <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>50</span>
+      <span class="pr"><svg class="ic"><use href="#i-coin"/></svg>70</span>
       <div class="ds kit"><b>Garrison Post</b>Men who stand on the road and hold foes in melee. Outflankers go round.</div>
     </div>
   </div>
@@ -4501,7 +4501,7 @@ const LEVELS = [
     waves: 15,   // its length (gameplay.final.md 1.2): it plays that many steps of the 20-wave script
     name: "Sevan Shores",
     tag: "The Iron King stands where the lake meets the sky.",
-    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1, 1.12],
+    era: 2, date: "921 AD", year: 921, hpTune: [1.17, 1.1, 1.12],   // Normal 1.1 since G5 close: the stones' fix (2.2) left the mix 18 of 20
     hero: { name: "Ashot II Erkat", title: "The Iron King" },
     foe: "Sajid",
     units: {
@@ -9613,7 +9613,8 @@ function postRow(o) { o.range = o.reach; return o; }
 // it took. Men three times as strong with three times the blow, ranks of 50, 60 and 110 gold and a commander held 12 s
 // in all keep it 0.8 above. docs/specs/balance/README.md, G5)
 TOWER_DEFS.post = {
-  name: "Garrison Post", cost: 50, proj: null, post: true,
+  // rank 1 costs 70, not 50 (G5 close): at 50 a board with a post on every second pad was the best build on 7 of 17
+  name: "Garrison Post", cost: 70, proj: null, post: true,
   levels: [
     postRow({ men: 2, hp: 390, dmg: 30, rate: 1.0, reach: 150, respawn: 12 }),
     postRow({ men: 3, hp: 540, dmg: 45, rate: 1.0, reach: 165, respawn: 10, cost: 60 }),
@@ -9629,11 +9630,11 @@ TOWER_DEFS.post = {
 // how the men fight, named once (rulesetData reads it). spot/stagger: the line across the road (px apart across it,
 // px along it); catch: how near his spot a foe must come to be held (ground range); walk: px a second; heal: the share
 // of his strength a man out of combat for healAfter s regains a second; cmdHold: the seconds in all one post holds one
-// commander; charge: what a horseman deals on contact; hunterMen: the men who leave the line for a hunter at a tower
-// in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
+// commander; cmdBlow: the share of a man's blow a commander takes, never through his armor; charge: what a horseman
+// deals on contact; hunterMen: the men who leave the line for a hunter at a tower in reach; pick, pickPhone: how near a press (world units) the road must lie to take the rally (a phone's finger
 // covers more of the field); melee: what a foe deals a second to the man who holds it, times 1 + perWave for each
 // script wave past the first
-const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, charge: 30, hunterMen: 2,
+const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, cmdBlow: 0.18, charge: 30, hunterMen: 2,
   pick: 70, pickPhone: 110, perWave: 0.05, melee: { raider: 7, spearman: 9, shield: 11, cavalry: 12, boss: 60 } };
 
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
@@ -9960,7 +9961,7 @@ const POST_SPEC_NAMES = {
   guard: { a: ["Shield Wall", "Four men behind great shields. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
   ani: { a: ["Locked Shields", "Four men behind great shields. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
   palisade: { a: ["Palisade Line", "Four men behind a line of stakes. Each holds two foes."], b: ["Sortie", "Three picked fighters who strike hard and give chase."] },
-  e5: { a: ["Dug-in Squad", "Four riflemen dug in across the road. Each holds two foes."], b: ["Bayonet Charge", "Three fighters who charge with the bayonet and give chase."] },
+  e5: { a: ["Dug-in Squad", "Four riflemen dug in across the road. Each holds two foes."], b: ["Counterattack", "Three picked fighters who strike hard and give chase."] },
   e6: { a: ["Dug-in Squad", "Four riflemen dug in across the road. Each holds two foes."], b: ["Counterattack", "Three picked fighters who strike hard and give chase."] },
 };
 SKIN_SPECS.postguard = { get a() { return POST_SPEC_NAMES[curEra === 7 ? "ani" : "guard"].a; }, get b() { return POST_SPEC_NAMES[curEra === 7 ? "ani" : "guard"].b; } };
@@ -9982,9 +9983,9 @@ const POST_LEVEL = {
   sis: { name: "Castle Guard", depicts: "Cilician foot soldiers with spears and shields" },
   gyumri: { name: "Road Guard", depicts: "Highland villagers with pikes and axes barring the winter road (the game's invention)" },
   halidzor: { name: "Fortress Garrison", short: "Garrison", depicts: "Fighters of the garrison at the foot of the walls, sabers and matchlocks in hand" },
-  van: { name: "Barricade Fighters", short: "Fighters", depicts: "Defenders with rifles and bayonets behind a barricade across the lane" },
+  van: { name: "Barricade Fighters", short: "Fighters", depicts: "Defenders with rifles behind a barricade across the lane" },
   musadagh: { name: "Pass Defenders", short: "Defenders", depicts: "Villagers holding a breastwork across the mountain path" },
-  sardarapat: { name: "Infantry Company", short: "Infantry", depicts: "Armenian infantry with fixed bayonets" },
+  sardarapat: { name: "Infantry Company", short: "Infantry", depicts: "Armenian infantry in the counterattack across the plain" },
   stepanakert92: { name: "Self-defense squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
   shushi: { name: "Trench squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
   stepanakert23: { name: "Defense Army squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
@@ -10169,6 +10170,8 @@ function fitCardNames() {
   document.querySelectorAll("#shop .card .nm").forEach(nm => {
     nm.style.fontSize = ""; nm.style.letterSpacing = "";
     const card = nm.closest(".card"), type = card && card.dataset.type;
+    // a phone held upright shows no names at all (3.8): seven tiles of 49 px, the picture and the price only
+    if (phone && type && TOWER_DEFS[type] && !PHONE_WIDE_MQ.matches) { nm.textContent = towerName(type); card.classList.add("noNm"); return; }
     if (phone && type && TOWER_DEFS[type]) {
       card.classList.remove("noNm");
       nm.textContent = towerName(type);
@@ -10407,7 +10410,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "adc97772";
+const RULESET_PIN = "450cadda";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10419,9 +10422,9 @@ const LEVEL_REV = {
   van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
-  erebuni: "8a695716", tushpa: "403346ba", avarayr: "e8146550", dvin: "3b748b7d", tashir: "45782722", sevan: "a1800aa3",
-  ani: "d63bd16d", mari: "7beded20", sis: "bceec9c3", gyumri: "5b26b40c", halidzor: "ffc3f992", van: "18d91392",
-  musadagh: "9a41fcde", sardarapat: "5e63f379", stepanakert92: "dec19866", shushi: "5fa3dff7", stepanakert23: "8ff5f673",
+  erebuni: "005c28fc", tushpa: "eee8ca70", avarayr: "557f0596", dvin: "71816844", tashir: "2f11b8c2", sevan: "e1afde52",
+  ani: "cd846f81", mari: "6eb4c76c", sis: "3d32c573", gyumri: "247e2c31", halidzor: "d8642491", van: "5de47ca5",
+  musadagh: "781b3fc4", sardarapat: "4d3ab09c", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -10430,10 +10433,10 @@ const LEVEL_PIN = {
 // battle, the bot waiting the 4 s in the battle itself (docs/specs/balance/g4-after-*.txt). G5: taken again with the
 // Garrison Post in the Standard battle's tray, the best build free to use it (docs/specs/balance/g5-*-seeds3.txt)
 const LEVEL_PAR = {
-  erebuni: [868, 1242, 1125], tushpa: [1275, 1363, 1403], avarayr: [1811, 1724, 1756], dvin: [952, 1108, 1164],
-  tashir: [932, 955, 1187], sevan: [1618, 1645, 1729], ani: [1558, 1819, 1825], mari: [854, 996, 936],
-  sis: [2311, 2523, 2547], gyumri: [1440, 1550, 2016], halidzor: [1290, 1624, 1538], van: [1592, 1995, 2003],
-  musadagh: [1215, 1334, 1326], sardarapat: [2026, 2184, 2194], stepanakert92: [2078, 2469, 2501],
+  erebuni: [868, 1242, 1125], tushpa: [1277, 1367, 1406], avarayr: [1811, 1724, 1756], dvin: [952, 1108, 1115],
+  tashir: [1112, 1134, 1144], sevan: [1618, 1730, 1719], ani: [1558, 1826, 1829], mari: [854, 996, 936],
+  sis: [2311, 2523, 2547], gyumri: [1440, 1550, 2016], halidzor: [1290, 1624, 1538], van: [1592, 1996, 2006],
+  musadagh: [1215, 1454, 1435], sardarapat: [2026, 2186, 2194], stepanakert92: [2078, 2469, 2501],
   shushi: [1094, 1116, 1117], stepanakert23: [923, 953, 928],
 };
 // the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
@@ -10532,13 +10535,13 @@ const COUNCIL = [
     { line: "Drums slot: 1.5% more reach", fx: [["stat", ["drums"], "range", "x", 1.015]] },
     { line: "Drums slot: half a point more might", fx: [["stat", ["drums"], "might", "+", 0.005]] },
     { line: "Garrison Post: men 5% stronger", needs: "post", fx: [["post", "men", 1.05]] },
-    { line: "Men return 7.5% sooner; the special tower costs 5% less", needs: "post", fx: [["post", "back", 0.925], ["age", "cost", 0.95]] },
-    { line: "Drums, posts and the special tower: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
+    { line: "Men return 7.5% sooner; the special tower costs 5% less", noAge: "Men return 7.5% sooner", needs: "post", fx: [["post", "back", 0.925], ["age", "cost", 0.95]] },
+    { line: "Drums, posts and the special tower: masteries cost 7.5% less", noAge: "Drums and posts: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
   ] },
   { id: "heralds", name: "Heralds", about: "The hero and the spells", icon: "horn", tiers: [
     { line: "Hero 2.5% stronger", fx: [["hero", "hp", 1.025]] },
     { line: "Spells ready 1.5% sooner", fx: [["spells", 0.015]] },
-    { line: "Hero returns in 18 s, not 20", fx: [["hero", "back", 18]] },
+    { line: "Hero returns in 18 s at most", fx: [["hero", "back", 18]] },
     { line: "Spells ready another 1.5% sooner", fx: [["spells", 0.015]] },
     { line: "The hero's Call ready 10% sooner", needs: "call", fx: [["call", "cd", 0.9]] },
   ] },
@@ -10551,6 +10554,8 @@ const COUNCIL = [
   ] },
 ];
 const COUNCIL_IDS = COUNCIL.map(B => B.id);
+// a tier's line as the Hall shows it: until some age has its special tower (G7), a line never sells it (noAge)
+function tierLine(T) { return T.noAge && !AGES.some(A => TOWER_DEFS[A.tower]) ? T.noAge : T.line; }
 // what the comes-with words of a closed tier name
 const COUNCIL_NEEDS = { post: "Comes with the Garrison Post", call: "Comes with the hero's Call" };
 
@@ -12627,7 +12632,10 @@ function postTick(dt) {
         m.swing = 0.25;
         const p = enemyPos(foe);
         if (Math.abs(p.x - m.x) > 1) m.face = p.x > m.x ? 1 : -1;
-        damageEnemy(foe, st.dmg * might, !!st.pierce, t);
+        // a commander takes only cmdBlow of a man's blow, through his armor never (gameplay 2.4, 5.2: a post is a delay on
+        // him, never a wall; with the full blow a board of posts alone felled the first commander, G5 review)
+        const boss = foe.type === "boss";
+        damageEnemy(foe, st.dmg * might * (boss ? POST_RULES.cmdBlow : 1), !!st.pierce && !boss, t);
         if (postSndT <= 0) { postSndT = 0.22; const arm = postArm(); Snd.play(arm === "fire" || arm === "ak" ? "heroShot" : "heroHit", { x: m.x, arm, vol: 0.55 }); }
       } else if (m.cd < 0) m.cd = 0;
       // what the foes he holds deal him (a commander's blows are never halved by the Call)
@@ -14185,7 +14193,7 @@ function renderCouncil(el, layAs) {
   const names = lay !== "side" || el.clientHeight >= 298;   // held sideways the branches' names fit only where the box has the room
   const med = (B, t) => {
     const st = tierState(c.own, B.id, t, unspent), T = B.tiers[t - 1], k = COUNCIL_COSTS[t - 1];
-    const label = B.name + " " + ROMAN[t - 1] + ": " + T.line + ". " + tierWhy(c.own, B.id, t, unspent);
+    const label = B.name + " " + ROMAN[t - 1] + ": " + tierLine(T) + ". " + tierWhy(c.own, B.id, t, unspent);
     const mark = st === "own" ? '<span class="wcOwn">' + icon("star") + "</span>"
       : st === "chapter" || st === "later" ? '<span class="wcLock">' + icon("lock") + "</span>"
       : '<span class="wcCost">' + k + icon("star") + "</span>";
@@ -14213,7 +14221,7 @@ function renderCouncil(el, layAs) {
   }).join("") + '<p class="wcCapNote">The captains of a chapter learn from each other\'s stands: they share one level.</p></div>';
   const capOn = lay === "side" && councilCapts;
   const strip = '<div class="wcStrip" aria-live="polite"><p class="wcWho">' + escapeHtml(SB.name + " " + ROMAN[sel.t - 1]) + "</p>" +
-    '<p class="wcLine">' + escapeHtml(ST.line + ".") + "</p>" + '<p class="wcWhy">' + escapeHtml(tierWhy(c.own, sel.b, sel.t, unspent)) + "</p>" + take +
+    '<p class="wcLine">' + escapeHtml(tierLine(ST) + ".") + "</p>" + '<p class="wcWhy">' + escapeHtml(tierWhy(c.own, sel.b, sel.t, unspent)) + "</p>" + take +
     (lay === "side" ? '<span class="wcFoot"><button type="button" class="btn wcCapBtn" id="wcCapBtn" aria-pressed="' + capOn + '">' + (capOn ? "Council" : "Captains") + "</button>" + reset + "</span>" : "") + "</div>";
   const head = '<div class="wcHead"><h2>War Council</h2><span class="wcCount"><b>' + unspent + "</b> " + starsWord(unspent) + " to spend of " + earned + "</span>" +
     (lay === "side" ? "" : reset) + "</div>";
@@ -56628,7 +56636,8 @@ function statText(t) {
     if (st.guard) s += statRow("shield", Math.round(st.guard * 100) + "%", "less damage taken", "wide");
     if (st.pierce) s += statRow("spear", "", "Blows pierce armor");
     if (st.chase) s += statRow("road", st.chase, "px of chase", "wide");
-    s += statRow("wing", "", "Holds foes on the road. Outflankers go round.", "wide");
+    // short enough for the stats box at every size (the tile's blurb says it at length)
+    s += statRow("wing", "", "Holds foes. Outflankers go round.", "wide");
     return s;
   }
   if (t.type === "fire") {
@@ -58244,7 +58253,9 @@ function statDeltaHtml(type, a, b) {
   const add = (ic, html) => cells.push("<i>" + icon(ic) + html + "</i>");
   if (def.post) {
     cell("swords", a.men, b.men, b.men >= a.men);
-    cell("shield", a.hp, b.hp, b.hp >= a.hp);
+    // the strength the panel shows: the Captains' kit included (postManMax)
+    const ka = Math.round(a.hp * kitNow().postMen), kb = Math.round(b.hp * kitNow().postMen);
+    cell("shield", ka, kb, kb >= ka);
     cell("dmg", a.dmg, b.dmg, b.dmg >= a.dmg);
     cell("range", a.reach, b.reach, b.reach >= a.reach);
     const ha = a.men * (a.holds || 1), hb = b.men * (b.holds || 1);
@@ -63695,9 +63706,11 @@ canvas.addEventListener("pointerdown", (e) => {
     if (!towers.includes(rallying) || rallying.wreck) { rallying = null; }
     else {
       if (performance.now() - rallyArmAt < RALLY_SETTLE_MS) return;
-      if (rallyPress(rallying, v.x, v.y, phoneTouch, e)) { rallying = null; return; }
+      // the post and the hero are read first: a hero standing on the road in the ring is pressed to put the rally
+      // down, never to move the men under him (2.3, G5 review)
       const onPost = towerUnderPointer(e, phoneTouch) === rallying, onHero = hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26;
       if (onPost || onHero) { rallying = null; toast("Rally point unchanged."); return; }
+      if (rallyPress(rallying, v.x, v.y, phoneTouch, e)) { rallying = null; return; }
       toast("Out of reach.");
       return;
     }
@@ -85973,6 +85986,19 @@ function runSelftestPlay() {
     const was = Object.assign({}, t.rally);
     if (rallyPress(t, t.x + 600, t.y + 400, false) || t.rally.x !== was.x || t.rally.y !== was.y) fail("a press out of reach moved the rally");
     // a press 90 world units off the road takes it on a phone (110) and not with a mouse (70)
+    let off = null;
+    for (const s of near) {
+      for (let k = 0; k < 24 && !off; k++) {
+        const q = { x: s.x + 90 * Math.cos(k * Math.PI / 12), y: s.y + 90 * Math.sin(k * Math.PI / 12) };
+        const dmin = Math.min(...near.map(u => Math.hypot(u.x - q.x, u.y - q.y)));
+        if (dmin > 80 && dmin < 100) off = q;
+      }
+      if (off) break;
+    }
+    if (!off) fail("no point 80 to 100 units off the road in the ring to press");
+    if (rallyPress(t, off.x, off.y, false) || t.rally.x !== was.x || t.rally.y !== was.y) fail("a mouse press " + POST_RULES.pick + "+ units off the road moved the rally");
+    if (!rallyPress(t, off.x, off.y, true)) fail("a phone press under " + POST_RULES.pickPhone + " units off the road did not take the rally");
+    setPostRally(t, was);
     setPlacing(null);
     if (rallying) fail("a tile did not put the armed rally down");
     // held: the foe stands while the man holds it, and walks on when he falls
@@ -86009,6 +86035,17 @@ function runSelftestPlay() {
     sc.dist = Math.max(0, t.rally.dist - 4); revealFoe(sc); run(0.4);
     if (!sc.heldBy) fail("a seen scout was not held");
     hero.alive = true;
+    // a post sold mid-hold lets its foe go, and it walks on (G5 review)
+    quiet(); postInit(t, [was.x, was.y]);
+    const e2 = foeAt(t, "spearman");
+    e2.hp = e2.maxHp = 1e6;
+    run(1.5);
+    if (!e2.heldBy) fail("the spearman was not held before the sale");
+    const d2 = e2.dist;
+    sellTower(t);
+    if (e2.heldBy) fail("a sold post's man still holds his foe");
+    run(0.5);
+    if (!(e2.dist > d2)) fail("the foe of a sold post did not walk on");
   }));
   check("post: hunters, commanders, stones, the drums, a wreck, a resumed run's rally", guarded(() => {
     wonTo(1, 2);   // Tushpa open: the post is in the tray (a saved run keeps only what its tray holds)
@@ -86048,6 +86085,22 @@ function runSelftestPlay() {
     for (let k = 0; k < 400; k++) { update(0.05); if (c.heldBy) held += 0.05; }
     if (held > POST_RULES.cmdHold + 0.11 || held < POST_RULES.cmdHold - 0.6) fail("one post held a commander " + held.toFixed(2) + " s");
     if (t.men.filter(m => m.foes.length > 1 && m.foes.includes(c)).length) fail("a man held a commander and another foe");
+    // a commander takes only cmdBlow of a man's blow, never through his armor, Sortie's piercing blow included
+    // (2.4 and 5.2: a post is a delay on him, never a wall; with the full blow a board of posts alone felled him, G5 review)
+    quiet(); t.spec = "b"; postInit(t, [t.rally.x, t.rally.y]);
+    const cb = foeAt(t, "boss");
+    cb.hp = cb.maxHp = 1e7; cb.armor = Math.max(6, cb.armor || 0);
+    t.men.forEach(m => { m.hp = m.max = 1e6; });
+    for (let k = 0; k < 60 && !cb.heldBy; k++) update(0.05);
+    const hm = cb.heldBy;
+    if (!hm) fail("the Sortie's men did not take the commander");
+    t.men.forEach(m => { m.cd = 99; });
+    hm.cd = 0;
+    const hb0 = cb.hp, sst = getStats(t);
+    postTick(0.001);
+    const blow = hb0 - cb.hp, want = armorHit(sst.dmg * (1 + (t.buffMight || 0)) * POST_RULES.cmdBlow, cb.armor, false) * slotMult(cb, "post");
+    if (!(blow > 0) || Math.abs(blow - want) > 1e-6) fail("a man's blow on a commander: " + blow.toFixed(2) + ", not " + want.toFixed(2) + " (cmdBlow, no pierce)");
+    t.spec = null; postInit(t, [t.rally.x, t.rally.y]);
     // a stone aimed at a held foe lands on it
     quiet(); postInit(t, [t.rally.x, t.rally.y]);
     const s = foeAt(t, "shield");
@@ -86122,6 +86175,10 @@ function runSelftestPlay() {
       wonTo(17, 2);
       stage("tashir", 1);
       if (ageTower(curEra) !== "stores" || trayTypes().join() !== TRAY_CLASSIC + ",post,stores") fail("the seventh tile: " + trayTypes());
+      // key 7 takes the seventh tile (G5 review)
+      document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+      if (placing !== "stores") fail("key 7 did not choose the seventh tile: " + placing);
+      setPlacing(null);
       // the tile's price is the kit's: the Captains' fourth tier takes 5% off the special tower
       localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { captains: 4 }, n: 1 }));
       stage("tashir", 1);

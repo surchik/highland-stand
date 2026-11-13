@@ -162,6 +162,9 @@ const wavesOpt = +((o.rest.find(a => a.startsWith("--waves=")) || "--waves=0").s
     notes.p6 = { withPosts, without };
     log("6: " + JSON.stringify(notes.p6));
     if (withPosts && without && withPosts.medianMs > without.medianMs * 1.15 + 1) fails.push("6: four posts' men slow the median frame from " + without.medianMs + " to " + withPosts.medianMs + " ms");
+    // the slow frames too, not only the median (G5 review): the posts' page may have at most half again the share of
+    // frames over 22 ms the archers' page has, and 3 points more (a shared machine's load lands on both pages alike)
+    if (withPosts && without && withPosts.over22 > without.over22 * 1.5 + 0.03) fails.push("6: four posts' men raise the frames over 22 ms from " + (100 * without.over22).toFixed(1) + "% to " + (100 * withPosts.over22).toFixed(1) + "%");
     if (withPosts && without && withPosts.dprCap < without.dprCap) fails.push("6: with the posts the frame governor stepped down to " + withPosts.dprCap + " (without: " + without.dprCap + ")");
   }
   await browser.close();
