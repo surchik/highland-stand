@@ -16,7 +16,8 @@
 // view of highland refused to anon, authenticated and service_role by GET, POST, PATCH and DELETE on
 // /rest/v1/<table>; the helpers not callable; a call without the profile headers finds nothing (public is the
 // default schema); a schema not served answers 406; the preflight lets the page's two headers through; and
-// "Delete my account" leaves the shared auth.users alone.
+// "Delete my account" leaves the shared auth.users alone, and is refused to the player's own account in a password
+// session (migration 005), to service_role and to the visitor, the outsider's call removing no player's rows.
 // Prints a FAIL line per broken rule and "RESULT isolation: N checks, F failed". Exit 0 only when nothing failed.
 "use strict";
 const stackLib = require("./stack");
