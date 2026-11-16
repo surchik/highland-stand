@@ -81659,7 +81659,8 @@ async function pfSignOut(o) {
   }
   CS.ready = false;   // nothing more is sent from here
   if (s) await pfApi("POST", "/auth/v1/logout?scope=local", undefined, { auth: true, timeout: 4000 });
-  for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_pkce", "hs_pf_run", "hs_pf_out", "hs_pf_daily"]) pfDrop(k);
+  // (hs_pf_out stays: its entries are this account's and wait for its next sign-in; they are never sent as another's)
+  for (const k of ["hs_pf_auth", "hs_pf_me", "hs_pf_pkce", "hs_pf_run", "hs_pf_daily"]) pfDrop(k);
   if (ours) csClearKeys();
   track("signed_out", {});
   // (the event goes with the page)
@@ -82604,7 +82605,7 @@ function stHealth(d, cfg, settings) {
   const pub = stOwnPub != null ? stOwnPub : !!(seen && seen.published === true);
   if (!pub) stLine(c, "This page plays ruleset " + rs + ". The server does not have it, so no battle is ranked. Publish it on the Rulesets card.", cfg.boards === false ? "" : "stRed");
   else stLine(c, "This page's ruleset (" + rs + ") is published.");
-  if (cfg.boards === false) stLine(c, "The boards are switched off: no battle is ranked.", "stWarn");
+  if (cfg.boards === false) stLine(c, "The boards are switched off: no new battle is ranked. The boards stay to read.", "stWarn");
   if (!c.querySelector(".stRed")) stLine(c, "Nothing needs your attention.", "stOk");
 }
 function stTotals(d) {
@@ -82814,7 +82815,7 @@ function stSwitches(cfg) {
   c.appendChild(gOut);
   // the boards (R2): on, battles are ranked and the Leaderboards tab is in the Hall; off, nothing is ranked
   c.appendChild(pfEl("h3", "", "The boards"));
-  stLine(c, "On: battles are ranked and the Hall has its Leaderboards tab. Off: no battle is ranked.", "stSmall");
+  stLine(c, "On: battles are ranked. Off: no new battle is ranked; the boards stay to read, and a battle begun before the switch still posts.", "stSmall");
   const bd = pfEl("div", "stBtns"), bOut = answer("boards"), bOn = cfg.boards !== false;
   for (const [v, words] of [[true, "On"], [false, "Off"]]) {
     const b = pfBtn("btn stBoards", words, (x) => set("boards", v, x, bOut));
@@ -83143,10 +83144,20 @@ function pfRules() { if (!pfRulesMemo) pfRulesMemo = rulesetData(); return pfRul
 //         "noname", "offline" (every try failed for the network), "unpublished", "refused", "off" (the owner's
 //         switch), "unranked" (never ranked: the coached stand, test mode, endless, a legacy run), "" (no battle heard)
 //   gen   counts the battles begun on this load, so a late answer for an older battle changes nothing
+//   tok   this tab's own run token (as written to hs_pf_run). hs_pf_run is one key for the whole browser, so a second
+//         tab's battle overwrites it: the battle is posted with the token it holds here, and the key is dropped only
+//         while it is still this tab's (scDropTok)
 //   page  the strip of the battle just ended: { rid, state, score, rank, total, best, open, daily, lv, diff, loadout, mode }
 //   shown the victory (or a lost daily's) page is up and the strip may be drawn on it
 //   lastLv the battlefield fought last (the Leaderboards tab opens on it); view: what the next opening of the tab shows
-const SC = { why: "", gen: 0, begin: null, page: null, shown: false, lastLv: -1, view: null };
+const SC = { why: "", gen: 0, tok: null, begin: null, page: null, shown: false, lastLv: -1, view: null, posting: "" };
+// hs_pf_run dropped only while it holds this tab's token; then this tab holds none. With old: also a token left by a
+// battle long gone (a tab closed in the middle of it: no battle of another tab is 3 hours old)
+function scDropTok(old) {
+  const t = pfRead("hs_pf_run");
+  if (t && ((SC.tok && t.rid === SC.tok.rid) || (old && !(pfNow() - Number(t.t) < 3 * 3600 * 1000)))) pfDrop("hs_pf_run");
+  SC.tok = null;
+}
 const pfWait = (ms) => new Promise(r => setTimeout(r, ms));
 const pfBoardsOn = () => pfCfg().boards !== false;
 const pfDailyOn = () => pfCfg().daily !== false;
@@ -83165,11 +83176,12 @@ function scHear(n, p) {
   if (!PF.on) return;
   if (n === "battle_start") scStart(p || {});
   else if (n === "victory" || n === "defeat") { const q = p || {}; setTimeout(() => { try { scEnd(n, q); } catch (e) { try { console.error(e); } catch (x) {} } }, 0); }
-  else if (n === "battle_quit") { SC.gen++; SC.why = ""; pfDrop("hs_pf_run"); }
+  else if (n === "battle_quit") { SC.gen++; SC.why = ""; scDropTok(); }
 }
 if (PF_ON) window.__hsRunKick = (n, p) => { try { scHear(n, p); } catch (e) {} };
-// 1. battle_start: a fresh battle drops any token and asks for a new one; a resumed battle keeps the token saved with
-// it when that token is this battle's (its battlefield, difficulty, mode and ruleset)
+// 1. battle_start: a fresh battle drops this tab's token and asks for a new one; a resumed battle keeps the token
+// saved with it when that token is this battle's (its battlefield, difficulty, mode and ruleset). A token that is not
+// this battle's is left alone: it may be another tab's battle in progress
 function scStart(p) {
   const i = LEVELS.findIndex(L => L.id === p.lv);
   if (i >= 0) SC.lastLv = i;
@@ -83180,12 +83192,12 @@ function scStart(p) {
     const why = scWhyNot(p);
     // (a battle resumed with its token is posted with it; one whose start was never ranked stays unranked, and one
     // ranked whose token is gone, because its start had no connection, is told so on its strip)
+    SC.tok = mine ? t : null;
     if (mine && (!why || why === "signin" || why === "noname")) { SC.why = why || "held"; return; }
-    if (!mine) pfDrop("hs_pf_run");
     SC.why = why || "offline";
     return;
   }
-  pfDrop("hs_pf_run");
+  scDropTok(true);
   const gen = ++SC.gen, why = scWhyNot(p);
   SC.why = why || "begin";
   SC.begin = why ? null : scBegin(p, gen);
@@ -83204,7 +83216,8 @@ async function scBegin(p, gen) {
     if (gen !== SC.gen) return;
     const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
     if (d && d.ok === true && typeof d.run_id === "string") {
-      pfWrite("hs_pf_run", { rid: d.run_id, mode: p.mode === "daily" ? "daily" : "campaign", lv: p.lv, diff: p.diff, ruleset: PF_RULESET_ID, t: pfNow() });
+      SC.tok = { rid: d.run_id, mode: p.mode === "daily" ? "daily" : "campaign", lv: p.lv, diff: p.diff, ruleset: PF_RULESET_ID, t: pfNow() };
+      pfWrite("hs_pf_run", SC.tok);
       SC.why = "held";
       return;
     }
@@ -83224,14 +83237,14 @@ function scReason(code) { const c = String(code || "").toLowerCase(); return /^[
 async function scEnd(n, p) {
   const won = n === "victory", gen = SC.gen, why = SC.why;
   const daily = p.mode === "daily";
-  if (!won && !daily) { pfDrop("hs_pf_run"); SC.why = ""; return; }
+  if (!won && !daily) { scDropTok(); SC.why = ""; return; }
   // nothing to show: never ranked, the owner's switch off, test mode or a gift of the test purse (aided), or no
   // battle heard on this load (a page that came up on a battle already over)
-  if (!why || why === "unranked" || why === "off" || p.aided === true || p.mode === "endless") { pfDrop("hs_pf_run"); SC.page = null; scRender(); return; }
+  if (!why || why === "unranked" || why === "off" || p.aided === true || p.mode === "endless") { scDropTok(); SC.page = null; scRender(); return; }
   let rules = null;
   try { rules = pfRules(); } catch (e) { rules = null; }
   const b = rules && boundsOf(rules, p.lv, p.diff, p.twist, daily);
-  if (!b) { pfDrop("hs_pf_run"); SC.page = null; scRender(); return; }
+  if (!b) { scDropTok(); SC.page = null; scRender(); return; }
   const num = (v) => (Number.isFinite(v) ? v : 0);
   const lives = won ? Math.max(0, Math.min(num(p.lives), Number.isFinite(p.lives_board) ? p.lives_board : num(p.lives))) : 0;
   const stats = { won, lives, waves: num(p.wave), sim_sec: Math.round(num(p.sec)), spent: Math.round(num(p.spent)), earned: Math.round(num(p.earned)),
@@ -83243,35 +83256,53 @@ async function scEnd(n, p) {
   if (why === "begin" && SC.begin) { scRender(); try { await SC.begin; } catch (e) {} }
   if (gen !== SC.gen || SC.page !== page) return;
   const now = SC.why;
-  const tok = pfRead("hs_pf_run");
-  pfDrop("hs_pf_run");
+  const tok = SC.tok;
+  scDropTok();
   SC.why = "";
-  if (now === "held" && tok && typeof tok.rid === "string" && tok.lv === p.lv && tok.diff === p.diff && tok.ruleset === PF_RULESET_ID) {
+  const fits = tok && typeof tok.rid === "string" && tok.lv === p.lv && tok.diff === p.diff && tok.ruleset === PF_RULESET_ID;
+  if (now === "held" && fits) {
     page.rid = tok.rid;
     scRender();
     await scPost(tok.rid, stats, page);
     return;
   }
+  // a battle resumed with its token while the session (or the name) was missing: the result is kept in the outbox
+  // under the account the device last knew, as a 401 keeps it, and goes once that account is signed in with its name
+  // (the strip still says "Sign in to post it" or "Choose a name")
+  const uid = (pfSession() || {}).uid || (pfRead("hs_pf_me") || {}).uid || "";
+  if ((now === "signin" || now === "noname") && fits && uid) {
+    page.rid = tok.rid;
+    pfWrite("hs_pf_out", outTrim((pfRead("hs_pf_out") || []).filter(x => x.rid !== tok.rid).concat([{ rid: tok.rid, uid, stats, t: pfNow(), lv: page.lv, diff: page.diff, mode: page.mode, score: page.score }]), pfNow()));
+  }
   page.state = now === "signin" || now === "noname" || now === "offline" || now === "unpublished" ? now : "refused";
   scRender();
 }
-// One result sent. Accepted: the strip says where it stands. The network failed, or the session ended during the
-// battle (401): it waits in the outbox for a connection, or for this account's next sign-in. Refused: "Not ranked",
-// and the refusal's word goes to the stats
+// One result sent. It is in the outbox before the request goes (a tab closed or evicted while the post is out loses
+// nothing: the next load sends it, and the server's run_finished makes a second send harmless), and leaves it on any
+// answer. Accepted: the strip says where it stands. The network failed, or the session ended during the battle (401):
+// it stays in the outbox for a connection, or for this account's next sign-in. Refused: "Not ranked", and the
+// refusal's word goes to the stats
+function scOutDrop(rid) {
+  const left = outTrim(pfRead("hs_pf_out"), pfNow()).filter(x => x.rid !== rid);
+  if (left.length) pfWrite("hs_pf_out", left); else pfDrop("hs_pf_out");
+}
 async function scPost(rid, stats, page) {
   const s = pfSession();
-  const r = s ? await pfRpc("hs_score_submit", { p_run: rid, p_stats: stats }, { auth: true, timeout: 10000 }) : { ok: false, status: 401, data: null, code: "no_session" };
+  const uid = s ? s.uid : ((pfRead("hs_pf_me") || {}).uid || "");
+  if (uid) pfWrite("hs_pf_out", outTrim((pfRead("hs_pf_out") || []).filter(x => x.rid !== rid).concat([{ rid, uid, stats, t: pfNow(), lv: page.lv, diff: page.diff, mode: page.mode, score: page.score }]), pfNow()));
+  // (the outbox's own send leaves this entry alone while it is out here)
+  SC.posting = rid;
+  let r;
+  try { r = s ? await pfRpc("hs_score_submit", { p_run: rid, p_stats: stats }, { auth: true, timeout: 10000 }) : { ok: false, status: 401, data: null, code: "no_session" }; }
+  finally { if (SC.posting === rid) SC.posting = ""; }
   const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
-  if (d && d.accepted === true) { scPosted(page, d); return; }
+  if (d && d.accepted === true) { scOutDrop(rid); scPosted(page, d); return; }
   if (r.status === 0 || r.status === 401 || r.status === 429 || r.status >= 500 || r.code === "no_session") {
-    const uid = s ? s.uid : ((pfRead("hs_pf_me") || {}).uid || "");
-    if (uid) {
-      pfWrite("hs_pf_out", outTrim((pfRead("hs_pf_out") || []).concat([{ rid, uid, stats, t: pfNow(), lv: page.lv, diff: page.diff, mode: page.mode, score: page.score }]), pfNow()));
-      page.state = "waiting";
-    } else page.state = "signin";
+    page.state = uid ? "waiting" : "signin";
     scRender();
     return;
   }
+  scOutDrop(rid);
   page.state = r.code === "ruleset_unknown" ? "unpublished" : "refused";
   track("score_rejected", { reason: scReason(r.code) });
   scRender();
@@ -83296,18 +83327,19 @@ let scFlushing = false, scFlushT = 0;
 async function scFlush() {
   if (!PF.on || scFlushing) return;
   const s = pfSession();
-  if (!s) return;
+  // (and with a name: a player who has not chosen one is not yet on any board, and his results wait for it)
+  if (!s || !pfMyName()) return;
   const all = outTrim(pfRead("hs_pf_out"), pfNow());
   if (!all.length) { pfDrop("hs_pf_out"); return; }
   pfWrite("hs_pf_out", all);
-  const mine = all.filter(e => e.uid === s.uid);
+  const mine = outSendable(all, s.uid, pfNow()).filter(e => e.rid !== SC.posting);
   if (!mine.length) return;
   scFlushing = true;
   try {
     for (const e of mine) {
       const r = await pfRpc("hs_score_submit", { p_run: e.rid, p_stats: e.stats }, { auth: true, timeout: 10000 });
       if (r.status === 0 || r.status === 401 || r.status === 429 || r.status >= 500 || r.code === "no_session") break;
-      pfWrite("hs_pf_out", outTrim(pfRead("hs_pf_out"), pfNow()).filter(x => x.rid !== e.rid));
+      scOutDrop(e.rid);
       const page = SC.page && SC.page.rid === e.rid ? SC.page : null;
       const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
       if (d && d.accepted === true) scPosted(page, d);
@@ -83857,6 +83889,8 @@ const Platform = {
   // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
   victoryPage() { if (!PF.on) return; SC.shown = true; scRender(); },
   // the defeat page is up: a lost daily's score goes on it here (5.5)
+  // (a lost daily's strip on the defeat page, 5.5's last line, is work package P6's: scRender draws only on the
+  // victory page, and no daily can begin before P6)
   defeatPage() { if (!PF.on) return; SC.shown = true; scRender(); },
   // the player as the platform knows him, for a hero's or a card's words (0.3): read only
   player() { const s = PF.on ? pfSession() : null; return { signedIn: !!s, name: s ? ((PF.me && PF.me.name) || ((pfRead("hs_pf_me") || {}).name) || null) : null }; },
