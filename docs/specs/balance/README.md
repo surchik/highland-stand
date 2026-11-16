@@ -495,8 +495,36 @@ What was found, and the numbers chosen:
   Erebuni, mix7 on Tushpa (which builds no Horse Lines there) and balldrum on Avarayr. Putting the tower where it helps
   Tushpa (mixh10, +3.6) would take Tushpa further above its band of 12 to 16 (mix7 keeps 17.3 there, G5's cell), and
   every slot before 15 in mix7 loses Erebuni's pair. The owner's to rule on, with G5's cells.
-- The endless stand: mix7 falls 0 to 3 waves beyond the chronicle on Erebuni and Avarayr and holds all 20 on Tushpa;
-  the Tushpa stand is the same with a Horse Lines that does nothing (it is G5's board), harriers never reach it.
+- The endless stand: NOT met. 5.2 asks mix7 and harriers boards to fall between waves 8 and 20 beyond the chronicle.
+  mix7 falls 0 to 3 waves beyond on Erebuni and Avarayr and holds all 20 on Tushpa; harriers never reach the stand.
+  The Tushpa stand is the same with a Horse Lines that does nothing (it is G5's board, not the horse's). The owner's to
+  rule on, with G5's cells.
 - Commanders: CMD=probe on the horse builds shows them felling no commander (agemix deals the first commander 0.29 to
   0.47 of his strength; harriers never reach him);
   3.1's first rule holds (a commander or an engine is thrown a quarter as far, and nothing is thrown twice in 8 s).
+
+### G7a close (review: docs/specs/reviews/G7a-review.md)
+
+Tables at the closing page (SEEDS=3, CLOCK=1, every build, the three battlefields): `g7a-close-normal-seeds3.txt`,
+`g7a-close-easy-seeds3.txt`, `g7a-close-hard-seeds3.txt`, `g7a-close-endless-normal-seeds3.txt` (ENDLESS=20, mix7 and
+harriers), `g7a-close-probe-normal-seeds3.txt` (CMD=probe) and `g7a-close-kit-par-hold-normal-seeds3.txt` (KIT=par
+HERO=hold, read by `tools/balance-kit.js` against the Normal table). The daily's table (DAILY=1) equals
+`g7a-daily-normal-seeds3.txt` cell for cell.
+- One rule moved: an unseen scout on the stretch is now struck (and so shown), as the stones and 3.4's blasts strike
+  him; alone he does not send the riders out. Every cell on Easy, Normal and Hard equals the build's tables; the
+  horse's damage per 100 gold on Normal moves from 3,597 to 3,673, and its px thrown per 100 gold from 487 to 500.
+- The two rows of 5.2 that are NOT met (the owner's to rule on, with G5's cells): the Horse Lines in the best build on
+  0 of 3 battlefields, and the endless stand above. One more tuning pass was tried for the first, as the review asked:
+  the reach at rank 1 from 150 to 180 with the riders waiting for 2 foes, not 3 (`g7a-trials/n-r180c2.txt`), and the
+  same with a price of 80 (`o-r180c2p80.txt`), each with `mixh` (two horses 2nd and 6th) and `mixh10` beside every
+  build. Neither puts a horse build first anywhere: mixh loses Erebuni and Tushpa on every seed at 180 (2 of 3 on
+  Erebuni at the price of 80) and keeps 10.7 or 11.3 on Avarayr against balldrum's 13.7; mixh10 keeps 13.0, 15.0 and
+  9.3. The page keeps the build's numbers. On Hard mixh is the best build on Avarayr (the review's run: 4.0 against
+  balldrum's 3.7), the one cell where the row is met.
+- The Captains' tiers 4 and 5 (5% off the special tower, 7.5% off its masteries) now apply to the Horse Lines. KIT=par
+  HERO=hold on the three: Erebuni +0.0, Tushpa -0.7, Avarayr +2.3, as at G5's close (+0.0, -0.6, +2.3): the discount
+  moves no cell, so G5's mean of +2.12 over the 17 and its Van cell (+6.7, over the bound of 6) stand as G5 left them.
+  Their lines now name the towers that are in the game ("the Horse Lines"), not "the special tower".
+- mix7 puts "age" 15th for every battlefield, G7b to G7e included. A later package that needs another slot for its own
+  tower changes it for its own battlefields only (a per-battlefield order), so that Erebuni's commander pair keeps its
+  ballista.

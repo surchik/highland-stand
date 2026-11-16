@@ -42,7 +42,9 @@ const PHONE = { name: "touch phone 667x320", w: 667, h: 320, touch: true, ua: re
       const horsePads = await g.ev(() => PADS.map((p, i) => i).filter(i => !towerAt(i) && padTakesRoad(i, 150))
         .sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], 150).length - postRoadIn(PADS[a][0], PADS[a][1], 150).length));
       for (const i of horsePads.slice(0, 2)) { const got = await build("horse", i); if (got !== "horse") fail("a Horse Lines was not built on pad " + i + ": " + got); }
-      // a third: refused, with its sentence
+      // two built: the tile is dimmed though the purse could pay (G7a review 4); a third: refused, with its sentence
+      const dim = await g.ev(() => ({ poor: document.querySelector('#shop .card[data-type="horse"]').classList.contains("poor"), gold }));
+      if (!dim.poor) fail("the horse tile is not dimmed with two built: " + JSON.stringify(dim));
       const n0 = await g.ev(() => towers.length);
       await build("horse", horsePads[2]);
       const third = await g.ev(() => ({ n: towers.length, t: $("toast").textContent }));
