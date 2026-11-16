@@ -7,7 +7,8 @@
 // (667x320, touch, the tray of six) places on one battlefield of each age group.
 // The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) takes its turn too where the
 // tray holds it: refused on a pad with no road in reach as the post is, and, once the field holds its limit, refused
-// with its own sentence ("Two horse lines are all this field can stable."), the pad then taking the next kind.
+// with its own sentence ("Two horse lines are all this field can stable.", G7b's Stores "Two stores are all this road can
+// feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/padplace.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -60,7 +61,7 @@ const PHONE_LV = ["erebuni", "dvin", "gyumri", "van", "stepanakert92"];
             // a post or a horse line where no road lies in its reach: refused, with its sentence; the pad takes the next kind
             if (!st.road) { await refuse(i, type, "with no road in reach", /No road in reach/); continue; }
             // a kind at its limit on the field: refused with its own sentence (once a field), the pad takes the next kind
-            if (st.full) { await refuse(i, type, "over its limit", /are all this field can|at most|No more than/); continue; }
+            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than/); continue; }
             break;
           }
           if (await g.ev(() => placing) !== type) await g.press('#shop .card[data-type="' + type + '"]');

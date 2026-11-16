@@ -5,8 +5,8 @@
 // (by turns with the five, at every rank and both masteries); on one post of each battlefield Rally point is pressed,
 // then the road inside its ring where it is drawn: the men's rally point must move there, the panel go, and nothing
 // else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields.
-// Where the tray holds the battlefield's special tower (G7a: the Horse Lines), two of them stand among the rest, at
-// ranks and masteries by turns.
+// Where the tray holds the battlefield's special tower (G7a: the Horse Lines; G7b: the Stores), two of them stand among
+// the rest, at ranks and masteries by turns.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/probe.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -40,7 +40,9 @@ const BODY = 30;
             if (k === "post" && !padTakesPost(i)) k = kinds[(i + lv + 1) % 6];
             // the battlefield's special tower (G7a: the Horse Lines) on two pads with road in reach, where the tray holds it
             const a = trayTypes()[6];
-            if (a && i % 4 === 2 && towers.filter(u => u.type === a).length < (TOWER_DEFS[a].max || 2) && padTakesRoad(i, kitStatsOf(a, 0, null).range)) k = a;
+            // (G7b: the Stores take any pad, no road asked)
+            const roadless = !(TOWER_DEFS[a] && (TOWER_DEFS[a].post || TOWER_DEFS[a].charge));
+            if (a && i % 4 === 2 && towers.filter(u => u.type === a).length < (TOWER_DEFS[a].max || 2) && (roadless || padTakesRoad(i, kitStatsOf(a, 0, null).range))) k = a;
             placeTower(k, i);
             const t = towerAt(i);
             if (!t) return;

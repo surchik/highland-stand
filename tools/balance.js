@@ -140,6 +140,11 @@
 //     within 120 px downstream (toward the walls) of a standing fire or catapult, on a tie (or before either stands) the
 //     one whose reach holds the most road; two at most (the field's limit), then "age" is passed over. Masteries alternate
 //     as for any kind; the harriers build takes Harriers (BUILD_SPEC)
+//   - Stores (G7b, gameplay 5.4): "age" on Dvin, Tashir, Sevan, Ani, Mari and Sis. The free pad that reaches the least
+//     road (the worst pad for a tower), bought as the order says and never once two thirds of the battle's waves are
+//     sent; two at most (greedy: one, BUILD_AGE_MAX). Ranked and mastered as any tower. Where greedy or bazaar is run
+//     beside mix, the report adds the Stores' rows of gameplay 5.2: greedy's gold invested at the end, the defenders it
+//     lost more than mix by the end of the first commander's wave and at the end, and bazaar's defenders against mix
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -178,9 +183,17 @@ const BUILDS = {
   // Horse Lines at Harriers (BUILD_SPEC) with fires and drums, the board that tries to pin the column. Both must lose
   agemix:    ["age", "post", "age", "post", "post", "post", "post", "post"],
   harriers:  ["age", "fire", "age", "drums", "fire", "fire", "drums", "fire"],
+  // G7b (gameplay 3.3, 5.2): greedy, the mix with one Stores as its third building (BUILD_AGE_MAX); bazaar, two Stores
+  // first, then the mix. Where "age" is not the Stores they are the mix with the special tower in its place
+  greedy:    ["archer", "ballista", "age", "catapult", "fire", "archer", "drums", "ballista", "catapult", "archer", "fire",
+              "ballista", "drums", "catapult", "archer"],
+  bazaar:    ["age", "age", "archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "archer", "fire",
+              "ballista", "drums", "catapult", "archer"],
 };
 // a build's own masteries, before SPEC= (a kind it names takes that mastery in every battle)
 const BUILD_SPEC = { harriers: "horse=b" };
+// a build's own limit on the special tower, under the field's (greedy: one Stores, gameplay 5.2)
+const BUILD_AGE_MAX = { greedy: 1 };
 
 function parseList(s, all) {
   if (!s || s === "all") return all.slice();
@@ -203,7 +216,7 @@ const BOT_SLOT = { erebuni: 0, tushpa: 1, avarayr: 2, dvin: 3, tashir: 4, sevan:
 
 // one battle, played inside the page (this function is serialised into it, so it sees only its argument)
 function playBattle(a) {
-  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN, daily, twist, day } = a;
+  const { lv, slot, diff, plan, seed, pace, spells, spec, dt, probe, counters, early, earlyN, kit, heroMode, wait, endlessN, daily, twist, day, ageMax } = a;
   let earlyCalls = 0;
   const tricked = typeof trickCfg === "function";
   // the battle's length (a page from before the lengths has 20 waves everywhere), and the script wave a played wave
@@ -346,6 +359,7 @@ function playBattle(a) {
   // the build's order: `placed` towers of it stand so far. A kind that cannot be built here (the special tower where
   // none is offered or at its limit, a post where no free pad has road in reach) is passed over
   let placed = 0;
+  const storesRank0 = a.storesRank || "last";   // STORES_RANK: when the bot ranks its Stores (last, even, never)
   // Horse Lines (G7a, gameplay 5.4): the free pad whose reach holds the most road within 120 px downstream (toward the
   // walls) of a standing fire or catapult, so that a charge throws foes back into the kill zone; on a tie, or with no
   // fire or catapult yet, the one whose reach holds the most road
@@ -369,12 +383,18 @@ function playBattle(a) {
       return { i, v, n: S.length };
     }).filter(o => o.n > 0).sort((a, b) => b.v - a.v || b.n - a.n).map(o => o.i);
   };
-  const padFor = k => (k === "horse" && horseReach ? rankHorse() : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
+  // Stores (G7b, gameplay 5.4): the free pad that reaches the least road (the worst pad for a tower), on a tie the one
+  // nearer the walls' end of the ranking (the later in rankRoad)
+  const storesRank = PADS.map((p, i) => i).map(i => ({ i, v: pts.filter(q => near(q, PADS[i][0], PADS[i][1])).length, r: rankRoad.indexOf(i) }))
+    .sort((a, b) => a.v - b.v || b.r - a.r).map(o => o.i);
+  const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
   const kindAt = j => {
     let k = plan[j % plan.length];
     if (k === "age") {
-      const a = typeof ageTower === "function" ? ageTower(curEra) : null, lim = a && TOWER_DEFS[a].max;
+      const a = typeof ageTower === "function" ? ageTower(curEra) : null, lim = a && Math.min(TOWER_DEFS[a].max || 99, ageMax || 99);
       k = a && !(lim && towers.filter(t => t.type === a).length >= lim) ? a : null;
+      // Stores are bought as the order says, never after two thirds of the battle (gameplay 5.4)
+      if (k === "stores" && waveIdx >= total() * 2 / 3) k = null;
     }
     // a slot the daily's twist struck from the tray is passed over like a kind no free pad takes
     if (k && typeof trayBan !== "undefined" && trayBan.includes(k)) return null;
@@ -388,14 +408,23 @@ function playBattle(a) {
     if (!counter()) return;
     for (let guard = 0; guard < 200; guard++) {
       const n = towers.length;
-      const up = towers.filter(t => !t.spec && !t.wreck && t.level < TOWER_DEFS[t.type].levels.length - 1).sort((x, y) => x.level - y.level)[0];
+      // (a Stores' rank waits until every fighting tower has its own, and none is bought once two thirds of the
+      // battle's waves are sent: it could not pay itself back, G7b)
+      const ups = towers.filter(t => !t.spec && !t.wreck && t.level < TOWER_DEFS[t.type].levels.length - 1 &&
+        !(t.type === "stores" && (storesRank0 === "never" || waveIdx >= total() * 2 / 3))).sort((x, y) => x.level - y.level);
+      const fight = ups.filter(t => t.type !== "stores");
+      const up = storesRank0 === "last" && fight.length ? fight[0] : ups[0];
       const nk = PADS.some((p, i) => !towerAt(i)) ? nextKind() : null, build = nk && nk.k;
       const nextPad = build && padFor(build);
       let done = false;
       if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); placed += nk.skip + 1; done = true; rallyPosts(); }
       else if (up && gold >= rankOf(up)) { upgradeTower(up); done = true; }
       else if (!up && !build) {
-        const sp = towers.find(t => !t.spec && !t.wreck);
+        // (a tower at its last rank; a Stores' mastery after every fighting tower's, and none once two thirds of the
+        // battle's waves are sent, G7b)
+        const ready = towers.filter(t => !t.spec && !t.wreck && t.level >= TOWER_DEFS[t.type].levels.length - 1 &&
+          !(t.type === "stores" && waveIdx >= total() * 2 / 3));
+        const sp = ready.find(t => t.type !== "stores") || ready[0];
         if (sp) {
           const key = sp.botSpec || (sp.botSpec = specFor(sp));
           if (gold >= specInfo(sp.type, key).cost) { specializeTower(sp, key); done = true; }
@@ -504,6 +533,7 @@ function playBattle(a) {
   const secs = [];               // game seconds each wave was on the field
   let minS = 0;                  // the sum of the moments each wave's last foe came on
   let waited = 0;                // game seconds waited between waves (WAIT)
+  let livesCmd1 = null;          // the defenders kept as the first commander's wave ended
   const oneWave = () => {
     // WAIT: the seconds a wave is sent after the last is cleared (Auto's pause), fought in the battle itself: the
     // spells and the hero recover in them, and the battle clock runs on
@@ -540,6 +570,8 @@ function playBattle(a) {
       }
     }
     if (lives < before) leaks[waveIdx] = before - Math.max(0, lives);
+    // the defenders kept when the first commander's wave is cleared (gameplay 5.2, the Stores' row)
+    if (livesCmd1 === null && typeof isCommanderWave === "function" && isCommanderWave(waveIdx)) livesCmd1 = Math.max(0, lives);
     secs.push(+(n * dt).toFixed(1));
     // wave:lives:gold:towers, each tower as its kind's initial and rank (a, b for a mastery)
     trace.push(waveIdx + ":" + Math.max(0, lives) + ":" + Math.round(gold) + ":" +
@@ -579,7 +611,10 @@ function playBattle(a) {
     toll, wrecks: tricked ? trickStand.wrecks : 0, repairGold: tricked ? trickStand.repairGold : 0, rebuildGold: tricked ? trickStand.rebuildGold : 0,
     adapt: tricked ? trickStand.adaptLog : [], adaptW, adaptOn, earlyCalls,
     trace: trace.join(" "), sec, waveSec, secs, minS: Math.floor(minS), earned: F ? F.earned : null, spent: F ? F.spent : null,
-    calls: F ? F.calls : 0, heroFalls: F ? F.heroFalls : 0, heroLevel: F ? F.heroLevel : 1 };
+    calls: F ? F.calls : 0, heroFalls: F ? F.heroFalls : 0, heroLevel: F ? F.heroLevel : 1,
+    // the gold standing on the board at the end (every tower's invested gold), what Stores paid, the defenders kept
+    // when the first commander's wave ended (G7b)
+    invested: towers.reduce((n, t) => n + towerInvested(t), 0), storesGold: F && F.from ? F.from.stores || 0 : 0, livesCmd1 };
 }
 
 (async () => {
@@ -633,7 +668,7 @@ function playBattle(a) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
       spells, spec: BUILD_SPEC[b] ? BUILD_SPEC[b] + "," + spec : spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
-      daily, twist, day });
+      daily, twist, day, ageMax: BUILD_AGE_MAX[b] || 0, storesRank: process.env.STORES_RANK || "last" });
   }
   const results = [];
   let done = 0;
@@ -735,6 +770,26 @@ function playBattle(a) {
     console.log("damage per 100 gold: " + keys.map(k => k + " " + Math.round(agg[k].dmg / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
     const holds = Object.keys(agg).filter(k => agg[k].hold > 0).sort();
     if (holds.length) console.log("seconds of hold per 100 gold: " + holds.map(k => k + " " + Math.round(agg[k].hold / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
+    // the Stores (gameplay 5.2): greedy against mix (gold invested at the end, defenders lost by the end of the first
+    // commander's wave, defenders at the end) and bazaar against mix (defenders at the end), each the mean over the
+    // seeds; a battle lost counts the defenders it kept when it fell (0)
+    if (builds.includes("mix") && (builds.includes("greedy") || builds.includes("bazaar"))) {
+      const M = (lv, b, f) => { const rs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b); return rs.length ? rs.reduce((n, r) => n + f(r), 0) / rs.length : null; };
+      console.log("\nStores (G7b): greedy and bazaar against mix, means over the seeds; stores gold is what Stores paid in a battle");
+      console.log(pad("battlefield", NW) + pad("invested", 11) + pad("cmd1 lost", 11) + pad("end", 9) + pad("bazaar end", 12) + "stores gold (greedy, bazaar)");
+      let below = 0, n = 0;
+      for (const lv of levels) {
+        const mi = M(lv, "mix", r => r.invested), ml = M(lv, "mix", r => r.lives), mc = M(lv, "mix", r => r.livesCmd1 == null ? r.lives : r.livesCmd1);
+        const gi = M(lv, "greedy", r => r.invested), gl = M(lv, "greedy", r => r.lives), gc = M(lv, "greedy", r => r.livesCmd1 == null ? r.lives : r.livesCmd1);
+        const bl = M(lv, "bazaar", r => r.lives);
+        const f = (v, d) => (v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(d));
+        if (bl != null) { n++; if (bl < ml) below++; }
+        console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(gi == null ? "-" : f((gi / mi - 1) * 100, 1) + "%", 11) + pad(gc == null ? "-" : f(mc - gc, 1), 11) +
+          pad(gl == null ? "-" : f(gl - ml, 1), 9) + pad(bl == null ? "-" : f(bl - ml, 1), 12) +
+          Math.round(M(lv, "greedy", r => r.storesGold) || 0) + ", " + Math.round(M(lv, "bazaar", r => r.storesGold) || 0));
+      }
+      if (n) console.log("bazaar ends below mix on " + below + " of " + n);
+    }
     const throws = Object.keys(agg).filter(k => agg[k].thrown > 0).sort();
     if (throws.length) console.log("px thrown back per 100 gold: " + throws.map(k => k + " " + Math.round(agg[k].thrown / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
     // the tricks' toll on each battlefield's best build, and how often the enemy adapted to each build

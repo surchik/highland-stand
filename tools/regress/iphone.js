@@ -28,8 +28,9 @@
 //   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
 //             crash, victory, defeat, nardi, coach, towers, post (rotate is part of battle)
 // The Garrison Post (G5): the tray of six on every battlefield (seven on Erebuni, Tushpa and Avarayr with the Horse
-// Lines, G7a) and of seven everywhere (a stand-in for the special towers still to come) with every tile 44 x 44 and its
-// name whole or absent; the post's panel and the Horse Lines' panel as sheets; the armed rally's toast in the safe area
+// Lines, G7a, and on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores, G7b) and of seven everywhere (a stand-in for
+// the special towers still to come) with every tile 44 x 44 and its name whole or absent; the post's panel, the Horse
+// Lines' panel and the Stores' panel as sheets; the armed rally's toast in the safe area
 // and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
@@ -695,12 +696,15 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         const trayIssues = (n) => g.ev(n => {
           const out = [], ids = LEVELS.map(L => L.id);
           const stand = n === 7;
-          if (stand) TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 2, cost: 120 });
+          // (the stand-in is the Observation Post, the last special tower to come, under its own longest name; G7b: the
+          // Stores are in the game now, so they stand in no more)
+          const SI = "spotter", built = !!TOWER_DEFS[SI], ups = AGES.map(A => A.upTo);
+          if (stand && !built) TOWER_DEFS[SI] = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 1, cost: 90 });
           try {
             for (const id of ids) {
               testUnlockAll = true;
               curLevel = levelIndexOf(id); curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
-              if (stand) { const a = AGES.findIndex(A => A.tower === "stores"); AGES[a].upTo = 99; AGES.forEach((A, i) => { if (i !== a) A.hold = A.upTo, A.upTo = -1; }); syncTray(); }
+              if (stand) { const a = AGES.findIndex(A => A.tower === SI); AGES.forEach((A, i) => { A.upTo = i === a ? 99 : -1; }); syncTray(); }
               fitCardNames();
               const cards = [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none");
               // (a battlefield with its own special tower built into the game, G7a on, has seven in the real tray)
@@ -712,10 +716,10 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
                 if (cs.display !== "none" && nm.clientWidth && nm.scrollWidth > nm.clientWidth) out.push(id + " " + c.dataset.type + ": its name \"" + nm.textContent + "\" is cut");
                 if (cs.display !== "none" && parseFloat(cs.fontSize) < 10.95) out.push(id + " " + c.dataset.type + ": its name is " + cs.fontSize);
               }
-              if (stand) { AGES.forEach(A => { if (A.hold !== undefined) { A.upTo = A.hold; delete A.hold; } }); AGES.find(A => A.tower === "stores").upTo = 3; }
+              if (stand) AGES.forEach((A, i) => { A.upTo = ups[i]; });
             }
           } finally {
-            if (stand) { delete TOWER_DEFS.stores; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); }
+            if (stand) { AGES.forEach((A, i) => { A.upTo = ups[i]; }); if (!built) { delete TOWER_DEFS[SI]; const c = document.querySelector('#shop .card[data-type="' + SI + '"]'); if (c) c.remove(); } }
             syncTray();
           }
           return out;
@@ -788,6 +792,25 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           }
           if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== hb) fail("horse panel", "the tap that opened the sheet pressed something in it");
           await check("horse panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
+        // the Stores' panel (G7b) the same way: Tashir staged, the stores at their third rank (the Mastery to choose)
+        await stage("tashir", 3, { stores: 1, sl: "2" });
+        const spad = await g.ev(() => { const t = towers.find(u => u.type === "stores"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (spad < 0) fail("stores panel", "no Stores were staged");
+        else {
+          const sb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const sat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), spad);
+          await g.tapAt(sat.x, sat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", spad))) {
+            fail("stores panel", "a tap on the Stores did not open their panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, spad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== sb) fail("stores panel", "the tap that opened the sheet pressed something in it");
+          await check("stores panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
           await g.ev(() => { hidePanel(); });
         }
       });
