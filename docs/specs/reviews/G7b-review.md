@@ -33,7 +33,7 @@ to a clear in between. Probe `review/G7b/exploit.js` (Tashir, wave 3 on the fiel
 The 60 gold is kept and the 320 comes back. The grace runs on `performance.now()`, so it is 5 s of real time: 10 s of
 game time at 2x and 20 s at 4x. A player who taps the tile and a pad as a wave's last foe falls, then sells, earns
 `pay x payStep` per Stores at every clear for nothing: no pad held, no hunter risk. On a wave that pays for two script
-waves it is 120 per clear. It moves `earned`, the thrift part of the score and the ranked boards.
+waves it is 120 per clear. The gold is booked as earned (`from.stores`), and the score and the ranked boards read the battle's facts.
 
 Fix proposed: a tower placed before the last clear is not fresh. In `placeTower` keep `t.placedClear = lastCleared`, and
 in `sellRefund` `fresh = ... && t.placedClear === lastCleared` (a resumed tower already has `placedAt: -1e9`). A narrower
@@ -114,12 +114,19 @@ both) so the owner sees where the Stores' gold went; README G7b says "NOT met" f
 
 Evidence: probe `review/G7b/council.js`: the Captains' tiers read "Men return 7.5% sooner; the Horse Lines and the Stores
 cost 5% less" and "Drums, posts and the Horse Lines and the Stores: masteries cost 7.5% less". `ageTowersNamed`
-(index.html 10941) joins with "and", and the tier line already has one. Also: the Captains' fourth and fifth tiers now
-discount the Stores on six battlefields, and `KIT=par HERO=hold` was not run on them (see "What could not be checked").
+(index.html 10941) joins with "and", and the tier line already has one.
+
+The same tiers now discount the Stores on six battlefields, and the builder did not run the Council's bound with them.
+The reviewer ran `KIT=par HERO=hold SEEDS=3 CLOCK=1` on the six (mix, archdrum, mix7, halfpost, greedy, bazaar;
+`review/G7b/bal-kitpar.txt`). Best builds: Dvin 15.3, Tashir 19.3, Sevan 17.0 (bazaar), Ani 15.7, Mari 12.0, Sis 14.3.
+Against KIT=none (the G7b table) that is +1.0, 0.0, +3.3, +1.0, 0.0, +3.0. Only Sevan moved from G5's close (+1.0 then:
+14.3 against 13.3). G5's mean over the 17 was +2.12 and G7a moved none of its three, so the mean is now about +2.26,
+against the bound of 2.3 (RULINGS B7). The bound holds by 0.04, and G7c to G7e add three more towers the same tiers
+discount.
 
 Fix proposed: the fifth tier's line "Drums, posts, {age}: masteries cost 7.5% less" with `ageTowersNamed` joining by
-commas and a last "and" ("Drums, posts, the Horse Lines and the Stores: ..."), and the run of `KIT=par HERO=hold SEEDS=3`
-on the six against `KIT=none` for the bound of 2.3.
+commas and a last "and" ("Drums, posts, the Horse Lines and the Stores: ..."). README G7b records the par-hold cells above
+and the mean of about +2.26, so the next packages know the margin left is 0.04.
 
 ### 6. Minor: Dvin's sourced line is on a card few players will see
 
@@ -182,8 +189,45 @@ Fix proposed: none in G7b; the stage's status page names it, so that G7c to G7e 
 
 ## What was rerun, and its results
 
-[RESULTS]
+Each run to its end, on gp/work at 44c309e, with the other track's tests running beside most of them (load 6 to 12):
+- `node deploy/check-page.js index.html`: OK (exit 0).
+- `timeout 900 node tools/selftest.js --suite=all` (under load, beside the reviewer's own playtests): suite 1 151
+  checks, no error, 213.1 s (over its budget); suite 2 47 checks, no error, 160.2 s (over its budget). Rerun alone:
+  `--suite=2` PASS, 47 checks, 77.2 s; `--suite=1` PASS, 151 checks, 121.2 s (load about 3.5). Load failures.
+- `node tools/run-fixtures.js check`: PASS, 8 fixtures.
+- `node tools/town-isolation.js`: PASS, 9 cases.
+- `run-all.js --quick`: 10 of 11 in 1946 s. dance10 FAIL ("a tap at 9809 ms ended the dance", touch 1194x834,
+  Erebuni). Rerun alone twice, but the other track's load stayed at 6 to 11: FAIL 3 of 15 (Avarayr 9926 ms, Gyumri
+  10023 ms, Stepanakert 2023 10103 ms), then FAIL 2 of 15 (Erebuni 9910 ms, Gyumri 9551 ms). None of these is a
+  Stores battlefield and the dance's code is untouched by G7b; it is the known intermittent dance10, reported each time,
+  and not shown to pass on a quiet machine here.
+- `run-all.js --only=padplace,probe,iphone,live` in full: PASS 4 of 4 in 2126 s (padplace placed 1265, refused 57;
+  probe 759 towers on 17 battlefields; iphone 757 states at ten sizes with the Stores' panel sheet; live 17
+  battlefields, with its gate that the Stores were built and paid on each of the six).
+- The bot: `SEEDS=3 CLOCK=1 JOBS=1 node tools/balance.js 1 dvin,tashir,sevan,ani,mari,sis mix,greedy,bazaar`: every
+  cell and every Stores row equals `g7b-normal-seeds3.txt` (54 battles). `KIT=par HERO=hold`, the same six, mix,
+  archdrum, mix7, halfpost, greedy and bazaar: finding 5 (108 battles). The builder's Easy, Hard, CMD=probe, DAILY and
+  ENDLESS tables were read, not rerun. Old builds' cells on the six were compared with G5's close tables: equal.
+- Suite 2 mutants: 13 (finding 2), through the 11 checks named there.
+- Probes: `exploit.js` (finding 1), `council.js` (finding 5).
+- Photos: the builder's 51 under `shots/g7b/` were looked at (the tower at each rank and mastery, the six names, the
+  panels at rank 1, rank 3, Caravan and Field Forge, Tashir's and Dvin's cards, Sevan's tray) at 1600 x 900, 1194 x 834
+  and 667 x 320. The tile at 667 x 320 is 44 px and more, its name whole ("Stores" on a phone); the card's button and
+  the panel's buttons are 44 px and more; no Stores art covers the road. The phone panel's row break is finding 7.
+- The reviewer's playtest (`review/G7b/play.js`, Tashir, Normal, by finger: the tile, two taps on a pad, a tap on a
+  tower, the panel's Upgrade, Send Wave, the speed and Auto): iPad greedy fell on wave 6 (Stores paid 278); iPhone SE
+  size greedy fell on wave 9 (paid 598); iPad mix fell on wave 10. No page error. Every Stores built and every tap on
+  the Stores opened their panel; two taps on other towers (an archer, the drums) missed on the iPad, from the probe's
+  own aim. How it felt: the tile and the panel are clear, the coins and "+30 stores" in the toast read at once, and the
+  refusal of a third is plain. But the Stores built third cost the early waves more than they paid back before the
+  fifth wave's climbers came: by wave 5 the board with the Stores had 6 lives where the board without had 14. A player
+  who takes the card at its word loses Tashir (finding 3).
 
 ## What could not be checked
 
-[NOTCHECKED]
+- The builder's Easy and Hard tables, CMD=probe, the daily and the endless tables were not rerun (time and the shared
+  machine; RULINGS E). The Normal rerun matched cell for cell, so they are taken as written.
+- dance10 could not be run on a quiet machine: the other track's tests kept the load at 6 to 12 for the whole review.
+- The iPhone 15 from the Home Screen (852 x 393) was played by iphone.js's states only, not by the reviewer's playtest.
+- The daily with the Stores (finding 10) was read, not played.
+- A real touch device: none; every touch was Chromium's emulated touch through tools/regress/lib.js.
