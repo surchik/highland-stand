@@ -649,7 +649,7 @@ Tashir, where every player first meets the Stores (review 3). Trials at SEEDS=3,
   200 is the candidate; it is not in the page. The owner rules on it with the rows below.
 
 5.2's rows still NOT met at the close, for the owner with G5's and G7a's cells: the Stores in the best build on a third
-of their battlefields (Normal 1 of 6, Easy 2, Hard 2); greedy's gold invested 6 to 10% above the mix (none of the six);
+of their battlefields (Normal 1 of 6, Easy 2, Hard 2); greedy's gold invested 6 to 10% above the mix (none of the six; read as gold earned, 4 of 6 on Normal);
 greedy's end within 2 of the mix on Tashir (-6.3) and Mari (-7.3); and the endless stand, which 5.2 asks on three
 battlefields of the 17 and which is met on Dvin and Tashir only (Sevan 4, 4, 16; Ani 2, 2, 3; Mari 2, 2, 2; Sis 0, 2,
 2 waves beyond the chronicle): NOT met.
@@ -663,3 +663,17 @@ A later tower that lifts a best board under the Council by a defender on one bat
 The daily with the Stores in its tray (review 10): the twist tables on the six (`g7b-close/daily-twists-six-normal-seeds3.txt`,
 `DAILY=1 TWIST=t DAY=20406 SEEDS=3 CLOCK=1`, the mix, every twist and none) equal G6's `g6-daily-twists-normal-seeds3.txt`
 row for row, so the skip list stands. The mix builds no Stores, and the tray's new tile changes no other tower.
+
+Acceptance at the close (gp/work, the other track testing beside it at loads of 5 to 28):
+- check-page OK. selftest suite 2 PASS (47 checks, 99.8 s). Suite 1 PASS alone (151 checks, 121.1 s of its 125: it
+  ran 144.7 and 142.7 s beside the other track's load). run-fixtures PASS (8). town-isolation PASS (9; a first run hung
+  after its first case and was stopped).
+- Seventeen mutants of the Stores' rules (the review's thirteen, the undo after a clear, the Council's line, the
+  Forge's mend, the clear's toast) each caught by suite 2's Stores checks alone.
+- run-all --quick: 9 of 11 beside the load (dance10 and platform failed). platform PASS alone (918 s). dance10 alone:
+  PASS, PASS, then FAIL at a load of 9 (an Erebuni tap at 9817 ms; Sis "a tap at -1 ms ended the horn call", which
+  means the horn call of 2.4 s had already ended by itself when the late tap came: the code of the dance and the horn
+  is untouched since G7a). The known intermittent dance10 failure.
+- run-all --only=padplace,probe,iphone,live in full: probe PASS (759 probed, 17 battlefields) and live PASS (17) beside
+  the load; padplace and iphone were stopped by their time budgets at a load of 17 to 28, then PASS alone (padplace
+  1265 placed, 734 s; iphone 757 states at ten sizes, 664 s).
