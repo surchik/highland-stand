@@ -10,7 +10,7 @@
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
 // The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
-// P5: scores and boards; P8: privacy, deletion and staging; P10: the superadmin's Players view):
+// P5: scores and boards; P7: the share card; P8: privacy, deletion and staging; P10: the superadmin's Players view):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
 //      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
@@ -109,6 +109,16 @@
 //      it", the Account tab; the board to read with the three buttons; no connection and Try again); Scores to look
 //      at (a fast result listed, Remove); the boards switched off (no strip, no run begun). The strip and the tab held
 //      to the iPhone suite's audit on the phones; photos of each state (--photos: a folder p5)
+//   9  the share card (P7): a player wins Ani (a short name) and Sis (the longest title, after its Terms card), a guest
+//      under the optional gate Erebuni Rise; each picture read back (a JPEG of 1200 x 630, the field copied, its words:
+//      title, Armenian name, stars, defenders, rank, name; the guest's with neither name nor rank); with navigator.share
+//      and canShare stubbed the tap shares that file (highland-stand-<id>.jpg) with words carrying the score, a cancel
+//      is no error, a refusal opens the sheet; without them the sheet (#shareSheet): Save picture a real download of
+//      the same bytes, Copy picture a PNG, Copy text the words, each with its toast over the sheet and its event; Share
+//      link where navigator.share takes no file; Escape or its X closes it; held sideways the round #shareBtn at the
+//      top right (or Settings' row when a long title hides it); no request for the picture; the card gone with its
+//      page. The victory page and the sheet held to the iPhone suite's audit; photos and the pictures themselves in
+//      p7 (--photos); at 1600x900 also a daily's card, staged
 //   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
 //      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
 //      there has its own save; /next/ again has its session and its progress
@@ -143,7 +153,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,10,11,13,14,15")).split(",");
+const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,9,10,11,13,14,15")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -2848,7 +2858,293 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(B, W + " (B)");
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
+  // ================================================================ flow 9: the share card (work package P7)
+  // A signed-in player with eight battlefields won wins Ani (a short name) and Sis (the longest title, "The King
+  // Yields on Terms", after its Terms card); a guest under the optional gate wins Erebuni Rise. Each picture is read
+  // back whole (a JPEG of 1200 x 630, its words as the page knows them), photographed with --photos (a folder p7),
+  // and shared: with navigator.share and canShare stubbed the tap shares that file and words carrying the score (a
+  // cancel is no error); without them the sheet's Save picture (a real download), Copy picture (a PNG to the
+  // clipboard) and Copy text each work and say so, and Share link where navigator.share takes no file. Nothing is sent
+  // for the picture: between the page opening and the tap no request but the strip's own post and the analytics
+  const f9prog = (() => {
+    const won = ["erebuni", "tushpa", "avarayr", "dvin", "tashir", "sevan", "ani", "mari"], eraOf = [0, 0, 1, 2, 2, 2, 7, 8], rec = {};
+    won.forEach((id, i) => { rec[id] = { stars: [0, 3 - (i % 2), 0], lives: [0, 20 - i, 0], endless: [0, 0, 0] }; });
+    const o = { hs_records: JSON.stringify(rec), hs_tutorial_done: "1", hs_chapters_seen: JSON.stringify(["kingdoms", "faith", "crowns", "night", "artsakh"]),
+      hs_unlocked_seen: JSON.stringify(won.concat(["sis"])), hs_open_kept: JSON.stringify(["sis"]), hs_tricks_seen: JSON.stringify(["guard", "scout", "ambush", "hunter"]) };
+    won.forEach((id, i) => { o["hs_best_" + id + "_" + eraOf[i]] = "21"; });
+    return o;
+  })();
+  const F9SHOTS = PHOTOS ? path.join(PHOTOS, "p7") : null;
+  if (F9SHOTS) fs.mkdirSync(F9SHOTS, { recursive: true });
+  const f9photo = async (g, name) => { if (F9SHOTS) await g.page.screenshot({ path: path.join(F9SHOTS, name + "-" + g.o.key + ".png") }); };
+  // a JPEG's size from its frame header
+  const jpegSize = (buf) => {
+    if (!buf || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+    for (let i = 2; i + 9 < buf.length;) {
+      if (buf[i] !== 0xff) return null;
+      const m = buf[i + 1], len = buf.readUInt16BE(i + 2);
+      if (m >= 0xc0 && m <= 0xc3) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      i += 2 + len;
+    }
+    return null;
+  };
+  // the picture the page holds, its words, and what the card says: { b64, bytes, type, name, text, info, ready }
+  const f9card = (g) => g.ev(async () => {
+    if (!SH.blob) return { ready: false };
+    const a = new Uint8Array(await SH.blob.arrayBuffer());
+    let s = "";
+    for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
+    return { ready: true, b64: btoa(s), bytes: a.length, type: SH.blob.type, name: SH.file ? SH.file.name : "", text: SH.text, info: JSON.parse(SH.key || "null"), bg: !!SH.bg };
+  });
+  // the picture ready, with the words wanted (the rank, once the server has said it)
+  const f9ready = async (g, W, what, want) => {
+    await g.page.waitForFunction(w => !!SH.blob && !SH.drawing && (!w || (SH.key && JSON.parse(SH.key).rank === w.rank)), want || null, { timeout: 20000 })
+      .catch(async () => fail(W, what + ": no picture ready: " + JSON.stringify(await g.ev(() => ({ blob: !!SH.blob, drawing: SH.drawing.slice(0, 80), key: SH.key.slice(0, 200), page: SC.page })))));
+    const c = await f9card(g);
+    if (!c.ready) return c;
+    const buf = Buffer.from(c.b64, "base64"), size = jpegSize(buf);
+    c.buf = buf;
+    if (c.type !== "image/jpeg" || !size || size.w !== 1200 || size.h !== 630) fail(W, what + ": the picture is not a JPEG of 1200 x 630: " + c.type + " " + JSON.stringify(size));
+    if (c.bytes < 40000 || c.bytes > 600000) fail(W, what + ": the picture's size " + c.bytes + " bytes is far from 150 to 250 KB");
+    if (!c.bg) fail(W, what + ": the field was not copied (the gradient stood in)");
+    notes.flows["p7 " + what + "@" + g.o.key] = Math.round(c.bytes / 1024) + " KB";
+    if (F9SHOTS) fs.writeFileSync(path.join(F9SHOTS, "card-" + what + "-" + g.o.key + ".jpg"), buf);
+    return c;
+  };
+  // the share's control as the page shows it at this size: the strip's Share, or held sideways the round button
+  const f9btn = async (g) => ((await g.ev(() => phoneWide())) ? "#shareBtn" : "#ovScore .scShare");
+  // navigator.share and canShare stubbed (files: whether canShare takes the picture; mode: "ok", "abort", "refuse"),
+  // or taken away (null); and a clipboard that keeps what it was given
+  const f9stub = (g, x) => g.ev((x) => {
+    window.__shared = [];
+    if (!x) { Object.defineProperty(navigator, "share", { configurable: true, writable: true, value: undefined }); Object.defineProperty(navigator, "canShare", { configurable: true, writable: true, value: undefined }); }
+    else {
+      Object.defineProperty(navigator, "canShare", { configurable: true, writable: true, value: (d) => !!x.files && !!d && Array.isArray(d.files) && d.files.length > 0 });
+      Object.defineProperty(navigator, "share", { configurable: true, writable: true, value: (d) => {
+        const f = d && d.files && d.files[0];
+        window.__shared.push({ title: d.title, text: d.text, url: d.url, files: d.files ? d.files.length : 0, name: f && f.name, type: f && f.type, size: f && f.size, file: f || null });
+        if (x.mode === "abort") return Promise.reject(new DOMException("Share canceled", "AbortError"));
+        if (x.mode === "refuse") return Promise.reject(new DOMException("Not allowed", "NotAllowedError"));
+        return Promise.resolve();
+      } });
+    }
+    window.__clip = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      write: async (items) => { for (const it of items) for (const t of it.types) { const b = await it.getType(t); const a = new Uint8Array(await b.arrayBuffer()); window.__clip.push({ type: t, bytes: a.length, png: a[0] === 0x89 && a[1] === 0x50 && a[2] === 0x4e && a[3] === 0x47 }); } },
+      writeText: async (t) => { window.__clip.push({ type: "text", text: t }); },
+    } });
+  }, x);
+  // the share's events since n
+  const f9evs = (g, n) => g.ev(n => (window.__hsEv || []).slice(n).filter(e => /^share_/.test(e[0])).map(e => e[0] + ":" + JSON.stringify(e[1])), n);
+  const f9sheet = (g) => g.ev(() => {
+    const s = $("shareSheet"), up = !!s && !s.classList.contains("shHidden") && SH.up;
+    return { up, btns: up ? Array.from(s.querySelectorAll(".shBtns .btn")).map(b => b.textContent) : [], pic: up ? s.querySelector(".shPic").naturalWidth : 0,
+      inert: overlayEl.hasAttribute("inert"), blocking: Platform.blocking() };
+  });
+  // the victory page's way to the card held to the audit on the phones, and the share's button live
+  const f9page = async (g, W, what) => {
+    const st = await strip(g), sel = await f9btn(g);
+    const b = await g.ev(sel => { const e = document.querySelector(sel); return e ? { dis: e.disabled, hid: e.hidden || getComputedStyle(e).display === "none", vis: getComputedStyle(e).visibility } : null; }, sel);
+    if (!b || b.hid || b.dis) fail(W, what + ": the Share button is not live: " + JSON.stringify(b));
+    if (st.side) {
+      const pos = await g.ev(() => { const a = $("shareBtn").getBoundingClientRect(), c = $("boardBtn").getBoundingClientRect(), gr = $("ovGear").getBoundingClientRect(); return { right: Math.round(innerWidth - a.right), top: Math.round(a.top), gapBoard: Math.round(c.left - a.right), board: !$("boardBtn").hidden, gear: Math.round(gr.left - c.right) }; });
+      const sar = g.o.insets ? g.o.insets.r || 0 : 0;
+      if (b.vis !== "hidden" && (pos.right !== 110 + sar || pos.top !== 8 || (pos.board && pos.gapBoard !== 6))) fail(W, what + ": the round Share button is not at right 110 px, top 8 px, left of Leaderboard: " + JSON.stringify(pos));
+    }
+    if (["ses", "i15h", "i15u"].includes(g.o.key)) {
+      const parts = st.side ? ["#ovRecord", "#boardBtn", "#shareBtn", "#ovGear"] : ["#ovScore", "#ovRecord"];
+      const primary = st.side ? (b.vis === "hidden" ? ["#mapBtn"] : ["#shareBtn"]) : ["#ovScore .scShare"];
+      await audit(g, W + " " + what + " victory page", { root: "#overlay", parts, primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
+    }
+    const out = await g.ev(() => [...document.querySelectorAll("#overlay .bigRow .big, #ovScore button")].filter(b => b.offsetParent && b.getBoundingClientRect().bottom > innerHeight - 1).map(b => b.id || b.className));
+    if (!upr(g.o) && out.length) fail(W, what + ": past the screen's foot: " + out.join(", "));
+    return b.vis !== "hidden";
+  };
+  // the share pressed as the player presses it (held sideways under a long title its round button may hide: then by
+  // Settings' row, as the player would)
+  const f9tap = async (g, W, shown) => {
+    if (shown) { await f7press(g, await f9btn(g)); return; }
+    await pressGo(g, "#ovGear");
+    await g.frames(3);
+    const row = await g.ev(() => { const e = $("setShare"); return e && getComputedStyle(e).display !== "none"; });
+    if (!row) { fail(W, "Settings has no Share row while the round button is hidden"); return; }
+    await pressGo(g, "#setShare");
+  };
+  // one picture's whole round: its words, the file shared with stubs, a cancel, then the sheet and each of its buttons
+  const f9share = async (g, W, what, want) => {
+    const c = await f9ready(g, W, what, want.rank ? { rank: want.rank } : null);
+    if (!c.ready) return;
+    const I = c.info || {};
+    for (const k of Object.keys(want)) if (JSON.stringify(I[k]) !== JSON.stringify(want[k])) fail(W, what + ": the card's " + k + " is " + JSON.stringify(I[k]) + ", not " + JSON.stringify(want[k]));
+    const textWant = "I held " + want.field + " in Highland Stand with " + I.kept + " of " + I.max + " defenders. Score " + Number(I.score).toLocaleString("en-US") + ". https://highland.avunjian.com";
+    if (c.text !== textWant) fail(W, what + ": the words: " + c.text);
+    const shown = await f9page(g, W, what);
+    await f9photo(g, "victory-" + what);
+    // 1. the browser can share a file: the tap shares this picture, and its words carry the score
+    await f9stub(g, { files: true, mode: "ok" });
+    let n = await g.ev(() => (window.__hsEv || []).length);
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => window.__shared.length > 0, null, { timeout: 5000 }).catch(() => {});
+    const sh = await g.ev(async () => {
+      const s = window.__shared[0];
+      if (!s) return null;
+      const bm = s.file ? await createImageBitmap(s.file) : null, same = s.file && SH.blob ? (await s.file.arrayBuffer()).byteLength === SH.blob.size : false;
+      return { title: s.title, text: s.text, url: s.url, files: s.files, name: s.name, type: s.type, w: bm && bm.width, h: bm && bm.height, same };
+    });
+    const nameWant = "highland-stand-" + want.lv + ".jpg";
+    if (!sh || sh.files !== 1 || sh.type !== "image/jpeg" || sh.w !== 1200 || sh.h !== 630 || sh.name !== nameWant || sh.title !== "Highland Stand" || sh.text !== textWant || !sh.same || sh.url !== undefined)
+      fail(W, what + ": the share: " + JSON.stringify(sh));
+    await g.wait(200);
+    let ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"files"},share_done:{"method":"files"}') fail(W, what + ": the events of a share: " + ev.join());
+    if ((await f9sheet(g)).up) fail(W, what + ": the sheet opened beside a share that worked");
+    // a cancel is no error: no sheet, no share_done, no toast
+    await f9stub(g, { files: true, mode: "abort" });
+    await toasts(g);
+    n = await g.ev(() => (window.__hsEv || []).length);
+    const t0 = await g.ev(() => window.__hsToasts.length);
+    await f9tap(g, W, shown);
+    await g.wait(400);
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"files"}' || (await f9sheet(g)).up || (await g.ev(t => window.__hsToasts.slice(t), t0)).length) fail(W, what + ": a cancel: " + ev.join());
+    // 2. no navigator.share at all: the sheet, with Save picture, Copy picture and Copy text (no Share link)
+    await f9stub(g, null);
+    n = await g.ev(() => (window.__hsEv || []).length);
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up && $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => {});
+    let sv = await f9sheet(g);
+    if (!sv.up || sv.btns.join() !== "Save picture,Copy picture,Copy text" || sv.pic !== 1200 || !sv.inert || !sv.blocking) fail(W, what + ": the sheet: " + JSON.stringify(sv));
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"sheet"}') fail(W, what + ": the sheet's event: " + ev.join());
+    if (["ses", "i15h", "i15u", "ipad"].includes(g.o.key) || what === "short") await audit(g, W + " " + what + " the sheet", { root: "#shareSheet", parts: ["#shareSheet .shCard"], primary: ["#shareSheet .shSave"], primaryRequired: true, scroll: "inside" }, null);
+    await f9photo(g, "sheet-" + what);
+    // Save picture: a real download of the picture
+    n = await g.ev(() => (window.__hsEv || []).length);
+    const tz = await g.ev(() => window.__hsToasts.length);
+    const dl = g.page.waitForEvent("download", { timeout: 8000 }).catch(() => null);
+    await pressGo(g, "#shareSheet .shSave");
+    const d = await dl;
+    if (!d) fail(W, what + ": Save picture gave no download");
+    else {
+      const p = await d.path().catch(() => null), buf = p ? fs.readFileSync(p) : null, size = jpegSize(buf);
+      if (d.suggestedFilename() !== nameWant || !size || size.w !== 1200 || size.h !== 630 || !buf.equals(c.buf)) fail(W, what + ": the download: " + d.suggestedFilename() + " " + JSON.stringify(size));
+    }
+    // Copy picture, Copy text
+    await pressGo(g, "#shareSheet .shCopyPic");
+    await g.page.waitForFunction(() => window.__clip.length > 0, null, { timeout: 5000 }).catch(() => {});
+    await pressGo(g, "#shareSheet .shCopyText");
+    await g.page.waitForFunction(() => window.__clip.length > 1, null, { timeout: 5000 }).catch(() => {});
+    const clip = await g.ev(() => window.__clip);
+    if (clip.length !== 2 || clip[0].type !== "image/png" || !clip[0].png || clip[0].bytes < 40000 || clip[1].type !== "text" || clip[1].text !== textWant) fail(W, what + ": the clipboard: " + JSON.stringify(clip).slice(0, 300));
+    await g.wait(150);
+    const said = await g.ev(t => window.__hsToasts.slice(t), tz);
+    if (said.join("|") !== "Picture saved.|Copied.|Copied.") fail(W, what + ": the toasts: " + said.join("|"));
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_done:{"method":"save"},share_done:{"method":"copy_picture"},share_done:{"method":"copy_text"}') fail(W, what + ": the sheet's events: " + ev.join());
+    // the sheet still up, the toast over it: then it closes (Escape on the desktop, its X by touch), the page in reach
+    const tOver = await g.ev(() => { const t = $("toast"); return +getComputedStyle(t).zIndex > +getComputedStyle($("shareSheet")).zIndex; });
+    if (!tOver) fail(W, what + ": the toast is under the sheet");
+    if (g.touch) await pressGo(g, "#shareSheet .shX"); else { await g.page.keyboard.press("Escape"); }
+    await g.frames(3);
+    sv = await f9sheet(g);
+    if (sv.up || sv.inert || sv.blocking) fail(W, what + ": the sheet did not close: " + JSON.stringify(sv));
+    if ((await g.ev(() => menuMode)) !== "victory") fail(W, what + ": closing the sheet left the victory page");
+    // 3. navigator.share without files: the sheet with Share link, which shares the words
+    await f9stub(g, { files: false, mode: "ok" });
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => {});
+    sv = await f9sheet(g);
+    if (sv.btns.join() !== "Save picture,Copy picture,Copy text,Share link") fail(W, what + ": the sheet with navigator.share and no files: " + sv.btns.join());
+    n = await g.ev(() => (window.__hsEv || []).length);
+    await pressGo(g, "#shareSheet .shLink");
+    await g.page.waitForFunction(() => window.__shared.length > 0, null, { timeout: 5000 }).catch(() => {});
+    const lk = await g.ev(() => window.__shared[0] || null);
+    if (!lk || lk.files !== 0 || lk.text !== textWant || lk.title !== "Highland Stand") fail(W, what + ": Share link: " + JSON.stringify(lk));
+    await g.wait(150);
+    if ((await f9evs(g, n)).join() !== 'share_done:{"method":"link"}') fail(W, what + ": Share link's event: " + (await f9evs(g, n)).join());
+    if (g.touch) await pressGo(g, "#shareSheet .shX"); else await g.page.keyboard.press("Escape");
+    await g.frames(2);
+    // a refusal other than a cancel (the tap's permission spent): the sheet instead
+    await f9stub(g, { files: true, mode: "refuse" });
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": a refused share did not open the sheet"));
+    await g.ev(() => shClose());
+    return c;
+  };
+  // the requests made since n: none but the platform's own calls to the stack's API (the strip's post, analytics)
+  const f9quiet = (g, W, n, what) => {
+    const bad = g.reqs.slice(n).filter(u => !(u.startsWith(API + "/rest/v1/rpc/hs_") || u.startsWith(API + "/auth/v1/")));
+    if (bad.length) fail(W, what + ": requests beside the platform's own: " + bad.slice(0, 4).join(", "));
+  };
+  const flow9 = async (C) => {
+    const W = "flow 9 " + C.name;
+    await resetStack();
+    const K = C.key;
+    const A = await open(C, { storage: f9prog, quietCall: true });
+    await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "s"));
+    await signIn(A, null, "google", "name");
+    const nameA = "Nine" + K;
+    await A.page.fill("#gate .gtField", nameA);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const uidA = await uidOf(A);
+    // the page's ruleset published (flow 7 does it from the stats page's button)
+    await S.control("admin", { user_id: uidA });
+    const pub = await A.ev(async () => { const r = await pfRpc("hs_admin_publish_ruleset", { p_id: PF_RULESET_ID, p_data: pfRules() }, { auth: true, timeout: 20000 }); return r.ok && r.data && r.data.ok === true; });
+    if (!pub) fail(W, "the ruleset was not published");
+    await f7map(A);
+    log("  flow 9: a short name: Ani");
+    let n0 = A.reqs.length;
+    let v = await f7win(A, W, { lv: 6, sec: 820, spent: 600, lives: 17 });
+    await f7settled(A);
+    let st = await strip(A);
+    if (st.state !== "posted" || st.score == null) fail(W, "Ani's strip: " + JSON.stringify(st));
+    await f9share(A, W, "short", { title: "Ani Stands!", hy: "Անի", field: "Ani", lv: "ani", diff: "Normal", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars,
+      rank: 1, player: nameA, open: false, daily: null, site: "highland.avunjian.com", url: "https://highland.avunjian.com" });
+    f9quiet(A, W, n0, "Ani");
+    log("  flow 9: the longest title: Sis, after its Terms card");
+    await A.ev(() => openCampaignMap());
+    n0 = A.reqs.length;
+    v = await f7win(A, W, { lv: 8, sec: 1500, spent: 900, lives: 12 });
+    await f7settled(A);
+    await f9share(A, W, "long", { title: "The King Yields on Terms", hy: "Սիս", field: "Sis", lv: "sis", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars, rank: 1, player: nameA });
+    f9quiet(A, W, n0, "Sis");
+    // the title shrunk to fit 640 px, no less than 40 px (read off the page's own measure in the page's face)
+    const fit = await A.ev(() => { const g = document.createElement("canvas").getContext("2d"), f = getComputedStyle(document.body).fontFamily; let px = 62; const w = (p) => { g.font = "bold " + p + "px " + f; return g.measureText("The King Yields on Terms").width; }; while (px > 40 && w(px) > 640) px--; return { px, w: Math.round(w(px)) }; });
+    if (fit.px >= 62 || fit.px < 40) fail(W, "the long title was not shrunk: " + JSON.stringify(fit));
+    notes.flows["p7 long title@" + K] = fit.px + " px, " + fit.w + " px wide";
+    await done(A, W + " (A)");
+    log("  flow 9: a guest (the gate optional): no name, no rank");
+    const G = await open(C, { storage: f9prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+    await gate(G, "signin");
+    await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
+    await gate(G, "");
+    await f7toMap(G);
+    n0 = G.reqs.length;
+    v = await f7win(G, W, { lv: 0, token: false, runback: false, sec: 700, lives: 18 });
+    await f7settled(G);
+    st = await strip(G);
+    if (!/· Sign in to post it$/.test(stripSays(st))) fail(W, "the guest's strip: " + JSON.stringify(st));
+    await f9share(G, W, "guest", { title: "Erebuni Rise Stands!", field: "Erebuni Rise", lv: "erebuni", rank: null, player: null, kept: Math.min(v.lives, v.lives_board), max: v.lives_max });
+    f9quiet(G, W, n0, "the guest");
+    if (K === "desk") {
+      // a daily's card, staged (no daily can be fought before work package P6): the strip's record made a daily's, to
+      // see its two extra lines on the picture
+      await G.ev(() => { Object.assign(SC.page, { daily: true, twist: "thin", state: "posted", rank: 12, total: 87 }); shSync(); });
+      const dc = await f9ready(G, W, "daily-staged", { rank: 12 });
+      if (dc.ready && (!dc.info.daily || dc.info.daily.twist !== "Thin purse" || !/^Highland Stand daily, [A-Z][a-z]{2} \d{1,2}: Erebuni Rise, Thin purse\. Score [\d,]+, #12 today\. https:\/\/highland\.avunjian\.com$/.test(dc.text)))
+        fail(W, "the staged daily's card: " + JSON.stringify(dc.info) + " " + dc.text);
+    }
+    // the page left: the card goes with it
+    await G.ev(() => openCampaignMap());
+    await G.frames(3);
+    const gone = await G.ev(() => ({ blob: !!SH.blob, cls: document.body.classList.contains("pfShare"), btn: !$("shareBtn").hidden }));
+    if (gone.blob || gone.cls || gone.btn) fail(W, "the card stays after the page: " + JSON.stringify(gone));
+    await done(G, W + " (a guest)");
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {

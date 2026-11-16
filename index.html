@@ -80954,9 +80954,10 @@ function shareRows(info) {
   const row = (y, text, px, o) => { if (text) rows.push(Object.assign({ y, text: String(text), px, bold: false, color: cream, face: "page", x: SHARE_X, align: "left", w: 760, min: px }, o || {})); };
   // (the crest stands left of the name: the name begins after it)
   row(96, "HIGHLAND STAND", 30, { bold: true, color: gold, x: SHARE_X + 72, spacing: 4 });
-  if (I.daily) row(150, "Daily challenge · " + (I.daily.date || ""), 22, { color: pale });
+  // (a daily's line stands at 136, not 150: a 62 px title's capitals reach up to about 146; its title is 56 px)
+  if (I.daily) row(136, "Daily challenge · " + (I.daily.date || ""), 22, { color: pale });
   const title = I.lost ? (I.field || "") + ": held " + scoreNum(I.lost.held) + " of " + scoreNum(I.lost.waves) + " waves" : I.title || ((I.field || "") + " Stands!");
-  row(190, title, 62, { bold: true, w: 640, min: 40 });
+  row(190, title, I.daily ? 56 : 62, { bold: true, w: 640, min: 40 });
   if (I.hy) row(240, I.hy, 34, { color: gold, face: "hy", w: 640, min: 26 });
   row(290, [I.date, I.diff, I.daily && I.daily.twist].filter(Boolean).join(" · "), 26, { color: pale });
   if (!I.lost) row(420, scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders kept", 30);
@@ -83269,7 +83270,10 @@ function scWhyNot(p) {
 function scHear(n, p) {
   if (!PF.on) return;
   if (n === "battle_start") scStart(p || {});
-  else if (n === "victory" || n === "defeat") { const q = p || {}; setTimeout(() => { try { scEnd(n, q); } catch (e) { try { console.error(e); } catch (x) {} } }, 0); }
+  else if (n === "victory" || n === "defeat") {
+    // (the share card's field is copied now, as the last foe falls: the canvas still holds the battle's last frame)
+    if (n === "victory") shSnap();
+    const q = p || {}; setTimeout(() => { try { scEnd(n, q); } catch (e) { try { console.error(e); } catch (x) {} } }, 0); }
   else if (n === "battle_quit") { SC.gen++; SC.why = ""; scDropTok(); }
 }
 if (PF_ON) window.__hsRunKick = (n, p) => { try { scHear(n, p); } catch (e) {} };
@@ -83621,14 +83625,10 @@ const shSetRowEl = (() => {
   b.addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeSettings(); shTap(b); });
   return b;
 })();
-// the victory page has opened: the field as it stands, copied now (the game's next frames may draw something else)
+// The battle is won: the field as it stands, copied now, as the last foe falls (the game's victory event comes inside
+// its update, before the next frame is drawn). Not the dance's last frame, as section 6 has it: the game draws its
+// own Victory plaque on the canvas over the whole dance, top and center, where the card's title stands
 function shSnap() {
-  SH.gen++;
-  shClose();
-  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = null; SH.text = "";
-  shUrlDrop();
-  SH.title = ($("ovTitle").textContent || "").trim();
-  SH.hy = ($("ovHy").textContent || "").trim();
   SH.bg = null;
   try {
     const fx = offX * DPR, fy = offY * DPR, fw = VW * scale * DPR, fh = VH * scale * DPR;
@@ -83645,6 +83645,15 @@ function shSnap() {
     for (const [x, y] of [[300, 160], [900, 160], [600, 315], [300, 470], [900, 470]]) if (g.getImageData(x, y, 1, 1).data[3] > 0) seen++;
     if (seen >= 3) SH.bg = c;
   } catch (e) { SH.bg = null; }
+}
+// the victory page has opened: a card of its own (the page's title and Armenian name read now)
+function shPage() {
+  SH.gen++;
+  shClose();
+  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = null; SH.text = "";
+  shUrlDrop();
+  SH.title = ($("ovTitle").textContent || "").trim();
+  SH.hy = ($("ovHy").textContent || "").trim();
 }
 // what the card says, from the strip's record of the battle (SC.page) and the page as it opened
 function shInfo() {
@@ -84345,7 +84354,7 @@ const Platform = {
   // true while a page of the platform's holds the keyboard: no hotkey of the game's may act under it
   blocking() { return hallOpen || gateUp || SH.up || !$("privacyPage").hidden || !$("statsPage").hidden; },
   // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
-  victoryPage() { if (!PF.on) return; SC.shown = true; shSnap(); scRender(); },
+  victoryPage() { if (!PF.on) return; SC.shown = true; shPage(); scRender(); },
   // the defeat page is up: a lost daily's score goes on it here (5.5)
   // (a lost daily's strip on the defeat page, 5.5's last line, is work package P6's: scRender draws only on the
   // victory page, and no daily can begin before P6)

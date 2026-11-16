@@ -240,7 +240,7 @@ if (pure) {
     eq([96, 190, 240, 290, 420, 462, 504, 566, 556, 590].map(y => at(R, y)[0] || null),
       ["HIGHLAND STAND", "Erebuni Rise Stands!", "Էրեբունի", "Nov 16, 2026 · Normal", "17 of 20 defenders kept", "Held in 12:34 · Score 7,750", "#12 this week", "Held by Aram",
         "Free in your browser", "highland.avunjian.com"], "the share card's rows (section 6's table)");
-    eq(at(R, 150), [], "no daily line on a campaign card");
+    eq(at(R, 136), [], "no daily line on a campaign card");
     const t = R.find(r => r.y === 190);
     eq([t.px, t.min, t.w, t.bold, t.x, t.color], [62, 40, 640, true, 64, "#fff3d6"], "the title: 62 px bold, shrunk to no less than 40 px to fit 640 px");
     eq(R.filter(r => r.align === "right").map(r => [r.x, r.px, r.bold]), [[1136, 20, false], [1136, 26, true]], "the foot: right-aligned at x = 1136, 20 px and 26 px bold");
@@ -254,7 +254,8 @@ if (pure) {
     // the daily
     const dl = Object.assign({}, base, { field: "Ani", title: "Ani Stands!", date: "Nov 10, 2026", daily: { date: "Nov 10", twist: "Thin purse" }, rank: 12, total: 87, stars: 0 });
     R = pure.shareRows(dl);
-    eq([at(R, 150), at(R, 290), at(R, 504)], [["Daily challenge · Nov 10"], ["Nov 10, 2026 · Normal · Thin purse"], ["#12 of 87 today"]], "a daily's card");
+    eq([at(R, 136), at(R, 290), at(R, 504)], [["Daily challenge · Nov 10"], ["Nov 10, 2026 · Normal · Thin purse"], ["#12 of 87 today"]], "a daily's card");
+    eq(R.find(r => r.y === 190).px, 56, "a daily's title: 56 px, under the daily's line");
     eq(pure.shareStars(dl), null, "a daily's card has no stars (a daily gives none)");
     eq(at(pure.shareRows(Object.assign({}, dl, { lost: { held: 7, waves: 18 }, rank: null })), 190), ["Ani: held 7 of 18 waves"], "a lost daily's title");
     // the words
