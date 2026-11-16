@@ -491,8 +491,9 @@ changed: send the words in the brackets to the game's builder. To see what the s
 select id, active, published_at from highland.hs_rulesets order by published_at;
 ```
 
-**The boards' switch.** The stats page's Switches card has **The boards: On | Off**. Off, no battle is ranked
-(nothing is posted, the Hall's Leaderboards tab says the boards are closed); the scores already there stay. The same
+**The boards' switch.** The stats page's Switches card has **The boards: On | Off**. Off, no new battle is ranked
+(no new run is begun; a battle begun before the switch still posts). The boards stay to read: the Hall's Leaderboards
+tab and its doors stay, and the scores already there stay. The same
 by hand, off **[tried]**:
 
 <!-- guide-check: boards-off -->

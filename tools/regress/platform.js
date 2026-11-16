@@ -126,7 +126,8 @@
 // photographed (and the privacy page, ?privacy#delete, and the deletion's question, failure and end). Every request
 // must go to the stack's two ports; any page error or console error fails. Flow 10 also opens ?privacy#delete on the
 // page as committed (the platform off): shown from the page itself, with no request.
-// --quick: every flow at 1600x900 and 667x320 (flow 7 adds about 90 s and 190 s). A RESULT line ends it; it exits 1 on any failure. The extra parts
+// --quick: flows 1, 2, 4, 5, 7 and 11 (spec 10.5) at 1600x900 and 667x320, about 15 minutes alone (--flows= picks
+// others). A RESULT line ends it; it exits 1 on any failure. The extra parts
 // alone: --flows=4more,5more,13more,13del,13gone.
 "use strict";
 const path = require("path");
@@ -142,7 +143,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", "1,2,3,4,5,6,7,10,11,13,14,15")).split(",");
+const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,10,11,13,14,15")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -2384,7 +2385,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 }).catch(async () => { throw new Error("no horn: " + JSON.stringify(await g.ev(() => ({ phase, live: battleLive(), tut: !!tut, mode: menuMode, wave: waveIdx, paused, hold: trickHold(), over: gameOver, cards: document.querySelector(".trickCard.on, #trickCard.on") ? 1 : 0 })))); });
     const ranked = await g.ev(() => battleRanked());
     if (!ranked && o.ranked !== false) fail(W, "the battle is not ranked");
-    if (o.token !== false) await until(() => g.ev(() => !!localStorage.getItem("hs_pf_run")), 15000, "the run token").catch(e => fail(W, e.message));
+    // (this page's own token: the shared key may hold another tab's)
+    if (o.token !== false) await until(() => g.ev(() => SC.why === "held" && !!SC.tok), 15000, "the run token").catch(e => fail(W, e.message));
     const uid = JSON.parse(await store(g, "hs_pf_auth") || "null");
     if (o.runback !== false && uid) await S.control("runback", { user_id: uid.uid, seconds: (o.sec || 900) + 60 });
     if (o.last) await o.last();
@@ -2462,6 +2464,98 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await f7toMap(g);
     await g.page.waitForFunction(() => menuMode === "map" && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
     await g.frames(3);
+  };
+  // Flow 7's extra steps, at 1600x900 only (the review of P5): the page's own track() is sent gameplay's event shapes,
+  // so no battle is played. Two tabs of one player, each with a battle of its own; a post held on its way (in the
+  // outbox before it goes); a reload in the battle (the resumed battle posts with its token); another account's
+  // waiting result (kept, never sent); a session over at the post (it waits, and goes at this account's sign-in)
+  const f7more = async (A, W, uidA) => {
+    const rs = await A.ev(() => ({ rs: RULESET, levels: rulesetData().levels }));
+    const ids = Object.keys(rs.levels);
+    const start = (g, id, resumed) => g.ev(([id, r, resumed]) => track("battle_start", { ranked: true, mode: "campaign", lv: id, diff: 1, ruleset: r, resumed: !!resumed }), [id, rs.rs, resumed]);
+    const win = (g, id, x) => g.ev(([id, r, L, x]) => track("victory", Object.assign({ ranked: true, mode: "campaign", lv: id, diff: 1, ruleset: r, wave: L.waves, sec: L.d[1].slow, spent: 500,
+      earned: 1000, lives: 15, loadout: "std", build: "flow7" }, x || {})), [id, rs.rs, rs.levels[id], x || null]);
+    const held = (g, what) => until(() => g.ev(() => SC.why === "held" && !!SC.tok), 15000, what);
+    const state = (g, want, what) => g.page.waitForFunction(w => SC.page && SC.page.state === w, want, { timeout: 20000 }).catch(async () => fail(W, what + ": " + JSON.stringify(await g.ev(() => SC.page))));
+    const rows = async (id) => (await S.query("select lives from highland.hs_scores where user_id = $1 and level_id = $2 order by id", [uidA, id])).map(r => r.lives);
+    const outOf = async (g) => JSON.parse(await store(g, "hs_pf_out") || "[]");
+    log("  flow 7 desk: two tabs of one player, each with its own battle: both posted");
+    const pg2 = await A.ctx.newPage();
+    const A2 = new R.Game(pg2, A.ctx, { w: A.o.w, h: A.o.h, touch: false, name: A.o.name, key: A.o.key });
+    pg2.on("pageerror", e => A2.errs.push("pageerror: " + e.message));
+    await pg2.goto(SITE + "/", { timeout: 120000 });
+    await gate(A2, "welcome");
+    await start(A, ids[2]);
+    await held(A, "tab 1's run token").catch(e => fail(W, e.message));
+    await start(A2, ids[3]);
+    await held(A2, "tab 2's run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await win(A, ids[2]);
+    await state(A, "posted", "tab 1's strip");
+    await win(A2, ids[3]);
+    await state(A2, "posted", "tab 2's strip");
+    if ((await rows(ids[2])).length !== 1 || (await rows(ids[3])).length !== 1) fail(W, "two tabs: the server's rows " + JSON.stringify([await rows(ids[2]), await rows(ids[3])]));
+    if (await store(A, "hs_pf_run")) fail(W, "two tabs: the run token is left once both battles are posted");
+    const p2 = await A2.problems().catch(() => A2.errs);
+    for (const e of p2) fail(W + " tab 2", e);
+    await pg2.close();
+    log("  flow 7 desk: a post held on its way is in the outbox before it goes, and leaves it once answered");
+    await start(A, ids[4]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await S.control("hold", { rpc: "hs_score_submit", ms: 4000 });
+    const ridH = await A.ev(() => SC.tok.rid);
+    await win(A, ids[4]);
+    await A.page.waitForFunction(() => SC.page && SC.page.state === "posting" && SC.posting, null, { timeout: 5000 }).catch(() => {});
+    const outH = await outOf(A);
+    if (outH.length !== 1 || outH[0].rid !== ridH || outH[0].uid !== uidA) fail(W, "the outbox while the post is out: " + JSON.stringify(outH).slice(0, 200));
+    await state(A, "posted", "the held post");
+    if (await store(A, "hs_pf_out")) fail(W, "the outbox once the held post was answered: " + await store(A, "hs_pf_out"));
+    log("  flow 7 desk: a reload in the battle: the resumed battle posts with its token");
+    await start(A, ids[5]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    const ridR = await A.ev(() => SC.tok.rid);
+    await A.page.reload();
+    await gate(A, "welcome");
+    const kept = JSON.parse(await store(A, "hs_pf_run") || "null");
+    if (!kept || kept.rid !== ridR) fail(W, "the token after a reload: " + JSON.stringify(kept));
+    await start(A, ids[5], true);
+    if (!(await A.ev(() => SC.why === "held" && SC.tok && SC.tok.rid))) fail(W, "the resumed battle holds no token: " + await A.ev(() => SC.why));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await win(A, ids[5], { resumed: true, lives_board: 12 });
+    await state(A, "posted", "the resumed battle");
+    if ((await rows(ids[5])).join() !== "12") fail(W, "the resumed battle's row (lives 12): " + JSON.stringify(await rows(ids[5])));
+    log("  flow 7 desk: another account's waiting result is kept and never sent");
+    const other = { rid: "7e000000-0000-4000-8000-000000000001", uid: "7e000000-0000-4000-8000-0000000000ff", t: await A.ev(() => pfNow()), lv: ids[6], diff: 1, mode: "campaign", score: 5000,
+      stats: { won: true, lives: 15, waves: rs.levels[ids[6]].waves, sim_sec: rs.levels[ids[6]].d[1].slow, spent: 500, earned: 1000, loadout: "std", build: "flow7" } };
+    await A.ev(e => localStorage.setItem("hs_pf_out", JSON.stringify([e])), other);
+    const sub0 = await A.ev(() => (window.__hsEv || []).length);
+    await A.ev(() => scFlush());
+    await A.wait(1500);
+    const outO = await outOf(A);
+    if (outO.length !== 1 || outO[0].uid !== other.uid) fail(W, "another account's entry: " + JSON.stringify(outO).slice(0, 200));
+    if ((await A.ev(n => (window.__hsEv || []).slice(n).filter(e => e[0] === "score_rejected").length, sub0))) fail(W, "another account's entry was sent");
+    await A.ev(() => localStorage.removeItem("hs_pf_out"));
+    log("  flow 7 desk: the session over at the post (401): the result waits, and goes at this account's next sign-in");
+    await start(A, ids[6]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    // (the access token refused and no refresh to be had: the post answers 401)
+    await S.control("expire", { user_id: uidA });
+    await S.control("auth", { mode: "down" });
+    await win(A, ids[6]);
+    await state(A, "waiting", "the post with the session over");
+    const out4 = await outOf(A);
+    if (out4.length !== 1 || out4[0].uid !== uidA) fail(W, "the outbox after a 401: " + JSON.stringify(out4).slice(0, 200));
+    if ((await rows(ids[6])).length) fail(W, "a 401 post reached the board");
+    await S.control("auth", { mode: "up" });
+    // the session gone from this device (as the server's end of it leaves it), and this account signs in again
+    await A.ev(() => localStorage.removeItem("hs_pf_auth"));
+    await A.page.reload();
+    await gate(A, "signin");
+    await S.control("provider", f7who(A.o.key, "a"));
+    await signIn(A, null, "google", "welcome");
+    await until(async () => !(await store(A, "hs_pf_out")) && (await rows(ids[6])).length === 1, 20000, "the waiting result after the sign-in").catch(e => fail(W, e.message));
   };
   const flow7 = async (C) => {
     const W = "flow 7 " + C.name;
@@ -2632,6 +2726,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     st = await strip(A);
     if (stripSays(st) !== "Score " + (await f7expect(A, v)).toLocaleString("en-US") + " · #1 of 1 this week") fail(W, "the waiting result once online: " + JSON.stringify(st));
     if (await store(A, "hs_pf_out")) fail(W, "the outbox is not empty once sent");
+    if (K === "desk") await f7more(A, W, uidA);
     log("  flow 7: the battle began offline: every try at the horn failed (the tries made");
     // ---- the battle began offline: every try at the horn failed (the tries made quick by the test's switch)
     const C2 = await open(C, { quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { beginTries: [0, 300, 600] }); }, null]] });
@@ -2697,8 +2792,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(G, "#hallBody .lbRetry");
     await G.page.waitForFunction(() => { const t = document.querySelector("#hallBody .lbTab"); return t && t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)").length === 2; }, null, { timeout: 15000 }).catch(() => fail(W, "Try again did not bring the board"));
     await done(G, W + " (a guest)");
-    log("  flow 7: the boards switched off by the owner: no strip, no tab, no run begun");
-    // ---- the boards switched off by the owner: no strip, no tab, no run begun
+    log("  flow 7: the boards switched off by the owner: no strip, no run begun; the tab says the boards are closed");
+    // ---- the boards switched off by the owner: no strip, no run begun; the Leaderboards tab stays, closed
     await A.page.goto(SITE + "/?stats");
     await statsUp(A);
     await pressStats(A, "#statsBody .stBoards[data-on='false']");
@@ -2727,6 +2822,11 @@ const log = (m) => { if (o.verbose) console.log(m); };
     st = await strip(A);
     if (st.row || st.rec != null || st.board) fail(W, "the boards off and a strip: " + JSON.stringify(st));
     if ((await S.query("select count(*)::int as n from highland.hs_runs"))[0].n !== runs0) fail(W, "a run was begun with the boards off");
+    await A.ev(() => openHall("boards"));
+    await boardReady(A);
+    bd = await board(A);
+    if (!bd || bd.empty !== "The boards are closed for now.") fail(W, "the Leaderboards tab with the boards off: " + JSON.stringify(bd));
+    await A.ev(() => closeHall());
     // (the switch back on for the next size's reset)
     await done(A, W + " (A)");
     await done(B, W + " (B)");
