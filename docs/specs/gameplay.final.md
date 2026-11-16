@@ -661,6 +661,18 @@ palette, three sprites that run the stretch; dust from the walking-dust particle
 a trough and one standing horse (`unitPaintHorse`) on the common footing. Sound: `ridersIn` (exists) at a
 charge. New: the building's painter, a tile portrait.
 
+(G7a build: built as written, with four changes, each in docs/specs/balance/README.md, G7a. 1. The blows are about
+three and a half times 3.2's: 140, 240 and 400, Lancers 900, Harriers 340; the cadence, the throw, the limit and the 8 s
+are 3.2's. At 3.2's blows the tower dealt 430 damage per 100 gold in the bot's battles, a tenth of an archer's. 2. The
+riders wait for the moment: three foes on their stretches, or one past the middle of its stretch (`HORSE_RULES.crowd`).
+A charge at the first foe to come in struck it alone and left the lines reloading as the column came on. 3. A pad
+with no road in reach refuses the tower, as it refuses the post. 4. The bot's mix7 puts the special tower 15th, not 12th:
+built 12th the Horse Lines took the ballista Erebuni's commander pair needs, and mix7 lost Erebuni on every seed, with a
+Horse Lines that did nothing at all as well. The card says: "A new tower: the Horse Lines. Its riders charge down the
+road in its reach and throw the foes back the way they came. A foe thrown back cannot be thrown again for 8 seconds.
+Siege engines and commanders barely move, and outflankers are untouched. Two on a field at most." Era 0's name is
+sourced: the Urartian bronze belts in `era-dossier.json` show cavalry with spears, shields and conical helmets.)
+
 ### 3.3 Stores (Dvin, Tashir, Sevan, Ani, Mari, Sis)
 
 Mechanic: income. It never fights and holds a pad. After every cleared wave it pays `pay` gold for each

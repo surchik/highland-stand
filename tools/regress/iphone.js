@@ -27,9 +27,10 @@
 //   --shots   a photo of every state that failed; --photos a photo of every state; --dpr their density (default 1)
 //   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
 //             crash, victory, defeat, nardi, coach, towers, post (rotate is part of battle)
-// The Garrison Post (G5): the tray of six on every battlefield and of seven (a stand-in for the special tower until
-// G7) with every tile 44 x 44 and its name whole or absent; the post's panel as a sheet; the armed rally's toast in
-// the safe area and off the wave's ribbon, and a tap on the road in its ring moving the men.
+// The Garrison Post (G5): the tray of six on every battlefield (seven on Erebuni, Tushpa and Avarayr with the Horse
+// Lines, G7a) and of seven everywhere (a stand-in for the special towers still to come) with every tile 44 x 44 and its
+// name whole or absent; the post's panel and the Horse Lines' panel as sheets; the armed rally's toast in the safe area
+// and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
 // nothing in it scrolls) and is held to the bar; a finger takes three tiers, resets the Council (a second tap
@@ -684,8 +685,9 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (bad.length > 12) fail("towers by finger", (bad.length - 12) + " more like these");
       });
       // ---- the foe card from the next-wave row ----
-      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray of six on every battlefield and of seven (a stand-in
-      // special tower until G7 builds one), each tile at least 44 x 44 with its name whole or absent (never cut, never
+      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray as the campaign has it on every battlefield (six, or seven
+      // where the special tower is built into the game: the Horse Lines, G7a) and of seven everywhere (a stand-in special
+      // tower for the ages whose tower is still to come), each tile at least 44 x 44 with its name whole or absent (never cut, never
       // under 11 px); the post's panel as a sheet, opened by a finger that presses nothing in it; the armed rally's
       // toast inside the safe area and off the wave's ribbon, and a tap on the road in the ring moving the men ----
       await step("post", "Garrison Post", async () => {
@@ -701,7 +703,9 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
               if (stand) { const a = AGES.findIndex(A => A.tower === "stores"); AGES[a].upTo = 99; AGES.forEach((A, i) => { if (i !== a) A.hold = A.upTo, A.upTo = -1; }); syncTray(); }
               fitCardNames();
               const cards = [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none");
-              if (cards.length !== n) out.push(id + ": " + cards.length + " tiles, not " + n);
+              // (a battlefield with its own special tower built into the game, G7a on, has seven in the real tray)
+              const want = stand ? 7 : ageTower(curEra) ? 7 : 6;
+              if (cards.length !== want) out.push(id + ": " + cards.length + " tiles, not " + want);
               for (const c of cards) {
                 const r = c.getBoundingClientRect(), nm = c.querySelector(".nm"), cs = getComputedStyle(nm);
                 if (r.width < 43.5 || r.height < 43.5) out.push(id + " " + c.dataset.type + ": the tile is " + Math.round(r.width) + "x" + Math.round(r.height));
@@ -766,6 +770,26 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           if (r.d > 12 || r.armed || r.panel || r.hero) fail("post rally", "a tap on the road in the ring: " + JSON.stringify(r));
         }
         await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
+        // the Horse Lines' panel (G7a) as a sheet: Avarayr staged, the lines at their third rank (the Mastery to choose),
+        // opened by a finger that presses nothing in it
+        await stage("avarayr", 3, { horse: 1, hl: "2" });
+        const hpad = await g.ev(() => { const t = towers.find(u => u.type === "horse"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (hpad < 0) fail("horse panel", "no Horse Lines were staged");
+        else {
+          const hb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const hat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), hpad);
+          await g.tapAt(hat.x, hat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", hpad))) {
+            fail("horse panel", "a tap on the Horse Lines did not open their panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, hpad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== hb) fail("horse panel", "the tap that opened the sheet pressed something in it");
+          await check("horse panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
       });
       await step("foe", "foe card (wave row)", async () => {
         if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }

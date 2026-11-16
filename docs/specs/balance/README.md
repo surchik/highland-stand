@@ -451,3 +451,52 @@ by the page as the largest share of `earnMax` any battlefield keeps under it (0.
 are the mean ratio of the mix's clock with the twist to its clock without, over the battlefields it won both ways:
 Thin purse 1.07, Forced march 0.98, Iron ranks 1.01, No spells 1.04, No ballista 1.09, No catapult 1.07, No drums 1.06.
 The clock is mostly the foes' coming on, so a forced march is only 2% quicker; a weaker board is up to 9% slower.
+
+## G7a: the Horse Lines (Erebuni, Tushpa, Avarayr)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `agemix` and `harriers`, on the three
+battlefields that offer the tower): `g7a-normal-seeds3.txt`, `g7a-easy-seeds3.txt`, `g7a-hard-seeds3.txt`; the
+commanders, `CMD=probe` on mix, mix7, agemix, harriers and posts: `g7a-probe-normal-seeds3.txt`; the daily's table on
+the three, `DAILY=1`: `g7a-daily-normal-seeds3.txt`; the endless stand, `ENDLESS=20` on mix7 and harriers:
+`g7a-endless-normal-seeds3.txt`. The trials that led to the numbers are in `g7a-trials/` (try.sh: Normal, the three
+battlefields, SEEDS=3, CLOCK=1; the file names say the patch: spec = 3.2's numbers, x2 = blows doubled and the reload
+10/9/8, x3 = blows three times, null = a Horse Lines that deals nothing and throws nothing, heavy0 = commanders and
+engines never thrown, cheap = a price of 80/90/160, crowd = the final page's charge rule; m7aN = mix7 with the special
+tower Nth in its order, mixhN = the mix with it Nth in place of an archer). The trials before `m-crowd` ran with the riders
+charging at the first foe in reach.
+
+What was found, and the numbers chosen:
+- 3.2's blows (40, 70, 115; Lancers 260, Harriers 100) dealt 430 to 550 damage per 100 gold in the bot's battles, a tenth
+  of an archer's (4,800). The blows are now 140, 240 and 400, Lancers 900 and Harriers 340: 3,600 per 100 gold in the
+  Normal table. The cadence (18, 16, 14 s; Lancers 14, Harriers 7), the throw (40 to 70 px), the limit of two and the 8 s
+  before a foe is thrown again are 3.2's.
+- The riders charged at the first foe to come into reach, struck it alone and reloaded as the column came on. They now
+  wait for three foes on their stretches, or for one past the middle of its stretch (`HORSE_RULES.crowd`): in live.js's
+  three waves the charges dealt 414 to 834 where they had dealt 276.
+- No set of numbers moved a cell of the bot's tables. Where the tower stood, its slot did: mix7 with the special tower
+  12th (G5's order) lost Erebuni on every seed whatever the numbers, a Horse Lines that does nothing included
+  (`f-null.txt`), because the twelfth tower of that order is the ballista Erebuni's commander pair needs (CMD=probe:
+  the pair's margin is 1.05 for the mix and 0.82 for mix7 there). mix7 now puts it 15th; in the tables it is then built
+  only on Avarayr (on all three seeds, last) and changes nothing. On Tushpa no free pad with road in its reach is left by
+  the time any order reaches it, unless it comes in place of the mix's tenth tower (`mixh10`: Tushpa 16.3 against the
+  mix's 12.7, Erebuni 13.0 against 13.3, Avarayr 9.3 the same).
+- The bot's pad for it (5.4: the most road within 120 px downstream of a fire or catapult) leaves out a dormant ambush
+  road and a track not yet open: on Avarayr it had chosen the ambush road and never charged.
+
+5.2's rows on the three battlefields:
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables (the mix, mix7,
+  halfpost, posts, postdrum and the one-recipe builds). The pars are unchanged (Normal 1242, 1367, 1724; Easy 868,
+  1277, 1811; Hard 1125, 1406, 1756), and so is the daily's (1494, 1353, 1543): LEVEL_PAR and DAILY_PAR stay.
+- agemix (the horse on every second pad up to two, posts between) and harriers (two at Harriers, fires and drums) lose
+  every seed on Normal and Hard, and on Easy (met: 5.2 asks two of three on Normal).
+- mix7 against mix: unchanged from G5 on these three (Erebuni -3.6, Tushpa +4.6, Avarayr 0.0), so G5's mean of +0.8 over
+  the 17 and its cells for the owner stand as G5 left them. No battlefield gains more than 5 (met).
+- The Horse Lines in the best build on a third of their battlefields: NOT met (0 of 3). The best builds are archers on
+  Erebuni, mix7 on Tushpa (which builds no Horse Lines there) and balldrum on Avarayr. Putting the tower where it helps
+  Tushpa (mixh10, +3.6) would take Tushpa further above its band of 12 to 16 (mix7 keeps 17.3 there, G5's cell), and
+  every slot before 15 in mix7 loses Erebuni's pair. The owner's to rule on, with G5's cells.
+- The endless stand: mix7 falls 0 to 3 waves beyond the chronicle on Erebuni and Avarayr and holds all 20 on Tushpa;
+  the Tushpa stand is the same with a Horse Lines that does nothing (it is G5's board), harriers never reach it.
+- Commanders: CMD=probe on the horse builds shows them felling no commander (agemix deals the first commander 0.29 to
+  0.47 of his strength; harriers never reach him);
+  3.1's first rule holds (a commander or an engine is thrown a quarter as far, and nothing is thrown twice in 8 s).
