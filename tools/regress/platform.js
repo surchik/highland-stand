@@ -2681,6 +2681,21 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await statsUp(A);
     await pressStats(A, "#statsBody .stBoards[data-on='false']");
     await A.page.waitForFunction(() => !stBusy && $("statsBody").querySelector(".stBoards[data-on='false'][aria-pressed='true']"), null, { timeout: 20000 }).catch(() => fail(W, "the boards' switch did not turn off"));
+    // Scores to look at: A's quick battle (under its fast mark) is listed, and Remove takes it off; his next best stands
+    const flagged = await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Scores to look at"); return c ? Array.from(c.querySelectorAll(".stFlag")).map(f => f.innerText) : null; });
+    const fastRow = (flagged || []).findIndex(t => t.includes(nameA) && /· fast/.test(t));
+    if (fastRow < 0) fail(W, "Scores to look at does not list A's fast result: " + JSON.stringify(flagged));
+    else {
+      const n0 = (await S.query("select count(*)::int as n from highland.hs_scores where user_id = $1", [uidA]))[0].n;
+      await A.ev(i => document.querySelectorAll("#statsBody .stFlag")[i].scrollIntoView({ block: "center" }), fastRow);
+      await A.frames(2);
+      await pressGo(A, (0, eval)("() => document.querySelectorAll('#statsBody .stFlag')[" + fastRow + "].querySelector('button')"));
+      await A.page.waitForFunction(i => document.querySelectorAll("#statsBody .stFlag")[i].innerText.includes("Done."), fastRow, { timeout: 10000 }).catch(() => fail(W, "Remove did not say Done."));
+      const n1 = (await S.query("select count(*)::int as n from highland.hs_scores where user_id = $1", [uidA]))[0].n;
+      const best = await S.query("select score from highland.hs_score_best where user_id = $1 and board like 'c:erebuni:1:std:%' and period = 'all'", [uidA]);
+      if (n1 !== n0 - 1 || best.length !== 1 || best[0].score !== expA) fail(W, "after Remove: " + JSON.stringify({ n0, n1, best, expA }));
+    }
+    if (K === "desk") { await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Scores to look at"); if (c) c.scrollIntoView({ block: "start" }); }); await f7photo(A, "stats-flagged"); }
     await A.page.goto(SITE + "/");
     await gate(A, "welcome");
     await f7map(A);
