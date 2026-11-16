@@ -10178,7 +10178,9 @@ SLOT_NAMES.stores = ["Stores", "Stores", "Stores", "Stores", "Stores", "Stores",
 SLOT_BLURB.stores = "Pays after every wave. Costs you a tower now.";
 SKIN_BLURB.stores = SLOT_BLURB.stores;
 const STORES_LEVEL = {
-  dvin: { name: "Granary", depicts: "Sacks of grain and jars under an awning inside the walls, a pack horse tethered by them" },
+  // (Dvin's tooltip also carries the card's sourced line, Procopius in docs/history/town-history.json, since the card
+  // first shows on Tashir and few players see it on Dvin: G7b review 6)
+  dvin: { name: "Granary", depicts: "Sacks of grain and jars under an awning inside the walls, a pack horse tethered by them. Procopius wrote of many merchants in the land of Dvin" },
   tashir: { name: "Village Stores", short: "Stores", depicts: "Sacks, jars and a pack horse under an awning inside the walls" },
   sevan: { name: "Monastery Stores", short: "Stores", depicts: "The monastery's sacks and jars under an awning, a pack horse tethered by them" },
   ani: { name: "Merchants' Stores", short: "Stores", depicts: "Bales, sacks and jars under an awning inside the walls, a pack horse tethered by them" },
@@ -10917,7 +10919,7 @@ const COUNCIL = [
     { line: "Drums slot: half a point more might", fx: [["stat", ["drums"], "might", "+", 0.005]] },
     { line: "Garrison Post: men 5% stronger", needs: "post", fx: [["post", "men", 1.05]] },
     { line: "Men return 7.5% sooner; {age} cost 5% less", noAge: "Men return 7.5% sooner", needs: "post", fx: [["post", "back", 0.925], ["age", "cost", 0.95]] },
-    { line: "Drums, posts and {age}: masteries cost 7.5% less", noAge: "Drums and posts: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
+    { line: "{age}: masteries cost 7.5% less", with: ["Drums", "posts"], noAge: "Drums and posts: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
   ] },
   { id: "heralds", name: "Heralds", about: "The hero and the spells", icon: "horn", tiers: [
     { line: "Hero 2.5% stronger", fx: [["hero", "hp", 1.025]] },
@@ -10938,13 +10940,14 @@ const COUNCIL_IDS = COUNCIL.map(B => B.id);
 // a tier's line as the Hall shows it: until some age has its special tower (G7), a line never sells it (noAge); once
 // some have, {age} names those that are in the game, so a line never promises a tower 14 battlefields do not have
 // (G7a review 8: "the special tower" read as if every battlefield had one)
-function ageTowersNamed() {
-  const n = AGES.filter(A => TOWER_DEFS[A.tower]).map(A => "the " + TOWER_DEFS[A.tower].name);
+// (a line's own `with` comes first in the list, so the list has one "and", before its last: G7b review 5)
+function ageTowersNamed(first) {
+  const n = (first || []).concat(AGES.filter(A => TOWER_DEFS[A.tower]).map(A => "the " + TOWER_DEFS[A.tower].name));
   return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : (n[0] || "");
 }
 function tierLine(T) {
   if (T.noAge && !AGES.some(A => TOWER_DEFS[A.tower])) return T.noAge;
-  return T.line.indexOf("{age}") < 0 ? T.line : T.line.replace("{age}", ageTowersNamed());
+  return T.line.indexOf("{age}") < 0 ? T.line : T.line.replace("{age}", ageTowersNamed(T.with));
 }
 // what the comes-with words of a closed tier name
 const COUNCIL_NEEDS = { post: "Comes with the Garrison Post", call: "Comes with the hero's Call" };
@@ -13334,8 +13337,10 @@ function sortByPrio(arr, prio) {
 // full refund within a short grace window on an untouched tower
 function sellRefund(t) {
   const inv = towerInvested(t);
-  const fresh = t.level === 0 && !t.spec && performance.now() - (t.placedAt || 0) < 5000;
-  // a damaged tower sells for less (the undo of a placement just made keeps its full refund)
+  // the undo of a placement just made keeps its full refund, but only within the same wave: a tower that has
+  // stood through a clear has worked (a Stores has paid), so it sells as any other (G7b review 1)
+  const fresh = t.level === 0 && !t.spec && t.placedClear === lastCleared && performance.now() - (t.placedAt || 0) < 5000;
+  // a damaged tower sells for less
   return { amount: fresh ? inv : Math.floor(inv * kitNow().sell * (0.4 + 0.6 * towerHpFrac(t))), fresh };
 }
 
@@ -15532,7 +15537,7 @@ function placeTower(type, padIdx) {
     type, pad: padIdx, level: 0, spec: null, x, y,
     cd: 0, aim: -0.5, flame: Math.random() * 9, beat: 0, novaT: 0, novaFx: 0,
     buffHaste: 0, buffMight: 0,
-    prio: "first", kills: 0, dmgDone: 0, placedAt: performance.now(),
+    prio: "first", kills: 0, dmgDone: 0, placedAt: performance.now(), placedClear: lastCleared,
   });
   payTower(towers[towers.length - 1], cost);
   towerInitHp(towers[towers.length - 1]);
@@ -57609,10 +57614,10 @@ function statText(t) {
     // the Stores (3.3): what they pay at a clear (for each script wave the wave stands for), and what they have paid
     let s = statRow("coin", st.pay, "gold a wave", "wide") + statRow("coin", t.yielded || 0, "paid so far", "wide");
     if (st.bounty) s += statRow("coin", "+" + Math.round(st.bounty * 100) + "%", "gold from every kill", "wide");
-    if (st.mend) s += statRow("shield", "+" + Math.round(st.mend * 100) + "%", "mended at each clear nearby", "wide");
-    if (st.repair) s += statRow("up", "-" + Math.round(st.repair * 100) + "%", "repair cost nearby", "wide");
+    if (st.mend) s += statRow("shield", "+" + Math.round(st.mend * 100) + "%", "mend nearby", "wide");
+    if (st.repair) s += statRow("up", "-" + Math.round(st.repair * 100) + "%", "repair and rebuild nearby", "wide");
     if (st.range) s += statRow("range", st.range, "reach");
-    s += statRow("wing", "", "Never fights. Wrecked, it pays nothing.", "wide");
+    s += statRow("wing", "", "Never fights. A long wave pays more. Wrecked, it pays nothing.", "wide");
     return s;
   }
   if (t.type === "fire") {
@@ -88524,9 +88529,28 @@ function runSelftestPlay() {
     const [A, B] = towers.filter(x => x.type === "stores");
     A.level = 2;
     const clear = wv => { waveIdx = wv; phase = "wave"; spawnQueue = []; enemies = []; const b0 = battle.stores, g0 = gold; endWaveIfClear(); return [battle.stores - b0, gold - g0]; };
-    let [paid, got] = clear(w);
+    // (what the clear says is caught as it is said: a trick's warning may follow it in the same toast)
+    const said = [], toast0 = toast;
+    toast = (m, ms) => { said.push(String(m)); toast0(m, ms); };
+    let paid, got;
+    try { [paid, got] = clear(w); } finally { toast = toast0; }
     const want = (TOWER_DEFS.stores.levels[2].pay + TOWER_DEFS.stores.levels[0].pay) * payStep(w);
     if (paid !== want || got < want || A.yielded !== TOWER_DEFS.stores.levels[2].pay * payStep(w)) fail("a clear of wave " + w + " paid " + paid + ", not " + want);
+    // the clear's toast names the Stores' gold, and the panel what each has paid so far
+    if (!said.some(m => /repelled/.test(m) && m.indexOf("+" + paid + " stores") >= 0)) fail("the clear's toast: " + said.join(" | "));
+    if (statText(A).indexOf("paid so far") < 0 || statText(A).indexOf(String(A.yielded)) < 0) fail("the panel's paid so far: " + statText(A));
+    // a Stores that has stood through a clear has paid: sold within the undo's grace it sells as any tower, not
+    // for its full price (G7b review 1); a placement made after the clear is still undone in full
+    if (sellRefund(B).fresh || sellRefund(B).amount >= towerInvested(B)) fail("a Stores sold after a clear is refunded in full: " + JSON.stringify(sellRefund(B)));
+    placeTower("archer", PADS.map((p, k) => k).find(k => !towerAt(k)));
+    const U = towers[towers.length - 1];
+    if (U.type !== "archer" || !sellRefund(U).fresh || sellRefund(U).amount !== towerInvested(U)) fail("a placement just made is no longer undone in full");
+    sellTower(U);
+    // the Stores' strength at each rank (3.3)
+    const keepT = [A.level, A.spec];
+    A.spec = null;
+    [240, 300, 380].forEach((hp, r) => { A.level = r; if (towerMaxHp(A) !== Math.round(hp * byDiff(TRICK_RULES.tower.hpMult) * kitNow().towerHp)) fail("the Stores' strength at rank " + (r + 1) + ": " + towerMaxHp(A)); });
+    [A.level, A.spec] = keepT;
     // a wrecked one pays nothing
     wreckTower(B);
     [paid] = clear(1);
@@ -88534,6 +88558,12 @@ function runSelftestPlay() {
     // Caravan: kills pay a tenth more; two Caravans one share; the Standards' plunder near the kill the larger, never both
     B.wreck = false; B.hp = B.maxHp; A.spec = "a"; B.level = 2; B.spec = "a";
     if (caravanShare() !== 0.1) fail("two Caravans' share: " + caravanShare());
+    // a wrecked Caravan pays no share
+    wreckTower(B);
+    if (caravanShare() !== 0.1) fail("one Caravan standing: " + caravanShare());
+    wreckTower(A);
+    if (caravanShare() !== 0) fail("two wrecked Caravans still pay a share: " + caravanShare());
+    for (const S of [A, B]) { S.wreck = false; towerInitHp(S); }
     // (a foe that stands far down its road keeps the wave from clearing, so the kill's bounty alone is counted)
     phase = "wave"; enemies = [];
     spawnEnemy("shield"); Object.assign(enemies[0], { hp: 1e9, maxHp: 1e9, speed: 0, dist: 0 });
@@ -88558,6 +88588,44 @@ function runSelftestPlay() {
     const h0 = T.hp; mendTowers();
     if (Math.abs((T.hp - h0) / T.maxHp - (byDiff(TRICK_RULES.tower.mend) + 0.1)) > 0.001) fail("the forge's mend: " + (T.hp - h0) / T.maxHp);
     if (forgeOf(F, "mend")) fail("a forge tends itself");
+    // the rebuild costs a quarter less in its reach too
+    T.wreck = true;
+    const rb = rebuildCost(T);
+    F.spec = "a"; const rb0 = rebuildCost(T); F.spec = "b";
+    if (Math.abs(rb - rb0 * 0.75) > 1) fail("the forge's rebuild: " + rb + " against " + rb0);
+    T.wreck = false;
+    // a wrecked forge tends nothing, and nor does one whose reach does not hold the tower
+    wreckTower(F);
+    if (forgeOf(T, "mend") || forgeOf(T, "repair")) fail("a wrecked forge still tends");
+    F.wreck = false; towerInitHp(F);
+    const fxy = [T.x, T.y];
+    T.x = F.x + getStats(F).range + 60; T.y = F.y;
+    if (forgeOf(T, "mend") || forgeOf(T, "repair")) fail("a forge tends a tower out of its reach");
+    [T.x, T.y] = fxy;
+    if (forgeOf(T, "repair") !== 0.25) fail("the forge's reach after the test: " + forgeOf(T, "repair"));
+    // the Standards' plunder near the kill and a Caravan's share are never both paid: the larger applies (3.3)
+    // (each kill is put on road 0 at a spot the Standards' reach holds: the first free pad that holds some, and the
+    // middle of what it holds)
+    const dr = TOWER_DEFS.drums.specs.b.stats.range;
+    let dk = null, dd = 0;
+    for (const k of PADS.map((p, m) => m).filter(m => !towerAt(m))) {
+      const held = [];
+      for (let d = 0; d < ROUTES[0].len - 40; d += 20) { const q = routeAt(0, d); if (inGroundRange(PADS[k][0], PADS[k][1], q.x, q.y, dr)) held.push(d); }
+      if (held.length) { dk = k; dd = held[held.length >> 1]; break; }
+    }
+    const killNear = () => { spawnEnemy("spearman"); const e = enemies[enemies.length - 1]; e.route = 0; e.dist = dd; e.hp = 0; const g0 = gold; run(0.05); return [gold - g0, e.bounty]; };
+    if (dk == null) fail("no free pad for the Standards near the road");
+    else {
+      placeTower("drums", dk);
+      const D = towers[towers.length - 1];
+      D.level = TOWER_DEFS.drums.levels.length - 1; D.spec = "b";
+      if (caravanShare() !== 0.1) fail("the Caravan's share before the plunder: " + caravanShare());
+      [g, b] = killNear();
+      if (g !== b + Math.ceil(b * 0.3)) fail("a kill under the Standards with a Caravan standing paid " + g + " for a bounty of " + b);
+      D.spec = null;
+      [g, b] = killNear();
+      if (g !== b + Math.ceil(b * 0.1)) fail("a kill with the Standards gone paid " + g + " for a bounty of " + b);
+    }
     // earnMax holds two Stores at Caravan on their battlefields, and not elsewhere
     const R = rulesetData(), S = TOWER_DEFS.stores, top = S.specs.a.stats.pay;
     const was = S.specs.a.stats.pay;
@@ -88565,7 +88633,12 @@ function runSelftestPlay() {
       S.specs.a.stats.pay = top + 50;
       const R2 = rulesetData();
       if (!(R2.levels[id].d[1].earnMax > R.levels[id].d[1].earnMax) || R2.levels.erebuni.d[1].earnMax !== R.levels.erebuni.d[1].earnMax) fail("earnMax does not count the stores where they are, or counts them elsewhere");
+      // the daily's own table counts them too, where the daily's tray offers them
+      if (!(R2.daily.levels[id].earnMax > R.daily.levels[id].earnMax) || R2.daily.levels.erebuni.earnMax !== R.daily.levels.erebuni.earnMax) fail("the daily's earnMax does not count the stores");
     } finally { S.specs.a.stats.pay = was; }
+    // the Council's line that lists the special towers has one "and", before its last (G7b review 5)
+    const ct = COUNCIL.flatMap(B => B.tiers).find(T => T.with), cl = tierLine(ct);
+    if (!/^Drums, posts, the /.test(cl) || (cl.match(/ and /g) || []).length !== 1 || cl.indexOf("the " + TOWER_DEFS.stores.name) < 0) fail("the Council's line: " + cl);
   }));
   check("stores: the one-time card on the chronicle; Dvin's line; no claim on Ani", guarded(() => {
     localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
