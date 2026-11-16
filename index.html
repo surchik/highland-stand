@@ -83259,14 +83259,20 @@ async function scEnd(n, p) {
   const tok = SC.tok;
   scDropTok();
   SC.why = "";
-  // posted with this tab's token. A battle resumed with its token while the session or the name was missing posts too:
-  // with no session the result waits in the outbox for this account's next sign-in (scPost), as a 401 does
-  const ours = now === "held" || now === "signin" || now === "noname";
-  if (ours && tok && typeof tok.rid === "string" && tok.lv === p.lv && tok.diff === p.diff && tok.ruleset === PF_RULESET_ID) {
+  const fits = tok && typeof tok.rid === "string" && tok.lv === p.lv && tok.diff === p.diff && tok.ruleset === PF_RULESET_ID;
+  if (now === "held" && fits) {
     page.rid = tok.rid;
     scRender();
     await scPost(tok.rid, stats, page);
     return;
+  }
+  // a battle resumed with its token while the session (or the name) was missing: the result is kept in the outbox
+  // under the account the device last knew, as a 401 keeps it, and goes once that account is signed in with its name
+  // (the strip still says "Sign in to post it" or "Choose a name")
+  const uid = (pfSession() || {}).uid || (pfRead("hs_pf_me") || {}).uid || "";
+  if ((now === "signin" || now === "noname") && fits && uid) {
+    page.rid = tok.rid;
+    pfWrite("hs_pf_out", outTrim((pfRead("hs_pf_out") || []).filter(x => x.rid !== tok.rid).concat([{ rid: tok.rid, uid, stats, t: pfNow(), lv: page.lv, diff: page.diff, mode: page.mode, score: page.score }]), pfNow()));
   }
   page.state = now === "signin" || now === "noname" || now === "offline" || now === "unpublished" ? now : "refused";
   scRender();
@@ -83321,7 +83327,8 @@ let scFlushing = false, scFlushT = 0;
 async function scFlush() {
   if (!PF.on || scFlushing) return;
   const s = pfSession();
-  if (!s) return;
+  // (and with a name: a player who has not chosen one is not yet on any board, and his results wait for it)
+  if (!s || !pfMyName()) return;
   const all = outTrim(pfRead("hs_pf_out"), pfNow());
   if (!all.length) { pfDrop("hs_pf_out"); return; }
   pfWrite("hs_pf_out", all);

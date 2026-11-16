@@ -2556,6 +2556,22 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await S.control("provider", f7who(A.o.key, "a"));
     await signIn(A, null, "google", "welcome");
     await until(async () => !(await store(A, "hs_pf_out")) && (await rows(ids[6])).length === 1, 20000, "the waiting result after the sign-in").catch(e => fail(W, e.message));
+    log("  flow 7 desk: a battle resumed with its token but no session: \"Sign in to post it\", kept, and sent at the sign-in");
+    await start(A, ids[7]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await A.ev(() => localStorage.removeItem("hs_pf_auth"));
+    await A.page.reload();
+    await gate(A, "signin");
+    // (the battle is resumed behind the gate, as a player who closes it to play on would resume it)
+    await start(A, ids[7], true);
+    await win(A, ids[7], { resumed: true });
+    await state(A, "signin", "the resumed battle with no session");
+    const out5 = await outOf(A);
+    if (out5.length !== 1 || out5[0].uid !== uidA) fail(W, "the resumed battle's result with no session: " + JSON.stringify(out5).slice(0, 200));
+    await S.control("provider", f7who(A.o.key, "a"));
+    await signIn(A, null, "google", "welcome");
+    await until(async () => !(await store(A, "hs_pf_out")) && (await rows(ids[7])).length === 1, 20000, "the resumed battle's result after the sign-in").catch(e => fail(W, e.message));
   };
   const flow7 = async (C) => {
     const W = "flow 7 " + C.name;
