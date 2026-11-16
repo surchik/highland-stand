@@ -5,7 +5,7 @@ drop function highland.hs_super_players(text, boolean, text, integer, integer, t
 drop function highland.hs_super_player(uuid, text);
 drop function highland.hs_grant_superadmin_by_email(text);
 drop function highland.hs_revoke_superadmin_by_email(text);
-drop function highland._super_rows(text);
+drop function highland._super_rows(text, uuid);
 drop function highland._sum_map(jsonb, integer);
 drop function highland._sum_int(jsonb, integer);
 drop function highland._account_by_email(text);

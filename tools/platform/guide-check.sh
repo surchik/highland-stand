@@ -22,7 +22,7 @@ ok() { oks=$((oks + 1)); echo "ok   $*"; }
 bad() { fails=$((fails + 1)); echo "FAIL $*"; }
 # the code block under a marker of the guide
 block() { awk -v m="<!-- guide-check: $1 -->" 'found && /^ *```/ { if (inside) exit; inside = 1; next } inside { sub(/^   /, ""); print } $0 ~ m { found = 1 }' "$GUIDE"; }
-BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin superadmin superadmin-revoke names cloud-off cloud-on rehearsal"
+BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin superadmin-open superadmin superadmin-revoke names cloud-off cloud-on rehearsal"
 for b in $BLOCKS; do [ -n "$(block $b)" ] || bad "the guide has no block marked $b"; done
 # the guide never names the old layout's files or schemas
 if grep -nE 'schema\.sql|schema-handoff\.sql|hs_private|public\.hs_' "$GUIDE"; then bad "the guide still names schema.sql, hs_private or public.hs_"; else ok "the guide names no file or schema of the old layout"; fi
@@ -80,10 +80,17 @@ if runsql admin && grep -q 'INSERT 0 1' "$T/admin.out"; then ok "step 6: the adm
 # the superadmin (P10): the owner's command with a made-up address of an account that signed in with Google
 psql "postgres://supabase_admin@localhost:$PORT/hs?host=$DIR" -X -q -c "insert into auth.users (id, email) values ('0d000000-0000-4000-8000-0000000005a0', 'owner-check@example.com') on conflict do nothing;
   insert into auth.identities (provider, provider_id, user_id, email) values ('google', 'g-owner-check', '0d000000-0000-4000-8000-0000000005a0', 'owner-check@example.com') on conflict do nothing" > /dev/null
-sub() { block "$1" | sed -e "s#THE_ADDRESS#owner-check@example.com#g" > "$T/$1.sql"; psql "$HS_DB_URL" -X -v ON_ERROR_STOP=1 -f "$T/$1.sql" > "$T/$1.out" 2>&1; }
+# (P10 review 8) psql is opened as the guide says, its history file turned off, and the address is typed at the
+# \prompt (here given on standard input, as psql reads it under -f): it is then in no file, no history and no answer
+OPEN=$(block superadmin-open)
+if [ "$OPEN" = 'PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X' ] && [ "$(echo 'select 7 as x;' | bash -c "$OPEN -tA" 2>&1)" = 7 ]; then
+  ok "step 6: the superadmin's psql opens with its history file turned off"
+else bad "step 6: the superadmin's psql line: $OPEN"; fi
+if block superadmin | grep -q '@\|THE_ADDRESS' || block superadmin-revoke | grep -q '@\|THE_ADDRESS'; then bad "step 6: the superadmin's blocks hold an address to edit (it would land in a file)"; fi
+sub() { block "$1" > "$T/$1.sql"; echo owner-check@example.com | PSQL_HISTORY="$T/hist" psql "$HS_DB_URL" -X -v ON_ERROR_STOP=1 -f "$T/$1.sql" > "$T/$1.out" 2>&1; }
 if sub superadmin && grep -q 'superadmin: account 0d000000-0000-4000-8000-0000000005a0' "$T/superadmin.out" && ! grep -q '@' "$T/superadmin.out" \
   && [ "$(psql "$HS_DB_URL" -X -tA -c "select count(*) from highland.hs_superadmins where user_id = '0d000000-0000-4000-8000-0000000005a0'")" = 1 ]; then
-  ok "step 6: the superadmin's command, as postgres, makes the account superadmin and names it by id only"
+  ok "step 6: the superadmin's command, as postgres, the address typed at its prompt, makes the account superadmin and names it by id only"
 else bad "step 6: the superadmin's command: $(cat "$T/superadmin.out")"; fi
 if sub superadmin-revoke && grep -q 'taken away' "$T/superadmin-revoke.out" \
   && [ "$(psql "$HS_DB_URL" -X -tA -c "select count(*) from highland.hs_superadmins")" = 0 ]; then ok "step 6: and its undo"; else bad "step 6: the undo: $(cat "$T/superadmin-revoke.out")"; fi

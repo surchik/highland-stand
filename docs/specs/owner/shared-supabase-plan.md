@@ -71,10 +71,13 @@ schema or grants.
 - [ ] Sign in on `https://highland.avunjian.com/next/`, choose a name, then through the tunnel:
       `insert into highland.hs_admins (user_id) select id from auth.users where email = 'you@example.com';`
 - [ ] The superadmin (the Players view on `?stats`), when you want it: signed in to the game under your address
-      with Google, Facebook or Discord, then through the tunnel, as `postgres`, your address in place of
-      `THE_ADDRESS`: `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');` (it makes you an admin too, so
-      the line above is then not needed). To undo it: `select highland.hs_revoke_superadmin_by_email('THE_ADDRESS');`.
-      Type the address only there, never in a file. The whole page: `docs/specs/owner/superadmin.md`.
+      with Google, Facebook or Discord, then through the tunnel, as `postgres`, in `psql` opened with its history
+      off (`PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X`), the command
+      `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');` with your address typed at a prompt
+      (`\prompt 'Your address: ' addr`, then `select highland.hs_grant_superadmin_by_email(:'addr');`). It makes
+      you an admin too, so the line above is then not needed. To undo it: the same with
+      `hs_revoke_superadmin_by_email`. Type the address only at that prompt, never in a file or a shell command.
+      The whole page: `docs/specs/owner/superadmin.md`.
 - [ ] The nightly backup of `highland` alone (guide, step 2); a restore rehearsed on a computer with
       `bash deploy/supabase/restore-rehearsal.sh highland-THE_TIME.dump`.
 

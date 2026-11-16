@@ -81072,6 +81072,8 @@ function csSum() {
   const sum = { v: 1 };
   const part = (k, f) => { try { const v = f(); if (v != null) sum[k] = v; } catch (e) {} };
   part("won", () => DIFFS.map((_, d) => LEVELS.filter((L, i) => levelConquered(i) && levelRecord(i).stars[d] > 0).length));
+  // every battlefield held, on any difficulty: one won before the star records began counts here and in no "won"
+  part("held", () => LEVELS.filter((L, i) => levelConquered(i)).length);
   part("stars", () => starsEarned());
   part("farN", () => { let n = 0; LEVELS.forEach((L, i) => { if (levelConquered(i)) n = i + 1; }); return n; });
   if (sum.farN) part("far", () => levelId(sum.farN - 1));
@@ -82023,6 +82025,10 @@ async function pfWithSession(justIn) {
 // takes each one from it once, marking it (a fourth field), and leaves the list itself alone.
 let pfEvQ = null, pfEvT = 0, pfEvSaveT = 0, pfEvBusy = false, pfEvCtx = {}, pfEvOwned = new Set(), pfEvHidden = false, pfEvQuit = false, pfEvAnon = false;
 let pfAidNow = "", pfEvSoon = false;
+// how long this load has been in view, in ms (P10 review 4): the Players view's time on page counts this, not the
+// time since the page loaded, which a tab left behind others all day would count as a day of play
+let pfVisMs = 0, pfVisAt = null;
+const pfVisSec = () => Math.round((pfVisMs + (pfVisAt != null ? performance.now() - pfVisAt : 0)) / 1000);
 // why this load counts nothing: a word, or "" when it counts
 function pfEvBarred() {
   if (PF_TEST && PF_TEST.events === true) return "";
@@ -82101,6 +82107,8 @@ function pfEvBegin() {
   pfEvOwned.add(sid);
   pfEvSampled();
   window.__hsEvKick = pfEvTake;
+  // in view from the load on, when it is in view now (a prerender starts counting once shown)
+  pfVisAt = document.visibilityState === "visible" ? 0 : null;
   document.addEventListener("visibilitychange", pfEvVisibility);
   window.addEventListener("pagehide", () => pfEvHide());
   pfEvTake();
@@ -82218,7 +82226,8 @@ function pfEvHide() {
   try {
     // a battle under way when the page goes: counted as left, unless the player comes back to it (battle_back)
     if (battleLive() && battle.started && !pfEvQuit) { pfEvQuit = true; trackFacts("battle_quit", { how: "left" }); }
-    track("page_hide", { where: pfEvWhere(), sec: Math.round(performance.now() / 1000) });
+    if (pfVisAt != null) { pfVisMs += performance.now() - pfVisAt; pfVisAt = null; }
+    track("page_hide", { where: pfEvWhere(), sec: Math.round(performance.now() / 1000), vis: pfVisSec() });
   } catch (e) {}
   pfEvTake();
   pfEvSave();
@@ -82228,6 +82237,7 @@ function pfEvVisibility() {
   if (document.visibilityState === "hidden") { pfEvHide(); return; }
   if (document.visibilityState !== "visible") return;
   pfEvHidden = false;
+  if (pfVisAt == null) pfVisAt = performance.now();
   // the battle left a moment ago is still there: the player came back to it
   try {
     if (pfEvQuit && battleLive()) track("battle_back", { lv: levelId(curLevel), wave: lastCleared });
@@ -82244,7 +82254,9 @@ const ST_STEPS = [["page_load", "Loaded the page"], ["gate_shown", "Saw the sign
   ["signed_in", "Signed in"], ["name_set", "Chose a name"], ["battle_start", "Began a battle"], ["tutorial_done", "Finished the tutorial"],
   ["wave_end", "Cleared a wave"], ["victory", "Won a battle"]];
 const ST_KINDS = [["new", "New devices"], ["returning", "Returning players (progress from before the accounts)"], ["inapp", "Arrivals in another app's browser"]];
-let stDays = 30, stData = null, stBusy = false, stSuper = false, stTab = "numbers", stSettings = null;
+// stSuperRefused: the Players view refused this page once (not_superadmin); until a reload the page believes that and
+// not hs_profile_get, so a refusal can never send it back and forth between the two tabs (P10 review 2)
+let stDays = 30, stData = null, stBusy = false, stSuper = false, stSuperRefused = false, stTab = "numbers", stSettings = null;
 const stNum = (v) => { const n = Number(v); return v != null && v !== "" && isFinite(n) ? n : null; };
 const stInt = (v) => { const n = stNum(v); return n == null ? "-" : Math.round(n).toLocaleString("en-US"); };
 const stPct = (a, b) => { const x = stNum(a), y = stNum(b); return x == null || !y ? "-" : Math.round(100 * x / y) + "%"; };
@@ -82330,7 +82342,7 @@ async function pfStatsLoad() {
   const [r, sr, pr] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
     pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 })]);
   // a superadmin (P10) also has the Players tab; the server says so, and asks for one again at every call of it
-  stSuper = !!(pr.ok && pr.data && pr.data.super === true);
+  stSuper = !stSuperRefused && !!(pr.ok && pr.data && pr.data.super === true);
   let data = r.ok && r.data && typeof r.data === "object" ? r.data : null;
   if (!data && stSuper && r.code === "not_admin") { stBusy = false; stTab = "players"; pfPlayersLoad(); return; }
   if (!data && (r.code === "not_admin" || r.code === "no_session" || r.status === 401)) {
@@ -82602,10 +82614,10 @@ const ST_PCOLS = [
   ["provider", "Sign-in", "The providers this account signed in with: Google, Facebook or Discord."],
   ["first", "First seen", "The day the player chose a name, or his first signed-in visit if that came first."],
   ["last", "Last seen", "The last event of his latest signed-in visit, or his last save."],
-  ["visits", "Visits", "Page loads while signed in, on this channel."],
-  ["page", "Time on page", "From his visits: each visit's length as the page told it when it was hidden or closed, or else the time between the visit's first and last event. At most 12 hours a visit."],
-  ["battle", "Battle clock", "From his battles' events: the battle clock (from the first wave's horn to the last foe's fall, waiting between waves included, pauses not) of every battle won or lost while signed in. A battle left unfinished adds nothing."],
-  ["won", "Won E / N / H", "Battlefields won on Easy, Normal and Hard, from his save."],
+  ["visits", "Visits", "Page loads while signed in, on this channel. Only the visits the game still keeps count (180 days, unless the owner changed it)."],
+  ["page", "Time on page", "From his visits: the time the page was in view, as the page told it when it was hidden or closed (an older build told the time since it loaded, hidden time included), or else the time between the visit's first and last event. At most 12 hours a visit. Only the visits still kept count."],
+  ["battle", "Battle clock", "From his battles' events: the battle clock (from the first wave's horn to the last foe's fall, waiting between waves included, pauses not) of each battle won or lost while signed in, in the visits still kept. A battle left unfinished adds nothing."],
+  ["won", "Won E / N / H", "Battlefields won on Easy, Normal and Hard, from his save. When more are held than that (won before the game kept stars for each difficulty), the number held is added."],
   ["stars", "Stars", "Stars earned, of 68, from his save."],
   ["far", "Furthest", "The furthest battlefield won, from his save."],
   [null, "Heroes", "Each chapter's hero level, from 1 to 5, from his save."],
@@ -82644,7 +82656,12 @@ const stDur = (sec) => {
 };
 const ST_PROV = { google: "Google", facebook: "Facebook", discord: "Discord" };
 const stProviders = (v) => (typeof v === "string" && v ? v.split(",").map(p => ST_PROV[p] || "other").join(", ") : "-");
-const stWon = (w) => (Array.isArray(w) && w.some(x => stNum(x) != null) ? w.slice(0, 3).map(x => (stNum(x) == null ? "-" : stInt(x))).join(" / ") : "-");
+// the battlefields won per difficulty, and, when more are held than any one difficulty shows, how many are held
+const stWon = (w, held) => {
+  if (!(Array.isArray(w) && w.some(x => stNum(x) != null))) return "-";
+  const t = w.slice(0, 3).map(x => (stNum(x) == null ? "-" : stInt(x))).join(" / ");
+  return stNum(held) != null && held > Math.max(...w.slice(0, 3).map(x => stNum(x) || 0)) ? t + ", " + stInt(held) + " held" : t;
+};
 function stHeroes(h, long) {
   if (!h || typeof h !== "object") return long ? [] : "-";
   const rows = CHAPTERS.filter(C => stNum(h[C.id]) != null).map(C => [long ? "Chapter " + C.num + ", " + C.name : C.num, "level " + stInt(h[C.id])]);
@@ -82667,7 +82684,7 @@ function stKv(into, pairs) {
 }
 // what a refused or failed call of the Players view leaves on the page
 function stPlayersFail(r, again) {
-  if (r.code === "not_superadmin") { stSuper = false; stTab = "numbers"; pfStatsLoad(); return; }
+  if (r.code === "not_superadmin") { stSuper = false; stSuperRefused = true; stTab = "numbers"; pfStatsLoad(); return; }
   if (r.code === "no_session" || r.status === 401) { stShell("The game's numbers"); pfStatsSignin("You were signed out. Sign in again."); return; }
   const c = stCard("No answer");
   stLine(c, "The players did not come. The service may be down. Try again in a while.");
@@ -82745,7 +82762,7 @@ function pfPlayersDraw(d) {
       if (sub.length) name.appendChild(pfEl("span", "stSub", sub.join(", ")));
       tr.appendChild(name);
       for (const v of [stText(r.email) || "-", stProviders(r.providers), stWhen(r.first), stWhen(r.last, true), stInt(r.visits), stDur(r.page_sec), stDur(r.battle_sec),
-        stWon(r.won), stNum(r.stars) == null ? "-" : stInt(r.stars), r.far ? stLevel(r.far) : "-", stHeroes(r.heroes), stCouncil(r.council), stDevWords(r)]) tr.appendChild(pfEl("td", "", v));
+        stWon(r.won, r.held), stNum(r.stars) == null ? "-" : stInt(r.stars), r.far ? stLevel(r.far) : "-", stHeroes(r.heroes), stCouncil(r.council), stDevWords(r)]) tr.appendChild(pfEl("td", "", v));
       tb.appendChild(tr);
     }
     t.appendChild(tb); box.appendChild(t); c.appendChild(box);
@@ -82797,7 +82814,8 @@ function pfPlayerDraw(d) {
   const prog = stCard("Progress");
   const won = Array.isArray(p.won) ? p.won : [];
   stKv(prog, DIFFS.map((D, i) => ["Won on " + D.name, stNum(won[i]) == null ? "-" : stInt(won[i]) + " of " + LEVELS.length])
-    .concat([["Stars", stNum(p.stars) == null ? "-" : stInt(p.stars) + " of " + STARS_ALL], ["Furthest battlefield won", p.far ? stLevel(p.far) : "-"]],
+    .concat([["Battlefields held", stNum(p.held) == null ? "-" : stInt(p.held) + " of " + LEVELS.length],
+      ["Stars", stNum(p.stars) == null ? "-" : stInt(p.stars) + " of " + STARS_ALL], ["Furthest battlefield won", p.far ? stLevel(p.far) : "-"]],
       stHeroes(p.heroes, true).map(r => ["Hero of " + r[0], r[1]]), stCouncil(p.council, true).map(r => ["Council: " + r[0], r[1]]),
       [["Saved", save ? stWhen(save.updated_at, true) + (save.device ? ", from " + stText(save.device) : "") : "No save on this channel"]]));
   if (!save || stNum(p.stars) == null) stLine(prog, "The progress comes from the summary a save of this build carries. A player whose last save is older, or who has none here, shows a dash.", "stSmall");

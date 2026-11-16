@@ -1083,8 +1083,8 @@ group("superadmin", async (ctx) => {
     ('email', $4::text, $4::uuid, 'outsider-app@example.com', '{}')`, [SA, P1, P2, OUT]);
   for (const [who, n] of [[SA, "Owner Seat"], [P1, "Vartan One"], [P2, "Shushan Two"]]) eq((await rpc(who, "hs_profile_set_name", { p_name: n })).ok, true, "a player named " + n);
   // P1's progress, as the page sums it into his save; P2's save carries a forged summary
-  await rpc(P1, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { v: 1, won: [3, 2, 1], stars: 9, far: "avarayr", farN: 3, heroes: { kingdoms: 3, faith: 1 }, council: { bows: 2, walls: 0 } } } });
-  await rpc(P2, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { won: ["<b>", -1, 1e12], stars: "x", far: "<script>alert(1)</script>", farN: 2.5, heroes: { "<x>": 3, ok: 99, fine: 2 }, council: "no" } } });
+  await rpc(P1, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { v: 1, won: [3, 2, 1], held: 4, stars: 9, far: "avarayr", farN: 3, heroes: { kingdoms: 3, faith: 1 }, council: { bows: 2, walls: 0 } } } });
+  await rpc(P2, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { won: ["<b>", -1, 1e12], held: "x", stars: "x", far: "<script>alert(1)</script>", farN: 2.5, heroes: { "<x>": 3, ok: 99, fine: 2 }, council: "no" } } });
   // P1's visits: on a phone (a victory and a defeat, the page hidden after 1,500 s), on a desktop (a battle left), one
   // on the staging page, and one before he signed in (it names no account, so it is not his here)
   const D1 = "5d000000-0000-4000-8000-000000000001", D2 = "5d000000-0000-4000-8000-000000000002";
@@ -1099,6 +1099,9 @@ group("superadmin", async (ctx) => {
     ev("victory", 2, { lv: "erebuni", diff: 0, sec: 100 }), ev("page_hide", 3, { sec: 200 })] });
   await rpc(P2, "hs_track", { p_ctx: { aid: "5d000000-0000-4000-8000-000000000003", sid: "sa-p2-v1", dev: "tablet", os: "ios", browser: "safari" },
     p_events: [ev("page_load", 1), ev("victory", 2, { sec: "lots" }), ev("page_hide", 3, { sec: 99999999 })] });
+  // a visit of a build that says how long the page was in view ("vis"): that is counted, not the time since it loaded
+  await rpc(P2, "hs_track", { p_ctx: { aid: "5d000000-0000-4000-8000-000000000003", sid: "sa-p2-v2", dev: "tablet", os: "ios", browser: "safari" },
+    p_events: [ev("page_load", 1), ev("page_hide", 2, { sec: 5000, vis: 600 }), ev("page_hide", 3, { sec: 9000, vis: 700 })] });
   const pgc = await ctx.db.client(ctx.name, "postgres");
   const owner = async (sql, params) => (await pgc.query(sql, params)).rows;
   const ownerErr = (sql, params) => err(pgc.query(sql, params));
@@ -1141,6 +1144,8 @@ group("superadmin", async (ctx) => {
     eq((await rpc(SA, "hs_profile_get", {})).super, true, "hs_profile_get tells the superadmin he is one");
     eq([(await rpc(P1, "hs_profile_get", {})).super, (await rpc(U.AD, "hs_profile_get", {})).super, (await rpc(OUT, "hs_profile_get", {})).super], [false, false, false],
       "and a player, the admin and the outsider that they are not");
+    // P10 review 2: in a password session the stats page must not be told of a tab it will be refused (it looped)
+    eq((await rpc(SA + ":password", "hs_profile_get", {})).super, false, "hs_profile_get, for the superadmin's account in a password session: not super there");
     // still refused to all the others, and to the superadmin's own account in a password session
     for (const [who, label] of [[P1, "a player"], [OUT, "the outsider"], [U.AD, "an admin who is not super"], [SA + ":password", "the superadmin's account signed in by password"]]) {
       const e = await err(rpc(who, "hs_super_players", {}));
@@ -1160,14 +1165,15 @@ group("superadmin", async (ctx) => {
     eq([r1.name, r1.email, r1.display_name, r1.providers], ["Vartan One", "Player.One@Example.com", "Discord One", "discord"], "his game name, email, the provider's display name and the provider");
     eq([r1.visits, r1.page_sec, r1.battles, r1.battle_sec], [2, 1500, 2, 900],
       "his signed-in live visits (2), time on the page (the visit's page_hide, 1,500 s, and a visit without one: its span), battles ended (2) and their battle clock (600 + 300)");
-    eq([r1.won, r1.stars, r1.far, r1.far_n, r1.heroes, r1.council], [[3, 2, 1], 9, "avarayr", 3, { faith: 1, kingdoms: 3 }, { bows: 2, walls: 0 }],
-      "his battlefields won per difficulty, stars, furthest battlefield, hero levels and Council tiers, from his save's summary");
+    eq([r1.won, r1.held, r1.stars, r1.far, r1.far_n, r1.heroes, r1.council], [[3, 2, 1], 4, 9, "avarayr", 3, { faith: 1, kingdoms: 3 }, { bows: 2, walls: 0 }],
+      "his battlefields won per difficulty, battlefields held (some won before star records), stars, furthest battlefield, hero levels and Council tiers, from his save's summary");
     eq([r1.device_n, r1.devices.map(d => d.dev + "/" + d.os + "/" + d.browser + "/" + d.standalone).sort()], [2, ["desktop/windows/chrome/false", "phone/ios/safari/true"]], "his two devices");
     ok(!!r1.first && !!r1.last && Date.parse(r1.last) >= Date.parse(r1.first), "first and last seen");
     const r2 = all.rows.find(r => r.id === P2);
-    eq([r2.won, r2.stars, r2.far, r2.far_n, r2.heroes, r2.council, r2.display_name], [[null, null, null], null, "other", null, { fine: 2 }, null, "Meta Two"],
+    eq([r2.won, r2.held, r2.stars, r2.far, r2.far_n, r2.heroes, r2.council, r2.display_name], [[null, null, null], null, null, "other", null, { fine: 2 }, null, "Meta Two"],
       "a forged summary is read as nothing, a tag or the word other; the provider's name falls back on the account's metadata");
-    eq([r2.page_sec, r2.battle_sec], [43200, 0], "a visit's time is held to 12 hours, and a battle's sec that is no number adds nothing");
+    eq([r2.page_sec, r2.battle_sec], [43200 + 700, 0],
+      "a visit's time is held to 12 hours, a visit that says how long it was in view counts that (700 s, not 9,000), and a battle's sec that is no number adds nothing");
     const row = (await su("select who::text, what, player, args from highland.hs_super_audit order by id desc limit 1"))[0];
     eq([row.who, row.what, row.player, Object.keys(row.args).sort().map(k => k + "=" + row.args[k])], [SA, "players", null,
       ["channel=live", "desc=true", "limit=100", "offset=0", "searched=false", "shown=" + all.rows.length, "sort=last"]], "one audit row for the read: who, what, the page");
@@ -1238,6 +1244,59 @@ group("superadmin", async (ctx) => {
       "his superadmin row is gone, and the audit names him no more");
     eq((await su("select count(*)::int n from auth.users where id = any($1)", [[SA, P1]]))[0].n, 2, "their sign-in accounts stay (S10)");
   } finally { await pgc.end(); }
+});
+
+// P10 review 1: the Players view stays quick with thousands of players. 3,000 players with 10 visits of 20 events
+// each (600,000 events, and as many again from visitors) took the first build about 10 s for the list, growing with
+// the players times their visits, and timed out at 4,000. Read once and grouped, the list must come in a few
+// seconds and a player's page well under one (both under the test machine's other load). The rows are removed after.
+group("superadmin_size", async (ctx) => {
+  const NP = 3000, NV = 10, NE = 20, SA = "5b000000-0000-4000-8000-0000000005b0";
+  const pgc = await ctx.db.client(ctx.name, "postgres");
+  const clean = async () => {
+    await su("delete from highland.hs_events where sid like 'sz-%'");
+    await su("delete from highland.hs_sessions where sid like 'sz-%'");
+    await su("delete from highland.hs_saves where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from highland.hs_superadmins where user_id = $1", [SA]);
+    await su("delete from highland.hs_admins where user_id = $1", [SA]);
+    await su("delete from highland.hs_super_audit where who = $1 or player = $1", [SA]);
+    await su("delete from highland.hs_profiles where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from auth.identities where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from auth.users where email like 'size-%@example.com'");
+  };
+  try {
+    await su("insert into auth.users (id, email, raw_user_meta_data) values ($1, 'size-owner@example.com', '{}')", [SA]);
+    await su("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ('google', 'sz-g-sa', $1::uuid, 'size-owner@example.com', '{}')", [SA]);
+    await su("insert into highland.hs_profiles (user_id, name, name_key) values ($1, 'Size Owner', 'sizeowner')", [SA]);
+    await su(`insert into auth.users (id, email, raw_user_meta_data) select md5('sz-u' || g)::uuid, 'size-' || g || '@example.com', '{}' from generate_series(1, $1) g`, [NP]);
+    await su(`insert into auth.identities (provider, provider_id, user_id, email, identity_data) select 'google', 'sz-g' || g, md5('sz-u' || g)::uuid, 'size-' || g || '@example.com',
+      jsonb_build_object('full_name', 'Size Person ' || g) from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_profiles (user_id, name, name_key) select md5('sz-u' || g)::uuid, 'Size ' || g, 'size' || g from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_saves (user_id, channel, data, bytes) select md5('sz-u' || g)::uuid, 'live',
+      jsonb_build_object('v', 1, 'sum', jsonb_build_object('won', jsonb_build_array(g % 17, 1, 0), 'stars', g % 68, 'far', 'dvin', 'farN', g % 17)), 100 from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_sessions (sid, aid, uid, started_at, channel, dev_class, os, browser) select 'sz-' || g || '-' || v, md5('sz-a' || g)::uuid, md5('sz-u' || g)::uuid,
+      now() - (v || ' hours')::interval, 'live', 'phone', 'ios', 'safari' from generate_series(1, $1) g, generate_series(1, $2) v`, [NP, NV]);
+    await su(`insert into highland.hs_sessions (sid, aid, uid, started_at, channel) select 'sz-anon-' || g, md5('sz-x' || g)::uuid, null, now(), 'live' from generate_series(1, $1) g`, [NP * NV]);
+    await su(`insert into highland.hs_events (sid, seq, name, props, ts) select 'sz-' || g || '-' || v, e,
+        case when e = $3 then 'page_hide' when e = 5 then 'victory' else 'wave_end' end,
+        case when e in (5, $3) then jsonb_build_object('sec', 300) else '{}'::jsonb end, now() - (v || ' hours')::interval + (e || ' seconds')::interval
+      from generate_series(1, $1) g, generate_series(1, $2) v, generate_series(1, $3) e`, [NP, NV, NE]);
+    await su(`insert into highland.hs_events (sid, seq, name, props) select 'sz-anon-' || g, e, 'wave_end', '{}' from generate_series(1, $1) g, generate_series(1, $2) e`, [NP * NV, NE]);
+    // as autovacuum would have by then
+    await su("analyze highland.hs_events"); await su("analyze highland.hs_sessions"); await su("analyze highland.hs_profiles");
+    await pgc.query("select highland.hs_grant_superadmin_by_email('size-owner@example.com')");
+    const time = async (fn, args) => { const t = Date.now(); const r = await rpc(SA, fn, args); return { ms: Date.now() - t, r }; };
+    for (const [args, label] of [[{}, "by last seen"], [{ p_sort: "name", p_desc: false }, "by name"], [{ p_sort: "page" }, "by time on page"],
+      [{ p_q: "size 19" }, "a search"], [{ p_offset: 2000 }, "a late page"]]) {
+      const x = await time("hs_super_players", args);
+      ok(x.ms < 6000, "the Players list " + label + ", with " + NP + " players and " + (NP * NV * NE) + " of their events: " + x.ms + " ms (at most 6,000)");
+      if (!args.p_q) eq(x.r.total, (await su("select count(*)::int n from highland.hs_profiles"))[0].n, "(every player counted)");
+    }
+    const one = await time("hs_super_player", { p_user: (await su("select md5('sz-u7')::uuid::text id"))[0].id });
+    ok(one.ms < 1000, "a player's page among them: " + one.ms + " ms (at most 1,000)");
+    eq([one.r.player.visits, one.r.player.battles, one.r.player.battle_sec, one.r.player.page_sec, one.r.visits.length], [NV, NV, NV * 300, NV * 300, NV],
+      "and his numbers are right: 10 visits, 10 battles of 300 s, 10 page_hides of 300 s");
+  } finally { await clean(); await pgc.end(); }
 });
 
 group("delete", async () => {

@@ -235,3 +235,24 @@ coverage by having it run that form.
 - P5: once ranked runs are posted, the battle clock could be read from hs_scores.sim_sec. The events would then
   serve only unranked battles. Do not count a battle twice.
 - Owner: nothing to do before finding 1 is fixed. The view works today, with no players.
+
+## CLOSING (P10 close-out)
+
+- 1, blocker, fixed: `_super_rows` reads each table once and groups (events by visit, visits by player), runs as a
+  statement planned for its values (EXECUTE ... USING), writes out the checks of `_int_or_null` and `_tag` (a
+  function with its own search_path is never inlined), and takes `p_user` so a player's page reads only his rows.
+  At 4,000 players and 1.6M of their events (659 MB): the list 2.5 to 3.1 s (was a timeout), a player's page 16 ms.
+  The new sql-tests group `superadmin_size` (3,000 players, 600,000 events): the list about 1.1 s, a page 14 ms; the
+  first build's code fails it (23 to 27 s). No index on `hs_sessions (uid, channel)`: the channel is read through
+  coalesce, so it would not be used, and `hs_sessions_uid` already serves a player's page.
+- 2, fixed: `hs_profile_get.super` is `_is_super() and _game_session()`; the page keeps `stSuperRefused` after a
+  `not_superadmin`. Tested in sql-tests and isolation.js (a password session is told it is not super).
+- 3, fixed: the help of Visits, Time on page and Battle clock says only the visits still kept count (180 days).
+- 4, fixed: page_hide also sends `vis`, the seconds the page was in view; the server prefers it over `sec`.
+- 5, fixed: csSum sends `held`; the Won column adds "N held" when more are held than any difficulty shows, and a
+  player's page shows "Battlefields held".
+- 6, fixed: flow 6 reads the page's own summary back from hs_saves, and checks a returning player's device.
+- 7, fixed: the P8 checklist removes the superadmin row and clears the audit's who and player; owner-delete-check.js
+  checks both tables.
+- 8, fixed: the guide and superadmin.md open psql with `PSQL_HISTORY=/dev/null` and take the address at `\prompt`;
+  guide-check runs that form.

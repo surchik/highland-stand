@@ -414,21 +414,32 @@ It should say one row was added. **Check:** `https://highland.avunjian.com/next/
 
 **The superadmin (the Players view).** To see every player of the game on `?stats` (each one's email, names,
 progress and play time), make your account the superadmin. Sign in to the game with Google, Facebook or Discord
-under your address first (and choose a name). Then, through the tunnel, as `postgres`, with your address in place
-of `THE_ADDRESS` **[tried]**:
+under your address first (and choose a name). Then, through the tunnel, open `psql` as `postgres` with its history
+file turned off, so that the address you type is not kept in `~/.psql_history` **[tried]**:
+
+<!-- guide-check: superadmin-open -->
+```
+PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X
+```
+
+and in it, typing your address when it asks **[tried]**:
 
 <!-- guide-check: superadmin -->
 ```sql
-select highland.hs_grant_superadmin_by_email('THE_ADDRESS');
+\prompt 'Your address: ' addr
+select highland.hs_grant_superadmin_by_email(:'addr');
 ```
 
 It answers `superadmin: account <its id> (game name ...)`; it also makes the account an admin. Type the address
-only there, on your server: never in a file of the repository. No API key can run this command, nor its undo
+only there, on your server: never in a file, a script or a shell command (a shell keeps its own history). If
+`show log_statement;` says `all`, the server's log keeps every statement, the address too: run
+`set log_statement = 'none';` in the same `psql` first, and if it is refused, ask the server's builder. No API key can run this command, nor its undo
 **[tried]**:
 
 <!-- guide-check: superadmin-revoke -->
 ```sql
-select highland.hs_revoke_superadmin_by_email('THE_ADDRESS');
+\prompt 'Your address: ' addr
+select highland.hs_revoke_superadmin_by_email(:'addr');
 ```
 
 The whole page is `docs/specs/owner/superadmin.md`.

@@ -104,75 +104,104 @@ language sql immutable set search_path = '' as $$
 $$;
 
 -- One row for each player (an account with a row in hs_profiles, and only those) on a channel ('live' or 'next'):
--- what the Players list shows. Times are in seconds.
--- - page_sec, the time on the page: for each signed-in visit, the visit's length as its page_hide events give it (the
---   seconds since the page loaded), or, when none came (the page was killed), the span between the visit's first and
---   last event as the server received them; each visit at most 12 hours.
+-- what the Players list shows; with p_user, that one player's row alone (his page). Times are in seconds.
+-- - page_sec, the time on the page: for each signed-in visit, the seconds the page was in view as its page_hide events
+--   give them ("vis"; a build before that gave only "sec", the seconds since the page loaded, hidden time included),
+--   or, when none came (the page was killed), the span between the visit's first and last event as the server
+--   received them; each visit at most 12 hours.
 -- - battle_sec, the battle clock (RULINGS S1: from the first wave's horn to the last foe's fall, waiting included):
 --   the sum of the "sec" of the victory and defeat events of the player's signed-in visits. A battle left unfinished
 --   adds nothing. hs_runs and hs_scores hold only ranked battles posted by a build with the boards, which is why the
 --   events are read.
+-- - Both, and the visits, count only what the events still kept hold (180 days unless the owner changed it).
 -- - won, stars, far, heroes, council: from the page's own summary in the player's save on that channel.
-create function highland._super_rows(p_channel text)
+-- How it is read, so that it stays quick with thousands of players (the P10 review's finding 1): each table is read
+-- once and grouped (the events by visit, then the visits by player), never looked into again for each player; and
+-- with p_user, the players are narrowed to him first, so his page reads only his own visits and events. The checks
+-- of _int_or_null and _tag are written out here: a function with its own search_path is never inlined, and calling
+-- one for each of a million events cost more than the rest of the reading.
+create function highland._super_rows(p_channel text, p_user uuid default null)
 returns table (user_id uuid, name text, email text, display_name text, providers text, hidden boolean, is_admin boolean, is_super boolean,
   first_seen timestamptz, last_seen timestamptz, visits integer, page_sec bigint, battles integer, battle_sec bigint,
-  won_e integer, won_n integer, won_h integer, won integer, stars integer, far text, far_n integer, heroes jsonb, council jsonb,
+  won_e integer, won_n integer, won_h integer, won integer, held integer, stars integer, far text, far_n integer, heroes jsonb, council jsonb,
   devices jsonb, device_n integer, saved_at timestamptz, ranked integer)
-language sql stable security definer set search_path = '' as $$
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  -- run as a statement planned for these very values (EXECUTE ... USING): planned once for any channel and any
+  -- player, the planner guessed a single visit and chose loops that grow with the players times their visits
+  return query execute $q$
   with players as (
-      select p.user_id, p.name, p.hidden, p.created_at from highland.hs_profiles p),
-    visits as (
+      select p.user_id, p.name, p.hidden, p.created_at from highland.hs_profiles p where $2::uuid is null or p.user_id = $2::uuid),
+    visits as materialized (
       select s.uid, s.sid, s.aid, s.started_at, s.dev_class, s.os, s.browser, s.standalone
-      from highland.hs_sessions s join players pl on pl.user_id = s.uid where coalesce(s.channel, 'live') = p_channel),
+      from highland.hs_sessions s join players pl on pl.user_id = s.uid where coalesce(s.channel, 'live') = $1),
+    -- each visit's events, read once and grouped by the visit
     per_visit as (
-      select v.uid, v.sid, v.started_at,
-        least(43200, greatest(0, coalesce(
-          (select max(highland._int_or_null(e.props ->> 'sec')) from highland.hs_events e where e.sid = v.sid and e.name = 'page_hide'),
-          (select extract(epoch from max(e.ts) - min(e.ts))::integer from highland.hs_events e where e.sid = v.sid), 0))) as sec,
-        (select max(e.ts) from highland.hs_events e where e.sid = v.sid) as last_ts
-      from visits v),
-    battles as (
-      select v.uid, count(*)::integer as n, sum(least(21600, greatest(0, coalesce(highland._int_or_null(e.props ->> 'sec'), 0))))::bigint as sec
-      from visits v join highland.hs_events e on e.sid = v.sid where e.name in ('victory', 'defeat') group by v.uid),
-    -- his devices: how many (anonymous ids), and the kinds of them (the kind, the system, the browser, a Home Screen app)
+      select e.sid,
+        coalesce(max(case when (e.props ->> 'vis') ~ '^-?[0-9]{1,9}$' then ((e.props ->> 'vis'))::integer end) filter (where e.name = 'page_hide'),
+          max(case when (e.props ->> 'sec') ~ '^-?[0-9]{1,9}$' then ((e.props ->> 'sec'))::integer end) filter (where e.name = 'page_hide')) as hide_sec,
+        min(e.ts) as first_ts, max(e.ts) as last_ts,
+        (count(*) filter (where e.name in ('victory', 'defeat')))::integer as battles,
+        coalesce(sum(least(21600, greatest(0, coalesce(case when (e.props ->> 'sec') ~ '^-?[0-9]{1,9}$' then ((e.props ->> 'sec'))::integer end, 0)))) filter (where e.name in ('victory', 'defeat')), 0)::bigint as battle_sec
+      from highland.hs_events e where e.sid in (select v.sid from visits v) group by e.sid),
+    -- each player's visits, grouped by the player
+    per_player as (
+      select v.uid, count(*)::integer as visits, count(distinct v.aid)::integer as device_n, min(v.started_at) as first_start,
+        max(coalesce(pv.last_ts, v.started_at)) as last_ts,
+        sum(least(43200, greatest(0, coalesce(pv.hide_sec, extract(epoch from pv.last_ts - pv.first_ts)::integer, 0))))::bigint as page_sec,
+        coalesce(sum(pv.battles), 0)::integer as battles, coalesce(sum(pv.battle_sec), 0)::bigint as battle_sec
+      from visits v left join per_visit pv on pv.sid = v.sid group by v.uid),
+    -- his devices: the kinds of them (the kind, the system, the browser, a Home Screen app), most used first
     devs as (
-      select d.uid, (select count(distinct v2.aid)::integer from visits v2 where v2.uid = d.uid) as n,
-        jsonb_agg(jsonb_build_object('dev', d.dev, 'os', d.os, 'browser', d.browser, 'standalone', d.standalone, 'visits', d.visits) order by d.visits desc) as list
-      from (select v.uid, highland._tag(v.dev_class) as dev, highland._tag(v.os) as os, highland._tag(v.browser) as browser, coalesce(v.standalone, false) as standalone,
+      select d.uid, jsonb_agg(jsonb_build_object('dev', d.dev, 'os', d.os, 'browser', d.browser, 'standalone', d.standalone, 'visits', d.visits) order by d.visits desc) as list
+      from (select v.uid,
+                case when v.dev_class is null then null when v.dev_class ~ '^[A-Za-z0-9_.:-]{1,40}$' then v.dev_class else 'other' end as dev,
+                case when v.os is null then null when v.os ~ '^[A-Za-z0-9_.:-]{1,40}$' then v.os else 'other' end as os,
+                case when v.browser is null then null when v.browser ~ '^[A-Za-z0-9_.:-]{1,40}$' then v.browser else 'other' end as browser,
+                coalesce(v.standalone, false) as standalone,
               count(*)::integer as visits
-            from visits v group by 1, 2, 3, 4, 5) d group by d.uid)
+            from visits v group by 1, 2, 3, 4, 5) d group by d.uid),
+    -- his sign-ins with the game's providers: which, and the first display name one of them carries
+    idents as (
+      select i.user_id, string_agg(distinct i.provider, ',' order by i.provider) as providers,
+        (array_agg(i.dname order by i.created_at) filter (where i.dname is not null))[1] as display_name
+      from (select x.user_id, x.provider, x.created_at,
+              left(coalesce(nullif(x.identity_data ->> 'full_name', ''), nullif(x.identity_data ->> 'name', ''),
+                nullif(x.identity_data -> 'custom_claims' ->> 'global_name', ''), nullif(x.identity_data ->> 'global_name', ''),
+                nullif(x.identity_data ->> 'user_name', ''), nullif(x.identity_data ->> 'preferred_username', '')), 80) as dname
+            from auth.identities x join players pl on pl.user_id = x.user_id where x.provider in ('google', 'facebook', 'discord')) i
+      group by i.user_id),
+    ranked as (
+      select sc.user_id, count(*)::integer as n from highland.hs_scores sc join highland.hs_runs r on r.id = sc.run_id
+      where r.channel = $1 and sc.user_id in (select pl.user_id from players pl) group by sc.user_id),
+    roles as (
+      select pl.user_id, exists (select 1 from highland.hs_admins a where a.user_id = pl.user_id) as is_admin,
+        exists (select 1 from highland.hs_superadmins x where x.user_id = pl.user_id) as is_super from players pl)
   select pl.user_id, pl.name, u.email::text,
-    -- the provider's display name: the first of the game's identities that carries one, else the account's own metadata
-    coalesce((select left(coalesce(nullif(i.identity_data ->> 'full_name', ''), nullif(i.identity_data ->> 'name', ''),
-          nullif(i.identity_data -> 'custom_claims' ->> 'global_name', ''), nullif(i.identity_data ->> 'global_name', ''),
-          nullif(i.identity_data ->> 'user_name', ''), nullif(i.identity_data ->> 'preferred_username', '')), 80)
-        from auth.identities i where i.user_id = pl.user_id and i.provider in ('google', 'facebook', 'discord')
-          and coalesce(nullif(i.identity_data ->> 'full_name', ''), nullif(i.identity_data ->> 'name', ''), nullif(i.identity_data -> 'custom_claims' ->> 'global_name', ''),
-            nullif(i.identity_data ->> 'global_name', ''), nullif(i.identity_data ->> 'user_name', ''), nullif(i.identity_data ->> 'preferred_username', '')) is not null
-        order by i.created_at limit 1),
-      left(coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), nullif(u.raw_user_meta_data ->> 'name', '')), 80)),
-    (select string_agg(distinct i.provider, ',' order by i.provider) from auth.identities i where i.user_id = pl.user_id and i.provider in ('google', 'facebook', 'discord')),
-    pl.hidden,
-    exists (select 1 from highland.hs_admins a where a.user_id = pl.user_id),
-    exists (select 1 from highland.hs_superadmins x where x.user_id = pl.user_id),
-    least(pl.created_at, (select min(v.started_at) from visits v where v.uid = pl.user_id)),
-    greatest(pl.created_at, (select max(coalesce(pv.last_ts, pv.started_at)) from per_visit pv where pv.uid = pl.user_id), sv.updated_at),
-    (select count(*)::integer from visits v where v.uid = pl.user_id),
-    coalesce((select sum(pv.sec)::bigint from per_visit pv where pv.uid = pl.user_id), 0),
-    coalesce(b.n, 0), coalesce(b.sec, 0),
+    coalesce(idn.display_name, left(coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), nullif(u.raw_user_meta_data ->> 'name', '')), 80)),
+    idn.providers, pl.hidden, ro.is_admin, ro.is_super,
+    least(pl.created_at, pp.first_start),
+    greatest(pl.created_at, pp.last_ts, sv.updated_at),
+    coalesce(pp.visits, 0), coalesce(pp.page_sec, 0),
+    coalesce(pp.battles, 0), coalesce(pp.battle_sec, 0),
     highland._sum_int(sv.data -> 'sum' -> 'won' -> 0, 99), highland._sum_int(sv.data -> 'sum' -> 'won' -> 1, 99), highland._sum_int(sv.data -> 'sum' -> 'won' -> 2, 99),
     coalesce(highland._sum_int(sv.data -> 'sum' -> 'won' -> 0, 99), 0) + coalesce(highland._sum_int(sv.data -> 'sum' -> 'won' -> 1, 99), 0) + coalesce(highland._sum_int(sv.data -> 'sum' -> 'won' -> 2, 99), 0),
+    highland._sum_int(sv.data -> 'sum' -> 'held', 99),
     highland._sum_int(sv.data -> 'sum' -> 'stars', 999),
     highland._tag(sv.data -> 'sum' ->> 'far'), highland._sum_int(sv.data -> 'sum' -> 'farN', 99),
     highland._sum_map(sv.data -> 'sum' -> 'heroes', 9), highland._sum_map(sv.data -> 'sum' -> 'council', 9),
-    coalesce(d.list, '[]'::jsonb), coalesce(d.n, 0), sv.updated_at,
-    (select count(*)::integer from highland.hs_scores sc join highland.hs_runs r on r.id = sc.run_id where sc.user_id = pl.user_id and r.channel = p_channel)
+    coalesce(d.list, '[]'::jsonb), coalesce(pp.device_n, 0), sv.updated_at,
+    coalesce(rk.n, 0)
   from players pl
     join auth.users u on u.id = pl.user_id
-    left join highland.hs_saves sv on sv.user_id = pl.user_id and sv.channel = p_channel
-    left join battles b on b.uid = pl.user_id
-    left join devs d on d.uid = pl.user_id;
-$$;
+    join roles ro on ro.user_id = pl.user_id
+    left join highland.hs_saves sv on sv.user_id = pl.user_id and sv.channel = $1
+    left join per_player pp on pp.uid = pl.user_id
+    left join devs d on d.uid = pl.user_id
+    left join idents idn on idn.user_id = pl.user_id
+    left join ranked rk on rk.user_id = pl.user_id
+  $q$ using p_channel, p_user;
+end $$;
 
 -- ---------------------------------------------------------------- the Players view (superadmins only)
 -- p_sort: name, email, provider, first, last, visits, page, battle, won, stars, far, devices (else last); p_desc: the
@@ -204,7 +233,7 @@ begin
       offset v_offset limit v_limit)
   select (select n from total), coalesce((select jsonb_agg(jsonb_build_object('id', p.user_id, 'name', p.name, 'email', p.email, 'display_name', p.display_name,
       'providers', p.providers, 'hidden', p.hidden, 'admin', p.is_admin, 'super', p.is_super, 'first', p.first_seen, 'last', p.last_seen, 'visits', p.visits,
-      'page_sec', p.page_sec, 'battles', p.battles, 'battle_sec', p.battle_sec, 'won', jsonb_build_array(p.won_e, p.won_n, p.won_h), 'stars', p.stars,
+      'page_sec', p.page_sec, 'battles', p.battles, 'battle_sec', p.battle_sec, 'won', jsonb_build_array(p.won_e, p.won_n, p.won_h), 'held', p.held, 'stars', p.stars,
       'far', p.far, 'far_n', p.far_n, 'heroes', p.heroes, 'council', p.council, 'devices', p.devices, 'device_n', p.device_n, 'saved_at', p.saved_at,
       'ranked', p.ranked) order by p.ord) from (select page.*, row_number() over () as ord from page) p), '[]'::jsonb)
     into v_total, v_rows;
@@ -229,10 +258,10 @@ begin
   end if;
   select jsonb_build_object('id', p.user_id, 'name', p.name, 'email', p.email, 'display_name', p.display_name,
       'providers', p.providers, 'hidden', p.hidden, 'admin', p.is_admin, 'super', p.is_super, 'first', p.first_seen, 'last', p.last_seen, 'visits', p.visits,
-      'page_sec', p.page_sec, 'battles', p.battles, 'battle_sec', p.battle_sec, 'won', jsonb_build_array(p.won_e, p.won_n, p.won_h), 'stars', p.stars,
+      'page_sec', p.page_sec, 'battles', p.battles, 'battle_sec', p.battle_sec, 'won', jsonb_build_array(p.won_e, p.won_n, p.won_h), 'held', p.held, 'stars', p.stars,
       'far', p.far, 'far_n', p.far_n, 'heroes', p.heroes, 'council', p.council, 'devices', p.devices, 'device_n', p.device_n, 'saved_at', p.saved_at,
       'ranked', p.ranked)
-    into v_row from highland._super_rows(p_channel) p where p.user_id = p_user;
+    into v_row from highland._super_rows(p_channel, p_user) p;
   select jsonb_build_object('version', s.version, 'bytes', s.bytes, 'device', left(s.device, 40), 'updated_at', s.updated_at) into v_save
     from highland.hs_saves s where s.user_id = p_user and s.channel = p_channel;
   -- his ranked battles, newest first (a build with the boards posts them; until then there are none)
@@ -261,7 +290,8 @@ begin
   from (select s.started_at, highland._tag(s.dev_class) as dev, highland._tag(s.os) as os, highland._tag(s.browser) as browser, s.standalone,
           highland._tag(s.build) as build, s.vw, s.vh, highland._tag(s.lang) as lang,
           (select count(*)::integer from highland.hs_events e where e.sid = s.sid) as n,
-          least(43200, greatest(0, coalesce((select max(highland._int_or_null(e.props ->> 'sec')) from highland.hs_events e where e.sid = s.sid and e.name = 'page_hide'),
+          least(43200, greatest(0, coalesce((select coalesce(max(highland._int_or_null(e.props ->> 'vis')), max(highland._int_or_null(e.props ->> 'sec')))
+              from highland.hs_events e where e.sid = s.sid and e.name = 'page_hide'),
             (select extract(epoch from max(e.ts) - min(e.ts))::integer from highland.hs_events e where e.sid = s.sid), 0))) as sec,
           (select max(e.ts) from highland.hs_events e where e.sid = s.sid) as last_ts
         from highland.hs_sessions s where s.uid = p_user and coalesce(s.channel, 'live') = p_channel order by s.started_at desc limit 30) q;
@@ -307,14 +337,16 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- two functions of 002 and 005, kept as they were plus P10's part
--- hs_profile_get: as 002 made it, and whether the caller is a superadmin
+-- hs_profile_get: as 002 made it, and whether the caller is a superadmin in a session where the Players view will
+-- answer him (the game's own sign-in): told "super" in a password session, the stats page asked the view, was
+-- refused, and asked again without end (the P10 review's finding 2)
 create or replace function highland.hs_profile_get() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_uid uuid := highland._uid(); r highland.hs_profiles;
 begin
   select * into r from highland.hs_profiles where user_id = v_uid;
   return jsonb_build_object('user_id', v_uid, 'name', r.name, 'hidden', coalesce(r.hidden, false),
-    'name_changed_at', r.name_changed_at, 'admin', highland._is_admin(), 'super', highland._is_super(), 'now', highland._now());
+    'name_changed_at', r.name_changed_at, 'admin', highland._is_admin(), 'super', highland._is_super() and highland._game_session(), 'now', highland._now());
 end $$;
 
 -- "Delete my account": as 005 made it, and a superadmin's row, and the account taken out of the audit rows (they stay,

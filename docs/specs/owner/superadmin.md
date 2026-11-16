@@ -16,17 +16,25 @@ Your address is never written in the game's files. You type it once, on your ser
 
 ## 2. The command
 
-Through the SSH tunnel, as `postgres` (the password only in `PGPASSWORD`, as for the migrations):
+Through the SSH tunnel, as `postgres` (the password only in `PGPASSWORD`, as for the migrations), with `psql`'s
+history file turned off, so that the address you type is not kept in `~/.psql_history`:
 
 ```
-psql "$HS_DB_URL" -X
+PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X
 ```
 
-then, with your address in place of `THE_ADDRESS` (keep the single quotes):
+then, in it, type your address when it asks for it:
 
 ```sql
-select highland.hs_grant_superadmin_by_email('THE_ADDRESS');
+\prompt 'Your address: ' addr
+select highland.hs_grant_superadmin_by_email(:'addr');
 ```
+
+That is the command `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');` with your address in place of
+`THE_ADDRESS`; the prompt only keeps the address out of anything written down. Do not put the address in a file,
+a script or a shell command (the shell keeps its own history). If `show log_statement;` says `all`, the server's
+log keeps every statement, the address too: run `set log_statement = 'none';` in the same `psql` first, and if it
+is refused, ask the server's builder.
 
 It answers `superadmin: account <the account's id> (game name ...). Open ?stats and choose Players.` It names the
 account by its id, never by its address. It also makes that account an admin (the stats page's other cards), if it
@@ -45,7 +53,8 @@ What it can answer instead:
 **To take it away:**
 
 ```sql
-select highland.hs_revoke_superadmin_by_email('THE_ADDRESS');
+\prompt 'Your address: ' addr
+select highland.hs_revoke_superadmin_by_email(:'addr');
 ```
 
 It removes the superadmin and the admin row the grant gave with it (an admin row you made yourself stays).
@@ -71,9 +80,9 @@ between the visits and saves of `/` and of `/next/`.
 | First seen | the day he chose his name, or his first signed-in visit if that came first |
 | Last seen | the last event of his latest signed-in visit, or his last save |
 | Visits | page loads while signed in |
-| Time on page | each visit's length as the page told it when it was hidden or closed (else the time between its first and last event), at most 12 hours a visit |
+| Time on page | for each visit, the time the page was in view, as the page told it when it was hidden or closed (a build before this one told the time since it loaded, hidden time included); else the time between the visit's first and last event; at most 12 hours a visit |
 | Battle clock | the battle clock of every battle he won or lost while signed in, from the battles' events (a battle left unfinished adds nothing) |
-| Won E / N / H, Stars, Furthest, Heroes, Council | from his save: the page adds a summary of his progress to each save it sends |
+| Won E / N / H, Stars, Furthest, Heroes, Council | from his save: the page adds a summary of his progress to each save it sends. A battlefield won before the game kept stars for each difficulty counts on no difficulty; when there are such, the column adds how many battlefields are held in all |
 | Devices | how many browsers he signed in from, and their kinds |
 
 Pressing a name opens **his page**: who he is, his play time, his progress, his last 50 battles (won, lost or left),

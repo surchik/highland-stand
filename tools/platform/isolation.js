@@ -303,6 +303,8 @@ async function run(S) {
     ok(!/@/.test(JSON.stringify(await q("select args from highland.hs_super_audit"))), "the audit keeps no address and no search words");
     ok((await api.rpc("SA", "hs_profile_get", {})).body.super === true && (await api.rpc("AD", "hs_profile_get", {})).body.super === false
       && (await api.rpc("A", "hs_profile_get", {})).body.super === false, "hs_profile_get says who is a superadmin (the superadmin, not the admin nor a player)");
+    // (P10 review 2) and not to the superadmin's account in a password session, where the view refuses him
+    ok((await api.rpc("SA:password", "hs_profile_get", {})).body.super === false, "hs_profile_get tells SA's account in a password session it is not super there");
     // no other role's answer carries an email: the admin's stats, a player's own calls, the open ones
     const otherAnswers = [await api.rpc("AD", "hs_stats", ADMIN.hs_stats), await api.rpc("A", "hs_profile_get", {}), await api.rpc("A", "hs_save_get", {}), await api.rpc("AD", "hs_board", OPEN.hs_board),
       await api.rpc(null, "hs_config", {}), await api.rpc("O", "hs_profile_get", {}), await api.rpc(null, "hs_daily_status", OPEN.hs_daily_status)];

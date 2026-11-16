@@ -1667,6 +1667,25 @@ const log = (m) => { if (o.verbose) console.log(m); };
       if (!up.data.run || up.data.run.val !== mine.hs_run || mine.hs_run !== run) fail(W, "the battle in progress was not uploaded as the live game saved it");
       if ("hs_settings" in up.data.keys || Object.keys(up.data.keys).some(k => /^hs_(pf_|mig_|town)/.test(k))) fail(W, "a key that is not synced was uploaded: " + Object.keys(up.data.keys).join());
     }
+    // P10 review 6: the progress summary the page itself adds to each save (csSum), read back from the server: its
+    // arithmetic against this test's own count, and every part there (a game function renamed would empty a part)
+    if (up) {
+      const sum = up.data.sum || {}, ids = await A.ev(() => LEVELS.map(L => L.id));
+      const far = Math.max(...won.map(id => ids.indexOf(id))) + 1;
+      const want = { won: [0, won.length, 0], held: won.length, farN: far, far: ids[far - 1], stars: await A.ev(() => starsEarned()) };
+      for (const k of Object.keys(want)) if (JSON.stringify(sum[k]) !== JSON.stringify(want[k])) fail(W, "the save's summary: " + k + " is " + JSON.stringify(sum[k]) + ", not " + JSON.stringify(want[k]));
+      if (!(want.stars > 0)) fail(W, "the save's summary: no stars for five battlefields won");
+      if (!sum.heroes || Object.keys(sum.heroes).length !== await A.ev(() => CHAPTERS.length) || !sum.council || typeof sum.council !== "object" || Array.isArray(sum.council))
+        fail(W, "the save's summary lacks the heroes or the Council: " + JSON.stringify(sum));
+    }
+    // and a returning player's device (P10 review 5): three battlefields won, the third before star records began (its
+    // records already migrated, so the page's start does not make one for it); it counts as held, on no difficulty
+    const G0 = await open(C, { storage: { hs_records: JSON.stringify({ erebuni: rec.erebuni, tushpa: rec.tushpa }), hs_best_erebuni_0: "21", hs_best_tushpa_0: "21",
+      hs_best_avarayr_1: "21", hs_tutorial_done: "1", hs_mig_ids: "1", hs_mig_rec: "1" } });
+    await G0.page.waitForFunction(() => typeof csSum === "function" && document.readyState === "complete");
+    const s0 = await G0.ev(() => csSum());
+    if (JSON.stringify([s0.won, s0.held, s0.farN, s0.far]) !== JSON.stringify([[0, 2, 0], 3, 3, "avarayr"])) fail(W, "a returning player's summary: " + JSON.stringify(s0));
+    await done(G0, W + " returning player's summary");
     const sm = await evs(A, "save_merge");
     if (!sm.length || sm[0].case !== "upload") fail(W, "save_merge: " + JSON.stringify(sm));
     // the second device: everything comes back whole
