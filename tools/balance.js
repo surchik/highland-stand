@@ -147,7 +147,8 @@
 //     sent; two at most (greedy: one, BUILD_AGE_MAX). When it ranks and masters them is STORES_RANK: "last" (the
 //     default) after every fighting tower has its own, and never once two thirds of the waves are sent; "even" as any
 //     tower; "never" not at all. Where greedy or bazaar is run
-//     beside mix, the report adds the Stores' rows of gameplay 5.2: greedy's gold invested at the end, the defenders it
+//     beside mix, the report adds the Stores' rows of gameplay 5.2: greedy's gold invested at the end (and what it
+//     earned and spent over the battle, against the mix's), the defenders it
 //     lost more than mix by the end of the first commander's wave and at the end, and bazaar's defenders against mix
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
@@ -780,16 +781,21 @@ function playBattle(a) {
     if (builds.includes("mix") && (builds.includes("greedy") || builds.includes("bazaar"))) {
       const M = (lv, b, f) => { const rs = results.filter(r => r.diff === diff && r.lv === lv && r.build === b); return rs.length ? rs.reduce((n, r) => n + f(r), 0) / rs.length : null; };
       console.log("\nStores (G7b): greedy and bazaar against mix, means over the seeds; stores gold is what Stores paid in a battle");
-      console.log(pad("battlefield", NW) + pad("invested", 11) + pad("cmd1 lost", 11) + pad("end", 9) + pad("bazaar end", 12) + "stores gold (greedy, bazaar)");
+      console.log(pad("battlefield", NW) + pad("invested", 11) + pad("cmd1 lost", 11) + pad("end", 9) + pad("bazaar end", 12) + pad("earned", 9) + pad("spent", 9) + "stores gold (greedy, bazaar)");
       let below = 0, n = 0;
       for (const lv of levels) {
         const mi = M(lv, "mix", r => r.invested), ml = M(lv, "mix", r => r.lives), mc = M(lv, "mix", r => r.livesCmd1 == null ? r.lives : r.livesCmd1);
         const gi = M(lv, "greedy", r => r.invested), gl = M(lv, "greedy", r => r.lives), gc = M(lv, "greedy", r => r.livesCmd1 == null ? r.lives : r.livesCmd1);
         const bl = M(lv, "bazaar", r => r.lives);
+        // what greedy earned and spent against the mix over the whole battle: the invested gold counts only what
+        // stands at the end, and a full board hides the Stores' gold there (G7b review 4)
+        const me = M(lv, "mix", r => r.earned || 0), ge = M(lv, "greedy", r => r.earned || 0);
+        const ms = M(lv, "mix", r => r.spent || 0), gs = M(lv, "greedy", r => r.spent || 0);
         const f = (v, d) => (v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(d));
         if (bl != null) { n++; if (bl < ml) below++; }
         console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(gi == null ? "-" : f((gi / mi - 1) * 100, 1) + "%", 11) + pad(gc == null ? "-" : f(mc - gc, 1), 11) +
           pad(gl == null ? "-" : f(gl - ml, 1), 9) + pad(bl == null ? "-" : f(bl - ml, 1), 12) +
+          pad(ge && me ? f((ge / me - 1) * 100, 1) + "%" : "-", 9) + pad(gs && ms ? f((gs / ms - 1) * 100, 1) + "%" : "-", 9) +
           Math.round(M(lv, "greedy", r => r.storesGold) || 0) + ", " + Math.round(M(lv, "bazaar", r => r.storesGold) || 0));
       }
       if (n) console.log("bazaar ends below mix on " + below + " of " + n);
