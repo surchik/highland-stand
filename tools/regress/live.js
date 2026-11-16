@@ -7,7 +7,8 @@
 // when the stand is left is put away by its button (a fresh save meets each card once). By mouse at 1600x900.
 // The Garrison Post (G5): a post is built from its tile on the best free pad with road in reach, its panel opened by a
 // click on it, Rally point pressed and the road in its ring clicked: its rally must move, and its men fight the three
-// waves. (The battlefield's special tower is built here too once one is in the game, G7.)
+// waves. The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) is built from its tile
+// on the free pad whose reach holds the most road, and fights the three waves (its charges are counted).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -91,8 +92,24 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
           }
         }
         await g.page.keyboard.press("Escape");
+        // the battlefield's special tower, where the tray holds one
+        const age = await g.ev(() => trayTypes()[6] || "");
+        if (age) {
+          const ap = await g.ev(a => PADS.map((p, i) => i).filter(i => !towerAt(i) && padTakesRoad(i, kitStatsOf(a, 0, null).range))
+            .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], kitStatsOf(a, 0, null).range).length })).sort((x, y) => y.n - x.n).map(x => x.i)[0], age);
+          if (ap === undefined) await fail("no free pad takes the " + age);
+          else {
+            if (await g.ev(() => placing) !== age) await g.press('#shop .card[data-type="' + age + '"]');
+            const p = await g.ev(i => PADS[i], ap);
+            const pt = await g.worldToClient(p[0], p[1], 4);
+            await g.tapAt(pt.x, pt.y);
+            await g.frames(1);
+            if (!(await g.ev(([i, a]) => !!towerAt(i) && towerAt(i).type === a, [ap, age]))) await fail("the " + age + " was not built on pad " + ap);
+          }
+          await g.page.keyboard.press("Escape");
+        }
         const built = await g.ev(() => towers.length);
-        if (built < pads.length + 1) await fail("only " + built + " of " + (pads.length + 1) + " towers were built");
+        if (built < pads.length + 1 + (age ? 1 : 0)) await fail("only " + built + " of " + (pads.length + 1 + (age ? 1 : 0)) + " towers were built");
         // the secret fourth gear, Send Wave, and Auto for the waves after
         const sp = await g.reach("#speedBtn");
         if (sp.why) throw new Error("the speed button: " + sp.why);
@@ -112,7 +129,8 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         if (end.state !== "running") await fail("the audio context is " + end.state);
         if (end.sndErrs.length) { await fail("sounds threw: " + [...new Set(end.sndErrs)].slice(0, 5).join(" | ")); await g.ev(() => { window.__sndErrs.length = 0; }); }
         const post = await g.ev(() => { const t = towers.find(u => u.type === "post"); return t ? { dmg: Math.round(t.dmgDone || 0), hold: Math.round(t.holdS || 0) } : null; });
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post };
+        const horse = await g.ev(() => { const t = towers.find(u => u.type === "horse"); return t ? { charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), thrown: Math.round(t.thrown || 0) } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);

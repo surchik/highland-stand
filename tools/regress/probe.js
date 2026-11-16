@@ -5,6 +5,8 @@
 // (by turns with the five, at every rank and both masteries); on one post of each battlefield Rally point is pressed,
 // then the road inside its ring where it is drawn: the men's rally point must move there, the panel go, and nothing
 // else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields.
+// Where the tray holds the battlefield's special tower (G7a: the Horse Lines), two of them stand among the rest, at
+// ranks and masteries by turns.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/probe.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -36,10 +38,15 @@ const BODY = 30;
           PADS.forEach((_, i) => {
             let k = kinds[(i + lv) % 6];
             if (k === "post" && !padTakesPost(i)) k = kinds[(i + lv + 1) % 6];
+            // the battlefield's special tower (G7a: the Horse Lines) on two pads with road in reach, where the tray holds it
+            const a = trayTypes()[6];
+            if (a && i % 4 === 2 && towers.filter(u => u.type === a).length < (TOWER_DEFS[a].max || 2) && padTakesRoad(i, kitStatsOf(a, 0, null).range)) k = a;
             placeTower(k, i);
             const t = towerAt(i);
             if (!t) return;
             t.level = (i + lv) % 3;
+            // a special tower's ranks and masteries by turns over its battlefields
+            if (k === a) { t.level = (i + lv) % 3; if (t.level === 2 && (i + lv) % 2) t.spec = (i + lv) % 4 === 1 ? "a" : "b"; }
             // a post at its third rank takes a mastery by turns: every rank and both masteries are pressed
             if (k === "post" && t.level === 2 && i % 2) { t.spec = i % 4 === 1 ? "a" : "b"; }
             if (k === "post") postSyncMen(t, true);
@@ -47,6 +54,8 @@ const BODY = 30;
           syncHud();
           return towers.length;
         }, lv);
+        const ageMiss = await g.ev(() => { const a = trayTypes()[6]; return a && !towers.some(u => u.type === a) ? a : ""; });
+        if (ageMiss) await fail(id + ": no " + ageMiss + " stands, though the tray holds it");
         if (n !== await g.ev(() => PADS.length)) await fail(id + ": only " + n + " towers stand on " + (await g.ev(() => PADS.length)) + " pads");
         await g.frames(2);
         let rallied = false;

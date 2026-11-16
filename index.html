@@ -9730,7 +9730,8 @@ const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, heal
 // ---------- Horse Lines (gameplay 3.2): the special tower of Erebuni, Tushpa and Avarayr ----------
 // It does not shoot (proj null: the shooting loop passes it by). Every cd seconds, once a ground foe is on the road in
 // its reach, its riders charge down every stretch of road inside the reach, from the walls' side toward the enemy, in
-// HORSE_RULES.ride s (horseTick). Each ground foe the riders pass takes dmg once (cut by armor unless pierce) and is
+// HORSE_RULES.ride s (horseTick; they wait for HORSE_RULES.crowd foes in reach, or for one past the middle of its
+// stretch). Each ground foe the riders pass takes dmg once (cut by armor unless pierce) and is
 // thrown back push px along its own road. range is the reach; slow and slowS: Harriers leave the foes they strike at
 // that share of their pace less, for slowS s. max: two on one field (3.7), refused with maxSay
 TOWER_DEFS.horse = {
@@ -9759,7 +9760,8 @@ TOWER_DEFS.horse = {
 // seconds they take to wheel back to the lines (drawn only: they cannot be hurt or held); rest: the seconds a thrown foe
 // cannot be thrown again, by any Horse Lines (it is still struck); heavy: how far a siege engine or a commander is
 // thrown, as a share of push (gameplay 3.1, rule 1: a delay, never a wall)
-const HORSE_RULES = { ride: 0.8, back: 1.2, rest: 8, heavy: 0.25 };
+// crowd: the foes on its stretches the riders wait for before they charge (horseTick)
+const HORSE_RULES = { ride: 0.8, back: 1.2, rest: 8, heavy: 0.25, crowd: 3 };
 
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
 // built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
@@ -13089,7 +13091,18 @@ function horseTick(dt) {
     if (t.cd > 0) { t.cd -= dt * (1 + (t.buffHaste || 0)) * towerPace(t); continue; }
     if (t.ride) continue;
     const runs = horseRuns(t, st.range);
-    if (!runs.length || !enemies.some(e => horseStrikable(e) && runs.some(r => horseOnRun(e, r)))) continue;
+    // the riders wait for the moment: HORSE_RULES.crowd foes on the stretches, or one foe past the middle of its stretch
+    // (it would soon be out of reach toward the walls). A charge at the first foe to come in struck it alone and left
+    // the lines reloading as the column came on
+    let n = 0, deep = false;
+    for (const e of enemies) {
+      if (!horseStrikable(e)) continue;
+      const r = runs.find(q => horseOnRun(e, q));
+      if (!r) continue;
+      n++;
+      if (e.dist >= (r.a + r.b) / 2) deep = true;
+    }
+    if (!n || (n < HORSE_RULES.crowd && !deep)) continue;
     t.ride = { t: 0, runs, hit: new Set() };
     t.cd = st.cd;
     t.charges = (t.charges || 0) + 1;
