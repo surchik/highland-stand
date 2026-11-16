@@ -166,8 +166,10 @@ const BUILDS = {
   // towers, G7b and G7d; agemix and harriers came with the Horse Lines, G7a. Where "age" is not offered they are posts,
   // or fires and drums)
   // (the posts come ninth and last: put fourth they took the pad of a shooting tower the commanders needed, G5)
+  // (G7a: the special tower 15th, not 12th. Built 12th, the Horse Lines took the ballista the Erebuni pair needed: mix7
+  // lost Erebuni on every seed whatever the tower's numbers, a Horse Lines that did nothing at all included)
   mix7:      ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "post", "archer", "fire",
-              "age", "ballista", "drums", "catapult", "archer", "post"],
+              "ballista", "drums", "catapult", "age", "archer", "post"],
   // halfpost (G5 review): a post on every second pad, the post-heavy board no other build tries; bounded like mix7
   halfpost:  ["archer", "post", "ballista", "post", "catapult", "post", "fire", "post", "drums", "post", "archer", "post", "catapult", "post"],
   posts:     ["post"],
