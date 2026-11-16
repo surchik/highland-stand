@@ -581,6 +581,10 @@ What was found, and the numbers chosen:
 - Commanders (CMD=probe): greedy and bazaar deal the commanders about what the mix does (the least margins over the
   seeds: the mix 0.68 to 2.79 of their strength, greedy 0.69 to 2.72, bazaar 0.88 to 2.42 where it reaches them); posts
   alone deal the first commander 0.10 to 0.39 of his strength, so he reaches the walls above 60%.
+- The endless stand (ENDLESS=20, mix7, waves held beyond the chronicle on the three seeds): Dvin 10, 12, 12; Tashir 9, 9,
+  18; Sevan 4, 4, 16; Ani 2, 2, 3; Mari 2, 2, 2; Sis 0, 2, 2. mix7 falls between waves 8 and 20 beyond on Dvin and Tashir
+  (5.2 asks it on three battlefields of the 17; G7a found none on its three). harriers (a Horse Lines board) is not built
+  here.
 - The pars moved where a board with Stores became the best: Normal Sevan 1730 to 1735; Easy Ani 1558 to 1584 and Sis
   2311 to 2346; Hard Dvin 1115 to 1103 and Sevan 1719 to 1754; the daily's Sevan 1373 to 1328. LEVEL_PAR and DAILY_PAR
   carry them. The revs of the six rose to 3 (the Stores in their trays). The daily's skipped pairs (G6) were not run
