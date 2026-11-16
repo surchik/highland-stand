@@ -528,3 +528,62 @@ HERO=hold, read by `tools/balance-kit.js` against the Normal table). The daily's
 - mix7 puts "age" 15th for every battlefield, G7b to G7e included. A later package that needs another slot for its own
   tower changes it for its own battlefields only (a per-battlefield order), so that Erebuni's commander pair keeps its
   ballista.
+
+## G7b: the Stores (Dvin, Tashir, Sevan, Ani, Mari, Sis)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `greedy` and `bazaar`, on the six
+battlefields that offer the tower): `g7b-normal-seeds3.txt`, `g7b-easy-seeds3.txt`, `g7b-hard-seeds3.txt`; the
+commanders, `CMD=probe` on mix, mix7, greedy, bazaar and posts: `g7b-probe-normal-seeds3.txt`; the daily's table,
+`DAILY=1`: `g7b-daily-normal-seeds3.txt`; the endless stand of mix7, `ENDLESS=20` (JSON lines): `g7b-endless-normal-seeds3.txt`.
+The trials that led to the price are in `g7b-trials/` (Normal, the six, SEEDS=3, mix, greedy and bazaar beside the full
+table at 3.3's numbers, `n3-price120.txt`; p1 = every pay about a third lower, p2 = a price of 160, p3 = 140, p4 = 140 with
+a first rank paying 26, p5 = 150).
+
+The bot (5.4): a build's "age" is the Stores on these six; they go on the free pad that reaches the least road, as the
+order says, never once two thirds of the battle's waves are sent. Its Stores are ranked and mastered after every
+fighting tower has its own (STORES_RANK=last, the default: ranked as early as any tower they took the gold the first
+waves needed, and greedy kept 4 to 10 fewer than the mix in a first trial at one seed), and never after two thirds of the
+battle. greedy is the mix with one Stores as its third building (BUILD_AGE_MAX), bazaar two Stores first, then the mix.
+The report adds 5.2's rows for the Stores: greedy's gold invested at the end against the mix's, the defenders it lost
+more than the mix by the end of the first commander's wave and at the end, and bazaar's end against the mix's.
+
+What was found, and the numbers chosen:
+- At 3.3's numbers (price 120, pay 30, 46, 64; Caravan 80, Field Forge 64) a board with Stores became the best on Sevan
+  (greedy 18.0 against mix7's 13.3) and Ani (bazaar 16.7 against 14.7): above the bands of 5.1 (12 to 16 on the first
+  six, 10 to 15 on the later eleven) and 4.7 defenders above the best board without them, against 3.1's second rule
+  (2 to 3 at most). bazaar ended below the mix on only 3 of the 6.
+- Lower pay (p1) made greedy and bazaar lose more on Dvin and Tashir and still kept 17.7 and 18.3 on Sevan and Ani.
+  The price moves the cells the most: at 160 (p2) the best boards are G5's on five of the six and bazaar's 13.7 on
+  Sevan (inside the band, 0.4 above mix7), and bazaar ends below the mix on 5 of 6. The cells jump by several defenders
+  between neighboring prices (140 and 150 kept bazaar at 17.7 and 16.7 on Ani): the bot's purchases shift wave by wave.
+- Chosen: a price of 160. Every other number is 3.3's.
+
+5.2's rows on the six battlefields (Normal unless named):
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables (mix, mix7,
+  halfpost, posts, postdrum and the one-recipe builds). mix7 builds a Stores 15th, but on these six that changes no cell:
+  mix7 against mix stays G5's (Dvin +0.3, Tashir 0.0, Sevan +2.3, Ani +2.4, Mari -10.0 with three commanders at the
+  walls, Sis -5.0), so G5's mean over the 17 (+0.8) and its cells for the owner stand.
+- bazaar ends below the mix in lives on at least four of the six: met on Normal (5 of 6: only Sevan, +2.7), Easy (4)
+  and Hard (4).
+- greedy (Normal): gold invested at the end +4.7% (Dvin), -54.5% (Tashir, where it wins 1 of 3), +15.5% (Sevan), +5.8%
+  (Ani), +2.3% (Mari), +3.5% (Sis), against 5.2's 6 to 10%: NOT met. A board that holds is full by the last waves (every
+  pad built, every tower mastered), so the Stores' gold has nothing left to buy, and the mix's own end board is the same.
+  Lost by the end of the first commander's wave against the mix: -1.0, +6.3, +1.0, +2.7, 0.0, +2.0 (1 to 2 asked: met on
+  Sevan and Sis, near on Ani). At the end: +1.7, -6.3, +2.3, +2.0, -7.3, -0.3 (within 2: met on Dvin, Ani and Sis, 2.3 on
+  Sevan; NOT met on Tashir and Mari). Mari's -7.3 is a commander at the walls on every seed (10 defenders at a stroke),
+  as mix7's own Mari cell (2.0c3) is.
+- The Stores in the best build on a third of their battlefields: NOT met on Normal (1 of 6: bazaar on Sevan). On Easy 2
+  of 6 (greedy on Ani and Sis) and on Hard 2 of 6 (greedy on Dvin, bazaar on Sevan). At 3.3's price 120 it was 3 of 6 on
+  Normal, at the cost of the two bands above. The owner's to rule on, with G5's and G7a's cells.
+- The bands of 5.1 on Normal: the best boards keep 14.3, 19.3, 13.7, 14.7, 12.0 and 11.3 (Tashir's 19.3 is G5's
+  halfpost cell, for the owner). Easy: the mix wins every seed on all six and keeps 21.3 to 29.3 (G5's cells). Hard: the
+  best build wins all six (7.7, 13.0, 6.7, 7.7, 5.3, 5.3) and the mix loses some seeds.
+- Commanders (CMD=probe): greedy and bazaar deal the commanders about what the mix does (the least margins over the
+  seeds: the mix 0.68 to 2.79 of their strength, greedy 0.69 to 2.72, bazaar 0.88 to 2.42 where it reaches them); posts
+  alone deal the first commander 0.10 to 0.39 of his strength, so he reaches the walls above 60%.
+- The pars moved where a board with Stores became the best: Normal Sevan 1730 to 1735; Easy Ani 1558 to 1584 and Sis
+  2311 to 2346; Hard Dvin 1115 to 1103 and Sevan 1719 to 1754; the daily's Sevan 1373 to 1328. LEVEL_PAR and DAILY_PAR
+  carry them. The revs of the six rose to 3 (the Stores in their trays). The daily's skipped pairs (G6) were not run
+  again with the Stores in the daily's tray.
+- The playtest of 8.4 (Tashir with Stores, `tools/playtest-stores.js`, by finger on the iPad at 1194 x 834 and an
+  iPhone SE at 667 x 320): PASS both, 528 s. See the G7b report for how it felt.

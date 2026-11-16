@@ -716,6 +716,20 @@ tower are the game's invention." It is not called a market: one that trades thro
 reads badly, and every fortress and army had stores.
 Art: an awning on poles, sacks and jars, a tethered pack animal (the camel or horse painter, standing), on
 the common footing; coins rising at a clear (the bounty pop's particle). Sound: `coin`.
+(G7b build: built as written, with these differences, each in docs/specs/balance/README.md, G7b. 1. The price is 160, not
+120: at 120 a board with Stores kept 18 on Sevan and 16.7 on Ani, above their bands and 4.7 above the best board without
+them (3.1's second rule), and "bazaar" ended below "mix" on only 3 of 6; the pay, the ranks and the masteries are this
+section's. 2. The pack animal is a horse (the cavalry painter's bare horse with two sacks over its back; Caravan keeps a
+second one), the awning striped in the age's banner color. 3. The card says: "Your stores pay gold after every wave you
+hold, more at every rank. They never fight, and they take a pad a fighting tower could use: gold later for a tower now.
+Hunters come for them, and wrecked stores pay nothing. Two on a field at most." and "Stores as a tower are the game's
+invention." Dvin's card adds the sourced line on its merchants (Procopius, docs/history/town-history.json); no source in
+the repository tells Ani's trade, so Ani's card makes no claim (the CHECK falls back to no sentence). 4. Field Forge's
+"mend 10 points more" is read as a tenth of a tower's strength more at each clear (the mend is a share, TRICK_RULES.tower);
+two forges over one tower give one share, and a forge does not tend itself. 5. The bot ranks and masters its Stores after
+every fighting tower has its own, and never after two thirds of the battle. 5.2's rows NOT met and for the owner: greedy's
+gold invested (2 to 6% on five of six; a full board has nothing left to buy), greedy's end on Tashir and Mari, and the
+Stores in the best build on Normal on 1 of 6 (2 of 6 on Easy and on Hard).)
 
 ### 3.4 Powder Mine (Gyumri Road, Halidzor)
 
