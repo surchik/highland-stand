@@ -9727,8 +9727,38 @@ TOWER_DEFS.post = {
 const POST_RULES = { spot: 12, stagger: 8, catch: 30, walk: 90, heal: 0.08, healAfter: 3, cmdHold: 12, cmdBlow: 0.18, charge: 30, hunterMen: 2,
   pick: 70, pickPhone: 110, perWave: 0.05, melee: { raider: 7, spearman: 9, shield: 11, cavalry: 12, boss: 60 } };
 
+// ---------- Horse Lines (gameplay 3.2): the special tower of Erebuni, Tushpa and Avarayr ----------
+// It does not shoot (proj null: the shooting loop passes it by). Every cd seconds, once a ground foe is on the road in
+// its reach, its riders charge down every stretch of road inside the reach, from the walls' side toward the enemy, in
+// HORSE_RULES.ride s (horseTick). Each ground foe the riders pass takes dmg once (cut by armor unless pierce) and is
+// thrown back push px along its own road. range is the reach; slow and slowS: Harriers leave the foes they strike at
+// that share of their pace less, for slowS s. max: two on one field (3.7), refused with maxSay
+TOWER_DEFS.horse = {
+  name: "Horse Lines", cost: 110, proj: null, charge: true, max: 2, maxSay: "Two horse lines are all this field can stable.",
+  // the lines' own strength by rank, for hunters and powers (TOWER_HP's row, kept here so that it is hashed only into
+  // the fight of the battlefields that offer the tower: rulesetData)
+  hp: [280, 360, 460],
+  levels: [
+    { dmg: 40, range: 150, cd: 18, push: 40 },
+    { dmg: 70, range: 170, cd: 16, push: 55, cost: 130 },
+    { dmg: 115, range: 190, cd: 14, push: 70, cost: 220 },
+  ],
+  specs: {
+    a: { name: "Lancers", cost: 340, desc: "One heavy charge that splits armor",
+         stats: { dmg: 260, range: 200, cd: 14, push: 60, pierce: true } },
+    b: { name: "Harriers", cost: 340, desc: "Charge twice as often and scatter the foe",
+         stats: { dmg: 100, range: 200, cd: 7, push: 50, slow: 0.4, slowS: 3 } },
+  },
+};
+// how the riders ride, named once (rulesetData reads it). ride: the seconds a charge takes down a stretch; back: the
+// seconds they take to wheel back to the lines (drawn only: they cannot be hurt or held); rest: the seconds a thrown foe
+// cannot be thrown again, by any Horse Lines (it is still struck); heavy: how far a siege engine or a commander is
+// thrown, as a share of push (gameplay 3.1, rule 1: a delay, never a wall)
+const HORSE_RULES = { ride: 0.8, back: 1.2, rest: 8, heavy: 0.25 };
+
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
-// built into the game (G7) ageTower answers null and its battlefields play with the post and six tiles
+// built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
+// Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven)
 const AGES = [
   { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
   { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
@@ -10087,6 +10117,22 @@ const POST_LEVEL = {
   shushi: { name: "Trench squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
   stepanakert23: { name: "Defense Army squad", short: "Squad", depicts: "A rifle squad dug in beside the road" },
 };
+// the Horse Lines (gameplay 3.2): one skin, a rail, a trough and a horse, in the two ages that offer them. Urartian
+// cavalry with spears, shields and conical helmets is shown on the kingdom's bronze belts (docs/history/era-dossier.json);
+// the houses' horse is Yeghishe's "cavalry and infantry" (text-audit.json) and Dvin's own text ("Armenia kept 15,000
+// horsemen"). The other ages never offer the tower; their row names it plainly
+TOWER_SKINS.horse = ["horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines"];
+SLOT_NAMES.horse = ["Horsemen of Biainili", "Nakharar Horse", "Horse Lines", "Horse Lines", "Horse Lines", "Horse Lines", "Horse Lines",
+  "Horse Lines", "Horse Lines"];
+SLOT_BLURB.horse = "Riders who charge down the road and throw foes back. Outflankers are untouched.";
+SKIN_BLURB.horselines = SLOT_BLURB.horse;
+const HORSE_LEVEL = {
+  erebuni: { name: "Horsemen of Biainili", short: "Horsemen", depicts: "Urartian horsemen with spears, shields and conical helmets, riding out from the lines below the fortress" },
+  tushpa: { name: "Horsemen of Biainili", short: "Horsemen", depicts: "Urartian horsemen with spears, shields and conical helmets, riding out from the lines below the fortress" },
+  avarayr: { name: "Nakharar Horse", depicts: "The mounted contingents of the noble houses, riding out with their lances" },
+};
+// each special tower's own names by battlefield (levelTower)
+const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL };
 // a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
 const TOWER_SHORT = {
   "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
@@ -10149,7 +10195,7 @@ function spellLook(key, era) { return spellRow(key, era)[2]; }
 function levelTower(type) {
   const L = LEVELS[curLevel];
   if (!(L && L.era === curEra)) return null;
-  return (L.towers && L.towers[type]) || (type === "post" && POST_LEVEL[L.id]) || null;
+  return (L.towers && L.towers[type]) || (SPECIAL_LEVEL[type] && SPECIAL_LEVEL[type][L.id]) || null;
 }
 // what the tower shows, for the card's tooltip: "" where the battlefield does not say
 function towerDepicts(type) {
@@ -10183,6 +10229,7 @@ function trayCard(kind) {
   from.parentNode.appendChild(card);
   if (typeof bindTrayCard === "function") bindTrayCard(card);
   if (trayCardRO) trayCardRO.observe(card);
+  eraLabelsDrawn = -1;   // a clone's canvas is blank: its portrait is drawn with the others (applyEraLabels)
   return card;
 }
 var trayCardRO = null;   // var: the tray is laid out before its observer's line is reached
@@ -10244,7 +10291,7 @@ function applyEraLabels() {
     try { renderShopPortraits(); } catch (err) { /* portraits are decoration */ }
   }
 }
-let eraLabelsDrawn = -1;
+var eraLabelsDrawn = -1;   // var: trayCard may clear it before this line is reached
 // once the Call is open the hero's tooltip (and a finger's toast) says how to sound it, but only while it is ready:
 // while it cools a second press lets him go, so the words say when it will be ready instead. R chooses and lets go;
 // only T sounds the Call
@@ -11291,7 +11338,8 @@ function rulesetData() {
         units: Object.keys(ENEMY_DEFS).map(role => eraUnit(role)),
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
-        towers: trayStandard(L.era).map(k => TOWER_DEFS[k]),
+        // (a special tower's own rules ride with it, so they move only the pins of the battlefields that offer it)
+        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : TOWER_DEFS[k])),
         waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
@@ -11626,7 +11674,7 @@ function slotMult(e, slot) {
 function bookAdapt(slot, eff, e) {
   if (!slot || !(eff > 0)) return;
   const own = TRICK_SLOTS.includes(slot);
-  if (!own && !(TOWER_DEFS[slot] && TOWER_DEFS[slot].post)) return;
+  if (!own && !(TOWER_DEFS[slot] && (TOWER_DEFS[slot].post || TOWER_DEFS[slot].charge))) return;
   if (e && (e.type === "flyer" || e.type === "boss" || e.fly)) return;
   const took = e ? Math.min(eff, Math.max(0, e.hp)) : eff;
   const k = own ? slot : "other";
@@ -11679,7 +11727,7 @@ function savedAdapt(x) {
 
 // ---- tower strength ----
 function towerMaxHp(t) {
-  const row = TOWER_HP[t.type] || TOWER_HP.archer;
+  const row = TOWER_HP[t.type] || (TOWER_DEFS[t.type] && TOWER_DEFS[t.type].hp) || TOWER_HP.archer;
   return Math.round(row[Math.max(0, Math.min(row.length - 1, t.level | 0))] * (t.spec ? 1.25 : 1) * byDiff(TRICK_RULES.tower.hpMult) * kitNow().towerHp);
 }
 // a new or resumed tower stands at full strength; an upgrade or a mastery keeps the damage it has taken
@@ -12761,9 +12809,11 @@ function postDefaultRally(x, y, reach) {
   }
   return best && { x: best.x, y: best.y, route: best.route, dist: best.dist };
 }
-function padTakesPost(padIdx) {
+function padTakesPost(padIdx) { return padTakesRoad(padIdx, TOWER_DEFS.post.levels[0].reach); }
+// a pad with road within that reach (a post's or the Horse Lines' first rank)
+function padTakesRoad(padIdx, reach) {
   const p = PADS[padIdx];
-  return !!p && !!postDefaultRally(p[0], p[1], TOWER_DEFS.post.levels[0].reach);
+  return !!p && !!postDefaultRally(p[0], p[1], reach);
 }
 // a man's strength, his seconds before he walks out again, and the share of a blow he does not take
 function postManMax(t) { return Math.round(getStats(t).hp * kitNow().postMen); }
@@ -12978,6 +13028,82 @@ function postManFalls(t, m) {
 }
 // a held foe stands still (moveMult 0 in update's march), as under the hero's hold
 function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
+
+// ---------- the Horse Lines' charge (gameplay 3.2) ----------
+// t.cd counts down to the next charge (quickened by the drums, slowed on a damaged or failing tower, like any reload).
+// Once it is spent and a ground foe stands on the road in reach, the riders go: t.ride = { t, runs: [{ route, a, b }] },
+// one run for each stretch of road inside the reach (a road's samples in reach, from dist a up to dist b). The riders
+// set out at b, the walls' end, and reach a in HORSE_RULES.ride s; a foe on that road between them and b has been
+// passed and is struck once (t.ride.hit). Struck: dmg, the drums' might in it, cut by armor unless the charge pierces;
+// thrown back push px along its own road (never behind its start), a siege engine or a commander a quarter as far; a
+// foe a man or the hero holds is struck but stays where it is held; a foe thrown in the last HORSE_RULES.rest s
+// (e.thrownT, by any Horse Lines) is struck and not thrown. Outflankers, unseen scouts, a hunter off its road and a
+// foe the riders cannot reach are untouched. Game time, no random number: the bot and a resumed run see the same
+// charges. The riders cannot be hurt or held, so nothing here can stop them
+function horseRuns(t, reach) {
+  const key = reach + "|" + t.x + "," + t.y;
+  if (t.runsKey === key) return t.runs;
+  const runs = [];
+  let cur = null;
+  for (const s of postRoadIn(t.x, t.y, reach)) {
+    if (cur && cur.route === s.route && s.dist - cur.b <= 5.01) { cur.b = s.dist; continue; }
+    cur = { route: s.route, a: s.dist, b: s.dist };
+    runs.push(cur);
+  }
+  t.runs = runs.filter(r => r.b > r.a); t.runsKey = key;
+  return t.runs;
+}
+// a foe the riders may strike: on the ground, on its road, seen
+function horseStrikable(e) {
+  return !(e.dead || e.hp <= 0 || e.fly || e.type === "flyer" || e.off || e.orbit || e.pin || foeUnseen(e));
+}
+// a foe that stands held (a man of a post, or the hero): struck, not thrown (the hold keeps it)
+function horseHeld(e) { return postHolds(e) || (!!hero && hero.alive && hero.engaged.includes(e)); }
+function horseOnRun(e, r) { return (e.route || 0) === r.route && e.dist >= r.a - e.r && e.dist <= r.b + e.r; }
+function horseTick(dt) {
+  for (const t of towers) {
+    if (t.type !== "horse") continue;
+    const st = getStats(t);
+    if (t.ride) {
+      t.ride.t += dt;
+      const f = Math.min(1, t.ride.t / HORSE_RULES.ride);
+      if (t.ride.t <= HORSE_RULES.ride + dt) {
+        for (const r of t.ride.runs) {
+          const front = r.b - (r.b - r.a) * f;
+          for (const e of enemies) {
+            if (t.ride.hit.has(e) || !horseStrikable(e) || !horseOnRun(e, r) || e.dist < front - e.r) continue;
+            t.ride.hit.add(e);
+            horseStrike(t, st, e);
+          }
+        }
+      }
+      // the riders wheel back to the lines (drawn only) and the reload begins as they set out
+      if (t.ride.t >= HORSE_RULES.ride + HORSE_RULES.back) t.ride = null;
+    }
+    if (t.wreck || t.stunnedT > 0) continue;
+    if (t.cd > 0) { t.cd -= dt * (1 + (t.buffHaste || 0)) * towerPace(t); continue; }
+    if (t.ride) continue;
+    const runs = horseRuns(t, st.range);
+    if (!runs.length || !enemies.some(e => horseStrikable(e) && runs.some(r => horseOnRun(e, r)))) continue;
+    t.ride = { t: 0, runs, hit: new Set() };
+    t.cd = st.cd;
+    t.charges = (t.charges || 0) + 1;
+    Snd.play("ridersIn", { x: t.x });
+  }
+}
+function horseStrike(t, st, e) {
+  damageEnemy(e, st.dmg * (1 + (t.buffMight || 0)), !!st.pierce, t);
+  if (st.slow) { e.harryT = st.slowS; e.harryK = 1 - st.slow; }
+  if (horseHeld(e) || e.thrownT > 0) return;
+  const heavy = e.type === "ram" || e.type === "boss";
+  const back = Math.min(e.dist, st.push * (heavy ? HORSE_RULES.heavy : 1));
+  e.dist -= back;
+  e.thrownT = HORSE_RULES.rest;
+  t.thrown = (t.thrown || 0) + back;   // px thrown in all, for the balance bot's report
+  const p = enemyPos(e);
+  for (let i = 0; i < 4; i++) particles.push({ x: p.x + (fxRnd() - 0.5) * 12, y: p.y - 2, vx: (fxRnd() - 0.5) * 30, vy: -14 - fxRnd() * 10,
+    life: 0.5, color: "rgba(176, 150, 106, .7)", size: 3.4 });
+}
 
 // ---- the rally point, by mouse and by touch (2.3): a third armed state beside castingSpell and heroSelected ----
 var rallying = null, rallyArmAt = 0;   // var: setPlacing may run before this line is reached
@@ -14895,7 +15021,11 @@ function showUnlockCard(what) {
       (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " the star tally to open it. The Council is a game system, not a record of history."] },
     post: { title: "A new tower: the Garrison Post", icon: "post", btn: "Got it",
       lines: ["Its men stand on the road and hold foes so your towers can shoot. Set where they stand with Rally point.",
-        "Outflankers go round them, and siege engines walk past. A commander is held a few seconds only."] } }[what];
+        "Outflankers go round them, and siege engines walk past. A commander is held a few seconds only."] },
+    // the special towers (3.1), each the first time its battlefield's tray holds it
+    horse: { title: "A new tower: the Horse Lines", icon: "horse", btn: "Got it",
+      lines: ["Its riders charge down the road in its reach and throw the foes back the way they came.",
+        "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -14919,6 +15049,8 @@ function closeUnlockCard(open) {
   trickCardEl.setAttribute("aria-hidden", "true");
   Snd.play("uiTick");
   if (open && what === "council") openCouncil("map");
+  // a player new to both the post and the battlefield's special tower reads one card, then the other
+  if (what === "post") postCardSoon();
 }
 document.addEventListener("click", (e) => {
   if (!unlockCardOn) return;
@@ -15236,8 +15368,8 @@ function towerInvested(t) {
 
 function placeTower(type, padIdx) {
   const cost = towerCost(type);
-  // a Garrison Post needs road in its reach to stand its men on (2.3)
-  if (TOWER_DEFS[type].post && !padTakesPost(padIdx)) { toast("No road in reach of this pad."); return; }
+  // a Garrison Post needs road in its reach to stand its men on (2.3), and the Horse Lines road to charge down
+  if ((TOWER_DEFS[type].post || TOWER_DEFS[type].charge) && !padTakesRoad(padIdx, kitStatsOf(type, 0, null).range)) { toast("No road in reach of this pad."); return; }
   // a kind with a limit on one field (def.max: the special towers, 3.7) refuses the next one with its own sentence
   const lim = TOWER_DEFS[type].max;
   if (lim && towers.filter(t => t.type === type).length >= lim) { toast(TOWER_DEFS[type].maxSay || ("No more than " + lim + " on one field.")); return; }
@@ -15317,7 +15449,8 @@ const BURN_STACKS = 3;   // how many pots of burning pitch can burn on one foe a
 // runs on its own timer, so it never cuts short or outlasts an altar's slow, and the two do not compound: the
 // stronger slow holds (a foe in a 60% altar's flames under a stone still keeps 40% of its pace, not 24%)
 const STAGGER_PACE = 0.6;
-function paceOf(e) { return Math.min(e.slowFactor, e.staggerT > 0 ? STAGGER_PACE : 1); }
+// (the Harriers' scatter, harryT, is a slow of its own on the same rule: the strongest holds)
+function paceOf(e) { return Math.min(e.slowFactor, e.staggerT > 0 ? STAGGER_PACE : 1, e.harryT > 0 ? e.harryK : 1); }
 function fireTowerShot(t, target, dmgMult) {
   const st = getStats(t);
   const def = TOWER_DEFS[t.type];
@@ -15374,7 +15507,7 @@ function damageEnemy(e, dmg, pierce, src) {
   if (e.hid) revealFoe(e);
   e.flash = 0.1;
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
-  if (src && Snd.ctx && !TOWER_DEFS[src.type].post) {
+  if (src && Snd.ctx && !TOWER_DEFS[src.type].post && !TOWER_DEFS[src.type].charge) {
     const art = skinArt(src.type), kind = (art && art.proj) || TOWER_DEFS[src.type].proj;
     // a hit on anything in the air (the flying Harop salvo too) rings off an airframe, not tank plate
     if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind, unit: e.fly ? "flyer" : e.type, era: curEra });
@@ -15406,6 +15539,7 @@ function update(dt) {
   updateSpells(dt);
   updateHero(dt);
   postTick(dt);
+  horseTick(dt);
 
   // war drums auras
   for (const t of towers) {
@@ -15489,6 +15623,8 @@ function update(dt) {
     if (e.orbit) stepOrbit(e, dt);
     if (e.stunT > 0) e.stunT -= dt;
     if (e.staggerT > 0) e.staggerT -= dt;
+    if (e.harryT > 0) e.harryT -= dt;
+    if (e.thrownT > 0) e.thrownT -= dt;
     if (e.shieldDownT > 0) e.shieldDownT -= dt;
     if (e.flash > 0) e.flash -= dt;
     // the fire a lightning strike leaves (burnT), and each pot of pitch on the foe, every pot on its own timer
@@ -26493,6 +26629,7 @@ function draw(time) {
   }
   for (const t of towers) objs.push({ y: t.y, fn: () => drawTower(t, time) });
   queuePostMen(objs, time);
+  queueHorseRiders(objs, time);
   if (plots.length && overlayEl.classList.contains("hidden")) {
     const m = ctx.getTransform();
     for (const plot of plots) {
@@ -45179,6 +45316,136 @@ function drawPostMarks(time) {
 }
 // ====================================== END SKIN SECTION: post ======================================
 
+// ======================================================================================
+// SKIN SECTION: the Horse Lines (gameplay 3.2). The building is put together from parts the other skins use: the
+// common footing, a hitching rail of two posts and a bar, a water trough of timber, a heap of fodder and the age's
+// banner on a pole (the post's). One horse stands at the rail, drawn live with the cavalry painter (unitPaintHorse) so
+// that it can be gone while its riders charge. Lancers hang their lances on a rack; Harriers fly a long pennon and keep
+// a second horse. The riders (queueHorseRiders) are the cavalry painter in the defenders' colors, three to a stretch.
+// ======================================================================================
+TOWER_BOX.horse = [-46, -84, 50, 22];
+TOWER_SCALE.horse = 1;
+TOWER_ACCENT.horse = "#8e2b22";
+function horseBase(lvl, spec) { return { w: (spec ? 40 : [34, 36, 38][lvl]), d: 17, h: 4.4 }; }
+function horseFooting(lvl, spec) {
+  const b = horseBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.horse, stepped = !!spec || lvl === 2;
+  return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+}
+function paintHorseLines(lvl, spec) {
+  const c = sctx, S = footStone(), base = horseBase(lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 131 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const A = spec === "a", B = spec === "b", W = base.w - 4;
+  // the trough at the front left: a box of planks with water in it
+  c.save();
+  c.translate(-W / 2 + 8, 1.5);
+  box3(12, 4.2, 6, toneHex(TIMBER, -6), { side: toneHex(TIMBER, -22), top: toneHex(TIMBER, 10) });
+  inkPoly([-5.2, -4.4, 5.2, -4.4, 4.6, -3.4, -4.6, -3.4], "#4f7c94", 0.4);
+  c.restore();
+  // fodder heaped at the back right
+  inkPoly([W / 2 - 13, -1, W / 2 - 10, -6 - lvl, W / 2 - 4, -7 - lvl, W / 2 - 1, -1], "#c9a65a", 0.8);
+  for (let i = 0; i < 3 + lvl; i++) beam(W / 2 - 11 + i * 2.4, -2, W / 2 - 9.6 + i * 2.4, -5.4 - lvl, 0.5, "#a8853e");
+  // the hitching rail across the middle: two posts and a bar (a third post from rank 2), the horse stands at it (live)
+  const rh = 12, posts = lvl >= 1 || spec ? [-W / 2 + 3, 1, W / 2 - 3] : [-W / 2 + 3, W / 2 - 3];
+  for (const x of posts) beam(x, 0, x, -rh, 1.4, TIMBER_DARK);
+  beam(-W / 2 + 2, -rh + 2, W / 2 - 2, -rh + 2, 1.2, TIMBER);
+  if (lvl >= 2 || spec) beam(-W / 2 + 2, -rh + 6, W / 2 - 2, -rh + 6, 1, toneHex(TIMBER, -12));
+  // Lancers: a rack of lances at the right; Harriers: a long pennon on the banner pole
+  if (A) {
+    for (let i = 0; i < 4; i++) {
+      const x = W / 2 - 6 + i * 1.6;
+      beam(x, 0.5, x + 2.6, -34, 0.8, "#8a6a3e");
+      inkPoly([x + 2.6, -34, x + 1.8, -38, x + 3.4, -34.4], curEra === 0 ? "#e0b062" : "#c9cdd2", 0.5);
+    }
+  }
+  const col = POST_BANNER[curEra] || POST_BANNER[0], ph = 30 + lvl * 3 + (spec ? 4 : 0), px = -W / 2 + 1;
+  beam(px, 0, px, -ph, 1.2, TIMBER_DARK);
+  const fl = B ? 17 : 11;
+  inkPoly([px + 0.6, -ph + 1, px + fl, -ph + 2.4, px + fl - 1.6, -ph + 6.4, px + fl, -ph + 10.4, px + 0.6, -ph + 9.4], col[0], 0.8);
+  inkPoly([px + 0.6, -ph + 4.6, px + fl - 1.2, -ph + 5.6, px + fl - 1.4, -ph + 6.6, px + 0.6, -ph + 5.8], col[1], 0);
+  structCrown(-ph - 2);
+  c.restore();
+}
+// the rider's style by age: Urartu's horsemen, then the noble houses' (the tower is offered in no other age)
+function horseStyle() { return eraAge(curEra) >= 1 ? "nakharar" : "urartu"; }
+const HORSE_PAL = ["#8e2b22", "#e8c15a"];
+// one horse at world point (x, y), facing +1 or -1: ridden (the cavalry painter) or standing at the rail (the bare
+// horse with its saddle cloth). walk: the gallop's phase, or null for standing still
+function drawHorseFigure(x, y, face, ridden, walk, alpha) {
+  const sp = proj(x, y), s = sp.s, look = UNIT_LOOKS.horse;
+  const M = ctx.getTransform(), pxScale = Math.hypot(M.a, M.b) || 1;
+  const size = s * look.f * (ridden ? 0.92 : 0.86);
+  const step = Math.round(Math.log(Math.max(0.2, Math.min(16, size * pxScale))) / UNIT_SCALE_STEP);
+  const q = Math.exp(step * UNIT_SCALE_STEP), k = q / pxScale, turn = Math.PI * 2;
+  const moving = walk != null, f = face >= 0 ? 1 : -1, style = horseStyle();
+  const frame = moving ? Math.floor((((walk % turn) + turn) % turn) / turn * UNIT_FRAMES) % UNIT_FRAMES : 0;
+  const key = "horse|" + style + (ridden ? "r" : "s") + (moving ? "w" : "i") + f + "|" + frame + "|" + step;
+  const sprite = unitSprite(key, q, look, f < 0, () => {
+    unitPhase = frame / UNIT_FRAMES * turn;
+    unitFace(f);
+    const pal = unitPalette(HORSE_PAL[0], HORSE_PAL[1]);
+    if (ridden) unitPaintCavalry(style, pal);
+    else unitPaintHorse(style === "urartu" ? UNIT_HORSES.bay : UNIT_HORSES.dark, { cloth: pal.dark, clothTrim: pal.trim });
+  });
+  if (alpha != null && alpha < 1) ctx.globalAlpha = alpha;
+  shadow(sp.x, sp.y + 1.2 * k, 11 * k, 3 * k);
+  const bob = moving ? Math.abs(Math.sin(walk * 2)) * 1.4 * k : 0;
+  unitBlit(sprite, M, sp.x, sp.y - bob);
+  ctx.globalAlpha = 1;
+}
+// the horse at the rail: always in a portrait (with a second horse for Harriers); on the field only while its riders
+// are home
+function horseLive(t, cx) {
+  if (t.pad >= 0 && (t.ride || t.wreck)) return;
+  drawHorseFigure(t.x + 2, t.y + 4, -1, false, null);
+  if (t.spec === "b" || t.pad < 0) drawHorseFigure(t.x - 18, t.y + 9, 1, t.pad < 0, null);
+}
+SKIN_ART.horselines = {
+  box: [-46, -84, 50, 22], scale: 1,
+  paint(lvl, spec) { paintHorseLines(lvl, spec); },
+  // the banner differs by age and the snow by map
+  variant() { return curEra * 2 + (backdropSnowy() ? 1 : 0); },
+  live: horseLive,
+  footing: horseFooting,
+};
+// where along a run a rider is at moment tt of the charge (0 to ride + back): out from the walls' end to the far end,
+// then back again
+function horseRiderAt(run, tt, j) {
+  const R = HORSE_RULES, lag = j * 9, len = run.b - run.a;
+  let d, face, out;
+  if (tt <= R.ride) { d = run.b - len * (tt / R.ride) + lag; out = true; }
+  else { d = run.a + len * Math.min(1, (tt - R.ride) / R.back) + lag; out = false; }
+  d = Math.max(run.a, Math.min(run.b, d));
+  const q = routeAt(run.route, d), q2 = routeAt(run.route, Math.max(0, d - 4));
+  // facing: toward the enemy (lower dist) on the way out, toward the walls on the way back
+  face = (q2.x < q.x ? -1 : 1) * (out ? 1 : -1);
+  const across = (j - 1) * 9;
+  return { x: q.x - Math.sin(q.ang) * across, y: q.y + Math.cos(q.ang) * across * ELLIPSE, face, out };
+}
+// every charge's riders, in the depth sort with everything else that stands, and their dust
+function queueHorseRiders(objs, time) {
+  for (const t of towers) {
+    if (t.type !== "horse" || !t.ride) continue;
+    const tt = t.ride.t, R = HORSE_RULES, fade = tt > R.ride + R.back - 0.3 ? Math.max(0, (R.ride + R.back - tt) / 0.3) : 1;
+    const shown = [];
+    for (const run of t.ride.runs) {
+      // two roads that share their trunk would draw the same riders twice: one set for each place
+      const mid = routeAt(run.route, (run.a + run.b) / 2);
+      if (shown.some(m => Math.hypot(m.x - mid.x, m.y - mid.y) < 10)) continue;
+      shown.push(mid);
+      for (let j = 0; j < 3; j++) {
+        const r = horseRiderAt(run, tt, j), walk = tt * 14 + j;
+        objs.push({ y: r.y, fn: () => drawHorseFigure(r.x, r.y, r.face, true, walk, fade) });
+        if (r.out && fxRnd() < 0.5) particles.push({ x: r.x + (fxRnd() - 0.5) * 10, y: r.y, vx: (fxRnd() - 0.5) * 20, vy: -10 - fxRnd() * 8,
+          life: 0.6, color: backdropSnowy() ? "rgba(240, 244, 250, .6)" : "rgba(196, 172, 128, .55)", size: 4 });
+      }
+    }
+  }
+}
+// ====================================== END SKIN SECTION: horse ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
@@ -51410,11 +51677,34 @@ const UNIT_RIDERS = {
   cataphract: { helm: "round", metal: "steel", beard: "veil", brow: true, skin: "#d7a877", leg: "#8a90a0", boot: "#4a4c58" },
   sipahi:     { helm: "cone", metal: "steel", aventail: true, wrap: true, beard: "moustache", skin: "#deb087", leg: "#a3352a", boot: "#d9b23c", sash: "#f5c64e" },
   camel:      { helm: "turban", cap: "#b5523a", beard: "litham", veil: "#d8cdb2", skin: "#b57d4d", leg: "#e9dcc0", boot: "#5a3a22", sash: "#f5c64e" },
+  // the defenders' horse of the Horse Lines (gameplay 3.2): Urartu's conical bronze helmet (the kingdom's bronze belts
+  // show its cavalry with spears, shields and conical helmets) and the noble houses' round steel helmet over mail
+  urartu:     { helm: "cone", metal: "bronze", beard: "square", beardLen: 5, skin: "#d4a172", leg: "#8a4a32", boot: "#a87644" },
+  nakharar:   { helm: "round", metal: "steel", beard: "full", skin: "#d8aa80", leg: "#6a4a32", boot: "#3d2a1a" },
 };
 
 function unitPaintCavalry(style, pal) {
   const C = UNIT_COLORS;
   const kit = UNIT_RIDERS[style];
+  if (style === "urartu" || style === "nakharar") {
+    // a spear couched for the charge, a round shield on the bridle arm, the saddle cloth in the defenders' colors
+    const ur = style === "urartu";
+    unitPaintHorse(ur ? UNIT_HORSES.bay : UNIT_HORSES.dark, { cloth: pal.dark, clothTrim: pal.trim });
+    unitPaintRiderBody(pal, kit);
+    if (!ur) { uFlatLine([-3.6, -20, 4, -20], "rgba(36, 42, 56, .5)", 0.45); uFlatLine([-3.8, -18.2, 4.2, -18.2], "rgba(36, 42, 56, .5)", 0.45); }
+    unitPaintRiderHead(kit, pal);
+    uSeg(-9.5, -17.2, 19.6, -20.6, 1.15, C.wood);
+    uPoly([24.2, -21.2, 19.4, -22.2, 19.6, -19.4], ur ? C.bronzeLit : C.steelLit);
+    uGlint(21.2, -21.2, 1.1);
+    if (!ur) uPoly([17.6, -20.5, 12.4, -22.6 + Math.sin(unitPhase) * 0.7, 13, -19.9], pal.trim);
+    uDisc(-1.2, -18.2, 3.4, ur ? C.bronze : pal.base);
+    uc.beginPath(); uc.arc(-1.2, -18.2, 2.2, 0, Math.PI * 2);
+    uc.lineWidth = 0.7; uc.strokeStyle = ur ? C.bronzeShade : pal.trim; uc.stroke();
+    uFlatDisc(-1.2, -18.2, 0.9, ur ? C.bronzeLit : pal.trim);
+    uSeg(-0.6, -21, 3.6, -18.6, 2.5, pal.base);
+    uDisc(3.8, -18.7, 1.45, kit.skin);
+    return;
+  }
   if (style === "cataphract") {
     unitPaintHorse(UNIT_HORSES.dark, { barding: C.steel, bardingLit: C.steelLit, bardingTrim: C.gold });
     unitPaintRiderBody(unitPalette("#8088a0", "#d8d8e8"), kit);
@@ -56930,9 +57220,10 @@ function drawPlacement() {
   if (padIdx >= 0) {
     const pp = proj(PADS[padIdx][0], PADS[padIdx][1]);
     // a post's preview lights the road its men may stand on; a pad with none in reach shows its ring red (2.3)
-    const postNo = def.post && !padTakesPost(padIdx);
+    const postNo = (def.post || def.charge) && !padTakesRoad(padIdx, kitStatsOf(placing, 0, null).range);
     drawRange(pp.x, pp.y, kitStatsOf(placing, 0, null).range, postNo ? "rgba(230, 110, 90, .7)" : "rgba(140, 220, 140, .6)", pp.s);
-    if (def.post) drawPostRoad(PADS[padIdx][0], PADS[padIdx][1], kitStatsOf(placing, 0, null).reach, 0.8);
+    // the road the men may stand on, or the riders charge down, lit
+    if (def.post || def.charge) drawPostRoad(PADS[padIdx][0], PADS[padIdx][1], kitStatsOf(placing, 0, null).range, 0.8);
     drawWatchReach({ type: placing, level: 0, spec: null }, pp.x, pp.y, pp.s);
     ctx.fillStyle = "rgba(140, 220, 140, .3)";
     ctx.beginPath(); ctx.ellipse(pp.x, pp.y + 2 * pp.s, PAD_OPEN.rx * pp.s, PAD_OPEN.ry * pp.s, 0, 0, Math.PI * 2); ctx.fill();
@@ -57040,6 +57331,16 @@ function statText(t) {
     if (st.chase) s += statRow("road", st.chase, "px of chase", "wide");
     // short enough for the stats box at every size (the tile's blurb says it at length)
     s += statRow("wing", "", "Holds foes. Outflankers go round.", "wide");
+    return s;
+  }
+  if (def.charge) {
+    // the Horse Lines (3.2): the charge's blow, its reach, how often, how far it throws
+    let s = statRow("dmg", st.dmg, "charge", might ? "wide" : "", might) + statRow("range", st.range, "reach") +
+      statRow("rate", st.cd + "s", "reload") + statRow("road", st.push, "px back");
+    if (st.pierce) s += statRow("spear", "", "The charge pierces armor");
+    if (st.slow) s += statRow("frost", Math.round(st.slow * 100) + "%", "slow for " + st.slowS + "s", "wide");
+    // short enough for the stats box at every size (the tile's blurb and the card say it at length)
+    s += statRow("wing", "", "Thrown once in " + HORSE_RULES.rest + "s. Outflankers untouched.", "wide");
     return s;
   }
   if (t.type === "fire") {
@@ -57355,11 +57656,19 @@ window.addEventListener("resize", () => { if (callBubble) placeCallBubble(); });
 // ---- the Garrison Post told (2.8): a one-time card on the chronicle the first time the post is in the tray, and one
 // coach's bubble at the Rally point button the first time a post's panel opens in a battle. Both are kept in
 // hs_towers_seen ("post", "rally"). (The regression scripts that are not about them hold them back with window flags)
-function postCardDue() {
+// The special towers are told the same way (3.1): their card the first time a tray holds one, on its chronicle; the
+// post's comes first where both are new (window.__hsQuietPostCard holds back every new tower's card)
+function postCardDue(what) {
+  what = what || "post";
   return !HARNESS_ON && !window.__hsQuietPostCard && menuMode === "brief" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
-    towerUnlocked("post") && !towersSeen().includes("post");
+    towerUnlocked(what) && !towersSeen().includes(what) && (what === "post" || trayTypes().includes(what));
 }
-function postCardSoon() { setTimeout(() => { if (postCardDue()) showUnlockCard("post"); }, 500); }
+function newTowerCardDue() {
+  if (postCardDue("post")) return "post";
+  const a = ageTower(curEra);
+  return a && postCardDue(a) ? a : "";
+}
+function postCardSoon() { setTimeout(() => { const k = newTowerCardDue(); if (k) showUnlockCard(k); }, 500); }
 var rallyBubble = null;   // the post whose panel shows the bubble (var: hidePanel may run before this line is reached)
 function rallyBubbleDue(t) {
   return !trickCardsQuiet() && !photo && !window.__hsQuietRallyBubble && !tut && battleLive() && !!t && t.type === "post" && !t.wreck &&
@@ -58640,6 +58949,7 @@ function statDps(type, st) {
   const def = TOWER_DEFS[type];
   if (def.aura) return 0;
   if (def.post) return st.dmg / st.rate * st.men;
+  if (def.charge) return st.dmg / st.cd;   // on one foe in its reach: one charge's blow each cd
   if (!def.proj) return st.burn;
   // a pot's burn on a foe it keeps hitting: as many pots as burn at once, one landing each reload (BURN_STACKS)
   const pots = st.burnHit ? Math.min(BURN_STACKS, st.burnDur / st.rate) : 0;
@@ -58664,6 +58974,13 @@ function statDeltaHtml(type, a, b) {
     cell("lock", ha, hb, hb >= ha);
     if (b.guard && !a.guard) add("shield", "<b>" + pc(b.guard) + "</b>&nbsp;less&nbsp;damage");
     if (b.pierce && !a.pierce) add("spear", "<b>pierce</b>");
+  } else if (def.charge) {
+    cell("dmg", a.dmg, b.dmg, b.dmg >= a.dmg);
+    cell("rate", a.cd + "s", b.cd + "s", b.cd <= a.cd);
+    cell("range", a.range, b.range, b.range >= a.range);
+    cell("road", a.push, b.push, b.push >= a.push);
+    if (b.pierce && !a.pierce) add("spear", "<b>pierce</b>");
+    if (b.slow && !a.slow) add("frost", "<b>" + pc(b.slow) + "</b>&nbsp;slow");
   } else if (def.aura) {
     cell("rate", "+" + pc(a.haste), "+" + pc(b.haste), b.haste >= a.haste);
     cell("dmg", "+" + pc(a.might), "+" + pc(b.might), b.might >= a.might);
@@ -83172,11 +83489,15 @@ function photoStageBattle(lv, wave, o) {
     waveBannerMain = own ? said.main : "Wave " + wave;
     waveBannerSub = own ? said.sub || "" : waveBannerLine();
   }
+  // &horse=N: N Horse Lines (&hl=0|1|2|a|b their rank or mastery), &ride=s the first one's charge s seconds in
+  if (o.horse) photoHorseStage(o.horse, o.hl, o.ride);
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
   const firstPost = towers.find(t => t.type === "post");
   if (o.postPanel && firstPost) showPanel(firstPost);
+  const firstHorse = towers.find(t => t.type === "horse");
+  if (o.horsePanel && firstHorse) showPanel(firstHorse);
   if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
 }
 function photoPostStage(n) {
@@ -83197,6 +83518,37 @@ function photoPostStage(n) {
       e.route = t.rally.route; e.dist = Math.max(0, t.rally.dist - 4 - enemies.length % 3 * 3);
       e.maxHp *= 6; e.hp = e.maxHp;
     }
+  }
+  gold = 640;
+}
+
+// Horse Lines for a photo: on the free pads whose reach holds the most road, with foes on that road, and the first
+// one's charge frozen `ride` seconds in (its riders out on the road)
+function photoHorseStage(n, hl, ride) {
+  gold = 99999;
+  const range = TOWER_DEFS.horse.levels[0].range;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i) && padTakesRoad(i, range))
+    .sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], range).length - postRoadIn(PADS[a][0], PADS[a][1], range).length);
+  while (free.length < n && towers.length) { const t = towers.pop(); if (padTakesRoad(t.pad, range)) free.unshift(t.pad); }
+  for (let k = 0; k < n && k < free.length; k++) {
+    placeTower("horse", free[k]);
+    const t = towers[towers.length - 1];
+    if (hl === "a" || hl === "b") { t.level = 2; t.spec = hl; } else t.level = Math.max(0, Math.min(2, Number(hl) | 0));
+    t.placedAt = -1e9;
+    towerSyncHp(t);
+    const runs = horseRuns(t, getStats(t).range);
+    for (const r of runs.slice(0, 1)) for (const [role, f] of [["spearman", 0.2], ["raider", 0.5], ["shield", 0.8]]) {
+      spawnEnemy(role);
+      const e = enemies[enemies.length - 1];
+      if (e.fly) continue;
+      e.route = r.route; e.dist = r.a + (r.b - r.a) * f;
+      e.maxHp *= 6; e.hp = e.maxHp;
+    }
+    t.cd = k === 0 && ride != null ? 0 : getStats(t).cd;
+  }
+  if (ride != null) {
+    const t = towers.find(x => x.type === "horse");
+    if (t) { horseTick(0); if (t.ride) for (let i = 0; i < Math.round(ride * 60); i++) horseTick(1 / 60); }
   }
   gold = 640;
 }
@@ -83487,6 +83839,8 @@ function runPhoto() {
         trick: HARNESS.get("trick"), card: HARNESS.get("card"), read: HARNESS.has("read"),
         // &post=N Garrison Posts holding foes, &postpanel its panel, &rally its rally armed (the ring and the lit road)
         post: num("post", 0), postPanel: HARNESS.has("postpanel"), rally: HARNESS.has("rally"),
+        // &horse=N Horse Lines (&hl rank or mastery, &ride=s a charge s seconds in), &horsepanel the first one's panel
+        horse: num("horse", 0), hl: HARNESS.get("hl") || "0", ride: HARNESS.has("ride") ? num("ride", 0.4) : null, horsePanel: HARNESS.has("horsepanel"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
