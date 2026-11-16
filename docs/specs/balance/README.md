@@ -596,3 +596,70 @@ What was found, and the numbers chosen:
   town-isolation PASS (9); run-all --quick 10 of 11 (dance10 failed by taps at 9.7 and 10.2 s under load, PASS alone,
   15 runs); run-all --only=padplace,probe,iphone,live in full PASS (4 of 4, all 17 battlefields, iphone at ten sizes);
   nine mutants of the Stores' rules each caught by suite 2's three Stores checks.
+
+### G7b close (review: docs/specs/reviews/G7b-review.md)
+
+The close changes no number of the Stores and no battlefield: the price stays 160 and every other number is 3.3's.
+What it changed in the page: the undo grace ends at a clear (a tower placed before a clear sells as any other, so a
+Stores can no longer be placed, paid and taken back in full), the Council's line lists its towers with one "and",
+Dvin's tile carries the card's sourced line, and the Stores' panel rows are shorter. The bot's tables are the same
+battles as before: the rerun at the close of Normal, Easy and Hard (SEEDS=3, every build, the six) equals
+`g7b-normal-seeds3.txt`, `g7b-easy-seeds3.txt` and `g7b-hard-seeds3.txt` cell for cell.
+
+The bot's Stores rows now also give what greedy earned and spent over the whole battle against the mix (review 4): the
+gold invested counts only what stands at the end, and a full board hides the Stores' gold there.
+`g7b-close/normal-stores-earned-seeds3.txt` (Normal, the six, mix, greedy and bazaar):
+
+```
+battlefield              invested   cmd1 lost  end      bazaar end  earned   spent    stores gold (greedy, bazaar)
+3 Dvin Gates 640         +4.7%      -1.0       +1.7     -10.0       +9.4%    +8.6%    986, 445
+4 Tashir Gates 914       -54.5%     +6.3       -6.3     -8.0        -53.5%   -53.9%   461, 586
+5 Sevan Shores 921       +15.5%     +1.0       +2.3     +2.7        +9.3%    +9.9%    986, 2229
+6 Ani 1041               +5.8%      +2.7       +2.0     -0.7        +7.3%    +11.5%   1110, 2220
+7 Mari 1266              +2.3%      +0.0       -7.3     -9.7        +5.4%    +3.5%    1076, 2200
+8 Sis 1375               +3.5%      +2.0       -0.3     -10.3       +7.7%    +8.2%    1092, 2043
+```
+
+Read as earned, greedy's extra gold is 6 to 10% above the mix on Dvin, Sevan, Ani and Sis (4 of 6), 5.4% on Mari and
+lost with the battle on Tashir. Easy (`g7b-close/easy-stores-rows-seeds3.txt`): +7.1 to +11.1% on all six. Hard
+(`g7b-close/hard-stores-rows-seeds3.txt`): +5.8 to +7.5% on Sevan, Mari and Sis, +30.5% on Dvin and +55.6% on Tashir
+(the mix loses seeds there), -69.9% on Ani (greedy falls early).
+
+Tashir, where every player first meets the Stores (review 3). Trials at SEEDS=3, Normal, mix, greedy and bazaar, in
+`g7b-close/`:
+- `tashir-storesrank-never.txt` (STORES_RANK=never, the Stores never ranked or mastered): greedy wins 2 of 3 and keeps
+  3.7 against the mix's 8.0 (-4.3, against -6.3 at the default STORES_RANK=last), bazaar 3 of 3 and 2.0. Not
+  ranking them helps a little, not enough.
+- `tashir-120-then-200.txt` (PATCH: the first Stores at 120, the second at 200): greedy wins 3 of 3 and keeps 6.7
+  against 8.0 (-1.3, inside 5.2's 2), and its gold invested is +3.5%. bazaar loses all three by wave 4.
+- The playtest by finger from the battle's own purse (`node tools/playtest-stores.js --purse`, and `--purse=mix` for
+  the same order without the Stores), Auto at 2x, no spells or masteries:
+
+  | Order (iPad 1194 x 834, iPhone SE 667 x 320) | Lives at each wave's horn | End |
+  | --- | --- | --- |
+  | Stores third, iPad | 20, 20, 18, 16, 9, 6, 6 | fell on wave 7; the Stores paid 240 |
+  | Stores third, SE | 20, 19, 17, 15, 7, 3, 3 | fell on wave 7; the Stores paid 240 |
+  | Same order without the Stores, iPad | 20, 20, 20, 19, 14, 13, 13, 3 | fell on wave 8 |
+  | Same order without the Stores, SE | 20, 20, 20, 20, 15, 14, 14, 4 | fell on wave 8 |
+
+  The order is a plain one with no spell and no mastery, so both fall; the Stores' 160 gold, spent before the catapult,
+  costs about 5 defenders by wave 5 and a wave of the stand.
+
+  The Stores built third cost the early waves more than they pay back on Tashir. A first Stores at 120 and a second at
+  200 is the candidate; it is not in the page. The owner rules on it with the rows below.
+
+5.2's rows still NOT met at the close, for the owner with G5's and G7a's cells: the Stores in the best build on a third
+of their battlefields (Normal 1 of 6, Easy 2, Hard 2); greedy's gold invested 6 to 10% above the mix (none of the six);
+greedy's end within 2 of the mix on Tashir (-6.3) and Mari (-7.3); and the endless stand, which 5.2 asks on three
+battlefields of the 17 and which is met on Dvin and Tashir only (Sevan 4, 4, 16; Ani 2, 2, 3; Mari 2, 2, 2; Sis 0, 2,
+2 waves beyond the chronicle): NOT met.
+
+The Council on the six (review 5), `g7b-close/kit-par-hold-normal-six-seeds3.txt` (KIT=par HERO=hold, SEEDS=3, mix,
+archdrum, mix7, halfpost, greedy and bazaar): the best boards keep Dvin 15.3, Tashir 19.3, Sevan 17.0 (bazaar), Ani
+15.7, Mari 12.0 and Sis 14.3, against the Standard battle +1.0, 0.0, +3.3, +1.0, 0.0 and +3.0. Only Sevan moved from
+G5's close (bazaar's board), and the mean over the 17 is about +2.26 against RULINGS B7's bound of 2.3: 0.04 to spare.
+A later tower that lifts a best board under the Council by a defender on one battlefield spends that margin.
+
+The daily with the Stores in its tray (review 10): the twist tables on the six (`g7b-close/daily-twists-six-normal-seeds3.txt`,
+`DAILY=1 TWIST=t DAY=20406 SEEDS=3 CLOCK=1`, the mix, every twist and none) equal G6's `g6-daily-twists-normal-seeds3.txt`
+row for row, so the skip list stands. The mix builds no Stores, and the tray's new tile changes no other tower.
