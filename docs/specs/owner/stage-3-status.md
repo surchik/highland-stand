@@ -136,4 +136,20 @@ checklists are the first such test.
 
 ## 5. How this stage was checked
 
-TESTS_GO_HERE
+Every check below was run to its end on the merged page, on a quiet build machine:
+
+- The page's own checks: both self-test suites (151 and 39 checks), the saves of today's players (8 kinds, all
+  resume), the hidden town stays hidden (9 cases).
+- The whole regression suite, 11 scripts in 71 minutes, all passed. Among them: every battlefield won by press at
+  three sizes, 737 screens at ten iPhone sizes, all 245 waves of the campaign, and every sign-in, save and
+  deletion flow at five sizes (a computer, an iPad, an iPhone held sideways in Safari and from the Home Screen,
+  and held upright).
+- The server side on the test stand-in of your server: the database rules (821 checks), the walls between
+  players, another app's users and visitors (336 checks), the restore of a backup (22 checks), the five
+  migrations applied, rolled back to nothing and applied again with the same result, and `update.sh` (36 cases).
+- By hand, through the test stand-in, at 1600 x 900 with a mouse, 1194 x 834 by touch and 667 x 320 as an
+  iPhone: sign in, choose a name, win Erebuni, build a Garrison Post on Tushpa, see the save reach the server and
+  come back whole in a second browser, start the daily (today: Musa Dagh, No Rock Fall, 12 waves), and delete the
+  account (its game rows gone, the sign-in account kept, the device cleared).
+- With the two values empty: no sign-in card and no request to any server, at `/` and at `/next/`, and at `/next/`
+  every saved key starts with `next:`, so the staging game never touches the live game's saves.
