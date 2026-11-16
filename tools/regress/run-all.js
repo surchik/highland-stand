@@ -20,7 +20,9 @@ const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", 
 // iphone walks over 700 states at ten sizes: about 500 s on a quiet machine since G3, past 600 s on a busy one;
 // waves plays all 245 waves of the campaign at 4x, four battlefields at a time)
 // (platform starts the local stack, PostgreSQL included, and plays sign-in through it: tools/platform/README.md)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 1800 };
+// (P5's flow 7, scores and boards, brought its full run to about 2,200 s and its quick one, 1600x900 and 667x320, near
+// 1,300 s under the other track's load: the limit was raised from 1800 so the quick run's 0.6 of it holds them)
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 2600 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;

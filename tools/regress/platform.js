@@ -10,7 +10,7 @@
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
 // The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
-// P8: privacy, deletion and staging; P10: the superadmin's Players view):
+// P5: scores and boards; P8: privacy, deletion and staging; P10: the superadmin's Players view):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
 //      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
@@ -94,6 +94,21 @@
 //      the words say there is no connection; with the server's answer lost after it deleted (desktop) they say it may
 //      be done, and the retry is safe. Deleted elsewhere (desktop and 667x320): another device still signed in, and a
 //      second tab of the same browser, forget the account too, say so on the gate, and bring none of it back
+//   7  scores and boards (P5): a player with five battlefields, made an admin; the map's door (#hallBtn) 10 px right of
+//      the tally, uncovered (held sideways the tally is the door); a ranked battle before the ruleset is published
+//      ("The boards for this version open soon", the page's score equal to ref.js's) and the admin's toast on the map;
+//      Publish ruleset 2 on the stats page's Rulesets card (the server then has it); ranked battles won as vic.js wins
+//      one, their clock and gold set as a real battle's would stand and the run's start moved back by the stack's
+//      control: the server's score equal to the page's and ref.js's, "#1 of 1 this week", score_posted, the tooltip;
+//      Leaderboard opens the Hall on that battlefield, Normal, This week, Standard, the player's row tinted with
+//      "17/20" and the clock, the words under it; All time, Open, Hard and the battlefield's arrows; a second player's
+//      lower score "#2 of 2", an open battle (a gift of gold) "· Open" and on the Open board only; a best beaten
+//      ("· your best"); the server down at the battle's end ("It posts when you are back online", the outbox, sent on
+//      online); a battle begun with the server down ("Not ranked: this battle began offline"); a result the server
+//      refuses ("Not ranked", score_rejected); test mode (no strip); a guest under the optional gate ("Sign in to post
+//      it", the Account tab; the board to read with the three buttons; no connection and Try again); Scores to look
+//      at (a fast result listed, Remove); the boards switched off (no strip, no run begun). The strip and the tab held
+//      to the iPhone suite's audit on the phones; photos of each state (--photos: a folder p5)
 //   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
 //      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
 //      there has its own save; /next/ again has its session and its progress
@@ -111,7 +126,7 @@
 // photographed (and the privacy page, ?privacy#delete, and the deletion's question, failure and end). Every request
 // must go to the stack's two ports; any page error or console error fails. Flow 10 also opens ?privacy#delete on the
 // page as committed (the platform off): shown from the page itself, with no request.
-// --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure. The extra parts
+// --quick: every flow at 1600x900 and 667x320 (flow 7 adds about 90 s and 190 s). A RESULT line ends it; it exits 1 on any failure. The extra parts
 // alone: --flows=4more,5more,13more,13del,13gone.
 "use strict";
 const path = require("path");

@@ -14,7 +14,10 @@
 //      signinLine                   which provider buttons show for what Auth's /settings answers (3.3, RULINGS D3,
 //                                   D6), and the line after a sign-in that did not finish, by the server's code (1.2)
 //      errWord                (P2)  signin_error's error: the server's kind of word kept, free text sent as "other"
-//      scoreOf                (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to
+//      scoreOf, boundsOf      (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to; the bounds as
+//                                   ref.boundsOf (the server's _bounds) reads them, a daily's table and its twists
+//      scoreLine, clockWords, (P5)  the victory page's strip in each state of 5.3, the battle clock in words, the outbox's
+//      outTrim                      limits (20 entries, 7 days, one a run, another account's never sent)
 //      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
 //                                   document of a newer format is left alone, a bare removal of hs_run writes no

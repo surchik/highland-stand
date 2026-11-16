@@ -22,7 +22,7 @@ ok() { oks=$((oks + 1)); echo "ok   $*"; }
 bad() { fails=$((fails + 1)); echo "FAIL $*"; }
 # the code block under a marker of the guide
 block() { awk -v m="<!-- guide-check: $1 -->" 'found && /^ *```/ { if (inside) exit; inside = 1; next } inside { sub(/^   /, ""); print } $0 ~ m { found = 1 }' "$GUIDE"; }
-BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin superadmin-open superadmin superadmin-revoke names cloud-off cloud-on rehearsal"
+BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin superadmin-open superadmin superadmin-revoke names cloud-off cloud-on rulesets boards-off boards-on rehearsal"
 for b in $BLOCKS; do [ -n "$(block $b)" ] || bad "the guide has no block marked $b"; done
 # the guide never names the old layout's files or schemas
 if grep -nE 'schema\.sql|schema-handoff\.sql|hs_private|public\.hs_' "$GUIDE"; then bad "the guide still names schema.sql, hs_private or public.hs_"; else ok "the guide names no file or schema of the old layout"; fi
@@ -52,11 +52,11 @@ else bad "step 0: the survey: $(head -20 "$T/survey-sql.out")"; fi
 mkdir -p "$T/work"
 if run backup "$T/work" && ls "$T"/work/highland-*.dump > /dev/null 2>&1; then ok "step 2: the backup: $(ls "$T"/work/highland-*.dump | xargs -n1 basename) ($(stat -c %s "$T"/work/highland-*.dump) bytes)"
 else bad "step 2: the backup: $(cat "$T/backup.out")"; fi
-if run migrate-status && grep -q 'highland at 6 of 6' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 6 of 6' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
-if run migrate-up && grep -q 'done: highland at 6' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
+if run migrate-status && grep -q 'highland at 7 of 7' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 7 of 7' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
+if run migrate-up && grep -q 'done: highland at 7' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
 if runsql check-config && grep -q '"now"' "$T/check-config.out"; then ok "step 3's check: hs_config answers with now"; else bad "step 3's check: $(cat "$T/check-config.out")"; fi
-if run migrate-down && grep -q 'reverted 006_superadmin  (now at 5)' "$T/migrate-down.out" && grep -q 'applied  006_superadmin  (now at 6)' "$T/migrate-down.out" && grep -q 'done: highland at 6' "$T/migrate-down.out"; then
-  ok "step 3: down 5 then up: 006 reverted and applied again, back at 6"
+if run migrate-down && grep -q 'reverted 007_scores  (now at 6)' "$T/migrate-down.out" && grep -q 'applied  007_scores  (now at 7)' "$T/migrate-down.out" && grep -q 'done: highland at 7' "$T/migrate-down.out"; then
+  ok "step 3: down 6 then up: 007 reverted and applied again, back at 7"
 else bad "step 3: down and up: $(cat "$T/migrate-down.out")"; fi
 psql "$HS_DB_URL" -X -q -c "grant select on highland.hs_saves to authenticated" > /dev/null 2>&1
 if run regrant && grep -q 'regranted' "$T/regrant.out" && [ "$(psql "$HS_DB_URL" -X -tA -c "select has_table_privilege('authenticated', 'highland.hs_saves', 'select')")" = f ]; then
@@ -97,6 +97,10 @@ if sub superadmin-revoke && grep -q 'taken away' "$T/superadmin-revoke.out" \
 if runsql names && grep -q 'INSERT 0 2' "$T/names.out"; then ok "step 6: two words added to the name filter"; else bad "names: $(cat "$T/names.out")"; fi
 if runsql cloud-off && [ "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'cloud'")" = false ]; then ok "the cloud switched off: hs_config says cloud false"; else bad "cloud off: $(cat "$T/cloud-off.out")"; fi
 if runsql cloud-on && [ -z "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'cloud'")" ]; then ok "and on again"; else bad "cloud on: $(cat "$T/cloud-on.out")"; fi
+# step 7 (P5): what rulesets the server has; the boards' switch off and on by hand
+if runsql rulesets && grep -q 'published_at' "$T/rulesets.out"; then ok "step 7: the rulesets the server has ($(tail -2 "$T/rulesets.out" | head -1))"; else bad "step 7: rulesets: $(cat "$T/rulesets.out")"; fi
+if runsql boards-off && [ "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'boards'")" = false ]; then ok "step 7: the boards switched off: hs_config says boards false"; else bad "boards off: $(cat "$T/boards-off.out")"; fi
+if runsql boards-on && [ -z "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'boards'")" ]; then ok "and on again"; else bad "boards on: $(cat "$T/boards-on.out")"; fi
 
 # ---------------------------------------------------------------- restoring
 block rehearsal | sed -e "s#highland-THE_TIME.dump#$(ls "$T"/work/highland-*.dump | head -1)#" > "$T/rehearsal.sh"
