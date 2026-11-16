@@ -88222,8 +88222,7 @@ function runSelftestPlay() {
     delete r.tray; localStorage.setItem("hs_run", JSON.stringify(r));
     gameOver = true; resumeRun();
     if (shown().join() !== TRAY_CLASSIC) fail("a run without a tray: " + shown());
-    // seven: a special tower once one is built into the game (G7), staged here with a stand-in kind
-    TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Stores", max: 2, maxSay: "Two stores at most on one field.", cost: 120 });
+    // seven: the battlefield's special tower (G7; the Stores of Tashir since G7b, a stand-in before)
     try {
       wonTo(17, 2);
       stage("tashir", 1);
@@ -88241,8 +88240,8 @@ function runSelftestPlay() {
       gold = 1e5;
       const free = PADS.map((p, k) => k).filter(k => !towerAt(k));
       placeTower("stores", free[0]); placeTower("stores", free[1]); placeTower("stores", free[2]);
-      if (towers.filter(x => x.type === "stores").length !== 2 || !/Two stores at most/.test($("toast").textContent)) fail("the limit: " + towers.filter(x => x.type === "stores").length);
-    } finally { delete TOWER_DEFS.stores; towers = []; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); syncTray(); }
+      if (towers.filter(x => x.type === "stores").length !== 2 || !/Two stores are all this road can feed/.test($("toast").textContent)) fail("the limit: " + towers.filter(x => x.type === "stores").length);
+    } finally { towers = []; syncTray(); }
   }));
   // G5 close: the rally's coach bubble and the post's one-time card are told once
   check("post: the one-time card and the rally bubble", guarded(() => {
@@ -88461,6 +88460,133 @@ function runSelftestPlay() {
       menuMode = "brief"; overlayEl.classList.remove("hidden");
       if (!trayTypes().includes("horse") || newTowerCardDue(true) !== "horse") fail("the daily's horse is not told: " + newTowerCardDue(true));
     } finally { dailyLeave(); }
+  }));
+  // ---- G7b, the Stores (gameplay 3.3, 8.1) ----
+  const STORES_AT = ["dvin", "tashir", "sevan", "ani", "mari", "sis"];
+  check("stores: offered on their six battlefields once Tashir is open, nowhere else; key 7; the limit; a run's tray", guarded(() => {
+    const has = () => trayTypes().includes("stores");
+    // Dvin the first time through (Tashir not yet open) is a battle without them (3.1)
+    wonTo(levelIndexOf("dvin"), 2);
+    stage("dvin", 1);
+    if (has() || ageTower(curEra) !== "stores" || trayTypes().join() !== TRAY_CLASSIC + ",post") fail("Dvin offers the stores before Tashir is open: " + trayTypes());
+    wonTo(levelIndexOf("tashir"), 2);
+    for (const id of ["dvin", "tashir"]) {
+      stage(id, 1);
+      if (trayTypes().join() !== TRAY_CLASSIC + ",post,stores" || $("shop").dataset.n !== "7") fail(id + "'s tray: " + trayTypes());
+    }
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "stores") fail("key 7 did not choose the stores: " + placing);
+    setPlacing(null);
+    const nm = document.querySelector('#shop .card[data-type="stores"] .nm');
+    if (!nm || nm.textContent !== "Village Stores") fail("Tashir's tile: " + (nm && nm.textContent));
+    // on its six battlefields and nowhere else, everything open (read through trayTypes, as the horse's check does)
+    wonTo(17, 2);
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const want = STORES_AT.includes(L.id);
+      if (has() !== want || trayStandard(L.era).includes("stores") !== want) fail(L.id + (want ? " lacks" : " offers") + " the stores");
+      if (want && !(STORES_LEVEL[L.id] && towerName("stores") === STORES_LEVEL[L.id].name)) fail(L.id + "'s stores are named " + towerName("stores"));
+    });
+    // two on a field, a third refused with its sentence (any pad takes one: no road is asked of it)
+    stage("tashir", 1); gold = 1e5;
+    const free = PADS.map((p, k) => k).filter(k => !towerAt(k));
+    for (const k of free.slice(0, 3)) placeTower("stores", k);
+    if (towers.filter(x => x.type === "stores").length !== 2 || !/Two stores are all this road can feed/.test($("toast").textContent)) fail("the limit: " + towers.length);
+    syncHud();
+    if (!document.querySelector('#shop .card[data-type="stores"]').classList.contains("poor")) fail("the tile is not dimmed at the limit");
+    // a run with stores resumes with them and what they paid; one whose tray has none refuses them; three are refused
+    towers[0].yielded = 92;
+    waveIdx = lastCleared = 1; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    if (!r.tray.includes("stores") || r.towers.filter(x => x.type === "stores").length !== 2) fail("the saved run: " + r.tray);
+    gameOver = true; resumeRun();
+    if (towers.filter(x => x.type === "stores").length !== 2 || !trayTypes().includes("stores") || towers[0].yielded !== 92) fail("the resumed run lost its stores");
+    const old = Object.assign({}, r, { tray: TRAY_BASE.concat("post") });
+    if (validRun(old)) fail("a run whose tray has no stores took them");
+    if (!validRun(Object.assign({}, old, { towers: r.towers.filter(x => x.type !== "stores") }))) fail("a run saved before the stores no longer resumes");
+    const three = Object.assign({}, r, { towers: r.towers.concat([Object.assign({}, r.towers[0], { pad: free.find(k => !r.towers.some(x => x.pad === k)) })]) });
+    if (validRun(three)) fail("a run with three stores resumed");
+  }));
+  check("stores: a clear pays pay times payStep, a wrecked one nothing; Caravan's share; Field Forge; earnMax", guarded(() => {
+    wonTo(17, 2);
+    // a wave that stands for more than one script wave, short of the last (a clear there would end the battle)
+    const id = STORES_AT.find(x => { curLevel = levelIndexOf(x); curEra = LEVELS[curLevel].era; setRunScript(levelScript(LEVELS[curLevel])); return curScript().some((_, k) => k + 1 < totalWaves() && payStep(k + 1) > 1); });
+    if (!id) fail("no stores battlefield has a wave that pays for two");
+    stage(id, 1); gold = 1e5;
+    const w = curScript().map((_, k) => k + 1).find(k => k < totalWaves() && payStep(k) > 1);
+    const free = PADS.map((p, k) => k).filter(k => !towerAt(k));
+    placeTower("stores", free[0]); placeTower("stores", free[1]);
+    const [A, B] = towers.filter(x => x.type === "stores");
+    A.level = 2;
+    const clear = wv => { waveIdx = wv; phase = "wave"; spawnQueue = []; enemies = []; const b0 = battle.stores, g0 = gold; endWaveIfClear(); return [battle.stores - b0, gold - g0]; };
+    let [paid, got] = clear(w);
+    const want = (TOWER_DEFS.stores.levels[2].pay + TOWER_DEFS.stores.levels[0].pay) * payStep(w);
+    if (paid !== want || got < want || A.yielded !== TOWER_DEFS.stores.levels[2].pay * payStep(w)) fail("a clear of wave " + w + " paid " + paid + ", not " + want);
+    // a wrecked one pays nothing
+    wreckTower(B);
+    [paid] = clear(1);
+    if (paid !== TOWER_DEFS.stores.levels[2].pay * payStep(1)) fail("a wrecked store paid: " + paid);
+    // Caravan: kills pay a tenth more; two Caravans one share; the Standards' plunder near the kill the larger, never both
+    B.wreck = false; B.hp = B.maxHp; A.spec = "a"; B.level = 2; B.spec = "a";
+    if (caravanShare() !== 0.1) fail("two Caravans' share: " + caravanShare());
+    // (a foe that stands far down its road keeps the wave from clearing, so the kill's bounty alone is counted)
+    phase = "wave"; enemies = [];
+    spawnEnemy("shield"); Object.assign(enemies[0], { hp: 1e9, maxHp: 1e9, speed: 0, dist: 0 });
+    const kill = () => { spawnEnemy("spearman"); const e = enemies[enemies.length - 1]; e.hp = 0; const g0 = gold; run(0.05); return [gold - g0, e.bounty]; };
+    let [g, b] = kill();
+    if (g !== b + Math.ceil(b * 0.1)) fail("a kill under a Caravan paid " + g + " for a bounty of " + b);
+    // Field Forge: a tower within its reach mends 10 points more at a clear and costs a quarter less to repair or rebuild
+    // (the forge is moved to the free pad with a free pad nearest it, and an archer stands on that one)
+    const open = PADS.map((p, k) => k).filter(k => !towerAt(k)), gap = (k, m) => Math.hypot(PADS[k][0] - PADS[m][0], PADS[k][1] - PADS[m][1]);
+    let fk = -1, near = null;
+    for (const k of open) for (const m of open) if (k !== m && (near == null || gap(k, m) < gap(fk, near))) { fk = k; near = m; }
+    const F = B;
+    F.pad = fk; F.x = PADS[fk][0]; F.y = PADS[fk][1];
+    F.spec = "b";
+    if (near == null || !inGroundRange(F.x, F.y, PADS[near][0], PADS[near][1], getStats(F).range)) fail("no free pad near the forge");
+    placeTower("archer", near);
+    const T = towers[towers.length - 1];
+    T.hp = T.maxHp * 0.3;
+    const rc = repairCost(T), fx = forgeOf(T, "repair");
+    F.spec = "a"; const rc0 = repairCost(T); F.spec = "b";
+    if (fx !== 0.25 || Math.abs(rc - rc0 * 0.75) > 1) fail("the forge's repair: " + rc + " against " + rc0);
+    const h0 = T.hp; mendTowers();
+    if (Math.abs((T.hp - h0) / T.maxHp - (byDiff(TRICK_RULES.tower.mend) + 0.1)) > 0.001) fail("the forge's mend: " + (T.hp - h0) / T.maxHp);
+    if (forgeOf(F, "mend")) fail("a forge tends itself");
+    // earnMax holds two Stores at Caravan on their battlefields, and not elsewhere
+    const R = rulesetData(), S = TOWER_DEFS.stores, top = S.specs.a.stats.pay;
+    const was = S.specs.a.stats.pay;
+    try {
+      S.specs.a.stats.pay = top + 50;
+      const R2 = rulesetData();
+      if (!(R2.levels[id].d[1].earnMax > R.levels[id].d[1].earnMax) || R2.levels.erebuni.d[1].earnMax !== R.levels.erebuni.d[1].earnMax) fail("earnMax does not count the stores where they are, or counts them elsewhere");
+    } finally { S.specs.a.stats.pay = was; }
+  }));
+  check("stores: the one-time card on the chronicle; Dvin's line; no claim on Ani", guarded(() => {
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    wonTo(levelIndexOf("tashir"), 2);
+    curLevel = levelIndexOf("tashir"); curEra = LEVELS[curLevel].era; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (newTowerCardDue(true) !== "stores") fail("Tashir's card is not due: " + newTowerCardDue(true));
+    if (newTowerCardDue()) fail("a card is due under the harness");
+    showUnlockCard("stores");
+    const body = $("tcBody").textContent;
+    if (unlockCardOn !== "stores" || !/the Stores/.test($("tcTitle").textContent) || !/the game's invention/.test(body) || /Procopius/.test(body)) fail("Tashir's card: " + body);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("stores") || newTowerCardDue(true)) fail("the card was not put away and kept");
+    curLevel = levelIndexOf("dvin"); showUnlockCard("stores");
+    if (!/Procopius/.test($("tcBody").textContent)) fail("Dvin's card lacks its source line");
+    closeUnlockCard();
+    curLevel = levelIndexOf("ani"); showUnlockCard("stores");
+    if (/merchants|trade/i.test($("tcBody").textContent)) fail("Ani's card claims a trade no source tells");
+    closeUnlockCard();
+    // Dvin the first time through (Tashir not open): no card
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era)));
+    wonTo(levelIndexOf("dvin"), 2);
+    curLevel = levelIndexOf("dvin"); curEra = LEVELS[curLevel].era;
+    if (newTowerCardDue(true)) fail("Dvin tells the stores before Tashir is open");
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {
