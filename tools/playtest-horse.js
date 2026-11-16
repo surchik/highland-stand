@@ -3,9 +3,11 @@
 // the tray's tiles, the pads (a first tap shows the reach, a second builds), the tower and its panel's buttons, Send
 // Wave and the speed button. The board: archers, a ballista, a catapult and a fire on the pads that watch the most road,
 // then two Horse Lines from their tile on the free pads whose reach holds the most road; a third is pressed and must be
-// refused with its sentence. One horse is opened by a tap on its body and raised a rank by its Upgrade button. Then six
-// waves at 2x with Auto. It fails on a page error, a refused third that builds, a tap on a horse that opens nothing or
-// another tower, or a stand lost in six waves, and prints what the riders did (charges, foes struck, px thrown back).
+// refused with its sentence. One horse is opened by a tap on its body and raised a rank by its Upgrade button; the
+// shooters are raised to their third rank by script. Then six
+// waves at 2x with Auto (a trick's first-time card is put away by its button when it comes). It fails on a page error,
+// a refused third that builds, a tap on a horse that opens nothing or another tower, or a stand lost in six waves, and
+// prints what the riders did (charges, damage, kills, px thrown back).
 // Usage:  NODE_PATH=$(npm root -g) node tools/playtest-horse.js [index.html] [--verbose]
 "use strict";
 const R = require("./regress/lib");
@@ -60,15 +62,26 @@ const PHONE = { name: "touch phone 667x320", w: 667, h: 320, touch: true, ua: re
         if (await g.ev(pad => towerAt(pad).level, hp) !== 1) fail("Upgrade did not raise the Horse Lines");
       }
       await g.page.keyboard.press("Escape");
+      // the shooters raised to their third rank as the purse allows (by script: the test is about the horse, and five
+      // first-rank towers do not hold Avarayr's sixth wave)
+      await g.ev(() => { for (const t of towers) if (t.type !== "horse") { t.level = 2; towerSyncHp(t); } gold = 300; syncHud(); });
       // six waves at 2x with Auto
       await g.press("#speedBtn");
       await g.press("#waveBtn");
       await g.press("#autoBtn");
-      await g.page.waitForFunction(() => gameOver || (waveIdx >= 6 && phase === "idle"), null, { timeout: 600000, polling: 500 });
+      if (o.verbose) console.log(C.name + " sent: " + JSON.stringify(await g.ev(() => ({ waveIdx, phase, auto, speedMult, towers: towers.length }))));
+      // a trick's first-time card (Avarayr's shields, its ambush road) holds the battle until its button is pressed, as a
+      // player presses it
+      let cards = 0;
+      for (const until = Date.now() + 900000; Date.now() < until;) {
+        if (await g.ev(() => gameOver || (waveIdx >= 6 && phase === "idle"))) break;
+        if (await g.ev(() => !!document.querySelector("#trickCard.on"))) { await g.press("#tcBtn"); cards++; }
+        await g.wait(1000);
+      }
       const end = await g.ev(() => ({ wave: waveIdx, lives, gameOver, speed: speedMult,
         horses: towers.filter(t => t.type === "horse").map(t => ({ rank: t.level + 1, charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), kills: t.kills || 0, thrown: Math.round(t.thrown || 0) })) }));
       if (end.gameOver) fail("the stand fell on wave " + end.wave);
-      out[C.name] = Object.assign({ panel: sel.name, refused: third.t }, end);
+      out[C.name] = Object.assign({ panel: sel.name, refused: third.t, cards }, end);
       if (o.verbose) console.log(C.name + " " + JSON.stringify(out[C.name]));
     } catch (e) { fail(e.message.split("\n")[0]); }
     const p = await g.problems();
