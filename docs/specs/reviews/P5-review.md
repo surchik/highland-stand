@@ -101,14 +101,16 @@ Fix: make `scFlush` call `outSendable(all, s.uid, pfNow())`. Add to flow 7 (desk
 expired by the stack's control before the victory, then a sign-in as another player (the entry stays, the server has
 nothing), then the first player again (sent); a reload in the battle and the result posted; and finding 1's two tabs.
 
-### 8. MINOR. The quick suite is now much longer than its budget says
+### 8. MINOR. The quick suite is now much longer than its budget says, and it can run out under load
 
-`run-all.js`'s header says `--quick` is "about 7 minutes in all"; platform's quick run alone is now about 1,270 s
-(its limit 1,560 s, `LIMIT_S.platform` raised from 1,800 to 2,600 for it). 10.5 asks `--quick` to run flows 1, 2, 4,
-5, 7 and 11 at two sizes; `platform.js --quick` runs every flow at two sizes. The margin to the limit is about 20%
-on a loaded machine.
+`run-all.js`'s header says `--quick` is "about 7 minutes in all". `platform.js --quick` alone took 999 s on a quieter
+machine (load 2 to 9) and was stopped at its limit, 1,560 s (0.6 of `LIMIT_S.platform`, raised by P5 from 1,800 to
+2,600), on a loaded one (load 13 to 24): `FAIL platform 1560 s ... FAIL stopped after 2600 s` (run-all's message names
+the full limit, not the 0.6 it applied: an older wording slip, not P5's). 10.5 asks `--quick` to run flows 1, 2, 4,
+5, 7 and 11 at two sizes; `platform.js --quick` runs every flow at two sizes.
 
-Fix: make `platform.js --quick` run the flows 10.5 names, and update the header's minutes.
+Fix: make `platform.js --quick` run the flows 10.5 names (that roughly halves it), update the header's minutes, and
+have run-all print the limit it applied.
 
 ## What holds (checked, no finding)
 
@@ -134,14 +136,62 @@ Fix: make `platform.js --quick` run the flows 10.5 names, and update the header'
 - No long dash in the diff; no British spelling found; HS_SUPABASE_URL and HS_SUPABASE_ANON_KEY are empty.
 - `rulesetData()` (memoized at the first victory) took 52 ms on its first call, 27 ms after: no hitch worth a change.
 
-## What I reran (on 4be5720, the machine shared with the gameplay track; load averages 4 to 24)
+## What I reran (on 4be5720, the machine shared with the gameplay track; load averages 2 to 24)
 
-RERUN_RESULTS
+Database and owner tools (load 4 to 7):
+- `node deploy/check-page.js index.html`: OK, exit 0.
+- `node tools/platform/unit.js`: 359 checks, 0 failed (dailyOf waits for P6).
+- `node tools/platform/sql-tests.js`: 1000 assertions, 0 failed (27 s).
+- `node tools/platform/isolation.js`: 435 checks, 0 failed.
+- `migrate.js` on a fresh cluster (`rehearsal-cluster.js --no-source`, database hs_scratch): up (7), down 6, up, status
+  (7 applied), down 0, up 6, up. Relations 53 and functions 55 at 6 and at 7. A digest of every function's definition
+  and grants: at 7 `b6060cbb` both times; down to 6 `46185eb0`, the same as a fresh up to 6. Grants after 007:
+  `hs_board` postgres, anon, authenticated; `hs_run_begin` and `hs_score_submit` postgres, authenticated.
+- `bash deploy/supabase/restore-rehearsal.sh`: 22 passed, 0 failed.
+- `bash tools/platform/test-update.sh`: PASS, 36 cases.
+- `bash tools/platform/guide-check.sh`: 23 passed, 0 failed.
+- `node tools/run-fixtures.js check`: PASS, 8 fixtures.
+- `node tools/town-isolation.js`: PASS, 9 cases (twice).
+- Mutation checks on a copy (`git archive 4be5720`): the boards' switch removed from `hs_run_begin`: sql-tests 2
+  failed; the loadout taken out of the board key and the `run_finished` check removed: 11 failed; `scoreOf`'s share
+  of defenders changed: unit.js 4 failed; the outbox's 20 cap removed: 2 failed; `outSendable` sending every
+  account's entries: 1 failed (see finding 7 for what that does not cover).
+
+The selftest:
+- `timeout 900 node tools/selftest.js --suite=all` under load (my probes and the other track's run-all): suite 1
+  151 checks, all passed, 168.5 s of 125 (over budget); suite 2 PASS, 39 checks, 97.7 s.
+- Suite 1 again under load 9 to 12, the base page (1d62a39) and P5's back to back: base 143.0 s and 177.9 s, P5
+  135.6 s, every run 151 checks passed: the overrun is the load, not P5.
+- Suite 1 alone (load 2 to 4): PASS, 151 checks, 112.4 s of 125.
+
+Regression (Playwright):
+- `run-all.js --quick` (load 13 to 24, the other track's run-all beside it): 7 of 11 passed (padplace, plots, probe,
+  vic, live, iphone, waves). nag failed (the coach at "fight"), dance10 failed 4 (taps at 9.9 s and 10.2 s ended the
+  dance; Sis's horn call ended by a tap at -1 ms, twice), doors failed 1 (`?town`: the waiting town gift not paid),
+  platform stopped at its limit (finding 8).
+- Reruns: `run-all.js --only=nag,dance10,doors` (load about 9): nag PASS, doors PASS, dance10 FAIL 6 (taps at 9.7 to
+  12.1 s ended the dance; Sis's horn call at -1 ms). `dance10.js --quick` on the base page and on P5's, back to back
+  under the same load: each FAIL 1, Sis's horn call ended by a tap at -1 ms. The same failure on the base page: not
+  P5's, but reported as the brief asks (dance10 failed each time it ran here).
+- `run-all.js --quick --only=platform` (load 2 to 9): PASS, 0 fails, 999 s.
+- `vic.js` in full, unchanged: PASS, 17 levels, 249 presses, 0 fails (1,974 s under load).
+- `iphone.js` in full, unchanged (load about 20): FAIL 5, all at Pro Max Home Screen 932x430 (the Council's Reset
+  needing a second tap, and the Nardi game-over card not shown). Rerun `iphone.js --sizes=maxh` alone: PASS, 73
+  states, 0 failures. The other nine sizes passed in the full run (737 states in all).
+- `platform.js` in full, every flow at every size (desk, ipad, ses, i15h, i15u), with `--photos`: PASS, 0 fails, 60
+  flow runs, 117 audited states, 2,368 s. Flow 7 passed at all five sizes (166 s at the desktop).
+- Photos: the builder's set in `top/build/shots/p5/` (35 files: the strip's seven states and the board, guest and
+  offline tabs at 1600x900, 1194x834 and 667x320, the map's door, the two stats cards) was looked at; the review's
+  own full run made the same set again in `top/build/review/P5/photos/p5/`. No photo of "posting" (it shows only
+  until the server answers), as the builder said.
+- Probes: `probe-outbox.js` (finding 1; a 401 at the post goes to the outbox under the account's id) and
+  `probe-resume.js` (a reload in the battle keeps the token and the resumed battle posts with lives_board; another
+  account's entry is kept and not sent; the same account's sign-in sends it), each with no page error.
 
 ## What I could not check
 
 - A real Supabase, Safari, a real iPhone.
 - Finding 2's loss itself: the stack cannot cut a request before it reaches the server; the code path is plain.
 - The lost daily (finding 4) end to end: no daily can be started before P6.
-- Flow 7 with the page mutated (each run of flow 7 takes over 20 minutes): whether flow 7 fails when, for example,
-  `scWhyNot` ignores the switch was not tried.
+- Flow 7 against a mutated page (about 3 minutes a size, the stack included; the machine's time went to the
+  acceptance runs): whether flow 7 fails when, for example, `scWhyNot` ignores the switch was not tried.
