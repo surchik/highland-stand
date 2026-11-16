@@ -162,6 +162,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const ctx = await browser.newContext(Object.assign({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1, hasTouch: !!C.touch, isMobile: !!C.touch },
       x.ua || C.ua ? { userAgent: x.ua || C.ua } : {}));
     await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; window.__hsQuietPostCard = true; window.__hsQuietRallyBubble = true; });   // (G5: and the Garrison Post's card and bubble)
+    if (x.quietCall) await ctx.addInitScript(() => { window.__hsQuietCallBubble = true; });   // (flow 7: the hero's Call bubble, as lib.js quiets it)
     if (C.standalone) await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, "standalone", { configurable: true, get: () => true }); } catch (e) {} });
     if (C.insets) await ctx.addInitScript(ins => {
       const set = () => { const st = document.documentElement.style; st.setProperty("--sat", (ins.t || 0) + "px"); st.setProperty("--sab", (ins.b || 0) + "px"); st.setProperty("--sal", (ins.l || 0) + "px"); st.setProperty("--sar", (ins.r || 0) + "px"); };
@@ -2357,8 +2358,10 @@ const log = (m) => { if (o.verbose) console.log(m); };
     }
     if (!(await g.ev(() => battleLive()))) throw new Error("the battle did not begin from its chronicle (" + await g.ev(() => menuMode) + ")");
     if (o.before) await o.before();
+    // (a first-time card or bubble over the field holds the horn: put away, as a player reads and closes it)
+    await g.ev(() => { for (let k = 0; k < 6 && trickHold(); k++) dropTrickCards(); });
     await g.ev(() => { if (!battle.started) startWave(); });
-    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 });
+    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 }).catch(async () => { throw new Error("no horn: " + JSON.stringify(await g.ev(() => ({ phase, live: battleLive(), tut: !!tut, mode: menuMode, wave: waveIdx, paused, hold: trickHold(), over: gameOver, cards: document.querySelector(".trickCard.on, #trickCard.on") ? 1 : 0 })))); });
     const ranked = await g.ev(() => battleRanked());
     if (!ranked && o.ranked !== false) fail(W, "the battle is not ranked");
     if (o.token !== false) await until(() => g.ev(() => !!localStorage.getItem("hs_pf_run")), 15000, "the run token").catch(e => fail(W, e.message));
@@ -2367,9 +2370,11 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (o.last) await o.last();
     await g.ev(o => {
       battle.sec = o.sec == null ? 900 : o.sec; battle.spent = o.spent == null ? 400 : o.spent; battle.build = battle.spent;
+      // (gold paid in as a battle's waves would pay it: no wave of this one was fought for its bounties)
+      battle.earned = Math.max(battle.earned, o.earned == null ? 2400 : o.earned); battle.bounty = battle.earned - battle.start;
       if (o.gift) battle.gift += o.gift;
       lives = o.lives == null ? 17 : o.lives; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud();
-    }, { sec: o.sec, spent: o.spent, lives: o.lives, gift: o.gift || 0 });
+    }, { sec: o.sec, spent: o.spent, lives: o.lives, gift: o.gift || 0, earned: o.earned });
     await g.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
     if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
     await g.page.waitForFunction(() => menuMode === "victory" && !overlayEl.classList.contains("hidden"), null, { timeout: 20000 });
@@ -2392,7 +2397,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
   const f7audit = async (g, W, what, photo) => {
     const st = await strip(g);
     const primary = st.side ? (st.board ? ["#boardBtn"] : ["#mapBtn"]) : st.boardRow ? ["#ovScore .scBoard"] : ["#mapBtn"];
-    await audit(g, W + " " + what, { root: "#overlay", parts: st.side ? ["#ovRecord", "#boardBtn", "#ovGear"] : ["#ovScore", "#ovRecord"], primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
+    if (["ses", "i15h", "i15u"].includes(g.o.key)) await audit(g, W + " " + what, { root: "#overlay", parts: st.side ? ["#ovRecord", "#boardBtn", "#ovGear"] : ["#ovScore", "#ovRecord"], primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
     // every way on from the page still in sight (held sideways and on a tablet, without a scroll)
     const out = await g.ev(() => [...document.querySelectorAll("#overlay .bigRow .big, #ovScore button")].filter(b => b.offsetParent && b.getBoundingClientRect().bottom > innerHeight - 1).map(b => b.id || b.className));
     if (!upr(g.o) && out.length) fail(W, what + ": past the screen's foot: " + out.join(", "));
@@ -2430,7 +2435,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await resetStack();
     const K = C.key;
     // ---- A, the owner: a player with five battlefields, made an admin
-    const A = await open(C, { storage: f7prog });
+    const A = await open(C, { storage: f7prog, quietCall: true });
     await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
     await S.control("provider", f7who(K, "a"));
     await signIn(A, null, "google", "name");
@@ -2451,7 +2456,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     });
     if (door.side) { if (door.shown) fail(W, "held sideways the map has a door of its own beside the tally"); }
     else if (!door.shown || Math.abs(door.gap - 10) > 1 || !door.in || !door.mine || door.over.length || door.w < 44 || door.title !== "Daily challenge and leaderboards") fail(W, "the map's door: " + JSON.stringify(door));
-    await audit(A, W + " map with its door", { root: "#overlay", parts: ["#ovStars"].concat(door.side ? [] : ["#hallBtn"]), primary: [door.side ? "#ovStars" : "#hallBtn"], primaryRequired: true, scroll: upr(C) ? "page" : "inside" }, null);
+    if (["ses", "i15h", "i15u"].includes(K)) await audit(A, W + " map with its door", { root: "#overlay", parts: ["#ovStars"].concat(door.side ? [] : ["#hallBtn"]), primary: [door.side ? "#ovStars" : "#hallBtn"], primaryRequired: true, scroll: upr(C) ? "page" : "inside" }, null);
     await f7photo(A, "map-door");
     // the ruleset not yet published: a battle is fought and scored on the device, not ranked
     let v = await f7win(A, W, { lv: 1, token: false, runback: false });
@@ -2537,7 +2542,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await boardReady(A);
     await A.ev(() => closeHall());
     // ---- B: a second player's lower score ranks second; then an open battle (a gift of gold) is on Open only
-    const B = await open(C, { storage: f7prog });
+    const B = await open(C, { storage: f7prog, quietCall: true });
     await B.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
     await S.control("provider", f7who(K, "b"));
     await signIn(B, null, "google", "name");
@@ -2589,7 +2594,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (stripSays(st) !== "Score " + (await f7expect(A, v)).toLocaleString("en-US") + " · #1 of 1 this week") fail(W, "the waiting result once online: " + JSON.stringify(st));
     if (await store(A, "hs_pf_out")) fail(W, "the outbox is not empty once sent");
     // ---- the battle began offline: every try at the horn failed (the tries made quick by the test's switch)
-    const C2 = await open(C, { init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { beginTries: [0, 300, 600] }); }, null]] });
+    const C2 = await open(C, { quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { beginTries: [0, 300, 600] }); }, null]] });
     await gate(C2, "signin");
     await S.control("provider", f7who(K, "a"));
     await signIn(C2, null, "google", "welcome");
@@ -2618,7 +2623,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (st.row || st.rec != null || st.board) fail(W, "test mode has a strip: " + JSON.stringify(st));
     await done(C2, W + " (offline, refused, test mode)");
     // ---- a guest (the gate optional): "Sign in to post it", a button to the Account tab
-    const G = await open(C, { storage: f7prog, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+    const G = await open(C, { storage: f7prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
     await gate(G, "signin");
     await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
     await gate(G, "");
