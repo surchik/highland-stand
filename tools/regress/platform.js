@@ -177,7 +177,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (x.storage) await ctx.addInitScript(st => { try { for (const k in st) localStorage.setItem(k, st[k]); } catch (e) {} }, x.storage);
     for (const [fn, arg] of x.init || []) await ctx.addInitScript(fn, arg);
     const page = await ctx.newPage();
-    const g = new R.Game(page, ctx, { w: C.w, h: C.h, touch: !!C.touch, name: C.name });
+    const g = new R.Game(page, ctx, { w: C.w, h: C.h, touch: !!C.touch, name: C.name, key: C.key });
     g.reqs = [];
     page.on("request", r => { const u = r.url(); if (!/^(data|blob|about):/.test(u)) g.reqs.push(u); });
     page.on("pageerror", e => g.errs.push("pageerror: " + e.message));
@@ -2423,10 +2423,21 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(g, (0, eval)("() => Array.from(document.querySelectorAll('#hallBody .lbOpt, #hallBody .lbSeal')).find(b => b.textContent.trim() === " + JSON.stringify(words) + ")"));
     await boardReady(g);
   };
+  // past a chapter's story to the map (its button pressed where it is drawn; on an upright phone the page is scrolled
+  // to it first, and where it cannot be reached the map is opened as its button would open it)
+  const f7toMap = async (g) => {
+    for (let k = 0; k < 4 && (await g.ev(() => menuMode)) === "chapter"; k++) {
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "center" }); });
+      await g.frames(3);
+      const q = await g.reach("#startBtn");
+      if (q.why) await g.ev(() => openCampaignMap()); else await g.tapAt(q.x, q.y);
+      await g.wait(200);
+    }
+  };
   const f7map = async (g) => {
     await pressWelcome(g, "Campaign Map");
     await gate(g, "");
-    await toMap(g);
+    await f7toMap(g);
     await g.page.waitForFunction(() => menuMode === "map" && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
     await g.frames(3);
   };
@@ -2434,6 +2445,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const W = "flow 7 " + C.name;
     await resetStack();
     const K = C.key;
+    log("  flow 7: A, the owner: a player with five battlefields, made an admin");
     // ---- A, the owner: a player with five battlefields, made an admin
     const A = await open(C, { storage: f7prog, quietCall: true });
     await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
@@ -2491,6 +2503,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Rulesets"); if (c) c.scrollIntoView({ block: "start" }); });
       await f7photo(A, "stats-rulesets");
     }
+    log("  flow 7: A's battle, posted: the server's score is the page's and ref.js's; \"#");
     // ---- A's battle, posted: the server's score is the page's and ref.js's; "#1 of 1 this week"
     await A.page.goto(SITE + "/");
     await gate(A, "welcome");
@@ -2510,6 +2523,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // the tooltip, and on touch the tap that says the score's sentence
     const tip = await A.ev(() => { const e = $("pfRecScore") && $("pfRecScore").tagName === "SPAN" ? $("pfRecScore") : document.querySelector("#ovScore .scLine"); return e ? e.title : ""; });
     if (!/^A win is worth 4,000, plus up to 3,000 for the defenders you kept/.test(tip)) fail(W, "the score's tooltip: " + tip);
+    log("  flow 7: the Leaderboard button: the Hall on this battlefield, Normal, This wee");
     // ---- the Leaderboard button: the Hall on this battlefield, Normal, This week, Standard; A on it, tinted
     await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
     await boardReady(A);
@@ -2541,6 +2555,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(A, "#hallBody .lbArrow[aria-label='Previous battlefield']");
     await boardReady(A);
     await A.ev(() => closeHall());
+    log("  flow 7: B: a second player's lower score ranks second; then an open battle (a ");
     // ---- B: a second player's lower score ranks second; then an open battle (a gift of gold) is on Open only
     const B = await open(C, { storage: f7prog, quietCall: true });
     await B.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
@@ -2573,12 +2588,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     bd = await board(B);
     if (!bd || bd.rows.map(r => r.cells[1]).join() !== nameA + "," + nameB || !bd.rows[1].me || bd.rows[0].me) fail(W, "the Standard board after B: " + JSON.stringify(bd && bd.rows));
     await B.ev(() => closeHall());
+    log("  flow 7: A beats his own best: \" · your best\"");
     // ---- A beats his own best: " · your best"
     v = await f7win(A, W, { lv: 0, sec: 700, spent: 300, lives: 20 });
     await f7settled(A);
     st = await strip(A);
     const expA2 = await f7expect(A, v);
     if (stripSays(st) !== "Score " + expA2.toLocaleString("en-US") + " · #1 of 2 this week · your best") fail(W, "A's best beaten: " + JSON.stringify(st));
+    log("  flow 7: waiting: the server down at the battle's end; the result waits in the ");
     // ---- waiting: the server down at the battle's end; the result waits in the outbox and goes when the device is online
     v = await f7win(A, W, { lv: 1, sec: 1000, spent: 500, lives: 16, last: async () => { await S.control("rest", { mode: "down" }); } });
     await f7settled(A);
@@ -2593,6 +2610,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     st = await strip(A);
     if (stripSays(st) !== "Score " + (await f7expect(A, v)).toLocaleString("en-US") + " · #1 of 1 this week") fail(W, "the waiting result once online: " + JSON.stringify(st));
     if (await store(A, "hs_pf_out")) fail(W, "the outbox is not empty once sent");
+    log("  flow 7: the battle began offline: every try at the horn failed (the tries made");
     // ---- the battle began offline: every try at the horn failed (the tries made quick by the test's switch)
     const C2 = await open(C, { quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { beginTries: [0, 300, 600] }); }, null]] });
     await gate(C2, "signin");
@@ -2604,6 +2622,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     st = await strip(C2);
     if (!/· Not ranked: this battle began offline$/.test(stripSays(st))) fail(W, "began offline: " + JSON.stringify(st));
     await f7audit(C2, W, "strip, began offline", "strip-offline");
+    log("  flow 7: refused: the run begun just now, a battle clock of 15 minutes (the ser");
     // ---- refused: the run begun just now, a battle clock of 15 minutes (the server's wall-clock check says no)
     v = await f7win(C2, W, { lv: 1, sec: 900, runback: false });
     await f7settled(C2);
@@ -2612,22 +2631,26 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const rj = await evs(C2, "score_rejected");
     if (!rj.length || rj[rj.length - 1].reason !== "score_implausible") fail(W, "score_rejected: " + JSON.stringify(rj));
     await f7audit(C2, W, "strip, refused", "strip-refused");
+    log("  flow 7: not rankable: test mode (every battlefield open by the test's switch) ");
     // ---- not rankable: test mode (every battlefield open by the test's switch) shows no strip
+    if (upr(C)) await C2.page.setViewportSize({ width: C.h, height: C.w });
     await C2.enterBattle(2);
     await C2.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
     await C2.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
     if (await C2.ev(() => !!celebration)) await C2.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
     await C2.page.waitForFunction(() => menuMode === "victory", null, { timeout: 20000 });
+    if (upr(C)) await C2.page.setViewportSize({ width: C.w, height: C.h });
     await C2.wait(400);
     st = await strip(C2);
     if (st.row || st.rec != null || st.board) fail(W, "test mode has a strip: " + JSON.stringify(st));
     await done(C2, W + " (offline, refused, test mode)");
+    log("  flow 7: a guest (the gate optional): \"Sign in to post it\", a button to the A");
     // ---- a guest (the gate optional): "Sign in to post it", a button to the Account tab
     const G = await open(C, { storage: f7prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
     await gate(G, "signin");
     await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
     await gate(G, "");
-    await toMap(G);
+    await f7toMap(G);
     v = await f7win(G, W, { lv: 0, token: false, runback: false });
     await f7settled(G);
     st = await strip(G);
@@ -2652,6 +2675,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(G, "#hallBody .lbRetry");
     await G.page.waitForFunction(() => { const t = document.querySelector("#hallBody .lbTab"); return t && t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)").length === 2; }, null, { timeout: 15000 }).catch(() => fail(W, "Try again did not bring the board"));
     await done(G, W + " (a guest)");
+    log("  flow 7: the boards switched off by the owner: no strip, no tab, no run begun");
     // ---- the boards switched off by the owner: no strip, no tab, no run begun
     await A.page.goto(SITE + "/?stats");
     await statsUp(A);
