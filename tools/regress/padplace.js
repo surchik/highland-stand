@@ -8,7 +8,8 @@
 // The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) takes its turn too where the
 // tray holds it: refused on a pad with no road in reach as the post is, and, once the field holds its limit, refused
 // with its own sentence ("Two horse lines are all this field can stable.", G7b's Stores "Two stores are all this road can
-// feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad.
+// feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad; the
+// Powder Mine (G7c, on Gyumri Road and Halidzor) asks for road in its reach and has no limit.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/padplace.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -56,7 +57,7 @@ const PHONE_LV = ["erebuni", "dvin", "gyumri", "van", "stepanakert92"];
           let k = (i + lv) % kinds.length, type = kinds[k];
           for (let tries = 0; tries < kinds.length; tries++) {
             type = kinds[(k + tries) % kinds.length];
-            const st = await g.ev(([i, type]) => ({ road: !(TOWER_DEFS[type].post || TOWER_DEFS[type].charge) || padTakesRoad(i, kitStatsOf(type, 0, null).range),
+            const st = await g.ev(([i, type]) => ({ road: !(TOWER_DEFS[type].post || TOWER_DEFS[type].charge || TOWER_DEFS[type].blast) || padTakesRoad(i, kitStatsOf(type, 0, null).range),
               full: !!TOWER_DEFS[type].max && towers.filter(t => t.type === type).length >= TOWER_DEFS[type].max }), [i, type]);
             // a post or a horse line where no road lies in its reach: refused, with its sentence; the pad takes the next kind
             if (!st.road) { await refuse(i, type, "with no road in reach", /No road in reach/); continue; }

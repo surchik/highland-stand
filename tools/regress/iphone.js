@@ -30,7 +30,8 @@
 // The Garrison Post (G5): the tray of six on every battlefield (seven on Erebuni, Tushpa and Avarayr with the Horse
 // Lines, G7a, and on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores, G7b) and of seven everywhere (a stand-in for
 // the special towers still to come) with every tile 44 x 44 and its name whole or absent; the post's panel, the Horse
-// Lines' panel and the Stores' panel as sheets; the armed rally's toast in the safe area
+// Lines' panel, the Stores' panel and the Powder Mine's panel (G7c, with its Lay the charge tapped and the road in its
+// ring taking the charge) as sheets; the armed rally's toast in the safe area
 // and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
@@ -793,6 +794,52 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== hb) fail("horse panel", "the tap that opened the sheet pressed something in it");
           await check("horse panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
           await g.ev(() => { hidePanel(); });
+        }
+        // the Powder Mine's panel (G7c) the same way: Gyumri Road staged, the mine at its third rank (the Mastery to choose,
+        // with Lay the charge, Fire and the trigger above: the tallest panel of all); then Lay the charge armed (its toast
+        // in the safe area) and the road in its ring tapped: the charge must lie there
+        await stage("gyumri", 3, { mine: 1, ml: "2" });
+        const mpad = await g.ev(() => { const t = towers.find(u => u.type === "mine"); gold = 99999; syncHud(); if (t) t.mines.forEach(m => { m.armT = 1e6; }); return t ? t.pad : -1; });
+        if (mpad < 0) fail("mine panel", "no Powder Mine was staged");
+        else {
+          const mb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const mat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), mpad);
+          await g.tapAt(mat.x, mat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", mpad))) {
+            fail("mine panel", "a tap on the Powder Mine did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, mpad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== mb) fail("mine panel", "the tap that opened the sheet pressed something in it");
+          // (held upright, the owner's best effort, the tallest panel of all may scroll its column to Sell: 3.8 lets the
+          // column scroll at the last)
+          await check("mine panel", { root: "#panel", primary: ["#pLay", "#pFire", "#pActions .spec"].concat(C.upright ? [] : ["#pActions .sell"]), scroll: "inside", primaryRequired: true });
+          await tap("mine lay", "#pLay", "cannot tap Lay the charge");
+          await settle(2);
+          if (!(await g.ev(() => !!rallying && rallying.type === "mine" && panelEl.style.display !== "block"))) fail("mine lay", "Lay the charge did not arm, or the sheet stayed");
+          await g.wait(450);
+          if (await g.ev(() => toastEl.classList.contains("show"))) await check("mine lay (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
+          else fail("mine lay", "no toast says to tap the road");
+          const mto = await g.ev(pad => {
+            const t = towers.find(u => u.pad === pad), m = t.mines[t.layIdx | 0], r = canvas.getBoundingClientRect(), S = __hsAudit.safe();
+            const on = s => { const p = proj(s.x, s.y); return { x: r.left + offX + p.x * scale, y: r.top + offY + p.y * scale }; };
+            const ok = postRoadIn(t.x, t.y, mineReach(t)).filter(s => {
+              const c = on(s), e = document.elementFromPoint(c.x, c.y);
+              return e && e.id === "game" && c.x > S.l + 8 && c.x < S.r - 8 && !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40);
+            });
+            const s = ok.sort((a, b) => Math.hypot(b.x - m.x, b.y - m.y) - Math.hypot(a.x - m.x, a.y - m.y))[0];
+            return s ? Object.assign({ wx: s.x, wy: s.y, i: t.layIdx | 0 }, on(s)) : null;
+          }, mpad);
+          if (!mto) fail("mine lay", "no road of the ring lies clear on the screen");
+          else {
+            await g.tapAt(mto.x, mto.y);
+            await settle(2);
+            const r = await g.ev(([pad, to]) => { const t = towers.find(u => u.pad === pad), m = t.mines[to.i]; return { d: Math.hypot(m.x - to.wx, m.y - to.wy), armed: !!rallying, panel: panelEl.style.display === "block", hero: !!(hero && hero.rally) }; }, [mpad, mto]);
+            if (r.d > 12 || r.armed || r.panel || r.hero) fail("mine lay", "a tap on the road in the ring: " + JSON.stringify(r));
+          }
+          await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
         }
         // the Stores' panel (G7b) the same way: Tashir staged, the stores at their third rank (the Mastery to choose)
         await stage("tashir", 3, { stores: 1, sl: "2" });

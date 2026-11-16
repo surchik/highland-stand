@@ -677,3 +677,64 @@ Acceptance at the close (gp/work, the other track testing beside it at loads of 
 - run-all --only=padplace,probe,iphone,live in full: probe PASS (759 probed, 17 battlefields) and live PASS (17) beside
   the load; padplace and iphone were stopped by their time budgets at a load of 17 to 28, then PASS alone (padplace
   1265 placed, 734 s; iphone 757 states at ten sizes, 664 s).
+
+## G7c: the Powder Mine (Gyumri Road, Halidzor)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `minemix`, on the two battlefields that
+offer the tower): `g7c-normal-seeds3.txt`, `g7c-easy-seeds3.txt`, `g7c-hard-seeds3.txt`; the daily's table, `DAILY=1`:
+`g7c-daily-normal-seeds3.txt` (the same table on the page before the mine: `g7c-trials/before-daily-normal-seeds3.txt`);
+the endless stand of mix7 and harriers, `ENDLESS=20` (JSON lines): `g7c-endless-normal-seeds3.txt`. The trials are in
+`g7c-trials/` (Normal, the two, SEEDS=3, WAIT 0, the numbers named by each file's PATCH below). The "before" for every
+cell is G5's close tables (`g5-close-*-seeds3.txt`): on these two battlefields the page before G7c plays them cell for
+cell (checked on Normal at HEAD 1fe5a73: mix 9.0/6.3 at WAIT 0, 8.0/4.3 with CLOCK=1, the same as G5's close).
+
+The bot (5.4): a build's "age" is the Powder Mine on these two, no limit. It goes on the free pad whose reach holds the most
+road (the post's ranking at the mine's reach). Its charge is laid at the road point in its reach that the most standing
+shooting towers reach; on a tie the one farthest from the walls (5.4 names no tie; nearest the walls, the post's rule, put
+the charge where the towers had already felled the column, and a mine waited armed some 340 s a battle with no foe in
+its blast). It is laid again between waves only, and only where more towers would cover it (a charge laid again arms
+again). The trigger is "at 3 foes", the mine's own. minemix is the mix with the mine 8th and 13th. The report adds each
+mine's blasts in a battle and the foes a blast caught.
+
+What was found, and the numbers chosen:
+- At 3.4's numbers (120 gold, 260 every 28 s) every build with a mine kept fewer defenders than the same build without:
+  the mine 4th (minemix as first tried) lost both battlefields at the first commander's wave; one mine 5th in balldrum took
+  Halidzor from 16.0 to 1.0 (WAIT 0). A free mine (every price 1) left balldrum at 15.3, so the cost was the gold, not the pad.
+  The bot's mines dealt about 2,600 damage per 100 gold (catapult 3,500, a mastered archer or catapult 10,000 to 12,000)
+  and fired 4 to 5 times a battle.
+- Twice and three times the blow, a shorter arming, a wider blast (trials tA to tD, u2 to u10) did not change that much:
+  the trigger at 3 foes fires a mine only a few times a battle, and the first commander's wave, where every board on
+  these two is decided, brings a commander and few foot. A charge with only the commander over it never fired.
+- Chosen (u10, then the commander rule): the blows three times 3.4's (780, 1,320, 2,100; Great Charge 3,250 and Twin
+  Fuses 1,550, two and a half times), the arming four fifths (22, 20, 18; 19 and 16), the store 80 gold with ranks of 100
+  and 160 and masteries of 300; the reach, the blast's breadth, the stagger and the trigger are 3.4's. And a rule: a
+  commander counts as three foes for the trigger (MINE_RULES.boss), as a player firing by hand would fire on him.
+
+5.2's rows on the two battlefields (Normal unless named):
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables. mix7 builds its
+  mine 15th, which these two battlefields never reach (14 and 14 pads): mix7 against mix stays G5's (Gyumri 0.0,
+  Halidzor +4.7), so G5's mean over the 17 (+0.8) and its cells for the owner stand, unmoved by the mine.
+- The Powder Mine in the best build on at least a third of its battlefields: met. Gyumri Road, Normal: greedy (the mix
+  with the mine third) 3/3 13.0 against the best without a mine, catapults 3/3 12.0 (+1.0; band 10 to 15). Hard: greedy
+  3/3 6.7 against the mix's 2/3 3.3 (+3.4: above 3.1's "2 to 3 more", for the owner; band 2 to 8 kept). Easy: the mix
+  keeps 30 everywhere, unchanged. Halidzor: balldrum stays best on every difficulty (10.7, 30.0, 2.7); minemix ends 0/3
+  w12 there, greedy 3/3 2.3.
+- agemix (a mine and a post by turns on every pad) and harriers lose on every seed on all three difficulties: met.
+- Easy: the mix alone meets Easy's band, unchanged (30.0, 22.3): met.
+- Wave time at 1x for the best build on Normal: Gyumri Road 28.0 min against 28 (0%), Halidzor 26.2 against 26: met.
+- The endless stand (JSON): mix7 falls 9, 10 and 9 waves beyond the chronicle on Gyumri Road (inside 8 to 20) and 2, 2
+  and 2 on Halidzor; harriers loses the chronicle on both. With G7b's Dvin and Tashir this row is now met on three
+  battlefields (Dvin, Tashir, Gyumri Road).
+- The daily (DAILY=1): every cell but those with the mine in their order equals the page before; the best builds (mix 17.0
+  on Gyumri Road, mix7 15.7 on Halidzor) and so DAILY_PAR are unchanged.
+- Damage per 100 gold on Normal (the whole table): mine 6,239, Great Charge 20,330, Twin Fuses 19,904 (mastered archers
+  8,145 and 5,558, catapults 9,868 and 3,871). A mastered mine is the strongest tower per gold in the bot's hands; it fires
+  15 to 19 times a battle on about 3 foes. A player firing by hand on bigger crowds can do more: for the owner to watch in
+  the stats.
+
+Pars: LEVEL_PAR's Gyumri Road is now [1440, 1727, 1893] (Normal and Hard: greedy's clock); Halidzor's is unchanged.
+Revs: Gyumri Road and Halidzor rise to 3 (their pins moved, no other did); RULESET stays 2 (no board has opened);
+`ruleset-2-g7c.json` is rulesetData() at the close.
+
+For the owner: Gyumri Road on Hard (+3.4 with a mine); the mastered mine's damage per gold; the trigger's commander rule
+(a player sets it "by hand" to save the charge for him, or leaves it at 3 and it fires on him alone).

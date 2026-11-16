@@ -10,7 +10,9 @@
 // waves. The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) is built from its tile
 // on the free pad whose reach holds the most road, and fights the three waves (its charges are counted: the run fails
 // if it was not built on one of them, or charged on none). The Stores (G7b, on Dvin, Tashir, Sevan, Ani, Mari and Sis)
-// are built from their tile on the free pad that reaches the least road, and must pay at the clears on every one.
+// are built from their tile on the free pad that reaches the least road, and must pay at the clears on every one. The
+// Powder Mine (G7c, on Gyumri Road and Halidzor) is built from its tile on the free pad whose reach holds the most road,
+// and its charge must arm (or fire) on each.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -100,7 +102,7 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
           // (a tower that asks for road in its reach on the pad whose reach holds the most; the Stores, which ask for none,
           // on the free pad that reaches the least, where the balance bot builds them)
           const ap = await g.ev(a => {
-            const D = TOWER_DEFS[a], road = !!(D.post || D.charge), r = road ? kitStatsOf(a, 0, null).range : 150;
+            const D = TOWER_DEFS[a], road = !!(D.post || D.charge || D.blast), r = road ? kitStatsOf(a, 0, null).range : 150;
             return PADS.map((p, i) => i).filter(i => !towerAt(i) && (!road || padTakesRoad(i, r)))
               .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], r).length })).sort((x, y) => road ? y.n - x.n : x.n - y.n).map(x => x.i)[0];
           }, age);
@@ -138,7 +140,8 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         const post = await g.ev(() => { const t = towers.find(u => u.type === "post"); return t ? { dmg: Math.round(t.dmgDone || 0), hold: Math.round(t.holdS || 0) } : null; });
         const horse = await g.ev(() => { const t = towers.find(u => u.type === "horse"); return t ? { charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), thrown: Math.round(t.thrown || 0) } : null; });
         const stores = await g.ev(() => { const t = towers.find(u => u.type === "stores"); return t ? { paid: Math.round(t.yielded || 0), gold: battleFacts().from.stores } : null; });
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores };
+        const mine = await g.ev(() => { const t = towers.find(u => u.type === "mine"); return t ? { blasts: t.blasts || 0, armed: (t.mines || []).some(mineArmed), dmg: Math.round(t.dmgDone || 0) } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);
@@ -181,5 +184,12 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
   if (storeFields.length && stored.length < storeFields.length) fails.push("no Stores were built on " + storeFields.filter(id => !stored.includes(id)).join(", "));
   const unpaid = stored.filter(id => !(res[id].stores.paid > 0 && res[id].stores.gold >= res[id].stores.paid));
   if (unpaid.length) fails.push("the Stores paid nothing on " + unpaid.join(", "));
+  // the Powder Mine (G7c): built on Gyumri Road and Halidzor where they are played, and its charge armed or fired on
+  // each (three waves are longer than a charge takes to arm; the trigger fires it on 3 foes in the blast)
+  const mined = Object.keys(res).filter(id => res[id] && res[id].mine);
+  const mineFields = ["gyumri", "halidzor"].filter(id => res[id]);
+  if (mineFields.length && mined.length < mineFields.length) fails.push("no Powder Mine was built on " + mineFields.filter(id => !mined.includes(id)).join(", "));
+  const idle = mined.filter(id => !(res[id].mine.blasts > 0 || res[id].mine.armed));
+  if (idle.length) fails.push("the Powder Mine never armed on " + idle.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

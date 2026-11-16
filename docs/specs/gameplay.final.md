@@ -772,6 +772,18 @@ them, else four ellipses and staves); the marker is a disturbed patch with a glo
 reuses the Great Boulder's and the firepot's landing particles and the sound `mine` (exists: a wreck's and
 the sappers'). New: the store's painter, the marker, a tile portrait.
 
+(G7c build: built as written, with these differences, each in docs/specs/balance/README.md, G7c. 1. The numbers: at
+this section's the balance bot's every build with a mine kept fewer defenders than without it; the blows are three times
+these (the masteries two and a half: 780, 1,320, 2,100; Great Charge 3,250, Twin Fuses 1,550), a charge arms in four fifths
+of the time (22, 20, 18; 19, 16), the store costs 80 with ranks of 100 and 160 and masteries of 300. Reach, blast, stagger
+and the trigger's settings are these. 2. A commander counts as three foes for the trigger (MINE_RULES.boss). 3. A charge
+still arming shows no marker and takes no press; a tile being placed takes a free pad under the press before a marker.
+4. Twin Fuses: Lay the charge lays the first charge, then the second, by turns, and its words say which. 5. The card does
+not say "Mines of powder were the siege craft of the age.": no source in the repository says it. Gyumri Road's card gives
+its own fact (Chaldiran, 1514: Ottoman cannon and muskets) and both say "A powder mine laid by the defenders here is the
+game's invention." 6. The store: a lean-to of planks over the musketeers' kegs, a coil of slow match, a spade; the marker:
+disturbed earth with an arming arc, then a glowing match end and a ring that breathes. The key X fires the chosen mine.)
+
 ### 3.5 Aid Post (Van, Musa Dagh, Sardarapat)
 
 Mechanic: it gives back what was lost. Three effects, none of them damage, none of them in a fight:

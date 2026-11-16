@@ -150,6 +150,12 @@
 //     beside mix, the report adds the Stores' rows of gameplay 5.2: greedy's gold invested at the end (and what it
 //     earned and spent over the battle, against the mix's), the defenders it
 //     lost more than mix by the end of the first commander's wave and at the end, and bazaar's defenders against mix
+//   - Powder Mine (G7c, gameplay 5.4): "age" on Gyumri Road and Halidzor, no limit. The free pad whose reach holds the most
+//     road (the post's greedy ranking at the mine's reach); its charge at the road point in its reach that the most
+//     standing shooting towers reach (on a tie the one farthest from the walls), Twin Fuses' second at least two blasts'
+//     breadth from the first, laid again between waves only where more towers would cover it; the trigger "at 3 foes".
+//     The report adds each mine's blasts in a battle and the foes a blast caught. minemix is the mix with the mine 8th
+//     and 13th
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -186,7 +192,9 @@ const BUILDS = {
   postdrum:  ["post", "post", "post", "drums"],
   // G7a (gameplay 5.2): agemix, the special tower on every second pad up to its limit and posts between; harriers, two
   // Horse Lines at Harriers (BUILD_SPEC) with fires and drums, the board that tries to pin the column. Both must lose
-  agemix:    ["age", "post", "age", "post", "post", "post", "post", "post"],
+  // (G7c: the special tower and the post alternate on every pad; where the tower has a limit, two, an "age" past it is
+  // passed over and the post after it is built, so the Horse Lines' and the Stores' battles are the same as before)
+  agemix:    ["age", "post", "age", "post", "age", "post", "age", "post"],
   harriers:  ["age", "fire", "age", "drums", "fire", "fire", "drums", "fire"],
   // G7b (gameplay 3.3, 5.2): greedy, the mix with one Stores as its third building (BUILD_AGE_MAX); bazaar, two Stores
   // first, then the mix. Where "age" is not the Stores they are the mix with the special tower in its place
@@ -194,6 +202,12 @@ const BUILDS = {
               "ballista", "drums", "catapult", "archer"],
   bazaar:    ["age", "age", "archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "archer", "fire",
               "ballista", "drums", "catapult", "archer"],
+  // G7c (gameplay 3.4, 5.2): minemix, the mix with the battlefield's special tower as its eighth building and again its
+  // thirteenth: a player who builds the Powder Mine once the board stands (built fourth, it took the gold the first
+  // commander's wave needed: lost on both battlefields at every number tried). Where "age" is not the mine it is the
+  // mix with the special tower in those places
+  minemix:   ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "age", "catapult", "archer", "fire",
+              "ballista", "age", "drums", "catapult", "archer"],
 };
 // a build's own masteries, before SPEC= (a kind it names takes that mastery in every battle)
 const BUILD_SPEC = { harriers: "horse=b" };
@@ -392,7 +406,13 @@ function playBattle(a) {
   // nearer the walls' end of the ranking (the later in rankRoad)
   const storesRank = PADS.map((p, i) => i).map(i => ({ i, v: pts.filter(q => near(q, PADS[i][0], PADS[i][1])).length, r: rankRoad.indexOf(i) }))
     .sort((a, b) => a.v - b.v || b.r - a.r).map(o => o.i);
-  const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
+  // Powder Mine (G7c, gameplay 5.4): the pad by road reached, the same greedy ranking at the mine's own reach, among the
+  // pads with road in reach
+  const mineReach0 = TOWER_DEFS.mine && typeof padTakesRoad === "function" ? TOWER_DEFS.mine.levels[0].range : 0;
+  reachR = mineReach0 || 170;
+  const rankMine = mineReach0 ? rankOver(pts).filter(i => padTakesRoad(i, mineReach0)) : [];
+  reachR = 170;
+  const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : k === "mine" ? rankMine : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
   const kindAt = j => {
     let k = plan[j % plan.length];
     if (k === "age") {
@@ -410,6 +430,7 @@ function playBattle(a) {
     return null;
   };
   const spend = () => {
+    layMines();   // (between waves only: a charge laid again arms again)
     if (!counter()) return;
     for (let guard = 0; guard < 200; guard++) {
       const n = towers.length;
@@ -422,7 +443,7 @@ function playBattle(a) {
       const nk = PADS.some((p, i) => !towerAt(i)) ? nextKind() : null, build = nk && nk.k;
       const nextPad = build && padFor(build);
       let done = false;
-      if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); placed += nk.skip + 1; done = true; rallyPosts(); }
+      if (build && (n < 5 || !up) && gold >= costOf(build)) { placeTower(build, nextPad); placed += nk.skip + 1; done = true; rallyPosts(); layMines(); }
       else if (up && gold >= rankOf(up)) { upgradeTower(up); done = true; }
       else if (!up && !build) {
         // (a tower at its last rank; a Stores' mastery after every fighting tower's, and none once two thirds of the
@@ -463,6 +484,34 @@ function playBattle(a) {
         if (v > bv || (v === bv && s2.left < best.left)) { bv = v; best = s2; }
       }
       if (best && Math.hypot(best.x - t.rally.x, best.y - t.rally.y) > 10) setPostRally(t, best);
+    }
+  };
+  // the Powder Mine's charges (gameplay 5.4): each at the road point in its reach that lies in the range of the most
+  // standing shooting towers (on a tie the one farthest from the walls); Twin Fuses' second at the best such point at least
+  // two blasts' breadth from the first. Laid again only between waves and only where more towers cover the new spot
+  // (a charge laid again arms again); the trigger stays "at 3 foes", the mine's own default
+  const layMines = () => {
+    if (!mineReach0 || phase === "wave") return;
+    const shooters = towers.filter(t => !t.wreck && (TOWER_DEFS[t.type].proj || t.type === "fire"));
+    const cover = s2 => { let v = 0; for (const u of shooters) if (inGroundRange(u.x, u.y, s2.x, s2.y, getStats(u).range)) v++; return v; };
+    for (const t of towers) {
+      if (t.type !== "mine" || t.wreck || !t.mines) continue;
+      mineSync(t);
+      // (the roads the column marches on now; on a tie the point farthest from the walls, where the column comes into
+      // the towers' reach whole: the walls' end of a kill zone sees the foes one by one, the few the towers leave)
+      const live = ri => ri !== amb && !(ROUTES[ri].track && !(LEVELS[curLevel].routeOpen || {})[ri]);
+      const st = getStats(t), cand = postRoadIn(t.x, t.y, st.range).filter(q => live(q.route)), taken = [];
+      t.mines.forEach((m, i) => {
+        let best = null, bv = -1;
+        for (let j = 0; j < cand.length; j += 2) {
+          const s2 = cand[j];
+          if (taken.some(o => groundGap(o.x, o.y, s2.x, s2.y) < 2 * st.splash)) continue;
+          const v = cover(s2);
+          if (v > bv || (v === bv && s2.left > best.left)) { bv = v; best = s2; }
+        }
+        if (best && bv > cover(m) && Math.hypot(best.x - m.x, best.y - m.y) > 10) setMineCharge(t, i, best);
+        taken.push(best && bv > cover(m) ? best : m);
+      });
     }
   };
   // HERO=park: the road point near his place by the walls that the most standing towers reach; HERO=hold and park:
@@ -600,6 +649,7 @@ function playBattle(a) {
     const k = t.type + (t.spec ? "." + t.spec : "");
     const o = by[k] || (by[k] = { n: 0, dmg: 0, gold: 0 });
     o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t); o.hold = (o.hold || 0) + (t.holdS || 0); o.thrown = (o.thrown || 0) + (t.thrown || 0);
+    o.blasts = (o.blasts || 0) + (t.blasts || 0); o.blastHits = (o.blastHits || 0) + (t.blastHits || 0);
   }
   // the lives each trick cost (the game books each leak once: hidden, a hunter, the ambush road, an adapted guard)
   const lost = DIFFS[diff].lives - Math.max(0, lives), T = tricked ? trickLeaks : { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
@@ -770,6 +820,7 @@ function playBattle(a) {
     for (const r of results) if (r.diff === diff) for (const k in r.by) {
       const o = agg[k] || (agg[k] = { n: 0, dmg: 0, gold: 0 });
       o.n += r.by[k].n; o.dmg += r.by[k].dmg; o.gold += r.by[k].gold; o.hold = (o.hold || 0) + (r.by[k].hold || 0); o.thrown = (o.thrown || 0) + (r.by[k].thrown || 0);
+      o.blasts = (o.blasts || 0) + (r.by[k].blasts || 0); o.blastHits = (o.blastHits || 0) + (r.by[k].blastHits || 0);
     }
     const keys = Object.keys(agg).filter(k => agg[k].dmg > 0).sort();
     console.log("damage per 100 gold: " + keys.map(k => k + " " + Math.round(agg[k].dmg / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
@@ -802,6 +853,9 @@ function playBattle(a) {
     }
     const throws = Object.keys(agg).filter(k => agg[k].thrown > 0).sort();
     if (throws.length) console.log("px thrown back per 100 gold: " + throws.map(k => k + " " + Math.round(agg[k].thrown / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
+    // the Powder Mine (G7c): blasts a mine fired in a battle, and the foes each blast caught
+    const blasts = Object.keys(agg).filter(k => agg[k].blasts > 0).sort();
+    if (blasts.length) console.log("powder mine blasts per mine, foes per blast: " + blasts.map(k => k + " " + (agg[k].blasts / agg[k].n).toFixed(1) + ", " + (agg[k].blastHits / agg[k].blasts).toFixed(1) + " (" + agg[k].n + ")").join("; "));
     // the tricks' toll on each battlefield's best build, and how often the enemy adapted to each build
     const bestOf = lv => {
       let best = null;
