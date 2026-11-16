@@ -1064,6 +1064,12 @@ group("delete", async () => {
   // the same device's visits from before any sign-in, rate counters; and, outside the game, the shared sign-in
   // service's account, its identities and its log, which "Delete my account" must leave alone (RULINGS S10)
   await rpc(null, "hs_track", { p_ctx: { aid: D1, sid: "sess-pre-signin" }, p_events: [{ n: "page_load", q: 1 }] });
+  // a third device a visitor plays on (no account), and B on a device of his own, first as a visitor (its counter
+  // is the device's) and then signed in: neither is A's to remove
+  const D3 = "36363636-3636-4636-8636-363636363636", DB = "47474747-4747-4747-8747-474747474747";
+  await rpc(null, "hs_track", { p_ctx: { aid: D3, sid: "sess-d3-visitor" }, p_events: [{ n: "page_load", q: 1 }] });
+  await rpc(null, "hs_track", { p_ctx: { aid: DB, sid: "sess-b-dev-anon" }, p_events: [{ n: "page_load", q: 1 }] });
+  await rpc(U.B, "hs_track", { p_ctx: { aid: DB, sid: "sess-b-own-dev" }, p_events: [{ n: "page_load", q: 1 }] });
   await su(`insert into auth.audit_log_entries (payload, ip_address) values
     (json_build_object('actor_id', $1::text, 'actor_username', 'a@example.com', 'action', 'login'), '203.0.113.7'),
     (json_build_object('actor_id', $2::text, 'actor_username', 'b@example.com', 'action', 'login'), '203.0.113.8')`, [U.A, U.B]);
@@ -1077,7 +1083,25 @@ group("delete", async () => {
   ok(await has(U.A) > 8, "A has rows in every table of highland before (" + await has(U.A) + ")");
   const bBefore = await has(U.B), sharedA = await shared(U.A), sharedB = await shared(U.B), users = (await su("select count(*)::int n from auth.users"))[0].n;
   ok(sharedA.users === 1 && sharedA.ids >= 1 && sharedA.log === 1, "and an account, an identity and a log line in the shared auth schema");
+  // (migration 005) A's own account signed in by password, the shared email sign-in, cannot delete A's game data
+  const aBefore = await has(U.A);
+  const pw = await err(rpc(U.A + ":password", "hs_delete_account", {}));
+  ok(pw && pw.msg === "not_game_session" && pw.code === "42501", "A's account in a password session is refused hs_delete_account (" + (pw && pw.msg) + ")");
+  eq(await has(U.A), aBefore, "and every row of A's is still there");
+  ok((await su("select count(*)::int n from highland.hs_rate where key = $1", [D1]))[0].n > 0, "his device has a visitor's rate counter before");
+  const bRate = (await su("select count(*)::int n from highland.hs_rate where key in (select aid::text from highland.hs_sessions where uid = $1)", [U.B]))[0].n;
+  ok(bRate > 0, "B's devices have rate counters before (" + bRate + ")");
+  const d3 = async () => (await su("select (select count(*) from highland.hs_sessions where aid = $1)::int as visits, (select count(*) from highland.hs_rate where key = $1::text)::int as rate", [D3]))[0];
+  const d3Before = await d3();
+  ok(d3Before.visits === 1 && d3Before.rate > 0, "the visitor's device has its visit and counter before (" + JSON.stringify(d3Before) + ")");
+  const aAids = (await su("select coalesce(array_agg(distinct aid::text), '{}') a from highland.hs_sessions where uid = $1", [U.A]))[0].a;
+  const anonOthers = async () => (await su("select count(*)::int n from highland.hs_sessions where uid is null and not (aid::text = any ($1::text[]))", [aAids]))[0].n;
+  const anonBefore = await anonOthers();
   eq((await rpc(U.A, "hs_delete_account", {})).ok, true, "A deletes his account");
+  eq((await su("select count(*)::int n from highland.hs_rate where key = $1", [D1]))[0].n, 0, "his devices' rate counters went with their visits");
+  eq((await su("select count(*)::int n from highland.hs_rate where key in (select aid::text from highland.hs_sessions where uid = $1)", [U.B]))[0].n, bRate, "B's devices' counters stay");
+  eq(await d3(), d3Before, "the visitor's device keeps its visit and its counter");
+  eq(await anonOthers(), anonBefore, "every anonymous visit of a device that is not A's stays");
   eq(await has(U.A), 0, "every row of his in highland is gone: profile, saves, runs, scores, board rows, visits, rate counters, the admin's row");
   eq(await su("select sid, uid::text from highland.hs_sessions where aid = $1", [D1]), [], "and his device's visits from before the sign-in");
   eq(await shared(U.A), sharedA, "the shared sign-in account is untouched: auth.users, auth.identities and the sign-in log keep their rows");
@@ -1106,7 +1130,7 @@ group("delete", async () => {
   eq((await rpc(G, "hs_profile_set_name", { p_name: "Leaving Soon" })).ok, true, "a player joins");
   await su("delete from auth.users where id = $1", [G]);
   eq((await has(G)) - (await su("select count(*)::int n from highland.hs_rate where key = $1", [G]))[0].n, 0,
-    "the sign-in service deletes his account: his game rows go with it (on delete cascade; a rate counter, keyed by text, ends within two days)");
+    "the sign-in service deletes his account: his profile and save go with it (on delete cascade; his visits, whose uid has no foreign key, and a rate counter, keyed by text, do not: the owner's checklist removes the game data first)");
   for (const [fn, args] of [["hs_profile_get", {}], ["hs_profile_set_name", { p_name: "Ghost" }], ["hs_save_get", {}], ["hs_delete_account", {}]]) {
     eq(await errMsg(rpc(G, fn, args)), "not_signed_in", "a token of an account the sign-in service deleted: " + fn + " answers not_signed_in");
   }
@@ -1320,8 +1344,10 @@ async function migrationsSuite(db) {
     // a failing migration keeps nothing of itself
     const dir2 = fs.mkdtempSync(path.join(require("os").tmpdir(), "hs-mig-"));
     for (const f of fs.readdirSync(require("./migrate").DIR)) fs.copyFileSync(path.join(require("./migrate").DIR, f), path.join(dir2, f));
-    fs.writeFileSync(path.join(dir2, "005_broken.up.sql"), "create table highland.hs_half (a int);\nselect 1/0;\n");
-    fs.writeFileSync(path.join(dir2, "005_broken.down.sql"), "drop table highland.hs_half;\n");
+    // (numbered after the newest real one)
+    const nb = String(list().length + 1).padStart(3, "0");
+    fs.writeFileSync(path.join(dir2, nb + "_broken.up.sql"), "create table highland.hs_half (a int);\nselect 1/0;\n");
+    fs.writeFileSync(path.join(dir2, nb + "_broken.down.sql"), "drop table highland.hs_half;\n");
     const e2 = await err(migrate({ client: pgc, dir: dir2 }));
     ok(e2 && /division by zero/.test(e2.msg), "a migration that fails stops the run (" + (e2 && e2.msg) + ")");
     fs.rmSync(dir2, { recursive: true, force: true });

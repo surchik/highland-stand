@@ -52,18 +52,18 @@ else bad "step 0: the survey: $(head -20 "$T/survey-sql.out")"; fi
 mkdir -p "$T/work"
 if run backup "$T/work" && ls "$T"/work/highland-*.dump > /dev/null 2>&1; then ok "step 2: the backup: $(ls "$T"/work/highland-*.dump | xargs -n1 basename) ($(stat -c %s "$T"/work/highland-*.dump) bytes)"
 else bad "step 2: the backup: $(cat "$T/backup.out")"; fi
-if run migrate-status && grep -q 'highland at 4 of 4' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 4 of 4' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
-if run migrate-up && grep -q 'done: highland at 4' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
+if run migrate-status && grep -q 'highland at 5 of 5' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 5 of 5' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
+if run migrate-up && grep -q 'done: highland at 5' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
 if runsql check-config && grep -q '"now"' "$T/check-config.out"; then ok "step 3's check: hs_config answers with now"; else bad "step 3's check: $(cat "$T/check-config.out")"; fi
-if run migrate-down && grep -q 'reverted 004_seed  (now at 3)' "$T/migrate-down.out" && grep -q 'applied  004_seed  (now at 4)' "$T/migrate-down.out" && grep -q 'done: highland at 4' "$T/migrate-down.out"; then
-  ok "step 3: down 3 then up: 004 reverted and applied again, back at 4"
+if run migrate-down && grep -q 'reverted 005_delete_game_session  (now at 4)' "$T/migrate-down.out" && grep -q 'applied  005_delete_game_session  (now at 5)' "$T/migrate-down.out" && grep -q 'done: highland at 5' "$T/migrate-down.out"; then
+  ok "step 3: down 4 then up: 005 reverted and applied again, back at 5"
 else bad "step 3: down and up: $(cat "$T/migrate-down.out")"; fi
 psql "$HS_DB_URL" -X -q -c "grant select on highland.hs_saves to authenticated" > /dev/null 2>&1
 if run regrant && grep -q 'regranted' "$T/regrant.out" && [ "$(psql "$HS_DB_URL" -X -tA -c "select has_table_privilege('authenticated', 'highland.hs_saves', 'select')")" = f ]; then
   ok "step 3: regrant takes back a grant given by hand"
 else bad "step 3: regrant: $(cat "$T/regrant.out")"; fi
-# down 3 without --yes changes nothing
-if node "$ROOT/tools/platform/migrate.js" down 3 --dsn="$HS_DB_URL" > "$T/noyes.out" 2>&1; then bad "down without --yes ran"; else
+# down 4 without --yes changes nothing
+if node "$ROOT/tools/platform/migrate.js" down 4 --dsn="$HS_DB_URL" > "$T/noyes.out" 2>&1; then bad "down without --yes ran"; else
   grep -q 'with --yes' "$T/noyes.out" && ok "step 3: down without --yes refuses and changes nothing" || bad "down without --yes: $(cat "$T/noyes.out")"; fi
 if node "$ROOT/tools/platform/migrate.js" status --dsn="postgres://postgres:secret@localhost:$PORT/hs?host=$DIR" > "$T/pw.out" 2>&1; then bad "a DSN with a password was taken"; else
   grep -q 'PGPASSWORD' "$T/pw.out" && ! grep -q secret "$T/pw.out" && ok "a DSN with a password in it is refused, and the password is not printed" || bad "a DSN with a password: $(cat "$T/pw.out")"; fi
