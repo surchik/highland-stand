@@ -9765,9 +9765,33 @@ TOWER_DEFS.horse = {
 // crowd: the foes on its stretches the riders wait for before they charge (horseTick)
 const HORSE_RULES = { ride: 0.8, back: 1.2, rest: 8, heavy: 0.25, crowd: 3 };
 
+// ---------- Stores (gameplay 3.3): the special tower of Dvin, Tashir, Sevan, Ani, Mari and Sis ----------
+// It never fights (proj null) and holds a pad. After every cleared wave each standing Stores pays `pay` gold for each
+// script wave that wave paid for (payStep, 1.4), so what it yields does not hang on the battle's length (storesPay).
+// A wrecked one pays nothing. Caravan: kills pay `bounty` more (the larger of a Caravan's share and the Standards'
+// plunder applies, never both, and two Caravans pay one share). Field Forge: towers within its `range` mend `mend` more
+// of their strength at each clear and cost `repair` less to repair or rebuild. max: two on one field (3.7)
+TOWER_DEFS.stores = {
+  name: "Stores", cost: 120, proj: null, income: true, max: 2, maxSay: "Two stores are all this road can feed.",
+  // the stores' own strength by rank, for hunters and powers (kept here, as the Horse Lines' is: rulesetData)
+  hp: [240, 300, 380],
+  levels: [
+    { pay: 30 },
+    { pay: 46, cost: 120 },
+    { pay: 64, cost: 180 },
+  ],
+  specs: {
+    a: { name: "Caravan", cost: 260, desc: "Richer stores, and every kill pays a tenth more",
+         stats: { pay: 80, bounty: 0.1 } },
+    b: { name: "Field Forge", cost: 260, desc: "Towers nearby mend more and cost less to repair",
+         stats: { pay: 64, mend: 0.1, repair: 0.25, range: 220 } },
+  },
+};
+
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
 // built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
-// Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven)
+// Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven; the Stores, G7b: Dvin, Tashir, Sevan, Ani, Mari and
+// Sis have seven)
 const AGES = [
   { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
   { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
@@ -10141,8 +10165,24 @@ const HORSE_LEVEL = {
   tushpa: { name: "Horsemen of Biainili", short: "Horsemen", depicts: "Urartian horsemen with spears, shields and conical helmets, riding out from the lines below the fortress" },
   avarayr: { name: "Nakharar Horse", depicts: "The mounted contingents of the noble houses" },
 };
+// the Stores (gameplay 3.3): one skin, an awning on poles over sacks and jars with a pack horse tethered by it, in the
+// three ages that offer them (eras 2, 7 and 8). Each battlefield names its own. Every fortress and army had stores;
+// stores as a tower are the game's invention, and the card says so. It is not called a market (3.3)
+TOWER_SKINS.stores = ["stores", "stores", "stores", "stores", "stores", "stores", "stores", "stores", "stores"];
+SLOT_NAMES.stores = ["Stores", "Stores", "Stores", "Stores", "Stores", "Stores", "Stores", "Stores", "Stores"];
+// (the risk said on the tile, 3.3)
+SLOT_BLURB.stores = "Pays after every wave. Costs you a tower now.";
+SKIN_BLURB.stores = SLOT_BLURB.stores;
+const STORES_LEVEL = {
+  dvin: { name: "Granary", depicts: "Sacks of grain and jars under an awning inside the walls, a pack horse tethered by them" },
+  tashir: { name: "Village Stores", short: "Stores", depicts: "Sacks, jars and a pack horse under an awning inside the walls" },
+  sevan: { name: "Monastery Stores", short: "Stores", depicts: "The monastery's sacks and jars under an awning, a pack horse tethered by them" },
+  ani: { name: "Merchants' Stores", short: "Stores", depicts: "Bales, sacks and jars under an awning inside the walls, a pack horse tethered by them" },
+  mari: { name: "Baggage Train", short: "Baggage", depicts: "The army's sacks, jars and pack horses under an awning" },
+  sis: { name: "Royal Stores", depicts: "Sacks and jars of the castle's stores under an awning, a pack horse tethered by them" },
+};
 // each special tower's own names by battlefield (levelTower)
-const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL };
+const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL };
 // a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
 const TOWER_SHORT = {
   "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
@@ -10561,12 +10601,13 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // (G4), with the Garrison Post in every battlefield's tray (G5: released together, R3, so the pins were written anew
 // and the number kept, no board having opened on G4's), and the daily's part (G6: the same, no board having opened yet;
 // every battlefield's own pin is unmoved), and the Horse Lines (G7a: the same; only Erebuni's, Tushpa's and Avarayr's
-// pins moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// pins moved, and their revs rose to 3), and the Stores (G7b: the same; only Dvin's, Tashir's, Sevan's, Ani's, Mari's
+// and Sis's pins moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
 // number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "28b9023d";
+const RULESET_PIN = "ae5d7ebd";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10574,13 +10615,14 @@ const RULESET_PIN = "28b9023d";
 // 2 everywhere with the lengths (G4): fifteen battlefields changed their length, and the pay rule every battlefield
 // shares (a wave pays for the script waves it stands for) is new, so Sis and Sardarapat, left at twenty, rise too.
 // 3 on Erebuni, Tushpa and Avarayr with the Horse Lines in their trays (G7a): only their boards restart (RULINGS S4)
+// 3 on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores in their trays (G7b), the same way
 const LEVEL_REV = {
-  erebuni: 3, tushpa: 3, avarayr: 3, dvin: 2, tashir: 2, sevan: 2, ani: 2, mari: 2, sis: 2, gyumri: 2, halidzor: 2,
+  erebuni: 3, tushpa: 3, avarayr: 3, dvin: 3, tashir: 3, sevan: 3, ani: 3, mari: 3, sis: 3, gyumri: 2, halidzor: 2,
   van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
-  erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "71816844", tashir: "2f11b8c2", sevan: "e1afde52",
-  ani: "cd846f81", mari: "6eb4c76c", sis: "3d32c573", gyumri: "247e2c31", halidzor: "d8642491", van: "5de47ca5",
+  erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "37cf9c66", tashir: "653ccd31", sevan: "6fc7a390",
+  ani: "cb37060d", mari: "935fec00", sis: "e88d4c42", gyumri: "247e2c31", halidzor: "d8642491", van: "5de47ca5",
   musadagh: "781b3fc4", sardarapat: "4d3ab09c", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
@@ -11322,8 +11364,11 @@ function rulesetData() {
   // the shortest a battle can be (min: the sum over its waves of the moment its last foe comes on) and the most it can
   // pay (the starting purse, every bounty with the plunder mastery, every clear's bonus, the interest and an early call
   // at their caps on every wave), on the battlefield, difficulty and table in force
+  // two Stores at their richest (Caravan) where the tray offers them (3.3, 6.3): what they pay at every clear
+  const SD = TOWER_DEFS.stores;
+  const storesTop = SD ? SD.max * Math.max(...SD.levels.map(r => r.pay), ...Object.values(SD.specs).map(s => s.stats.pay)) : 0;
   const bounds = (L, D) => {
-    const played = curScript().map((_, k) => k + 1);
+    const played = curScript().map((_, k) => k + 1), stores = trayStandard(L.era).includes("stores") ? storesTop : 0;
     let min = 0, pay = D.gold + 15 * L.era + (trickEcon("gold") || 0);
     for (const w of played) {
       const plan = wavePlan(w), unit = {};
@@ -11338,7 +11383,7 @@ function rulesetData() {
       // the clear's bonus of every script wave the wave pays for, the interest at its cap and an early call at its cap
       // as many times (1.4)
       for (const sw of paidWaves(w)) pay += PAY.clear[0] + sw * PAY.clear[1];
-      pay += (PAY.interestCap + PAY.earlyCap) * payStep(w);
+      pay += (PAY.interestCap + PAY.earlyCap + stores) * payStep(w);
     }
     return { min: Math.floor(min), earnMax: Math.ceil(pay * 1.1) };
   };
@@ -11803,10 +11848,11 @@ function wreckTower(t) {
 }
 // a tower's name in the plural ("Village Hunters", "Trench and Wire") takes a plural verb
 function plural(name, one, more) { return / and /.test(name) || (/(s|men)$/i.test(name) && !/ss$/i.test(name)) ? more : one; }
+// (a Field Forge in reach takes its share off both: forgeOf)
 function repairCost(t) {
-  return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.repair) * (1 - towerHpFrac(t)) * kitNow().fix);
+  return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.repair) * (1 - towerHpFrac(t)) * kitNow().fix * (1 - forgeOf(t, "repair")));
 }
-function rebuildCost(t) { return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.rebuild) * kitNow().fix); }
+function rebuildCost(t) { return Math.ceil(towerInvested(t) * byDiff(TRICK_RULES.tower.rebuild) * kitNow().fix * (1 - forgeOf(t, "repair"))); }
 function salvageValue(t) { return Math.floor(towerInvested(t) * TRICK_RULES.tower.salvage); }
 function towerWorked(t) { return enemies.some(e => e.hunt && e.hunt.tower === t && e.hunt.state === "work"); }
 function repairTower(t) {
@@ -11852,14 +11898,50 @@ function clearRuin(t) {
   hidePanel();
   saveRun(); syncHud();
 }
-// every standing tower mends a share of its strength at each wave's clear
+// every standing tower mends a share of its strength at each wave's clear (a Field Forge in reach adds its own)
 function mendTowers() {
   const k = byDiff(TRICK_RULES.tower.mend) + kitNow().mend;   // the Stewards' fourth tier mends 1 point more
   for (const t of towers) {
     if (t.wreck || t.hp == null) continue;
     t.maxHp = towerMaxHp(t);
-    t.hp = Math.min(t.maxHp, t.hp + k * t.maxHp);
+    t.hp = Math.min(t.maxHp, t.hp + (k + forgeOf(t, "mend")) * t.maxHp);
   }
+}
+
+// ---- the Stores (gameplay 3.3) ----
+// what the standing Stores pay at a clear: each its `pay` for every script wave the wave paid for (step: payStep). A
+// wrecked one pays nothing. The coins rise from each, as a kill's do, with its sound
+function storesPay(step) {
+  let sum = 0;
+  for (const t of towers) {
+    if (t.type !== "stores" || t.wreck) continue;
+    const n = Math.round(getStats(t).pay * step);
+    if (!(n > 0)) continue;
+    sum += n;
+    t.yielded = (t.yielded || 0) + n;   // (not t.paid: that is what was laid out on a tower, towerPaid)
+    t.coinT = 1.2;
+    particles.push({ x: t.x, y: t.y - 46, vx: 0, vy: -22, life: 1.2, color: "#ffd27a", size: 0, text: "+" + n });
+    for (let i = 0; i < 6; i++) particles.push({ x: t.x + (fxRnd() - 0.5) * 22, y: t.y - 18, vx: (fxRnd() - 0.5) * 18, vy: -34 - fxRnd() * 22, life: 0.8, color: "#e8c88a", size: 2.5 });
+  }
+  if (sum > 0) Snd.play("coin", { x: towers.find(t => t.type === "stores" && !t.wreck).x });
+  return sum;
+}
+// a Field Forge's gift to a tower within its range: `mend` (a share of strength mended more at a clear) or `repair`
+// (the share taken off its repair and rebuild). Two forges over one tower give one share; a forge does not tend itself
+function forgeOf(t, what) {
+  let best = 0;
+  for (const f of towers) {
+    if (f.type !== "stores" || f.spec !== "b" || f.wreck || f === t) continue;
+    const st = getStats(f);
+    if (st[what] > best && inGroundRange(f.x, f.y, t.x, t.y, st.range)) best = st[what];
+  }
+  return best;
+}
+// a Caravan's share of every kill's bounty: the largest one standing (two Caravans pay one share)
+function caravanShare() {
+  let best = 0;
+  for (const t of towers) if (t.type === "stores" && t.spec === "a" && !t.wreck) best = Math.max(best, getStats(t).bounty || 0);
+  return best;
 }
 // a power hits a tower on a battlefield with tricks.powerDmg: it loses that share of its strength
 function powerHurt(t, kind) {
@@ -13539,6 +13621,8 @@ function runRecord() {
       hp: Math.round(t.hp == null ? towerMaxHp(t) : t.hp), wreck: !!t.wreck, paid: towerInvested(t),
       // a post's rally point (its men are not saved: a resumed wave begins with the garrison whole, as towers reload)
       rally: t.rally ? [Math.round(t.rally.x), Math.round(t.rally.y)] : undefined,
+      // what a Stores has paid so far, for its panel (paid at clears only: the horn's value is the value now)
+      yielded: t.yielded ? Math.round(t.yielded) : undefined,
     })),
     // the tray it was begun with: a run finishes with it whatever the campaign opens meanwhile
     tray: trayTypes().slice(),
@@ -13697,6 +13781,7 @@ function resumeRun() {
       x, y, cd: 0, aim: -0.5, flame: Math.random() * 9, beat: 0,
       // placed long ago: a resumed tower never sells back at the full price of a placement just undone
       novaT: 0, novaFx: 0, buffHaste: 0, buffMight: 0, placedAt: -1e9,
+      yielded: typeof tw.yielded === "number" && isFinite(tw.yielded) && tw.yielded >= 0 && tw.yielded <= 1e6 ? Math.round(tw.yielded) : 0,
       // what was laid out on it, as saved (a run saved before it was kept: its ranks' prices under the kit)
     };
   });
@@ -14338,13 +14423,15 @@ function endWaveIfClear() {
     const adaptMsg = adaptStep();
     const bonus = paidWaves(waveIdx).reduce((sum, sw) => sum + PAY.clear[0] + sw * PAY.clear[1], 0);
     const interest = Math.min(kitInterestCap(), Math.floor(gold * PAY.interestRate)) * step;   // war chest pays out (the Stewards may raise its cap)
-    gold += bonus + interest;
-    battleEarn(bonus, "clear"); battleEarn(interest, "interest");
+    // (the interest is taken of the purse before the Stores pay: their gold is this clear's, as the bonus is)
+    const stores = storesPay(step);
+    gold += bonus + interest + stores;
+    battleEarn(bonus, "clear"); battleEarn(interest, "interest"); battleEarn(stores, "stores");
     battleWaveEnd();
     if (waveIdx >= totalWaves() && !endless) { victory(); return; }
     if (endless) saveBest();
     toast("Wave " + waveIdx + " repelled! +" + bonus + " gold" +
-      (interest > 0 ? " · +" + interest + " interest" : ""));
+      (interest > 0 ? " · +" + interest + " interest" : "") + (stores > 0 ? " · +" + stores + " stores" : ""));
     waveRepelledCue();
     if (adaptMsg) {
       trickToastLater(adaptMsg, 1900);
@@ -15071,7 +15158,10 @@ function showUnlockCard(what) {
     // the special towers (3.1), each the first time its battlefield's tray holds it
     horse: { title: "A new tower: the Horse Lines", icon: "horse", btn: "Got it",
       lines: ["Its riders charge down the road in its reach and throw the foes back the way they came. Build it just past your strongest towers, so the foes walk past them again.",
-        "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Elephants, siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] } }[what];
+        "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Elephants, siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] },
+    stores: { title: "A new tower: the Stores", icon: "coin", btn: "Got it",
+      lines: ["Your stores pay gold after every wave you hold, more at every rank. They never fight, and they take a pad a fighting tower could use: gold later for a tower now.",
+        "Hunters come for them, and wrecked stores pay nothing. Two on a field at most."].concat(storesHistory()) } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15083,6 +15173,15 @@ function showUnlockCard(what) {
   trickCardEl.setAttribute("aria-hidden", "false");
   Snd.play("unlock");
   try { $("tcBtn").focus({ preventScroll: true }); } catch (e) {}
+}
+// the Stores card's last line (3.3): the history where a source tells it (Dvin's merchants, Procopius in
+// docs/history/town-history.json), then what is the game's. No source in the repo tells Ani's trade, so Ani makes no
+// claim (G7b)
+function storesHistory() {
+  const id = levelId(curLevel), out = [];
+  if (id === "dvin") out.push("Procopius wrote of many merchants in the land of Dvin. They traded goods from India, Iberia, Persia and some Roman lands.");
+  out.push("Stores as a tower are the game's invention.");
+  return out;
 }
 function closeUnlockCard(open) {
   const what = unlockCardOn;
@@ -15778,13 +15877,16 @@ function update(dt) {
       if (e.lastHit) e.lastHit.kills = (e.lastHit.kills || 0) + 1;
       let bounty = e.bounty;
       const p = enemyPos(e);
+      // the Standards' plunder near them, or a Caravan's share anywhere: the larger applies, never both (3.3)
+      let share = caravanShare();
       for (const d of towers) {
         if (d.type === "drums" && d.spec === "b" && getStats(d).plunder &&
             inGroundRange(d.x, d.y, p.x, p.y, getStats(d).range)) {
-          bounty += Math.ceil(e.bounty * getStats(d).plunder);
+          share = Math.max(share, getStats(d).plunder);
           break;
         }
       }
+      if (share > 0) bounty += Math.ceil(e.bounty * share);
       gold += bounty;
       battleEarn(bounty, "bounty");
       if (e.type === "boss") battle.cmdFelled++;
@@ -45492,6 +45594,114 @@ function queueHorseRiders(objs, time) {
 }
 // ====================================== END SKIN SECTION: horse ======================================
 
+// ======================================================================================
+// SKIN SECTION: the Stores (gameplay 3.3). Put together from parts the other skins use: the common footing, an awning
+// of striped cloth on four timber poles, sacks and jars under it (more at each rank), and a pack horse tethered at the
+// side, drawn live with the cavalry painter's bare horse (unitPaintHorse) so that it can be gone from a wreck. Caravan
+// adds bales and a second horse with its load; Field Forge an anvil and a small hearth that glows. Coins rise from
+// it at every clear (storesPay)
+// ======================================================================================
+TOWER_BOX.stores = [-46, -84, 58, 22];
+TOWER_SCALE.stores = 1;
+TOWER_ACCENT.stores = "#b8862e";
+const STORES_CLOTH = ["#c9b27a", "#8e2b22"];   // the awning's cloth and its stripes
+function storesBase(lvl, spec) { return { w: (spec ? 40 : [34, 36, 38][lvl]), d: 17, h: 4.4 }; }
+function storesFooting(lvl, spec) {
+  const b = storesBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.stores, stepped = !!spec || lvl === 2;
+  return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+}
+// a sack: a rounded bag with its neck tied
+function storesSack(x, y, w, h, col) {
+  const c = sctx;
+  c.beginPath();
+  c.moveTo(x - w / 2, y);
+  c.quadraticCurveTo(x - w / 2 - 1, y - h * 0.8, x - w * 0.18, y - h);
+  c.lineTo(x + w * 0.18, y - h);
+  c.quadraticCurveTo(x + w / 2 + 1, y - h * 0.8, x + w / 2, y);
+  c.closePath();
+  c.fillStyle = col; c.fill(); inkStroke(0.6);
+  beam(x - w * 0.2, y - h + 0.6, x + w * 0.2, y - h + 0.6, 0.6, toneHex(col, -40));
+}
+// a storage jar: a broad shoulder narrowing to its foot, a short neck
+function storesJar(x, y, h, col) {
+  const w = h * 0.62;
+  inkPoly([x - w * 0.22, y, x - w / 2, y - h * 0.55, x - w * 0.3, y - h * 0.9, x - w * 0.16, y - h, x + w * 0.16, y - h,
+    x + w * 0.3, y - h * 0.9, x + w / 2, y - h * 0.55, x + w * 0.22, y], col, 0.6);
+  beam(x - w * 0.4, y - h * 0.7, x + w * 0.4, y - h * 0.7, 0.5, toneHex(col, -30));
+}
+function paintStores(lvl, spec) {
+  const c = sctx, S = footStone(), base = storesBase(lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 151 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const A = spec === "a", B = spec === "b", W = base.w - 4, ph = 30 + lvl * 3 + (spec ? 4 : 0);
+  // the back poles, then the goods under the awning, then the front poles over them
+  beam(-W / 2 + 4, -3, -W / 2 + 4, -ph - 4, 1.3, TIMBER_DARK);
+  beam(W / 2 - 4, -3, W / 2 - 4, -ph - 4, 1.3, TIMBER_DARK);
+  // goods: sacks along the back, jars before them; more at every rank, bales with a Caravan
+  const sacks = [[-W / 2 + 9, -2], [-W / 2 + 15, -2.6], [W / 2 - 14, -2.2]].slice(0, 2 + Math.min(1, lvl + (spec ? 1 : 0)));
+  for (const [x, y] of sacks) storesSack(x, y, 8.4, 10, "#d8c79a");
+  if (lvl >= 1 || spec) storesSack(-W / 2 + 12, -10.4, 7.4, 8, "#cdb98a");
+  const jars = [[-2, 2], [3.6, 2.4]].concat(lvl >= 2 || spec ? [[8.6, 2]] : []);
+  for (const [x, y] of jars) storesJar(x, y, 11, "#b0643a");
+  if (A) {
+    // the Caravan's bales: corded bundles stacked at the right
+    for (const [x, y] of [[W / 2 - 8, 2.2], [W / 2 - 8, -4.4]]) {
+      inkPoly([x - 5, y, x - 5, y - 6, x + 5, y - 6, x + 5, y], "#8a6a3e", 0.6);
+      beam(x - 5, y - 3, x + 5, y - 3, 0.5, "#4e3a22");
+      beam(x, y, x, y - 6, 0.5, "#4e3a22");
+    }
+  }
+  if (B) {
+    // the Field Forge: a hearth of stones with its glow at the left, an anvil on a block before it
+    inkPoly([-W / 2 + 3, 3, -W / 2 + 3, -4, -W / 2 + 11, -4, -W / 2 + 11, 3], toneHex(S[1], -16), 0.6);
+    inkPoly([-W / 2 + 5, -1, -W / 2 + 5, -3.4, -W / 2 + 9, -3.4, -W / 2 + 9, -1], "#ff8a3c", 0);
+    inkPoly([-W / 2 + 12, 4, -W / 2 + 12, 0.6, -W / 2 + 16, 0.6, -W / 2 + 16, 4], TIMBER_DARK, 0.5);
+    inkPoly([-W / 2 + 10.4, 0.6, -W / 2 + 17.6, 0.6, -W / 2 + 16.6, -1.6, -W / 2 + 11.6, -1.6], "#4a4d52", 0.5);
+  }
+  // the awning: a cloth sloping from the back poles down to the front ones, its stripes in the age's banner red
+  const cloth = STORES_CLOTH[0], stripe = (POST_BANNER[curEra] || POST_BANNER[0])[0];
+  const back = -ph - 4, front = -ph + 3, L0 = -W / 2 + 1, R0 = W / 2 - 1;
+  inkPoly([L0 + 2, back, R0 - 2, back, R0 + 1, front, L0 - 1, front], cloth, 0.8);
+  for (let i = 0; i < 4; i++) {
+    const a = 0.1 + i * 0.22, b = a + 0.1;
+    const at = (f, top) => (top ? L0 + 2 + (R0 - L0 - 4) * f : L0 - 1 + (R0 - L0 + 2) * f);
+    inkPoly([at(a, 1), back, at(b, 1), back, at(b, 0), front, at(a, 0), front], stripe, 0);
+  }
+  // the scalloped edge along the front
+  for (let x = L0 - 1; x < R0; x += 4.6) inkPoly([x, front, x + 4.6, front, x + 2.3, front + 2.2], toneHex(cloth, -18), 0.4);
+  beam(-W / 2 + 2, -2, -W / 2 + 2, front + 0.4, 1.3, TIMBER);
+  beam(W / 2 - 2, -2, W / 2 - 2, front + 0.4, 1.3, TIMBER);
+  structCrown(back - 2);
+  c.restore();
+}
+// the pack horse at its tether, and the Caravan's second one; drawn live (none at a wreck on the field). A portrait
+// shows both of a Caravan's
+function storesPack(x, y, face) {
+  drawHorseFigure(x, y, face, false, null);
+  // the pack: two sacks slung over its back
+  const sp = proj(x, y), s = sp.s;
+  ctx.fillStyle = "#d8c79a"; ctx.strokeStyle = "rgba(40, 24, 8, .85)"; ctx.lineWidth = 0.8 * s;
+  for (const dx of [-3.2, 3.2]) {
+    ctx.beginPath(); ctx.ellipse(sp.x + dx * s - face * 2 * s, sp.y - 17 * s, 3.4 * s, 4 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+}
+function storesLive(t) {
+  if (t.pad >= 0 && t.wreck) return;
+  if (t.spec === "a") storesPack(t.x + 34, t.y - 2, -1);
+  storesPack(t.x + 27, t.y + 8, -1);
+}
+SKIN_ART.stores = {
+  box: [-46, -84, 58, 22], scale: 1,
+  paint(lvl, spec) { paintStores(lvl, spec); },
+  // the stripes follow the age's banner, the snow the map
+  variant() { return curEra * 2 + (backdropSnowy() ? 1 : 0); },
+  live: storesLive,
+  footing: storesFooting,
+};
+// ====================================== END SKIN SECTION: stores ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
@@ -48576,6 +48786,7 @@ function traceRing(pts) {
   ctx.closePath();
 }
 function drawRange(x, y, r, color, s) {
+  if (!(r > 0)) return;   // a tower with no reach (the Stores below Field Forge) draws no ring
   ctx.strokeStyle = color;
   ctx.fillStyle = color.replace(/[\d.]+\)$/, "0.08)");
   ctx.lineWidth = 1.6;
@@ -57389,6 +57600,16 @@ function statText(t) {
     s += statRow("wing", "", "Thrown once in " + HORSE_RULES.rest + "s. Outflankers untouched.", "wide");
     return s;
   }
+  if (def.income) {
+    // the Stores (3.3): what they pay at a clear (for each script wave the wave stands for), and what they have paid
+    let s = statRow("coin", st.pay, "gold a wave", "wide") + statRow("coin", t.yielded || 0, "paid so far", "wide");
+    if (st.bounty) s += statRow("coin", "+" + Math.round(st.bounty * 100) + "%", "gold from every kill", "wide");
+    if (st.mend) s += statRow("shield", "+" + Math.round(st.mend * 100) + "%", "mended at each clear nearby", "wide");
+    if (st.repair) s += statRow("up", "-" + Math.round(st.repair * 100) + "%", "repair cost nearby", "wide");
+    if (st.range) s += statRow("range", st.range, "reach");
+    s += statRow("wing", "", "Never fights. Wrecked, it pays nothing.", "wide");
+    return s;
+  }
   if (t.type === "fire") {
     // the drums fan the flame (might) and hasten the stun (haste), as they do a tower's blows and reload
     let s = statRow("frost", Math.round(st.slow * 100) + "%", "slow") + statRow("range", st.range, "range") +
@@ -57416,6 +57637,7 @@ function statText(t) {
 }
 
 function serviceRecord(t) {
+  if (TOWER_DEFS[t.type].income) return "";   // the Stores' record is the gold they paid (statText)
   if (!t.kills && !t.dmgDone) return "";
   return '<div class="st wide rec">' + icon("swords") + "<b>" + (t.kills || 0) + "</b><span>kills</span><i>·</i><b>" +
     Math.round(t.dmgDone || 0) + "</b><span>damage dealt</span></div>";
@@ -58182,7 +58404,8 @@ function foeCounters(role, u) {
   const good = [], poor = [];
   for (const type of Object.keys(TOWER_DEFS)) {
     const def = TOWER_DEFS[type], lv0 = def.levels[0], top = def.levels[def.levels.length - 1];
-    if (def.aura || def.post) continue;   // the drums strike nothing; the post's men hold and are named by the tile
+    // the drums strike nothing; the post's men hold and are named by the tile; the Stores never fight (G7b)
+    if (def.aura || def.post || def.income) continue;
     // the Horse Lines (G7a), only where the tray holds them: they throw back what walks the road, an engine or a
     // commander barely, and an outflanker never
     if (def.charge) {
@@ -59001,7 +59224,7 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
 // and any burn the blows leave behind; a fire burns this much into every foe in its reach
 function statDps(type, st) {
   const def = TOWER_DEFS[type];
-  if (def.aura) return 0;
+  if (def.aura || def.income) return 0;
   if (def.post) return st.dmg / st.rate * st.men;
   if (def.charge) return st.dmg / st.cd;   // on one foe in its reach: one charge's blow each cd
   if (!def.proj) return st.burn;
@@ -59035,6 +59258,11 @@ function statDeltaHtml(type, a, b) {
     cell("road", a.push, b.push, b.push >= a.push);
     if (b.pierce && !a.pierce) add("spear", "<b>pierce</b>");
     if (b.slow && !a.slow) add("frost", "<b>" + pc(b.slow) + "</b>&nbsp;slow");
+  } else if (def.income) {
+    cell("coin", a.pay, b.pay, b.pay >= a.pay);
+    if (b.bounty && !a.bounty) add("coin", "<b>+" + pc(b.bounty) + "</b>&nbsp;kills");
+    if (b.mend && !a.mend) add("shield", "<b>+" + pc(b.mend) + "</b>&nbsp;mend");
+    if (b.repair && !a.repair) add("up", "<b>-" + pc(b.repair) + "</b>&nbsp;repair");
   } else if (def.aura) {
     cell("rate", "+" + pc(a.haste), "+" + pc(b.haste), b.haste >= a.haste);
     cell("dmg", "+" + pc(a.might), "+" + pc(b.might), b.might >= a.might);
@@ -83567,6 +83795,8 @@ function photoStageBattle(lv, wave, o) {
   }
   // &horse=N: N Horse Lines (&hl=0|1|2|a|b their rank or mastery), &ride=s the first one's charge s seconds in
   if (o.horse) photoHorseStage(o.horse, o.hl, o.ride);
+  // &stores=N: N Stores (&sl=0|1|2|a|b their rank or mastery), &coins their pay at a clear rising
+  if (o.stores) photoStoresStage(o.stores, o.sl, o.coins);
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
@@ -83574,6 +83804,8 @@ function photoStageBattle(lv, wave, o) {
   if (o.postPanel && firstPost) showPanel(firstPost);
   const firstHorse = towers.find(t => t.type === "horse");
   if (o.horsePanel && firstHorse) showPanel(firstHorse);
+  const firstStores = towers.find(t => t.type === "stores");
+  if (o.storesPanel && firstStores) showPanel(firstStores);
   if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
 }
 function photoPostStage(n) {
@@ -83625,6 +83857,27 @@ function photoHorseStage(n, hl, ride) {
   if (ride != null) {
     const t = towers.find(x => x.type === "horse");
     if (t) { horseTick(0); if (t.ride) for (let i = 0; i < Math.round(ride * 60); i++) horseTick(1 / 60); }
+  }
+  gold = 640;
+}
+
+// Stores for a photo: on the free pads that reach the least road (where the bot builds them), and with &coins the pay
+// of a clear frozen as it rises
+function photoStoresStage(n, sl, coins) {
+  gold = 99999;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i))
+    .sort((a, b) => postRoadIn(PADS[a][0], PADS[a][1], 150).length - postRoadIn(PADS[b][0], PADS[b][1], 150).length);
+  for (let k = 0; k < n && k < free.length && k < TOWER_DEFS.stores.max; k++) {
+    placeTower("stores", free[k]);
+    const t = towers[towers.length - 1];
+    if (sl === "a" || sl === "b") { t.level = 2; t.spec = sl; } else t.level = Math.max(0, Math.min(2, Number(sl) | 0));
+    t.placedAt = -1e9;
+    towerSyncHp(t);
+    t.yielded = 0;
+  }
+  if (coins) {
+    storesPay(payStep(Math.max(1, waveIdx)));
+    for (let i = 0; i < 18; i++) for (const p of particles) { p.x += (p.vx || 0) / 60; p.y += (p.vy || 0) / 60; }
   }
   gold = 640;
 }
@@ -83917,6 +84170,8 @@ function runPhoto() {
         post: num("post", 0), postPanel: HARNESS.has("postpanel"), rally: HARNESS.has("rally"),
         // &horse=N Horse Lines (&hl rank or mastery, &ride=s a charge s seconds in), &horsepanel the first one's panel
         horse: num("horse", 0), hl: HARNESS.get("hl") || "0", ride: HARNESS.has("ride") ? num("ride", 0.4) : null, horsePanel: HARNESS.has("horsepanel"),
+        // &stores=N Stores (&sl rank or mastery, &coins a clear's pay rising), &storespanel the first one's panel
+        stores: num("stores", 0), sl: HARNESS.get("sl") || "0", coins: HARNESS.has("coins"), storesPanel: HARNESS.has("storespanel"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
