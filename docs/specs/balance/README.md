@@ -242,3 +242,212 @@ What it is, measured on the five worst (Sevan, Halidzor, Van, Sardarapat, Stepan
 The rule of 4.8 is that the Council's numbers are cut, not a battlefield. Cutting the Council by half or more is the
 owner's call (G3's README said so, and the review of G4 asks it of the owner too), so the close leaves the Council and
 KITSET (1, 96485c5b) as they were and records the gate as failed: no Open board may be published until it holds.
+
+## G5: the Garrison Post and the tray of n tiles (gameplay 2, 3.8, 5.2, 5.6)
+
+Tables: `g5-normal-seeds3.txt`, `g5-easy-seeds3.txt`, `g5-hard-seeds3.txt` (all 17, SEEDS=3, CLOCK=1, every build with the
+post's: mix7, posts, postdrum), `g5-kit-par-hold-normal-seeds3.txt` and `g5-kit-bounds.txt` (RULINGS B7), and
+`g5-probe-posts-normal-seeds3.txt` (CMD=probe). `ruleset-2.json` is rulesetData() at G5's close.
+
+### What else moved every build's cells
+
+- 2.2's fix: a stone aimed at a foe that stands (stunned, held by a post's man or by the hero) is led by nothing. The
+  hero's hold is in every battle, so every build's cells move a little from G4's: the mix on Normal keeps 9.57 on the
+  mean of the 17 (G4: 9.39), Sevan 18.0 (13.3), Tashir 8.0 (9.0), Ani 12.3 (13.3).
+- The bot builds at most two watch towers of its own for hidden scouts. With the post in its order it met a road's last
+  stretch no free pad watches 120 px of, and built a watch tower at every look (eight on Erebuni).
+- The Standard battle's tray holds the post on every battlefield (`trayStandard`), and the ruleset says so: the pins of
+  ruleset 2 were written anew (RULESET stays 2: G4 and G5 are released together, R3, and no board ever opened on G4's).
+  `LEVEL_PAR` is taken again from these tables (the best build may now be mix7).
+
+### The post's numbers (5.6, G5)
+
+2.1's first numbers (90 gold; men of 130 with a blow of 10) kept "mix7" 1.1 defenders below "mix" on Normal (SEEDS=3, the
+posts fourth and twelfth in its order), and 5.4 when the post was the fourth building. Measured on mix against mix7, all
+17, SEEDS=3 (every candidate in the build's scratch notes):
+
+| candidate | mix7 against mix, mean of 17 |
+| --- | --- |
+| 2.1 as written, posts 4th and 12th | -5.4 (SEEDS=1) |
+| 2.1 as written, posts 9th and 17th | -1.1 |
+| ranks 70/80/150 gold, men and blows x1.5, posts 9th and 17th | -0.8 |
+| ranks 60/70/120, men x3, blows x2, posts 7th and 17th | -1.2 |
+| ranks 60/70/120, men x3, blows x3, posts 9th and 17th | +0.4 |
+| the same, a commander held 12 s | +0.6 |
+| ranks 50/60/110, men x3, blows x3, a commander held 12 s (built) | +0.8 |
+
+Built: ranks of 50, 60 and 110 gold, every man three times as strong with three times the blow (rank 1: two men of 390,
+a blow of 30; rank 3: three of 750, a blow of 66; Shield Wall four of 1,260, Sortie three of 900 with a blow of 144 that
+pierces), masteries at 300 as before, `POST_RULES.cmdHold` 12 s. A post's damage per 100 gold is then 5,195 on Normal
+(the archers' 3,613), with 53 s of hold per 100 gold. Doubling or quintupling the men without making the post cheaper
+moved nothing: what the post costs mix7 is the shooting tower whose pad and gold it takes, and a commander that the
+missing tower would have felled.
+
+### 5.2's rows for the post (Normal, SEEDS=3)
+
+- mix7 against mix: +0.80 on the mean of the 17 (bound 1 to 3: MISSED, under it), most +9.3 (Van; bound 5: MISSED, and
+  Musa Dagh +7.0: both where the mix loses seeds, 1 of 3 and none, so any board that wins gains much). Per battlefield:
+  Erebuni -0.3, Tushpa +4.3, Avarayr 0, Dvin +0.3, Tashir 0, Sevan -1.0, Ani +1.0, Mari -10.0, Sis -5.7, Gyumri 0,
+  Halidzor +4.7, Van +9.3, Musa Dagh +7.0, Sardarapat +1.0, Stepanakert 1992 -1.3, Shushi +2.0, Stepanakert 2023 +2.3.
+  Mari: mix7's third commander reaches the walls with a tenth of his strength on every seed (the post's pad held a
+  ballista in the mix); Sis: the post on the 17th pad leaks more of the rank and file over twenty waves. Neither moved
+  with the post's own numbers (above), and a retune of the battlefields for this row alone was not made.
+- The post in the best build: Tushpa, Ani, Van and Sardarapat, 4 of 17 (bound: a third, 6: MISSED).
+- posts and postdrum lose every battle on every battlefield on Normal (bound: two of three seeds: met), and on Hard.
+- A commander is never stopped by posts (CMD=probe, a board of posts alone leaves both commanders above 60% at the
+  walls): MISSED at the built numbers. A board of posts alone deals the first commander 1.3 to 4.9 times his strength
+  on its road (`g5-probe-posts-normal-seeds3.txt`; postdrum 1.3 to 4.8); the posts boards still lose every battle, to
+  the rank and file that walks past a full line and to the engines. The men's blow, tripled for mix7's row, is what
+  fells him (Sortie's 144 pierces his armor). A cut on the men's blows against a commander is the fix to try first; it
+  moves mix7's row the wrong way (Mari's commander), so it is left for the review and the owner.
+
+### The bands of 5.1 again, with the best build free to use the post
+
+- Normal, the first six: the best build keeps 14.3 (Erebuni, archers), 17.0 (Tushpa, mix7), 13.7, 14.3, 14.7 and 18.0
+  (Sevan, the mix): Tushpa and Sevan above 16 (RULINGS B9 asks no more tuning for the bands alone; the retunes tried,
+  Sevan's and Tushpa's spoils, turned whole seeds over at once). The mix wins every seed on the six.
+- Normal, the later eleven: the best build keeps 10 to 15 on every battlefield (Van 10.0, mix7) and wins every seed;
+  the mix wins two of three or more on 10 of 11 and none of three on none (Van 1 of 3).
+- Easy: the mix wins every battlefield on every seed; on the first six 28.3, 26.0, 29.7, 25.7, 24.7, 25.0.
+- Hard: the best build wins two of three or more on 16 of 17 (Van 1 of 3) and loses some seeds; its victories keep 2 to
+  8 except Erebuni (1.7, catapults) and Van (1.0).
+- Wave time on Normal: inside 15% of 1.2 on 15 of 17; Erebuni +18% and Tushpa +16% (their best builds now keep more and
+  take longer).
+- The adaptive enemy adapts on 18% of the mix's waves, 14% of mix7's, 99 to 100% of the one-tower builds'.
+
+### The Council after RULINGS B7 (KITSET 2): par-hold
+
+`KIT=par HERO=hold` against the Standard battle, all 17, SEEDS=3: +2.29 on the mean (RULINGS B7's bound 2.3: inside),
+most +6.7 (Van; 5.2's bound of 6 on any battlefield: over), Halidzor +6.3, Gyumri +5.0.
+
+### Playtests 2 and 6 (gameplay 8.4), by the touch helpers (`tools/playtest-post.js`, 667 x 320, an iPhone's Safari)
+
+- 2, Tushpa: the card "A new tower: the Garrison Post" came up on the chronicle and its Got it kept it; the post was
+  built by its tile and two taps; at 2x, twenty times during waves 1 to 3 the post was tapped, Rally point pressed and
+  the road tapped at either end of its stretch: the rally moved 20 times of 20, no slip (no panel, no land, no hero).
+  The first build missed 4 or 5 of 20 at the far edge of the field (the world point under a finger stops there, as a
+  pad's does) and when the tap came within 80 ms of the arming: the press is now measured on the screen and taken at
+  once (the button arms on its click, the finger already up).
+- 6, Sardarapat's 20 waves at 2x, four posts (Shield Wall) against four archers on the same pads, side by side: the
+  median frame 16.7 ms both, frames over 22 ms 6.1% against 5.1%, and the frame governor left the posts' page at its
+  full density (2) while it stepped the archers' page down to 1.5 (the machine's load, not the men). Sixteen men on the
+  field cost nothing that shows. (That board of posts fell on the last wave; the archers' kept 10.)
+
+## G5 close: after the review (docs/specs/reviews/G5-review.md)
+
+Tables: `g5-close-normal-seeds3.txt`, `g5-close-easy-seeds3.txt`, `g5-close-hard-seeds3.txt` (all 17, SEEDS=3, CLOCK=1,
+every build, the new "halfpost" included), `g5-close-probe-posts-normal-seeds3.txt` (CMD=probe: posts, mix7, halfpost),
+`g5-close-kit-par-hold-normal-seeds3.txt` and `g5-close-kit-bounds.txt` (worked from the two tables' best columns), and
+every trial below in `g5-close-trials/`. `LEVEL_PAR`, the pins of ruleset 2 and `ruleset-2.json` were taken again
+from these tables (RULESET stays 2, as at the build).
+
+### What changed
+
+- A commander takes 0.18 of a man's blow, never through his armor (`POST_RULES.cmdBlow`). Tried on CMD=probe, a board
+  of posts alone, the least share of the first commander's strength taken on his road over the 17:
+
+  | cmdBlow | most taken | battlefields over 0.40 | mix7 on Normal |
+  | --- | --- | --- | --- |
+  | 1 (the build) | 4.92 | 17 | as the build |
+  | 0.25 | 0.75 | 7 | as the build, Sevan 13.7 |
+  | 0.22 | 0.50 (on 5 tried) | 3 | Erebuni 9.7c1 |
+  | 0.2 | 0.43 (on 5 tried) | 2 | Erebuni 9.7c1 |
+  | 0.18 (built) | 0.39 | 0 | Erebuni 9.7c1 |
+  | 0.1 | 0.45 (Erebuni: the hero and the bot's watch archer) | 1 | Musa Dagh 0/3 w9c3 |
+
+  At 0.18 the row of 5.2 is met: a board of posts alone leaves the first commander above 61% of his strength at the
+  walls on every battlefield (posts never reach the wave-20 pair). The cost: one of mix7's three Erebuni battles lets a
+  commander through (9.7c1, 13.0 without it), on every value under 0.25. With SPELLS=0 the probe is the same, so the
+  floor on Erebuni is the hero and the watch archer, not the spells.
+- Rank 1 costs 70, not 50. "halfpost" (a post on every second pad, the review's board) was the best build on 7 of 17 at
+  50; at 70 on 2 (Tashir, Musa Dagh). mix7 moves by at most a seed's worth either way. Rank 1 at 90, or men of 260
+  with a blow of 20, left Tashir's halfpost at 19.0 all the same: Tashir's cell is the battlefield's, not the post's
+  price (`w-c90.txt`, `w-r1x2.txt`).
+- Sevan on Normal: `hpTune` 1.1 (was 1). The stones' fix had taken the mix from 13.3 (G4) to 18.0. At 1.05 the mix lost
+  a seed (2/3 11.3c1), at 1.1 it wins all three with 11.0 and the best build (mix7) keeps 13.3, at 1.15 the mix keeps
+  12.3 and archdrum loses all three. Easy and Hard are untouched.
+- mix7's order was tried with the post 7th ("mix7b": worse on Erebuni 1.0c3, Van, Sevan) and with one post only
+  ("mix7e": the same battles as mix7: its second post never finds a free pad). The order stays.
+
+### 5.2's rows for the post at the close (Normal, SEEDS=3)
+
+- mix7 against mix: +0.82 on the mean (bound 1 to 3: MISSED, under it). Van +9.3 and Musa Dagh +7.0 (bound 5: MISSED);
+  Mari -10.0 (its third commander reaches the walls on every seed, as at the build) and Sis -5.0. Owner's ruling.
+- The post in the best build: Tushpa, Tashir (halfpost), Sevan, Ani, Van, Musa Dagh (halfpost), Sardarapat: 7 of 17
+  (bound 6: met).
+- posts and postdrum lose every battle on every battlefield on Normal (met).
+- CMD=probe: met (above).
+- halfpost: wins 27 of 51 on Normal; the best build on Tashir (19.3, above 16) and Musa Dagh (14.3). On Hard it keeps
+  13.0 on Tashir and 9.0 on Musa Dagh (Hard's band 2 to 8: over). Owner's ruling: a Tashir knob, or the "Wedge" of 5.5.
+
+### The bands again
+
+- Normal: the best build keeps 14.3, 17.3 (Tushpa, mix7), 13.7, 14.3, 19.3 (Tashir, halfpost), 13.3 on the first six;
+  10.0 to 14.3 on the later eleven. Tushpa and Tashir above 16. The mix wins every seed on the six (Sevan 11.0).
+- Easy: every best build wins every seed (27.0 to 30.0).
+- Hard: the best build wins two of three or more on 16 of 17 (Van 1 of 3); Erebuni 1.7, Van 1.0, Tashir 13.0 and Musa
+  Dagh 9.0 outside 2 to 8.
+- Wave time on Normal: Erebuni +18% and Tushpa +16% (as at the build); every other inside 15%.
+
+### The Council after RULINGS B7 at the close
+
+par-hold +2.12 on the mean (bound 2.3: inside), most +6.7 (Van) and +6.3 (Halidzor): over 5.2's 6 on one battlefield,
+as at the build. `tools/balance-kit.js` now reads the par bound as 2.3; it needs JSON=1 lines, so the close's gate was
+worked from the tables' best columns.
+
+## G6: the daily's battle (gameplay 6.4, 8.3 (e))
+
+| File | What it is |
+| --- | --- |
+| `g6-daily-normal-seeds3.txt` | `DAILY=1 CLOCK=1 SEEDS=3`, every build, all 17 battlefields: the daily's 12-wave tables (Normal, the whole tray, the standard loadout) with no twist. Its line of pars is `DAILY_PAR` in `index.html`. |
+| `g6-daily-twists-normal-seeds3.txt` | `DAILY=1 TWIST=id CLOCK=1 SEEDS=3`, the mix, all 17 battlefields, for each of the eight twists (and `none` again, the base of the ratios). |
+| `ruleset-2.json` | `rulesetData()` again, now with its daily part (pool, twists, k 5, j 3, skip, levels, t). |
+
+How they were made (4 cores, shared with the other track; DAY=20406, the bot's default, seeds the outflankers' lines):
+
+```
+DAILY=1 CLOCK=1 SEEDS=3 JOBS=3 node tools/balance.js 1 all                       # 561 battles, 416 s
+for t in none thin swift iron few quiet noballista nocatapult nodrums; do
+  DAILY=1 TWIST=$t CLOCK=1 SEEDS=3 JOBS=3 node tools/balance.js 1 all mix          # 51 battles each, about 40 s
+done
+```
+
+The daily without a twist: the mix wins all 51 battles, and so the daily's own table is no harder than the campaign for
+the build that 6.4 measures against. The best build keeps 8.0 (Erebuni, whose daily is the default table of 12, not its
+coached table of 10) to 19.3 (Tashir). The pars (the best build's mean clock, waiting 4 s between waves):
+
+```
+erebuni 1494, tushpa 1353, avarayr 1543, dvin 1383, tashir 1132, sevan 1373, ani 1188, mari 997, sis 1579,
+gyumri 1739, halidzor 1680, van 1287, musadagh 972, sardarapat 1259, stepanakert92 2028, shushi 1117, stepanakert23 1309
+```
+
+The skip list (6.4: the pairs the mix wins on fewer than two of three seeds), 52 of the 136 pairs, plus No drums on
+Shushi, whose drums keep watch:
+
+| Twist | Battlefields skipped | Mix wins of 51 |
+| --- | --- | --- |
+| Thin purse | erebuni, avarayr, dvin, sevan, ani, gyumri, van, sardarapat, stepanakert92, shushi, stepanakert23 (11) | 17 |
+| Forced march | tushpa, dvin, tashir, van, musadagh, sardarapat, shushi, stepanakert23 (8) | 28 |
+| Iron ranks | van (1) | 47 |
+| Few defenders | erebuni, dvin, halidzor, musadagh, sardarapat (5) | 38 |
+| No spells | tushpa, dvin, tashir, van, shushi (5) | 35 |
+| No {ballista} | tushpa, avarayr, dvin, ani, mari, halidzor, van, musadagh, sardarapat, shushi, stepanakert23 (11) | 18 |
+| No {catapult} | erebuni, dvin, mari, van, stepanakert23 (5) | 37 |
+| No {drums} | erebuni, tashir, mari, sis, van (5), and shushi by the watch rule | 38 |
+
+The list is measured on one day's outflanker lines (DAY=20406). The day's seed moves only the outflankers (their
+entry, their line over a lake, the side an aircraft circles), so the G6 close reran the five served pairs that the mix
+won on exactly two of three seeds on a second day, `DAILY=1 TWIST=t DAY=20407 CLOCK=1 SEEDS=3 node tools/balance.js 1
+<field> mix`: Thin purse on Musa Dagh, Forced march on Sevan, Iron ranks and Few defenders on Tashir, No spells on
+Musa Dagh. Each again won two of three, so none drops into the list.
+
+Every battlefield keeps at least one twist: Van keeps only Few defenders, Dvin Iron ranks and No drums. Thin purse and
+No ballista are served on six battlefields each: a fifth less in bounties is a heavier blow at 12 waves than it reads, and
+the ballista slot is the mix's answer to armor and to the sky on most battlefields. The owner may want either softened
+(Thin purse at a tenth; a second struck slot instead of the ballista); nothing here changes without a new skip list.
+
+The twists' bounds for the server (`daily.t`): Few defenders sets 12 (`livesSet`); Thin purse's `earn` is worked out
+by the page as the largest share of `earnMax` any battlefield keeps under it (0.88, an upper bound); `fast` and `slow`
+are the mean ratio of the mix's clock with the twist to its clock without, over the battlefields it won both ways:
+Thin purse 1.07, Forced march 0.98, Iron ranks 1.01, No spells 1.04, No ballista 1.09, No catapult 1.07, No drums 1.06.
+The clock is mostly the foes' coming on, so a forced march is only 2% quicker; a weaker board is up to 9% slower.

@@ -409,6 +409,13 @@ foe along the road before he turns back.
 Reading: rank 1 is 20 damage a second for 90 gold against the archers' 22 for 50; its worth is the hold.
 Rank 3 is 73 a second for 390. A post alone loses its men: a rank 1 man (130) against a wave 5 spearman
 (about 11 a second, 2.2) lasts 12 s and needs 21 s to fell him.
+(G5 build: these numbers kept the bot's "mix7" 1.1 defenders below "mix" on Normal at SEEDS=3, so the post was tuned
+under 5.6's G5 step: ranks of 50, 60 and 110 gold, every man three times as strong with three times the blow (rank 1:
+two men of 390 with a blow of 30), and a commander held 12 s in all, not 8 (`POST_RULES.cmdHold`). The masteries keep
+their price and their shape, scaled the same way. See docs/specs/balance/README.md, G5.)
+(G5 close: rank 1 costs 70, not 50: at 50 a board with a post on every second pad ("halfpost") was the best build on 7 of
+17. A commander takes only 0.18 of a man's blow, never through his armor (`POST_RULES.cmdBlow`): with the full blow a
+board of posts alone felled the first commander at 1.3 to 4.9 times his strength, against 2.4's "a delay, never a wall".)
 
 ### 2.2 How it fights
 
@@ -444,7 +451,8 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 ### 2.3 The rally point, by mouse and by touch
 
 - When built, the rally point is the road point in reach nearest the pad (on a tie, the one nearer the
-  walls). A pad with no road in a rank 1 post's reach (up to four pads a battlefield, measured) refuses
+  walls). (G5 build: as written; the road is sampled every 5 px on every road of the battlefield, the dormant ambush
+  track included.) A pad with no road in a rank 1 post's reach (up to four pads a battlefield, measured) refuses
   the tower: its preview ring lights no road and the press answers "No road in reach of this pad."
 - The post's panel has a first button "Rally point" (icon `#i-flag`). Pressing it puts the panel away and
   arms `rallying = tower`: the field draws the reach ring and lights every stretch of road inside it (the
@@ -462,6 +470,8 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
   put away on arming so the whole field is free. The 70 px catch is world units: at the phone's scale
   (about 0.45) that is a 31 px radius under the finger, so the nearest road in the ring within 110 world
   units is taken on a phone (`isPhone()`).
+- (G5 close: the press is read for the post and the hero first, so a hero standing on the road inside the ring puts the
+  rally down rather than moving the men under him.)
 - Keyboard: `G` arms the rally of the selected post.
 - The reach ring a tile shows before building (and the tutorial's pad preview) is the post's `reach`, with
   the road inside it lit, so a player sees where the men can stand before paying.
@@ -517,6 +527,11 @@ State per post: `t.rally = {x, y, route, dist}` and `t.men = [{ x, y, hp, state,
 | 6 Artsakh | 1992: Self-defense squad. 2020: Trench squad. 2023: Defense Army squad | "A rifle squad dug in beside the road" | Dug-in Squad / Counterattack | Generic of these wars. |
 
 Blurb (`SLOT_BLURB.post`): "Men who stand on the road and hold foes in melee. Outflankers go round."
+
+(G5 close: no source names bayonets, so Sardarapat's post shows "Armenian infantry in the counterattack across the
+plain" (its own text: "the Armenians counterattacked across the plain"), Van's "Defenders with rifles behind a barricade
+across the lane", and era 5's second mastery is "Counterattack", as era 6's. Mari's and Sis's lines stay the age's generic
+soldier, unsourced and unclaimed.)
 
 ### 2.7 Art, all drawn in code
 
@@ -915,6 +930,8 @@ battle ("Reset the Council"). Once owned a tier counts on every battlefield, old
 | Heralds (`heralds`): hero and spells | Hero 5% stronger (strength) | Spells ready 3% sooner | Hero returns in 16 s, not 20 | Spells ready another 3% sooner | The hero's Call ready 20% sooner |
 | Stewards (`stewards`): gold and walls | 10 more gold at the start | Repairs and rebuilds cost 10% less | The war chest's interest may reach 70 a wave, not 60 | Towers 5% stronger; they mend 2 points more at a clear | A sale returns 80%, not 70%; land costs 10% less |
 
+(G5 build, RULINGS B7: every effect is now half of the table's, KITSET 2: 1% where it says 2%, 1.5% for 3%, 7.5% for
+15%, 18 s for 16 s, 65 for 70, a sale 75%. The Captains' tiers 3 to 5 open with the post.)
 (G2 close: these are the numbers the game ships with KITSET 1. G2 cut the first draft's numbers to hold the
 bounds of 5.2 on the sample of RULINGS E: see docs/specs/balance/README.md, section G2. The Captains' tiers 3
 to 5 and the Heralds' tier 5 are not tuned yet: they are tuned with the post (G5) and the Call (G3).)
@@ -1328,6 +1345,9 @@ time:
   see docs/specs/balance/README.md.)
 - G5 (the post): its numbers, until "mix7" is 1 to 3 lives above "mix" and the post builds lose; the bands
   again, with the best build free to use the post.
+  (G5 build: the numbers of 2.1 were raised (see there) and mix7 puts its posts ninth and last; the fix of 2.2 (a held
+  or stunned foe is led by nothing) moves every build's cells a little, so the bands are read again at the final
+  numbers. Where 5.2 is still missed it is said in docs/specs/balance/README.md, G5.)
 - G6 (the daily): the 12-step tables with `DAILY=1`: the daily's pars per battlefield, and each twist on
   each battlefield (`TWIST=id`, the mix, three seeds): the pairs for `daily.skip` (6.4).
 - G7a to G7e (a special tower each): its numbers and its rows of 5.2, on its own battlefields only.
@@ -1542,6 +1562,22 @@ the bot and committed with the balance tables.
 `levels: { "<lv>": { script, fast, slow, earnMax } }` (the daily's own 12-step table and its pars), and `t`,
 for each twist the multipliers it puts on `fast`, `slow` and `earnMax` and, for Few defenders, the lives it
 sets (`livesSet`, the platform's name): Forced march makes a battle shorter; Thin purse makes it poorer.
+
+(G6 build: built as written, with these choices. `rulesetData().daily` also carries `k` (5) and `j` (3), the steps of the
+platform's pick, worked out by the page, and each battlefield's daily `min`. `dailyPick(day)` is the platform's 5.6 in
+the page, and `dailyToday()` takes `Platform.daily()` when it answers, else the device's day; `startDaily` refuses a
+battlefield, twist or day it does not know and any call while a battle is on the field. The seeded draws are a hash of
+the day's seed, the outflanker's number in the battle and the draw (`gRnd(n, k)`), not a running generator, so a
+player's spells cannot shift the next outflanker's line; the side an aircraft circles over the smoke is the same draw.
+They are used only in a daily: every other battle keeps `Math.random`, so the balance bot's seeded battles are
+unchanged. `t` gives every twist its measured `fast` and `slow` (the mix's clock with and without it: 0.98 to 1.09;
+a forced march is only 2% quicker, for the clock is mostly the foes' coming on), Thin purse's `earn` worked out as an
+upper bound (0.88), and Few defenders' `livesSet`. The skip list is 52 of the 136 pairs (docs/specs/balance/README.md,
+G6): Thin purse and No ballista are each served on six battlefields only. The way in from the map is a "Today's
+challenge" button beside the march (on a phone held sideways a 46 px square at the left of the column), shown once
+Erebuni has been fought; the card stands where "Did you know?" stands on the chronicle. A daily's end page, won or
+lost, has two doors, Fight again and the campaign map; a daily gives no stars and the page shows none. `RULESET` stays
+2: no board has opened on it, and no battlefield's pin moved.)
 
 ## 7. Analytics hooks
 

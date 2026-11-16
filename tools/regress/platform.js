@@ -104,7 +104,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
   const open = async (C, x = {}) => {
     const ctx = await browser.newContext(Object.assign({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1, hasTouch: !!C.touch, isMobile: !!C.touch },
       x.ua || C.ua ? { userAgent: x.ua || C.ua } : {}));
-    await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; });
+    await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; window.__hsQuietPostCard = true; window.__hsQuietRallyBubble = true; });   // (G5: and the Garrison Post's card and bubble)
     if (C.standalone) await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, "standalone", { configurable: true, get: () => true }); } catch (e) {} });
     if (C.insets) await ctx.addInitScript(ins => {
       const set = () => { const st = document.documentElement.style; st.setProperty("--sat", (ins.t || 0) + "px"); st.setProperty("--sab", (ins.b || 0) + "px"); st.setProperty("--sal", (ins.l || 0) + "px"); st.setProperty("--sar", (ins.r || 0) + "px"); };
@@ -308,7 +308,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // a framed page: the provider's button opens the game in a tab of its own
     if (C.key === "desk") {
       const ctx = await browser.newContext({ viewport: { width: C.w, height: C.h } });
-      await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; });
+      await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; window.__hsQuietPostCard = true; window.__hsQuietRallyBubble = true; });   // (G5: and the Garrison Post's card and bubble)
       const page = await ctx.newPage();
       const errs = [];
       page.on("pageerror", e => errs.push(e.message));
