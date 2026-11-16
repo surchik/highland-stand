@@ -18,6 +18,9 @@
 //                                   ref.boundsOf (the server's _bounds) reads them, a daily's table and its twists
 //      scoreLine, clockWords, (P5)  the victory page's strip in each state of 5.3, the battle clock in words, the outbox's
 //      outTrim                      limits (20 entries, 7 days, one a run, another account's never sent)
+//      shareRows, shareText,  (P7)  the share card's rows (section 6's table: y, size, face, the shrink to 640 px), its
+//      shareFileName,               words for a campaign battle and a daily, the file's name, the canonical address
+//      shareSite, shareDay          as the card names it, the day as it writes it; a guest's card (no name, no rank)
 //      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
 //                                   document of a newer format is left alone, a bare removal of hs_run writes no
@@ -112,7 +115,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -228,6 +231,42 @@ if (pure) {
     eq(pure.outTrim([e("a", "u", 0), e("a", "u", 5), { rid: 1 }, null, "x"], now).map(x => x.rid), ["a"], "the outbox: one entry a run, junk dropped");
     eq(pure.outSendable([e("a", "u", 0), e("b", "v", 0)], "u", now).map(x => x.rid), ["a"], "another account's entry is never sent");
     eq(pure.outTrim("nonsense", now), [], "an outbox that is not a list is empty");
+  }
+  if (pure.shareRows && pure.shareText) {
+    const base = { title: "Erebuni Rise Stands!", hy: "Էրեբունի", field: "Erebuni Rise", lv: "erebuni", date: "Nov 16, 2026", diff: "Normal", stars: 2, kept: 17, max: 20,
+      sec: 754, score: 7750, rank: 12, total: 87, open: false, player: "Aram", site: "highland.avunjian.com", url: "https://highland.avunjian.com", daily: null, lost: null };
+    const at = (rows, y) => rows.filter(r => r.y === y).map(r => r.text);
+    let R = pure.shareRows(base);
+    eq([96, 190, 240, 290, 420, 462, 504, 566, 556, 590].map(y => at(R, y)[0] || null),
+      ["HIGHLAND STAND", "Erebuni Rise Stands!", "Էրեբունի", "Nov 16, 2026 · Normal", "17 of 20 defenders kept", "Held in 12:34 · Score 7,750", "#12 this week", "Held by Aram",
+        "Free in your browser", "highland.avunjian.com"], "the share card's rows (section 6's table)");
+    eq(at(R, 150), [], "no daily line on a campaign card");
+    const t = R.find(r => r.y === 190);
+    eq([t.px, t.min, t.w, t.bold, t.x, t.color], [62, 40, 640, true, 64, "#fff3d6"], "the title: 62 px bold, shrunk to no less than 40 px to fit 640 px");
+    eq(R.filter(r => r.align === "right").map(r => [r.x, r.px, r.bold]), [[1136, 20, false], [1136, 26, true]], "the foot: right-aligned at x = 1136, 20 px and 26 px bold");
+    eq(R.find(r => r.y === 240).face, "hy", "the Armenian name in the page's Armenian face");
+    eq(pure.shareStars(base), 2, "a campaign card has its stars");
+    eq(at(pure.shareRows(Object.assign({}, base, { open: true })), 504), ["#12 this week · Open"], "an open battle's rank: \"· Open\" added");
+    // a guest: no name line, no rank
+    R = pure.shareRows(Object.assign({}, base, { player: null, rank: null, total: null }));
+    eq([at(R, 504), at(R, 566)], [[], []], "a guest's card: no name line, no rank");
+    eq(at(pure.shareRows(Object.assign({}, base, { hy: "" })), 240), [], "no Armenian line for a place without one");
+    // the daily
+    const dl = Object.assign({}, base, { field: "Ani", title: "Ani Stands!", date: "Nov 10, 2026", daily: { date: "Nov 10", twist: "Thin purse" }, rank: 12, total: 87, stars: 0 });
+    R = pure.shareRows(dl);
+    eq([at(R, 150), at(R, 290), at(R, 504)], [["Daily challenge · Nov 10"], ["Nov 10, 2026 · Normal · Thin purse"], ["#12 of 87 today"]], "a daily's card");
+    eq(pure.shareStars(dl), null, "a daily's card has no stars (a daily gives none)");
+    eq(at(pure.shareRows(Object.assign({}, dl, { lost: { held: 7, waves: 18 }, rank: null })), 190), ["Ani: held 7 of 18 waves"], "a lost daily's title");
+    // the words
+    eq(pure.shareText(base), "I held Erebuni Rise in Highland Stand with 17 of 20 defenders. Score 7,750. https://highland.avunjian.com", "the share text (section 6)");
+    eq(pure.shareText(Object.assign({}, dl, { score: 7420 })), "Highland Stand daily, Nov 10: Ani, Thin purse. Score 7,420, #12 today. https://highland.avunjian.com", "the daily's share text (5.6)");
+    eq(pure.shareText(Object.assign({}, dl, { score: 7420, rank: null })), "Highland Stand daily, Nov 10: Ani, Thin purse. Score 7,420. https://highland.avunjian.com", "the daily's share text with no rank yet");
+    for (const x of [pure.shareText(base), pure.shareText(dl)].concat(pure.shareRows(dl).map(r => r.text), pure.shareRows(base).map(r => r.text))) ok(!/[\u2013\u2014]/.test(x), "no long dash on the card: " + x);
+    eq([pure.shareFileName("erebuni"), pure.shareFileName("Sis"), pure.shareFileName("../x"), pure.shareFileName(null)],
+      ["highland-stand-erebuni.jpg", "highland-stand-sis.jpg", "highland-stand.jpg", "highland-stand.jpg"], "the picture's file name");
+    eq([pure.shareSite("https://highland.avunjian.com/"), pure.shareSite("https://Highland.avunjian.com"), pure.shareSite("javascript:alert(1)"), pure.shareSite(undefined)].map(x => x.url),
+      ["https://highland.avunjian.com", "https://highland.avunjian.com", "https://highland.avunjian.com", "https://highland.avunjian.com"], "the card's address is the canonical one");
+    eq([pure.shareDay(new Date(Date.UTC(2026, 10, 10, 23, 30)), false, true), pure.shareDay(new Date(Date.UTC(2026, 0, 2, 12)), true, true)], ["Nov 10", "Jan 2, 2026"], "the card's days");
   }
   if (pure.dailyOf) for (const d of [
     { pool: Array.from({ length: 17 }, (_, i) => "b" + i), twists: ["thin", "swift", "iron", "few", "quiet", "noballista"], skip: { b3: ["few"] } },

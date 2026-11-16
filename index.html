@@ -2938,7 +2938,52 @@
   /* the map page's door: a round trophy button 10 px right of the campaign's tally (its place set by syncHallBtn) */
   #overlay #hallBtn { position: fixed; z-index: 2; width: 44px; height: 44px; }
   #overlay #hallBtn[hidden] { display: none; }
-  #overlay #hallBtn .ic, #overlay #boardBtn .ic { width: 22px; height: 22px; }
+  #overlay #hallBtn .ic, #overlay #boardBtn .ic, #overlay #shareBtn .ic { width: 22px; height: 22px; }
+  /* ---- the share card (section 6): Share on the strip, its round twin held sideways, Settings' row, the sheet ---- */
+  #ovScore .scShare { min-height: 40px; padding: 0 16px 0 13px; font-size: 15px; display: inline-flex; align-items: center; gap: 7px; }
+  #ovScore .scShare .ic { width: 17px; height: 17px; color: var(--bronze-hi); }
+  @media (max-width: 500px) and (min-height: 500.02px) { #ovScore .scShare { min-height: 44px; } }
+  #overlay #shareBtn { position: fixed; top: calc(8px + var(--sat)); right: calc(110px + var(--sar)); z-index: 2; width: 44px; height: 44px; }
+  #overlay #shareBtn[hidden], #overlay:not(.victory) #shareBtn { display: none; }
+  #overlay #shareBtn .ic { color: var(--bronze-hi); }
+  /* (live once the first picture is ready, a moment after the page opens) */
+  #ovScore .scShare:disabled, #overlay #shareBtn:disabled, #settings #setShare:disabled { opacity: .55; cursor: default; }
+  #settings #setShare { display: none; }
+  body.pfOn.onMenu.pfShare #settings #setShare { display: flex; }
+  /* the sheet: a small card over the victory page, the picture at 300 px and four quiet buttons under it */
+  #shareSheet {
+    position: fixed; inset: 0; z-index: 52; display: flex; align-items: center; justify-content: center;
+    padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal));
+    background: rgba(8,5,2,.66); touch-action: manipulation; font-family: var(--face); color: var(--parch);
+  }
+  #shareSheet.shHidden { display: none; }
+  #shareSheet .shCard {
+    position: relative; width: 352px; max-width: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 16px;
+    border: 2px solid var(--bronze); border-radius: 10px; background: linear-gradient(180deg, #3a2819, #24180e);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,235,190,.2), 0 10px 30px rgba(0,0,0,.6);
+  }
+  #shareSheet .shHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  #shareSheet h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .3px; color: #f6dc9a; }
+  #shareSheet .shX { flex: none; width: 44px; height: 44px; }
+  #shareSheet .shX .ic { width: 16px; height: 16px; }
+  #shareSheet .shMain { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  #shareSheet .shPic { display: block; width: 300px; max-width: 100%; height: auto; aspect-ratio: 1200 / 630; border: 1px solid var(--bronze-sh); border-radius: 4px; background: #14100c; }
+  #shareSheet .shBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 300px; max-width: 100%; }
+  #shareSheet .shBtns .btn { min-height: 44px; padding: 0 8px; font-size: 14.5px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+  #shareSheet .shBtns .btn:only-child, #shareSheet .shBtns .btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* the confirmations (a toast) show over the sheet */
+  body.shUp #toast { z-index: 60; }
+  @media (max-height: 500px) {
+    #settings #setShare { grid-row: 4; }
+    /* held sideways: the picture at the left, the buttons in a column beside it */
+    #shareSheet .shCard { width: auto; padding: 10px 12px 12px; }
+    #shareSheet .shHead { margin-bottom: 6px; }
+    #shareSheet h2 { font-size: 16px; }
+    #shareSheet .shMain { flex-direction: row; align-items: flex-start; }
+    #shareSheet .shPic { width: min(300px, calc(100vw - 200px - var(--sal) - var(--sar))); }
+    #shareSheet .shBtns { grid-template-columns: 1fr; width: 150px; gap: 6px; }
+    #shareSheet .shBtns .btn:last-child:nth-child(odd) { grid-column: auto; }
+  }
   #overlay #hallBtn.pip::after {
     content: ""; position: absolute; top: -3px; right: -1px; width: 12px; height: 12px; border-radius: 50%;
     background: radial-gradient(circle at 38% 34%, #ff8b76, #d0402f 55%, #8a1f17); border: 1.5px solid #17100a;
@@ -80891,8 +80936,57 @@ function outTrim(list, now) {
   return out.slice(-OUT_MAX);
 }
 function outSendable(list, uid, now) { return outTrim(list, now).filter(e => e.uid === uid); }
+// ---- the share card's words (section 6) ----
+// info: { title, hy, field, lv, date, diff, stars, kept, max, sec, score, rank, total, open, player, site, url,
+//   daily: { date, twist } | null, lost: { held, waves } | null }
+// The card is 1200 x 630; a row's y is its text's baseline, in px from the top (the table of section 6); the text
+// column starts at x = 64, and the foot's two lines stand right-aligned at x = 1136. px is the type's size, min the
+// least it may shrink to while it is wider than w (then, at min, it is squeezed into w as a last resort)
+const SHARE_W = 1200, SHARE_H = 630, SHARE_X = 64;
+const SHARE_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// a day as the card writes it: "Nov 10" (a daily's line) or "Nov 10, 2026"; d is a Date read in UTC when utc is set
+function shareDay(d, year, utc) {
+  const m = utc ? d.getUTCMonth() : d.getMonth(), day = utc ? d.getUTCDate() : d.getDate(), y = utc ? d.getUTCFullYear() : d.getFullYear();
+  return SHARE_MON[m] + " " + day + (year ? ", " + y : "");
+}
+function shareRows(info) {
+  const I = info || {}, rows = [], gold = "#f0cf85", pale = "#e6d3a8", cream = "#fff3d6";
+  const row = (y, text, px, o) => { if (text) rows.push(Object.assign({ y, text: String(text), px, bold: false, color: cream, face: "page", x: SHARE_X, align: "left", w: 760, min: px }, o || {})); };
+  // (the crest stands left of the name: the name begins after it)
+  row(96, "HIGHLAND STAND", 30, { bold: true, color: gold, x: SHARE_X + 72, spacing: 4 });
+  if (I.daily) row(150, "Daily challenge · " + (I.daily.date || ""), 22, { color: pale });
+  const title = I.lost ? (I.field || "") + ": held " + scoreNum(I.lost.held) + " of " + scoreNum(I.lost.waves) + " waves" : I.title || ((I.field || "") + " Stands!");
+  row(190, title, 62, { bold: true, w: 640, min: 40 });
+  if (I.hy) row(240, I.hy, 34, { color: gold, face: "hy", w: 640, min: 26 });
+  row(290, [I.date, I.diff, I.daily && I.daily.twist].filter(Boolean).join(" · "), 26, { color: pale });
+  if (!I.lost) row(420, scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders kept", 30);
+  row(462, (I.lost ? "" : "Held in " + clockWords(I.sec) + " · ") + "Score " + scoreNum(I.score), 30);
+  if (I.rank) row(504, "#" + scoreNum(I.rank) + (I.daily ? (I.total ? " of " + scoreNum(I.total) : "") + " today" : " this week") + (I.open ? " · Open" : ""), 30, { bold: true, color: gold });
+  if (I.player) row(566, "Held by " + I.player, 24, { color: pale, w: 640, min: 18 });
+  row(556, "Free in your browser", 20, { x: 1136, align: "right", w: 300 });
+  row(590, I.site || "highland.avunjian.com", 26, { bold: true, x: 1136, align: "right", w: 420, min: 20 });
+  return rows;
+}
+// the three stars of a won campaign battle (a daily gives none, and a lost daily has no victory to star)
+function shareStars(info) { return info && !info.daily && !info.lost ? Math.max(0, Math.min(3, Math.round(Number(info.stars) || 0))) : null; }
+// the words that go with the picture (the address inside them: some apps drop a separate url beside a picture)
+function shareText(info) {
+  const I = info || {}, url = I.url || "https://highland.avunjian.com";
+  if (I.daily) return "Highland Stand daily, " + (I.daily.date || "") + ": " + (I.field || "") + (I.daily.twist ? ", " + I.daily.twist : "") + ". Score " + scoreNum(I.score) +
+    (I.rank ? ", #" + scoreNum(I.rank) + " today" : "") + ". " + url;
+  return "I held " + (I.field || "") + " in Highland Stand with " + scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders. Score " + scoreNum(I.score) + ". " + url;
+}
+// the picture's file name: highland-stand-<battlefield id>.jpg (an id of anything but small letters and digits: none)
+function shareFileName(lv) { const id = String(lv || "").toLowerCase(); return "highland-stand" + (/^[a-z0-9]{1,24}$/.test(id) ? "-" + id : "") + ".jpg"; }
+// the address the card names: the page's canonical one ("https://highland.avunjian.com/"), so a card made on /next/
+// still names the game; { site: "highland.avunjian.com", url: "https://highland.avunjian.com" }
+function shareSite(canonical) {
+  const m = /^https:\/\/([a-z0-9.-]+)\/?$/i.exec(String(canonical || "").trim());
+  const host = m ? m[1].toLowerCase() : "highland.avunjian.com";
+  return { site: host, url: "https://" + host };
+}
 const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine, errWord, EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA, Cloud,
-  scoreOf, boundsOf, scoreNum, clockWords, scoreLine, outTrim, outSendable };
+  scoreOf, boundsOf, scoreNum, clockWords, scoreLine, outTrim, outSendable, shareRows, shareStars, shareText, shareFileName, shareSite, shareDay };
 // ==== PLATFORM PURE END ====
 
 // ---- the platform's state on this device (0.5): every key starts hs_pf_ and none is ever synced ----
@@ -83250,7 +83344,9 @@ async function scEnd(n, p) {
   const stats = { won, lives, waves: num(p.wave), sim_sec: Math.round(num(p.sec)), spent: Math.round(num(p.spent)), earned: Math.round(num(p.earned)),
     loadout: daily ? "std" : p.loadout === "open" ? "open" : "std", build: String(p.build || (typeof BUILD_ID !== "undefined" ? BUILD_ID : "")).slice(0, 20) };
   const page = { rid: "", state: "posting", score: scoreOf(stats, b, rules.score), rank: null, total: null, best: false,
-    open: stats.loadout === "open", daily, lv: p.lv, diff: p.diff, loadout: stats.loadout, mode: daily ? "daily" : "campaign", lives: stats.lives, livesMax: b.lives };
+    open: stats.loadout === "open", daily, lv: p.lv, diff: p.diff, loadout: stats.loadout, mode: daily ? "daily" : "campaign", lives: stats.lives, livesMax: b.lives,
+    // (and what the share card says besides: the stars, the battle clock, the twist, and when the battle was won)
+    stars: Number(p.stars) || 0, sec: stats.sim_sec, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow() };
   SC.page = page;
   // a start still asking for its token: the strip says "posting" while it waits (its tries end within 35 s)
   if (why === "begin" && SC.begin) { scRender(); try { await SC.begin; } catch (e) {} }
@@ -83362,10 +83458,10 @@ if (PF_ON) window.addEventListener("online", () => setTimeout(scFlush, 1000));
 
 // ---- the victory page's strip (#ovScore) and its doors (5.3, 5.5) ----
 // Desktop, iPad and an upright phone: a strip under gameplay's #ovGrowth, the score line, then Leaderboard (the Hall
-// on this battlefield, difficulty and loadout, This week). The share card's button joins it with work package P7. On a
-// phone held sideways the page is full to the pixel: the platform adds no row there, the score joins the record row as
-// text, and Leaderboard is a round button at the top right, left of the gear (#boardBtn), which hides the way the
-// tally does when the title reaches under it (Settings' row then leads to the same board).
+// on this battlefield, difficulty and loadout, This week) and Share (the share card, section 6). On a phone held
+// sideways the page is full to the pixel: the platform adds no row there, the score joins the record row as text, and
+// Leaderboard and Share are round buttons at the top right, left of the gear (#boardBtn, #shareBtn), which hide the
+// way the tally does when the title reaches under them (Settings' rows then lead to the same board and card).
 const scStripEl = (() => {
   if (!PF_ON) return null;
   const el = document.createElement("div");
@@ -83404,7 +83500,12 @@ function scRender() {
   if (old) old.remove();
   scStripEl.hidden = !words || side;
   scBoardBtnEl.hidden = true;
-  if (!words) return;
+  scShareBtnEl.hidden = true;
+  // the share card goes with the strip: Settings' row while the page has one, and its picture drawn (again when the
+  // strip's words change: the rank arrives)
+  document.body.classList.toggle("pfShare", !!words);
+  if (!words) { shClose(); return; }
+  shSync();
   const canBoard = !pg.daily || hallTabs().some(t => t.id === "daily");
   const link = pg.state === "signin" || pg.state === "noname";
   if (side) {
@@ -83426,6 +83527,8 @@ function scRender() {
       if (!link) t.title = words + ". " + SCORE_SENTENCE + " " + CLOCK_SENTENCE;
     }
     scBoardBtnEl.hidden = !canBoard;
+    scShareBtnEl.hidden = false;
+    shReadyBtns();
     scFitBoardBtn();
     return;
   }
@@ -83437,30 +83540,385 @@ function scRender() {
   else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
   w.appendChild(t);
   if (canBoard) btns.appendChild(pfBtn("btn scBoard", "Leaderboard", () => scOpenBoard()));
-  btns.hidden = !canBoard;
+  const sh = pfBtn("btn scShare", null, (b) => shTap(b));
+  sh.innerHTML = icon("share") + "<span>Share</span>";
+  btns.appendChild(sh);
+  btns.hidden = false;
+  shReadyBtns();
 }
 // a tap on the score tells the score's sentence and the clock's (the tooltip a mouse gets; RULINGS S1, N12)
 function scSentence() { toast(SCORE_SENTENCE + " " + CLOCK_SENTENCE, 7000); }
 // "Sign in to post it": the words are a button to the Account tab (a sign-in there comes back to the Hall)
 function scSignInDoor() { Snd.init(); Snd.play("uiTick"); hallFrom = "victory"; openHall("account"); }
-// the round button hides, as the tally does, where the page's title reaches under it
+// the round buttons hide, as the tally does, where the page's title reaches under them (Settings' two rows then lead
+// to the same board and the same card)
 function scFitBoardBtn() {
-  const b = scBoardBtnEl;
-  if (!b || b.hidden) return;
-  b.style.visibility = "";
-  const a = b.getBoundingClientRect();
-  if (!a.width) return;
-  const hit = ["ovCrest", "ovTitle", "ovHy", "ovRecord"].some(id => {
-    const r = $(id).getBoundingClientRect();
-    return r.width && r.left < a.right + 6 && r.right > a.left - 6 && r.top < a.bottom + 4 && r.bottom > a.top - 4;
-  });
-  if (hit) b.style.visibility = "hidden";
+  for (const b of [scBoardBtnEl, scShareBtnEl]) {
+    if (!b || b.hidden) continue;
+    b.style.visibility = "";
+    const a = b.getBoundingClientRect();
+    if (!a.width) continue;
+    const hit = ["ovCrest", "ovTitle", "ovHy", "ovRecord"].some(id => {
+      const r = $(id).getBoundingClientRect();
+      return r.width && r.left < a.right + 6 && r.right > a.left - 6 && r.top < a.bottom + 4 && r.bottom > a.top - 4;
+    });
+    if (hit) b.style.visibility = "hidden";
+  }
 }
 if (PF_ON) {
   // the strip leaves with its page (Replay, Next battle, the map: the page's "victory" class goes), and is drawn
   // again when the layout changes under it (a phone turned)
-  new MutationObserver(() => { if (SC.shown && !overlayEl.classList.contains("victory")) { SC.shown = false; scRender(); } }).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+  new MutationObserver(() => { if (SC.shown && !overlayEl.classList.contains("victory")) { SC.shown = false; scRender(); shLeave(); } }).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
   addEventListener("resize", () => { if (SC.shown) requestAnimationFrame(scRender); });
+}
+
+// ---- the share card (section 6) ----
+// A picture of the battle won, 1200 x 630 (the shape every messenger shows whole), made here on a canvas of the
+// page's own: no server draws it, and nothing leaves the device unless the player shares it. The field is copied
+// from the game's canvas as the victory page opens (the dance's last frame), then the words are drawn over a dark
+// veil. It is drawn as the page opens, because a browser lets a page share only inside a tap and making the picture
+// takes longer than a tap, and again whenever the card's words change (the rank arrives). The Share button is live
+// once the first picture is ready. A tap shares the file where the browser can (iPhone, iPad, Android, the Home
+// Screen app); elsewhere a small card offers Save picture, Copy picture, Copy text and Share link.
+//   gen     the victory page the card belongs to (a picture finished for an older page is dropped)
+//   bg      the field's copy, 1200 x 630 (null: the copy failed, and a gradient stands in)
+//   title, hy  the page's own title and the place's Armenian name, read as the page opened
+//   key, drawing  the words of the picture held, and of the one being drawn
+//   file, blob, cv, text  the picture held: a File (JPEG, quality 0.9), its canvas, the words that go with it
+//   url     the picture's object URL while the sheet's Save link holds it; png: a PNG of it for the clipboard
+//   up      the sheet is open; back: what held the focus before it
+const SH = { gen: 0, bg: null, title: "", hy: "", key: "", drawing: "", file: null, blob: null, cv: null, text: "", url: "", png: null, up: false, back: null, crestBad: false };
+const SH_DIFFS = ["Easy", "Normal", "Hard"];
+// the share mark (a box with an arrow out of it), added to the page's own icons
+if (PF_ON) (() => {
+  const host = $("i-crest") && $("i-crest").parentNode;
+  if (!host || $("i-share")) return;
+  const NS = "http://www.w3.org/2000/svg", sym = document.createElementNS(NS, "symbol"), path = document.createElementNS(NS, "path");
+  sym.id = "i-share";
+  sym.setAttribute("viewBox", "0 0 24 24");
+  path.setAttribute("d", "M12 1.9l5 5-1.6 1.6-2.3-2.3v9.4h-2.2V6.2L8.6 8.5 7 6.9zM4.6 10.2h4.2v2.2H6.8v8.2h10.4v-8.2h-2v-2.2h4.2v12.6H4.6z");
+  sym.appendChild(path);
+  host.appendChild(sym);
+})();
+// the round button held sideways, left of the Leaderboard's (the slot the map page's story button uses)
+const scShareBtnEl = (() => {
+  if (!PF_ON) return null;
+  const b = document.createElement("button");
+  b.type = "button"; b.id = "shareBtn"; b.className = "btn icon"; b.hidden = true;
+  b.title = "Share"; b.setAttribute("aria-label", "Share");
+  b.innerHTML = icon("share");
+  overlayEl.insertBefore(b, $("ovStars"));
+  b.addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); shTap(b); });
+  return b;
+})();
+// Settings' row: the same card, for the phone held sideways whose round button a long title has hidden
+const shSetRowEl = (() => {
+  if (!PF_ON) return null;
+  const b = document.createElement("button");
+  b.className = "btn menuBtn"; b.id = "setShare";
+  b.innerHTML = icon("share") + "Share";
+  $("setAcct").parentNode.insertBefore(b, $("setAcct").nextSibling);
+  b.addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeSettings(); shTap(b); });
+  return b;
+})();
+// the victory page has opened: the field as it stands, copied now (the game's next frames may draw something else)
+function shSnap() {
+  SH.gen++;
+  shClose();
+  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = null; SH.text = "";
+  shUrlDrop();
+  SH.title = ($("ovTitle").textContent || "").trim();
+  SH.hy = ($("ovHy").textContent || "").trim();
+  SH.bg = null;
+  try {
+    const fx = offX * DPR, fy = offY * DPR, fw = VW * scale * DPR, fh = VH * scale * DPR;
+    if (!(fw > 64 && fh > 64) || fx < -1 || fy < -1 || fx + fw > canvas.width + 1 || fy + fh > canvas.height + 1) return;
+    // full width, cut to 1200:630 around 55% of the field's height (the field is 16:9, a little taller than the card)
+    const ch = Math.min(fh, fw * SHARE_H / SHARE_W), cw = ch * SHARE_W / SHARE_H;
+    const sy = Math.max(fy, Math.min(fy + fh - ch, fy + fh * 0.55 - ch / 2)), sx = fx + (fw - cw) / 2;
+    const c = document.createElement("canvas");
+    c.width = SHARE_W; c.height = SHARE_H;
+    const g = c.getContext("2d");
+    g.drawImage(canvas, sx, sy, cw, ch, 0, 0, SHARE_W, SHARE_H);
+    // a canvas cleared by a resize a moment ago holds nothing yet: then the gradient stands in
+    let seen = 0;
+    for (const [x, y] of [[300, 160], [900, 160], [600, 315], [300, 470], [900, 470]]) if (g.getImageData(x, y, 1, 1).data[3] > 0) seen++;
+    if (seen >= 3) SH.bg = c;
+  } catch (e) { SH.bg = null; }
+}
+// what the card says, from the strip's record of the battle (SC.page) and the page as it opened
+function shInfo() {
+  const pg = SC.page;
+  if (!pg) return null;
+  const i = LEVELS.findIndex(L => L.id === pg.lv), L = LEVELS[i] || {};
+  const where = shareSite((document.querySelector('link[rel="canonical"]') || {}).href);
+  const at = new Date(pg.at || pfNow());
+  return {
+    title: SH.title, hy: SH.hy, field: L.name || "", lv: pg.lv, date: shareDay(at, true, false), diff: SH_DIFFS[pg.diff] || "",
+    stars: pg.stars, kept: pg.lives, max: pg.livesMax, sec: pg.sec, score: pg.score,
+    // (the rank only once the server has said it; "· Open" only beside a rank, as the strip says it)
+    rank: pg.state === "posted" && pg.rank ? pg.rank : null, total: pg.state === "posted" ? pg.total : null, open: !!pg.open,
+    player: pfSession() ? pfMyName() : null, site: where.site, url: where.url,
+    // a daily's day is the server's UTC day the battle was won on (the daily is today's), its twist named for its field
+    daily: pg.daily ? { date: shareDay(new Date(Math.floor(pg.at / 86400000) * 86400000), false, true), twist: pg.twist && i >= 0 ? twistName(pg.twist, i) : "" } : null,
+    lost: null,
+  };
+}
+// the card's words as they stand: a new picture when they changed (the one held stays live until it is ready)
+function shSync() {
+  const info = shInfo();
+  if (!info) return;
+  const key = JSON.stringify(info);
+  if (key === SH.key || key === SH.drawing) return;
+  SH.drawing = key;
+  const gen = SH.gen;
+  shDraw(info).then((r) => {
+    if (gen !== SH.gen || SH.drawing !== key) return;
+    SH.drawing = "";
+    if (!r) return;
+    shUrlDrop();
+    Object.assign(SH, { key, file: r.file, blob: r.blob, cv: r.cv, png: null, text: shareText(info) });
+    shReadyBtns();
+  }, () => { if (gen === SH.gen && SH.drawing === key) SH.drawing = ""; });
+}
+// the crest, the page's own drawing (its icon) made a picture once
+let shCrestP = null;
+function shCrest() {
+  if (!shCrestP) shCrestP = new Promise((res) => {
+    try {
+      const sym = $("i-crest"), clip = $("crestClip");
+      if (!sym) { res(null); return; }
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="112" height="112"><defs>' + (clip ? clip.outerHTML : "") + "</defs>" + sym.innerHTML + "</svg>";
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => res(null);
+      setTimeout(() => res(null), 3000);
+      im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    } catch (e) { res(null); }
+  });
+  return shCrestP;
+}
+// a shield in the crest's colors, where the crest's picture cannot be had (a browser that will not draw it)
+function shShield(g, x, y, s) {
+  g.save();
+  g.translate(x, y); g.scale(s / 48, s / 48);
+  g.beginPath(); g.moveTo(24, 1.6); g.lineTo(4.6, 7.3); g.lineTo(4.6, 22.5); g.bezierCurveTo(4.6, 33.9, 12.4, 41.9, 24, 46.6);
+  g.bezierCurveTo(35.6, 41.9, 43.4, 33.9, 43.4, 22.5); g.lineTo(43.4, 7.3); g.closePath();
+  g.fillStyle = "#f0cf85"; g.fill(); g.lineWidth = 2.4; g.strokeStyle = "#6e4d1e"; g.stroke();
+  g.beginPath(); g.arc(24, 24, 7, 0, Math.PI * 2); g.fillStyle = "#a8322a"; g.fill();
+  g.restore();
+}
+// a star of the record row's, 44 px across: won ones gold, the others a dark hollow
+function shStar(g, cx, cy, won) {
+  g.save();
+  g.beginPath();
+  for (let k = 0; k < 10; k++) {
+    const r = k % 2 ? 9.2 : 22, a = -Math.PI / 2 + k * Math.PI / 5;
+    g[k ? "lineTo" : "moveTo"](cx + r * Math.cos(a), cy + r * Math.sin(a));
+  }
+  g.closePath();
+  if (won) {
+    const f = g.createLinearGradient(0, cy - 22, 0, cy + 18);
+    f.addColorStop(0, "#fff0b0"); f.addColorStop(0.5, "#f2c14e"); f.addColorStop(1, "#b9801f");
+    g.fillStyle = f; g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 6; g.shadowOffsetY = 2;
+  } else g.fillStyle = "rgba(20,13,7,.6)";
+  g.fill();
+  g.shadowColor = "transparent";
+  g.lineWidth = 2; g.lineJoin = "round"; g.strokeStyle = won ? "#6e4d1e" : "rgba(185,138,62,.75)";
+  g.stroke();
+  g.restore();
+}
+// one row of words: shrunk while wider than its room (to its least size), then squeezed as a last resort; a
+// letter-spaced row is set letter by letter (canvas letterSpacing is not in every browser)
+function shRow(g, r, face) {
+  const font = (px) => (r.bold ? "bold " : "") + px + "px " + face;
+  const sp = r.spacing || 0;
+  const width = (px) => { g.font = font(px); return g.measureText(r.text).width + sp * Math.max(0, r.text.length - 1); };
+  let px = r.px;
+  while (px > r.min && width(px) > r.w) px--;
+  g.font = font(px);
+  g.fillStyle = r.color;
+  g.textBaseline = "alphabetic";
+  g.shadowColor = "rgba(0,0,0,.75)"; g.shadowBlur = 8; g.shadowOffsetY = 2;
+  if (sp) {
+    g.textAlign = "left";
+    let x = r.x;
+    for (const ch of r.text) { g.fillText(ch, x, r.y); x += g.measureText(ch).width + sp; }
+  } else {
+    g.textAlign = r.align === "right" ? "right" : "left";
+    g.fillText(r.text, r.x, r.y, r.w);
+  }
+  g.shadowColor = "transparent";
+}
+// the picture: { file, blob, cv }, or null when the browser cannot make one
+async function shDraw(info) {
+  const crest = SH.crestBad ? null : await shCrest();
+  const c = document.createElement("canvas");
+  c.width = SHARE_W; c.height = SHARE_H;
+  const g = c.getContext("2d");
+  if (SH.bg) g.drawImage(SH.bg, 0, 0);
+  else {
+    const f = g.createLinearGradient(0, 0, SHARE_W * 0.35, SHARE_H);
+    f.addColorStop(0, "#2a1c10"); f.addColorStop(1, "#14100c");
+    g.fillStyle = f; g.fillRect(0, 0, SHARE_W, SHARE_H);
+  }
+  // the veil: from the left (88% at x = 0, 55% at 620, none from 900) and over the foot (to 70%)
+  let v = g.createLinearGradient(0, 0, SHARE_W, 0);
+  v.addColorStop(0, "rgba(14,9,5,.88)"); v.addColorStop(620 / SHARE_W, "rgba(14,9,5,.55)"); v.addColorStop(900 / SHARE_W, "rgba(14,9,5,0)"); v.addColorStop(1, "rgba(14,9,5,0)");
+  g.fillStyle = v; g.fillRect(0, 0, SHARE_W, SHARE_H);
+  v = g.createLinearGradient(0, SHARE_H - 110, 0, SHARE_H);
+  v.addColorStop(0, "rgba(14,9,5,0)"); v.addColorStop(1, "rgba(14,9,5,.7)");
+  g.fillStyle = v; g.fillRect(0, SHARE_H - 110, SHARE_W, 110);
+  // the bronze line, 14 px inside the edge
+  g.strokeStyle = "#b98a3e"; g.lineWidth = 2; g.strokeRect(15, 15, SHARE_W - 30, SHARE_H - 30);
+  // the crest, 56 px, beside the game's name (its middle on the name's)
+  if (crest) g.drawImage(crest, SHARE_X, 57, 56, 56); else shShield(g, SHARE_X, 57, 56);
+  // every word in the page's own face; the Armenian name in the face the page sets it in
+  const face = getComputedStyle(document.body).fontFamily || "serif";
+  const hyFace = getComputedStyle($("ovHy")).fontFamily || face;
+  for (const r of shareRows(info)) shRow(g, r, r.face === "hy" ? hyFace : face);
+  const n = shareStars(info);
+  if (n != null) for (let k = 0; k < 3; k++) shStar(g, SHARE_X + 22 + k * 54, 352 - 17, k < n);
+  let blob = null;
+  try { blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9)); }
+  catch (e) {
+    // a browser that counts the crest's picture as foreign will not hand the canvas out: drawn again without it
+    if (crest && !SH.crestBad) { SH.crestBad = true; return shDraw(info); }
+    return null;
+  }
+  if (!blob) return null;
+  let file = null;
+  try { file = new File([blob], shareFileName(info.lv), { type: "image/jpeg" }); } catch (e) { file = null; }
+  return { file, blob, cv: c };
+}
+// the Share buttons are live once a picture is ready
+function shReadyBtns() {
+  const ready = !!SH.blob;
+  for (const b of [scShareBtnEl, shSetRowEl, scStripEl && scStripEl.querySelector(".scShare")]) {
+    if (!b) continue;
+    b.disabled = !ready;
+    b.setAttribute("aria-disabled", ready ? "false" : "true");
+  }
+}
+function shUrlDrop() { if (SH.url) { try { URL.revokeObjectURL(SH.url); } catch (e) {} SH.url = ""; } }
+// the victory page has gone: its card with it
+function shLeave() {
+  SH.gen++;
+  shClose();
+  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = SH.bg = null;
+  shUrlDrop();
+  document.body.classList.remove("pfShare");
+}
+// The tap. The browser's own share sheet with the picture where it can take a file; else the page's card. A share
+// the player cancels is no error. (navigator.share must be called inside the tap: the picture is ready before it)
+function shTap(from) {
+  if (!SH.blob || SH.up) return;
+  const daily = !!(SC.page && SC.page.daily);
+  let can = false;
+  try { can = !!(SH.file && navigator.share && navigator.canShare && navigator.canShare({ files: [SH.file] })); } catch (e) { can = false; }
+  track("share_tapped", { from: daily ? "daily" : "victory", method: can ? "files" : "sheet" });
+  if (!can) { shOpen(from); return; }
+  let p;
+  try { p = navigator.share({ files: [SH.file], title: "Highland Stand", text: SH.text }); } catch (e) { shOpen(from); return; }
+  Promise.resolve(p).then(() => track("share_done", { method: "files" }), (e) => {
+    // (refused for another reason than the player's cancel: the page's card instead)
+    if (!(e && e.name === "AbortError")) shOpen(from);
+  });
+}
+// ---- the card over the page when the browser cannot share a picture (#shareSheet) ----
+// The picture at 300 px, Save picture (a download link), Copy picture (where the browser can put a picture on the
+// clipboard: a PNG is made for it), Copy text, and Share link (where navigator.share exists without files). Each
+// confirms with a toast. It closes by its X, Escape, or a tap beside it
+const shSheetEl = (() => {
+  if (!PF_ON) return null;
+  const el = document.createElement("div");
+  el.id = "shareSheet";
+  el.className = "shHidden";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.setAttribute("aria-labelledby", "shTitle");
+  el.innerHTML = '<div class="shCard"><div class="shHead"><h2 id="shTitle">Share this victory</h2>' +
+    '<button type="button" class="btn icon shX" aria-label="Close">' + icon("close") + '</button></div>' +
+    '<div class="shMain"><img class="shPic" width="300" height="158" alt="The share picture: the battlefield, the victory and its score"><div class="shBtns"></div></div></div>';
+  document.body.appendChild(el);
+  el.querySelector(".shX").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); shClose(); });
+  el.addEventListener("click", (e) => { if (e.target === el) shClose(); });
+  return el;
+})();
+function shOpen(from) {
+  if (!shSheetEl || !SH.blob || SH.up) return;
+  SH.up = true;
+  SH.back = from && from.isConnected ? from : document.activeElement;
+  shUrlDrop();
+  SH.url = URL.createObjectURL(SH.blob);
+  const name = shareFileName((SC.page || {}).lv), btns = shSheetEl.querySelector(".shBtns");
+  shSheetEl.querySelector(".shPic").src = SH.url;
+  btns.textContent = "";
+  // Save picture: a real link, so the browser's own download takes it
+  const save = pfEl("a", "btn shSave", "Save picture");
+  save.href = SH.url; save.download = name;
+  save.addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); track("share_done", { method: "save" }); toast("Picture saved."); });
+  btns.appendChild(save);
+  if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+    // (the PNG is begun now and handed over as a promise: Safari wants the clipboard's item made inside the tap)
+    if (!SH.png) SH.png = new Promise((res, rej) => { try { SH.cv.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"); } catch (e) { rej(e); } });
+    const png = SH.png;
+    btns.appendChild(pfBtn("btn shCopyPic", "Copy picture", () => {
+      let p;
+      try { p = navigator.clipboard.write([new ClipboardItem({ "image/png": png })]); } catch (e) { p = Promise.reject(e); }
+      p.then(() => { track("share_done", { method: "copy_picture" }); toast("Copied."); }, () => toast("This browser cannot copy the picture. Save it instead."));
+    }));
+  }
+  btns.appendChild(pfBtn("btn shCopyText", "Copy text", () => {
+    shCopyText(SH.text).then((ok) => { if (ok) { track("share_done", { method: "copy_text" }); toast("Copied."); } else toast("This browser cannot copy here."); });
+  }));
+  if (navigator.share) btns.appendChild(pfBtn("btn shLink", "Share link", () => {
+    let p;
+    try { p = navigator.share({ title: "Highland Stand", text: SH.text }); } catch (e) { p = Promise.reject(e); }
+    Promise.resolve(p).then(() => track("share_done", { method: "link" }), () => {});
+  }));
+  shSheetEl.classList.remove("shHidden");
+  document.body.classList.add("shUp");
+  overlayEl.setAttribute("inert", "");
+  try { save.focus({ preventScroll: true }); } catch (e) {}
+}
+function shClose() {
+  if (!SH.up || !shSheetEl) return;
+  SH.up = false;
+  shSheetEl.classList.add("shHidden");
+  document.body.classList.remove("shUp");
+  shSheetEl.querySelector(".shPic").removeAttribute("src");
+  shSheetEl.querySelector(".shBtns").textContent = "";
+  shUrlDrop();
+  overlayEl.toggleAttribute("inert", overlayEl.classList.contains("hidden"));
+  const b = SH.back;
+  SH.back = null;
+  const to = b && b.isConnected && b.getClientRects().length && getComputedStyle(b).visibility !== "hidden" ? b : $("ovGear");
+  try { to.focus({ preventScroll: true }); } catch (e) {}
+}
+// the words to the clipboard: the asynchronous clipboard where the page may use it, else the old way through a field
+async function shCopyText(t) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(t); return true; } } catch (e) {}
+  const f = document.createElement("textarea");
+  f.value = t; f.setAttribute("readonly", ""); f.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+  shSheetEl.appendChild(f);
+  let ok = false;
+  try { f.select(); ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  f.remove();
+  return ok;
+}
+if (PF_ON) {
+  // the sheet's keys: Escape closes it, Tab stays among its controls (the game's own keys are shut out by
+  // Platform.blocking() while it is open)
+  window.addEventListener("keydown", (e) => {
+    if (!SH.up) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); shClose(); return; }
+    if (e.key === "Tab") {
+      const f = [...shSheetEl.querySelectorAll("a, button")].filter(x => x.getClientRects().length), i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      if (f.length) f[(i < 0 ? 0 : i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+    }
+  }, true);
 }
 
 // ---- the map page's door (5.5): #hallBtn, a round trophy button 10 px right of the campaign's tally ----
@@ -83885,9 +84343,9 @@ const Platform = {
     });
   },
   // true while a page of the platform's holds the keyboard: no hotkey of the game's may act under it
-  blocking() { return hallOpen || gateUp || !$("privacyPage").hidden || !$("statsPage").hidden; },
+  blocking() { return hallOpen || gateUp || SH.up || !$("privacyPage").hidden || !$("statsPage").hidden; },
   // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
-  victoryPage() { if (!PF.on) return; SC.shown = true; scRender(); },
+  victoryPage() { if (!PF.on) return; SC.shown = true; shSnap(); scRender(); },
   // the defeat page is up: a lost daily's score goes on it here (5.5)
   // (a lost daily's strip on the defeat page, 5.5's last line, is work package P6's: scRender draws only on the
   // victory page, and no daily can begin before P6)
