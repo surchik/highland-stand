@@ -672,6 +672,16 @@ Horse Lines that did nothing at all as well. The card says: "A new tower: the Ho
 road in its reach and throw the foes back the way they came. A foe thrown back cannot be thrown again for 8 seconds.
 Siege engines and commanders barely move, and outflankers are untouched. Two on a field at most." Era 0's name is
 sourced: the Urartian bronze belts in `era-dossier.json` show cavalry with spears, shields and conical helmets.)
+(G7a close: an unseen scout on the stretch is struck, and so shown, as 3.4's blasts and the stones strike him; he alone
+does not send the riders out (they set out for what they can see). One difference is added: riders already out when
+their lines are wrecked finish the charge they began; a wrecked or stunned tower sets out no new one, and a sold
+tower's riders stop. The card now reads: "Its riders charge down the road in its
+reach and throw the foes back the way they came. Build it just past your strongest towers, so the foes walk past them
+again. A foe thrown back cannot be thrown again for 8 seconds. Elephants, siege engines and commanders barely move, and
+outflankers are untouched. Two on a field at most." The tile's line: "Riders who charge down the road and throw foes
+back. Best just past your strongest towers." Two rows of 5.2 are NOT met and are the owner's to rule on with G5's
+cells: the Horse Lines are in the best build on 0 of their 3 battlefields, and the endless stand of mix7 and harriers
+does not fall between waves 8 and 20 beyond the chronicle (docs/specs/balance/README.md, G7a close).)
 
 ### 3.3 Stores (Dvin, Tashir, Sevan, Ani, Mari, Sis)
 

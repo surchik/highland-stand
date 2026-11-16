@@ -8,7 +8,8 @@
 // The Garrison Post (G5): a post is built from its tile on the best free pad with road in reach, its panel opened by a
 // click on it, Rally point pressed and the road in its ring clicked: its rally must move, and its men fight the three
 // waves. The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) is built from its tile
-// on the free pad whose reach holds the most road, and fights the three waves (its charges are counted).
+// on the free pad whose reach holds the most road, and fights the three waves (its charges are counted: the run fails
+// if it was not built on one of them, or charged on none).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -160,5 +161,11 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
     await g.close();
   }));
   await browser.close();
+  // the Horse Lines must be seen to work somewhere: built on each of their battlefields played, they charged on at least
+  // one (G7a review 10: the counts were recorded and never asked for)
+  const rode = Object.keys(res).filter(id => res[id] && res[id].horse);
+  const ages = ["erebuni", "tushpa", "avarayr"].filter(id => res[id]);
+  if (ages.length && rode.length < ages.length) fails.push("no Horse Lines were built on " + ages.filter(id => !rode.includes(id)).join(", "));
+  if (rode.length && !rode.some(id => res[id].horse.charges > 0)) fails.push("the Horse Lines never charged on " + rode.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

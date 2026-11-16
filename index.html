@@ -1935,6 +1935,8 @@
     #panel.sheet .lvl span { margin-left: 2px; }
     #panel.sheet .st .ic { flex: none; margin-top: 1px; }
     #panel.sheet .st span, #panel.sheet .st em { font-size: 11px; }
+    /* a row with no number (the post's and the Horse Lines' last line): its words wrap beside the icon, not under it */
+    #panel.sheet .st > .ic + span { flex: 1 1 0; min-width: 0; }
     #panel.sheet .btn { min-height: 44px; padding: 4px 5px; font-size: 13px; gap: 1px 5px; }
     #panel.sheet .btn .small { font-size: 11px; line-height: 1.25; }
     #panel.sheet .btn .dl { font-size: 11px; gap: 0 6px; }
@@ -10131,7 +10133,8 @@ const POST_LEVEL = {
 TOWER_SKINS.horse = ["horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines", "horselines"];
 SLOT_NAMES.horse = ["Horsemen of Biainili", "Nakharar Horse", "Horse Lines", "Horse Lines", "Horse Lines", "Horse Lines", "Horse Lines",
   "Horse Lines", "Horse Lines"];
-SLOT_BLURB.horse = "Riders who charge down the road and throw foes back. Outflankers are untouched.";
+// (where it does most, said on the tile: the foes thrown back walk the kill zone again, 3.2; G7a review 14)
+SLOT_BLURB.horse = "Riders who charge down the road and throw foes back. Best just past your strongest towers.";
 SKIN_BLURB.horselines = SLOT_BLURB.horse;
 const HORSE_LEVEL = {
   erebuni: { name: "Horsemen of Biainili", short: "Horsemen", depicts: "Urartian horsemen with spears, shields and conical helmets, riding out from the lines below the fortress" },
@@ -10866,8 +10869,8 @@ const COUNCIL = [
     { line: "Drums slot: 1.5% more reach", fx: [["stat", ["drums"], "range", "x", 1.015]] },
     { line: "Drums slot: half a point more might", fx: [["stat", ["drums"], "might", "+", 0.005]] },
     { line: "Garrison Post: men 5% stronger", needs: "post", fx: [["post", "men", 1.05]] },
-    { line: "Men return 7.5% sooner; the special tower costs 5% less", noAge: "Men return 7.5% sooner", needs: "post", fx: [["post", "back", 0.925], ["age", "cost", 0.95]] },
-    { line: "Drums, posts and the special tower: masteries cost 7.5% less", noAge: "Drums and posts: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
+    { line: "Men return 7.5% sooner; {age} cost 5% less", noAge: "Men return 7.5% sooner", needs: "post", fx: [["post", "back", 0.925], ["age", "cost", 0.95]] },
+    { line: "Drums, posts and {age}: masteries cost 7.5% less", noAge: "Drums and posts: masteries cost 7.5% less", needs: "post", fx: [["spec", ["drums", "post", "age"], 0.925]] },
   ] },
   { id: "heralds", name: "Heralds", about: "The hero and the spells", icon: "horn", tiers: [
     { line: "Hero 2.5% stronger", fx: [["hero", "hp", 1.025]] },
@@ -10885,8 +10888,17 @@ const COUNCIL = [
   ] },
 ];
 const COUNCIL_IDS = COUNCIL.map(B => B.id);
-// a tier's line as the Hall shows it: until some age has its special tower (G7), a line never sells it (noAge)
-function tierLine(T) { return T.noAge && !AGES.some(A => TOWER_DEFS[A.tower]) ? T.noAge : T.line; }
+// a tier's line as the Hall shows it: until some age has its special tower (G7), a line never sells it (noAge); once
+// some have, {age} names those that are in the game, so a line never promises a tower 14 battlefields do not have
+// (G7a review 8: "the special tower" read as if every battlefield had one)
+function ageTowersNamed() {
+  const n = AGES.filter(A => TOWER_DEFS[A.tower]).map(A => "the " + TOWER_DEFS[A.tower].name);
+  return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : (n[0] || "");
+}
+function tierLine(T) {
+  if (T.noAge && !AGES.some(A => TOWER_DEFS[A.tower])) return T.noAge;
+  return T.line.indexOf("{age}") < 0 ? T.line : T.line.replace("{age}", ageTowersNamed());
+}
 // what the comes-with words of a closed tier name
 const COUNCIL_NEEDS = { post: "Comes with the Garrison Post", call: "Comes with the hero's Call" };
 
@@ -13038,6 +13050,12 @@ function postManFalls(t, m) {
 // a held foe stands still (moveMult 0 in update's march), as under the hero's hold
 function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
 
+// a kind whose limit on one field (def.max, 3.7) is built: its tile is dimmed and the next one is refused
+function towerCapped(type) {
+  const lim = TOWER_DEFS[type] && TOWER_DEFS[type].max;
+  return !!lim && towers.filter(t => t.type === type).length >= lim;
+}
+
 // ---------- the Horse Lines' charge (gameplay 3.2) ----------
 // t.cd counts down to the next charge (quickened by the drums, slowed on a damaged or failing tower, like any reload).
 // Once it is spent and a ground foe stands on the road in reach, the riders go: t.ride = { t, runs: [{ route, a, b }] },
@@ -13046,9 +13064,12 @@ function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
 // passed and is struck once (t.ride.hit). Struck: dmg, the drums' might in it, cut by armor unless the charge pierces;
 // thrown back push px along its own road (never behind its start), a siege engine or a commander a quarter as far; a
 // foe a man or the hero holds is struck but stays where it is held; a foe thrown in the last HORSE_RULES.rest s
-// (e.thrownT, by any Horse Lines) is struck and not thrown. Outflankers, unseen scouts, a hunter off its road and a
-// foe the riders cannot reach are untouched. Game time, no random number: the bot and a resumed run see the same
-// charges. The riders cannot be hurt or held, so nothing here can stop them
+// (e.thrownT, by any Horse Lines) is struck and not thrown. An unseen scout on the stretch is struck too (and so shown,
+// as a stone's blow shows him: 3.4's rule for the blasts) but is not counted for the moment to set out. Outflankers, a
+// hunter off its road and a foe the riders cannot reach are untouched. Game time, no random number: the bot and a resumed run see the same
+// charges. The riders cannot be hurt or held, so nothing here can stop them: riders already out when their lines are
+// wrecked finish the charge they began (a wrecked or stunned tower only sets out no new one), while a sold tower leaves
+// \`towers\` and its riders with it
 function horseRuns(t, reach) {
   const key = reach + "|" + t.x + "," + t.y;
   if (t.runsKey === key) return t.runs;
@@ -13062,9 +13083,9 @@ function horseRuns(t, reach) {
   t.runs = runs.filter(r => r.b > r.a); t.runsKey = key;
   return t.runs;
 }
-// a foe the riders may strike: on the ground, on its road, seen
+// a foe the riders may strike: on the ground, on its road (seen or not: the charge sweeps the road)
 function horseStrikable(e) {
-  return !(e.dead || e.hp <= 0 || e.fly || e.type === "flyer" || e.off || e.orbit || e.pin || foeUnseen(e));
+  return !(e.dead || e.hp <= 0 || e.fly || e.type === "flyer" || e.off || e.orbit || e.pin);
 }
 // a foe that stands held (a man of a post, or the hero): struck, not thrown (the hold keeps it)
 function horseHeld(e) { return postHolds(e) || (!!hero && hero.alive && hero.engaged.includes(e)); }
@@ -13098,7 +13119,7 @@ function horseTick(dt) {
     // the lines reloading as the column came on
     let n = 0, deep = false;
     for (const e of enemies) {
-      if (!horseStrikable(e)) continue;
+      if (!horseStrikable(e) || foeUnseen(e)) continue;   // the riders set out for what they can see
       const r = runs.find(q => horseOnRun(e, q));
       if (!r) continue;
       n++;
@@ -13796,8 +13817,11 @@ function syncHud() {
   const chips = waveIdx >= totalWaves() && !endless ? "" : waveChipsHtml(waveIdx + 1);
   if (chips !== hudCache.chips) { waveInfoEl.innerHTML = chips; hudCache.chips = chips; refreshFoeCardChip(); }
   updateWaveBtn();
+  // a tile is dimmed when the purse cannot pay for it, and when its kind's limit on one field is built (3.7: a press
+  // on it still says why, with the kind's own sentence)
   document.querySelectorAll("#shop .card").forEach(c => {
-    if (TOWER_DEFS[c.dataset.type]) c.classList.toggle("poor", towerCost(c.dataset.type) > gold);
+    const type = c.dataset.type, def = TOWER_DEFS[type];
+    if (def) c.classList.toggle("poor", towerCost(type) > gold || towerCapped(type));
   });
   refreshPanelBtns();
   syncPauseBtn();
@@ -15046,8 +15070,8 @@ function showUnlockCard(what) {
         "Outflankers go round them, and siege engines walk past. A commander is held a few seconds only."] },
     // the special towers (3.1), each the first time its battlefield's tray holds it
     horse: { title: "A new tower: the Horse Lines", icon: "horse", btn: "Got it",
-      lines: ["Its riders charge down the road in its reach and throw the foes back the way they came.",
-        "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] } }[what];
+      lines: ["Its riders charge down the road in its reach and throw the foes back the way they came. Build it just past your strongest towers, so the foes walk past them again.",
+        "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Elephants, siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15394,7 +15418,7 @@ function placeTower(type, padIdx) {
   if ((TOWER_DEFS[type].post || TOWER_DEFS[type].charge) && !padTakesRoad(padIdx, kitStatsOf(type, 0, null).range)) { toast("No road in reach of this pad."); return; }
   // a kind with a limit on one field (def.max: the special towers, 3.7) refuses the next one with its own sentence
   const lim = TOWER_DEFS[type].max;
-  if (lim && towers.filter(t => t.type === type).length >= lim) { toast(TOWER_DEFS[type].maxSay || ("No more than " + lim + " on one field.")); return; }
+  if (lim && towerCapped(type)) { toast(TOWER_DEFS[type].maxSay || ("No more than " + lim + " on one field.")); return; }
   if (gold < cost) { needGold(cost); return; }
   spendGold(cost, "build");
   battle.built++;
@@ -57680,15 +57704,17 @@ window.addEventListener("resize", () => { if (callBubble) placeCallBubble(); });
 // hs_towers_seen ("post", "rally"). (The regression scripts that are not about them hold them back with window flags)
 // The special towers are told the same way (3.1): their card the first time a tray holds one, on its chronicle; the
 // post's comes first where both are new (window.__hsQuietPostCard holds back every new tower's card)
-function postCardDue(what) {
+// (bare: the rules without the harness's and the regression scripts' silence, for suite 2 to read the due logic itself)
+function postCardDue(what, bare) {
   what = what || "post";
-  return !HARNESS_ON && !window.__hsQuietPostCard && menuMode === "brief" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
-    towerUnlocked(what) && !towersSeen().includes(what) && (what === "post" || trayTypes().includes(what));
+  return (bare || (!HARNESS_ON && !window.__hsQuietPostCard)) && menuMode === "brief" && !overlayEl.classList.contains("hidden") && !unlockCardOn && !hallOpen &&
+    // (a daily's tray holds every tower of its battlefield, unlocked or not, so a daily player meets them told too)
+    (towerUnlocked(what) || (!!dailyRun && trayTypes().includes(what))) && !towersSeen().includes(what) && (what === "post" || trayTypes().includes(what));
 }
-function newTowerCardDue() {
-  if (postCardDue("post")) return "post";
+function newTowerCardDue(bare) {
+  if (postCardDue("post", bare)) return "post";
   const a = ageTower(curEra);
-  return a && postCardDue(a) ? a : "";
+  return a && postCardDue(a, bare) ? a : "";
 }
 function postCardSoon() { setTimeout(() => { const k = newTowerCardDue(); if (k) showUnlockCard(k); }, 500); }
 var rallyBubble = null;   // the post whose panel shows the bubble (var: hidePanel may run before this line is reached)
@@ -58160,7 +58186,7 @@ function foeCounters(role, u) {
     // the Horse Lines (G7a), only where the tray holds them: they throw back what walks the road, an engine or a
     // commander barely, and an outflanker never
     if (def.charge) {
-      if (trayTypes().includes(type) && !off && role !== "ram" && role !== "boss") good.push({ type, why: "a charge strikes the whole group and throws it back" });
+      if (trayTypes().includes(type) && !off && role !== "ram" && role !== "boss") good.push({ type, why: "a charge strikes every foe on its road and throws it back" });
       continue;
     }
     const reach = def.proj ? !off || !!def.air : !off;
@@ -64607,6 +64633,11 @@ function placeCardTip(card) {
   if (r.left + shift < 4) shift = 4 - r.left;
   if (shift) ds.style.translate = Math.round(shift) + "px 0";
 }
+// a turn of the phone or a resize moves the field's edge: the chosen tile's line is placed again once the tray is laid
+// out anew (G7a review 12)
+window.addEventListener("resize", () => requestAnimationFrame(() => {
+  placeCardTip(placing && document.querySelector('#shop .card[data-type="' + placing + '"]'));
+}));
 
 document.querySelectorAll("#spellbar .spell").forEach(b => {
   b.addEventListener("pointerdown", (e) => {
@@ -88076,6 +88107,75 @@ function runSelftestPlay() {
     enemies = [a]; t.wreck = true; t.cd = 0; t.ride = null; const c0 = t.charges; run(1);
     if (t.charges !== c0) fail("a wrecked horse line charged");
   }));
+  // (G7a review 3: each rule of 3.2 below had no check that failed when it was broken)
+  check("horse: the hero's hold, an elephant, a stun, the enemy's books, foes off the road or unseen, a pad with no road, the tile at its limit", guarded(() => {
+    wonTo(2, 2);
+    // a pad with no road in its reach refuses the horse, with the post's sentence (Tushpa has such pads)
+    stage("tushpa", 1); quiet(); gold = 1e5;
+    const bare = PADS.map((p, j) => j).filter(j => !padTakesRoad(j, TOWER_DEFS.horse.levels[0].range));
+    if (!bare.length) fail("Tushpa has no pad without road in reach");
+    $("toast").textContent = "";
+    placeTower("horse", bare[0]);
+    if (towers.some(x => x.type === "horse") || !/No road in reach of this pad/.test($("toast").textContent)) fail("a pad with no road took the horse: " + $("toast").textContent);
+    stage("avarayr", 1);
+    quiet(); gold = 1e5;
+    const k = PADS.map((p, j) => j).sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], 150).length - postRoadIn(PADS[a][0], PADS[a][1], 150).length)[0];
+    placeTower("horse", k);
+    const t = towers[towers.length - 1], st = getStats(t), runs = horseRuns(t, st.range), R = runs.reduce((a, b) => (b.b - b.a > a.b - a.a ? b : a));
+    const foe = (role, f) => { spawnEnemy(role, { type: role }); const e = enemies[enemies.length - 1]; e.route = R.route; e.dist = R.a + (R.b - R.a) * f; e.hp = e.maxHp = 1e6; e.speed = 0; return e; };
+    // the hero holds a foe: it is struck and stays where he holds it
+    if (!hero) fail("Avarayr has no hero");
+    const hh = foe("spearman", 0.5), keep = [hero.alive, hero.engaged];
+    hero.alive = true; hero.engaged = [hh];
+    const hd = hh.dist, hp0 = hh.hp;
+    horseStrike(t, st, hh);
+    hero.alive = keep[0]; hero.engaged = keep[1];
+    if (!(hh.hp < hp0) || hh.dist !== hd) fail("a foe the hero holds: struck " + (hp0 - hh.hp) + ", thrown " + (hd - hh.dist));
+    // a war elephant (the ram's slot) is thrown a quarter as far
+    const el = foe("ram", 0.6), ed = el.dist;
+    horseStrike(t, st, el);
+    if (Math.abs(ed - el.dist - st.push * HORSE_RULES.heavy) > 0.5) fail("an elephant was thrown " + (ed - el.dist) + ", not " + st.push * HORSE_RULES.heavy);
+    // what the charge deals is booked to the enemy's "other", not to a slot it answers
+    const o0 = adapt.acc.other || 0, z = foe("spearman", 0.4), zh = z.hp;
+    horseStrike(t, st, z);
+    if (Math.abs((adapt.acc.other || 0) - o0 - (zh - z.hp)) > 0.5 || !(zh - z.hp > 0) || adapt.acc.horse) fail("the charge's damage was not booked to other: " + JSON.stringify(adapt.acc));
+    // a stunned tower does not set out; once the stun is over it does
+    enemies = [];
+    const crowd = [0.3, 0.45, 0.6, 0.75].map(f => foe("spearman", f));
+    t.stunnedT = 5; t.cd = 0; t.ride = null; const c0 = t.charges || 0;
+    run(1);
+    if ((t.charges || 0) !== c0) fail("a stunned horse line charged");
+    t.stunnedT = 0; t.cd = 0;
+    // a hunter off its road and an unseen scout stand on the stretch: the charge passes them by
+    const hunter = foe("raider", 0.5), scout = foe("raider", 0.55);
+    const hp = enemyPos(hunter); hunter.off = { x: hp.x, y: hp.y, ang: 0 };
+    if (horseStrikable(hunter)) fail("an off-road hunter counts as strikable");
+    scout.hid = true; scout.seenT = 0;
+    const sh = [hunter.hp, scout.hp, hunter.dist];
+    run(HORSE_RULES.ride + 0.1);
+    if ((t.charges || 0) !== c0 + 1 || crowd.some(e => !(e.hp < e.maxHp))) fail("the charge after the stun did not strike the column: " + t.charges);
+    if (hunter.hp !== sh[0] || hunter.dist !== sh[2]) fail("a hunter off his road was struck");
+    if (!(scout.hp < sh[1]) || scout.hid && foeUnseen(scout)) fail("an unseen scout on the stretch was not struck and shown");
+    // an unseen scout alone does not send the riders out (they set out for what they can see)
+    enemies = []; t.ride = null; t.cd = 0;
+    const lone = foe("raider", 0.9); lone.hid = true; lone.seenT = 0;
+    const c1 = t.charges; run(0.3);
+    if (t.charges !== c1 && foeUnseen(lone)) fail("an unseen scout alone sent the riders out");
+    // two built: the tile is dimmed though the purse is full; one sold, it is not
+    t.ride = null;
+    const k2 = PADS.map((p, j) => j).find(j => j !== k && !towerAt(j) && padTakesRoad(j, TOWER_DEFS.horse.levels[0].range));
+    placeTower("horse", k2);
+    syncHud();
+    const tile = document.querySelector('#shop .card[data-type="horse"]');
+    if (towers.filter(x => x.type === "horse").length !== 2 || !tile.classList.contains("poor")) fail("the tile is not dimmed at the limit: " + tile.className);
+    towers = towers.filter(x => x !== t); syncHud();
+    if (tile.classList.contains("poor")) fail("the tile stays dimmed under the limit");
+    // a tile made anew (a tray that offers it the first time) has its portrait drawn with the others
+    tile.remove(); eraLabelsDrawn = curEra;
+    const made = trayCard("horse");
+    if (!made || eraLabelsDrawn !== -1) fail("a new tile's portrait is not drawn: " + eraLabelsDrawn);
+    syncTray(); applyEraLabels();
+  }));
   check("horse: the one-time card on the chronicle, after the post's", guarded(() => {
     localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
     wonTo(2, 2);
@@ -88083,10 +88183,29 @@ function runSelftestPlay() {
     showMenu("🏔️", "Highland Stand", "", "Take Command");
     showBrief();
     if (!towerUnlocked("horse") || !trayTypes().includes("horse")) fail("the horse is not in Avarayr's tray");
+    // the due logic (the harness silences it: bare reads its rules alone): the post's first where neither was seen,
+    // the horse's once the post's was; never on a battlefield whose tray has no horse, nor once seen
+    localStorage.setItem("hs_towers_seen", "[]");
+    if (newTowerCardDue(true) !== "post") fail("with nothing seen the post's card is not due first: " + newTowerCardDue(true));
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    if (newTowerCardDue(true) !== "horse") fail("with the post seen the horse's card is not due: " + newTowerCardDue(true));
+    if (newTowerCardDue()) fail("a card is due under the harness");
     showUnlockCard("horse");
     if (unlockCardOn !== "horse" || !/the Horse Lines/.test($("tcTitle").textContent) || $("tcLater")) fail("the horse's card: " + $("tcBody").textContent);
     $("tcBtn").click();
     if (unlockCardOn || !towersSeen().includes("horse")) fail("the card was not put away and kept");
+    if (newTowerCardDue(true)) fail("a card is due once both are seen: " + newTowerCardDue(true));
+    // a daily on Tushpa before Avarayr is open: its tray holds the horse, so its card is due there too
+    wonTo(1, 2);
+    for (let i = 1; i < LEVELS.length; i++) localStorage.removeItem(bestKey(i, LEVELS[i].era));
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    curLevel = levelIndexOf("tushpa"); curEra = LEVELS[curLevel].era;
+    if (towerUnlocked("horse") || newTowerCardDue(true)) fail("the campaign's Tushpa tells the horse before Avarayr is open");
+    if (!dailyBegin(curLevel, null, 20406)) fail("dailyBegin refused tushpa");
+    try {
+      menuMode = "brief"; overlayEl.classList.remove("hidden");
+      if (!trayTypes().includes("horse") || newTowerCardDue(true) !== "horse") fail("the daily's horse is not told: " + newTowerCardDue(true));
+    } finally { dailyLeave(); }
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {
