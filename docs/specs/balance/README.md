@@ -682,7 +682,7 @@ Acceptance at the close (gp/work, the other track testing beside it at loads of 
 
 Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `minemix`, on the two battlefields that
 offer the tower): `g7c-normal-seeds3.txt`, `g7c-easy-seeds3.txt`, `g7c-hard-seeds3.txt`; the daily's table, `DAILY=1`:
-`g7c-daily-normal-seeds3.txt` (the same table on the page before the mine: `g7c-trials/before-daily-normal-seeds3.txt`);
+`g7c-daily-seeds3.txt` (the same table on the page before the mine: `g7c-trials/before-daily-normal-seeds3.txt`);
 the endless stand of mix7 and harriers, `ENDLESS=20` (JSON lines): `g7c-endless-normal-seeds3.txt`. The trials are in
 `g7c-trials/` (Normal, the two, SEEDS=3, WAIT 0, the numbers named by each file's PATCH below). The "before" for every
 cell is G5's close tables (`g5-close-*-seeds3.txt`): on these two battlefields the page before G7c plays them cell for
@@ -712,8 +712,9 @@ What was found, and the numbers chosen:
 
 5.2's rows on the two battlefields (Normal unless named):
 - The classic five and every build of G5: every cell on all three difficulties equals G5's close tables. mix7 builds its
-  mine 15th, which these two battlefields never reach (14 and 14 pads): mix7 against mix stays G5's (Gyumri 0.0,
-  Halidzor +4.7), so G5's mean over the 17 (+0.8) and its cells for the owner stand, unmoved by the mine.
+  mine 15th, which these two battlefields never reach (14 and 14 pads), so mix7 never builds a mine here: its row does
+  not measure the mine. mix7 against mix stays G5's (Gyumri 0.0, Halidzor +4.7), and G5's mean over the 17 (+0.8) and its
+  cells for the owner stand as G5 left them.
 - The Powder Mine in the best build on at least a third of its battlefields: met. Gyumri Road, Normal: greedy (the mix
   with the mine third) 3/3 13.0 against the best without a mine, catapults 3/3 12.0 (+1.0; band 10 to 15). Hard: greedy
   3/3 6.7 against the mix's 2/3 3.3 (+3.4: above 3.1's "2 to 3 more", for the owner; band 2 to 8 kept). Easy: the mix
@@ -723,8 +724,10 @@ What was found, and the numbers chosen:
 - Easy: the mix alone meets Easy's band, unchanged (30.0, 22.3): met.
 - Wave time at 1x for the best build on Normal: Gyumri Road 28.0 min against 28 (0%), Halidzor 26.2 against 26: met.
 - The endless stand (JSON): mix7 falls 9, 10 and 9 waves beyond the chronicle on Gyumri Road (inside 8 to 20) and 2, 2
-  and 2 on Halidzor; harriers loses the chronicle on both. With G7b's Dvin and Tashir this row is now met on three
-  battlefields (Dvin, Tashir, Gyumri Road).
+  and 2 on Halidzor; harriers loses the chronicle on both. mix7 builds no mine here and harriers never reaches the stand,
+  so on these two the row does not measure the mine; read as the battlefield's own stand, it is met on Gyumri Road (with
+  G7b's Dvin and Tashir, three battlefields). greedy, which builds the mine third, falls 9, 9, 9 beyond on Gyumri Road and
+  0 on Halidzor (G7c close, `g7c-close/endless-normal-seeds3.txt`).
 - The daily (DAILY=1): every cell but those with the mine in their order equals the page before; the best builds (mix 17.0
   on Gyumri Road, mix7 15.7 on Halidzor) and so DAILY_PAR are unchanged.
 - Damage per 100 gold on Normal (the whole table): mine 6,239, Great Charge 20,330, Twin Fuses 19,904 (mastered archers
@@ -738,3 +741,47 @@ Revs: Gyumri Road and Halidzor rise to 3 (their pins moved, no other did); RULES
 
 For the owner: Gyumri Road on Hard (+3.4 with a mine); the mastered mine's damage per gold; the trigger's commander rule
 (a player sets it "by hand" to save the charge for him, or leaves it at 3 and it fires on him alone).
+
+### G7c close (review: docs/specs/reviews/G7c-review.md)
+
+The close cuts one number: the masteries' blows are twice 3.4's, not two and a half (Great Charge 2,600 from 3,250, Twin
+Fuses 1,240 from 1,550). Review 3: at the build's numbers greedy kept 6.7 on Gyumri Road on Hard against the best board
+without a mine (mix, 2/3 3.3), +3.4 past 3.1's "2 to 3". Trials at SEEDS=3, CLOCK=1 on the mine's builds (greedy, bazaar,
+minemix, agemix, harriers):
+- masteries' blow twice 3.4's: Gyumri Road Normal greedy 13.0 (unchanged, still above catapults' 12.0), Hard greedy 2/3
+  5.0 (+1.7 over the mix) and bazaar 3/3 2.3. Chosen.
+- masteries' arming at 3.4's (24, 20), blows as built: Normal greedy 13.0, Hard greedy loses all three (w13): the mine no
+  longer in Hard's best board. Not chosen.
+
+The close also changes how the mine plays, not its numbers (each in the spec note under gameplay 3.4): a save made during
+a wave keeps each charge's arming as the horn left it; a press a tower's tap zone holds nearer than a marker's catch goes
+to the tower; a wrecked store's laid charge goes on arming at a failing store's pace and fires once; Fire and X fire the
+armed charges with a foe over them and keep an empty one armed. None of these moved a cell of the tables below except as
+named.
+
+Tables at the close (`g7c-close/`, SEEDS=3, CLOCK=1, every build, the two battlefields):
+- Normal (`normal-seeds3.txt`): every cell equals `g7c-normal-seeds3.txt` but bazaar on Gyumri Road (7.7 to 7.3) and
+  greedy on Halidzor (2.3 to 2.0). The mine stays in the best build on Gyumri Road: greedy 3/3 13.0 against catapults'
+  12.0 (+1.0). Halidzor: balldrum 10.7, no mine. Met on 1 of 2.
+- Hard (`hard-seeds3.txt`): Gyumri Road greedy 2/3 5.0c1 (from 3/3 6.7) and bazaar 3/3 2.3 (the bot's best, by wins),
+  against the mix's 2/3 3.3: the mine's best board keeps +1.7, inside 3.1's "2 to 3". Halidzor unchanged (balldrum 2.7).
+- Easy (`easy-seeds3.txt`): equal to `g7c-easy-seeds3.txt` but greedy on Halidzor (27.3 to 28.0).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Wave time on Normal: Gyumri Road 28.1 min against 28; Halidzor 26.2 against 26.
+- The daily (`daily-seeds3.txt`, DAILY=1): equal to `g7c-daily-seeds3.txt` cell for cell. DAILY_PAR unchanged.
+- The Council (`kit-par-hold-normal-seeds3.txt`, KIT=par HERO=hold): Gyumri Road's best 17.0 (mix7, no mine) and
+  Halidzor's 17.0 (firemix, no mine), both equal to G5's close table; the Standard best on Gyumri Road rose 12.0 to 13.0
+  with the mine, so the par-hold margin there falls by 1 and RULINGS B7's 2.3 bound is not spent by the mine.
+- Damage per 100 gold on Normal: mine 5,299, Great Charge 18,450, Twin Fuses 16,992 (mastered archers 8,177, mastered
+  catapult 9,886). A mastered mine is still the strongest tower per gold in the bot's hands, about 1.8 times the next:
+  for the owner to watch in the stats. On Hard Twin Fuses reads 33,829, on 7 stores only.
+
+Pars: LEVEL_PAR's Gyumri Road is now [1440, 1736, 1975] (Normal greedy's clock; Hard's best by wins is now bazaar).
+Pins: RULESET stays 2, its pin and Gyumri Road's and Halidzor's moved; `ruleset-2-g7c.json` is rulesetData() at the close.
+
+For the owner:
+- The commander rule (MINE_RULES.boss, a commander counts as three foes for the trigger) is new behavior, not in 3.4
+  (review 7). With it counted as one (PATCH='MINE_RULES.boss = 1', the review's runs at the build's numbers): at CLOCK=1
+  greedy 10.0 and minemix 11.0 stay below catapults' 12.0 on Gyumri Road Normal, so no mine build is the best board; at
+  WAIT 0 greedy 13.0 beats catapults' 11.0. The rule stays in the page until the owner rules.
+- The mastered mine's damage per gold (above).
