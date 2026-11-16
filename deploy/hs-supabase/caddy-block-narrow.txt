@@ -1,0 +1,35 @@
+# >>> highland-supabase: hs-db.avunjian.com (added by deploy/hs-supabase/caddy.sh; do not edit between the marks) >>>
+hs-db.avunjian.com {
+	request_body {
+		max_size 512KB
+	}
+	# the Auth routes the page uses, and no other
+	@signin path /auth/v1/settings /auth/v1/authorize /auth/v1/callback /auth/v1/logout /auth/v1/health
+	handle @signin {
+		reverse_proxy 127.0.0.1:8200
+	}
+	@token {
+		path /auth/v1/token
+		query grant_type=pkce grant_type=refresh_token
+	}
+	handle @token {
+		reverse_proxy 127.0.0.1:8200
+	}
+	@user {
+		path /auth/v1/user
+		method GET HEAD OPTIONS
+	}
+	handle @user {
+		reverse_proxy 127.0.0.1:8200
+	}
+	# the game's functions, and only those
+	@game path /rest/v1/rpc/hs_*
+	handle @game {
+		reverse_proxy 127.0.0.1:8200
+	}
+	# nothing else of the Supabase is served on this name
+	handle {
+		respond 404
+	}
+}
+# <<< highland-supabase <<<
