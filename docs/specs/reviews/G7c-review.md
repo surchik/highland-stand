@@ -163,10 +163,15 @@ All on gp/work at 6d2558c, beside the platform track's tests (its iphone.js and 
   suite 1. Rerun one suite at a time:
   - `--suite=2` alone at load 17: every check passed (50), FAIL on the budget only, 180.9 s of 125.
   - `--suite=1` alone at load 8 to 17: every check passed (151), FAIL on the budget only, 166.3 s of 125.
-  - RESULTS_AT_LOW_LOAD
+  - Again alone once the load fell to about 3: `--suite=1` PASS, 151 checks, 116.5 s of 125; `--suite=2` PASS, 50
+    checks, 85.4 s of 125 (the two mine checks with timings took 3.6 and 3.4 s at load 17).
 - `node tools/town-isolation.js`: PASS, 9 cases (first run, no hang).
-- `NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick`: RUNALL_QUICK
-- `run-all.js --only=padplace,probe,iphone,live` in full: RUNALL_FOUR
+- `NODE_PATH=$(npm root -g) node tools/regress/run-all.js --quick`: 11 of 11 PASS in 1706 s (padplace, plots, probe,
+  vic, nag, dance10, live, doors, iphone, waves, platform; dance10 passed).
+- `run-all.js --only=padplace,probe,iphone,live` in full, 17 battlefields (run-all has no `--levels`): padplace PASS
+  (1265 placed, 56 refused, 685 s), probe PASS (759 probed, 63 rallies, lays and marker fires, 287 s), iphone PASS (777
+  states at ten sizes, 758 s). My shell's background limit stopped run-all before live; live.js run alone in full:
+  PASS, 17 battlefields, 367 s (Gyumri Road: 2 blasts, 4,668 damage, 19 kept; Halidzor: 1 blast, 2,334 damage).
 - Balance (SEEDS=3, CLOCK=1, every build): Normal, Hard, Easy on gyumri,halidzor: identical to the builder's tables.
   Variants (SEEDS=3): `PATCH='MINE_RULES.trigger = 5'` (WAIT 0); `PATCH='MINE_RULES.boss = 1'` at WAIT 0 and at CLOCK=1;
   the page as built at WAIT 0; `KIT=par HERO=hold` on mix, balldrum, catapults, firemix, mix7, halfpost, greedy, bazaar,
@@ -183,9 +188,6 @@ All on gp/work at 6d2558c, beside the platform track's tests (its iphone.js and 
 
 ## What I could not check
 
-- The suites' time inside their budget: the machine never fell below a load of about 5 while I could run them. The
-  builder also saw suite 1 over budget at load 4 to 9 on both this page and its base; a low-load measure is still owed
-  by the next agent before the close.
 - The Council's mean over all 17 at par-hold (only the two battlefields were run); Halidzor's firemix at par-hold
   read 13.7 here against 17.0 in G5's close table, a change I could not trace to this package (no mine in that build).
 - A human hand on a real iPhone; everything above is headless Chromium with CDP touches.
