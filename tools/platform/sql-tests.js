@@ -1407,6 +1407,60 @@ group("ceiling", async () => {
   await su("update highland.hs_config set value = '1024' where key = 'ev_max_mb'");
 });
 
+// migration 007 (P5): the victory page's " · your best" (beat_all, beat_week), what a run was in the answer, the
+// defenders a board row's battle began with (lives_max), and the owner's two switches enforced by hs_run_begin
+group("boards", async () => {
+  const P = "00000000-0000-4000-8000-0000000005a1", Q = "00000000-0000-4000-8000-0000000005a2";
+  await su("insert into auth.users (id, email) values ($1, 'p5-a@example.com'), ($2, 'p5-b@example.com') on conflict do nothing", [P, Q]);
+  await su("insert into auth.identities (provider, provider_id, user_id) values ('google', 'g-p5a', $1), ('google', 'g-p5b', $2) on conflict do nothing", [P, Q]);
+  eq((await rpc(P, "hs_profile_set_name", { p_name: "Boardone" })).ok, true, "a player for the boards");
+  eq((await rpc(Q, "hs_profile_set_name", { p_name: "Boardtwo" })).ok, true, "and a second");
+  const good = { won: true, lives: 14, waves: 10, sim_sec: 600, spent: 900, earned: 3000, loadout: "std", build: "p5" };
+  // a board of its own: Erebuni on Hard under ruleset 2 (no other group posts there)
+  const post = async (who, st) => {
+    const b = await runBegin(who, "campaign", "erebuni", 2, "2");
+    await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
+    return rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: st });
+  };
+  let a = await post(P, { ...good, lives: 10 });
+  ok(a.accepted && a.best_all === true && a.beat_all === false && a.beat_week === false, "a first score is the player's best, and beats no best of his (" + JSON.stringify([a.best_all, a.beat_all, a.beat_week]) + ")");
+  ok(a.mode === "campaign" && a.level === "erebuni" && a.diff === 2 && a.loadout === "std" && a.day === null, "the answer says what the run was");
+  const s1 = a.score;
+  a = await post(P, { ...good, lives: 8 });
+  ok(a.accepted && a.score < s1 && a.best_all === false && a.beat_all === false && a.beat_week === false, "a lower score beats nothing");
+  a = await post(P, { ...good, lives: 14 });
+  ok(a.accepted && a.score > s1 && a.best_all === true && a.beat_all === true && a.beat_week === true, "a higher one beats his best, all time and this week");
+  eq(a.score, ref.scoreOf({ ...good, lives: 14 }, ref.boundsOf(R2, "erebuni", 2)), "and is scored as ref.js scores it");
+  // a new week: the week's best is beaten by nothing yet; the all-time one stands
+  await setClock("7 days");
+  a = await post(P, { ...good, lives: 12 });
+  ok(a.accepted && a.beat_all === false && a.beat_week === false && a.best_week === true && a.rank_week === 1, "the next week a lower score is that week's first, and beats no best");
+  await setClock("");
+  await post(Q, { ...good, lives: 11 });
+  const bd = await rpc(Q, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 2, p_loadout: "std", p_ruleset: "2" });
+  ok(bd.rows.length === 2 && bd.rows.every(r => r.lives_max === 14) && bd.me && bd.me.lives_max === 14 && bd.me.lives === 11, "board rows and the caller's own carry lives_max, Hard's 14 (" + JSON.stringify(bd.rows.map(r => r.lives_max)) + ")");
+  const vb = await rpc(null, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 2, p_loadout: "std", p_ruleset: "2", p_period: "week" });
+  ok(vb.rows.length === 2 && vb.rows[0].name === "Boardone" && vb.rows[0].lives_max === 14 && vb.me === null, "a visitor's board too, this week");
+  // the owner's switches: the boards off, no campaign run begins (and nothing is written); the daily off, no daily run
+  const runs = async () => Number((await su("select count(*) as n from highland.hs_runs where user_id = $1", [P]))[0].n);
+  const n0 = await runs();
+  const held = await runBegin(P, "campaign", "erebuni", 2, "2");
+  await su("insert into highland.hs_config (key, value) values ('boards', 'false') on conflict (key) do update set value = excluded.value");
+  const off = await runBegin(P, "campaign", "erebuni", 2, "2");
+  ok(off.ok === false && off.reason === "boards_off" && !off.run_id, "with the boards off no campaign run begins (" + JSON.stringify(off) + ")");
+  eq(await runs(), n0 + 1, "and no run is written");
+  eq((await rpc(null, "hs_config", {})).boards, false, "hs_config tells every visitor");
+  await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [held.run_id]);
+  ok((await rpc(P, "hs_score_submit", { p_run: held.run_id, p_stats: good })).accepted === true, "a run begun before the switch still posts");
+  await su("insert into highland.hs_config (key, value) values ('daily', 'false') on conflict (key) do update set value = excluded.value");
+  const dOff = await runBegin(P, "daily", "erebuni", 1, "2", "thin");
+  ok(dOff.ok === false && dOff.reason === "daily_off", "with the daily off no daily run begins (" + JSON.stringify(dOff) + ")");
+  eq(Number((await su("select count(*) as n from highland.hs_runs where user_id = $1 and mode = 'daily'", [P]))[0].n), 0, "and no attempt is spent");
+  await su("delete from highland.hs_config where key in ('boards', 'daily')");
+  ok((await runBegin(P, "campaign", "erebuni", 2, "2")).ok === true, "the boards on again: a run begins");
+  ok((await err(runBegin(null, "campaign", "erebuni", 2, "2"))) !== null, "a visitor still begins none");
+});
+
 group("handoff", async (ctx) => {
   if (!ctx.handoff) {
     ok((await su("select to_regprocedure('highland.hs_handoff_put(text, text)') is null as x"))[0].x === true, "without its file the handoff does not exist");

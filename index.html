@@ -2760,17 +2760,17 @@
   #hall .acTab { padding: 18px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
   #hall .acTab .acName { font-size: 22px; font-weight: 700; color: #fff3d6; overflow-wrap: anywhere; }
   #hall .acTab .acRow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  #hall .acTab .btn, #hall .acTab .gateBtn { min-height: 44px; padding: 0 18px; font-size: 15px; }
-  #hall .acTab .gateBtn {
+  #hall .acTab .btn, #hall .acTab .gateBtn, #hall .lbSign .gateBtn { min-height: 44px; padding: 0 18px; font-size: 15px; }
+  #hall .acTab .gateBtn, #hall .lbSign .gateBtn {
     position: relative; width: 300px; max-width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
     -webkit-appearance: none; appearance: none; border-radius: 8px; border: 1px solid transparent; white-space: nowrap;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
-  #hall .acTab .gateBtn svg { flex: none; width: 20px; height: 20px; }
-  #hall .acTab .gateBtn[data-p="google"] { background: #fff; color: #1f1f1f; border-color: #dadce0; }
-  #hall .acTab .gateBtn[data-p="facebook"] { background: #1877F2; color: #fff; }
-  #hall .acTab .gateBtn[data-p="discord"] { background: #5865F2; color: #fff; }
-  #hall .acTab .gtLast { position: absolute; top: -8px; right: 10px; padding: 0 7px; border-radius: 8px; font-family: var(--face); font-size: 11.5px; line-height: 15px; font-weight: 700;
+  #hall .acTab .gateBtn svg, #hall .lbSign .gateBtn svg { flex: none; width: 20px; height: 20px; }
+  #hall .acTab .gateBtn[data-p="google"], #hall .lbSign .gateBtn[data-p="google"] { background: #fff; color: #1f1f1f; border-color: #dadce0; }
+  #hall .acTab .gateBtn[data-p="facebook"], #hall .lbSign .gateBtn[data-p="facebook"] { background: #1877F2; color: #fff; }
+  #hall .acTab .gateBtn[data-p="discord"], #hall .lbSign .gateBtn[data-p="discord"] { background: #5865F2; color: #fff; }
+  #hall .acTab .gtLast, #hall .lbSign .gtLast { position: absolute; top: -8px; right: 10px; padding: 0 7px; border-radius: 8px; font-family: var(--face); font-size: 11.5px; line-height: 15px; font-weight: 700;
     color: #2c1e10; background: linear-gradient(180deg, #f0cf85, #c9972f); border: 1px solid #6e4d1e; pointer-events: none; }
   #hall .acTab .acNote { color: var(--parch-dk); font-size: 14.5px; }
   #hall .acTab .acSync { color: var(--parch-dk); font-size: 14.5px; }
@@ -2916,6 +2916,103 @@
     #gate .gtSmall { font-size: 11.5px; }
     #gate .gtBtns { align-items: stretch; }
     #gate .gateBtn, #gate .gtQuiet, #gate .gtPair, #gate .gtField { width: 100%; min-height: 48px; font-size: 16px; }
+  }
+  /* ---- scores and boards (5.3, 5.5): the victory page's strip and its doors, the map's door, the Leaderboards tab ---- */
+  /* the strip, under gameplay's #ovGrowth: the score line in the page's small type, then Leaderboard */
+  #ovScore { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 14px; margin: 2px 0 4px; font-size: 14.5px; line-height: 1.3; color: #ffe7b0; }
+  #ovScore[hidden], #overlay:not(.victory) #ovScore, #overlay.brief #ovScore { display: none; }
+  #ovScore .scLine { cursor: help; font-variant-numeric: tabular-nums lining-nums; }
+  #ovScore .scLink, #ovRecord .scLink {
+    -webkit-appearance: none; appearance: none; background: none; border: 0; margin: 0; padding: 0 4px; min-height: 40px; cursor: pointer;
+    font: inherit; color: var(--bronze-hi); text-decoration: underline; text-underline-offset: 2px; touch-action: manipulation;
+  }
+  #ovScore .scBtns { display: inline-flex; gap: 8px; }
+  #ovScore .scBtns[hidden] { display: none; }
+  #ovScore .scBoard { min-height: 40px; padding: 0 16px; font-size: 15px; }
+  @media (max-width: 500px) and (min-height: 500.02px) { #ovScore .scBoard, #ovScore .scLink { min-height: 44px; } }
+  /* a phone held sideways: the words join the record row, and Leaderboard is a round button left of the gear */
+  #ovRecord .pfRecScore { font-size: 13.5px; color: #ffe7b0; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; }
+  #ovRecord .pfRecScore.scLink { min-height: 44px; font-size: 13.5px; }
+  #overlay #boardBtn { position: fixed; top: calc(8px + var(--sat)); right: calc(60px + var(--sar)); z-index: 2; width: 44px; height: 44px; }
+  #overlay #boardBtn[hidden], #overlay:not(.victory) #boardBtn { display: none; }
+  /* the map page's door: a round trophy button 10 px right of the campaign's tally (its place set by syncHallBtn) */
+  #overlay #hallBtn { position: fixed; z-index: 2; width: 44px; height: 44px; }
+  #overlay #hallBtn[hidden] { display: none; }
+  #overlay #hallBtn .ic, #overlay #boardBtn .ic { width: 22px; height: 22px; }
+  #overlay #hallBtn.pip::after {
+    content: ""; position: absolute; top: -3px; right: -1px; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 34%, #ff8b76, #d0402f 55%, #8a1f17); border: 1.5px solid #17100a;
+  }
+  /* the Leaderboards tab: the controls over the list on a desktop, an iPad and an upright phone */
+  #hall .lbTab { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 16px; }
+  #hall .lbCtl { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; }
+  #hall .lbField { display: flex; align-items: center; gap: 4px; }
+  #hall .lbArrow {
+    flex: none; width: 44px; height: 44px; padding: 0 0 3px; -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: manipulation;
+    border: 2px solid var(--bronze-sh); border-radius: 50%; background: linear-gradient(180deg, #17100a, #2a1f15); color: var(--bronze-hi);
+    font: 700 26px/1 var(--face); box-shadow: inset 0 0 0 1px rgba(240,207,133,.45);
+  }
+  #hall .lbArrow:disabled { opacity: .35; cursor: default; }
+  #hall .lbName { min-width: 150px; text-align: center; font-weight: 700; font-size: 17px; color: #fff3d6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hall .lbSeals, #hall .lbPair { display: inline-flex; gap: 4px; }
+  #hall .lbSeal, #hall .lbOpt {
+    min-height: 44px; padding: 0 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; -webkit-appearance: none; appearance: none;
+    cursor: pointer; touch-action: manipulation; white-space: nowrap; border: 2px solid var(--bronze-sh); border-radius: 22px;
+    background: linear-gradient(180deg, #17100a, #2a1f15); color: var(--parch-dk); font: 700 14px/1 var(--face);
+    box-shadow: inset 0 0 0 1px rgba(240,207,133,.4);
+  }
+  #hall .lbSeal[aria-pressed="true"], #hall .lbOpt[aria-pressed="true"] { color: #fff3d6; border-color: var(--bronze); background: linear-gradient(180deg, #7a4f1e, #482c10); }
+  #hall .lbSeal .seal { display: inline-grid; place-items: center; }
+  #hall .lbSeal .seal .ic { width: 16px; height: 16px; vertical-align: 0; color: var(--bronze-hi); }
+  #hall .lbNote { width: 100%; text-align: center; font-size: 13.5px; color: var(--parch-dk); }
+  #hall .lbRow {
+    display: grid; grid-template-columns: 3.2em minmax(0, 1fr) 5.4em 4.2em 4.6em; align-items: center; gap: 6px; min-height: 34px; padding: 0 8px;
+    border-bottom: 1px solid rgba(185,138,62,.18); font-size: 15px; font-variant-numeric: tabular-nums lining-nums;
+  }
+  #hall .lbHead { min-height: 26px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--parch-dk); }
+  #hall .lbRow .lbWho { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hall .lbRow .lbScore, #hall .lbRow .lbKept, #hall .lbRow .lbClock { text-align: right; }
+  #hall .lbRow.lbMe { background: rgba(240,207,133,.17); color: #fff3d6; font-weight: 700; border-radius: 6px; }
+  #hall .lbRow.lbFaint { height: 30px; min-height: 0; margin: 4px 0; border: 0; border-radius: 6px; background: rgba(240,207,133,.07); animation: gtPulse 1.4s ease-in-out infinite; }
+  #hall .lbEmpty { padding: 16px 8px; text-align: center; font-style: italic; color: var(--parch-dk); }
+  #hall .lbRetry { display: block; min-height: 44px; margin: 0 auto 6px; padding: 0 18px; font-size: 15px; }
+  #hall .lbPin { margin-top: 6px; padding: 6px 10px; text-align: center; border: 1px solid var(--bronze-sh); border-radius: 8px; font-weight: 700; color: #fff3d6; background: #3a2817; }
+  #hall .lbPin.lbFloat { position: sticky; bottom: 0; }
+  #hall .lbFoot { font-size: 13px; line-height: 1.4; color: var(--parch-dk); }
+  #hall .lbFoot p + p { margin-top: 3px; }
+  #hall .lbSign { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 0 12px; text-align: center; }
+  #hall .lbSignBtns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  #hall .lbSign .gateBtn { width: 260px; }
+  #statsPage .stFlag { border-top: 1px solid rgba(185,138,62,.25); padding: 8px 0 2px; margin-top: 6px; }
+  /* a phone held sideways: the controls in a column of 200 px, the list in the rest, scrolling in its own frame and
+     fading at its fold; rows 30 px, text 12.5 px */
+  @media (max-height: 500px) {
+    #hall .lbTab { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 8px; height: 100%; padding: 6px; box-sizing: border-box; }
+    #hall .lbCtl { flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; gap: 6px; min-height: 0; overflow-y: auto; }
+    #hall .lbField { justify-content: space-between; }
+    #hall .lbName { min-width: 0; flex: 1 1 auto; font-size: 14px; }
+    #hall .lbSeals, #hall .lbPair { display: flex; gap: 3px; }
+    #hall .lbSeal, #hall .lbOpt { flex: 1 1 0; min-width: 0; padding: 0 3px; gap: 3px; font-size: 12px; }
+    #hall .lbSeal .seal .ic { width: 13px; height: 13px; }
+    #hall .lbNote { font-size: 11.5px; text-align: left; }
+    #hall .lbMain { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    #hall .lbMain.more {
+      -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+      mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
+    }
+    #hall .lbRow { min-height: 30px; padding: 0 6px; gap: 4px; font-size: 12.5px; grid-template-columns: 2.6em minmax(0, 1fr) 4.6em 3.6em 3.9em; }
+    #hall .lbHead { min-height: 22px; font-size: 11px; }
+    #hall .lbRow.lbFaint { height: 26px; }
+    #hall .lbFoot { font-size: 11.5px; padding: 6px 2px 4px; }
+    #hall .lbSign { padding: 2px 0 8px; gap: 6px; }
+    #hall .lbSign .gateBtn { width: 100%; max-width: 300px; }
+  }
+  /* a phone held upright: one column that scrolls; the five columns of a row a little tighter */
+  @media (max-width: 500px) and (min-height: 500.02px) {
+    #hall .lbTab { padding: 10px 8px 14px; }
+    #hall .lbRow { grid-template-columns: 2.6em minmax(0, 1fr) 4.8em 3.8em 4.2em; gap: 4px; padding: 0 4px; font-size: 13.5px; }
+    #hall .lbName { min-width: 0; flex: 1 1 auto; }
+    #hall .lbField { width: 100%; }
   }
 </style>
 </head>
@@ -3964,6 +4061,7 @@ function track(name, props) {
     if (q.length > 400) q.splice(0, q.length - 400);
     if (window.__hsEvKick) window.__hsEvKick();
     if (window.__hsSaveKick) window.__hsSaveKick();   // (cloud saves hear a battle's end, whether analytics runs or not)
+    if (window.__hsRunKick) window.__hsRunKick(String(name), props || null);   // (and the boards: a run token, a score to post)
   } catch (e) {}
 }
 // The keys a player owns that follow the account from device to device, each with its merge rule
@@ -80138,7 +80236,13 @@ $("ovStars").addEventListener("click", () => {
 // the tally is filled again whenever the map is built (a victory's stars, a save merged): the door follows
 new MutationObserver(syncHallDoors).observe($("ovStars"), { childList: true, attributes: true, attributeFilter: ["title", "aria-label"] });
 // Settings' row (shown only on menu pages while the platform is on): the Account tab, or what the Hall opens on
-$("setAcct").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeSettings(); hallFrom = "settings"; openHall("account"); });
+// (on a victory page with a score's strip it leads to that battle's board: on a phone held sideways the strip's own
+// round button may be hidden under a long title, and this row is then its way there, 5.5)
+$("setAcct").addEventListener("click", () => {
+  Snd.init(); Snd.play("uiTick"); closeSettings(); hallFrom = "settings";
+  if (typeof SC !== "undefined" && SC.shown && SC.page && !SC.page.daily && hallTabs().some(t => t.id === "boards")) { scOpenBoard(); return; }
+  openHall("account");
+});
 $("hallClose").addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); closeHall(); });
 hallTabsEl.addEventListener("click", (e) => {
   const b = e.target.closest && e.target.closest(".hlTab");
@@ -80723,7 +80827,72 @@ const Cloud = {
     return d === 1 ? "yesterday" : d + " days ago";
   },
 };
-const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine, errWord, EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA, Cloud };
+// ---- a score (5.1): the same arithmetic as the server's hs_score_submit, so the victory page can show the number
+// before the server has answered. b: a battle's bounds (boundsOf); w: the ruleset's weights. A win is 4,000 plus
+// three capped shares (the defenders kept, the speed between fast and slow, the gold never laid out); a lost daily
+// is under any win, by the waves it cleared out of the daily's length (RULINGS S3)
+const SCORE_W = { win: 4000, lives: 3000, speed: 1500, thrift: 1500, lostMax: 3999 };
+function scoreOf(stats, b, w) {
+  w = w || SCORE_W;
+  const c01 = (x) => Math.max(0, Math.min(1, x));
+  if (!stats.won) return Math.min(Math.floor(4000 * stats.waves / b.waves), w.lostMax == null ? 3999 : w.lostMax, 3999);
+  const L = stats.lives / b.lives, S = c01((b.slow - stats.sim_sec) / Math.max(1, b.slow - b.fast)), T = c01(1 - stats.spent / Math.max(1, stats.earned));
+  return w.win + Math.round(w.lives * L + w.speed * S + w.thrift * T);
+}
+// The bounds of one battle under a ruleset (rulesetData()'s shape, 2.4), as highland._bounds reads them: a daily is
+// fought on the daily's own table, and its twist may scale the bounds or set the defenders outright. null when the
+// ruleset has no such battle
+function boundsOf(rules, level, diff, twist, daily) {
+  const lv = rules && rules.levels && rules.levels[level], d = lv && lv.d && lv.d[diff];
+  if (!d) return null;
+  const c = daily ? rules.daily && rules.daily.levels && rules.daily.levels[level] : d;
+  if (!c) return null;
+  const t = (daily && rules.daily.t && rules.daily.t[twist]) || {}, m = (k) => (t[k] == null ? 1 : t[k]);
+  return { waves: daily ? rules.daily.waves : lv.waves, lives: t.livesSet != null ? t.livesSet : Math.round(d.lives * m("lives")),
+    fast: Math.round(c.fast * m("fast")), slow: Math.round(c.slow * m("slow")), min: Math.round((c.min != null ? c.min : c.fast) * m("fast")),
+    earnMax: Math.round(c.earnMax * m("earn")), rev: lv.rev };
+}
+// A number as the page writes it (7,750), and a battle clock in minutes and seconds (10:00, 1:02:05)
+const scoreNum = (n) => Math.round(Number(n) || 0).toLocaleString("en-US");
+function clockWords(sec) {
+  const t = Math.max(0, Math.round(Number(sec) || 0)), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60, two = (x) => (x < 10 ? "0" : "") + x;
+  return h ? h + ":" + two(m) + ":" + two(s) : m + ":" + two(s);
+}
+// The victory page's score strip, in words (5.3): exactly one state. st: { state, score, rank, total, best, open, daily }
+//   posting, posted, signin, noname, waiting, offline, unpublished, refused; anything else: no strip ("")
+function scoreLine(st) {
+  if (!st || st.score == null) return "";
+  const head = "Score " + scoreNum(st.score);
+  switch (st.state) {
+    case "posting": return head;
+    case "posted": {
+      if (!st.rank) return head;
+      const when = st.daily ? " today" : " this week";
+      return head + " · #" + scoreNum(st.rank) + (st.total != null && st.total < 10 ? " of " + scoreNum(st.total) : "") + when +
+        (st.best ? " · your best" : "") + (st.open ? " · Open" : "");
+    }
+    case "signin": return head + " · Sign in to post it";
+    case "noname": return head + " · Choose a name to post it";
+    case "waiting": return head + " · It posts when you are back online";
+    case "offline": return head + " · Not ranked: this battle began offline";
+    case "unpublished": return head + " · The boards for this version open soon";
+    case "refused": return head + " · Not ranked";
+    default: return "";
+  }
+}
+// The outbox (5.3): results waiting for a connection, or for the same account's next sign-in. 20 at the most, none
+// older than 7 days; an entry of another account is kept and never sent (outSendable)
+const OUT_MAX = 20, OUT_DAYS = 7;
+function outTrim(list, now) {
+  const a = (Array.isArray(list) ? list : []).filter(e => e && typeof e === "object" && typeof e.rid === "string" && typeof e.uid === "string" &&
+    e.stats && typeof e.stats === "object" && Number.isFinite(e.t) && now - e.t < OUT_DAYS * 86400000 && e.t <= now + 86400000);
+  const seen = new Set(), out = [];
+  for (const e of a) if (!seen.has(e.rid)) { seen.add(e.rid); out.push(e); }
+  return out.slice(-OUT_MAX);
+}
+function outSendable(list, uid, now) { return outTrim(list, now).filter(e => e.uid === uid); }
+const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine, errWord, EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA, Cloud,
+  scoreOf, boundsOf, scoreNum, clockWords, scoreLine, outTrim, outSendable };
 // ==== PLATFORM PURE END ====
 
 // ---- the platform's state on this device (0.5): every key starts hs_pf_ and none is ever synced ----
@@ -80790,6 +80959,8 @@ async function pfApi(method, path, body, o = {}) {
     // every hs_ function answers the server's time: the clock's difference is read from it
     if (data && typeof data === "object" && typeof data.now === "string") { const t = Date.parse(data.now); if (isFinite(t)) pfClockOff = t - Date.now(); }
     const code = res.ok ? "" : String((data && (data.error_code || data.message || data.error)) || "");
+    // a call went through: results waiting in the outbox may go too (5.3)
+    if (res.ok && o.auth) pfOutKick();
     return { ok: res.ok, status: res.status, data, code };
   } catch (e) {
     // timeout: the request may have reached the server (its answer did not come back in time), unlike a request that
@@ -81870,9 +82041,11 @@ const PF = { on: PF_ON, me: null };
 function pfOff() {
   PF.on = false;
   document.body.classList.remove("pfOn");
-  const i = HALL_TABS.findIndex(t => t && t.id === "account");
-  if (i >= 0) HALL_TABS.splice(i, 1);
-  if (hallOpen && hallTab === "account") closeHall();
+  for (const id of ["account", "boards"]) {
+    const i = HALL_TABS.findIndex(t => t && t.id === id);
+    if (i >= 0) HALL_TABS.splice(i, 1);
+    if (hallOpen && hallTab === id) closeHall();
+  }
   syncHallDoors();
 }
 // the owner's sample of tower events (hs_config.ev_sample, 0 to 1); 1 when it is not set or not a number
@@ -81927,7 +82100,8 @@ async function pfNoSession(line) {
   const cfg = cr.ok && cr.data && typeof cr.data === "object" ? cr.data : null;
   // the schema is not installed, or the owner switched the platform off: the game of before, for this load
   if (cr.status === 404 || (cfg && cfg.cloud === false)) { pfOff(); gateLeave("off", pfOnMap); return; }
-  if (cfg) pfCfgSet({ gate: PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : null, notice: typeof cfg.notice === "string" ? cfg.notice.slice(0, 140) : "", sample: pfSampleOf(cfg) });
+  if (cfg) pfCfgSet({ gate: PF_GATE_MODES.includes(cfg.gate) ? cfg.gate : null, notice: typeof cfg.notice === "string" ? cfg.notice.slice(0, 140) : "", sample: pfSampleOf(cfg),
+    boards: cfg.boards !== false, daily: cfg.daily !== false });
   pfEvSampled();
   // the mode: the fresh answer; else the one last seen; else the page's own (a test's beats them all)
   const c = pfCfg();
@@ -81953,7 +82127,8 @@ async function pfWithSession(justIn) {
   // the switch, asked again behind the card: for a signed-in player it only chooses between the welcome card and a toast
   pfRpc("hs_config", {}, { timeout: 8000 }).then(cr => {
     if (cr.status === 404 || (cr.ok && cr.data && cr.data.cloud === false)) { pfOff(); return; }
-    if (cr.ok && cr.data) { pfCfgSet({ gate: PF_GATE_MODES.includes(cr.data.gate) ? cr.data.gate : null, notice: typeof cr.data.notice === "string" ? cr.data.notice.slice(0, 140) : "", sample: pfSampleOf(cr.data) }); pfEvSampled(); }
+    if (cr.ok && cr.data) { pfCfgSet({ gate: PF_GATE_MODES.includes(cr.data.gate) ? cr.data.gate : null, notice: typeof cr.data.notice === "string" ? cr.data.notice.slice(0, 140) : "", sample: pfSampleOf(cr.data),
+      boards: cr.data.boards !== false, daily: cr.data.daily !== false }); pfEvSampled(); }
   });
   const cfg = pfCfg(), me = pfRead("hs_pf_me");
   const otherBefore = !!cfg.lastUid && cfg.lastUid !== s.uid;
@@ -82008,6 +82183,8 @@ async function pfWithSession(justIn) {
     PF.me = { uid: s.uid, name: nm };
     csJoin();
     pfAccountRedraw();
+    // the results this account left waiting (5.3), and an admin's word on the page's ruleset (5.2)
+    setTimeout(() => { scFlush(); pfAdminRulesCheck(); }, 1500);
     if (gateMode === "off") { gateLeave(how, () => { toast("Welcome back, " + (nm || "Defender") + "."); pfOnMap && pfOnMap(); if (justIn && justIn.back === "hall") openHall("account"); }); return; }
     // a sign-in begun on the Account tab goes back there (the player had passed the gate already): no welcome card
     if (justIn && justIn.back === "hall") { gateLeave(how, () => { pfOnMap && pfOnMap(); openHall("account"); }); return; }
@@ -82256,6 +82433,8 @@ const ST_STEPS = [["page_load", "Loaded the page"], ["gate_shown", "Saw the sign
 const ST_KINDS = [["new", "New devices"], ["returning", "Returning players (progress from before the accounts)"], ["inapp", "Arrivals in another app's browser"]];
 // stSuperRefused: the Players view refused this page once (not_superadmin); until a reload the page believes that and
 // not hs_profile_get, so a refusal can never send it back and forth between the two tabs (P10 review 2)
+// stOwnPub: whether the server has this page's ruleset (null: it did not say)
+let stOwnPub = null;
 let stDays = 30, stData = null, stBusy = false, stSuper = false, stSuperRefused = false, stTab = "numbers", stSettings = null;
 const stNum = (v) => { const n = Number(v); return v != null && v !== "" && isFinite(n) ? n : null; };
 const stInt = (v) => { const n = stNum(v); return n == null ? "-" : Math.round(n).toLocaleString("en-US"); };
@@ -82339,8 +82518,11 @@ async function pfStatsLoad() {
   stBusy = true;
   stShell("The game's numbers");
   stLine($("statsBody"), "Counting...", "stWait");
-  const [r, sr, pr] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
-    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 })]);
+  const [r, sr, pr, br] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
+    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 }),
+    // whether the server has this page's own ruleset (on /next/ its id is "2-next", whose visits no card counts)
+    pfRpc("hs_board", { p_mode: "campaign", p_level: LEVELS[0].id, p_diff: 1, p_loadout: "std", p_ruleset: PF_RULESET_ID, p_period: "all", p_limit: 1 }, { timeout: 8000 })]);
+  stOwnPub = br.ok && br.data && typeof br.data === "object" ? br.data.ruleset_unknown !== true : null;
   // a superadmin (P10) also has the Players tab; the server says so, and asks for one again at every call of it
   stSuper = !stSuperRefused && !!(pr.ok && pr.data && pr.data.super === true);
   let data = r.ok && r.data && typeof r.data === "object" ? r.data : null;
@@ -82361,7 +82543,7 @@ async function pfStatsLoad() {
     // card by card
     data = { totals: null };
     let any = false;
-    for (const card of ["totals", "funnel", "gate", "retention", "quits", "fields", "devices", "rulesets"]) {
+    for (const card of ["totals", "funnel", "gate", "retention", "quits", "fields", "devices", "rulesets", "flagged"]) {
       const q = await pfRpc("hs_stats", { p_days: stDays, p_cards: [card] }, { auth: true, timeout: 35000 });
       if (!(q.ok && q.data && typeof q.data === "object")) continue;
       any = true;
@@ -82405,6 +82587,8 @@ function pfStatsDraw(d, settings) {
   stQuits(stList(d.quits));
   stFields(stList(d.fields));
   stDevices(stList(d.devices));
+  stRulesets(d);
+  stFlagged(stList(d.flagged));
   stSwitches(cfg);
   stLine($("statsBody"), "Visits to the staging page (/next/) are left out of every card. Counts are kept " + stInt(stNum(cfg.ev_keep_days) || 180) + " days.", "stSmall");
 }
@@ -82416,10 +82600,11 @@ function stHealth(d, cfg, settings) {
   else if (mb > max) stLine(c, "Visitors' events are being dropped: the table is past its ceiling. Players' events still count.", "stRed");
   if (settings && settings.mailer_autoconfirm === true) stLine(c, "Discord sign-in is held back: the sign-in service confirms emails by itself. See the guide, step 3.", "stRed");
   else if (!settings) stLine(c, "The sign-in service did not answer, so its settings are not checked here.", "stWarn");
-  const rs = String(RULESET), seen = stList(d.rulesets).find(r => String(r.ruleset) === rs);
-  const pub = !!(seen && seen.published === true);
-  if (!pub) stLine(c, "This page's ruleset (" + rs + ") is not published." + (cfg.boards === true ? " Its scores are refused." : " Boards come with a later build."), cfg.boards === true ? "stRed" : "");
+  const rs = PF_RULESET_ID, seen = stList(d.rulesets).find(r => String(r.ruleset) === rs);
+  const pub = stOwnPub != null ? stOwnPub : !!(seen && seen.published === true);
+  if (!pub) stLine(c, "This page plays ruleset " + rs + ". The server does not have it, so no battle is ranked. Publish it on the Rulesets card.", cfg.boards === false ? "" : "stRed");
   else stLine(c, "This page's ruleset (" + rs + ") is published.");
+  if (cfg.boards === false) stLine(c, "The boards are switched off: no battle is ranked.", "stWarn");
   if (!c.querySelector(".stRed")) stLine(c, "Nothing needs your attention.", "stOk");
 }
 function stTotals(d) {
@@ -82528,6 +82713,68 @@ function stDevices(rows) {
     for (const k of Object.keys(o).sort((a, b) => o[b] - o[a])) c.appendChild(stBar(o[k] / total, k + ": " + stInt(o[k]) + " (" + stPct(o[k], total) + ")"));
   }
 }
+// Rulesets (R2, 5.2): each ruleset seen in visits, whether the server has it, and Publish for the page's own. The page
+// sends its own rulesetData(), never anything typed; the server checks it (2.4) and refuses one whose kept revs would
+// put a changed battle on an old board
+function stRulesets(d) {
+  const c = stCard("Rulesets");
+  stLine(c, "A ruleset names the rules a score is earned under. Each battlefield's boards are kept while its rules stay; a changed battlefield starts fresh.", "stSmall");
+  const rows = stList(d.rulesets);
+  if (rows.length) stTable(c, ["Ruleset", "Visits", "Published"], rows.map(r => [stText(r.ruleset), stInt(r.sessions), r.published === true ? "Yes" : "No"]));
+  else stLine(c, "No visits in this period.", "stSmall");
+  const id = PF_RULESET_ID, out = pfEl("p", "stSmall stAnswer");
+  out.setAttribute("role", "status");
+  out.dataset.key = "ruleset";
+  if (stSaid && stSaid.key === "ruleset") { out.textContent = stSaid.text; stSaid = null; }
+  if (stOwnPub === true) stLine(c, "This page plays ruleset " + id + ". The server has it.", "stOk");
+  else {
+    stLine(c, "This page plays ruleset " + id + ". " + (stOwnPub === false ? "The server does not have it." : "The server did not say whether it has it."), stOwnPub === false ? "stRed" : "stWarn");
+    c.appendChild(pfBtn("btn stPublish", "Publish ruleset " + id, async (b) => {
+      b.disabled = true;
+      out.textContent = "Publishing...";
+      out.classList.remove("stWarn");
+      let data = null;
+      try { data = pfRules(); } catch (e) { data = null; }
+      const r = data ? await pfRpc("hs_admin_publish_ruleset", { p_id: id, p_data: data }, { auth: true, timeout: 20000 }) : { ok: false, status: 0, data: null, code: "" };
+      if (r.ok && r.data && r.data.ok === true) { stSaid = { key: "ruleset", text: "Published. Battles of ruleset " + id + " are ranked from now on." }; pfStatsLoad(); return; }
+      b.disabled = false;
+      const why = r.data && typeof r.data === "object" && typeof r.data.details === "string" ? stText(r.data.details) : "";
+      out.textContent = r.code === "ruleset_invalid" ? "The server refused it" + (why ? " (" + why + ")" : "") + ". Tell the builder." : r.status === 0 ? "Not published: no answer. Try again." : "Not published. Try again.";
+      out.classList.add("stWarn");
+    }));
+  }
+  c.appendChild(out);
+}
+// Scores to look at (R2, 2.5): results the server let through and marked, with Remove and Hide player. A player never
+// sees his own marks
+function stFlagged(rows) {
+  const c = stCard("Scores to look at");
+  stLine(c, "Results the server let through but marked: faster than the battle's fast mark (fast), or nearly flawless (perfect). Only you see these marks.", "stSmall");
+  if (!rows.length) { stLine(c, "None in this period.", "stSmall"); return; }
+  const say = { fast: "fast", perfect: "perfect" };
+  for (const r of rows.slice(0, 50)) {
+    const box = pfEl("div", "stFlag");
+    const flags = Array.isArray(r.flags) ? r.flags.map(f => say[stText(f)] || "other").join(", ") : "";
+    const when = stText(r.at).slice(0, 10);
+    box.appendChild(pfEl("p", "", stText(r.name) + " · " + stLevel(r.lv) + " · " + stDiff(r.diff) + (r.mode === "daily" ? " · daily" : "") + " · " + stInt(r.score) + " · " + flags + (when ? " · " + when : "")));
+    const row = pfEl("div", "stBtns"), out = pfEl("p", "stSmall stAnswer");
+    out.setAttribute("role", "status");
+    const act = (words, fn, args) => pfBtn("btn", words, async (b) => {
+      for (const x of row.querySelectorAll("button")) x.disabled = true;
+      out.textContent = "Saving...";
+      const q = await pfRpc(fn, args, { auth: true, timeout: 8000 });
+      if (q.ok) { out.textContent = "Done."; return; }
+      for (const x of row.querySelectorAll("button")) x.disabled = false;
+      out.textContent = "Not done. Try again.";
+    });
+    const id = stNum(r.id), uid = typeof r.user === "string" && /^[0-9a-f-]{36}$/.test(r.user) ? r.user : null;
+    if (id != null) row.appendChild(act("Remove", "hs_admin_remove_score", { p_score: id }));
+    if (uid) row.appendChild(act("Hide player", "hs_admin_moderate", { p_user: uid, p_hidden: true }));
+    box.appendChild(row);
+    box.appendChild(out);
+    c.appendChild(box);
+  }
+}
 // The switches the owner may change here (hs_admin_set_config), each saved on its own, and the old events removed
 // Each switch answers on its own line under it (the toast is under this page, so it cannot answer here). A save
 // redraws the page, so its "Saved." is kept in stSaid and put back on the new page's line
@@ -82565,6 +82812,18 @@ function stSwitches(cfg) {
   }
   c.appendChild(g);
   c.appendChild(gOut);
+  // the boards (R2): on, battles are ranked and the Leaderboards tab is in the Hall; off, nothing is ranked
+  c.appendChild(pfEl("h3", "", "The boards"));
+  stLine(c, "On: battles are ranked and the Hall has its Leaderboards tab. Off: no battle is ranked.", "stSmall");
+  const bd = pfEl("div", "stBtns"), bOut = answer("boards"), bOn = cfg.boards !== false;
+  for (const [v, words] of [[true, "On"], [false, "Off"]]) {
+    const b = pfBtn("btn stBoards", words, (x) => set("boards", v, x, bOut));
+    b.dataset.on = String(v);
+    b.setAttribute("aria-pressed", String(v === bOn));
+    bd.appendChild(b);
+  }
+  c.appendChild(bd);
+  c.appendChild(bOut);
   const field = (title, key, value, hint, parse) => {
     c.appendChild(pfEl("h3", "", title));
     if (hint) stLine(c, hint, "stSmall");
@@ -82865,6 +83124,509 @@ function pfPrivacy() {
   try { $("privacyBack").focus({ preventScroll: true }); } catch (e) {}
 }
 
+// ---- scores and boards (5.1 to 5.5): the run token, posting a score, the outbox, the strip, the Leaderboards tab ----
+// The platform hears a battle through gameplay's four events (track: battle_start, victory, defeat, battle_quit) and
+// keeps its whole state in hs_pf_run (the run token of the battle in progress) and hs_pf_out (results waiting to be
+// sent). The page computes the score only to show it at once (scoreOf, the server's own arithmetic); the server
+// scores it again from the numbers and is the only judge of what goes on a board.
+// The ruleset a run is begun under, by its id on the server: the staging page (/next/) publishes its own, "2-next"
+const PF_RULESET_ID = String(RULESET) + (HS_CHANNEL === "next" ? "-next" : "");
+// the one sentence under every board and on the strip's score (5.1), and the clock's (RULINGS S1, N12)
+const SCORE_SENTENCE = "A win is worth 4,000, plus up to 3,000 for the defenders you kept, up to 1,500 for speed and up to 1,500 for gold you never spent.";
+const CLOCK_SENTENCE = "The battle clock runs between waves too. Pause to plan.";
+// The page's own ruleset (rulesetData(): every battlefield's bounds), made once a load. It borrows the battle's
+// globals for a moment and gives them back, so it is never made in the middle of a frame (SC's calls wait a turn)
+let pfRulesMemo = null;
+function pfRules() { if (!pfRulesMemo) pfRulesMemo = rulesetData(); return pfRulesMemo; }
+// SC: this load's view of the battle in progress and of the victory page's strip.
+//   why   what the battle's start found: "held" (a run token is held), "begin" (one is being asked for), "signin",
+//         "noname", "offline" (every try failed for the network), "unpublished", "refused", "off" (the owner's
+//         switch), "unranked" (never ranked: the coached stand, test mode, endless, a legacy run), "" (no battle heard)
+//   gen   counts the battles begun on this load, so a late answer for an older battle changes nothing
+//   page  the strip of the battle just ended: { rid, state, score, rank, total, best, open, daily, lv, diff, loadout, mode }
+//   shown the victory (or a lost daily's) page is up and the strip may be drawn on it
+//   lastLv the battlefield fought last (the Leaderboards tab opens on it); view: what the next opening of the tab shows
+const SC = { why: "", gen: 0, begin: null, page: null, shown: false, lastLv: -1, view: null };
+const pfWait = (ms) => new Promise(r => setTimeout(r, ms));
+const pfBoardsOn = () => pfCfg().boards !== false;
+const pfDailyOn = () => pfCfg().daily !== false;
+// the name the player posts under (none: he has not chosen one, and cannot be on a board)
+function pfMyName() { const s = pfSession(); if (!s) return null; const me = pfRead("hs_pf_me"); return (PF.me && PF.me.uid === s.uid && PF.me.name) || (me && me.uid === s.uid && me.name) || null; }
+// why a battle cannot be ranked before anything is asked of the server, or "" when it can be
+function scWhyNot(p) {
+  if (!PF.on || !p || p.ranked !== true || p.mode === "endless" || String(p.ruleset) !== String(RULESET)) return "unranked";
+  if ((p.mode === "daily" && !pfDailyOn()) || (p.mode !== "daily" && !pfBoardsOn())) return "off";
+  if (!pfSession()) return "signin";
+  if (!pfMyName()) return "noname";
+  return "";
+}
+// what gameplay's events say, as the platform acts on them (track, PF-0). Never throws, never waits
+function scHear(n, p) {
+  if (!PF.on) return;
+  if (n === "battle_start") scStart(p || {});
+  else if (n === "victory" || n === "defeat") { const q = p || {}; setTimeout(() => { try { scEnd(n, q); } catch (e) { try { console.error(e); } catch (x) {} } }, 0); }
+  else if (n === "battle_quit") { SC.gen++; SC.why = ""; pfDrop("hs_pf_run"); }
+}
+if (PF_ON) window.__hsRunKick = (n, p) => { try { scHear(n, p); } catch (e) {} };
+// 1. battle_start: a fresh battle drops any token and asks for a new one; a resumed battle keeps the token saved with
+// it when that token is this battle's (its battlefield, difficulty, mode and ruleset)
+function scStart(p) {
+  const i = LEVELS.findIndex(L => L.id === p.lv);
+  if (i >= 0) SC.lastLv = i;
+  SC.page = null;
+  if (p.resumed) {
+    const t = pfRead("hs_pf_run");
+    const mine = t && typeof t === "object" && typeof t.rid === "string" && t.lv === p.lv && t.diff === p.diff && t.mode === p.mode && t.ruleset === PF_RULESET_ID;
+    const why = scWhyNot(p);
+    // (a battle resumed with its token is posted with it; one whose start was never ranked stays unranked, and one
+    // ranked whose token is gone, because its start had no connection, is told so on its strip)
+    if (mine && (!why || why === "signin" || why === "noname")) { SC.why = why || "held"; return; }
+    if (!mine) pfDrop("hs_pf_run");
+    SC.why = why || "offline";
+    return;
+  }
+  pfDrop("hs_pf_run");
+  const gen = ++SC.gen, why = scWhyNot(p);
+  SC.why = why || "begin";
+  SC.begin = why ? null : scBegin(p, gen);
+}
+// hs_run_begin: 5 s a try; a campaign battle is tried again at 10 s and 30 s when the network failed, a daily once
+// (its player is told at once whether the attempt counts, 5.6). An answer that comes for an older battle is dropped
+async function scBegin(p, gen) {
+  // (a test of this machine's own may shorten the waits: PF_TEST is read only on 127.0.0.1 and localhost)
+  const tries = p.mode === "daily" ? [0] : PF_TEST && Array.isArray(PF_TEST.beginTries) ? PF_TEST.beginTries.map(Number) : [0, 10000, 30000], t0 = Date.now();
+  for (const at of tries) {
+    const wait = t0 + at - Date.now();
+    if (wait > 0) await pfWait(wait);
+    if (gen !== SC.gen) return;
+    const r = await pfRpc("hs_run_begin", { p_mode: p.mode === "daily" ? "daily" : "campaign", p_level: p.lv, p_diff: p.diff, p_ruleset: PF_RULESET_ID,
+      p_twist: p.mode === "daily" ? p.twist || null : null }, { auth: true, timeout: 5000 });
+    if (gen !== SC.gen) return;
+    const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
+    if (d && d.ok === true && typeof d.run_id === "string") {
+      pfWrite("hs_pf_run", { rid: d.run_id, mode: p.mode === "daily" ? "daily" : "campaign", lv: p.lv, diff: p.diff, ruleset: PF_RULESET_ID, t: pfNow() });
+      SC.why = "held";
+      return;
+    }
+    if (d && d.ok === false) { SC.why = d.reason === "boards_off" || d.reason === "daily_off" ? "off" : "refused"; return; }
+    if (r.status === 401 || r.code === "no_session") { SC.why = "signin"; return; }
+    if (r.code === "ruleset_unknown") { SC.why = "unpublished"; return; }
+    if (r.status === 0 || r.status === 429 || r.status >= 500) continue;   // the network, or the server busy: tried again
+    SC.why = "refused";
+    track("score_rejected", { reason: scReason(r.code), at: "begin" });
+    return;
+  }
+  if (gen === SC.gen) SC.why = "offline";
+}
+// a refusal's word as the stats keep it: the server's own short word, never free text
+function scReason(code) { const c = String(code || "").toLowerCase(); return /^[a-z_]{2,40}$/.test(c) ? c : "other"; }
+// 2. victory (and defeat when the battle was a daily): the strip's state, and the post
+async function scEnd(n, p) {
+  const won = n === "victory", gen = SC.gen, why = SC.why;
+  const daily = p.mode === "daily";
+  if (!won && !daily) { pfDrop("hs_pf_run"); SC.why = ""; return; }
+  // nothing to show: never ranked, the owner's switch off, test mode or a gift of the test purse (aided), or no
+  // battle heard on this load (a page that came up on a battle already over)
+  if (!why || why === "unranked" || why === "off" || p.aided === true || p.mode === "endless") { pfDrop("hs_pf_run"); SC.page = null; scRender(); return; }
+  let rules = null;
+  try { rules = pfRules(); } catch (e) { rules = null; }
+  const b = rules && boundsOf(rules, p.lv, p.diff, p.twist, daily);
+  if (!b) { pfDrop("hs_pf_run"); SC.page = null; scRender(); return; }
+  const num = (v) => (Number.isFinite(v) ? v : 0);
+  const lives = won ? Math.max(0, Math.min(num(p.lives), Number.isFinite(p.lives_board) ? p.lives_board : num(p.lives))) : 0;
+  const stats = { won, lives, waves: num(p.wave), sim_sec: Math.round(num(p.sec)), spent: Math.round(num(p.spent)), earned: Math.round(num(p.earned)),
+    loadout: daily ? "std" : p.loadout === "open" ? "open" : "std", build: String(p.build || (typeof BUILD_ID !== "undefined" ? BUILD_ID : "")).slice(0, 20) };
+  const page = { rid: "", state: "posting", score: scoreOf(stats, b, rules.score), rank: null, total: null, best: false,
+    open: stats.loadout === "open", daily, lv: p.lv, diff: p.diff, loadout: stats.loadout, mode: daily ? "daily" : "campaign", lives: stats.lives, livesMax: b.lives };
+  SC.page = page;
+  // a start still asking for its token: the strip says "posting" while it waits (its tries end within 35 s)
+  if (why === "begin" && SC.begin) { scRender(); try { await SC.begin; } catch (e) {} }
+  if (gen !== SC.gen || SC.page !== page) return;
+  const now = SC.why;
+  const tok = pfRead("hs_pf_run");
+  pfDrop("hs_pf_run");
+  SC.why = "";
+  if (now === "held" && tok && typeof tok.rid === "string" && tok.lv === p.lv && tok.diff === p.diff && tok.ruleset === PF_RULESET_ID) {
+    page.rid = tok.rid;
+    scRender();
+    await scPost(tok.rid, stats, page);
+    return;
+  }
+  page.state = now === "signin" || now === "noname" || now === "offline" || now === "unpublished" ? now : "refused";
+  scRender();
+}
+// One result sent. Accepted: the strip says where it stands. The network failed, or the session ended during the
+// battle (401): it waits in the outbox for a connection, or for this account's next sign-in. Refused: "Not ranked",
+// and the refusal's word goes to the stats
+async function scPost(rid, stats, page) {
+  const s = pfSession();
+  const r = s ? await pfRpc("hs_score_submit", { p_run: rid, p_stats: stats }, { auth: true, timeout: 10000 }) : { ok: false, status: 401, data: null, code: "no_session" };
+  const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
+  if (d && d.accepted === true) { scPosted(page, d); return; }
+  if (r.status === 0 || r.status === 401 || r.status === 429 || r.status >= 500 || r.code === "no_session") {
+    const uid = s ? s.uid : ((pfRead("hs_pf_me") || {}).uid || "");
+    if (uid) {
+      pfWrite("hs_pf_out", outTrim((pfRead("hs_pf_out") || []).concat([{ rid, uid, stats, t: pfNow(), lv: page.lv, diff: page.diff, mode: page.mode, score: page.score }]), pfNow()));
+      page.state = "waiting";
+    } else page.state = "signin";
+    scRender();
+    return;
+  }
+  page.state = r.code === "ruleset_unknown" ? "unpublished" : "refused";
+  track("score_rejected", { reason: scReason(r.code) });
+  scRender();
+}
+// the server's answer on the strip, and score_posted for the stats
+function scPosted(page, d) {
+  const daily = d.mode === "daily" || (page && page.daily);
+  const rank = daily ? d.rank_all : d.rank_week, total = daily ? d.total_all : d.total_week;
+  const score = Number.isFinite(d.score) ? d.score : page ? page.score : 0;
+  track("score_posted", { mode: daily ? "daily" : "campaign", lv: String(d.level || (page && page.lv) || ""), diff: Number.isFinite(d.diff) ? d.diff : page ? page.diff : null,
+    score, rank: Number.isFinite(rank) ? rank : null, best: d.beat_all === true });
+  if (!page) return;
+  Object.assign(page, { state: "posted", score, rank: Number.isFinite(rank) ? rank : null, total: Number.isFinite(total) ? total : null, best: d.beat_all === true,
+    open: (d.loadout || page.loadout) === "open" });
+  scRender();
+}
+// The outbox goes again: at the load (once the session and the name are known), on "online", after any call that
+// went through, and after a sign-in by the same account. Only this account's entries are sent; another account's
+// wait for it (and leave after 7 days). An entry the server answers in any way leaves the outbox; one the network
+// or a busy server held back stays, and the rest wait with it
+let scFlushing = false, scFlushT = 0;
+async function scFlush() {
+  if (!PF.on || scFlushing) return;
+  const s = pfSession();
+  if (!s) return;
+  const all = outTrim(pfRead("hs_pf_out"), pfNow());
+  if (!all.length) { pfDrop("hs_pf_out"); return; }
+  pfWrite("hs_pf_out", all);
+  const mine = all.filter(e => e.uid === s.uid);
+  if (!mine.length) return;
+  scFlushing = true;
+  try {
+    for (const e of mine) {
+      const r = await pfRpc("hs_score_submit", { p_run: e.rid, p_stats: e.stats }, { auth: true, timeout: 10000 });
+      if (r.status === 0 || r.status === 401 || r.status === 429 || r.status >= 500 || r.code === "no_session") break;
+      pfWrite("hs_pf_out", outTrim(pfRead("hs_pf_out"), pfNow()).filter(x => x.rid !== e.rid));
+      const page = SC.page && SC.page.rid === e.rid ? SC.page : null;
+      const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
+      if (d && d.accepted === true) scPosted(page, d);
+      else if (r.code === "run_finished") { if (page) { page.state = "posted"; scRender(); } }   // it reached the server before, its answer lost
+      else { track("score_rejected", { reason: scReason(r.code), at: "outbox" }); if (page) { page.state = "refused"; scRender(); } }
+    }
+  } finally { scFlushing = false; }
+  const left = outTrim(pfRead("hs_pf_out"), pfNow());
+  if (!left.length) pfDrop("hs_pf_out");
+}
+// after any call that went through (pfApi): the outbox, if it holds anything, goes soon after
+function pfOutKick() {
+  if (scFlushing || scFlushT || !PF.on) return;
+  let has = false;
+  try { has = !!localStorage.getItem("hs_pf_out"); } catch (e) {}
+  if (!has) return;
+  scFlushT = setTimeout(() => { scFlushT = 0; scFlush(); }, 1500);
+}
+if (PF_ON) window.addEventListener("online", () => setTimeout(scFlush, 1000));
+
+// ---- the victory page's strip (#ovScore) and its doors (5.3, 5.5) ----
+// Desktop, iPad and an upright phone: a strip under gameplay's #ovGrowth, the score line, then Leaderboard (the Hall
+// on this battlefield, difficulty and loadout, This week). The share card's button joins it with work package P7. On a
+// phone held sideways the page is full to the pixel: the platform adds no row there, the score joins the record row as
+// text, and Leaderboard is a round button at the top right, left of the gear (#boardBtn), which hides the way the
+// tally does when the title reaches under it (Settings' row then leads to the same board).
+const scStripEl = (() => {
+  if (!PF_ON) return null;
+  const el = document.createElement("div");
+  el.id = "ovScore";
+  el.hidden = true;
+  el.innerHTML = '<span class="scWords"></span><span class="scBtns"></span>';
+  const g = $("ovGrowth");
+  g.parentNode.insertBefore(el, g.nextSibling);
+  return el;
+})();
+const scBoardBtnEl = (() => {
+  if (!PF_ON) return null;
+  const b = document.createElement("button");
+  b.type = "button"; b.id = "boardBtn"; b.className = "btn icon"; b.hidden = true;
+  b.title = "Leaderboard"; b.setAttribute("aria-label", "Leaderboard");
+  b.innerHTML = icon("trophy");
+  overlayEl.insertBefore(b, $("ovStars"));
+  b.addEventListener("click", () => { Snd.init(); Snd.play("uiTick"); scOpenBoard(); });
+  return b;
+})();
+// the Hall on the board of the battle just ended (a daily's: its own tab, once there is one)
+function scOpenBoard() {
+  const pg = SC.page;
+  if (pg && pg.daily) { if (hallTabs().some(t => t.id === "daily")) { hallFrom = "victory"; openHall("daily"); } return; }
+  if (pg) SC.view = { lv: Math.max(0, LEVELS.findIndex(L => L.id === pg.lv)), diff: pg.diff, period: "week", loadout: pg.loadout };
+  hallFrom = "victory";
+  openHall("boards");
+}
+// the strip drawn from SC.page, again at every change of its state and of the layout
+function scRender() {
+  if (!scStripEl) return;
+  const pg = SC.page, on = !!(SC.shown && pg && overlayEl.classList.contains("victory") && !overlayEl.classList.contains("hidden"));
+  const words = on ? scoreLine(pg) : "";
+  const side = phoneWide();
+  const old = $("pfRecScore");
+  if (old) old.remove();
+  scStripEl.hidden = !words || side;
+  scBoardBtnEl.hidden = true;
+  if (!words) return;
+  const canBoard = !pg.daily || hallTabs().some(t => t.id === "daily");
+  const link = pg.state === "signin" || pg.state === "noname";
+  if (side) {
+    // the record row: "★★★ Normal · 7,750 · #12 this week" (a lost daily has no stars: the words stand alone there)
+    const rec = $("ovRecord"), t = pfEl(link ? "button" : "span", "pfRecScore" + (link ? " scLink" : ""), (rec.querySelector(".recRow") ? "· " : "") + words.replace(/^Score /, ""));
+    t.id = "pfRecScore";
+    t.dataset.full = words;
+    if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
+    else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
+    rec.appendChild(t);
+    rec.classList.add("on");
+    // the row is one line the screen's width: beside a "New best" ribbon the words may not fit, and then say less
+    // ("· 7,750 · #12"), the rest of them in the score's tooltip and on the board
+    const over = () => { const r = t.getBoundingClientRect(), q = rec.getBoundingClientRect(); return rec.scrollWidth > rec.clientWidth + 1 || r.left < q.left - 1 || r.right > Math.min(q.right, innerWidth) + 1; };
+    if (over()) {
+      const short = { posted: pg.rank ? "#" + scoreNum(pg.rank) : "", signin: "Sign in", noname: "Choose a name", waiting: "Waiting to post", offline: "Not ranked",
+        unpublished: "Not ranked yet", refused: "Not ranked" }[pg.state] || "";
+      t.textContent = (rec.querySelector(".recRow") ? "· " : "") + scoreNum(pg.score) + (short ? " · " + short : "");
+      if (!link) t.title = words + ". " + SCORE_SENTENCE + " " + CLOCK_SENTENCE;
+    }
+    scBoardBtnEl.hidden = !canBoard;
+    scFitBoardBtn();
+    return;
+  }
+  const w = scStripEl.querySelector(".scWords"), btns = scStripEl.querySelector(".scBtns");
+  w.textContent = "";
+  btns.textContent = "";
+  const t = pfEl(link ? "button" : "span", link ? "scLink" : "scLine", words);
+  if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
+  else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
+  w.appendChild(t);
+  if (canBoard) btns.appendChild(pfBtn("btn scBoard", "Leaderboard", () => scOpenBoard()));
+  btns.hidden = !canBoard;
+}
+// a tap on the score tells the score's sentence and the clock's (the tooltip a mouse gets; RULINGS S1, N12)
+function scSentence() { toast(SCORE_SENTENCE + " " + CLOCK_SENTENCE, 7000); }
+// "Sign in to post it": the words are a button to the Account tab (a sign-in there comes back to the Hall)
+function scSignInDoor() { Snd.init(); Snd.play("uiTick"); hallFrom = "victory"; openHall("account"); }
+// the round button hides, as the tally does, where the page's title reaches under it
+function scFitBoardBtn() {
+  const b = scBoardBtnEl;
+  if (!b || b.hidden) return;
+  b.style.visibility = "";
+  const a = b.getBoundingClientRect();
+  if (!a.width) return;
+  const hit = ["ovCrest", "ovTitle", "ovHy", "ovRecord"].some(id => {
+    const r = $(id).getBoundingClientRect();
+    return r.width && r.left < a.right + 6 && r.right > a.left - 6 && r.top < a.bottom + 4 && r.bottom > a.top - 4;
+  });
+  if (hit) b.style.visibility = "hidden";
+}
+if (PF_ON) {
+  // the strip leaves with its page (Replay, Next battle, the map: the page's "victory" class goes), and is drawn
+  // again when the layout changes under it (a phone turned)
+  new MutationObserver(() => { if (SC.shown && !overlayEl.classList.contains("victory")) { SC.shown = false; scRender(); } }).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+  addEventListener("resize", () => { if (SC.shown) requestAnimationFrame(scRender); });
+}
+
+// ---- the map page's door (5.5): #hallBtn, a round trophy button 10 px right of the campaign's tally ----
+// Desktop, iPad and an upright phone. Its left is set from the tally's right edge whenever the tally moves or is
+// hidden (fitCampaignStars hides the tally when a long title reaches it: the door hides with it). On a phone held
+// sideways the top row is full, and the tally itself is the door (P0)
+const pfHallBtnEl = (() => {
+  if (!PF_ON) return null;
+  const b = document.createElement("button");
+  b.type = "button"; b.id = "hallBtn"; b.className = "btn icon"; b.hidden = true;
+  b.title = "Daily challenge and leaderboards"; b.setAttribute("aria-label", "Daily challenge and leaderboards");
+  b.innerHTML = icon("trophy");
+  overlayEl.insertBefore(b, $("ovStars").nextSibling);
+  b.addEventListener("click", () => {
+    Snd.init(); Snd.play("uiTick");
+    const d = hallTabs().find(t => t.id === "daily");
+    hallFrom = "map";
+    openHall(d && hallBadge(d) > 0 ? "daily" : "boards");
+  });
+  return b;
+})();
+let pfHallBtnQ = 0;
+function syncHallBtn() {
+  pfHallBtnQ = 0;
+  const b = pfHallBtnEl;
+  if (!b) return;
+  const t = $("ovStars"), cs = getComputedStyle(t);
+  const want = PF.on && hallTabs().some(x => x.id === "boards") && !phoneWide() && !overlayEl.classList.contains("hidden") && !overlayEl.classList.contains("brief") &&
+    cs.display !== "none" && cs.visibility !== "hidden" && t.getClientRects().length > 0;
+  b.hidden = !want;
+  if (!want) return;
+  const r = t.getBoundingClientRect();
+  b.style.left = Math.round(r.right + 10) + "px";
+  b.style.top = Math.round(r.top + (r.height - 44) / 2) + "px";
+  const d = hallTabs().find(x => x.id === "daily");
+  b.classList.toggle("pip", !!d && hallBadge(d) > 0);
+}
+const syncHallBtnSoon = () => { if (!pfHallBtnQ) pfHallBtnQ = requestAnimationFrame(syncHallBtn); };
+if (PF_ON) {
+  new MutationObserver(syncHallBtnSoon).observe($("ovStars"), { childList: true, attributes: true, attributeFilter: ["style", "class"] });
+  new MutationObserver(syncHallBtnSoon).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+  addEventListener("resize", syncHallBtnSoon);
+  overlayEl.addEventListener("scroll", syncHallBtnSoon, { passive: true });
+}
+
+// ---- the Leaderboards tab (5.5) ----
+// Controls: the battlefield (‹ name ›, any the player has opened; it starts on the last one fought), the three
+// difficulty seals, This week | All time, Standard | Open. Then 50 rows: rank, name, score, defenders kept ("17/20"),
+// battle clock ("10:00"); the player's own row tinted, and pinned under the list when it is below the fold. Under
+// it the score's sentence, the clock's and the weeks'. Every name is set as text.
+const LB = { lv: -1, diff: 1, period: "week", loadout: "std", seq: 0, el: null };
+function lbOpened() { return LEVELS.map((_, i) => i).filter(i => levelUnlocked(i)); }
+function renderBoards(el) {
+  LB.el = el;
+  if (SC.view) { Object.assign(LB, SC.view); SC.view = null; }
+  const open = lbOpened();
+  if (!open.includes(LB.lv)) LB.lv = open.includes(SC.lastLv) ? SC.lastLv : open.includes(curLevel) ? curLevel : open[0] || 0;
+  if (!(LB.diff >= 0 && LB.diff <= 2)) LB.diff = 1;
+  const box = pfEl("div", "lbTab");
+  el.appendChild(box);
+  const ctl = pfEl("div", "lbCtl"), main = pfEl("div", "lbMain");
+  box.appendChild(ctl);
+  box.appendChild(main);
+  // the battlefield
+  const field = pfEl("div", "lbField");
+  const at = open.indexOf(LB.lv);
+  const step = (k) => { const j = open[(at + k + open.length) % open.length]; LB.lv = j; pfBoardsRedraw(); };
+  const prev = pfBtn("lbArrow", "‹", () => step(-1)), next = pfBtn("lbArrow", "›", () => step(1));
+  prev.setAttribute("aria-label", "Previous battlefield"); next.setAttribute("aria-label", "Next battlefield");
+  prev.disabled = next.disabled = open.length < 2;
+  const L = LEVELS[LB.lv];
+  const nm = pfEl("span", "lbName", L.name);
+  nm.title = L.name + ", " + L.date;
+  field.appendChild(prev); field.appendChild(nm); field.appendChild(next);
+  ctl.appendChild(field);
+  // the difficulty's seals
+  const seals = pfEl("div", "lbSeals");
+  seals.setAttribute("role", "group"); seals.setAttribute("aria-label", "Difficulty");
+  DIFFS.forEach((D, i) => {
+    const b = pfBtn("lbSeal", null, () => { LB.diff = i; pfBoardsRedraw(); });
+    b.innerHTML = '<span class="seal">' + icon(DIFF_SEAL[i] || "swords") + "</span>";
+    b.appendChild(pfEl("span", "lbSealName", D.name));
+    b.setAttribute("aria-pressed", String(i === LB.diff));
+    seals.appendChild(b);
+  });
+  ctl.appendChild(seals);
+  const pair = (label, opts, key) => {
+    const g = pfEl("div", "lbPair");
+    g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
+    for (const [v, words] of opts) {
+      const b = pfBtn("lbOpt", words, () => { LB[key] = v; pfBoardsRedraw(); });
+      b.setAttribute("aria-pressed", String(LB[key] === v));
+      b.dataset.v = v;
+      g.appendChild(b);
+    }
+    ctl.appendChild(g);
+  };
+  pair("Period", [["week", "This week"], ["all", "All time"]], "period");
+  pair("Loadout", [["std", "Standard"], ["open", "Open"]], "loadout");
+  if (LB.loadout === "open") ctl.appendChild(pfEl("p", "lbNote", "Battles fought with War Council upgrades count here."));
+  // the list, and the words under it
+  const list = pfEl("div", "lbList");
+  list.setAttribute("aria-live", "polite");
+  main.appendChild(list);
+  const foot = pfEl("div", "lbFoot");
+  for (const t of [SCORE_SENTENCE, CLOCK_SENTENCE, "Weeks run Monday to Sunday, UTC. The boards start fresh when the battles are rebalanced."]) foot.appendChild(pfEl("p", "", t));
+  main.appendChild(foot);
+  phoneFold(main, true);
+  lbLoad(list);
+}
+function pfBoardsRedraw() { if (hallOpen && hallTab === "boards") showHallTab("boards", false); }
+// three faint rows while the board is asked for; then the rows, or why there are none
+async function lbLoad(list) {
+  const seq = ++LB.seq, L = LEVELS[LB.lv];
+  list.textContent = "";
+  list.classList.add("lbLoading");
+  for (let i = 0; i < 3; i++) list.appendChild(pfEl("div", "lbRow lbFaint"));
+  if (!pfBoardsOn()) { list.classList.remove("lbLoading"); list.textContent = ""; list.appendChild(pfEl("p", "lbEmpty", "The boards are closed for now.")); return; }
+  const s = pfSession();
+  track("board_open", { mode: "campaign", lv: L.id, diff: LB.diff, period: LB.period, loadout: LB.loadout });
+  const r = await pfRpc("hs_board", { p_mode: "campaign", p_level: L.id, p_diff: LB.diff, p_loadout: LB.loadout, p_ruleset: PF_RULESET_ID, p_period: LB.period, p_limit: 50 },
+    { auth: !!s, timeout: 8000 });
+  if (seq !== LB.seq || !list.isConnected) return;
+  list.classList.remove("lbLoading");
+  list.textContent = "";
+  const d = r.ok && r.data && typeof r.data === "object" ? r.data : null;
+  // not signed in: the board is open to read, and the three buttons say how to be on it
+  if (!s && !HS_STORE_MEM) lbSignIn(list);
+  if (!d) {
+    list.appendChild(pfEl("p", "lbEmpty", "The boards need a connection."));
+    list.appendChild(pfBtn("btn lbRetry", "Try again", () => lbLoad(list)));
+    return;
+  }
+  if (d.ruleset_unknown) { list.appendChild(pfEl("p", "lbEmpty", "The boards for this version open soon.")); return; }
+  const rows = Array.isArray(d.rows) ? d.rows.filter(x => x && typeof x === "object") : [];
+  if (!rows.length) { list.appendChild(pfEl("p", "lbEmpty", "No scores yet. Be the first to hold this field.")); return; }
+  let max = 0;
+  try { const b = boundsOf(pfRules(), L.id, LB.diff, null, false); max = b ? b.lives : 0; } catch (e) {}
+  const kept = (x) => { const n = Number(x.lives), m = Number(x.lives_max) || max; return Number.isFinite(n) ? scoreNum(n) + (m ? "/" + scoreNum(m) : "") : "-"; };
+  const table = pfEl("div", "lbRows");
+  table.setAttribute("role", "table");
+  table.setAttribute("aria-label", L.name + ", " + DIFFS[LB.diff].name + ", " + (LB.period === "week" ? "this week" : "all time") + ", " + (LB.loadout === "open" ? "Open" : "Standard"));
+  const head = pfEl("div", "lbRow lbHead");
+  head.setAttribute("role", "row");
+  for (const [c, w] of [["lbRank", "#"], ["lbWho", "Name"], ["lbScore", "Score"], ["lbKept", "Kept"], ["lbClock", "Clock"]]) { const x = pfEl("span", c, w); x.setAttribute("role", "columnheader"); head.appendChild(x); }
+  table.appendChild(head);
+  let mine = null;
+  for (const x of rows) {
+    const row = pfEl("div", "lbRow" + (x.me === true ? " lbMe" : ""));
+    row.setAttribute("role", "row");
+    for (const [c, w] of [["lbRank", Number.isFinite(x.rank) ? String(x.rank) : "-"], ["lbWho", String(x.name == null ? "" : x.name).slice(0, 40)], ["lbScore", scoreNum(x.score)],
+      ["lbKept", kept(x)], ["lbClock", clockWords(x.sec)]]) { const cell = pfEl("span", c, w); cell.setAttribute("role", "cell"); row.appendChild(cell); }
+    if (x.me === true) mine = row;
+    table.appendChild(row);
+  }
+  list.appendChild(table);
+  // the player's own place, pinned under the list when it is not in it, or when it lies below the fold
+  const me = d.me && typeof d.me === "object" ? d.me : null, nm = pfMyName();
+  if (me && Number.isFinite(me.rank)) {
+    const pin = pfEl("div", "lbPin", "#" + scoreNum(me.rank) + " · " + (nm || "You") + " · " + scoreNum(me.score));
+    if (!mine) list.appendChild(pin);
+    else requestAnimationFrame(() => {
+      const sc = lbScroller(list), r = mine.getBoundingClientRect(), f = sc ? sc.getBoundingClientRect() : null;
+      if (f && r.top > f.bottom - 4 && list.isConnected) { pin.classList.add("lbFloat"); list.appendChild(pin); }
+    });
+  }
+}
+// the frame the list scrolls in (the tab's own column on a phone held sideways, else the Hall's box)
+function lbScroller(list) {
+  for (let e = list.parentElement; e; e = e.parentElement) { const o = getComputedStyle(e).overflowY; if ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight + 1) return e; if (e === hallBodyEl) return e; }
+  return null;
+}
+function lbSignIn(list) {
+  const box = pfEl("div", "lbSign");
+  box.appendChild(pfEl("p", "", "Sign in to post your scores."));
+  const cfg = pfCfg();
+  const ps = (pfProv || (Array.isArray(cfg.prov) ? cfg.prov : ["google", "facebook", "discord"]).filter(p => !(p === "discord" && cfg.held === "d"))).filter(p => !(p === "google" && pfInApp));
+  const row = pfEl("div", "lbSignBtns");
+  for (const p of ps) row.appendChild(pfProviderBtn(p, "hall"));
+  box.appendChild(row);
+  list.appendChild(box);
+}
+// (after gameplay's tabs and before the Account tab: Daily, Leaderboards, Account is the order of 5.5)
+if (PF_ON) HALL_TABS.push({ id: "boards", label: "Leaderboards", short: "Boards", icon: "trophy", render: renderBoards });
+
+// ---- for an admin: the page's ruleset not yet on the server (5.2) ----
+// An admin who opens the game with a ruleset the server does not have is told on the map, once a load
+async function pfAdminRulesCheck() {
+  const me = pfRead("hs_pf_me");
+  if (!PF.on || !me || !me.admin || !pfSession()) return;
+  const r = await pfRpc("hs_board", { p_mode: "campaign", p_level: LEVELS[0].id, p_diff: 1, p_loadout: "std", p_ruleset: PF_RULESET_ID, p_period: "all", p_limit: 1 }, { auth: true, timeout: 8000 });
+  if (!(r.ok && r.data && r.data.ruleset_unknown === true)) return;
+  for (let i = 0; i < 120; i++) {
+    if (menuMode === "map" && !gateUp && !hallOpen && !overlayEl.classList.contains("hidden")) { toast("Admin: publish ruleset " + PF_RULESET_ID + " on the stats page.", 6000); return; }
+    await pfWait(1000);
+  }
+}
+
 // ---- the Account tab in the Hall (5.5): who you are and sign out; for a guest the sign-in buttons ----
 let pfAcctEl = null;
 function pfAccountRedraw() { if (hallOpen && hallTab === "account" && pfAcctEl) showHallTab("account", false); }
@@ -83093,9 +83855,9 @@ const Platform = {
   // true while a page of the platform's holds the keyboard: no hotkey of the game's may act under it
   blocking() { return hallOpen || gateUp || !$("privacyPage").hidden || !$("statsPage").hidden; },
   // the victory page is up: the score's strip and its doors go on it here (5.3, 5.5)
-  victoryPage() {},
+  victoryPage() { if (!PF.on) return; SC.shown = true; scRender(); },
   // the defeat page is up: a lost daily's score goes on it here (5.5)
-  defeatPage() {},
+  defeatPage() { if (!PF.on) return; SC.shown = true; scRender(); },
   // the player as the platform knows him, for a hero's or a card's words (0.3): read only
   player() { const s = PF.on ? pfSession() : null; return { signedIn: !!s, name: s ? ((PF.me && PF.me.name) || ((pfRead("hs_pf_me") || {}).name) || null) : null }; },
   // the daily challenge for gameplay's page: null until work package P6

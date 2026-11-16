@@ -21,7 +21,9 @@
 // superadmin SA (P10, migration 006; made by the owner's command, run as postgres): the Players view refused to A,
 // B, the outsider, the admin who is not super, SA's account in a password session, the visitor and service_role,
 // and allowed to SA, each read audited; no other role's answer holds an email; the owner's two commands refused
-// through the API to every role.
+// through the API to every role. Scores and boards (P5, migration 007): a board row's lives_max the same to everyone and
+// "me" the caller's own; a result's answer about the caller's own run; the boards' switch changed by the admin alone,
+// kept by hs_run_begin for players, everyone else refused as before.
 // Prints a FAIL line per broken rule and "RESULT isolation: N checks, F failed". Exit 0 only when nothing failed.
 "use strict";
 const stackLib = require("./stack");
@@ -219,6 +221,35 @@ async function run(S) {
     const board = await api.rpc("B", "hs_board", OPEN.hs_board);
     ok(board.status === 200 && board.body.rows.length >= 2 && board.body.rows.every(r => !("uid" in r) && !("id" in r)), "B's board shows names and numbers, no user id or score id (" + (board.body.rows || []).length + " rows)");
     ok(board.body.rows.filter(r => r.me).every(r => r.name === "Bagrat Iso"), "and only B's own row is marked his");
+    // migration 007 (P5): the rows' lives_max is the battle's, the same to everyone; "me" is the caller's own
+    ok(board.body.rows.every(r => r.lives_max === RULES.levels.erebuni.d[1].lives), "every board row carries lives_max, the difficulty's defenders (" + board.body.rows.map(r => r.lives_max).join(",") + ")");
+    ok(board.body.me && board.body.me.lives_max === RULES.levels.erebuni.d[1].lives && board.body.rows.find(r => r.me).score === board.body.me.score, "B's own place carries it too, and is B's");
+    const vBoard = await api.rpc(null, "hs_board", OPEN.hs_board), oBoard = await api.rpc("O", "hs_board", OPEN.hs_board);
+    ok(vBoard.status === 200 && vBoard.body.me === null && vBoard.body.rows.every(r => r.me === false && !("uid" in r)), "the visitor's board: the same rows, none his, no ids");
+    ok(oBoard.status === 200 && oBoard.body.me === null && oBoard.body.rows.every(r => r.me === false && !("uid" in r)), "the outsider's board: the same, none his");
+    // what a result's answer says (beat_all, the run) is about the caller's own run only: B's run, B's answer
+    const bRun = await api.rpc("B", "hs_run_begin", MEMBER.hs_run_begin);
+    await q("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1 and user_id = $2", [bRun.body.run_id, P.B]);
+    const bPost = await api.rpc("B", "hs_score_submit", { p_run: bRun.body.run_id, p_stats: { ...WIN, lives: 1 } });
+    ok(bPost.status === 200 && bPost.body.accepted === true && bPost.body.beat_all === false && bPost.body.level === "erebuni" && bPost.body.mode === "campaign" && !("user_id" in bPost.body),
+      "B's lower result: accepted, beats no best of his, names his run and no account (" + JSON.stringify(bPost.body).slice(0, 160) + ")");
+    // the owner's switches (hs_config boards and daily): only the admin changes them; hs_run_begin keeps them for
+    // players and refuses everyone else as before
+    for (const k of ["A", "B", "O", null, "service"]) {
+      const r = await api.rpc(k, "hs_admin_set_config", { p_key: "boards", p_value: false });
+      ok(r.status === 403 || r.status === 401, (k || "the visitor") + " cannot switch the boards off (" + r.status + " " + r.message + ")");
+    }
+    ok((await q("select count(*)::int n from highland.hs_config where key = 'boards'"))[0].n === 0, "and the switch is not there");
+    const sw = await api.rpc("AD", "hs_admin_set_config", { p_key: "boards", p_value: false });
+    ok(sw.status === 200 && sw.body.boards === false, "the admin switches the boards off");
+    const runsA = async () => (await q("select count(*)::int n from highland.hs_runs where user_id = $1", [P.A]))[0].n, ra0 = await runsA();
+    const offA = await api.rpc("A", "hs_run_begin", MEMBER.hs_run_begin);
+    ok(offA.status === 200 && offA.body.ok === false && offA.body.reason === "boards_off" && !offA.body.run_id && await runsA() === ra0, "with the boards off A begins no run, and none is written");
+    const offO = await api.rpc("O", "hs_run_begin", MEMBER.hs_run_begin), offV = await api.rpc(null, "hs_run_begin", MEMBER.hs_run_begin), offS = await api.rpc("service", "hs_run_begin", MEMBER.hs_run_begin);
+    ok(offO.status === 403 && offO.message === "no_profile" && offV.status === 401 && offS.status === 403, "the outsider, the visitor and service_role are refused as before, not told of the switch");
+    ok((await api.rpc("AD", "hs_admin_set_config", { p_key: "boards", p_value: null })).status === 200, "the admin switches them on again");
+    const onA = await api.rpc("A", "hs_run_begin", MEMBER.hs_run_begin);
+    ok(onA.status === 200 && onA.body.ok === true, "and A begins a run");
     const nm = await api.rpc("B", "hs_profile_set_name", { p_name: "Aram Iso" });
     ok(nm.status === 400 && nm.message === "name_taken", "B cannot take A's name (" + nm.message + ")");
     const del = await api.rpc("B", "hs_admin_moderate", ADMIN.hs_admin_moderate);
