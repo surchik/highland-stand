@@ -171,3 +171,26 @@ that drop; say in the README that the list is one day's.
   battle and my probe 2, not by a finger.
 - Real devices and Safari: only headless Chromium with an iPhone user agent.
 - I ran no balance-bot battles (RULINGS E); every balance statement above is read from the committed tables.
+
+## CLOSE (gameplay track, G6 close)
+
+- 1 (Sis's days): fixed. heldCount counts by script wave, so the HUD note and the held line agree; a staged Sis daily
+  ends on day 60. Suite 2 checks the note after wave 6 and the victory's "60 days".
+- 2 (the record check could not fail): fixed. Suite 2 now wins a daily on Erebuni, which is open and holds a best, and
+  checks hs_best_*, hs_records, hs_run and that no star_gain is sent. Mutant m02 is now caught.
+- 3 (stars on a daily's events): fixed. battleFacts().stars is 0 for a daily, and the victory card draws no stars on a
+  daily. The platform track must leave the stars row off a daily's strip and share card.
+- 4 (Iron ranks weak, twist two days running): owner's call, not changed.
+- 5 (Abandon, Resume, the clock): fixed. Suite 2 checks Abandon and Resume from a daily and the UTC day, and runs on a
+  Pacific/Kiritimati clock (tools/selftest.js). Mutants m15, m16, m17, m18 are now caught.
+- 6 (a lost daily hides the debrief): fixed. The overlay gains .dailyEnd and the debrief shows under it; checked in
+  suite 2 and photographed at 667 x 320.
+- 7 (the phone's door has no words): fixed. A "Daily" caption at 11 px in the 46 px square (iphone.js reads it).
+- 8 (two Stepanakerts): fixed. dailyTitle(levelIndex) adds the year where names clash; the door's title uses it, and
+  the platform may call it for the share text.
+- 9 (dates not on the calendar): fixed. dailyDayNum refuses them.
+- 10 (experience promised after the cap): fixed. A second line once the day's experience is used.
+- 11 (README counts): fixed.
+- 12 (one day's lines): the five pairs won on exactly two of three seeds were rerun on DAY=20407; all still won two of
+  three, so the skip list stands. The README says the list is one day's, with that second-day check.
+- 13 (the door's click and rankedness with P6): for the platform track; named in the close report, not changed here.
