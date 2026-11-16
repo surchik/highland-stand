@@ -109,7 +109,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -183,7 +183,48 @@ if (pure) {
   }
   if (pure.scoreOf) {
     for (const c of ref.SCORE_CASES) eq(pure.scoreOf(c.stats, ref.SCORE_BOUNDS), c.score, "the page's scoreOf: " + c.what);
-    for (const c of ref.LOST_CASES) eq(pure.scoreOf({ won: false, waves: c.cleared }, { waves: 12 }), c.score, "the page's scoreOf: a lost daily, " + c.cleared + " of 12");
+    for (const c of ref.LOST_CASES) eq(pure.scoreOf({ won: false, waves: c.cleared }, { waves: 12 }), c.score, "the page's scoreOf: a lost daily, " + c.cleared + " of 12");    eq(pure.scoreOf({ won: true, lives: 20, waves: 10, sim_sec: 600, spent: 900, earned: 3000 }, { waves: 10, lives: 20, fast: 300, slow: 900 }), 8800, "the page's scoreOf: 5.1's example");
+  }
+  // (P5) the bounds the page scores by are the server's: a campaign battle, a daily on its own table, a twist's scaling
+  if (pure.boundsOf) {
+    const R = { levels: { a: { waves: 10, rev: 3, script: [1, 2, 3, 5, 8, 10, 12, 15, 18, 20], d: [{ lives: 30, min: 240, fast: 300, slow: 900, earnMax: 6000 },
+      { lives: 20, min: 250, fast: 310, slow: 910, earnMax: 5500 }, { lives: 14, fast: 320, slow: 920, earnMax: 5200 }] } },
+      daily: { waves: 12, pool: ["a"], twists: ["thin", "few"], t: { thin: { earn: 0.8 }, few: { livesSet: 12 }, swift: { fast: 0.9, slow: 0.95 } },
+        levels: { a: { min: 300, fast: 400, slow: 1000, earnMax: 7000 } } } };
+    for (const [lv, d, tw, dy] of [["a", 0, null, false], ["a", 1, null, false], ["a", 2, null, false], ["a", 1, "thin", true], ["a", 1, "few", true], ["a", 1, "swift", true], ["a", 1, null, true]])
+      eq(pure.boundsOf(R, lv, d, tw, dy), ref.boundsOf(R, lv, d, tw, dy), "the page's boundsOf agrees with the server's: " + [lv, d, tw, dy].join(" "));
+    eq(pure.boundsOf(R, "zz", 1, null, false), null, "the page's boundsOf: no such battlefield");
+    eq(pure.boundsOf(R, "a", 3, null, false), null, "the page's boundsOf: no such difficulty");
+  }
+  if (pure.scoreLine) {
+    const L = pure.scoreLine;
+    for (const [st, want] of [
+      [{ state: "posting", score: 7750 }, "Score 7,750"],
+      [{ state: "posted", score: 7750, rank: 12, total: 87 }, "Score 7,750 · #12 this week"],
+      [{ state: "posted", score: 7750, rank: 12, total: 87, best: true }, "Score 7,750 · #12 this week · your best"],
+      [{ state: "posted", score: 7750, rank: 1, total: 3 }, "Score 7,750 · #1 of 3 this week"],
+      [{ state: "posted", score: 7750, rank: 4, total: 40, open: true }, "Score 7,750 · #4 this week · Open"],
+      [{ state: "posted", score: 7420, rank: 12, total: 87, daily: true }, "Score 7,420 · #12 today"],
+      [{ state: "posted", score: 7750 }, "Score 7,750"],
+      [{ state: "signin", score: 7750 }, "Score 7,750 · Sign in to post it"],
+      [{ state: "noname", score: 7750 }, "Score 7,750 · Choose a name to post it"],
+      [{ state: "waiting", score: 7750 }, "Score 7,750 · It posts when you are back online"],
+      [{ state: "offline", score: 7750 }, "Score 7,750 · Not ranked: this battle began offline"],
+      [{ state: "unpublished", score: 7750 }, "Score 7,750 · The boards for this version open soon"],
+      [{ state: "refused", score: 7750 }, "Score 7,750 · Not ranked"],
+      [{ state: "none", score: 7750 }, ""], [null, ""], [{ state: "posting" }, ""]]) eq(L(st), want, "the strip's words (5.3): " + JSON.stringify(st));
+    for (const st of ["posting", "posted", "signin", "noname", "waiting", "offline", "unpublished", "refused"]) ok(!/[\u2013\u2014]/.test(L({ state: st, score: 1, rank: 1, total: 1 })), "no long dash in the strip: " + st);
+  }
+  if (pure.clockWords) for (const [s, w] of [[0, "0:00"], [59.6, "1:00"], [600, "10:00"], [3725, "1:02:05"], [-3, "0:00"], ["x", "0:00"]]) eq(pure.clockWords(s), w, "the battle clock in words: " + s);
+  if (pure.outTrim) {
+    const now = 1e12, e = (rid, uid, ago) => ({ rid, uid, stats: { won: true }, t: now - ago });
+    const many = Array.from({ length: 25 }, (_, i) => e("r" + i, "u", i * 1000));
+    eq(pure.outTrim(many, now).length, 20, "the outbox keeps 20 at the most");
+    eq(pure.outTrim(many, now)[19].rid, "r24", "the outbox keeps the newest 20 (the oldest go)");
+    eq(pure.outTrim([e("a", "u", 6.9 * 86400000), e("b", "u", 7.1 * 86400000)], now).map(x => x.rid), ["a"], "an entry older than 7 days is dropped");
+    eq(pure.outTrim([e("a", "u", 0), e("a", "u", 5), { rid: 1 }, null, "x"], now).map(x => x.rid), ["a"], "the outbox: one entry a run, junk dropped");
+    eq(pure.outSendable([e("a", "u", 0), e("b", "v", 0)], "u", now).map(x => x.rid), ["a"], "another account's entry is never sent");
+    eq(pure.outTrim("nonsense", now), [], "an outbox that is not a list is empty");
   }
   if (pure.dailyOf) for (const d of [
     { pool: Array.from({ length: 17 }, (_, i) => "b" + i), twists: ["thin", "swift", "iron", "few", "quiet", "noballista"], skip: { b3: ["few"] } },
