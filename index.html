@@ -83379,10 +83379,20 @@ function scRender() {
     // the record row: "★★★ Normal · 7,750 · #12 this week" (a lost daily has no stars: the words stand alone there)
     const rec = $("ovRecord"), t = pfEl(link ? "button" : "span", "pfRecScore" + (link ? " scLink" : ""), (rec.querySelector(".recRow") ? "· " : "") + words.replace(/^Score /, ""));
     t.id = "pfRecScore";
+    t.dataset.full = words;
     if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
-    else { t.title = SCORE_SENTENCE; t.addEventListener("click", scSentence); }
+    else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
     rec.appendChild(t);
     rec.classList.add("on");
+    // the row is one line the screen's width: beside a "New best" ribbon the words may not fit, and then say less
+    // ("· 7,750 · #12"), the rest of them in the score's tooltip and on the board
+    const over = () => { const r = t.getBoundingClientRect(), q = rec.getBoundingClientRect(); return rec.scrollWidth > rec.clientWidth + 1 || r.left < q.left - 1 || r.right > Math.min(q.right, innerWidth) + 1; };
+    if (over()) {
+      const short = { posted: pg.rank ? "#" + scoreNum(pg.rank) : "", signin: "Sign in", noname: "Choose a name", waiting: "Waiting to post", offline: "Not ranked",
+        unpublished: "Not ranked yet", refused: "Not ranked" }[pg.state] || "";
+      t.textContent = (rec.querySelector(".recRow") ? "· " : "") + scoreNum(pg.score) + (short ? " · " + short : "");
+      if (!link) t.title = words + ". " + SCORE_SENTENCE + " " + CLOCK_SENTENCE;
+    }
     scBoardBtnEl.hidden = !canBoard;
     scFitBoardBtn();
     return;
@@ -83392,13 +83402,13 @@ function scRender() {
   btns.textContent = "";
   const t = pfEl(link ? "button" : "span", link ? "scLink" : "scLine", words);
   if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
-  else { t.title = SCORE_SENTENCE; t.addEventListener("click", scSentence); }
+  else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
   w.appendChild(t);
   if (canBoard) btns.appendChild(pfBtn("btn scBoard", "Leaderboard", () => scOpenBoard()));
   btns.hidden = !canBoard;
 }
-// a tap on the score tells the score's sentence (the tooltip a mouse gets)
-function scSentence() { toast(SCORE_SENTENCE, 6000); }
+// a tap on the score tells the score's sentence and the clock's (the tooltip a mouse gets; RULINGS S1, N12)
+function scSentence() { toast(SCORE_SENTENCE + " " + CLOCK_SENTENCE, 7000); }
 // "Sign in to post it": the words are a button to the Account tab (a sign-in there comes back to the Hall)
 function scSignInDoor() { Snd.init(); Snd.play("uiTick"); hallFrom = "victory"; openHall("account"); }
 // the round button hides, as the tally does, where the page's title reaches under it

@@ -2336,7 +2336,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
   // a player of the live game who has won five battlefields (as flow 6's), with no battle in progress
   const f7prog = (() => {
     const won = ["erebuni", "tushpa", "avarayr", "dvin", "tashir"], rec = {}, eraOf = { erebuni: 0, tushpa: 0, avarayr: 1, dvin: 2, tashir: 2 };
-    won.forEach((id, i) => { rec[id] = { stars: [0, 3 - (i % 2), 0], lives: [0, 20 - i, 0], endless: [0, 0, 0] }; });
+    // (Erebuni held with 16 of 20 before: the first ranked win there with 17 brings the "New best" ribbon into the record row)
+    won.forEach((id, i) => { rec[id] = { stars: [0, 3 - (i % 2), 0], lives: [0, i ? 20 - i : 16, 0], endless: [0, 0, 0] }; });
     const o = { hs_records: JSON.stringify(rec), hs_tutorial_done: "1", hs_chapters_seen: JSON.stringify(["kingdoms", "faith", "crowns", "night", "artsakh"]),
       hs_unlocked_seen: JSON.stringify(won.concat(["sevan"])), hs_open_kept: JSON.stringify(["sevan"]), hs_tricks_seen: JSON.stringify(["guard", "scout"]) };
     won.forEach(id => { o["hs_best_" + id + "_" + eraOf[id]] = "21"; });
@@ -2349,11 +2350,15 @@ const log = (m) => { if (o.verbose) console.log(m); };
   // the strip as the page shows it: the row under #ovGrowth, or held sideways the words in the record row and the round button
   const strip = (g) => g.ev(() => {
     const s = $("ovScore"), r = $("pfRecScore"), b = $("boardBtn"), vis = (e) => !!e && !e.hidden && getComputedStyle(e).display !== "none" && e.getClientRects().length > 0;
-    return { row: vis(s), words: s ? s.querySelector(".scWords").textContent : "", rec: r ? r.textContent : null, board: vis(b) && getComputedStyle(b).visibility !== "hidden",
+    // (held sideways the record row's words must lie on the screen, whole, on one line)
+    const rr = r ? r.getBoundingClientRect() : null, recOut = !!rr && (rr.left < -0.5 || rr.right > innerWidth + 0.5 || (r.tagName === "SPAN" && rr.height > 30) || r.scrollWidth > r.clientWidth + 1 || $("ovRecord").scrollWidth > $("ovRecord").clientWidth + 1);
+    return { recOut, full: r ? r.dataset.full : null, row: vis(s), words: s ? s.querySelector(".scWords").textContent : "", rec: r ? r.textContent : null, board: vis(b) && getComputedStyle(b).visibility !== "hidden",
       side: phoneWide(), boardRow: !!(s && s.querySelector(".scBoard") && vis(s.querySelector(".scBoard"))), state: SC.page ? SC.page.state : null, score: SC.page ? SC.page.score : null };
   });
   // the strip's words as they read at this size: "Score 7,750 · #1 this week" on the row; "· 7,750 · #1 this week" in the record row
-  const stripSays = (st) => (st.side ? (st.rec || "").replace(/^· /, "Score ") : st.words);
+  // (held sideways beside a "New best" ribbon the row's words may be the short form, "· 9,076 · #1": what the strip says
+  // is then its full words, kept on the element, and the short form must begin as they do)
+  const stripSays = (st) => (st.side ? st.full || "" : st.words);
   // a ranked battle from the map as a player goes (the battlefield's chronicle, its button), won as vic.js wins one.
   // o: { lv, diff, sec, spent, lives, gift, runback (seconds; false: none), token (wait for it; default true), before (async,
   // before the first horn), last (async, before the last wave is cleared) }. An upright phone is turned sideways for
@@ -2412,6 +2417,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
   const f7audit = async (g, W, what, photo) => {
     const st = await strip(g);
     const primary = st.side ? (st.board ? ["#boardBtn"] : ["#mapBtn"]) : st.boardRow ? ["#ovScore .scBoard"] : ["#mapBtn"];
+    if (st.side && st.recOut) fail(W, what + ": the record row's words run off the screen or onto a second line: " + JSON.stringify(st));
+    if (st.side && st.rec && st.full && st.rec.replace(/^· /, "Score ") !== st.full && !st.full.startsWith(st.rec.replace(/^· /, "Score ").split(" · ")[0])) fail(W, what + ": the short words " + st.rec + " are not the full words' " + st.full);
     if (["ses", "i15h", "i15u"].includes(g.o.key)) await audit(g, W + " " + what, { root: "#overlay", parts: st.side ? ["#ovRecord", "#boardBtn", "#ovGear"] : ["#ovScore", "#ovRecord"], primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
     // every way on from the page still in sight (held sideways and on a tablet, without a scroll)
     const out = await g.ev(() => [...document.querySelectorAll("#overlay .bigRow .big, #ovScore button")].filter(b => b.offsetParent && b.getBoundingClientRect().bottom > innerHeight - 1).map(b => b.id || b.className));
