@@ -9771,8 +9771,12 @@ const HORSE_RULES = { ride: 0.8, back: 1.2, rest: 8, heavy: 0.25, crowd: 3 };
 // A wrecked one pays nothing. Caravan: kills pay `bounty` more (the larger of a Caravan's share and the Standards'
 // plunder applies, never both, and two Caravans pay one share). Field Forge: towers within its `range` mend `mend` more
 // of their strength at each clear and cost `repair` less to repair or rebuild. max: two on one field (3.7)
+// (G7b tuning, gameplay 5.3's fourth knob: at 3.3's price of 120 the balance bot's "bazaar" (two Stores first) ended
+// below "mix" on only 3 of the 6 battlefields, and a board with Stores kept 18 on Sevan and 16.7 on Ani, above their
+// bands (12 to 16, 10 to 15) and 4.7 above the best board without them, against 3.1's second rule. At 160 the bands are
+// G5's, bazaar ends below mix on 5 of 6, and the pay is 3.3's. docs/specs/balance/README.md, G7b)
 TOWER_DEFS.stores = {
-  name: "Stores", cost: 120, proj: null, income: true, max: 2, maxSay: "Two stores are all this road can feed.",
+  name: "Stores", cost: 160, proj: null, income: true, max: 2, maxSay: "Two stores are all this road can feed.",
   // the stores' own strength by rank, for hunters and powers (kept here, as the Horse Lines' is: rulesetData)
   hp: [240, 300, 380],
   levels: [
@@ -10607,7 +10611,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "ae5d7ebd";
+const RULESET_PIN = "463f1d55";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10621,8 +10625,8 @@ const LEVEL_REV = {
   van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
-  erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "37cf9c66", tashir: "653ccd31", sevan: "6fc7a390",
-  ani: "cb37060d", mari: "935fec00", sis: "e88d4c42", gyumri: "247e2c31", halidzor: "d8642491", van: "5de47ca5",
+  erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "d54aad46", tashir: "ecb42838", sevan: "bbd83c14",
+  ani: "2a40661d", mari: "656d7c5a", sis: "d13b2c35", gyumri: "247e2c31", halidzor: "d8642491", van: "5de47ca5",
   musadagh: "781b3fc4", sardarapat: "4d3ab09c", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
@@ -88235,7 +88239,7 @@ function runSelftestPlay() {
       localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { captains: 4 }, n: 1 }));
       stage("tashir", 1);
       const pr = document.querySelector('#shop .card[data-type="stores"] .pr');
-      if (towerCost("stores") !== Math.round(120 * 0.95) || !pr || pr.textContent.replace(/\D/g, "") !== String(towerCost("stores"))) fail("the tile's price under the kit: " + (pr && pr.textContent));
+      if (towerCost("stores") !== Math.round(TOWER_DEFS.stores.cost * 0.95) || !pr || pr.textContent.replace(/\D/g, "") !== String(towerCost("stores"))) fail("the tile's price under the kit: " + (pr && pr.textContent));
       // a kind at its limit is refused with its sentence
       gold = 1e5;
       const free = PADS.map((p, k) => k).filter(k => !towerAt(k));
