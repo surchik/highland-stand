@@ -34,6 +34,18 @@ logs a warning. For a node somewhere else, link it as `/usr/local/bin/node`. (`H
 command in `/etc/cron.d/highland-update` works too, but a re-run of `setup-server.sh` rewrites that line and drops
 it.)
 
+**The staging channel.** When the repository has a branch named `next`, `update.sh` also publishes that branch's
+`index.html` (and its `og.jpg`) at `https://highland.avunjian.com/next/`, after the same check, reading the files
+straight from the branch so the clone on the server stays on master. A staging page that fails its check, or
+that lacks the staging namespace line (`const HS_CHANNEL = `, without which it would share the live game's saves),
+is not published and is logged once; `/next/` keeps what it had. Deleting the branch removes `/next/`. Only a
+branch named exactly `next` counts. A folder `next` already in the web root that the script did not make itself
+is never written into or removed: staging stays off, said once in the log, until it is moved away. The live
+page never depends on it: the master flow is the same steps as before, and the script exits with its status.
+The run that pulls a new `update.sh` is still the old one, so `/next/` first appears on the run after (within
+four minutes of the push). `bash tools/platform/test-update.sh` tries all of it on throwaway copies. The
+accounts' Supabase has its own guide: `deploy/supabase/README.md`.
+
 `deploy.sh`, `nginx-highland.conf` and `Caddyfile` are the manual alternatives.
 
 **Another name for the same game** (e.g. hyeland.avunjian.com): point the name's DNS A record at 76.13.121.176,

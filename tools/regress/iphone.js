@@ -25,8 +25,21 @@
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/iphone.js [index.html] [--quick] [--sizes=i15s,i15h]
 //         [--only=pages,map,...] [--dpr=3] [--shots=dir] [--photos=dir] [--jobs=n] [--verbose]
 //   --shots   a photo of every state that failed; --photos a photo of every state; --dpr their density (default 1)
-//   --only    some of the states: tip, pages, map, settings, chronicle, battle, panel, foe, tricks, note, bubble, crash,
-//             victory, defeat, nardi, coach, towers (rotate is part of battle)
+//   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
+//             crash, victory, defeat, nardi, coach, towers, post (rotate is part of battle)
+// The Garrison Post (G5): the tray of six on every battlefield and of seven (a stand-in for the special tower until
+// G7) with every tile 44 x 44 and its name whole or absent; the post's panel as a sheet; the armed rally's toast in
+// the safe area and off the wave's ribbon, and a tap on the road in its ring moving the men.
+// The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
+// the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
+// nothing in it scrolls) and is held to the bar; a finger takes three tiers, resets the Council (a second tap
+// confirms) and takes a tier again; the Hall's close gives the map back. The chronicle's #briefKit (the Council's
+// chip, the Standard switch 44 px tall, which a tap turns on) and the victory page's #ovGrowth (held sideways one
+// line of text in place of the prose's last line; upright a button 44 px tall) are held to the bar with their pages.
+// The heroes (gameplay 4.4, 4.6, 8.2, G3): the chronicle's hero line names his level and a tap opens his card, held
+// to the bar as the foe card is; the victory page's growth line names the hero and his level; in battle, chosen with
+// the Call ready, the hero's medallion wears the horn, the word "Call" and its bright ring inside the safe area, a
+// later tap sounds the Call and its thin arc cools on the medallion.
 "use strict";
 const path = require("path");
 const R = require("./lib");
@@ -279,6 +292,67 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         await tap("Settings (map)", "#ovGear", "cannot close Settings");
         if (await shown("#settings")) fail("Settings (map)", "the gear did not put Settings away");
       });
+      // ---- the War Council: its one-time card, its panel in the Hall, three tiers taken by a finger, reset, again ----
+      await step("council", "council", async () => {
+        await g.ev(() => {
+          const rec = {};
+          for (let i = 0; i < 3; i++) {
+            localStorage.setItem(bestKey(i, LEVELS[i].era), "21");
+            rec[levelId(i)] = { stars: [0, 3, i === 1 ? 2 : 0], lives: [0, 18, i === 1 ? 9 : 0], endless: [0, 0, 0] };
+          }
+          localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
+          localStorage.removeItem("hs_council");
+          localStorage.removeItem("hs_towers_seen");
+          window.__hsQuietCouncilCard = false;   // the card is this state's to show (openGame holds it back)
+          testUnlockAll = false;
+          openCampaignMap(2);
+        });
+        const card = await g.page.waitForFunction(() => unlockCardOn === "council", null, { timeout: 5000 }).then(() => true, () => false);
+        if (!card) { fail("council card", "\"The War Council opens\" did not come up over the map"); await tap("council", "#ovStars", "cannot tap the tally"); }
+        else {
+          await settle(2);
+          await check("council card", { root: "#trickCard .kit", primary: ["#tcBtn"], scroll: "inside", primaryRequired: true });
+          await tap("council card", "#tcBtn", "cannot tap To the Council");
+          if (await g.ev(() => !!unlockCardOn || towersSeen().indexOf("council") < 0)) fail("council card", "its button did not put it away and remember it");
+        }
+        await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 }).catch(() => {});
+        if (!(await g.ev(() => hallOpen && hallTab === "council"))) throw new Error("the Hall did not open on the Council");
+        await settle(2);
+        await check("council", { root: "#hall", parts: ["#hallBody", "#hallClose", "#hallTabs"], primary: ["#wcTake"], scroll: C.upright ? "page" : "inside", primaryRequired: true });
+        const fit = await g.ev(() => {
+          const B = $("hallBody"), b = B.getBoundingClientRect(), out = [];
+          for (const e of B.querySelectorAll(".wc *")) {
+            const r = e.getBoundingClientRect();
+            if (!r.width && !r.height) continue;
+            if (r.left < b.left - 0.5 || r.right > b.right + 0.5 || (!isPhone() || phoneWide()) && (r.top < b.top - 0.5 || r.bottom > b.bottom + 0.5)) out.push((e.id || e.className || e.tagName) + " " + [r.left, r.top, r.right, r.bottom].map(Math.round));
+          }
+          return { out: out.slice(0, 4), scrolls: phoneWide() && B.scrollHeight > B.clientHeight + 1, box: [Math.round(b.width), Math.round(b.height)] };
+        });
+        if (fit.out.length) fail("council", "outside the Hall's box " + fit.box.join("x") + ": " + fit.out.join("; "));
+        if (fit.scrolls) fail("council", "the panel scrolls in a phone held sideways");
+        // playtest 4: three tiers taken by a finger, the Council reset (two taps), a tier taken again
+        for (const [b, t] of [["bows", 1], ["engines", 1], ["bows", 2]]) {
+          await tap("council", '.wcMed[data-b="' + b + '"][data-t="' + t + '"]', "cannot tap " + b + " " + t, true);
+          await tap("council", "#wcTake", "cannot tap Take it", true);
+        }
+        let own = await g.ev(() => councilOwn());
+        if (own.bows !== 2 || own.engines !== 1) fail("council", "three tiers by a finger left " + JSON.stringify(own));
+        await tap("council", "#wcReset", "cannot tap Reset", true);
+        if (await g.ev(() => councilSpent(councilOwn())) === 0) fail("council", "a finger's first tap on Reset reset the Council");
+        await check("council reset armed", { root: "#hall", parts: ["#hallBody", "#hallClose", "#hallTabs"], primary: ["#wcReset"], scroll: C.upright ? "page" : "inside", primaryRequired: true });
+        // (the armed Reset waits 3 s; on a busy machine the photo check above can take longer, so arm it again first)
+        if (!(await g.ev(() => councilResetArmed > 0))) await tap("council", "#wcReset", "cannot tap Reset to arm it again", true);
+        await tap("council", "#wcReset", "cannot tap Reset again", true);
+        if (await g.ev(() => councilSpent(councilOwn())) !== 0) fail("council", "the second tap on Reset did not reset");
+        await tap("council", '.wcMed[data-b="stewards"][data-t="1"]', "cannot tap the Stewards' first tier", true);
+        await tap("council", "#wcTake", "cannot tap Take it", true);
+        own = await g.ev(() => councilOwn());
+        if (own.stewards !== 1 || own.bows) fail("council", "after the reset, a tier taken again left " + JSON.stringify(own));
+        await tap("council", "#hallClose", "cannot close the Hall");
+        await settle(3);
+        const back = await g.ev(() => ({ open: hallOpen, mode: menuMode, inert: overlayEl.hasAttribute("inert") }));
+        if (back.open || back.mode !== "map" || back.inert) fail("council", "the Hall's close did not give the map back " + JSON.stringify(back));
+      });
       // ---- chronicles: every page, a foe's card from its medallion, a trick's card from its row ----
       await step("chronicle", "chronicle", async () => {
         for (const id of ["tushpa", "stepanakert23"]) {
@@ -303,6 +377,37 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (m.more && !m.fade) fail(label, "the host's column runs past its fold with nothing to show that it scrolls");
           }
           if (id !== "tushpa") continue;
+          // the hero's line: his level, and a tap opens his card (held to the bar as a foe's card is) and its close puts it away
+          if (await shown("#briefHero")) {
+            const hl = await g.ev(() => $("briefHero").textContent);
+            if (!/Level \d/.test(hl)) fail(label, "the hero's line names no level: " + hl);
+            await tap(label, "#briefHero", "cannot tap the hero's line", true);
+            await settle(2);
+            if (!(await g.ev(() => heroCardOn()))) fail("hero card (chronicle)", "a tap on the hero's line did not open his card");
+            else {
+              await check("hero card (chronicle)", { root: "#foeCard", scroll: "inside" });
+              await tap("hero card (chronicle)", "#foeCard .fcX", "cannot close the hero's card");
+              if (await shown("#foeCard")) fail("hero card (chronicle)", "its close button did not put it away");
+            }
+          } else fail(label, "no hero's line");
+          // the row of the battle (#briefKit): the Standard switch for a player who owns a tier, a hero level or the Call,
+          // 44 px, turned on by a tap
+          if (await g.ev(() => !kitEmpty(playerKit()))) {
+            const k = await g.ev(() => ({ towers: !!document.querySelector("#briefKit .bkTowers"), sw: !!$("bkStd") }));
+            if (!k.sw) fail(label, "no Standard switch for a player who owns a tier, a level or the Call");
+            else {
+              if (!C.upright && k.towers) fail(label, "held sideways #briefKit shows the tray's towers, for which the column has no room");
+              const q = await g.ev(() => { const e = $("bkStd"); e.scrollIntoView({ block: "nearest" }); return e.getBoundingClientRect().height; });
+              if (q < 43.5) fail(label, "the Standard switch is " + Math.round(q) + " px tall");
+              await tap(label, "#bkStd", "cannot tap the Standard switch", true);
+              if (await g.ev(() => !standardBattle)) fail(label, "a tap did not turn the Standard switch on");
+              // (the page as it opens: scrolled back to its top, as the other pages of this chronicle are held)
+              await g.ev(() => { overlayEl.scrollTop = 0; const L = document.querySelector("#ovPage .briefLeft"); if (L) L.scrollTop = 0; });
+              await settle(2);
+              await check(label + " switch", pageSpec(LEAF_PARTS, ["#startBtn"]));
+              await g.ev(() => { standardBattle = false; briefKitRow(); });
+            }
+          }
           if (await shown("#briefHost .foe[data-role]")) {
             await tap(label, "#briefHost .foe[data-role]", "cannot tap a foe's medallion", true);
             await settle(2);
@@ -367,6 +472,28 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         fieldLines.push("FIELD " + tag + ": " + F.w + "x" + F.h + " at " + F.x + "," + F.y + ", scale " + F.scale.toFixed(3) + ", " +
           Math.round(F.share * 100) + "% of the safe area, " + Math.round(F.clear * 100) + "% free of the HUD");
         await canvasText("battle", ["game"]);
+        // the hero's Call (G3): chosen with the Call ready, the horn and "Call" with the bright ring, inside the safe area;
+        // a later tap sounds it, and the thin arc cools on the medallion
+        if (await g.ev(() => !!kit.call && hero && hero.alive)) {
+          await g.ev(() => { callCd = 0; heroSelected = false; spellBtnCache.heroBtn = null; updateSpellBar(); });
+          await tap("hero's Call", "#heroBtn", "cannot tap the hero's medallion");
+          const m = await g.ev(() => {
+            const b = $("heroBtn"), r = b.getBoundingClientRect(), S = __hsAudit.safe(), w = b.querySelector(".callw");
+            return { sel: heroSelected, face: b.classList.contains("callFace"), ring: b.classList.contains("callRdy"), word: getComputedStyle(w).display !== "none" && w.textContent,
+              inside: r.left - 5 >= S.l - 0.5 && r.top - 5 >= S.t - 0.5 && r.right + 5 <= S.r + 0.5 && r.bottom + 5 <= S.b + 0.5, h: r.height };
+          });
+          if (!m.sel || !m.face || !m.ring || m.word !== "Call") fail("hero's Call", "chosen with the Call ready, the medallion does not show it: " + JSON.stringify(m));
+          if (!m.inside) fail("hero's Call", "the medallion's ring runs out of the safe area");
+          if (m.h < 43.5) fail("hero's Call", "the medallion is " + Math.round(m.h) + " px");
+          await g.wait(450);
+          await tap("hero's Call", "#heroBtn", "cannot tap the medallion again");
+          await settle(2);
+          const c = await g.ev(() => ({ cd: callCd, calls: battle.calls, cool: $("heroBtn").classList.contains("callCool"), sel: heroSelected,
+            arc: getComputedStyle($("heroBtn"), "::after").display }));
+          if (!(c.cd > 0) || c.calls < 1 || c.sel) fail("hero's Call", "a later tap did not sound the Call: " + JSON.stringify(c));
+          else if (!c.cool || c.arc === "none") fail("hero's Call", "no arc cools on the medallion: " + JSON.stringify(c));
+          await g.ev(() => { toastEl.classList.remove("show"); });
+        }
         // a tower's tile: a touch shows its line for a few seconds
         await tap("tower tile", '#shop .card[data-type="archer"]', "cannot tap the first tower's tile");
         if (await shown("#shop .card.selected .ds")) await check("tower tile's line", { root: "#shop .card.selected .ds", controls: "none", scroll: "inside" });
@@ -557,6 +684,89 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (bad.length > 12) fail("towers by finger", (bad.length - 12) + " more like these");
       });
       // ---- the foe card from the next-wave row ----
+      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray of six on every battlefield and of seven (a stand-in
+      // special tower until G7 builds one), each tile at least 44 x 44 with its name whole or absent (never cut, never
+      // under 11 px); the post's panel as a sheet, opened by a finger that presses nothing in it; the armed rally's
+      // toast inside the safe area and off the wave's ribbon, and a tap on the road in the ring moving the men ----
+      await step("post", "Garrison Post", async () => {
+        if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }
+        const trayIssues = (n) => g.ev(n => {
+          const out = [], ids = LEVELS.map(L => L.id);
+          const stand = n === 7;
+          if (stand) TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 2, cost: 120 });
+          try {
+            for (const id of ids) {
+              testUnlockAll = true;
+              curLevel = levelIndexOf(id); curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
+              if (stand) { const a = AGES.findIndex(A => A.tower === "stores"); AGES[a].upTo = 99; AGES.forEach((A, i) => { if (i !== a) A.hold = A.upTo, A.upTo = -1; }); syncTray(); }
+              fitCardNames();
+              const cards = [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none");
+              if (cards.length !== n) out.push(id + ": " + cards.length + " tiles, not " + n);
+              for (const c of cards) {
+                const r = c.getBoundingClientRect(), nm = c.querySelector(".nm"), cs = getComputedStyle(nm);
+                if (r.width < 43.5 || r.height < 43.5) out.push(id + " " + c.dataset.type + ": the tile is " + Math.round(r.width) + "x" + Math.round(r.height));
+                if (cs.display !== "none" && nm.clientWidth && nm.scrollWidth > nm.clientWidth) out.push(id + " " + c.dataset.type + ": its name \"" + nm.textContent + "\" is cut");
+                if (cs.display !== "none" && parseFloat(cs.fontSize) < 10.95) out.push(id + " " + c.dataset.type + ": its name is " + cs.fontSize);
+              }
+              if (stand) { AGES.forEach(A => { if (A.hold !== undefined) { A.upTo = A.hold; delete A.hold; } }); AGES.find(A => A.tower === "stores").upTo = 3; }
+            }
+          } finally {
+            if (stand) { delete TOWER_DEFS.stores; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); }
+            syncTray();
+          }
+          return out;
+        }, n);
+        for (const n of [6, 7]) for (const m of await trayIssues(n)) fail("tray of " + n, m);
+        // the post's panel as a sheet: Dvin staged, a post at its third rank (its Mastery to choose: the tallest panel)
+        await stage("dvin", 3, { post: 2 });
+        const pad = await g.ev(() => { const t = towers.find(u => u.type === "post"); t.level = 2; t.spec = null; postSyncMen(t, true); gold = 99999; syncHud(); return t.pad; });
+        const before = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+        const at = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), pad);
+        await g.tapAt(at.x, at.y);
+        await settle(3);
+        await panelSettled();
+        if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", pad))) {
+          fail("post panel", "a tap on the post did not open its panel");
+          await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, pad);
+          await settle(2);
+        }
+        if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== before) fail("post panel", "the tap that opened the sheet pressed something in it");
+        await check("post panel", { root: "#panel", primary: ["#pRally", "#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+        // armed: the toast in the safe area, off the wave's ribbon; then the road in the ring takes the men
+        await tap("post rally", "#pRally", "cannot tap Rally point");
+        await settle(2);
+        if (!(await g.ev(() => !!rallying && panelEl.style.display !== "block"))) fail("post rally", "Rally point did not arm, or the sheet stayed");
+        await g.wait(450);
+        const tb = await g.ev(() => {
+          if (!toastEl.classList.contains("show")) return { none: true };
+          waveBannerT = 1.7; waveBannerMain = "Wave 4"; waveBannerSub = ""; draw(performance.now());
+          const t = toastEl.getBoundingClientRect(), half = Math.max(42, ...[...ribbonCache.values()].map(sp => sp.hsHalf || 0));
+          const out = { t: t.top, b: t.bottom, bt: offY + (190 - half) * scale, bb: offY + (190 + half) * scale };
+          waveBannerT = 0;
+          return out;
+        });
+        if (!tb.none) await check("post rally (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
+        if (tb.none) fail("post rally", "no toast says to tap the road");
+        else if (tb.t < tb.bb - 1 && tb.b > tb.bt + 1 && !(await g.ev(() => toastEl.hsLow))) fail("post rally", "the toast lies over the wave's ribbon");
+        const to = await g.ev(pad => {
+          const t = towers.find(u => u.pad === pad), r = canvas.getBoundingClientRect(), S = __hsAudit.safe();
+          const on = s => { const p = proj(s.x, s.y); return { x: r.left + offX + p.x * scale, y: r.top + offY + p.y * scale }; };
+          const ok = postRoadIn(t.x, t.y, postReach(t)).filter(s => {
+            const c = on(s), e = document.elementFromPoint(c.x, c.y);
+            return e && e.id === "game" && c.x > S.l + 8 && c.x < S.r - 8 && !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40);
+          });
+          const s = ok.sort((a, b) => Math.hypot(b.x - t.rally.x, b.y - t.rally.y) - Math.hypot(a.x - t.rally.x, a.y - t.rally.y))[0];
+          return s ? Object.assign({ wx: s.x, wy: s.y }, on(s)) : null;
+        }, pad);
+        if (!to) fail("post rally", "no road of the ring lies clear on the screen");
+        else {
+          await g.tapAt(to.x, to.y);
+          await settle(2);
+          const r = await g.ev(([pad, to]) => { const t = towers.find(u => u.pad === pad); return { d: Math.hypot(t.rally.x - to.wx, t.rally.y - to.wy), armed: !!rallying, panel: panelEl.style.display === "block", hero: !!(hero && hero.rally) }; }, [pad, to]);
+          if (r.d > 12 || r.armed || r.panel || r.hero) fail("post rally", "a tap on the road in the ring: " + JSON.stringify(r));
+        }
+        await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
+      });
       await step("foe", "foe card (wave row)", async () => {
         if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }
         await stage("tushpa", 5, {});
@@ -643,6 +853,22 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             if (await shown("#endingCard")) fail("ending card (" + id + ")", "its button did not put it away");
           } else if (id !== "avarayr") fail(label, "no ending card over the page");
           await check(label, pageSpec(["#ovGear"], ["#nextBtn", "#mapBtn.lead"]));
+          // the row of growth: a first victory here earns stars to spend. Held sideways one line in place of the prose's last
+          // line; upright a button 44 px tall
+          if (id === "ani") {
+            const gr = await g.ev(() => { const e = $("ovGrowth"), b = $("ogCouncil"); return { on: e.classList.contains("on"), line: e.classList.contains("line"), text: e.textContent, btn: b ? b.getBoundingClientRect().height : 0 }; });
+            if (!gr.on) fail(label, "no row of growth after a victory that earned stars to spend");
+            else if (!C.upright && (!gr.line || !/^([^·]+ · Level \d( · \d+ stars? to spend)?|\d+ stars? to spend at the War Council\.)$/.test(gr.text))) fail(label, "held sideways the row of growth is not one line: " + JSON.stringify(gr));
+            // (this page's victory is staged with every battlefield open, test mode: it gives the hero no experience, so
+            // the line names the stars alone; gameplay's suite 2 holds the hero's line)
+            else if (C.upright && gr.btn < 43.5) fail(label, "the Council's button is " + Math.round(gr.btn) + " px tall");
+          }
+          // held sideways the line takes only the endless invitation's place: Sis, which ends where history did, has
+          // none, so its prose keeps every word (its tally) and it shows no line
+          if (id === "sis" && !C.upright) {
+            const gr = await g.ev(() => ({ on: $("ovGrowth").classList.contains("on"), sub: $("ovSub").textContent }));
+            if (gr.on || !/to spare on/.test(gr.sub)) fail(label, "held sideways the row of growth took Sis's tally: " + JSON.stringify(gr));
+          }
           // every way on from the page in sight (held sideways, without a scroll) and 44 px tall
           const v = await g.ev(() => {
             const bs = [...document.querySelectorAll("#overlay .bigRow .big")].filter(b => b.offsetParent);
@@ -651,6 +877,55 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           });
           if (!C.upright && v.out.length) fail(label, "buttons below the screen's edge until the page is scrolled: " + v.out.join(", "));
           if (v.small.length) fail(label, "buttons under 44 px tall: " + v.small.join(", "));
+        }
+        // the hero's growth line laid out at this size: a victory earned outside test mode (the records of the fourteen
+        // battlefields before it, two stars each), at Stepanakert 1992, whose hero has the longest name. Held sideways it is one
+        // line, "Arkady Ter-Tadevosyan · Level 2 · k stars to spend", and every button stays on screen; upright the
+        // hero's strip is in the row. The save is put back as it was afterwards
+        {
+          const label = "victory stepanakert92 (experience)";
+          const was = await g.ev(() => {
+            const keep = {};
+            for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); keep[k] = localStorage.getItem(k); }
+            const lv = levelIndexOf("stepanakert92"), rec = {};
+            for (let i = 0; i < lv; i++) { localStorage.setItem(bestKey(i, LEVELS[i].era), "21"); rec[levelId(i)] = { stars: [0, 2, 0], lives: [0, 12, 0], endless: [0, 0, 0] }; }
+            localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
+            localStorage.removeItem("hs_heroes"); localStorage.removeItem("hs_council");
+            const ut = testUnlockAll;
+            testUnlockAll = false;
+            photoStageBattle(lv, 20, {});
+            enemies = []; projectiles = []; lives = 17;
+            victory();
+            endCelebration();
+            return { keep, ut };
+          });
+          await settle(3);
+          await waitSettled();
+          if (await shown("#endingCard")) await tap(label, "#ecBtn", "cannot tap the ending card's button");
+          const gr = await g.ev(() => {
+            const e = $("ovGrowth"), cs = getComputedStyle(e), r = e.getBoundingClientRect();
+            return { on: e.classList.contains("on"), line: e.classList.contains("line"), text: e.textContent, h: r.height, lh: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3,
+              right: r.right, sr: __hsAudit.safe().r, strip: !!e.querySelector(".ogHero") };
+          });
+          if (!gr.on) fail(label, "no row of growth after a victory that earned experience");
+          else if (!C.upright) {
+            if (!gr.line || !/^Arkady Ter-Tadevosyan · Level 2( · \d+ stars? to spend)?$/.test(gr.text)) fail(label, "held sideways the hero's line reads " + JSON.stringify(gr.text));
+            if (gr.h > gr.lh * 1.5 + 1) fail(label, "held sideways the hero's line takes " + Math.round(gr.h) + " px, more than one line of " + Math.round(gr.lh));
+            if (gr.right > gr.sr + 0.5) fail(label, "the hero's line runs past the safe area: " + Math.round(gr.right) + " > " + Math.round(gr.sr));
+          } else if (!gr.strip || !/Arkady Ter-Tadevosyan/.test(gr.text) || !/Level 2/.test(gr.text)) fail(label, "upright the hero's strip: " + JSON.stringify(gr.text));
+          await check(label, pageSpec(["#ovGear"], ["#nextBtn", "#mapBtn.lead"]));
+          const v = await g.ev(() => {
+            const bs = [...document.querySelectorAll("#overlay .bigRow .big")].filter(b => b.offsetParent);
+            return { small: bs.filter(b => b.getBoundingClientRect().height < 43.5).map(b => b.id + " " + Math.round(b.getBoundingClientRect().height)),
+              out: bs.filter(b => b.getBoundingClientRect().bottom > __hsAudit.safe().b + 0.5).map(b => b.id) };
+          });
+          if (!C.upright && v.out.length) fail(label, "buttons below the screen's edge until the page is scrolled: " + v.out.join(", "));
+          if (v.small.length) fail(label, "buttons under 44 px tall: " + v.small.join(", "));
+          await g.ev(was => {
+            testUnlockAll = was.ut;
+            localStorage.clear();
+            for (const k of Object.keys(was.keep)) localStorage.setItem(k, was.keep[k]);
+          }, was);
         }
       });
       // ---- the defeat page with its debrief, and the end of an endless stand ----

@@ -64,7 +64,10 @@ async function launch(opts = {}) {
   return chromium.launch({ args });
 }
 
-// A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads }
+// A page of the game at one size. o: { w, h, touch, dpr, name, storage: { key: value } set before the game loads,
+// councilCard: true to let the War Council's one-time card come up (it counts as seen otherwise);
+// callBubble: true to let the Call's one-time bubble come up in a battle (held back otherwise); postCard, rallyBubble:
+// the same for the Garrison Post's one-time card and its Rally point bubble }
 // and, for a phone (iphone.js): ua (the browser's user agent), standalone (navigator.standalone, as iOS reports a
 // page opened from the Home Screen), insets: { l, r, t, b } the safe-area insets in CSS px, and init: functions run
 // in the page before its own script (each a [fn, arg] pair).
@@ -95,6 +98,12 @@ async function openGame(browser, file, o) {
     }, o.insets);
   }
   for (const [fn, arg] of o.init || []) await ctx.addInitScript(fn, arg);
+  if (!o.councilCard) await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; });
+  // and the Call's one-time bubble on the hero's medallion (the first battle after Dvin opens), the same way
+  if (!o.callBubble) await ctx.addInitScript(() => { window.__hsQuietCallBubble = true; });
+  // and the Garrison Post's one-time card on the chronicle and its Rally point bubble (G5), the same way
+  if (!o.postCard) await ctx.addInitScript(() => { window.__hsQuietPostCard = true; });
+  if (!o.rallyBubble) await ctx.addInitScript(() => { window.__hsQuietRallyBubble = true; });
   if (o.storage) {
     await ctx.addInitScript(st => {
       try { for (const k in st) { if (st[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, st[k]); } } catch (e) {}
@@ -108,6 +117,11 @@ async function openGame(browser, file, o) {
   await page.goto("file://" + file + (o.query ? "?" + o.query : ""), { timeout: 120000 });
   await page.waitForFunction(() => typeof menuMode !== "undefined" && typeof Town !== "undefined" && typeof Nardi !== "undefined" &&
     document.readyState === "complete", null, { timeout: 120000 });
+  // The War Council's one-time card ("The War Council opens", gameplay 4.6) comes up over the map the first time stars
+  // wait to be spent. The scripts that walk the map after a victory are not about it: unless a script asks for it
+  // (councilCard: true) the page is told to hold it back by a window flag an init script sets before the page's own
+  // code runs (councilCardDue reads it). A flag and not a storage write: it cannot race the card's 600 ms timer, and
+  // a storage write at the start of a reload can leave the reloaded page reading an empty storage
   g.cdp = await ctx.newCDPSession(page);
   await g.frames(3);
   return g;

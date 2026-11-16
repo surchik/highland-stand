@@ -45,14 +45,14 @@ const strict = o.rest.includes("--strict");
       // where the victory page's lead button comes up at this size, from a page staged at once
       await g.enterBattle(lv);
       const spot = await g.ev(lv => {
-        waveIdx = TOTAL_WAVES; lives = 17; victory(); endCelebration(); hideEndingCard();
+        waveIdx = totalWaves(); lives = 17; victory(); endCelebration(); hideEndingCard();
         const b = [$("nextBtn"), $("mapBtn")].find(e => e && getComputedStyle(e).display !== "none");
         const r = b.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2, id: b.id };
       }, lv);
       // the real victory
       await g.enterBattle(lv);
-      await g.ev(() => { lives = 17; waveIdx = TOTAL_WAVES; phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+      await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
       await g.page.waitForFunction(() => gameOver && (celebration || parley), null, { timeout: 10000 });
       const kind = await g.ev(() => (celebration ? "dance" : "terms"));
       if (kind === "terms") {
