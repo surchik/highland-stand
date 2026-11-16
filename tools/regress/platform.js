@@ -3031,7 +3031,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
     }
     // Copy picture, Copy text
     await pressGo(g, "#shareSheet .shCopyPic");
-    await g.page.waitForFunction(() => window.__clip.length > 0, null, { timeout: 5000 }).catch(() => {});
+    // (the PNG is made from the 1200 x 630 canvas as the sheet opens: a busy machine takes some seconds over it)
+    await g.page.waitForFunction(t => window.__clip.length > 0 && window.__hsToasts.length > t + 1, tz, { timeout: 30000 }).catch(() => {});
     await pressGo(g, "#shareSheet .shCopyText");
     await g.page.waitForFunction(() => window.__clip.length > 1, null, { timeout: 5000 }).catch(() => {});
     const clip = await g.ev(() => window.__clip);
