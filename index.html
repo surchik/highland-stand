@@ -2983,6 +2983,7 @@
   #hall .lbSign { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 0 12px; text-align: center; }
   #hall .lbSignBtns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
   #hall .lbSign .gateBtn { width: 260px; }
+  #statsPage .stFlag { border-top: 1px solid rgba(185,138,62,.25); padding: 8px 0 2px; margin-top: 6px; }
   /* a phone held sideways: the controls in a column of 200 px, the list in the rest, scrolling in its own frame and
      fading at its fold; rows 30 px, text 12.5 px */
   @media (max-height: 500px) {
@@ -82432,6 +82433,8 @@ const ST_STEPS = [["page_load", "Loaded the page"], ["gate_shown", "Saw the sign
 const ST_KINDS = [["new", "New devices"], ["returning", "Returning players (progress from before the accounts)"], ["inapp", "Arrivals in another app's browser"]];
 // stSuperRefused: the Players view refused this page once (not_superadmin); until a reload the page believes that and
 // not hs_profile_get, so a refusal can never send it back and forth between the two tabs (P10 review 2)
+// stOwnPub: whether the server has this page's ruleset (null: it did not say)
+let stOwnPub = null;
 let stDays = 30, stData = null, stBusy = false, stSuper = false, stSuperRefused = false, stTab = "numbers", stSettings = null;
 const stNum = (v) => { const n = Number(v); return v != null && v !== "" && isFinite(n) ? n : null; };
 const stInt = (v) => { const n = stNum(v); return n == null ? "-" : Math.round(n).toLocaleString("en-US"); };
@@ -82515,8 +82518,11 @@ async function pfStatsLoad() {
   stBusy = true;
   stShell("The game's numbers");
   stLine($("statsBody"), "Counting...", "stWait");
-  const [r, sr, pr] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
-    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 })]);
+  const [r, sr, pr, br] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
+    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 }),
+    // whether the server has this page's own ruleset (on /next/ its id is "2-next", whose visits no card counts)
+    pfRpc("hs_board", { p_mode: "campaign", p_level: LEVELS[0].id, p_diff: 1, p_loadout: "std", p_ruleset: PF_RULESET_ID, p_period: "all", p_limit: 1 }, { timeout: 8000 })]);
+  stOwnPub = br.ok && br.data && typeof br.data === "object" ? br.data.ruleset_unknown !== true : null;
   // a superadmin (P10) also has the Players tab; the server says so, and asks for one again at every call of it
   stSuper = !stSuperRefused && !!(pr.ok && pr.data && pr.data.super === true);
   let data = r.ok && r.data && typeof r.data === "object" ? r.data : null;
@@ -82537,7 +82543,7 @@ async function pfStatsLoad() {
     // card by card
     data = { totals: null };
     let any = false;
-    for (const card of ["totals", "funnel", "gate", "retention", "quits", "fields", "devices", "rulesets"]) {
+    for (const card of ["totals", "funnel", "gate", "retention", "quits", "fields", "devices", "rulesets", "flagged"]) {
       const q = await pfRpc("hs_stats", { p_days: stDays, p_cards: [card] }, { auth: true, timeout: 35000 });
       if (!(q.ok && q.data && typeof q.data === "object")) continue;
       any = true;
@@ -82581,6 +82587,8 @@ function pfStatsDraw(d, settings) {
   stQuits(stList(d.quits));
   stFields(stList(d.fields));
   stDevices(stList(d.devices));
+  stRulesets(d);
+  stFlagged(stList(d.flagged));
   stSwitches(cfg);
   stLine($("statsBody"), "Visits to the staging page (/next/) are left out of every card. Counts are kept " + stInt(stNum(cfg.ev_keep_days) || 180) + " days.", "stSmall");
 }
@@ -82592,10 +82600,11 @@ function stHealth(d, cfg, settings) {
   else if (mb > max) stLine(c, "Visitors' events are being dropped: the table is past its ceiling. Players' events still count.", "stRed");
   if (settings && settings.mailer_autoconfirm === true) stLine(c, "Discord sign-in is held back: the sign-in service confirms emails by itself. See the guide, step 3.", "stRed");
   else if (!settings) stLine(c, "The sign-in service did not answer, so its settings are not checked here.", "stWarn");
-  const rs = String(RULESET), seen = stList(d.rulesets).find(r => String(r.ruleset) === rs);
-  const pub = !!(seen && seen.published === true);
-  if (!pub) stLine(c, "This page's ruleset (" + rs + ") is not published." + (cfg.boards === true ? " Its scores are refused." : " Boards come with a later build."), cfg.boards === true ? "stRed" : "");
+  const rs = PF_RULESET_ID, seen = stList(d.rulesets).find(r => String(r.ruleset) === rs);
+  const pub = stOwnPub != null ? stOwnPub : !!(seen && seen.published === true);
+  if (!pub) stLine(c, "This page plays ruleset " + rs + ". The server does not have it, so no battle is ranked. Publish it on the Rulesets card.", cfg.boards === false ? "" : "stRed");
   else stLine(c, "This page's ruleset (" + rs + ") is published.");
+  if (cfg.boards === false) stLine(c, "The boards are switched off: no battle is ranked.", "stWarn");
   if (!c.querySelector(".stRed")) stLine(c, "Nothing needs your attention.", "stOk");
 }
 function stTotals(d) {
@@ -82704,6 +82713,68 @@ function stDevices(rows) {
     for (const k of Object.keys(o).sort((a, b) => o[b] - o[a])) c.appendChild(stBar(o[k] / total, k + ": " + stInt(o[k]) + " (" + stPct(o[k], total) + ")"));
   }
 }
+// Rulesets (R2, 5.2): each ruleset seen in visits, whether the server has it, and Publish for the page's own. The page
+// sends its own rulesetData(), never anything typed; the server checks it (2.4) and refuses one whose kept revs would
+// put a changed battle on an old board
+function stRulesets(d) {
+  const c = stCard("Rulesets");
+  stLine(c, "A ruleset names the rules a score is earned under. Each battlefield's boards are kept while its rules stay; a changed battlefield starts fresh.", "stSmall");
+  const rows = stList(d.rulesets);
+  if (rows.length) stTable(c, ["Ruleset", "Visits", "Published"], rows.map(r => [stText(r.ruleset), stInt(r.sessions), r.published === true ? "Yes" : "No"]));
+  else stLine(c, "No visits in this period.", "stSmall");
+  const id = PF_RULESET_ID, out = pfEl("p", "stSmall stAnswer");
+  out.setAttribute("role", "status");
+  out.dataset.key = "ruleset";
+  if (stSaid && stSaid.key === "ruleset") { out.textContent = stSaid.text; stSaid = null; }
+  if (stOwnPub === true) stLine(c, "This page plays ruleset " + id + ". The server has it.", "stOk");
+  else {
+    stLine(c, "This page plays ruleset " + id + ". " + (stOwnPub === false ? "The server does not have it." : "The server did not say whether it has it."), stOwnPub === false ? "stRed" : "stWarn");
+    c.appendChild(pfBtn("btn stPublish", "Publish ruleset " + id, async (b) => {
+      b.disabled = true;
+      out.textContent = "Publishing...";
+      out.classList.remove("stWarn");
+      let data = null;
+      try { data = pfRules(); } catch (e) { data = null; }
+      const r = data ? await pfRpc("hs_admin_publish_ruleset", { p_id: id, p_data: data }, { auth: true, timeout: 20000 }) : { ok: false, status: 0, data: null, code: "" };
+      if (r.ok && r.data && r.data.ok === true) { stSaid = { key: "ruleset", text: "Published. Battles of ruleset " + id + " are ranked from now on." }; pfStatsLoad(); return; }
+      b.disabled = false;
+      const why = r.data && typeof r.data === "object" && typeof r.data.details === "string" ? stText(r.data.details) : "";
+      out.textContent = r.code === "ruleset_invalid" ? "The server refused it" + (why ? " (" + why + ")" : "") + ". Tell the builder." : r.status === 0 ? "Not published: no answer. Try again." : "Not published. Try again.";
+      out.classList.add("stWarn");
+    }));
+  }
+  c.appendChild(out);
+}
+// Scores to look at (R2, 2.5): results the server let through and marked, with Remove and Hide player. A player never
+// sees his own marks
+function stFlagged(rows) {
+  const c = stCard("Scores to look at");
+  stLine(c, "Results the server let through but marked: faster than the battle's fast mark (fast), or nearly flawless (perfect). Only you see these marks.", "stSmall");
+  if (!rows.length) { stLine(c, "None in this period.", "stSmall"); return; }
+  const say = { fast: "fast", perfect: "perfect" };
+  for (const r of rows.slice(0, 50)) {
+    const box = pfEl("div", "stFlag");
+    const flags = Array.isArray(r.flags) ? r.flags.map(f => say[stText(f)] || "other").join(", ") : "";
+    const when = stText(r.at).slice(0, 10);
+    box.appendChild(pfEl("p", "", stText(r.name) + " · " + stLevel(r.lv) + " · " + stDiff(r.diff) + (r.mode === "daily" ? " · daily" : "") + " · " + stInt(r.score) + " · " + flags + (when ? " · " + when : "")));
+    const row = pfEl("div", "stBtns"), out = pfEl("p", "stSmall stAnswer");
+    out.setAttribute("role", "status");
+    const act = (words, fn, args) => pfBtn("btn", words, async (b) => {
+      for (const x of row.querySelectorAll("button")) x.disabled = true;
+      out.textContent = "Saving...";
+      const q = await pfRpc(fn, args, { auth: true, timeout: 8000 });
+      if (q.ok) { out.textContent = "Done."; return; }
+      for (const x of row.querySelectorAll("button")) x.disabled = false;
+      out.textContent = "Not done. Try again.";
+    });
+    const id = stNum(r.id), uid = typeof r.user === "string" && /^[0-9a-f-]{36}$/.test(r.user) ? r.user : null;
+    if (id != null) row.appendChild(act("Remove", "hs_admin_remove_score", { p_score: id }));
+    if (uid) row.appendChild(act("Hide player", "hs_admin_moderate", { p_user: uid, p_hidden: true }));
+    box.appendChild(row);
+    box.appendChild(out);
+    c.appendChild(box);
+  }
+}
 // The switches the owner may change here (hs_admin_set_config), each saved on its own, and the old events removed
 // Each switch answers on its own line under it (the toast is under this page, so it cannot answer here). A save
 // redraws the page, so its "Saved." is kept in stSaid and put back on the new page's line
@@ -82741,6 +82812,18 @@ function stSwitches(cfg) {
   }
   c.appendChild(g);
   c.appendChild(gOut);
+  // the boards (R2): on, battles are ranked and the Leaderboards tab is in the Hall; off, nothing is ranked
+  c.appendChild(pfEl("h3", "", "The boards"));
+  stLine(c, "On: battles are ranked and the Hall has its Leaderboards tab. Off: no battle is ranked.", "stSmall");
+  const bd = pfEl("div", "stBtns"), bOut = answer("boards"), bOn = cfg.boards !== false;
+  for (const [v, words] of [[true, "On"], [false, "Off"]]) {
+    const b = pfBtn("btn stBoards", words, (x) => set("boards", v, x, bOut));
+    b.dataset.on = String(v);
+    b.setAttribute("aria-pressed", String(v === bOn));
+    bd.appendChild(b);
+  }
+  c.appendChild(bd);
+  c.appendChild(bOut);
   const field = (title, key, value, hint, parse) => {
     c.appendChild(pfEl("h3", "", title));
     if (hint) stLine(c, hint, "stSmall");
@@ -83110,7 +83193,8 @@ function scStart(p) {
 // hs_run_begin: 5 s a try; a campaign battle is tried again at 10 s and 30 s when the network failed, a daily once
 // (its player is told at once whether the attempt counts, 5.6). An answer that comes for an older battle is dropped
 async function scBegin(p, gen) {
-  const tries = p.mode === "daily" ? [0] : [0, 10000, 30000], t0 = Date.now();
+  // (a test of this machine's own may shorten the waits: PF_TEST is read only on 127.0.0.1 and localhost)
+  const tries = p.mode === "daily" ? [0] : PF_TEST && Array.isArray(PF_TEST.beginTries) ? PF_TEST.beginTries.map(Number) : [0, 10000, 30000], t0 = Date.now();
   for (const at of tries) {
     const wait = t0 + at - Date.now();
     if (wait > 0) await pfWait(wait);
