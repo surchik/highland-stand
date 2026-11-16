@@ -591,3 +591,8 @@ What was found, and the numbers chosen:
   again with the Stores in the daily's tray.
 - The playtest of 8.4 (Tashir with Stores, `tools/playtest-stores.js`, by finger on the iPad at 1194 x 834 and an
   iPhone SE at 667 x 320): PASS both, 528 s. See the G7b report for how it felt.
+- Acceptance at the package's close: check-page OK; selftest suite 1 PASS (151 checks, 114.2 s alone; 151.9 s, over
+  its budget, beside the other track's load) and suite 2 PASS (47 checks, 72.2 s alone); run-fixtures PASS (8);
+  town-isolation PASS (9); run-all --quick 10 of 11 (dance10 failed by taps at 9.7 and 10.2 s under load, PASS alone,
+  15 runs); run-all --only=padplace,probe,iphone,live in full PASS (4 of 4, all 17 battlefields, iphone at ten sizes);
+  nine mutants of the Stores' rules each caught by suite 2's three Stores checks.
