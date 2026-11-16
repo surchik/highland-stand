@@ -58157,6 +58157,12 @@ function foeCounters(role, u) {
   for (const type of Object.keys(TOWER_DEFS)) {
     const def = TOWER_DEFS[type], lv0 = def.levels[0], top = def.levels[def.levels.length - 1];
     if (def.aura || def.post) continue;   // the drums strike nothing; the post's men hold and are named by the tile
+    // the Horse Lines (G7a), only where the tray holds them: they throw back what walks the road, an engine or a
+    // commander barely, and an outflanker never
+    if (def.charge) {
+      if (trayTypes().includes(type) && !off && role !== "ram" && role !== "boss") good.push({ type, why: "a charge strikes the whole group and throws it back" });
+      continue;
+    }
     const reach = def.proj ? !off || !!def.air : !off;
     if (!reach) { poor.push({ type, why: fly ? "cannot reach it in the air" : "cannot reach it off the road" }); continue; }
     const why = [];
