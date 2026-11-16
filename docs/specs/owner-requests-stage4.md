@@ -10,7 +10,8 @@ P10 Superadmin "Players" view (platform track, first in stage 4, after P3 and P4
   never other apps' auth.users): game name, provider, first seen, last seen, visits, total play time (battle
   clock and time on page from sessions/events), battlefields won per difficulty, stars, furthest battlefield,
   hero levels, Council tiers, devices, daily streak later; sortable, searchable, paged; a player's detail page
-  with their battle history (runs) and recent visits. Email shown only if the owner says yes (default: hidden,
-  shown as provider + game name). Every superadmin read logged in a highland audit table.
+  with their battle history (runs) and recent visits. Emails and names SHOWN: the owner said yes on Nov 16 ("show player emails and names in the
+  superadmin view"). Email from auth.users for players with hs_profiles only; name = game name plus the
+  provider's display name when present; both searchable; never in logs, events, fixtures or other roles' answers. Every superadmin read logged in a highland audit table.
 - Server: new migration with rollback; isolation tests: player, outsider, anon, admin (not super) all refused.
-- Privacy page (P8) must say the owner can see each player's progress and play time.
+- Privacy page (P8) must say the owner can see each player's email, name, progress and play time.
