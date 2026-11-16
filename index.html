@@ -9792,10 +9792,39 @@ TOWER_DEFS.stores = {
   },
 };
 
+// ---------- the Powder Mine (gameplay 3.4): the special tower of Gyumri Road and Halidzor ----------
+// A blast at a spot the player chooses, at a moment the player chooses. The tower on its pad is a powder store and
+// has no shot (proj null: the shooting loop passes it by); its charge lies under a road point inside `range` (laid like
+// a post's rally point: Lay the charge, then a press on the road). A charge arms `arm` s after it is laid or fired;
+// armed, it is fired by a press on its marker, by the panel's Fire, or by its trigger (by hand, at 3 foes, at 5 foes:
+// the count of seen ground foes in its blast). The blast deals `dmg` (cut by armor) to every ground foe within
+// `splash`, staggers it `stagger` s and knocks a shield guard aside as a stone does. Twin Fuses lays `charges` (two)
+// charges. No limit on a field (3.1)
+TOWER_DEFS.mine = {
+  name: "Powder Mine", cost: 120, proj: null, blast: true, manual: true,
+  // the store's own strength by rank, for hunters and powers (kept here, as the Horse Lines' is: rulesetData)
+  hp: [260, 330, 420],
+  levels: [
+    { dmg: 260, range: 180, splash: 80, stagger: 1.5, arm: 28 },
+    { dmg: 440, range: 200, splash: 88, stagger: 1.8, arm: 25, cost: 150 },
+    { dmg: 700, range: 220, splash: 96, stagger: 2.0, arm: 22, cost: 240 },
+  ],
+  specs: {
+    a: { name: "Great Charge", cost: 380, desc: "A blast that breaks a whole column",
+         stats: { dmg: 1300, range: 240, splash: 120, stagger: 2.5, arm: 24 } },
+    b: { name: "Twin Fuses", cost: 380, desc: "Two charges under two spots",
+         stats: { dmg: 620, range: 240, splash: 96, stagger: 2.0, arm: 20, charges: 2 } },
+  },
+};
+// how the charges are laid and fired, named once (rulesetData reads it). triggers: the trigger button's settings in
+// order (0: by hand; n: fire itself when n seen ground foes stand in the blast), `trigger` the one a new mine takes;
+// tap: the marker's catch on the screen in client px at the least (a tower's tap zone's rule, towerTapAxes)
+const MINE_RULES = { triggers: [0, 3, 5], trigger: 3, tap: 22 };
+
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
 // built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
 // Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven; the Stores, G7b: Dvin, Tashir, Sevan, Ani, Mari and
-// Sis have seven)
+// Sis have seven; the Powder Mine, G7c: Gyumri Road and Halidzor have seven)
 const AGES = [
   { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
   { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
@@ -10187,8 +10216,20 @@ const STORES_LEVEL = {
   mari: { name: "Baggage Train", short: "Baggage", depicts: "The army's sacks, jars and pack horses under an awning" },
   sis: { name: "Royal Stores", depicts: "Sacks and jars of the castle's stores under an awning, a pack horse tethered by them" },
 };
+// the Powder Mine (gameplay 3.4): one skin, a lean-to of timber over kegs of powder with a coil of slow match, in the
+// two ages that offer it (eras 3 and 4). The name is the same on both battlefields. No source in the repository tells
+// of a powder mine at Kumayri or at Halidzor (Halidzor's tunnel, in its facts, is not claimed as one): the tower is the
+// game's invention, and the card says so
+TOWER_SKINS.mine = ["powdermine", "powdermine", "powdermine", "powdermine", "powdermine", "powdermine", "powdermine", "powdermine", "powdermine"];
+SLOT_NAMES.mine = ["Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine", "Powder Mine"];
+SLOT_BLURB.mine = "A charge under the road, fired when you choose. Outflankers are untouched.";
+SKIN_BLURB.powdermine = SLOT_BLURB.mine;
+const MINE_LEVEL = {
+  gyumri: { name: "Powder Mine", depicts: "Kegs of powder buried under the road, with a slow match run back to the wall" },
+  halidzor: { name: "Powder Mine", depicts: "Kegs of powder buried under the road, with a slow match run back to the wall" },
+};
 // each special tower's own names by battlefield (levelTower)
-const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL };
+const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL, mine: MINE_LEVEL };
 // a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
 const TOWER_SHORT = {
   "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
@@ -11413,7 +11454,7 @@ function rulesetData() {
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
         // (a special tower's own rules ride with it, so they move only the pins of the battlefields that offer it)
-        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : TOWER_DEFS[k])),
+        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : k === "mine" ? [TOWER_DEFS[k], MINE_RULES] : TOWER_DEFS[k])),
         waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
@@ -11748,7 +11789,7 @@ function slotMult(e, slot) {
 function bookAdapt(slot, eff, e) {
   if (!slot || !(eff > 0)) return;
   const own = TRICK_SLOTS.includes(slot);
-  if (!own && !(TOWER_DEFS[slot] && (TOWER_DEFS[slot].post || TOWER_DEFS[slot].charge))) return;
+  if (!own && !(TOWER_DEFS[slot] && (TOWER_DEFS[slot].post || TOWER_DEFS[slot].charge || TOWER_DEFS[slot].blast))) return;
   if (e && (e.type === "flyer" || e.type === "boss" || e.fly)) return;
   const took = e ? Math.min(eff, Math.max(0, e.hp)) : eff;
   const k = own ? slot : "other";
@@ -12921,6 +12962,8 @@ function postDefaultRally(x, y, reach) {
   return best && { x: best.x, y: best.y, route: best.route, dist: best.dist };
 }
 function padTakesPost(padIdx) { return padTakesRoad(padIdx, TOWER_DEFS.post.levels[0].reach); }
+// the kinds that are built only where road lies in their first rank's reach: the post, the Horse Lines, the Powder Mine
+function needsRoad(type) { const d = TOWER_DEFS[type]; return !!d && !!(d.post || d.charge || d.blast); }
 // a pad with road within that reach (a post's or the Horse Lines' first rank)
 function padTakesRoad(padIdx, reach) {
   const p = PADS[padIdx];
@@ -13236,13 +13279,181 @@ function horseStrike(t, st, e) {
     life: 0.5, color: "rgba(176, 150, 106, .7)", size: 3.4 });
 }
 
+// ---------- the Powder Mine's charges (gameplay 3.4) ----------
+// t.mines: one charge (two with Twin Fuses), each { x, y, route, dist, armT, spent }: a road point inside the store's
+// range and the seconds until it is armed (0: armed). armT runs down in game time, quickened by the drums and slowed
+// on a damaged or failing store, like any reload; a stunned store (trumpet, guns, stones) pauses it, and a wrecked one
+// arms nothing. A wrecked store's charge that was armed can still be fired once (spent: then it is not laid again
+// until the store is rebuilt). t.trigger: 0 (by hand), 3 or 5 (MINE_RULES.triggers). No random number: the bot and a
+// resumed run see the same blasts
+function mineReach(t) { return getStats(t).range; }
+// the charge a new mine lays: the road point in reach nearest the pad (the post's rule); a second (Twin Fuses) at the
+// road point in reach farthest from the first, so that the two lie under two spots
+function mineSpot(t, others) {
+  const reach = mineReach(t);
+  if (!others.length) return postDefaultRally(t.x, t.y, reach);
+  let best = null, bd = -1;
+  for (const s of postRoadIn(t.x, t.y, reach)) {
+    const d = Math.min(...others.map(o => groundGap(o.x, o.y, s.x, s.y)));
+    if (d > bd) { bd = d; best = s; }
+  }
+  return best && { x: best.x, y: best.y, route: best.route, dist: best.dist };
+}
+// a saved spot is taken back to the road where it was (within 12 px), else null
+function mineSaved(t, at) {
+  if (!(Array.isArray(at) && at.length >= 2 && isFinite(at[0]) && isFinite(at[1]))) return null;
+  let R = null, bd = Infinity;
+  for (const s of postRoadIn(t.x, t.y, mineReach(t))) { const d = Math.hypot(s.x - at[0], s.y - at[1]); if (d < bd) { bd = d; R = s; } }
+  return R && bd <= 12 ? { x: R.x, y: R.y, route: R.route, dist: R.dist } : null;
+}
+// a new mine, or one resumed (saved: runRecord's { at, arm, trig }): its charges laid and arming, its trigger
+function mineInit(t, saved) {
+  if (t.type !== "mine") return;
+  const sv = saved && typeof saved === "object" ? saved : {}, n = getStats(t).charges || 1, arm = getStats(t).arm;
+  t.mines = [];
+  for (let i = 0; i < n; i++) {
+    const at = Array.isArray(sv.at) ? sv.at[i] : null;
+    const s = mineSaved(t, at) || mineSpot(t, t.mines) || { x: t.x, y: t.y, route: 0, dist: 0 };
+    const a = Array.isArray(sv.arm) ? Number(sv.arm[i]) : NaN;
+    t.mines.push(Object.assign(s, { armT: isFinite(a) && a >= 0 ? Math.min(arm, a) : arm, spent: false }));
+  }
+  t.trigger = MINE_RULES.triggers.includes(sv.trig) ? sv.trig : MINE_RULES.trigger;
+  t.layIdx = 0;
+  t.blasts = t.blasts || 0;
+}
+// the charges follow the store's mastery: Twin Fuses lays its second where it lies farthest from the first
+function mineSync(t) {
+  if (!t.mines) mineInit(t);
+  const n = getStats(t).charges || 1;
+  while (t.mines.length < n) {
+    const s = mineSpot(t, t.mines) || { x: t.x, y: t.y, route: 0, dist: 0 };
+    t.mines.push(Object.assign(s, { armT: getStats(t).arm, spent: false }));
+  }
+}
+function mineArmed(m) { return !!m && !m.spent && m.armT <= 0; }
+// a foe the blast reaches: on the ground (a stone's rule: outflankers are off the road), within the blast
+function mineInBlast(m, e, r) { return !(e.dead || e.hp <= 0 || e.fly) && inGroundRange(m.x, m.y, enemyPos(e).x, enemyPos(e).y, r + e.r); }
+// the trigger's count: the ground foes in the blast that the defenders see (an unseen scout does not count)
+function mineCount(t, m) {
+  const r = getStats(t).splash;
+  let n = 0;
+  for (const e of enemies) if (mineInBlast(m, e, r) && !foeUnseen(e)) n++;
+  return n;
+}
+function mineTick(dt) {
+  for (const t of towers) {
+    if (t.type !== "mine") continue;
+    mineSync(t);
+    const st = getStats(t);
+    for (const m of t.mines) {
+      if (m.fx > 0) m.fx -= dt;
+      // a rebuilt store lays again the charge its ruin spent
+      if (m.spent && !t.wreck) { m.spent = false; m.armT = st.arm; }
+      if (m.armT > 0 && !t.wreck && !(t.stunnedT > 0)) {
+        m.armT = Math.max(0, m.armT - dt * (1 + (t.buffHaste || 0)) * towerPace(t));
+        if (m.armT <= 0) mineArmedNow(t);
+      }
+      if (t.trigger > 0 && mineArmed(m) && mineCount(t, m) >= t.trigger) mineFire(t, m);
+    }
+    if (t.blastT > 0) t.blastT -= dt;
+  }
+}
+// the first charge armed in a battle is told once: how to fire it
+function mineArmedNow(t) {
+  if (photo || !battleLive() || towersSeen().includes("minefire")) return;
+  markTowerSeen("minefire");
+  toast((matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " the glowing match on the road to fire the powder.", 3200);
+}
+// the blast: every ground foe within splash takes dmg (the drums' might in it, cut by armor), reels for stagger s and,
+// if it carries a shield guard, drops it as under a stone. Then the charge is laid again where it was and arms again;
+// a wrecked store's charge is spent
+function mineFire(t, m) {
+  if (!mineArmed(m)) return false;
+  const st = getStats(t), dmg = st.dmg * (1 + (t.buffMight || 0));
+  let hit = 0;
+  for (const e of enemies) {
+    if (!mineInBlast(m, e, st.splash)) continue;
+    damageEnemy(e, dmg, false, t);
+    e.staggerT = Math.max(e.staggerT || 0, st.stagger);
+    if (e.guardDrop) e.shieldDownT = Math.max(e.shieldDownT || 0, st.stagger + TRICK_RULES.guard.dropS);
+    hit++;
+  }
+  m.armT = st.arm;
+  if (t.wreck) m.spent = true;
+  t.blasts = (t.blasts || 0) + 1;
+  t.blastHits = (t.blastHits || 0) + hit;
+  t.blastT = 0.5;
+  m.fx = 0.7;
+  shakeFort = Math.max(shakeFort, 0.15);
+  Snd.play("mine", { x: m.x });
+  // the Great Boulder's landing and the firepot's: earth and flame thrown up where the charge lay
+  for (let i = 0; i < 26; i++) {
+    const a = fxRnd() * Math.PI * 2, s = 40 + fxRnd() * 90, fire = i % 3 === 0;
+    particles.push({ x: m.x, y: m.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.5 - 40 - fxRnd() * 40, life: fire ? 0.4 : 0.6,
+      color: fire ? "#ff8a3c" : i % 2 ? "#6b553c" : "#b9a687", size: fire ? 4 : 3.4 });
+  }
+  for (let i = 0; i < 6; i++) particles.push({ x: m.x + (fxRnd() - 0.5) * 30, y: m.y - 8, vx: (fxRnd() - 0.5) * 16, vy: -20 - fxRnd() * 14, life: 1.1, color: "rgba(90, 84, 78, .55)", size: 7 });
+  return true;
+}
+// fire every armed charge of a store (its Fire button, the X key): true if one went off
+function mineFireAll(t) {
+  let any = false;
+  for (const m of t.mines || []) if (mineFire(t, m)) any = true;
+  return any;
+}
+// the charge whose marker lies under a press (client point), within its catch: MINE_RULES.tap px on the screen at the
+// least, or the marker's own size where it is drawn larger. { t, m } or null
+function mineUnderPointer(e) {
+  if (!e || typeof canvas === "undefined") return null;
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+  let best = null, bd = 1;
+  for (const t of towers) {
+    if (t.type !== "mine" || !t.mines) continue;
+    for (const m of t.mines) {
+      if (m.spent) continue;
+      const q = proj(m.x, m.y), rx = Math.max(MINE_RULES.tap / Math.max(0.05, scale), 16 * Math.max(0.35, q.s)), ry = rx;
+      const d = Math.hypot((sx - q.x) / rx, (sy - (q.y - 4 * q.s)) / ry);
+      if (d < bd) { bd = d; best = { t, m }; }
+    }
+  }
+  return best;
+}
+// a press on a marker: an armed charge goes off; one still arming says when it will be ready. Either way the press is
+// the marker's and opens no panel
+function minePress(hit) {
+  if (mineFire(hit.t, hit.m)) return;
+  toast(hit.t.wreck ? "The ruin's charge is spent." : "The charge arms in " + Math.ceil(hit.m.armT) + "s.");
+}
+function setMineCharge(t, i, s) {
+  const m = t.mines[i];
+  if (!m) return;
+  Object.assign(m, { x: s.x, y: s.y, route: s.route, dist: s.dist, armT: getStats(t).arm, spent: false });
+  m.fx = 0;
+  t.flagT = 2;
+  Snd.play("rally", { x: s.x });
+  toast("Charge laid. It arms in " + Math.ceil(m.armT) + "s.");
+  saveRun();
+}
+// the Fire button's words: "Fire" once a charge is armed, else the seconds until the first arms
+function mineFireLabel(t) {
+  const ms = (t.mines || []).filter(m => !m.spent);
+  if (!ms.length) return "Spent";
+  if (ms.some(mineArmed)) return "Fire";
+  return "Arms in " + Math.ceil(Math.min(...ms.map(m => m.armT))) + "s";
+}
+// the trigger's words, on its button and in the panel
+function mineTriggerWords(n) { return n > 0 ? "at " + n + " foes" : "by hand"; }
+
 // ---- the rally point, by mouse and by touch (2.3): a third armed state beside castingSpell and heroSelected ----
 var rallying = null, rallyArmAt = 0;   // var: setPlacing may run before this line is reached
 // Rally point arms on its button's click, which comes when the finger that pressed it is already up (settlePanel's
 // rule kept by the button itself), so the field's next press is always a new one: no wait is added
 const RALLY_SETTLE_MS = 0;
+// The Powder Mine's "Lay the charge" (3.4) is the same armed state: the press on the road lays its charge there. With
+// two charges (Twin Fuses) each arming lays the other one in turn (t.layIdx), and the words say which
 function armRally(t, touch) {
-  if (!t || t.type !== "post" || t.wreck || gameOver) return;
+  if (!t || !(t.type === "post" || t.type === "mine") || t.wreck || gameOver) return;
   setPlacing(null);
   castingSpell = null; heroSelected = false;
   hidePanel();
@@ -13250,9 +13461,17 @@ function armRally(t, touch) {
   rallying = t;
   rallyArmAt = performance.now();
   updateSpellBar();
+  let which = "";
+  if (t.type === "mine") {
+    mineSync(t);
+    t.layIdx = t.mines.length > 1 ? (t.layNext | 0) % t.mines.length : 0;
+    if (t.mines.length > 1) which = t.layIdx ? " for the second charge" : " for the first charge";
+  }
   // (held while the player looks for the road: longer than a toast's usual moment)
-  toast(touch ? "Tap the road inside the ring." : "Click the road inside the ring.", 4000);
+  toast((touch ? "Tap" : "Click") + " the road inside the ring" + which + ".", 4000);
 }
+// how far from its pad a post's men may stand, or a mine's charge may lie
+function layReach(t) { return t.type === "mine" ? mineReach(t) : postReach(t); }
 // a press on the field while armed: the nearest road point to it that lies inside the ring and within the catch of the
 // press becomes the rally point. Returns true if it moved
 // A press from the pointer (ev: its client point) is measured on the screen, as a pad is chosen (freePadUnderPointer):
@@ -13266,14 +13485,17 @@ function rallyPress(t, wx, wy, phone, ev) {
     sx = (ev.clientX - r.left - offX) / scale; sy = (ev.clientY - r.top - offY) / scale;
   }
   let best = null, bd = Infinity;
-  for (const s of postRoadIn(t.x, t.y, postReach(t))) {
+  for (const s of postRoadIn(t.x, t.y, layReach(t))) {
     let d;
     if (sx !== null) { const q = proj(s.x, s.y); d = Math.hypot(q.x - sx, q.y - sy) / Math.max(0.35, q.s); }
     else d = Math.hypot(s.x - wx, s.y - wy);
     if (d < bd) { bd = d; best = s; }
   }
   if (!best || bd > pick) return false;
-  setPostRally(t, best);
+  if (t.type === "mine") {
+    setMineCharge(t, t.layIdx | 0, best);
+    if (t.mines.length > 1) t.layNext = ((t.layIdx | 0) + 1) % t.mines.length;
+  } else setPostRally(t, best);
   return true;
 }
 function setPostRally(t, s) {
@@ -13633,6 +13855,8 @@ function runRecord() {
       rally: t.rally ? [Math.round(t.rally.x), Math.round(t.rally.y)] : undefined,
       // what a Stores has paid so far, for its panel (paid at clears only: the horn's value is the value now)
       yielded: t.yielded ? Math.round(t.yielded) : undefined,
+      // a Powder Mine's charges (where each lies, the seconds each still needs to arm) and its trigger
+      mine: t.mines ? { at: t.mines.map(m => [Math.round(m.x), Math.round(m.y)]), arm: t.mines.map(m => Math.round(Math.max(0, m.armT) * 10) / 10), trig: t.trigger } : undefined,
     })),
     // the tray it was begun with: a run finishes with it whatever the campaign opens meanwhile
     tray: trayTypes().slice(),
@@ -13804,6 +14028,7 @@ function resumeRun() {
     const tw = r.towers[i], hp = !trickLegacy && typeof tw.hp === "number" && isFinite(tw.hp) && tw.hp >= 0 ? tw.hp : null;
     towerInitHp(t, hp, !trickLegacy && tw.wreck === true);
     postInit(t, tw.rally);
+    mineInit(t, tw.mine);
   });
   auto = !!r.auto;
   autoBtn.textContent = auto ? "Auto: On" : "Auto: Off";
@@ -15171,7 +15396,10 @@ function showUnlockCard(what) {
         "A foe thrown back cannot be thrown again for " + HORSE_RULES.rest + " seconds. Elephants, siege engines and commanders barely move, and outflankers are untouched. Two on a field at most."] },
     stores: { title: "A new tower: the Stores", icon: "coin", btn: "Got it",
       lines: ["Your stores pay gold after every wave you hold, more at every rank. They never fight, and they take a pad a fighting tower could use: gold later for a tower now.",
-        "Hunters come for them, and wrecked stores pay nothing. Two on a field at most."].concat(storesHistory()) } }[what];
+        "Hunters come for them, and wrecked stores pay nothing. Two on a field at most."].concat(storesHistory()) },
+    mine: { title: "A new tower: the Powder Mine", icon: "blast", btn: "Got it",
+      lines: ["Its charge lies under the road. When the foes crowd over it, tap the glowing match to fire it. Or let it fire itself at 3 or 5 foes. Lay it where your other towers can finish what it leaves standing.",
+        "Each blast must arm again before the next. Outflankers are untouched, and siege engines shrug off most of it."].concat(mineHistory()) } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15191,6 +15419,15 @@ function storesHistory() {
   const id = levelId(curLevel), out = [];
   if (id === "dvin") out.push("Procopius wrote of many merchants in the land of Dvin. They traded goods from India, Iberia, Persia and some Roman lands.");
   out.push("Stores as a tower are the game's invention.");
+  return out;
+}
+// the Powder Mine card's last line (3.4): Gyumri Road's own fact on the powder of the age (Chaldiran, in its facts), then
+// what is the game's. No source in the repository tells of a powder mine at Kumayri or at Halidzor, nor that such mines
+// were the age's siege craft, so the card makes no such claim (G7c)
+function mineHistory() {
+  const out = [];
+  if (levelId(curLevel) === "gyumri") out.push("At Chaldiran in 1514, Ottoman cannon and Janissary muskets fought behind a barrier of carts.");
+  out.push("A powder mine laid by the defenders here is the game's invention.");
   return out;
 }
 function closeUnlockCard(open) {
@@ -15523,8 +15760,9 @@ function towerInvested(t) {
 
 function placeTower(type, padIdx) {
   const cost = towerCost(type);
-  // a Garrison Post needs road in its reach to stand its men on (2.3), and the Horse Lines road to charge down
-  if ((TOWER_DEFS[type].post || TOWER_DEFS[type].charge) && !padTakesRoad(padIdx, kitStatsOf(type, 0, null).range)) { toast("No road in reach of this pad."); return; }
+  // a Garrison Post needs road in its reach to stand its men on (2.3), the Horse Lines road to charge down, and the
+  // Powder Mine road to lay its charge under (3.4)
+  if (needsRoad(type) && !padTakesRoad(padIdx, kitStatsOf(type, 0, null).range)) { toast("No road in reach of this pad."); return; }
   // a kind with a limit on one field (def.max: the special towers, 3.7) refuses the next one with its own sentence
   const lim = TOWER_DEFS[type].max;
   if (lim && towerCapped(type)) { toast(TOWER_DEFS[type].maxSay || ("No more than " + lim + " on one field.")); return; }
@@ -15542,6 +15780,7 @@ function placeTower(type, padIdx) {
   payTower(towers[towers.length - 1], cost);
   towerInitHp(towers[towers.length - 1]);
   postInit(towers[towers.length - 1]);
+  mineInit(towers[towers.length - 1]);
   Snd.play("build", { x, type, skin: skinDrawn(towerSkin(type)) });
   saveRun();
   syncHud();
@@ -15662,7 +15901,7 @@ function damageEnemy(e, dmg, pierce, src) {
   if (e.hid) revealFoe(e);
   e.flash = 0.1;
   // the hit's own sound, by what struck and what it struck; a stone's landing already speaks for it
-  if (src && Snd.ctx && !TOWER_DEFS[src.type].post && !TOWER_DEFS[src.type].charge) {
+  if (src && Snd.ctx && !TOWER_DEFS[src.type].post && !TOWER_DEFS[src.type].charge && !TOWER_DEFS[src.type].blast) {
     const art = skinArt(src.type), kind = (art && art.proj) || TOWER_DEFS[src.type].proj;
     // a hit on anything in the air (the flying Harop salvo too) rings off an airframe, not tank plate
     if (kind !== "stone") Snd.play("impact", { x: enemyPos(e).x, armor: e.armor, kind, unit: e.fly ? "flyer" : e.type, era: curEra });
@@ -15695,6 +15934,7 @@ function update(dt) {
   updateHero(dt);
   postTick(dt);
   horseTick(dt);
+  mineTick(dt);
 
   // war drums auras
   for (const t of towers) {
@@ -26805,6 +27045,7 @@ function draw(time) {
     if (e.hold === "barricade" && e.stunT > 0) objs.push({ y: p.y + 0.5, fn: () => drawBarricadeHold(e, p) });
   }
   drawFlankLines(time);
+  drawMineGround(time);
   objs.sort((a, b) => a.y - b.y);
   for (const o of objs) o.fn();
 
@@ -26826,6 +27067,7 @@ function draw(time) {
   drawHoverRange();
   drawSelectedGhosts();
   drawPostMarks(time);
+  drawMineMarks(time);
   drawPlacement();
   drawCastPreview();
   drawWaveBanner();
@@ -45712,6 +45954,171 @@ SKIN_ART.stores = {
 };
 // ====================================== END SKIN SECTION: stores ======================================
 
+// ======================================================================================
+// SKIN SECTION: the Powder Mine (gameplay 3.4). The store is put together from parts the other skins use: the common
+// footing, a lean-to of timber (two tall posts at the back, two short ones at the front, a roof of planks between) and
+// the musketeers' powder kegs (musketKeg) under it, more at every rank, with a coil of slow match at its side and a
+// sapper's spade against a post. Great Charge stacks a great iron-bound keg; Twin Fuses keeps a second coil. Its glowing
+// match end is drawn live. On the road: the charge's disturbed earth (mineGround), and over everything its match end
+// glowing once armed, with the ring of its blast while the store is chosen (drawMineMarks)
+// ======================================================================================
+TOWER_BOX.mine = [-46, -80, 50, 22];
+TOWER_SCALE.mine = 1;
+TOWER_ACCENT.mine = "#d0682c";
+const MINE_ROPE = "#c9a65a";
+function mineBase(lvl, spec) { return { w: (spec ? 40 : [34, 36, 38][lvl]), d: 17, h: 4.4 }; }
+function mineFooting(lvl, spec) {
+  const b = mineBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.mine, stepped = !!spec || lvl === 2;
+  return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+}
+// a coil of slow match on the ground: three loops of cord, its end running off
+function mineCoil(x, y, r) {
+  const c = sctx;
+  c.save();
+  c.lineWidth = 1.1; c.strokeStyle = MINE_ROPE;
+  for (let i = 0; i < 3; i++) { c.beginPath(); c.ellipse(x, y - i * 0.9, r - i * 0.8, (r - i * 0.8) * 0.4, 0, 0, Math.PI * 2); c.stroke(); }
+  c.lineWidth = 0.5; c.strokeStyle = "rgba(60, 40, 16, .7)";
+  c.beginPath(); c.ellipse(x, y, r + 0.6, (r + 0.6) * 0.4, 0, 0, Math.PI * 2); c.stroke();
+  c.restore();
+}
+function paintPowderMine(lvl, spec) {
+  const c = sctx, S = footStone(), base = mineBase(lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 171 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const A = spec === "a", B = spec === "b", W = base.w - 4, ph = 26 + lvl * 3 + (spec ? 3 : 0), fh = Math.round(ph * 0.55);
+  // the back posts and a back wall of planks
+  beam(-W / 2 + 3, -2, -W / 2 + 3, -ph, 1.4, TIMBER_DARK);
+  beam(W / 2 - 3, -2, W / 2 - 3, -ph, 1.4, TIMBER_DARK);
+  inkPoly([-W / 2 + 3, -4, -W / 2 + 3, -ph + 2, W / 2 - 3, -ph + 2, W / 2 - 3, -4], toneHex(TIMBER, -16), 0.6);
+  for (let x = -W / 2 + 7; x < W / 2 - 4; x += 4.2) beam(x, -4.4, x, -ph + 2.4, 0.4, toneHex(TIMBER, -34));
+  // the kegs under the roof: a row at the back, more before it at every rank; Great Charge's great keg at the middle
+  const kegs = [[-9, -1.6], [-3.4, -1.8], [2.2, -1.6]];
+  if (lvl >= 1 || spec) kegs.push([7.8, -1.4]);
+  if (lvl >= 2 || spec) kegs.push([-6.2, 3.2]);
+  for (const [x, y] of kegs) musketKeg(x, y, 2.9, 5.2);
+  if (lvl >= 1 || spec) musketKeg(-6.2, -7.4, 2.6, 4.6);   // one stacked on the back row
+  if (A) {
+    musketKeg(3.6, 4.2, 4.4, 8.2);
+    // its iron hoops
+    beam(-0.8, 0.6, 8, 0.6, 0.7, IRON); beam(-0.8, -2.8, 8, -2.8, 0.7, IRON);
+  }
+  // the slow match: a coil at the front right (Twin Fuses: a second at the left), and a sapper's spade by a post
+  mineCoil(W / 2 - 7, 4.6, 3.4);
+  if (B) mineCoil(-W / 2 + 7, 5, 3);
+  beam(-W / 2 + 5, 2.6, -W / 2 + 8.4, -14, 0.9, "#8a6a3e");
+  inkPoly([-W / 2 + 4, 2.6, -W / 2 + 6.6, 2.6, -W / 2 + 6.4, 6.6, -W / 2 + 4.2, 6.6], "#6a6c72", 0.5);
+  // the front posts and the roof of planks sloping from the back down to them
+  beam(-W / 2 + 1, 1, -W / 2 + 1, -fh, 1.3, TIMBER);
+  beam(W / 2 - 1, 1, W / 2 - 1, -fh, 1.3, TIMBER);
+  const back = -ph - 1, front = -fh - 1, L0 = -W / 2 - 1, R0 = W / 2 + 1;
+  inkPoly([L0 + 2, back, R0 - 2, back, R0, front, L0, front], toneHex(TIMBER, 6), 0.8);
+  for (let i = 1; i < 6; i++) {
+    const f = i / 6;
+    beam(L0 + 2 + (R0 - L0 - 4) * f, back + 0.4, L0 + (R0 - L0) * f, front - 0.4, 0.4, toneHex(TIMBER, -30));
+  }
+  beam(L0, front, R0, front, 1, TIMBER_DARK);
+  structCrown(back - 2);
+  c.restore();
+}
+// the match end glowing at its coil (live, so it flickers), out on a wreck; a portrait shows it lit
+function mineLive(t) {
+  if (t.pad >= 0 && t.wreck) return;
+  const p = proj(t.x + 13, t.y + 7), s = p.s, now = (typeof performance !== "undefined" ? performance.now() : 0) / 1000;
+  const fl = 0.75 + 0.25 * Math.sin(now * 13 + t.x);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = "rgba(255, 140, 50, " + (0.35 * fl).toFixed(3) + ")";
+  ctx.beginPath(); ctx.arc(p.x, p.y - 3 * s, 4.2 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#ffd27a";
+  ctx.beginPath(); ctx.arc(p.x, p.y - 3 * s, 1.2 * s, 0, Math.PI * 2); ctx.fill();
+}
+SKIN_ART.powdermine = {
+  box: [-46, -80, 50, 22], scale: 1,
+  paint(lvl, spec) { paintPowderMine(lvl, spec); },
+  // the snow follows the map
+  variant() { return backdropSnowy() ? 1 : 0; },
+  live: mineLive,
+  footing: mineFooting,
+};
+// the charge's ground under the road, drawn before everything that stands: a patch of disturbed earth with its clods,
+// the slow match run back toward the store, and while it arms the share armed as an arc. A charge just fired leaves
+// a scorch that fades
+function drawMineGround(time) {
+  for (const t of towers) {
+    if (t.type !== "mine" || !t.mines) continue;
+    const st = getStats(t);
+    for (const m of t.mines) {
+      if (m.spent) continue;
+      const p = proj(m.x, m.y), s = p.s;
+      // the match line from the store's foot (faint, dashed: it says which store a charge belongs to)
+      const q = proj(t.x, t.y + 4);
+      ctx.save();
+      ctx.strokeStyle = "rgba(60, 40, 16, .32)"; ctx.lineWidth = 1.2 * s; ctx.setLineDash([3 * s, 4 * s]);
+      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = "rgba(58, 40, 22, .55)";
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 11 * s, 11 * s * ELLIPSE * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(150, 120, 84, .7)";
+      for (let i = 0; i < 6; i++) {
+        const a = i * 1.05 + m.x * 0.01;
+        ctx.beginPath(); ctx.ellipse(p.x + Math.cos(a) * 9 * s, p.y + Math.sin(a) * 4 * s, 1.6 * s, 1 * s, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      if (m.armT > 0 && !t.wreck) {
+        const f = 1 - m.armT / Math.max(0.1, st.arm);
+        ctx.strokeStyle = "rgba(255, 214, 120, .75)"; ctx.lineWidth = 2 * s;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 14 * s, 14 * s * ELLIPSE * 0.6, 0, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
+      }
+      if (m.fx > 0) {
+        ctx.fillStyle = "rgba(24, 16, 10, " + (0.6 * Math.min(1, m.fx / 0.4)).toFixed(3) + ")";
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 18 * s, 18 * s * ELLIPSE * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+}
+// over the field: an armed charge's match end glowing (what a press fires), the blast's flash as it goes off, and the
+// ring of the blast and the lit road while the store is chosen or its charge is being laid
+function drawMineMarks(time) {
+  for (const t of towers) {
+    if (t.type !== "mine" || !t.mines) continue;
+    const st = getStats(t), chosen = selected === t && panelEl.style.display === "block";
+    if (rallying === t) {
+      const pp = proj(t.x, t.y);
+      drawRange(pp.x, pp.y, mineReach(t), "rgba(255, 170, 90, .8)", pp.s);
+      drawPostRoad(t.x, t.y, mineReach(t), 1);
+    }
+    t.mines.forEach((m, i) => {
+      const p = proj(m.x, m.y), s = p.s;
+      if (m.fx > 0) {
+        const f = 1 - m.fx / 0.7;
+        ctx.strokeStyle = "rgba(255, 190, 110, " + (m.fx / 0.7).toFixed(3) + ")"; ctx.lineWidth = 3 * s;
+        traceRing(rangeRingPts(p.x, p.y, st.splash * (0.3 + 0.7 * f)));
+        ctx.stroke();
+      }
+      if (m.spent) return;
+      if (chosen || (rallying === t && (t.layIdx | 0) === i)) drawRange(p.x, p.y, st.splash, "rgba(255, 150, 70, .75)", s);
+      if (!mineArmed(m)) return;
+      const pulse = 0.5 + 0.5 * Math.sin(time / 160 + i);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = "rgba(255, 130, 40, " + (0.25 + 0.25 * pulse).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(p.x, p.y - 4 * s, (6 + 3 * pulse) * s, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = "rgba(40, 24, 8, .85)"; ctx.lineWidth = 1.6 * s;
+      ctx.beginPath(); ctx.moveTo(p.x - 5 * s, p.y); ctx.lineTo(p.x, p.y - 4 * s); ctx.stroke();
+      ctx.fillStyle = "#ffe08a";
+      ctx.beginPath(); ctx.arc(p.x, p.y - 4 * s, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+      // a thin ring that breathes, so the marker is found on a crowded road
+      ctx.strokeStyle = "rgba(255, 220, 140, " + (0.35 + 0.4 * pulse).toFixed(3) + ")"; ctx.lineWidth = 1.4 * s;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y - 2 * s, (9 + 2 * pulse) * s, (9 + 2 * pulse) * s * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+      if (fxRnd() < 0.25) particles.push({ x: m.x + (fxRnd() - 0.5) * 3, y: m.y - 4, vx: (fxRnd() - 0.5) * 18, vy: -16 - fxRnd() * 12, life: 0.35, color: "#ffc860", size: 1.6 });
+    });
+  }
+}
+// ====================================== END SKIN SECTION: powder mine ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
@@ -57487,10 +57894,10 @@ function drawPlacement() {
   if (padIdx >= 0) {
     const pp = proj(PADS[padIdx][0], PADS[padIdx][1]);
     // a post's preview lights the road its men may stand on; a pad with none in reach shows its ring red (2.3)
-    const postNo = (def.post || def.charge) && !padTakesRoad(padIdx, kitStatsOf(placing, 0, null).range);
+    const postNo = needsRoad(placing) && !padTakesRoad(padIdx, kitStatsOf(placing, 0, null).range);
     drawRange(pp.x, pp.y, kitStatsOf(placing, 0, null).range, postNo ? "rgba(230, 110, 90, .7)" : "rgba(140, 220, 140, .6)", pp.s);
     // the road the men may stand on, or the riders charge down, lit
-    if (def.post || def.charge) drawPostRoad(PADS[padIdx][0], PADS[padIdx][1], kitStatsOf(placing, 0, null).range, 0.8);
+    if (needsRoad(placing)) drawPostRoad(PADS[padIdx][0], PADS[padIdx][1], kitStatsOf(placing, 0, null).range, 0.8);
     drawWatchReach({ type: placing, level: 0, spec: null }, pp.x, pp.y, pp.s);
     ctx.fillStyle = "rgba(140, 220, 140, .3)";
     ctx.beginPath(); ctx.ellipse(pp.x, pp.y + 2 * pp.s, PAD_OPEN.rx * pp.s, PAD_OPEN.ry * pp.s, 0, 0, Math.PI * 2); ctx.fill();
@@ -57608,6 +58015,18 @@ function statText(t) {
     if (st.slow) s += statRow("frost", Math.round(st.slow * 100) + "%", "slow for " + st.slowS + "s", "wide");
     // short enough for the stats box at every size (the tile's blurb and the card say it at length)
     s += statRow("wing", "", "Thrown once in " + HORSE_RULES.rest + "s. Outflankers untouched.", "wide");
+    return s;
+  }
+  if (def.blast) {
+    // the Powder Mine (3.4): the blast's blow and breadth, the seconds a charge takes to arm, how far it may lie, how it
+    // fires
+    let s = statRow("dmg", st.dmg, "blast", might ? "wide" : "", might) + statRow("splash", st.splash, "blast radius") +
+      statRow("rate", st.arm + "s", "to arm") + statRow("range", st.range, "reach");
+    if (st.charges > 1) s += statRow("blast", st.charges, "charges");
+    s += statRow("frost", st.stagger + "s", "stagger");
+    s += statRow("target", "", "Fires " + mineTriggerWords(t.trigger) + ".", "wide");
+    // short enough for the stats box at every size (the tile's blurb and the card say it at length)
+    s += statRow("wing", "", "Tap its match to fire. Outflankers untouched.", "wide");
     return s;
   }
   if (def.income) {
@@ -58422,6 +58841,14 @@ function foeCounters(role, u) {
     // commander barely, and an outflanker never
     if (def.charge) {
       if (trayTypes().includes(type) && !off && role !== "ram" && role !== "boss") good.push({ type, why: "a charge strikes every foe on its road and throws it back" });
+      continue;
+    }
+    // the Powder Mine (G7c), only where the tray holds it: its blast catches a group on the road, an engine through its
+    // armor; nothing off the road
+    if (def.blast) {
+      if (!trayTypes().includes(type)) continue;
+      if (off) poor.push({ type, why: fly ? "its blast cannot reach the air" : "its blast is on the road" });
+      else if (role !== "ram" && role !== "boss") good.push({ type, why: "a blast fired on the group catches all of it" });
       continue;
     }
     const reach = def.proj ? !off || !!def.air : !off;
@@ -59239,6 +59666,7 @@ function statDps(type, st) {
   if (def.aura || def.income) return 0;
   if (def.post) return st.dmg / st.rate * st.men;
   if (def.charge) return st.dmg / st.cd;   // on one foe in its reach: one charge's blow each cd
+  if (def.blast) return st.dmg * (st.charges || 1) / st.arm;   // on one foe: each charge's blast as it arms
   if (!def.proj) return st.burn;
   // a pot's burn on a foe it keeps hitting: as many pots as burn at once, one landing each reload (BURN_STACKS)
   const pots = st.burnHit ? Math.min(BURN_STACKS, st.burnDur / st.rate) : 0;
@@ -59270,6 +59698,12 @@ function statDeltaHtml(type, a, b) {
     cell("road", a.push, b.push, b.push >= a.push);
     if (b.pierce && !a.pierce) add("spear", "<b>pierce</b>");
     if (b.slow && !a.slow) add("frost", "<b>" + pc(b.slow) + "</b>&nbsp;slow");
+  } else if (def.blast) {
+    cell("dmg", a.dmg, b.dmg, b.dmg >= a.dmg);
+    cell("splash", a.splash, b.splash, b.splash >= a.splash);
+    cell("rate", a.arm + "s", b.arm + "s", b.arm <= a.arm);
+    cell("range", a.range, b.range, b.range >= a.range);
+    if ((b.charges || 1) > (a.charges || 1)) add("blast", "<b>" + b.charges + "</b>&nbsp;charges");
   } else if (def.income) {
     cell("coin", a.pay, b.pay, b.pay >= a.pay);
     if (b.bounty && !a.bounty) add("coin", "<b>+" + pc(b.bounty) + "</b>&nbsp;kills");
@@ -59353,6 +59787,29 @@ function showPanel(t) {
     acts.appendChild(rb);
     maybeRallyBubble(t);
   }
+  if (def.blast) {
+    // the Powder Mine (3.4): Lay the charge (a press on the road, as a rally point) beside Fire, then the trigger, which
+    // takes the Target button's place and class (3.8: on a phone's sheet it is 36 px)
+    mineSync(t);
+    const row = document.createElement("div");
+    row.className = "row2";
+    const lb = mkBtn(icon("flag") + "Lay the charge", null, "rally", (e) => armRally(t, touchClick(lb, e) || (!!e && e.detail === 0 && matchMedia("(pointer: coarse)").matches)));
+    lb.id = "pLay";
+    lb.title = "Lay the charge: choose the road it lies under (G)";
+    const fb = mkBtn(icon("blast") + '<span class="fl">' + mineFireLabel(t) + "</span>", null, "fireNow", () => { if (mineFireAll(t)) showPanel(t); }, !t.mines.some(mineArmed));
+    fb.id = "pFire";
+    fb.title = "Fire every armed charge (X)";
+    row.appendChild(lb); row.appendChild(fb);
+    acts.appendChild(row);
+    const tb = mkBtn(icon("target") + "Fire: " + mineTriggerWords(t.trigger), null, "", () => {
+      const T = MINE_RULES.triggers;
+      t.trigger = T[(T.indexOf(t.trigger) + 1) % T.length];
+      saveRun();
+      showPanel(t);
+    });
+    tb.id = "pTrigger";
+    acts.appendChild(tb);
+  }
   if (TOWER_DEFS[t.type].proj) {
     acts.appendChild(mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
       t.prio = PRIOS[(PRIOS.indexOf(t.prio || "first") + 1) % PRIOS.length];
@@ -59435,6 +59892,14 @@ function refreshPanelBtns() {
     if (rb) { rb.cost = repairCost(selected); setCoinAmount(rb.el, rb.cost); }
     const sb = $("pActions").querySelector(".btn.sell");
     if (sb && !sb.classList.contains("confirm")) setCoinAmount(sb, sellRefund(selected).amount);
+    // a Powder Mine's Fire comes alive as its charge arms, and counts down until then (its text only: a finger on it
+    // keeps it)
+    const fb = selected.type === "mine" && $("pFire");
+    if (fb) {
+      const fl = fb.querySelector(".fl"), want = mineFireLabel(selected), on = (selected.mines || []).some(mineArmed);
+      if (fl && fl.textContent !== want) fl.textContent = want;
+      if (fb.disabled === on) fb.disabled = !on;
+    }
   }
   for (const pb of panelCostBtns) {
     const afford = gold >= pb.cost;
@@ -64731,12 +65196,16 @@ canvas.addEventListener("pointerdown", (e) => {
       // the post and the hero are read first: a hero standing on the road in the ring is pressed to put the rally
       // down, never to move the men under him (2.3, G5 review)
       const onPost = towerUnderPointer(e, phoneTouch) === rallying, onHero = hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26;
-      if (onPost || onHero) { rallying = null; toast("Rally point unchanged."); return; }
+      if (onPost || onHero) { toast(rallying.type === "mine" ? "Charge unchanged." : "Rally point unchanged."); rallying = null; return; }
       if (rallyPress(rallying, v.x, v.y, phoneTouch, e)) { rallying = null; return; }
       toast("Out of reach.");
       return;
     }
   }
+  // a Powder Mine's marker (3.4): a press on it fires an armed charge and opens nothing; it is read before the hero,
+  // the tile being placed, the towers and the land (on a phone too: phoneTapPick comes after it)
+  const mineHit = mineUnderPointer(e);
+  if (mineHit) { minePress(mineHit); return; }
   if (hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26 && !placing) {
     heroSelected = true;
     heroChoseAt = performance.now();
@@ -65280,7 +65749,9 @@ window.addEventListener("keydown", (e) => {
   const digit = /^Digit([1-7])$/.exec(e.code), kind = digit ? trayTypes()[Number(digit[1]) - 1] : null;
   if (kind && !gameOver) setPlacing(placing === kind ? null : kind);
   // G arms the rally of the post whose panel is up
-  if (e.code === "KeyG" && !e.shiftKey && selected && selected.type === "post" && !gameOver) armRally(selected, false);
+  if (e.code === "KeyG" && !e.shiftKey && selected && (selected.type === "post" || selected.type === "mine") && !gameOver) armRally(selected, false);
+  // X fires the selected Powder Mine's armed charges (its Fire button)
+  if (e.code === "KeyX" && selected && selected.type === "mine" && !gameOver) { if (!mineFireAll(selected)) toast("No charge is armed yet."); else showPanel(selected); }
   if (e.code === "Escape") { setPlacing(null); hidePanel(); closeSettings(); closeFoeCard(); castingSpell = null; heroSelected = false; updateSpellBar(); }
   // Enter on a wave chip or a chronicle medallion reached by Tab opens its foe's card, or puts it away again
   // (Space stays the Send Wave key)
@@ -83809,6 +84280,9 @@ function photoStageBattle(lv, wave, o) {
   if (o.horse) photoHorseStage(o.horse, o.hl, o.ride);
   // &stores=N: N Stores (&sl=0|1|2|a|b their rank or mastery), &coins their pay at a clear rising
   if (o.stores) photoStoresStage(o.stores, o.sl, o.coins);
+  // &mine=N: N Powder Mines (&ml=0|1|2|a|b their rank or mastery), their charges armed under foes; &blast the first one
+  // fired a moment ago
+  if (o.mine) photoMineStage(o.mine, o.ml, o.blast);
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
@@ -83818,6 +84292,9 @@ function photoStageBattle(lv, wave, o) {
   if (o.horsePanel && firstHorse) showPanel(firstHorse);
   const firstStores = towers.find(t => t.type === "stores");
   if (o.storesPanel && firstStores) showPanel(firstStores);
+  const firstMine = towers.find(t => t.type === "mine");
+  if (o.minePanel && firstMine) showPanel(firstMine);
+  if (o.lay && firstMine) armRally(firstMine, matchMedia("(pointer: coarse)").matches);
   if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
 }
 function photoPostStage(n) {
@@ -83890,6 +84367,40 @@ function photoStoresStage(n, sl, coins) {
   if (coins) {
     storesPay(payStep(Math.max(1, waveIdx)));
     for (let i = 0; i < 18; i++) for (const p of particles) { p.x += (p.vx || 0) / 60; p.y += (p.vy || 0) / 60; }
+  }
+  gold = 640;
+}
+
+// Powder Mines for a photo: on the free pads whose reach holds the most road, each charge armed with foes walking
+// over it; with &blast the first one's blast a moment old (the flash and the earth thrown up)
+function photoMineStage(n, ml, blast) {
+  gold = 99999;
+  const range = TOWER_DEFS.mine.levels[0].range;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i) && padTakesRoad(i, range))
+    .sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], range).length - postRoadIn(PADS[a][0], PADS[a][1], range).length);
+  while (free.length < n && towers.length) { const t = towers.pop(); if (padTakesRoad(t.pad, range)) free.unshift(t.pad); }
+  for (let k = 0; k < n && k < free.length; k++) {
+    placeTower("mine", free[k]);
+    const t = towers[towers.length - 1];
+    if (ml === "a" || ml === "b") { t.level = 2; t.spec = ml; } else t.level = Math.max(0, Math.min(2, Number(ml) | 0));
+    t.placedAt = -1e9;
+    towerSyncHp(t);
+    mineInit(t);
+    t.trigger = 0;
+    for (const m of t.mines) {
+      m.armT = 0;
+      for (const [role, d] of [["spearman", -30], ["raider", 26]]) {
+        spawnEnemy(role);
+        const e = enemies[enemies.length - 1];
+        if (e.fly) continue;
+        e.route = m.route; e.dist = Math.max(0, m.dist + d);
+        e.maxHp *= 6; e.hp = e.maxHp;
+      }
+    }
+  }
+  if (blast) {
+    const t = towers.find(x => x.type === "mine");
+    if (t) { mineFire(t, t.mines[0]); for (let i = 0; i < 9; i++) { for (const p of particles) { p.x += (p.vx || 0) / 60; p.y += (p.vy || 0) / 60; } t.mines[0].fx -= 1 / 60; } }
   }
   gold = 640;
 }
@@ -84184,6 +84695,9 @@ function runPhoto() {
         horse: num("horse", 0), hl: HARNESS.get("hl") || "0", ride: HARNESS.has("ride") ? num("ride", 0.4) : null, horsePanel: HARNESS.has("horsepanel"),
         // &stores=N Stores (&sl rank or mastery, &coins a clear's pay rising), &storespanel the first one's panel
         stores: num("stores", 0), sl: HARNESS.get("sl") || "0", coins: HARNESS.has("coins"), storesPanel: HARNESS.has("storespanel"),
+        // &mine=N Powder Mines (&ml rank or mastery, &blast the first fired), &minepanel the first one's panel, &lay its
+        // Lay the charge armed (the ring and the lit road)
+        mine: num("mine", 0), ml: HARNESS.get("ml") || "0", blast: HARNESS.has("blast"), minePanel: HARNESS.has("minepanel"), lay: HARNESS.has("lay"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
@@ -88667,6 +89181,155 @@ function runSelftestPlay() {
     wonTo(levelIndexOf("dvin"), 2);
     curLevel = levelIndexOf("dvin"); curEra = LEVELS[curLevel].era;
     if (newTowerCardDue(true)) fail("Dvin tells the stores before Tashir is open");
+  }));
+  // ---- G7c, the Powder Mine (gameplay 3.4, 8.1) ----
+  const MINE_AT = ["gyumri", "halidzor"];
+  // a staged mine on the pad whose reach holds the most road, a long stretch of it, and foes put on it
+  const mineStage = (id, diff) => {
+    stage(id, diff); quiet(); gold = 1e5;
+    const range = TOWER_DEFS.mine.levels[0].range;
+    const k = PADS.map((p, j) => j).sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], range).length - postRoadIn(PADS[a][0], PADS[a][1], range).length)[0];
+    placeTower("mine", k);
+    return towers[towers.length - 1];
+  };
+  const mineFoe = (m, role, d) => { spawnEnemy(role, { type: role }); const e = enemies[enemies.length - 1]; e.route = m.route; e.dist = Math.max(0, m.dist + (d || 0)); e.hp = e.maxHp = 1e6; e.speed = 0; return e; };
+  check("mine: offered on Gyumri Road and Halidzor from Gyumri Road on, nowhere else; key 7; no road refuses it; no limit; a run keeps its charges", guarded(() => {
+    const has = () => trayTypes().includes("mine");
+    // Gyumri Road's first play offers it (3.1: first offered at Gyumri Road); everything open, only its two
+    wonTo(levelIndexOf("gyumri"), 2);
+    stage("gyumri", 1);
+    if (trayTypes().join() !== TRAY_CLASSIC + ",post,mine" || $("shop").dataset.n !== "7" || ageTower(curEra) !== "mine") fail("Gyumri Road's tray: " + trayTypes());
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "mine") fail("key 7 did not choose the mine: " + placing);
+    setPlacing(null);
+    const nm = document.querySelector('#shop .card[data-type="mine"] .nm');
+    if (!nm || nm.textContent !== "Powder Mine") fail("the tile: " + (nm && nm.textContent));
+    wonTo(17, 2);
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const want = MINE_AT.includes(L.id);
+      if (has() !== want || trayStandard(L.era).includes("mine") !== want) fail(L.id + (want ? " lacks" : " offers") + " the mine");
+    });
+    // a pad with no road in reach refuses it; no limit: four on one field
+    stage("halidzor", 1); gold = 1e5;
+    const range = TOWER_DEFS.mine.levels[0].range, roadPads = PADS.map((p, k) => k).filter(k => padTakesRoad(k, range)), dry = PADS.findIndex((p, k) => !padTakesRoad(k, range));
+    if (dry >= 0) { placeTower("mine", dry); if (towerAt(dry) || !/No road in reach/.test($("toast").textContent)) fail("a pad with no road took the mine"); }
+    for (const k of roadPads.slice(0, 4)) placeTower("mine", k);
+    const M = towers.filter(x => x.type === "mine");
+    if (M.length !== 4 || TOWER_DEFS.mine.max) fail("four mines on a field: " + M.length);
+    // each charge lies on a road inside its store's reach, and arms first
+    for (const t of M) if (t.mines.length !== 1 || t.mines[0].armT !== getStats(t).arm || groundGap(t.x, t.y, t.mines[0].x, t.mines[0].y) > getStats(t).range + 0.5) fail("a new mine's charge: " + JSON.stringify(t.mines));
+    // a run keeps where the charges lie, what each still needs to arm, and the trigger; a run begun before the mine
+    // (its tray without it) refuses one, and one saved before still resumes
+    const A = M[0], spot = postRoadIn(A.x, A.y, range).slice(-1)[0];
+    A.trigger = 5; setMineCharge(A, 0, spot); A.mines[0].armT = 7.3;
+    waveIdx = lastCleared = 1; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    gameOver = true; resumeRun();
+    const B = towers.find(x => x.pad === A.pad);
+    if (!B || B.type !== "mine" || B.trigger !== 5 || Math.abs(B.mines[0].x - spot.x) > 1 || Math.abs(B.mines[0].armT - 7.3) > 0.05 || !trayTypes().includes("mine")) fail("the resumed mine: " + JSON.stringify(B && { trig: B.trigger, mines: B.mines }));
+    const old = Object.assign({}, r, { tray: TRAY_BASE.concat("post") });
+    if (validRun(old)) fail("a run whose tray has no mine took one");
+    if (!validRun(Object.assign({}, old, { towers: r.towers.filter(x => x.type !== "mine") }))) fail("a run saved before the mine no longer resumes");
+    // a saved spot off its reach is laid again at the default, and a forged arm time is cut to the rank's
+    const bad = JSON.parse(JSON.stringify(r)), bt = bad.towers.find(x => x.type === "mine");
+    bt.mine = { at: [[-900, -900]], arm: [1e9], trig: 4 };
+    localStorage.setItem("hs_run", JSON.stringify(bad)); gameOver = true; resumeRun();
+    const C = towers.find(x => x.pad === bt.pad);
+    if (!C || C.trigger !== MINE_RULES.trigger || C.mines[0].armT !== getStats(C).arm || groundGap(C.x, C.y, C.mines[0].x, C.mines[0].y) > getStats(C).range + 0.5) fail("a forged mine: " + JSON.stringify(C && C.mines));
+  }));
+  check("mine: arms, fires by a press on its marker, at 3 foes by its trigger, by Fire; the blast; Twin Fuses holds two; a stun pauses; a ruin fires once", guarded(() => {
+    wonTo(17, 2);
+    const t = mineStage("gyumri", 1), st = getStats(t), m = t.mines[0];
+    t.trigger = 0;
+    // two foes in the blast and one outside; an outflanker over it
+    const a = mineFoe(m, "spearman", 0), b = mineFoe(m, "shield", 10), far = mineFoe(m, "raider", st.splash + 80), fly = mineFoe(m, "flyer", 0);
+    const h0 = [a.hp, b.hp, far.hp, fly.hp];
+    // it arms in arm s, not before; unarmed, a press on the marker fires nothing and opens no panel
+    run(st.arm - 1);
+    if (mineArmed(m) || t.blasts) fail("armed before " + st.arm + " s: " + m.armT);
+    const r = canvas.getBoundingClientRect(), at = M => { const q = proj(M.x, M.y); return { clientX: r.left + offX + q.x * scale, clientY: r.top + offY + (q.y - 4 * q.s) * scale }; };
+    const press = M => canvas.dispatchEvent(new PointerEvent("pointerdown", Object.assign({ bubbles: true, pointerType: "mouse" }, at(M))));
+    hidePanel(); press(m);
+    if (t.blasts || selected || !/arms in/.test($("toast").textContent)) fail("a press on an unarmed marker: " + $("toast").textContent);
+    run(1.1);
+    if (!mineArmed(m)) fail("not armed after " + st.arm + " s: " + m.armT);
+    // by hand: it waits with foes over it
+    run(1);
+    if (t.blasts) fail("the hand trigger fired by itself");
+    press(m);
+    if (t.blasts !== 1 || selected || panelEl.style.display === "block") fail("a press on the marker did not fire, or opened a panel");
+    const hit = e => armorHit(st.dmg, e.armor, false) * slotMult(e, "mine");
+    if (Math.abs(h0[0] - a.hp - hit(a)) > 1 || Math.abs(h0[1] - b.hp - hit(b)) > 1) fail("the blast's blow: " + [h0[0] - a.hp, hit(a), h0[1] - b.hp, hit(b)]);
+    if (far.hp !== h0[2] || fly.hp !== h0[3]) fail("the blast reached a foe outside it or an outflanker");
+    if (!(a.staggerT > st.stagger - 0.1) || !(paceOf(a) <= STAGGER_PACE)) fail("the blast did not stagger: " + a.staggerT);
+    // laid again where it was, arming again
+    if (mineArmed(m) || Math.abs(m.armT - st.arm) > 0.01 || Math.abs(m.x - t.mines[0].x) > 0.01) fail("the charge was not laid again: " + m.armT);
+    // its damage is booked for the adaptive enemy under no slot (3.4, 3.7)
+    if (!(adapt.acc.other > 0) || adapt.acc.mine) fail("the blast was not booked as other: " + JSON.stringify(adapt.acc));
+    // the trigger at 3 foes: two seen ground foes in the blast do not fire it, a third does; an unseen scout does not count
+    t.trigger = 3; m.armT = 0;
+    run(0.1);
+    if (t.blasts !== 1) fail("fired at 2 foes");
+    const sc = mineFoe(m, "raider", -6); sc.hid = true; sc.seenT = 0;
+    run(0.1);
+    if (t.blasts !== 1) fail("an unseen scout counted for the trigger");
+    mineFoe(m, "cavalry", -12);
+    run(0.1);
+    if (t.blasts !== 2) fail("not fired at 3 foes: " + mineCount(t, m));
+    // Fire (the panel's button) fires every armed charge; while none is armed it is off
+    showPanel(t);
+    if (!$("pFire").disabled || !$("pLay") || !/Fire: at 3 foes/.test($("pTrigger").textContent)) fail("the panel while arming: " + $("pActions").textContent);
+    m.armT = 0; t.trigger = 0; refreshPanelBtns();
+    if ($("pFire").disabled) fail("Fire is off with a charge armed");
+    $("pFire").click();
+    if (t.blasts !== 3) fail("Fire did not fire");
+    $("pTrigger").click();
+    if (t.trigger !== 3) fail("the trigger button: " + t.trigger);
+    hidePanel();
+    // a stunned store's charge does not arm
+    m.armT = 10; t.stunnedT = 5; run(1);
+    if (m.armT !== 10) fail("a stunned store armed its charge: " + m.armT);
+    t.stunnedT = 0;
+    // Twin Fuses: two charges, laid in turn by Lay the charge, the second far from the first
+    t.level = 2; t.spec = "b"; towerSyncHp(t); run(0.05);
+    if (t.mines.length !== 2 || groundGap(t.mines[0].x, t.mines[0].y, t.mines[1].x, t.mines[1].y) < getStats(t).splash) fail("Twin Fuses' charges: " + JSON.stringify(t.mines.map(q => [q.x, q.y])));
+    const road = postRoadIn(t.x, t.y, getStats(t).range), s1 = road[0], s2 = road[road.length - 1];
+    armRally(t, false);
+    if (rallying !== t || !/first charge/.test($("toast").textContent)) fail("Lay the charge did not arm: " + $("toast").textContent);
+    rallyPress(t, s1.x, s1.y, false); rallying = null;
+    armRally(t, false);
+    if (!/second charge/.test($("toast").textContent)) fail("the second laying: " + $("toast").textContent);
+    rallyPress(t, s2.x, s2.y, false); rallying = null;
+    if (Math.abs(t.mines[0].x - s1.x) > 0.01 || Math.abs(t.mines[1].x - s2.x) > 0.01 || mineArmed(t.mines[0])) fail("the charges were not laid in turn, arming");
+    // a press out of the reach lays nothing
+    armRally(t, false);
+    if (rallyPress(t, t.x + getStats(t).range * 3, t.y, false)) fail("a press out of reach laid a charge");
+    rallying = null;
+    // a wrecked store: its armed charge fires once and is spent; one arming does not arm; rebuilt, it lays them again
+    enemies = []; t.trigger = 0; t.mines[0].armT = 0; t.mines[1].armT = 5;
+    wreckTower(t); run(6);
+    if (mineArmed(t.mines[1])) fail("a wrecked store armed a charge");
+    const n0 = t.blasts;
+    if (!mineFire(t, t.mines[0]) || t.blasts !== n0 + 1 || !t.mines[0].spent || mineFire(t, t.mines[0])) fail("a ruin's armed charge did not fire once");
+    t.wreck = false; towerInitHp(t); run(0.05);
+    if (t.mines[0].spent || mineArmed(t.mines[0])) fail("the rebuilt store did not lay its charge again");
+  }));
+  check("mine: the one-time card on the chronicle; Gyumri Road's line; no claim on Halidzor", guarded(() => {
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    wonTo(levelIndexOf("gyumri"), 2);
+    curLevel = levelIndexOf("gyumri"); curEra = LEVELS[curLevel].era; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (newTowerCardDue(true) !== "mine") fail("Gyumri Road's card is not due: " + newTowerCardDue(true));
+    showUnlockCard("mine");
+    const body = $("tcBody").textContent;
+    if (unlockCardOn !== "mine" || !/the Powder Mine/.test($("tcTitle").textContent) || !/the game's invention/.test(body) || !/Chaldiran/.test(body)) fail("Gyumri Road's card: " + body);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("mine") || newTowerCardDue(true)) fail("the card was not put away and kept");
+    curLevel = levelIndexOf("halidzor"); showUnlockCard("mine");
+    if (/Chaldiran|tunnel/i.test($("tcBody").textContent) || !/the game's invention/.test($("tcBody").textContent)) fail("Halidzor's card: " + $("tcBody").textContent);
+    closeUnlockCard();
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {
