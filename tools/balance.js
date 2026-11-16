@@ -33,6 +33,8 @@
 //   PATCH=js      run this code in every page once it has loaded, before any battle: for trying numbers
 //                 without editing the game, e.g. PATCH='TOWER_DEFS.ballista.levels[0].dmg = 50' or
 //                 PATCH='LEVELS[9].hpTune = 1.1' or PATCH='TRICK_RULES.adapt.mult[1] = 0.3'
+//   STORES_RANK=last|even|never  when the bot ranks and masters its Stores (G7b): last (the default) after every
+//                 fighting tower has its own; even as any tower; never not at all. None after two thirds of the waves
 //   COUNTERS=0    the bot plays without its answers to the enemy's tricks (below), for an A/B of their worth
 //   CLOCK=1       also print the clock table: for each battlefield and build the battle clock of its victories (the
 //                 game's own clock, battleFacts().sec: game seconds from the first wave's horn to the last foe's
@@ -142,7 +144,9 @@
 //     as for any kind; the harriers build takes Harriers (BUILD_SPEC)
 //   - Stores (G7b, gameplay 5.4): "age" on Dvin, Tashir, Sevan, Ani, Mari and Sis. The free pad that reaches the least
 //     road (the worst pad for a tower), bought as the order says and never once two thirds of the battle's waves are
-//     sent; two at most (greedy: one, BUILD_AGE_MAX). Ranked and mastered as any tower. Where greedy or bazaar is run
+//     sent; two at most (greedy: one, BUILD_AGE_MAX). When it ranks and masters them is STORES_RANK: "last" (the
+//     default) after every fighting tower has its own, and never once two thirds of the waves are sent; "even" as any
+//     tower; "never" not at all. Where greedy or bazaar is run
 //     beside mix, the report adds the Stores' rows of gameplay 5.2: greedy's gold invested at the end, the defenders it
 //     lost more than mix by the end of the first commander's wave and at the end, and bazaar's defenders against mix
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
