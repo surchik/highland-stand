@@ -1,5 +1,5 @@
 // Playtest 3 of gameplay 8.4 for the Powder Mine (G7c): Gyumri Road by touch, as a player plays it, on the iPad
-// (1194x834) and an iPhone SE held sideways in Safari (667x320). Every press is a finger's (tools/regress/lib.js tapAt,
+// (1194x834), an iPhone 15 (852x393) and an iPhone SE (667x320), both held sideways in Safari. Every press is a finger's (tools/regress/lib.js tapAt,
 // press): the tray's tiles, the pads (a first tap shows the reach, a second builds), the mine and its panel's buttons,
 // the road, the charge's marker, Send Wave, the speed button and Auto. The board: archers, a ballista, a catapult and a
 // fire on the pads that watch the most road, then a Powder Mine from its tile on the free pad whose reach holds the most
@@ -21,7 +21,7 @@ const WANT = 5;
 (async () => {
   const browser = await R.launch();
   const fails = [], out = {};
-  for (const C of [R.SIZES.ipad, PHONE]) {
+  for (const C of [Object.assign({}, PHONE, { name: "touch iPhone 15 852x393", w: 852, h: 393 }), R.SIZES.ipad, PHONE]) {
     const g = await R.openGame(browser, o.file, C);
     const fail = m => fails.push(C.name + " " + m);
     try {

@@ -13293,9 +13293,9 @@ function horseStrike(t, st, e) {
 // ---------- the Powder Mine's charges (gameplay 3.4) ----------
 // t.mines: one charge (two with Twin Fuses), each { x, y, route, dist, armT, spent }: a road point inside the store's
 // range and the seconds until it is armed (0: armed). armT runs down in game time, quickened by the drums and slowed
-// on a damaged or failing store, like any reload; a stunned store (trumpet, guns, stones) pauses it, and a wrecked one
-// arms nothing. A wrecked store's charge that was armed can still be fired once (spent: then it is not laid again
-// until the store is rebuilt). t.trigger: 0 (by hand), 3 or 5 (MINE_RULES.triggers). No random number: the bot and a
+// on a damaged or failing store, like any reload; a stunned store (trumpet, guns, stones) pauses it. A wrecked store's
+// charge that is laid goes on arming at a failing store's pace and can still be fired once (3.4; spent: then it is not
+// laid again until the store is rebuilt). t.trigger: 0 (by hand), 3 or 5 (MINE_RULES.triggers). No random number: the bot and a
 // resumed run see the same blasts
 function mineReach(t) { return getStats(t).range; }
 // the charge a new mine lays: the road point in reach nearest the pad (the post's rule); a second (Twin Fuses) at the
@@ -13361,11 +13361,14 @@ function mineTick(dt) {
       if (m.fx > 0) m.fx -= dt;
       // a rebuilt store lays again the charge its ruin spent
       if (m.spent && !t.wreck) { m.spent = false; m.armT = st.arm; }
-      if (m.armT > 0 && !t.wreck && !(t.stunnedT > 0)) {
-        m.armT = Math.max(0, m.armT - dt * (1 + (t.buffHaste || 0)) * towerPace(t));
+      // a wrecked store's charge already laid goes on arming, at a failing store's pace, and can be fired once (3.4)
+      if (m.armT > 0 && !m.spent && !(t.stunnedT > 0)) {
+        m.armT = Math.max(0, m.armT - dt * (1 + (t.buffHaste || 0)) * (t.wreck ? TRICK_RULES.tower.failing[1] : towerPace(t)));
         if (m.armT <= 0) mineArmedNow(t);
       }
       if (t.trigger > 0 && mineArmed(m) && mineCount(t, m) >= t.trigger) mineFire(t, m);
+      // the armed match's sparks, about fifteen a second of game time (thrown here, where particles age, never in a draw)
+      if (mineArmed(m) && fxRnd() < 15 * dt) particles.push({ x: m.x + (fxRnd() - 0.5) * 3, y: m.y - 4, vx: (fxRnd() - 0.5) * 18, vy: -16 - fxRnd() * 12, life: 0.35, color: "#ffc860", size: 1.6 });
     }
     if (t.blastT > 0) t.blastT -= dt;
   }
@@ -13407,10 +13410,14 @@ function mineFire(t, m) {
   for (let i = 0; i < 6; i++) particles.push({ x: m.x + (fxRnd() - 0.5) * 30, y: m.y - 8, vx: (fxRnd() - 0.5) * 16, vy: -20 - fxRnd() * 14, life: 1.1, color: "rgba(90, 84, 78, .55)", size: 7 });
   return true;
 }
-// fire every armed charge of a store (its Fire button, the X key): true if one went off
+// the Fire button and the X key: every armed charge with a seen ground foe in its blast goes off, and a charge with
+// no foe over it is kept (Twin Fuses: the empty spot does not lose its arming, G7c review 11). With no foe over any,
+// the first armed charge goes off, as asked. True if one went off
 function mineFireAll(t) {
+  const ms = (t.mines || []).filter(mineArmed);
+  const due = ms.filter(m => mineCount(t, m) > 0);
   let any = false;
-  for (const m of t.mines || []) if (mineFire(t, m)) any = true;
+  for (const m of due.length ? due : ms.slice(0, 1)) if (mineFire(t, m)) any = true;
   return any;
 }
 // the armed charge whose marker lies under a press (client point), within its catch: MINE_RULES.tap px on the screen at
@@ -13427,10 +13434,24 @@ function mineUnderPointer(e) {
       if (!mineArmed(m)) continue;
       const q = proj(m.x, m.y), rx = Math.max(MINE_RULES.tap / Math.max(0.05, scale), 16 * Math.max(0.35, q.s)), ry = rx;
       const d = Math.hypot((sx - q.x) / rx, (sy - (q.y - 4 * q.s)) / ry);
-      if (d < bd) { bd = d; best = { t, m }; }
+      if (d < bd) { bd = d; best = { t, m, d }; }
     }
   }
   return best;
+}
+// a tower's claim on a press, as near as its tap zone (towerTapAxes, widened for a finger on a phone) measures it: 0 at
+// its center, 1 at its edge, Infinity where no tower's zone holds the press. A marker's catch is wide on a small screen
+// and may lie over a tower beside the road: the nearer of the two, each measured against its own reach, takes the press
+// (phoneTapPick's rule for a tower and a plot; G7c review 2)
+function towerTapNear(e, wide) {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left - offX) / scale, sy = (e.clientY - r.top - offY) / scale;
+  let bd = Infinity;
+  for (const t of towers) {
+    const z = towerTapAxes(t, wide), d = Math.hypot((sx - z.x) / z.ax, (sy - z.y) / z.ay);
+    if (d < 1 && d < bd) bd = d;
+  }
+  return bd;
 }
 // a press on a marker: the armed charge goes off. The press is the marker's and opens no panel
 function minePress(hit) { mineFire(hit.t, hit.m); }
@@ -13900,6 +13921,12 @@ function saveRun() {
         const was = waveStart.tally.get(towers[i]) || [0, 0];
         r.kills = was[0]; r.dmg = was[1];
         if (was.length > 2 && towers[i].fixedAt !== waveStart) { r.hp = was[2]; r.wreck = was[3]; } else { delete r.hp; r.wreck = false; }
+        // a Powder Mine's charges as the horn left them: a wave fought again gives no arming back and takes none
+        // (1.7). One built since the horn keeps its spot and trigger and lays its charge fresh (mineInit)
+        if (r.mine) {
+          const h = sent.towers.find(x => x && x.pad === r.pad && x.type === r.type && x.mine);
+          if (h) r.mine = h.mine; else delete r.mine.arm;
+        }
       });
       run.facts = battleSaveAtHorn(sent.facts, true);
     } else {
@@ -15407,8 +15434,8 @@ function showUnlockCard(what) {
       lines: ["Your stores pay gold after every wave you hold, more at every rank. They never fight, and they take a pad a fighting tower could use: gold later for a tower now.",
         "Hunters come for them, and wrecked stores pay nothing. Two on a field at most."].concat(storesHistory()) },
     mine: { title: "A new tower: the Powder Mine", icon: "blast", btn: "Got it",
-      lines: ["Its charge lies under the road. When the foes crowd over it, tap the glowing match to fire it. Or let it fire itself at 3 or 5 foes, a commander counting as three. Lay it where your other towers can finish what it leaves standing.",
-        "Each blast must arm again before the next. Outflankers are untouched, and siege engines shrug off most of it."].concat(mineHistory()) } }[what];
+      lines: ["Its charge lies under the road. When the foes crowd over it, " + (matchMedia("(pointer: coarse)").matches ? "tap" : "click") + " the glowing match to fire it. Or let it fire itself at 3 or 5 foes, a commander counting as three. Lay it where your other towers can finish what it leaves standing.",
+        "Each blast must arm again before the next. Outflankers are untouched."].concat(mineHistory()) } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -46128,7 +46155,7 @@ function drawMineMarks(time) {
       // a thin ring that breathes, so the marker is found on a crowded road
       ctx.strokeStyle = "rgba(255, 220, 140, " + (0.35 + 0.4 * pulse).toFixed(3) + ")"; ctx.lineWidth = 1.4 * s;
       ctx.beginPath(); ctx.ellipse(p.x, p.y - 2 * s, (9 + 2 * pulse) * s, (9 + 2 * pulse) * s * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
-      if (fxRnd() < 0.25) particles.push({ x: m.x + (fxRnd() - 0.5) * 3, y: m.y - 4, vx: (fxRnd() - 0.5) * 18, vy: -16 - fxRnd() * 12, life: 0.35, color: "#ffc860", size: 1.6 });
+      // (its sparks are thrown in mineTick: a draw that adds particles piles them up while the game is paused)
     });
   }
 }
@@ -58041,7 +58068,7 @@ function statText(t) {
     s += statRow("frost", st.stagger + "s", "stagger");
     s += statRow("target", "", "Fires " + mineTriggerWords(t.trigger) + ".", "wide");
     // short enough for the stats box at every size (the tile's blurb and the card say it at length)
-    s += statRow("wing", "", "Tap its match to fire. Outflankers untouched.", "wide");
+    s += statRow("wing", "", (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " its match to fire. Outflankers untouched.", "wide");
     return s;
   }
   if (def.income) {
@@ -59813,7 +59840,7 @@ function showPanel(t) {
     lb.title = "Lay the charge: choose the road it lies under (G)";
     const fb = mkBtn(icon("blast") + '<span class="fl">' + mineFireLabel(t) + "</span>", null, "fireNow", () => { if (mineFireAll(t)) showPanel(t); }, !t.mines.some(mineArmed));
     fb.id = "pFire";
-    fb.title = "Fire every armed charge (X)";
+    fb.title = "Fire the armed charges with foes over them (X)";
     row.appendChild(lb); row.appendChild(fb);
     acts.appendChild(row);
     const tb = mkBtn(icon("target") + "Fire: " + mineTriggerWords(t.trigger), null, "", () => {
@@ -65219,9 +65246,11 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   // a Powder Mine's marker (3.4): a press on it fires an armed charge and opens nothing; it is read before the hero,
   // the towers and the land (on a phone too: phoneTapPick comes after it). A tile being placed takes a free pad under
-  // the press first: a marker never stands on a pad, but its catch may reach one
+  // the press first: a marker never stands on a pad, but its catch may reach one. A tower whose tap zone holds the
+  // press nearer than the marker's catch does takes it (on a small phone a marker's catch can cover a tower beside
+  // the road: G7c review 2)
   const mineHit = mineUnderPointer(e);
-  if (mineHit && !(placing && freePadUnderPointer(e, v.x, v.y) >= 0)) { minePress(mineHit); return; }
+  if (mineHit && !(placing && freePadUnderPointer(e, v.x, v.y) >= 0) && !(towerTapNear(e, phoneTouch) < mineHit.d)) { minePress(mineHit); return; }
   if (hero && hero.alive && Math.hypot(hero.x - v.x, hero.y - v.y) < 26 && !placing) {
     heroSelected = true;
     heroChoseAt = performance.now();
@@ -89327,14 +89356,104 @@ function runSelftestPlay() {
     armRally(t, false);
     if (rallyPress(t, t.x + getStats(t).range * 3, t.y, false)) fail("a press out of reach laid a charge");
     rallying = null;
-    // a wrecked store: its armed charge fires once and is spent; one arming does not arm; rebuilt, it lays them again
+    // a wrecked store: its armed charge fires once and is spent; one still arming goes on arming at a failing store's
+    // pace and can then be fired once too (3.4: "a wrecked store's laid charge can still be fired once"); rebuilt, it
+    // lays them again
     enemies = []; t.trigger = 0; t.mines[0].armT = 0; t.mines[1].armT = 5;
-    wreckTower(t); run(6);
-    if (mineArmed(t.mines[1])) fail("a wrecked store armed a charge");
+    wreckTower(t); run(2);
+    if (Math.abs(t.mines[1].armT - (5 - 2 * TRICK_RULES.tower.failing[1])) > 0.06) fail("a wrecked store's charge did not go on arming at a failing pace: " + t.mines[1].armT);
     const n0 = t.blasts;
     if (!mineFire(t, t.mines[0]) || t.blasts !== n0 + 1 || !t.mines[0].spent || mineFire(t, t.mines[0])) fail("a ruin's armed charge did not fire once");
+    run(5);
+    if (!mineFire(t, t.mines[1]) || !t.mines[1].spent || mineFire(t, t.mines[1]) || mineArmed(t.mines[1])) fail("a ruin's charge laid and arming did not fire once");
     t.wreck = false; towerInitHp(t); run(0.05);
     if (t.mines[0].spent || mineArmed(t.mines[0])) fail("the rebuilt store did not lay its charge again");
+  }));
+  check("mine: a save mid-wave keeps the horn's arming; a tower beside a marker keeps its press; the drums, damage and the shield guard; Fire spares an empty charge", guarded(() => {
+    wonTo(17, 2);
+    // (G7c review 1) the charge as the horn left it: arming 20 s at the horn, armed when the page is left mid-wave
+    stage("gyumri", 1); gold = 1e5;
+    const range = TOWER_DEFS.mine.levels[0].range;
+    const pads = PADS.map((p, j) => j).filter(j => padTakesRoad(j, range));
+    placeTower("mine", pads[0]);
+    const t = towerAt(pads[0]), m = t.mines[0];
+    t.trigger = 0; m.armT = 20;
+    startWave(); spawnQueue = []; enemies = []; mineFoe(m, "spearman", 400);
+    m.armT = 0;
+    placeTower("mine", pads[1]);
+    const u = towerAt(pads[1]);
+    u.mines[0].armT = 0; u.trigger = 5;
+    holdOnLeave(); paused = false;
+    const sv = JSON.parse(localStorage.getItem("hs_run")), rt = sv.towers.find(x => x.pad === t.pad), ru = sv.towers.find(x => x.pad === u.pad);
+    if (!rt || !rt.mine || rt.mine.arm[0] !== 20) fail("a save mid-wave kept the arming of now, not the horn's: " + JSON.stringify(rt && rt.mine));
+    if (!ru || !ru.mine || ru.mine.arm || ru.mine.trig !== 5) fail("a mine built since the horn: " + JSON.stringify(ru && ru.mine));
+    gameOver = true; resumeRun();
+    const T = towerAt(pads[0]), U = towerAt(pads[1]);
+    if (!T || Math.abs(T.mines[0].armT - 20) > 0.05) fail("the resumed charge's arming: " + (T && T.mines[0].armT));
+    if (!U || U.mines[0].armT !== getStats(U).arm || U.trigger !== 5) fail("a mine built since the horn did not lay its charge fresh: " + JSON.stringify(U && U.mines));
+    // (G7c review 2) a tower whose tap zone holds the press nearer than an armed marker's catch takes it; a press on the
+    // marker itself fires it. The charge is laid just under a ballista, half its catch from the ballista's center
+    stage("halidzor", 1); quiet(); gold = 1e5;
+    const bp = PADS.map((p, j) => j).find(j => !padTakesRoad(j, range)) ?? 0, mp = PADS.map((p, j) => j).find(j => j !== bp && padTakesRoad(j, range));
+    placeTower("ballista", bp); placeTower("mine", mp);
+    const B = towerAt(bp), M = towerAt(mp), c = M.mines[0], z = towerTapAxes(B, false);
+    c.armT = 0; M.trigger = 0;
+    const rx = Math.max(MINE_RULES.tap / Math.max(0.05, scale), 16 * Math.max(0.35, proj(B.x, B.y).s));
+    let spot = null;
+    for (let dy = 0; dy < 300 && !spot; dy += 0.5) {
+      const q = proj(B.x, B.y + dy), d = Math.hypot((z.x - q.x) / rx, (z.y - (q.y - 4 * q.s)) / rx);
+      if (d > 0.35 && d < 0.7) spot = { x: B.x, y: B.y + dy };
+    }
+    if (!spot) fail("no spot half a catch from the ballista");
+    else {
+      c.x = spot.x; c.y = spot.y;
+      const r = canvas.getBoundingClientRect(), cl = (x, y) => ({ clientX: r.left + offX + x * scale, clientY: r.top + offY + y * scale });
+      const press = (p, kind) => canvas.dispatchEvent(new PointerEvent("pointerdown", Object.assign({ bubbles: true, pointerType: kind }, p)));
+      hidePanel();
+      press(cl(z.x, z.y), "mouse");
+      if ((M.blasts || 0) || selected !== B) fail("a press on the ballista beside an armed marker went to the marker: blasts " + (M.blasts || 0) + ", chose " + (selected && selected.type));
+      hidePanel();
+      const q = proj(c.x, c.y);
+      press(cl(q.x, q.y - 4 * q.s), "mouse");
+      if (M.blasts !== 1 || selected) fail("a press on the marker beside a ballista did not fire it");
+      hidePanel();
+    }
+    // (G7c review 6) the drums quicken arming and add might to the blow; a damaged store arms slower; the blast knocks a
+    // shield guard aside
+    stage("gyumri", 1); quiet(); gold = 1e5;
+    const k = PADS.map((p, j) => j).filter(j => padTakesRoad(j, range))[0];
+    placeTower("mine", k);
+    const D0 = towerAt(k), dm = D0.mines[0], st = getStats(D0);
+    D0.trigger = 0;
+    const kd = PADS.map((p, j) => j).filter(j => j !== k && inGroundRange(PADS[j][0], PADS[j][1], D0.x, D0.y, TOWER_DEFS.drums.levels[0].range - 5))[0];
+    if (kd == null) fail("no pad for the drums beside the mine");
+    else {
+      placeTower("drums", kd);
+      run(0.1);
+      const haste = D0.buffHaste, might = D0.buffMight;
+      if (!(haste > 0 && might > 0)) fail("the drums gave the mine nothing: " + [haste, might]);
+      dm.armT = 10; run(2);
+      if (Math.abs(10 - dm.armT - 2 * (1 + haste)) > 0.06) fail("the drums did not quicken arming: " + dm.armT);
+      dm.armT = 0;
+      const f = mineFoe(dm, "spearman", 0), h0 = f.hp;
+      f.guardDrop = true; f.guard = "archer";
+      mineFire(D0, dm);
+      if (Math.abs(h0 - f.hp - armorHit(st.dmg * (1 + might), f.armor, false) * slotMult(f, "mine")) > 1) fail("the drums' might is not in the blow: " + (h0 - f.hp));
+      if (!(f.shieldDownT > st.stagger)) fail("the blast did not knock the shield guard aside: " + f.shieldDownT);
+      enemies = [];
+      towers = towers.filter(x => x.type !== "drums");
+      D0.hp = D0.maxHp * (TRICK_RULES.tower.battered[0] - 0.05);
+      dm.armT = 10; run(2);
+      const pace = towerPace(D0);
+      if (!(pace < 1) || Math.abs(10 - dm.armT - 2 * pace) > 0.06) fail("a damaged store did not arm slower: " + [pace, dm.armT]);
+    }
+    // (G7c review 11) Twin Fuses: Fire fires the armed charge with a foe over it and keeps the empty one armed
+    D0.level = 2; D0.spec = "b"; towerInitHp(D0); run(0.05);
+    enemies = [];
+    D0.mines.forEach(q => { q.armT = 0; });
+    mineFoe(D0.mines[1], "spearman", 0);
+    const nb = D0.blasts || 0;
+    if (!mineFireAll(D0) || D0.blasts !== nb + 1 || !mineArmed(D0.mines[0]) || mineArmed(D0.mines[1])) fail("Fire with Twin Fuses: " + JSON.stringify(D0.mines.map(q => q.armT)));
   }));
   check("mine: the one-time card on the chronicle; Gyumri Road's line; no claim on Halidzor", guarded(() => {
     localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
