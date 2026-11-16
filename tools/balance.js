@@ -132,9 +132,14 @@
 //     point in its reach that the most standing shooting towers reach (on a tie the one nearest the walls), set again
 //     after each purchase; while the ambush road is told and no shooting tower covers it, a post that reaches it
 //     stands there. "age" is the battlefield's special tower (none until G7: passed over, as is a kind no free pad
-//     takes). The report adds the posts' seconds of hold per 100 gold. The bot builds at most two watch towers of its
+//     takes). The report adds the posts' seconds of hold per 100 gold, and the Horse Lines' px thrown back per 100 gold.
+//     The bot builds at most two watch towers of its
 //     own for hidden scouts (G5: with the post in its order it found a road's last stretch no free pad watches and
 //     built a watch tower at every look)
+//   - Horse Lines (G7a, gameplay 5.4): "age" on Erebuni, Tushpa and Avarayr. The free pad whose reach holds the most road
+//     within 120 px downstream (toward the walls) of a standing fire or catapult, on a tie (or before either stands) the
+//     one whose reach holds the most road; two at most (the field's limit), then "age" is passed over. Masteries alternate
+//     as for any kind; the harriers build takes Harriers (BUILD_SPEC)
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -157,8 +162,9 @@ const BUILDS = {
   firemix:   ["ballista", "fire", "archer", "fire", "catapult", "drums"],
   // G5 (gameplay 5.2, 5.4): "post" is a Garrison Post, "age" the battlefield's special tower (skipped where it is not
   // offered or its limit is reached, as a kind is wherever no free pad takes it). mix7 is the mix with both in its
-  // order; posts and postdrum are the one-recipe builds that must lose. (agemix, harriers, greedy, bazaar and aid come
-  // with the special towers, G7: until then "age" is never offered and they would be posts or the mix again)
+  // order; posts and postdrum are the one-recipe builds that must lose. (greedy, bazaar and aid come with their special
+  // towers, G7b and G7d; agemix and harriers came with the Horse Lines, G7a. Where "age" is not offered they are posts,
+  // or fires and drums)
   // (the posts come ninth and last: put fourth they took the pad of a shooting tower the commanders needed, G5)
   mix7:      ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "catapult", "post", "archer", "fire",
               "age", "ballista", "drums", "catapult", "archer", "post"],
@@ -166,7 +172,13 @@ const BUILDS = {
   halfpost:  ["archer", "post", "ballista", "post", "catapult", "post", "fire", "post", "drums", "post", "archer", "post", "catapult", "post"],
   posts:     ["post"],
   postdrum:  ["post", "post", "post", "drums"],
+  // G7a (gameplay 5.2): agemix, the special tower on every second pad up to its limit and posts between; harriers, two
+  // Horse Lines at Harriers (BUILD_SPEC) with fires and drums, the board that tries to pin the column. Both must lose
+  agemix:    ["age", "post", "age", "post", "post", "post", "post", "post"],
+  harriers:  ["age", "fire", "age", "drums", "fire", "fire", "drums", "fire"],
 };
+// a build's own masteries, before SPEC= (a kind it names takes that mastery in every battle)
+const BUILD_SPEC = { harriers: "horse=b" };
 
 function parseList(s, all) {
   if (!s || s === "all") return all.slice();
@@ -332,7 +344,30 @@ function playBattle(a) {
   // the build's order: `placed` towers of it stand so far. A kind that cannot be built here (the special tower where
   // none is offered or at its limit, a post where no free pad has road in reach) is passed over
   let placed = 0;
-  const padFor = k => (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad).find(i => !towerAt(i));
+  // Horse Lines (G7a, gameplay 5.4): the free pad whose reach holds the most road within 120 px downstream (toward the
+  // walls) of a standing fire or catapult, so that a charge throws foes back into the kill zone; on a tie, or with no
+  // fire or catapult yet, the one whose reach holds the most road
+  const horseReach = TOWER_DEFS.horse && typeof padTakesRoad === "function" ? TOWER_DEFS.horse.levels[0].range : 0;
+  const rankHorse = () => {
+    const kill = towers.filter(t => !t.wreck && (t.type === "fire" || t.type === "catapult"));
+    const covered = (route, d) => {
+      for (let dd = 0; dd <= 120; dd += 10) {
+        if (d - dd < 0) break;
+        const q = routeAt(route, d - dd);
+        if (kill.some(t => inGroundRange(t.x, t.y, q.x, q.y, getStats(t).range))) return true;
+      }
+      return false;
+    };
+    // (the roads the column marches on now: a dormant ambush road or a track not yet open brings no one to charge)
+    const live = ri => ri !== amb && !(ROUTES[ri].track && !(LEVELS[curLevel].routeOpen || {})[ri]);
+    return PADS.map((p, i) => i).filter(i => !towerAt(i) && padTakesRoad(i, horseReach)).map(i => {
+      const S = postRoadIn(PADS[i][0], PADS[i][1], horseReach).filter(q => live(q.route));
+      let v = 0;
+      for (let j = 0; j < S.length; j += 2) if (covered(S[j].route, S[j].dist)) v++;
+      return { i, v, n: S.length };
+    }).filter(o => o.n > 0).sort((a, b) => b.v - a.v || b.n - a.n).map(o => o.i);
+  };
+  const padFor = k => (k === "horse" && horseReach ? rankHorse() : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
   const kindAt = j => {
     let k = plan[j % plan.length];
     if (k === "age") {
@@ -525,7 +560,7 @@ function playBattle(a) {
   for (const t of towers) {
     const k = t.type + (t.spec ? "." + t.spec : "");
     const o = by[k] || (by[k] = { n: 0, dmg: 0, gold: 0 });
-    o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t); o.hold = (o.hold || 0) + (t.holdS || 0);
+    o.n++; o.dmg += t.dmgDone || 0; o.gold += towerInvested(t); o.hold = (o.hold || 0) + (t.holdS || 0); o.thrown = (o.thrown || 0) + (t.thrown || 0);
   }
   // the lives each trick cost (the game books each leak once: hidden, a hunter, the ambush road, an adapted guard)
   const lost = DIFFS[diff].lives - Math.max(0, lives), T = tricked ? trickLeaks : { ambush: 0, hidden: 0, hunter: 0, adapted: 0 };
@@ -595,7 +630,7 @@ function playBattle(a) {
   for (const diff of diffs) for (const lv of levels) for (const b of builds) for (let s = 0; s < seeds; s++) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
-      spells, spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
+      spells, spec: BUILD_SPEC[b] ? BUILD_SPEC[b] + "," + spec : spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
       daily, twist, day });
   }
   const results = [];
@@ -692,12 +727,14 @@ function playBattle(a) {
     const agg = {};
     for (const r of results) if (r.diff === diff) for (const k in r.by) {
       const o = agg[k] || (agg[k] = { n: 0, dmg: 0, gold: 0 });
-      o.n += r.by[k].n; o.dmg += r.by[k].dmg; o.gold += r.by[k].gold; o.hold = (o.hold || 0) + (r.by[k].hold || 0);
+      o.n += r.by[k].n; o.dmg += r.by[k].dmg; o.gold += r.by[k].gold; o.hold = (o.hold || 0) + (r.by[k].hold || 0); o.thrown = (o.thrown || 0) + (r.by[k].thrown || 0);
     }
     const keys = Object.keys(agg).filter(k => agg[k].dmg > 0).sort();
     console.log("damage per 100 gold: " + keys.map(k => k + " " + Math.round(agg[k].dmg / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
     const holds = Object.keys(agg).filter(k => agg[k].hold > 0).sort();
     if (holds.length) console.log("seconds of hold per 100 gold: " + holds.map(k => k + " " + Math.round(agg[k].hold / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
+    const throws = Object.keys(agg).filter(k => agg[k].thrown > 0).sort();
+    if (throws.length) console.log("px thrown back per 100 gold: " + throws.map(k => k + " " + Math.round(agg[k].thrown / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
     // the tricks' toll on each battlefield's best build, and how often the enemy adapted to each build
     const bestOf = lv => {
       let best = null;
