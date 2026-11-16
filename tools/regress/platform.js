@@ -2948,7 +2948,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (!b || b.hid || b.dis) fail(W, what + ": the Share button is not live: " + JSON.stringify(b));
     if (st.side) {
       const pos = await g.ev(() => { const a = $("shareBtn").getBoundingClientRect(), c = $("boardBtn").getBoundingClientRect(), gr = $("ovGear").getBoundingClientRect(); return { right: Math.round(innerWidth - a.right), top: Math.round(a.top), gapBoard: Math.round(c.left - a.right), board: !$("boardBtn").hidden, gear: Math.round(gr.left - c.right) }; });
-      const sar = g.o.insets ? g.o.insets.r || 0 : 0;
+      const Cz = SIZES.find(z => z.key === g.o.key) || {}, sar = Cz.insets ? Cz.insets.r || 0 : 0;
       if (b.vis !== "hidden" && (pos.right !== 110 + sar || pos.top !== 8 || (pos.board && pos.gapBoard !== 6))) fail(W, what + ": the round Share button is not at right 110 px, top 8 px, left of Leaderboard: " + JSON.stringify(pos));
     }
     if (["ses", "i15h", "i15u"].includes(g.o.key)) {
@@ -3069,6 +3069,13 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await f9tap(g, W, shown);
     await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": a refused share did not open the sheet"));
     await g.ev(() => shClose());
+    // Settings' row leads to the same card on every layout (held sideways, the way there when a title hides the button)
+    if (shown) {
+      await f9stub(g, null);
+      await f9tap(g, W, false);
+      await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": Settings' Share row did not open the sheet"));
+      await g.ev(() => shClose());
+    }
     return c;
   };
   // the requests made since n: none but the platform's own calls to the stack's API (the strip's post, analytics)
