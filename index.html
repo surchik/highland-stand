@@ -2855,6 +2855,20 @@
   #statsPage .stWavesBars { flex: 1 1 auto; display: flex; align-items: flex-end; gap: 2px; height: 32px; border-bottom: 1px solid var(--bronze-sh); }
   #statsPage .stWave { flex: 1 1 0; min-width: 2px; background: var(--bronze); }
   #statsPage .stBtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+  /* the superadmin's Players view (P10): a wider page for its table, sortable heads, a name that opens the player */
+  #statsPage.stWide .stWrap { width: min(1520px, 100%); }
+  #statsPage .stToolsGap { flex: 0 0 12px; }
+  #statsPage .stSearch { width: min(240px, 100%); }
+  #statsPage .stSort { min-height: 44px; min-width: 44px; padding: 0; border: 0; background: none; color: var(--parch-dk); font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+    text-decoration: underline; text-decoration-color: rgba(234, 217, 176, .35); text-underline-offset: 3px; }
+  #statsPage th[aria-sort="ascending"] .stSort, #statsPage th[aria-sort="descending"] .stSort { color: var(--bronze-hi); }
+  #statsPage .stLink { min-height: 44px; min-width: 44px; padding: 0; border: 0; background: none; color: var(--bronze-hi); font: inherit; font-weight: 700; text-align: left; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px; }
+  #statsPage .stSub { display: block; font-size: 12.5px; color: var(--parch-dk); }
+  #statsPage .stPlayers td { vertical-align: top; }
+  #statsPage .stKv th { width: 1%; padding-right: 16px; }
+  #statsPage .stPager { justify-content: flex-start; }
+  #statsPage .stPageWords { font-size: 14px; }
   #statsPage .stField { min-height: 44px; width: min(260px, 100%); padding: 0 10px; border-radius: 8px; border: 2px solid var(--bronze-sh); background: #f6ecd2; color: #2c1e10;
     font: 600 16px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; user-select: text; -webkit-user-select: text; }
   @media (max-height: 500px), (max-width: 500px) {
@@ -3810,11 +3824,13 @@
     <p>Highland Stand is a free game made by <span class="pvFill" data-fill="name">[owner's name]</span>. Write to <span class="pvFill" data-fill="email">[contact email]</span> about anything on this page.</p>
     <h2>What we keep when you sign in</h2>
     <ul>
-      <li>Your account: the email address, name and picture address that Google, Facebook or Discord gives our server when you sign in. We need the email so the same person gets the same account. The game never shows your email, your real name or your picture, and we never write to you.</li>
+      <li>Your account: the email address, name and picture address that Google, Facebook or Discord gives our server when you sign in. We need the email so the same person gets the same account. The game never shows your email, your real name or your picture to other players, and we never write to you.</li>
       <li>A player name you choose. It is shown on the leaderboards.</li>
       <li>Your progress: the battlefields you have held, your stars, your War Council and heroes, and the battle you are in the middle of, with the kind of device that saved it last (for example "iPhone").</li>
       <li>Your scores.</li>
     </ul>
+    <h2>What the game's owner can see</h2>
+    <p>The game's owner can see a list of the players on a page only he can open. For each player it shows the email address, the name from Google, Facebook or Discord, the player name, the progress (the battlefields held, the stars, the heroes and the War Council), the battles played, the play time (time in battle and time on the page) and the kinds of devices used. Each time he opens it, that is written down. Nobody else can see this list.</p>
     <h2>What we count</h2>
     <p>We count what happens in the game: pages opened, battles begun, won and lost, towers built, and where players stop. Each count carries a random number kept in your browser, the kind of device (phone, tablet or desktop), its system and browser, whether the game was added to its Home Screen, the size of its window, your language, and the name of the site you came from. Once you sign in, your counts are tied to your account. We use them only to make the game better. Our counts do not include your IP address.</p>
     <h2>What the sign-in service and the web server record</h2>
@@ -81047,6 +81063,22 @@ function csNames() {
 function csFresh() { return { [RECORDS_KEY]: "{}", hs_chapters_seen: JSON.stringify([CHAPTERS[0].id]), hs_unlocked_seen: JSON.stringify([LEVELS[0].id]) }; }
 function csSynced(key) { return Cloud.ruleOf(CLOUD_KEYS, key) != null; }
 function csGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+// What the owner's Players view shows of a player's progress (P10): a summary added to each save the page sends, as
+// the game itself reads the records (the battlefields won on each difficulty, the stars, the furthest battlefield won,
+// each chapter's hero level, the Council's tiers). The server never reads the save's keys: it reads this, and only as
+// numbers and short tags. Each part is asked for apart, so a change in the game's own functions can cost a part of
+// the summary but never the save.
+function csSum() {
+  const sum = { v: 1 };
+  const part = (k, f) => { try { const v = f(); if (v != null) sum[k] = v; } catch (e) {} };
+  part("won", () => DIFFS.map((_, d) => LEVELS.filter((L, i) => levelConquered(i) && levelRecord(i).stars[d] > 0).length));
+  part("stars", () => starsEarned());
+  part("farN", () => { let n = 0; LEVELS.forEach((L, i) => { if (levelConquered(i)) n = i + 1; }); return n; });
+  if (sum.farN) part("far", () => levelId(sum.farN - 1));
+  part("heroes", () => { const h = {}; CHAPTERS.forEach((C, ch) => { h[C.id] = heroLevel(ch); }); return h; });
+  part("council", () => councilOwn());
+  return sum;
+}
 function csLocal() {
   const d = pfDev();
   return Cloud.local(csGet, csNames(), csState(), { now: pfNow(), dev: d.id, label: d.label, tok: (pfRead("hs_pf_run") || null) });
@@ -81251,7 +81283,8 @@ function csPush(keep) {
       const m = csMerge(CS.doc, false);
       if (!m) return false;
       if (i > 0 || !keep) csApply(m, CS.doc);
-      let data = m.doc, body = JSON.stringify(data);
+      // (with the progress summary the owner's Players view reads, P10)
+      let data = Object.assign({}, m.doc, { sum: csSum() }), body = JSON.stringify(data);
       // the page builds at most 200 KB: over that the battle is left out, and the owner hears of it (4.3)
       // (told once a load; a save still too big waits as a failed one does, so it is not tried every 2 s)
       if (body.length > 200 * 1024) {
@@ -82211,7 +82244,7 @@ const ST_STEPS = [["page_load", "Loaded the page"], ["gate_shown", "Saw the sign
   ["signed_in", "Signed in"], ["name_set", "Chose a name"], ["battle_start", "Began a battle"], ["tutorial_done", "Finished the tutorial"],
   ["wave_end", "Cleared a wave"], ["victory", "Won a battle"]];
 const ST_KINDS = [["new", "New devices"], ["returning", "Returning players (progress from before the accounts)"], ["inapp", "Arrivals in another app's browser"]];
-let stDays = 30, stData = null, stBusy = false;
+let stDays = 30, stData = null, stBusy = false, stSuper = false, stTab = "numbers", stSettings = null;
 const stNum = (v) => { const n = Number(v); return v != null && v !== "" && isFinite(n) ? n : null; };
 const stInt = (v) => { const n = stNum(v); return n == null ? "-" : Math.round(n).toLocaleString("en-US"); };
 const stPct = (a, b) => { const x = stNum(a), y = stNum(b); return x == null || !y ? "-" : Math.round(100 * x / y) + "%"; };
@@ -82248,9 +82281,10 @@ function stTable(into, head, rows) {
   into.appendChild(box);
 }
 function stLine(into, text, cls) { const p = pfEl("p", cls || "", text); into.appendChild(p); return p; }
-function stShell(title) {
+function stShell(title, wide) {
   const el = $("statsPage");
   el.hidden = false;
+  el.classList.toggle("stWide", !!wide);
   document.body.classList.add("statsUp");
   $("statsBack").href = location.pathname;
   $("statsTitle").textContent = title || "The game's numbers";
@@ -82293,9 +82327,12 @@ async function pfStatsLoad() {
   stBusy = true;
   stShell("The game's numbers");
   stLine($("statsBody"), "Counting...", "stWait");
-  const [r, sr] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
-    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 })]);
+  const [r, sr, pr] = await Promise.all([pfRpc("hs_stats", { p_days: stDays }, { auth: true, timeout: 35000 }),
+    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }), pfRpc("hs_profile_get", {}, { auth: true, timeout: 8000 })]);
+  // a superadmin (P10) also has the Players tab; the server says so, and asks for one again at every call of it
+  stSuper = !!(pr.ok && pr.data && pr.data.super === true);
   let data = r.ok && r.data && typeof r.data === "object" ? r.data : null;
+  if (!data && stSuper && r.code === "not_admin") { stBusy = false; stTab = "players"; pfPlayersLoad(); return; }
   if (!data && (r.code === "not_admin" || r.code === "no_session" || r.status === 401)) {
     stBusy = false;
     stShell("The game's numbers");
@@ -82329,13 +82366,17 @@ async function pfStatsLoad() {
     }
   }
   stData = data;
+  stSettings = sr.ok && sr.data && typeof sr.data === "object" ? sr.data : null;
   stBusy = false;
-  pfStatsDraw(data, sr.ok && sr.data && typeof sr.data === "object" ? sr.data : null);
+  if (stSuper && stTab === "players") { pfPlayersLoad(); return; }
+  stTab = "numbers";
+  pfStatsDraw(data, stSettings);
 }
 function pfStatsDraw(d, settings) {
   stShell("The game's numbers");
-  // the period switch
   const tools = $("statsTools");
+  stTabs(tools);
+  // the period switch
   tools.appendChild(pfEl("span", "stToolsWords", "Days:"));
   for (const n of [7, 30, 90]) {
     const b = pfBtn("btn stDay", String(n), () => { stDays = n; pfStatsLoad(); });
@@ -82548,6 +82589,243 @@ function stSwitches(cfg) {
     if (!(r.ok && r.data)) { out.textContent = "Not done. Try again."; return; }
     out.textContent = "Removed " + stInt(r.data.sessions_removed) + " visits." + (r.data.more ? " More are left: press again." : " None older are left.");
   }));
+}
+
+// ---- the superadmin's Players view (?stats, the tab Players; work package P10) ----
+// Every player of the game, with his email and names, as the owner asked (November 16). The list is sorted, searched
+// and paged by the server (hs_super_players), which asks for a superadmin at every call and writes down each look.
+// Like the rest of the stats page it puts every value on the page as text, and it keeps nothing of what it shows:
+// no email or name is written to this device's storage, a log or an event.
+const ST_PCOLS = [
+  ["name", "Name", "The player name chosen in the game. Under it, the name the sign-in provider gives, when it gives one."],
+  ["email", "Email", "The address the sign-in provider gave. It is shown only on this page."],
+  ["provider", "Sign-in", "The providers this account signed in with: Google, Facebook or Discord."],
+  ["first", "First seen", "The day the player chose a name, or his first signed-in visit if that came first."],
+  ["last", "Last seen", "The last event of his latest signed-in visit, or his last save."],
+  ["visits", "Visits", "Page loads while signed in, on this channel."],
+  ["page", "Time on page", "From his visits: each visit's length as the page told it when it was hidden or closed, or else the time between the visit's first and last event. At most 12 hours a visit."],
+  ["battle", "Battle clock", "From his battles' events: the battle clock (from the first wave's horn to the last foe's fall, waiting between waves included, pauses not) of every battle won or lost while signed in. A battle left unfinished adds nothing."],
+  ["won", "Won E / N / H", "Battlefields won on Easy, Normal and Hard, from his save."],
+  ["stars", "Stars", "Stars earned, of 68, from his save."],
+  ["far", "Furthest", "The furthest battlefield won, from his save."],
+  [null, "Heroes", "Each chapter's hero level, from 1 to 5, from his save."],
+  [null, "Council", "The War Council's tiers he owns, from his save."],
+  ["devices", "Devices", "How many browsers he signed in from, and their kinds."],
+];
+const stP = { sort: "last", desc: true, q: "", offset: 0, limit: 25, channel: HS_CHANNEL, busy: false };
+// the tabs of the stats page, for a superadmin
+function stTabs(tools) {
+  if (!stSuper) return;
+  for (const [id, label] of [["numbers", "Numbers"], ["players", "Players"]]) {
+    const b = pfBtn("btn stTab", label, () => {
+      if (stTab === id && id === "numbers") return;
+      stTab = id;
+      if (id === "players") { stP.offset = 0; pfPlayersLoad(); } else if (stData) pfStatsDraw(stData, stSettings); else pfStatsLoad();
+    });
+    b.dataset.tab = id;
+    b.setAttribute("aria-pressed", String(stTab === id));
+    tools.appendChild(b);
+  }
+  tools.appendChild(pfEl("span", "stToolsGap"));
+}
+const stWhen = (t, withTime) => {
+  const ms = Date.parse(t);
+  if (!t || !isFinite(ms)) return "-";
+  const d = new Date(ms);
+  return withTime ? d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+const stDur = (sec) => {
+  const n = stNum(sec);
+  if (n == null) return "-";
+  const m = Math.round(n / 60);
+  if (m < 60) return m + " min";
+  return Math.floor(m / 60).toLocaleString("en-US") + " h " + (m % 60) + " min";
+};
+const ST_PROV = { google: "Google", facebook: "Facebook", discord: "Discord" };
+const stProviders = (v) => (typeof v === "string" && v ? v.split(",").map(p => ST_PROV[p] || "other").join(", ") : "-");
+const stWon = (w) => (Array.isArray(w) && w.some(x => stNum(x) != null) ? w.slice(0, 3).map(x => (stNum(x) == null ? "-" : stInt(x))).join(" / ") : "-");
+function stHeroes(h, long) {
+  if (!h || typeof h !== "object") return long ? [] : "-";
+  const rows = CHAPTERS.filter(C => stNum(h[C.id]) != null).map(C => [long ? "Chapter " + C.num + ", " + C.name : C.num, "level " + stInt(h[C.id])]);
+  return long ? rows : rows.length ? rows.map(r => r[0] + " " + r[1].replace("level ", "")).join(", ") : "-";
+}
+function stCouncil(c, long) {
+  if (!c || typeof c !== "object") return long ? [] : "-";
+  const rows = COUNCIL.filter(B => (stNum(c[B.id]) || 0) > 0).map(B => [B.name, "tier " + stInt(c[B.id])]);
+  return long ? rows : rows.length ? rows.map(r => r[0] + " " + r[1].replace("tier ", "")).join(", ") : "none";
+}
+function stDevWords(r) {
+  const kinds = [...new Set(stList(r.devices).map(d => stText(d.dev)).filter(Boolean))];
+  return stInt(r.device_n) + (kinds.length ? ": " + kinds.join(", ") : "");
+}
+// a table of two columns: what, and its value
+function stKv(into, pairs) {
+  const box = pfEl("div", "stScroll"), t = pfEl("table", "stTable stKv"), tb = pfEl("tbody");
+  for (const [k, v] of pairs) { const tr = pfEl("tr"); tr.appendChild(pfEl("th", "", k)); tr.appendChild(pfEl("td", "", v)); tb.appendChild(tr); }
+  t.appendChild(tb); box.appendChild(t); into.appendChild(box);
+}
+// what a refused or failed call of the Players view leaves on the page
+function stPlayersFail(r, again) {
+  if (r.code === "not_superadmin") { stSuper = false; stTab = "numbers"; pfStatsLoad(); return; }
+  if (r.code === "no_session" || r.status === 401) { stShell("The game's numbers"); pfStatsSignin("You were signed out. Sign in again."); return; }
+  const c = stCard("No answer");
+  stLine(c, "The players did not come. The service may be down. Try again in a while.");
+  c.appendChild(pfBtn("btn", "Try again", () => again()));
+}
+async function pfPlayersLoad() {
+  if (stP.busy) return;
+  stP.busy = true;
+  stShell("Players", true);
+  stTabs($("statsTools"));
+  stLine($("statsBody"), "Looking...", "stWait");
+  const r = await pfRpc("hs_super_players", { p_sort: stP.sort, p_desc: stP.desc, p_q: stP.q || null, p_limit: stP.limit, p_offset: stP.offset, p_channel: stP.channel },
+    { auth: true, timeout: 35000 });
+  stP.busy = false;
+  if (stTab !== "players") return;
+  stShell("Players", true);
+  stTabs($("statsTools"));
+  if (!(r.ok && r.data && typeof r.data === "object")) { stPlayersFail(r, pfPlayersLoad); return; }
+  pfPlayersDraw(r.data);
+}
+function pfPlayersDraw(d) {
+  const tools = $("statsTools");
+  // the search: a game name, a provider's name or an email, case aside
+  const f = pfEl("input", "stField stSearch");
+  f.type = "search";
+  f.value = stP.q;
+  f.placeholder = "Name or email";
+  f.setAttribute("aria-label", "Search the players by name or email");
+  f.maxLength = 80;
+  const go = () => { stP.q = f.value.trim().slice(0, 80); stP.offset = 0; pfPlayersLoad(); };
+  f.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); go(); } });
+  tools.appendChild(f);
+  tools.appendChild(pfBtn("btn stFind", "Search", go));
+  if (stP.q) tools.appendChild(pfBtn("btn stClear", "Clear", () => { stP.q = ""; stP.offset = 0; pfPlayersLoad(); }));
+  for (const [ch, label] of [["live", "Live game"], ["next", "Staging"]]) {
+    const b = pfBtn("btn stChan", label, () => { stP.channel = ch; stP.offset = 0; pfPlayersLoad(); });
+    b.dataset.channel = ch;
+    b.setAttribute("aria-pressed", String(stP.channel === ch));
+    tools.appendChild(b);
+  }
+  tools.appendChild(pfBtn("btn stDay", "Refresh", () => pfPlayersLoad()));
+  const rows = stList(d.rows), total = stNum(d.total) || 0, from = stNum(d.offset) || 0;
+  const c = stCard("Players");
+  stLine(c, (stP.channel === "next" ? "The staging page's (/next/) visits and saves. " : "The live game's visits and saves. ")
+    + (stP.q ? "Players whose name or email holds \"" + stP.q + "\": " : "Every player: ") + stInt(total) + ".", "stSmall stCount");
+  if (!rows.length) stLine(c, stP.q ? "No player matches." : "No player has chosen a name yet.");
+  else {
+    const box = pfEl("div", "stScroll"), t = pfEl("table", "stTable stPlayers"), hr = pfEl("tr");
+    for (const [key, label, help] of ST_PCOLS) {
+      const th = pfEl("th");
+      th.title = help;
+      if (key) {
+        const on = stP.sort === key;
+        const b = pfBtn("stSort", label + (on ? (stP.desc ? " ▼" : " ▲") : ""), () => {
+          if (stP.sort === key) stP.desc = !stP.desc;
+          else { stP.sort = key; stP.desc = !["name", "email", "provider"].includes(key); }
+          stP.offset = 0;
+          pfPlayersLoad();
+        });
+        b.dataset.sort = key;
+        th.setAttribute("aria-sort", on ? (stP.desc ? "descending" : "ascending") : "none");
+        th.appendChild(b);
+      } else th.textContent = label;
+      hr.appendChild(th);
+    }
+    const th = pfEl("thead"); th.appendChild(hr); t.appendChild(th);
+    const tb = pfEl("tbody");
+    for (const r of rows) {
+      const tr = pfEl("tr");
+      tr.dataset.id = stText(r.id);
+      const name = pfEl("td", "stName");
+      const open = pfBtn("stLink", stText(r.name) || "-", () => pfPlayerOpen(String(r.id)));
+      name.appendChild(open);
+      const sub = [r.display_name ? stText(r.display_name) : "", r.super === true ? "superadmin" : r.admin === true ? "admin" : "", r.hidden === true ? "hidden from the boards" : ""].filter(Boolean);
+      if (sub.length) name.appendChild(pfEl("span", "stSub", sub.join(", ")));
+      tr.appendChild(name);
+      for (const v of [stText(r.email) || "-", stProviders(r.providers), stWhen(r.first), stWhen(r.last, true), stInt(r.visits), stDur(r.page_sec), stDur(r.battle_sec),
+        stWon(r.won), stNum(r.stars) == null ? "-" : stInt(r.stars), r.far ? stLevel(r.far) : "-", stHeroes(r.heroes), stCouncil(r.council), stDevWords(r)]) tr.appendChild(pfEl("td", "", v));
+      tb.appendChild(tr);
+    }
+    t.appendChild(tb); box.appendChild(t); c.appendChild(box);
+    // the pages
+    const pager = pfEl("div", "stBtns stPager");
+    const prev = pfBtn("btn stPrev", "Previous", () => { stP.offset = Math.max(0, from - stP.limit); pfPlayersLoad(); });
+    prev.disabled = from <= 0;
+    const next = pfBtn("btn stNext", "Next", () => { stP.offset = from + stP.limit; pfPlayersLoad(); });
+    next.disabled = from + rows.length >= total;
+    pager.appendChild(prev);
+    pager.appendChild(pfEl("span", "stPageWords", "Showing " + stInt(from + 1) + " to " + stInt(from + rows.length) + " of " + stInt(total)));
+    pager.appendChild(next);
+    c.appendChild(pager);
+  }
+  const h = stCard("About the columns");
+  for (const [, label, help] of ST_PCOLS) stLine(h, label + ": " + help, "stSmall");
+  stLine(h, "Opening this list or a player's page is written down on the server, with who opened it and when. A search's words are not kept.", "stSmall");
+}
+// one player's page
+async function pfPlayerOpen(id) {
+  if (stP.busy) return;
+  stP.busy = true;
+  stShell("Player", true);
+  stLine($("statsBody"), "Looking...", "stWait");
+  const r = await pfRpc("hs_super_player", { p_user: id, p_channel: stP.channel }, { auth: true, timeout: 35000 });
+  stP.busy = false;
+  stShell("Player", true);
+  const tools = $("statsTools");
+  stTabs(tools);
+  tools.appendChild(pfBtn("btn stBackList", "Back to the list", () => pfPlayersLoad()));
+  tools.appendChild(pfBtn("btn stDay", "Refresh", () => pfPlayerOpen(id)));
+  if (!(r.ok && r.data && typeof r.data === "object")) { stPlayersFail(r, () => pfPlayerOpen(id)); return; }
+  pfPlayerDraw(r.data);
+}
+function pfPlayerDraw(d) {
+  const p = d.player && typeof d.player === "object" ? d.player : null;
+  if (!p) { stLine(stCard("No such player"), "This account is not a player of the game, or it was deleted."); return; }
+  $("statsTitle").textContent = "Player: " + (stText(p.name) || "-");
+  const save = d.save && typeof d.save === "object" ? d.save : null;
+  const who = stCard("Who");
+  stKv(who, [["Game name", stText(p.name) || "-"], ["Provider's name", stText(p.display_name) || "-"], ["Email", stText(p.email) || "-"], ["Sign-in", stProviders(p.providers)],
+    ["Role", p.super === true ? "Superadmin" : p.admin === true ? "Admin" : "Player"], ["On the boards", p.hidden === true ? "Hidden" : "Shown"],
+    ["First seen", stWhen(p.first, true)], ["Last seen", stWhen(p.last, true)], ["Channel", d.channel === "next" ? "Staging (/next/)" : "Live game"]]);
+  const time = stCard("Play time");
+  stKv(time, [["Visits", stInt(p.visits)], ["Time on page", stDur(p.page_sec)], ["Battles won or lost", stInt(p.battles)], ["Battle clock", stDur(p.battle_sec)],
+    ["Ranked results", stInt(p.ranked)]]);
+  stLine(time, "Time on page: " + ST_PCOLS[6][2], "stSmall");
+  stLine(time, "Battle clock: " + ST_PCOLS[7][2], "stSmall");
+  const prog = stCard("Progress");
+  const won = Array.isArray(p.won) ? p.won : [];
+  stKv(prog, DIFFS.map((D, i) => ["Won on " + D.name, stNum(won[i]) == null ? "-" : stInt(won[i]) + " of " + LEVELS.length])
+    .concat([["Stars", stNum(p.stars) == null ? "-" : stInt(p.stars) + " of " + STARS_ALL], ["Furthest battlefield won", p.far ? stLevel(p.far) : "-"]],
+      stHeroes(p.heroes, true).map(r => ["Hero of " + r[0], r[1]]), stCouncil(p.council, true).map(r => ["Council: " + r[0], r[1]]),
+      [["Saved", save ? stWhen(save.updated_at, true) + (save.device ? ", from " + stText(save.device) : "") : "No save on this channel"]]));
+  if (!save || stNum(p.stars) == null) stLine(prog, "The progress comes from the summary a save of this build carries. A player whose last save is older, or who has none here, shows a dash.", "stSmall");
+  const bat = stCard("Battles");
+  const bl = stList(d.battles);
+  if (!bl.length) stLine(bat, "No battle won, lost or left while signed in.");
+  else stTable(bat, ["When", "Battlefield", "Difficulty", "Mode", "Ended", "Wave", "Defenders", "Stars", "Battle clock"], bl.map(b => [stWhen(b.at, true), stLevel(b.lv), stDiff(b.diff),
+    stText(b.mode) || "-", b.end === "victory" ? "Won" : b.end === "defeat" ? "Lost" : "Left",
+    b.end === "victory" ? stInt(b.waves) : stInt(b.wave) + (stNum(b.waves) != null ? " of " + stInt(b.waves) : ""),
+    stNum(b.lives) == null ? "-" : stInt(b.lives) + (stNum(b.lives_max) != null ? " of " + stInt(b.lives_max) : ""), stNum(b.stars) == null ? "-" : stInt(b.stars), stDur(b.sec)]));
+  stLine(bat, "From the events of his signed-in visits, the newest 50. Left: a battle he quit, or whose page closed, and did not come back to in that visit.", "stSmall");
+  const runs = stCard("Ranked runs");
+  const rl = stList(d.runs);
+  if (!rl.length) stLine(runs, "None yet. A ranked battle is kept here once the boards are on.");
+  else stTable(runs, ["Begun", "Battlefield", "Difficulty", "Mode", "Result", "Score", "Stars", "Defenders", "Battle clock", "Flags"], rl.map(x => [stWhen(x.at, true), stLevel(x.lv),
+    stDiff(x.diff), stText(x.mode) || "-", x.won === true ? "Won" : x.won === false ? "Lost" : "Not finished", stInt(x.score), stNum(x.stars) == null ? "-" : stInt(x.stars),
+    stInt(x.lives), stDur(x.sim_sec), Array.isArray(x.flags) && x.flags.length ? x.flags.map(stText).join(", ") : "-"]));
+  const vis = stCard("Recent visits");
+  const vl = stList(d.visits);
+  if (!vl.length) stLine(vis, "No signed-in visit on this channel.");
+  else stTable(vis, ["When", "Device", "System", "Browser", "Home Screen", "Window", "Build", "Events", "Time on page"], vl.map(v => [stWhen(v.at, true), stText(v.dev) || "-",
+    stText(v.os) || "-", stText(v.browser) || "-", v.standalone === true ? "yes" : "no", stNum(v.vw) != null ? stInt(v.vw) + " x " + stInt(v.vh) : "-", stText(v.build) || "-",
+    stInt(v.events), stDur(v.sec)]));
+  const dev = stCard("Devices");
+  const dl = stList(p.devices);
+  if (!dl.length) stLine(dev, "None.");
+  else stTable(dev, ["Device", "System", "Browser", "Home Screen", "Visits"], dl.map(x => [stText(x.dev) || "-", stText(x.os) || "-", stText(x.browser) || "-",
+    x.standalone === true ? "yes" : "no", stInt(x.visits)]));
 }
 
 // ---- the privacy page (?privacy, 8.1). Its words are static in the body; this only shows it ----

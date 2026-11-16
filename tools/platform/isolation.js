@@ -17,7 +17,11 @@
 // /rest/v1/<table>; the helpers not callable; a call without the profile headers finds nothing (public is the
 // default schema); a schema not served answers 406; the preflight lets the page's two headers through; and
 // "Delete my account" leaves the shared auth.users alone, and is refused to the player's own account in a password
-// session (migration 005), to service_role and to the visitor, the outsider's call removing no player's rows.
+// session (migration 005), to service_role and to the visitor, the outsider's call removing no player's rows. The
+// superadmin SA (P10, migration 006; made by the owner's command, run as postgres): the Players view refused to A,
+// B, the outsider, the admin who is not super, SA's account in a password session, the visitor and service_role,
+// and allowed to SA, each read audited; no other role's answer holds an email; the owner's two commands refused
+// through the API to every role.
 // Prints a FAIL line per broken rule and "RESULT isolation: N checks, F failed". Exit 0 only when nothing failed.
 "use strict";
 const stackLib = require("./stack");
@@ -30,6 +34,7 @@ const ATTACH = (ARGS.find(a => a.startsWith("--attach=")) || "").slice(9);
 const P = {
   A: "1a000000-0000-4000-8000-00000000000a", B: "1b000000-0000-4000-8000-00000000000b",
   O: "1c000000-0000-4000-8000-00000000000c", AD: "1d000000-0000-4000-8000-0000000000ad",
+  SA: "1e000000-0000-4000-8000-0000000005a0",   // the superadmin (P10): granted by the owner's command, as postgres
 };
 const DEVICE = { A: "2a000000-0000-4000-8000-00000000000a", B: "2b000000-0000-4000-8000-00000000000b", O: "2c000000-0000-4000-8000-00000000000c", V: "2e000000-0000-4000-8000-00000000000e" };
 const SCRIPT10 = [1, 2, 3, 5, 8, 10, 12, 15, 18, 20], SCRIPT12 = [1, 2, 3, 5, 8, 9, 10, 12, 14, 16, 18, 20];
@@ -45,6 +50,7 @@ const RULESET = "iso-1";
 const WIN = { won: true, lives: 18, waves: 10, sim_sec: 600, spent: 3000, earned: 4000, loadout: "std", build: "iso" };
 
 let total = 0, failed = 0;
+function eq2(a, b, what) { const x = JSON.stringify(a), y = JSON.stringify(b); ok(x === y, what + (x === y ? "" : " (got " + x + ", wanted " + y + ")")); }
 function ok(cond, what) {
   total++;
   if (cond !== true) { failed++; console.log("FAIL " + what); } else if (VERBOSE) console.log("  ok " + what);
@@ -83,10 +89,13 @@ function client(S) {
 async function ensureAccounts(S) {
   const c = await S.db.client(S.dbName || "hs", "supabase_admin");
   try {
-    for (const [k, prov] of [["A", "google"], ["B", "discord"], ["AD", "facebook"], ["O", "email"]]) {
-      await c.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now()) on conflict (id) do nothing", [P[k], "iso-" + k.toLowerCase() + "@example.com"]);
-      await c.query("insert into auth.identities (provider, provider_id, user_id, email) values ($1, $2, $3, $4) on conflict do nothing",
-        [prov, prov === "email" ? P[k] : "iso-" + k, P[k], "iso-" + k.toLowerCase() + "@example.com"]);
+    for (const [k, prov] of [["A", "google"], ["B", "discord"], ["AD", "facebook"], ["O", "email"], ["SA", "google"]]) {
+      // (a restored copy's accounts are stand-ins with ids only, since a dump never carries the shared auth.users:
+      // they get the fixture's made-up address back)
+      await c.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now()) on conflict (id) do update set email = excluded.email where auth.users.email is null",
+        [P[k], "iso-" + k.toLowerCase() + "@example.com"]);
+      await c.query("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ($1, $2, $3, $4, $5) on conflict do nothing",
+        [prov, prov === "email" ? P[k] : "iso-" + k, P[k], "iso-" + k.toLowerCase() + "@example.com", JSON.stringify({ full_name: "Iso Person " + k })]);
     }
   } finally { await c.end(); }
 }
@@ -96,12 +105,15 @@ async function populate(S, api) {
   const c = await S.db.client(S.dbName || "hs", "supabase_admin");
   try {
     if ((await c.query("select count(*)::int n from highland.hs_profiles where user_id = $1", [P.A])).rows[0].n) return false;
-    for (const [k, name] of [["A", "Aram Iso"], ["B", "Bagrat Iso"], ["AD", "Owner Iso"]]) {
+    for (const [k, name] of [["A", "Aram Iso"], ["B", "Bagrat Iso"], ["AD", "Owner Iso"], ["SA", "Super Iso"]]) {
       const r = await api.rpc(k, "hs_profile_set_name", { p_name: name, p_aid: DEVICE[k] || null });
       if (r.status !== 200) throw new Error("the fixture's name for " + k + ": " + JSON.stringify(r.body));
     }
     // the admin row is the owner's one line of SQL (the guide's step); the ruleset is published from the stats page
     await c.query("insert into highland.hs_admins (user_id, note) values ($1, 'the fixture') on conflict do nothing", [P.AD]);
+    // the superadmin is the owner's command, run as postgres through the tunnel (docs/specs/owner/superadmin.md)
+    const pg = await S.db.client(S.dbName || "hs", "postgres");
+    try { await pg.query("select highland.hs_grant_superadmin_by_email($1)", ["iso-sa@example.com"]); } finally { await pg.end(); }
     const pub = await api.rpc("AD", "hs_admin_publish_ruleset", { p_id: RULESET, p_data: RULES });
     if (pub.status !== 200) throw new Error("publish: " + JSON.stringify(pub.body));
     for (const k of ["A", "B"]) {
@@ -122,7 +134,7 @@ async function populate(S, api) {
 }
 
 const TABLES = ["hs_profiles", "hs_saves", "hs_rulesets", "hs_runs", "hs_scores", "hs_score_best", "hs_sessions", "hs_events", "hs_admins",
-  "hs_config", "hs_name_blocklist", "hs_rate", "schema_migrations"];
+  "hs_config", "hs_name_blocklist", "hs_rate", "schema_migrations", "hs_superadmins", "hs_super_audit"];
 const VIEWS = ["_v_sessions", "_v_first_seen", "_v_game_sessions", "_v_game_first_seen", "_v_battles"];
 const OPEN = { hs_config: {}, hs_track: { p_ctx: { aid: "2f000000-0000-4000-8000-00000000000f", sid: "iso-x-0001" }, p_events: [] },
   hs_board: { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: RULESET }, hs_daily_status: { p_ruleset: RULESET } };
@@ -130,7 +142,12 @@ const MEMBER = { hs_save_get: {}, hs_save_put: { p_expected: 0, p_data: { forged
   hs_score_submit: { p_run: "3f000000-0000-4000-8000-00000000000f", p_stats: WIN } };
 const ADMIN = { hs_stats: { p_days: 7 }, hs_admin_publish_ruleset: { p_id: "iso-forged", p_data: RULES }, hs_admin_set_config: { p_key: "notice", p_value: "forged" },
   hs_admin_moderate: { p_user: P.A, p_hidden: true }, hs_admin_remove_score: { p_score: 1 }, hs_admin_purge_events: { p_days: 9999 } };
-const HELPERS = ["_uid", "_member", "_is_admin", "_need_admin", "_now", "_uid_or_null", "_member_or_null", "_limit_hit"];
+// the superadmin's Players view (P10): only a superadmin in a game session; the owner's commands: nobody through the API
+const SUPER = { hs_super_players: { p_q: "iso", p_limit: 50 }, hs_super_player: { p_user: P.A } };
+const OWNER = { hs_grant_superadmin_by_email: { p_email: "iso-a@example.com" }, hs_revoke_superadmin_by_email: { p_email: "iso-sa@example.com" } };
+// (the helpers called with no arguments; those that take some, _super_rows and _account_by_email among them, are
+// held to the same rule by sql-tests.js, which looks at every function's grants)
+const HELPERS = ["_uid", "_member", "_is_admin", "_need_admin", "_now", "_uid_or_null", "_member_or_null", "_limit_hit", "_is_super", "_need_super", "_owner_only"];
 
 async function run(S) {
   const api = client(S);
@@ -254,6 +271,51 @@ async function run(S) {
       ok((await api.rpc("service", fn, ADMIN[fn])).status === 403, "service_role is refused " + fn);
     }
     ok((await api.rpc("AD", "hs_stats", ADMIN.hs_stats)).status === 200, "the admin reads the stats");
+    // the superadmin's Players view (P10): refused to a player, the outsider, the admin who is not super, the
+    // superadmin's own account signed in by password, the visitor and service_role; allowed to the superadmin, audited
+    const audits = async () => (await q("select count(*)::int n from highland.hs_super_audit where what in ('players', 'player')"))[0].n;
+    const au0 = await audits();
+    for (const fn of Object.keys(SUPER)) {
+      for (const who of ["A", "B", "O", "AD", "SA:password"]) {
+        const r = await api.rpc(who, fn, SUPER[fn]);
+        ok(r.status === 403 && r.code === "42501" && r.message === "not_superadmin", who + " is refused " + fn + ": not_superadmin (" + r.status + " " + r.message + ")");
+        ok(!JSON.stringify(r.body).includes("@"), "and the refusal carries no address");
+      }
+      const v = await api.rpc(null, fn, SUPER[fn]);
+      ok(v.status === 401 && v.code === "42501", "the visitor is refused " + fn + " (" + v.status + " " + v.message + ")");
+      const s = await api.rpc("service", fn, SUPER[fn]);
+      ok(s.status === 403 && s.code === "42501", "service_role is refused " + fn + " (" + s.status + " " + s.message + ")");
+    }
+    ok(await audits() === au0, "the refused calls left no audit row");
+    const list = await api.rpc("SA", "hs_super_players", SUPER.hs_super_players);
+    ok(list.status === 200 && Array.isArray(list.body.rows) && list.body.rows.some(r => r.id === P.A && r.email === "iso-a@example.com" && r.name === "Aram Iso" && r.display_name === "Iso Person A"),
+      "the superadmin reads the Players list: A's game name, email and provider's name (" + list.status + ")");
+    const players = (await q("select count(*)::int n from highland.hs_profiles"))[0].n;
+    ok(list.body.total === players && !JSON.stringify(list.body).includes("iso-o@example.com") && !list.body.rows.some(r => r.id === P.O),
+      "every player and only players: the outsider (another app's account) is not in it, nor his address (" + list.body.total + " of " + players + ")");
+    const one = await api.rpc("SA", "hs_super_player", SUPER.hs_super_player);
+    ok(one.status === 200 && one.body.player && one.body.player.email === "iso-a@example.com" && Array.isArray(one.body.visits), "and A's page");
+    const out = await api.rpc("SA", "hs_super_player", { p_user: P.O });
+    ok(out.status === 200 && out.body.player === null, "the outsider's page: nothing");
+    ok(await audits() === au0 + 3, "three reads, three audit rows");
+    eq2((await q("select who::text, what, player::text from highland.hs_super_audit where what in ('players', 'player') order by id desc limit 3")).map(r => r.who + " " + r.what + " " + r.player),
+      [P.SA + " player " + P.O, P.SA + " player " + P.A, P.SA + " players null"], "each names the superadmin, what he read and which player");
+    ok(!/@/.test(JSON.stringify(await q("select args from highland.hs_super_audit"))), "the audit keeps no address and no search words");
+    ok((await api.rpc("SA", "hs_profile_get", {})).body.super === true && (await api.rpc("AD", "hs_profile_get", {})).body.super === false
+      && (await api.rpc("A", "hs_profile_get", {})).body.super === false, "hs_profile_get says who is a superadmin (the superadmin, not the admin nor a player)");
+    // no other role's answer carries an email: the admin's stats, a player's own calls, the open ones
+    const otherAnswers = [await api.rpc("AD", "hs_stats", ADMIN.hs_stats), await api.rpc("A", "hs_profile_get", {}), await api.rpc("A", "hs_save_get", {}), await api.rpc("AD", "hs_board", OPEN.hs_board),
+      await api.rpc(null, "hs_config", {}), await api.rpc("O", "hs_profile_get", {}), await api.rpc(null, "hs_daily_status", OPEN.hs_daily_status)];
+    ok(otherAnswers.every(r => r.status === 200 && !/@example\.com/.test(JSON.stringify(r.body))), "no other role's answer holds an email (the admin's stats, a player's, the outsider's, a visitor's)");
+    // the owner's two commands: through the API, refused to every role
+    for (const fn of Object.keys(OWNER)) {
+      for (const [who, label] of [[null, "anon"], ["A", "authenticated (a player)"], ["SA", "authenticated (the superadmin)"], ["service", "service_role"]]) {
+        const r = await api.rpc(who, fn, OWNER[fn]);
+        ok([401, 403].includes(r.status) && r.code === "42501", label + " cannot run " + fn + " through the API (" + r.status + " " + r.message + ")");
+      }
+    }
+    ok((await q("select count(*)::int n from highland.hs_superadmins where user_id = $1", [P.A]))[0].n === 0 && (await q("select count(*)::int n from highland.hs_superadmins where user_id = $1", [P.SA]))[0].n === 1,
+      "nobody was made or unmade a superadmin through the API");
     ok((await q("select hidden from highland.hs_profiles where user_id = $1", [P.A]))[0].hidden === false, "nobody hid A");
     ok((await q("select count(*)::int n from highland.hs_rulesets where id = 'iso-forged'"))[0].n === 0, "nobody published a forged ruleset");
     // the open functions: the outsider's answer is a visitor's
@@ -268,14 +330,14 @@ async function run(S) {
     for (const [who, label, want] of [[null, "anon", 401], ["A", "authenticated", 403], ["service", "service_role", 403]]) {
       for (const t of TABLES.concat(VIEWS)) {
         const filt = { hs_sessions: "?uid=eq." + P.A, hs_rulesets: "?id=eq." + RULESET, hs_events: "?seq=eq.1", hs_config: "?key=eq.ev_cap_hour",
-          hs_name_blocklist: "?pattern=eq.admin", hs_rate: "?key=eq." + P.A, schema_migrations: "?version=eq.1" }[t] || "?user_id=eq." + P.A;
+          hs_name_blocklist: "?pattern=eq.admin", hs_rate: "?key=eq." + P.A, schema_migrations: "?version=eq.1", hs_super_audit: "?what=eq.players" }[t] || "?user_id=eq." + P.A;
         const g = await api.call("GET", "/rest/v1/" + t + "?select=*", { who });
         ok(g.status === want && g.code === "42501", label + ": GET /rest/v1/" + t + " refused " + want + " (" + g.status + " " + g.message + ")");
         if (VIEWS.includes(t)) continue;
         const ins = await api.call("POST", "/rest/v1/" + t, { who, body: t === "hs_admins" ? { user_id: P.B } : t === "hs_config" ? { key: "notice", value: { forged: true } } : {} });
         ok(ins.status === want && ins.code === "42501", label + ": POST /rest/v1/" + t + " refused (" + ins.status + " " + ins.message + ")");
         const col = { hs_profiles: "hidden", hs_saves: "device", hs_rulesets: "active", hs_runs: "twist", hs_scores: "build", hs_score_best: "lives", hs_sessions: "build", hs_events: "name",
-          hs_admins: "note", hs_config: "value", hs_name_blocklist: "kind", hs_rate: "n", schema_migrations: "name" }[t];
+          hs_admins: "note", hs_config: "value", hs_name_blocklist: "kind", hs_rate: "n", schema_migrations: "name", hs_superadmins: "note", hs_super_audit: "what" }[t];
         const val = { hs_profiles: true, hs_rulesets: false, hs_score_best: 1, hs_rate: 0, hs_config: { forged: true }, hs_name_blocklist: "exact" }[t] ?? "x";
         const pa = await api.call("PATCH", "/rest/v1/" + t + filt, { who, body: { [col]: val } });
         ok(pa.status === want && pa.code === "42501", label + ": PATCH /rest/v1/" + t + filt + " refused (" + pa.status + " " + pa.message + ")");

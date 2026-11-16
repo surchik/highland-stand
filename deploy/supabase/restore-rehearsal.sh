@@ -18,9 +18,9 @@
 #     (the dump does not carry auth.users, and on the shared server it must never be dumped: it is every app's);
 #     then the keys, indexes, policies and grants.
 #  5. What the restore granted is measured (the default privileges of the database it lands in can widen it), then
-#     the lockdown and 003's grants are applied again (node tools/platform/migrate.js regrant).
+#     the lockdown, 003's grants and the later grants files are applied again (node tools/platform/migrate.js regrant).
 #  6. The checks: the bookkeeping matches the migrations on disk; search_path pinned on every function; row level
-#     security on, with a policy, on every table; exactly the grants of 003; nothing relied on in role settings, in
+#     security on, with a policy, on every table; exactly the grants of 003 and 006; nothing relied on in role settings, in
 #     a database setting or in pg_cron; nothing of the game outside highland.
 #  7. The isolation tests (tools/platform/isolation.js) against the restored copy, through the stand-in for
 #     PostgREST.
@@ -124,8 +124,8 @@ n=$(val "select count(*) from pg_class c where c.relnamespace = 'highland'::regn
 [ "$n" = 0 ] && ok "6. every view still reads with its caller's rights" || bad "6. $n views lost security_invoker"
 g=$(val "select string_agg(x, ' ' order by x) from (select p.proname || ':' || r.role as x from pg_proc p, (values ('anon'), ('authenticated'), ('service_role')) r(role)
   where p.pronamespace = 'highland'::regnamespace and has_function_privilege(r.role, p.oid, 'execute')) q")
-want="hs_admin_moderate:authenticated hs_admin_publish_ruleset:authenticated hs_admin_purge_events:authenticated hs_admin_remove_score:authenticated hs_admin_set_config:authenticated hs_board:anon hs_board:authenticated hs_config:anon hs_config:authenticated hs_daily_status:anon hs_daily_status:authenticated hs_delete_account:authenticated hs_profile_get:authenticated hs_profile_set_name:authenticated hs_run_begin:authenticated hs_save_get:authenticated hs_save_put:authenticated hs_score_submit:authenticated hs_stats:authenticated hs_track:anon hs_track:authenticated"
-[ "$g" = "$want" ] && ok "6. exactly 003's grants on functions (21: 4 open to anon and authenticated, 13 to authenticated, none to service_role, no helper)" || bad "6. the function grants differ: $g"
+want="hs_admin_moderate:authenticated hs_admin_publish_ruleset:authenticated hs_admin_purge_events:authenticated hs_admin_remove_score:authenticated hs_admin_set_config:authenticated hs_board:anon hs_board:authenticated hs_config:anon hs_config:authenticated hs_daily_status:anon hs_daily_status:authenticated hs_delete_account:authenticated hs_profile_get:authenticated hs_profile_set_name:authenticated hs_run_begin:authenticated hs_save_get:authenticated hs_save_put:authenticated hs_score_submit:authenticated hs_stats:authenticated hs_super_player:authenticated hs_super_players:authenticated hs_track:anon hs_track:authenticated"
+[ "$g" = "$want" ] && ok "6. exactly the grants of 003 and 006 on functions (23: 4 open to anon and authenticated, 13 and the Players view's 2 to authenticated, none to service_role, no helper, not the owner's two commands)" || bad "6. the function grants differ: $g"
 n=$(val "select count(*) from pg_class c, (values ('anon'), ('authenticated'), ('service_role')) r(role) where c.relnamespace = 'highland'::regnamespace and c.relkind in ('r', 'v', 'S')
   and (has_table_privilege(r.role, c.oid, 'select') or has_table_privilege(r.role, c.oid, 'insert') or has_table_privilege(r.role, c.oid, 'update') or has_table_privilege(r.role, c.oid, 'delete'))")
 [ "$n" = 0 ] && ok "6. no table, view or sequence granted to an API role" || bad "6. $n table privileges held by API roles"

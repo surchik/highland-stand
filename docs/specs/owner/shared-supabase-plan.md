@@ -27,7 +27,11 @@ in a Google, Facebook or Discord account PathStream has never seen and keeps the
 | --- | --- | --- |
 | `node tools/platform/migrate.js up --dsn="$HS_DB_URL"` | `pg_dump "$HS_DB_URL" -n highland -Fc -f highland-$(date +%Y%m%d-%H%M%S).dump` (nothing to copy the very first time) | `node tools/platform/migrate.js down 0 --dsn="$HS_DB_URL" --yes` (removes the schema `highland` and all its data, nothing else) |
 
-Check: `migrate.js status` says `highland at 5 of 5`; `select highland.hs_config();` answers with `"now"`.
+Check: `migrate.js status` says `highland at 6 of 6`; `select highland.hs_config();` answers with `"now"`.
+
+Migration 006 (P10, the superadmin's Players view) adds two tables and the Players view's functions inside
+`highland` only. Its rollback alone: `node tools/platform/migrate.js down 5 --dsn="$HS_DB_URL" --yes` (removes the
+superadmin and the audit rows, nothing else).
 
 ## 3. The shared changes: each one needs the owner's yes, alone, at the time
 
@@ -66,6 +70,11 @@ schema or grants.
 - [ ] Send the builder the public address and the anon key: the only two values that go into the page.
 - [ ] Sign in on `https://highland.avunjian.com/next/`, choose a name, then through the tunnel:
       `insert into highland.hs_admins (user_id) select id from auth.users where email = 'you@example.com';`
+- [ ] The superadmin (the Players view on `?stats`), when you want it: signed in to the game under your address
+      with Google, Facebook or Discord, then through the tunnel, as `postgres`, your address in place of
+      `THE_ADDRESS`: `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');` (it makes you an admin too, so
+      the line above is then not needed). To undo it: `select highland.hs_revoke_superadmin_by_email('THE_ADDRESS');`.
+      Type the address only there, never in a file. The whole page: `docs/specs/owner/superadmin.md`.
 - [ ] The nightly backup of `highland` alone (guide, step 2); a restore rehearsed on a computer with
       `bash deploy/supabase/restore-rehearsal.sh highland-THE_TIME.dump`.
 

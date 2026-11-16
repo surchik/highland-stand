@@ -10,7 +10,7 @@
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
 // The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
-// P8: privacy, deletion and staging):
+// P8: privacy, deletion and staging; P10: the superadmin's Players view):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
 //      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
@@ -97,6 +97,15 @@
 //   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
 //      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
 //      there has its own save; /next/ again has its session and its progress
+//   15 the superadmin's Players view (P10): thirty players made through the game's own functions and an outsider of
+//      another app; the owner signs in on ?stats (closed to him), is made superadmin by the owner's command run as
+//      postgres on the stack's own connection, and gets the tabs Numbers and Players; the list shows 25 of the 30
+//      with every column (the time columns' help says where each comes from), each player's email and the
+//      provider's name, and neither the outsider nor the owner (no player); sorted by name both ways and by battle
+//      clock; searched by email, by the provider's name, and for the outsider (nothing); the second page and back;
+//      a player's page with its seven parts; one audit row a read, all the superadmin's, the grant there too, no
+//      address or search words in it; nothing of it in the device's storage; after the revoke the page is closed
+//      again, and as an admin who is not super there is no tab, no email, and the list by hand answers not_superadmin
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
 // photographed (and the privacy page, ?privacy#delete, and the deletion's question, failure and end). Every request
@@ -118,7 +127,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", "1,2,3,4,5,6,10,11,13,14")).split(",");
+const FLOWS = (opt("flows", "1,2,3,4,5,6,10,11,13,14,15")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -321,7 +330,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       backs: ["privacyBack", "privacyBack2"].map(id => ($(id) || {}).getAttribute && $(id).getAttribute("href")), sound: typeof Snd !== "undefined" && Snd.ctx ? Snd.ctx.state : "none" }));
     if (pv.gate || !/Privacy/.test(pv.text)) fail(W, "the privacy page: " + JSON.stringify(pv).slice(0, 200));
     // (P8) the whole page of 8.1: each of its parts, and the deletion part the providers link to
-    for (const h of ["What we keep when you sign in", "What we count", "What the sign-in service and the web server record", "What we do not do", "Where it is kept", "How long",
+    for (const h of ["What we keep when you sign in", "What the game's owner can see", "each player it shows the email address", "What we count", "What the sign-in service and the web server record", "What we do not do", "Where it is kept", "How long",
       "How to delete your data", "Children", "Changes", "Delete my account", "kept by the sign-in service", "13 and older", "Authorized Apps"]) if (!pv.text.includes(h)) fail(W, "the privacy page has no \"" + h + "\"");
     if (!pv.del) fail(W, "the privacy page has no #delete part");
     if (pv.backs.some(h => h !== "/")) fail(W, "the privacy page's ways back go to " + pv.backs.join(", "));
@@ -2124,7 +2133,165 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(g, W);
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
+  // ================================================================ flow 15: the superadmin's Players view (P10)
+  const flow15 = async (C) => {
+    const W = "flow 15 " + C.name;
+    await resetStack();
+    // thirty players, made through the game's own functions with tokens as the stack's sign-in signs them (a game
+    // session), each with a save carrying the page's summary and a signed-in visit; and an outsider (another app's
+    // email account, no profile). Every address is a made-up one on example.com
+    const NAMES = ["Aram", "Ani", "Arpi", "Ashot", "Bagrat", "Davit", "Erato", "Gor", "Hayk", "Hrant", "Karen", "Lilit", "Mane", "Mher", "Narek", "Nare", "Oshin",
+      "Rafi", "Saro", "Sona", "Tigran", "Vahe", "Vard", "Zara", "Arev", "Anahit", "Artak", "Garnik", "Levon", "Mariam"];
+    const N = NAMES.length, sec = () => Math.floor(Date.now() / 1000);
+    const tok = (uid) => S.sign({ aud: "authenticated", sub: uid, role: "authenticated", iat: sec(), exp: sec() + 3600, is_anonymous: false, amr: [{ method: "oauth", timestamp: sec() }] });
+    const rpcAs = async (uid, fn, body) => {
+      const r = await fetch(API + "/rest/v1/rpc/" + fn, { method: "POST", body: JSON.stringify(body), headers: { apikey: S.anonKey, Authorization: "Bearer " + (uid ? tok(uid) : S.anonKey),
+        "Content-Type": "application/json", "Accept-Profile": "highland", "Content-Profile": "highland" } });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    };
+    const su = await S.db.client("hs", "supabase_admin");
+    const uidOf = (i) => "5f000000-0000-4000-8000-" + String(i + 1).padStart(12, "0");
+    const mailOf = (i) => "p10-player-" + (i + 1) + "@example.com";
+    let g;
+    try {
+      g = await open(C, { path: "/?stats" });
+      const ids = await g.ev(() => LEVELS.map(L => L.id));
+      for (let i = 0; i < N; i++) {
+        const prov = ["google", "facebook", "discord"][i % 3];
+        await su.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now())", [uidOf(i), mailOf(i)]);
+        await su.query("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ($1, $2, $3, $4, $5)",
+          [prov, "p10-" + i, uidOf(i), mailOf(i), JSON.stringify({ full_name: NAMES[i] + " Person" })]);
+        const nm = await rpcAs(uidOf(i), "hs_profile_set_name", { p_name: NAMES[i] });
+        if (nm.status !== 200) throw new Error("the name of player " + i + ": " + JSON.stringify(nm.body));
+        await rpcAs(uidOf(i), "hs_save_put", { p_expected: 0, p_device: "iPhone", p_data: { v: 1, keys: {}, sum: { v: 1, won: [i % 5, i % 4, i % 2], stars: i, farN: 1 + (i % 17),
+          far: ids[i % 17], heroes: { kingdoms: 1 + (i % 5) }, council: { bows: i % 3 } } } });
+        const aid = "5e000000-0000-4000-8000-" + String(i + 1).padStart(12, "0");
+        await rpcAs(uidOf(i), "hs_track", { p_ctx: { aid, sid: "p10-visit-" + i, dev: i % 2 ? "desktop" : "phone", os: i % 2 ? "windows" : "ios", browser: i % 2 ? "chrome" : "safari", channel: "live" },
+          p_events: [{ n: "page_load", q: 1 }, { n: "victory", q: 2, p: { lv: ids[i % 17], diff: 1, mode: "campaign", lives: 15, lives_max: 20, waves: 10, stars: 2, sec: 60 * (i + 1) } },
+            { n: "page_hide", q: 3, p: { where: "victory", sec: 120 * (i + 1) } }] });
+      }
+      await su.query("insert into auth.users (id, email, email_confirmed_at) values ('5f000000-0000-4000-8000-0000000000ff', 'p10-outsider@example.com', now())");
+      await su.query("insert into auth.identities (provider, provider_id, user_id, email) values ('email', '5f000000-0000-4000-8000-0000000000ff', '5f000000-0000-4000-8000-0000000000ff', 'p10-outsider@example.com')");
+      // the owner signs in on ?stats with Google: not yet an admin, the page is closed to him
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !!document.querySelector('#statsPage .gateBtn[data-p="google"]'), null, { timeout: 30000 });
+      await S.control("provider", { identity: { provider_id: "p10-owner-" + C.key, email: "p10-owner@example.com", verified: true, name: "Owner Person" } });
+      await pressStats(g, '#statsPage .gateBtn[data-p="google"]');
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !$("statsPage").hidden && /owner/.test($("statsBody").innerText), null, { timeout: 30000 });
+      if (!/This page is for the game's owner\./.test(await g.ev(() => $("statsBody").innerText))) fail(W, "before the grant: " + await g.ev(() => $("statsBody").innerText.slice(0, 120)));
+      const owner = (await S.query("select id::text from auth.users where email = 'p10-owner@example.com'"))[0].id;
+      // the grant, as the owner runs it: as postgres, on the database itself (here the stack's own connection)
+      const said = (await S.control("superadmin", { email: "P10-Owner@example.com" })).said;
+      if (!said.includes(owner) || /@/.test(said)) fail(W, "the grant's answer: " + said);
+      await g.page.goto(SITE + "/?stats");
+      await statsUp(g);
+      const tabs = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stTab")).map(b => b.dataset.tab + ":" + b.getAttribute("aria-pressed")));
+      if (tabs.join() !== "numbers:true,players:false") fail(W, "the superadmin's tabs: " + tabs.join());
+      // the Players tab
+      const listUp = () => g.page.waitForFunction(() => typeof stP !== "undefined" && !stP.busy && !!document.querySelector("#statsPage .stCount"), null, { timeout: 40000 });
+      const rows = () => g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers tbody tr")).map(tr => Array.from(tr.children).map(td => td.innerText.replace(/\s+/g, " ").trim())));
+      const count = () => g.ev(() => document.querySelector("#statsPage .stCount").textContent);
+      const pages = () => g.ev(() => { const e = document.querySelector("#statsPage .stPageWords"); return e ? e.textContent : ""; });
+      await pressStats(g, '#statsPage .stTab[data-tab="players"]');
+      await listUp();
+      let r = await rows();
+      if (r.length !== 25 || !/Every player: 30\./.test(await count())) fail(W, "the list: " + r.length + " rows, " + await count());
+      const heads = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers thead th")).map(th => th.innerText.replace(/[▲▼]/g, "").trim()));
+      for (const h of ["Name", "Email", "Sign-in", "First seen", "Last seen", "Visits", "Time on page", "Battle clock", "Won E / N / H", "Stars", "Furthest", "Heroes", "Council", "Devices"])
+        if (!heads.includes(h)) fail(W, "no column " + h + ": " + heads.join(", "));
+      const helps = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers thead th")).map(th => th.title));
+      if (!/page_hide|hidden or closed/.test(helps[6]) || !/battle clock/.test(helps[7]) || !/events/.test(helps[7]) || !/visits/.test(helps[6])) fail(W, "the time columns' help: " + helps.slice(6, 8).join(" | "));
+      const emailCol = r.map(x => x[1]);
+      if (!emailCol.every(e => /^p10-player-\d+@example\.com$/.test(e))) fail(W, "the email column: " + emailCol.slice(0, 3).join(", "));
+      const text0 = await g.ev(() => $("statsPage").innerText);
+      if (/p10-outsider|p10-owner/.test(text0)) fail(W, "another app's account, or the owner who is no player, is in the list");
+      if (!/Person/.test(r[0][0])) fail(W, "the name column lacks the provider's name: " + r[0][0]);
+      await audit(g, W + " players", { root: "#statsPage", parts: ["#statsPage .stWrap"], primary: ["#statsBack"], primaryRequired: true, scroll: "page" }, "p10-players-" + C.key);
+      // sorted by name, A to Z, and again Z to A
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      const lower = (a) => a.map(x => x[0].split(" ")[0].toLowerCase());
+      let nm = lower(await rows());
+      if (nm.join() !== NAMES.map(x => x.toLowerCase()).sort().slice(0, 25).join()) fail(W, "sorted by name: " + nm.slice(0, 5).join(", "));
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      nm = lower(await rows());
+      if (nm.join() !== NAMES.map(x => x.toLowerCase()).sort().reverse().slice(0, 25).join()) fail(W, "sorted by name, Z to A: " + nm.slice(0, 5).join(", "));
+      // by battle clock, the most first
+      await pressStats(g, '#statsPage .stSort[data-sort="battle"]');
+      await listUp();
+      r = await rows();
+      if (r[0][0].split(" ")[0] !== NAMES[N - 1] || r[0][7] !== "30 min") fail(W, "sorted by battle clock: " + r[0].slice(0, 8).join(" | "));
+      // a search by email, by the provider's name; then cleared
+      await g.page.fill("#statsPage .stSearch", "PLAYER-17@example");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      r = await rows();
+      if (r.length !== 1 || r[0][1] !== mailOf(16)) fail(W, "a search by email: " + JSON.stringify(r.map(x => x[1])));
+      await g.page.fill("#statsPage .stSearch", "lilit person");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      r = await rows();
+      if (r.length !== 1 || !/^Lilit/.test(r[0][0])) fail(W, "a search by the provider's name: " + JSON.stringify(r.map(x => x[0])));
+      await g.page.fill("#statsPage .stSearch", "p10-outsider");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      if ((await rows()).length !== 0 || !/No player matches/.test(await g.ev(() => $("statsBody").innerText))) fail(W, "a search for another app's account found someone");
+      await pressStats(g, "#statsPage .stClear");
+      await listUp();
+      // the pages, sorted by name
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      if (await g.ev(() => stP.desc)) { await pressStats(g, '#statsPage .stSort[data-sort="name"]'); await listUp(); }
+      if ((await pages()) !== "Showing 1 to 25 of 30") fail(W, "the first page: " + await pages());
+      await pressStats(g, "#statsPage .stNext");
+      await listUp();
+      r = await rows();
+      if ((await pages()) !== "Showing 26 to 30 of 30" || r.length !== 5 || lower(r).join() !== NAMES.map(x => x.toLowerCase()).sort().slice(25).join()) fail(W, "the second page: " + await pages() + " " + lower(r).join());
+      if (!(await g.ev(() => document.querySelector("#statsPage .stNext").disabled))) fail(W, "Next is still on, on the last page");
+      await pressStats(g, "#statsPage .stPrev");
+      await listUp();
+      if ((await pages()) !== "Showing 1 to 25 of 30") fail(W, "back to the first page: " + await pages());
+      // a player's page
+      const first = (await rows())[0][0].split(" ")[0], fi = NAMES.indexOf(first);
+      await pressStats(g, "#statsPage .stPlayers tbody tr:first-child .stLink");
+      await g.page.waitForFunction(() => !stP.busy && /^Player: /.test($("statsTitle").textContent), null, { timeout: 40000 });
+      const pp = await g.ev(() => ({ title: $("statsTitle").textContent, cards: Array.from(document.querySelectorAll("#statsPage .stCard h2")).map(h => h.textContent), text: $("statsBody").innerText }));
+      if (pp.title !== "Player: " + first) fail(W, "the player's page title: " + pp.title);
+      for (const h of ["Who", "Play time", "Progress", "Battles", "Ranked runs", "Recent visits", "Devices"]) if (!pp.cards.includes(h)) fail(W, "the player's page lacks " + h + ": " + pp.cards.join(", "));
+      if (!pp.text.includes(mailOf(fi)) || !pp.text.includes(first + " Person") || !/Won/.test(pp.text) || !pp.text.includes((fi + 1) * 2 + " min")) fail(W, "the player's page: " + pp.text.slice(0, 300));
+      await audit(g, W + " player", { root: "#statsPage", parts: ["#statsPage .stWrap"], primary: ["#statsBack"], primaryRequired: true, scroll: "page" }, "p10-player-" + C.key);
+      await pressStats(g, "#statsPage .stBackList");
+      await listUp();
+      // the audit: one row a read, the superadmin's, never an address or a search's words
+      const reads = g.reqs.filter(u => /\/rpc\/hs_super_player(s)?$/.test(u)).length;
+      const au = await S.query("select who::text, what, player::text, args from highland.hs_super_audit order by id");
+      const mine = au.filter(x => x.what === "players" || x.what === "player");
+      if (mine.length !== reads || !mine.every(x => x.who === owner)) fail(W, "the audit: " + mine.length + " rows for " + reads + " reads (" + JSON.stringify(mine.slice(-2)) + ")");
+      if (!mine.some(x => x.what === "player" && x.player === uidOf(fi))) fail(W, "the audit has no row for the player's page");
+      if (!mine.some(x => x.args && x.args.searched === true)) fail(W, "the audit does not say a search was made");
+      if (/@|lilit|player-17|outsider/i.test(JSON.stringify(au.map(x => x.args)))) fail(W, "the audit keeps a search's words or an address");
+      if (!au.some(x => x.what === "grant" && x.player === owner && x.who === null)) fail(W, "the grant is not in the audit");
+      notes.flows["p10 reads@" + C.key] = reads;
+      // nothing of it on the device
+      const kept = await g.ev(() => { let t = ""; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); t += k + "=" + localStorage.getItem(k) + "\n"; } return t; });
+      if (/p10-player|Person/.test(kept)) fail(W, "the device's storage holds a player's email or name");
+      // absent for every other role: revoked (the admin row given with it goes too), then an admin who is not super
+      const rv = (await S.control("superadmin", { email: "p10-owner@example.com", revoke: true })).said;
+      if (!rv.includes(owner)) fail(W, "the revoke's answer: " + rv);
+      await g.page.goto(SITE + "/?stats");
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !$("statsPage").hidden && /owner/.test($("statsBody").innerText), null, { timeout: 30000 });
+      await S.control("admin", { user_id: owner });
+      await g.page.goto(SITE + "/?stats");
+      await statsUp(g);
+      const plain = await g.ev(() => ({ tabs: document.querySelectorAll("#statsPage .stTab").length, text: $("statsPage").innerText, cards: Array.from(document.querySelectorAll("#statsPage .stCard h2")).map(h => h.textContent) }));
+      if (plain.tabs || /@example\.com|Person/.test(plain.text) || !plain.cards.includes("Health")) fail(W, "an admin who is not super: " + JSON.stringify({ tabs: plain.tabs, cards: plain.cards }));
+      const forged = await g.ev(async () => { const x = await pfRpc("hs_super_players", {}, { auth: true, timeout: 8000 }); return x.status + " " + x.code; });
+      if (forged !== "403 not_superadmin") fail(W, "an admin who is not super calling the list by hand: " + forged);
+    } finally { await su.end(); }
+    await done(g, W);
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {

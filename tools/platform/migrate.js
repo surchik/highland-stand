@@ -5,7 +5,7 @@
 //   node tools/platform/migrate.js status            [--dsn=postgres://postgres@127.0.0.1:55622/postgres]
 //   node tools/platform/migrate.js up [N]            apply every migration up to N (default: the newest)
 //   node tools/platform/migrate.js down N --yes      roll back to N (0: remove the schema highland and ALL its data)
-//   node tools/platform/migrate.js regrant           the lockdown and 003's grants again (after a restore)
+//   node tools/platform/migrate.js regrant           the lockdown, 003's grants and the later grants files again (after a restore)
 //   options: --dsn=... (or HS_DB_URL), --dry-run (say what would run, change nothing)
 //
 // The password is never on the command line and never printed: put it in PGPASSWORD (read it with  read -rs
@@ -14,9 +14,11 @@
 // Each migration runs in one transaction of its own, under an advisory lock (two runs cannot overlap), with a
 // lock_timeout of 10 s (it waits for no other app's long lock) and no statement timeout. In the same transaction:
 // the bookkeeping row in highland.schema_migrations (the up file's sha256), then the lockdown (lockdown.sql), then,
-// when 003 is applied, 003's grants and policies again. So whatever Supabase's default privileges granted while the
-// migration made its objects is taken back before anyone can see them. A migration already applied whose up file
-// has changed since stops the run.
+// when 003 is applied, 003's grants and policies again, then the grants of each later migration that is applied and
+// has a grants file of its own (NNN_name.grants.sql: 003 begins with the lockdown, which takes back every grant, so a
+// later migration's functions are granted again after it, each time). So whatever Supabase's default privileges
+// granted while the migration made its objects is taken back before anyone can see them, and the API roles hold
+// exactly the grants these files name. A migration already applied whose up file has changed since stops the run.
 //
 // It connects as the migrating role, postgres, which on Supabase is not a superuser. A superuser connection is
 // moved to postgres (set role postgres), so no function is ever owned by a superuser; if postgres itself is a
@@ -29,12 +31,12 @@ const crypto = require("crypto");
 const DIR = path.resolve(__dirname, "..", "..", "deploy", "supabase", "migrations");
 const LOCK_KEY = 0x48534d47;   // "HSMG": the advisory lock's key
 
-// the migrations on disk: [{ version, name, up, down }] in order, each with both files
+// the migrations on disk: [{ version, name, up, down, grants? }] in order, each with both files (grants is optional)
 function list(dir = DIR) {
   const files = fs.readdirSync(dir);
   const by = new Map();
   for (const f of files) {
-    const m = /^(\d{3})_([a-z0-9_]+)\.(up|down)\.sql$/.exec(f);
+    const m = /^(\d{3})_([a-z0-9_]+)\.(up|down|grants)\.sql$/.exec(f);
     if (!m) continue;
     const v = Number(m[1]);
     const e = by.get(v) || { version: v, name: m[2] };
@@ -91,6 +93,8 @@ async function step(c, all, m, kind, log) {
     const g = all.find(x => x.version === 3 && x.name === "grants_policies");
     if (now >= 3 && g && !(kind === "up" && m.version === 3)) await c.query(read(g.up));
     else if (now < 3) await c.query(read(path.join(path.dirname(all[0].up), "lockdown.sql")));
+    // the later migrations' own grants (their functions came after 003, whose lockdown took them back just now)
+    if (now >= 3) for (const x of all) if (x.version > 3 && x.version <= now && x.grants) await c.query(read(x.grants));
     await c.query("commit");
     log((kind === "up" ? "applied  " : kind === "down" ? "reverted " : "regranted ") + (m ? String(m.version).padStart(3, "0") + "_" + m.name : "") + "  (now at " + now + ")");
     return now;
