@@ -782,7 +782,13 @@ still arming shows no marker and takes no press; a tile being placed takes a fre
 not say "Mines of powder were the siege craft of the age.": no source in the repository says it. Gyumri Road's card gives
 its own fact (Chaldiran, 1514: Ottoman cannon and muskets) and both say "A powder mine laid by the defenders here is the
 game's invention." 6. The store: a lean-to of planks over the musketeers' kegs, a coil of slow match, a spade; the marker:
-disturbed earth with an arming arc, then a glowing match end and a ring that breathes. The key X fires the chosen mine.)
+disturbed earth with an arming arc, then a glowing match end and a ring that breathes. The key X fires the chosen mine.
+G7c close (docs/specs/reviews/G7c-review.md): the masteries' blows are twice these, not two and a half (Great Charge
+2,600, Twin Fuses 1,240), so that Gyumri Road on Hard keeps at most 2 to 3 more defenders with a mine (3.1). A wrecked
+store's charge that is laid goes on arming at a failing store's pace and is fired once. Fire and X fire each armed charge
+with a seen ground foe over it and keep an empty one armed (with no foe over any, the first armed one goes off). A press
+that a tower's tap zone holds nearer than a marker's catch goes to the tower. A save made during a wave keeps each charge's
+arming as the horn left it. Rule 2 above, the commander counting three, is new behavior for the owner to rule on.)
 
 ### 3.5 Aid Post (Van, Musa Dagh, Sardarapat)
 
