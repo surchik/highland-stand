@@ -105,3 +105,8 @@ Legacy. That makes ten battle tunes. Two are laments by their titles (Vartan's m
 them in the rotation, but where a tune is chosen for a battlefield's opening, prefer them for the battlefields
 whose history is a loss or a siege, and do not open a battle on them where a brighter one fits. The total is
 about 46 MB; nothing loads until a battle starts, and only the one tune that plays.
+
+One more (17 November): "Siroun Es, Hokiag (You're Beautiful, My Love)" by New Age Armenia (Ancient Legacy,
+4 min 20 s), assets/music/siroun-es-hokiag.mp3. Eleven battle tunes in all (about 50 MB, still loaded one at a
+time). It is a love song by its title: in the rotation, but not a battlefield's opening tune where a martial one
+fits.
