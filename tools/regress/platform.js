@@ -2504,6 +2504,10 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await state(A, "posted", "tab 1's strip");
     await win(A2, ids[3]);
     await state(A2, "posted", "tab 2's strip");
+    // the other tab's outbox may send this tab's result while its own call is out (seen under load): its own call is
+    // then answered run_finished, which is posted, not refused
+    const again = await A2.ev(async () => { const pg = SC.page; await scPost(pg.rid, {}, pg); return pg.state; });
+    if (again !== "posted") fail(W, "two tabs: a result already on the server (run_finished) leaves the strip " + again);
     if ((await rows(ids[2])).length !== 1 || (await rows(ids[3])).length !== 1) fail(W, "two tabs: the server's rows " + JSON.stringify([await rows(ids[2]), await rows(ids[3])]));
     if (await store(A, "hs_pf_run")) fail(W, "two tabs: the run token is left once both battles are posted");
     const p2 = await A2.problems().catch(() => A2.errs);
@@ -2786,6 +2790,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await C2.wait(400);
     st = await strip(C2);
     if (st.row || st.rec != null || st.board) fail(W, "test mode has a strip: " + JSON.stringify(st));
+    if (await C2.ev(() => !!SH.rec || document.body.classList.contains("pfShare"))) fail(W, "test mode (aided) has a share card");
     await done(C2, W + " (offline, refused, test mode)");
     log("  flow 7: a guest (the gate optional): \"Sign in to post it\", a button to the A");
     // ---- a guest (the gate optional): "Sign in to post it", a button to the Account tab
@@ -2846,7 +2851,11 @@ const log = (m) => { if (o.verbose) console.log(m); };
     v = await f7win(A, W, { lv: 0, token: false, runback: false });
     await A.wait(800);
     st = await strip(A);
-    if (st.row || st.rec != null || st.board) fail(W, "the boards off and a strip: " + JSON.stringify(st));
+    if (st.words || st.rec != null || st.board || st.boardRow) fail(W, "the boards off and a strip: " + JSON.stringify(st));
+    // (the victory still has its card, Share alone, with no score: section 6 ties the card to the page, not the boards)
+    await A.page.waitForFunction(() => !!SH.blob && !!SH.rec, null, { timeout: 20000 }).catch(() => fail(W, "the boards off: no share card"));
+    const lone = await A.ev(() => { const e = phoneWide() ? $("shareBtn") : document.querySelector("#ovScore .scShare"); return { live: !!e && !e.hidden && !e.disabled && e.getClientRects().length > 0, score: JSON.parse(SH.key || "{}").score }; });
+    if (!lone.live || lone.score !== null) fail(W, "the boards off: Share alone: " + JSON.stringify(lone));
     if ((await S.query("select count(*)::int as n from highland.hs_runs"))[0].n !== runs0) fail(W, "a run was begun with the boards off");
     await A.ev(() => openHall("boards"));
     await boardReady(A);
@@ -2907,6 +2916,23 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (c.type !== "image/jpeg" || !size || size.w !== 1200 || size.h !== 630) fail(W, what + ": the picture is not a JPEG of 1200 x 630: " + c.type + " " + JSON.stringify(size));
     if (c.bytes < 40000 || c.bytes > 600000) fail(W, what + ": the picture's size " + c.bytes + " bytes is far from 150 to 250 KB");
     if (!c.bg) fail(W, what + ": the field was not copied (the gradient stood in)");
+    // every row's words are on the picture: in each row's box, pixels of the row's own color, far more than the field
+    // alone has there (the canvas before the JPEG, so the colors are exact)
+    const ink = await g.ev(() => {
+      const card = SH.cv.getContext("2d"), field = SH.bg ? SH.bg.getContext("2d") : null, hex = (h) => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+      return shareRows(JSON.parse(SH.key)).map(r => {
+        const w = 200, h = Math.round(r.px * 0.7), x0 = Math.round(r.align === "right" ? r.x - w : r.x), y0 = Math.round(r.y - h), c = hex(r.color);
+        const count = (ctx) => {
+          if (!ctx) return 0;
+          const d = ctx.getImageData(x0, y0, w, h).data;
+          let n = 0;
+          for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - c[0]) + Math.abs(d[i + 1] - c[1]) + Math.abs(d[i + 2] - c[2]) < 36) n++;
+          return n;
+        };
+        return { y: r.y, text: r.text, card: count(card), field: count(field) };
+      });
+    });
+    for (const r of ink) if (r.card < 25 || r.card < 2 * r.field + 10) fail(W, what + ": the row \"" + r.text + "\" (y " + r.y + ") is not on the picture: " + JSON.stringify(r));
     notes.flows["p7 " + what + "@" + g.o.key] = Math.round(c.bytes / 1024) + " KB";
     if (F9SHOTS) fs.writeFileSync(path.join(F9SHOTS, "card-" + what + "-" + g.o.key + ".jpg"), buf);
     return c;
@@ -2971,12 +2997,13 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await pressGo(g, "#setShare");
   };
   // one picture's whole round: its words, the file shared with stubs, a cancel, then the sheet and each of its buttons
-  const f9share = async (g, W, what, want) => {
+  // (light: the file shared once, then back, for a page whose sheet another round has already held to every check)
+  const f9share = async (g, W, what, want, light) => {
     const c = await f9ready(g, W, what, want.rank ? { rank: want.rank } : null);
     if (!c.ready) return;
     const I = c.info || {};
     for (const k of Object.keys(want)) if (JSON.stringify(I[k]) !== JSON.stringify(want[k])) fail(W, what + ": the card's " + k + " is " + JSON.stringify(I[k]) + ", not " + JSON.stringify(want[k]));
-    const textWant = "I held " + want.field + " in Highland Stand with " + I.kept + " of " + I.max + " defenders. Score " + Number(I.score).toLocaleString("en-US") + ". https://highland.avunjian.com";
+    const textWant = "I held " + want.field + " in Highland Stand with " + I.kept + " of " + I.max + " defenders. " + (I.score == null ? "" : "Score " + Number(I.score).toLocaleString("en-US") + ". ") + "https://highland.avunjian.com";
     if (c.text !== textWant) fail(W, what + ": the words: " + c.text);
     const shown = await f9page(g, W, what);
     await f9photo(g, "victory-" + what);
@@ -2998,6 +3025,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
     let ev = await f9evs(g, n);
     if (ev.join() !== 'share_tapped:{"from":"victory","method":"files"},share_done:{"method":"files"}') fail(W, what + ": the events of a share: " + ev.join());
     if ((await f9sheet(g)).up) fail(W, what + ": the sheet opened beside a share that worked");
+    c.shown = shown;
+    if (light) return c;
     // a cancel is no error: no sheet, no share_done, no toast
     await f9stub(g, { files: true, mode: "abort" });
     await toasts(g);
@@ -3077,6 +3106,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": Settings' Share row did not open the sheet"));
       await g.ev(() => shClose());
     }
+    c.shown = shown;
     return c;
   };
   // the requests made since n: none but the platform's own calls to the stack's API (the strip's post, analytics)
@@ -3108,9 +3138,35 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await f7settled(A);
     let st = await strip(A);
     if (st.state !== "posted" || st.score == null) fail(W, "Ani's strip: " + JSON.stringify(st));
-    await f9share(A, W, "short", { title: "Ani Stands!", hy: "Անի", field: "Ani", lv: "ani", diff: "Normal", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars,
+    const ani = await f9share(A, W, "short", { title: "Ani Stands!", hy: "Անի", field: "Ani", lv: "ani", diff: "Normal", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars,
       rank: 1, player: nameA, open: false, daily: null, site: "highland.avunjian.com", url: "https://highland.avunjian.com" });
     f9quiet(A, W, n0, "Ani");
+    // the rank arrives while the sheet is open (a player who taps Share before the post's answer): the sheet takes the
+    // new picture, and Save picture still saves it, the new one
+    log("  flow 9: a new picture while the sheet is open");
+    await f9stub(A, null);
+    await f9tap(A, W, ani.shown);
+    await A.page.waitForFunction(() => SH.up && $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => fail(W, "the sheet did not open for the redraw"));
+    const url0 = await A.ev(() => SH.url);
+    await A.ev(() => { SC.page.rank = 2; scRender(); });
+    const c2 = await f9ready(A, W, "redrawn", { rank: 2 });
+    await A.page.waitForFunction(() => $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => {});
+    const rs = await A.ev(async () => {
+      const s = $("shareSheet"), save = s.querySelector(".shSave");
+      let fetched = 0;
+      try { fetched = (await (await fetch(save.href)).arrayBuffer()).byteLength; } catch (e) { fetched = -1; }
+      return { up: SH.up, url: !!SH.url, pic: s.querySelector(".shPic").src === SH.url, save: save.href === SH.url, fetched, size: SH.blob.size, w: s.querySelector(".shPic").naturalWidth };
+    });
+    if (!rs.up || !rs.url || !rs.pic || !rs.save || rs.fetched !== rs.size || rs.w !== 1200 || url0 === "" ) fail(W, "the sheet after a new picture: " + JSON.stringify(rs));
+    const tr = await A.ev(() => window.__hsToasts.length);
+    const dl2 = A.page.waitForEvent("download", { timeout: 8000 }).catch(() => null);
+    await pressGo(A, "#shareSheet .shSave");
+    const d2 = await dl2;
+    const b2 = d2 ? await d2.path().then(p => fs.readFileSync(p)).catch(() => null) : null;
+    if (!b2 || !c2.buf || !b2.equals(c2.buf)) fail(W, "Save picture after a new picture did not save the new picture: " + (b2 ? b2.length : "no download") + " of " + (c2.buf ? c2.buf.length : "?"));
+    await A.wait(150);
+    if ((await A.ev(t => window.__hsToasts.slice(t), tr)).join("|") !== "Picture saved.") fail(W, "the toast after Save on a new picture");
+    await A.ev(() => shClose());
     log("  flow 9: the longest title: Sis, after its Terms card");
     await A.ev(() => openCampaignMap());
     n0 = A.reqs.length;
@@ -3122,6 +3178,18 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const fit = await A.ev(() => { const g = document.createElement("canvas").getContext("2d"), f = getComputedStyle(document.body).fontFamily; let px = 62; const w = (p) => { g.font = "bold " + p + "px " + f; return g.measureText("The King Yields on Terms").width; }; while (px > 40 && w(px) > 640) px--; return { px, w: Math.round(w(px)) }; });
     if (fit.px >= 62 || fit.px < 40) fail(W, "the long title was not shrunk: " + JSON.stringify(fit));
     notes.flows["p7 long title@" + K] = fit.px + " px, " + fit.w + " px wide";
+    // a victory no board ranks (a coached stand: its start says ranked: false): no strip, no Leaderboard, but its card,
+    // without a score or a rank (section 6 draws a card for every victory page)
+    log("  flow 9: a victory no board ranks: the card without a score");
+    await A.ev(() => openCampaignMap());
+    n0 = A.reqs.length;
+    v = await f7win(A, W, { lv: 1, ranked: false, token: false, runback: false, sec: 640, lives: 19, before: () => A.ev(() => { battle.tutorial = true; }) });
+    if (!v || v.tutorial !== true) fail(W, "the coached victory's event: " + JSON.stringify(v && { tutorial: v.tutorial }));
+    await A.wait(600);
+    st = await strip(A);
+    if (st.words || st.rec != null || st.board || st.boardRow || st.state != null) fail(W, "a victory no board ranks has a strip: " + JSON.stringify(st));
+    await f9share(A, W, "unranked", { field: "Vale of Tushpa", lv: "tushpa", score: null, rank: null, player: nameA, kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars }, true);
+    f9quiet(A, W, n0, "the unranked victory");
     await done(A, W + " (A)");
     log("  flow 9: a guest (the gate optional): no name, no rank");
     const G = await open(C, { storage: f9prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
@@ -3143,6 +3211,13 @@ const log = (m) => { if (o.verbose) console.log(m); };
       const dc = await f9ready(G, W, "daily-staged", { rank: 12 });
       if (dc.ready && (!dc.info.daily || dc.info.daily.twist !== "Thin purse" || !/^Highland Stand daily, [A-Z][a-z]{2} \d{1,2}: Erebuni Rise, Thin purse\. Score [\d,]+, #12 today\. https:\/\/highland\.avunjian\.com$/.test(dc.text)))
         fail(W, "the staged daily's card: " + JSON.stringify(dc.info) + " " + dc.text);
+      // a browser that will not make the picture: tried once more, then Share is taken away, not left grey for good
+      await G.ev(() => { window.__toBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (cb) { setTimeout(() => cb(null), 0); }; shPage(); scRender(); });
+      await G.page.waitForFunction(() => SH.failed, null, { timeout: 10000 }).catch(() => fail(W, "a picture that cannot be made: Share stays"));
+      const nf = await G.ev(() => ({ tries: SH.tries, strip: !!document.querySelector("#ovScore .scShare"), round: !$("shareBtn").hidden, cls: document.body.classList.contains("pfShare"), words: !!document.querySelector("#ovScore .scWords .scLine, #ovScore .scWords .scLink") && !$("ovScore").hidden }));
+      if (nf.tries !== 2 || nf.strip || nf.round || nf.cls || !nf.words) fail(W, "a picture that cannot be made: " + JSON.stringify(nf));
+      await G.ev(() => { HTMLCanvasElement.prototype.toBlob = window.__toBlob; shPage(); scRender(); });
+      await G.page.waitForFunction(() => !!SH.blob && !!document.querySelector("#ovScore .scShare"), null, { timeout: 20000 }).catch(() => fail(W, "the card did not come back once a picture could be made"));
     }
     // the page left: the card goes with it
     await G.ev(() => openCampaignMap());

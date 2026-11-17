@@ -165,3 +165,33 @@ covered by flow 9 at every size with stubs, and they passed.
 - A real Supabase. Everything ran on tools/platform/stack.js.
 - A daily's real card and a lost daily's card (P6 has not been built). Only the staged daily card was seen.
 - Whether a real last wave leaves a banner or arrows on the copied field. The tests jump from wave 1 to victory.
+
+## Close-out (the package closed on pf/work)
+
+1. MAJOR, Save broken under a redraw: fixed. A new picture while the sheet is open fills the sheet again (`shFill`):
+   a new object URL on the picture, Save picture and Copy picture, the old one let go after, the focus kept on its
+   button. Flow 9 now opens the sheet, lets a new rank arrive, and checks the link's bytes and the download.
+2. MAJOR, no card for an unranked victory: fixed. `scEnd` keeps `SH.rec` (the strip's shape, `score: null`) for a
+   victory that has no strip: never ranked (the coached stand), the boards switched off, no bounds, no battle heard.
+   The card then has no score and no rank, and its words no score. Share stands alone in `#ovScore` (desktop, iPad,
+   upright) or as the round button and Settings' row held sideways. Aided victories (the test purse, test mode's
+   unlock-all) and endless still get none: the player did not win them alone. Flow 9 wins a coached Tushpa; flow 7's
+   boards-off victory now checks Share alone, and test mode checks there is no card.
+3. MINOR, words not checked: fixed. `f9ready` finds each row's own color in its box on the card's canvas, far more
+   than on the field alone. The no-words mutant now fails.
+4. MINOR, Share grey for good: fixed. One more try, then Share is taken away (`SH.failed`). Checked at desk in flow 9.
+5. MINOR, `shSnap` reads the field box: not changed. Section 6's own table names the game canvas's field box, which
+   0.3 (9) does not list; this needs a ruling. `renderBriefArt` draws a framed picture into `#briefArt`, not a field.
+6. MINOR, "Picture saved." on the tap: kept. These are section 6's words, and with finding 1 fixed the link always
+   holds a live picture. Browsers that can share a file (iPhone, iPad) take the file path, not the sheet.
+7. Found in the close-out's own runs (run-all --quick, flow 7 at 1600x900 under load): two tabs posting at once,
+   the second tab's strip read "refused". The other tab's outbox had sent this tab's result while its own call was
+   out, so the server answered `run_finished`. `scPost` now takes `run_finished` as posted (the result is on the
+   board). Flow 7 posts again from tab 2 and checks the strip stays posted; the page without the fix fails it.
+
+Close-out acceptance (on the closing commit's page): check-page OK; unit 404 checks, 0 failed; town-isolation 9
+PASS; run-fixtures 8 PASS; selftest suite 2 PASS 39 checks 80.3 s, suite 1 PASS 151 checks 124.9 s alone (157 to
+218 s under the other track's load); vic full PASS 17 levels 249 presses; iphone full PASS 10 sizes 737 states;
+platform full 64 of 65 flow runs (flow 11 at 1600x900 a 5.6 s timing under load, PASS alone), flow 9 and flow 7
+PASS at every size; run-all --quick 9 of 11 under load 13 to 16, nag PASS alone, dance10 the known intermittent tap
+near 9.7 s (it fails the same way on the page before P7).

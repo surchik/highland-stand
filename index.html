@@ -80961,7 +80961,8 @@ function shareRows(info) {
   if (I.hy) row(240, I.hy, 34, { color: gold, face: "hy", w: 640, min: 26 });
   row(290, [I.date, I.diff, I.daily && I.daily.twist].filter(Boolean).join(" · "), 26, { color: pale });
   if (!I.lost) row(420, scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders kept", 30);
-  row(462, (I.lost ? "" : "Held in " + clockWords(I.sec) + " · ") + "Score " + scoreNum(I.score), 30);
+  // (a victory no board ranks has no score: the clock alone)
+  row(462, [I.lost ? "" : "Held in " + clockWords(I.sec), I.score == null ? "" : "Score " + scoreNum(I.score)].filter(Boolean).join(" · "), 30);
   if (I.rank) row(504, "#" + scoreNum(I.rank) + (I.daily ? (I.total ? " of " + scoreNum(I.total) : "") + " today" : " this week") + (I.open ? " · Open" : ""), 30, { bold: true, color: gold });
   if (I.player) row(566, "Held by " + I.player, 24, { color: pale, w: 640, min: 18 });
   row(556, "Free in your browser", 20, { x: 1136, align: "right", w: 300 });
@@ -80973,9 +80974,11 @@ function shareStars(info) { return info && !info.daily && !info.lost ? Math.max(
 // the words that go with the picture (the address inside them: some apps drop a separate url beside a picture)
 function shareText(info) {
   const I = info || {}, url = I.url || "https://highland.avunjian.com";
-  if (I.daily) return "Highland Stand daily, " + (I.daily.date || "") + ": " + (I.field || "") + (I.daily.twist ? ", " + I.daily.twist : "") + ". Score " + scoreNum(I.score) +
-    (I.rank ? ", #" + scoreNum(I.rank) + " today" : "") + ". " + url;
-  return "I held " + (I.field || "") + " in Highland Stand with " + scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders. Score " + scoreNum(I.score) + ". " + url;
+  // (no score: a victory no board ranks)
+  const score = I.score == null ? "" : "Score " + scoreNum(I.score);
+  if (I.daily) return "Highland Stand daily, " + (I.daily.date || "") + ": " + (I.field || "") + (I.daily.twist ? ", " + I.daily.twist : "") + ". " + (score ? score +
+    (I.rank ? ", #" + scoreNum(I.rank) + " today" : "") + ". " : "") + url;
+  return "I held " + (I.field || "") + " in Highland Stand with " + scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders. " + (score ? score + ". " : "") + url;
 }
 // the picture's file name: highland-stand-<battlefield id>.jpg (an id of anything but small letters and digits: none)
 function shareFileName(lv) { const id = String(lv || "").toLowerCase(); return "highland-stand" + (/^[a-z0-9]{1,24}$/.test(id) ? "-" + id : "") + ".jpg"; }
@@ -83284,6 +83287,7 @@ function scStart(p) {
   const i = LEVELS.findIndex(L => L.id === p.lv);
   if (i >= 0) SC.lastLv = i;
   SC.page = null;
+  SH.rec = null;
   if (p.resumed) {
     const t = pfRead("hs_pf_run");
     const mine = t && typeof t === "object" && typeof t.rid === "string" && t.lv === p.lv && t.diff === p.diff && t.mode === p.mode && t.ruleset === PF_RULESET_ID;
@@ -83335,15 +83339,24 @@ function scReason(code) { const c = String(code || "").toLowerCase(); return /^[
 async function scEnd(n, p) {
   const won = n === "victory", gen = SC.gen, why = SC.why;
   const daily = p.mode === "daily";
+  SH.rec = null;
   if (!won && !daily) { scDropTok(); SC.why = ""; return; }
-  // nothing to show: never ranked, the owner's switch off, test mode or a gift of the test purse (aided), or no
-  // battle heard on this load (a page that came up on a battle already over)
-  if (!why || why === "unranked" || why === "off" || p.aided === true || p.mode === "endless") { scDropTok(); SC.page = null; scRender(); return; }
+  const num = (v) => (Number.isFinite(v) ? v : 0);
+  // no strip: never ranked, the owner's switch off, test mode or a gift of the test purse (aided), or no battle heard
+  // on this load (a page that came up on a battle already over). A victory still has its share card (section 6 ties
+  // the card to the victory page, not to the boards: the coached stand is a new player's first victory), without a
+  // score or a rank; not one the test's purse or switch helped (aided), which the player did not win alone
+  const shareOnly = () => {
+    if (won && p.aided !== true && p.mode !== "endless" && typeof p.lv === "string") SH.rec = { lv: p.lv, diff: p.diff, stars: Number(p.stars) || 0,
+      lives: Math.max(0, Math.min(num(p.lives), Number.isFinite(p.lives_board) ? p.lives_board : num(p.lives))), livesMax: num(p.lives_max), sec: Math.round(num(p.sec)),
+      score: null, state: "", rank: null, total: null, open: false, daily, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow() };
+    scDropTok(); SC.page = null; scRender();
+  };
+  if (!why || why === "unranked" || why === "off" || p.aided === true || p.mode === "endless") { shareOnly(); return; }
   let rules = null;
   try { rules = pfRules(); } catch (e) { rules = null; }
   const b = rules && boundsOf(rules, p.lv, p.diff, p.twist, daily);
-  if (!b) { scDropTok(); SC.page = null; scRender(); return; }
-  const num = (v) => (Number.isFinite(v) ? v : 0);
+  if (!b) { shareOnly(); return; }
   const lives = won ? Math.max(0, Math.min(num(p.lives), Number.isFinite(p.lives_board) ? p.lives_board : num(p.lives))) : 0;
   const stats = { won, lives, waves: num(p.wave), sim_sec: Math.round(num(p.sec)), spent: Math.round(num(p.spent)), earned: Math.round(num(p.earned)),
     loadout: daily ? "std" : p.loadout === "open" ? "open" : "std", build: String(p.build || (typeof BUILD_ID !== "undefined" ? BUILD_ID : "")).slice(0, 20) };
@@ -83403,6 +83416,9 @@ async function scPost(rid, stats, page) {
     return;
   }
   scOutDrop(rid);
+  // run_finished: the result reached the server already (another tab's outbox sent this entry while this call was
+  // out, or an earlier try's answer was lost). It is on the board, as the outbox says too, not refused
+  if (r.code === "run_finished") { page.state = "posted"; scRender(); return; }
   page.state = r.code === "ruleset_unknown" ? "unpublished" : "refused";
   track("score_rejected", { reason: scReason(r.code) });
   scRender();
@@ -83497,19 +83513,34 @@ function scOpenBoard() {
 // the strip drawn from SC.page, again at every change of its state and of the layout
 function scRender() {
   if (!scStripEl) return;
-  const pg = SC.page, on = !!(SC.shown && pg && overlayEl.classList.contains("victory") && !overlayEl.classList.contains("hidden"));
-  const words = on ? scoreLine(pg) : "";
+  const pg = SC.page, up = !!(SC.shown && overlayEl.classList.contains("victory") && !overlayEl.classList.contains("hidden"));
+  const words = up && pg ? scoreLine(pg) : "";
+  // a victory no board ranks: no words, Share alone (the card without a score)
+  const lone = up && !words && !!SH.rec && !SH.failed;
   const side = phoneWide();
   const old = $("pfRecScore");
   if (old) old.remove();
-  scStripEl.hidden = !words || side;
+  scStripEl.hidden = !(words || lone) || side;
   scBoardBtnEl.hidden = true;
   scShareBtnEl.hidden = true;
-  // the share card goes with the strip: Settings' row while the page has one, and its picture drawn (again when the
-  // strip's words change: the rank arrives)
-  document.body.classList.toggle("pfShare", !!words);
-  if (!words) { shClose(); return; }
+  // the share card goes with the page: Settings' row while the page has one, and its picture drawn (again when the
+  // strip's words change: the rank arrives). A picture the browser would not make takes Share away (SH.failed)
+  document.body.classList.toggle("pfShare", !!(words || lone) && !SH.failed);
+  if (!words && !lone) { shClose(); return; }
   shSync();
+  if (lone) {
+    if (side) { scShareBtnEl.hidden = false; shReadyBtns(); scFitBoardBtn(); return; }
+    const w = scStripEl.querySelector(".scWords"), btns = scStripEl.querySelector(".scBtns");
+    w.textContent = "";
+    w.hidden = true;
+    btns.textContent = "";
+    const sh = pfBtn("btn scShare", null, (b) => shTap(b));
+    sh.innerHTML = icon("share") + "<span>Share</span>";
+    btns.appendChild(sh);
+    btns.hidden = false;
+    shReadyBtns();
+    return;
+  }
   const canBoard = !pg.daily || hallTabs().some(t => t.id === "daily");
   const link = pg.state === "signin" || pg.state === "noname";
   if (side) {
@@ -83531,22 +83562,25 @@ function scRender() {
       if (!link) t.title = words + ". " + SCORE_SENTENCE + " " + CLOCK_SENTENCE;
     }
     scBoardBtnEl.hidden = !canBoard;
-    scShareBtnEl.hidden = false;
+    scShareBtnEl.hidden = !!SH.failed;
     shReadyBtns();
     scFitBoardBtn();
     return;
   }
   const w = scStripEl.querySelector(".scWords"), btns = scStripEl.querySelector(".scBtns");
   w.textContent = "";
+  w.hidden = false;
   btns.textContent = "";
   const t = pfEl(link ? "button" : "span", link ? "scLink" : "scLine", words);
   if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
   else { t.title = SCORE_SENTENCE + " " + CLOCK_SENTENCE; t.addEventListener("click", scSentence); }
   w.appendChild(t);
   if (canBoard) btns.appendChild(pfBtn("btn scBoard", "Leaderboard", () => scOpenBoard()));
-  const sh = pfBtn("btn scShare", null, (b) => shTap(b));
-  sh.innerHTML = icon("share") + "<span>Share</span>";
-  btns.appendChild(sh);
+  if (!SH.failed) {
+    const sh = pfBtn("btn scShare", null, (b) => shTap(b));
+    sh.innerHTML = icon("share") + "<span>Share</span>";
+    btns.appendChild(sh);
+  }
   btns.hidden = false;
   shReadyBtns();
 }
@@ -83591,7 +83625,10 @@ if (PF_ON) {
 //   file, blob, cv, text  the picture held: a File (JPEG, quality 0.9), its canvas, the words that go with it
 //   url     the picture's object URL while the sheet's Save link holds it; png: a PNG of it for the clipboard
 //   up      the sheet is open; back: what held the focus before it
-const SH = { gen: 0, bg: null, title: "", hy: "", key: "", drawing: "", file: null, blob: null, cv: null, text: "", url: "", png: null, up: false, back: null, crestBad: false };
+//   rec     a victory no board ranks (no strip): what its card says, in the strip's shape, with no score (scEnd)
+//   tries, failed  pictures the browser would not make for this page; after two, Share is taken away (failed)
+const SH = { gen: 0, bg: null, title: "", hy: "", key: "", drawing: "", file: null, blob: null, cv: null, text: "", url: "", png: null, up: false, back: null, crestBad: false,
+  rec: null, tries: 0, failed: false };
 const SH_DIFFS = ["Easy", "Normal", "Hard"];
 // the share mark (a box with an arrow out of it), added to the page's own icons
 if (PF_ON) (() => {
@@ -83651,13 +83688,15 @@ function shPage() {
   SH.gen++;
   shClose();
   SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = null; SH.text = "";
+  SH.tries = 0; SH.failed = false;
   shUrlDrop();
   SH.title = ($("ovTitle").textContent || "").trim();
   SH.hy = ($("ovHy").textContent || "").trim();
 }
-// what the card says, from the strip's record of the battle (SC.page) and the page as it opened
+// what the card says, from the strip's record of the battle (SC.page, or SH.rec for a victory no board ranks) and the
+// page as it opened
 function shInfo() {
-  const pg = SC.page;
+  const pg = SC.page || SH.rec;
   if (!pg) return null;
   const i = LEVELS.findIndex(L => L.id === pg.lv), L = LEVELS[i] || {};
   const where = shareSite((document.querySelector('link[rel="canonical"]') || {}).href);
@@ -83676,19 +83715,27 @@ function shInfo() {
 // the card's words as they stand: a new picture when they changed (the one held stays live until it is ready)
 function shSync() {
   const info = shInfo();
-  if (!info) return;
+  if (!info || SH.failed) return;
   const key = JSON.stringify(info);
   if (key === SH.key || key === SH.drawing) return;
   SH.drawing = key;
   const gen = SH.gen;
+  const failed = () => {
+    // the browser would not make the picture: once more, then (with no picture held) Share is taken away rather than
+    // left grey for good
+    if (++SH.tries < 2) { shSync(); return; }
+    if (!SH.blob) { SH.failed = true; shClose(); scRender(); }
+  };
   shDraw(info).then((r) => {
     if (gen !== SH.gen || SH.drawing !== key) return;
     SH.drawing = "";
-    if (!r) return;
-    shUrlDrop();
+    if (!r) { failed(); return; }
     Object.assign(SH, { key, file: r.file, blob: r.blob, cv: r.cv, png: null, text: shareText(info) });
+    // (the sheet open as the rank arrives: it takes the new picture, its Save link and its Copy picture with it; the
+    // old picture's address is let go only once nothing holds it)
+    if (SH.up) shFill(); else shUrlDrop();
     shReadyBtns();
-  }, () => { if (gen === SH.gen && SH.drawing === key) SH.drawing = ""; });
+  }, () => { if (gen === SH.gen && SH.drawing === key) { SH.drawing = ""; failed(); } });
 }
 // the crest, the page's own drawing (its icon) made a picture once
 let shCrestP = null;
@@ -83814,7 +83861,8 @@ function shUrlDrop() { if (SH.url) { try { URL.revokeObjectURL(SH.url); } catch 
 function shLeave() {
   SH.gen++;
   shClose();
-  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = SH.bg = null;
+  SH.key = SH.drawing = ""; SH.file = SH.blob = SH.cv = SH.png = SH.bg = SH.rec = null;
+  SH.tries = 0; SH.failed = false;
   shUrlDrop();
   document.body.classList.remove("pfShare");
 }
@@ -83822,7 +83870,7 @@ function shLeave() {
 // the player cancels is no error. (navigator.share must be called inside the tap: the picture is ready before it)
 function shTap(from) {
   if (!SH.blob || SH.up) return;
-  const daily = !!(SC.page && SC.page.daily);
+  const daily = !!((SC.page || SH.rec || {}).daily);
   let can = false;
   try { can = !!(SH.file && navigator.share && navigator.canShare && navigator.canShare({ files: [SH.file] })); } catch (e) { can = false; }
   track("share_tapped", { from: daily ? "daily" : "victory", method: can ? "files" : "sheet" });
@@ -83858,9 +83906,19 @@ function shOpen(from) {
   if (!shSheetEl || !SH.blob || SH.up) return;
   SH.up = true;
   SH.back = from && from.isConnected ? from : document.activeElement;
+  shFill();
+  shSheetEl.classList.remove("shHidden");
+  document.body.classList.add("shUp");
+  overlayEl.setAttribute("inert", "");
+  try { shSheetEl.querySelector(".shSave").focus({ preventScroll: true }); } catch (e) {}
+}
+// the sheet's picture and buttons for the picture held (again when a new one is ready while the sheet is open: the
+// focus stays on the button that held it)
+function shFill() {
+  const had = shSheetEl.contains(document.activeElement) ? [...document.activeElement.classList].find(c => /^sh[A-Z]/.test(c)) : "";
   shUrlDrop();
   SH.url = URL.createObjectURL(SH.blob);
-  const name = shareFileName((SC.page || {}).lv), btns = shSheetEl.querySelector(".shBtns");
+  const name = shareFileName((SC.page || SH.rec || {}).lv), btns = shSheetEl.querySelector(".shBtns");
   shSheetEl.querySelector(".shPic").src = SH.url;
   btns.textContent = "";
   // Save picture: a real link, so the browser's own download takes it
@@ -83886,10 +83944,8 @@ function shOpen(from) {
     try { p = navigator.share({ title: "Highland Stand", text: SH.text }); } catch (e) { p = Promise.reject(e); }
     Promise.resolve(p).then(() => track("share_done", { method: "link" }), () => {});
   }));
-  shSheetEl.classList.remove("shHidden");
-  document.body.classList.add("shUp");
-  overlayEl.setAttribute("inert", "");
-  try { save.focus({ preventScroll: true }); } catch (e) {}
+  const back = had && btns.querySelector("." + had);
+  if (back) try { back.focus({ preventScroll: true }); } catch (e) {}
 }
 function shClose() {
   if (!SH.up || !shSheetEl) return;
