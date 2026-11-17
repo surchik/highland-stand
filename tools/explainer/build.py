@@ -77,8 +77,12 @@ def cues(meta, heard_words, script, wav):
                 i0, i1 = max(0, int((guess - 0.45) / hop)), int((guess + 0.12) / hop)
                 k = i0 + int(np.argmin(env[i0:i1]))
                 if env[k] < 0.3 * loud:
-                    while k + 1 < len(env) and k + 1 < i1 + 20 and env[k + 1] < 0.3 * loud: k += 1   # the end of the pause: the words begin here
-                    starts.append(((k + 1) * hop, "pause", h))
+                    k0 = k
+                    while k0 > i0 and env[k0 - 1] < 0.3 * loud: k0 -= 1                                  # where the pause begins
+                    while k + 1 < len(env) and k + 1 < i1 + 20 and env[k + 1] < 0.3 * loud: k += 1   # and where it ends: the words begin here
+                    t = (k + 1) * hop
+                    if h is not None and k0 * hop <= h < t: t = h    # the recognizer heard the word a little sooner: take its time
+                    starts.append((t, "pause", h))
                 else: starts.append((guess - 0.1, "heard" if h is not None else "proportion", h))
             acc += len(part); pos += nw
         for j, part in enumerate(parts):
@@ -134,10 +138,11 @@ def main():
         track, off = MUSIC[field]
         # the bed: set to an even level, lowered while the voice speaks, in under the title and out with the closing
         # card (it ends with the film, not before it)
+        # (the bed is levelled from three seconds before its first note used, so the levelling has settled by then)
         fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-24:TP=-4:LRA=6,"
-              "afade=t=in:d=0.6,afade=t=out:st=%s:d=1.8[m];"
+              "atrim=start=3,asetpts=PTS-STARTPTS,afade=t=in:d=0.3,afade=t=out:st=%s:d=1.3:curve=qsin[m];"
               "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.02:ratio=5:attack=40:release=500:makeup=1[d];"
-              "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off, off + dur + 0.5, dur - 1.85)
+              "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off - 3, off + dur + 0.5, dur - 1.32)
         ff("-i", W + ".narr.wav", "-i", os.path.join(ROOT, "assets", "music", track), "-filter_complex", fc, "-map", "[o]", "-ar", "48000", W + ".mix0.wav")
     loudnorm2(W + ".mix0.wav", W + ".mix.wav")
     # 5 files

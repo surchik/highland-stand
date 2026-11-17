@@ -2,7 +2,7 @@
 
 Battlefield id `avarayr`. Files: `assets/explainer/avarayr/landscape.mp4`, `vertical.mp4` (and `.webm` where it is smaller), `landscape.vtt`, `vertical.vtt`, `landscape-poster.jpg`, `vertical-poster.jpg`.
 
-Voice: kokoro:am_michael at speed 0.92 (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
+Voice: kokoro:am_michael at speed 0.94 (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
 
 Every line is taken from the battlefield's own texts in index.html, which were themselves checked against docs/history. Source keys:
 
@@ -74,7 +74,9 @@ In 449 Yazdegerd II of Sasanian Persia commanded the Armenians to renounce Chris
 
 In 451 the armies met on the plain of Avarayr. Vardan fell there, and the field was lost.
 
-Yet the faith held: in 484 his nephew Vahan won freedom of worship. Stand where Vardan stood.
+Yet the faith held: in 484 his nephew Vahan won freedom of worship.
+
+Stand where Vardan stood.
 
 ### Line by line: what the engine is fed, and where the line comes from
 
@@ -94,7 +96,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - sources: C3 (Vardan fell there); C4 (The field was lost); TA2.9
 5. Yet the faith held: in 484 his nephew Vahan won freedom of worship.
    - engine: `Yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship.`
-   - sources: C4; V; ED1.32; TA2.10
+   - sources: C4 (Yet the faith held; in 484 he won freedom of worship); V; ED1.32; ED1.33; TA2.10
 6. Stand where Vardan stood.
    - engine: `Stand where [[vɑːɹdˈɑːn]] stood.`
    - sources: C4

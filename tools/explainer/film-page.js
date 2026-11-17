@@ -68,7 +68,7 @@
       if (typeof hero !== "undefined" && hero) hero.alive = false;
     } else if (st.mode === "battle" || st.mode === "garrison") {
       photoStageBattle(lv, st.wave || 5, {});
-      if (st.mode === "garrison") { enemies.length = 0; if (typeof corpses !== "undefined") corpses.length = 0; }
+      if (st.mode === "garrison") { enemies.length = 0; projectiles.length = 0; particles.length = 0; if (typeof corpses !== "undefined") corpses.length = 0; }
     } else {
       curLevel = lv; curDiff = 1;
       resetGame();
@@ -162,6 +162,15 @@
     for (const m of sc.markers || []) {
       const a = env(t, sc.t0 + (m.at || 0), sc.t0 + (m.until || 1e9), 0.5, 0.5);
       if (a <= 0) continue;
+      if (m.label) {   // a name written on the chart in the chart's own hand (its water labels are this blue italic)
+        const q = pr(m.xy);
+        c.save(); c.globalAlpha = a; c.translate(q[0], q[1]); c.rotate(m.rot || 0);
+        c.font = "italic 600 " + 25 * U * K + "px " + FACE; c.textAlign = "center"; c.textBaseline = "middle";
+        c.strokeStyle = "rgba(240, 228, 190, .85)"; c.lineWidth = 5 * U; c.lineJoin = "round"; c.strokeText(m.label, 0, 0);
+        c.fillStyle = "#1f4f6e"; c.fillText(m.label, 0, 0);
+        c.restore();
+        continue;
+      }
       const n = m.xy || [MAP_NODES[levelIndexOf(m.node)].x, MAP_NODES[levelIndexOf(m.node)].y], p = pr(n);
       const pulse = 0.5 + 0.5 * Math.sin((t - sc.t0) * 3.2);
       c.save();
@@ -290,7 +299,7 @@
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a;
-    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 29 * U * K, p2 = 20.5 * U * K;
+    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 29 * U * K, p2 = 23 * U * K;
     c.font = "700 " + p1 + "px " + FACE;
     let w = c.measureText(o.text).width;
     if (o.sub) { c.font = "italic 600 " + p2 + "px " + FACE; w = Math.max(w, c.measureText(o.sub).width); }
@@ -313,8 +322,8 @@
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a * 0.92;
-    c.font = "italic 600 " + 17 * U * K + "px " + FACE;
-    const w = c.measureText(o.text).width + 24 * U, h = 30 * U * K, x = W - w - 26 * U, y = (tall ? 170 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
+    c.font = "italic 600 " + 20 * U * K + "px " + FACE;
+    const w = c.measureText(o.text).width + 26 * U, h = 34 * U * K, x = W - w - 26 * U, y = (tall ? 178 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
     c.fillStyle = "rgba(24, 16, 8, .72)"; c.beginPath(); c.roundRect(x, y, w, h, 4 * U); c.fill();
     c.fillStyle = "#ecdcb0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(o.text, x + w / 2, y + h / 2 + 1 * U);
     c.restore();

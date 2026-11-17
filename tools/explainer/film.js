@@ -15,12 +15,12 @@ function resolve(cut, tl) {
   const scenes = f.scenes.map(s => Object.assign({}, s));
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
-    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : 2.5) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : S[0].start + 2.1) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : dur + 1; });
   const overlays = [];
   // the title has the film's first seconds to itself (the voice begins as it clears)
-  const title = { kind: "title", t0: 0, t1: S[0].start + 1.5, over: "Highland Stand \u00b7 Chronicle" };
+  const title = { kind: "title", t0: 0, t1: S[0].start + 1.9, over: "Highland Stand \u00b7 Chronicle" };
   overlays.push(title);
   const chips = (f.chips || []).map(c => ({ kind: "chip", t0: Math.max(at(c.from, 0.1), title.t1 - 0.25), t1: c.to % 1 ? at(c.to) : S[c.to].end + 0.3, text: c.text, sub: c.sub }));
   chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next
@@ -34,7 +34,7 @@ function resolve(cut, tl) {
     const live = s.kind === "field" && s.note !== false && (s.note || (s.stage && s.stage.live));
     if (live && run) run.t1 = s.t1; else if (live) overlays.push(run = { kind: "note", t0: s.t0 + 0.3, t1: s.t1, text: "Battle scenes from the game" }); else run = null;
   }
-  const endAt = at(f.end.from, 0.1);
+  const endAt = S[Math.floor(f.end.from)].start + 0.45;   // the closing card comes up as the last line is being said
   for (const o of overlays) if ((o.kind === "note" || o.kind === "chip") && o.t1 > endAt) o.t1 = endAt + 0.3;
   overlays.push({ kind: "end", t0: endAt + 0.1, t1: dur, over: "Begin the Stand" });
   return { level: f.level, scenes, overlays, dur };

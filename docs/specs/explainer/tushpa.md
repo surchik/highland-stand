@@ -2,7 +2,7 @@
 
 Battlefield id `tushpa`. Files: `assets/explainer/tushpa/landscape.mp4`, `vertical.mp4` (and `.webm` where it is smaller), `landscape.vtt`, `vertical.vtt`, `landscape-poster.jpg`, `vertical-poster.jpg`.
 
-Voice: kokoro:am_michael at speed 0.92 (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
+Voice: kokoro:am_michael at speed 0.94 (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
 
 Every line is taken from the battlefield's own texts in index.html, which were themselves checked against docs/history. Source keys:
 
@@ -13,13 +13,13 @@ Every line is taken from the battlefield's own texts in index.html, which were t
 - `ED<e>.<k>`: docs/history/era-dossier.json, eras[e] (0 Urartu, 1 Avarayr, 2 the Arab raids), claims[k]
 - `TH.<k>`: docs/history/town-history.json, ages[0].core_claims[k]
 
-## Landscape cut (128 words)
+## Landscape cut (117 words)
 
 ### Script (true spelling: this is the subtitle text)
 
 Urartu, Biainili to its kings, ruled these highlands from Tushpa, by Lake Van. Its citadel crowned the Rock of Van, a long, narrow ridge that rises steeply from the plain.
 
-By the middle of the eighth century BC, Sarduri II held the throne, and the kingdom was still at the height of its power.
+By the middle of the eighth century BC, Sarduri II held the throne.
 
 Then Tiglath-pileser III took the Assyrian throne. In 743 BC, by the Euphrates, he broke Sarduri and his allies.
 
@@ -27,7 +27,9 @@ Eight years later, in 735 BC, he marched into the heart of Biainili. His inscrip
 
 Yet they do not claim that the citadel fell, and it did not.
 
-Now Assyrian spears fill the vale below the rock. Hold the royal road.
+Now Assyrian spears fill the vale below the rock.
+
+Hold the royal road.
 
 ### Line by line: what the engine is fed, and where the line comes from
 
@@ -39,8 +41,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 2. Its citadel crowned the Rock of Van, a long, narrow ridge that rises steeply from the plain.
    - engine: `Its citadel crowned the Rock of Van, a long, narrow ridge that rises steeply from the plain.`
    - sources: C1 (second sentence); TA1.3
-3. By the middle of the eighth century BC, Sarduri II held the throne, and the kingdom was still at the height of its power.
-   - engine: `By the middle of the eighth century B C, [[sɑːɹdˈuːɹi]] the Second held the throne, and the kingdom was still at the height of its power.`
+3. By the middle of the eighth century BC, Sarduri II held the throne.
+   - engine: `By the middle of the eighth century B C, [[sɑːɹdˈuːɹi]] the Second held the throne.`
    - sources: C1 (last sentence); C2 (first sentence); ED0.38; ED0.39
 4. Then Tiglath-pileser III took the Assyrian throne.
    - engine: `Then [[tˈɪɡlæθ pɪlˈiːzɚ]] the Third took the Assyrian throne.`
@@ -72,7 +74,9 @@ Tushpa, by Lake Van, was the capital of Urartu. Its citadel crowned the Rock of 
 
 In 735 BC the Assyrian king Tiglath-pileser III marched into the heart of the kingdom. His inscriptions say he shut King Sarduri II up in Tushpa and defeated him before the city gates.
 
-Yet they do not claim that the citadel fell, and it did not. Hold the royal road.
+Yet they do not claim that the citadel fell, and it did not.
+
+Hold the royal road.
 
 ### Line by line: what the engine is fed, and where the line comes from
 
@@ -103,6 +107,6 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 |---|---|---|
 | Urartu | `uːɹˈɑːɹtuː` | oo-RAR-too |
 | Tushpa | `tˈuːʃpɑː` | TOOSH-pah |
-| Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee |
+| Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
 | Sarduri | `sɑːɹdˈuːɹi` | sar-DOO-ree |
 | Tiglath-pileser | `tˈɪɡlæθ pɪlˈiːzɚ` | TIG-lath pih-LEE-zer |

@@ -29,7 +29,7 @@ for f, title in NAMES.items():
             for m in tts.NAME_RE.finditer(tts.spoken(s["text"])): used.add(m.group(1))
     L += ["", "## Names and how they are said", "", "| In the subtitles | IPA fed to the engine | Roughly |", "|---|---|---|"]
     for n in S["lexicon"]:
-        if n in used: L.append("| " + n + " | `" + S["lexicon"][n]["ipa"] + "` | " + S["lexicon"][n]["say"] + (" (" + S["lexicon"][n]["fix"] + ")" if "fix" in S["lexicon"][n] else "") + " |")
+        if n in used: L.append("| " + n + " | `" + S["lexicon"][n]["ipa"] + "` | " + S["lexicon"][n]["say"] + (" (" + S["lexicon"][n]["fix"] + ")" if "fix" in S["lexicon"][n] else "") + (". " + S["lexicon"][n]["note"] if "note" in S["lexicon"][n] else "") + " |")
     open(os.path.join(OUT, f + ".md"), "w", encoding="utf-8").write("\n".join(L) + "\n")
 if len(sys.argv) > 1:
     A = json.load(open(sys.argv[1], encoding="utf-8"))
