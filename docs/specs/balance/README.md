@@ -817,7 +817,7 @@ What was found, and the numbers chosen:
   - Normal: Van 19.3 and 19.3 (+0.0), Musa Dagh 16.0 and 20.0 (+4.0), Sardarapat 7.7 and 7.7 (+0.0).
   - Hard: Van +0.0, Musa Dagh +0.0, Sardarapat +0.0.
   - Easy: Van +0.0, Musa Dagh +3.0, Sardarapat +0.0.
-  - Returns never pass the cap: at most 5 in a battle (Surgeons), 4 on Musa Dagh (its walls start 20, the cap is 4 there).
+  - Returns never pass the cap: at most 5 in a battle (Surgeons), 4 on Musa Dagh (rank 3's cap).
   - A seed the mix loses turned into a win: Hard Sardarapat, "aid" 3/3 2.3 against the mix's 2/3 2.3. Met.
   - NOT met, for the owner: Musa Dagh on Normal (+4.0) and Easy (+3.0). The mix holds the last commander there with 0.1%
     of the road left (walked 0.999) and fills every pad and all six plots. The post takes the pad of the mix's last tower
