@@ -10,7 +10,8 @@
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
 // The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
-// P5: scores and boards; P7: the share card; P8: privacy, deletion and staging; P10: the superadmin's Players view):
+// P5: scores and boards; P6: the daily challenge; P7: the share card; P8: privacy, deletion and staging; P10: the
+// superadmin's Players view):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
 //      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
@@ -109,6 +110,20 @@
 //      it", the Account tab; the board to read with the three buttons; no connection and Try again); Scores to look
 //      at (a fast result listed, Remove); the boards switched off (no strip, no run begun). The strip and the tab held
 //      to the iPhone suite's audit on the phones; photos of each state (--photos: a folder p5)
+//   8  the daily challenge (P6): a player with five battlefields and the page's ruleset published; the page's pick
+//      (gameplay's dailyPick and the platform's dailyOf) equal to the server's _daily_pick for 366 days from today,
+//      skip lists included, and Platform.daily() to hs_daily_status; the welcome card's "Today's challenge" opens the
+//      Hall on the Daily tab (hall_open from "welcome"), the tab's words (the day, the battlefield, the twist, the rules,
+//      the attempts, Play, the time to the next, one sitting, the empty board), its badge and the map's dot, gameplay's
+//      map door leading to the tab; three attempts, each told at its first wave: won and posted (the server's score the
+//      page's and ref.js's, "#1 of 1 today", no stars on the event, Share and the card's words of 5.6, daily_played),
+//      lost and scored by the waves held (the strip on the daily's end page, no Share), a third by Fight again; the
+//      fourth practice ("Practice: not ranked", nothing spent on the server); the tab with no attempt left (Practice);
+//      a second player's lower score "#2 of 2 today" (desktop and 667x320); the day changed by the stack's clock: the
+//      next challenge, the attempts back, the board empty, "Yesterday: 1. ..." and yesterday's battle; the database down
+//      (desktop and 667x320): Platform.daily() still today's from the page's own lines, the board's "needs a
+//      connection", and a daily begun is practice ("no connection") with no attempt spent. The tab and the pages held
+//      to the iPhone suite's audit; photos in p6 (--photos)
 //   9  the share card (P7): a player wins Ani (a short name) and Sis (the longest title, after its Terms card), a guest
 //      under the optional gate Erebuni Rise; each picture read back (a JPEG of 1200 x 630, the field copied, its words:
 //      title, Armenian name, stars, defenders, rank, name; the guest's with neither name nor rank); with navigator.share

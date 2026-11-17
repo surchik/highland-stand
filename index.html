@@ -80102,8 +80102,8 @@ function townSelftest(check, res) {
 // on, and the Platform object's doors into the game, which do nothing while the platform is off) and sign-in with
 // the gate (P2: the Auth client, the session, the gate's cards, the Account tab), analytics and ?stats (P4), and
 // cloud saves (P3: the hook on storage, pull, push and merge, the battle in progress and its question, a guest's
-// progress, the stash, sign-out's save and clear, the Account tab's line). The boards, the daily and the share card
-// join it package by package, all inside this section.
+// progress, the stash, sign-out's save and clear, the Account tab's line), the scores and boards (P5), the daily
+// challenge (P6) and the share card (P7), all inside this section.
 
 // ---- the Hall: a page with tabs over the menu pages (section 5.5) ----
 // Its tabs are the rows of HALL_TABS, in the order they were pushed: { id, label, icon, render(el), badge() }.
@@ -84276,9 +84276,10 @@ const DY_PRACTICE_WORDS = {
 function dyStarted(p) {
   DY.att = 0;
   DY.pr = "";
-  const why = DY.practice ? "chosen" : !pfDailyOn() ? "off" : dyWhyPractice();
-  if (why && why !== "unpublished") { DY.pr = why; return why; }
-  return "";
+  // (the plainest reason first: a player who chose Practice because he is signed out is told to sign in)
+  const why = !pfDailyOn() ? "off" : dyWhyPractice();
+  if (why && why !== "unpublished") return why;
+  return DY.practice ? "chosen" : "";
 }
 // a daily's practice settled at its start or by the server's answer: the strip's word, and the player told at once
 function dyPractice(why) {
