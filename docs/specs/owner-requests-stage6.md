@@ -67,3 +67,12 @@ also someething about the kochari dance text better to remove it".
   Armenian kochari" and its two siblings).
 Note for request 2: the victory tune today is an original kochari-style melody played by a generated kef band or
 zurna and dhol (Settings, "Victory band"); the code says a verified traditional kochari can replace it.
+
+The victory music, settled (17 November): the owner supplied two recordings and said "use these two songs for the
+victory dance": "Kochari (Armenian Folk Dance)" by New Age Armenia (album Ancient Legacy, 2013, 4 min 41 s) and
+"Yarkhushta" by Sasna Crer Folk Group (album The Best Of Sasna Crer Folk Group, 2019, 1 min 38 s). Web copies
+(mp3, 128 kbit/s) are in assets/victory/. The rights to publish them are the owner's to hold; the builder does not
+judge them. To build: the victory screen plays one of the two (alternate, or by the Settings' "Victory band"),
+loaded only when a victory comes, with the generated kochari as the fallback when the file cannot load or sound
+is off; deploy/update.sh must publish the two files beside the page (as it does the trailer); the dancers'
+steps are locked to 96 BPM today, so match the choreography's tempo to each recording or let it run free.
