@@ -41,3 +41,7 @@ deploy/hs-supabase) and asked:
   sign-in beside the providers. This stack has email sign-up off and no mail sender; the game's functions ask
   that a session began with a provider (amr holds oauth; migration 005). Needs: a mail sender for confirmation
   and password reset, the server settings, a migration, the forms, and the owner's list of details to capture.
+
+The owner's answers (17 November): sign-up captures name, email and password, nothing else. Mail goes through
+Resend. The trailer gets music and a voice-over. Sign-in stays required (HS_GATE "required"). Sign-in went live
+on the main page the same day (master f782fea).
