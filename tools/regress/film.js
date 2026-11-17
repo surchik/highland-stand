@@ -143,8 +143,11 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
     await inReach(g, C, "#filmSkip", 44, fail, what);
     if (await g.ev(() => document.activeElement && document.activeElement.id) !== "filmSkip") await fail(what + ": Skip does not hold the focus");
     // nothing of the chronicle can be pressed through the film
-    const under = await g.ev(() => { const r = document.getElementById("startBtn").getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(e && e.closest("#film")); });
-    if (!under) await fail(what + ": Begin the Stand can be pressed through the film");
+    const through = await g.ev(() => [[0.5, 0.5], [0.1, 0.9], [0.5, 0.92], [0.9, 0.9], [0.1, 0.1]].filter(([fx, fy]) => {
+      const e = document.elementFromPoint(innerWidth * fx, innerHeight * fy);
+      return !(e && e.closest("#film"));
+    }).length);
+    if (through) await fail(what + ": the page under the film can be pressed through it at " + through + " of 5 points");
     return true;
   };
 
@@ -154,7 +157,8 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
     const fail = async (m) => { fails.push(tag + " " + m); await g.shot(o.shots, "film " + tag + " " + m.slice(0, 60)); };
     const log = (m) => { if (o.verbose) console.log(tag + " " + m); };
     try {
-      await g.toMap();
+      // (the first visit's story turned to the map: held upright its button is scrolled to first)
+      for (let k = 0; k < 4 && (await g.ev(() => menuMode)) === "chapter"; k++) { await press(g, "#startBtn"); await g.wait(150); }
       for (const id of IDS) {
         await openBrief(g, id);
         if (await filmUp(g, C, id, fail, id + " opened")) {
