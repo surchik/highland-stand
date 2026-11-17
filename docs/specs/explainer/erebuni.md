@@ -39,7 +39,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `In the eighth century B C, the kings of [[uːɹˈɑːɹtuː]] ruled the highlands around Lake Van from their rock citadel at [[tˈuːʃpɑː]].`
    - sources: C1 (first sentence); TA1.0
 2. They called their land Biainili.
-   - engine: `They called their land [[bˌiːaɪnˈiːli]].`
+   - engine: `They called their land [[bˌiːaɪnˈiːliː]].`
    - sources: C1 (second sentence); TH.1; TA1.1
 3. Under Argishti I, son of Menua, the kingdom stood near the height of its power.
    - engine: `Under [[ɑːɹɡˈɪʃti]] the First, son of [[mɛnˈuːɑː]], the kingdom stood near the height of its power.`
@@ -109,7 +109,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 |---|---|---|
 | Urartu | `uːɹˈɑːɹtuː` | oo-RAR-too |
 | Tushpa | `tˈuːʃpɑː` | TOOSH-pah |
-| Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
+| Biainili | `bˌiːaɪnˈiːliː` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
 | Argishti | `ɑːɹɡˈɪʃti` | ar-GISH-tee |
 | Menua | `mɛnˈuːɑː` | meh-NOO-ah |
 | Araxes | `ɑːɹˈæksiːz` | ah-RAK-seez |

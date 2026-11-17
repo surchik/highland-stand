@@ -122,6 +122,7 @@
     cx = Math.max(W / 2 / z, Math.min(VW - W / 2 / z, cx));
     cy = Math.max(H / 2 / z, Math.min(VH - H / 2 / z, cy));
     for (let i = particles.length - 1; i >= 0; i--) if (particles[i].text) particles.splice(i, 1);   // the coin counts
+    for (const tw of towers) tw.novaFx = 0;   // the beacon's ring of fire reads as a range ring in a still: left out
     photo = { time: PHOTO_TIME + t * 1000, zoom: z, cx: cx, cy: cy };
     draw(photo.time);
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -174,6 +175,20 @@
     for (const m of sc.markers || []) {
       const a = env(t, sc.t0 + (m.at || 0), sc.t0 + (m.until || 1e9), 0.5, 0.5);
       if (a <= 0) continue;
+      if (m.arrow) {   // a march drawn on the chart: an ink line that grows, with a head
+        const p0 = pr(m.arrow[0]), p1 = pr(m.arrow[1]), g = ease((t - sc.t0 - (m.at || 0)) / 1.4);
+        const x1 = p0[0] + (p1[0] - p0[0]) * g, y1 = p0[1] + (p1[1] - p0[1]) * g, ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
+        c.save(); c.globalAlpha = a; c.lineCap = "round";
+        for (const [col, lw] of [["rgba(244, 232, 196, .9)", 9], ["#a8231c", 4.5]]) {
+          c.strokeStyle = col; c.fillStyle = col; c.lineWidth = lw * U; c.setLineDash([12 * U, 9 * U]);
+          c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(x1, y1); c.stroke(); c.setLineDash([]);
+          c.save(); c.translate(x1, y1); c.rotate(ang);
+          const hs = (lw > 5 ? 17 : 14) * U;
+          c.beginPath(); c.moveTo(hs, 0); c.lineTo(-hs * 0.7, -hs * 0.75); c.lineTo(-hs * 0.7, hs * 0.75); c.closePath(); c.fill(); c.restore();
+        }
+        c.restore();
+        continue;
+      }
       if (m.label) {   // a name written on the chart in the chart's own hand (its water labels are this blue italic)
         const q = pr(m.xy);
         c.save(); c.globalAlpha = a; c.translate(q[0], q[1]); c.rotate(m.rot || 0);
@@ -204,8 +219,15 @@
       plaque(c, p[0] + (m.dx || 0) * U, p[1] + dy, lines, a, "center");
     }
   }
+  const arts = {};
   function drawArt(sc, t, c) {
-    drawPlate(sc, t, c, artPlate, artPlate.width, artPlate.height);
+    let plate = artPlate;
+    if (sc.level) {   // the chronicle's painting of another battlefield (Erebuni's film shows the royal seat, Tushpa)
+      const i = levelIndexOf(sc.level);
+      if (!arts[i]) { const keep = THEME; THEME = levelTheme(LEVELS[i]); arts[i] = briefScene(BRIEF_CROPS[i] || BRIEF_CROPS[0], 1600, 1600, 7001 + i * 53); THEME = keep; }
+      plate = arts[i];
+    }
+    drawPlate(sc, t, c, plate, plate.width, plate.height);
   }
 
   // ---- the founding inscription: an illustration (a basalt block with rows of wedge marks; no real text is copied) ----
@@ -266,15 +288,18 @@
   function drawStone(sc, t, c) {
     if (!stonePlate) stonePlate = buildStone();
     drawPlate(sc, t, c, stonePlate, 1600, 1000);
+    const k = (t - sc.t0) / (sc.t1 - sc.t0), x = W * (-0.3 + 1.6 * k);
+    const lg = c.createLinearGradient(x - W * 0.28, 0, x + W * 0.28, H * 0.3);
+    lg.addColorStop(0, "rgba(255, 236, 190, 0)"); lg.addColorStop(0.5, "rgba(255, 236, 190, .17)"); lg.addColorStop(1, "rgba(255, 236, 190, 0)");
+    c.globalCompositeOperation = "lighter"; c.fillStyle = lg; c.fillRect(0, 0, W, H); c.globalCompositeOperation = "source-over";
   }
 
   // ---- a page of the chronicle: a date and a line on parchment, where the game has no picture of the place ----
   function drawCard(sc, t, c) {
-    const k = ease((t - sc.t0) / (sc.t1 - sc.t0)), z = 1 + 0.035 * k;
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    const bg = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.hypot(W, H) * 0.62);
-    bg.addColorStop(0, "#3a2a1a"); bg.addColorStop(1, "#140e08");
-    c.fillStyle = bg; c.fillRect(0, 0, W, H);
+    const k = ease((t - sc.t0) / (sc.t1 - sc.t0)), z = 1 + 0.06 * k;
+    // behind the page: the campaign chart, dimmed and drifting
+    drawPlate({ t0: sc.t0, t1: sc.t1, a: sc.a || [300, 200, 1.5], b: sc.b || [420, 215, 1.7] }, t, c, mapPlate, MAP_W, MAP_H);
+    c.fillStyle = "rgba(20, 13, 6, .7)"; c.fillRect(0, 0, W, H);
     c.save();
     c.translate(W / 2, H * (tall ? 0.42 : 0.44)); c.scale(z, z);
     const pw = (tall ? 640 : 1000) * U, ph = (tall ? 600 : 440) * U;
@@ -299,7 +324,11 @@
     rg.addColorStop(0, "rgba(168, 35, 28, 0)"); rg.addColorStop(0.5, "rgba(168, 35, 28, .9)"); rg.addColorStop(1, "rgba(168, 35, 28, 0)");
     c.fillStyle = rg; c.fillRect(-170 * U, y - 1 * U, 340 * U, 2 * U); y += 44 * U;
     c.font = "italic 600 " + (tall ? 36 : 37) * U + "px " + FACE; c.fillStyle = "#3b2a16";
-    for (const l of lines) { c.fillText(l, 0, y); y += gap; }
+    lines.forEach((l, i) => {   // the lines come in one after another
+      c.globalAlpha = clamp01((t - sc.t0 - 0.5 - i * Math.min(1.1, (sc.t1 - sc.t0 - 2) / Math.max(1, lines.length))) / 0.5);
+      c.fillText(l, 0, y); y += gap;
+    });
+    c.globalAlpha = 1;
     c.restore();
   }
 
@@ -336,17 +365,17 @@
     c.shadowColor = "transparent";
     rule(c, x, y - (tall ? 58 : 48) * U, 300 * U);
     goldText(c, o.name, x, y, (tall ? 62 : 66) * U);
-    if (o.hy) { c.font = "700 " + 34 * U + "px " + HY; c.fillStyle = "#f1e4bd"; c.strokeStyle = "rgba(20,12,4,.85)"; c.lineWidth = 4 * U; c.strokeText(o.hy, x, y + 56 * U); c.fillText(o.hy, x, y + 56 * U); }
-    c.font = "700 " + 26 * U + "px " + FACE;
-    c.strokeStyle = "rgba(20,12,4,.95)"; c.lineWidth = 5 * U; c.strokeText(spaced(o.sub), x, y + (o.hy ? 104 : 66) * U);
-    c.fillStyle = "#ffb199"; c.fillText(spaced(o.sub), x, y + (o.hy ? 104 : 66) * U);
+    if (o.hy) { c.font = "700 " + 38 * U + "px " + HY; c.fillStyle = "#f1e4bd"; c.strokeStyle = "rgba(20,12,4,.85)"; c.lineWidth = 4 * U; c.strokeText(o.hy, x, y + 60 * U); c.fillText(o.hy, x, y + 60 * U); }
+    c.font = "700 " + 31 * U + "px " + FACE;
+    c.strokeStyle = "rgba(20,12,4,.95)"; c.lineWidth = 5 * U; c.strokeText(spaced(o.sub), x, y + (o.hy ? 112 : 70) * U);
+    c.fillStyle = "#ffb199"; c.fillText(spaced(o.sub), x, y + (o.hy ? 112 : 70) * U);
     c.restore();
   }
   function chip(c, a, o) {
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a;
-    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 29 * U * K, p2 = 23 * U * K;
+    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 32 * U * K, p2 = 26.5 * U * K;
     c.font = "700 " + p1 + "px " + FACE;
     let w = c.measureText(o.text).width;
     if (o.sub) { c.font = "italic 600 " + p2 + "px " + FACE; w = Math.max(w, c.measureText(o.sub).width); }
@@ -369,8 +398,8 @@
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a * 0.92;
-    c.font = "italic 600 " + 22 * U * K + "px " + FACE;
-    const w = c.measureText(o.text).width + 28 * U, h = 37 * U * K, x = W - w - 26 * U, y = (tall ? 178 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
+    c.font = "italic 600 " + 24 * U * K + "px " + FACE;
+    const w = c.measureText(o.text).width + 30 * U, h = 40 * U * K, x = W - w - 26 * U, y = (tall ? 196 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
     c.fillStyle = "rgba(24, 16, 8, .72)"; c.beginPath(); c.roundRect(x, y, w, h, 4 * U); c.fill();
     c.fillStyle = "#ecdcb0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(o.text, x + w / 2, y + h / 2 + 1 * U);
     c.restore();

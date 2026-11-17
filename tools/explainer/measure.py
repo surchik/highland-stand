@@ -65,14 +65,29 @@ def lev(a, b):
             p, d[j] = d[j], min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] != b[j - 1]))
     return d[-1]
 
-def transcribe(path, model="medium.en"):
+def transcribe(path, model="medium.en", sentences=None):
+    """What the recognizer writes down, with each word's time. Given the sentences' own times (tts.py), it hears one
+    sentence at a time, cut from the narration with a quarter second of margin: over a whole minute its word times
+    drift and a short last line after a pause is misheard; one sentence at a time they do not."""
     from faster_whisper import WhisperModel
     m = WhisperModel(model, device="cpu", compute_type="int8", cpu_threads=4)
-    segs, _ = m.transcribe(path, beam_size=5, word_timestamps=True, condition_on_previous_text=False, vad_filter=False)
     words, text = [], ""
-    for s in segs:
-        text += s.text
-        for w in s.words: words.append({"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)})
+    if not sentences:
+        segs, _ = m.transcribe(path, beam_size=5, word_timestamps=True, condition_on_previous_text=False, vad_filter=False)
+        for s in segs:
+            text += s.text
+            for w in s.words: words.append({"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)})
+        return text.strip(), words
+    a, sr = read(path)
+    step = sr // 16000
+    for st in sentences:
+        t0 = max(0.0, st["start"] - 0.25)
+        x = a[int(t0 * sr): int((st["end"] + 0.25) * sr)]
+        x = x[:len(x) // step * step].reshape(-1, step).mean(1).astype(np.float32)
+        segs, _ = m.transcribe(x, beam_size=5, word_timestamps=True, condition_on_previous_text=False, vad_filter=False)
+        for s in segs:
+            text += s.text
+            for w in s.words: words.append({"w": w.word.strip(), "s": round(w.start + t0, 3), "e": round(w.end + t0, 3)})
     return text.strip(), words
 
 def names_heard(script_text, heard, lexicon):
@@ -100,7 +115,7 @@ def measure(path, model="medium.en", asr=True):
         out["wpm_with_pauses"] = round(meta["words"] / span * 60, 1)
         out["wpm_speech_only"] = round(meta["words"] / speech * 60, 1)
     if asr:
-        heard, words = transcribe(path, model)
+        heard, words = transcribe(path, model, meta["sentences"] if meta else None)
         out["heard"] = heard; out["heard_words"] = words
         if meta:
             ref = " ".join(s["text"] for s in meta["sentences"])

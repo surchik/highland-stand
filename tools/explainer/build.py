@@ -76,16 +76,16 @@ def cues(meta, heard_words, script, wav):
                 guess = h if h is not None and s["start"] < h < s["end"] else s["start"] + (s["end"] - s["start"]) * acc / total
                 i0, i1 = max(0, int((guess - 0.45) / hop)), int((guess + 0.12) / hop)
                 k = i0 + int(np.argmin(env[i0:i1]))
-                if env[k] < 0.3 * loud:
-                    k0 = k
-                    while k0 > i0 and env[k0 - 1] < 0.3 * loud: k0 -= 1                                  # where the pause begins
-                    while k + 1 < len(env) and k + 1 < i1 + 20 and env[k + 1] < 0.3 * loud: k += 1   # and where it ends: the words begin here
+                if h is not None and s["start"] < h < s["end"]:
+                    starts.append((h, "heard", h))       # the recognizer heard this sentence alone: its word time is the words' start
+                elif env[k] < 0.3 * loud:
+                    while k + 1 < len(env) and k + 1 < i1 + 20 and env[k + 1] < 0.3 * loud: k += 1   # the end of the pause: the words begin here
                     starts.append(((k + 1) * hop, "pause", h))
-                else: starts.append((guess - 0.1, "heard" if h is not None else "proportion", h))
+                else: starts.append((guess, "proportion", h))
             acc += len(part); pos += nw
         for j, part in enumerate(parts):
-            a = starts[j][0] - 0.12
-            b = starts[j + 1][0] - 0.16 if j + 1 < n else s["end"] + 0.3
+            a = starts[j][0] - 0.1
+            b = starts[j + 1][0] - 0.14 if j + 1 < n else s["end"] + 0.3
             out.append({"start": round(max(0, a), 3), "end": round(b, 3), "text": part, "how": starts[j][1], "sentence": s["i"], "speech": round(starts[j][0], 3), "heard_at": starts[j][2]})
     # a cue that would have to be read faster than 17 letters a second joins its neighbour in the sentence, when the
     # two fit two lines
@@ -112,6 +112,7 @@ def cues(meta, heard_words, script, wav):
     for i, c in enumerate(out):   # long enough to read: at least 1.6 s and at most 17 letters a second, taken from the silence after it
         need = max(1.8, len(c["text"]) / 17.0)
         room = (out[i + 1]["start"] - 0.04) if i + 1 < len(out) else meta["duration"] - 0.1
+        if i + 1 == len(out): c["end"] = round(meta["duration"] - 0.7, 3)   # the last line stays under the closing card
         if c["end"] - c["start"] < need: c["end"] = round(min(room, c["start"] + need), 3)
         if c["end"] > room: c["end"] = round(room, 3)
     return out
@@ -161,7 +162,7 @@ def main():
         # the bed: set to an even level, lowered while the voice speaks, in under the title and out with the closing
         # card (it ends with the film, not before it)
         # (the bed is levelled from three seconds before its first note used, so the levelling has settled by then)
-        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-26:TP=-6:LRA=6,"
+        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-29:TP=-8:LRA=6,"
               "atrim=start=3,asetpts=PTS-STARTPTS,afade=t=in:d=0.3,afade=t=out:st=%s:d=1.9:curve=qsin[m];"
               "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.03:ratio=3:attack=40:release=250:makeup=1[d];"
               "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off - 3, off + dur + 0.5, dur - 1.92)

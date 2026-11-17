@@ -36,7 +36,7 @@ Hold the royal road.
 Names in double square brackets are IPA handed straight to the engine; numbers are spelled out.
 
 1. Urartu, Biainili to its kings, ruled these highlands from Tushpa, by Lake Van.
-   - engine: `[[uːɹˈɑːɹtuː]], [[bˌiːaɪnˈiːli]] to its kings, ruled these highlands from [[tˈuːʃpɑː]], by Lake Van.`
+   - engine: `[[uːɹˈɑːɹtuː]], [[bˌiːaɪnˈiːliː]] to its kings, ruled these highlands from [[tˈuːʃpɑː]], by Lake Van.`
    - sources: C1 (first sentence); TA1.1; TA1.3
 2. Its citadel crowned the Rock of Van, a long, narrow ridge that rises steeply from the plain.
    - engine: `Its citadel crowned the Rock of Van, a long, narrow ridge that rises steeply from the plain.`
@@ -51,7 +51,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `In seven forty-three B C, by the Euphrates, he broke [[sɑːɹdˈuːɹi]] and his allies.`
    - sources: C2 (fourth sentence); ED0.2
 6. Eight years later, in 735 BC, he marched into the heart of Biainili.
-   - engine: `Eight years later, in seven thirty-five B C, he marched into the heart of [[bˌiːaɪnˈiːli]].`
+   - engine: `Eight years later, in seven thirty-five B C, he marched into the heart of [[bˌiːaɪnˈiːliː]].`
    - sources: C3 (first sentence); ED0.4; TA1.8
 7. His inscriptions say he shut Sarduri up in Tushpa and defeated him before the city gates.
    - engine: `His inscriptions say he shut [[sɑːɹdˈuːɹi]] up in [[tˈuːʃpɑː]] and defeated him before the city gates.`
@@ -63,7 +63,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Now Assyrian spears fill the vale below the rock.`
    - sources: C4 (Now, in 735 BC, ... Assyrian spears fill the vale below the rock)
 10. Hold the royal road.
-   - engine: `Hold the [[ɹˈɔɪjəl]] road.`
+   - engine: `Hold the royal road.`
    - sources: C4 (Hold the royal road); tag; TA1.9; TA1.11
 
 ## Vertical cut (66 words)
@@ -98,7 +98,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Yet they do not claim that the citadel fell, and it did not.`
    - sources: C3 (last sentence); V; TA1.8
 6. Hold the royal road.
-   - engine: `Hold the [[ɹˈɔɪjəl]] road.`
+   - engine: `Hold the royal road.`
    - sources: C4; tag
 
 ## Names and how they are said
@@ -107,7 +107,6 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 |---|---|---|
 | Urartu | `uːɹˈɑːɹtuː` | oo-RAR-too |
 | Tushpa | `tˈuːʃpɑː` | TOOSH-pah |
-| Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
+| Biainili | `bˌiːaɪnˈiːliː` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
 | Sarduri | `sɑːɹdˈuːɹi` | sar-DOO-ree |
 | Tiglath-pileser | `tˌɪɡlæθpɪlˈiːzɚ` | TIG-lath-pih-LEE-zer |
-| royal | `ɹˈɔɪjəl` | ROY-al (kept to two clear syllables) |
