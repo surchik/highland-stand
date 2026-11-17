@@ -785,3 +785,61 @@ For the owner:
   greedy 10.0 and minemix 11.0 stay below catapults' 12.0 on Gyumri Road Normal, so no mine build is the best board; at
   WAIT 0 greedy 13.0 beats catapults' 11.0. The rule stays in the page until the owner rules.
 - The mastered mine's damage per gold (above).
+
+## G7d: the Aid Post (Van, Musa Dagh, Sardarapat)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `aid`, on the three battlefields that offer
+the tower): `g7d-normal-seeds3.txt`, `g7d-easy-seeds3.txt`, `g7d-hard-seeds3.txt`; the daily's, `DAILY=1`:
+`g7d-daily-seeds3.txt`; the endless stand of mix7, harriers and aid, `ENDLESS=20` (JSON lines):
+`g7d-endless-normal-seeds3.txt`; the Council, `KIT=par HERO=hold`: `g7d-kit-par-hold-normal-seeds3.txt`. Trials are in
+`g7d-trials/`. The "before" for every cell is G5's close tables (`g5-close-*-seeds3.txt`, `g6-daily-normal-seeds3.txt`).
+
+The bot (5.4): a build's "age" is the Aid Post on these three, one on a field. "aid" is the mix with the post as its sixth
+building (5.2). The post's ranks wait until every pad is built, and it is mastered after every fighting tower (it fights
+nothing, so the board comes first). It goes on the Stores' pad, the free pad that reaches the least road, not 5.4's "nearest
+the fortress" (the trial below). A cell's lives are the defenders never lost (`held`: a returned defender is not counted, as
+the stars do not count him). Beside mix the report adds 5.2's row: defenders lost, defenders returned, and the seeds the mix
+loses that aid wins.
+
+What was found, and the numbers chosen:
+- At 3.5's prices (110, ranks 130 and 210, masteries 320) the post cost the mix its next ranks: "aid" lost more defenders
+  than "mix" on Sardarapat and Easy Van. Free (every price 1, `free.txt`) it still lost 4.0 more on Musa Dagh. Trials
+  `c60`, `late`, `late40` to `late60`, `late60all`, `late-eh` (Easy and Hard) and `least` are the builder's steps between.
+- Chosen: 60 gold, ranks of 70 and 110, masteries of 220, and the ranks only once every pad is built (the bot's rule). The
+  reach, the hastes, the hero's seconds and the returns are 3.5's.
+- The pad: nearest the fortress (`near-*-seeds3.txt`, the full tables) "aid" lost 2.3 more than "mix" on Normal Sardarapat
+  and 1.3 more on Hard, and turned no seed. On the Stores' pad (`least60-*.txt`, then the tables above) it loses none more
+  there. A player puts a tower that fights nothing where a shooting tower would see the least road. Chosen.
+- Built in its turn before the ranks that wait (`early-normal.txt`): Van fell at wave 6. Not chosen.
+
+5.2's rows on the three battlefields:
+- The Aid Post: "aid" against "mix", defenders lost (a lost battle counts every defender):
+  - Normal: Van 19.3 and 19.3 (+0.0), Musa Dagh 16.0 and 20.0 (+4.0), Sardarapat 7.7 and 7.7 (+0.0).
+  - Hard: Van +0.0, Musa Dagh +0.0, Sardarapat +0.0.
+  - Easy: Van +0.0, Musa Dagh +3.0, Sardarapat +0.0.
+  - Returns never pass the cap: at most 5 in a battle (Surgeons), 4 on Musa Dagh (its walls start 20, the cap is 4 there).
+  - A seed the mix loses turned into a win: Hard Sardarapat, "aid" 3/3 2.3 against the mix's 2/3 2.3. Met.
+  - NOT met, for the owner: Musa Dagh on Normal (+4.0) and Easy (+3.0). The mix holds the last commander there with 0.1%
+    of the road left (walked 0.999) and fills every pad and all six plots. The post takes the pad of the mix's last tower
+    and the commander breaks through, at every price tried, free included. Only a board with a pad to spare would meet it.
+- The classic five, mix7, halfpost, posts and postdrum: every cell on all three difficulties equals G5's close tables.
+  mix7 builds its special tower 15th and never reaches it here, so its row does not measure the post. mix7 against mix
+  and the mean over the 17 stand as G5 and G7c left them (mix7 still meets its bound).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Easy: the mix alone meets Easy's band, unchanged (29.0, 25.0, 29.7): met.
+- Wave time at 1x for the best build on Normal: Van 32.1 min against 35 (-8%), Musa Dagh 23.2 against 23, Sardarapat 35.2
+  against 35. Unchanged.
+- The endless stand: mix7 falls 8, 8, 9 waves beyond on Van, 9, 9, 9 on Musa Dagh and 9, 9, 9 on Sardarapat (inside 8 to
+  20); harriers loses the chronicle on all three. "aid" falls 9 beyond on Sardarapat (three seeds) and once on Van.
+- The daily: the best builds and their clocks are unchanged, so DAILY_PAR is unchanged.
+- The Council (KIT=par HERO=hold): Van's best is now "aid" 17.0 (G5's close: mix 16.7), Musa Dagh 15.3 and Sardarapat 16.0
+  unchanged. The Standard best on Van is unchanged (mix7 10.0), so the post widens Van's par-hold margin by 0.3.
+- G5's open cells: the post moves none of them but Van's par-hold (+0.3 above). halfpost stays best on Musa Dagh.
+- 3.1's rule 2: where the post is in the best build (Easy Sardarapat greedy 30.0 against the mix's 29.7; Hard Sardarapat
+  minemix 3/3 2.3 against the mix's 2/3 2.3) it keeps 0.3 and 0.0 more defenders. Met.
+
+Pars: LEVEL_PAR's Sardarapat is now [2013, 2186, 2205] (Easy greedy's clock, the post third; Hard minemix's, the post
+eighth, best by wins). Revs: Van, Musa Dagh and Sardarapat rise to 3 (their pins moved); RULESET stays 2 (no board has
+opened); `ruleset-2-g7d.json` is rulesetData() at the build.
+
+For the owner: Musa Dagh's row (above); the bot's pad (5.4 says nearest the fortress); the Council's par-hold on Van.

@@ -845,11 +845,14 @@ canvas tent with a plain white cloth on a pole and a lantern at its door, stretc
 standing. 6. The card: "It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the
 hero come back sooner." and "After a wave in which you lose no defender, a lost one returns to the walls, a few in a battle at
 most. Returned defenders hold the walls. Stars count the defenders you never lost. One on a field.", then Van's sentence of
-the hospital and "The aid post as a tower is the game's invention." 7. The bot ranks and masters an Aid Post only once every
-pad is built. 5.2's rows NOT met and for the owner: "aid" loses more than 1 defender more than "mix" on Musa Dagh (Normal +4.0,
-Easy +3.0: the post takes the pad of the mix's last tower and the last commanders break through, at any price, free
-included) and on Normal Sardarapat (+2.3, one seed's commander) and Hard Sardarapat (+1.3); no seed the mix loses is won by
-"aid" on any difficulty.)
+the hospital and "The aid post as a tower is the game's invention." 7. The bot ranks an Aid Post only once every
+pad is built and masters it after every fighting tower, and puts it on the Stores' pad (the free pad that reaches the least
+road), not 5.4's "nearest the fortress": nearest the fortress, "aid" lost 2.3 more defenders than "mix" on Normal Sardarapat
+and turned no seed (docs/specs/balance/g7d-trials/near-*). On the Stores' pad 5.2's row is met on Van and Sardarapat on all
+three difficulties (0.0 more each) and "aid" wins the Hard Sardarapat seed the mix loses (3/3 against 2/3). NOT met and for
+the owner: Musa Dagh, where "aid" loses 4.0 more on Normal and 3.0 on Easy: the mix holds the last commander there with 0.1%
+of the road to spare and fills every pad and plot, so the post takes the pad of the mix's last tower and the commander breaks
+through, at any price, free included.)
 
 ### 3.6 Observation Post (Stepanakert 1992, Shushi, Stepanakert 2023)
 
