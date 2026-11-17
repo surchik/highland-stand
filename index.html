@@ -61,7 +61,8 @@
     position: fixed; inset: 0; touch-action: manipulation;
     -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
   }
-  #game { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; cursor: crosshair; }
+  #game { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; cursor: default; }
+  #game.aim { cursor: crosshair; }
   #safeProbe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
     padding: var(--sat) var(--sar) var(--sab) var(--sal); }
   #uiSprite { position: absolute; width: 0; height: 0; overflow: hidden; }
@@ -2416,7 +2417,7 @@
   #trickCard.unlock .tcBtns { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
   #trickCard.unlock .tcBtns #tcBtn { margin: 0; position: static; }
   #trickCard.unlock #tcLater { min-height: 46px; min-width: 110px; padding: 10px 20px; font-size: 16px; }
-  /* the chronicle's row of what the battle offers: the tray's towers, the Council's chip, the Standard switch */
+  /* the chronicle's row of what the battle offers: the tray's towers, the Council's chip, and a Standard battle's mark (opened from the Leaderboards) */
   .briefKit { display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 8px; margin-top: 6px; padding-left: 70px;
     align-self: stretch; box-sizing: border-box; max-width: 100%; min-width: 0; }
   .briefKit > * { max-width: 100%; box-sizing: border-box; }
@@ -2429,12 +2430,9 @@
   .briefKit .bkChip { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; border-radius: 17px; font-size: 13.5px; font-weight: 700;
     color: #fff3d6; border: 1.5px solid #6e4d1e; background: linear-gradient(180deg, #8a5a22, #5a3712); }
   .briefKit .bkChip .ic { width: 14px; height: 14px; color: #ffe7a8; }
-  .briefKit .bkStd { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 4px 12px 4px 6px; border-radius: 22px; text-align: left;
-    color: #3a2408; border: 1.5px solid #b98a3e; background: rgba(233,212,160,.55); }
-  .briefKit .bkKnob { flex: none; position: relative; width: 36px; height: 20px; border-radius: 10px; background: #a89070; box-shadow: inset 0 1px 3px rgba(0,0,0,.4); }
-  .briefKit .bkKnob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff6dc; transition: left .15s; }
-  .briefKit .bkStd.on .bkKnob { background: #8a2a1e; }
-  .briefKit .bkStd.on .bkKnob::after { left: 18px; }
+  .briefKit .bkStd { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; padding: 3px 12px 3px 8px; border-radius: 18px; text-align: left;
+    color: #3a2408; border: 1.5px solid #8a2a1e; background: rgba(233,212,160,.55); }
+  .briefKit .bkStd > .ic, .briefTricks .bkStd > .ic { flex: none; width: 16px; height: 16px; color: #8a2a1e; }
   .briefKit .bkTxt { display: flex; flex-direction: column; line-height: 1.2; }
   .briefKit .bkTxt b { font-size: 13.5px; }
   .briefKit .bkTxt i { font-size: 11.5px; color: #5a4020; }
@@ -2444,12 +2442,8 @@
   .briefTricks .bkChip { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; border-radius: 17px; font-size: 13.5px; font-weight: 700;
     color: #fff3d6; border: 1.5px solid #6e4d1e; background: linear-gradient(180deg, #8a5a22, #5a3712); }
   .briefTricks .bkChip .ic { width: 14px; height: 14px; color: #ffe7a8; }
-  .briefTricks .bkStd { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 2px 12px 2px 6px; border-radius: 22px; color: #3a2408;
-    border: 1.5px solid #b98a3e; background: rgba(233,212,160,.55); }
-  .briefTricks .bkKnob { flex: none; position: relative; width: 36px; height: 20px; border-radius: 10px; background: #a89070; box-shadow: inset 0 1px 3px rgba(0,0,0,.4); }
-  .briefTricks .bkKnob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff6dc; }
-  .briefTricks .bkStd.on .bkKnob { background: #8a2a1e; }
-  .briefTricks .bkStd.on .bkKnob::after { left: 18px; }
+  .briefTricks .bkStd { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 2px 12px 2px 8px; border-radius: 18px; color: #3a2408; cursor: default;
+    border: 1.5px solid #8a2a1e; background: rgba(233,212,160,.55); }
   .briefTricks .bkTxt b { font-size: 13.5px; }
   /* the victory page's row of growth, under the record: a button to the Council (a line of text on a phone held sideways) */
   #ovGrowth { display: none; justify-content: center; margin: 4px 0 2px; }
@@ -3012,6 +3006,7 @@
   #hall .lbSeal .seal { display: inline-grid; place-items: center; }
   #hall .lbSeal .seal .ic { width: 16px; height: 16px; vertical-align: 0; color: var(--bronze-hi); }
   #hall .lbNote { width: 100%; text-align: center; font-size: 13.5px; color: var(--parch-dk); }
+  #hall .lbFight { min-height: 44px; padding: 0 18px; font-size: 15px; }
   #hall .lbRow {
     display: grid; grid-template-columns: 3.2em minmax(0, 1fr) 5.4em 4.2em 4.6em; align-items: center; gap: 6px; min-height: 34px; padding: 0 8px;
     border-bottom: 1px solid rgba(185,138,62,.18); font-size: 15px; font-variant-numeric: tabular-nums lining-nums;
@@ -3063,6 +3058,7 @@
     #hall .lbSeal, #hall .lbOpt { flex: 1 1 0; min-width: 0; padding: 0 3px; gap: 3px; font-size: 12px; }
     #hall .lbSeal .seal .ic { width: 13px; height: 13px; }
     #hall .lbNote { font-size: 11.5px; text-align: left; }
+    #hall .lbFight { width: 100%; padding: 0 6px; font-size: 13px; }
     #hall .lbMain { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
     #hall .lbMain.more {
       -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), rgba(0,0,0,.15));
@@ -5919,7 +5915,7 @@ const Snd = {
 
   init() {
     if (HARNESS_ON) return;   // the self-test and photo harness never open an audio device
-    if (this.ctx) { this.unlock(); return; }
+    if (this.ctx) { this.unlock(); if (typeof Rec !== "undefined") Rec.bless(); return; }
     const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
     if (!AC) return;
     try {
@@ -5929,6 +5925,7 @@ const Snd = {
       this.unlock();
       this.applyVolumes(true);
       this.startMusic();
+      if (typeof Rec !== "undefined") Rec.bless();
       setTimeout(() => this.buildVoiceBank(), 400);   // the physical-model voices, off the hot path (men ready in about 1 s)
       document.addEventListener("visibilitychange", () => {
         const c = this.ctx;
@@ -5999,12 +5996,15 @@ const Snd = {
     this.ambIn = G(1); this.ambGain = G(0);
     this.ambIn.connect(this.ambGain); this.ambGain.connect(beds);
   },
-  applyVolumes(now) {
+  // musTc: the music's own time constant (a recording taking the music over, or giving it back, crossfades)
+  applyVolumes(now, musTc) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    const set = (p, v) => { if (now) p.value = v; else { p.cancelScheduledValues(t); p.setTargetAtTime(v, t, 0.03); } };
+    const set = (p, v, tc) => { if (now) p.value = v; else { p.cancelScheduledValues(t); p.setTargetAtTime(v, t, tc || 0.03); } };
     set(this.sfxGain.gain, this.sfxOn ? this.gainOf(this.sfxVol) : 0);
-    set(this.musGain.gain, this.musicOn ? this.gainOf(this.musVol) : 0);
+    // (while one of the owner's recordings holds the music, the generated music is turned down: Rec)
+    set(this.musGain.gain, this.musicOn && !(typeof Rec !== "undefined" && Rec.hold) ? this.gainOf(this.musVol) : 0, musTc);
+    if (typeof Rec !== "undefined" && !musTc) Rec.sync();
     set(this.ambGain.gain, this.ambOn ? this.gainOf(this.ambVol) : 0);
   },
   // slider position -> gain: a log taper, -18 dB at mid-travel, -36 dB near the bottom, off at 0
@@ -8395,8 +8395,11 @@ registerProcessor("kl-tract", KLTract);
     out.gain.value = this.musicOn ? this.DANCE_LVL : this.DANCE_LVL * 0.5;
     out.connect(this.musicOn ? this.musGain : this.sfxGain);
     this.danceBus = out; this.danceSpec = spec;
-    if (spec.band === "zurna") this.danceZurna(t0, tFrom, out);
-    else this.danceKef(t0, tFrom, out, spec);
+    // the tune twice over (the dance holds about twice as long since stage 6): the second time from where the
+    // first ends, on its bar line
+    const pass = (at) => { if (spec.band === "zurna") this.danceZurna(at, tFrom, out); else this.danceKef(at, tFrom, out, spec); };
+    pass(t0);
+    pass(this.danceEnd - 1.2);
   },
   // the band changed while the line is still dancing: the new one comes in on the next bar line
   // (returns that bar's number from the dance's first downbeat, or -1 when no dance is playing)
@@ -11333,7 +11336,7 @@ const KIT_EMPTY = Object.freeze({ own: Object.freeze({ bows: 0, engines: 0, capt
 let kit = KIT_EMPTY;
 let kitS = null;           // kitSummary(kit), read by every number the kit moves
 let kitStatsCache = {};    // getStats' copies, per slot, rank and mastery; dropped whenever the kit is set
-let standardBattle = false;   // the chronicle's Standard battle switch (6.4): off by default, kept for the visit
+let standardBattle = false;   // a Standard battle (6.4), opened from the Leaderboards tab (openBriefStandard); off by default
 let kitTest = null;        // the balance bot's KIT= (setKitForTest): "none" | "floor" | "par" | "cap", else null
 function kitHas(branch, tier) { return ((kit.own || {})[branch] || 0) >= tier; }
 function tierLive(T) { return !T.needs || !!COUNCIL_LIVE[T.needs]; }
@@ -15264,9 +15267,249 @@ function chime(name, msg) {
 }
 $("ecBtn").addEventListener("click", () => { Snd.play("uiTick"); closeEndingCard(); });
 
-// the dancers have the field for at least this long before a tap moves on; left alone, they dance
-// the whole tune (16 bars of the kochari, about 21 s at 96 BPM)
-const DANCE_MIN_MS = 10000, DANCE_MAX_MS = (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
+// ---- the owner's recordings (stage 6): music for the battles (assets/music/) and for the victory dance (assets/victory/) ----
+// Files beside the page, never loaded with it: a battle's tune is asked for as its battle begins, a victory's as the
+// victory comes. Each plays through an <audio> element (streamed, never decoded whole), joined to the music's bus
+// after the Music volume (Snd.duckGain, so the effects still duck it) on http(s), and by the element's own volume on
+// file:// (where the browser keeps a file's samples from Web Audio). While a recording holds the music, the generated
+// music is turned down (Snd.applyVolumes reads Rec.hold); it comes back whenever no recording plays: before a tune has
+// loaded, after a file fails, on the map and the chronicle. Nothing here ever runs under the harness (HARNESS_ON:
+// Snd.init opens no audio there), and nothing in the game waits on a file.
+// lufs: each file's integrated loudness (ffmpeg's ebur128, over the part the game plays), from which its trim is
+// worked out: a battle's tune about 3 dB over the generated field music at the default volume (about -28 LUFS at
+// the output), a victory's level with the generated dance (about -21 LUFS). bpm and beat0: the victory recordings'
+// tempo and first strong beat, measured (docs/specs/owner-requests-stage6.md: onset autocorrelation over the bar);
+// the dancers step to them. at: where the dance's part of a recording begins (Kochari's opening is a slow prelude)
+const REC_BATTLE = [
+  { id: "hov-arek-sarer-jan", file: "assets/music/hov-arek-sarer-jan.mp3", lufs: -13.7 },
+  { id: "na-mi-naz", file: "assets/music/na-mi-naz.mp3", lufs: -11.4 },
+  { id: "sheyk-sar", file: "assets/music/sheyk-sar.mp3", lufs: -11.6 },
+  { id: "sev-gakavik", file: "assets/music/sev-gakavik.mp3", lufs: -17.0 },
+  { id: "oorakh-ler", file: "assets/music/oorakh-ler.mp3", lufs: -15.7 },
+];
+const REC_VICTORY = [
+  { id: "kochari", file: "assets/victory/kochari.mp3", lufs: -15.8, bpm: 102.4, beat0: 45.31, at: 45 },
+  { id: "yarkhushta", file: "assets/victory/yarkhushta.mp3", lufs: -10.5, bpm: 95.6, beat0: 0.61, at: 0 },
+];
+const REC_OUT_DB = 3.6;   // the music bus's gain from Snd.duckGain to the output (measured: a tone in, the meter out)
+const Rec = {
+  hold: false,          // a recording holds the music (the generated music is turned down)
+  ok: true,             // false once a file has failed this visit: the generated music for the rest of it
+  lastBattle: -1,       // the battle tune heard last (the next battle never opens on it)
+  vicNext: -1,          // the victory recording the next victory plays (alternating; -1: by the visit's count)
+  ch: { battle: null, victory: null },   // each channel: { el, node, gain, want, idx, playing, fade }
+  // a recording may play: the page is a player's (not the harness), sound is open, and the browser plays audio
+  allowed() {
+    return !HARNESS_ON && !!Snd.ctx && typeof Audio === "function" && this.ok;
+  },
+  viaGraph() { return /^https?:$/.test(location.protocol) && !!(Snd.ctx && Snd.ctx.createMediaElementSource); },
+  // the channel's element, made the first time (and blessed by the first tap: iOS lets an element play later only
+  // once it has played inside a gesture)
+  chan(k) {
+    let c = this.ch[k];
+    if (c) return c;
+    const el = new Audio();
+    el.preload = "none";
+    c = this.ch[k] = { el, node: null, gain: null, want: false, idx: -1, playing: false, fade: null, failT: 0 };
+    el.addEventListener("playing", () => { c.playing = true; clearTimeout(c.failT); this.sync(); });
+    el.addEventListener("pause", () => { c.playing = false; });
+    el.addEventListener("ended", () => { c.playing = false; if (k === "battle" && c.want) this.battleNext(); else this.stop(k, 0); });
+    el.addEventListener("error", () => { if (el.getAttribute("src") && !el.src.startsWith("data:")) this.fail(k); });
+    if (this.viaGraph()) {
+      try {
+        c.node = Snd.ctx.createMediaElementSource(el);
+        c.gain = Snd.ctx.createGain(); c.gain.gain.value = 0;
+        c.node.connect(c.gain); c.gain.connect(Snd.duckGain);
+      } catch (e) { c.node = c.gain = null; }
+    }
+    return c;
+  },
+  // the first tap: both elements play a silent instant, so iOS lets them play later without a tap (a victory comes
+  // in the game's loop, not under a finger)
+  blessed: false,
+  bless() {
+    if (this.blessed || !this.allowed()) return;
+    this.blessed = true;
+    const wav = "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+    for (const k of ["battle", "victory"]) {
+      const c = this.chan(k);
+      if (c.el.getAttribute("src")) continue;
+      try { c.el.src = wav; const p = c.el.play(); if (p && p.then) p.then(() => { if (c.el.src.startsWith("data:")) c.el.pause(); }, () => {}); } catch (e) {}
+    }
+  },
+  // a file that cannot load: the generated music comes back at once, for this channel and the rest of the visit
+  fail(k) {
+    const c = this.ch[k];
+    if (!c) return;
+    this.ok = false;
+    c.want = false; c.playing = false;
+    try { c.el.pause(); c.el.removeAttribute("src"); c.el.load(); } catch (e) {}
+    this.sync();
+    if (k === "victory" && celebration && !celebration.band0) victoryFallback();
+  },
+  // the level of a channel: by the Music volume (the victory's on the effects' when the music is off and the sound on,
+  // as the generated dance plays), with the recording's own trim
+  level(k, idx) {
+    const R = (k === "battle" ? REC_BATTLE : REC_VICTORY)[idx];
+    if (!R) return 0;
+    const target = k === "battle" ? -25 : -21, trim = Math.pow(10, (target - REC_OUT_DB - R.lufs) / 20) / Snd.gainOf(0.75);
+    const vol = Snd.musicOn ? Snd.gainOf(Snd.musVol) : k === "victory" && Snd.sfxOn ? Snd.gainOf(Snd.sfxVol) * 0.5 : 0;
+    return trim * vol;
+  },
+  // every channel's level now (a fade in progress runs to its end); the generated music's hold follows
+  sync() {
+    const t = Snd.ctx ? Snd.ctx.currentTime : 0;
+    for (const k of ["battle", "victory"]) {
+      const c = this.ch[k];
+      if (!c) continue;
+      const v = c.want ? this.level(k, c.idx) : 0, tc = c.fade || 0.05;
+      if (c.gain) { const g = c.gain.gain; g.cancelScheduledValues(t); g.setTargetAtTime(v, t, tc); }
+      else if (!c.fade) { try { c.el.volume = Math.max(0, Math.min(1, v * Math.pow(10, REC_OUT_DB / 20))); } catch (e) {} }
+    }
+    const hold = Object.values(this.ch).some(c => c && c.want && c.playing);
+    if (hold !== this.hold) { this.hold = hold; Snd.applyVolumes(false, hold ? 0.5 : 1.2); }
+  },
+  // play recording idx on channel k from `at` seconds
+  play(k, idx, at) {
+    if (!this.allowed()) return false;
+    const L = k === "battle" ? REC_BATTLE : REC_VICTORY, R = L[idx];
+    if (!R) return false;
+    const c = this.chan(k);
+    c.want = true; c.idx = idx; c.fade = null; c.playing = false;
+    const el = c.el;
+    try {
+      el.preload = "auto";
+      // (where to begin rides in the address as a media fragment, so no seek waits on the file's metadata)
+      const src = new URL(R.file, location.href).href + (at ? "#t=" + at : "");
+      if (el.src !== src) el.src = src;
+      else { try { el.currentTime = at || 0; } catch (e) {} }
+      this.sync();
+      const p = el.play();
+      if (p && p.catch) p.catch(() => { /* refused (no gesture on iOS, a slow load cut short): the generated music stays */ });
+      // the victory's file not playing within 2.5 s (a slow connection): the generated dance takes over. A battle's
+      // needs no such watch: its generated music plays on until the file does
+      clearTimeout(c.failT);
+      c.failT = setTimeout(() => { if (c.want && !c.playing && k === "victory" && celebration && !celebration.band0) victoryFallback(); }, 2500);
+    } catch (e) { c.want = false; return false; }
+    return true;
+  },
+  // a channel faded out over `s` seconds, then paused (0: at once)
+  stop(k, s) {
+    const c = this.ch[k];
+    if (!c || !c.want) return;
+    c.want = false;
+    clearTimeout(c.failT);
+    const el = c.el, ms = Math.max(0, (s || 0) * 1000);
+    if (ms && c.playing) {
+      c.fade = s / 3;
+      this.sync();
+      if (!c.gain) {   // file://: the element's own volume, stepped down
+        const v0 = el.volume, t0 = performance.now();
+        const step = () => { if (c.want) return; const f = (performance.now() - t0) / ms; if (f >= 1) { el.pause(); return; } try { el.volume = v0 * (1 - f); } catch (e) {} setTimeout(step, 50); };
+        step();
+      } else setTimeout(() => { if (!c.want) el.pause(); }, ms);
+    } else { try { el.pause(); } catch (e) {} c.playing = false; this.sync(); }
+  },
+  // ---- battles: a battlefield opens on its own tune (its number among the five), then they turn in order; a battle
+  // never opens on the tune heard last
+  battleFirst(lv) {
+    let i = ((lv | 0) % REC_BATTLE.length + REC_BATTLE.length) % REC_BATTLE.length;
+    if (i === this.lastBattle) i = (i + 1) % REC_BATTLE.length;
+    return i;
+  },
+  battleNext() {
+    const c = this.ch.battle;
+    const i = ((c ? c.idx : -1) + 1) % REC_BATTLE.length;
+    this.lastBattle = i;
+    this.play("battle", i, 0);
+  },
+  // the battle's state, read every frame: "on" (a battle is fought), "held" (paused, or the page hidden), or "" (no
+  // battle: the map, the chronicle, a menu page, the trailer)
+  battleState() {
+    if (crashed || photo || gameOver || !overlayEl.classList.contains("hidden")) return "";
+    if (Nardi.covers() || Town.covers()) return "";
+    try { if (Trailer.isOpen()) return ""; } catch (e) {}
+    if (document.hidden || (paused && !settingsHold)) return "held";
+    return "on";
+  },
+  wasBattle: "", battleLv: -1,
+  tick() {
+    if (!this.allowed()) return;
+    const st = this.battleState(), c = this.ch.battle;
+    if (st !== this.wasBattle) {
+      const was = this.wasBattle;
+      this.wasBattle = st;
+      if (st === "on" && !(c && c.want)) {
+        // a battle begins (or a resumed one): its battlefield's tune
+        const i = this.battleFirst(curLevel);
+        this.lastBattle = i; this.battleLv = curLevel;
+        this.play("battle", i, 0);
+      } else if (st === "on" && c && c.want) { const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }
+      else if (st === "held" && c && c.want) { try { c.el.pause(); } catch (e) {} }
+      else if (st === "" && was) this.stop("battle", celebration || fallen || parley ? 2 : 0.6);
+    }
+    // the Music switch: off pauses the tune where it is, on takes it up again
+    if (c && c.want && st === "on") {
+      if (!Snd.musicOn && !c.el.paused) { try { c.el.pause(); } catch (e) {} }
+      else if (Snd.musicOn && c.el.paused && c.el.readyState >= 2) { const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }
+    }
+    const v = this.ch.victory;
+    if (v && v.want && document.hidden && !v.el.paused) { try { v.el.pause(); } catch (e) {} }
+    else if (v && v.want && !document.hidden && v.el.paused && v.playing === false && v.el.currentTime > 0 && (Snd.musicOn || Snd.sfxOn)) { const p = v.el.play(); if (p && p.catch) p.catch(() => {}); }
+  },
+  // ---- the victory: the next of the two recordings, alternating from visit to visit (hs_vic_rec)
+  victoryPick() {
+    let n = this.vicNext;
+    if (n < 0) { n = 0; try { n = (Number(localStorage.getItem("hs_vic_rec")) | 0) % REC_VICTORY.length; } catch (e) {} }
+    this.vicNext = (n + 1) % REC_VICTORY.length;
+    try { localStorage.setItem("hs_vic_rec", String(this.vicNext)); } catch (e) {}
+    return n;
+  },
+  // starts the victory's recording; its spec (bpm, beat0) or null when none can play (the generated dance then)
+  victory() {
+    if (!this.allowed() || !(Snd.musicOn || Snd.sfxOn)) return null;
+    this.stop("battle", 1.2);
+    const i = this.victoryPick(), R = REC_VICTORY[i];
+    return this.play("victory", i, R.at) ? R : null;
+  },
+  victoryEnd(s) { this.stop("victory", s == null ? 2.5 : s); },
+  // the dancers' clock while the recording plays: its own time, so they keep its beat through a stall
+  // (a browser moves currentTime on in steps: between two, the wall clock carries it, so the steps stay smooth)
+  vt: { ct: -1, at: 0 },
+  victoryTime() {
+    const v = this.ch.victory;
+    if (!(v && v.want && v.playing && !v.el.paused)) return null;
+    const ct = v.el.currentTime, now = performance.now();
+    if (ct !== this.vt.ct) { this.vt = { ct, at: now }; return ct; }
+    return ct + Math.min(0.5, (now - this.vt.at) / 1000);
+  },
+};
+
+// the dancers have the field for at least this long before a tap moves on; left alone, they dance about twice the
+// generated tune (16 bars of the kochari, about 21 s at 96 BPM, played twice), 43 s, the owner's "a bit longer"
+// (stage 6), over the owner's recording when one plays; a tap after the first 10 s still leaves at once
+const DANCE_MIN_MS = 10000, DANCE_MAX_MS = 2 * (16 * 4 * 30 / DANCE_BPM + 1.6) * 1000;
+// the dancers' beat: the recording's own time at its measured tempo while it plays, else the clock from the
+// victory (or from the moment the generated band took over) at the recording's tempo or the generated band's
+function celebrationBeat(now) {
+  const C = celebration;
+  if (!C) return 0;
+  const R = C.rec, rt = R ? Rec.victoryTime() : null;
+  if (R && rt != null) return Math.max(0, rt - R.beat0) * R.bpm / 60;
+  const t = ((now == null ? performance.now() : now) - (C.t0 || C.start)) / 1000;
+  return Math.max(0, t - 0.15) * ((R && R.bpm) || DANCE_BPM) / 60;
+}
+// the recording could not play (it failed, or had not begun 2.5 s in): the generated band plays the dance, the
+// dancers on its tempo from now
+function victoryFallback() {
+  const C = celebration;
+  if (!C || C.band0) return;
+  C.band0 = true;
+  Rec.stop("victory", 0);
+  C.rec = null;
+  C.t0 = performance.now();
+  Snd.dance(C.band);
+}
 function victory() {
   gameOver = true;
   growthStars = starsEarned();   // the stars before this victory's (victoryGrowth tells what it added)
@@ -15290,9 +15533,11 @@ function victory() {
   }
   Snd.play("win");
   const band = victoryBand();
-  Snd.dance(band);
+  // the owner's recording (Kochari or Yarkhushta, in turn), or the generated band where none can play
+  const rec = Rec.victory();
+  if (!rec) Snd.dance(band);
   // (the page counts the defenders never lost, as the stars do: heldNow)
-  celebration = { start: performance.now(), lives: heldNow(), band, bandPrev: band, bandFrom: 0, best };
+  celebration = { start: performance.now(), lives: heldNow(), band, bandPrev: band, bandFrom: 0, best, rec, band0: !rec };
   confetti = [];
   hidePanel();
   setPlacing(null);
@@ -15303,6 +15548,7 @@ function endCelebration() {
   if (!celebration) return;
   const heldLives = celebration.lives, best = celebration.best;
   celebration = null;
+  Rec.victoryEnd();   // the recording fades as the page comes
   confetti = [];
   // a battlefield may tell its own victory (L.victory) and title its page (L.endTitle); the tally follows, and
   // the endless offer unless the battlefield ends where history did (L.noEndless: Sis, whose king yields)
@@ -15639,6 +15885,8 @@ function syncCampaignTally() {
 // A tablet held upright has its chronicle exactly as tall as the screen: there the chip and the switch join the row
 // of tricks (no row of their own, no towers, the switch's words in its title), so Begin stays in sight
 function briefKitInline() { return !isPhone() && innerHeight > innerWidth; }
+// what a Standard battle is, in the chronicle's row and on the Leaderboards tab's door
+const STANDARD_WORDS = "No Council, hero at level 1, no Call · for the Standard boards. The battle clock runs between waves too. Pause to plan.";
 function briefKitRow(squeeze) {
   const el = $("briefKit");
   if (!el) return;
@@ -15649,16 +15897,16 @@ function briefKitRow(squeeze) {
     el.classList.remove("on");
     return;
   }
-  // the switch is for a player who owns something here: a tier, a hero level or the Call
-  const unspent = councilUnspent(), owns = !kitEmpty(playerKit()), inline = squeeze || briefKitInline(), side = phoneWide() || inline;
+  // a Standard battle (opened from the Leaderboards tab, openBriefStandard) says so in the row: no switch since stage 6,
+  // the owner's ruling ("not needed"); the campaign's chronicle is always the player's own battle
+  const unspent = councilUnspent(), inline = squeeze || briefKitInline(), side = phoneWide() || inline;
   let html = "";
   if (!side) html += '<span class="bkTowers" role="img" aria-label="' + escapeHtml("The towers of this battle: " + TRAY_CLASSIC.split(",").map(towerName).join(", ")) + '">' +
     TRAY_CLASSIC.split(",").map(k => '<span class="bkTw" title="' + escapeHtml(towerName(k)) + '">' + icon(k === "drums" ? "crown" : slotIcon(k)) + "</span>").join("") + "</span>";
-  if (unspent > 0) html += '<button type="button" class="bkChip" id="bkCouncil">' + icon("star") + "Council · " + unspent + " to spend</button>";
-  if (owns && curLevel !== 0 || owns && !tutorialPending()) {
-    html += '<button type="button" class="bkStd' + (standardBattle ? " on" : "") + '" id="bkStd" role="switch" aria-checked="' + standardBattle + '" title="' +
-      escapeHtml("Standard battle · no Council, hero at level 1, no Call · for the Standard boards. The battle clock runs between waves too. Pause to plan.") + '">' +
-      '<span class="bkKnob" aria-hidden="true"></span><span class="bkTxt"><b>Standard battle</b>' + (side ? "" : "<i>No Council, hero at level 1, no Call · for the Standard boards. The battle clock runs between waves too. Pause to plan.</i>") + "</span></button>";
+  if (unspent > 0 && !standardBattle) html += '<button type="button" class="bkChip" id="bkCouncil">' + icon("star") + "Council · " + unspent + " to spend</button>";
+  if (standardBattle) {
+    html += '<span class="bkStd" id="bkStd" role="note" title="' + escapeHtml(STANDARD_WORDS) + '">' + icon("flag") +
+      '<span class="bkTxt"><b>Standard battle</b>' + (side ? "" : "<i>" + escapeHtml(STANDARD_WORDS) + "</i>") + "</span></span>";
   }
   if (inline && html) {
     el.innerHTML = "";
@@ -15751,31 +15999,26 @@ function dailyBrief() {
   trayBan = dailyRun.fx.ban.slice();
   briefPage();
 }
-// the chronicle with the Standard switch already on: a door for the platform's "Fight for this board"
-// (false, and nothing done, for a battlefield that is not open: the switch is never set on another field's page)
-function openBriefStandard(levelIndex) {
+// the chronicle of a Standard battle: the door of the Leaderboards tab's "Fight for this board" (the chronicle's switch
+// is gone since stage 6). False, and nothing done, for a battlefield that is not open. diff: the board's difficulty
+// (the player's own choice when left out). The mark stays for that battlefield's Replay and Fight again; the map, another
+// battlefield's chronicle and a new chapter put it away (standardOff)
+function openBriefStandard(levelIndex, diff) {
   if (!(Number.isInteger(levelIndex) && levelIndex >= 0 && levelIndex < LEVELS.length && levelOpen(levelIndex))) return false;
   curLevel = levelIndex; curEra = LEVELS[levelIndex].era; applyEraLabels();
-  standardBattle = true;
+  if (Number.isInteger(diff) && DIFFS[diff]) curDiff = diff;
+  standardBattle = true; standardLv = levelIndex;
+  track("standard_set", { lv: levelId(curLevel), on: true });
   showBrief();
   return true;
 }
+function standardOff() { standardBattle = false; }
+let standardLv = -1;   // the battlefield the Standard battle was opened for
 document.addEventListener("click", (e) => {
-  const b = e.target.closest && e.target.closest("#bkCouncil, #bkStd");
+  const b = e.target.closest && e.target.closest("#bkCouncil");
   if (!b) return;
   Snd.init();
-  if (b.id === "bkCouncil") { Snd.play("uiTick"); openCouncil("brief"); }
-  else if (b.id === "bkStd") {
-    standardBattle = !standardBattle;
-    Snd.play("uiTick");
-    track("standard_set", { lv: levelId(curLevel), on: standardBattle });
-    briefKitRow();
-    // the hero's line names the level the battle will be fought at (a Standard battle: level 1)
-    const lv = $("briefHero").querySelector(".lv");
-    if (lv) lv.textContent = briefHeroLevel();
-    if (heroCardOn()) foeCardEl.innerHTML = heroCardHtml();
-    try { $("bkStd").focus({ preventScroll: true }); } catch (err) {}
-  }
+  Snd.play("uiTick"); openCouncil("brief");
 });
 
 // ---- the victory page's row of growth: #ovGrowth (4.6) ----
@@ -30680,7 +30923,7 @@ function paintVictoryCard(c, tally) {
   const chips = [
     { label: tally.lives + " / " + tally.maxLives + " defenders", icon: "i-shield" },
     { label: tally.gold + " gold", icon: "i-coin" },
-    { label: tally.kills + " foes felled", icon: "g-sword", crossed: true },
+    { label: tally.kills + " enemies destroyed", icon: "g-sword", crossed: true },
   ];
   const chipH = 25, chipY = 128;
   chips.forEach(chip => { chip.w = Math.ceil(c.measureText(chip.label).width) + 54; });   // icon 32 + room 22 to the right
@@ -30783,10 +31026,10 @@ function drawCelebration(time) {
   const C = CELEBRATION, stage = celebrationStage();
   const dark = timeOfDay().dark;
 
-  // the kochari line — choreography locked to the band at DANCE_BPM:
+  // the kochari line, its choreography locked to the band (DANCE_BPM, or the recording's measured tempo):
   // 4 beats traveling side-steps, 2 beats of deep knee-bends, 2 beats of kicks
   // (the men drop to squat-kicks every other cycle)
-  const beat = Math.max(0, t - 0.15) * (DANCE_BPM / 60);
+  const beat = celebrationBeat(time);
   const cycle = Math.floor(beat / 8);
   const cb = beat % 8;
   const travel = cb < 4 ? cb / 4 : 1;
@@ -30879,39 +31122,7 @@ function drawCelebration(time) {
   confetti = confetti.filter(cf => cf.y < VH + 20);
 
   drawVictoryCard((t - 0.15) / 0.45);
-  drawDanceCaption((t - 1.4) / 0.6);
 }
-// The dance named under the plaque, by the battlefield's age. The line dances a kochari, the circle dance of the
-// Armenian Highlands that Armenians dance today; how far back it goes is not known, so the older ages say only that
-// their dance is shown in its manner, and Urartu that the manner is a later one
-function danceCaption() {
-  const year = (LEVELS[curLevel] || LEVELS[0]).year || 0;
-  return year < 0 ? "A circle dance, shown in the manner of the later Armenian kochari"
-    : year < 1800 ? "A circle dance in the manner of the Armenian kochari" : "Kochari, an Armenian circle dance";
-}
-function drawDanceCaption(alpha) {
-  const a = unit01(alpha);
-  if (a <= 0) return;
-  const C = CELEBRATION, txt = danceCaption();
-  const fs = Math.max(15, 11 / (scale || 1));   // never under 11 px on the screen
-  ctx.save();
-  ctx.globalAlpha = a;
-  ctx.font = "italic 600 " + fs.toFixed(1) + "px " + UI_FONT;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const w = ctx.measureText(txt).width + fs * 1.6, h = fs * 1.7, x = VW / 2, y = C.cardY + C.cardH + 8 + h / 2;
-  ctx.fillStyle = "rgba(20, 13, 8, .78)";
-  ctx.strokeStyle = "rgba(185, 138, 62, .85)";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2); else ctx.rect(x - w / 2, y - h / 2, w, h);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#f3e2b8";
-  ctx.fillText(txt, x, y + 0.5);
-  ctx.restore();
-}
-
 // ---- the kochari ensemble ----
 // The line dresses for the battlefield's age. Each period lists its seven dancers (man, woman,
 // man, ...), its two musicians and their pipe. A man's garment is a "tunic", "kaftan", "chokha",
@@ -65833,6 +66044,7 @@ function showBrief() {
   briefPage();
 }
 function briefPage() {
+  if (standardBattle && curLevel !== standardLv) standardOff();   // another battlefield's chronicle is the campaign's own
   leaveVictory();
   dropTrickCards();
   // the brief previews a new stand, never a resumed one (Resume skips it): a legacy run resumed earlier must not
@@ -66308,7 +66520,7 @@ function setVictoryBand(band) {
   // the painted band changes with the music: on the bar line where the new band comes in, or at the
   // next bar line of the dance when no music plays (a bar of the kochari is two beats)
   const spec = victoryBand(), bar = Snd.danceSwitch(spec);
-  const beat = Math.max(0, (performance.now() - celebration.start) / 1000 - 0.15) * (DANCE_BPM / 60);
+  const beat = celebrationBeat();
   celebration.bandPrev = celebrationBand(beat);
   celebration.bandFrom = bar >= 0 ? bar * 2 : Math.ceil(beat / 2) * 2;
   celebration.band = spec;
@@ -66595,14 +66807,14 @@ window.addEventListener("keydown", (e) => {
 
 $("startBtn").addEventListener("click", () => {
   Snd.init();
-  if (menuMode === "map") { showBrief(); return; }
+  if (menuMode === "map") { standardOff(); showBrief(); return; }
   // (a daily's end page: Fight again opens the daily's chronicle once more)
   if (menuMode === "victory") { leaveVictory(); if (dailyRun) dailyBrief(); else showBrief(); return; }
   if (menuMode === "chapter") {
     Snd.play("mapSelect");
     const n = introThen;
     closeChapterIntro();
-    if (n >= 0) { curLevel = n; curEra = LEVELS[n].era; applyEraLabels(); showBrief(); }
+    if (n >= 0) { curLevel = n; curEra = LEVELS[n].era; applyEraLabels(); standardOff(); showBrief(); }
     return;
   }
   clearRun();   // (a daily's clears nothing: the campaign's saved run is left as it was)
@@ -86233,6 +86445,13 @@ function renderBoards(el) {
   pair("Period", [["week", "This week"], ["all", "All time"]], "period");
   pair("Loadout", [["std", "Standard"], ["open", "Open"]], "loadout");
   if (LB.loadout === "open") ctl.appendChild(pfEl("p", "lbNote", "Battles fought with War Council upgrades count here."));
+  // the door to a Standard battle on this board (the chronicle's switch is gone since stage 6): its chronicle, on the
+  // board's difficulty, marked Standard
+  else if (levelOpen(LB.lv)) {
+    const go = pfBtn("btn lbFight", "Fight for this board", () => lbFight());
+    go.title = "A Standard battle on " + L.name + ", " + DIFFS[LB.diff].name + ". " + STANDARD_WORDS;
+    ctl.appendChild(go);
+  }
   // the list, and the words under it
   const list = pfEl("div", "lbList");
   list.setAttribute("aria-live", "polite");
@@ -86244,6 +86463,15 @@ function renderBoards(el) {
   lbLoad(list);
 }
 function pfBoardsRedraw() { if (hallOpen && hallTab === "boards") showHallTab("boards", false); }
+// "Fight for this board": the Hall goes and the battlefield's chronicle opens as a Standard battle (openBriefStandard)
+function lbFight() {
+  if (battleLive() || !levelOpen(LB.lv)) return false;
+  const lv = LB.lv, diff = LB.diff;
+  hallFrom = "";
+  closeHall();
+  if (dailyRun) dailyLeave();
+  return openBriefStandard(lv, diff);
+}
 // three faint rows while the board is asked for; then the rows, or why there are none
 async function lbLoad(list) {
   const seq = ++LB.seq, L = LEVELS[LB.lv];
@@ -86645,6 +86873,18 @@ let last = performance.now();
 // An error inside the frame stops the loop's work, not the page: a card (crashCard) offers a reload, or the
 // campaign map with the battle's saved run (from its last wave) waiting on the Resume button
 let crashed = null;
+// the cross is the battle's pointer: over the victory dance, the defeat's beat and every page the field shows the
+// ordinary arrow (stage 6, the owner's word)
+let aimWas = null;
+function aimCursor() {
+  const on = !gameOver && !celebration && !fallen && !parley && overlayEl.classList.contains("hidden");
+  if (on !== aimWas) { aimWas = on; canvas.classList.toggle("aim", on); }
+}
+// the page hidden: the owner's recordings wait (the frame stops, so its watch could not pause them)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  for (const c of Object.values(Rec.ch)) if (c && c.want) { try { c.el.pause(); } catch (e) {} }
+});
 function frame(time) {
   requestAnimationFrame(frame);
   if (crashed) { last = time; return; }
@@ -86663,6 +86903,8 @@ function frame(time) {
     draw(time);
     coachTick();
     trickCardTick();
+    aimCursor();
+    try { Rec.tick(); } catch (e) {}   // (the music never stops a battle)
   } catch (err) {
     crashed = err;
     showCrashCard(err);
