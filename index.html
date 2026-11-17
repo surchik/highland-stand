@@ -3134,6 +3134,8 @@
   <symbol id="i-heal" viewBox="0 0 24 24"><path d="M9.300 2.800h5.400v6.500h6.500v5.400h-6.500v6.500H9.300v-6.500H2.800V9.300h6.500z"/></symbol>
   <symbol id="i-smokepot" viewBox="0 0 24 24"><circle cx="7.400" cy="15" r="5"/><circle cx="13.300" cy="9.600" r="6"/><circle cx="17.600" cy="15.800" r="4.600"/><path d="M5 18.600h14.400V20H5z"/></symbol>
   <symbol id="i-blast" viewBox="0 0 24 24"><circle cx="9.200" cy="14.800" r="6.400"/><path d="M14.600 7.800 17.800 2.600M16.600 10.200l5-2.400M12.200 6.400l.4-4.400" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"/></symbol>
+  <!-- the Aid Post (G7d): a stretcher under a pole with a plain cloth (no cross: the emblem is protected) -->
+  <symbol id="i-aid" viewBox="0 0 24 24"><path d="M2 15.200h20v2.200H2zM5 11.600h14v3H5z"/><path d="M5.400 17.400v3.600M18.600 17.400v3.600M8 2.400v9.200" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 2.600h9.400l-2 2.600 2 2.600H9z"/></symbol>
   <symbol id="i-hp" viewBox="0 0 24 24"><path d="M12 21.200C5.600 16.400 2.200 12.700 2.200 8.600 2.200 5.500 4.600 3.200 7.500 3.200c1.900 0 3.500 1 4.500 2.600 1-1.600 2.600-2.600 4.500-2.600 2.900 0 5.300 2.300 5.300 5.400 0 4.100-3.400 7.800-9.800 12.600z"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M5.200 5.200l13.600 13.600M18.800 5.200 5.200 18.800" fill="none" stroke="currentColor" stroke-width="2.800" stroke-linecap="round"/></symbol>
   <symbol id="i-r-raider" viewBox="0 0 24 24">
@@ -9831,10 +9833,42 @@ TOWER_DEFS.mine = {
 // tap: the marker's catch on the screen in client px at the least (a tower's tap zone's rule, towerTapAxes)
 const MINE_RULES = { triggers: [0, 3, 5], trigger: 3, boss: 3, tap: 22 };
 
+// ---------- the Aid Post (gameplay 3.5): the special tower of Van, Musa Dagh and Sardarapat ----------
+// It gives back what was lost, and never fights (proj null: the shooting loop passes it by). Three effects (aidTick,
+// aidReturn): 1. the men of Garrison Posts and the hero inside its `range` begin to recover AID_RULES.after s after
+// their last fight (3 s without it) and recover AID_RULES.heal times as fast; a man is never healed while he fights.
+// 2. fallen men of posts in range return `haste` sooner (that share off the wait), and the fallen hero returns
+// `heroBack` s sooner, wherever he fell. 3. after a cleared wave in which no defender was lost, one lost defender
+// returns to the walls, up to `restore` in a battle and never above the number the difficulty began with. Stars,
+// records and the boards count the defenders never lost (held, 6.1), so a returned one changes none of them. max: one
+// on a field (3.7). A wrecked Aid Post does nothing
+TOWER_DEFS.aid = {
+  name: "Aid Post", cost: 110, proj: null, aid: true, max: 1, maxSay: "One aid post serves this field.",
+  // the post's own strength by rank, for hunters, drones and powers (kept here, as the Horse Lines' is: rulesetData)
+  hp: [240, 300, 380],
+  levels: [
+    { range: 170, haste: 0.2, heroBack: 3, restore: 2 },
+    { range: 190, haste: 0.3, heroBack: 5, restore: 3, cost: 130 },
+    { range: 215, haste: 0.4, heroBack: 7, restore: 4, cost: 210 },
+  ],
+  specs: {
+    a: { name: "Surgeons", cost: 320, desc: "More defenders come back to the walls",
+         stats: { range: 230, haste: 0.4, heroBack: 7, restore: 5 } },
+    b: { name: "Stretcher Bearers", cost: 320, desc: "Your men and your hero are back in half the time",
+         stats: { range: 260, haste: 0.6, heroBack: 12, restore: 4 } },
+  },
+};
+// how the aid is given, named once (rulesetData reads it). after: the seconds out of a fight before a man or the hero in
+// range begins to recover (POST_RULES.healAfter and the hero's 3 without it); heal: how many times as fast he then
+// recovers; heroMin: the fewest seconds a fallen hero is away, however much sooner the post brings him back; walk: px a
+// second a returning defender walks from the post to the walls (drawn only)
+const AID_RULES = { after: 1, heal: 2, heroMin: 5, walk: 46 };
+
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
 // built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
 // Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven; the Stores, G7b: Dvin, Tashir, Sevan, Ani, Mari and
-// Sis have seven; the Powder Mine, G7c: Gyumri Road and Halidzor have seven)
+// Sis have seven; the Powder Mine, G7c: Gyumri Road and Halidzor have seven; the Aid Post, G7d: Van, Musa Dagh and
+// Sardarapat have seven)
 const AGES = [
   { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
   { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
@@ -10238,8 +10272,22 @@ const MINE_LEVEL = {
   gyumri: { name: "Powder Mine", depicts: "Kegs of powder buried under the road, with a slow match run back to the wall" },
   halidzor: { name: "Powder Mine", depicts: "Kegs of powder buried under the road, with a slow match run back to the wall" },
 };
+// the Aid Post (gameplay 3.5): one skin, a tent with a plain white cloth on a pole and a lantern, two stretchers and an
+// orderly beside them, in the one age that offers it (era 5). No red cross: the emblem is protected, and Musa Dagh's
+// historical banner stays on its drums slot. The name is the same on all three battlefields. The aid post as a tower is
+// the game's invention, and the card says so; Van's card adds the sentence Van already tells of Dr Ussher's hospital
+TOWER_SKINS.aid = ["aidpost", "aidpost", "aidpost", "aidpost", "aidpost", "aidpost", "aidpost", "aidpost", "aidpost"];
+SLOT_NAMES.aid = ["Aid Post", "Aid Post", "Aid Post", "Aid Post", "Aid Post", "Aid Post", "Aid Post", "Aid Post", "Aid Post"];
+// (what a returned defender is worth, said on the tile: 3.5)
+SLOT_BLURB.aid = "Brings your men and hero back sooner. Returns defenders to the walls.";
+SKIN_BLURB.aidpost = SLOT_BLURB.aid;
+const AID_LEVEL = {
+  van: { name: "Aid Post", depicts: "A room behind the lines where the wounded are bandaged" },
+  musadagh: { name: "Aid Post", depicts: "A room behind the lines where the wounded are bandaged" },
+  sardarapat: { name: "Aid Post", depicts: "A room behind the lines where the wounded are bandaged" },
+};
 // each special tower's own names by battlefield (levelTower)
-const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL, mine: MINE_LEVEL };
+const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL, mine: MINE_LEVEL, aid: AID_LEVEL };
 // a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
 const TOWER_SHORT = {
   "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
@@ -10660,12 +10708,13 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // every battlefield's own pin is unmoved), and the Horse Lines (G7a: the same; only Erebuni's, Tushpa's and Avarayr's
 // pins moved, and their revs rose to 3), and the Stores (G7b: the same; only Dvin's, Tashir's, Sevan's, Ani's, Mari's
 // and Sis's pins moved, and their revs rose to 3), and the Powder Mine (G7c: the same; only Gyumri Road's and Halidzor's
-// pins moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// pins moved, and their revs rose to 3), and the Aid Post (G7d: the same; only Van's, Musa Dagh's and Sardarapat's pins
+// moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
 // number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "8e4c3bee";
+const RULESET_PIN = "206961b5";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10675,14 +10724,15 @@ const RULESET_PIN = "8e4c3bee";
 // 3 on Erebuni, Tushpa and Avarayr with the Horse Lines in their trays (G7a): only their boards restart (RULINGS S4)
 // 3 on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores in their trays (G7b), the same way
 // 3 on Gyumri Road and Halidzor with the Powder Mine in their trays (G7c), the same way
+// 3 on Van, Musa Dagh and Sardarapat with the Aid Post in their trays (G7d), the same way
 const LEVEL_REV = {
   erebuni: 3, tushpa: 3, avarayr: 3, dvin: 3, tashir: 3, sevan: 3, ani: 3, mari: 3, sis: 3, gyumri: 3, halidzor: 3,
-  van: 2, musadagh: 2, sardarapat: 2, stepanakert92: 2, shushi: 2, stepanakert23: 2,
+  van: 3, musadagh: 3, sardarapat: 3, stepanakert92: 2, shushi: 2, stepanakert23: 2,
 };
 const LEVEL_PIN = {
   erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "8a89e1f1", tashir: "ecb42838", sevan: "31e70a42",
-  ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "5de47ca5",
-  musadagh: "781b3fc4", sardarapat: "4d3ab09c", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
+  ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "b3181500",
+  musadagh: "a613b7bd", sardarapat: "20bc22de", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -11468,7 +11518,7 @@ function rulesetData() {
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
         // (a special tower's own rules ride with it, so they move only the pins of the battlefields that offer it)
-        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : k === "mine" ? [TOWER_DEFS[k], MINE_RULES] : TOWER_DEFS[k])),
+        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : k === "mine" ? [TOWER_DEFS[k], MINE_RULES] : k === "aid" ? [TOWER_DEFS[k], AID_RULES] : TOWER_DEFS[k])),
         waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
@@ -12862,7 +12912,7 @@ function heroPress(now) {
 
 function heroDie() {
   hero.alive = false;
-  hero.respawn = heroBack();   // 20 s, the Heralds' 16, or his level's 17 or 14
+  hero.respawn = heroAwayS();   // 20 s, the Heralds' 16, or his level's 17 or 14; an Aid Post's heroBack sooner (3.5)
   callT = 0;
   battle.heroFalls++;
   hero.engaged = [];
@@ -12873,7 +12923,7 @@ function heroDie() {
     particles.push({ x: pp0.x, y: pp0.y - 10, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2 * 0.5 - 30, life: 0.7, color: "#c9552e", size: 3 });
   }
   Snd.play("heroDown", { x: pp0.x, arm: heroArm() });
-  toast(heroName() + " has fallen: back in " + heroBack() + "s!");
+  toast(heroName() + " has fallen: back in " + Math.round(hero.respawn) + "s!");
 }
 
 function updateHero(dt) {
@@ -12937,8 +12987,9 @@ function updateHero(dt) {
     }
     if (hero.hp <= 0) { heroDie(); return; }
   } else {
+    // (out of a fight only: inside an Aid Post's range he begins after 1 s, not 3, and twice as fast, 3.5)
     hero.combatT -= dt;
-    if (hero.combatT <= 0 && hero.hp < hero.maxHp) hero.hp = Math.min(hero.maxHp, hero.hp + HL.heal * dt);
+    if (hero.combatT <= 3 - aidWait(hero.x, hero.y, 3) && hero.hp < hero.maxHp) hero.hp = Math.min(hero.maxHp, hero.hp + HL.heal * aidHealMult(hero.x, hero.y) * dt);
   }
   if (hero.swing > 0) hero.swing -= dt;
 }
@@ -13081,9 +13132,10 @@ function postTick(dt) {
       if (m.flash > 0) m.flash -= dt;
       if (m.down) {
         // a wrecked post sends no one; a stunned one sends no one until it recovers; the drums quicken the return and
-        // a damaged or failing post slows it (towerPace)
+        // a damaged or failing post slows it (towerPace); an Aid Post whose range holds the post or its rally takes its
+        // share off the wait (3.5)
         if (t.wreck || t.stunnedT > 0) continue;
-        m.respawn -= dt * haste * towerPace(t);
+        m.respawn -= dt * haste * towerPace(t) / (1 - aidHaste(t));
         if (m.respawn <= 0) { m.down = false; m.hp = m.max = postManMax(t); m.x = t.x; m.y = t.y + 6; m.state = "walk"; m.combatT = 0; }
         continue;
       }
@@ -13168,8 +13220,9 @@ function postTick(dt) {
         for (const e of m.foes) hurt += postFoeDps(e) * (call && e.type !== "boss" ? CALL.cut : 1);
         m.hp -= hurt * (1 - guard) * dt;
       } else {
+        // (out of a fight only: inside an Aid Post's range he begins after 1 s, not 3, and twice as fast, 3.5)
         m.combatT -= dt;
-        if (m.combatT <= 0 && m.hp < m.max) m.hp = Math.min(m.max, m.hp + PR.heal * m.max * dt);
+        if (m.combatT <= PR.healAfter - aidWait(m.x, m.y, PR.healAfter) && m.hp < m.max) m.hp = Math.min(m.max, m.hp + PR.heal * aidHealMult(m.x, m.y) * m.max * dt);
       }
       if (m.hp <= 0) postManFalls(t, m);
     }
@@ -13201,6 +13254,69 @@ function postHolds(e) { return !!(e.heldBy && !e.heldBy.down); }
 function towerCapped(type) {
   const lim = TOWER_DEFS[type] && TOWER_DEFS[type].max;
   return !!lim && towers.filter(t => t.type === type).length >= lim;
+}
+
+// ---------- the Aid Post's care (gameplay 3.5) ----------
+// It deals no damage and holds no foe: it only shortens what the battle takes away. Everything here is game time and
+// draws no random number, so the balance bot and a resumed run see the same battle.
+// the Aid Post standing on the field (one at most: def.max), or null. A wrecked one gives nothing
+function aidPost() {
+  for (const t of towers) if (t.type === "aid" && !t.wreck) return t;
+  return null;
+}
+// the Aid Post whose care reaches the ground point (x, y): standing, not stunned (an era's stones or guns stun it as any
+// tower, and it tends no one until it recovers), and the point inside its range (the game's ellipse); else null
+function aidCovers(x, y) {
+  const a = aidPost();
+  return a && !(a.stunnedT > 0) && inGroundRange(a.x, a.y, x, y, getStats(a).range) ? a : null;
+}
+// the seconds out of a fight a man or the hero waits before he recovers (wait: his own without the post), and how many
+// times as fast he then recovers, at (x, y). A man is never healed while he fights: these apply only out of a fight
+function aidWait(x, y, wait) { return aidCovers(x, y) ? Math.min(wait, AID_RULES.after) : wait; }
+function aidHealMult(x, y) { return aidCovers(x, y) ? AID_RULES.heal : 1; }
+// the share taken off a fallen man's wait for a post whose pad or rally point lies in range (its men return to the pad)
+function aidHaste(t) {
+  const a = aidCovers(t.x, t.y) || (t.rally && aidCovers(t.rally.x, t.rally.y));
+  return a ? Math.min(0.9, getStats(a).haste || 0) : 0;
+}
+// the seconds a fallen hero is away: his own (heroBack), less the post's heroBack wherever he fell (he is carried back
+// to the walls), never under AID_RULES.heroMin nor above his own
+function heroAwayS() {
+  const own = heroBack(), a = aidPost();
+  if (!a || a.stunnedT > 0) return own;
+  return Math.min(own, Math.max(AID_RULES.heroMin, own - (getStats(a).heroBack || 0)));
+}
+// the defenders never lost: what stars, records and the boards count (6.1: held = lives_max - lost). A defender the
+// post returned mans the walls (lives) but is not one never lost
+// a pad's gap to the walls (ground distance to the fortress): the Aid Post's place in the bot's hands is the free pad
+// nearest them (5.4)
+function aidPadGap(i) { const p = PADS[i]; return p ? groundGap(p[0], p[1], FORT.x, FORT.y + 30) : Infinity; }
+function heldNow() { return Math.max(0, lives - battle.returned); }
+// After a cleared wave in which no defender was lost (clean), one lost defender returns to the walls: while the battle's
+// returns are under the standing post's `restore` and the walls hold fewer than the difficulty began with. A figure
+// walks from the post to the walls. Returns true when one came back
+let aidWalkers = [];   // [{ x, y, tx, ty, walk, face }]: returning defenders on their way (drawn only)
+function aidReturn(clean) {
+  const a = aidPost();
+  if (!a || !clean || gameOver) return false;
+  if (battle.returned >= (getStats(a).restore || 0) || lives >= livesMax()) return false;
+  lives++;
+  battle.returned++;
+  const tx = FORT.x, ty = FORT.y + 40;
+  aidWalkers.push({ x: a.x, y: a.y + 8, tx, ty, walk: 0, face: tx >= a.x ? 1 : -1 });
+  Snd.play("uiTick", { x: a.x });
+  return true;
+}
+// the walkers' steps (update: game time, so a paused game holds them)
+function aidTick(dt) {
+  if (!aidWalkers.length) return;
+  for (const w of aidWalkers) {
+    const dx = w.tx - w.x, dy = w.ty - w.y, d = Math.hypot(dx, dy), step = AID_RULES.walk * dt;
+    if (d <= step) { w.done = true; continue; }
+    w.x += dx / d * step; w.y += dy / d * step; w.walk += dt * 9;
+    if (Math.abs(dx) > 1) w.face = dx > 0 ? 1 : -1;
+  }
+  aidWalkers = aidWalkers.filter(w => !w.done);
 }
 
 // ---------- the Horse Lines' charge (gameplay 3.2) ----------
@@ -14106,6 +14222,7 @@ function resetGame() {
   leaks = {}; fallen = null; heartT = 0;
   autoT = 0;
   towers = []; enemies = []; projectiles = []; particles = [];
+  aidWalkers = [];   // (the Aid Post's returning defenders: a new battle has none on their way)
   spawnQueue = []; waveTime = 0;
   droneWarned = false;
   placing = null; selected = null;
@@ -14335,7 +14452,8 @@ function saveBest() {
   if (endless) return recordEndless();
   const won = gameOver && lives > 0;
   const all = LEVELS.map((_, i) => i), had = won ? starTally(all).won : 0;
-  const news = won ? recordWin(lives) : null;   // before the line below marks the battlefield won
+  // (the defenders never lost: one an Aid Post returned mans the walls but earns no star, 3.5)
+  const news = won ? recordWin(heldNow()) : null;   // before the line below marks the battlefield won
   const key = bestKey(curLevel, curEra);
   const val = won ? WON_MARK : Math.min(SCRIPT_LEN, waveIdx);   // a lost stand: the wave reached, at most 20
   const prev = Number(localStorage.getItem(key) || 0);
@@ -14343,7 +14461,7 @@ function saveBest() {
   // the campaign's tally of stars rose: told with the stars this victory earned, and whether it was won on Hard
   const total = won ? starTally(all).won : 0;
   if (total > had) {
-    track("star_gain", { lv: levelId(curLevel), diff: curDiff, stars: victoryStars(lives, DIFFS[curDiff].lives),
+    track("star_gain", { lv: levelId(curLevel), diff: curDiff, stars: victoryStars(heldNow(), DIFFS[curDiff].lives),
       hard: curDiff === 2, total });
   }
   return news;
@@ -14701,11 +14819,16 @@ function endWaveIfClear() {
     const stores = storesPay(step);
     gold += bonus + interest + stores;
     battleEarn(bonus, "clear"); battleEarn(interest, "interest"); battleEarn(stores, "stores");
+    // (whether this wave cost a defender, from its horn: an Aid Post returns one only after a wave that cost none)
+    const clean = !!waveStart && lives >= waveStart.lives;
     battleWaveEnd();
     if (waveIdx >= totalWaves() && !endless) { victory(); return; }
+    // the Aid Post (3.5): a defender lost earlier comes back to the walls (none after the last wave: the battle is won)
+    const back = aidReturn(clean);
     if (endless) saveBest();
     toast("Wave " + waveIdx + " repelled! +" + bonus + " gold" +
-      (interest > 0 ? " · +" + interest + " interest" : "") + (stores > 0 ? " · +" + stores + " stores" : ""));
+      (interest > 0 ? " · +" + interest + " interest" : "") + (stores > 0 ? " · +" + stores + " stores" : "") +
+      (back ? ". A defender returns from the aid post." : ""));
     waveRepelledCue();
     if (adaptMsg) {
       trickToastLater(adaptMsg, 1900);
@@ -14759,7 +14882,12 @@ function defeatClose(L, cleared) {
 function victoryTally(L, kept, diffName) {
   const own = heldLine(L, true, totalWaves());
   return (own ? own.replace(/\.$/, "") + ", with " + kept + " defenders to spare on " + diffName + "."
-    : "You held with " + kept + " defenders to spare on " + diffName + ".") + battleDebtLine();
+    : "You held with " + kept + " defenders to spare on " + diffName + ".") + aidLine() + battleDebtLine();
+}
+// the line the victory page adds when an Aid Post returned defenders: they held the walls, the stars count the rest
+function aidLine() {
+  const n = battle.returned;
+  return n > 0 ? " The aid post returned " + n + (n === 1 ? " defender" : " defenders") + ". Stars count those never lost." : "";
 }
 // Sis ends in terms, not a dance: the beat between the last wave and the victory page, while the besiegers'
 // drums beat on and stop and the field holds still; the herald's horn (Snd parley, PARLEY_HORN_S in) sounds as
@@ -14829,7 +14957,7 @@ function victory() {
     Snd.hush(PARLEY_HORN_S + 4);
     Snd.siegeCalm = Snd.sceneOf().map;   // the key the field's bed is heard by
     Snd.play("parley");
-    parley = { start: performance.now(), lives, best };
+    parley = { start: performance.now(), lives: heldNow(), best };
     hidePanel();
     setPlacing(null);
     return;
@@ -14837,7 +14965,8 @@ function victory() {
   Snd.play("win");
   const band = victoryBand();
   Snd.dance(band);
-  celebration = { start: performance.now(), lives, band, bandPrev: band, bandFrom: 0, best };
+  // (the page counts the defenders never lost, as the stars do: heldNow)
+  celebration = { start: performance.now(), lives: heldNow(), band, bandPrev: band, bandFrom: 0, best };
   confetti = [];
   hidePanel();
   setPlacing(null);
@@ -15438,7 +15567,10 @@ function showUnlockCard(what) {
         "Hunters come for them, and wrecked stores pay nothing. Two on a field at most."].concat(storesHistory()) },
     mine: { title: "A new tower: the Powder Mine", icon: "blast", btn: "Got it",
       lines: ["Its charge lies under the road. When the foes crowd over it, " + (matchMedia("(pointer: coarse)").matches ? "tap" : "click") + " the glowing match to fire it. Or let it fire itself at 3 or 5 foes, a commander counting as three. Lay it where your other towers can finish what it leaves standing.",
-        "Each blast must arm again before the next. Outflankers are untouched."].concat(mineHistory()) } }[what];
+        "Each blast must arm again before the next. Outflankers are untouched."].concat(mineHistory()) },
+    aid: { title: "A new tower: the Aid Post", icon: "aid", btn: "Got it",
+      lines: ["It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the hero come back sooner.",
+        "After a wave in which you lose no defender, a lost one returns to the walls, a few in a battle at most. Returned defenders hold the walls. Stars count the defenders you never lost. One on a field."].concat(aidHistory()) } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15467,6 +15599,15 @@ function mineHistory() {
   const out = [];
   if (levelId(curLevel) === "gyumri") out.push("At Chaldiran in 1514, Ottoman cannon and Janissary muskets fought behind a barrier of carts.");
   out.push("A powder mine laid by the defenders here is the game's invention.");
+  return out;
+}
+// the Aid Post card's last line (3.5): Van's own sentence on Dr Ussher's hospital (its facts), told as history and not as
+// the player's building (the hospital was the American mission's, so the tower is neither drawn nor named after it),
+// then what is the game's. Musa Dagh and Sardarapat make no claim (G7d)
+function aidHistory() {
+  const out = [];
+  if (levelId(curLevel) === "van") out.push("Dr Clarence Ussher's American hospital lay inside the Armenian lines and was shelled during the siege.");
+  out.push("The aid post as a tower is the game's invention.");
   return out;
 }
 function closeUnlockCard(open) {
@@ -15974,6 +16115,7 @@ function update(dt) {
   postTick(dt);
   horseTick(dt);
   mineTick(dt);
+  aidTick(dt);
 
   // war drums auras
   for (const t of towers) {
@@ -27066,6 +27208,7 @@ function draw(time) {
   }
   for (const t of towers) objs.push({ y: t.y, fn: () => drawTower(t, time) });
   queuePostMen(objs, time);
+  queueAidWalkers(objs, time);
   queueHorseRiders(objs, time);
   if (plots.length && overlayEl.classList.contains("hidden")) {
     const m = ctx.getTransform();
@@ -45658,7 +45801,8 @@ function postArm() { const lk = postModern() ? postLook() : null; return lk ? lk
 function drawPostMan(m, time) {
   const sp = proj(m.x, m.y), s = sp.s, modern = postModern(), look = modern ? UNIT_HERO_LOOK : UNIT_LOOKS.foot;
   const M = ctx.getTransform(), pxScale = Math.hypot(M.a, M.b) || 1;
-  const size = modern ? s * 1.85 * 0.78 : s * look.f * 0.9;
+  // (m.k: a smaller man, an Aid Post's returning defender)
+  const size = (modern ? s * 1.85 * 0.78 : s * look.f * 0.9) * (m.k || 1);
   const step = Math.round(Math.log(Math.max(0.2, Math.min(16, size * pxScale))) / UNIT_SCALE_STEP);
   const q = Math.exp(step * UNIT_SCALE_STEP), k = q / pxScale, turn = Math.PI * 2;
   const walking = m.state === "walk";
@@ -46163,6 +46307,130 @@ function drawMineMarks(time) {
   }
 }
 // ====================================== END SKIN SECTION: powder mine ======================================
+
+// ======================================================================================
+// SKIN SECTION: the Aid Post (gameplay 3.5). Put together from parts the other skins use: the common footing, a canvas
+// tent on a ridge pole with its door flap tied back, a plain white cloth on a pole beside it (no red cross: the emblem
+// is protected), a lantern hung at the door (its flame drawn live), and stretchers before it: one at rank 1, two from
+// rank 2, a low wall of sandbags (e5Bags, the 1915 barricades' bags) at rank 3. Surgeons add a table with a basin and
+// bottles; Stretcher Bearers a third stretcher stood on end and a second orderly. An orderly from the crew painter
+// (unitPaintCrew) stands by it, drawn live, gone from a wreck. A returning defender walks from it to the walls
+// (queueAidWalkers)
+// ======================================================================================
+TOWER_BOX.aid = [-46, -84, 54, 22];
+TOWER_SCALE.aid = 1;
+TOWER_ACCENT.aid = "#e8e4d8";
+const AID_CANVAS = "#cfc4a4", AID_CLOTH = "#f4f2ea";
+function aidBase(lvl, spec) { return { w: (spec ? 40 : [34, 36, 38][lvl]), d: 17, h: 4.4 }; }
+function aidFooting(lvl, spec) {
+  const b = aidBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.aid, stepped = !!spec || lvl === 2;
+  return { w: (b.w + (stepped ? 3 : 0)) * k, d: (b.d + (stepped ? 2 : 0)) * k, cy: 0 };
+}
+// a stretcher on the ground: two poles and the canvas slung between them; `laden` lays a blanket on it
+function aidStretcher(x, y, len, laden) {
+  inkPoly([x - len / 2, y, x + len / 2, y, x + len / 2 - 1.4, y - 2.4, x - len / 2 + 1.4, y - 2.4], AID_CANVAS, 0.5);
+  beam(x - len / 2 - 2, y + 0.3, x + len / 2 + 2, y + 0.3, 0.8, TIMBER_DARK);
+  beam(x - len / 2 - 1.2, y - 2.6, x + len / 2 + 1.2, y - 2.6, 0.7, TIMBER);
+  if (laden) inkPoly([x - len / 2 + 2, y - 2.2, x + len / 2 - 3, y - 2.2, x + len / 2 - 4, y - 5, x - len / 2 + 3.4, y - 4.6], "#6e7a5a", 0.5);
+}
+function paintAidPost(lvl, spec) {
+  const c = sctx, S = footStone(), base = aidBase(lvl, spec), stepped = !!spec || lvl === 2;
+  footPlinth(base.w, base.d, base.h, S, 181 + lvl, stepped);
+  c.save();
+  c.translate(-base.d * OBQ.dx / 2, -base.h - base.d * OBQ.dy / 2);
+  upgradeStuds(0, 2.4, lvl, spec);
+  const A = spec === "a", B = spec === "b", W = base.w - 6, L = -W / 2, R = W / 2, th = 22 + lvl * 2 + (spec ? 2 : 0);
+  const bx = 6 * OBQ.dx, by = 6 * OBQ.dy;
+  // the tent: its far slope, then its near slope and the gable end with the door flap tied back
+  const ridgeL = [L + 4 + bx, -th + by], ridgeR = [R - 4 + bx, -th + by];
+  inkPoly([ridgeL[0], ridgeL[1], ridgeR[0], ridgeR[1], R + 2 + bx * 2, by * 2, L + 2 + bx * 2, by * 2], toneHex(AID_CANVAS, -24), 0.6);
+  inkPoly([ridgeL[0], ridgeL[1], ridgeR[0], ridgeR[1], R - 1, 0, L - 1, 0], AID_CANVAS, 0.8);
+  // the seams of the canvas and the guy ropes
+  for (let i = 1; i < 4; i++) { const f = i / 4; beam(ridgeL[0] + (ridgeR[0] - ridgeL[0]) * f, ridgeL[1] + 0.6, L - 1 + (W) * f, -0.6, 0.35, toneHex(AID_CANVAS, -30)); }
+  beam(L - 1, 0, L - 6, 3, 0.4, "#8a7a5a"); beam(R - 1, 0, R + 4, 3, 0.4, "#8a7a5a");
+  // the gable end (the side toward the walls): a dark doorway, its flap tied back
+  inkPoly([R - 1, 0, ridgeR[0], ridgeR[1], R + 2 + bx * 2, by * 2], toneHex(AID_CANVAS, -10), 0.7);
+  inkPoly([R + 0.6, -0.4, ridgeR[0] - 0.2, ridgeR[1] + 5, R + 4.4, -0.2], "#2a2218", 0);
+  inkPoly([R + 4.4, -0.2, ridgeR[0] + 1.4, ridgeR[1] + 6, R + 6.6, 0.6], toneHex(AID_CANVAS, 8), 0.5);
+  beam(ridgeL[0] - 1.4, ridgeL[1] - 1.2, ridgeR[0] + 1.4, ridgeR[1] - 1.2, 0.9, TIMBER_DARK);
+  // the plain white cloth on its pole at the left
+  const px = L - 3, ptop = -th - 12;
+  beam(px, 2, px, ptop, 1, TIMBER_DARK);
+  inkPoly([px + 0.6, ptop + 0.6, px + 11, ptop + 1.6, px + 10.2, ptop + 7.2, px + 0.6, ptop + 6.4], AID_CLOTH, 0.6);
+  // the lantern's hook at the door (its flame is live: aidLive)
+  beam(R + 1.6, -th * 0.55, R + 1.6, -th * 0.55 + 2.6, 0.5, IRON);
+  inkRect(R + 0.4, -th * 0.55 + 2.6, 2.4, 3.4, "#3a3328", 0.4);
+  // the stretchers before it: one, two from rank 2; a low wall of sandbags at rank 3
+  aidStretcher(-3, 6.4, 14, true);
+  if (lvl >= 1 || spec) aidStretcher(8, 9.2, 14, false);
+  if ((lvl >= 2 || spec) && typeof e5Bags === "function") { c.save(); c.translate(L - 4, 9); e5Bags(8, 4, 5, null, 183); c.restore(); }
+  if (A) {
+    // Surgeons: a trestle table with a basin and two bottles
+    beam(L + 3, 4, L + 3, -1, 0.7, TIMBER_DARK); beam(L + 11, 4, L + 11, -1, 0.7, TIMBER_DARK);
+    inkPoly([L + 1.6, -1, L + 12.4, -1, L + 12.4, -2.4, L + 1.6, -2.4], TIMBER, 0.5);
+    inkDisc(L + 5, -3.2, 2.2, 0.9, "#c8ccd0", 0.4);
+    inkRect(L + 8.6, -5.6, 1.2, 3.2, "#4f6e5a", 0.3); inkRect(L + 10.2, -5, 1.1, 2.6, "#7a5a3a", 0.3);
+  }
+  if (B) {
+    // Stretcher Bearers: a third stretcher stood on end against the tent
+    beam(L + 4, 3, L + 7, -14, 0.8, TIMBER_DARK); beam(L + 7, 3, L + 10, -14, 0.8, TIMBER_DARK);
+    inkPoly([L + 4.6, 0, L + 9.4, 0, L + 9.8, -11, L + 7.2, -11], AID_CANVAS, 0.4);
+  }
+  structCrown(Math.min(ptop - 2, -th - 3 + by));
+  c.restore();
+}
+// an orderly in a plain coat with a soft cap, from the crew painter; face 1 looks right
+function drawAidOrderly(x, y, face, walk) {
+  const sp = proj(x, y), s = sp.s, look = UNIT_LOOKS.foot;
+  const M = ctx.getTransform(), pxScale = Math.hypot(M.a, M.b) || 1;
+  const size = s * look.f * 0.86;
+  const step = Math.round(Math.log(Math.max(0.2, Math.min(16, size * pxScale))) / UNIT_SCALE_STEP);
+  const q = Math.exp(step * UNIT_SCALE_STEP), k = q / pxScale, f = face >= 0 ? 1 : -1, turn = Math.PI * 2;
+  const frame = walk != null ? Math.floor((((walk % turn) + turn) % turn) / turn * UNIT_FRAMES) % UNIT_FRAMES : 0;
+  const key = "aidorderly|" + f + "|" + frame + "|" + step;
+  const sprite = unitSprite(key, q, look, f < 0, () => {
+    unitPhase = frame / UNIT_FRAMES * turn;
+    unitFace(f);
+    unitPaintCrew(0, 0, unitPalette("#8e8a78", AID_CLOTH), false, {
+      leg: "#4e4a3c", sash: AID_CLOTH, beard: "#3a2a1a",
+      cap: hx => { uPoly([hx - 2.8, -17.4, hx - 2.2, -20.4, hx + 2.8, -20.4, hx + 3.4, -17.4], "#6e6a58"); },
+    });
+  });
+  shadow(sp.x, sp.y + 1.2 * k, 6 * k, 2.4 * k);
+  unitBlit(sprite, M, sp.x, sp.y);
+}
+// the lantern's flame at the door, and the orderly beside the stretchers (a second for Stretcher Bearers); none at a
+// wreck on the field. A portrait shows them
+function aidLive(t) {
+  if (t.pad >= 0 && t.wreck) return;
+  const p = proj(t.x + 15, t.y - 18), s = p.s, now = (typeof performance !== "undefined" ? performance.now() : 0) / 1000;
+  const fl = 0.8 + 0.2 * Math.sin(now * 9 + t.x);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = "rgba(255, 196, 90, " + (0.3 * fl).toFixed(3) + ")";
+  ctx.beginPath(); ctx.arc(p.x, p.y, 5 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#ffe0a0";
+  ctx.beginPath(); ctx.arc(p.x, p.y, 1.1 * s, 0, Math.PI * 2); ctx.fill();
+  drawAidOrderly(t.x + 22, t.y + 10, -1, null);
+  if (t.spec === "b") drawAidOrderly(t.x - 22, t.y + 12, 1, null);
+}
+SKIN_ART.aidpost = {
+  box: [-46, -84, 54, 22], scale: 1,
+  paint(lvl, spec) { paintAidPost(lvl, spec); },
+  // the snow follows the map
+  variant() { return backdropSnowy() ? 1 : 0; },
+  live: aidLive,
+  footing: aidFooting,
+};
+// the defenders an Aid Post returns, walking from it to the walls: the age's man (drawPostMan) at 0.6 of the hero's size
+function queueAidWalkers(objs, time) {
+  for (const w of aidWalkers) {
+    const m = { x: w.x, y: w.y, state: "walk", walk: w.walk, face: w.face, swing: 0, k: 0.6 / 0.78 };
+    objs.push({ y: w.y, fn: () => drawPostMan(m, time) });
+  }
+}
+// ====================================== END SKIN SECTION: aid post ======================================
 
 
 
@@ -58074,6 +58342,16 @@ function statText(t) {
     s += statRow("wing", "", (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " its match to fire. Skips outflankers.", "wide");
     return s;
   }
+  if (def.aid) {
+    // the Aid Post (3.5): its reach, how much sooner the men and the hero come back, the defenders it has returned of
+    // its cap in this battle (one post on a field: the battle's count is its own)
+    let s = statRow("range", st.range, "reach") + statRow("post", "-" + Math.round(st.haste * 100) + "%", "men's return") +
+      statRow("hp", "-" + st.heroBack + "s", "hero's return") + statRow("aid", Math.min(battle.returned, st.restore) + "/" + st.restore, "defenders back", "wide");
+    s += statRow("hp", AID_RULES.heal + "x", "healing in reach", "wide");
+    // short enough for the stats box at every size (the tile's blurb and the card say it at length)
+    s += statRow("wing", "", "Back only after a wave with no loss.", "wide");
+    return s;
+  }
   if (def.income) {
     // the Stores (3.3): what they pay at a clear (for each script wave the wave stands for), and what they have paid
     let s = statRow("coin", st.pay, "gold a wave", "wide") + statRow("coin", t.yielded || 0, "paid so far", "wide");
@@ -58113,7 +58391,7 @@ function statText(t) {
 }
 
 function serviceRecord(t) {
-  if (TOWER_DEFS[t.type].income) return "";   // the Stores' record is the gold they paid (statText)
+  if (TOWER_DEFS[t.type].income || TOWER_DEFS[t.type].aid) return "";   // the Stores' record is the gold they paid, the Aid Post's the defenders it returned (statText)
   if (!t.kills && !t.dmgDone) return "";
   return '<div class="st wide rec">' + icon("swords") + "<b>" + (t.kills || 0) + "</b><span>kills</span><i>·</i><b>" +
     Math.round(t.dmgDone || 0) + "</b><span>damage dealt</span></div>";
@@ -58880,8 +59158,9 @@ function foeCounters(role, u) {
   const good = [], poor = [];
   for (const type of Object.keys(TOWER_DEFS)) {
     const def = TOWER_DEFS[type], lv0 = def.levels[0], top = def.levels[def.levels.length - 1];
-    // the drums strike nothing; the post's men hold and are named by the tile; the Stores never fight (G7b)
-    if (def.aura || def.post || def.income) continue;
+    // the drums strike nothing; the post's men hold and are named by the tile; the Stores never fight (G7b), nor the
+    // Aid Post (G7d)
+    if (def.aura || def.post || def.income || def.aid) continue;
     // the Horse Lines (G7a), only where the tray holds them: they throw back what walks the road, an engine or a
     // commander barely, and an outflanker never
     if (def.charge) {
@@ -59708,7 +59987,7 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
 // and any burn the blows leave behind; a fire burns this much into every foe in its reach
 function statDps(type, st) {
   const def = TOWER_DEFS[type];
-  if (def.aura || def.income) return 0;
+  if (def.aura || def.income || def.aid) return 0;
   if (def.post) return st.dmg / st.rate * st.men;
   if (def.charge) return st.dmg / st.cd;   // on one foe in its reach: one charge's blow each cd
   if (def.blast) return st.dmg * (st.charges || 1) / st.arm;   // on one foe: each charge's blast as it arms
@@ -59749,6 +60028,11 @@ function statDeltaHtml(type, a, b) {
     cell("rate", a.arm + "s", b.arm + "s", b.arm <= a.arm);
     cell("range", a.range, b.range, b.range >= a.range);
     if ((b.charges || 1) > (a.charges || 1)) add("blast", "<b>" + b.charges + "</b>&nbsp;charges");
+  } else if (def.aid) {
+    cell("range", a.range, b.range, b.range >= a.range);
+    cell("post", "-" + pc(a.haste), "-" + pc(b.haste), b.haste >= a.haste);
+    cell("hp", "-" + a.heroBack + "s", "-" + b.heroBack + "s", b.heroBack >= a.heroBack);
+    cell("aid", a.restore, b.restore, b.restore >= a.restore);
   } else if (def.income) {
     cell("coin", a.pay, b.pay, b.pay >= a.pay);
     if (b.bounty && !a.bounty) add("coin", "<b>+" + pc(b.bounty) + "</b>&nbsp;kills");
@@ -84331,6 +84615,9 @@ function photoStageBattle(lv, wave, o) {
   // &mine=N: N Powder Mines (&ml=0|1|2|a|b their rank or mastery), their charges armed under foes; &blast the first one
   // fired a moment ago
   if (o.mine) photoMineStage(o.mine, o.ml, o.blast);
+  // &aid=1: the Aid Post (&al=0|1|2|a|b its rank or mastery) on the free pad nearest the walls; &walker a returned
+  // defender on his way to the walls; &aidpanel its panel
+  if (o.aid) photoAidStage(o.al, o.walker);
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
@@ -84342,6 +84629,8 @@ function photoStageBattle(lv, wave, o) {
   if (o.storesPanel && firstStores) showPanel(firstStores);
   const firstMine = towers.find(t => t.type === "mine");
   if (o.minePanel && firstMine) showPanel(firstMine);
+  const firstAid = towers.find(t => t.type === "aid");
+  if (o.aidPanel && firstAid) showPanel(firstAid);
   if (o.lay && firstMine) armRally(firstMine, matchMedia("(pointer: coarse)").matches);
   if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
 }
@@ -84449,6 +84738,30 @@ function photoMineStage(n, ml, blast) {
   if (blast) {
     const t = towers.find(x => x.type === "mine");
     if (t) { mineFire(t, t.mines[0]); for (let i = 0; i < 9; i++) { for (const p of particles) { p.x += (p.vx || 0) / 60; p.y += (p.vy || 0) / 60; } t.mines[0].fx -= 1 / 60; } }
+  }
+  gold = 640;
+}
+
+// the Aid Post for a photo: on the free pad nearest the walls (where the balance bot builds it), with a defender it
+// returned a third of the way to the walls when &walker is given
+function photoAidStage(al, walker) {
+  gold = 99999;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i)).sort((a, b) => aidPadGap(a) - aidPadGap(b));
+  if (!free.length && towers.length) free.push(towers.pop().pad);
+  if (free.length) {
+    placeTower("aid", free[0]);
+    const t = towers[towers.length - 1];
+    if (t && t.type === "aid") {
+      if (al === "a" || al === "b") { t.level = 2; t.spec = al; } else t.level = Math.max(0, Math.min(2, Number(al) | 0));
+      t.placedAt = -1e9;
+      towerSyncHp(t);
+      if (walker) {
+        lives = Math.max(1, lives - 3); battle.returned = 0;
+        aidReturn(true);
+        const w = aidWalkers[aidWalkers.length - 1];
+        if (w) for (let i = 0; i < 40; i++) aidTick(1 / 30);
+      }
+    }
   }
   gold = 640;
 }
@@ -84746,6 +85059,8 @@ function runPhoto() {
         // &mine=N Powder Mines (&ml rank or mastery, &blast the first fired), &minepanel the first one's panel, &lay its
         // Lay the charge armed (the ring and the lit road)
         mine: num("mine", 0), ml: HARNESS.get("ml") || "0", blast: HARNESS.has("blast"), minePanel: HARNESS.has("minepanel"), lay: HARNESS.has("lay"),
+        // &aid=1 the Aid Post (&al rank or mastery, &walker a returned defender walking to the walls), &aidpanel its panel
+        aid: num("aid", 0), al: HARNESS.get("al") || "0", walker: HARNESS.has("walker"), aidPanel: HARNESS.has("aidpanel"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
