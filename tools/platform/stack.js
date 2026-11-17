@@ -27,7 +27,13 @@
 //     not in the list 406 with PGRST106. So a call without the page's two headers looks for the game in public,
 //     and finds nothing there.
 //   - a stand-in for Supabase Auth (GoTrue) at /auth/v1: settings, health, authorize (PKCE, and the implicit flow
-//     when no challenge is given), callback, token (pkce, refresh_token with rotation), user, logout.
+//     when no challenge is given), callback, token (pkce, refresh_token with rotation), user, logout. With the
+//     control settings {"email": true} (stage 6: the game's own stack with ENABLE_EMAIL_SIGNUP), also the email
+//     sign-up (POST /signup: an account with an email identity, confirmed at once when mailer_autoconfirm is on, as
+//     GOTRUE_MAILER_AUTOCONFIRM does, else made and left unconfirmed with no session, as GoTrue does when it would send
+//     a confirmation mail) and the password sign-in (token?grant_type=password), each session's amr "password",
+//     with GoTrue's refusals (user_already_exists, weak_password, validation_failed, invalid_credentials,
+//     email_not_confirmed, email_provider_disabled).
 //     authorize and callback need no apikey, the others do, as on Supabase's gateway.
 //   - CORS as the gateway answers it (the page's origin is the site port, so it is a real cross-origin call),
 //     the preflight remembered for an hour as the Envoy gateway does. Like Supabase's Kong (its cors plugin has no
@@ -160,7 +166,8 @@ async function start(opts = {}) {
   const state = {
     auth: "up", rest: "up", narrow: opts.narrow === true,
     clock: "", authClock: 0,
-    settings: { mailer_autoconfirm: false, external: { google: true, facebook: true, discord: true }, email_optional: { facebook: true, discord: true } },
+    settings: { mailer_autoconfirm: false, email: false, external: { google: true, facebook: true, discord: true }, email_optional: { facebook: true, discord: true } },
+    passwords: new Map(),     // the email sign-up's passwords (settings.email): user id -> { salt, hash } (scrypt), in this process only
     allow: [],                // ADDITIONAL_REDIRECT_URLS globs
     flows: new Map(),         // flow state id -> { provider, challenge, method, redirect_to, created }
     pcodes: new Map(),        // the provider's codes -> { person, flow }
@@ -471,7 +478,7 @@ async function start(opts = {}) {
     if (!open && !keyOk(req, res)) return;
     if (route === "/health") return sendJson(res, 200, { version: "stack", name: "GoTrue", description: "the local stack's stand-in for Supabase Auth" });
     if (route === "/settings" && req.method === "GET") {
-      const ext = { anonymous_users: false, apple: false, azure: false, bitbucket: false, discord: !!state.settings.external.discord, email: false,
+      const ext = { anonymous_users: false, apple: false, azure: false, bitbucket: false, discord: !!state.settings.external.discord, email: !!state.settings.email,
         facebook: !!state.settings.external.facebook, figma: false, github: false, gitlab: false, google: !!state.settings.external.google, keycloak: false,
         kakao: false, linkedin_oidc: false, notion: false, phone: false, slack_oidc: false, spotify: false, twitch: false, twitter: false, workos: false, zoom: false };
       return sendJson(res, 200, { external: ext, disable_signup: false, mailer_autoconfirm: !!state.settings.mailer_autoconfirm, phone_autoconfirm: false, sms_provider: "", saml_enabled: false });
@@ -481,6 +488,7 @@ async function start(opts = {}) {
     if (route === "/token" && req.method === "POST") return token(req, res, u);
     if (route === "/user" && req.method === "GET") return user(req, res);
     if (route === "/logout" && req.method === "POST") return logout(req, res, u);
+    if (route === "/signup" && req.method === "POST" && state.settings.email) return signup(req, res);
     // the routes an open GoTrue serves that the page never uses: they make accounts, sign in by password or send
     // mail and texts. The stand-in answers as an open one would and does nothing, so a test can show the public
     // name refuses them (the stack's narrow default, or the guide's nginx in front of --wide)
@@ -557,9 +565,48 @@ async function start(opts = {}) {
     state.codes.set(code, { user: uid, provider: flow.provider, challenge: flow.challenge, method: flow.method, created: nowSec() });
     redirect(res, withQuery(flow.redirect_to, { code }, false));
   }
-  function newSession(uid, provider) {
+  // ---- the email sign-up and the password sign-in (settings.email), as GoTrue answers them
+  const hashOf = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString("hex");
+  const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 255;
+  async function signup(req, res) {
+    let body;
+    try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) { return authErr(res, 400, "bad_json", "Could not parse request body as JSON"); }
+    const email = String((body && body.email) || "").trim().toLowerCase(), pw = String((body && body.password) || "");
+    const data = body && body.data && typeof body.data === "object" ? body.data : {};
+    if (!email || !emailOk(email)) return authErr(res, 400, "validation_failed", "Unable to validate email address: invalid format");
+    if (pw.length < 6) return authErr(res, 422, "weak_password", "Password should be at least 6 characters.");
+    const had = (await su.query("select id from auth.users where lower(email) = $1", [email])).rows[0];
+    if (had) return authErr(res, 422, "user_already_exists", "User already registered");
+    const confirm = !!state.settings.mailer_autoconfirm;
+    const uid = (await su.query("insert into auth.users (email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data) values ($1, $2, $3, $4) returning id",
+      [email, confirm ? new Date() : null, JSON.stringify({ provider: "email", providers: ["email"] }), JSON.stringify(data)])).rows[0].id;
+    await su.query("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ('email', $1::text, $1::uuid, $2, $3)",
+      [uid, email, JSON.stringify({ sub: uid, email, email_verified: confirm })]);
+    const salt = crypto.randomBytes(16).toString("hex");
+    state.passwords.set(uid, { salt, hash: hashOf(pw, salt) });
+    await su.query("insert into auth.audit_log_entries (payload, ip_address) values ($1, '127.0.0.1')",
+      [JSON.stringify({ actor_id: uid, actor_username: email, action: "user_signedup", log_type: "team", traits: { provider: "email" } })]);
+    const uj = await userJson(uid);
+    if (!confirm) return sendJson(res, 200, uj);   // GoTrue would send a confirmation mail: no session
+    await su.query("update auth.users set last_sign_in_at = now() where id = $1", [uid]);
+    const s = newSession(uid, "email", "password");
+    return sendJson(res, 200, { ...tokensFor(s), user: await userJson(uid) });
+  }
+  async function passwordGrant(req, res) {
+    let body;
+    try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) { return authErr(res, 400, "bad_json", "Could not parse request body as JSON"); }
+    const email = String((body && body.email) || "").trim().toLowerCase(), pw = String((body && body.password) || "");
+    const u = (await su.query("select id, email_confirmed_at from auth.users where lower(email) = $1", [email])).rows[0];
+    const p = u && state.passwords.get(u.id);
+    if (!u || !p || hashOf(pw, p.salt) !== p.hash) return authErr(res, 400, "invalid_credentials", "Invalid login credentials");
+    if (!u.email_confirmed_at) return authErr(res, 400, "email_not_confirmed", "Email not confirmed");
+    await su.query("update auth.users set last_sign_in_at = now() where id = $1", [u.id]);
+    const s = newSession(u.id, "email", "password");
+    return sendJson(res, 200, { ...tokensFor(s), user: await userJson(u.id) });
+  }
+  function newSession(uid, provider, method) {
     const id = crypto.randomUUID();
-    const s = { id, user: uid, provider, refresh: null, used: new Map(), revoked: false, notBefore: 0 };
+    const s = { id, user: uid, provider, method: method || "oauth", refresh: null, used: new Map(), revoked: false, notBefore: 0 };
     state.sessions.set(id, s);
     return s;
   }
@@ -569,7 +616,7 @@ async function start(opts = {}) {
     if (s.refresh) s.used.set(s.refresh, iat);
     s.refresh = rt; state.refresh.set(rt, s.id);
     s.access = signJwt(secret, { aud: "authenticated", exp, iat, iss: url + "/auth/v1", sub: s.user, role: "authenticated", aal: "aal1",
-      amr: [{ method: "oauth", timestamp: iat }], session_id: s.id, is_anonymous: false, app_metadata: { provider: s.provider, providers: [s.provider] } });
+      amr: [{ method: s.method || "oauth", timestamp: iat }], session_id: s.id, is_anonymous: false, app_metadata: { provider: s.provider, providers: [s.provider] } });
     return { access_token: s.access, token_type: "bearer", expires_in: ACCESS_TTL, expires_at: exp, refresh_token: rt };
   }
   async function userJson(uid) {
@@ -583,7 +630,9 @@ async function start(opts = {}) {
   }
   async function token(req, res, u) {
     const grant = u.searchParams.get("grant_type");
-    // a password sign-in: an open GoTrue would answer it; the stand-in only says so (see auth() above)
+    // a password sign-in: the game's email sign-in when settings.email is on; else an open GoTrue would answer it, and
+    // the stand-in only says so (see auth() above)
+    if (grant === "password" && state.settings.email) return passwordGrant(req, res);
     if (grant === "password") return sendJson(res, 200, { stand_in: true, msg: "an open Supabase Auth would sign in by password here" });
     let body;
     try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) { return authErr(res, 400, "bad_json", "Could not parse request body as JSON"); }
@@ -703,13 +752,15 @@ async function start(opts = {}) {
       await su.query("delete from highland.hs_config where key not in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("update highland.hs_config set value = case key when 'ev_cap_hour' then '20000'::jsonb when 'ev_max_mb' then '1024'::jsonb else '180'::jsonb end where key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("delete from auth.audit_log_entries; delete from auth.users");
-      for (const m of [state.flows, state.pcodes, state.codes, state.sessions, state.refresh]) m.clear();
+      for (const m of [state.flows, state.pcodes, state.codes, state.sessions, state.refresh, state.passwords]) m.clear();
       state.nextPerson.length = 0; state.clock = ""; state.authClock = 0; state.hold = null;
       return { ok: true };
     },
-    // what /settings answers: { mailer_autoconfirm, external: { google, facebook, discord }, email_optional: {...} }
+    // what /settings answers: { mailer_autoconfirm, email (the email sign-up and password sign-in on), external: { google,
+    // facebook, discord }, email_optional: {...} }
     settings: async (b) => {
       if ("mailer_autoconfirm" in b) state.settings.mailer_autoconfirm = !!b.mailer_autoconfirm;
+      if ("email" in b) state.settings.email = !!b.email;
       if (b.external) Object.assign(state.settings.external, b.external);
       if (b.email_optional) Object.assign(state.settings.email_optional, b.email_optional);
       return state.settings;

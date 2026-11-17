@@ -2741,6 +2741,14 @@
     user-select: text; -webkit-user-select: text;
   }
   #gate .gtErr { min-height: 1.4em; font-size: 14.5px; font-weight: 700; color: #ffb79a; }
+  /* the email form (stage 6): its fields under each other, the two quiet buttons side by side, the note on resets */
+  #gate .gateBtn[data-p="email"] { background: linear-gradient(180deg, #f6ecd2, #e2d0a4); color: #2c1e10; border-color: #8a6a3a; }
+  #gate .pfMail, #hall .pfMail { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+  #gate .pfMail .gtField { text-align: left; font-size: 16px; }
+  #gate .pfMail .gtErr { margin: 0; }
+  #gate .gtMailNote { margin: 0; max-width: 320px; font-size: 13px; line-height: 1.35; color: var(--parch-dk); }
+  #hall .pfMail .acField { width: 320px; max-width: 100%; }
+  #hall .acTab .gateBtn[data-p="email"], #hall .lbSign .gateBtn[data-p="email"] { background: linear-gradient(180deg, #f6ecd2, #e2d0a4); color: #2c1e10; border-color: #8a6a3a; }
   #gate .gtErr:empty::before { content: "\00a0"; }
   #gate .gtStats { color: var(--parch-dk); }
   #gate .gtWait { font-style: italic; }
@@ -3989,7 +3997,7 @@
     <p>Highland Stand is a free game made by <span class="pvFill" data-fill="name">[owner's name]</span>. Write to <span class="pvFill" data-fill="email">[contact email]</span> about anything on this page.</p>
     <h2>What we keep when you sign in</h2>
     <ul>
-      <li>Your account: the email address, name and picture address that Google, Facebook or Discord gives our server when you sign in. We need the email so the same person gets the same account. The game never shows your email, your real name or your picture to other players, and we never write to you.</li>
+      <li>Your account: the email address, name and picture address that Google, Facebook or Discord gives our server when you sign in, or, when you sign up with your email, that address and a password (the sign-in service keeps only a scrambled form of it, never the password itself). We need the email so the same person gets the same account. The game never shows your email, your real name or your picture to other players, and we never write to you.</li>
       <li>A player name you choose. It is shown on the leaderboards.</li>
       <li>Your progress: the battlefields you have held, your stars, your War Council and heroes, and the battle you are in the middle of, with the kind of device that saved it last (for example "iPhone").</li>
       <li>Your scores.</li>
@@ -82435,7 +82443,7 @@ function inAppUA(ua) {
   return /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|Twitter|LinkedInApp|Snapchat|Pinterest|GSA\/|; wv\)/.test(String(ua || ""));
 }
 const PF_PROVIDERS = [["google", "Google"], ["facebook", "Facebook"], ["discord", "Discord"]];
-const pfProviderName = (p) => (PF_PROVIDERS.find(x => x[0] === p) || [p, "the provider"])[1];
+const pfProviderName = (p) => p === "email" ? "email" : (PF_PROVIDERS.find(x => x[0] === p) || [p, "the provider"])[1];
 // Which buttons the sign-in card shows, from what Auth's /settings answered (3.3): each provider the server has
 // switched on, in that order; Discord held back while the server confirms emails by itself (mailer_autoconfirm:
 // it would take an email Discord never verified as proof of who owns it); Google left out in an in-app browser.
@@ -83194,6 +83202,22 @@ function pfSignIn(provider, back) {
 // { ok: true, provider, ms } after a code exchanged, { line } after a failure (counted), or null when nothing was
 // under way.
 async function pfTakeSignIn() {
+  // an email sign-in or sign-up of this browser (stage 6): its session was kept and the page loaded again, as a
+  // provider's return loads it, so everything after goes the same way
+  const mail = pfRead("hs_pf_mail");
+  if (mail) {
+    pfDrop("hs_pf_mail");
+    const s = pfSession(), age = Date.now() - (Number(mail.t) || 0);
+    if (s && s.prov === "email" && age > -60000 && age < 600000) {
+      // (the name typed at the sign-up is the player's choice as it is; a sign-in's is the account's own, first name only)
+      const typed = mail.up && typeof mail.n === "string" ? nameCheck(mail.n) : null;
+      pfMetaName = typed && !typed.error ? typed.name : nameFromMeta({ name: typeof mail.n === "string" ? mail.n : "" });
+      pfMetaTyped = !!mail.up && !!pfMetaName;
+      pfGateSet({ fails: 0 });
+      pfRefreshRefused = false;
+      return { ok: true, provider: "email", ms: Math.max(0, Math.round(Number(mail.ms) || 0)), uid: s.uid, back: mail.back === "hall" ? "hall" : "" };
+    }
+  }
   const R = PF_RETURN;
   let pk = pfRead("hs_pf_pkce");
   // older than 10 minutes by the device's clock (as it was stored), or from the future by more than a minute (the
@@ -83801,6 +83825,7 @@ function pfSignOutOurs() { const s = pfSession(); return !!s && PF.on && csState
 const gateEl = $("gate"), gateCardEl = $("gateCard");
 let gateUp = false, gateState = "", gateLine = "", gateShownT = 0, gateFocusT = 0, gateMode = HS_GATE;
 const PF_MARKS = {
+  email: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 6h18v12H3z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 7l9 6.5L21 7"/></svg>',
   google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>',
   facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.62H6.61v3.56h3.07V22h3.68v-9.12h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"/></svg>',
   discord: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M20.32 4.37A19.79 19.79 0 0 0 15.43 2.85a.07.07 0 0 0-.08.04c-.21.38-.44.86-.61 1.25a18.27 18.27 0 0 0-5.49 0 12.64 12.64 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.74 19.74 0 0 0-4.88 1.52.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.23-1.99a.08.08 0 0 0-.04-.11 13.1 13.1 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.09.25-.19.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.06 0a.07.07 0 0 1 .08.01c.12.1.25.2.37.29a.08.08 0 0 1-.01.13 12.3 12.3 0 0 1-1.87.89.08.08 0 0 0-.04.11c.36.7.77 1.36 1.23 1.99a.08.08 0 0 0 .08.03 19.84 19.84 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.33-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.33-.95 2.42-2.16 2.42z"/></svg>',
@@ -83976,6 +84001,7 @@ function gateSignin(line) {
   const c = gateCard("signin", { notice: pfCfg().notice, lines });
   if (pfInApp) pfInAppNote(c.btns);
   for (const p of list) c.btns.appendChild(pfProviderBtn(p, ""));
+  if (pfMailOn()) c.btns.appendChild(pfMailBtn(() => gateMail("in")));
   // A framed page: the provider's buttons open the game in a tab of its own, which a frame's sandbox may forbid
   // without the page ever knowing (window.open with noopener answers null either way). So a plain link does the
   // same where a sandbox lets links through, and Play now stays for a frame that allows neither
@@ -83988,7 +84014,7 @@ function gateSignin(line) {
   }
   // two sign-ins in a row that did not finish, or no button left to press (an in-app browser where Google is the
   // only provider open), or a frame: Play now, so that the card is never a wall
-  if (fails >= 2 || !list.length || pfFramed) c.btns.appendChild(pfBtn("gtQuiet", "Play now", () => gateBypass(!list.length ? "down" : fails >= 2 ? "errors" : "framed")));
+  if (fails >= 2 || (!list.length && !pfMailOn()) || pfFramed) c.btns.appendChild(pfBtn("gtQuiet", "Play now", () => gateBypass(!list.length && !pfMailOn() ? "down" : fails >= 2 ? "errors" : "framed")));
   if (gateMode === "optional") {
     c.btns.appendChild(pfBtn("gtQuiet", "Play as a guest", () => { pfGateSet({ guest: true }); gateBypass("guest"); }));
     c.words.appendChild(pfEl("p", "gtNote", "Guest progress stays on this device."));
@@ -83997,9 +84023,121 @@ function gateSignin(line) {
   const pv = pfEl("a", "gtPrivacy", "Privacy");
   pv.href = "?privacy";
   c.small.appendChild(pv);
-  gateCounted(pfInApp ? "inapp" : "signin", list.map(p => p[0]).join(""), pfHeld);
+  gateCounted(pfInApp ? "inapp" : "signin", list.map(p => p[0]).join("") + (pfMailOn() ? "e" : ""), pfHeld);
   gateFocus();
 }
+// ---- email and password (stage 6, the owner's request of 17 November) ----
+// Beside the providers when Auth's /settings says the email sign-up is on (external.email; the game's own stack with
+// ./providers.sh email). Sign-up asks for a player name, an email and a password, nothing else; no mail is sent
+// (the owner's ruling: the server confirms the address at once), so there is no reset of a forgotten password yet,
+// and the form says so. A session it gets is kept as a provider's is and the page loads again (hs_pf_mail tells the
+// load it was this), so the name card, the welcome and the save's first pull go as after a provider's return.
+let pfMail = null;   // the email sign-in is on (Auth's /settings), as last heard this load
+function pfMailOn() { return pfMail === null ? pfCfg().mail === true : pfMail; }
+function pfMailBtn(open) {
+  const b = pfBtn("gateBtn", null, () => open());
+  b.dataset.p = "email";
+  b.innerHTML = PF_MARKS.email;
+  b.appendChild(pfEl("span", "gtBtnWords", "Continue with email"));
+  if (pfCfg().lastProv === "email") b.appendChild(pfEl("span", "gtLast", "Last used"));
+  return b;
+}
+const PF_MAIL_WORDS = {
+  user_already_exists: "An account already has this email. Sign in instead.",
+  email_exists: "An account already has this email. Sign in instead.",
+  invalid_credentials: "That email and password do not match an account.",
+  weak_password: "Use a longer password: 8 characters or more.",
+  validation_failed: "Check the email address.",
+  email_address_invalid: "Check the email address.",
+  email_not_confirmed: "This account is waiting for a confirmation the game cannot send yet. Sign in with Google instead.",
+  email_provider_disabled: "Sign-up by email is closed for now.",
+  signup_disabled: "Sign-up by email is closed for now.",
+  over_request_rate_limit: "Too many tries. Wait a minute, then try again.",
+  over_email_send_rate_limit: "Too many tries. Wait a minute, then try again.",
+  confirm: "Your account is made, but the server asks for a confirmation the game cannot send yet. Sign in with Google instead.",
+  offline: "No connection. Try again.",
+  other: "That did not work. Try again.",
+};
+const PF_MAIL_NOTE = "No email is sent to you. A way to reset a forgotten password comes later: until then, keep your password safe.";
+// the form: mode "in" (email, password) or "up" (player name, email, password). o: { back, cls: { field, err, go,
+// quiet }, onMode(mode), onBack() }; its fields' values survive a switch of mode
+function pfMailForm(box, mode, o, keep) {
+  const v = keep || { name: "", email: "", pw: "" };
+  const form = pfEl("form", "pfMail");
+  form.noValidate = true;
+  const fld = (type, label, val, ac) => {
+    const f = pfEl("input", o.cls.field);
+    f.type = type; f.value = val; f.placeholder = label; f.setAttribute("aria-label", label);
+    f.autocomplete = ac; f.spellcheck = false; f.maxLength = type === "password" ? 72 : type === "email" ? 254 : 32;
+    f.setAttribute("autocapitalize", type === "text" ? "words" : "none");
+    f.addEventListener("keydown", (e) => e.stopPropagation());
+    form.appendChild(f);
+    return f;
+  };
+  const nm = mode === "up" ? fld("text", "Player name", v.name, "nickname") : null;
+  const em = fld("email", "Email", v.email, "email");
+  const pw = fld("password", mode === "up" ? "Password (8 or more)" : "Password", v.pw, mode === "up" ? "new-password" : "current-password");
+  const err = pfEl("p", o.cls.err);
+  err.setAttribute("aria-live", "polite");
+  form.appendChild(err);
+  const go = pfBtn(o.cls.go, mode === "up" ? "Create account" : "Sign in", () => submit());
+  go.type = "submit";
+  form.appendChild(go);
+  form.addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+  const now = () => ({ name: nm ? nm.value : v.name, email: em.value, pw: pw.value });
+  const row = pfEl("div", o.cls.pair || "");
+  row.appendChild(pfBtn(o.cls.quiet, mode === "up" ? "I have an account" : "Create an account", () => o.onMode(mode === "up" ? "in" : "up", now())));
+  row.appendChild(pfBtn(o.cls.quiet, "Back", () => o.onBack()));
+  form.appendChild(row);
+  form.appendChild(pfEl("p", o.cls.note || "", PF_MAIL_NOTE));
+  box.appendChild(form);
+  const t0 = Date.now();
+  let busy = false;
+  async function submit() {
+    if (busy) return;
+    const x = now(), email = x.email.trim();
+    let name = "";
+    if (nm) {
+      const r = nameCheck(x.name);
+      if (r.error) { err.textContent = PF_NAME_WORDS[r.error]; nm.focus(); return; }
+      name = r.name;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = PF_MAIL_WORDS.validation_failed; em.focus(); return; }
+    if (mode === "up" ? x.pw.length < 8 : !x.pw) { err.textContent = mode === "up" ? PF_MAIL_WORDS.weak_password : "Type your password."; pw.focus(); return; }
+    busy = true; go.disabled = true; err.textContent = "";
+    go.textContent = mode === "up" ? "Creating your account..." : "Signing in...";
+    track("provider_tapped", { provider: "email" });
+    const r = mode === "up"
+      ? await pfApi("POST", "/auth/v1/signup", { email, password: x.pw, data: { name } }, { timeout: 10000 })
+      : await pfApi("POST", "/auth/v1/token?grant_type=password", { email, password: x.pw }, { timeout: 10000 });
+    if (r.ok && r.data && r.data.access_token && r.data.refresh_token) {
+      pfKeepSession(r.data, "email");
+      const meta = (r.data.user && r.data.user.user_metadata) || {};
+      pfWrite("hs_pf_mail", { t: Date.now(), ms: Date.now() - t0, back: o.back || "", up: mode === "up", n: mode === "up" ? name : String(meta.name || meta.full_name || "").slice(0, 64) });
+      // (a store that kept nothing could not carry the session across the load: said, and nothing else done)
+      if (!pfSession()) { busy = false; go.disabled = false; go.textContent = mode === "up" ? "Create account" : "Sign in"; err.textContent = "This browser is not keeping this site's data, so a sign-in cannot be remembered here."; return; }
+      location.reload();
+      return;
+    }
+    busy = false; go.disabled = false; go.textContent = mode === "up" ? "Create account" : "Sign in";
+    const code = String(r.code || "");
+    track("signin_error", { provider: "email", error: errWord(code || (r.status === 0 ? "network" : "http_" + r.status)), standalone: pfStandalone() });
+    err.textContent = r.ok && r.data && r.data.id ? PF_MAIL_WORDS.confirm : r.status === 0 ? PF_MAIL_WORDS.offline
+      : r.status === 429 ? PF_MAIL_WORDS.over_request_rate_limit : PF_MAIL_WORDS[code] || PF_MAIL_WORDS.other;
+  }
+  try { (nm || em).focus({ preventScroll: true }); } catch (e) {}
+  return form;
+}
+// the gate's card for it
+function gateMail(mode, keep) {
+  gateShow();
+  const c = gateCard("mail", { title: mode === "up" ? "Create your account" : "Sign in with email", word: true,
+    lines: [mode === "up" ? "A player name (shown on the leaderboards), your email and a password: nothing else." : "With the email and password you signed up with."] });
+  c.btns.classList.add("gtMailBtns");
+  pfMailForm(c.btns, mode, { back: "", cls: { field: "gtField", err: "gtErr", go: "gtQuiet gtGo", quiet: "gtQuiet", pair: "gtPair", note: "gtMailNote" },
+    onMode: (m, v) => gateMail(m, v), onBack: () => gateSignin(gateLine) }, keep);
+}
+
 // Sign-in is not answering, or the device is offline (3.6): play now, or try again
 function gateDown(why) {
   gateShow();
@@ -84037,6 +84175,7 @@ function gateBypass(why) {
 // checked as the player types, the server's own refusals under the field. then(name) goes on; name is null after "Later"
 function pfSuggest() { const b = pfRandBytes(4); return "Defender" + String(((b[0] << 16) | (b[1] << 8) | b[2]) % 1000000).padStart(6, "0"); }
 let pfMetaName = null;   // this load's sign-in's own name for the player, cleaned (nameFromMeta), or null
+let pfMetaTyped = false;   // pfMetaName is the player name typed at this load's email sign-up
 // the name to try when the offer is taken already: the first name with three digits (within 16 characters), or a new
 // "Defender" and digits
 function pfSuggestAgain(was) {
@@ -84097,6 +84236,9 @@ function gateName(newAccount, then) {
     changed: false, then, onLater: () => then(null) });
   if (newAccount) c.btns.appendChild(pfBtn("gtQuiet", "Back to sign-in", () => pfSignOut()));
   gateFocus();
+  // the name the player typed at the email sign-up is his choice already: it is saved at once, and the card stays
+  // only when the server refuses it (taken, or not allowed), with its words under the field
+  if (pfMetaTyped && pfMetaName) { pfMetaTyped = false; const go = c.btns.querySelector(".gtGo"); if (go) go.click(); }
 }
 // The welcome card (3.4): who, how far, and the one button that goes on from where the player left off. While the
 // save is pulled (4.3) the buttons are dimmed under "Checking your saved progress..." for 2.5 s at most; then the
@@ -84261,11 +84403,12 @@ async function pfNoSession(line) {
   if (offline) { gateDown("offline"); return; }
   if (!(sr.ok && sr.data && typeof sr.data === "object")) { gateDown(sr.status === 0 ? "timeout" : "http"); return; }
   const pv = providersOf(sr.data, pfInApp);
-  pfCfgSet({ prov: providersOf(sr.data, false).list, held: pv.held });
+  pfMail = !!(sr.data.external && sr.data.external.email === true);
+  pfCfgSet({ prov: providersOf(sr.data, false).list, held: pv.held, mail: pfMail });
   pfProv = pv.list; pfHeld = pv.held;
-  // no provider open at all (or only Discord, held back): down. In an in-app browser where only Google is open the
-  // card still comes, with its note and its ways out to the phone's own browser
-  if (!pfProv.length && !(pfInApp && providersOf(sr.data, false).list.length)) { gateDown("none"); return; }
+  // no provider open at all (or only Discord, held back) and no email sign-in: down. In an in-app browser where only
+  // Google is open the card still comes, with its note and its ways out to the phone's own browser
+  if (!pfProv.length && !pfMail && !(pfInApp && providersOf(sr.data, false).list.length)) { gateDown("none"); return; }
   gateSignin(gateLine);
 }
 // A session is held (3.9, step 8): the mode last seen at once (the switch is asked again behind), the name, then
@@ -86573,6 +86716,7 @@ function lbSignIn(list, words) {
   const ps = (pfProv || (Array.isArray(cfg.prov) ? cfg.prov : ["google", "facebook", "discord"]).filter(p => !(p === "discord" && cfg.held === "d"))).filter(p => !(p === "google" && pfInApp));
   const row = pfEl("div", "lbSignBtns");
   for (const p of ps) row.appendChild(pfProviderBtn(p, "hall"));
+  if (pfMailOn()) row.appendChild(pfMailBtn(() => { pfAcctMail = true; showHallTab("account", true); }));
   box.appendChild(row);
   list.appendChild(box);
 }
@@ -86593,7 +86737,7 @@ async function pfAdminRulesCheck() {
 }
 
 // ---- the Account tab in the Hall (5.5): who you are and sign out; for a guest the sign-in buttons ----
-let pfAcctEl = null;
+let pfAcctEl = null, pfAcctMail = false;   // pfAcctMail: the tab opens on the email form (the boards' button)
 function pfAccountRedraw() { if (hallOpen && hallTab === "account" && pfAcctEl) showHallTab("account", false); }
 function renderAccount(el) {
   pfAcctEl = el;
@@ -86653,7 +86797,15 @@ function renderAccount(el) {
     const list = (pfProv || (Array.isArray(cfg.prov) ? cfg.prov : ["google", "facebook", "discord"]).filter(p => !(p === "discord" && cfg.held === "d"))).filter(p => !(p === "google" && pfInApp));
     if (pfInApp) box.appendChild(pfEl("p", "acNote", "This app's browser can block sign-in. For Google, open the game in Safari or Chrome."));
     for (const p of list) box.appendChild(pfProviderBtn(p, "hall"));
-    if (!list.length) box.appendChild(pfEl("p", "acNote", "Sign-in is not open right now."));
+    const mailForm = (mode, keep) => {
+      box.textContent = "";
+      box.appendChild(pfEl("p", "", mode === "up" ? "Create your account: your player name, email and a password." : "Sign in with the email and password you signed up with."));
+      pfMailForm(box, mode, { back: "hall", cls: { field: "acField", err: "acErr", go: "btn acGo", quiet: "btn", pair: "acRow", note: "acNote" },
+        onMode: mailForm, onBack: () => pfAccountRedraw() }, keep);
+    };
+    if (pfMailOn() && !HS_STORE_MEM) box.appendChild(pfMailBtn(() => mailForm("in")));
+    if (pfAcctMail && pfMailOn()) { pfAcctMail = false; mailForm("in"); return; }
+    if (!list.length && !pfMailOn()) box.appendChild(pfEl("p", "acNote", "Sign-in is not open right now."));
   }
   const pv = pfEl("a", "", "Privacy");
   pv.href = "?privacy";

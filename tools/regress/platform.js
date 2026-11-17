@@ -174,7 +174,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,8,9,10,11,13,14,15")).split(",");
+const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,8,9,10,11,13,14,15,16")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -228,7 +228,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     g.reqs = [];
     page.on("request", r => { const u = r.url(); if (!/^(data|blob|about):/.test(u)) g.reqs.push(u); });
     page.on("pageerror", e => g.errs.push("pageerror: " + e.message));
-    page.on("console", m => { if (m.type() === "error" && !/Failed to load resource: the server responded with a status of (400|401|403|404|503)|net::ERR_ABORTED|ERR_CONNECTION|ERR_INTERNET_DISCONNECTED/.test(m.text())) g.errs.push("console.error: " + m.text()); });
+    page.on("console", m => { if (m.type() === "error" && !/Failed to load resource: the server responded with a status of (400|401|403|404|422|503)|net::ERR_ABORTED|ERR_CONNECTION|ERR_INTERNET_DISCONNECTED/.test(m.text())) g.errs.push("console.error: " + m.text()); });
     page.on("crash", () => g.errs.push("the page crashed"));
     g.cdp = await ctx.newCDPSession(page);
     await page.goto(SITE + (x.path || "/"), { timeout: 120000 });
@@ -326,7 +326,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
   const resetStack = async () => {
     await S.control("reset");
     await S.control("auth", { mode: "up" }); await S.control("rest", { mode: "up" });
-    await S.control("settings", { mailer_autoconfirm: false, external: { google: true, facebook: true, discord: true } });
+    await S.control("settings", { mailer_autoconfirm: false, email: false, external: { google: true, facebook: true, discord: true } });
     await S.control("authclock", { seconds: 0 });
   };
 
@@ -477,9 +477,10 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const si = await evs(g, "signed_in");
     if (!si.length || si[0].provider !== "google" || si[0].new !== true || si[0].same !== true) fail(W, "signed_in: " + JSON.stringify(si));
     const nt = await cardText(g);
-    if (!nt.includes("Choose your player name") || !nt.includes("Do not use your real name.")) fail(W, "the name card: " + nt.slice(0, 200));
+    // (stage 6) the card starts from the provider's own name for the player (Google's "Aram"), not a "Defender" number
+    if (!nt.includes("Choose your player name") || !nt.includes("It starts from your first name as your sign-in gave it")) fail(W, "the name card: " + nt.slice(0, 200));
     const sug = await g.ev(() => gateCardEl.querySelector(".gtField").value);
-    if (!/^Defender\d{6}$/.test(sug)) fail(W, "the suggested name is " + sug);
+    if (sug !== "Aram") fail(W, "the suggested name is " + sug + ", not the provider's first name");
     await audit(g, W + " name card", cardSpec(["#gate .gtGo"]), "name-" + C.key);
     // refused on the page as it is typed
     for (const [v, want] of [["<b>x</b>", "Use letters, numbers, spaces, dots, dashes and underscores."], ["ab", "Use 3 to 16 characters."], ["The Adm1n", "That name is not allowed. Try another."]]) {
@@ -3670,7 +3671,123 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(G, W + " (a guest)");
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 8: flow8, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
+  // ================================================================ flow 16: email and password (stage 6)
+  // The game's own stack with the email sign-up on and confirming at once (ENABLE_EMAIL_SIGNUP and AUTOCONFIRM, the
+  // stand-in's settings email and mailer_autoconfirm): "Continue with email" beside Google and Facebook (Discord held
+  // back while the server confirms emails itself); its form, sign-in and sign-up, each held to the audit; the form's
+  // refusals as typed (a short name, a bad address, a short password); a sign-up that comes back with its name already
+  // saved (the welcome card, no name card), its session a password's ("email" on the device, amr "password" in the
+  // token), the Account tab saying so, a save sent on it; sign-out; a wrong password, then the right one; the same
+  // address signed up again; the reset's note on the form; Google later under the same address joins the same account
+  // (the cost the owner accepted); and with the email sign-up off, no button.
+  const flow16 = async (C) => {
+    const W = "flow 16 " + C.name;
+    await resetStack();
+    await S.control("settings", { email: true, mailer_autoconfirm: true });
+    let g = await open(C);
+    await gate(g, "signin");
+    const bs = (await buttons(g)).join();
+    if (bs !== "google,facebook,email") fail(W, "the sign-in card's buttons: " + bs + " (Discord held back while the server confirms emails itself)");
+    await audit(g, W + " sign-in card", cardSpec(), "mail-signin-" + C.key);
+    await pressGo(g, '#gate .gateBtn[data-p="email"]');
+    await gate(g, "mail");
+    let t = await cardText(g);
+    if (!/Sign in with email/.test(t) || !/A way to reset a forgotten password comes later/.test(t) || !/No email is sent to you/.test(t)) fail(W, "the sign-in form: " + t);
+    await audit(g, W + " email sign-in form", cardSpec(["#gate .gtGo"]), "mail-in-" + C.key);
+    const press = (words) => pressGo(g, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === " + JSON.stringify(words) + ")"));
+    await press("Create an account");
+    await gate(g, "mail");
+    t = await cardText(g);
+    if (!/Create your account/.test(t) || (await g.ev(() => gateCardEl.querySelectorAll("input").length)) !== 3) fail(W, "the sign-up form: " + t);
+    await audit(g, W + " email sign-up form", cardSpec(["#gate .gtGo"]), "mail-up-" + C.key);
+    const errNow = () => g.ev(() => gateCardEl.querySelector(".gtErr").textContent);
+    const fillUp = async (name, email, pw) => {
+      const f = await g.page.$$("#gate input");
+      await f[0].fill(name); await f[1].fill(email); await f[2].fill(pw);
+    };
+    for (const [v, want] of [[["ab", "ok@example.com", "longenough1"], "Use 3 to 16 characters."], [["Mail Rider", "not-an-address", "longenough1"], "Check the email address."],
+      [["Mail Rider", "mail.rider@example.com", "short"], "Use a longer password: 8 characters or more."]]) {
+      await fillUp(...v);
+      await pressGo(g, "#gate .gtGo");
+      await g.frames(2);
+      const e = await errNow();
+      if (e !== want) fail(W, "the sign-up form told " + JSON.stringify(v) + ": " + JSON.stringify(e));
+    }
+    if ((await S.query("select count(*)::int n from auth.users"))[0].n !== 0) fail(W, "a refused form made an account");
+    // the sign-up: back with the name saved, at the welcome card
+    await fillUp("Mail Rider", "Mail.Rider@example.com", "correct horse 1");
+    await pressGo(g, "#gate .gtGo");
+    await gate(g, "welcome");
+    t = await cardText(g);
+    if (!t.startsWith("Welcome, Mail Rider.")) fail(W, "after the sign-up: " + t);
+    const ses = JSON.parse(await store(g, "hs_pf_auth") || "null");
+    if (!ses || ses.prov !== "email") fail(W, "the session on the device: " + JSON.stringify(ses && ses.prov));
+    if (await store(g, "hs_pf_mail")) fail(W, "hs_pf_mail is left after the load");
+    const si = await evs(g, "signed_in");
+    if (!si.length || si[0].provider !== "email" || si[0].new !== true) fail(W, "signed_in: " + JSON.stringify(si));
+    const uid = await uidOf(g);
+    const row = (await S.query("select p.name, u.email, (select array_agg(provider) from auth.identities i where i.user_id = u.id) as ids from auth.users u left join highland.hs_profiles p on p.user_id = u.id where u.id = $1", [uid]))[0];
+    if (!row || row.name !== "Mail Rider" || row.email !== "mail.rider@example.com" || JSON.stringify(row.ids) !== '["email"]') fail(W, "the server's account: " + JSON.stringify(row));
+    const amr = ses && JSON.parse(Buffer.from(ses.at.split(".")[1], "base64url").toString()).amr;
+    if (!amr || amr[0].method !== "password") fail(W, "the token's amr: " + JSON.stringify(amr));
+    await pressWelcome(g, "Campaign Map"); await gate(g, ""); await toMap(g);
+    await g.ev(() => openHall("account"));
+    await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 });
+    const at = await g.ev(() => hallBodyEl.innerText.replace(/\s+/g, " "));
+    if (!at.includes("Mail Rider") || !at.includes("Signed in with email.")) fail(W, "the Account tab: " + at);
+    // a save goes up on the password's session
+    await g.ev(() => { hallFrom = ""; closeHall(); storeRecord(0, { stars: [0, 2, 0], lives: [0, 15, 0], endless: [0, 0, 0] }); });
+    await until(async () => { const sv = (await S.query("select data from highland.hs_saves where user_id = $1 and channel = 'live'", [uid]))[0]; return sv && /erebuni/.test(sv.data.keys.hs_records || ""); }, 10000, "the save on a password session").catch(e => fail(W, e.message));
+    await g.ev(() => openHall("account"));
+    await g.page.waitForFunction(() => hallOpen && !hallEl.classList.contains("hlSettling"), null, { timeout: 5000 });
+    await g.press(() => Array.from(document.querySelectorAll(".acTab .btn")).find(b => b.textContent === "Sign out"));
+    await pressGo(g, () => Array.from(document.querySelectorAll(".acTab .btn")).find(b => b.textContent === "Sign out"));
+    await gate(g, "signin");
+    if ((await g.ev(() => Array.from(gateCardEl.querySelectorAll(".gtLast")).map(e => e.parentNode.dataset.p).join())) !== "email") fail(W, "Last used is not on the email button");
+    // a wrong password, then the right one
+    await pressGo(g, '#gate .gateBtn[data-p="email"]');
+    await gate(g, "mail");
+    const f = await g.page.$$("#gate input");
+    await f[0].fill("mail.rider@example.com"); await f[1].fill("wrong horse 1");
+    await pressGo(g, "#gate .gtGo");
+    await g.page.waitForFunction(() => gateCardEl.querySelector(".gtErr") && gateCardEl.querySelector(".gtErr").textContent !== "", null, { timeout: 10000 }).catch(() => {});
+    if ((await errNow()) !== "That email and password do not match an account.") fail(W, "a wrong password is told " + JSON.stringify(await errNow()));
+    await f[1].fill("correct horse 1");
+    await pressGo(g, "#gate .gtGo");
+    await gate(g, "welcome");
+    if (!(await cardText(g)).startsWith("Welcome back, Mail Rider.")) fail(W, "the sign-in's welcome: " + await cardText(g));
+    if (await uidOf(g) !== uid) fail(W, "the sign-in found another account");
+    // the address signed up again: refused
+    await g.ev(() => { pfDrop("hs_pf_auth"); pfDrop("hs_pf_me"); });
+    await g.page.reload();
+    await gate(g, "signin");
+    await pressGo(g, '#gate .gateBtn[data-p="email"]');
+    await gate(g, "mail");
+    await press("Create an account");
+    await gate(g, "mail");
+    await fillUp("Second Rider", "mail.rider@example.com", "another pass 2");
+    await pressGo(g, "#gate .gtGo");
+    await g.page.waitForFunction(() => gateCardEl.querySelector(".gtErr") && gateCardEl.querySelector(".gtErr").textContent !== "", null, { timeout: 10000 }).catch(() => {});
+    if ((await errNow()) !== "An account already has this email. Sign in instead.") fail(W, "the same address signed up again is told " + JSON.stringify(await errNow()));
+    await press("Back");
+    await gate(g, "signin");
+    // Google under the same address: the same account, the same player
+    if (C.key === "desk") {
+      await S.control("provider", { identity: { provider_id: "g-mail-1", email: "mail.rider@example.com", verified: true, name: "Mail Rider" } });
+      await pressGo(g, '#gate .gateBtn[data-p="google"]');
+      await gate(g, "welcome");
+      if (await uidOf(g) !== uid || !(await cardText(g)).startsWith("Welcome back, Mail Rider.")) fail(W, "Google under the same address: " + await cardText(g));
+    }
+    await done(g, W);
+    // the email sign-up off: no button
+    await S.control("settings", { email: false, mailer_autoconfirm: false });
+    g = await open(C);
+    await gate(g, "signin");
+    if ((await buttons(g)).includes("email")) fail(W, "the email button stays with the email sign-up off");
+    await done(g, W + " (off)");
+  };
+
+  const FLOW = { 16: flow16, 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 8: flow8, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
