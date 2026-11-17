@@ -87,8 +87,8 @@ function serve(file) {
     }
   };
 
-  // the openings (no file needed): ten tunes, every battlefield its own opening, a lament only on a field of loss or
-  // siege, never the tune heard last, and never a lament in a brighter one's stead
+  // the openings (no file needed): eleven tunes, every battlefield its own opening, a lament only on a field of loss or
+  // siege, the love song on none, never the tune heard last, and never a lament in a brighter one's stead
   {
     const g = await R.openGame(browser, o.file, Object.assign({}, C, { storage: { hs_trailer_seen: "1" } }));
     const r = await g.ev(() => {
@@ -98,16 +98,17 @@ function serve(file) {
         const k = Rec.battleFirst(i);
         if (!REC_BATTLE[k]) out.bad.push(L.id + " opens on nothing");
         else if (REC_BATTLE[k].lament && !LOSS.includes(L.id)) out.bad.push(L.id + " opens on the lament " + REC_BATTLE[k].id);
+        else if (REC_BATTLE[k].love) out.bad.push(L.id + " opens on the love song");
         Rec.lastBattle = k;
         const k2 = Rec.battleFirst(i);
-        if (k2 === k || REC_BATTLE[k2].lament) out.bad.push(L.id + " after its own tune opens on " + REC_BATTLE[k2].id);
+        if (k2 === k || REC_BATTLE[k2].lament || REC_BATTLE[k2].love) out.bad.push(L.id + " after its own tune opens on " + REC_BATTLE[k2].id);
       });
       Rec.lastBattle = -1;
       out.avarayr = REC_BATTLE[Rec.battleFirst(LEVELS.findIndex(L => L.id === "avarayr"))].id;
       out.files = REC_BATTLE.map(x => x.file);
       return out;
     });
-    if (r.n !== 10) fail("openings", "there are " + r.n + " battle tunes, not ten");
+    if (r.n !== 11) fail("openings", "there are " + r.n + " battle tunes, not eleven");
     for (const b of r.bad) fail("openings", b);
     if (r.avarayr !== "vartani-mor-vokhbe") fail("openings", "Avarayr opens on " + r.avarayr);
     for (const f of r.files) if (!fs.existsSync(path.join(path.dirname(o.file), f))) fail("openings", "no file " + f);
@@ -157,7 +158,7 @@ function serve(file) {
       s = await until(g, x => !x.b.paused, 3000, "the Music switch on again, the tune stays paused");
       // a tune that ends: the next one
       const t1 = await g.ev(() => { const el = Rec.ch.battle.el; el.currentTime = Math.max(0, el.duration - 0.6); return Rec.ch.battle.idx; });
-      s = await until(g, x => x.b.idx === (t1 + 1) % 10 && x.b.playing, 8000, "a tune that ended did not go on to the next");
+      s = await until(g, x => x.b.idx === (t1 + 1) % 11 && x.b.playing, 8000, "a tune that ended did not go on to the next");
     }
     // the victory: the next recording in turn, the battle's tune faded, the dancers at its tempo
     const first = await g.ev(() => { try { return (Number(localStorage.getItem("hs_vic_rec")) | 0) % REC_VICTORY.length; } catch (e) { return 0; } });

@@ -15310,11 +15310,13 @@ const REC_BATTLE = [
   { id: "balkoni-dage", file: "assets/music/balkoni-dage.mp3", lufs: -16.2 },
   { id: "alakiaz", file: "assets/music/alakiaz.mp3", lufs: -15.5 },
   { id: "mi-lar-mayrig", file: "assets/music/mi-lar-mayrig.mp3", lufs: -15.5, lament: true },
+  // and one more (17 November), a love song by its title (love: true): in the rotation, never a battlefield's opening
+  { id: "siroun-es-hokiag", file: "assets/music/siroun-es-hokiag.mp3", lufs: -15.0, love: true },
 ];
 // each battlefield's opening tune (its index in REC_BATTLE). The laments open the fields of loss: Avarayr (451,
 // where Vartan Mamikonian fell: "Vartan's Mother's Lamentation"), Sis (1375, the kingdom's last siege, ended in
 // terms), Shushi (2020, lost) and Stepanakert (2023, the exodus: "Don't Cry Mother"). The others share the brighter
-// eight; a battlefield missing here opens on its number among the ten
+// eight; the love song opens none. A battlefield missing here opens on its number among the eleven
 const REC_OPEN = { erebuni: 0, tushpa: 1, avarayr: 6, dvin: 2, tashir: 3, sevan: 4, ani: 5, mari: 7, sis: 9, gyumri: 8, halidzor: 2,
   van: 1, musadagh: 8, sardarapat: 3, stepanakert92: 4, shushi: 6, stepanakert23: 9 };
 const REC_VICTORY = [
@@ -15441,12 +15443,12 @@ const Rec = {
       } else setTimeout(() => { if (!c.want) el.pause(); }, ms);
     } else { try { el.pause(); } catch (e) {} c.playing = false; this.sync(); }
   },
-  // ---- battles: a battlefield opens on its own tune (REC_OPEN), then they turn in order through all ten; a battle
-  // never opens on the tune heard last (the next brighter one then, never a lament in a lament's stead)
+  // ---- battles: a battlefield opens on its own tune (REC_OPEN), then they turn in order through all eleven; a battle
+  // never opens on the tune heard last (the next martial one then, never a lament or the love song in its stead)
   battleFirst(lv) {
     const N = REC_BATTLE.length, L = LEVELS[lv];
     let i = L && Number.isInteger(REC_OPEN[L.id]) ? REC_OPEN[L.id] : ((lv | 0) % N + N) % N;
-    if (i === this.lastBattle) { do i = (i + 1) % N; while (REC_BATTLE[i].lament || i === this.lastBattle); }
+    if (i === this.lastBattle || REC_BATTLE[i].love) { do i = (i + 1) % N; while (REC_BATTLE[i].lament || REC_BATTLE[i].love || i === this.lastBattle); }
     return i;
   },
   battleNext() {
