@@ -15,7 +15,7 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
-const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors", "iphone", "waves", "platform"];
+const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", "doors", "iphone", "waves", "platform", "film"];
 // a script that runs past this is stopped and fails
 // (vic plays a victory on every battlefield at three sizes: 444 s on a quiet machine, over 900 s on a busy one;
 // iphone walks over 700 states at ten sizes: about 500 s on a quiet machine since G3, past 600 s on a busy one;
@@ -23,7 +23,7 @@ const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", 
 // (platform starts the local stack, PostgreSQL included, and plays sign-in through it: tools/platform/README.md)
 // (P5's flow 7, scores and boards, brought its full run to about 2,400 s under load; the quick one runs only the flows
 // spec 10.5 names, 1, 2, 4, 5, 7 and 11, at 1600x900 and 667x320, and keeps well inside its 0.6 of the limit)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 2600 };
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 2600, film: 600 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
