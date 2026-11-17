@@ -10,7 +10,8 @@
 // with its own sentence ("Two horse lines are all this field can stable.", G7b's Stores "Two stores are all this road can
 // feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad; the
 // Powder Mine (G7c, on Gyumri Road and Halidzor) asks for road in its reach and has no limit; the Aid Post (G7d, on Van,
-// Musa Dagh and Sardarapat) takes any pad, one on a field ("One aid post serves this field.").
+// Musa Dagh and Sardarapat) takes any pad, one on a field ("One aid post serves this field."); the Observation Post (G7e,
+// on Stepanakert 1992, Shushi and Stepanakert 2023) takes any pad, one on a field ("One observation post serves this field.").
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/padplace.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -63,7 +64,7 @@ const PHONE_LV = ["erebuni", "dvin", "gyumri", "van", "stepanakert92"];
             // a post or a horse line where no road lies in its reach: refused, with its sentence; the pad takes the next kind
             if (!st.road) { await refuse(i, type, "with no road in reach", /No road in reach/); continue; }
             // a kind at its limit on the field: refused with its own sentence (once a field), the pad takes the next kind
-            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than|One aid post serves this field/); continue; }
+            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than|One aid post serves this field|One observation post serves this field/); continue; }
             break;
           }
           if (await g.ev(() => placing) !== type) await g.press('#shop .card[data-type="' + type + '"]');

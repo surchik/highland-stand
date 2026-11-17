@@ -7,8 +7,11 @@
 // else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields and
 // on the Powder Mine's two. Every mine's charges stand armed while the towers are pressed: no press may fire one.
 // Where the tray holds the battlefield's special tower (G7a: the Horse Lines; G7b: the Stores; G7c: the Powder Mine; G7d:
-// the Aid Post, one), two (or its limit) of them stand among the rest, at ranks and masteries by turns. On the first mine of each battlefield Lay the charge is
+// the Aid Post, one; G7e: the Observation Post, one), two (or its limit) of them stand among the rest, at ranks and masteries by turns. On the first mine of each battlefield Lay the charge is
 // pressed, then the road in its ring (the charge must lie there), then its marker once armed (it must fire, no panel).
+// On each Observation Post its Target button is pressed, by mouse or by finger as the size has it: the order it marks
+// by must move on one step (Strongest, Weakest, First, Last) and its panel stay up showing it. The phone pass takes
+// Stepanakert 1992 too, for the post's panel as a sheet.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/probe.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -22,7 +25,7 @@ const BODY = 30;
 (async () => {
   const browser = await R.launch();
   const fails = [];
-  let probed = 0, rallies = 0;
+  let probed = 0, rallies = 0, targets = 0;
   const ids = await (async () => { const g = await R.openGame(browser, o.file, R.SIZES.desk); const v = await g.ev(() => LEVELS.map(L => L.id)); await g.close(); return v; })();
   const levels = R.parseLevels(o.levels || (o.quick ? "tushpa,sis,stepanakert92" : "all"), ids);
   await R.pool(CONFIGS, CONFIGS.length, async (C) => {
@@ -31,7 +34,7 @@ const BODY = 30;
     await g.toMap();
     // the phone pass: three battlefields spread over the campaign, and the Powder Mine's two (G7c review 2: on a small
     // screen an armed marker's catch reaches the towers beside the road)
-    const mine = C.phone ? levels.filter((lv, j) => j % Math.max(1, Math.ceil(levels.length / 3)) === 0 || ["gyumri", "halidzor"].includes(ids[lv])) : levels;
+    const mine = C.phone ? levels.filter((lv, j) => j % Math.max(1, Math.ceil(levels.length / 3)) === 0 || ["gyumri", "halidzor", "stepanakert92"].includes(ids[lv])) : levels;
     for (const lv of mine) {
       const id = ids[lv];
       try {
@@ -128,6 +131,18 @@ const BODY = 30;
           else if (d.sel >= 0 || d.panel) await fail(tag + ": a press on the armed marker opened a panel");
           else rallies++;
         };
+        // the Observation Post (G7e): its Target button pressed moves its order on one step, and the panel stays
+        const retarget = async (tag, pad) => {
+          if (g.touch) await g.wait(450);
+          const p0 = await g.ev(pad => towerAt(pad).prio, pad);
+          await g.press("#pTarget");
+          await g.wait(120);
+          const a = await g.ev(pad => ({ prio: towerAt(pad).prio, panel: panelEl.style.display === "block", sel: selected ? selected.pad : -1, txt: ($("pTarget") || {}).textContent || "" }), pad);
+          const want = { first: "last", last: "strong", strong: "weak", weak: "first" }[p0];
+          if (a.prio !== want) await fail(tag + ": Target pressed moved the order from " + p0 + " to " + a.prio + ", not " + want);
+          else if (!a.panel || a.sel !== pad || a.txt.indexOf({ first: "First", last: "Last", strong: "Strongest", weak: "Weakest" }[want]) < 0) await fail(tag + ": after Target the panel " + (a.panel ? "shows " + a.txt : "went"));
+          else targets++;
+        };
         for (let k = 0; k < n; k++) {
           const t = await g.ev(k => ({ pad: towers[k].pad, x: towers[k].x, y: towers[k].y, type: towers[k].type, level: towers[k].level }), k);
           const tag = id + " " + t.type + " (rank " + (t.level + 1) + ") on pad " + t.pad;
@@ -146,6 +161,7 @@ const BODY = 30;
           // the first post of the battlefield: its rally moved by Rally point and a press on the road in the ring
           if (s.pad === t.pad && s.shown && t.type === "post" && !rallied) { rallied = true; await rally(tag, t.pad); }
           if (s.pad === t.pad && s.shown && t.type === "mine" && !laid) { laid = true; await lay(tag, t.pad); }
+          if (s.pad === t.pad && s.shown && t.type === "spotter") await retarget(tag, t.pad);
           await g.ev(() => hidePanel());
         }
         if (o.verbose) console.log(C.name + " " + id + " " + n + " towers");
@@ -158,5 +174,5 @@ const BODY = 30;
     await g.close();
   });
   await browser.close();
-  R.finish("probe", fails, { probed, rallies, configs: CONFIGS.map(c => c.name), levels: levels.length }, t0);
+  R.finish("probe", fails, { probed, rallies, targets, configs: CONFIGS.map(c => c.name), levels: levels.length }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

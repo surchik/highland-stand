@@ -879,6 +879,36 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           await check("aid panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
           await g.ev(() => { hidePanel(); });
         }
+        // the Observation Post's panel (G7e) the same way: Stepanakert 1992 staged, the post at its third rank (the Mastery
+        // to choose); then its Target button tapped moves the order it marks by, the sheet still up
+        await stage("stepanakert92", 3, { spot: 1, sl: "2" });
+        const opad = await g.ev(() => { const t = towers.find(u => u.type === "spotter"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (opad < 0) fail("spotter panel", "no Observation Post was staged");
+        else {
+          const ob = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + t.prio) }));
+          const oat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), opad);
+          await g.tapAt(oat.x, oat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", opad))) {
+            fail("spotter panel", "a tap on the Observation Post did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, opad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + t.prio) })) !== ob) fail("spotter panel", "the tap that opened the sheet pressed something in it");
+          await check("spotter panel", { root: "#panel", primary: ["#pTarget", "#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          const tr = await g.ev(() => { const b = $("pTarget"); if (!b) return null; b.scrollIntoView({ block: "nearest" }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
+          if (!tr) fail("spotter panel", "no Target button");
+          else {
+            if (tr.h < 35.5) fail("spotter panel", "the Target button is " + Math.round(tr.h) + " px tall");
+            await g.wait(450);
+            await g.tapAt(tr.x, tr.y);
+            await settle(2);
+            const after = await g.ev(pad => { const t = towers.find(u => u.pad === pad); return { prio: t.prio, panel: panelEl.style.display === "block", txt: ($("pTarget") || {}).textContent || "" }; }, opad);
+            if (after.prio !== "weak" || !after.panel || !/Weakest/.test(after.txt)) fail("spotter panel", "a tap on Target left " + JSON.stringify(after));
+          }
+          await g.ev(() => { hidePanel(); });
+        }
       });
       await step("foe", "foe card (wave row)", async () => {
         if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }

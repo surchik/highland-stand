@@ -10765,7 +10765,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "061d3d43";
+const RULESET_PIN = "13c944e8";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10784,7 +10784,7 @@ const LEVEL_REV = {
 const LEVEL_PIN = {
   erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "8a89e1f1", tashir: "ecb42838", sevan: "31e70a42",
   ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "3cc42744",
-  musadagh: "2eb41bea", sardarapat: "6978d8ce", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
+  musadagh: "2eb41bea", sardarapat: "6978d8ce", stepanakert92: "53c7e074", shushi: "dc92cd02", stepanakert23: "bcbb3b1c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -13417,7 +13417,7 @@ function spotTick(dt) {
       const cand = enemies.filter(e => !t.marks.includes(e) && spotReach(t, e, st.range));
       if (cand.length) {
         sortByPrio(cand, t.prio);
-        while (t.marks.length < st.marks && cand.length) { t.marks.push(cand.shift()); fresh = true; }
+        while (t.marks.length < st.marks && cand.length) { t.marks.push(cand.shift()); fresh = true; t.markN = (t.markN || 0) + 1; }
       }
     }
     if (fresh) {
@@ -90275,6 +90275,184 @@ function runSelftestPlay() {
       if (/Ussher|hospital/i.test($("tcBody").textContent) || !/game's invention/.test($("tcBody").textContent)) fail(id + "'s card: " + $("tcBody").textContent);
       closeUnlockCard();
     }
+  }));
+  // ---- G7e, the Observation Post (gameplay 3.6, 8.1) ----
+  const SPOT_AT = ["stepanakert92", "shushi", "stepanakert23"];
+  check("spotter: offered on Stepanakert 1992, Shushi and Stepanakert 2023 from Stepanakert 1992 on, nowhere else; key 7; any pad; one on a field; a run keeps it and its order", guarded(() => {
+    const has = () => trayTypes().includes("spotter");
+    wonTo(levelIndexOf("sardarapat"), 2);
+    if (towerUnlocked("spotter")) fail("the Observation Post is unlocked before Stepanakert 1992 is open");
+    wonTo(levelIndexOf("stepanakert92"), 2);
+    stage("stepanakert92", 1);
+    if (trayTypes().join() !== TRAY_CLASSIC + ",post,spotter" || $("shop").dataset.n !== "7" || ageTower(curEra) !== "spotter") fail("Stepanakert 1992's tray: " + trayTypes());
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "spotter") fail("key 7 did not choose the Observation Post: " + placing);
+    setPlacing(null);
+    const nm = document.querySelector('#shop .card[data-type="spotter"] .nm');
+    if (!nm || nm.textContent !== "Lookout post") fail("the tile: " + (nm && nm.textContent));
+    wonTo(17, 2);
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const want = SPOT_AT.includes(L.id);
+      if (has() !== want || trayStandard(L.era).includes("spotter") !== want) fail(L.id + (want ? " lacks" : " offers") + " the Observation Post");
+      if (want && towerName("spotter") !== (L.id === "stepanakert92" ? "Lookout post" : "Observation post")) fail(L.id + "'s post is named " + towerName("spotter"));
+    });
+    // any pad takes it (a pad with no road in reach too); it marks the strongest when built; a second is refused with its
+    // sentence, and the tile dims
+    stage("shushi", 1); gold = 1e5;
+    const dry = PADS.findIndex((p, k) => !padTakesRoad(k, 150)), free = PADS.map((p, k) => k).filter(k => k !== dry);
+    placeTower("spotter", dry >= 0 ? dry : free[0]);
+    placeTower("spotter", free[1]);
+    if (towers.filter(x => x.type === "spotter").length !== 1 || !/One observation post serves this field/.test($("toast").textContent)) fail("one on a field: " + towers.length + " " + $("toast").textContent);
+    syncHud();
+    if (!document.querySelector('#shop .card[data-type="spotter"]').classList.contains("poor")) fail("the tile is not dimmed at the limit");
+    const S = towers[0];
+    if (S.prio !== "strong") fail("a new post marks " + S.prio + ", not the strongest");
+    [220, 280, 360].forEach((hp, r) => { S.level = r; if (towerMaxHp(S) !== Math.round(hp * byDiff(TRICK_RULES.tower.hpMult) * kitNow().towerHp)) fail("its strength at rank " + (r + 1) + ": " + towerMaxHp(S)); });
+    S.level = 0;
+    // a run keeps it and the order it marks by; a run whose tray lacks it refuses it, one saved before still resumes,
+    // and one with two is refused
+    S.prio = "weak";
+    waveIdx = lastCleared = 2; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    gameOver = true; resumeRun();
+    const S2 = towers.find(x => x.type === "spotter");
+    if (!S2 || S2.prio !== "weak" || !trayTypes().includes("spotter")) fail("the resumed run: " + (S2 && S2.prio));
+    const old = Object.assign({}, r, { tray: TRAY_BASE.concat("post") });
+    if (validRun(old)) fail("a run whose tray has no Observation Post took one");
+    if (!validRun(Object.assign({}, old, { towers: r.towers.filter(x => x.type !== "spotter") }))) fail("a run saved before the Observation Post no longer resumes");
+    const two = Object.assign({}, r, { towers: r.towers.concat([Object.assign({}, r.towers.find(x => x.type === "spotter"), { pad: free.find(k => !r.towers.some(x => x.pad === k)) })]) });
+    if (validRun(two)) fail("a run with two Observation Posts resumed");
+  }));
+  check("spotter: a mark multiplies a blow once, by half on a commander, from towers, hero, spells and burns; it keeps its foe; it sees a marked scout and marks an outflanker; stunned or wrecked it marks none; its masteries", guarded(() => {
+    wonTo(17, 2);
+    stage("stepanakert92", 1); quiet();
+    gold = 1e5;
+    const k = PADS.map((p, j) => j).filter(j => !towerAt(j)).sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], 150).length - postRoadIn(PADS[a][0], PADS[a][1], 150).length)[0];
+    placeTower("spotter", k);
+    const S = towers.find(x => x.type === "spotter"), st = getStats(S);
+    const road = postRoadIn(S.x, S.y, st.range * 0.6);
+    if (road.length < 3) fail("no road in the post's reach on pad " + k);
+    const foe = (role, hp, i) => {
+      spawnEnemy(role, { type: role });
+      const e = enemies[enemies.length - 1], q = road[Math.min(road.length - 1, i || 0)];
+      e.route = q.route; e.dist = q.dist; e.hp = e.maxHp = hp; e.armor = 0; e.speed = 0;
+      return e;
+    };
+    const took = (e, fn) => { const h = e.hp; fn(); return h - e.hp; };
+    const near = (a, b) => Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b));
+    const big = foe("spearman", 1e6, 0), small = foe("spearman", 5e5, 1);
+    spotTick(0);
+    if (S.marks.length !== 1 || S.marks[0] !== big || !(big.spotAmp > 0) || small.spotAmp) fail("it did not mark the strongest: " + S.marks.map(e => e.hp));
+    // a blow on the marked foe lands amp harder, once (a tower's, a spell's); the unmarked foe takes it plain
+    const arch = { type: "archer" };
+    if (!near(took(big, () => damageEnemy(big, 100, true, arch)), 100 * (1 + st.amp))) fail("a tower's blow on a marked foe: " + took(big, () => damageEnemy(big, 100, true, arch)));
+    if (!near(took(big, () => damageEnemy(big, 100, true)), 100 * (1 + st.amp))) fail("a spell's blow on a marked foe");
+    if (!near(took(small, () => damageEnemy(small, 100, true, arch)), 100)) fail("an unmarked foe took more than the blow");
+    // a burn on it (a lightning's, the hero's under the Call), in the battle's own tick
+    big.burnT = 1; big.burnDps = 100;
+    const b0 = took(big, () => update(0.05));
+    big.burnT = 0;
+    if (!near(b0, 100 * 0.05 * (1 + st.amp))) fail("a burn on a marked foe: " + b0);
+    // the hero's blow
+    if (!hero) heroSpawn();
+    const hp0 = enemyPos(big);
+    hero.alive = true; hero.x = hp0.x; hero.y = hp0.y; hero.rally = null; hero.cd = 0; hero.engaged = [];
+    const hb = took(big, () => updateHero(0.01));
+    if (!near(hb, armorCut(heroLv().blow, 0) * (1 + st.amp))) fail("the hero's blow on a marked foe: " + hb);
+    hero.x = FORT.x; hero.y = FORT.y + 60; hero.engaged = [];
+    // it keeps its foe while it stands in reach, though another is now stronger; it moves when the foe falls
+    big.hp = 10; spotTick(0.05);
+    if (S.marks[0] !== big) fail("the mark moved off a foe still in reach");
+    big.hp = 0; spotTick(0.05);
+    if (S.marks[0] !== small || big.spotAmp) fail("the mark did not move when its foe fell");
+    big.dead = true; enemies = enemies.filter(e => !e.dead);
+    // and when its foe leaves the reach
+    const third = foe("spearman", 2e5, 2);
+    const out = postRoadSamples().find(q => groundGap(S.x, S.y, q.x, q.y) > st.range + 80);
+    if (!out) fail("no road out of the post's reach");
+    small.route = out.route; small.dist = out.dist;
+    spotTick(0.05);
+    if (S.marks[0] !== third || small.spotAmp) fail("the mark did not move when its foe left the reach");
+    enemies = []; S.marks = [];
+    // the Target button cycles its order and moves the mark at once (the weakest after the strongest)
+    const strong = foe("spearman", 9e5, 0), weak = foe("spearman", 3e5, 1);
+    spotTick(0);
+    if (S.marks[0] !== strong) fail("Strongest marked " + S.marks[0].hp);
+    showPanel(S);
+    const tb = $("pTarget");
+    if (!tb || !/Strongest/.test(tb.textContent)) fail("the panel's Target button: " + (tb && tb.textContent));
+    tb.click();
+    if (S.prio !== "weak" || !/Weakest/.test(($("pTarget") || {}).textContent || "")) fail("the Target button did not cycle to Weakest: " + S.prio);
+    spotTick(0);
+    if (S.marks[0] !== weak) fail("Weakest marked " + (S.marks[0] && S.marks[0].hp));
+    hidePanel(); S.prio = "strong"; S.marks = [];
+    enemies = []; S.marks = [];
+    // a commander: the mark counts half
+    const cmd = foe("boss", 1e7, 0);
+    spotTick(0);
+    if (S.marks[0] !== cmd || !near(took(cmd, () => damageEnemy(cmd, 100, true, arch)), 100 * (1 + st.amp * SPOT_RULES.boss))) fail("a marked commander took " + took(cmd, () => damageEnemy(cmd, 100, true, arch)));
+    enemies = []; S.marks = [];
+    // a hidden scout: marked, it is seen, and stays seen while marked (the hero is away, so only the post sees it)
+    hero.alive = false;
+    const sc = foe("spearman", 8e5, 0);
+    sc.hid = true; sc.seenT = 0;
+    if (!foeUnseen(sc)) fail("the staged scout is seen before the post marks it");
+    for (let i = 0; i < 60; i++) { trickRevealTick(0.1); spotTick(0.1); if (foeUnseen(sc)) fail("a marked scout was unseen after " + (i / 10) + " s"); }
+    // an unmarked scout weaker than the marked foe stays hidden at rank 1; Night Sights sees it
+    const sc2 = foe("spearman", 1e4, 1);
+    sc2.hid = true; sc2.seenT = 0;
+    trickRevealTick(0.1); spotTick(0.1);
+    if (!foeUnseen(sc2)) fail("an unmarked scout was seen at rank 1");
+    S.level = 2; S.spec = "b";
+    spotTick(0.1);
+    if (foeUnseen(sc2) || S.marks.length !== 2 || getStats(S).marks !== 3) fail("Night Sights: " + [foeUnseen(sc2), S.marks.length]);
+    S.level = 0; S.spec = null; S.marks = [];
+    enemies = []; S.marks = [];
+    // an outflanker in its reach can be marked (the post reaches the sky)
+    spawnEnemy("flyer", { type: "flyer" });
+    const fl = enemies[enemies.length - 1];
+    let fd = -1;
+    for (let d = 0; d <= fl.fly.len; d += 4) { fl.dist = d; if (spotReach(S, fl, st.range)) { fd = d; break; } }
+    if (fd < 0) fail("no outflanker line passes in the post's reach on pad " + k);
+    fl.speed = 0; fl.hp = fl.maxHp = 1e6;
+    spotTick(0);
+    if (S.marks[0] !== fl || !near(took(fl, () => damageEnemy(fl, 100, true, arch)), 100 * (1 + st.amp))) fail("the outflanker was not marked");
+    // stunned, it marks none until it recovers; wrecked, none
+    S.stunnedT = 1; spotTick(0.05);
+    if (S.marks.length || fl.spotAmp || markMult(fl) !== 1) fail("a stunned post still marks");
+    S.stunnedT = 0; spotTick(0.05);
+    if (S.marks[0] !== fl) fail("a recovered post marks none");
+    wreckTower(S); spotTick(0.05);
+    if (S.marks.length || markMult(fl) !== 1) fail("a wrecked post still marks");
+    S.wreck = false; towerInitHp(S);
+    enemies = []; S.marks = [];
+    // Fire Direction: the marked foe is shelled every 4 s, the shell piercing and marked; the enemy books it apart
+    S.level = 2; S.spec = "a"; S.cd = 0; S.marks = [];
+    const fdst = getStats(S), tgt = foe("spearman", 1e6, 0);
+    const other0 = adapt.acc.other || 0;
+    const sh = took(tgt, () => spotTick(0.01));
+    if (!near(sh, fdst.shell * (1 + fdst.amp))) fail("Fire Direction's shell: " + sh);
+    if (!((adapt.acc.other || 0) > other0)) fail("the shell was not booked apart for the adaptive enemy");
+    let n = 0;
+    for (let i = 0; i < 85; i++) if (took(tgt, () => spotTick(0.1)) > 0) n++;
+    if (n !== 2) fail("Fire Direction shelled " + n + " times in 8.5 s");
+  }));
+  check("spotter: the one-time card on the chronicle; no claim of a named unit", guarded(() => {
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    wonTo(levelIndexOf("stepanakert92"), 2);
+    curLevel = levelIndexOf("stepanakert92"); curEra = LEVELS[curLevel].era; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (newTowerCardDue(true) !== "spotter") fail("Stepanakert 1992's card is not due: " + newTowerCardDue(true));
+    showUnlockCard("spotter");
+    const body = $("tcBody").textContent;
+    if (unlockCardOn !== "spotter" || !/lookout post/.test($("tcTitle").textContent) || !/counts half/.test(body) || !/Target button/.test(body) || /—/.test(body)) fail("the card: " + body);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("spotter") || newTowerCardDue(true)) fail("the card was not put away and kept");
+    curLevel = levelIndexOf("shushi"); showUnlockCard("spotter");
+    if (!/observation post/.test($("tcTitle").textContent)) fail("Shushi's card: " + $("tcTitle").textContent);
+    closeUnlockCard();
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {

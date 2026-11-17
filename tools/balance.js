@@ -163,6 +163,11 @@
 //     as its sixth building (5.2). A cell's lives are the defenders never lost (battleFacts().held: a defender the post
 //     returned is not counted, as the stars do not count him); where aid is run beside mix the report adds 5.2's row:
 //     aid's defenders lost against mix's, the defenders returned (mean and most), and the seeds mix loses that aid wins
+//   - Observation Post (G7e, gameplay 5.4): "age" on Stepanakert 1992, Shushi and Stepanakert 2023, one on a field. The
+//     pad by road and sky reached (rankAir, as the archers'), its Target order Strongest (the post's own default), its
+//     ranks and masteries as any tower's. No build of its own: the builds with "age" put it 1st (bazaar), 3rd
+//     (greedy), 6th (aid), 8th (minemix) and 15th (mix7). Where a battle built it the report adds 5.2's row: the best
+//     build against the best build whose battles never built one, and whether the best build of all has it
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -691,7 +696,9 @@ function playBattle(a) {
     // when the first commander's wave ended (G7b)
     invested: towers.reduce((n, t) => n + towerInvested(t), 0), storesGold: F && F.from ? F.from.stores || 0 : 0, livesCmd1,
     // the defenders an Aid Post returned in the chronicle, and the defenders lost (G7d)
-    returned, lost: DIFFS[diff].lives - livesChronicle };
+    returned, lost: DIFFS[diff].lives - livesChronicle,
+    // whether an Observation Post stood on the board at the chronicle's end, and the shells Fire Direction fired (G7e)
+    spotted: towers.some(t => t.type === "spotter"), spotKills: towers.filter(t => t.type === "spotter").reduce((n, t) => n + (t.kills || 0), 0) };
 }
 
 (async () => {
@@ -886,6 +893,26 @@ function playBattle(a) {
         console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(lost(rm).toFixed(1), 10) + pad(lost(ra).toFixed(1), 10) +
           pad((lost(ra) - lost(rm) >= 0 ? "+" : "") + (lost(ra) - lost(rm)).toFixed(1), 8) + pad((ret.reduce((x, y) => x + y, 0) / ret.length).toFixed(1) + " (" + Math.max(...ret) + ")", 12) + turned);
       }
+    }
+    // the Observation Post (gameplay 5.2): the best build with it against the best build without it (the builds whose
+    // battles never built one), in defenders kept (a lost battle keeps none), and whether the best build of all built it
+    if (results.some(r => r.diff === diff && r.spotted)) {
+      console.log("\nObservation Post (G7e): the best build with the post against the best without it; kept is the mean defenders kept");
+      console.log(pad("battlefield", NW) + pad("best", 22) + pad("best without", 22) + pad("with", 22) + pad("more", 8) + "best has it");
+      let inBest = 0, rows = 0;
+      for (const lv of levels) {
+        const per = builds.map(b => ({ b, rs: results.filter(r => r.diff === diff && r.lv === lv && r.build === b) })).filter(o => o.rs.length);
+        const top = os => os.reduce((x, o) => (!x || score(o.rs) > score(x.rs) ? o : x), null);
+        const all = top(per), without = top(per.filter(o => o.rs.every(r => !r.spotted))), withIt = top(per.filter(o => o.rs.some(r => r.spotted)));
+        if (!all || !withIt) continue;
+        const kept = o => o ? o.rs.reduce((n, r) => n + (r.won ? r.lives : 0), 0) / o.rs.length : 0;
+        const has = all.rs.some(r => r.spotted);
+        rows++; if (has) inBest++;
+        const more = kept(all) - kept(without);
+        console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(cellOf(all.rs) + " " + all.b, 22) + pad(without ? cellOf(without.rs) + " " + without.b : "-", 22) +
+          pad(cellOf(withIt.rs) + " " + withIt.b, 22) + pad((more >= 0 ? "+" : "") + more.toFixed(1), 8) + (has ? "yes" : "no"));
+      }
+      console.log("the best build has the post on " + inBest + " of " + rows);
     }
     const throws = Object.keys(agg).filter(k => agg[k].thrown > 0).sort();
     if (throws.length) console.log("px thrown back per 100 gold: " + throws.map(k => k + " " + Math.round(agg[k].thrown / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));
