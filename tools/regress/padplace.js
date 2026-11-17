@@ -63,7 +63,7 @@ const PHONE_LV = ["erebuni", "dvin", "gyumri", "van", "stepanakert92"];
             // a post or a horse line where no road lies in its reach: refused, with its sentence; the pad takes the next kind
             if (!st.road) { await refuse(i, type, "with no road in reach", /No road in reach/); continue; }
             // a kind at its limit on the field: refused with its own sentence (once a field), the pad takes the next kind
-            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than/); continue; }
+            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than|One aid post serves this field/); continue; }
             break;
           }
           if (await g.ev(() => placing) !== type) await g.press('#shop .card[data-type="' + type + '"]');
