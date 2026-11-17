@@ -23,7 +23,9 @@
 // and allowed to SA, each read audited; no other role's answer holds an email; the owner's two commands refused
 // through the API to every role. Scores and boards (P5, migration 007): a board row's lives_max the same to everyone and
 // "me" the caller's own; a result's answer about the caller's own run; the boards' switch changed by the admin alone,
-// kept by hs_run_begin for players, everyone else refused as before.
+// kept by hs_run_begin for players, everyone else refused as before. The daily's status (P6, migration 008): each
+// player's own attempts and best, none for the outsider and the visitor, yesterday's first three the same to everyone
+// with no id in them, and 008's two helpers not callable.
 // Prints a FAIL line per broken rule and "RESULT isolation: N checks, F failed". Exit 0 only when nothing failed.
 "use strict";
 const stackLib = require("./stack");
@@ -250,6 +252,35 @@ async function run(S) {
     ok((await api.rpc("AD", "hs_admin_set_config", { p_key: "boards", p_value: null })).status === 200, "the admin switches them on again");
     const onA = await api.rpc("A", "hs_run_begin", MEMBER.hs_run_begin);
     ok(onA.status === 200 && onA.body.ok === true, "and A begins a run");
+    // the daily's status (P6, migration 008): each player's own attempts and best; the outsider and the visitor none;
+    // yesterday's first three the same to everyone, names and scores only (no account or score id, not even an admin's)
+    const dPick = { p_mode: "daily", p_level: "erebuni", p_diff: 1, p_ruleset: RULESET, p_twist: "thin" };
+    const dA = await api.rpc("A", "hs_run_begin", dPick);
+    await q("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1 and user_id = $2", [dA.body.run_id, P.A]);
+    const dPost = await api.rpc("A", "hs_score_submit", { p_run: dA.body.run_id, p_stats: { ...WIN, waves: 12, lives: 15, earned: 3000, spent: 2000 } });
+    ok(dA.status === 200 && dA.body.ok === true && dPost.status === 200 && dPost.body.accepted === true, "A fights today's daily and posts it (" + JSON.stringify(dPost.body).slice(0, 120) + ")");
+    const ds = {};
+    for (const k of ["A", "B", "O", "AD", null]) ds[k || "V"] = (await api.rpc(k, "hs_daily_status", OPEN.hs_daily_status)).body;
+    ok(ds.A.attempts_left === 2 && ds.A.used === 1 && ds.A.best === dPost.body.score && ds.A.rank === 1, "A's status: his attempt counted, his best and his rank");
+    ok(ds.B.attempts_left === 3 && ds.B.used === 0 && ds.B.best === null && ds.B.rank === null && ds.B.total === 1, "B's status: none of A's attempts or best is his");
+    ok(ds.O.attempts_left === null && ds.O.best === null && ds.V.attempts_left === null && ds.V.best === null, "the outsider and the visitor: no attempts of their own, no best");
+    const yDay = (await q("select ((highland._now() at time zone 'utc')::date - 1)::text d"))[0].d;
+    await q(`insert into highland.hs_score_best (board, period, user_id, score, score_id, lives, sim_sec, achieved_at) select 'd:' || $1, 'all', $2, 7777, max(id), 10, 600, now() - interval '1 day' from highland.hs_scores where user_id = $2
+      on conflict do nothing`, [yDay, P.B]);
+    const ys = [];
+    for (const k of ["A", "B", "O", "AD", null]) ys.push((await api.rpc(k, "hs_daily_status", OPEN.hs_daily_status)).body.yesterday);
+    eq2(ys.map(y => JSON.stringify(y.rows)), ys.map(() => JSON.stringify([{ name: "Bagrat Iso", rank: 1, score: 7777 }])), "yesterday's first three: the same to A, B, the outsider, the admin and the visitor, names and scores only");
+    ok(!/[0-9a-f]{8}-[0-9a-f]{4}-/.test(JSON.stringify(ys)), "and no account id in any of them");
+    await q("delete from highland.hs_score_best where board = 'd:' || $1 and user_id = $2", [yDay, P.B]);
+    const dS = await api.rpc("service", "hs_daily_status", OPEN.hs_daily_status);
+    ok(dS.status === 403, "service_role is refused the daily's status (" + dS.status + ")");
+    // the two helpers of 008, with their arguments: nobody through the API
+    for (const [h, args] of [["_daily_top", { p_board: "d:" + yDay, p_n: 3 }], ["_daily_same", { p_a: RULES, p_b: RULES, p_day: yDay }]]) {
+      for (const [who, label] of [[null, "anon"], ["A", "authenticated"], ["service", "service_role"]]) {
+        const r = await api.rpc(who, h, args);
+        ok([401, 403].includes(r.status) && r.code === "42501", label + " cannot call the helper " + h + " (" + r.status + " " + r.message + ")");
+      }
+    }
     const nm = await api.rpc("B", "hs_profile_set_name", { p_name: "Aram Iso" });
     ok(nm.status === 400 && nm.message === "name_taken", "B cannot take A's name (" + nm.message + ")");
     const del = await api.rpc("B", "hs_admin_moderate", ADMIN.hs_admin_moderate);

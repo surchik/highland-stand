@@ -719,6 +719,82 @@ group("daily", async () => {
   }
 });
 
+// the Daily tab's answer (P6, migration 008): attempts left, a ruleset gone stale, yesterday's first three; and the
+// pick of the game's own published daily (docs/specs/balance/ruleset-2.json, the page's rulesetData().daily) for a
+// year and a day, skip lists included
+group("daily tab", async () => {
+  await setClock("");
+  const today = await serverDay(), dn = dayNumber(today);
+  // a fresh day for this group's own players: the clock moved past every day the daily group used
+  await setClock("60 days");
+  const d0 = dn + 60, day0 = dayString(d0), p0 = ref.dailyOf(R2.daily, d0);
+  let st = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.day === day0 && st.attempts_left === 3 && st.used === 0 && st.stale === false, "a player's status: three attempts left, the ruleset current (" + JSON.stringify(st).slice(0, 160) + ")");
+  for (const [who, what] of [[null, "a visitor"], [U.N, "an account with no name (no player)"]]) {
+    const v = await rpc(who, "hs_daily_status", { p_ruleset: "2" });
+    ok(v.attempts_left === null && v.used === 0 && v.best === null && v.rank === null && v.level === p0.level, what + " reads the day with no attempts of his own");
+  }
+  const yd = ref.dailyOf(R2.daily, d0 - 1);
+  ok(st.yesterday && st.yesterday.day === dayString(d0 - 1) && st.yesterday.level === yd.level && st.yesterday.twist === yd.twist && st.yesterday.total === 0 &&
+    Array.isArray(st.yesterday.rows) && st.yesterday.rows.length === 0, "yesterday's challenge is the arithmetic's, its board empty: " + JSON.stringify(st.yesterday));
+  // four players post today; the next day the status names yesterday's first three, best first, a hidden one left out
+  const winOf = (lives, sec) => ({ won: true, lives, waves: 12, sim_sec: sec, spent: 1000, earned: 2000 });
+  const posted = {};
+  for (const [who, lives, sec] of [[U.C, 12, 700], [U.D, 11, 650], [U.A, 9, 800], [U.B, 12, 600]]) {
+    const b = await runBegin(who, "daily", p0.level, 1, "2", p0.twist);
+    ok(b.ok === true, "a daily begins for each player");
+    await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
+    posted[who] = (await rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: winOf(lives, sec) })).score;
+  }
+  st = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.attempts_left === 2 && st.used === 1 && st.best === posted[U.C] && st.total === 4, "after one attempt: two left, the best and the board's size");
+  await rpc(U.AD, "hs_admin_moderate", { p_user: U.B, p_hidden: true });
+  await setClock("61 days");
+  st = await rpc(null, "hs_daily_status", { p_ruleset: "2" });
+  const want = [[U.C, posted[U.C]], [U.D, posted[U.D]], [U.A, posted[U.A]]].sort((a, b) => b[1] - a[1]);
+  const names = (await su("select user_id::text u, name from highland.hs_profiles where user_id = any ($1::uuid[])", [[U.A, U.C, U.D]])).reduce((m, r) => (m[r.u] = r.name, m), {});
+  eq(st.yesterday.rows.map(r => [r.rank, r.name, r.score]), want.map(([u, s], i) => [i + 1, names[u], s]), "yesterday's first three by score, the hidden player left out");
+  ok(st.yesterday.total === 3 && st.yesterday.level === p0.level && st.yesterday.twist === p0.twist && st.yesterday.day === day0, "yesterday's size and its battle");
+  ok(st.yesterday.rows.every(r => Object.keys(r).sort().join() === "name,rank,score"), "yesterday's rows carry rank, name and score only (no account id)");
+  const adm = await rpc(U.AD, "hs_daily_status", { p_ruleset: "2" });
+  ok(adm.yesterday.rows.every(r => !("uid" in r) && !("id" in r)), "not even for an admin");
+  await rpc(U.AD, "hs_admin_moderate", { p_user: U.B, p_hidden: false });
+  st = await rpc(null, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.yesterday.rows.length === 3 && st.yesterday.total === 4 && st.yesterday.rows[0].score === Math.max(...Object.values(posted)), "shown again, he leads; three rows at the most");
+  // stale: a newer live ruleset whose daily is another battle today turns the older page away, and says so first
+  const R9 = JSON.parse(JSON.stringify(R2));
+  for (const k of Object.keys(R9.daily.levels)) R9.daily.levels[k].slow += 50;
+  // (a battlefield whose battle changed with its rev kept is refused at the publish: every rev is moved)
+  for (const k of Object.keys(R9.levels)) R9.levels[k].rev = (R9.levels[k].rev || 1) + 7;
+  await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9", p_data: R9 });
+  const s2 = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" }), s9 = await rpc(U.C, "hs_daily_status", { p_ruleset: "9" });
+  const pt = ref.dailyOf(R2.daily, d0 + 1);
+  const e2 = await err(runBegin(U.C, "daily", pt.level, 1, "2", pt.twist));
+  ok(s2.stale === true && e2 && e2.msg === "daily_mismatch" && e2.detail === "an older ruleset", "the older ruleset's status says stale, as hs_run_begin turns it away");
+  ok(s9.stale === false && (await runBegin(U.C, "daily", pt.level, 1, "9", pt.twist)).ok === true, "the newest's says current, and begins");
+  // a newer ruleset that leaves today's daily alone (only a campaign battlefield's par moved): not stale
+  const R10 = JSON.parse(JSON.stringify(R9));
+  R10.levels.erebuni.d[1].slow += 10; R10.levels.erebuni.rev++;
+  await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "10", p_data: R10 });
+  ok((await rpc(U.C, "hs_daily_status", { p_ruleset: "9" })).stale === false, "a newer ruleset with the same daily: the older page's daily is current");
+  ok((await rpc(U.C, "hs_daily_status", { p_ruleset: "3-next" })).stale === false, "and a live ruleset never makes a staging page stale");
+  // the helpers agree with hs_run_begin's own comparison on every day of a month
+  const sameRows = await su(`select g, highland._daily_same($1::jsonb, $2::jsonb, date '1970-01-01' + g) s from generate_series($3::int, $3::int + 29) g`, [JSON.stringify(R2), JSON.stringify(R9), d0]);
+  ok(sameRows.every(r => r.s === false), "_daily_same: R2 and R9 never make the same daily (every table differs)");
+  ok((await su(`select highland._daily_same($1::jsonb, $1::jsonb, current_date) s`, [JSON.stringify(R2)]))[0].s === true, "_daily_same: a ruleset makes its own daily");
+  await su("delete from highland.hs_runs where ruleset in ('9', '10')");
+  await su("delete from highland.hs_rulesets where id in ('9', '10')");
+  await setClock("");
+  // the game's own daily as published (the page's rulesetData().daily): the server's pick equals the reference's,
+  // and so the page's (unit.js and flow 8 hold the page to it), for 366 days from today, never a skipped pair
+  const real = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")).daily;
+  const rows = await su(`select g, (highland._daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + 365) g order by g`, [JSON.stringify(real), dn]);
+  const bad = rows.filter(x => { const w = ref.dailyOf(real, x.g); return w.level !== x.level_id || w.twist !== x.twist; });
+  ok(rows.length === 366 && bad.length === 0, "the game's daily: the server's pick equals the page's arithmetic for 366 days (" + bad.length + " differ)");
+  ok(rows.every(x => !((real.skip || {})[x.level_id] || []).includes(x.twist)), "and never serves a pair the skip lists leave out");
+  ok(rows.every((x, i) => i === 0 || x.level_id !== rows[i - 1].level_id), "and never the same battlefield two days running");
+});
+
 group("analytics", async () => {
   const ctx = (aid, sid, more) => ({ aid, sid, build: "2026-11-20", ruleset: "2", channel: "live", dev: "phone", os: "ios", browser: "safari", standalone: false, vw: 667, vh: 320, lang: "en", ref: "", ...more });
   const D1 = "11111111-1111-4111-8111-111111111111", D2 = "22222222-2222-4222-8222-222222222222";
