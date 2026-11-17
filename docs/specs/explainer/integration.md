@@ -4,6 +4,27 @@ Phase A (this branch, s5/work) made the media and touched nothing else: no chang
 the test tools. This page is the brief for Phase B, to be done by the coordinator once stage 6 is merged. The sizes and
 lengths of the files are in the table at the end (files.md has the same table with the measures).
 
+## 0. Phase B as built (read this first)
+
+The page plays the films since the "Film" block of index.html (after `briefPage()`), with these departures from the
+brief below, by the owner's word ("use the ones already made, we can improve them later"):
+
+- Three films, not four: Erebuni, Tushpa and Avarayr. Dvin has no video yet, so its two .vtt files were taken out of
+  assets/explainer/ (tools/explainer builds them again with the film); Dvin shows the text chronicle. To add a film,
+  put its six files in assets/explainer/<id>/ and add the id to `IDS` in the Film block and in tools/regress/film.js.
+- The film is a layer over the whole page, not a box inside the chronicle's block: when it goes (Skip, Escape, its
+  end, a failure) the chronicle stands under it untouched. So "Begin the Stand" and "Campaign Map" are pressed after
+  Skip, not during the film.
+- Subtitles are the browser's own (`<track kind="subtitles" default>`, styled with `::cue`), not drawn by the page.
+- Seen once, a battlefield's film does not play by itself again (`hs_film_seen_<id>`; `next:` before it at /next/):
+  the chronicle then shows a "Watch the film" button before Campaign Map. The same button, and no autoplay, when the
+  player asks for less data or less motion.
+- No setting to turn the films off, no pause of other sound (the chronicle's horn is not played when a film starts).
+- A browser driven by a test (`navigator.webdriver`) gets the text chronicle alone, as under the harness, unless the
+  test sets `window.__hsFilmTest` (tools/regress/film.js).
+- deploy/update.sh publishes assets/explainer/*/*.{mp4,vtt,jpg} at / and at /next/ (tools/platform/test-update.sh,
+  part F).
+
 ## 1. What there is
 
 For each of the first four battlefields of the campaign (LEVELS ids `erebuni`, `tushpa`, `avarayr`, `dvin`):
