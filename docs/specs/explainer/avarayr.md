@@ -13,13 +13,13 @@ Every line is taken from the battlefield's own texts in index.html, which were t
 - `ED<e>.<k>`: docs/history/era-dossier.json, eras[e] (0 Urartu, 1 Avarayr, 2 the Arab raids), claims[k]
 - `TH.<k>`: docs/history/town-history.json, ages[0].core_claims[k]
 
-## Landscape cut (138 words)
+## Landscape cut (123 words)
 
 ### Script (true spelling: this is the subtitle text)
 
-Armenia had taken Christianity as its faith early in the fourth century. Since 428 its eastern lands had been governed for Persia.
+Armenia had taken Christianity as its faith early in the fourth century.
 
-In 449 Yazdegerd II, shahanshah of Sasanian Persia, commanded the Armenians to renounce Christianity for Zoroastrianism, the faith of his court.
+In 449 Yazdegerd II, shahanshah of Sasanian Persia, commanded the Armenians to renounce Christianity for Zoroastrianism.
 
 In 450 much of Armenia rose. At the head of the rising stood Vardan Mamikonian, sparapet, the hereditary commander of Armenia's army.
 
@@ -38,53 +38,50 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 1. Armenia had taken Christianity as its faith early in the fourth century.
    - engine: `Armenia had taken Christianity as its faith early in the fourth century.`
    - sources: C1 (first sentence)
-2. Since 428 its eastern lands had been governed for Persia.
-   - engine: `Since four twenty-eight its eastern lands had been governed for Persia.`
-   - sources: C1 (second sentence: since 428 its eastern lands had been governed for Persia by a marzpan)
-3. In 449 Yazdegerd II, shahanshah of Sasanian Persia, commanded the Armenians to renounce Christianity for Zoroastrianism, the faith of his court.
-   - engine: `In four forty-nine [[jˈæzdəɡɚd]] the Second, [[ʃˌɑːhɑːnʃˈɑː]] of [[sæsˈeɪniən]] Persia, commanded the Armenians to renounce Christianity for [[zˌɔːɹoʊˈæstɹiənˌɪzəm]], the faith of his court.`
+2. In 449 Yazdegerd II, shahanshah of Sasanian Persia, commanded the Armenians to renounce Christianity for Zoroastrianism.
+   - engine: `In four forty-nine [[jˈæzdəɡɚd]] the Second, [[ʃˌɑːhɑːnʃˈɑː]] of [[sæsˈeɪniən]] Persia, commanded the Armenians to renounce Christianity for [[zˌɔːɹoʊˈæstɹiənˌɪzəm]].`
    - sources: C1 (third sentence); ED1.0; TA2.3
-4. In 450 much of Armenia rose.
+3. In 450 much of Armenia rose.
    - engine: `In four fifty much of Armenia rose.`
    - sources: C2 (second sentence: in 450 much of Armenia rose)
-5. At the head of the rising stood Vardan Mamikonian, sparapet, the hereditary commander of Armenia's army.
+4. At the head of the rising stood Vardan Mamikonian, sparapet, the hereditary commander of Armenia's army.
    - engine: `At the head of the rising stood [[vɑːɹdˈɑːn]] [[mˌɑːmɪkoʊnjˈɑːn]], [[spˌɑːɹɑːpˈɛt]], the hereditary commander of Armenia's army.`
    - sources: C2 (fourth sentence); hero (Vardan Mamikonian, Sparapet of Armenia); ED1.26; ED1.28; TA2.4
-6. In 451 the Persian army came, with its elite cavalry and a corps of war elephants.
+5. In 451 the Persian army came, with its elite cavalry and a corps of war elephants.
    - engine: `In four fifty-one the Persian army came, with its elite cavalry and a corps of war elephants.`
    - sources: C3 (first sentence); ED1.9; TA2.7; TA2.8
-7. Vardan drew up his army on the plain of Avarayr, by the river Tghmut.
+6. Vardan drew up his army on the plain of Avarayr, by the river Tghmut.
    - engine: `[[vɑːɹdˈɑːn]] drew up his army on the plain of [[ˌɑːvɑːɹˈaɪɹ]], by the river [[təɡmˈuːt]].`
    - sources: C3 (second sentence); tag; ED1.5; TA2.0
-8. The Armenians won the first clashes.
+7. The Armenians won the first clashes.
    - engine: `The Armenians won the first clashes.`
    - sources: C3 (The Armenians won the first clashes); ED1.13
-9. Then the Persian reserves surrounded Vardan's men, and Vardan fell there.
+8. Then the Persian reserves surrounded Vardan's men, and Vardan fell there.
    - engine: `Then the Persian reserves surrounded [[vɑːɹdˈɑːnz]] men, and [[vɑːɹdˈɑːn]] fell there.`
    - sources: C3 (Then the Persian reserves surrounded Vardan's men. Vardan fell there); D; TA2.9
-10. The field was lost, yet the faith held: in 484 his nephew Vahan won freedom of worship by the Treaty of Nvarsak.
+9. The field was lost, yet the faith held: in 484 his nephew Vahan won freedom of worship by the Treaty of Nvarsak.
    - engine: `The field was lost, yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship by the Treaty of [[nəvɑːɹsˈɑːk]].`
    - sources: C4 (The field was lost; Yet the faith held; in 484 he won freedom of worship by the Treaty of Nvarsak); V; ED1.32; TA2.10
-11. Stand where Vardan stood.
+10. Stand where Vardan stood.
    - engine: `Stand where [[vɑːɹdˈɑːn]] stood.`
    - sources: C4 (Stand where Vardan stood)
 
-## Vertical cut (65 words)
+## Vertical cut (58 words)
 
 ### Script (true spelling: this is the subtitle text)
 
-In 449 Yazdegerd II of Sasanian Persia commanded the Armenians to renounce Christianity for Zoroastrianism. In 450 much of Armenia rose, led by Vardan Mamikonian.
+In 449 Yazdegerd II of Sasanian Persia commanded the Armenians to renounce Christianity. In 450 much of Armenia rose, led by Vardan Mamikonian.
 
 In 451 the armies met on the plain of Avarayr. Vardan fell there, and the field was lost.
 
-Yet the faith held: in 484 his nephew Vahan won freedom of worship by the Treaty of Nvarsak. Stand where Vardan stood.
+Yet the faith held: in 484 his nephew Vahan won freedom of worship. Stand where Vardan stood.
 
 ### Line by line: what the engine is fed, and where the line comes from
 
 Names in double square brackets are IPA handed straight to the engine; numbers are spelled out.
 
-1. In 449 Yazdegerd II of Sasanian Persia commanded the Armenians to renounce Christianity for Zoroastrianism.
-   - engine: `In four forty-nine [[jˈæzdəɡɚd]] the Second of [[sæsˈeɪniən]] Persia commanded the Armenians to renounce Christianity for [[zˌɔːɹoʊˈæstɹiənˌɪzəm]].`
+1. In 449 Yazdegerd II of Sasanian Persia commanded the Armenians to renounce Christianity.
+   - engine: `In four forty-nine [[jˈæzdəɡɚd]] the Second of [[sæsˈeɪniən]] Persia commanded the Armenians to renounce Christianity.`
    - sources: C1 (third sentence); ED1.0; TA2.3
 2. In 450 much of Armenia rose, led by Vardan Mamikonian.
    - engine: `In four fifty much of Armenia rose, led by [[vɑːɹdˈɑːn]] [[mˌɑːmɪkoʊnjˈɑːn]].`
@@ -95,8 +92,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 4. Vardan fell there, and the field was lost.
    - engine: `[[vɑːɹdˈɑːn]] fell there, and the field was lost.`
    - sources: C3 (Vardan fell there); C4 (The field was lost); TA2.9
-5. Yet the faith held: in 484 his nephew Vahan won freedom of worship by the Treaty of Nvarsak.
-   - engine: `Yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship by the Treaty of [[nəvɑːɹsˈɑːk]].`
+5. Yet the faith held: in 484 his nephew Vahan won freedom of worship.
+   - engine: `Yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship.`
    - sources: C4; V; ED1.32; TA2.10
 6. Stand where Vardan stood.
    - engine: `Stand where [[vɑːɹdˈɑːn]] stood.`

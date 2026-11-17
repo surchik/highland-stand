@@ -8,7 +8,7 @@ cp "$root/assets/explainer/$field/$shape.mp4" "$pack/cut.mp4"
 cp "$root/assets/explainer/$field/$shape.vtt" "$pack/cut.vtt"
 cp "$root/docs/specs/explainer/$field.md" "$pack/script.md"
 cp "$work/$cut.qc.json" "$pack/qc.json"
-cp "$work/$cut.mkv.scenes.json" "$pack/scenes.json"
+cp "$work/$cut.mkv.scenes.json" "$pack/scenes.json"; cp "$work/$cut.cues.json" "$pack/cues.json" 2>/dev/null || true
 python3 -c "import json,sys; j=json.load(open(sys.argv[1])); json.dump([{k:s[k] for k in ('i','start','end','text')} for s in j['sentences']], open(sys.argv[2],'w'), ensure_ascii=False, indent=1)" "$work/$cut.narr.wav.json" "$pack/sentences.json"
 if [ "$shape" = landscape ]; then sw=480; tile=4x4; per=16; else sw=270; tile=6x2; per=12; fi
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$pack/cut.mp4")

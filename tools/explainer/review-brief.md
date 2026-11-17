@@ -24,8 +24,11 @@ The pack for this cut (directory PACK):
 - qc.json: measures. narration.heard is what an open speech recognizer (faster-whisper medium.en) wrote down from the
   narration alone; wer is its word error rate against the script; names shows, for each name, what was heard;
   wpm_with_pauses is the pace; final_mix is the loudness of the finished sound track (target about -16 LUFS, true peak
-  under -1 dB); cue_start_error_s compares each subtitle cue's start with where the recognizer heard its first word;
+  under -1 dB); cue_start_error_s is the distance between `speech` and `heard_at` over the cues (see cues.json);
   ssim_vs_master is the picture's fidelity after compression (1 is perfect).
+- cues.json: every subtitle cue with `speech` (the moment its words begin, as the cue was timed), `heard_at` (where
+  the recognizer heard its first word, when it matched) and `how` its start was found (the sentence's own exact start,
+  the recognizer's word time, or in proportion). Cues are set to appear about a tenth of a second before their words.
 - scenes.json: the timeline of scenes and plaques in seconds.
 - sentences.json: the exact start and end of every spoken sentence.
 The sources are in the repository (REPO): docs/history/era-dossier.json, text-audit.json, town-history.json, and the

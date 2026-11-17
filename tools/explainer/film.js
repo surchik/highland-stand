@@ -15,19 +15,34 @@ function resolve(cut, tl) {
   const scenes = f.scenes.map(s => Object.assign({}, s));
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
-    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : 3.7) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : 2.5) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : dur + 1; });
   const overlays = [];
-  overlays.push({ kind: "title", t0: 0, t1: Math.min(3.6, S[0].start + 3.1), over: "Highland Stand · Chronicle" });
-  for (const c of f.chips || []) overlays.push({ kind: "chip", t0: Math.max(at(c.from, 0.1), overlays[0].t1 - 0.3), t1: S[c.to].end + 0.25, text: c.text, sub: c.sub });
-  overlays.push({ kind: "end", t0: at(f.end.from, 0.1) + 0.2, t1: dur, over: "Begin the Stand" });
+  // the title has the film's first seconds to itself (the voice begins as it clears)
+  const title = { kind: "title", t0: 0, t1: S[0].start + 1.5, over: "Highland Stand \u00b7 Chronicle" };
+  overlays.push(title);
+  const chips = (f.chips || []).map(c => ({ kind: "chip", t0: Math.max(at(c.from, 0.1), title.t1 - 0.25), t1: c.to % 1 ? at(c.to) : S[c.to].end + 0.3, text: c.text, sub: c.sub }));
+  chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next
+    const next = i + 1 < chips.length ? chips[i + 1].t0 - 0.15 : dur;
+    c.t1 = Math.min(Math.max(c.t1, c.t0 + 2.8), next);
+    overlays.push(c);
+  });
+  // over a battle in motion: a word that this is the game's battle
+  let run = null;
+  for (const s of scenes) {
+    const live = s.kind === "field" && s.note !== false && (s.note || (s.stage && s.stage.live));
+    if (live && run) run.t1 = s.t1; else if (live) overlays.push(run = { kind: "note", t0: s.t0 + 0.3, t1: s.t1, text: "Battle scenes from the game" }); else run = null;
+  }
+  const endAt = at(f.end.from, 0.1);
+  for (const o of overlays) if ((o.kind === "note" || o.kind === "chip") && o.t1 > endAt) o.t1 = endAt + 0.3;
+  overlays.push({ kind: "end", t0: endAt + 0.1, t1: dur, over: "Begin the Stand" });
   return { level: f.level, scenes, overlays, dur };
 }
 
 (async () => {
   const [cut, tlPath, out] = process.argv.slice(2);
-  const tall = /vertical/.test(cut), fps = +arg("fps", 30), ss = +arg("ss", 1.25);
+  const tall = /vertical/.test(cut), fps = +arg("fps", 24), ss = +arg("ss", 1.25);
   const OW = tall ? 720 : 1280, OH = tall ? 1280 : 720, W = Math.round(OW * ss), H = Math.round(OH * ss);
   const tl = JSON.parse(fs.readFileSync(tlPath, "utf8"));
   const spec = resolve(cut, tl);
@@ -48,7 +63,7 @@ function resolve(cut, tl) {
   let ff = null;
   if (!stills) {
     ff = spawn("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
-      "-vf", "scale=" + OW + ":" + OH + ":flags=lanczos", "-c:v", "libx264", "-preset", "veryfast", "-crf", "10", "-pix_fmt", "yuv420p", out], { stdio: ["pipe", "inherit", "inherit"] });
+      "-vf", "scale=" + OW + ":" + OH + ":flags=lanczos", "-c:v", "libx264", "-preset", "veryfast", "-crf", "8", "-pix_fmt", "yuv420p", out], { stdio: ["pipe", "inherit", "inherit"] });
   } else fs.mkdirSync(stills, { recursive: true });
   const t0 = Date.now();
   for (let i = 0; i < to; i++) {

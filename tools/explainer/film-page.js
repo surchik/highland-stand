@@ -7,6 +7,7 @@
   const F = (window.FILM = {});
   const FACE = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
   const HY = '"Noto Serif Armenian", Mshtakan, Sylfaen, "Noto Sans Armenian", "Arian AMU", "DejaVu Serif", serif';
+  let tall = false, K = 1, stonePlate = null;
   let W, H, U, fps, lv, L, spec, film, fx, bufs, bi = 0, cur = -1, mapPlate, artPlate, simT = 0;
   const ease = k => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, k)));
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -30,6 +31,13 @@
     canvas.width = W; canvas.height = H; DPR = 1;
     // the terrain baked once, at its densest, so a moving camera never waits on a new bake
     terrSpriteDensity = () => 3;
+    // a film, not a battle in play: the build-price signs, the health bars, the range rings, the flank road's dashes
+    // and the floating coin counts are the interface's, so they are left out (the painters are only switched off
+    // in this page; index.html is not changed)
+    const off = () => {};
+    drawPlotSign = off; drawEnemyMarks = off; drawHeroBar = off; drawPostBars = off; drawRange = off; drawTowerHpBar = off;
+    drawFlankLines = off; drawHuntLines = off; drawHoverRange = off; drawWaveBanner = off; drawPlacement = off; drawCastPreview = off;
+    tall = H > W; K = tall ? 1.28 : 1.1;
     // the campaign chart at twice the page's backing, for close views
     const src = buildWorldTerrain.toString().replace(/^function\s+buildWorldTerrain/, "function").replace(/MAP_BACKING/g, "6");
     mapPlate = (0, eval)("(" + src + ")")(CHAPTERS[mapChapterOf(lv)].chart, true);   // (true: the sheet without its cartouche, as a phone gets it)
@@ -45,7 +53,20 @@
 
   // ---- the battlefield ----
   function stage(st) {
-    if (st.mode === "battle" || st.mode === "garrison") {
+    if (st.mode === "march") {
+      // a column on the road and nothing else: no towers, no hero (the army on its way)
+      curLevel = lv; curDiff = 1;
+      resetGame();
+      overlayEl.classList.add("hidden");
+      waveIdx = st.wave || 2; phase = "wave";
+      spawnQueue = [{ type: "spearman", t: 1e9 }];
+      (st.roles || ["spearman", "spearman", "shield", "cavalry", "spearman", "shield", "spearman", "cavalry"]).forEach((r, i) => {
+        spawnEnemy(r);
+        const e = enemies[enemies.length - 1], len = e.fly ? e.fly.len : ROUTES[e.route].len;
+        e.dist = len * ((st.head || 0.5) - (st.spread || 0.4) * (i / 8) + 0.03 * ((i * 0.618034) % 1));
+      });
+      if (typeof hero !== "undefined" && hero) hero.alive = false;
+    } else if (st.mode === "battle" || st.mode === "garrison") {
       photoStageBattle(lv, st.wave || 5, {});
       if (st.mode === "garrison") { enemies.length = 0; if (typeof corpses !== "undefined") corpses.length = 0; }
     } else {
@@ -54,7 +75,8 @@
       overlayEl.classList.add("hidden");
       waveIdx = st.wave || 0;
     }
-    if (st.noHero && typeof hero !== "undefined" && hero) { hero.x = -9999; hero.y = -9999; }
+    // the hero is shown only where the film is about him
+    if ((st.noHero || !st.mode || st.mode === "empty") && typeof hero !== "undefined" && hero) hero.alive = false;
     document.body.classList.add("photoNoHud");
     simT = 0;
   }
@@ -68,6 +90,7 @@
       const lives0 = lives;
       update(1 / fps);
       lives = Math.max(lives, lives0, 20);
+      if (st.mode === "march" && hero) hero.alive = false;
       simT += 1 / fps;
       for (const s of st.spawn || []) if (!s.done && simT >= s.at) { s.done = true; for (let i = 0; i < (s.n || 1); i++) spawnEnemy(s.role); }
     }
@@ -75,7 +98,7 @@
     let [cx, cy, z] = cam(sc, t);
     if (sc.follow) {
       // the camera keeps a walker in view: the hero, or the first foe of a kind still on the road
-      const f = sc.follow, e = f.type === "hero" ? hero : enemies.find(x => x.type === f.type && !x.dead) || null;
+      const f = sc.follow, e = f.type === "hero" ? hero : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => x.type === f.type) || null));
       if (e) {
         const w = f.type === "hero" ? { x: e.x, y: e.y } : enemyPos(e), p = proj(w.x, w.y);
         const tx = p.x + (f.dx || 0), ty = p.y + (f.dy || -20);
@@ -87,6 +110,7 @@
     z *= cover;
     cx = Math.max(W / 2 / z, Math.min(VW - W / 2 / z, cx));
     cy = Math.max(H / 2 / z, Math.min(VH - H / 2 / z, cy));
+    for (let i = particles.length - 1; i >= 0; i--) if (particles[i].text) particles.splice(i, 1);   // the coin counts
     photo = { time: PHOTO_TIME + t * 1000, zoom: z, cx: cx, cy: cy };
     draw(photo.time);
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -152,15 +176,75 @@
       c.fillStyle = "#a8231c";
       c.beginPath(); c.moveTo(p[0], p[1] - 5 * U); c.lineTo(p[0] + 5 * U, p[1]); c.lineTo(p[0], p[1] + 5 * U); c.lineTo(p[0] - 5 * U, p[1]); c.closePath(); c.fill();
       c.restore();
-      const lines = [[m.name, m.big ? 27 : 22, "700"]];
-      if (m.hy) lines.push([m.hy, m.big ? 19 : 16, "600", "#5e4120", HY]);
-      if (m.sub) lines.push([m.sub, m.big ? 17 : 15, "italic 600", "#8a2a1c"]);
-      const dy = m.above ? -(lines.reduce((s, l) => s + l[1] * 1.24, 0) + 16 + 24) * U : 24 * U;
+      const lines = [[m.name, (m.big ? 28 : 24) * K, "700"]];
+      if (m.hy) lines.push([m.hy, (m.big ? 20 : 18) * K, "600", "#5e4120", HY]);
+      if (m.sub) lines.push([m.sub, (m.big ? 19 : 18) * K, "italic 600", "#8a2a1c"]);
+      const dy = m.above ? -(lines.reduce((s, l) => s + l[1] * 1.24, 0) + 16 + 26) * U : 26 * U;
       plaque(c, p[0] + (m.dx || 0) * U, p[1] + dy, lines, a, "center");
     }
   }
   function drawArt(sc, t, c) {
     drawPlate(sc, t, c, artPlate, artPlate.width, artPlate.height);
+  }
+
+  // ---- the founding inscription: an illustration (a basalt block with rows of wedge marks; no real text is copied) ----
+  function buildStone() {
+    const c = mk(1600, 1000), g = c.getContext("2d"), rnd = mulberry32(782);
+    const bg = g.createRadialGradient(800, 480, 100, 800, 500, 1000);
+    bg.addColorStop(0, "#4a3a26"); bg.addColorStop(1, "#1c140c");
+    g.fillStyle = bg; g.fillRect(0, 0, 1600, 1000);
+    const x0 = 330, y0 = 190, w = 940, h = 600;
+    g.save();
+    g.shadowColor = "rgba(0,0,0,.7)"; g.shadowBlur = 50; g.shadowOffsetY = 24;
+    const st = g.createLinearGradient(x0, y0, x0 + w, y0 + h);
+    st.addColorStop(0, "#6f6a62"); st.addColorStop(0.5, "#5a554e"); st.addColorStop(1, "#45413b");
+    g.fillStyle = st;
+    g.beginPath();
+    const pts = [];
+    for (let i = 0; i <= 40; i++) pts.push([x0 + w * i / 40, y0 + (rnd() - 0.5) * 10]);
+    for (let i = 1; i <= 26; i++) pts.push([x0 + w + (rnd() - 0.5) * 10, y0 + h * i / 26]);
+    for (let i = 39; i >= 0; i--) pts.push([x0 + w * i / 40, y0 + h + (rnd() - 0.5) * 12]);
+    for (let i = 25; i >= 1; i--) pts.push([x0 + (rnd() - 0.5) * 10, y0 + h * i / 26]);
+    pts.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
+    g.closePath(); g.fill();
+    g.restore();
+    g.save(); g.clip();
+    for (let i = 0; i < 5200; i++) {   // the grain of the stone
+      g.fillStyle = rnd() < 0.5 ? "rgba(20, 18, 16, " + (0.05 + rnd() * 0.12) + ")" : "rgba(220, 214, 200, " + (0.03 + rnd() * 0.07) + ")";
+      const r = 0.6 + rnd() * 2.2; g.fillRect(x0 + rnd() * w, y0 + rnd() * h, r, r);
+    }
+    g.restore();
+    g.strokeStyle = "#2a2622"; g.lineWidth = 4; g.stroke();
+    const wedge = (x, y, len, ang) => {
+      g.save(); g.translate(x, y); g.rotate(ang);
+      g.fillStyle = "rgba(24, 21, 18, .9)";
+      g.beginPath(); g.moveTo(0, -5.5); g.lineTo(9, 0); g.lineTo(0, 5.5); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(6, -1.6); g.lineTo(len, 0); g.lineTo(6, 1.6); g.closePath(); g.fill();
+      g.fillStyle = "rgba(226, 220, 206, .28)";
+      g.beginPath(); g.moveTo(0, 5.5); g.lineTo(9, 0.6); g.lineTo(len, 0.9); g.lineTo(6, 2.6); g.closePath(); g.fill();
+      g.restore();
+    };
+    const rows = 9, rh = (h - 90) / rows;
+    for (let r = 0; r <= rows; r++) { g.fillStyle = "rgba(24, 21, 18, .55)"; g.fillRect(x0 + 44, y0 + 45 + r * rh - 1, w - 88, 2); }
+    for (let r = 0; r < rows; r++) {
+      let x = x0 + 60;
+      const yc = y0 + 45 + r * rh + rh / 2;
+      while (x < x0 + w - 90) {
+        const n = 2 + Math.floor(rnd() * 4), sw = 26 + rnd() * 20;
+        for (let k = 0; k < n; k++) {
+          const kind = rnd();
+          if (kind < 0.45) wedge(x + rnd() * 6, yc - rh * 0.28 + rnd() * rh * 0.56, sw * (0.6 + rnd() * 0.4), 0);
+          else if (kind < 0.85) wedge(x + rnd() * sw, yc - rh * 0.34, rh * (0.42 + rnd() * 0.22), Math.PI / 2);
+          else wedge(x + rnd() * sw * 0.6, yc - rh * 0.2, 18 + rnd() * 8, Math.PI / 4);
+        }
+        x += sw + 16 + rnd() * 10;
+      }
+    }
+    return c;
+  }
+  function drawStone(sc, t, c) {
+    if (!stonePlate) stonePlate = buildStone();
+    drawPlate(sc, t, c, stonePlate, 1600, 1000);
   }
 
   // ---- what lies over every scene ----
@@ -199,14 +283,14 @@
     if (o.hy) { c.font = "700 " + 34 * U + "px " + HY; c.fillStyle = "#f1e4bd"; c.strokeStyle = "rgba(20,12,4,.85)"; c.lineWidth = 4 * U; c.strokeText(o.hy, x, y + 56 * U); c.fillText(o.hy, x, y + 56 * U); }
     c.font = "700 " + 26 * U + "px " + FACE;
     c.strokeStyle = "rgba(20,12,4,.95)"; c.lineWidth = 5 * U; c.strokeText(spaced(o.sub), x, y + (o.hy ? 104 : 66) * U);
-    c.fillStyle = "#f58a6e"; c.fillText(spaced(o.sub), x, y + (o.hy ? 104 : 66) * U);
+    c.fillStyle = "#ffb199"; c.fillText(spaced(o.sub), x, y + (o.hy ? 104 : 66) * U);
     c.restore();
   }
   function chip(c, a, o) {
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a;
-    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 27 * U, p2 = 18 * U;
+    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 29 * U * K, p2 = 20.5 * U * K;
     c.font = "700 " + p1 + "px " + FACE;
     let w = c.measureText(o.text).width;
     if (o.sub) { c.font = "italic 600 " + p2 + "px " + FACE; w = Math.max(w, c.measureText(o.sub).width); }
@@ -222,6 +306,17 @@
     c.textAlign = "left"; c.textBaseline = "top";
     c.font = "700 " + p1 + "px " + FACE; c.fillStyle = "#f3dfa2"; c.fillText(o.text, x + 19 * U, y + 10 * U);
     if (o.sub) { c.font = "italic 600 " + p2 + "px " + FACE; c.fillStyle = "#e6d5ab"; c.fillText(o.sub, x + 19 * U, y + 14 * U + p1); }
+    c.restore();
+  }
+  function note(c, a, o) {
+    // a small word in the top right corner: what is on screen is the game's own battle
+    if (a <= 0) return;
+    c.save();
+    c.globalAlpha = a * 0.92;
+    c.font = "italic 600 " + 17 * U * K + "px " + FACE;
+    const w = c.measureText(o.text).width + 24 * U, h = 30 * U * K, x = W - w - 26 * U, y = (tall ? 170 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
+    c.fillStyle = "rgba(24, 16, 8, .72)"; c.beginPath(); c.roundRect(x, y, w, h, 4 * U); c.fill();
+    c.fillStyle = "#ecdcb0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(o.text, x + w / 2, y + h / 2 + 1 * U);
     c.restore();
   }
   function vignette(c) {
@@ -240,17 +335,18 @@
       if (sc.kind === "field" && !sc.keep) stage(sc.stage || {});
     }
     const b = bufs[bi], c = b.getContext("2d");
-    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else drawArt(sc, t, c);
+    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else if (sc.kind === "stone") drawStone(sc, t, c); else drawArt(sc, t, c);
     fx.setTransform(1, 0, 0, 1, 0, 0);
     fx.globalAlpha = 1;
     fx.drawImage(b, 0, 0);
-    const fade = sc.fade == null ? 0.8 : sc.fade;
+    const fade = sc.fade == null ? 0.55 : sc.fade;
     if (i > 0 && t - sc.t0 < fade) { fx.globalAlpha = 1 - ease((t - sc.t0) / fade); fx.drawImage(bufs[1 - bi], 0, 0); fx.globalAlpha = 1; }
     vignette(fx);
     for (const o of spec.overlays) {
       if (o.kind === "chip") chip(fx, env(t, o.t0, o.t1, 0.45, 0.45), o);
       else if (o.kind === "title") titleCard(fx, env(t, o.t0 - 1, o.t1, 0.01, 0.8), o.dim == null ? 0.38 : o.dim, o);
-      else if (o.kind === "end") titleCard(fx, env(t, o.t0, o.t1 + 9, 0.9, 1), o.dim == null ? 0.5 : o.dim, o);
+      else if (o.kind === "end") titleCard(fx, env(t, o.t0, o.t1 + 9, 0.9, 1), o.dim == null ? 0.74 : o.dim, o);
+      else if (o.kind === "note") note(fx, env(t, o.t0, o.t1, 0.4, 0.4), o);
     }
     // in from black (the last frame is the closing card, held: the page shows the chronicle's text after it)
     const k = clamp01(t / 0.5);

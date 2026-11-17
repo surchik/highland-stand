@@ -13,11 +13,11 @@ Every line is taken from the battlefield's own texts in index.html, which were t
 - `ED<e>.<k>`: docs/history/era-dossier.json, eras[e] (0 Urartu, 1 Avarayr, 2 the Arab raids), claims[k]
 - `TH.<k>`: docs/history/town-history.json, ages[0].core_claims[k]
 
-## Landscape cut (148 words)
+## Landscape cut (134 words)
 
 ### Script (true spelling: this is the subtitle text)
 
-Dvin stood on the plain of Ayrarat, about thirty-five kilometers south of modern Yerevan. By the sixth century it was the seat of the catholicos, head of the Armenian Church. The Byzantine historian Procopius wrote of many merchants in the land of Dvin, and in its central square stood the cathedral of St. Gregory.
+Dvin stood on the plain of Ayrarat, about thirty-five kilometers south of modern Yerevan. By the sixth century it was the seat of the catholicos, head of the Armenian Church. In its central square stood the cathedral of St. Gregory.
 
 Far to the south a new power had risen. Under the caliph Umar, Arab armies conquered Syria and Mesopotamia, and in 640 the first of them came north into Armenia.
 
@@ -39,9 +39,9 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 2. By the sixth century it was the seat of the catholicos, head of the Armenian Church.
    - engine: `By the sixth century it was the seat of the [[kɐθˈɑːlɪkoʊs]], head of the Armenian Church.`
    - sources: C1 (fourth sentence); TA3.1
-3. The Byzantine historian Procopius wrote of many merchants in the land of Dvin, and in its central square stood the cathedral of St. Gregory.
-   - engine: `The Byzantine historian [[pɹoʊkˈoʊpiəs]] wrote of many merchants in the land of [[dvˈiːn]], and in its central square stood the cathedral of Saint Gregory.`
-   - sources: C1 (last two sentences); TA3.2; TA3.3
+3. In its central square stood the cathedral of St. Gregory.
+   - engine: `In its central square stood the cathedral of Saint Gregory.`
+   - sources: C1 (last sentence); TA3.3
 4. Far to the south a new power had risen.
    - engine: `Far to the south a new power had risen.`
    - sources: C2 (first sentence)
@@ -108,7 +108,6 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | Dvin | `dvˈiːn` | DVEEN |
 | Ayrarat | `ˌaɪɹɑːɹˈɑːt` | eye-rah-RAHT |
 | catholicos | `kɐθˈɑːlɪkoʊs` | ka-THOL-i-kos |
-| Procopius | `pɹoʊkˈoʊpiəs` | pro-KOH-pee-us |
 | Umar | `ˈuːmɑːɹ` | OO-mar |
 | Theodoros | `θˌeɪoʊdˈɔːɹoʊs` | theh-oh-DOR-os |
 | Rshtuni | `ɹəʃtˈuːni` | rush-TOO-nee |
