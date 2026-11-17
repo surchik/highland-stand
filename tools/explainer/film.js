@@ -15,7 +15,7 @@ function resolve(cut, tl) {
   const scenes = f.scenes.map(s => Object.assign({}, s));
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
-    for (const m of s.markers || []) { m.at = at(m.at, 0) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : 3.7) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : dur + 1; });
   const overlays = [];
@@ -27,7 +27,7 @@ function resolve(cut, tl) {
 
 (async () => {
   const [cut, tlPath, out] = process.argv.slice(2);
-  const tall = /vertical/.test(cut), fps = +arg("fps", 30), ss = +arg("ss", 1.5);
+  const tall = /vertical/.test(cut), fps = +arg("fps", 30), ss = +arg("ss", 1.25);
   const OW = tall ? 720 : 1280, OH = tall ? 1280 : 720, W = Math.round(OW * ss), H = Math.round(OH * ss);
   const tl = JSON.parse(fs.readFileSync(tlPath, "utf8"));
   const spec = resolve(cut, tl);

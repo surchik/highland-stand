@@ -32,7 +32,7 @@
     terrSpriteDensity = () => 3;
     // the campaign chart at twice the page's backing, for close views
     const src = buildWorldTerrain.toString().replace(/^function\s+buildWorldTerrain/, "function").replace(/MAP_BACKING/g, "6");
-    mapPlate = (0, eval)("(" + src + ")")(CHAPTERS[mapChapterOf(lv)].chart, false);
+    mapPlate = (0, eval)("(" + src + ")")(CHAPTERS[mapChapterOf(lv)].chart, true);   // (true: the sheet without its cartouche, as a phone gets it)
     if (!mapPlate) mapPlate = terrainCanvases[CHAPTERS[mapChapterOf(lv)].chart] || terrainCanvases.highlands;
     // the chronicle's painting of this battlefield
     const keep = THEME;
