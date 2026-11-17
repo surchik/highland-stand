@@ -1,37 +1,38 @@
 #!/usr/bin/env bash
 # The trailer's soundtrack (stage 6, the owner's request "the video playing should have audio"): a music bed cut from
 # one of the owner's recordings (assets/music/sheyk-sar.mp3, its first half minute: a quiet opening that builds to the
-# full band as the title comes) under a short English voice-over read by Piper (an open, local text-to-speech; the
-# voice en_US-ryan-high), the music ducked under the voice, the whole mix moved to -16 LUFS, muxed into trailer.mp4 (AAC
+# full band as the title comes) under a short English voice-over read by Kokoro (Kokoro-82M, an open, local
+# text-to-speech under the Apache-2.0 licence, through kokoro-onnx; the voice am_michael), the music ducked under the voice, the whole mix moved to -16 LUFS, muxed into trailer.mp4 (AAC
 # 128 kbit/s) and trailer.webm (Opus 96 kbit/s) with the pictures copied as they are.
 #
-#   PIPER=/path/to/piper VOICES=/path/to/voices bash tools/trailer-sound.sh [--out=DIR] [--voice=en_US-ryan-high]
+#   PY=/path/to/python KOKORO=/path/to/models bash tools/trailer-sound.sh [--out=DIR] [--voice=am_michael]
 #
-# PIPER: the piper command (pip install piper-tts); VOICES: a folder holding <voice>.onnx and <voice>.onnx.json from
-# https://huggingface.co/rhasspy/piper-voices. --out: where the two videos are written (default: the repository's
+# PY: a python with kokoro-onnx and soundfile (pip install kokoro-onnx soundfile); KOKORO: a folder holding
+# kokoro-v1.0.onnx and voices-v1.0.bin (github.com/thewh1teagle/kokoro-onnx, release model-files-v1.0); the line is
+# read by tools/tts-kokoro.py. --out: where the two videos are written (default: the repository's
 # root, in place of the files there). Needs ffmpeg. The lines and their times are below; docs/specs/owner-requests-stage6.md
 # keeps them for the owner.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT"; VOICE="en_US-ryan-high"
+OUT="$ROOT"; VOICE="am_michael"
 for a in "$@"; do case "$a" in --out=*) OUT="${a#--out=}";; --voice=*) VOICE="${a#--voice=}";; *) echo "unknown option $a" >&2; exit 2;; esac; done
-PIPER="${PIPER:-piper}"; VOICES="${VOICES:-.}"
+PY="${PY:-python3}"; KOKORO="${KOKORO:-.}"
 command -v ffmpeg > /dev/null || { echo "ffmpeg is needed" >&2; exit 2; }
-[ -f "$VOICES/$VOICE.onnx" ] || { echo "no $VOICES/$VOICE.onnx" >&2; exit 2; }
+[ -f "$KOKORO/kokoro-v1.0.onnx" ] && [ -f "$KOKORO/voices-v1.0.bin" ] || { echo "no Kokoro model in $KOKORO" >&2; exit 2; }
 T="$(mktemp -d)"; trap 'rm -r -- "$T"' EXIT
 
 # the four lines, each with the second it begins at (the captions they meet: "17 battlefields. 5 eras." at 6 s,
 # "Every wave counts." at 17 s, the title at 26 s)
 LINES=(
-  "0.5|From Erebuni to Artsakh, for twenty-eight centuries, Armenians have held these highlands."
-  "6.2|Seventeen battlefields. Five eras. Raise your towers on the mountain roads."
+  "0.4|From Erebuni to Artsakh, for twenty-eight centuries, Armenians have held these highlands."
+  "6.4|Seventeen battlefields. Five eras. Raise your towers on the mountain roads."
   "17.0|Every wave counts. Hold the line."
   "26.4|Highland Stand. Hold the highlands."
 )
 inputs=(); filters=""; n=0
 for l in "${LINES[@]}"; do
   at="${l%%|*}"; text="${l#*|}"
-  printf '%s\n' "$text" | "$PIPER" -m "$VOICES/$VOICE.onnx" --length-scale 1.15 --sentence-silence 0.3 -f "$T/vo$n.wav" > /dev/null 2>&1
+  printf '%s\n' "$text" | "$PY" "$ROOT/tools/tts-kokoro.py" "$KOKORO" "$VOICE" 1.0 "$T/vo$n.wav" > /dev/null 2>&1
   ms=$(awk -v s="$at" 'BEGIN { printf "%d", s * 1000 }')
   inputs+=(-i "$T/vo$n.wav")
   filters+="[$n:a]aresample=48000,aformat=channel_layouts=mono,adelay=${ms}:all=1[v$n];"

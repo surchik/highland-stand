@@ -235,6 +235,60 @@ function serve(file) {
     if (pr.length) fail(W, "page problems: " + pr.join(" | "));
     await g.close();
   }
+  // the trailer (stage 6): both files carry a soundtrack (an audio stream), and the page plays it with sound where
+  // the browser allows that, muted with "Sound on" where it does not, and the button turns the sound on and off
+  {
+    const { execFileSync } = require("child_process");
+    for (const f of ["trailer.mp4", "trailer.webm"]) {
+      let kinds = "";
+      try { kinds = execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path.join(path.dirname(o.file), f)]).toString(); } catch (e) { kinds = "ffprobe failed: " + e.message; }
+      if (!/audio/.test(kinds) || !/video/.test(kinds)) fail("trailer", f + " has no soundtrack (" + kinds.trim().replace(/\n/g, ",") + ")");
+    }
+    const tr = async (b, what) => {
+      const g = await R.openGame(b, o.file, Object.assign({}, C, { storage: { hs_trailer_seen: "1" } }));
+      await g.page.goto(base + "/", { timeout: 120000 });
+      await g.page.waitForFunction(() => typeof Trailer !== "undefined" && document.readyState === "complete", null, { timeout: 120000 });
+      await g.ev(() => Trailer.open());
+      await g.page.waitForFunction(() => { const v = document.querySelector("#trailer video"); return v && !v.paused && v.currentTime > 0.3; }, null, { timeout: 15000 })
+        .catch(() => fail("trailer " + what, "the trailer is not playing"));
+      const s1 = await g.ev(() => { const v = document.querySelector("#trailer video"); return { muted: v.muted, btn: $("trailerSound").textContent, pressed: $("trailerSound").getAttribute("aria-pressed"), src: v.currentSrc.replace(/^.*\//, "") }; });
+      return { g, s1 };
+    };
+    // sound allowed (the browser started with autoplay open): with sound, "Sound off"
+    let { g, s1 } = await tr(browser, "with sound allowed");
+    if (s1.muted || s1.btn !== "Sound off" || s1.pressed !== "true" || !/^trailer\.(mp4|webm)$/.test(s1.src)) fail("trailer", "with sound allowed: " + JSON.stringify(s1));
+    await g.close();
+    // sound refused before a tap: muted, "Sound on"; the button turns it on, then off. (Headless Chromium plays sound
+    // without a tap whatever its autoplay switch says, so the browser's rule is laid on the page: a play with sound
+    // before the page has had a tap is refused, NotAllowedError, as Safari and Chrome refuse it)
+    const strict = { newContext: async (opt) => { const c = await browser.newContext(opt); await c.addInitScript(() => {
+      const play = HTMLMediaElement.prototype.play;
+      // (Playwright's own evaluate counts as a gesture to Chromium, so the page's real taps are counted here)
+      window.addEventListener("pointerdown", () => { window.__tapped = true; }, true);
+      HTMLMediaElement.prototype.play = function () {
+        if (!this.muted && !window.__tapped) return Promise.reject(new DOMException("play() refused before a tap", "NotAllowedError"));
+        return play.call(this);
+      };
+    }); return c; }, close: async () => {} };
+    ({ g, s1 } = await tr(strict, "with sound refused"));
+    if (!s1.muted || s1.btn !== "Sound on" || s1.pressed !== "false") fail("trailer", "with sound refused: " + JSON.stringify(s1));
+    const q = await g.reach("#trailerSound");
+    if (q.why) fail("trailer", "Sound on cannot be pressed: " + q.why);
+    else {
+      await g.tapAt(q.x, q.y); await g.frames(3);
+      const s2 = await g.ev(() => ({ muted: document.querySelector("#trailer video").muted, playing: !document.querySelector("#trailer video").paused, btn: $("trailerSound").textContent }));
+      if (s2.muted || !s2.playing || s2.btn !== "Sound off") fail("trailer", "Sound on pressed: " + JSON.stringify(s2));
+      await g.tapAt(q.x, q.y); await g.frames(3);
+      const s3 = await g.ev(() => ({ muted: document.querySelector("#trailer video").muted, btn: $("trailerSound").textContent }));
+      if (!s3.muted || s3.btn !== "Sound on") fail("trailer", "Sound off pressed: " + JSON.stringify(s3));
+    }
+    // the trailer plays none of the recordings
+    if (g.asked && g.asked.length) fail("trailer", "the trailer asked for " + g.asked.join(", "));
+    const pr = await g.problems();
+    if (pr.length) fail("trailer", "page problems: " + pr.join(" | "));
+    await g.close();
+    await strict.close();
+  }
   await browser.close();
   srv.close();
   R.finish("music", fails, {}, t0);

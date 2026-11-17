@@ -2660,6 +2660,15 @@
   #trailer video { width: 100%; height: 100%; display: block; object-fit: cover; }
   #trailer .tBtns { display: flex; align-items: center; gap: 18px; }
   #trailer #trailerPlay { min-height: 48px; font-size: 22px; padding: 10px 44px 12px; }
+  @media (max-width: 520px) {
+    #trailer .tBtns { gap: 10px; flex-wrap: wrap; justify-content: center; }
+    #trailer #trailerPlay { padding: 10px 24px 12px; }
+  }
+  #trailer .tSound {
+    min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--bronze-sh, #6b4a1f); background: rgba(20,13,8,.7);
+    color: #f3e2b8; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  #trailer .tSound[aria-pressed="false"] { color: #fff3d6; border-color: #c9972f; box-shadow: 0 0 0 2px rgba(240,207,133,.35); }
   #trailer .tSkip {
     min-height: 44px; min-width: 64px; background: none; border: none; color: #d9c49a; font: inherit; font-size: 16px;
     text-decoration: underline; cursor: pointer;
@@ -87000,9 +87009,10 @@ const Platform = {
   now() { return pfNow(); },
 };
 // ---------- the trailer: the first thing a new visitor sees ----------
-// A first visit over the web opens on the trailer (trailer.mp4 beside the page, at the site's root so a build
-// under /next/ shows the same file), muted and looping as browsers allow a video to start by itself, with one
-// button into the game. It is shown once: closing it in any way marks it seen. It never shows under the harness,
+// A first visit over the web opens on the trailer (trailer.mp4 beside the page: update.sh publishes it beside the
+// page at / and at /next/), looping, with one button into the game. It has a soundtrack since stage 6 (the owner's
+// music under a short voice-over): it tries to start with sound, and where the browser refuses sound before a tap
+// it starts muted, and "Sound on" beside Play now turns it on (and off again). It is shown once: closing it in any way marks it seen. It never shows under the harness,
 // on file://, or to a browser driven by a test (navigator.webdriver), so every test meets the page as before.
 // If the video cannot load, the poster stands in; with reduced motion asked for, the video waits for a tap.
 // While it is open it takes every key, so no hotkey reaches the game behind it.
@@ -87032,15 +87042,27 @@ const Trailer = (() => {
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-modal", "true");
     el.setAttribute("aria-label", "Highland Stand trailer");
-    el.innerHTML = '<div class="tFrame"><video playsinline muted loop preload="auto" poster="/trailer-poster.jpg"' + (still ? ' controls' : ' autoplay') +
-      ' aria-label="Trailer: 30 seconds of the game"><source src="/trailer.mp4" type="video/mp4"><source src="/trailer.webm" type="video/webm"></video></div>' +
+    el.innerHTML = '<div class="tFrame"><video playsinline loop preload="auto" poster="trailer-poster.jpg"' + (still ? ' controls' : '') +
+      ' aria-label="Trailer: 30 seconds of the game"><source src="trailer.mp4" type="video/mp4"><source src="trailer.webm" type="video/webm"></video></div>' +
       '<div class="tBtns"><button type="button" class="btn" id="trailerPlay">Play now</button>' +
+      '<button type="button" class="tSound" id="trailerSound" aria-pressed="false">Sound on</button>' +
       '<button type="button" class="tSkip" id="trailerSkip">Skip</button></div>';
     document.body.appendChild(el);
-    const v = el.querySelector("video");
-    v.muted = true;   // iOS starts a video by itself only when it is muted in the DOM property too
-    if (!still) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
-    v.addEventListener("error", () => { v.removeAttribute("autoplay"); }, true);
+    const v = el.querySelector("video"), snd = el.querySelector("#trailerSound");
+    const say = () => { snd.textContent = v.muted ? "Sound on" : "Sound off"; snd.setAttribute("aria-pressed", String(!v.muted)); };
+    // with sound first; refused (no tap yet), muted, as every browser lets a video start by itself (iOS only when the
+    // DOM property says muted too)
+    if (!still) {
+      v.muted = false;
+      const p = v.play();
+      if (p && p.then) p.then(say, () => { if (!el) return; v.muted = true; say(); const p2 = v.play(); if (p2 && p2.catch) p2.catch(() => {}); });
+      else say();
+    } else say();
+    snd.addEventListener("click", () => {
+      v.muted = !v.muted;
+      if (v.paused && !still) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+      say();
+    });
     el.querySelector("#trailerPlay").addEventListener("click", close);
     el.querySelector("#trailerSkip").addEventListener("click", close);
     try { el.querySelector("#trailerPlay").focus({ preventScroll: true }); } catch (e) {}
@@ -87058,7 +87080,7 @@ const Trailer = (() => {
       b[(i + (e.shiftKey ? b.length - 1 : 1)) % b.length].focus();
     }
   }, true);
-  return { boot() { if (wanted()) open(); }, isOpen: () => !!el, close };
+  return { boot() { if (wanted()) open(); }, isOpen: () => !!el, close, open() { if (!el) open(); } };
 })();
 Trailer.boot();
 
