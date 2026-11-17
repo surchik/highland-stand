@@ -140,7 +140,7 @@ shots/p7/:
 | `node tools/regress/platform.js index.html --flows=9` (all five sizes) | PASS, 0 fails, 231.3 s, 22 states |
 | `node tools/regress/run-all.js index.html --quick` | 11 of 11 PASS, 1837 s (dance10 passed) |
 | `node tools/regress/vic.js index.html` (full) | PASS, 17 levels, 249 presses, 0 fails, 1053.6 s |
-| `node tools/regress/iphone.js index.html` (full) | IPHONE_RESULT |
+| `node tools/regress/iphone.js index.html` (full) | PASS, 10 sizes, 737 states, 0 fails, 652.7 s |
 | `node tools/regress/platform.js index.html` (every flow, every size) | PLATFULL_RESULT |
 | off.js: the committed page over http and over file:// | `PF_ON` false, no `#shareSheet`, `#shareBtn`, `i-share`, `#setShare` or `pfShare`, 0 requests besides the page, both times |
 | probe.js `--flows=9 --sizes=desk,ses` | FAIL as finding 1 says (the probe's own step), every age's card drawn with its field |
