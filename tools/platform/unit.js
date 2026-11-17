@@ -21,7 +21,9 @@
 //      shareRows, shareText,  (P7)  the share card's rows (section 6's table: y, size, face, the shrink to 640 px), its
 //      shareFileName,               words for a campaign battle and a daily, the file's name, the canonical address
 //      shareSite, shareDay          as the card names it, the day as it writes it; a guest's card (no name, no rank)
-//      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
+//      dailyOf, dailyWait,    (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included, and the game's
+//      dailyLines,                  own published daily (ruleset-2.json) for 366 days from today; the Daily tab's words:
+//      dailyYesterday               the time to the next challenge, the attempts and the best, yesterday's first three
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
 //                                   document of a newer format is left alone, a bare removal of hs_run writes no
 //                                   mark, "flag", the per-key "newer", the run rule's six)
@@ -115,7 +117,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["dailyWait", "P6"], ["dailyLines", "P6"], ["dailyYesterday", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -218,8 +220,9 @@ if (pure) {
       [{ state: "offline", score: 7750 }, "Score 7,750 · Not ranked: this battle began offline"],
       [{ state: "unpublished", score: 7750 }, "Score 7,750 · The boards for this version open soon"],
       [{ state: "refused", score: 7750 }, "Score 7,750 · Not ranked"],
+      [{ state: "practice", score: 7750, daily: true }, "Score 7,750 · Practice: not ranked"],
       [{ state: "none", score: 7750 }, ""], [null, ""], [{ state: "posting" }, ""]]) eq(L(st), want, "the strip's words (5.3): " + JSON.stringify(st));
-    for (const st of ["posting", "posted", "signin", "noname", "waiting", "offline", "unpublished", "refused"]) ok(!/[\u2013\u2014]/.test(L({ state: st, score: 1, rank: 1, total: 1 })), "no long dash in the strip: " + st);
+    for (const st of ["posting", "posted", "signin", "noname", "waiting", "offline", "unpublished", "refused", "practice"]) ok(!/[\u2013\u2014]/.test(L({ state: st, score: 1, rank: 1, total: 1 })), "no long dash in the strip: " + st);
   }
   if (pure.clockWords) for (const [s, w] of [[0, "0:00"], [59.6, "1:00"], [600, "10:00"], [3725, "1:02:05"], [-3, "0:00"], ["x", "0:00"]]) eq(pure.clockWords(s), w, "the battle clock in words: " + s);
   if (pure.outTrim) {
@@ -282,6 +285,37 @@ if (pure) {
     d.k = ref.kOf(d.pool.length); d.j = ref.jOf(d.twists.length);
     let bad = 0; for (let day = 20400; day < 20765; day++) { const a = pure.dailyOf(d, day), b = ref.dailyOf(d, day); if (a.level !== b.level || a.twist !== b.twist) bad++; }
     ok(bad === 0, "the page's daily equals the server's for a year (" + d.pool.length + " x " + d.twists.length + ")");
+  }
+  // the game's own daily as published (docs/specs/balance/ruleset-2.json: rulesetData().daily, the same tables the
+  // server's _daily_pick reads, and sql-tests.js holds the server to ref.dailyOf on them): 366 days from today, the
+  // skip lists walked past, never one battlefield two days running
+  if (pure.dailyOf) {
+    const real = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")).daily;
+    const d0 = Math.floor(Date.now() / 86400000);
+    let bad = 0, skipped = 0, twice = 0, prev = null;
+    for (let day = d0; day < d0 + 366; day++) {
+      const a = pure.dailyOf(real, day), b = ref.dailyOf(real, day);
+      if (!a || a.level !== b.level || a.twist !== b.twist) bad++;
+      if (a && ((real.skip || {})[a.level] || []).includes(a.twist)) skipped++;
+      if (a && prev && a.level === prev.level) twice++;
+      prev = a;
+    }
+    ok(bad === 0 && skipped === 0 && twice === 0, "the game's daily: the page's pick equals the server's arithmetic for 366 days, skips walked past (" + bad + " differ, " + skipped + " skipped pairs served, " + twice + " repeats)");
+    eq([pure.dailyOf(real, -1), pure.dailyOf(real, 1.5), pure.dailyOf({ pool: [], twists: ["x"] }, 3), pure.dailyOf(null, 3)], [null, null, null, null], "no daily for a day or a daily that is not one");
+  }
+  if (pure.dailyWait) eq([0, 1, 59000, 60000, 61000, 3600000, 3660000, 18720000, 86400000].map(pure.dailyWait),
+    ["under a minute", "1 min", "1 min", "1 min", "2 min", "1 h", "1 h 1 min", "5 h 12 min", "24 h"], "the time to the next challenge in words");
+  if (pure.dailyLines) {
+    eq(pure.dailyLines({ attempts: 3, attempts_left: 2, best: 7420, rank: 12, total: 87 }), ["Attempts left: 2 of 3", "Your best today: 7,420 (#12 of 87)"], "the Daily tab's own lines (5.6)");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: 3, best: null, rank: null }), ["Attempts left: 3 of 3"], "no best before a score");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: null, best: null }), [], "a visitor: no attempts of his own");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: -1 }), ["Attempts left: 0 of 3"], "never fewer than none");
+  }
+  if (pure.dailyYesterday) {
+    eq(pure.dailyYesterday({ rows: [{ rank: 1, name: "Bagrat", score: 9105 }, { rank: 2, name: "Aram", score: 8800 }, { rank: 3, name: "Nune", score: 8640 }, { rank: 4, name: "X", score: 1 }] }),
+      "Yesterday: 1. Bagrat 9,105 · 2. Aram 8,800 · 3. Nune 8,640", "yesterday's first three (5.6), three at the most");
+    eq([pure.dailyYesterday({ rows: [] }), pure.dailyYesterday(null), pure.dailyYesterday({ rows: [{ name: "<b>x</b>", score: "9" }] })], ["", "", ""], "no line without a score");
+    ok(!/[–—]/.test(pure.dailyYesterday({ rows: [{ rank: 1, name: "A", score: 1 }] })), "no long dash in yesterday's line");
   }
 }
 

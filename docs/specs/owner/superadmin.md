@@ -9,7 +9,7 @@ Your address is never written in the game's files. You type it once, on your ser
 ## 1. Before the command
 
 1. Migration 006 is on your server: `node tools/platform/migrate.js status --dsn="$HS_DB_URL"` says
-   `highland at 7 of 7` (6 or later) (`docs/specs/owner/shared-supabase-plan.md`, section 2).
+   `highland at 8 of 8` (6 or later) (`docs/specs/owner/shared-supabase-plan.md`, section 2).
 2. Sign in to the game (`https://highland.avunjian.com/next/` first) with Google, Facebook or Discord **under the
    address you will make superadmin**, and choose a player name. The command refuses an account that never signed
    in with one of the three (an account made by another app's email sign-up cannot become superadmin).

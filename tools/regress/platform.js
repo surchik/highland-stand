@@ -2880,7 +2880,12 @@ const log = (m) => { if (o.verbose) console.log(m); };
   // database down a daily begun is practice and no attempt is spent (desktop and 667x320). Photos in p6 (--photos)
   const F8SHOTS = PHOTOS ? path.join(PHOTOS, "p6") : null;
   if (F8SHOTS) fs.mkdirSync(F8SHOTS, { recursive: true });
-  const f8photo = async (g, name) => { if (F8SHOTS) await g.page.screenshot({ path: path.join(F8SHOTS, name + "-" + g.o.key + ".png") }); };
+  // (the attempt's word, a toast, is let go first: the page is photographed as the player sees it a moment later)
+  const f8photo = async (g, name) => {
+    if (!F8SHOTS) return;
+    await g.page.waitForFunction(() => !toastEl.classList.contains("show"), null, { timeout: 7000 }).catch(() => {});
+    await g.page.screenshot({ path: path.join(F8SHOTS, name + "-" + g.o.key + ".png") });
+  };
   // the Daily tab as the page shows it
   const dyTab = (g) => g.ev(() => {
     const t = document.querySelector("#hallBody .dyTab");
@@ -3040,6 +3045,10 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (f.ev.stars !== 0) fail(W, "a daily's event carries stars: " + f.ev.stars);
     const shareOn = await A.ev(() => (phoneWide() ? !$("shareBtn").hidden : !!document.querySelector("#ovScore .scShare")));
     if (!shareOn) fail(W, "no Share on the won daily's page");
+    // its card's words (5.6): "Highland Stand daily, Nov 17: Erebuni Rise, Forced march. Score 6,910, #1 today. <address>"
+    await A.page.waitForFunction(() => !!SH.blob && !SH.drawing && !!SH.key && JSON.parse(SH.key).rank === 1, null, { timeout: 20000 }).catch(() => fail(W, "the won daily's card was not made with its rank"));
+    const card = await A.ev(([i, t, d]) => ({ text: SH.text, want: "Highland Stand daily, " + shareDay(new Date(d * 86400000), false, true) + ": " + dailyTitle(i) + ", " + twistName(t, i) + ". Score " }), [iA, st0.twist, today]);
+    if (card.text !== card.want + exp1.toLocaleString("en-US") + ", #1 today. https://highland.avunjian.com") fail(W, "the daily's share text: " + card.text);
     const dp = (await evs(A, "daily_played")).pop();
     if (!dp || dp.won !== true || dp.attempt !== 1 || dp.ranked !== true || dp.score !== exp1 || dp.twist !== st0.twist) fail(W, "daily_played: " + JSON.stringify(dp));
     await f7audit(A, W, "won daily's page", null);

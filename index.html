@@ -82996,6 +82996,18 @@ function stSwitches(cfg) {
   }
   c.appendChild(bd);
   c.appendChild(bOut);
+  // the daily (R3): on, its attempts count on the day's board; off, a daily is fought as practice
+  c.appendChild(pfEl("h3", "", "The daily challenge"));
+  stLine(c, "On: three ranked attempts a day on the day's board. Off: the daily is played as practice, and no new attempt is counted.", "stSmall");
+  const dd = pfEl("div", "stBtns"), dOut = answer("daily"), dOn = cfg.daily !== false;
+  for (const [v, words] of [[true, "On"], [false, "Off"]]) {
+    const b = pfBtn("btn stDaily", words, (x) => set("daily", v, x, dOut));
+    b.dataset.on = String(v);
+    b.setAttribute("aria-pressed", String(v === dOn));
+    dd.appendChild(b);
+  }
+  c.appendChild(dd);
+  c.appendChild(dOut);
   const field = (title, key, value, hint, parse) => {
     c.appendChild(pfEl("h3", "", title));
     if (hint) stLine(c, hint, "stSmall");
@@ -83641,8 +83653,10 @@ function scRender() {
   const canBoard = !pg.daily || hallTabs().some(t => t.id === "daily");
   const link = pg.state === "signin" || pg.state === "noname";
   if (side) {
-    // the record row: "★★★ Normal · 7,750 · #12 this week" (a lost daily has no stars: the words stand alone there)
-    const rec = $("ovRecord"), t = pfEl(link ? "button" : "span", "pfRecScore" + (link ? " scLink" : ""), (rec.querySelector(".recRow") ? "· " : "") + words.replace(/^Score /, ""));
+    // the record row: "★★★ Normal · 7,750 · #12 this week" (a daily has no stars: "Score 7,420 · #12 today" alone there)
+    // (beside the stars the score's "Score" is the row's "·"; a daily has no stars, and its words stand whole)
+    const rec = $("ovRecord"), starred = !!rec.querySelector(".recRow");
+    const t = pfEl(link ? "button" : "span", "pfRecScore" + (link ? " scLink" : ""), starred ? "· " + words.replace(/^Score /, "") : words);
     t.id = "pfRecScore";
     t.dataset.full = words;
     if (link) { t.type = "button"; t.addEventListener("click", scSignInDoor); }
@@ -83654,8 +83668,8 @@ function scRender() {
     const over = () => { const r = t.getBoundingClientRect(), q = rec.getBoundingClientRect(); return rec.scrollWidth > rec.clientWidth + 1 || r.left < q.left - 1 || r.right > Math.min(q.right, innerWidth) + 1; };
     if (over()) {
       const short = { posted: pg.rank ? "#" + scoreNum(pg.rank) : "", signin: "Sign in", noname: "Choose a name", waiting: "Waiting to post", offline: "Not ranked",
-        unpublished: "Not ranked yet", refused: "Not ranked" }[pg.state] || "";
-      t.textContent = (rec.querySelector(".recRow") ? "· " : "") + scoreNum(pg.score) + (short ? " · " + short : "");
+        unpublished: "Not ranked yet", refused: "Not ranked", practice: "Practice" }[pg.state] || "";
+      t.textContent = (starred ? "· " : "Score ") + scoreNum(pg.score) + (short ? " · " + short : "");
       if (!link) t.title = words + ". " + SCORE_SENTENCE + " " + CLOCK_SENTENCE;
     }
     scBoardBtnEl.hidden = !canBoard;
@@ -83799,7 +83813,8 @@ function shInfo() {
   const where = shareSite((document.querySelector('link[rel="canonical"]') || {}).href);
   const at = new Date(pg.at || pfNow());
   return {
-    title: SH.title, hy: SH.hy, field: L.name || "", lv: pg.lv, date: shareDay(at, true, false), diff: SH_DIFFS[pg.diff] || "",
+    // (a daily's field as its door names it: with its year where two battlefields share a name, gameplay's dailyTitle)
+    title: SH.title, hy: SH.hy, field: pg.daily && i >= 0 ? dailyTitle(i) : L.name || "", lv: pg.lv, date: shareDay(at, true, false), diff: SH_DIFFS[pg.diff] || "",
     stars: pg.stars, kept: pg.lives, max: pg.livesMax, sec: pg.sec, score: pg.score,
     // (the rank only once the server has said it; "· Open" only beside a rank, as the strip says it)
     rank: pg.state === "posted" && pg.rank ? pg.rank : null, total: pg.state === "posted" ? pg.total : null, open: !!pg.open,
@@ -84334,14 +84349,13 @@ function dyFill(ctl, main, heard) {
   const open = levelBestAnyEra(0) > 0 && !tutorialPending();
   const why = dyWhyPractice();
   const row = pfEl("div", "dyGo");
-  if (!pfDailyOn()) ctl.appendChild(pfEl("p", "lbNote", "The daily challenge is closed for now."));
-  else if (!open) ctl.appendChild(pfEl("p", "lbNote", "Hold Erebuni once to open the daily challenge."));
+  if (!open) ctl.appendChild(pfEl("p", "lbNote", "Hold Erebuni once to open the daily challenge."));
   else {
-    const practice = why === "spent" || why === "stale" || why === "signin" || why === "noname";
+    const off = !pfDailyOn(), practice = off || why === "spent" || why === "stale" || why === "signin" || why === "noname";
     const b = pfBtn("btn dyPlay", practice ? "Practice" : "Play today's challenge", () => { hallFrom = ""; dyPlay(practice); });
     row.appendChild(b);
     ctl.appendChild(row);
-    const note = { spent: "Your three attempts are used. Practice plays the same battle, not ranked.", stale: "A newer version of the game is out. Reload the page to play for today's board.",
+    const note = off ? "The daily's board is closed for now. Practice plays the same battle, not ranked." : { spent: "Your three attempts are used. Practice plays the same battle, not ranked.", stale: "A newer version of the game is out. Reload the page to play for today's board.",
       signin: "Sign in to play for today's board. Practice plays the same battle, not ranked.", noname: "Choose a name on the Account tab to play for today's board.",
       unpublished: "The boards for this version open soon. The battle is played, not ranked." }[why];
     if (note) ctl.appendChild(pfEl("p", "lbNote", note));
@@ -84395,7 +84409,7 @@ if (PF_ON) HALL_TABS.push({ id: "daily", label: "Daily challenge", short: "Daily
 // counts the attempts and offers practice (5.6, the welcome card's door too). Heard before gameplay's own handler,
 // which then does nothing: its line is gameplay's and is not changed (RULINGS S7)
 if (PF_ON) $("dailyBtn").addEventListener("click", (e) => {
-  if (!PF.on || !pfDailyOn() || !hallTabs().some(t => t.id === "daily")) return;
+  if (!PF.on || !hallTabs().some(t => t.id === "daily")) return;
   e.stopImmediatePropagation();
   e.preventDefault();
   Snd.init(); Snd.play("uiTick");
