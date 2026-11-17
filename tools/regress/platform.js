@@ -497,7 +497,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const at = await g.ev(() => hallBodyEl.innerText.replace(/\s+/g, " "));
     if (!at.includes("Aram") || !at.includes("Signed in with Google.") || !at.includes("Sign out")) fail(W, "the Account tab: " + at);
     const tabs = await g.ev(() => Array.from(hallTabsEl.children).map(b => b.dataset.tab).join());
-    if (tabs !== "council,boards,account") fail(W, "the Hall's tabs are " + tabs);
+    if (tabs !== "council,daily,boards,account") fail(W, "the Hall's tabs are " + tabs);
     await audit(g, W + " Account tab", { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: [".acTab .btn"], primaryRequired: true, scroll: "inside" }, "account-" + C.key);
     // sign out: asked, then done; the page comes back to the gate, Google marked "Last used"
     await g.press(() => Array.from(document.querySelectorAll(".acTab .btn")).find(b => b.textContent === "Sign out"));
