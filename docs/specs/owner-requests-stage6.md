@@ -76,3 +76,23 @@ judge them. To build: the victory screen plays one of the two (alternate, or by 
 loaded only when a victory comes, with the generated kochari as the fallback when the file cannot load or sound
 is off; deploy/update.sh must publish the two files beside the page (as it does the trailer); the dancers'
 steps are locked to 96 BPM today, so match the choreography's tempo to each recording or let it run free.
+
+## 5. Music during battles (17 November)
+
+The owner uploaded five recordings and said: "add these as background music for levels during game play". All
+five are by New Age Armenia: "Hov Arek Sarer Jan" (3 min 49 s), "Na Mi Naz Ooi" (4 min 16 s), "Sheyk Sar"
+(4 min 38 s), "Sev Gakavik (Black Partridge)" (4 min 11 s) and "Oorakh Ler (Joyous Mountain)" (4 min 49 s); the
+last two are from the album Ancient Legacy. Web copies (mp3, 128 kbit/s, about 4 MB each) are in assets/music/.
+The rights to publish them are the owner's to hold, as with the victory recordings.
+
+To build:
+
+- A battle plays one of the five, loaded only when the battle starts (never with the page: 21 MB in all), and
+  goes on to another when it ends. Pick by the battlefield's number so a field keeps its opening tune, then
+  rotate; do not repeat the tune just heard.
+- It replaces the generated battle music while it plays; the generated music stays as the fallback when a file
+  cannot load. The Settings' music switch and volume govern it; sound effects stay on top at their own level.
+- It pauses with the battle, fades out at victory (the victory recording takes over) and at defeat, and stops on
+  leaving the battle. It never plays on the map, the chronicle or the trailer unless the owner asks.
+- deploy/update.sh must publish assets/music/ beside the page, as for the victory files.
+- The test harness runs without sound: the music must not start there, and no test may wait on a file loading.
