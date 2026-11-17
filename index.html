@@ -15294,7 +15294,20 @@ const REC_BATTLE = [
   { id: "sheyk-sar", file: "assets/music/sheyk-sar.mp3", lufs: -11.6 },
   { id: "sev-gakavik", file: "assets/music/sev-gakavik.mp3", lufs: -17.0 },
   { id: "oorakh-ler", file: "assets/music/oorakh-ler.mp3", lufs: -15.7 },
+  // the owner's five more (17 November); two are laments by their titles (lament: true): in the rotation, but a
+  // battle opens on one only where its battlefield's history is a loss or a siege (REC_OPEN)
+  { id: "mardigi-yerke", file: "assets/music/mardigi-yerke.mp3", lufs: -12.5 },
+  { id: "vartani-mor-vokhbe", file: "assets/music/vartani-mor-vokhbe.mp3", lufs: -15.8, lament: true },
+  { id: "balkoni-dage", file: "assets/music/balkoni-dage.mp3", lufs: -16.2 },
+  { id: "alakiaz", file: "assets/music/alakiaz.mp3", lufs: -15.5 },
+  { id: "mi-lar-mayrig", file: "assets/music/mi-lar-mayrig.mp3", lufs: -15.5, lament: true },
 ];
+// each battlefield's opening tune (its index in REC_BATTLE). The laments open the fields of loss: Avarayr (451,
+// where Vartan Mamikonian fell: "Vartan's Mother's Lamentation"), Sis (1375, the kingdom's last siege, ended in
+// terms), Shushi (2020, lost) and Stepanakert (2023, the exodus: "Don't Cry Mother"). The others share the brighter
+// eight; a battlefield missing here opens on its number among the ten
+const REC_OPEN = { erebuni: 0, tushpa: 1, avarayr: 6, dvin: 2, tashir: 3, sevan: 4, ani: 5, mari: 7, sis: 9, gyumri: 8, halidzor: 2,
+  van: 1, musadagh: 8, sardarapat: 3, stepanakert92: 4, shushi: 6, stepanakert23: 9 };
 const REC_VICTORY = [
   { id: "kochari", file: "assets/victory/kochari.mp3", lufs: -15.8, bpm: 102.4, beat0: 45.31, at: 45 },
   { id: "yarkhushta", file: "assets/victory/yarkhushta.mp3", lufs: -10.5, bpm: 95.6, beat0: 0.61, at: 0 },
@@ -15319,7 +15332,8 @@ const Rec = {
     const el = new Audio();
     el.preload = "none";
     c = this.ch[k] = { el, node: null, gain: null, want: false, idx: -1, playing: false, fade: null, failT: 0 };
-    el.addEventListener("playing", () => { c.playing = true; clearTimeout(c.failT); this.sync(); });
+    // (a play that lands after its channel was let go, a slow load or a stray resume, is stopped at once)
+    el.addEventListener("playing", () => { if (!c.want && !el.src.startsWith("data:")) { el.pause(); return; } c.playing = true; clearTimeout(c.failT); this.sync(); });
     el.addEventListener("pause", () => { c.playing = false; });
     el.addEventListener("ended", () => { c.playing = false; if (k === "battle" && c.want) this.battleNext(); else this.stop(k, 0); });
     el.addEventListener("error", () => { if (el.getAttribute("src") && !el.src.startsWith("data:")) this.fail(k); });
@@ -15418,11 +15432,12 @@ const Rec = {
       } else setTimeout(() => { if (!c.want) el.pause(); }, ms);
     } else { try { el.pause(); } catch (e) {} c.playing = false; this.sync(); }
   },
-  // ---- battles: a battlefield opens on its own tune (its number among the five), then they turn in order; a battle
-  // never opens on the tune heard last
+  // ---- battles: a battlefield opens on its own tune (REC_OPEN), then they turn in order through all ten; a battle
+  // never opens on the tune heard last (the next brighter one then, never a lament in a lament's stead)
   battleFirst(lv) {
-    let i = ((lv | 0) % REC_BATTLE.length + REC_BATTLE.length) % REC_BATTLE.length;
-    if (i === this.lastBattle) i = (i + 1) % REC_BATTLE.length;
+    const N = REC_BATTLE.length, L = LEVELS[lv];
+    let i = L && Number.isInteger(REC_OPEN[L.id]) ? REC_OPEN[L.id] : ((lv | 0) % N + N) % N;
+    if (i === this.lastBattle) { do i = (i + 1) % N; while (REC_BATTLE[i].lament || i === this.lastBattle); }
     return i;
   },
   battleNext() {
