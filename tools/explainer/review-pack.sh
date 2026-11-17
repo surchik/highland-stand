@@ -14,7 +14,7 @@ if [ "$shape" = landscape ]; then sw=480; tile=4x4; per=16; else sw=270; tile=6x
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$pack/cut.mp4")
 n=$(python3 -c "import math; print(math.ceil($dur/2/$per))")
 for k in $(seq 0 $((n-1))); do
-  ffmpeg -y -hide_banner -loglevel error -ss $((k*per*2)) -i "$pack/cut.mp4" -vf "fps=1/2,scale=$sw:-1,drawtext=text='%{pts\:hms}':x=6:y=h-22:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.6,tile=$tile" -frames:v 1 -q:v 3 "$pack/sheet-$((k+1)).jpg"
+  ffmpeg -y -hide_banner -loglevel error -ss $((k*per*2)) -i "$pack/cut.mp4" -vf "fps=1/2,scale=$sw:-1,drawtext=text='%{pts\:hms\:$((k*per*2))}':x=6:y=h-22:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.6,tile=$tile" -frames:v 1 -q:v 3 "$pack/sheet-$((k+1)).jpg"
 done
 # full frames: the title, the middle of every plaque, the closing card
 python3 - "$pack" <<'P'

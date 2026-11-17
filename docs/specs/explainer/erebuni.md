@@ -45,7 +45,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Under [[ɑːɹɡˈɪʃti]] the First, son of [[mɛnˈuːɑː]], the kingdom stood near the height of its power.`
    - sources: C1 (third sentence); TA0.1
 4. He pushed north of the Araxes.
-   - engine: `He pushed north of the [[ɐɹˈæksiːz]].`
+   - engine: `He pushed north of the [[ɑːɹˈæksiːz]].`
    - sources: C1 (fourth sentence: he pushed further than the kings before him into the lands north of the Araxes)
 5. There, in 782 BC by the date most often given, he raised a new fortress on the hill of Arin Berd, and named it Erebuni.
    - engine: `There, in seven eighty-two B C by the date most often given, he raised a new fortress on the hill of [[ɑːɹˈiːn bˈɛɹd]], and named it [[ˌɛɹɛbˈuːni]].`
@@ -112,7 +112,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
 | Argishti | `ɑːɹɡˈɪʃti` | ar-GISH-tee |
 | Menua | `mɛnˈuːɑː` | meh-NOO-ah |
-| Araxes | `ɐɹˈæksiːz` | uh-RAK-seez |
+| Araxes | `ɑːɹˈæksiːz` | ah-RAK-seez |
 | Arin Berd | `ɑːɹˈiːn bˈɛɹd` | ah-REEN BERD. Berd has the short e of 'bed' before the r. A recognizer writes that sound with the English spelling 'Baird'; said as 'bird' it would be spelled right and sound wrong. |
 | Erebuni | `ˌɛɹɛbˈuːni` | eh-reh-BOO-nee |
 | Yerevan | `jˌɛɹɛvˈɑːn` | yeh-reh-VAHN |

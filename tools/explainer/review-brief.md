@@ -24,7 +24,9 @@ The pack for this cut (directory PACK):
 - qc.json: measures. narration.heard is what an open speech recognizer (faster-whisper medium.en) wrote down from the
   narration alone; wer is its word error rate against the script; names shows, for each name, what was heard;
   wpm_with_pauses is the pace; final_mix is the loudness of the finished sound track (target about -16 LUFS, true peak
-  under -1 dB); cue_start_error_s is the distance between `speech` and `heard_at` over the cues (see cues.json);
+  under -1 dB); cue_start_error_s is the distance between `speech` and `heard_at` over the cues that begin inside a sentence (see
+  cues.json); a cue that begins a sentence is placed at the sentence's exact start in the audio (sentences.json, known
+  from the synthesis itself), so for those the recognizer's time is the less exact of the two;
   ssim_vs_master is the picture's fidelity after compression (1 is perfect).
 - cues.json: every subtitle cue with `speech` (the moment its words begin, as the cue was timed), `heard_at` (where
   the recognizer heard its first word, when it matched) and `how` its start was found (the sentence's own exact start,

@@ -15,7 +15,8 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = json.load(open(os.path.join(HERE, "scripts.json"), encoding="utf-8"))
-PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.46, 0.82, 2.0, 2.5   # the title has the first seconds, the closing card the last
+PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.44, 0.76, 1.9, 2.4
+TALL = {"PAUSE_SENTENCE": 0.38, "PAUSE_BEAT": 0.64, "LEAD_IN": 1.6, "LEAD_OUT": 2.0}   # the upright cuts are half the length: tighter   # the title has the first seconds, the closing card the last
 RATE = 48000
 
 def spoken(text):
@@ -115,6 +116,9 @@ def resample(a, sr, to):
 
 def build(cut, voice, speed):
     segs = SCRIPTS["cuts"][cut]
+    tall = cut.endswith("vertical")
+    LEAD_IN, LEAD_OUT = (TALL["LEAD_IN"], TALL["LEAD_OUT"]) if tall else (globals()["LEAD_IN"], globals()["LEAD_OUT"])
+    PAUSE_SENTENCE, PAUSE_BEAT = (TALL["PAUSE_SENTENCE"], TALL["PAUSE_BEAT"]) if tall else (globals()["PAUSE_SENTENCE"], globals()["PAUSE_BEAT"])
     out, marks, t = [np.zeros(int(RATE * LEAD_IN), np.float32)], [], LEAD_IN
     for i, s in enumerate(segs):
         if i:

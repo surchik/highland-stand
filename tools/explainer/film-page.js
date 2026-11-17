@@ -7,7 +7,7 @@
   const F = (window.FILM = {});
   const FACE = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
   const HY = '"Noto Serif Armenian", Mshtakan, Sylfaen, "Noto Sans Armenian", "Arian AMU", "DejaVu Serif", serif';
-  let tall = false, K = 1, stonePlate = null;
+  let tall = false, K = 1, stonePlate = null, padPainters = null;
   let W, H, U, fps, lv, L, spec, film, fx, bufs, bi = 0, cur = -1, mapPlate, artPlate, simT = 0;
   const ease = k => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, k)));
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -36,7 +36,8 @@
     // in this page; index.html is not changed)
     const off = () => {};
     drawPlotSign = off; drawEnemyMarks = off; drawHeroBar = off; drawPostBars = off; drawRange = off; drawTowerHpBar = off;
-    drawFlankLines = off; drawHuntLines = off; drawHoverRange = off; drawWaveBanner = off; drawPlacement = off; drawCastPreview = off;
+    drawFlankLines = off; drawHuntLines = off; drawWatchReach = off; drawHoverRange = off; drawWaveBanner = off; drawPlacement = off; drawCastPreview = off;
+    padPainters = [drawPads, shadeOpenPads];
     tall = H > W; K = tall ? 1.28 : 1.1;
     // the campaign chart at twice the page's backing, for close views
     const src = buildWorldTerrain.toString().replace(/^function\s+buildWorldTerrain/, "function").replace(/MAP_BACKING/g, "6");
@@ -52,8 +53,18 @@
   function mapChapterOf(i) { for (let c = 0; c < CHAPTERS.length; c++) if (CHAPTERS[c].levels.indexOf(i) >= 0) return c; return 0; }
 
   // ---- the battlefield ----
-  function stage(st) {
-    if (st.mode === "march") {
+  function stage(st, sc) {
+    // the empty tower pads with their flags are the interface's too: they show only where towers stand on them
+    const pads = st.mode === "battle" || st.mode === "garrison";
+    drawPads = pads ? padPainters[0] : () => {}; shadeOpenPads = pads ? padPainters[1] : () => {};
+    // a scene may look at another battlefield of the campaign (stage.level): Erebuni's film shows Tushpa's rock
+    const at = st.level ? levelIndexOf(st.level) : lv;
+    if (st.mode === "fall") {
+      // the game's own picture of a stand that is lost: the citadel burning at dusk (its defeat beat, held)
+      photoFall(at, st.wave || 8, 0, false);
+      fallen.start = PHOTO_TIME + sc.t0 * 1000 - 700;
+      if (hero) hero.alive = false;
+    } else if (st.mode === "march") {
       // a column on the road and nothing else: no towers, no hero (the army on its way)
       curLevel = lv; curDiff = 1;
       resetGame();
@@ -70,7 +81,7 @@
       photoStageBattle(lv, st.wave || 5, {});
       if (st.mode === "garrison") { enemies.length = 0; projectiles.length = 0; particles.length = 0; if (typeof corpses !== "undefined") corpses.length = 0; }
     } else {
-      curLevel = lv; curDiff = 1;
+      curLevel = at; curDiff = 1;
       resetGame();
       overlayEl.classList.add("hidden");
       waveIdx = st.wave || 0;
@@ -122,8 +133,9 @@
     const cover = Math.max(W / pw, H / ph);
     let [cx, cy, z] = cam(sc, t);
     z *= cover;
-    cx = Math.max(W / 2 / z, Math.min(pw - W / 2 / z, cx));
-    cy = Math.max(H / 2 / z, Math.min(ph - H / 2 / z, cy));
+    const edge = plate === mapPlate ? 13 : 0;   // the chart's braided border stays out of the frame
+    cx = Math.max(W / 2 / z + edge, Math.min(pw - W / 2 / z - edge, cx));
+    cy = Math.max(H / 2 / z + edge, Math.min(ph - H / 2 / z - edge, cy));
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.fillStyle = "#191410"; c.fillRect(0, 0, W, H);
     c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
@@ -185,9 +197,9 @@
       c.fillStyle = "#a8231c";
       c.beginPath(); c.moveTo(p[0], p[1] - 5 * U); c.lineTo(p[0] + 5 * U, p[1]); c.lineTo(p[0], p[1] + 5 * U); c.lineTo(p[0] - 5 * U, p[1]); c.closePath(); c.fill();
       c.restore();
-      const lines = [[m.name, (m.big ? 28 : 24) * K, "700"]];
-      if (m.hy) lines.push([m.hy, (m.big ? 20 : 18) * K, "600", "#5e4120", HY]);
-      if (m.sub) lines.push([m.sub, (m.big ? 19 : 18) * K, "italic 600", "#8a2a1c"]);
+      const lines = [[m.name, (m.big ? 32 : 28) * K, "700"]];
+      if (m.hy) lines.push([m.hy, (m.big ? 23 : 21) * K, "600", "#5e4120", HY]);
+      if (m.sub) lines.push([m.sub, 23 * K, "italic 600", "#8a2a1c"]);
       const dy = m.above ? -(lines.reduce((s, l) => s + l[1] * 1.24, 0) + 16 + 26) * U : 26 * U;
       plaque(c, p[0] + (m.dx || 0) * U, p[1] + dy, lines, a, "center");
     }
@@ -256,6 +268,41 @@
     drawPlate(sc, t, c, stonePlate, 1600, 1000);
   }
 
+  // ---- a page of the chronicle: a date and a line on parchment, where the game has no picture of the place ----
+  function drawCard(sc, t, c) {
+    const k = ease((t - sc.t0) / (sc.t1 - sc.t0)), z = 1 + 0.035 * k;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const bg = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+    bg.addColorStop(0, "#3a2a1a"); bg.addColorStop(1, "#140e08");
+    c.fillStyle = bg; c.fillRect(0, 0, W, H);
+    c.save();
+    c.translate(W / 2, H * (tall ? 0.42 : 0.44)); c.scale(z, z);
+    const pw = (tall ? 640 : 1000) * U, ph = (tall ? 600 : 440) * U;
+    c.shadowColor = "rgba(0,0,0,.6)"; c.shadowBlur = 40 * U; c.shadowOffsetY = 14 * U;
+    const pg = c.createLinearGradient(-pw / 2, -ph / 2, pw / 2, ph / 2);
+    pg.addColorStop(0, "#f1e2bb"); pg.addColorStop(1, "#dcc894");
+    c.fillStyle = pg; c.fillRect(-pw / 2, -ph / 2, pw, ph);
+    c.shadowColor = "transparent";
+    c.strokeStyle = "#2c1e10"; c.lineWidth = 3 * U; c.strokeRect(-pw / 2, -ph / 2, pw, ph);
+    c.strokeStyle = "#a8231c"; c.lineWidth = 5 * U; c.strokeRect(-pw / 2 + 9 * U, -ph / 2 + 9 * U, pw - 18 * U, ph - 18 * U);
+    c.strokeStyle = "#c9972f"; c.lineWidth = 2 * U; c.strokeRect(-pw / 2 + 16 * U, -ph / 2 + 16 * U, pw - 32 * U, ph - 32 * U);
+    c.textAlign = "center"; c.textBaseline = "middle";
+    const lines = sc.lines || [], gap = (tall ? 50 : 46) * U;
+    let y = -((sc.rubric ? 62 : 0) + 58 + 44 + (lines.length - 1) * (tall ? 50 : 46)) * U / 2;
+    if (sc.rubric) { c.font = "700 " + 32 * U + "px " + FACE; c.fillStyle = "#a8231c"; c.fillText(spaced(sc.rubric), 0, y); y += 62 * U; }
+    let tp = (tall ? 60 : 68) * U;
+    c.font = "700 " + tp + "px " + FACE;
+    const tw = c.measureText(sc.title).width;
+    if (tw > pw - 90 * U) { tp *= (pw - 90 * U) / tw; c.font = "700 " + tp + "px " + FACE; }   // a long title is set smaller, never cut
+    c.fillStyle = "#2c1e10"; c.fillText(sc.title, 0, y); y += 58 * U;
+    const rg = c.createLinearGradient(-170 * U, 0, 170 * U, 0);
+    rg.addColorStop(0, "rgba(168, 35, 28, 0)"); rg.addColorStop(0.5, "rgba(168, 35, 28, .9)"); rg.addColorStop(1, "rgba(168, 35, 28, 0)");
+    c.fillStyle = rg; c.fillRect(-170 * U, y - 1 * U, 340 * U, 2 * U); y += 44 * U;
+    c.font = "italic 600 " + (tall ? 36 : 37) * U + "px " + FACE; c.fillStyle = "#3b2a16";
+    for (const l of lines) { c.fillText(l, 0, y); y += gap; }
+    c.restore();
+  }
+
   // ---- what lies over every scene ----
   function goldText(c, text, x, y, px, face, weight) {
     c.font = (weight || "700") + " " + px + "px " + (face || FACE);
@@ -283,9 +330,9 @@
     c.fillStyle = band; c.fillRect(0, H * 0.14, W, H * 0.52);
     const x = W / 2, y = H * (o.y || 0.4), tall = H > W;
     c.textAlign = "center"; c.textBaseline = "middle";
-    c.font = "700 " + 18 * U + "px " + FACE; c.fillStyle = "#e9d9aa";
+    c.font = "700 " + 22 * U * K + "px " + FACE; c.fillStyle = "#e9d9aa";
     c.shadowColor = "rgba(0,0,0,.8)"; c.shadowBlur = 6 * U;
-    c.fillText(spaced(o.over), x, y - (tall ? 82 : 70) * U);
+    c.fillText(spaced(o.over), x, y - (tall ? 92 : 78) * U);
     c.shadowColor = "transparent";
     rule(c, x, y - (tall ? 58 : 48) * U, 300 * U);
     goldText(c, o.name, x, y, (tall ? 62 : 66) * U);
@@ -322,8 +369,8 @@
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a * 0.92;
-    c.font = "italic 600 " + 20 * U * K + "px " + FACE;
-    const w = c.measureText(o.text).width + 26 * U, h = 34 * U * K, x = W - w - 26 * U, y = (tall ? 178 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
+    c.font = "italic 600 " + 22 * U * K + "px " + FACE;
+    const w = c.measureText(o.text).width + 28 * U, h = 37 * U * K, x = W - w - 26 * U, y = (tall ? 178 : 36) * U;   // (upright: under the plaque, which may run the frame's width)
     c.fillStyle = "rgba(24, 16, 8, .72)"; c.beginPath(); c.roundRect(x, y, w, h, 4 * U); c.fill();
     c.fillStyle = "#ecdcb0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(o.text, x + w / 2, y + h / 2 + 1 * U);
     c.restore();
@@ -341,16 +388,20 @@
     const sc = spec.scenes[i];
     if (i !== cur) {
       bi = 1 - bi; cur = i;
-      if (sc.kind === "field" && !sc.keep) stage(sc.stage || {});
+      if (sc.kind === "field" && !sc.keep) stage(sc.stage || {}, sc);
     }
     const b = bufs[bi], c = b.getContext("2d");
-    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else if (sc.kind === "stone") drawStone(sc, t, c); else drawArt(sc, t, c);
+    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else if (sc.kind === "stone") drawStone(sc, t, c); else if (sc.kind === "card") drawCard(sc, t, c); else drawArt(sc, t, c);
     fx.setTransform(1, 0, 0, 1, 0, 0);
     fx.globalAlpha = 1;
     fx.drawImage(b, 0, 0);
     const fade = sc.fade == null ? 0.55 : sc.fade;
     if (i > 0 && t - sc.t0 < fade) { fx.globalAlpha = 1 - ease((t - sc.t0) / fade); fx.drawImage(bufs[1 - bi], 0, 0); fx.globalAlpha = 1; }
     vignette(fx);
+    // the lower fifth is the subtitles' ground: the picture is dimmed there, so nothing in it asks to be read
+    const lg = fx.createLinearGradient(0, H * 0.74, 0, H);
+    lg.addColorStop(0, "rgba(14, 9, 4, 0)"); lg.addColorStop(0.45, "rgba(14, 9, 4, .42)"); lg.addColorStop(1, "rgba(14, 9, 4, .66)");
+    fx.fillStyle = lg; fx.fillRect(0, H * 0.74, W, H * 0.26);
     for (const o of spec.overlays) {
       if (o.kind === "chip") chip(fx, env(t, o.t0, o.t1, 0.45, 0.45), o);
       else if (o.kind === "title") titleCard(fx, env(t, o.t0 - 1, o.t1, 0.01, 0.8), o.dim == null ? 0.38 : o.dim, o);

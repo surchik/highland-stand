@@ -80,17 +80,37 @@ def cues(meta, heard_words, script, wav):
                     k0 = k
                     while k0 > i0 and env[k0 - 1] < 0.3 * loud: k0 -= 1                                  # where the pause begins
                     while k + 1 < len(env) and k + 1 < i1 + 20 and env[k + 1] < 0.3 * loud: k += 1   # and where it ends: the words begin here
-                    t = (k + 1) * hop
-                    if h is not None and k0 * hop <= h < t: t = h    # the recognizer heard the word a little sooner: take its time
-                    starts.append((t, "pause", h))
+                    starts.append(((k + 1) * hop, "pause", h))
                 else: starts.append((guess - 0.1, "heard" if h is not None else "proportion", h))
             acc += len(part); pos += nw
         for j, part in enumerate(parts):
-            a = starts[j][0] - 0.1
-            b = starts[j + 1][0] - 0.12 if j + 1 < n else s["end"] + 0.3
+            a = starts[j][0] - 0.12
+            b = starts[j + 1][0] - 0.16 if j + 1 < n else s["end"] + 0.3
             out.append({"start": round(max(0, a), 3), "end": round(b, 3), "text": part, "how": starts[j][1], "sentence": s["i"], "speech": round(starts[j][0], 3), "heard_at": starts[j][2]})
+    # a cue that would have to be read faster than 17 letters a second joins its neighbour in the sentence, when the
+    # two fit two lines
+    def wrap(text):
+        w, best = text.split(), None
+        for i in range(1, len(w)):
+            a, b = " ".join(w[:i]), " ".join(w[i:])
+            if max(len(a), len(b)) > 37: continue
+            score = -abs(len(a) - len(b)) + (6 if a[-1] in ",:;" else 0) - (8 if re.match(r"^(the|a|an|of|in|on|to|and|by|its|his|their|for|from|at|with|into|not|that)$", w[i - 1], re.I) else 0) - (30 if re.match(r"^(I|II|III|BC)[,.]?$", w[i]) else 0)
+            if best is None or score > best[0]: best = (score, a + "\n" + b)
+        return best[1] if best else None
+    i = 0
+    while i < len(out):
+        c = out[i]
+        if len(c["text"]) / max(0.2, c["end"] - c["start"]) > 17:
+            for j in (i + 1, i - 1):
+                if 0 <= j < len(out) and out[j]["sentence"] == c["sentence"]:
+                    lo, hi = min(i, j), max(i, j)
+                    t = wrap(out[lo]["text"].replace("\n", " ") + " " + out[hi]["text"].replace("\n", " "))
+                    if t:
+                        out[lo]["text"] = t; out[lo]["end"] = out[hi]["end"]; del out[hi]; i = lo - 1
+                        break
+        i += 1
     for i, c in enumerate(out):   # long enough to read: at least 1.6 s and at most 17 letters a second, taken from the silence after it
-        need = max(1.6, len(c["text"]) / 17.0)
+        need = max(1.8, len(c["text"]) / 17.0)
         room = (out[i + 1]["start"] - 0.04) if i + 1 < len(out) else meta["duration"] - 0.1
         if c["end"] - c["start"] < need: c["end"] = round(min(room, c["start"] + need), 3)
         if c["end"] > room: c["end"] = round(room, 3)
@@ -125,7 +145,9 @@ def main():
         f.write("WEBVTT\n\n")
         for i, c in enumerate(cs): f.write("%d\n%s --> %s\n%s\n\n" % (i + 1, stamp(c["start"]), stamp(c["end"]), c["text"]))
     # how far the moment each cue's speech begins (as the cue was timed) is from where the recognizer heard its first word
-    errs = [round(abs(c["speech"] - c["heard_at"]), 3) for c in cs if c["heard_at"] is not None]
+    # (only for cues that begin inside a sentence: a sentence's own start is exact, it is where tts.py laid the audio)
+    errs = [round(abs(c["speech"] - c["heard_at"]), 3) for c in cs if c["heard_at"] is not None and c["how"] != "sentence"]
+    soff = [round(abs(c["speech"] - c["heard_at"]), 3) for c in cs if c["heard_at"] is not None and c["how"] == "sentence"]
     json.dump(cs, open(W + ".cues.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     # 3 picture
     if "--skip-narration" in sys.argv: pass
@@ -139,10 +161,10 @@ def main():
         # the bed: set to an even level, lowered while the voice speaks, in under the title and out with the closing
         # card (it ends with the film, not before it)
         # (the bed is levelled from three seconds before its first note used, so the levelling has settled by then)
-        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-24:TP=-4:LRA=6,"
-              "atrim=start=3,asetpts=PTS-STARTPTS,afade=t=in:d=0.3,afade=t=out:st=%s:d=1.3:curve=qsin[m];"
-              "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.02:ratio=5:attack=40:release=500:makeup=1[d];"
-              "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off - 3, off + dur + 0.5, dur - 1.32)
+        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-26:TP=-6:LRA=6,"
+              "atrim=start=3,asetpts=PTS-STARTPTS,afade=t=in:d=0.3,afade=t=out:st=%s:d=1.9:curve=qsin[m];"
+              "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.03:ratio=3:attack=40:release=250:makeup=1[d];"
+              "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off - 3, off + dur + 0.5, dur - 1.92)
         ff("-i", W + ".narr.wav", "-i", os.path.join(ROOT, "assets", "music", track), "-filter_complex", fc, "-map", "[o]", "-ar", "48000", W + ".mix0.wav")
     loudnorm2(W + ".mix0.wav", W + ".mix.wav")
     # 5 files
@@ -150,7 +172,7 @@ def main():
     mp4 = os.path.join(outdir, shape + ".mp4"); webm = os.path.join(outdir, shape + ".webm")
     abr = 80000
     # two passes at the bit rate that fills the size aim (and no more than 1400 kbit/s: past that nothing is gained)
-    vbr = int(min(1400e3, cap * 0.93 * 8 / dur - abr - 6000))
+    vbr = int(min(1400e3, cap * 0.90 * 8 / dur - abr - 6000))
     common = ["-c:v", "libx264", "-preset", "slow", "-b:v", str(vbr), "-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p", "-g", "72", "-x264-params", "aq-mode=3"]
     ff("-i", W + ".mkv", "-an", *common, "-pass", "1", "-passlogfile", W + ".pass", "-f", "null", "/dev/null")
     ff("-i", W + ".mkv", "-i", W + ".mix.wav", "-map", "0:v", "-map", "1:a", *common, "-pass", "2", "-passlogfile", W + ".pass",
@@ -171,6 +193,7 @@ def main():
     for k in ("heard_words",): q.pop(k)
     qc = {"cut": cut, "duration": dur, "video_bitrate": crf, "mp4_bytes": os.path.getsize(mp4), "webm_bytes": os.path.getsize(webm) if keep_webm else None, "poster_bytes": os.path.getsize(poster),
           "vtt_cues": len(cs), "cue_start_error_s": {"max": max(errs) if errs else None, "mean": round(sum(errs) / len(errs), 3) if errs else None, "checked": len(errs)},
+          "recognizer_offset_at_sentence_starts_s": {"max": max(soff) if soff else None, "note": "how far the recognizer's own word time is from the exact start of each sentence: the recognizer's error, not the cue's"},
           "cue_how": {h: sum(1 for c in cs if c["how"] == h) for h in ("sentence", "pause", "heard", "proportion")},
           "shortest_cue_s": round(min(c["end"] - c["start"] for c in cs), 2),
           "longest_line": max(len(l) for c in cs for l in c["text"].split("\n")), "reading_rate_cps_max": round(max(len(c["text"]) / (c["end"] - c["start"]) for c in cs), 1),

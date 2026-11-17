@@ -43,3 +43,71 @@ What was changed after this round:
 - Pacing: speed 0.96 (1.0 for Avarayr's long names); the title has the first seconds to itself; the closing card holds about four seconds; the vertical Erebuni's first sentence is two.
 - Subtitles: every cue and line break is now set by hand in scripts.json; a cue inside a sentence starts at the pause before its words (found in the narration's own level, near the recognizer's time); no cue under 1.6 s or over 17 letters a second; cues.json is in the pack.
 - Files: 24 frames a second and 80 kbit/s sound leave more bits for the picture; the size aim is filled to 93%.
+
+## Round 2
+
+The rebuilt Erebuni cuts were reviewed first (two cuts), so their lessons could go into all eight before the long render.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| erebuni-landscape | a | 9 | 8 | 8 | 7 | 9 |
+| erebuni-landscape | b | 9 | 8 | 8 | 8 | 9 |
+| erebuni-vertical | a | 10 | 9 | 8 | 8 | 9 |
+| erebuni-vertical | b | 9 | 9 | 8 | 9 | 8 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Sound: the music bed still fell silent with the last word (a fault in the mix's filter chain), and was low under the title; the recognizer dropped the word "game's" from the line that says the battle is invented.
+- Pacing: 160 words a minute while speaking, with pauses of a third of a second between sentences: brisk, not calm. One 12 second sentence carried five facts.
+- Picture: the fortress was shown a sentence before the film says it was built; the Araxes was named but not labelled on the map; the title and the map plaque crossed on the vertical cut; the calm garrison scene still had arrows in the air; the palace and temple were spoken over a second look at the same wall; the game's grey fort closed a film about a mudbrick fortress.
+- Subtitles: cues timed from a pause came 0.15 to 0.3 s after the recognizer heard the word; the script page in the pack was out of date.
+
+What was changed after this round:
+
+- Sound: the bed's chain was rebuilt and measured (about -26 dB in the pauses against a voice at -17, steady to the last frame, a short fade at the very end). The line now reads "is an invention of the game", which the recognizer hears whole.
+- Pacing: speed 0.94, pauses of 0.46 s between sentences and 0.82 s between beats, a 2 second title before the voice. To keep the lengths, the scripts lost a sentence each where the picture was weakest (Erebuni's palace and temple, Tushpa's 'height of its power', Dvin's cathedral), and Erebuni's long sentence became two.
+- Picture: the plain is shown before the fortress is founded; the map names the Araxes in the chart's own hand; markers wait for the title; the garrison scene is cleared of arrows; both Erebuni cuts close on the hill citadel, not the game's fort; larger sub-lines.
+- Subtitles: a cue never starts later than the recognizer heard its first word; the script pages are regenerated before every pack.
+- Arin Berd is kept as it is said (the short e of 'bed'): a recognizer spells that sound 'Baird'; said as 'bird' it would be spelled right and sound wrong. The note is in the names table.
+
+## Round 3
+
+Six cuts were reviewed (Erebuni, Tushpa and Avarayr, both shapes); the Dvin cuts were rebuilt with the round's lessons before their first review.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| avarayr-landscape | a | 9 | 8 | 7 | 9 | 9 |
+| avarayr-landscape | b | 9 | 8 | 8 | 9 | 9 |
+| avarayr-vertical | a | 9 | 8 | 7 | 9 | 8 |
+| avarayr-vertical | b | 10 | 8 | 7 | 9 | 8 |
+| erebuni-landscape | a | 10 | 9 | 8 | 8 | 9 |
+| erebuni-landscape | b | 9 | 9 | 8 | 9 | 9 |
+| erebuni-vertical | a | 10 | 8 | 9 | 9 | 10 |
+| erebuni-vertical | b | 10 | 8 | 8 | 9 | 9 |
+| tushpa-landscape | a | 9 | 9 | 8 | 9 | 10 |
+| tushpa-landscape | b | 9 | 9 | 8 | 8 | 10 |
+| tushpa-vertical | a | 10 | 9 | 8 | 8 | 9 |
+| tushpa-vertical | b | 10 | 9 | 8 | 8 | 8 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture against the words: the 743 BC battle by the Euphrates was spoken over an army marching below Tushpa; 'Vardan fell there' over a hero still standing; the Persian command of 449 over eleven seconds of mountain; the Treaty of Nvarsak over ten seconds of empty field; 'the kingdom at the height of its power' and 'wars fought far from Erebuni' over Erebuni's own field.
+- Picture: the empty tower pads with their flags and a tower's reach ring read as interface; marches and garrison scenes carried no word that they are the game's; the Avarayr pin sat on the Araxes; map sub-lines too small; action in the lower fifth under the subtitles; the 'Rock of Van' shot had the game's keep cut by the frame.
+- Pacing: the upright cuts ran 33 to 34.5 s; Avarayr read at 118 to 123 words a minute.
+- Sound: 'Araxes' lost its first vowel after 'the' ('the Raxes'); 'royal' was heard as one syllable; a break fell between 'Tiglath-pileser' and 'the Third'; reviewers disagreed on the bed (a little forward for two, too low for two).
+- Subtitles: two cues ran at 18.5 to 19.2 letters a second; cues timed from a pause came up to half a second before their words; 'Yet the faith held:' flashed for one second.
+
+What was changed after this round:
+
+- Where the game has no picture of the place, the film now shows a page of the chronicle instead of the wrong place: a parchment card with the date and the line (Tiglath-pileser III and 743 BC by the Euphrates; the command of 449; the Treaty of Nvarsak; the rise of the caliphate).
+- A lost field is shown with the game's own picture of a lost stand (its defeat beat, the citadel burning at dusk) for Avarayr and for the sack of Dvin; the hero is no longer on screen when the voice says he fell.
+- Erebuni's film shows Tushpa's rock while it speaks of the rock citadel at Tushpa, and the chart (Lake Van, far to the south) while it speaks of the wars with Assyria.
+- Empty tower pads and the reach ring are switched off; every look at the battlefield carries 'Scenes from the game'; Avarayr is marked off the Araxes (text-audit entry 2, claim 0); larger map plaques; the lower fifth of every frame is dimmed as the subtitles' ground; the Rock of Van is framed without the keep.
+- Pacing: the upright cuts have their own shorter pauses and leads; Avarayr is read at 1.04 and 1.06.
+- Sound: Araxes begins with a full 'ah'; 'royal' and Tiglath-pileser are given as IPA; Tghmut has the Armenian gh; the bed is ducked less deeply and set a little lower overall.
+- Subtitles: a cue that would run over 17 letters a second joins its neighbour; a cue inside a sentence starts a little before its words begin (the end of the pause), never in the middle of the pause; no cue under 1.8 s where the sentence allows.
+- Files: the size aim is filled to 90%.

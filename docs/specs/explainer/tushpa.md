@@ -45,7 +45,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `By the middle of the eighth century B C, [[sɑːɹdˈuːɹi]] the Second held the throne.`
    - sources: C1 (last sentence); C2 (first sentence); ED0.38; ED0.39
 4. Then Tiglath-pileser III took the Assyrian throne.
-   - engine: `Then [[tˈɪɡlæθ pɪlˈiːzɚ]] the Third took the Assyrian throne.`
+   - engine: `Then [[tˌɪɡlæθpɪlˈiːzɚ]] the Third took the Assyrian throne.`
    - sources: C2 (second sentence)
 5. In 743 BC, by the Euphrates, he broke Sarduri and his allies.
    - engine: `In seven forty-three B C, by the Euphrates, he broke [[sɑːɹdˈuːɹi]] and his allies.`
@@ -63,7 +63,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Now Assyrian spears fill the vale below the rock.`
    - sources: C4 (Now, in 735 BC, ... Assyrian spears fill the vale below the rock)
 10. Hold the royal road.
-   - engine: `Hold the royal road.`
+   - engine: `Hold the [[ɹˈɔɪjəl]] road.`
    - sources: C4 (Hold the royal road); tag; TA1.9; TA1.11
 
 ## Vertical cut (66 words)
@@ -89,7 +89,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Its citadel crowned the Rock of Van.`
    - sources: C1 (second sentence); TA1.3
 3. In 735 BC the Assyrian king Tiglath-pileser III marched into the heart of the kingdom.
-   - engine: `In seven thirty-five B C the Assyrian king [[tˈɪɡlæθ pɪlˈiːzɚ]] the Third marched into the heart of the kingdom.`
+   - engine: `In seven thirty-five B C the Assyrian king [[tˌɪɡlæθpɪlˈiːzɚ]] the Third marched into the heart of the kingdom.`
    - sources: C3 (first sentence); C2 (Tiglath-pileser III took the Assyrian throne); ED0.4
 4. His inscriptions say he shut King Sarduri II up in Tushpa and defeated him before the city gates.
    - engine: `His inscriptions say he shut King [[sɑːɹdˈuːɹi]] the Second up in [[tˈuːʃpɑː]] and defeated him before the city gates.`
@@ -98,7 +98,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Yet they do not claim that the citadel fell, and it did not.`
    - sources: C3 (last sentence); V; TA1.8
 6. Hold the royal road.
-   - engine: `Hold the royal road.`
+   - engine: `Hold the [[ɹˈɔɪjəl]] road.`
    - sources: C4; tag
 
 ## Names and how they are said
@@ -109,4 +109,5 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | Tushpa | `tˈuːʃpɑː` | TOOSH-pah |
 | Biainili | `bˌiːaɪnˈiːli` | bee-eye-NEE-lee. A recognizer that has never met the name writes 'Biaineli': the same sounds. |
 | Sarduri | `sɑːɹdˈuːɹi` | sar-DOO-ree |
-| Tiglath-pileser | `tˈɪɡlæθ pɪlˈiːzɚ` | TIG-lath pih-LEE-zer |
+| Tiglath-pileser | `tˌɪɡlæθpɪlˈiːzɚ` | TIG-lath-pih-LEE-zer |
+| royal | `ɹˈɔɪjəl` | ROY-al (kept to two clear syllables) |

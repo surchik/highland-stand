@@ -51,7 +51,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `In four fifty-one the Persian army came, with its elite cavalry and a corps of war elephants.`
    - sources: C3 (first sentence); ED1.9; TA2.7; TA2.8
 6. Vardan drew up his army on the plain of Avarayr, by the river Tghmut.
-   - engine: `[[vɑːɹdˈɑːn]] drew up his army on the plain of [[ˌɑːvɑːɹˈaɪɹ]], by the river [[təɡmˈuːt]].`
+   - engine: `[[vɑːɹdˈɑːn]] drew up his army on the plain of [[ˌɑːvɑːɹˈaɪɹ]], by the river [[təɣmˈuːt]].`
    - sources: C3 (second sentence); tag; ED1.5; TA2.0
 7. The Armenians won the first clashes.
    - engine: `The Armenians won the first clashes.`
@@ -112,7 +112,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | Mamikonian | `mˌɑːmɪkoʊnjˈɑːn` | mah-mee-kon-YAHN |
 | sparapet | `spˌɑːɹɑːpˈɛt` | spah-rah-PET |
 | Avarayr | `ˌɑːvɑːɹˈaɪɹ` | ah-vah-RYRE |
-| Tghmut | `təɡmˈuːt` | tuh-g-MOOT |
+| Tghmut | `təɣmˈuːt` | tuh-gh-MOOT (gh as in Armenian, a soft sound at the back of the throat) |
 | Vahan | `vɑːhˈɑːn` | vah-HAHN |
 | Nvarsak | `nəvɑːɹsˈɑːk` | nuh-var-SAHK |
 | Zoroastrianism | `zˌɔːɹoʊˈæstɹiənˌɪzəm` | zor-oh-AS-tree-an-izm (an English word the engines' dictionary gets wrong) |
