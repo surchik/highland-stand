@@ -45,3 +45,9 @@ deploy/hs-supabase) and asked:
 The owner's answers (17 November): sign-up captures name, email and password, nothing else. Mail goes through
 Resend. The trailer gets music and a voice-over. Sign-in stays required (HS_GATE "required"). Sign-in went live
 on the main page the same day (master f782fea).
+
+Later the same day the owner said: "dont verify email for now". So email sign-up confirms at once (GoTrue's
+autoconfirm on), no confirmation mail is sent, and Resend is not needed to launch it. Without a mail sender there
+is no "forgot password" either: say so on the form, and add the reset flow when mail is set up. Known cost: an
+address can be registered by someone who does not own it, and a later Google sign-in with that address would
+join the same account; the stakes are a game save, and an address that already has an account cannot be taken.
