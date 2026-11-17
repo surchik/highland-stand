@@ -4,7 +4,14 @@
 // tower's panel or none, and any page error fail. The Garrison Post (G5) stands on every pad with road in its reach
 // (by turns with the five, at every rank and both masteries); on one post of each battlefield Rally point is pressed,
 // then the road inside its ring where it is drawn: the men's rally point must move there, the panel go, and nothing
-// else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields.
+// else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields and
+// on the Powder Mine's two. Every mine's charges stand armed while the towers are pressed: no press may fire one.
+// Where the tray holds the battlefield's special tower (G7a: the Horse Lines; G7b: the Stores; G7c: the Powder Mine; G7d:
+// the Aid Post, one; G7e: the Observation Post, one), two (or its limit) of them stand among the rest, at ranks and masteries by turns. On the first mine of each battlefield Lay the charge is
+// pressed, then the road in its ring (the charge must lie there), then its marker once armed (it must fire, no panel).
+// On each Observation Post its Target button is pressed, by mouse or by finger as the size has it: the order it marks
+// by must move on one step (Strongest, Weakest, First, Last) and its panel stay up showing it. The phone pass takes
+// Stepanakert 1992 too, for the post's panel as a sheet.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/probe.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -18,14 +25,16 @@ const BODY = 30;
 (async () => {
   const browser = await R.launch();
   const fails = [];
-  let probed = 0, rallies = 0;
+  let probed = 0, rallies = 0, targets = 0;
   const ids = await (async () => { const g = await R.openGame(browser, o.file, R.SIZES.desk); const v = await g.ev(() => LEVELS.map(L => L.id)); await g.close(); return v; })();
   const levels = R.parseLevels(o.levels || (o.quick ? "tushpa,sis,stepanakert92" : "all"), ids);
   await R.pool(CONFIGS, CONFIGS.length, async (C) => {
     const g = await R.openGame(browser, o.file, C);
     const fail = async (m) => { fails.push(C.name + " " + m); await g.shot(o.shots, "probe " + C.name + " " + m.slice(0, 60)); };
     await g.toMap();
-    const mine = C.phone ? levels.filter((_, j) => j % Math.max(1, Math.ceil(levels.length / 3)) === 0) : levels;
+    // the phone pass: three battlefields spread over the campaign, and the Powder Mine's two (G7c review 2: on a small
+    // screen an armed marker's catch reaches the towers beside the road)
+    const mine = C.phone ? levels.filter((lv, j) => j % Math.max(1, Math.ceil(levels.length / 3)) === 0 || ["gyumri", "halidzor", "stepanakert92"].includes(ids[lv])) : levels;
     for (const lv of mine) {
       const id = ids[lv];
       try {
@@ -36,17 +45,29 @@ const BODY = 30;
           PADS.forEach((_, i) => {
             let k = kinds[(i + lv) % 6];
             if (k === "post" && !padTakesPost(i)) k = kinds[(i + lv + 1) % 6];
+            // the battlefield's special tower (G7a: the Horse Lines) on two pads with road in reach, where the tray holds it
+            const a = trayTypes()[6];
+            // (G7b: the Stores take any pad, no road asked)
+            const roadless = !(TOWER_DEFS[a] && (TOWER_DEFS[a].post || TOWER_DEFS[a].charge || TOWER_DEFS[a].blast));
+            if (a && i % 4 === 2 && towers.filter(u => u.type === a).length < (TOWER_DEFS[a].max || 2) && (roadless || padTakesRoad(i, kitStatsOf(a, 0, null).range))) k = a;
             placeTower(k, i);
             const t = towerAt(i);
             if (!t) return;
             t.level = (i + lv) % 3;
+            // a special tower's ranks and masteries by turns over its battlefields
+            if (k === a) { t.level = (i + lv) % 3; if (t.level === 2 && (i + lv) % 2) t.spec = (i + lv) % 4 === 1 ? "a" : "b"; }
             // a post at its third rank takes a mastery by turns: every rank and both masteries are pressed
             if (k === "post" && t.level === 2 && i % 2) { t.spec = i % 4 === 1 ? "a" : "b"; }
             if (k === "post") postSyncMen(t, true);
+            // a mine's charges stand armed, fired by hand only, while every tower is pressed: a press meant for a tower
+            // beside the road must open that tower and fire no charge (G7c review 2)
+            if (k === "mine") { mineInit(t); t.trigger = 0; t.mines.forEach(m => { m.armT = 0; }); }
           });
           syncHud();
           return towers.length;
         }, lv);
+        const ageMiss = await g.ev(() => { const a = trayTypes()[6]; return a && !towers.some(u => u.type === a) ? a : ""; });
+        if (ageMiss) await fail(id + ": no " + ageMiss + " stands, though the tray holds it");
         if (n !== await g.ev(() => PADS.length)) await fail(id + ": only " + n + " towers stand on " + (await g.ev(() => PADS.length)) + " pads");
         await g.frames(2);
         let rallied = false;
@@ -72,19 +93,75 @@ const BODY = 30;
           if (b.sel >= 0 || b.hero || b.plots !== a.plots) await fail(tag + ": the press on the road also " + (b.sel >= 0 ? "opened a panel" : b.hero ? "moved the hero" : "bought land"));
           else rallies++;
         };
+        // a Powder Mine (G7c, gameplay 8.2): Lay the charge pressed, then the road inside its ring where it is drawn: the
+        // charge must lie there, the panel go and nothing else take the press; then, the charge armed, a press on its marker
+        // must fire it and open no panel
+        let laid = false;
+        const lay = async (tag, pad) => {
+          if (g.touch) await g.wait(450);
+          await g.press("#pLay");
+          await g.wait(120);
+          const a = await g.ev(pad => {
+            const t = towerAt(pad), m = t.mines[t.layIdx | 0], pts = postRoadIn(t.x, t.y, mineReach(t));
+            const r = canvas.getBoundingClientRect(), on = s => { const p = proj(s.x, s.y); return { x: r.left + offX + p.x * scale, y: r.top + offY + p.y * scale }; };
+            const ok = pts.filter(s => { const c = on(s), e = document.elementFromPoint(c.x, c.y); return e && e.id === "game" && !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40); });
+            const s = ok.sort((a, b) => Math.hypot(b.x - m.x, b.y - m.y) - Math.hypot(a.x - m.x, a.y - m.y))[0];
+            return { armed: rallying === t, panel: panelEl.style.display === "block", s, c: s && on(s), i: t.layIdx | 0, plots: plotsBought };
+          }, pad);
+          if (!a.armed || a.panel) { await fail(tag + ": Lay the charge did not arm (" + (a.panel ? "the panel stayed" : "not armed") + ")"); return; }
+          if (!a.s) { await fail(tag + ": no road of the ring is clear to press"); return; }
+          await g.tapAt(a.c.x, a.c.y);
+          await g.frames(1);
+          const b = await g.ev(([pad, s, i]) => { const t = towerAt(pad), m = t.mines[i]; return { d: Math.hypot(m.x - s.x, m.y - s.y), armed: !!rallying, sel: selected ? selected.pad : -1, hero: hero && hero.rally, plots: plotsBought }; }, [pad, a.s, a.i]);
+          if (b.d > 12 || b.armed) { await fail(tag + ": the press on the road left the charge " + Math.round(b.d) + " px off" + (b.armed ? ", still armed" : "")); return; }
+          if (b.sel >= 0 || b.hero || b.plots !== a.plots) { await fail(tag + ": the press on the road also " + (b.sel >= 0 ? "opened a panel" : b.hero ? "moved the hero" : "bought land")); return; }
+          rallies++;
+          // armed now, with no foe near it: a press on the marker fires it and opens nothing
+          const c = await g.ev(([pad, i]) => {
+            const t = towerAt(pad), m = t.mines[i];
+            m.armT = 0; t.trigger = 0;
+            const r = canvas.getBoundingClientRect(), q = proj(m.x, m.y);
+            return { x: r.left + offX + q.x * scale, y: r.top + offY + (q.y - 4 * q.s) * scale, n: t.blasts || 0 };
+          }, [pad, a.i]);
+          await g.frames(1);
+          await g.tapAt(c.x, c.y);
+          await g.frames(1);
+          const d = await g.ev(pad => { const t = towerAt(pad), o = { n: t.blasts || 0, sel: selected ? selected.pad : -1, panel: panelEl.style.display === "block" }; t.mines.forEach(m => { m.armT = 0; }); return o; }, pad);
+          if (d.n !== c.n + 1) await fail(tag + ": a press on the armed marker did not fire it");
+          else if (d.sel >= 0 || d.panel) await fail(tag + ": a press on the armed marker opened a panel");
+          else rallies++;
+        };
+        // the Observation Post (G7e): its Target button pressed moves its order on one step, and the panel stays
+        const retarget = async (tag, pad) => {
+          if (g.touch) await g.wait(450);
+          const p0 = await g.ev(pad => towerAt(pad).prio, pad);
+          await g.press("#pTarget");
+          await g.wait(120);
+          const a = await g.ev(pad => ({ prio: towerAt(pad).prio, panel: panelEl.style.display === "block", sel: selected ? selected.pad : -1, txt: ($("pTarget") || {}).textContent || "" }), pad);
+          const want = { first: "last", last: "strong", strong: "weak", weak: "first" }[p0];
+          if (a.prio !== want) await fail(tag + ": Target pressed moved the order from " + p0 + " to " + a.prio + ", not " + want);
+          else if (!a.panel || a.sel !== pad || a.txt.indexOf({ first: "First", last: "Last", strong: "Strongest", weak: "Weakest" }[want]) < 0) await fail(tag + ": after Target the panel " + (a.panel ? "shows " + a.txt : "went"));
+          else targets++;
+        };
         for (let k = 0; k < n; k++) {
           const t = await g.ev(k => ({ pad: towers[k].pad, x: towers[k].x, y: towers[k].y, type: towers[k].type, level: towers[k].level }), k);
           const tag = id + " " + t.type + " (rank " + (t.level + 1) + ") on pad " + t.pad;
           const pt = await g.worldToClient(t.x, t.y, -BODY);
           const hit = await g.hitName(pt.x, pt.y);
           if (hit !== "canvas#game") { await fail(tag + " at " + Math.round(pt.x) + "," + Math.round(pt.y) + " lies under " + hit); continue; }
+          const blasts = () => g.ev(() => towers.reduce((n, u) => n + (u.blasts || 0), 0));
+          const b0 = await blasts();
           await g.tapAt(pt.x, pt.y);
           await g.frames(1);
           const s = await g.ev(() => ({ pad: selected ? selected.pad : -1, shown: panelEl.style.display === "block" }));
+          const fired = (await blasts()) - b0;
+          if (fired) { await fail(tag + ": the press fired an armed charge"); await g.ev(() => towers.forEach(u => (u.mines || []).forEach(m => { m.armT = 0; }))); }
           if (s.pad !== t.pad || !s.shown) await fail(tag + ": the press " + (s.pad < 0 ? "selected nothing" : "selected the tower on pad " + s.pad) + (s.shown ? "" : ", no panel"));
-          else probed++;
+          else if (!fired) probed++;
           // the first post of the battlefield: its rally moved by Rally point and a press on the road in the ring
           if (s.pad === t.pad && s.shown && t.type === "post" && !rallied) { rallied = true; await rally(tag, t.pad); }
+          if (s.pad === t.pad && s.shown && t.type === "mine" && !laid) { laid = true; await lay(tag, t.pad); }
+          if (s.pad === t.pad && s.shown && t.type === "spotter") await retarget(tag, t.pad);
           await g.ev(() => hidePanel());
         }
         if (o.verbose) console.log(C.name + " " + id + " " + n + " towers");
@@ -97,5 +174,5 @@ const BODY = 30;
     await g.close();
   });
   await browser.close();
-  R.finish("probe", fails, { probed, rallies, configs: CONFIGS.map(c => c.name), levels: levels.length }, t0);
+  R.finish("probe", fails, { probed, rallies, targets, configs: CONFIGS.map(c => c.name), levels: levels.length }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

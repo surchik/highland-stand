@@ -27,9 +27,12 @@
 //   --shots   a photo of every state that failed; --photos a photo of every state; --dpr their density (default 1)
 //   --only    some of the states: tip, pages, map, settings, council, chronicle, battle, panel, foe, tricks, note, bubble,
 //             crash, victory, defeat, nardi, coach, towers, post (rotate is part of battle)
-// The Garrison Post (G5): the tray of six on every battlefield and of seven (a stand-in for the special tower until
-// G7) with every tile 44 x 44 and its name whole or absent; the post's panel as a sheet; the armed rally's toast in
-// the safe area and off the wave's ribbon, and a tap on the road in its ring moving the men.
+// The Garrison Post (G5): the tray of six on every battlefield (seven on Erebuni, Tushpa and Avarayr with the Horse
+// Lines, G7a, and on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores, G7b) and of seven everywhere (a stand-in for
+// the special towers still to come) with every tile 44 x 44 and its name whole or absent; the post's panel, the Horse
+// Lines' panel, the Stores' panel, the Powder Mine's panel (G7c, with its Lay the charge tapped and the road in its
+// ring taking the charge) and the Aid Post's panel (G7d) as sheets; the armed rally's toast in the safe area
+// and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
 // nothing in it scrolls) and is held to the bar; a finger takes three tiers, resets the Council (a second tap
@@ -684,8 +687,9 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         if (bad.length > 12) fail("towers by finger", (bad.length - 12) + " more like these");
       });
       // ---- the foe card from the next-wave row ----
-      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray of six on every battlefield and of seven (a stand-in
-      // special tower until G7 builds one), each tile at least 44 x 44 with its name whole or absent (never cut, never
+      // ---- the Garrison Post (G5, gameplay 3.8, 8.2): the tray as the campaign has it on every battlefield (six, or seven
+      // where the special tower is built into the game: the Horse Lines, G7a) and of seven everywhere (a stand-in special
+      // tower for the ages whose tower is still to come), each tile at least 44 x 44 with its name whole or absent (never cut, never
       // under 11 px); the post's panel as a sheet, opened by a finger that presses nothing in it; the armed rally's
       // toast inside the safe area and off the wave's ribbon, and a tap on the road in the ring moving the men ----
       await step("post", "Garrison Post", async () => {
@@ -693,25 +697,30 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
         const trayIssues = (n) => g.ev(n => {
           const out = [], ids = LEVELS.map(L => L.id);
           const stand = n === 7;
-          if (stand) TOWER_DEFS.stores = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 2, cost: 120 });
+          // (the stand-in is the Observation Post, the last special tower to come, under its own longest name; G7b: the
+          // Stores are in the game now, so they stand in no more)
+          const SI = "spotter", built = !!TOWER_DEFS[SI], ups = AGES.map(A => A.upTo);
+          if (stand && !built) TOWER_DEFS[SI] = Object.assign({}, TOWER_DEFS.post, { post: false, name: "Observation Post", max: 1, cost: 90 });
           try {
             for (const id of ids) {
               testUnlockAll = true;
               curLevel = levelIndexOf(id); curDiff = 1; resetGame(); overlayEl.classList.add("hidden");
-              if (stand) { const a = AGES.findIndex(A => A.tower === "stores"); AGES[a].upTo = 99; AGES.forEach((A, i) => { if (i !== a) A.hold = A.upTo, A.upTo = -1; }); syncTray(); }
+              if (stand) { const a = AGES.findIndex(A => A.tower === SI); AGES.forEach((A, i) => { A.upTo = i === a ? 99 : -1; }); syncTray(); }
               fitCardNames();
               const cards = [...document.querySelectorAll("#shop .card")].filter(c => c.style.display !== "none");
-              if (cards.length !== n) out.push(id + ": " + cards.length + " tiles, not " + n);
+              // (a battlefield with its own special tower built into the game, G7a on, has seven in the real tray)
+              const want = stand ? 7 : ageTower(curEra) ? 7 : 6;
+              if (cards.length !== want) out.push(id + ": " + cards.length + " tiles, not " + want);
               for (const c of cards) {
                 const r = c.getBoundingClientRect(), nm = c.querySelector(".nm"), cs = getComputedStyle(nm);
                 if (r.width < 43.5 || r.height < 43.5) out.push(id + " " + c.dataset.type + ": the tile is " + Math.round(r.width) + "x" + Math.round(r.height));
                 if (cs.display !== "none" && nm.clientWidth && nm.scrollWidth > nm.clientWidth) out.push(id + " " + c.dataset.type + ": its name \"" + nm.textContent + "\" is cut");
                 if (cs.display !== "none" && parseFloat(cs.fontSize) < 10.95) out.push(id + " " + c.dataset.type + ": its name is " + cs.fontSize);
               }
-              if (stand) { AGES.forEach(A => { if (A.hold !== undefined) { A.upTo = A.hold; delete A.hold; } }); AGES.find(A => A.tower === "stores").upTo = 3; }
+              if (stand) AGES.forEach((A, i) => { A.upTo = ups[i]; });
             }
           } finally {
-            if (stand) { delete TOWER_DEFS.stores; const c = document.querySelector('#shop .card[data-type="stores"]'); if (c) c.remove(); }
+            if (stand) { AGES.forEach((A, i) => { A.upTo = ups[i]; }); if (!built) { delete TOWER_DEFS[SI]; const c = document.querySelector('#shop .card[data-type="' + SI + '"]'); if (c) c.remove(); } }
             syncTray();
           }
           return out;
@@ -766,6 +775,141 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           if (r.d > 12 || r.armed || r.panel || r.hero) fail("post rally", "a tap on the road in the ring: " + JSON.stringify(r));
         }
         await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
+        // the Horse Lines' panel (G7a) as a sheet: Avarayr staged, the lines at their third rank (the Mastery to choose),
+        // opened by a finger that presses nothing in it
+        await stage("avarayr", 3, { horse: 1, hl: "2" });
+        const hpad = await g.ev(() => { const t = towers.find(u => u.type === "horse"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (hpad < 0) fail("horse panel", "no Horse Lines were staged");
+        else {
+          const hb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const hat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), hpad);
+          await g.tapAt(hat.x, hat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", hpad))) {
+            fail("horse panel", "a tap on the Horse Lines did not open their panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, hpad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== hb) fail("horse panel", "the tap that opened the sheet pressed something in it");
+          await check("horse panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
+        // the Powder Mine's panel (G7c) the same way: Gyumri Road staged, the mine at its third rank (the Mastery to choose,
+        // with Lay the charge, Fire and the trigger above: the tallest panel of all); then Lay the charge armed (its toast
+        // in the safe area) and the road in its ring tapped: the charge must lie there
+        await stage("gyumri", 3, { mine: 1, ml: "2" });
+        const mpad = await g.ev(() => { const t = towers.find(u => u.type === "mine"); gold = 99999; syncHud(); if (t) t.mines.forEach(m => { m.armT = 1e6; }); return t ? t.pad : -1; });
+        if (mpad < 0) fail("mine panel", "no Powder Mine was staged");
+        else {
+          const mb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const mat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), mpad);
+          await g.tapAt(mat.x, mat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", mpad))) {
+            fail("mine panel", "a tap on the Powder Mine did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, mpad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== mb) fail("mine panel", "the tap that opened the sheet pressed something in it");
+          // (held upright, the owner's best effort, the tallest panel of all may scroll its column to Sell: 3.8 lets the
+          // column scroll at the last)
+          await check("mine panel", { root: "#panel", primary: ["#pLay", "#pFire", "#pActions .spec"].concat(C.upright ? [] : ["#pActions .sell"]), scroll: "inside", primaryRequired: true });
+          await tap("mine lay", "#pLay", "cannot tap Lay the charge");
+          await settle(2);
+          if (!(await g.ev(() => !!rallying && rallying.type === "mine" && panelEl.style.display !== "block"))) fail("mine lay", "Lay the charge did not arm, or the sheet stayed");
+          await g.wait(450);
+          if (await g.ev(() => toastEl.classList.contains("show"))) await check("mine lay (toast)", { root: "#toast", controls: "none", noCover: true, scroll: "inside" });
+          else fail("mine lay", "no toast says to tap the road");
+          const mto = await g.ev(pad => {
+            const t = towers.find(u => u.pad === pad), m = t.mines[t.layIdx | 0], r = canvas.getBoundingClientRect(), S = __hsAudit.safe();
+            const on = s => { const p = proj(s.x, s.y); return { x: r.left + offX + p.x * scale, y: r.top + offY + p.y * scale }; };
+            const ok = postRoadIn(t.x, t.y, mineReach(t)).filter(s => {
+              const c = on(s), e = document.elementFromPoint(c.x, c.y);
+              return e && e.id === "game" && c.x > S.l + 8 && c.x < S.r - 8 && !towers.some(u => Math.hypot(u.x - s.x, u.y - s.y) < 40) && !(hero && Math.hypot(hero.x - s.x, hero.y - s.y) < 40);
+            });
+            const s = ok.sort((a, b) => Math.hypot(b.x - m.x, b.y - m.y) - Math.hypot(a.x - m.x, a.y - m.y))[0];
+            return s ? Object.assign({ wx: s.x, wy: s.y, i: t.layIdx | 0 }, on(s)) : null;
+          }, mpad);
+          if (!mto) fail("mine lay", "no road of the ring lies clear on the screen");
+          else {
+            await g.tapAt(mto.x, mto.y);
+            await settle(2);
+            const r = await g.ev(([pad, to]) => { const t = towers.find(u => u.pad === pad), m = t.mines[to.i]; return { d: Math.hypot(m.x - to.wx, m.y - to.wy), armed: !!rallying, panel: panelEl.style.display === "block", hero: !!(hero && hero.rally) }; }, [mpad, mto]);
+            if (r.d > 12 || r.armed || r.panel || r.hero) fail("mine lay", "a tap on the road in the ring: " + JSON.stringify(r));
+          }
+          await g.ev(() => { rallying = null; hidePanel(); toastEl.classList.remove("show"); });
+        }
+        // the Stores' panel (G7b) the same way: Tashir staged, the stores at their third rank (the Mastery to choose)
+        await stage("tashir", 3, { stores: 1, sl: "2" });
+        const spad = await g.ev(() => { const t = towers.find(u => u.type === "stores"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (spad < 0) fail("stores panel", "no Stores were staged");
+        else {
+          const sb = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const sat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), spad);
+          await g.tapAt(sat.x, sat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", spad))) {
+            fail("stores panel", "a tap on the Stores did not open their panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, spad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== sb) fail("stores panel", "the tap that opened the sheet pressed something in it");
+          await check("stores panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
+        // the Aid Post's panel (G7d) the same way: Van staged, the post at its third rank (the Mastery to choose)
+        await stage("van", 3, { aid: 1, al: "2" });
+        const apad = await g.ev(() => { const t = towers.find(u => u.type === "aid"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (apad < 0) fail("aid panel", "no Aid Post was staged");
+        else {
+          const ab = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const aat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), apad);
+          await g.tapAt(aat.x, aat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", apad))) {
+            fail("aid panel", "a tap on the Aid Post did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, apad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== ab) fail("aid panel", "the tap that opened the sheet pressed something in it");
+          await check("aid panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
+        // the Observation Post's panel (G7e) the same way: Stepanakert 1992 staged, the post at its third rank (the Mastery
+        // to choose); then its Target button tapped moves the order it marks by, the sheet still up
+        await stage("stepanakert92", 3, { spot: 1, sl: "2" });
+        const opad = await g.ev(() => { const t = towers.find(u => u.type === "spotter"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (opad < 0) fail("spotter panel", "no Observation Post was staged");
+        else {
+          const ob = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + t.prio) }));
+          const oat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), opad);
+          await g.tapAt(oat.x, oat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", opad))) {
+            fail("spotter panel", "a tap on the Observation Post did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, opad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + t.prio) })) !== ob) fail("spotter panel", "the tap that opened the sheet pressed something in it");
+          // (the Target button keeps its 36 px class on a sheet, gameplay 3.8, as every tower's: its own height is asked below)
+          await check("spotter panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          const tr = await g.ev(() => { const b = $("pTarget"); if (!b) return null; b.scrollIntoView({ block: "nearest" }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
+          if (!tr) fail("spotter panel", "no Target button");
+          else {
+            if (tr.h < 35.5) fail("spotter panel", "the Target button is " + Math.round(tr.h) + " px tall");
+            await g.wait(450);
+            await g.tapAt(tr.x, tr.y);
+            await settle(2);
+            const after = await g.ev(pad => { const t = towers.find(u => u.pad === pad); return { prio: t.prio, panel: panelEl.style.display === "block", txt: ($("pTarget") || {}).textContent || "" }; }, opad);
+            if (after.prio !== "weak" || !after.panel || !/Weakest/.test(after.txt)) fail("spotter panel", "a tap on Target left " + JSON.stringify(after));
+          }
+          await g.ev(() => { hidePanel(); });
+        }
       });
       await step("foe", "foe card (wave row)", async () => {
         if (!(await g.ev(() => !gameOver && overlayEl.classList.contains("hidden")))) { await begin(3); await rotateStep(); }

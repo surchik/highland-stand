@@ -5,6 +5,13 @@
 // The Garrison Post (G5) takes its turn with the five on every pad whose reach holds road; on a pad without, the post's
 // press must build nothing and say "No road in reach of this pad.", and the pad then takes the next kind. A phone pass
 // (667x320, touch, the tray of six) places on one battlefield of each age group.
+// The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) takes its turn too where the
+// tray holds it: refused on a pad with no road in reach as the post is, and, once the field holds its limit, refused
+// with its own sentence ("Two horse lines are all this field can stable.", G7b's Stores "Two stores are all this road can
+// feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad; the
+// Powder Mine (G7c, on Gyumri Road and Halidzor) asks for road in its reach and has no limit; the Aid Post (G7d, on Van,
+// Musa Dagh and Sardarapat) takes any pad, one on a field ("One aid post serves this field."); the Observation Post (G7e,
+// on Stepanakert 1992, Shushi and Stepanakert 2023) takes any pad, one on a field ("One observation post serves this field.").
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/padplace.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -37,18 +44,28 @@ const PHONE_LV = ["erebuni", "dvin", "gyumri", "van", "stepanakert92"];
         const n = await g.ev(() => PADS.length);
         const tray = await g.ev(() => trayTypes().join());
         if (!tray.includes("post")) await fail(id + ": the tray has no post: " + tray);
+        const kinds = TYPES.concat(tray.split(",").filter(k => !TYPES.includes(k)));
+        // a press of a kind the pad must refuse: nothing is built, and the toast says why
+        const refuse = async (i, type, why, re) => {
+          if (await g.ev(() => placing) !== type) await g.press('#shop .card[data-type="' + type + '"]');
+          const q0 = await g.ev(i => { const r = canvas.getBoundingClientRect(), p = proj(PADS[i][0], PADS[i][1]); return { x: r.left + offX + p.x * scale, y: r.top + offY + (p.y + 4 * p.s) * scale, n: towers.length }; }, i);
+          await g.tapAt(q0.x, q0.y); await g.frames(1);
+          if (g.touch) { await g.tapAt(q0.x, q0.y); await g.frames(1); }
+          const r0 = await g.ev(() => ({ n: towers.length, t: $("toast").textContent }));
+          if (r0.n !== q0.n || !re.test(r0.t)) await fail(id + " pad " + i + ": a " + type + " " + why + " " + (r0.n !== q0.n ? "was built" : "said " + r0.t));
+          else refused++;
+        };
         for (let i = 0; i < n; i++) {
-          let type = TYPES[(i + lv) % TYPES.length];
-          // a post where no road lies in its reach: refused, with its sentence; the pad then takes the next kind
-          if (type === "post" && !(await g.ev(i => padTakesPost(i), i))) {
-            if (await g.ev(() => placing) !== "post") await g.press('#shop .card[data-type="post"]');
-            const q0 = await g.ev(i => { const r = canvas.getBoundingClientRect(), p = proj(PADS[i][0], PADS[i][1]); return { x: r.left + offX + p.x * scale, y: r.top + offY + (p.y + 4 * p.s) * scale, n: towers.length }; }, i);
-            await g.tapAt(q0.x, q0.y); await g.frames(1);
-            if (g.touch) { await g.tapAt(q0.x, q0.y); await g.frames(1); }
-            const r0 = await g.ev(() => ({ n: towers.length, t: $("toast").textContent }));
-            if (r0.n !== q0.n || !/No road in reach/.test(r0.t)) await fail(id + " pad " + i + ": a post with no road in reach " + (r0.n !== q0.n ? "was built" : "said " + r0.t));
-            else refused++;
-            type = TYPES[(i + lv + 1) % TYPES.length];
+          let k = (i + lv) % kinds.length, type = kinds[k];
+          for (let tries = 0; tries < kinds.length; tries++) {
+            type = kinds[(k + tries) % kinds.length];
+            const st = await g.ev(([i, type]) => ({ road: !(TOWER_DEFS[type].post || TOWER_DEFS[type].charge || TOWER_DEFS[type].blast) || padTakesRoad(i, kitStatsOf(type, 0, null).range),
+              full: !!TOWER_DEFS[type].max && towers.filter(t => t.type === type).length >= TOWER_DEFS[type].max }), [i, type]);
+            // a post or a horse line where no road lies in its reach: refused, with its sentence; the pad takes the next kind
+            if (!st.road) { await refuse(i, type, "with no road in reach", /No road in reach/); continue; }
+            // a kind at its limit on the field: refused with its own sentence (once a field), the pad takes the next kind
+            if (st.full) { await refuse(i, type, "over its limit", /are all this (field|road) can|at most|No more than|One aid post serves this field|One observation post serves this field/); continue; }
+            break;
           }
           if (await g.ev(() => placing) !== type) await g.press('#shop .card[data-type="' + type + '"]');
           // the pad's paved ring on the screen, what lies over it, and the field before the press

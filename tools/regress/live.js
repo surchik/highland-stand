@@ -7,7 +7,15 @@
 // when the stand is left is put away by its button (a fresh save meets each card once). By mouse at 1600x900.
 // The Garrison Post (G5): a post is built from its tile on the best free pad with road in reach, its panel opened by a
 // click on it, Rally point pressed and the road in its ring clicked: its rally must move, and its men fight the three
-// waves. (The battlefield's special tower is built here too once one is in the game, G7.)
+// waves. The battlefield's special tower (G7a on: the Horse Lines on Erebuni, Tushpa and Avarayr) is built from its tile
+// on the free pad whose reach holds the most road, and fights the three waves (its charges are counted: the run fails
+// if it was not built on one of them, or charged on none). The Stores (G7b, on Dvin, Tashir, Sevan, Ani, Mari and Sis)
+// are built from their tile on the free pad that reaches the least road, and must pay at the clears on every one. The
+// Powder Mine (G7c, on Gyumri Road and Halidzor) is built from its tile on the free pad whose reach holds the most road,
+// and its charge must arm (or fire) on each. The Aid Post (G7d, on Van, Musa Dagh and Sardarapat) is built from its tile on
+// the free pad that reaches the least road, and its count must be sound on each. The Observation Post (G7e, on
+// Stepanakert 1992, Shushi and Stepanakert 2023) is built from its tile on the free pad whose reach holds the most road,
+// and must mark a foe on at least one of them.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -91,14 +99,39 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
           }
         }
         await g.page.keyboard.press("Escape");
+        // the battlefield's special tower, where the tray holds one
+        const age = await g.ev(() => trayTypes()[6] || "");
+        if (age) {
+          // (a tower that asks for road in its reach on the pad whose reach holds the most; the Stores, which ask for none,
+          // on the free pad that reaches the least, where the balance bot builds them)
+          const ap = await g.ev(a => {
+            // (the Observation Post asks for no road but wants the most of it in reach: it marks what walks there, G7e)
+            const D = TOWER_DEFS[a], road = !!(D.post || D.charge || D.blast), most = road || !!D.mark, r = most ? kitStatsOf(a, 0, null).range : 150;
+            return PADS.map((p, i) => i).filter(i => !towerAt(i) && (!road || padTakesRoad(i, r)))
+              .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], r).length })).sort((x, y) => most ? y.n - x.n : x.n - y.n).map(x => x.i)[0];
+          }, age);
+          if (ap === undefined) await fail("no free pad takes the " + age);
+          else {
+            if (await g.ev(() => placing) !== age) await g.press('#shop .card[data-type="' + age + '"]');
+            const p = await g.ev(i => PADS[i], ap);
+            const pt = await g.worldToClient(p[0], p[1], 4);
+            await g.tapAt(pt.x, pt.y);
+            await g.frames(1);
+            if (!(await g.ev(([i, a]) => !!towerAt(i) && towerAt(i).type === a, [ap, age]))) await fail("the " + age + " was not built on pad " + ap);
+          }
+          await g.page.keyboard.press("Escape");
+        }
         const built = await g.ev(() => towers.length);
-        if (built < pads.length + 1) await fail("only " + built + " of " + (pads.length + 1) + " towers were built");
+        if (built < pads.length + 1 + (age ? 1 : 0)) await fail("only " + built + " of " + (pads.length + 1 + (age ? 1 : 0)) + " towers were built");
         // the secret fourth gear, Send Wave, and Auto for the waves after
         const sp = await g.reach("#speedBtn");
         if (sp.why) throw new Error("the speed button: " + sp.why);
         await g.clickAt(sp.x, sp.y, { shift: true });
         await g.frames(2);
         if (await g.ev(() => speedMult) !== 4) await fail("Shift+click on the speed button did not give 4x");
+        // the Aid Post's field starts its walls 2 short, so a clean wave has a defender to return (G7d review 5: from
+        // full walls it never returns one, and the check below could not see a return)
+        if (age === "aid") await g.ev(() => { lives = livesMax() - 2; syncHud(); });
         await g.press("#waveBtn");
         await g.press("#autoBtn");
         const snd = await g.ev(() => ({ ctx: !!Snd.ctx, state: Snd.ctx && Snd.ctx.state, music: Snd.musicOn, sfx: Snd.sfxOn }));
@@ -112,7 +145,12 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         if (end.state !== "running") await fail("the audio context is " + end.state);
         if (end.sndErrs.length) { await fail("sounds threw: " + [...new Set(end.sndErrs)].slice(0, 5).join(" | ")); await g.ev(() => { window.__sndErrs.length = 0; }); }
         const post = await g.ev(() => { const t = towers.find(u => u.type === "post"); return t ? { dmg: Math.round(t.dmgDone || 0), hold: Math.round(t.holdS || 0) } : null; });
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post };
+        const horse = await g.ev(() => { const t = towers.find(u => u.type === "horse"); return t ? { charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), thrown: Math.round(t.thrown || 0) } : null; });
+        const stores = await g.ev(() => { const t = towers.find(u => u.type === "stores"); return t ? { paid: Math.round(t.yielded || 0), gold: battleFacts().from.stores } : null; });
+        const mine = await g.ev(() => { const t = towers.find(u => u.type === "mine"); return t ? { blasts: t.blasts || 0, armed: (t.mines || []).some(mineArmed), dmg: Math.round(t.dmgDone || 0) } : null; });
+        const aid = await g.ev(() => { const t = towers.find(u => u.type === "aid"); return t ? { wreck: !!t.wreck, returned: battle.returned, cap: getStats(t).restore || 0, held: battleFacts().held, lives } : null; });
+        const spot = await g.ev(() => { const t = towers.find(u => u.type === "spotter"); return t ? { wreck: !!t.wreck, marked: t.markN || 0, prio: t.prio } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine, aid, spot };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);
@@ -142,5 +180,41 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
     await g.close();
   }));
   await browser.close();
+  // the Horse Lines must be seen to work somewhere: built on each of their battlefields played, they charged on at least
+  // one (G7a review 10: the counts were recorded and never asked for)
+  const rode = Object.keys(res).filter(id => res[id] && res[id].horse);
+  const ages = ["erebuni", "tushpa", "avarayr"].filter(id => res[id]);
+  if (ages.length && rode.length < ages.length) fails.push("no Horse Lines were built on " + ages.filter(id => !rode.includes(id)).join(", "));
+  if (rode.length && !rode.some(id => res[id].horse.charges > 0)) fails.push("the Horse Lines never charged on " + rode.join(", "));
+  // the Stores (G7b) the same way: built on each of their battlefields played, and paid at a clear on every one (they
+  // pay at every wave held, and three are held)
+  const stored = Object.keys(res).filter(id => res[id] && res[id].stores);
+  const storeFields = ["dvin", "tashir", "sevan", "ani", "mari", "sis"].filter(id => res[id]);
+  if (storeFields.length && stored.length < storeFields.length) fails.push("no Stores were built on " + storeFields.filter(id => !stored.includes(id)).join(", "));
+  const unpaid = stored.filter(id => !(res[id].stores.paid > 0 && res[id].stores.gold >= res[id].stores.paid));
+  if (unpaid.length) fails.push("the Stores paid nothing on " + unpaid.join(", "));
+  // the Powder Mine (G7c): built on Gyumri Road and Halidzor where they are played, and its charge armed or fired on
+  // each (three waves are longer than a charge takes to arm; the trigger fires it on 3 foes in the blast)
+  const mined = Object.keys(res).filter(id => res[id] && res[id].mine);
+  const mineFields = ["gyumri", "halidzor"].filter(id => res[id]);
+  if (mineFields.length && mined.length < mineFields.length) fails.push("no Powder Mine was built on " + mineFields.filter(id => !mined.includes(id)).join(", "));
+  const idle = mined.filter(id => !(res[id].mine.blasts > 0 || res[id].mine.armed));
+  if (idle.length) fails.push("the Powder Mine never armed on " + idle.join(", "));
+  // the Aid Post (G7d): built on Van, Musa Dagh and Sardarapat where they are played, and its numbers sound (the walls hold
+  // the defenders never lost and those it returned, never more than its cap)
+  const aided = Object.keys(res).filter(id => res[id] && res[id].aid);
+  const aidFields = ["van", "musadagh", "sardarapat"].filter(id => res[id]);
+  if (aidFields.length && aided.length < aidFields.length) fails.push("no Aid Post was built on " + aidFields.filter(id => !aided.includes(id)).join(", "));
+  const odd = aided.filter(id => { const a = res[id].aid; return a.lives !== a.held + a.returned || a.returned > a.cap || !(a.cap > 0); });
+  if (odd.length) fails.push("the Aid Post's count is off on " + odd.join(", "));
+  // a board may leak on every wave after the first, so one return across the post's fields is asked, not one on each
+  if (aided.length && !aided.some(id => res[id].aid.returned > 0)) fails.push("the Aid Post returned no defender on " + aided.join(", "));
+  // the Observation Post (G7e): built on its three battlefields where they are played, marking the strongest when built,
+  // and seen to mark a foe on at least one of them
+  const spotted = Object.keys(res).filter(id => res[id] && res[id].spot);
+  const spotFields = ["stepanakert92", "shushi", "stepanakert23"].filter(id => res[id]);
+  if (spotFields.length && spotted.length < spotFields.length) fails.push("no Observation Post was built on " + spotFields.filter(id => !spotted.includes(id)).join(", "));
+  if (spotted.some(id => res[id].spot.prio !== "strong")) fails.push("an Observation Post was built marking other than the strongest");
+  if (spotted.length && !spotted.some(id => res[id].spot.marked > 0)) fails.push("the Observation Post marked no foe on " + spotted.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });
