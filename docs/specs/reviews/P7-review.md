@@ -165,3 +165,22 @@ covered by flow 9 at every size with stubs, and they passed.
 - A real Supabase. Everything ran on tools/platform/stack.js.
 - A daily's real card and a lost daily's card (P6 has not been built). Only the staged daily card was seen.
 - Whether a real last wave leaves a banner or arrows on the copied field. The tests jump from wave 1 to victory.
+
+## Close-out (the package closed on pf/work)
+
+1. MAJOR, Save broken under a redraw: fixed. A new picture while the sheet is open fills the sheet again (`shFill`):
+   a new object URL on the picture, Save picture and Copy picture, the old one let go after, the focus kept on its
+   button. Flow 9 now opens the sheet, lets a new rank arrive, and checks the link's bytes and the download.
+2. MAJOR, no card for an unranked victory: fixed. `scEnd` keeps `SH.rec` (the strip's shape, `score: null`) for a
+   victory that has no strip: never ranked (the coached stand), the boards switched off, no bounds, no battle heard.
+   The card then has no score and no rank, and its words no score. Share stands alone in `#ovScore` (desktop, iPad,
+   upright) or as the round button and Settings' row held sideways. Aided victories (the test purse, test mode's
+   unlock-all) and endless still get none: the player did not win them alone. Flow 9 wins a coached Tushpa; flow 7's
+   boards-off victory now checks Share alone, and test mode checks there is no card.
+3. MINOR, words not checked: fixed. `f9ready` finds each row's own color in its box on the card's canvas, far more
+   than on the field alone. The no-words mutant now fails.
+4. MINOR, Share grey for good: fixed. One more try, then Share is taken away (`SH.failed`). Checked at desk in flow 9.
+5. MINOR, `shSnap` reads the field box: not changed. Section 6's own table names the game canvas's field box, which
+   0.3 (9) does not list; this needs a ruling. `renderBriefArt` draws a framed picture into `#briefArt`, not a field.
+6. MINOR, "Picture saved." on the tap: kept. These are section 6's words, and with finding 1 fixed the link always
+   holds a live picture. Browsers that can share a file (iPhone, iPad) take the file path, not the sheet.
