@@ -84252,9 +84252,10 @@ function dyDoors() {
   try { if (menuMode === "map" && typeof dailyEntry === "function") dailyEntry(); } catch (e) {}
   if (hallOpen) try { syncHallTabs(); } catch (e) {}
 }
-// the tab's badge: one while today's daily is unplayed by this player (the server says no attempt is used)
+// the tab's badge: one while today's daily is unplayed by this player (the server says no attempt is used); none for
+// an account with no name yet, whose daily cannot count (a player of no board has no attempts to use)
 function dyBadge() {
-  if (!dyOpen() || !pfSession()) return 0;
+  if (!dyOpen() || !pfSession() || !pfMyName()) return 0;
   const s = dyStatus();
   return s && !s.unpub && s.used === 0 && !s.stale ? 1 : 0;
 }

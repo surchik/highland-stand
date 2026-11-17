@@ -49,7 +49,8 @@
 //      wrong types, a forged user id and a forged token, a borrowed visit id, a flood from one device): the server's
 //      answers, and the owner's page still answers with nothing of theirs made into markup; the period switch; Discord
 //      held back with the Health card's line; the gate switched to optional from the page (a fresh visitor gets Play
-//      as a guest), the owner's line, back to required, each switch answering on its own line (a value the page or the
+//      as a guest), the owner's line, back to required, the daily's switch Off and On again (the server holding each),
+//      each switch answering on its own line (a value the page or the
 //      server refuses, and a failed save, put the field back); Remove old events. Then nothing is sent from a
 //      webdriver with an ordinary browser's user agent, from a robot's user agent, without the switch (and neither
 //      keeps an anonymous id, nor does a prerender until shown), on file://, or by the page as committed (its constants empty), each with its request log
@@ -119,11 +120,16 @@
 //      page's and ref.js's, "#1 of 1 today", no stars on the event, Share and the card's words of 5.6, daily_played),
 //      lost and scored by the waves held (the strip on the daily's end page, no Share), a third by Fight again; the
 //      fourth practice ("Practice: not ranked", nothing spent on the server); the tab with no attempt left (Practice);
-//      a second player's lower score "#2 of 2 today" (desktop and 667x320); the day changed by the stack's clock: the
-//      next challenge, the attempts back, the board empty, "Yesterday: 1. ..." and yesterday's battle; the database down
-//      (desktop and 667x320): Platform.daily() still today's from the page's own lines, the board's "needs a
-//      connection", and a daily begun is practice ("no connection") with no attempt spent. The tab and the pages held
-//      to the iPhone suite's audit; photos in p6 (--photos)
+//      a second player's lower score "#2 of 2 today" (desktop and 667x320); the day changed by the stack's clock set
+//      to 8 s before midnight UTC, the tab left open and turned by the page's own timer: the next challenge, the
+//      attempts back, the board empty, "Yesterday: 1. ..." and yesterday's battle. Then (desktop and 667x320) the
+//      owner's daily switch off (the server's daily_off at the first wave makes it practice; the tab's Practice and its
+//      note, no badge), a newer ruleset published under the chronicle (daily_mismatch: practice; the tab's "Reload"),
+//      the database down (Platform.daily() still today's from the page's own lines, the board's "needs a connection",
+//      a daily begun is practice, "no connection"), a guest under the optional gate (Practice beside the sign-in
+//      buttons, said once, no "One sitting", his first wave's word, no run, daily_played not ranked, his page's turn of
+//      the day) and a player with no name ("Later" after two failed saves: the tab's note, no badge, practice), none of
+//      them spending an attempt. The tab and the pages held to the iPhone suite's audit; photos in p6 (--photos)
 //   9  the share card (P7): a player wins Ani (a short name) and Sis (the longest title, after its Terms card), a guest
 //      under the optional gate Erebuni Rise; each picture read back (a JPEG of 1200 x 630, the field copied, its words:
 //      title, Armenian name, stars, defenders, rank, name; the guest's with neither name nor rank); with navigator.share
@@ -1189,6 +1195,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // over everything, with the field put back to the value in force
     const said = await A.ev(() => { const e = document.querySelector('#statsPage .stAnswer[data-key="gate"]'); return e ? e.textContent : null; });
     if (said !== "Saved.") fail(W, "the gate's switch said " + JSON.stringify(said) + " after a save");
+    // (P6 review 8) the daily's switch: Off saved and held by the server, then On again
+    for (const v of [false, true]) {
+      await pressStats(A, '#statsPage .stDaily[data-on="' + v + '"]');
+      await A.page.waitForFunction(v => !stBusy && stData && stData.config && (stData.config.daily !== false) === v, v, { timeout: 20000 }).catch(() => fail(W, "the daily's switch " + v + " was not saved"));
+      const held = (await S.query("select value from highland.hs_config where key = 'daily'"))[0];
+      const pressed = await A.ev(() => { const b = document.querySelector('#statsPage .stDaily[aria-pressed="true"]'); return b ? b.dataset.on : null; });
+      if (!held || held.value !== v || pressed !== String(v)) fail(W, "the daily's switch " + v + ": the server holds " + JSON.stringify(held) + ", pressed " + pressed);
+    }
     await A.page.fill('#statsPage .stField[data-key="ev_keep_days"]', "3");
     await pressStats(A, '#statsPage .stField[data-key="ev_keep_days"] + .btn');
     await A.wait(200);
@@ -3144,17 +3158,23 @@ const log = (m) => { if (o.verbose) console.log(m); };
       if (stripSays(sb) !== "Score 666 · #2 of 2 today") fail(W, "B's strip: " + JSON.stringify(sb) + " " + fb.said);
       await done(B, W + " (B)");
     }
-    // ---- the day changes: the next challenge, the attempts back, yesterday's first three
+    // ---- the day changes: the next challenge, the attempts back, yesterday's first three. The stack's clock is set
+    // to eight seconds before midnight UTC and the tab is left open: the page's own turn of the day (dyTimer, set
+    // again from the tab's answer) asks for the new day and draws it (P6 review 5)
     log("  flow 8: the day changes");
-    await S.control("clock", { offset: "1 day" });
+    const toMid = (await S.query("select extract(epoch from (date_trunc('day', now() at time zone 'utc') + interval '1 day') - (now() at time zone 'utc'))::float8 s"))[0].s;
+    await S.control("clock", { offset: Math.round((toMid - 8) * 1000) / 1000 });
     const p2 = (await S.query(`select p.level_id, p.twist from highland.hs_rulesets r, lateral highland._daily_pick(r.data, (now() at time zone 'utc')::date + 1) p where r.id = '2'`))[0];
-    await A.ev(() => { DY.st = null; });
-    await A.ev(() => pfRpc("hs_config", {}, {}));   // (any answer moves the page's clock to the server's)
-    await A.ev(() => { openCampaignMap(); });
-    await f8door(A, W);
-    dt = await dyTab(A);
     const i2 = await A.ev(id => LEVELS.findIndex(L => L.id === id), p2.level_id);
     const w2 = await A.ev(([i, t, d]) => ({ head: "Daily challenge · " + dailyDateWords(d), field: dailyTitle(i) + ", " + LEVELS[i].date, twist: twistName(t, i) }), [i2, p2.twist, today + 1]);
+    await A.ev(() => { openCampaignMap(); });
+    await f8door(A, W);
+    const before = await dyTab(A);
+    if (!before || before.head !== words.head) fail(W, "the tab before midnight: " + JSON.stringify(before && before.head) + ", wanted " + words.head);
+    await A.page.waitForFunction(h => { const e = document.querySelector("#hallBody .dyTab .dyHead"); return hallOpen && hallTab === "daily" && !!e && e.textContent === h && !document.querySelector("#hallBody .lbLoading") && !DY.asking; }, w2.head, { timeout: 25000 })
+      .catch(async () => fail(W, "the open tab did not turn to the next day by itself: " + JSON.stringify(await dyTab(A))));
+    await A.wait(300);
+    dt = await dyTab(A);
     const yWant = "Yesterday: 1. " + nameA + " " + exp1.toLocaleString("en-US") + (more ? " · 2. Eight" + K + "B 666" : "");
     if (!dt || dt.head !== w2.head || dt.field !== w2.field || !dt.twist.startsWith(w2.twist) || dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" ||
       dt.rows.length || dt.yest !== yWant || dt.badge !== 1) fail(W, "the next day's tab: " + JSON.stringify(dt) + " wanted " + JSON.stringify(w2) + " " + yWant);
@@ -3162,6 +3182,56 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (!pd2 || pd2.levelIndex !== i2 || pd2.twist !== p2.twist || pd2.day !== today + 1) fail(W, "Platform.daily() the next day: " + JSON.stringify(pd2));
     await dyAuditTab(A, W, "Daily tab, the next day", "tab-nextday");
     await A.ev(() => closeHall());
+    const runsNext = async () => (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = (now() at time zone 'utc')::date + 1", [uidA]))[0].n;
+    if (more) {
+      // ---- the owner's daily switch off (P6 review 8): a page that has not heard it is refused at the first wave and
+      // plays practice, nothing spent; once heard, the tab offers Practice and says why, and no badge
+      log("  flow 8: the daily switched off");
+      // (switched as the stats page's switch does it: hs_admin_set_config, A being the admin)
+      const setDaily = (v) => A.ev(async v => { const r = await pfRpc("hs_admin_set_config", { p_key: "daily", p_value: v }, { auth: true, timeout: 10000 }); return r.ok ? "ok" : r.code; }, v);
+      const off = await setDaily(false);
+      if (off !== "ok") fail(W, "the daily was not switched off: " + off);
+      await f8door(A, W);
+      await f8play(A, W);
+      let fx = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fx.said !== "Practice: the daily's board is closed for now.") fail(W, "the daily switched off, its word: " + fx.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the daily switched off, its strip: " + JSON.stringify(st));
+      // (the page hears the switch as it reads hs_config at the load and the sign-in)
+      await A.ev(async () => { const r = await pfRpc("hs_config", {}, {}); if (r.ok && r.data) pfCfgSet({ daily: r.data.daily !== false }); });
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.play !== "Practice" || dt.note !== "The daily's board is closed for now. Practice plays the same battle, not ranked." || dt.badge !== 0 || dt.sit) fail(W, "the Daily tab with the daily off: " + JSON.stringify(dt));
+      await dyAuditTab(A, W, "Daily tab, the daily off", "tab-off");
+      await A.ev(() => closeHall());
+      await setDaily(true);
+      await A.ev(() => pfCfgSet({ daily: true }));
+      if (await runsNext()) fail(W, "a daily with the switch off spent an attempt");
+      // ---- a newer ruleset published while the chronicle is up (P6 review 8): the first wave's daily_mismatch makes
+      // it practice, nothing spent; the tab then says to reload and offers Practice
+      log("  flow 8: a newer ruleset");
+      await f8door(A, W);
+      await f8play(A, W);
+      const pub9 = await A.ev(async () => { const d = JSON.parse(JSON.stringify(rulesetData())); for (const k of Object.keys(d.daily.levels)) d.daily.levels[k].slow += 50;
+        for (const k of Object.keys(d.levels)) d.levels[k].rev = (d.levels[k].rev || 1) + 7;
+        const r = await pfRpc("hs_admin_publish_ruleset", { p_id: "9", p_data: d }, { auth: true, timeout: 20000 }); return r.ok ? "ok" : r.code; });
+      if (pub9 !== "ok") fail(W, "the newer ruleset was not published: " + pub9);
+      fx = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fx.said !== "Practice: a new challenge has begun. This battle is not ranked.") fail(W, "the stale daily's word: " + fx.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the stale daily's strip: " + JSON.stringify(st));
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.play !== "Practice" || dt.note !== "A newer version of the game is out. Reload the page to play for today's board." || dt.badge !== 0) fail(W, "the Daily tab with a newer ruleset: " + JSON.stringify(dt));
+      await dyAuditTab(A, W, "Daily tab, a newer ruleset", "tab-stale");
+      await A.ev(() => closeHall());
+      // (no call takes a ruleset back: the stack's superuser removes it, so ruleset 2 is the newest again)
+      { const c = await S.db.client("hs", "supabase_admin"); try { await c.query("delete from highland.hs_rulesets where id = '9'"); } finally { await c.end(); } }
+      await A.ev(() => { DY.st = null; pfDrop("hs_pf_daily"); });
+      if (await runsNext()) fail(W, "a stale daily spent an attempt");
+    }
     // ---- the database down: Platform.daily() is still today's (the page's own lines), a daily begun is practice and spends nothing
     if (more) {
       log("  flow 8: offline");
@@ -3181,6 +3251,60 @@ const log = (m) => { if (o.verbose) console.log(m); };
       await S.control("rest", { mode: "up" });
       const n = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = (now() at time zone 'utc')::date + 1", [uidA]))[0].n;
       if (n !== 0) fail(W, "a daily begun offline spent an attempt (" + n + ")");
+      // ---- a guest (the gate optional; P6 review 7, 8): the tab offers Practice with the sign-in buttons, said once;
+      // his daily is practice from its first wave, posts nothing, and his page turns the day too (dyTimer)
+      log("  flow 8: a guest");
+      await A.ev(() => closeHall());
+      const G = await open(C, { storage: f7prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+      await G.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await gate(G, "signin");
+      await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
+      await gate(G, "");
+      await f7toMap(G);
+      await f8door(G, W);
+      const dg = await dyTab(G);
+      if (!dg || dg.play !== "Practice" || !dg.sign || dg.note || dg.sit || dg.field !== w2.field || dg.badge !== 0) fail(W, "the guest's Daily tab: " + JSON.stringify(dg));
+      const signWords = await G.ev(() => Array.from(document.querySelectorAll("#hallBody .dyTab .lbSign p")).map(p => p.textContent));
+      if (signWords.join("|") !== "Sign in to play for today's board. Practice plays the same battle, not ranked.") fail(W, "the guest's sign-in words: " + JSON.stringify(signWords));
+      if (!(await G.ev(() => !!DY.timer))) fail(W, "a guest's page has no turn of the day");
+      await dyAuditTab(G, W, "the guest's Daily tab", "tab-guest");
+      const gRuns = (await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n;
+      await f8play(G, W);
+      const fg = await f8fight(G, W, { win: true, lives: 9, practice: true });
+      if (fg.said !== "Practice: sign in to play for today's board.") fail(W, "the guest's first wave: " + fg.said);
+      await G.wait(300);
+      const sg = await strip(G);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(sg))) fail(W, "the guest's strip: " + JSON.stringify(sg));
+      const dpg = (await evs(G, "daily_played")).pop();
+      if (!dpg || dpg.ranked !== false || dpg.attempt !== 0) fail(W, "the guest's daily_played: " + JSON.stringify(dpg));
+      if ((await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n !== gRuns) fail(W, "a guest's daily began a run");
+      await f8photo(G, "guest-practice");
+      await done(G, W + " (guest)");
+      // ---- signed in with no name (P6 review 8): the name could not be saved twice, "Later"; the tab says to choose a
+      // name and offers Practice, and the daily is practice from its first wave, nothing begun
+      log("  flow 8: signed in, no name");
+      const N = await open(C, { storage: f7prog, quietCall: true });
+      await N.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await S.control("provider", f7who(K, "d8n"));
+      await signIn(N, null, "google", "name");
+      await S.control("rest", { mode: "down" });
+      for (let k = 0; k < 2; k++) {
+        await pressGo(N, "#gate .gtGo");
+        await N.page.waitForFunction(() => { const e = document.querySelector("#gate .gtErr"); return !!e && !!e.textContent && !document.querySelector("#gate .gtGo").disabled; }, null, { timeout: 15000 }).catch(() => {});
+      }
+      await S.control("rest", { mode: "up" });
+      await pressGo(N, "#gate .pfLater");
+      await gate(N, "welcome");
+      await f7map(N);
+      await f8door(N, W);
+      const dn = await dyTab(N);
+      if (!dn || dn.play !== "Practice" || dn.note !== "Choose a name on the Account tab to play for today's board." || dn.sit || dn.badge !== 0 || dn.mine.length) fail(W, "the Daily tab with no name: " + JSON.stringify(dn));
+      const nRuns = (await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n;
+      await f8play(N, W);
+      const fn = await f8fight(N, W, { win: true, lives: 9, practice: true });
+      if (fn.said !== "Practice: choose a name to play for today's board.") fail(W, "no name, the first wave: " + fn.said);
+      if ((await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n !== nRuns) fail(W, "a daily with no name began a run");
+      await done(N, W + " (no name)");
     }
     await S.control("clock", { offset: "" });
     await done(A, W + " (A)");
