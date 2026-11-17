@@ -251,6 +251,12 @@ if (pure) {
     R = pure.shareRows(Object.assign({}, base, { player: null, rank: null, total: null }));
     eq([at(R, 504), at(R, 566)], [[], []], "a guest's card: no name line, no rank");
     eq(at(pure.shareRows(Object.assign({}, base, { hy: "" })), 240), [], "no Armenian line for a place without one");
+    // a victory no board ranks (the coached stand, the boards switched off): no score, no rank, the clock alone
+    const un = Object.assign({}, base, { score: null, rank: null, total: null });
+    R = pure.shareRows(un);
+    eq([at(R, 420), at(R, 462), at(R, 504)], [["17 of 20 defenders kept"], ["Held in 12:34"], []], "an unranked victory's card: the clock, no score, no rank");
+    eq(pure.shareText(un), "I held Erebuni Rise in Highland Stand with 17 of 20 defenders. https://highland.avunjian.com", "an unranked victory's words: no score");
+    eq(pure.shareText(Object.assign({}, un, { daily: { date: "Nov 10", twist: "Thin purse" } })), "Highland Stand daily, Nov 10: Erebuni Rise, Thin purse. https://highland.avunjian.com", "a daily with the boards off: no score");
     // the daily
     const dl = Object.assign({}, base, { field: "Ani", title: "Ani Stands!", date: "Nov 10, 2026", daily: { date: "Nov 10", twist: "Thin purse" }, rank: 12, total: 87, stars: 0 });
     R = pure.shareRows(dl);
