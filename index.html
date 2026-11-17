@@ -3136,6 +3136,8 @@
   <symbol id="i-blast" viewBox="0 0 24 24"><circle cx="9.200" cy="14.800" r="6.400"/><path d="M14.600 7.800 17.800 2.600M16.600 10.200l5-2.400M12.200 6.400l.4-4.400" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"/></symbol>
   <!-- the Aid Post (G7d): a stretcher under a pole with a plain cloth (no cross: the emblem is protected) -->
   <symbol id="i-aid" viewBox="0 0 24 24"><path d="M2 15.200h20v2.200H2zM5 11.600h14v3H5z"/><path d="M5.400 17.400v3.600M18.600 17.400v3.600M8 2.400v9.200" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 2.600h9.400l-2 2.600 2 2.600H9z"/></symbol>
+  <!-- the Observation Post (G7e): field glasses -->
+  <symbol id="i-spot" viewBox="0 0 24 24"><circle cx="6.600" cy="15.200" r="4.600"/><circle cx="17.400" cy="15.200" r="4.600"/><path d="M4.200 11.400 6 4.400h3.400l.8 7zM19.800 11.400 18 4.400h-3.400l-.8 7zM9.600 12h4.800v3.400H9.600z"/></symbol>
   <symbol id="i-hp" viewBox="0 0 24 24"><path d="M12 21.200C5.600 16.400 2.200 12.700 2.200 8.600 2.200 5.500 4.600 3.200 7.500 3.200c1.900 0 3.500 1 4.500 2.600 1-1.600 2.600-2.600 4.500-2.600 2.900 0 5.300 2.300 5.300 5.400 0 4.100-3.400 7.800-9.800 12.600z"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M5.200 5.200l13.600 13.600M18.800 5.200 5.200 18.800" fill="none" stroke="currentColor" stroke-width="2.800" stroke-linecap="round"/></symbol>
   <symbol id="i-r-raider" viewBox="0 0 24 24">
@@ -9870,11 +9872,41 @@ TOWER_DEFS.aid = {
 // second a returning defender walks from the post to the walls (drawn only)
 const AID_RULES = { after: 1, heal: 2, heroMin: 5, walk: 46 };
 
+// ---------- the Observation Post (gameplay 3.6): the special tower of Stepanakert 1992, Shushi and Stepanakert 2023 ----------
+// It marks, and deals no damage of its own (proj null: the shooting loop passes it by). It keeps a mark on `marks` foes
+// inside its `range`, chosen by its Target button (Strongest when it is built). A marked foe takes `amp` more from every
+// source (towers, men, hero, spells, burns): one multiplier, markMult, applied in damageEnemy, in the hero's blow and in
+// the burn ticks. A mark on a commander counts half (SPOT_RULES.boss). A marked hidden foe is seen while marked. It
+// reaches the sky (air), so it can mark outflankers and drones. A mark moves only when its foe falls or leaves the range
+// (or the Target button is pressed). Fire Direction shells the first marked foe every `every` s (a blow of `shell`
+// that pierces armor); Night Sights holds three marks and sees every hidden foe in its reach. max: one on a field (3.7).
+// A wrecked or stunned post marks nothing until it is whole again
+TOWER_DEFS.spotter = {
+  name: "Observation Post", cost: 90, proj: null, mark: true, air: true, max: 1, maxSay: "One observation post serves this field.",
+  // the post's own strength by rank, for hunters, drones and powers (kept here, as the Aid Post's is: rulesetData)
+  hp: [220, 280, 360],
+  levels: [
+    { range: 230, marks: 1, amp: 0.15 },
+    { range: 270, marks: 1, amp: 0.2, cost: 110 },
+    { range: 310, marks: 2, amp: 0.25, cost: 190 },
+  ],
+  specs: {
+    a: { name: "Fire Direction", cost: 300, desc: "The marked foe is shelled every 4 s",
+         stats: { range: 340, marks: 2, amp: 0.25, shell: 150, every: 4, pierce: true } },
+    b: { name: "Night Sights", cost: 300, desc: "Three marks, and nothing in reach stays hidden",
+         stats: { range: 360, marks: 3, amp: 0.25, revealAll: true } },
+  },
+};
+// how the marks work, named once (rulesetData reads it). boss: the share of the mark's amp a commander takes; tick: the
+// fewest ms between two of its marking sounds (uiTick)
+const SPOT_RULES = { boss: 0.5, tick: 400 };
+
 // which battlefields share a special tower (3.1). Internal: no age is named on any page. Until a special tower is
 // built into the game (G7a to G7e) ageTower answers null and its battlefields play with the post and six tiles (the
 // Horse Lines are in, G7a: Erebuni, Tushpa and Avarayr have seven; the Stores, G7b: Dvin, Tashir, Sevan, Ani, Mari and
 // Sis have seven; the Powder Mine, G7c: Gyumri Road and Halidzor have seven; the Aid Post, G7d: Van, Musa Dagh and
-// Sardarapat have seven)
+// Sardarapat have seven; the Observation Post, G7e: Stepanakert 1992, Shushi and Stepanakert 2023 have seven, so every
+// battlefield now has its special tower)
 const AGES = [
   { id: "a1", upTo: 2, tower: "horse" },    // eras 0, 1: Erebuni, Tushpa, Avarayr
   { id: "a2", upTo: 3, tower: "stores" },   // eras 2, 7, 8: Dvin, Tashir, Sevan, Ani, Mari, Sis
@@ -10292,8 +10324,20 @@ const AID_LEVEL = {
   musadagh: { name: "Aid Post", depicts: "A room behind the lines where the wounded are bandaged" },
   sardarapat: { name: "Aid Post", depicts: "A room behind the lines where the wounded are bandaged" },
 };
+// the Observation Post (gameplay 3.6): one skin, a sandbagged nest with a lookout holding field glasses and a radio
+// with its aerial, in the one age that offers it (era 6). 1992's is a lookout post, 2020's and 2023's observation posts.
+// Generic of these wars: no named unit is claimed
+TOWER_SKINS.spotter = ["lookout", "lookout", "lookout", "lookout", "lookout", "lookout", "lookout", "lookout", "lookout"];
+SLOT_NAMES.spotter = ["Observation post", "Observation post", "Observation post", "Observation post", "Observation post", "Observation post", "Observation post", "Observation post", "Observation post"];
+SLOT_BLURB.spotter = "Marks a foe in its reach: every blow on it lands harder, and a marked scout is seen.";
+SKIN_BLURB.lookout = SLOT_BLURB.spotter;
+const SPOT_LEVEL = {
+  stepanakert92: { name: "Lookout post", depicts: "A lookout with field glasses and a radio on the heights" },
+  shushi: { name: "Observation post", depicts: "A lookout with field glasses and a radio on the heights" },
+  stepanakert23: { name: "Observation post", depicts: "A lookout with field glasses and a radio on the heights" },
+};
 // each special tower's own names by battlefield (levelTower)
-const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL, mine: MINE_LEVEL, aid: AID_LEVEL };
+const SPECIAL_LEVEL = { post: POST_LEVEL, horse: HORSE_LEVEL, stores: STORES_LEVEL, mine: MINE_LEVEL, aid: AID_LEVEL, spotter: SPOT_LEVEL };
 // a tile's short name on a phone (3.8), by the long name it stands for: only the long ones need one
 const TOWER_SHORT = {
   "Self-defense riflemen": "Riflemen", "Defense Army riflemen": "Riflemen", "Basement radio post": "Radio post",
@@ -10715,12 +10759,13 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // pins moved, and their revs rose to 3), and the Stores (G7b: the same; only Dvin's, Tashir's, Sevan's, Ani's, Mari's
 // and Sis's pins moved, and their revs rose to 3), and the Powder Mine (G7c: the same; only Gyumri Road's and Halidzor's
 // pins moved, and their revs rose to 3), and the Aid Post (G7d: the same; only Van's, Musa Dagh's and Sardarapat's pins
-// moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
+// moved, and their revs rose to 3), and the Observation Post (G7e: the same; only Stepanakert 1992's, Shushi's and
+// Stepanakert 2023's pins moved, and their revs rose to 3). It rises with any change to what rulesetData() returns or to the fight itself, and the boards of an older
 // number are then closed. RULESET_PIN is the first eight hex digits of the SHA-256 of JSON.stringify(rulesetData()): the
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "061d3d43";
+const RULESET_PIN = "05f080d9";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10731,14 +10776,15 @@ const RULESET_PIN = "061d3d43";
 // 3 on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores in their trays (G7b), the same way
 // 3 on Gyumri Road and Halidzor with the Powder Mine in their trays (G7c), the same way
 // 3 on Van, Musa Dagh and Sardarapat with the Aid Post in their trays (G7d), the same way
+// 3 on Stepanakert 1992, Shushi and Stepanakert 2023 with the Observation Post in their trays (G7e), the same way
 const LEVEL_REV = {
   erebuni: 3, tushpa: 3, avarayr: 3, dvin: 3, tashir: 3, sevan: 3, ani: 3, mari: 3, sis: 3, gyumri: 3, halidzor: 3,
-  van: 3, musadagh: 3, sardarapat: 3, stepanakert92: 2, shushi: 2, stepanakert23: 2,
+  van: 3, musadagh: 3, sardarapat: 3, stepanakert92: 3, shushi: 3, stepanakert23: 3,
 };
 const LEVEL_PIN = {
   erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "8a89e1f1", tashir: "ecb42838", sevan: "31e70a42",
   ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "3cc42744",
-  musadagh: "2eb41bea", sardarapat: "6978d8ce", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
+  musadagh: "2eb41bea", sardarapat: "6978d8ce", stepanakert92: "105e5599", shushi: "dc92cd02", stepanakert23: "bcbb3b1c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -10751,11 +10797,13 @@ const LEVEL_PIN = {
 // (and again at G7c's close, the masteries' blow cut: docs/specs/balance/g7c-close/; Hard's best is now bazaar's board)
 // G7d: Sardarapat's Easy and Hard taken again, a board with an Aid Post the best (Easy greedy's, the post third; Hard
 // minemix's, the post eighth: docs/specs/balance/g7d-*-seeds3.txt)
+// G7e: Stepanakert 1992's Hard taken again, a board with an Observation Post the best (mix7's, the post 15th:
+// docs/specs/balance/g7e-hard-seeds3.txt)
 const LEVEL_PAR = {
   erebuni: [868, 1242, 1125], tushpa: [1277, 1367, 1406], avarayr: [1811, 1724, 1756], dvin: [952, 1108, 1103],
   tashir: [1112, 1134, 1144], sevan: [1618, 1735, 1754], ani: [1584, 1826, 1829], mari: [854, 996, 936],
   sis: [2346, 2523, 2547], gyumri: [1440, 1736, 1975], halidzor: [1290, 1624, 1538], van: [1592, 1996, 2006],
-  musadagh: [1215, 1454, 1435], sardarapat: [2013, 2186, 2205], stepanakert92: [2078, 2469, 2501],
+  musadagh: [1215, 1454, 1435], sardarapat: [2013, 2186, 2205], stepanakert92: [2078, 2469, 2223],
   shushi: [1094, 1116, 1117], stepanakert23: [923, 953, 928],
 };
 // the weights of a score (the platform's formula: a win, then shares for defenders, speed and thrift; a lost
@@ -10876,10 +10924,11 @@ const DAILY_SKIP = {
   stepanakert23: ["thin", "swift", "noballista", "nocatapult"],
 };
 // The daily's par on each battlefield: the battle clock of the bot's best build on the daily's 12-wave table, Normal,
-// the mean of its victories at SEEDS=3, waiting the 4 s between waves (docs/specs/balance/g6-daily-normal-seeds3.txt; Sevan taken again with the Stores, G7b: g7b-daily-normal-seeds3.txt)
+// the mean of its victories at SEEDS=3, waiting the 4 s between waves (docs/specs/balance/g6-daily-normal-seeds3.txt; Sevan taken again with the Stores, G7b: g7b-daily-normal-seeds3.txt;
+// Stepanakert 1992 and 2023 taken again with the Observation Post, G7e, mix7's and aid's boards: g7e-daily-seeds3.txt)
 const DAILY_PAR = {
   erebuni: 1494, tushpa: 1353, avarayr: 1543, dvin: 1383, tashir: 1132, sevan: 1328, ani: 1188, mari: 997, sis: 1579,
-  gyumri: 1739, halidzor: 1680, van: 1287, musadagh: 972, sardarapat: 1259, stepanakert92: 2028, shushi: 1117, stepanakert23: 1309,
+  gyumri: 1739, halidzor: 1680, van: 1287, musadagh: 972, sardarapat: 1259, stepanakert92: 1902, shushi: 1117, stepanakert23: 1242,
 };
 // What a twist does to a daily's bounds on the server (platform 2.4): multipliers on fast and slow (a forced march
 // makes a battle shorter) and on earnMax (a thin purse makes it poorer), or the defenders set outright (livesSet).
@@ -11526,7 +11575,7 @@ function rulesetData() {
         tricks: L.tricks,
         roads: [L.path, L.paths, L.track, L.routeOpen, L.phases, L.flank, L.fort, L.lake, L.pads, L.plots],
         // (a special tower's own rules ride with it, so they move only the pins of the battlefields that offer it)
-        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : k === "mine" ? [TOWER_DEFS[k], MINE_RULES] : k === "aid" ? [TOWER_DEFS[k], AID_RULES] : TOWER_DEFS[k])),
+        towers: trayStandard(L.era).map(k => (k === "horse" ? [TOWER_DEFS[k], HORSE_RULES] : k === "mine" ? [TOWER_DEFS[k], MINE_RULES] : k === "aid" ? [TOWER_DEFS[k], AID_RULES] : k === "spotter" ? [TOWER_DEFS[k], SPOT_RULES] : TOWER_DEFS[k])),
         waves: played.map(w => waveGroups(w).map(g => g.type + ":" + g.n + ":" + g.gap).join()),
       }))).slice(0, 12);
       levels[L.id] = { waves: script.length, script: script.slice(), rev: LEVEL_REV[L.id] || 1,
@@ -11861,7 +11910,8 @@ function slotMult(e, slot) {
 function bookAdapt(slot, eff, e) {
   if (!slot || !(eff > 0)) return;
   const own = TRICK_SLOTS.includes(slot);
-  if (!own && !(TOWER_DEFS[slot] && (TOWER_DEFS[slot].post || TOWER_DEFS[slot].charge || TOWER_DEFS[slot].blast))) return;
+  // (the Observation Post's shells too, 3.7)
+  if (!own && !(TOWER_DEFS[slot] && (TOWER_DEFS[slot].post || TOWER_DEFS[slot].charge || TOWER_DEFS[slot].blast || TOWER_DEFS[slot].mark))) return;
   if (e && (e.type === "flyer" || e.type === "boss" || e.fly)) return;
   const took = e ? Math.min(eff, Math.max(0, e.hp)) : eff;
   const k = own ? slot : "other";
@@ -12976,7 +13026,8 @@ function updateHero(dt) {
       hero.cd = 0.7;
       hero.swing = 0.25;
       const foe = hero.engaged[0];
-      const eff = armorCut(HL.blow, foe.armor);
+      // (a marked foe takes the Observation Post's share more, 3.6)
+      const eff = armorCut(HL.blow, foe.armor) * markMult(foe);
       foe.hp -= eff;
       foe.flash = 0.1;
       foe.lastHit = null;
@@ -13328,6 +13379,83 @@ function aidTick(dt) {
     if (Math.abs(dx) > 1) w.face = dx > 0 ? 1 : -1;
   }
   aidWalkers = aidWalkers.filter(w => !w.done);
+}
+
+// ---------- the Observation Post's marks (gameplay 3.6) ----------
+// t.marks holds the foes it marks (at most getStats(t).marks), kept until a foe falls, leaves its reach or the Target
+// button is pressed; a free mark goes to the foe its Target order puts first among those in reach and not yet marked,
+// hidden and in the air included. Each tick sets e.spotAmp on every marked foe (0 on the rest), which markMult reads
+// wherever a blow or a burn lands. Game time only, and no random number but the shells' dust, so the balance bot and a
+// resumed run see the same battle
+let spotOn = false;   // a mark was set last tick (so a field with no post clears nothing each tick)
+function spotReach(t, e, range) {
+  if (e.dead || !(e.hp > 0)) return false;
+  const p = enemyPos(e);
+  return inGroundRange(t.x, t.y, p.x, p.y, range + e.r);
+}
+// the share more a blow or a burn takes off foe e: its mark's amp, half on a commander (SPOT_RULES.boss); 1 unmarked
+function markMult(e) {
+  const a = e && e.spotAmp;
+  return a > 0 ? 1 + a * (e.type === "boss" ? SPOT_RULES.boss : 1) : 1;
+}
+// a post just built marks the strongest (3.6); a resumed one keeps the order its run saved
+function spotInit(t) {
+  if (!TOWER_DEFS[t.type].mark) return;
+  t.marks = [];
+  t.prio = "strong";
+}
+function spotTick(dt) {
+  if (spotOn) for (const e of enemies) e.spotAmp = 0;
+  spotOn = false;
+  for (const t of towers) {
+    if (t.type !== "spotter") continue;
+    if (!t.marks) t.marks = [];
+    // a wrecked post sees nothing; a stunned one loses its marks until it recovers, as a stunned tower holds its fire
+    if (t.wreck || t.stunnedT > 0) { t.marks.length = 0; continue; }
+    const st = getStats(t);
+    t.marks = t.marks.filter(e => spotReach(t, e, st.range));
+    if (t.marks.length > st.marks) t.marks.length = st.marks;
+    let fresh = false;
+    if (t.marks.length < st.marks) {
+      const cand = enemies.filter(e => !t.marks.includes(e) && spotReach(t, e, st.range));
+      if (cand.length) {
+        sortByPrio(cand, t.prio);
+        while (t.marks.length < st.marks && cand.length) { t.marks.push(cand.shift()); fresh = true; t.markN = (t.markN || 0) + 1; }
+      }
+    }
+    if (fresh) {
+      const now = performance.now();
+      if (!(now - (t.tickAt || 0) < SPOT_RULES.tick)) { t.tickAt = now; Snd.play("uiTick", { x: t.x, vol: 0.5 }); }
+    }
+    for (const e of t.marks) {
+      e.spotAmp = Math.max(e.spotAmp || 0, st.amp);
+      spotOn = true;
+      // a marked hidden foe is seen while marked (the post is a watch here)
+      if (e.hid) revealFoe(e);
+    }
+    // Night Sights: nothing in its reach stays hidden
+    if (st.revealAll) for (const e of enemies) if (e.hid && spotReach(t, e, st.range)) revealFoe(e);
+    // Fire Direction: the first marked foe is shelled every `every` s (quickened by the drums, slowed on a damaged or
+    // failing post, like any reload); a shell ready with no foe marked waits for one
+    if (st.shell) {
+      t.cd = (t.cd || 0) - dt * (1 + (t.buffHaste || 0)) * towerPace(t);
+      if (t.cd <= 0) {
+        if (t.marks.length) { t.cd = st.every; spotShell(t, t.marks[0], st); }
+        else t.cd = 0;
+      }
+    }
+  }
+}
+// a shell called down on the marked foe: a blow of `shell` (the drums' might over it) that pierces armor, the mortar's
+// landing heard and its dust thrown (here in the tick, not in a draw)
+function spotShell(t, e, st) {
+  const p = enemyPos(e);
+  damageEnemy(e, st.shell * (1 + (t.buffMight || 0)), !!st.pierce, t);
+  Snd.play("shell", { x: p.x });
+  for (let i = 0; i < 12; i++) {
+    const a = fxRnd() * Math.PI * 2, s = 30 + fxRnd() * 60;
+    particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.5 - 25, life: 0.45, color: i < 3 ? "#ffd27a" : "#9c8f7a", size: 3 });
+  }
 }
 
 // ---------- the Horse Lines' charge (gameplay 3.2) ----------
@@ -15583,7 +15711,10 @@ function showUnlockCard(what) {
         "Each blast must arm again before the next. Outflankers are untouched."].concat(mineHistory()) },
     aid: { title: "A new tower: the Aid Post", icon: "aid", btn: "Got it",
       lines: ["It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the hero come back sooner.",
-        "After a wave with no defender lost, a lost one returns to the walls, a few in a battle at most. Stars count the defenders you never lost."].concat(aidHistory()) } }[what];
+        "After a wave with no defender lost, a lost one returns to the walls, a few in a battle at most. Stars count the defenders you never lost."].concat(aidHistory()) },
+    spotter: { title: "A new tower: the " + towerName("spotter").toLowerCase(), icon: "spot", btn: "Got it",
+      lines: ["It never fires. It marks the strongest foe in its reach, and every blow on that foe lands harder, from towers, men, hero, spells and fire. A mark on a commander counts half.",
+        "It sees a marked scout, and it can mark outflankers too. Its Target button chooses whom it marks. One on a field."] } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15974,6 +16105,7 @@ function placeTower(type, padIdx) {
   towerInitHp(towers[towers.length - 1]);
   postInit(towers[towers.length - 1]);
   mineInit(towers[towers.length - 1]);
+  spotInit(towers[towers.length - 1]);
   Snd.play("build", { x, type, skin: skinDrawn(towerSkin(type)) });
   saveRun();
   syncHud();
@@ -16086,7 +16218,8 @@ function armorHit(dmg, armor, pierce) { return pierce ? dmg : armorCut(dmg, armo
 function damageEnemy(e, dmg, pierce, src) {
   // a guard against the striking tower's slot cuts the blow after armor (slotMult); hero and spells have no slot
   const slot = src && TOWER_DEFS[src.type] ? src.type : null;
-  const eff = armorHit(dmg, e.armor, pierce) * slotMult(e, slot);
+  // a foe the Observation Post marks takes its share more from every source (markMult, 3.6), after the guard
+  const eff = armorHit(dmg, e.armor, pierce) * slotMult(e, slot) * markMult(e);
   // the adaptive enemy studies the strength a slot took off its foes, not a blow's overkill on one nearly felled
   if (src) bookAdapt(slot, eff, e);
   e.hp -= eff;
@@ -16129,6 +16262,7 @@ function update(dt) {
   horseTick(dt);
   mineTick(dt);
   aidTick(dt);
+  spotTick(dt);
 
   // war drums auras
   for (const t of towers) {
@@ -16188,7 +16322,8 @@ function update(dt) {
         e.slowTimer = 0.35;
         e.slowFactor = Math.min(e.slowFactor, 1 - st.slow);
         // its burn ignores armor; a guard against the fire slot cuts it, and it burns a tower hunter pitch times as hard
-        const burn = st.burn * (1 + t.buffMight) * dt * slotMult(e, t.type) * (e.hunt ? TRICK_RULES.hunters.pitch : 1);
+        // (and a mark makes it burn harder, 3.6)
+        const burn = st.burn * (1 + t.buffMight) * dt * slotMult(e, t.type) * (e.hunt ? TRICK_RULES.hunters.pitch : 1) * markMult(e);
         bookAdapt(t.type, burn, e);
         e.hp -= burn;
         t.dmgDone = (t.dmgDone || 0) + burn;
@@ -16220,13 +16355,13 @@ function update(dt) {
     let alight = false;
     if (e.burnT > 0) {
       e.burnT -= dt;
-      e.hp -= e.burnDps * dt;
+      e.hp -= e.burnDps * dt * markMult(e);   // (a mark makes every burn bite harder, 3.6)
       alight = true;
     }
     if (e.pots && e.pots.length) {
       for (let i = e.pots.length - 1; i >= 0; i--) {
         // a pot's burn is its catapult's, for a guard and for the adaptive enemy
-        const q = e.pots[i], d = q.dps * Math.min(dt, q.t) * slotMult(e, q.src && q.src.type);
+        const q = e.pots[i], d = q.dps * Math.min(dt, q.t) * slotMult(e, q.src && q.src.type) * markMult(e);
         if (q.src) bookAdapt(q.src.type, d, e);
         e.hp -= d;
         if (q.src) { q.src.dmgDone = (q.src.dmgDone || 0) + d; e.lastHit = q.src; }
@@ -46445,6 +46580,96 @@ function queueAidWalkers(objs, time) {
 }
 // ====================================== END SKIN SECTION: aid post ======================================
 
+// ======================================================================================
+// SKIN SECTION: the Observation Post (gameplay 3.6). Put together from the Artsakh kit (art6kit): a low mound of the
+// site's earth with a pit ringed by sandbags (two courses, three from rank 3), a lookout in it with his field glasses up
+// (a6Man's "binoc" pose, as the rifle squad's section leader), a field radio with its whip aerial from rank 2, and a
+// guyed mast with its warning light from rank 3 (the command post's). Fire Direction adds a second man at a field
+// telephone and a map board on a crate; Night Sights a sight on a tripod under a camouflage net. Each battlefield dresses
+// it as its kit does (a6Site). The mark on a foe is drawn by drawSpotMark
+// ======================================================================================
+TOWER_BOX.spotter = [-50, -86, 56, 24];
+TOWER_SCALE.spotter = 1.1;
+TOWER_ACCENT.spotter = "#78d6ff";
+function spotBase(lvl, spec) { const rx = spec ? 26 : [22, 23.5, 25][lvl]; return { rx, ry: rx * 0.38, h: lvl || spec ? 4.4 : 3.6 }; }
+function spotFooting(lvl, spec) {
+  const b = spotBase(lvl, spec), k = STRUCT_K * TOWER_SCALE.spotter;
+  return { round: true, rx: (b.rx + 1.4) * k, ry: (b.ry + 0.6) * k, cy: 0 };
+}
+function paintLookout(lvl, spec) {
+  const c = sctx, site = a6Site(), b = spotBase(lvl, spec), A = spec === "a", B = spec === "b";
+  a6Mound(b.rx, b.ry, b.h, 211 + lvl + (spec ? 5 : 0));
+  rankMarks(0, b.ry - 0.6, lvl, spec, false);
+  c.save();
+  c.translate(0, -b.h);
+  // the post is drawn at the scale of the men on the road, as the era's other posts
+  const Z = A6_Z;
+  c.scale(Z, Z);
+  const tx = b.rx / Z * 0.62, ty = b.ry / Z * 0.62, rows = lvl >= 2 || spec ? 3 : 2, seed = 221 + lvl + (spec ? 7 : 0);
+  // the pit, then the back half of its bags
+  inkDisc(0, 0, tx + 1.4, ty + 0.8, toneHex(a6Earth(), -48), 0.8);
+  inkDisc(0, 0.6, tx, ty, "#3b3026", 0);
+  a6BagRing(0, 0, tx + 1.6, ty + 1, rows, 0, seed);
+  // the mast at the back (rank 3 and the masteries): the command post's, with its light
+  if (lvl >= 2 || spec) a6Mast(-tx + 1.5, -ty * 0.6, 30, true);
+  if (B) {
+    // Night Sights: a camouflage net slung on two poles over the back of the nest
+    a6Pole(-tx - 1, 0.5, 18); a6Pole(tx + 1, -1, 19);
+    a6Net([-tx - 4, -17, -tx + 3, -20, tx - 3, -20.5, tx + 4, -18, tx + 5, -11, tx - 2, -13, -tx + 3, -12, -tx - 5, -10],
+      site === 0 ? "#767a6a" : site === 2 ? A6.netDry : A6.net, seed + 3);
+    structCrown(-21);
+  }
+  // the radio and its aerial (rank 2 on), on the bags' near right
+  if (lvl >= 1 || spec) a6Radio(tx - 2.6, -1.4);
+  // the lookout with his field glasses up, facing the road side
+  a6Man(-2, -0.6, 0.95, a6Dress(3), "binoc", 1);
+  if (A) {
+    // Fire Direction: a second man kneeling at a field telephone, a map board on a crate beside him
+    a6Man(4.6, 0.2, 0.9, a6Dress(1), "kneelphone", -1);
+    a6Crate(-tx + 2.4, ty * 0.3, 5, 2.6, 3);
+    inkRect(-tx + 0.4, ty * 0.3 - 5.6, 4.6, 3.2, "#d8cfb4", 0.4);
+    c.strokeStyle = "rgba(60, 50, 40, .7)"; c.lineWidth = 0.3;
+    c.beginPath(); c.moveTo(-tx + 0.8, ty * 0.3 - 4.4); c.lineTo(-tx + 4.6, ty * 0.3 - 4.8); c.moveTo(-tx + 2, ty * 0.3 - 5.4); c.lineTo(-tx + 3.2, ty * 0.3 - 2.8); c.stroke();
+  }
+  if (B) {
+    // Night Sights: a sight on its tripod beside the lookout
+    const sx = 5.2, sy = -0.2;
+    beam(sx, sy, sx - 1.6, sy - 7, 0.5, A6.steel); beam(sx, sy, sx + 1.6, sy - 7, 0.5, A6.steel); beam(sx + 0.4, sy + 0.6, sx, sy - 7, 0.5, A6.steel);
+    inkRect(sx - 2.2, sy - 9.6, 4.6, 2.8, "#2e3230", 0.4);
+    inkDisc(sx + 2.6, sy - 8.2, 0.9, 0.9, "#3c6e7a", 0.3);
+  }
+  a6BagRing(0, 0, tx + 1.6, ty + 1, rows, 1, seed);
+  c.restore();
+}
+// the mast's warning light blinks (as the command post's); nothing else moves: the lookout keeps his glasses up
+function lookoutLive(t, cx) {
+  const fit = cx.fit, c = ctx, k = cx.k, fade = cx.fade;
+  if (!fit || !fit.blinks || (t.pad >= 0 && t.wreck)) return;
+  const on = ((cx.time * 0.001 + t.x * 0.013) % 1.5) < 0.35;
+  for (const b of fit.blinks) {
+    const x = cx.x + b[0] * k, y = cx.y + b[1] * k;
+    c.globalAlpha = fade;
+    c.beginPath(); c.arc(x, y, 0.9 * k, 0, Math.PI * 2);
+    c.fillStyle = on ? "#ff4a3a" : "#7a2a22"; c.fill();
+    if (on) {
+      c.globalCompositeOperation = "lighter";
+      drawGlow(c, glowSprite("255, 80, 60"), x, y, 5 * k, 5 * k, 0.6 * fade);
+      c.globalCompositeOperation = "source-over";
+    }
+  }
+  c.globalAlpha = fade;
+}
+SKIN_ART.lookout = {
+  box: TOWER_BOX.spotter,
+  scale: TOWER_SCALE.spotter,
+  paint(lvl, spec) { paintLookout(lvl, spec); },
+  // the battlefield dresses it (the city's snow, the plateau's nets, the blockade's dust)
+  variant() { return a6Site(); },
+  live: lookoutLive,
+  footing: spotFooting,
+};
+// ====================================== END SKIN SECTION: observation post ======================================
+
 
 
 // ---- the fortress: its architecture follows the map's site and era ----
@@ -49984,6 +50209,28 @@ function drawTrickMarks(e, bx, by, bw) {
   }
   if (e.guard) drawGuardMark(e, bx + bw + r + 2, by + 1, r);
 }
+// the Observation Post's mark on a foe (3.6): the hunters' ring painter in the defenders' color, a thin ring that
+// breathes under the foe, and a tick over its head above the strength bar
+const SPOT_INK = "120, 214, 255";
+function drawSpotMark(e, by) {
+  // (at its feet, as wide as its shadow: drawn where the figure stood this frame)
+  const k = e.markK || 1, x = e.markX, y = e.seenY != null ? e.seenY + 1 : e.markY + 18 * k, now = performance.now();
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.008 + x * 0.05), rr = Math.max(9, (e.seenHalf || 12) * 1.3) + pulse * 3 * k;
+  ctx.save();
+  ctx.strokeStyle = "rgba(10, 24, 34, .5)";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(x, y, rr, rr * ELLIPSE, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "rgba(" + SPOT_INK + ", " + (0.55 + 0.4 * pulse).toFixed(3) + ")";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // the tick: a small chevron pointing down at the head
+  const ty = by - 4, w = Math.max(3.4, 4 * k);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(x - w, ty - w * 1.1); ctx.lineTo(x, ty); ctx.lineTo(x + w, ty - w * 1.1);
+  ctx.strokeStyle = "rgba(10, 24, 34, .75)"; ctx.lineWidth = 3.2; ctx.stroke();
+  ctx.strokeStyle = "rgb(" + SPOT_INK + ")"; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.restore();
+}
 // the reach within which a watch-slot tower reveals hidden foes: a dotted ring, wherever its range is drawn, on a
 // battlefield with hidden scouts
 function drawWatchReach(t, x, y, s) {
@@ -50233,6 +50480,7 @@ function drawEnemyMarks(e) {
     ctx.fillRect(ix, iy + 4.2, 5, 0.8);
   }
   if (e.hid || e.guard) drawTrickMarks(e, bx, by, bw);
+  if (e.spotAmp > 0) drawSpotMark(e, by);
   if (e.stunT > 0 && !e.iceVis && e.hold !== "barricade" && e.hold !== "smoke") {
     // dazed: three small stars circle the head
     const sr = Math.max(1.4, 1.9 * k);
@@ -58355,6 +58603,16 @@ function statText(t) {
     s += statRow("wing", "", (matchMedia("(pointer: coarse)").matches ? "Tap" : "Click") + " its match to fire. Skips outflankers.", "wide");
     return s;
   }
+  if (def.mark) {
+    // the Observation Post (3.6): its reach, its marks, how much more a marked foe takes (half on a commander), and the
+    // foes it marks now; Fire Direction's shell, Night Sights' sight
+    let s = statRow("range", st.range, "reach") + statRow("spot", st.marks, st.marks === 1 ? "mark" : "marks") +
+      statRow("dmg", "+" + Math.round(st.amp * 100) + "%", "on a marked foe", "wide");
+    s += statRow("crown", "+" + Math.round(st.amp * SPOT_RULES.boss * 100) + "%", "on a commander", "wide");
+    if (st.shell) s += statRow("blast", st.shell, "shell every " + st.every + "s", "wide");
+    s += statRow("wing", "", st.revealAll ? "Nothing hidden in reach. Marks the sky too." : "Sees what it marks, the sky too.", "wide");
+    return s;
+  }
   if (def.aid) {
     // the Aid Post (3.5): its reach, how much sooner the men and the hero come back, the defenders it has returned of
     // its cap in this battle (one post on a field: the battle's count is its own)
@@ -59174,6 +59432,13 @@ function foeCounters(role, u) {
     // the drums strike nothing; the post's men hold and are named by the tile; the Stores never fight (G7b), nor the
     // Aid Post (G7d)
     if (def.aura || def.post || def.income || def.aid) continue;
+    // the Observation Post (G7e), only where the tray holds it: it strikes nothing itself, but marks any foe it sees,
+    // in the air too, so that every blow lands harder; half on a commander
+    if (def.mark) {
+      if (trayTypes().includes(type) && (armor >= FOE_ARMORED || fly || role === "boss" || role === "ram"))
+        good.push({ type, why: role === "boss" ? "its mark makes every blow on it land harder, by half as much on a commander" : "its mark makes every blow on it land harder" + (fly ? ", in the air too" : "") });
+      continue;
+    }
     // the Horse Lines (G7a), only where the tray holds them: they throw back what walks the road, an engine or a
     // commander barely, and an outflanker never
     if (def.charge) {
@@ -60001,6 +60266,7 @@ function drawRibbonBanner(cx, cy, main, sub, o) {
 function statDps(type, st) {
   const def = TOWER_DEFS[type];
   if (def.aura || def.income || def.aid) return 0;
+  if (def.mark) return st.shell ? st.shell / st.every : 0;   // the Observation Post deals only Fire Direction's shells
   if (def.post) return st.dmg / st.rate * st.men;
   if (def.charge) return st.dmg / st.cd;   // on one foe in its reach: one charge's blow each cd
   if (def.blast) return st.dmg * (st.charges || 1) / st.arm;   // on one foe: each charge's blast as it arms
@@ -60041,6 +60307,11 @@ function statDeltaHtml(type, a, b) {
     cell("rate", a.arm + "s", b.arm + "s", b.arm <= a.arm);
     cell("range", a.range, b.range, b.range >= a.range);
     if ((b.charges || 1) > (a.charges || 1)) add("blast", "<b>" + b.charges + "</b>&nbsp;charges");
+  } else if (def.mark) {
+    cell("range", a.range, b.range, b.range >= a.range);
+    cell("spot", a.marks, b.marks, b.marks >= a.marks);
+    cell("dmg", "+" + pc(a.amp), "+" + pc(b.amp), b.amp >= a.amp);
+    if (b.shell && !a.shell) add("blast", "<b>" + b.shell + "</b>&nbsp;every&nbsp;" + b.every + "s");
   } else if (def.aid) {
     cell("range", a.range, b.range, b.range >= a.range);
     cell("post", "-" + pc(a.haste), "-" + pc(b.haste), b.haste >= a.haste);
@@ -60152,11 +60423,15 @@ function showPanel(t) {
     tb.id = "pTrigger";
     acts.appendChild(tb);
   }
-  if (TOWER_DEFS[t.type].proj) {
-    acts.appendChild(mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
+  if (TOWER_DEFS[t.type].proj || def.mark) {
+    const tb = mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
       t.prio = PRIOS[(PRIOS.indexOf(t.prio || "first") + 1) % PRIOS.length];
+      // the Observation Post moves its marks to the new order at once (3.6: the player retargets it)
+      if (def.mark) t.marks = [];
       showPanel(t);
-    }));
+    });
+    if (def.mark) tb.id = "pTarget";
+    acts.appendChild(tb);
   }
   // each step names what it buys in numbers (statDeltaHtml), and the field shows its reach (rangeGhosts)
   rangePreview = null;
@@ -84631,6 +84906,9 @@ function photoStageBattle(lv, wave, o) {
   // &aid=1: the Aid Post (&al=0|1|2|a|b its rank or mastery) on the free pad nearest the walls; &walker a returned
   // defender on his way to the walls; &aidpanel its panel
   if (o.aid) photoAidStage(o.al, o.walker);
+  // &spot=1: the Observation Post (&sl=0|1|2|a|b its rank or mastery) on the free pad that sees the most foes, its marks
+  // set on the foes in reach; &spotpanel its panel
+  if (o.spot) photoSpotStage(o.sl);
   syncHud();
   if (o.trick) photoTrickStage(o.trick, o);
   if (o.panel) showPanel(towers[Math.min(towers.length - 1, o.panel - 1)]);
@@ -84644,6 +84922,8 @@ function photoStageBattle(lv, wave, o) {
   if (o.minePanel && firstMine) showPanel(firstMine);
   const firstAid = towers.find(t => t.type === "aid");
   if (o.aidPanel && firstAid) showPanel(firstAid);
+  const firstSpot = towers.find(t => t.type === "spotter");
+  if (o.spotPanel && firstSpot) showPanel(firstSpot);
   if (o.lay && firstMine) armRally(firstMine, matchMedia("(pointer: coarse)").matches);
   if (o.rally && firstPost) armRally(firstPost, matchMedia("(pointer: coarse)").matches);
 }
@@ -84774,6 +85054,27 @@ function photoAidStage(al, walker) {
         const w = aidWalkers[aidWalkers.length - 1];
         if (w) for (let i = 0; i < 40; i++) aidTick(1 / 30);
       }
+    }
+  }
+  gold = 640;
+}
+
+// the Observation Post for a photo: on the free pad whose reach holds the most foes on the field (else the first free
+// pad), its marks set at once
+function photoSpotStage(sl) {
+  gold = 99999;
+  const free = PADS.map((_, i) => i).filter(i => !towerAt(i));
+  if (!free.length && towers.length) free.push(towers.pop().pad);
+  const seen = i => enemies.filter(e => { const p = enemyPos(e); return inGroundRange(PADS[i][0], PADS[i][1], p.x, p.y, 270); }).length;
+  free.sort((a, b) => seen(b) - seen(a));
+  if (free.length) {
+    placeTower("spotter", free[0]);
+    const t = towers[towers.length - 1];
+    if (t && t.type === "spotter") {
+      if (sl === "a" || sl === "b") { t.level = 2; t.spec = sl; } else t.level = Math.max(0, Math.min(2, Number(sl) | 0));
+      t.placedAt = -1e9;
+      towerSyncHp(t);
+      spotTick(0);
     }
   }
   gold = 640;
@@ -85074,6 +85375,8 @@ function runPhoto() {
         mine: num("mine", 0), ml: HARNESS.get("ml") || "0", blast: HARNESS.has("blast"), minePanel: HARNESS.has("minepanel"), lay: HARNESS.has("lay"),
         // &aid=1 the Aid Post (&al rank or mastery, &walker a returned defender walking to the walls), &aidpanel its panel
         aid: num("aid", 0), al: HARNESS.get("al") || "0", walker: HARNESS.has("walker"), aidPanel: HARNESS.has("aidpanel"),
+        // &spot=1 the Observation Post (&sl rank or mastery), its marks set; &spotpanel its panel
+        spot: num("spot", 0), sl: HARNESS.get("sl") || "0", spotPanel: HARNESS.has("spotpanel"),
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
@@ -89975,6 +90278,186 @@ function runSelftestPlay() {
       if (/Ussher|hospital/i.test($("tcBody").textContent) || !/game's invention/.test($("tcBody").textContent)) fail(id + "'s card: " + $("tcBody").textContent);
       closeUnlockCard();
     }
+  }));
+  // ---- G7e, the Observation Post (gameplay 3.6, 8.1) ----
+  const SPOT_AT = ["stepanakert92", "shushi", "stepanakert23"];
+  check("spotter: offered on Stepanakert 1992, Shushi and Stepanakert 2023 from Stepanakert 1992 on, nowhere else; key 7; any pad; one on a field; a run keeps it and its order", guarded(() => {
+    const has = () => trayTypes().includes("spotter");
+    wonTo(levelIndexOf("sardarapat"), 2);
+    if (towerUnlocked("spotter")) fail("the Observation Post is unlocked before Stepanakert 1992 is open");
+    wonTo(levelIndexOf("stepanakert92"), 2);
+    stage("stepanakert92", 1);
+    if (trayTypes().join() !== TRAY_CLASSIC + ",post,spotter" || $("shop").dataset.n !== "7" || ageTower(curEra) !== "spotter") fail("Stepanakert 1992's tray: " + trayTypes());
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "spotter") fail("key 7 did not choose the Observation Post: " + placing);
+    setPlacing(null);
+    const nm = document.querySelector('#shop .card[data-type="spotter"] .nm');
+    if (!nm || nm.textContent !== "Lookout post") fail("the tile: " + (nm && nm.textContent));
+    wonTo(17, 2);
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const want = SPOT_AT.includes(L.id);
+      if (has() !== want || trayStandard(L.era).includes("spotter") !== want) fail(L.id + (want ? " lacks" : " offers") + " the Observation Post");
+      if (want && towerName("spotter") !== (L.id === "stepanakert92" ? "Lookout post" : "Observation post")) fail(L.id + "'s post is named " + towerName("spotter"));
+    });
+    // any pad takes it (a pad with no road in reach too); it marks the strongest when built; a second is refused with its
+    // sentence, and the tile dims
+    stage("shushi", 1); gold = 1e5;
+    const dry = PADS.findIndex((p, k) => !padTakesRoad(k, 150)), free = PADS.map((p, k) => k).filter(k => k !== dry);
+    placeTower("spotter", dry >= 0 ? dry : free[0]);
+    placeTower("spotter", free[1]);
+    if (towers.filter(x => x.type === "spotter").length !== 1 || !/One observation post serves this field/.test($("toast").textContent)) fail("one on a field: " + towers.length + " " + $("toast").textContent);
+    syncHud();
+    if (!document.querySelector('#shop .card[data-type="spotter"]').classList.contains("poor")) fail("the tile is not dimmed at the limit");
+    const S = towers[0];
+    if (S.prio !== "strong") fail("a new post marks " + S.prio + ", not the strongest");
+    [220, 280, 360].forEach((hp, r) => { S.level = r; if (towerMaxHp(S) !== Math.round(hp * byDiff(TRICK_RULES.tower.hpMult) * kitNow().towerHp)) fail("its strength at rank " + (r + 1) + ": " + towerMaxHp(S)); });
+    S.level = 0;
+    // a run keeps it and the order it marks by; a run whose tray lacks it refuses it, one saved before still resumes,
+    // and one with two is refused
+    S.prio = "weak";
+    waveIdx = lastCleared = 2; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    gameOver = true; resumeRun();
+    const S2 = towers.find(x => x.type === "spotter");
+    if (!S2 || S2.prio !== "weak" || !trayTypes().includes("spotter")) fail("the resumed run: " + (S2 && S2.prio));
+    const old = Object.assign({}, r, { tray: TRAY_BASE.concat("post") });
+    if (validRun(old)) fail("a run whose tray has no Observation Post took one");
+    if (!validRun(Object.assign({}, old, { towers: r.towers.filter(x => x.type !== "spotter") }))) fail("a run saved before the Observation Post no longer resumes");
+    const two = Object.assign({}, r, { towers: r.towers.concat([Object.assign({}, r.towers.find(x => x.type === "spotter"), { pad: free.find(k => !r.towers.some(x => x.pad === k)) })]) });
+    if (validRun(two)) fail("a run with two Observation Posts resumed");
+  }));
+  check("spotter: a mark multiplies a blow once, by half on a commander, from towers, hero, spells and burns; it keeps its foe; it sees a marked scout and marks an outflanker; stunned or wrecked it marks none; its masteries", guarded(() => {
+    wonTo(17, 2);
+    stage("stepanakert92", 1); quiet();
+    gold = 1e5;
+    const k = PADS.map((p, j) => j).filter(j => !towerAt(j)).sort((a, b) => postRoadIn(PADS[b][0], PADS[b][1], 150).length - postRoadIn(PADS[a][0], PADS[a][1], 150).length)[0];
+    placeTower("spotter", k);
+    const S = towers.find(x => x.type === "spotter"), st = getStats(S);
+    const road = postRoadIn(S.x, S.y, st.range * 0.6);
+    if (road.length < 3) fail("no road in the post's reach on pad " + k);
+    const foe = (role, hp, i) => {
+      spawnEnemy(role, { type: role });
+      const e = enemies[enemies.length - 1], q = road[Math.min(road.length - 1, i || 0)];
+      e.route = q.route; e.dist = q.dist; e.hp = e.maxHp = hp; e.armor = 0; e.speed = 0;
+      return e;
+    };
+    const took = (e, fn) => { const h = e.hp; fn(); return h - e.hp; };
+    const near = (a, b) => Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b));
+    const big = foe("spearman", 1e6, 0), small = foe("spearman", 5e5, 1);
+    spotTick(0);
+    if (S.marks.length !== 1 || S.marks[0] !== big || !(big.spotAmp > 0) || small.spotAmp) fail("it did not mark the strongest: " + S.marks.map(e => e.hp));
+    // a blow on the marked foe lands amp harder, once (a tower's, a spell's); the unmarked foe takes it plain
+    const arch = { type: "archer" };
+    if (!near(took(big, () => damageEnemy(big, 100, true, arch)), 100 * (1 + st.amp))) fail("a tower's blow on a marked foe: " + took(big, () => damageEnemy(big, 100, true, arch)));
+    if (!near(took(big, () => damageEnemy(big, 100, true)), 100 * (1 + st.amp))) fail("a spell's blow on a marked foe");
+    if (!near(took(small, () => damageEnemy(small, 100, true, arch)), 100)) fail("an unmarked foe took more than the blow");
+    // a burn on it (a lightning's, the hero's under the Call), in the battle's own tick
+    big.burnT = 1; big.burnDps = 100;
+    const b0 = took(big, () => update(0.05));
+    big.burnT = 0;
+    if (!near(b0, 100 * 0.05 * (1 + st.amp))) fail("a burn on a marked foe: " + b0);
+    // the hero's blow
+    if (!hero) heroSpawn();
+    const hp0 = enemyPos(big);
+    hero.alive = true; hero.x = hp0.x; hero.y = hp0.y; hero.rally = null; hero.cd = 0; hero.engaged = [];
+    const hb = took(big, () => updateHero(0.01));
+    if (!near(hb, armorCut(heroLv().blow, 0) * (1 + st.amp))) fail("the hero's blow on a marked foe: " + hb);
+    hero.x = FORT.x; hero.y = FORT.y + 60; hero.engaged = [];
+    // it keeps its foe while it stands in reach, though another is now stronger; it moves when the foe falls
+    big.hp = 10; spotTick(0.05);
+    if (S.marks[0] !== big) fail("the mark moved off a foe still in reach");
+    big.hp = 0; spotTick(0.05);
+    if (S.marks[0] !== small || big.spotAmp) fail("the mark did not move when its foe fell");
+    big.dead = true; enemies = enemies.filter(e => !e.dead);
+    // and when its foe leaves the reach
+    const third = foe("spearman", 2e5, 2);
+    const out = postRoadSamples().find(q => groundGap(S.x, S.y, q.x, q.y) > st.range + 80);
+    if (!out) fail("no road out of the post's reach");
+    small.route = out.route; small.dist = out.dist;
+    spotTick(0.05);
+    if (S.marks[0] !== third || small.spotAmp) fail("the mark did not move when its foe left the reach");
+    enemies = []; S.marks = [];
+    // the Target button cycles its order and moves the mark at once (the weakest after the strongest)
+    const strong = foe("spearman", 9e5, 0), weak = foe("spearman", 3e5, 1);
+    spotTick(0);
+    if (S.marks[0] !== strong) fail("Strongest marked " + S.marks[0].hp);
+    showPanel(S);
+    const tb = $("pTarget");
+    if (!tb || !/Strongest/.test(tb.textContent)) fail("the panel's Target button: " + (tb && tb.textContent));
+    tb.click();
+    if (S.prio !== "weak" || !/Weakest/.test(($("pTarget") || {}).textContent || "")) fail("the Target button did not cycle to Weakest: " + S.prio);
+    spotTick(0);
+    if (S.marks[0] !== weak) fail("Weakest marked " + (S.marks[0] && S.marks[0].hp));
+    hidePanel(); S.prio = "strong"; S.marks = [];
+    enemies = []; S.marks = [];
+    // a commander: the mark counts half
+    const cmd = foe("boss", 1e7, 0);
+    spotTick(0);
+    if (S.marks[0] !== cmd || !near(took(cmd, () => damageEnemy(cmd, 100, true, arch)), 100 * (1 + st.amp * SPOT_RULES.boss))) fail("a marked commander took " + took(cmd, () => damageEnemy(cmd, 100, true, arch)));
+    enemies = []; S.marks = [];
+    // a hidden scout: marked, it is seen, and stays seen while marked (the hero is away, so only the post sees it)
+    hero.alive = false;
+    const sc = foe("spearman", 8e5, 0);
+    sc.hid = true; sc.seenT = 0;
+    if (!foeUnseen(sc)) fail("the staged scout is seen before the post marks it");
+    for (let i = 0; i < 60; i++) { trickRevealTick(0.1); spotTick(0.1); if (foeUnseen(sc)) fail("a marked scout was unseen after " + (i / 10) + " s"); }
+    // an unmarked scout weaker than the marked foe stays hidden at rank 1; Night Sights sees it
+    const sc2 = foe("spearman", 1e4, 1);
+    sc2.hid = true; sc2.seenT = 0;
+    trickRevealTick(0.1); spotTick(0.1);
+    if (!foeUnseen(sc2)) fail("an unmarked scout was seen at rank 1");
+    S.level = 2; S.spec = "b";
+    spotTick(0.1);
+    if (foeUnseen(sc2) || S.marks.length !== 2 || getStats(S).marks !== 3) fail("Night Sights: " + [foeUnseen(sc2), S.marks.length]);
+    S.level = 0; S.spec = null; S.marks = [];
+    enemies = []; S.marks = [];
+    // an outflanker in its reach can be marked (the post reaches the sky)
+    spawnEnemy("flyer", { type: "flyer" });
+    const fl = enemies[enemies.length - 1];
+    // (the post stands for this beside the flyer's line, half way along it: a pad's reach need not cross that line)
+    fl.dist = fl.fly.len / 2; fl.speed = 0; fl.hp = fl.maxHp = 1e6;
+    const fp = enemyPos(fl), home = [S.x, S.y];
+    S.x = fp.x; S.y = fp.y + 40;
+    if (!spotReach(S, fl, st.range)) fail("the outflanker 40 px off is out of the post's reach");
+    spotTick(0);
+    if (S.marks[0] !== fl || !near(took(fl, () => damageEnemy(fl, 100, true, arch)), 100 * (1 + st.amp))) fail("the outflanker was not marked");
+    // stunned, it marks none until it recovers; wrecked, none
+    S.stunnedT = 1; spotTick(0.05);
+    if (S.marks.length || fl.spotAmp || markMult(fl) !== 1) fail("a stunned post still marks");
+    S.stunnedT = 0; spotTick(0.05);
+    if (S.marks[0] !== fl) fail("a recovered post marks none");
+    wreckTower(S); spotTick(0.05);
+    if (S.marks.length || markMult(fl) !== 1) fail("a wrecked post still marks");
+    S.wreck = false; towerInitHp(S);
+    S.x = home[0]; S.y = home[1];
+    enemies = []; S.marks = [];
+    // Fire Direction: the marked foe is shelled every 4 s, the shell piercing and marked; the enemy books it apart
+    S.level = 2; S.spec = "a"; S.cd = 0; S.marks = [];
+    const fdst = getStats(S), tgt = foe("spearman", 1e6, 0);
+    const other0 = adapt.acc.other || 0;
+    const sh = took(tgt, () => spotTick(0.01));
+    if (!near(sh, fdst.shell * (1 + fdst.amp))) fail("Fire Direction's shell: " + sh);
+    if (!((adapt.acc.other || 0) > other0)) fail("the shell was not booked apart for the adaptive enemy");
+    let n = 0;
+    for (let i = 0; i < 85; i++) if (took(tgt, () => spotTick(0.1)) > 0) n++;
+    if (n !== 2) fail("Fire Direction shelled " + n + " times in 8.5 s");
+  }));
+  check("spotter: the one-time card on the chronicle; no claim of a named unit", guarded(() => {
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    wonTo(levelIndexOf("stepanakert92"), 2);
+    curLevel = levelIndexOf("stepanakert92"); curEra = LEVELS[curLevel].era; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (newTowerCardDue(true) !== "spotter") fail("Stepanakert 1992's card is not due: " + newTowerCardDue(true));
+    showUnlockCard("spotter");
+    const body = $("tcBody").textContent;
+    if (unlockCardOn !== "spotter" || !/lookout post/.test($("tcTitle").textContent) || !/counts half/.test(body) || !/Target button/.test(body) || /\u2014/.test(body)) fail("the card: " + body);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("spotter") || newTowerCardDue(true)) fail("the card was not put away and kept");
+    curLevel = levelIndexOf("shushi"); showUnlockCard("spotter");
+    if (!/observation post/.test($("tcTitle").textContent)) fail("Shushi's card: " + $("tcTitle").textContent);
+    closeUnlockCard();
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {

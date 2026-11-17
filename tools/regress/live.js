@@ -13,7 +13,9 @@
 // are built from their tile on the free pad that reaches the least road, and must pay at the clears on every one. The
 // Powder Mine (G7c, on Gyumri Road and Halidzor) is built from its tile on the free pad whose reach holds the most road,
 // and its charge must arm (or fire) on each. The Aid Post (G7d, on Van, Musa Dagh and Sardarapat) is built from its tile on
-// the free pad that reaches the least road, and its count must be sound on each.
+// the free pad that reaches the least road, and its count must be sound on each. The Observation Post (G7e, on
+// Stepanakert 1992, Shushi and Stepanakert 2023) is built from its tile on the free pad whose reach holds the most road,
+// and must mark a foe on at least one of them.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -103,9 +105,10 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
           // (a tower that asks for road in its reach on the pad whose reach holds the most; the Stores, which ask for none,
           // on the free pad that reaches the least, where the balance bot builds them)
           const ap = await g.ev(a => {
-            const D = TOWER_DEFS[a], road = !!(D.post || D.charge || D.blast), r = road ? kitStatsOf(a, 0, null).range : 150;
+            // (the Observation Post asks for no road but wants the most of it in reach: it marks what walks there, G7e)
+            const D = TOWER_DEFS[a], road = !!(D.post || D.charge || D.blast), most = road || !!D.mark, r = most ? kitStatsOf(a, 0, null).range : 150;
             return PADS.map((p, i) => i).filter(i => !towerAt(i) && (!road || padTakesRoad(i, r)))
-              .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], r).length })).sort((x, y) => road ? y.n - x.n : x.n - y.n).map(x => x.i)[0];
+              .map(i => ({ i, n: postRoadIn(PADS[i][0], PADS[i][1], r).length })).sort((x, y) => most ? y.n - x.n : x.n - y.n).map(x => x.i)[0];
           }, age);
           if (ap === undefined) await fail("no free pad takes the " + age);
           else {
@@ -146,7 +149,8 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         const stores = await g.ev(() => { const t = towers.find(u => u.type === "stores"); return t ? { paid: Math.round(t.yielded || 0), gold: battleFacts().from.stores } : null; });
         const mine = await g.ev(() => { const t = towers.find(u => u.type === "mine"); return t ? { blasts: t.blasts || 0, armed: (t.mines || []).some(mineArmed), dmg: Math.round(t.dmgDone || 0) } : null; });
         const aid = await g.ev(() => { const t = towers.find(u => u.type === "aid"); return t ? { wreck: !!t.wreck, returned: battle.returned, cap: getStats(t).restore || 0, held: battleFacts().held, lives } : null; });
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine, aid };
+        const spot = await g.ev(() => { const t = towers.find(u => u.type === "spotter"); return t ? { wreck: !!t.wreck, marked: t.markN || 0, prio: t.prio } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine, aid, spot };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);
@@ -205,5 +209,12 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
   if (odd.length) fails.push("the Aid Post's count is off on " + odd.join(", "));
   // a board may leak on every wave after the first, so one return across the post's fields is asked, not one on each
   if (aided.length && !aided.some(id => res[id].aid.returned > 0)) fails.push("the Aid Post returned no defender on " + aided.join(", "));
+  // the Observation Post (G7e): built on its three battlefields where they are played, marking the strongest when built,
+  // and seen to mark a foe on at least one of them
+  const spotted = Object.keys(res).filter(id => res[id] && res[id].spot);
+  const spotFields = ["stepanakert92", "shushi", "stepanakert23"].filter(id => res[id]);
+  if (spotFields.length && spotted.length < spotFields.length) fails.push("no Observation Post was built on " + spotFields.filter(id => !spotted.includes(id)).join(", "));
+  if (spotted.some(id => res[id].spot.prio !== "strong")) fails.push("an Observation Post was built marking other than the strongest");
+  if (spotted.length && !spotted.some(id => res[id].spot.marked > 0)) fails.push("the Observation Post marked no foe on " + spotted.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });
