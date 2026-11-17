@@ -156,9 +156,10 @@
 //     breadth from the first, laid again between waves only where more towers would cover it; the trigger "at 3 foes".
 //     The report adds each mine's blasts in a battle and the foes a blast caught. minemix is the mix with the mine 8th
 //     and 13th
-//   - Aid Post (G7d, gameplay 5.4): "age" on Van, Musa Dagh and Sardarapat, one on a field. The free pad nearest the
-//     fortress (aidPadGap). Like the Stores it is ranked and mastered after every fighting tower has its own (STORES_RANK
-//     names when, for both kinds; the two thirds rule is the Stores' alone). The "aid" build is the mix with the Aid Post
+//   - Aid Post (G7d, gameplay 5.4): "age" on Van, Musa Dagh and Sardarapat, one on a field. The Stores' pad: the free
+//     pad that reaches the least road (it fights nothing, so it takes the pad a shooting tower needs least; AID_PAD=near,
+//     for a trial: the free pad nearest the fortress, aidPadGap, which lost more on Sardarapat). It is ranked only once
+//     every pad is built and mastered after every fighting tower (the two thirds rule is the Stores' alone). The "aid" build is the mix with the Aid Post
 //     as its sixth building (5.2). A cell's lives are the defenders never lost (battleFacts().held: a defender the post
 //     returned is not counted, as the stars do not count him); where aid is run beside mix the report adds 5.2's row:
 //     aid's defenders lost against mix's, the defenders returned (mean and most), and the seeds mix loses that aid wins
@@ -422,9 +423,9 @@ function playBattle(a) {
   reachR = mineReach0 || 170;
   const rankMine = mineReach0 ? rankOver(pts).filter(i => padTakesRoad(i, mineReach0)) : [];
   reachR = 170;
-  // Aid Post (G7d, gameplay 5.4): the free pad nearest the fortress
-  // (AID_PAD=least, for a trial: the Stores' pad, the free pad that reaches the least road)
-  const rankAid = a.aidPad === "least" ? storesRank : typeof aidPadGap === "function" ? PADS.map((p, i) => i).sort((x, y) => aidPadGap(x) - aidPadGap(y)) : [];
+  // Aid Post (G7d, gameplay 5.4): the Stores' pad, the free pad that reaches the least road
+  // (AID_PAD=near, for a trial: the free pad nearest the fortress)
+  const rankAid = a.aidPad !== "near" ? storesRank : typeof aidPadGap === "function" ? PADS.map((p, i) => i).sort((x, y) => aidPadGap(x) - aidPadGap(y)) : [];
   const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : k === "mine" ? rankMine : k === "aid" ? rankAid : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
   const kindAt = j => {
     let k = plan[j % plan.length];
@@ -744,7 +745,7 @@ function playBattle(a) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
       spells, spec: BUILD_SPEC[b] ? BUILD_SPEC[b] + "," + spec : spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
-      daily, twist, day, ageMax: BUILD_AGE_MAX[b] || 0, storesRank: process.env.STORES_RANK || "last", aidPad: process.env.AID_PAD || "near" });
+      daily, twist, day, ageMax: BUILD_AGE_MAX[b] || 0, storesRank: process.env.STORES_RANK || "last", aidPad: process.env.AID_PAD || "least" });
   }
   const results = [];
   let done = 0;
