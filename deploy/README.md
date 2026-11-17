@@ -11,6 +11,10 @@ a cron job running `deploy/update.sh` every two minutes.
 beside it when the repository has one. Log: `/var/log/highland-update.log`. The picture is checked on every run
 and copied whenever the web root lacks it or holds another version, so a commit that first brings it (or changes
 how it is published) gets it out on the run after the one that pulls it: that first run is still the old script.
+The same goes for the trailer (`trailer.mp4`, `trailer.webm`, `trailer-poster.jpg`) and, since stage 6, the
+owner's recordings: `assets/victory/*.mp3` (the victory dance) and `assets/music/*.mp3` (the battles), copied into
+the same folders under the web root, each only when it differs. The page asks for a recording only when a battle or a
+victory comes, and plays its own generated music while one is missing.
 
 **The share preview:** the page's `og:` and `twitter:` tags name `https://highland.avunjian.com/og.jpg`, a
 1200 x 630 JPEG kept at the repository's root, under 200 KB so messengers that skip large pictures still show it.
@@ -35,7 +39,7 @@ command in `/etc/cron.d/highland-update` works too, but a re-run of `setup-serve
 it.)
 
 **The staging channel.** When the repository has a branch named `next`, `update.sh` also publishes that branch's
-`index.html` (and its `og.jpg`) at `https://highland.avunjian.com/next/`, after the same check, reading the files
+`index.html` (and its `og.jpg`, its trailer and its recordings under `assets/`) at `https://highland.avunjian.com/next/`, after the same check, reading the files
 straight from the branch so the clone on the server stays on master. A staging page that fails its check, or
 that lacks the staging namespace line (`const HS_CHANNEL = `, without which it would share the live game's saves),
 is not published and is logged once; `/next/` keeps what it had. Deleting the branch removes `/next/`. Only a
