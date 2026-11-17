@@ -53,7 +53,7 @@ const U = {
   AD: "00000000-0000-4000-8000-0000000000ad",
 };
 
-let admin, api, api2, clock = "";
+let admin, api, api2, clock = "", DBH = null, DBN = "";
 async function setClock(interval) { clock = interval || ""; }
 // a superuser's statement, with the test clock set for its transaction
 async function su(sql, params) {
@@ -166,10 +166,14 @@ const GROUPS = [];
 function group(name, fn) { GROUPS.push({ name, fn }); }
 
 const TABLES = ["hs_profiles", "hs_saves", "hs_rulesets", "hs_runs", "hs_scores", "hs_score_best", "hs_sessions", "hs_events",
-  "hs_admins", "hs_config", "hs_name_blocklist", "hs_rate"];
+  "hs_admins", "hs_config", "hs_name_blocklist", "hs_rate", "hs_superadmins", "hs_super_audit"];
 const OPEN_FNS = ["hs_config", "hs_track", "hs_board", "hs_daily_status"];
 const PLAYER_FNS = ["hs_profile_get", "hs_profile_set_name", "hs_save_get", "hs_save_put", "hs_run_begin", "hs_score_submit", "hs_delete_account"];
 const ADMIN_FNS = ["hs_stats", "hs_admin_publish_ruleset", "hs_admin_set_config", "hs_admin_moderate", "hs_admin_remove_score", "hs_admin_purge_events"];
+// the superadmin's Players view (P10, migration 006): granted to authenticated, each asks for a superadmin itself
+const SUPER_FNS = ["hs_super_players", "hs_super_player"];
+// the owner's two commands, run as postgres through the SSH tunnel: granted to nobody
+const OWNER_FNS = ["hs_grant_superadmin_by_email", "hs_revoke_superadmin_by_email"];
 // a call of each function that would be valid in shape, to see who may make it
 const SAMPLE = {
   hs_profile_get: {}, hs_profile_set_name: { p_name: "Tryname" }, hs_save_get: {}, hs_save_put: { p_expected: 0, p_data: { v: 1 } },
@@ -177,6 +181,7 @@ const SAMPLE = {
   hs_score_submit: { p_run: "00000000-0000-4000-8000-000000000999", p_stats: { won: true } }, hs_delete_account: {},
   hs_stats: { p_days: 7 }, hs_admin_publish_ruleset: { p_id: "x", p_data: {} }, hs_admin_set_config: { p_key: "gate", p_value: "off" },
   hs_admin_moderate: { p_user: U.B, p_hidden: true }, hs_admin_remove_score: { p_score: 1 }, hs_admin_purge_events: { p_days: 180 },
+  hs_super_players: {}, hs_super_player: { p_user: U.B }, hs_grant_superadmin_by_email: { p_email: "a@example.com" }, hs_revoke_superadmin_by_email: { p_email: "a@example.com" },
 };
 
 group("structure", async (ctx) => {
@@ -228,9 +233,10 @@ group("structure", async (ctx) => {
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'highland' and p.proname like 'hs\\_%' order by 1`);
   const open = OPEN_FNS.concat(ctx.handoff ? ["hs_handoff_put", "hs_handoff_take"] : []);
   eq(exec.filter(r => r.a).map(r => r.proname).sort(), open.slice().sort(), "a visitor may run exactly the open functions");
-  eq(exec.filter(r => r.u).map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "a signed-in account may run exactly the open, the player's and the admin's (which ask for a player or an admin themselves)");
+  eq(exec.filter(r => r.u).map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS, SUPER_FNS).sort(), "a signed-in account may run exactly the open, the player's, the admin's and the superadmin's (which ask for a player, an admin or a superadmin themselves)");
   eq(exec.filter(r => r.s).map(r => r.proname), [], "service_role may run none");
-  eq(exec.map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS).sort(), "no other hs_ function exists in highland");
+  eq(exec.filter(r => OWNER_FNS.includes(r.proname)).filter(r => r.a || r.u || r.s).map(r => r.proname), [], "the owner's two commands (the superadmin's grant and revoke) are executable by no API role");
+  eq(exec.map(r => r.proname).sort(), open.concat(PLAYER_FNS, ADMIN_FNS, SUPER_FNS, OWNER_FNS).sort(), "no other hs_ function exists in highland");
   eq((await su(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'highland' and p.proname like 'hs\\_%' and p.provolatile <> 'v' order by 1`)).map(r => r.proname), [...STABLE].sort(),
     "exactly six hs_ functions are stable (PostgREST runs those read-only), and no seventh");
@@ -246,10 +252,11 @@ group("structure", async (ctx) => {
     "no hs_ object exists outside highland (nothing in public)");
   eq(await su(`select nspname from pg_namespace where nspname in ('hs_private') or nspname like 'hs\\_%'`), [], "and no second schema of the game's");
   const tmo = await su(`select p.proname, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'highland' and p.proname in ('hs_stats', 'hs_admin_purge_events', 'hs_delete_account') order by 1`);
+    where n.nspname = 'highland' and p.proname in ('hs_stats', 'hs_admin_purge_events', 'hs_delete_account', 'hs_super_players', 'hs_super_player') order by 1`);
   eq(tmo.map(r => r.proname + ":" + (r.proconfig.find(x => x.startsWith("statement_timeout")) || "")),
-    ["hs_admin_purge_events:statement_timeout=60s", "hs_delete_account:statement_timeout=30s", "hs_stats:statement_timeout=30s"],
-    "the three heavy functions carry their own statement timeout");
+    ["hs_admin_purge_events:statement_timeout=60s", "hs_delete_account:statement_timeout=30s", "hs_stats:statement_timeout=30s",
+      "hs_super_player:statement_timeout=30s", "hs_super_players:statement_timeout=30s"],
+    "the five heavy functions carry their own statement timeout");
   eq(ctx.warnings, [], "the migrations' closing checks warn of nothing on this stand-in (applied, rolled back to 0 and applied again)");
 });
 
@@ -277,12 +284,12 @@ group("refusals", async () => {
     }
   }
   // a visitor may not run any function but the open ones
-  for (const fn of PLAYER_FNS.concat(ADMIN_FNS)) {
+  for (const fn of PLAYER_FNS.concat(ADMIN_FNS, SUPER_FNS, OWNER_FNS)) {
     const m = await errMsg(rpc(null, fn, SAMPLE[fn]));
     ok(/permission denied for function/.test(m), "a visitor is refused " + fn + " (" + m + ")");
   }
   // service_role (the service key's role) may run none of them, not even the open ones
-  for (const fn of OPEN_FNS.concat(PLAYER_FNS, ADMIN_FNS)) {
+  for (const fn of OPEN_FNS.concat(PLAYER_FNS, ADMIN_FNS, SUPER_FNS, OWNER_FNS)) {
     const m = await errMsg(as("service_role", "select highland." + fn + "()"));
     ok(/permission denied for (schema highland|function)/.test(m), "service_role is refused " + fn + " (" + m + ")");
   }
@@ -298,7 +305,8 @@ group("refusals", async () => {
   ok(/permission denied/.test(await errMsg(as(U.A, "select * from auth.users"))), "a player cannot read auth.users");
 });
 const firstColumn = { schema_migrations: "name", hs_profiles: "name", hs_saves: "version", hs_rulesets: "active", hs_runs: "diff", hs_scores: "score",
-  hs_score_best: "score", hs_sessions: "build", hs_events: "seq", hs_admins: "note", hs_config: "value", hs_name_blocklist: "kind", hs_rate: "n" };
+  hs_score_best: "score", hs_sessions: "build", hs_events: "seq", hs_admins: "note", hs_config: "value", hs_name_blocklist: "kind", hs_rate: "n",
+  hs_superadmins: "note", hs_super_audit: "what" };
 
 group("names", async () => {
   ok((await rpc(U.A, "hs_profile_get", {})).name === null, "no profile yet: name is null");
@@ -711,6 +719,127 @@ group("daily", async () => {
   }
 });
 
+// the Daily tab's answer (P6, migration 008): attempts left, a ruleset gone stale, yesterday's first three; and the
+// pick of the game's own published daily (docs/specs/balance/ruleset-2.json, the page's rulesetData().daily) for a
+// year and a day, skip lists included
+group("daily tab", async () => {
+  await setClock("");
+  const today = await serverDay(), dn = dayNumber(today);
+  // a fresh day for this group's own players: the clock moved past every day the daily group used
+  await setClock("60 days");
+  const d0 = dn + 60, day0 = dayString(d0), p0 = ref.dailyOf(R2.daily, d0);
+  let st = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.day === day0 && st.attempts_left === 3 && st.used === 0 && st.stale === false, "a player's status: three attempts left, the ruleset current (" + JSON.stringify(st).slice(0, 160) + ")");
+  for (const [who, what] of [[null, "a visitor"], [U.N, "an account with no name (no player)"]]) {
+    const v = await rpc(who, "hs_daily_status", { p_ruleset: "2" });
+    ok(v.attempts_left === null && v.used === 0 && v.best === null && v.rank === null && v.level === p0.level, what + " reads the day with no attempts of his own");
+  }
+  const yd = ref.dailyOf(R2.daily, d0 - 1);
+  ok(st.yesterday && st.yesterday.day === dayString(d0 - 1) && st.yesterday.level === yd.level && st.yesterday.twist === yd.twist && st.yesterday.total === 0 &&
+    Array.isArray(st.yesterday.rows) && st.yesterday.rows.length === 0, "yesterday's challenge is the arithmetic's, its board empty: " + JSON.stringify(st.yesterday));
+  // four players post today; the next day the status names yesterday's first three, best first, a hidden one left out
+  const winOf = (lives, sec) => ({ won: true, lives, waves: 12, sim_sec: sec, spent: 1000, earned: 2000 });
+  const posted = {};
+  // (C's result goes on a connection of its own whose first call it is, as a pooled PostgREST connection may be:
+  // hs_score_submit before 008 failed there for a daily, reading a week's rank it had not assigned)
+  const fresh = await DBH.client(DBN, "authenticator");
+  try {
+    for (const [who, lives, sec] of [[U.C, 12, 700], [U.D, 11, 650], [U.A, 9, 800], [U.B, 12, 600]]) {
+      const b = await runBegin(who, "daily", p0.level, 1, "2", p0.twist);
+      ok(b.ok === true, "a daily begins for each player");
+      await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
+      const e = await err(rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: winOf(lives, sec) }, who === U.C ? { conn: fresh } : {}).then(r => { posted[who] = r.score; }));
+      ok(!e, "a daily's result is accepted" + (who === U.C ? " as a fresh connection's first call" : "") + (e ? " (" + e.msg + ")" : ""));
+    }
+  } finally { await fresh.end(); }
+  st = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.attempts_left === 2 && st.used === 1 && st.best === posted[U.C] && st.total === 4, "after one attempt: two left, the best and the board's size");
+  await rpc(U.AD, "hs_admin_moderate", { p_user: U.B, p_hidden: true });
+  await setClock("61 days");
+  st = await rpc(null, "hs_daily_status", { p_ruleset: "2" });
+  const want = [[U.C, posted[U.C]], [U.D, posted[U.D]], [U.A, posted[U.A]]].sort((a, b) => b[1] - a[1]);
+  const names = (await su("select user_id::text u, name from highland.hs_profiles where user_id = any ($1::uuid[])", [[U.A, U.C, U.D]])).reduce((m, r) => (m[r.u] = r.name, m), {});
+  eq(st.yesterday.rows.map(r => [r.rank, r.name, r.score]), want.map(([u, s], i) => [i + 1, names[u], s]), "yesterday's first three by score, the hidden player left out");
+  ok(st.yesterday.total === 3 && st.yesterday.level === p0.level && st.yesterday.twist === p0.twist && st.yesterday.day === day0, "yesterday's size and its battle");
+  ok(st.yesterday.rows.every(r => Object.keys(r).sort().join() === "name,rank,score"), "yesterday's rows carry rank, name and score only (no account id)");
+  const adm = await rpc(U.AD, "hs_daily_status", { p_ruleset: "2" });
+  ok(adm.yesterday.rows.every(r => !("uid" in r) && !("id" in r)), "not even for an admin");
+  await rpc(U.AD, "hs_admin_moderate", { p_user: U.B, p_hidden: false });
+  st = await rpc(null, "hs_daily_status", { p_ruleset: "2" });
+  ok(st.yesterday.rows.length === 3 && st.yesterday.total === 4 && st.yesterday.rows[0].score === Math.max(...Object.values(posted)), "shown again, he leads; three rows at the most");
+  // stale: a newer live ruleset whose daily is another battle today turns the older page away, and says so first
+  const R9 = JSON.parse(JSON.stringify(R2));
+  for (const k of Object.keys(R9.daily.levels)) R9.daily.levels[k].slow += 50;
+  // (a battlefield whose battle changed with its rev kept is refused at the publish: every rev is moved)
+  for (const k of Object.keys(R9.levels)) R9.levels[k].rev = (R9.levels[k].rev || 1) + 7;
+  await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "9", p_data: R9 });
+  const s2 = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" }), s9 = await rpc(U.C, "hs_daily_status", { p_ruleset: "9" });
+  const pt = ref.dailyOf(R2.daily, d0 + 1);
+  const e2 = await err(runBegin(U.C, "daily", pt.level, 1, "2", pt.twist));
+  ok(s2.stale === true && e2 && e2.msg === "daily_mismatch" && e2.detail === "an older ruleset", "the older ruleset's status says stale, as hs_run_begin turns it away");
+  ok(s9.stale === false && (await runBegin(U.C, "daily", pt.level, 1, "9", pt.twist)).ok === true, "the newest's says current, and begins");
+  // a newer ruleset that leaves today's daily alone (only a campaign battlefield's par moved): not stale
+  const R10 = JSON.parse(JSON.stringify(R9));
+  R10.levels.erebuni.d[1].slow += 10; R10.levels.erebuni.rev++;
+  await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "10", p_data: R10 });
+  ok((await rpc(U.C, "hs_daily_status", { p_ruleset: "9" })).stale === false, "a newer ruleset with the same daily: the older page's daily is current");
+  ok((await rpc(U.C, "hs_daily_status", { p_ruleset: "3-next" })).stale === false, "and a live ruleset never makes a staging page stale");
+  // the helpers agree with hs_run_begin's own comparison on every day of a month
+  const sameRows = await su(`select g, highland._daily_same($1::jsonb, $2::jsonb, date '1970-01-01' + g) s from generate_series($3::int, $3::int + 29) g`, [JSON.stringify(R2), JSON.stringify(R9), d0]);
+  ok(sameRows.every(r => r.s === false), "_daily_same: R2 and R9 never make the same daily (every table differs)");
+  ok((await su(`select highland._daily_same($1::jsonb, $1::jsonb, current_date) s`, [JSON.stringify(R2)]))[0].s === true, "_daily_same: a ruleset makes its own daily");
+  await su("delete from highland.hs_runs where ruleset in ('9', '10')");
+  await su("delete from highland.hs_rulesets where id in ('9', '10')");
+  // two daily starts in flight either side of an hour's turn, two attempts used: exactly one begins (P6 review 1:
+  // _rate_ok's row, the hour's, ordered nothing across hh:00, and both counted two used and began, a fourth attempt)
+  {
+    const dr = d0 + 5, pr = ref.dailyOf(R2.daily, dr), ds = dayString(dr);
+    const offTo = async (iso) => (await su("select ($1::timestamptz - now())::text o", [iso]))[0].o;
+    const c1 = await DBH.client(DBN, "authenticator"), c2 = await DBH.client(DBN, "authenticator");
+    try {
+      await setClock(await offTo(ds + "T10:20:00Z"));
+      for (let i = 0; i < 2; i++) ok((await runBegin(U.D, "daily", pr.level, 1, "2", pr.twist)).ok === true, "the race's day: attempt " + (i + 1) + " begins");
+      const begin = async (conn, at) => { await setClock(await offTo(at)); const p = rpc(U.D, "hs_run_begin", { p_mode: "daily", p_level: pr.level, p_diff: 1, p_ruleset: "2", p_twist: pr.twist }, { conn, hold: true }); return p; };
+      const x = await begin(c1, ds + "T10:59:59Z");
+      let yDone = false;
+      const yP = begin(c2, ds + "T11:00:00.6Z").then(r => { yDone = true; return r; }, e => { yDone = true; throw e; });
+      await new Promise(r => setTimeout(r, 400));
+      ok(!yDone, "the second start waits while the first is in flight (the player's row held)");
+      await x.commit();
+      const y = await yP; await y.commit();
+      const acc = [x.rows[0].r, y.rows[0].r].filter(r => r.ok === true).length;
+      const n = (await su("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = $2::date", [U.D, ds]))[0].n;
+      ok(acc === 1 && n === 3 && y.rows[0].r.reason === "no_attempts", "across hh:00 exactly one of the two begins, and the day has three runs (" + acc + " began, " + n + " runs)");
+    } finally { await c1.end(); await c2.end(); }
+  }
+  // yesterday's battle as it was fought: a ruleset published since that picks another daily for that day does not
+  // rename it (its board's best names it; P6 review 6)
+  {
+    const Rx = JSON.parse(JSON.stringify(R2));
+    Rx.daily.pool.reverse(); Rx.daily.twists.reverse();
+    for (const k of Object.keys(Rx.levels)) Rx.levels[k].rev = (Rx.levels[k].rev || 1) + 9;
+    await setClock("61 days");
+    const was = ref.dailyOf(R2.daily, d0), now = ref.dailyOf(Rx.daily, d0);
+    ok(was.level !== now.level || was.twist !== now.twist, "(the newer ruleset picks another daily for that day)");
+    await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "11", p_data: Rx });
+    const y = (await rpc(null, "hs_daily_status", { p_ruleset: "11" })).yesterday;
+    ok(y.level === was.level && y.twist === was.twist && y.rows.length === 3, "yesterday's battle is the one fought on its board, not the newer ruleset's pick (" + JSON.stringify([y.level, y.twist]) + " fought, " + JSON.stringify([now.level, now.twist]) + " picked now)");
+    await setClock("90 days");
+    const e = (await rpc(null, "hs_daily_status", { p_ruleset: "11" })).yesterday, pk = ref.dailyOf(Rx.daily, d0 + 29);
+    ok(e.total === 0 && e.level === pk.level && e.twist === pk.twist, "with nobody on yesterday's board, the pick names it");
+    await su("delete from highland.hs_rulesets where id = '11'");
+  }
+  await setClock("");
+  // the game's own daily as published (the page's rulesetData().daily): the server's pick equals the reference's,
+  // and so the page's (unit.js and flow 8 hold the page to it), for 366 days from today, never a skipped pair
+  const real = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")).daily;
+  const rows = await su(`select g, (highland._daily_pick(jsonb_build_object('daily', $1::jsonb), (date '1970-01-01' + g))).* from generate_series($2::int, $2::int + 365) g order by g`, [JSON.stringify(real), dn]);
+  const bad = rows.filter(x => { const w = ref.dailyOf(real, x.g); return w.level !== x.level_id || w.twist !== x.twist; });
+  ok(rows.length === 366 && bad.length === 0, "the game's daily: the server's pick equals the page's arithmetic for 366 days (" + bad.length + " differ)");
+  ok(rows.every(x => !((real.skip || {})[x.level_id] || []).includes(x.twist)), "and never serves a pair the skip lists leave out");
+  ok(rows.every((x, i) => i === 0 || x.level_id !== rows[i - 1].level_id), "and never the same battlefield two days running");
+});
+
 group("analytics", async () => {
   const ctx = (aid, sid, more) => ({ aid, sid, build: "2026-11-20", ruleset: "2", channel: "live", dev: "phone", os: "ios", browser: "safari", standalone: false, vw: 667, vh: 320, lang: "en", ref: "", ...more });
   const D1 = "11111111-1111-4111-8111-111111111111", D2 = "22222222-2222-4222-8222-222222222222";
@@ -1001,7 +1130,7 @@ group("tenants", async () => {
 // A grant given by mistake (say "grant select on highland.hs_saves to authenticated" typed in the SQL editor): the
 // policies still give a player his own rows only, and nothing of the shared tables, and no write.
 group("mistaken_grant", async () => {
-  const OWN = { hs_profiles: "user_id", hs_saves: "user_id", hs_runs: "user_id", hs_sessions: "uid", hs_admins: "user_id" };
+  const OWN = { hs_profiles: "user_id", hs_saves: "user_id", hs_runs: "user_id", hs_sessions: "uid", hs_admins: "user_id", hs_superadmins: "user_id" };
   await su("insert into highland.hs_admins (user_id, note) values ($1, 'test') on conflict do nothing", [U.B]);
   for (const t of TABLES.concat(["schema_migrations"])) {
     const total = (await su("select count(*)::int n from highland." + t))[0].n;
@@ -1056,6 +1185,239 @@ group("readonly", async () => {
   // and a function that writes fails in a read-only transaction, so the check above means something
   const e = await err(as(null, "select highland.hs_track($1::jsonb, '[{\"n\":\"page_load\"}]'::jsonb)", [JSON.stringify({ aid: "d1000000-0000-4000-8000-000000000001", sid: "ro-0001-aaaa" })], { readOnly: true }));
   ok(e && e.code === "25006", "hs_track (which writes) fails in a read-only transaction (" + (e && e.code) + ")");
+});
+
+// The superadmin and the Players view (P10, migration 006). The owner's grant, run as postgres; who may read the
+// view (a superadmin in a game session, nobody else); what it shows (players only, never another app's accounts:
+// their email, names, play time, progress and devices), its sort, search and pages, done on the server; a forged
+// save's summary cleaned; one audit row a read, never holding a search's words; the revoke; and "Delete my account".
+// Every address here is a made-up one on example.com.
+group("superadmin", async (ctx) => {
+  const SA = "5a000000-0000-4000-8000-0000000005a0", P1 = "5a000000-0000-4000-8000-0000000005a1", P2 = "5a000000-0000-4000-8000-0000000005a2",
+    OUT = "5a000000-0000-4000-8000-0000000005a3", NOID = "5a000000-0000-4000-8000-0000000005a4";
+  await su(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'super-owner@example.com', '{}'), ($2, 'Player.One@Example.com', '{"full_name": "Meta Name"}'),
+    ($3, 'player-two@example.com', '{"name": "Meta Two"}'), ($4, 'outsider-app@example.com', '{"full_name": "Other App Person"}'), ($5, 'nobody-here@example.com', '{}')`, [SA, P1, P2, OUT, NOID]);
+  await su(`insert into auth.identities (provider, provider_id, user_id, email, identity_data) values
+    ('google', 'g-sa', $1::uuid, 'super-owner@example.com', '{"full_name": "Owner Person"}'),
+    ('discord', 'd-p1', $2::uuid, 'Player.One@Example.com', '{"full_name": "Discord One", "name": "p1user"}'),
+    ('facebook', 'f-p2', $3::uuid, 'player-two@example.com', '{}'),
+    ('email', $4::text, $4::uuid, 'outsider-app@example.com', '{}')`, [SA, P1, P2, OUT]);
+  for (const [who, n] of [[SA, "Owner Seat"], [P1, "Vartan One"], [P2, "Shushan Two"]]) eq((await rpc(who, "hs_profile_set_name", { p_name: n })).ok, true, "a player named " + n);
+  // P1's progress, as the page sums it into his save; P2's save carries a forged summary
+  await rpc(P1, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { v: 1, won: [3, 2, 1], held: 4, stars: 9, far: "avarayr", farN: 3, heroes: { kingdoms: 3, faith: 1 }, council: { bows: 2, walls: 0 } } } });
+  await rpc(P2, "hs_save_put", { p_expected: 0, p_data: { v: 1, keys: {}, sum: { won: ["<b>", -1, 1e12], held: "x", stars: "x", far: "<script>alert(1)</script>", farN: 2.5, heroes: { "<x>": 3, ok: 99, fine: 2 }, council: "no" } } });
+  // P1's visits: on a phone (a victory and a defeat, the page hidden after 1,500 s), on a desktop (a battle left), one
+  // on the staging page, and one before he signed in (it names no account, so it is not his here)
+  const D1 = "5d000000-0000-4000-8000-000000000001", D2 = "5d000000-0000-4000-8000-000000000002";
+  const ev = (n, q, p) => ({ n, q, p: p || {} });
+  await rpc(null, "hs_track", { p_ctx: { aid: D1, sid: "sa-p1-pre", dev: "phone", os: "ios", browser: "safari" }, p_events: [ev("page_load", 1), ev("page_hide", 2, { sec: 999 })] });
+  await rpc(P1, "hs_track", { p_ctx: { aid: D1, sid: "sa-p1-v1", dev: "phone", os: "ios", browser: "safari", standalone: true, channel: "live" }, p_events: [ev("page_load", 1),
+    ev("victory", 2, { lv: "erebuni", diff: 1, mode: "campaign", lives: 17, lives_max: 20, waves: 10, stars: 3, sec: 600 }),
+    ev("defeat", 3, { lv: "tushpa", diff: 2, mode: "campaign", wave: 4, waves: 12, lives: 0, sec: 300 }), ev("page_hide", 4, { sec: 1500 }), ev("page_hide", 5, { sec: 1400 })] });
+  await rpc(P1, "hs_track", { p_ctx: { aid: D2, sid: "sa-p1-v2", dev: "desktop", os: "windows", browser: "chrome", channel: "live" }, p_events: [ev("page_load", 1),
+    ev("battle_quit", 2, { lv: "dvin", diff: 1, mode: "campaign", wave: 2, how: "left" })] });
+  await rpc(P1, "hs_track", { p_ctx: { aid: D2, sid: "sa-p1-next", dev: "desktop", os: "windows", browser: "chrome", channel: "next" }, p_events: [ev("page_load", 1),
+    ev("victory", 2, { lv: "erebuni", diff: 0, sec: 100 }), ev("page_hide", 3, { sec: 200 })] });
+  await rpc(P2, "hs_track", { p_ctx: { aid: "5d000000-0000-4000-8000-000000000003", sid: "sa-p2-v1", dev: "tablet", os: "ios", browser: "safari" },
+    p_events: [ev("page_load", 1), ev("victory", 2, { sec: "lots" }), ev("page_hide", 3, { sec: 99999999 })] });
+  // a visit of a build that says how long the page was in view ("vis"): that is counted, not the time since it loaded
+  await rpc(P2, "hs_track", { p_ctx: { aid: "5d000000-0000-4000-8000-000000000003", sid: "sa-p2-v2", dev: "tablet", os: "ios", browser: "safari" },
+    p_events: [ev("page_load", 1), ev("page_hide", 2, { sec: 5000, vis: 600 }), ev("page_hide", 3, { sec: 9000, vis: 700 })] });
+  const pgc = await ctx.db.client(ctx.name, "postgres");
+  const owner = async (sql, params) => (await pgc.query(sql, params)).rows;
+  const ownerErr = (sql, params) => err(pgc.query(sql, params));
+  const audit = async () => (await su("select count(*)::int n from highland.hs_super_audit"))[0].n;
+  try {
+    // the owner's command: refused through the API to everyone, even with a grant given by mistake
+    for (const fn of OWNER_FNS) {
+      for (const who of [null, P1, SA, U.AD]) ok(/permission denied for function/.test(await errMsg(rpc(who, fn, { p_email: "super-owner@example.com" }))),
+        (who ? "an account" : "a visitor") + " is refused " + fn + " through the API");
+      ok(/permission denied for (schema highland|function)/.test(await errMsg(as("service_role", "select highland." + fn + "('super-owner@example.com')"))), "service_role is refused " + fn);
+      await su("grant execute on function highland." + fn + "(text) to authenticated");
+      try {
+        const e = await err(rpc(SA, fn, { p_email: "super-owner@example.com" }));
+        ok(e && e.msg === "owner_only" && e.code === "42501", "with a mistaken grant, " + fn + " still refuses a session that came through the API: owner_only (" + (e && e.msg) + ")");
+      } finally { await su("revoke execute on function highland." + fn + "(text) from authenticated"); }
+    }
+    eq((await su("select count(*)::int n from highland.hs_superadmins"))[0].n, 0, "nobody became a superadmin through the API");
+    // refused to everyone before the grant: a player, the outsider, the admin who is not super, the visitor, service_role
+    const a0 = await audit();
+    for (const fn of SUPER_FNS) {
+      for (const [who, label] of [[P1, "a player"], [OUT, "the outsider"], [U.AD, "an admin who is not super"], [SA, "the future superadmin, before the grant"]]) {
+        const e = await err(rpc(who, fn, fn === "hs_super_player" ? { p_user: P1 } : {}));
+        ok(e && e.msg === "not_superadmin" && e.code === "42501", label + " is refused " + fn + ": not_superadmin (" + (e && e.msg) + ")");
+      }
+      ok(/permission denied for function/.test(await errMsg(rpc(null, fn, fn === "hs_super_player" ? { p_user: P1 } : {}))), "a visitor is refused " + fn);
+      ok(/permission denied for (schema highland|function)/.test(await errMsg(as("service_role", "select highland." + fn + "(" + (fn === "hs_super_player" ? "'" + P1 + "'::uuid" : "") + ")"))), "service_role is refused " + fn);
+    }
+    eq(await audit(), a0, "a refused call leaves no audit row");
+    // the grant, as postgres
+    const bad = await ownerErr("select highland.hs_grant_superadmin_by_email($1)", ["nobody-at-all@example.com"]);
+    ok(bad && bad.msg === "no_account", "the grant for an address no account has: no_account (" + (bad && bad.msg) + ")");
+    const out = await ownerErr("select highland.hs_grant_superadmin_by_email($1)", ["outsider-app@example.com"]);
+    ok(out && out.msg === "not_game_account", "for another app's account (email only): not_game_account (" + (out && out.msg) + ")");
+    ok((await ownerErr("select highland.hs_grant_superadmin_by_email($1)", ["not an address"])).msg === "email_invalid", "for words that are no address: email_invalid");
+    const g = (await owner("select highland.hs_grant_superadmin_by_email($1) as r", ["  Super-Owner@EXAMPLE.com "]))[0].r;
+    ok(g.includes(SA) && !g.includes("@") && /Owner Seat/.test(g), "the grant, as postgres, case and spaces aside: it names the account by id, never by address (" + g + ")");
+    eq((await su("select note from highland.hs_admins where user_id = $1", [SA])).map(r => r.note), ["given with superadmin"], "and makes the account an admin too (the stats page's other cards)");
+    eq((await owner("select highland.hs_grant_superadmin_by_email($1) as r", ["super-owner@example.com"])).length, 1, "a second grant changes nothing");
+    eq((await su("select count(*)::int n from highland.hs_superadmins where user_id = $1", [SA]))[0].n, 1, "(one row)");
+    eq((await rpc(SA, "hs_profile_get", {})).super, true, "hs_profile_get tells the superadmin he is one");
+    eq([(await rpc(P1, "hs_profile_get", {})).super, (await rpc(U.AD, "hs_profile_get", {})).super, (await rpc(OUT, "hs_profile_get", {})).super], [false, false, false],
+      "and a player, the admin and the outsider that they are not");
+    // P10 review 2: in a password session the stats page must not be told of a tab it will be refused (it looped)
+    eq((await rpc(SA + ":password", "hs_profile_get", {})).super, false, "hs_profile_get, for the superadmin's account in a password session: not super there");
+    // still refused to all the others, and to the superadmin's own account in a password session
+    for (const [who, label] of [[P1, "a player"], [OUT, "the outsider"], [U.AD, "an admin who is not super"], [SA + ":password", "the superadmin's account signed in by password"]]) {
+      const e = await err(rpc(who, "hs_super_players", {}));
+      ok(e && e.msg === "not_superadmin", label + " is still refused the Players list (" + (e && e.msg) + ")");
+    }
+    // the list
+    const a1 = await audit();
+    const all = await rpc(SA, "hs_super_players", { p_limit: 100 });
+    const players = (await su("select count(*)::int n from highland.hs_profiles"))[0].n;
+    eq(all.total, players, "the list counts every player and nobody else (" + players + " profiles)");
+    ok(all.rows.length === Math.min(players, 100) && all.rows.every(r => r.name), "every row is a player with a game name");
+    ok(!all.rows.some(r => r.id === OUT || r.id === NOID), "another app's account (the outsider) and an account with no profile are not in it");
+    ok(!JSON.stringify(all).includes("outsider-app@example.com") && !JSON.stringify(all).includes("nobody-here@example.com") && !JSON.stringify(all).includes("Other App Person"),
+      "nor their email or name, anywhere in the answer");
+    const r1 = all.rows.find(r => r.id === P1);
+    ok(!!r1, "P1 is in it");
+    eq([r1.name, r1.email, r1.display_name, r1.providers], ["Vartan One", "Player.One@Example.com", "Discord One", "discord"], "his game name, email, the provider's display name and the provider");
+    eq([r1.visits, r1.page_sec, r1.battles, r1.battle_sec], [2, 1500, 2, 900],
+      "his signed-in live visits (2), time on the page (the visit's page_hide, 1,500 s, and a visit without one: its span), battles ended (2) and their battle clock (600 + 300)");
+    eq([r1.won, r1.held, r1.stars, r1.far, r1.far_n, r1.heroes, r1.council], [[3, 2, 1], 4, 9, "avarayr", 3, { faith: 1, kingdoms: 3 }, { bows: 2, walls: 0 }],
+      "his battlefields won per difficulty, battlefields held (some won before star records), stars, furthest battlefield, hero levels and Council tiers, from his save's summary");
+    eq([r1.device_n, r1.devices.map(d => d.dev + "/" + d.os + "/" + d.browser + "/" + d.standalone).sort()], [2, ["desktop/windows/chrome/false", "phone/ios/safari/true"]], "his two devices");
+    ok(!!r1.first && !!r1.last && Date.parse(r1.last) >= Date.parse(r1.first), "first and last seen");
+    const r2 = all.rows.find(r => r.id === P2);
+    eq([r2.won, r2.held, r2.stars, r2.far, r2.far_n, r2.heroes, r2.council, r2.display_name], [[null, null, null], null, null, "other", null, { fine: 2 }, null, "Meta Two"],
+      "a forged summary is read as nothing, a tag or the word other; the provider's name falls back on the account's metadata");
+    eq([r2.page_sec, r2.battle_sec], [43200 + 700, 0],
+      "a visit's time is held to 12 hours, a visit that says how long it was in view counts that (700 s, not 9,000), and a battle's sec that is no number adds nothing");
+    const row = (await su("select who::text, what, player, args from highland.hs_super_audit order by id desc limit 1"))[0];
+    eq([row.who, row.what, row.player, Object.keys(row.args).sort().map(k => k + "=" + row.args[k])], [SA, "players", null,
+      ["channel=live", "desc=true", "limit=100", "offset=0", "searched=false", "shown=" + all.rows.length, "sort=last"]], "one audit row for the read: who, what, the page");
+    eq(await audit(), a1 + 1, "exactly one");
+    // search: the game name, the provider's name, the email (case aside)
+    const find = async (q) => (await rpc(SA, "hs_super_players", { p_q: q, p_limit: 100 })).rows.map(r => r.id);
+    eq(await find("PLAYER.one"), [P1], "a search by email");
+    eq(await find("discord one"), [P1], "by the provider's display name");
+    eq(await find("shushan"), [P2], "by the game name");
+    eq(await find("outsider"), [], "another app's account is found by nothing");
+    eq(await find("%"), [], "a search is words, not a pattern");
+    const last = (await su("select args from highland.hs_super_audit order by id desc limit 1"))[0].args;
+    ok(last.searched === true && !JSON.stringify(await su("select args from highland.hs_super_audit")).match(/shushan|player\.one|discord one|outsider/i),
+      "the audit says a search was made, and never keeps its words");
+    // sorting and pages, on the server
+    const byName = await rpc(SA, "hs_super_players", { p_sort: "name", p_desc: false, p_limit: 100 });
+    const names = byName.rows.map(r => r.name.toLowerCase());
+    eq(names, names.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), "sorted by name, A to Z");
+    const byBattle = (await rpc(SA, "hs_super_players", { p_sort: "battle", p_limit: 100 })).rows.map(r => r.battle_sec);
+    ok(byBattle.every((v, i) => i === 0 || byBattle[i - 1] >= v) && byBattle[0] === Math.max(...all.rows.map(r => r.battle_sec)), "sorted by battle clock, the most first (" + byBattle.join(", ") + ")");
+    const byStars = (await rpc(SA, "hs_super_players", { p_sort: "stars", p_desc: false, p_limit: 100 })).rows.map(r => r.stars);
+    ok(byStars[0] === 9 && byStars.slice(1).every(v => v === null), "by stars, fewest first, a player with no summary last (" + byStars.join(", ") + ")");
+    eq((await rpc(SA, "hs_super_players", { p_sort: "bogus", p_limit: 1 })).sort, "last", "an unknown sort is the last seen");
+    const pg1 = await rpc(SA, "hs_super_players", { p_sort: "name", p_desc: false, p_limit: 2, p_offset: 0 });
+    const pg2 = await rpc(SA, "hs_super_players", { p_sort: "name", p_desc: false, p_limit: 2, p_offset: 2 });
+    eq(pg1.rows.concat(pg2.rows).map(r => r.id), byName.rows.slice(0, 4).map(r => r.id), "two pages of two are the list's first four, in order");
+    eq([pg1.total, pg2.total, pg1.limit, pg2.offset], [players, players, 2, 2], "each page knows the whole count");
+    eq((await rpc(SA, "hs_super_players", { p_limit: 1000 })).limit, 100, "at most 100 a page");
+    // the staging channel
+    const nx = (await rpc(SA, "hs_super_players", { p_channel: "next", p_limit: 100 })).rows.find(r => r.id === P1);
+    eq([nx.visits, nx.battle_sec, nx.page_sec, nx.won], [1, 100, 200, [null, null, null]], "on the staging channel: its visits and battles, and its own save (none)");
+    eq(await errMsg(rpc(SA, "hs_super_players", { p_channel: "other" })), "channel_unknown", "a channel that is not live or next");
+    // a player's page
+    const a2 = await audit();
+    const pp = await rpc(SA, "hs_super_player", { p_user: P1 });
+    eq([pp.player.email, pp.player.name, pp.player.battle_sec], ["Player.One@Example.com", "Vartan One", 900], "a player's page: the list's row");
+    eq(pp.battles.map(b => b.end + ":" + b.lv).sort(), ["battle_quit:dvin", "defeat:tushpa", "victory:erebuni"], "his battles: won, lost, and left");
+    eq(pp.visits.length, 2, "his recent live visits");
+    ok(pp.save && pp.save.version === 1 && pp.runs.length === 0, "his save's place, and his ranked runs (none yet)");
+    eq((await su("select who::text, what, player::text, args from highland.hs_super_audit order by id desc limit 1"))[0], { who: SA, what: "player", player: P1, args: { channel: "live" } },
+      "one audit row: who looked at which player");
+    for (const [u, label] of [[OUT, "another app's account"], [NOID, "an account with no profile"], ["5a000000-0000-4000-8000-0000000005ff", "nobody"]]) {
+      const x = await rpc(SA, "hs_super_player", { p_user: u });
+      ok(x.player === null && !JSON.stringify(x).includes("@"), "the page of " + label + ": nothing (" + JSON.stringify(x).slice(0, 60) + ")");
+    }
+    eq(await audit(), a2 + 4, "each look audited, the empty ones too");
+    // other roles' answers carry no email: the open functions, a player's own, the admin's stats
+    const seen = JSON.stringify([await rpc(P1, "hs_profile_get", {}), await rpc(U.AD, "hs_stats", { p_days: 30 }), await rpc(P1, "hs_save_get", {}),
+      await rpc(null, "hs_config", {}), await rpc(U.AD, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" })]);
+    ok(!/@example\.com/i.test(seen) && !/Discord One/.test(seen), "no other function's answer, the admin's stats among them, holds an email or a provider's name");
+    ok(!/@/.test(JSON.stringify(await su("select args from highland.hs_super_audit"))), "and the audit holds no address");
+    // the revoke
+    const rv = (await owner("select highland.hs_revoke_superadmin_by_email($1) as r", ["super-owner@example.com"]))[0].r;
+    ok(rv.includes(SA) && !rv.includes("@"), "the revoke, as postgres (" + rv + ")");
+    eq([(await su("select count(*)::int n from highland.hs_superadmins where user_id = $1", [SA]))[0].n, (await su("select count(*)::int n from highland.hs_admins where user_id = $1", [SA]))[0].n,
+      (await su("select count(*)::int n from highland.hs_admins where user_id = $1", [U.AD]))[0].n], [0, 0, 1], "takes the superadmin and the admin row given with it, and no other admin");
+    eq((await err(rpc(SA, "hs_super_players", {}))).msg, "not_superadmin", "and he is refused again");
+    eq((await su("select what from highland.hs_super_audit where who is null order by id")).map(r => r.what), ["grant", "grant", "revoke"], "the grants and the revoke are in the audit");
+    // "Delete my account": the superadmin's row goes, and the audit names him and his players no more
+    await owner("select highland.hs_grant_superadmin_by_email($1)", ["super-owner@example.com"]);
+    await rpc(SA, "hs_super_player", { p_user: P2 });
+    const aBefore = await audit();
+    eq((await rpc(P1, "hs_delete_account", {})).ok, true, "P1 deletes his account");
+    eq((await su("select count(*)::int n from highland.hs_super_audit where player = $1", [P1]))[0].n, 0, "the audit rows about him name him no more");
+    ok(await audit() === aBefore && (await su("select count(*)::int n from highland.hs_super_audit where what = 'player' and player is null"))[0].n >= 1, "(they stay, naming nobody)");
+    eq((await rpc(SA, "hs_delete_account", {})).ok, true, "the superadmin deletes his own account");
+    eq([(await su("select count(*)::int n from highland.hs_superadmins"))[0].n, (await su("select count(*)::int n from highland.hs_super_audit where who = $1", [SA]))[0].n], [0, 0],
+      "his superadmin row is gone, and the audit names him no more");
+    eq((await su("select count(*)::int n from auth.users where id = any($1)", [[SA, P1]]))[0].n, 2, "their sign-in accounts stay (S10)");
+  } finally { await pgc.end(); }
+});
+
+// P10 review 1: the Players view stays quick with thousands of players. 3,000 players with 10 visits of 20 events
+// each (600,000 events, and as many again from visitors) took the first build about 10 s for the list, growing with
+// the players times their visits, and timed out at 4,000. Read once and grouped, the list must come in a few
+// seconds and a player's page well under one (both under the test machine's other load). The rows are removed after.
+group("superadmin_size", async (ctx) => {
+  const NP = 3000, NV = 10, NE = 20, SA = "5b000000-0000-4000-8000-0000000005b0";
+  const pgc = await ctx.db.client(ctx.name, "postgres");
+  const clean = async () => {
+    await su("delete from highland.hs_events where sid like 'sz-%'");
+    await su("delete from highland.hs_sessions where sid like 'sz-%'");
+    await su("delete from highland.hs_saves where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from highland.hs_superadmins where user_id = $1", [SA]);
+    await su("delete from highland.hs_admins where user_id = $1", [SA]);
+    await su("delete from highland.hs_super_audit where who = $1 or player = $1", [SA]);
+    await su("delete from highland.hs_profiles where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from auth.identities where user_id in (select id from auth.users where email like 'size-%@example.com')");
+    await su("delete from auth.users where email like 'size-%@example.com'");
+  };
+  try {
+    await su("insert into auth.users (id, email, raw_user_meta_data) values ($1, 'size-owner@example.com', '{}')", [SA]);
+    await su("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ('google', 'sz-g-sa', $1::uuid, 'size-owner@example.com', '{}')", [SA]);
+    await su("insert into highland.hs_profiles (user_id, name, name_key) values ($1, 'Size Owner', 'sizeowner')", [SA]);
+    await su(`insert into auth.users (id, email, raw_user_meta_data) select md5('sz-u' || g)::uuid, 'size-' || g || '@example.com', '{}' from generate_series(1, $1) g`, [NP]);
+    await su(`insert into auth.identities (provider, provider_id, user_id, email, identity_data) select 'google', 'sz-g' || g, md5('sz-u' || g)::uuid, 'size-' || g || '@example.com',
+      jsonb_build_object('full_name', 'Size Person ' || g) from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_profiles (user_id, name, name_key) select md5('sz-u' || g)::uuid, 'Size ' || g, 'size' || g from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_saves (user_id, channel, data, bytes) select md5('sz-u' || g)::uuid, 'live',
+      jsonb_build_object('v', 1, 'sum', jsonb_build_object('won', jsonb_build_array(g % 17, 1, 0), 'stars', g % 68, 'far', 'dvin', 'farN', g % 17)), 100 from generate_series(1, $1) g`, [NP]);
+    await su(`insert into highland.hs_sessions (sid, aid, uid, started_at, channel, dev_class, os, browser) select 'sz-' || g || '-' || v, md5('sz-a' || g)::uuid, md5('sz-u' || g)::uuid,
+      now() - (v || ' hours')::interval, 'live', 'phone', 'ios', 'safari' from generate_series(1, $1) g, generate_series(1, $2) v`, [NP, NV]);
+    await su(`insert into highland.hs_sessions (sid, aid, uid, started_at, channel) select 'sz-anon-' || g, md5('sz-x' || g)::uuid, null, now(), 'live' from generate_series(1, $1) g`, [NP * NV]);
+    await su(`insert into highland.hs_events (sid, seq, name, props, ts) select 'sz-' || g || '-' || v, e,
+        case when e = $3 then 'page_hide' when e = 5 then 'victory' else 'wave_end' end,
+        case when e in (5, $3) then jsonb_build_object('sec', 300) else '{}'::jsonb end, now() - (v || ' hours')::interval + (e || ' seconds')::interval
+      from generate_series(1, $1) g, generate_series(1, $2) v, generate_series(1, $3) e`, [NP, NV, NE]);
+    await su(`insert into highland.hs_events (sid, seq, name, props) select 'sz-anon-' || g, e, 'wave_end', '{}' from generate_series(1, $1) g, generate_series(1, $2) e`, [NP * NV, NE]);
+    // as autovacuum would have by then
+    await su("analyze highland.hs_events"); await su("analyze highland.hs_sessions"); await su("analyze highland.hs_profiles");
+    await pgc.query("select highland.hs_grant_superadmin_by_email('size-owner@example.com')");
+    const time = async (fn, args) => { const t = Date.now(); const r = await rpc(SA, fn, args); return { ms: Date.now() - t, r }; };
+    for (const [args, label] of [[{}, "by last seen"], [{ p_sort: "name", p_desc: false }, "by name"], [{ p_sort: "page" }, "by time on page"],
+      [{ p_q: "size 19" }, "a search"], [{ p_offset: 2000 }, "a late page"]]) {
+      const x = await time("hs_super_players", args);
+      ok(x.ms < 6000, "the Players list " + label + ", with " + NP + " players and " + (NP * NV * NE) + " of their events: " + x.ms + " ms (at most 6,000)");
+      if (!args.p_q) eq(x.r.total, (await su("select count(*)::int n from highland.hs_profiles"))[0].n, "(every player counted)");
+    }
+    const one = await time("hs_super_player", { p_user: (await su("select md5('sz-u7')::uuid::text id"))[0].id });
+    ok(one.ms < 1000, "a player's page among them: " + one.ms + " ms (at most 1,000)");
+    eq([one.r.player.visits, one.r.player.battles, one.r.player.battle_sec, one.r.player.page_sec, one.r.visits.length], [NV, NV, NV * 300, NV * 300, NV],
+      "and his numbers are right: 10 visits, 10 battles of 300 s, 10 page_hides of 300 s");
+  } finally { await clean(); await pgc.end(); }
 });
 
 group("delete", async () => {
@@ -1166,6 +1528,60 @@ group("ceiling", async () => {
   await su("update highland.hs_config set value = '1024' where key = 'ev_max_mb'");
 });
 
+// migration 007 (P5): the victory page's " · your best" (beat_all, beat_week), what a run was in the answer, the
+// defenders a board row's battle began with (lives_max), and the owner's two switches enforced by hs_run_begin
+group("boards", async () => {
+  const P = "00000000-0000-4000-8000-0000000005a1", Q = "00000000-0000-4000-8000-0000000005a2";
+  await su("insert into auth.users (id, email) values ($1, 'p5-a@example.com'), ($2, 'p5-b@example.com') on conflict do nothing", [P, Q]);
+  await su("insert into auth.identities (provider, provider_id, user_id) values ('google', 'g-p5a', $1), ('google', 'g-p5b', $2) on conflict do nothing", [P, Q]);
+  eq((await rpc(P, "hs_profile_set_name", { p_name: "Boardone" })).ok, true, "a player for the boards");
+  eq((await rpc(Q, "hs_profile_set_name", { p_name: "Boardtwo" })).ok, true, "and a second");
+  const good = { won: true, lives: 14, waves: 10, sim_sec: 600, spent: 900, earned: 3000, loadout: "std", build: "p5" };
+  // a board of its own: Erebuni on Hard under ruleset 2 (no other group posts there)
+  const post = async (who, st) => {
+    const b = await runBegin(who, "campaign", "erebuni", 2, "2");
+    await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
+    return rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: st });
+  };
+  let a = await post(P, { ...good, lives: 10 });
+  ok(a.accepted && a.best_all === true && a.beat_all === false && a.beat_week === false, "a first score is the player's best, and beats no best of his (" + JSON.stringify([a.best_all, a.beat_all, a.beat_week]) + ")");
+  ok(a.mode === "campaign" && a.level === "erebuni" && a.diff === 2 && a.loadout === "std" && a.day === null, "the answer says what the run was");
+  const s1 = a.score;
+  a = await post(P, { ...good, lives: 8 });
+  ok(a.accepted && a.score < s1 && a.best_all === false && a.beat_all === false && a.beat_week === false, "a lower score beats nothing");
+  a = await post(P, { ...good, lives: 14 });
+  ok(a.accepted && a.score > s1 && a.best_all === true && a.beat_all === true && a.beat_week === true, "a higher one beats his best, all time and this week");
+  eq(a.score, ref.scoreOf({ ...good, lives: 14 }, ref.boundsOf(R2, "erebuni", 2)), "and is scored as ref.js scores it");
+  // a new week: the week's best is beaten by nothing yet; the all-time one stands
+  await setClock("7 days");
+  a = await post(P, { ...good, lives: 12 });
+  ok(a.accepted && a.beat_all === false && a.beat_week === false && a.best_week === true && a.rank_week === 1, "the next week a lower score is that week's first, and beats no best");
+  await setClock("");
+  await post(Q, { ...good, lives: 11 });
+  const bd = await rpc(Q, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 2, p_loadout: "std", p_ruleset: "2" });
+  ok(bd.rows.length === 2 && bd.rows.every(r => r.lives_max === 14) && bd.me && bd.me.lives_max === 14 && bd.me.lives === 11, "board rows and the caller's own carry lives_max, Hard's 14 (" + JSON.stringify(bd.rows.map(r => r.lives_max)) + ")");
+  const vb = await rpc(null, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 2, p_loadout: "std", p_ruleset: "2", p_period: "week" });
+  ok(vb.rows.length === 2 && vb.rows[0].name === "Boardone" && vb.rows[0].lives_max === 14 && vb.me === null, "a visitor's board too, this week");
+  // the owner's switches: the boards off, no campaign run begins (and nothing is written); the daily off, no daily run
+  const runs = async () => Number((await su("select count(*) as n from highland.hs_runs where user_id = $1", [P]))[0].n);
+  const n0 = await runs();
+  const held = await runBegin(P, "campaign", "erebuni", 2, "2");
+  await su("insert into highland.hs_config (key, value) values ('boards', 'false') on conflict (key) do update set value = excluded.value");
+  const off = await runBegin(P, "campaign", "erebuni", 2, "2");
+  ok(off.ok === false && off.reason === "boards_off" && !off.run_id, "with the boards off no campaign run begins (" + JSON.stringify(off) + ")");
+  eq(await runs(), n0 + 1, "and no run is written");
+  eq((await rpc(null, "hs_config", {})).boards, false, "hs_config tells every visitor");
+  await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [held.run_id]);
+  ok((await rpc(P, "hs_score_submit", { p_run: held.run_id, p_stats: good })).accepted === true, "a run begun before the switch still posts");
+  await su("insert into highland.hs_config (key, value) values ('daily', 'false') on conflict (key) do update set value = excluded.value");
+  const dOff = await runBegin(P, "daily", "erebuni", 1, "2", "thin");
+  ok(dOff.ok === false && dOff.reason === "daily_off", "with the daily off no daily run begins (" + JSON.stringify(dOff) + ")");
+  eq(Number((await su("select count(*) as n from highland.hs_runs where user_id = $1 and mode = 'daily'", [P]))[0].n), 0, "and no attempt is spent");
+  await su("delete from highland.hs_config where key in ('boards', 'daily')");
+  ok((await runBegin(P, "campaign", "erebuni", 2, "2")).ok === true, "the boards on again: a run begins");
+  ok((await err(runBegin(null, "campaign", "erebuni", 2, "2"))) !== null, "a visitor still begins none");
+});
+
 group("handoff", async (ctx) => {
   if (!ctx.handoff) {
     ok((await su("select to_regprocedure('highland.hs_handoff_put(text, text)') is null as x"))[0].x === true, "without its file the handoff does not exist");
@@ -1194,6 +1610,7 @@ async function suite(db, name, handoff) {
   const warnings = [];
   await db.createDatabase(name, { schema: true, roundTrip: true, handoff, onNotice: m => { if (m.severity === "WARNING") warnings.push(m.message); } });
   admin = await db.client(name, "supabase_admin");
+  DBH = db; DBN = name;
   api = await db.client(name, "authenticator");
   api2 = await db.client(name, "authenticator");
   clock = "";
@@ -1204,7 +1621,7 @@ async function suite(db, name, handoff) {
       [["google", "facebook", "discord"][id.charCodeAt(id.length - 1) % 3], "p-" + k, id, k.toLowerCase() + "@example.com"]);
   }
   await admin.query("insert into highland.hs_admins (user_id) values ($1)", [U.AD]);
-  const ctx = { handoff, warnings, safeupdate: !!db.safeupdate };
+  const ctx = { handoff, warnings, safeupdate: !!db.safeupdate, db, name };
   for (const g of GROUPS) {
     if (ONLY.length && !ONLY.includes(g.name)) continue;
     groupName = g.name + (handoff ? "+handoff" : ""); groupCount = 0; groupFail = 0;

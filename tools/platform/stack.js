@@ -698,6 +698,8 @@ async function start(opts = {}) {
       await su.query(`truncate highland.hs_events, highland.hs_sessions, highland.hs_score_best, highland.hs_scores, highland.hs_runs, highland.hs_saves, highland.hs_profiles,
         highland.hs_admins, highland.hs_rulesets, highland.hs_rate cascade`);
       if (opts.handoff) await su.query("truncate highland.hs_handoff");
+      // (P10's two tables, where migration 006 is applied)
+      if ((await su.query("select to_regclass('highland.hs_super_audit') is not null as t")).rows[0].t) await su.query("truncate highland.hs_superadmins, highland.hs_super_audit");
       await su.query("delete from highland.hs_config where key not in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("update highland.hs_config set value = case key when 'ev_cap_hour' then '20000'::jsonb when 'ev_max_mb' then '1024'::jsonb else '180'::jsonb end where key in ('ev_cap_hour', 'ev_max_mb', 'ev_keep_days')");
       await su.query("delete from auth.audit_log_entries; delete from auth.users");
@@ -723,6 +725,15 @@ async function start(opts = {}) {
     redirects: async (b) => { state.allow = Array.isArray(b.allow) ? b.allow.slice() : []; return { allow: state.allow }; },
     // serve only the two prefixes (the guide's proxy), or the whole API
     narrow: async (b) => { state.narrow = b.on !== false; return { narrow: state.narrow }; },
+    // the owner's superadmin command (P10, docs/specs/owner/superadmin.md), run as he runs it: as postgres, on a
+    // connection of its own (not through the API). { email, revoke: true } -> { said } (the command's answer)
+    superadmin: async (b) => {
+      const c = await db.client(dbName, "postgres");
+      try {
+        const r = await c.query("select highland." + (b.revoke ? "hs_revoke_superadmin_by_email" : "hs_grant_superadmin_by_email") + "($1) as said", [String(b.email || "")]);
+        return { said: r.rows[0].said };
+      } catch (e) { throw Object.assign(new Error(e.message), { status: 400 }); } finally { await c.end(); }
+    },
     // make an account an admin (the guide's one line of SQL, step 6)
     admin: async (b) => { await su.query("insert into highland.hs_admins (user_id) values ($1) on conflict do nothing", [b.user_id]); return { ok: true }; },
     // read the database as its superuser, read-only (a test reads back what the page stored)

@@ -188,9 +188,10 @@ Then apply them all **[tried]**:
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
-The five migrations, each in one transaction of its own, each followed by the lockdown (the file
+The seven migrations, each in one transaction of its own, each followed by the lockdown (the file
 `migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
-`service_role`) and, once 003 is in, 003's grants again:
+`service_role`) and, once 003 is in, 003's grants again, then the grants of each later migration that has a file
+of them (`006_superadmin.grants.sql`):
 
 | migration | up | down |
 | --- | --- | --- |
@@ -199,6 +200,9 @@ The five migrations, each in one transaction of its own, each followed by the lo
 | `003_grants_policies` | USAGE on the schema to `anon` and `authenticated`; EXECUTE on the 4 open functions to both and on the 13 others to `authenticated`; `service_role` nothing; the policies; per-schema default privileges revoked | takes every grant back and drops the policies |
 | `004_seed` | the analytics' three ceilings and the name filter's words | deletes those rows |
 | `005_delete_game_session` | "Delete my account" asks for a session of the game's own sign-in (an account signed in by password through the shared email sign-in cannot delete a player's data), and takes the deleted visits' rate counters with them | puts back 002's "Delete my account" |
+| `006_superadmin` | the superadmin (P10): the tables `hs_superadmins` and `hs_super_audit` (row level security and policies), the Players view's two functions (`hs_super_players`, `hs_super_player`: a superadmin only, each look written down), your two commands (`hs_grant_superadmin_by_email`, `hs_revoke_superadmin_by_email`: granted to nobody, refused through the API), 7 helpers; `hs_profile_get` also says `super`, and "Delete my account" also removes a superadmin's row. Its grants file gives EXECUTE on the two functions to `authenticated` only | drops them by name; puts back 002's `hs_profile_get` and 005's "Delete my account" |
+| `007_scores` | scores and boards (P5): `hs_run_begin` begins no run while you have the boards switched off (or the daily), `hs_score_submit` also says whether a result beat the player's best and what its run was, `hs_board`'s rows carry the defenders the battle began with. The same three functions with the same signatures, so nothing new is granted; no table changes | puts back 002's three functions; the scores and boards stay |
+| `008_daily` | the daily challenge's tab (P6): `hs_daily_status` also answers the attempts left, whether a newer ruleset makes the page's daily stale, and yesterday's battle and first three; `hs_score_submit` no longer fails on a daily's result posted as a connection's first call. The same two functions with the same signatures, 2 new helpers granted to nobody; no table changes | puts back 002's `hs_daily_status` and 007's `hs_score_submit`, drops the 2 helpers; the scores stay |
 
 It runs as `postgres`, never a superuser (a superuser's connection is moved to `postgres`; a superuser
 `postgres` stops it), takes an advisory lock so two runs cannot overlap, waits at most 10 s for any lock another
@@ -213,13 +217,13 @@ before and after every migration and every rollback.
 select highland.hs_config();
 ```
 
-answers one small line with `"now"`, and `status` says `highland at 5 of 5`.
+answers one small line with `"now"`, and `status` says `highland at 8 of 8`.
 
 **Rolling back.** To a given migration, after a backup (step 2), with `--yes` **[tried]**:
 
 <!-- guide-check: migrate-down -->
 ```
-node tools/platform/migrate.js down 4 --dsn="$HS_DB_URL" --yes
+node tools/platform/migrate.js down 6 --dsn="$HS_DB_URL" --yes
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
@@ -410,6 +414,38 @@ insert into highland.hs_admins (user_id) select id from auth.users where email =
 
 It should say one row was added. **Check:** `https://highland.avunjian.com/next/?stats` shows the stats page.
 
+**The superadmin (the Players view).** To see every player of the game on `?stats` (each one's email, names,
+progress and play time), make your account the superadmin. Sign in to the game with Google, Facebook or Discord
+under your address first (and choose a name). Then, through the tunnel, open `psql` as `postgres` with its history
+file turned off, so that the address you type is not kept in `~/.psql_history` **[tried]**:
+
+<!-- guide-check: superadmin-open -->
+```
+PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X
+```
+
+and in it, typing your address when it asks **[tried]**:
+
+<!-- guide-check: superadmin -->
+```sql
+\prompt 'Your address: ' addr
+select highland.hs_grant_superadmin_by_email(:'addr');
+```
+
+It answers `superadmin: account <its id> (game name ...)`; it also makes the account an admin. Type the address
+only there, on your server: never in a file, a script or a shell command (a shell keeps its own history). If
+`show log_statement;` says `all`, the server's log keeps every statement, the address too: run
+`set log_statement = 'none';` in the same `psql` first, and if it is refused, ask the server's builder. No API key can run this command, nor its undo
+**[tried]**:
+
+<!-- guide-check: superadmin-revoke -->
+```sql
+\prompt 'Your address: ' addr
+select highland.hs_revoke_superadmin_by_email(:'addr');
+```
+
+The whole page is `docs/specs/owner/superadmin.md`.
+
 **Names.** Words refused in player names, lower case, no spaces **[tried]**:
 
 <!-- guide-check: names -->
@@ -430,6 +466,54 @@ and on again **[tried]**:
 ```sql
 delete from highland.hs_config where key = 'cloud';
 ```
+
+## Step 7. Open the boards: publish the game's ruleset
+
+A score counts only under a ruleset the server has: the page's own table of every battlefield's length, defenders,
+par times and pay (docs/specs/platform.final.md 2.4 and 5.2). Each build of the game carries one, numbered (today
+`2`). The server has none until you publish it, and until then every battle is fought and scored on the device but
+ranked nowhere: the victory page says "The boards for this version open soon", and, as the admin, you are told on
+the map: "Admin: publish ruleset 2 on the stats page."
+
+To publish it, signed in as the admin (step 6):
+
+1. Open `https://highland.avunjian.com/next/?stats` (the staging page publishes its own, `2-next`, whose boards are
+   kept apart from the live game's), and later `https://highland.avunjian.com/?stats` once the game is live there.
+2. The Health card says "This page plays ruleset 2. The server does not have it." On the **Rulesets** card press
+   **Publish ruleset 2**. It answers "Published. Battles of ruleset 2 are ranked from now on."
+3. Do it again after every new build whose Health card says the same: a build that changed the battles carries a new
+   number. A battlefield whose own rules did not change keeps its boards; one that changed starts fresh.
+
+The page sends its own table; nothing is typed. If the server refuses it ("The server refused it (...)"), nothing
+changed: send the words in the brackets to the game's builder. To see what the server has **[tried]**:
+
+<!-- guide-check: rulesets -->
+```sql
+select id, active, published_at from highland.hs_rulesets order by published_at;
+```
+
+**The boards' switch.** The stats page's Switches card has **The boards: On | Off**. Off, no new battle is ranked
+(no new run is begun; a battle begun before the switch still posts). The boards stay to read: the Hall's Leaderboards
+tab and its doors stay, and the scores already there stay. The same
+by hand, off **[tried]**:
+
+<!-- guide-check: boards-off -->
+```sql
+insert into highland.hs_config (key, value) values ('boards', 'false') on conflict (key) do update set value = excluded.value;
+```
+
+and on again **[tried]**:
+
+<!-- guide-check: boards-on -->
+```sql
+delete from highland.hs_config where key = 'boards';
+```
+
+**Scores to look at.** The server refuses a result that cannot be (a battle shorter than any can be, more defenders
+or gold than there are) and marks one that is possible but rare: `fast` (quicker than the battle's fast mark) or
+`perfect`. Those are listed on the stats page's **Scores to look at** card, for you alone, each with **Remove** (the
+score leaves every board; the player's next best takes its place) and **Hide player** (all his rows leave every
+board). Look at it now and then; nobody else sees the marks.
 
 ---
 
@@ -478,7 +562,7 @@ way:
 3. **A restore widens the grants.** Supabase's global default privileges grant everything `postgres` makes, in
    any schema, to `anon`, `authenticated` and `service_role`; restoring re-creates every table and function, so
    they are all granted again (the rehearsal counts them: dozens). The dump's own grant lines do not take that
-   back. **After every restore run `node tools/platform/migrate.js regrant`** (the lockdown and 003 again). The
+   back. **After every restore run `node tools/platform/migrate.js regrant`** (the lockdown, 003 and the later grants files again). The
    rehearsal also restores a second copy without it and shows the isolation tests fail on that copy.
 4. **Restore as `postgres`, with `--no-owner`.** A superuser would own what it restores, and a function owned by
    a superuser runs as one. Do not restore with `--clean` into the live database: drop the schema with the

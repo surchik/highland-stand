@@ -2,7 +2,8 @@
 // failures under it, and a summary. Exits 1 when any script failed.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/run-all.js [index.html] [--quick] [--only=padplace,vic]
 //         [--jobs=n] [--shots=dir] [--log=dir] [--strict]
-//   --quick   each script's smaller sample (about 7 minutes in all, against about 25 for the full suite)
+//   --quick   each script's smaller sample (about 25 minutes in all on a quiet machine since P5's flow 7, platform
+//             the longest of them; the full suite takes about 90)
 //   --only    some of the scripts, by name
 //   --jobs    scripts run side by side (default 1: the timed scripts, dance10, nag and live, keep to real time best
 //             on a quiet machine)
@@ -20,7 +21,9 @@ const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", 
 // iphone walks over 700 states at ten sizes: about 500 s on a quiet machine since G3, past 600 s on a busy one;
 // waves plays all 245 waves of the campaign at 4x, four battlefields at a time)
 // (platform starts the local stack, PostgreSQL included, and plays sign-in through it: tools/platform/README.md)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 1800 };
+// (P5's flow 7, scores and boards, brought its full run to about 2,400 s under load; the quick one runs only the flows
+// spec 10.5 names, 1, 2, 4, 5, 7 and 11, at 1600x900 and 667x320, and keeps well inside its 0.6 of the limit)
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 400, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 2600 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
@@ -51,7 +54,9 @@ function run(name) {
     let out = "";
     ch.stdout.on("data", d => { out += d; });
     ch.stderr.on("data", d => { out += d; });
-    const timer = setTimeout(() => { out += "\nFAIL stopped after " + LIMIT_S[name] + " s"; ch.kill("SIGKILL"); }, LIMIT_S[name] * 1000 * (quick ? 0.6 : 1));
+    // (the limit applied: the quick run gets 0.6 of a script's)
+    const limit = Math.round(LIMIT_S[name] * (quick ? 0.6 : 1));
+    const timer = setTimeout(() => { out += "\nFAIL stopped after " + limit + " s (its limit" + (quick ? ", 0.6 of " + LIMIT_S[name] + " s for --quick" : "") + ")"; ch.kill("SIGKILL"); }, limit * 1000);
     ch.on("close", (code) => {
       clearTimeout(timer);
       const s = (Date.now() - t0) / 1000;

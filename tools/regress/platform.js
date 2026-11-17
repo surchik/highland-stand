@@ -10,7 +10,8 @@
 //       [--sizes=desk,ipad,ses,i15h,i15u] [--photos=dir] [--shots=dir] [--verbose]
 //
 // The flows built so far (work package P2: sign-in and the gate; P3: cloud saves; P4: analytics and the stats page;
-// P8: privacy, deletion and staging):
+// P5: scores and boards; P6: the daily challenge; P7: the share card; P8: privacy, deletion and staging; P10: the
+// superadmin's Players view):
 //   1  the gate: a fresh visitor gets the sign-in card and nothing of the game answers a tap or a key; the three
 //      buttons in order; the privacy link and back (the page's every part, its #delete part, no long dash, no sound;
 //      ?privacy#delete opens at that part, and its second way back at the end); a provider the server switched off has no button; Discord held
@@ -48,7 +49,8 @@
 //      wrong types, a forged user id and a forged token, a borrowed visit id, a flood from one device): the server's
 //      answers, and the owner's page still answers with nothing of theirs made into markup; the period switch; Discord
 //      held back with the Health card's line; the gate switched to optional from the page (a fresh visitor gets Play
-//      as a guest), the owner's line, back to required, each switch answering on its own line (a value the page or the
+//      as a guest), the owner's line, back to required, the daily's switch Off and On again (the server holding each),
+//      each switch answering on its own line (a value the page or the
 //      server refuses, and a failed save, put the field back); Remove old events. Then nothing is sent from a
 //      webdriver with an ordinary browser's user agent, from a robot's user agent, without the switch (and neither
 //      keeps an anonymous id, nor does a prerender until shown), on file://, or by the page as committed (its constants empty), each with its request log
@@ -94,15 +96,69 @@
 //      the words say there is no connection; with the server's answer lost after it deleted (desktop) they say it may
 //      be done, and the retry is safe. Deleted elsewhere (desktop and 667x320): another device still signed in, and a
 //      second tab of the same browser, forget the account too, say so on the gate, and bring none of it back
+//   7  scores and boards (P5): a player with five battlefields, made an admin; the map's door (#hallBtn) 10 px right of
+//      the tally, uncovered (held sideways the tally is the door); a ranked battle before the ruleset is published
+//      ("The boards for this version open soon", the page's score equal to ref.js's) and the admin's toast on the map;
+//      Publish ruleset 2 on the stats page's Rulesets card (the server then has it); ranked battles won as vic.js wins
+//      one, their clock and gold set as a real battle's would stand and the run's start moved back by the stack's
+//      control: the server's score equal to the page's and ref.js's, "#1 of 1 this week", score_posted, the tooltip;
+//      Leaderboard opens the Hall on that battlefield, Normal, This week, Standard, the player's row tinted with
+//      "17/20" and the clock, the words under it; All time, Open, Hard and the battlefield's arrows; a second player's
+//      lower score "#2 of 2", an open battle (a gift of gold) "· Open" and on the Open board only; a best beaten
+//      ("· your best"); the server down at the battle's end ("It posts when you are back online", the outbox, sent on
+//      online); a battle begun with the server down ("Not ranked: this battle began offline"); a result the server
+//      refuses ("Not ranked", score_rejected); test mode (no strip); a guest under the optional gate ("Sign in to post
+//      it", the Account tab; the board to read with the three buttons; no connection and Try again); Scores to look
+//      at (a fast result listed, Remove); the boards switched off (no strip, no run begun). The strip and the tab held
+//      to the iPhone suite's audit on the phones; photos of each state (--photos: a folder p5)
+//   8  the daily challenge (P6): a player with five battlefields and the page's ruleset published; the page's pick
+//      (gameplay's dailyPick and the platform's dailyOf) equal to the server's _daily_pick for 366 days from today,
+//      skip lists included, and Platform.daily() to hs_daily_status; the welcome card's "Today's challenge" opens the
+//      Hall on the Daily tab (hall_open from "welcome"), the tab's words (the day, the battlefield, the twist, the rules,
+//      the attempts, Play, the time to the next, one sitting, the empty board), its badge and the map's dot, gameplay's
+//      map door leading to the tab; three attempts, each told at its first wave: won and posted (the server's score the
+//      page's and ref.js's, "#1 of 1 today", no stars on the event, Share and the card's words of 5.6, daily_played),
+//      lost and scored by the waves held (the strip on the daily's end page, no Share), a third by Fight again; the
+//      fourth practice ("Practice: not ranked", nothing spent on the server); the tab with no attempt left (Practice);
+//      a second player's lower score "#2 of 2 today" (desktop and 667x320); the day changed by the stack's clock set
+//      to 8 s before midnight UTC, the tab left open and turned by the page's own timer: the next challenge, the
+//      attempts back, the board empty, "Yesterday: 1. ..." and yesterday's battle. Then (desktop and 667x320) the
+//      owner's daily switch off (the server's daily_off at the first wave makes it practice; the tab's Practice and its
+//      note, no badge), a newer ruleset published under the chronicle (daily_mismatch: practice; the tab's "Reload"),
+//      the database down (Platform.daily() still today's from the page's own lines, the board's "needs a connection",
+//      a daily begun is practice, "no connection"), a guest under the optional gate (Practice beside the sign-in
+//      buttons, said once, no "One sitting", his first wave's word, no run, daily_played not ranked, his page's turn of
+//      the day) and a player with no name ("Later" after two failed saves: the tab's note, no badge, practice), none of
+//      them spending an attempt. The tab and the pages held to the iPhone suite's audit; photos in p6 (--photos)
+//   9  the share card (P7): a player wins Ani (a short name) and Sis (the longest title, after its Terms card), a guest
+//      under the optional gate Erebuni Rise; each picture read back (a JPEG of 1200 x 630, the field copied, its words:
+//      title, Armenian name, stars, defenders, rank, name; the guest's with neither name nor rank); with navigator.share
+//      and canShare stubbed the tap shares that file (highland-stand-<id>.jpg) with words carrying the score, a cancel
+//      is no error, a refusal opens the sheet; without them the sheet (#shareSheet): Save picture a real download of
+//      the same bytes, Copy picture a PNG, Copy text the words, each with its toast over the sheet and its event; Share
+//      link where navigator.share takes no file; Escape or its X closes it; held sideways the round #shareBtn at the
+//      top right (or Settings' row when a long title hides it); no request for the picture; the card gone with its
+//      page. The victory page and the sheet held to the iPhone suite's audit; photos and the pictures themselves in
+//      p7 (--photos); at 1600x900 also a daily's card, staged
 //   14 staging: the page at /next/ signs in and comes back to /next/, saves on the channel "next" only, keeps its keys
 //      under "next:"; the page at / in the same browser has no session and none of that progress, and signed in
 //      there has its own save; /next/ again has its session and its progress
+//   15 the superadmin's Players view (P10): thirty players made through the game's own functions and an outsider of
+//      another app; the owner signs in on ?stats (closed to him), is made superadmin by the owner's command run as
+//      postgres on the stack's own connection, and gets the tabs Numbers and Players; the list shows 25 of the 30
+//      with every column (the time columns' help says where each comes from), each player's email and the
+//      provider's name, and neither the outsider nor the owner (no player); sorted by name both ways and by battle
+//      clock; searched by email, by the provider's name, and for the outsider (nothing); the second page and back;
+//      a player's page with its seven parts; one audit row a read, all the superadmin's, the grant there too, no
+//      address or search words in it; nothing of it in the device's storage; after the revoke the page is closed
+//      again, and as an admin who is not super there is no tab, no email, and the list by hand answers not_superadmin
 // At every size the sign-in, name, welcome and Account cards are held to the iPhone suite's audit (every control
 // on screen, out of the safe areas, 44 px to a finger, text at least 11 px, nothing covered) and, with --photos,
 // photographed (and the privacy page, ?privacy#delete, and the deletion's question, failure and end). Every request
 // must go to the stack's two ports; any page error or console error fails. Flow 10 also opens ?privacy#delete on the
 // page as committed (the platform off): shown from the page itself, with no request.
-// --quick: every flow at 1600x900 and 667x320. A RESULT line ends it; it exits 1 on any failure. The extra parts
+// --quick: flows 1, 2, 4, 5, 7 and 11 (spec 10.5) at 1600x900 and 667x320, about 15 minutes alone (--flows= picks
+// others). A RESULT line ends it; it exits 1 on any failure. The extra parts
 // alone: --flows=4more,5more,13more,13del,13gone.
 "use strict";
 const path = require("path");
@@ -118,7 +174,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", "1,2,3,4,5,6,10,11,13,14")).split(",");
+const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,8,9,10,11,13,14,15")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -153,6 +209,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const ctx = await browser.newContext(Object.assign({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1, hasTouch: !!C.touch, isMobile: !!C.touch },
       x.ua || C.ua ? { userAgent: x.ua || C.ua } : {}));
     await ctx.addInitScript(() => { window.__hsQuietCouncilCard = true; window.__hsQuietPostCard = true; window.__hsQuietRallyBubble = true; });   // (G5: and the Garrison Post's card and bubble)
+    if (x.quietCall) await ctx.addInitScript(() => { window.__hsQuietCallBubble = true; });   // (flow 7: the hero's Call bubble, as lib.js quiets it)
     if (C.standalone) await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, "standalone", { configurable: true, get: () => true }); } catch (e) {} });
     if (C.insets) await ctx.addInitScript(ins => {
       const set = () => { const st = document.documentElement.style; st.setProperty("--sat", (ins.t || 0) + "px"); st.setProperty("--sab", (ins.b || 0) + "px"); st.setProperty("--sal", (ins.l || 0) + "px"); st.setProperty("--sar", (ins.r || 0) + "px"); };
@@ -167,7 +224,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     if (x.storage) await ctx.addInitScript(st => { try { for (const k in st) localStorage.setItem(k, st[k]); } catch (e) {} }, x.storage);
     for (const [fn, arg] of x.init || []) await ctx.addInitScript(fn, arg);
     const page = await ctx.newPage();
-    const g = new R.Game(page, ctx, { w: C.w, h: C.h, touch: !!C.touch, name: C.name });
+    const g = new R.Game(page, ctx, { w: C.w, h: C.h, touch: !!C.touch, name: C.name, key: C.key });
     g.reqs = [];
     page.on("request", r => { const u = r.url(); if (!/^(data|blob|about):/.test(u)) g.reqs.push(u); });
     page.on("pageerror", e => g.errs.push("pageerror: " + e.message));
@@ -321,7 +378,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       backs: ["privacyBack", "privacyBack2"].map(id => ($(id) || {}).getAttribute && $(id).getAttribute("href")), sound: typeof Snd !== "undefined" && Snd.ctx ? Snd.ctx.state : "none" }));
     if (pv.gate || !/Privacy/.test(pv.text)) fail(W, "the privacy page: " + JSON.stringify(pv).slice(0, 200));
     // (P8) the whole page of 8.1: each of its parts, and the deletion part the providers link to
-    for (const h of ["What we keep when you sign in", "What we count", "What the sign-in service and the web server record", "What we do not do", "Where it is kept", "How long",
+    for (const h of ["What we keep when you sign in", "What the game's owner can see", "each player it shows the email address", "What we count", "What the sign-in service and the web server record", "What we do not do", "Where it is kept", "How long",
       "How to delete your data", "Children", "Changes", "Delete my account", "kept by the sign-in service", "13 and older", "Authorized Apps"]) if (!pv.text.includes(h)) fail(W, "the privacy page has no \"" + h + "\"");
     if (!pv.del) fail(W, "the privacy page has no #delete part");
     if (pv.backs.some(h => h !== "/")) fail(W, "the privacy page's ways back go to " + pv.backs.join(", "));
@@ -446,7 +503,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     const at = await g.ev(() => hallBodyEl.innerText.replace(/\s+/g, " "));
     if (!at.includes("Aram") || !at.includes("Signed in with Google.") || !at.includes("Sign out")) fail(W, "the Account tab: " + at);
     const tabs = await g.ev(() => Array.from(hallTabsEl.children).map(b => b.dataset.tab).join());
-    if (tabs !== "council,account") fail(W, "the Hall's tabs are " + tabs);
+    if (tabs !== "council,daily,boards,account") fail(W, "the Hall's tabs are " + tabs);
     await audit(g, W + " Account tab", { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: [".acTab .btn"], primaryRequired: true, scroll: "inside" }, "account-" + C.key);
     // sign out: asked, then done; the page comes back to the gate, Google marked "Last used"
     await g.press(() => Array.from(document.querySelectorAll(".acTab .btn")).find(b => b.textContent === "Sign out"));
@@ -1138,6 +1195,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     // over everything, with the field put back to the value in force
     const said = await A.ev(() => { const e = document.querySelector('#statsPage .stAnswer[data-key="gate"]'); return e ? e.textContent : null; });
     if (said !== "Saved.") fail(W, "the gate's switch said " + JSON.stringify(said) + " after a save");
+    // (P6 review 8) the daily's switch: Off saved and held by the server, then On again
+    for (const v of [false, true]) {
+      await pressStats(A, '#statsPage .stDaily[data-on="' + v + '"]');
+      await A.page.waitForFunction(v => !stBusy && stData && stData.config && (stData.config.daily !== false) === v, v, { timeout: 20000 }).catch(() => fail(W, "the daily's switch " + v + " was not saved"));
+      const held = (await S.query("select value from highland.hs_config where key = 'daily'"))[0];
+      const pressed = await A.ev(() => { const b = document.querySelector('#statsPage .stDaily[aria-pressed="true"]'); return b ? b.dataset.on : null; });
+      if (!held || held.value !== v || pressed !== String(v)) fail(W, "the daily's switch " + v + ": the server holds " + JSON.stringify(held) + ", pressed " + pressed);
+    }
     await A.page.fill('#statsPage .stField[data-key="ev_keep_days"]', "3");
     await pressStats(A, '#statsPage .stField[data-key="ev_keep_days"] + .btn');
     await A.wait(200);
@@ -1658,6 +1723,25 @@ const log = (m) => { if (o.verbose) console.log(m); };
       if (!up.data.run || up.data.run.val !== mine.hs_run || mine.hs_run !== run) fail(W, "the battle in progress was not uploaded as the live game saved it");
       if ("hs_settings" in up.data.keys || Object.keys(up.data.keys).some(k => /^hs_(pf_|mig_|town)/.test(k))) fail(W, "a key that is not synced was uploaded: " + Object.keys(up.data.keys).join());
     }
+    // P10 review 6: the progress summary the page itself adds to each save (csSum), read back from the server: its
+    // arithmetic against this test's own count, and every part there (a game function renamed would empty a part)
+    if (up) {
+      const sum = up.data.sum || {}, ids = await A.ev(() => LEVELS.map(L => L.id));
+      const far = Math.max(...won.map(id => ids.indexOf(id))) + 1;
+      const want = { won: [0, won.length, 0], held: won.length, farN: far, far: ids[far - 1], stars: await A.ev(() => starsEarned()) };
+      for (const k of Object.keys(want)) if (JSON.stringify(sum[k]) !== JSON.stringify(want[k])) fail(W, "the save's summary: " + k + " is " + JSON.stringify(sum[k]) + ", not " + JSON.stringify(want[k]));
+      if (!(want.stars > 0)) fail(W, "the save's summary: no stars for five battlefields won");
+      if (!sum.heroes || Object.keys(sum.heroes).length !== await A.ev(() => CHAPTERS.length) || !sum.council || typeof sum.council !== "object" || Array.isArray(sum.council))
+        fail(W, "the save's summary lacks the heroes or the Council: " + JSON.stringify(sum));
+    }
+    // and a returning player's device (P10 review 5): three battlefields won, the third before star records began (its
+    // records already migrated, so the page's start does not make one for it); it counts as held, on no difficulty
+    const G0 = await open(C, { storage: { hs_records: JSON.stringify({ erebuni: rec.erebuni, tushpa: rec.tushpa }), hs_best_erebuni_0: "21", hs_best_tushpa_0: "21",
+      hs_best_avarayr_1: "21", hs_tutorial_done: "1", hs_mig_ids: "1", hs_mig_rec: "1" } });
+    await G0.page.waitForFunction(() => typeof csSum === "function" && document.readyState === "complete");
+    const s0 = await G0.ev(() => csSum());
+    if (JSON.stringify([s0.won, s0.held, s0.farN, s0.far]) !== JSON.stringify([[0, 2, 0], 3, 3, "avarayr"])) fail(W, "a returning player's summary: " + JSON.stringify(s0));
+    await done(G0, W + " returning player's summary");
     const sm = await evs(A, "save_merge");
     if (!sm.length || sm[0].case !== "upload") fail(W, "save_merge: " + JSON.stringify(sm));
     // the second device: everything comes back whole
@@ -2124,7 +2208,1469 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(g, W);
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 10: flow10, 11: flow11, 13: flow13, 14: flow14, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
+  // ================================================================ flow 15: the superadmin's Players view (P10)
+  const flow15 = async (C) => {
+    const W = "flow 15 " + C.name;
+    await resetStack();
+    // thirty players, made through the game's own functions with tokens as the stack's sign-in signs them (a game
+    // session), each with a save carrying the page's summary and a signed-in visit; and an outsider (another app's
+    // email account, no profile). Every address is a made-up one on example.com
+    const NAMES = ["Aram", "Ani", "Arpi", "Ashot", "Bagrat", "Davit", "Erato", "Gor", "Hayk", "Hrant", "Karen", "Lilit", "Mane", "Mher", "Narek", "Nare", "Oshin",
+      "Rafi", "Saro", "Sona", "Tigran", "Vahe", "Vard", "Zara", "Arev", "Anahit", "Artak", "Garnik", "Levon", "Mariam"];
+    const N = NAMES.length, sec = () => Math.floor(Date.now() / 1000);
+    const tok = (uid) => S.sign({ aud: "authenticated", sub: uid, role: "authenticated", iat: sec(), exp: sec() + 3600, is_anonymous: false, amr: [{ method: "oauth", timestamp: sec() }] });
+    const rpcAs = async (uid, fn, body) => {
+      const r = await fetch(API + "/rest/v1/rpc/" + fn, { method: "POST", body: JSON.stringify(body), headers: { apikey: S.anonKey, Authorization: "Bearer " + (uid ? tok(uid) : S.anonKey),
+        "Content-Type": "application/json", "Accept-Profile": "highland", "Content-Profile": "highland" } });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    };
+    const su = await S.db.client("hs", "supabase_admin");
+    const uidOf = (i) => "5f000000-0000-4000-8000-" + String(i + 1).padStart(12, "0");
+    const mailOf = (i) => "p10-player-" + (i + 1) + "@example.com";
+    let g;
+    try {
+      g = await open(C, { path: "/?stats" });
+      const ids = await g.ev(() => LEVELS.map(L => L.id));
+      for (let i = 0; i < N; i++) {
+        const prov = ["google", "facebook", "discord"][i % 3];
+        await su.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now())", [uidOf(i), mailOf(i)]);
+        await su.query("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ($1, $2, $3, $4, $5)",
+          [prov, "p10-" + i, uidOf(i), mailOf(i), JSON.stringify({ full_name: NAMES[i] + " Person" })]);
+        const nm = await rpcAs(uidOf(i), "hs_profile_set_name", { p_name: NAMES[i] });
+        if (nm.status !== 200) throw new Error("the name of player " + i + ": " + JSON.stringify(nm.body));
+        await rpcAs(uidOf(i), "hs_save_put", { p_expected: 0, p_device: "iPhone", p_data: { v: 1, keys: {}, sum: { v: 1, won: [i % 5, i % 4, i % 2], stars: i, farN: 1 + (i % 17),
+          far: ids[i % 17], heroes: { kingdoms: 1 + (i % 5) }, council: { bows: i % 3 } } } });
+        const aid = "5e000000-0000-4000-8000-" + String(i + 1).padStart(12, "0");
+        await rpcAs(uidOf(i), "hs_track", { p_ctx: { aid, sid: "p10-visit-" + i, dev: i % 2 ? "desktop" : "phone", os: i % 2 ? "windows" : "ios", browser: i % 2 ? "chrome" : "safari", channel: "live" },
+          p_events: [{ n: "page_load", q: 1 }, { n: "victory", q: 2, p: { lv: ids[i % 17], diff: 1, mode: "campaign", lives: 15, lives_max: 20, waves: 10, stars: 2, sec: 60 * (i + 1) } },
+            { n: "page_hide", q: 3, p: { where: "victory", sec: 120 * (i + 1) } }] });
+      }
+      await su.query("insert into auth.users (id, email, email_confirmed_at) values ('5f000000-0000-4000-8000-0000000000ff', 'p10-outsider@example.com', now())");
+      await su.query("insert into auth.identities (provider, provider_id, user_id, email) values ('email', '5f000000-0000-4000-8000-0000000000ff', '5f000000-0000-4000-8000-0000000000ff', 'p10-outsider@example.com')");
+      // the owner signs in on ?stats with Google: not yet an admin, the page is closed to him
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !!document.querySelector('#statsPage .gateBtn[data-p="google"]'), null, { timeout: 30000 });
+      await S.control("provider", { identity: { provider_id: "p10-owner-" + C.key, email: "p10-owner@example.com", verified: true, name: "Owner Person" } });
+      await pressStats(g, '#statsPage .gateBtn[data-p="google"]');
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !$("statsPage").hidden && /owner/.test($("statsBody").innerText), null, { timeout: 30000 });
+      if (!/This page is for the game's owner\./.test(await g.ev(() => $("statsBody").innerText))) fail(W, "before the grant: " + await g.ev(() => $("statsBody").innerText.slice(0, 120)));
+      const owner = (await S.query("select id::text from auth.users where email = 'p10-owner@example.com'"))[0].id;
+      // the grant, as the owner runs it: as postgres, on the database itself (here the stack's own connection)
+      const said = (await S.control("superadmin", { email: "P10-Owner@example.com" })).said;
+      if (!said.includes(owner) || /@/.test(said)) fail(W, "the grant's answer: " + said);
+      await g.page.goto(SITE + "/?stats");
+      await statsUp(g);
+      const tabs = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stTab")).map(b => b.dataset.tab + ":" + b.getAttribute("aria-pressed")));
+      if (tabs.join() !== "numbers:true,players:false") fail(W, "the superadmin's tabs: " + tabs.join());
+      // the Players tab
+      const listUp = () => g.page.waitForFunction(() => typeof stP !== "undefined" && !stP.busy && !!document.querySelector("#statsPage .stCount"), null, { timeout: 40000 });
+      const rows = () => g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers tbody tr")).map(tr => Array.from(tr.children).map(td => td.innerText.replace(/\s+/g, " ").trim())));
+      const count = () => g.ev(() => document.querySelector("#statsPage .stCount").textContent);
+      const pages = () => g.ev(() => { const e = document.querySelector("#statsPage .stPageWords"); return e ? e.textContent : ""; });
+      await pressStats(g, '#statsPage .stTab[data-tab="players"]');
+      await listUp();
+      let r = await rows();
+      if (r.length !== 25 || !/Every player: 30\./.test(await count())) fail(W, "the list: " + r.length + " rows, " + await count());
+      const heads = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers thead th")).map(th => th.innerText.replace(/[▲▼]/g, "").trim()));
+      for (const h of ["Name", "Email", "Sign-in", "First seen", "Last seen", "Visits", "Time on page", "Battle clock", "Won E / N / H", "Stars", "Furthest", "Heroes", "Council", "Devices"])
+        if (!heads.includes(h)) fail(W, "no column " + h + ": " + heads.join(", "));
+      const helps = await g.ev(() => Array.from(document.querySelectorAll("#statsPage .stPlayers thead th")).map(th => th.title));
+      if (!/page_hide|hidden or closed/.test(helps[6]) || !/battle clock/.test(helps[7]) || !/events/.test(helps[7]) || !/visits/.test(helps[6])) fail(W, "the time columns' help: " + helps.slice(6, 8).join(" | "));
+      const emailCol = r.map(x => x[1]);
+      if (!emailCol.every(e => /^p10-player-\d+@example\.com$/.test(e))) fail(W, "the email column: " + emailCol.slice(0, 3).join(", "));
+      const text0 = await g.ev(() => $("statsPage").innerText);
+      if (/p10-outsider|p10-owner/.test(text0)) fail(W, "another app's account, or the owner who is no player, is in the list");
+      if (!/Person/.test(r[0][0])) fail(W, "the name column lacks the provider's name: " + r[0][0]);
+      await audit(g, W + " players", { root: "#statsPage", parts: ["#statsPage .stWrap"], primary: ["#statsBack"], primaryRequired: true, scroll: "page" }, "p10-players-" + C.key);
+      // sorted by name, A to Z, and again Z to A
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      const lower = (a) => a.map(x => x[0].split(" ")[0].toLowerCase());
+      let nm = lower(await rows());
+      if (nm.join() !== NAMES.map(x => x.toLowerCase()).sort().slice(0, 25).join()) fail(W, "sorted by name: " + nm.slice(0, 5).join(", "));
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      nm = lower(await rows());
+      if (nm.join() !== NAMES.map(x => x.toLowerCase()).sort().reverse().slice(0, 25).join()) fail(W, "sorted by name, Z to A: " + nm.slice(0, 5).join(", "));
+      // by battle clock, the most first
+      await pressStats(g, '#statsPage .stSort[data-sort="battle"]');
+      await listUp();
+      r = await rows();
+      if (r[0][0].split(" ")[0] !== NAMES[N - 1] || r[0][7] !== "30 min") fail(W, "sorted by battle clock: " + r[0].slice(0, 8).join(" | "));
+      // a search by email, by the provider's name; then cleared
+      await g.page.fill("#statsPage .stSearch", "PLAYER-17@example");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      r = await rows();
+      if (r.length !== 1 || r[0][1] !== mailOf(16)) fail(W, "a search by email: " + JSON.stringify(r.map(x => x[1])));
+      await g.page.fill("#statsPage .stSearch", "lilit person");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      r = await rows();
+      if (r.length !== 1 || !/^Lilit/.test(r[0][0])) fail(W, "a search by the provider's name: " + JSON.stringify(r.map(x => x[0])));
+      await g.page.fill("#statsPage .stSearch", "p10-outsider");
+      await pressStats(g, "#statsPage .stFind");
+      await listUp();
+      if ((await rows()).length !== 0 || !/No player matches/.test(await g.ev(() => $("statsBody").innerText))) fail(W, "a search for another app's account found someone");
+      await pressStats(g, "#statsPage .stClear");
+      await listUp();
+      // the pages, sorted by name
+      await pressStats(g, '#statsPage .stSort[data-sort="name"]');
+      await listUp();
+      if (await g.ev(() => stP.desc)) { await pressStats(g, '#statsPage .stSort[data-sort="name"]'); await listUp(); }
+      if ((await pages()) !== "Showing 1 to 25 of 30") fail(W, "the first page: " + await pages());
+      await pressStats(g, "#statsPage .stNext");
+      await listUp();
+      r = await rows();
+      if ((await pages()) !== "Showing 26 to 30 of 30" || r.length !== 5 || lower(r).join() !== NAMES.map(x => x.toLowerCase()).sort().slice(25).join()) fail(W, "the second page: " + await pages() + " " + lower(r).join());
+      if (!(await g.ev(() => document.querySelector("#statsPage .stNext").disabled))) fail(W, "Next is still on, on the last page");
+      await pressStats(g, "#statsPage .stPrev");
+      await listUp();
+      if ((await pages()) !== "Showing 1 to 25 of 30") fail(W, "back to the first page: " + await pages());
+      // a player's page
+      const first = (await rows())[0][0].split(" ")[0], fi = NAMES.indexOf(first);
+      await pressStats(g, "#statsPage .stPlayers tbody tr:first-child .stLink");
+      await g.page.waitForFunction(() => !stP.busy && /^Player: /.test($("statsTitle").textContent), null, { timeout: 40000 });
+      const pp = await g.ev(() => ({ title: $("statsTitle").textContent, cards: Array.from(document.querySelectorAll("#statsPage .stCard h2")).map(h => h.textContent), text: $("statsBody").innerText }));
+      if (pp.title !== "Player: " + first) fail(W, "the player's page title: " + pp.title);
+      for (const h of ["Who", "Play time", "Progress", "Battles", "Ranked runs", "Recent visits", "Devices"]) if (!pp.cards.includes(h)) fail(W, "the player's page lacks " + h + ": " + pp.cards.join(", "));
+      if (!pp.text.includes(mailOf(fi)) || !pp.text.includes(first + " Person") || !/Won/.test(pp.text) || !pp.text.includes((fi + 1) * 2 + " min")) fail(W, "the player's page: " + pp.text.slice(0, 300));
+      await audit(g, W + " player", { root: "#statsPage", parts: ["#statsPage .stWrap"], primary: ["#statsBack"], primaryRequired: true, scroll: "page" }, "p10-player-" + C.key);
+      await pressStats(g, "#statsPage .stBackList");
+      await listUp();
+      // the audit: one row a read, the superadmin's, never an address or a search's words
+      const reads = g.reqs.filter(u => /\/rpc\/hs_super_player(s)?$/.test(u)).length;
+      const au = await S.query("select who::text, what, player::text, args from highland.hs_super_audit order by id");
+      const mine = au.filter(x => x.what === "players" || x.what === "player");
+      if (mine.length !== reads || !mine.every(x => x.who === owner)) fail(W, "the audit: " + mine.length + " rows for " + reads + " reads (" + JSON.stringify(mine.slice(-2)) + ")");
+      if (!mine.some(x => x.what === "player" && x.player === uidOf(fi))) fail(W, "the audit has no row for the player's page");
+      if (!mine.some(x => x.args && x.args.searched === true)) fail(W, "the audit does not say a search was made");
+      if (/@|lilit|player-17|outsider/i.test(JSON.stringify(au.map(x => x.args)))) fail(W, "the audit keeps a search's words or an address");
+      if (!au.some(x => x.what === "grant" && x.player === owner && x.who === null)) fail(W, "the grant is not in the audit");
+      notes.flows["p10 reads@" + C.key] = reads;
+      // nothing of it on the device
+      const kept = await g.ev(() => { let t = ""; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); t += k + "=" + localStorage.getItem(k) + "\n"; } return t; });
+      if (/p10-player|Person/.test(kept)) fail(W, "the device's storage holds a player's email or name");
+      // absent for every other role: revoked (the admin row given with it goes too), then an admin who is not super
+      const rv = (await S.control("superadmin", { email: "p10-owner@example.com", revoke: true })).said;
+      if (!rv.includes(owner)) fail(W, "the revoke's answer: " + rv);
+      await g.page.goto(SITE + "/?stats");
+      await g.page.waitForFunction(() => typeof stShell !== "undefined" && document.readyState === "complete" && !$("statsPage").hidden && /owner/.test($("statsBody").innerText), null, { timeout: 30000 });
+      await S.control("admin", { user_id: owner });
+      await g.page.goto(SITE + "/?stats");
+      await statsUp(g);
+      const plain = await g.ev(() => ({ tabs: document.querySelectorAll("#statsPage .stTab").length, text: $("statsPage").innerText, cards: Array.from(document.querySelectorAll("#statsPage .stCard h2")).map(h => h.textContent) }));
+      if (plain.tabs || /@example\.com|Person/.test(plain.text) || !plain.cards.includes("Health")) fail(W, "an admin who is not super: " + JSON.stringify({ tabs: plain.tabs, cards: plain.cards }));
+      const forged = await g.ev(async () => { const x = await pfRpc("hs_super_players", {}, { auth: true, timeout: 8000 }); return x.status + " " + x.code; });
+      if (forged !== "403 not_superadmin") fail(W, "an admin who is not super calling the list by hand: " + forged);
+    } finally { await su.end(); }
+    await done(g, W);
+  };
+
+  // ================================================================ flow 7: scores and boards (work package P5)
+  // The page's own ruleset published from the stats page; ranked battles won as vic.js wins one (the last wave's field
+  // cleared in the game's own loop), their clock and gold set as a real battle's would stand and the run's start moved
+  // back through the stack's control by as long; the strip in each of its states; the Hall's board, its controls and
+  // its layouts; the map's door. Every score the page shows is the server's, and is held to ref.js's arithmetic.
+  const refm = require("../platform/ref");
+  const f7who = (key, n) => ({ identity: { provider_id: "p5-" + key + "-" + n, email: "p5-" + key + "-" + n + "@example.com", verified: true, name: "P5 " + n } });
+  // a player of the live game who has won five battlefields (as flow 6's), with no battle in progress
+  const f7prog = (() => {
+    const won = ["erebuni", "tushpa", "avarayr", "dvin", "tashir"], rec = {}, eraOf = { erebuni: 0, tushpa: 0, avarayr: 1, dvin: 2, tashir: 2 };
+    // (Erebuni held with 16 of 20 before: the first ranked win there with 17 brings the "New best" ribbon into the record row)
+    won.forEach((id, i) => { rec[id] = { stars: [0, 3 - (i % 2), 0], lives: [0, i ? 20 - i : 16, 0], endless: [0, 0, 0] }; });
+    const o = { hs_records: JSON.stringify(rec), hs_tutorial_done: "1", hs_chapters_seen: JSON.stringify(["kingdoms", "faith", "crowns", "night", "artsakh"]),
+      hs_unlocked_seen: JSON.stringify(won.concat(["sevan"])), hs_open_kept: JSON.stringify(["sevan"]), hs_tricks_seen: JSON.stringify(["guard", "scout"]) };
+    won.forEach(id => { o["hs_best_" + id + "_" + eraOf[id]] = "21"; });
+    return o;
+  })();
+  const F7SHOTS = PHOTOS ? path.join(PHOTOS, "p5") : null;
+  if (F7SHOTS) fs.mkdirSync(F7SHOTS, { recursive: true });
+  const f7photo = async (g, name) => { if (F7SHOTS && ["desk", "ipad", "ses"].includes(g.o.key)) await g.page.screenshot({ path: path.join(F7SHOTS, name + "-" + g.o.key + ".png") }); };
+  const upr = (C) => C.w < C.h && C.w <= 500;
+  // the strip as the page shows it: the row under #ovGrowth, or held sideways the words in the record row and the round button
+  const strip = (g) => g.ev(() => {
+    const s = $("ovScore"), r = $("pfRecScore"), b = $("boardBtn"), vis = (e) => !!e && !e.hidden && getComputedStyle(e).display !== "none" && e.getClientRects().length > 0;
+    // (held sideways the record row's words must lie on the screen, whole, on one line)
+    const rr = r ? r.getBoundingClientRect() : null, recOut = !!rr && (rr.left < -0.5 || rr.right > innerWidth + 0.5 || (r.tagName === "SPAN" && rr.height > 30) || r.scrollWidth > r.clientWidth + 1 || $("ovRecord").scrollWidth > $("ovRecord").clientWidth + 1);
+    return { recOut, full: r ? r.dataset.full : null, row: vis(s), words: s ? s.querySelector(".scWords").textContent : "", rec: r ? r.textContent : null, board: vis(b) && getComputedStyle(b).visibility !== "hidden",
+      side: phoneWide(), boardRow: !!(s && s.querySelector(".scBoard") && vis(s.querySelector(".scBoard"))), state: SC.page ? SC.page.state : null, score: SC.page ? SC.page.score : null };
+  });
+  // the strip's words as they read at this size: "Score 7,750 · #1 this week" on the row; "· 7,750 · #1 this week" in the record row
+  // (held sideways beside a "New best" ribbon the row's words may be the short form, "· 9,076 · #1": what the strip says
+  // is then its full words, kept on the element, and the short form must begin as they do)
+  const stripSays = (st) => (st.side ? st.full || "" : st.words);
+  // a ranked battle from the map as a player goes (the battlefield's chronicle, its button), won as vic.js wins one.
+  // o: { lv, diff, sec, spent, lives, gift, runback (seconds; false: none), token (wait for it; default true), before (async,
+  // before the first horn), last (async, before the last wave is cleared) }. An upright phone is turned sideways for
+  // the battle as the game asks of a player there, and back for the victory page
+  const f7win = async (g, W, o) => {
+    const C = g.o, up = upr(C);
+    if (up) await g.page.setViewportSize({ width: C.h, height: C.w });
+    await g.ev(([lv, diff]) => { if (Nardi.isOpen()) Nardi.close(); curDiff = prefDiff = diff; openCampaignMap(lv); selectMapLevel(lv); showBrief(); }, [o.lv || 0, o.diff == null ? 1 : o.diff]);
+    await g.frames(3);
+    for (let k = 0; k < 6 && !(await g.ev(() => battleLive())); k++) {
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "nearest" }); });
+      await g.frames(2);
+      const q = await g.reach("#startBtn");
+      if (q.why) { await g.wait(200); continue; }
+      await g.tapAt(q.x, q.y);
+      await g.wait(300);
+    }
+    if (!(await g.ev(() => battleLive()))) throw new Error("the battle did not begin from its chronicle (" + await g.ev(() => menuMode) + ")");
+    if (o.before) await o.before();
+    // (a first-time card or bubble over the field holds the horn: put away, as a player reads and closes it)
+    await g.ev(() => { for (let k = 0; k < 6 && trickHold(); k++) dropTrickCards(); });
+    await g.ev(() => { if (!battle.started) startWave(); });
+    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 }).catch(async () => { throw new Error("no horn: " + JSON.stringify(await g.ev(() => ({ phase, live: battleLive(), tut: !!tut, mode: menuMode, wave: waveIdx, paused, hold: trickHold(), over: gameOver, cards: document.querySelector(".trickCard.on, #trickCard.on") ? 1 : 0 })))); });
+    const ranked = await g.ev(() => battleRanked());
+    if (!ranked && o.ranked !== false) fail(W, "the battle is not ranked");
+    // (this page's own token: the shared key may hold another tab's)
+    if (o.token !== false) await until(() => g.ev(() => SC.why === "held" && !!SC.tok), 15000, "the run token").catch(e => fail(W, e.message));
+    const uid = JSON.parse(await store(g, "hs_pf_auth") || "null");
+    if (o.runback !== false && uid) await S.control("runback", { user_id: uid.uid, seconds: (o.sec || 900) + 60 });
+    if (o.last) await o.last();
+    await g.ev(o => {
+      battle.sec = o.sec == null ? 900 : o.sec; battle.spent = o.spent == null ? 400 : o.spent; battle.build = battle.spent;
+      // (gold paid in as a battle's waves would pay it: no wave of this one was fought for its bounties)
+      battle.earned = Math.max(battle.earned, o.earned == null ? 2400 : o.earned); battle.bounty = battle.earned - battle.start;
+      if (o.gift) battle.gift += o.gift;
+      lives = o.lives == null ? 17 : o.lives; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud();
+    }, { sec: o.sec, spent: o.spent, lives: o.lives, gift: o.gift || 0, earned: o.earned });
+    await g.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
+    if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
+    await g.page.waitForFunction(() => menuMode === "victory" && !overlayEl.classList.contains("hidden"), null, { timeout: 20000 });
+    if (up) await g.page.setViewportSize({ width: C.w, height: C.h });
+    await g.page.waitForFunction(() => !overlayEl.classList.contains("settling"), null, { timeout: 8000 }).catch(() => {});
+    await g.wait(420);
+    if (await g.ev(() => endingCardUp())) { await pressGo(g, "#ecBtn"); await g.wait(200); }
+    return evs(g, "victory").then(v => v.pop());
+  };
+  // the strip once it has left "posting"
+  const f7settled = (g, ms = 15000) => g.page.waitForFunction(() => !SC.page || SC.page.state !== "posting", null, { timeout: ms }).catch(() => {});
+  // the score the server must give, from the victory's own numbers and the page's ruleset, by ref.js (the reference both are held to)
+  const f7expect = async (g, v) => {
+    const rules = await g.ev(() => rulesetData());
+    const b = refm.boundsOf(rules, v.lv, v.diff, null, false);
+    return refm.scoreOf({ won: true, lives: Math.min(v.lives, v.lives_board), sim_sec: v.sec, spent: v.spent, earned: v.earned }, b, rules.score);
+  };
+  const f7last = async (uid) => (await S.query("select score, lives, lives_max, sim_sec, loadout, board, flags from highland.hs_scores where user_id = $1 order by id desc limit 1", [uid]))[0] || null;
+  // the victory page with its strip held to the iPhone suite's audit
+  const f7audit = async (g, W, what, photo) => {
+    const st = await strip(g);
+    const primary = st.side ? (st.board ? ["#boardBtn"] : ["#mapBtn"]) : st.boardRow ? ["#ovScore .scBoard"] : ["#mapBtn"];
+    if (st.side && st.recOut) fail(W, what + ": the record row's words run off the screen or onto a second line: " + JSON.stringify(st));
+    if (st.side && st.rec && st.full && st.rec.replace(/^· /, "Score ") !== st.full && !st.full.startsWith(st.rec.replace(/^· /, "Score ").split(" · ")[0])) fail(W, what + ": the short words " + st.rec + " are not the full words' " + st.full);
+    if (["ses", "i15h", "i15u"].includes(g.o.key)) await audit(g, W + " " + what, { root: "#overlay", parts: st.side ? ["#ovRecord", "#boardBtn", "#ovGear"] : ["#ovScore", "#ovRecord"], primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
+    // every way on from the page still in sight (held sideways and on a tablet, without a scroll)
+    const out = await g.ev(() => [...document.querySelectorAll("#overlay .bigRow .big, #ovScore button")].filter(b => b.offsetParent && b.getBoundingClientRect().bottom > innerHeight - 1).map(b => b.id || b.className));
+    if (!upr(g.o) && out.length) fail(W, what + ": past the screen's foot: " + out.join(", "));
+    if (photo) await f7photo(g, photo);
+  };
+  const f7press = async (g, sel) => {
+    await g.ev(sel => { const e = typeof sel === "string" ? document.querySelector(sel) : null; if (e) e.scrollIntoView({ block: "nearest" }); }, typeof sel === "string" ? sel : null);
+    await g.frames(2);
+    await pressGo(g, sel);
+  };
+  // the Leaderboards tab's state: its controls and its rows
+  const board = (g) => g.ev(() => {
+    const t = document.querySelector("#hallBody .lbTab");
+    if (!t) return null;
+    const on = (sel) => Array.from(t.querySelectorAll(sel)).filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.textContent.trim());
+    return { tab: hallTab, field: (t.querySelector(".lbName") || {}).textContent, diff: on(".lbSeal"), opts: on(".lbOpt"), loading: !!t.querySelector(".lbLoading"),
+      rows: Array.from(t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)")).map(r => ({ me: r.classList.contains("lbMe"), cells: Array.from(r.children).map(c => c.textContent) })),
+      empty: (t.querySelector(".lbEmpty") || {}).textContent || "", pin: (t.querySelector(".lbPin") || {}).textContent || "", sign: !!t.querySelector(".lbSign"),
+      foot: (t.querySelector(".lbFoot") || {}).textContent || "" };
+  });
+  const boardReady = (g) => g.page.waitForFunction(() => { const t = document.querySelector("#hallBody .lbTab"); return !!t && !t.querySelector(".lbLoading") && !hallEl.classList.contains("hlSettling"); }, null, { timeout: 15000 });
+  const boardOpt = async (g, words) => {
+    await pressGo(g, (0, eval)("() => Array.from(document.querySelectorAll('#hallBody .lbOpt, #hallBody .lbSeal')).find(b => b.textContent.trim() === " + JSON.stringify(words) + ")"));
+    await boardReady(g);
+  };
+  // past a chapter's story to the map (its button pressed where it is drawn; on an upright phone the page is scrolled
+  // to it first, and where it cannot be reached the map is opened as its button would open it)
+  const f7toMap = async (g) => {
+    for (let k = 0; k < 4 && (await g.ev(() => menuMode)) === "chapter"; k++) {
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "center" }); });
+      await g.frames(3);
+      const q = await g.reach("#startBtn");
+      if (q.why) await g.ev(() => openCampaignMap()); else await g.tapAt(q.x, q.y);
+      await g.wait(200);
+    }
+  };
+  const f7map = async (g) => {
+    await pressWelcome(g, "Campaign Map");
+    await gate(g, "");
+    await f7toMap(g);
+    await g.page.waitForFunction(() => menuMode === "map" && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
+    await g.frames(3);
+  };
+  // Flow 7's extra steps, at 1600x900 only (the review of P5): the page's own track() is sent gameplay's event shapes,
+  // so no battle is played. Two tabs of one player, each with a battle of its own; a post held on its way (in the
+  // outbox before it goes); a reload in the battle (the resumed battle posts with its token); another account's
+  // waiting result (kept, never sent); a session over at the post (it waits, and goes at this account's sign-in)
+  const f7more = async (A, W, uidA) => {
+    const rs = await A.ev(() => ({ rs: RULESET, levels: rulesetData().levels }));
+    const ids = Object.keys(rs.levels);
+    const start = (g, id, resumed) => g.ev(([id, r, resumed]) => track("battle_start", { ranked: true, mode: "campaign", lv: id, diff: 1, ruleset: r, resumed: !!resumed }), [id, rs.rs, resumed]);
+    const win = (g, id, x) => g.ev(([id, r, L, x]) => track("victory", Object.assign({ ranked: true, mode: "campaign", lv: id, diff: 1, ruleset: r, wave: L.waves, sec: L.d[1].slow, spent: 500,
+      earned: 1000, lives: 15, loadout: "std", build: "flow7" }, x || {})), [id, rs.rs, rs.levels[id], x || null]);
+    const held = (g, what) => until(() => g.ev(() => SC.why === "held" && !!SC.tok), 15000, what);
+    const state = (g, want, what) => g.page.waitForFunction(w => SC.page && SC.page.state === w, want, { timeout: 20000 }).catch(async () => fail(W, what + ": " + JSON.stringify(await g.ev(() => SC.page))));
+    const rows = async (id) => (await S.query("select lives from highland.hs_scores where user_id = $1 and level_id = $2 order by id", [uidA, id])).map(r => r.lives);
+    const outOf = async (g) => JSON.parse(await store(g, "hs_pf_out") || "[]");
+    log("  flow 7 desk: two tabs of one player, each with its own battle: both posted");
+    const pg2 = await A.ctx.newPage();
+    const A2 = new R.Game(pg2, A.ctx, { w: A.o.w, h: A.o.h, touch: false, name: A.o.name, key: A.o.key });
+    pg2.on("pageerror", e => A2.errs.push("pageerror: " + e.message));
+    await pg2.goto(SITE + "/", { timeout: 120000 });
+    await gate(A2, "welcome");
+    await start(A, ids[2]);
+    await held(A, "tab 1's run token").catch(e => fail(W, e.message));
+    await start(A2, ids[3]);
+    await held(A2, "tab 2's run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await win(A, ids[2]);
+    await state(A, "posted", "tab 1's strip");
+    await win(A2, ids[3]);
+    await state(A2, "posted", "tab 2's strip");
+    // the other tab's outbox may send this tab's result while its own call is out (seen under load): its own call is
+    // then answered run_finished, which is posted, not refused
+    const again = await A2.ev(async () => { const pg = SC.page; await scPost(pg.rid, {}, pg); return pg.state; });
+    if (again !== "posted") fail(W, "two tabs: a result already on the server (run_finished) leaves the strip " + again);
+    if ((await rows(ids[2])).length !== 1 || (await rows(ids[3])).length !== 1) fail(W, "two tabs: the server's rows " + JSON.stringify([await rows(ids[2]), await rows(ids[3])]));
+    if (await store(A, "hs_pf_run")) fail(W, "two tabs: the run token is left once both battles are posted");
+    const p2 = await A2.problems().catch(() => A2.errs);
+    for (const e of p2) fail(W + " tab 2", e);
+    await pg2.close();
+    log("  flow 7 desk: a post held on its way is in the outbox before it goes, and leaves it once answered");
+    await start(A, ids[4]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await S.control("hold", { rpc: "hs_score_submit", ms: 4000 });
+    const ridH = await A.ev(() => SC.tok.rid);
+    await win(A, ids[4]);
+    await A.page.waitForFunction(() => SC.page && SC.page.state === "posting" && SC.posting, null, { timeout: 5000 }).catch(() => {});
+    const outH = await outOf(A);
+    if (outH.length !== 1 || outH[0].rid !== ridH || outH[0].uid !== uidA) fail(W, "the outbox while the post is out: " + JSON.stringify(outH).slice(0, 200));
+    await state(A, "posted", "the held post");
+    if (await store(A, "hs_pf_out")) fail(W, "the outbox once the held post was answered: " + await store(A, "hs_pf_out"));
+    log("  flow 7 desk: a reload in the battle: the resumed battle posts with its token");
+    await start(A, ids[5]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    const ridR = await A.ev(() => SC.tok.rid);
+    await A.page.reload();
+    await gate(A, "welcome");
+    const kept = JSON.parse(await store(A, "hs_pf_run") || "null");
+    if (!kept || kept.rid !== ridR) fail(W, "the token after a reload: " + JSON.stringify(kept));
+    await start(A, ids[5], true);
+    if (!(await A.ev(() => SC.why === "held" && SC.tok && SC.tok.rid))) fail(W, "the resumed battle holds no token: " + await A.ev(() => SC.why));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await win(A, ids[5], { resumed: true, lives_board: 12 });
+    await state(A, "posted", "the resumed battle");
+    if ((await rows(ids[5])).join() !== "12") fail(W, "the resumed battle's row (lives 12): " + JSON.stringify(await rows(ids[5])));
+    log("  flow 7 desk: another account's waiting result is kept and never sent");
+    const other = { rid: "7e000000-0000-4000-8000-000000000001", uid: "7e000000-0000-4000-8000-0000000000ff", t: await A.ev(() => pfNow()), lv: ids[6], diff: 1, mode: "campaign", score: 5000,
+      stats: { won: true, lives: 15, waves: rs.levels[ids[6]].waves, sim_sec: rs.levels[ids[6]].d[1].slow, spent: 500, earned: 1000, loadout: "std", build: "flow7" } };
+    await A.ev(e => localStorage.setItem("hs_pf_out", JSON.stringify([e])), other);
+    const sub0 = await A.ev(() => (window.__hsEv || []).length);
+    await A.ev(() => scFlush());
+    await A.wait(1500);
+    const outO = await outOf(A);
+    if (outO.length !== 1 || outO[0].uid !== other.uid) fail(W, "another account's entry: " + JSON.stringify(outO).slice(0, 200));
+    if ((await A.ev(n => (window.__hsEv || []).slice(n).filter(e => e[0] === "score_rejected").length, sub0))) fail(W, "another account's entry was sent");
+    await A.ev(() => localStorage.removeItem("hs_pf_out"));
+    log("  flow 7 desk: the session over at the post (401): the result waits, and goes at this account's next sign-in");
+    await start(A, ids[6]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    // (the access token refused and no refresh to be had: the post answers 401)
+    await S.control("expire", { user_id: uidA });
+    await S.control("auth", { mode: "down" });
+    await win(A, ids[6]);
+    await state(A, "waiting", "the post with the session over");
+    const out4 = await outOf(A);
+    if (out4.length !== 1 || out4[0].uid !== uidA) fail(W, "the outbox after a 401: " + JSON.stringify(out4).slice(0, 200));
+    if ((await rows(ids[6])).length) fail(W, "a 401 post reached the board");
+    await S.control("auth", { mode: "up" });
+    // the session gone from this device (as the server's end of it leaves it), and this account signs in again
+    await A.ev(() => localStorage.removeItem("hs_pf_auth"));
+    await A.page.reload();
+    await gate(A, "signin");
+    await S.control("provider", f7who(A.o.key, "a"));
+    await signIn(A, null, "google", "welcome");
+    await until(async () => !(await store(A, "hs_pf_out")) && (await rows(ids[6])).length === 1, 20000, "the waiting result after the sign-in").catch(e => fail(W, e.message));
+    log("  flow 7 desk: a battle resumed with its token but no session: \"Sign in to post it\", kept, and sent at the sign-in");
+    await start(A, ids[7]);
+    await held(A, "the run token").catch(e => fail(W, e.message));
+    await S.control("runback", { user_id: uidA, seconds: 3600 });
+    await A.ev(() => localStorage.removeItem("hs_pf_auth"));
+    await A.page.reload();
+    await gate(A, "signin");
+    // (the battle is resumed behind the gate, as a player who closes it to play on would resume it)
+    await start(A, ids[7], true);
+    await win(A, ids[7], { resumed: true });
+    await state(A, "signin", "the resumed battle with no session");
+    const out5 = await outOf(A);
+    if (out5.length !== 1 || out5[0].uid !== uidA) fail(W, "the resumed battle's result with no session: " + JSON.stringify(out5).slice(0, 200));
+    await S.control("provider", f7who(A.o.key, "a"));
+    await signIn(A, null, "google", "welcome");
+    await until(async () => !(await store(A, "hs_pf_out")) && (await rows(ids[7])).length === 1, 20000, "the resumed battle's result after the sign-in").catch(e => fail(W, e.message));
+  };
+  const flow7 = async (C) => {
+    const W = "flow 7 " + C.name;
+    await resetStack();
+    const K = C.key;
+    log("  flow 7: A, the owner: a player with five battlefields, made an admin");
+    // ---- A, the owner: a player with five battlefields, made an admin
+    const A = await open(C, { storage: f7prog, quietCall: true });
+    await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "a"));
+    await signIn(A, null, "google", "name");
+    const nameA = "Seven" + K + "A";
+    await A.page.fill("#gate .gtField", nameA);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const uidA = await uidOf(A);
+    await S.control("admin", { user_id: uidA });
+    await f7map(A);
+    // the map's door: 10 px right of the tally, on screen, uncovered, the Hall on Leaderboards (held sideways the tally itself)
+    const door = await A.ev(() => {
+      const b = $("hallBtn"), t = $("ovStars").getBoundingClientRect(), r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { shown: !b.hidden && getComputedStyle(b).display !== "none", gap: Math.round(r.left - t.right), top: Math.round(r.top - t.top), w: r.width, h: r.height,
+        in: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, mine: hit === b || b.contains(hit), title: b.title, side: phoneWide(),
+        over: ["ovCrest", "ovTitle", "nardiBtn", "ovGear", "chapterBar", "chStory"].filter(id => { const e = $(id); if (!e || !e.getClientRects().length) return false; const q = e.getBoundingClientRect(); return q.width && q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top; }) };
+    });
+    if (door.side) { if (door.shown) fail(W, "held sideways the map has a door of its own beside the tally"); }
+    else if (!door.shown || Math.abs(door.gap - 10) > 1 || !door.in || !door.mine || door.over.length || door.w < 44 || door.title !== "Daily challenge and leaderboards") fail(W, "the map's door: " + JSON.stringify(door));
+    if (["ses", "i15h", "i15u"].includes(K)) await audit(A, W + " map with its door", { root: "#overlay", parts: ["#ovStars"].concat(door.side ? [] : ["#hallBtn"]), primary: [door.side ? "#ovStars" : "#hallBtn"], primaryRequired: true, scroll: upr(C) ? "page" : "inside" }, null);
+    await f7photo(A, "map-door");
+    // the ruleset not yet published: a battle is fought and scored on the device, not ranked
+    let v = await f7win(A, W, { lv: 1, token: false, runback: false });
+    await f7settled(A);
+    let st = await strip(A);
+    if (stripSays(st) !== "Score " + (st.score || 0).toLocaleString("en-US") + " · The boards for this version open soon") fail(W, "unpublished: " + JSON.stringify(st));
+    if (st.score !== await f7expect(A, v)) fail(W, "the page's score " + st.score + " is not ref.js's " + await f7expect(A, v));
+    await f7audit(A, W, "strip, unpublished", "strip-unpublished");
+    // the admin is told on the map
+    await A.page.reload();
+    await toasts(A);
+    await gate(A, "welcome");
+    await f7map(A);
+    await until(() => A.ev(() => (window.__hsToasts || []).some(t => t === "Admin: publish ruleset 2 on the stats page.")), 15000, "the admin's toast").catch(e => fail(W, e.message));
+    // publish from the stats page: the Rulesets card's button
+    await A.page.goto(SITE + "/?stats");
+    await statsUp(A);
+    const rsCard = await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Rulesets"); return c ? c.innerText : ""; });
+    if (!/This page plays ruleset 2\. The server does not have it\./.test(rsCard)) fail(W, "the Rulesets card: " + rsCard.slice(0, 200));
+    const hl = await A.ev(() => Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Health").innerText);
+    if (!/This page plays ruleset 2\. The server does not have it/.test(hl)) fail(W, "the Health card says nothing of the ruleset: " + hl.slice(0, 200));
+    await pressStats(A, "#statsBody .stPublish");
+    await A.page.waitForFunction(() => !stBusy && /Published\./.test($("statsBody").innerText), null, { timeout: 30000 }).catch(() => fail(W, "no Published. after the press"));
+    const pub = await S.query("select id, active, data -> 'levels' -> 'erebuni' ->> 'waves' as w from highland.hs_rulesets");
+    if (pub.length !== 1 || pub[0].id !== "2" || !pub[0].active || !(Number(pub[0].w) > 0)) fail(W, "the server's rulesets: " + JSON.stringify(pub));
+    const pubSame = await A.ev(async () => {
+      const r = await pfRpc("hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2", p_period: "all" }, {});
+      return r.ok && r.data && !r.data.ruleset_unknown;
+    });
+    if (!pubSame) fail(W, "hs_board does not know ruleset 2 after the publish");
+    if (K === "desk") {
+      await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Rulesets"); if (c) c.scrollIntoView({ block: "start" }); });
+      await f7photo(A, "stats-rulesets");
+    }
+    log("  flow 7: A's battle, posted: the server's score is the page's and ref.js's; \"#");
+    // ---- A's battle, posted: the server's score is the page's and ref.js's; "#1 of 1 this week"
+    await A.page.goto(SITE + "/");
+    await gate(A, "welcome");
+    await f7map(A);
+    v = await f7win(A, W, { lv: 0, sec: 900, spent: 400, lives: 17 });
+    await f7settled(A);
+    st = await strip(A);
+    const expA = await f7expect(A, v), rowA = await f7last(uidA);
+    if (!rowA || rowA.score !== expA || st.score !== expA) fail(W, "A's score: server " + JSON.stringify(rowA) + ", page " + st.score + ", ref " + expA);
+    if (rowA && (rowA.lives !== Math.min(v.lives, v.lives_board) || rowA.loadout !== "std" || rowA.board !== "c:erebuni:1:std:" + v.rev)) fail(W, "A's row: " + JSON.stringify(rowA));
+    if (stripSays(st) !== "Score " + expA.toLocaleString("en-US") + " · #1 of 1 this week") fail(W, "posted: " + JSON.stringify(st));
+    if (!st.side && !st.boardRow) fail(W, "no Leaderboard button on the strip");
+    if (st.side && !st.board) fail(W, "held sideways no round Leaderboard button: " + JSON.stringify(st));
+    const posted = await evs(A, "score_posted");
+    if (!posted.length || posted[posted.length - 1].score !== expA || posted[posted.length - 1].rank !== 1) fail(W, "score_posted: " + JSON.stringify(posted));
+    await f7audit(A, W, "strip, posted", "strip-posted");
+    // the tooltip, and on touch the tap that says the score's sentence
+    const tip = await A.ev(() => { const e = $("pfRecScore") && $("pfRecScore").tagName === "SPAN" ? $("pfRecScore") : document.querySelector("#ovScore .scLine"); return e ? e.title : ""; });
+    if (!/^A win is worth 4,000, plus up to 3,000 for the defenders you kept/.test(tip)) fail(W, "the score's tooltip: " + tip);
+    log("  flow 7: the Leaderboard button: the Hall on this battlefield, Normal, This wee");
+    // ---- the Leaderboard button: the Hall on this battlefield, Normal, This week, Standard; A on it, tinted
+    await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await boardReady(A);
+    let bd = await board(A);
+    if (!bd || bd.tab !== "boards" || bd.field !== "Erebuni Rise" || bd.diff.join() !== "Normal" || bd.opts.join() !== "This week,Standard") fail(W, "the board from the victory page: " + JSON.stringify(bd));
+    const keptA = Math.min(v.lives, v.lives_board) + "/" + v.lives_max;
+    if (!bd || bd.rows.length !== 1 || !bd.rows[0].me || bd.rows[0].cells.join("|") !== "1|" + nameA + "|" + expA.toLocaleString("en-US") + "|" + keptA + "|" + (Math.floor(rowA.sim_sec / 60) + ":" + String(rowA.sim_sec % 60).padStart(2, "0")))
+      fail(W, "A's row on the board: " + JSON.stringify(bd && bd.rows));
+    for (const want of ["A win is worth 4,000", "The battle clock runs between waves too. Pause to plan.", "Weeks run Monday to Sunday, UTC."]) if (!bd || !bd.foot.includes(want)) fail(W, "under the board: no " + want);
+    await audit(A, W + " Leaderboards tab", { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: ["#hallBody .lbOpt"], primaryRequired: true, scroll: "inside" }, null);
+    await f7photo(A, "boards");
+    // All time has it too; Open is empty; Hard is empty
+    await boardOpt(A, "All time");
+    bd = await board(A);
+    if (!bd || bd.rows.length !== 1) fail(W, "All time: " + JSON.stringify(bd && bd.rows));
+    await boardOpt(A, "Open");
+    bd = await board(A);
+    if (!bd || bd.rows.length || bd.empty !== "No scores yet. Be the first to hold this field.") fail(W, "Open before any open battle: " + JSON.stringify(bd));
+    await boardOpt(A, "Standard");
+    await boardOpt(A, "Hard");
+    bd = await board(A);
+    if (!bd || bd.rows.length || !bd.empty) fail(W, "Hard: " + JSON.stringify(bd));
+    await boardOpt(A, "Normal");
+    // the battlefield's arrows go round the battlefields this player has opened
+    await pressGo(A, "#hallBody .lbArrow[aria-label='Next battlefield']");
+    await boardReady(A);
+    bd = await board(A);
+    if (!bd || bd.field !== "Vale of Tushpa") fail(W, "the next battlefield is " + (bd && bd.field));
+    await pressGo(A, "#hallBody .lbArrow[aria-label='Previous battlefield']");
+    await boardReady(A);
+    await A.ev(() => closeHall());
+    log("  flow 7: B: a second player's lower score ranks second; then an open battle (a ");
+    // ---- B: a second player's lower score ranks second; then an open battle (a gift of gold) is on Open only
+    const B = await open(C, { storage: f7prog, quietCall: true });
+    await B.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "b"));
+    await signIn(B, null, "google", "name");
+    const nameB = "Seven" + K + "B";
+    await B.page.fill("#gate .gtField", nameB);
+    await pressGo(B, "#gate .gtGo");
+    await gate(B, "welcome");
+    const uidB = await uidOf(B);
+    await f7map(B);
+    v = await f7win(B, W, { lv: 0, sec: 1100, spent: 900, lives: 9 });
+    await f7settled(B);
+    st = await strip(B);
+    const expB = await f7expect(B, v);
+    if (expB >= expA) fail(W, "B's score is not lower: " + expB + " against " + expA);
+    if (stripSays(st) !== "Score " + expB.toLocaleString("en-US") + " · #2 of 2 this week") fail(W, "B posted: " + JSON.stringify(st));
+    v = await f7win(B, W, { lv: 0, sec: 950, spent: 500, lives: 15, gift: 60 });
+    await f7settled(B);
+    st = await strip(B);
+    const expBo = await f7expect(B, v);
+    if (v.loadout !== "open") fail(W, "a gift of gold did not make the battle open: " + v.loadout);
+    if (stripSays(st) !== "Score " + expBo.toLocaleString("en-US") + " · #1 of 1 this week · Open") fail(W, "B's open battle: " + JSON.stringify(st));
+    await f7audit(B, W, "strip, posted open", "strip-open");
+    await f7press(B, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await boardReady(B);
+    bd = await board(B);
+    if (!bd || bd.opts.join() !== "This week,Open" || bd.rows.length !== 1 || bd.rows[0].cells[1] !== nameB || !bd.rows[0].me) fail(W, "the Open board: " + JSON.stringify(bd));
+    await boardOpt(B, "Standard");
+    bd = await board(B);
+    if (!bd || bd.rows.map(r => r.cells[1]).join() !== nameA + "," + nameB || !bd.rows[1].me || bd.rows[0].me) fail(W, "the Standard board after B: " + JSON.stringify(bd && bd.rows));
+    await B.ev(() => closeHall());
+    log("  flow 7: A beats his own best: \" · your best\"");
+    // ---- A beats his own best: " · your best"
+    v = await f7win(A, W, { lv: 0, sec: 700, spent: 300, lives: 20 });
+    await f7settled(A);
+    st = await strip(A);
+    const expA2 = await f7expect(A, v);
+    if (stripSays(st) !== "Score " + expA2.toLocaleString("en-US") + " · #1 of 2 this week · your best") fail(W, "A's best beaten: " + JSON.stringify(st));
+    log("  flow 7: waiting: the server down at the battle's end; the result waits in the ");
+    // ---- waiting: the server down at the battle's end; the result waits in the outbox and goes when the device is online
+    v = await f7win(A, W, { lv: 1, sec: 1000, spent: 500, lives: 16, last: async () => { await S.control("rest", { mode: "down" }); } });
+    await f7settled(A);
+    st = await strip(A);
+    if (!/· It posts when you are back online$/.test(stripSays(st))) fail(W, "waiting: " + JSON.stringify(st));
+    const out1 = JSON.parse(await store(A, "hs_pf_out") || "[]");
+    if (out1.length !== 1 || out1[0].uid !== uidA) fail(W, "the outbox: " + JSON.stringify(out1).slice(0, 200));
+    await f7audit(A, W, "strip, waiting", "strip-waiting");
+    await S.control("rest", { mode: "up" });
+    await A.ev(() => window.dispatchEvent(new Event("online")));
+    await A.page.waitForFunction(() => SC.page && SC.page.state === "posted", null, { timeout: 15000 }).catch(() => {});
+    st = await strip(A);
+    if (stripSays(st) !== "Score " + (await f7expect(A, v)).toLocaleString("en-US") + " · #1 of 1 this week") fail(W, "the waiting result once online: " + JSON.stringify(st));
+    if (await store(A, "hs_pf_out")) fail(W, "the outbox is not empty once sent");
+    if (K === "desk") await f7more(A, W, uidA);
+    log("  flow 7: the battle began offline: every try at the horn failed (the tries made");
+    // ---- the battle began offline: every try at the horn failed (the tries made quick by the test's switch)
+    const C2 = await open(C, { quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { beginTries: [0, 300, 600] }); }, null]] });
+    await gate(C2, "signin");
+    await S.control("provider", f7who(K, "a"));
+    await signIn(C2, null, "google", "welcome");
+    await f7map(C2);
+    v = await f7win(C2, W, { lv: 1, token: false, runback: false, before: async () => { await S.control("rest", { mode: "down" }); }, last: async () => { await C2.wait(1500); await S.control("rest", { mode: "up" }); } });
+    await f7settled(C2);
+    st = await strip(C2);
+    if (!/· Not ranked: this battle began offline$/.test(stripSays(st))) fail(W, "began offline: " + JSON.stringify(st));
+    await f7audit(C2, W, "strip, began offline", "strip-offline");
+    log("  flow 7: refused: the run begun just now, a battle clock of 15 minutes (the ser");
+    // ---- refused: the run begun just now, a battle clock of 15 minutes (the server's wall-clock check says no)
+    v = await f7win(C2, W, { lv: 1, sec: 900, runback: false });
+    await f7settled(C2);
+    st = await strip(C2);
+    if (!/· Not ranked$/.test(stripSays(st))) fail(W, "refused: " + JSON.stringify(st));
+    const rj = await evs(C2, "score_rejected");
+    if (!rj.length || rj[rj.length - 1].reason !== "score_implausible") fail(W, "score_rejected: " + JSON.stringify(rj));
+    await f7audit(C2, W, "strip, refused", "strip-refused");
+    log("  flow 7: not rankable: test mode (every battlefield open by the test's switch) ");
+    // ---- not rankable: test mode (every battlefield open by the test's switch) shows no strip
+    if (upr(C)) await C2.page.setViewportSize({ width: C.h, height: C.w });
+    await C2.enterBattle(2);
+    await C2.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
+    await C2.page.waitForFunction(() => gameOver && (celebration || parley || menuMode === "victory"), null, { timeout: 15000 });
+    if (await C2.ev(() => !!celebration)) await C2.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
+    await C2.page.waitForFunction(() => menuMode === "victory", null, { timeout: 20000 });
+    if (upr(C)) await C2.page.setViewportSize({ width: C.w, height: C.h });
+    await C2.wait(400);
+    st = await strip(C2);
+    if (st.row || st.rec != null || st.board) fail(W, "test mode has a strip: " + JSON.stringify(st));
+    if (await C2.ev(() => !!SH.rec || document.body.classList.contains("pfShare"))) fail(W, "test mode (aided) has a share card");
+    await done(C2, W + " (offline, refused, test mode)");
+    log("  flow 7: a guest (the gate optional): \"Sign in to post it\", a button to the A");
+    // ---- a guest (the gate optional): "Sign in to post it", a button to the Account tab
+    const G = await open(C, { storage: f7prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+    await gate(G, "signin");
+    await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
+    await gate(G, "");
+    await f7toMap(G);
+    v = await f7win(G, W, { lv: 0, token: false, runback: false });
+    await f7settled(G);
+    st = await strip(G);
+    if (!/· Sign in to post it$/.test(stripSays(st))) fail(W, "a guest: " + JSON.stringify(st));
+    await f7audit(G, W, "strip, signed out", "strip-signin");
+    await f7press(G, st.side ? "#pfRecScore" : "#ovScore .scLink");
+    await G.page.waitForFunction(() => hallOpen && hallTab === "account", null, { timeout: 5000 }).catch(() => fail(W, "Sign in to post it did not open the Account tab"));
+    // the guest's Leaderboards tab: the board to read, and the sign-in line with its buttons
+    await G.ev(() => openHall("boards"));
+    await boardReady(G);
+    bd = await board(G);
+    if (!bd || !bd.sign || bd.rows.map(r => r.cells[1]).join() !== nameA + "," + nameB || bd.rows.some(r => r.me)) fail(W, "the guest's board: " + JSON.stringify(bd));
+    await audit(G, W + " Leaderboards tab (a guest)", { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: ["#hallBody .gateBtn"], primaryRequired: true, scroll: "inside" }, null);
+    await f7photo(G, "boards-guest");
+    // no connection, and Try again
+    await S.control("rest", { mode: "down" });
+    await boardOpt(G, "All time");
+    bd = await board(G);
+    if (!bd || bd.empty !== "The boards need a connection.") fail(W, "the board with no connection: " + JSON.stringify(bd));
+    await f7photo(G, "boards-offline");
+    await S.control("rest", { mode: "up" });
+    await pressGo(G, "#hallBody .lbRetry");
+    await G.page.waitForFunction(() => { const t = document.querySelector("#hallBody .lbTab"); return t && t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)").length === 2; }, null, { timeout: 15000 }).catch(() => fail(W, "Try again did not bring the board"));
+    await done(G, W + " (a guest)");
+    log("  flow 7: the boards switched off by the owner: no strip, no run begun; the tab says the boards are closed");
+    // ---- the boards switched off by the owner: no strip, no run begun; the Leaderboards tab stays, closed
+    await A.page.goto(SITE + "/?stats");
+    await statsUp(A);
+    await pressStats(A, "#statsBody .stBoards[data-on='false']");
+    await A.page.waitForFunction(() => !stBusy && $("statsBody").querySelector(".stBoards[data-on='false'][aria-pressed='true']"), null, { timeout: 20000 }).catch(() => fail(W, "the boards' switch did not turn off"));
+    // Scores to look at: A's quick battle (under its fast mark) is listed, and Remove takes it off; his next best stands
+    const flagged = await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Scores to look at"); return c ? Array.from(c.querySelectorAll(".stFlag")).map(f => f.innerText) : null; });
+    const fastRow = (flagged || []).findIndex(t => t.includes(nameA) && /· fast/.test(t));
+    if (fastRow < 0) fail(W, "Scores to look at does not list A's fast result: " + JSON.stringify(flagged));
+    else {
+      const n0 = (await S.query("select count(*)::int as n from highland.hs_scores where user_id = $1", [uidA]))[0].n;
+      await A.ev(i => document.querySelectorAll("#statsBody .stFlag")[i].scrollIntoView({ block: "center" }), fastRow);
+      await A.frames(2);
+      await pressGo(A, (0, eval)("() => document.querySelectorAll('#statsBody .stFlag')[" + fastRow + "].querySelector('button')"));
+      await A.page.waitForFunction(i => document.querySelectorAll("#statsBody .stFlag")[i].innerText.includes("Done."), fastRow, { timeout: 10000 }).catch(() => fail(W, "Remove did not say Done."));
+      const n1 = (await S.query("select count(*)::int as n from highland.hs_scores where user_id = $1", [uidA]))[0].n;
+      const best = await S.query("select score from highland.hs_score_best where user_id = $1 and board like 'c:erebuni:1:std:%' and period = 'all'", [uidA]);
+      if (n1 !== n0 - 1 || best.length !== 1 || best[0].score !== expA) fail(W, "after Remove: " + JSON.stringify({ n0, n1, best, expA }));
+    }
+    if (K === "desk") { await A.ev(() => { const c = Array.from(document.querySelectorAll("#statsBody .stCard")).find(x => x.querySelector("h2").textContent === "Scores to look at"); if (c) c.scrollIntoView({ block: "start" }); }); await f7photo(A, "stats-flagged"); }
+    await A.page.goto(SITE + "/");
+    await gate(A, "welcome");
+    await f7map(A);
+    const runs0 = (await S.query("select count(*)::int as n from highland.hs_runs"))[0].n;
+    v = await f7win(A, W, { lv: 0, token: false, runback: false });
+    await A.wait(800);
+    st = await strip(A);
+    if (st.words || st.rec != null || st.board || st.boardRow) fail(W, "the boards off and a strip: " + JSON.stringify(st));
+    // (the victory still has its card, Share alone, with no score: section 6 ties the card to the page, not the boards)
+    await A.page.waitForFunction(() => !!SH.blob && !!SH.rec, null, { timeout: 20000 }).catch(() => fail(W, "the boards off: no share card"));
+    const lone = await A.ev(() => { const e = phoneWide() ? $("shareBtn") : document.querySelector("#ovScore .scShare"); return { live: !!e && !e.hidden && !e.disabled && e.getClientRects().length > 0, score: JSON.parse(SH.key || "{}").score }; });
+    if (!lone.live || lone.score !== null) fail(W, "the boards off: Share alone: " + JSON.stringify(lone));
+    if ((await S.query("select count(*)::int as n from highland.hs_runs"))[0].n !== runs0) fail(W, "a run was begun with the boards off");
+    await A.ev(() => openHall("boards"));
+    await boardReady(A);
+    bd = await board(A);
+    if (!bd || bd.empty !== "The boards are closed for now.") fail(W, "the Leaderboards tab with the boards off: " + JSON.stringify(bd));
+    await A.ev(() => closeHall());
+    // (the switch back on for the next size's reset)
+    await done(A, W + " (A)");
+    await done(B, W + " (B)");
+  };
+
+  // ================================================================ flow 8: the daily challenge (work package P6)
+  // A player with five battlefields (flow 7's) and the page's own ruleset published: the page's pick (gameplay's
+  // dailyPick, the platform's dailyOf) equal to the server's _daily_pick for 366 days from today, skip lists included,
+  // and Platform.daily() to the server's hs_daily_status; the welcome card's "Today's challenge" opens the Hall on the
+  // Daily tab (its badge, the map door's dot); the tab's words; gameplay's map door leads to it too. Three attempts,
+  // each told at its first wave: a victory posted ("#1 of 1 today", the server's score the page's and ref.js's, Share),
+  // a loss scored by the waves it held (its strip on the daily's end page, no Share, the debrief kept), a third; then
+  // the fourth is practice ("Practice: not ranked") and spends nothing. The tab: attempts 0 of 3, Practice, the board
+  // with the player's row tinted. A second player's lower score ranks second (desktop and 667x320). The day changes
+  // (the stack's clock): the next day's challenge, the attempts back, "Yesterday: 1. ..." under an empty board. With the
+  // database down a daily begun is practice and no attempt is spent (desktop and 667x320). Photos in p6 (--photos)
+  const F8SHOTS = PHOTOS ? path.join(PHOTOS, "p6") : null;
+  if (F8SHOTS) fs.mkdirSync(F8SHOTS, { recursive: true });
+  // (the attempt's word, a toast, is let go first: the page is photographed as the player sees it a moment later)
+  const f8photo = async (g, name) => {
+    if (!F8SHOTS) return;
+    await g.page.waitForFunction(() => !toastEl.classList.contains("show"), null, { timeout: 7000 }).catch(() => {});
+    await g.page.screenshot({ path: path.join(F8SHOTS, name + "-" + g.o.key + ".png") });
+  };
+  // the Daily tab as the page shows it
+  const dyTab = (g) => g.ev(() => {
+    const t = document.querySelector("#hallBody .dyTab");
+    if (!t) return null;
+    const q = (c) => (t.querySelector(c) || {}).textContent || "";
+    return { tab: hallTab, head: q(".dyHead"), field: q(".dyField"), twist: q(".dyTwist"), rules: q(".dyRules"), mine: Array.from(t.querySelectorAll(".dyMine span")).map(s => s.textContent),
+      play: q(".dyPlay"), note: Array.from(t.querySelectorAll(".lbNote")).map(e => e.textContent).join("|"), next: q(".dyNext"), sit: q(".dySit"), yest: q(".dyYest"),
+      foot: q(".lbFoot"), loading: !!t.querySelector(".lbLoading"), empty: q(".lbEmpty"), sign: !!t.querySelector(".lbSign"),
+      rows: Array.from(t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)")).map(r => ({ me: r.classList.contains("lbMe"), cells: Array.from(r.children).map(c => c.textContent) })),
+      badge: (hallTabs().find(x => x.id === "daily") || {}).badge ? hallBadge(hallTabs().find(x => x.id === "daily")) : -1 };
+  });
+  const dyReady = (g) => g.page.waitForFunction(() => { const t = document.querySelector("#hallBody .dyTab"); return !!t && !t.querySelector(".lbLoading") && !hallEl.classList.contains("hlSettling") && !DY.asking; }, null, { timeout: 20000 });
+  const dyAuditTab = async (g, W, what, photo) => {
+    await audit(g, W + " " + what, { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: ["#hallBody .dyPlay"], primaryRequired: true, scroll: "inside" }, null);
+    if (photo) await f8photo(g, photo);
+  };
+  // the server's word on today, as the stack's database holds it (the pick and the attempts)
+  const f8status = (g) => g.ev(async () => { const r = await pfRpc("hs_daily_status", { p_ruleset: PF_RULESET_ID }, { auth: true }); return r.ok ? r.data : { error: r.code }; });
+  // the daily's battle from its chronicle (gameplay's startDaily put it up): the first wave sent as the player sends it,
+  // then won or lost as vic.js stages an end: the clock and the gold set as a real battle's would stand, the run's
+  // start moved back by as long. o: { win, cleared (a loss: the waves held), lives, practice (no token wanted) }.
+  // An upright phone is turned sideways for the battle, and back for its end page
+  const f8fight = async (g, W, o) => {
+    const C = g.o, up = upr(C);
+    if (up) await g.page.setViewportSize({ width: C.h, height: C.w });
+    await g.page.waitForFunction(() => menuMode === "brief" && !!dailyRun && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
+    await toasts(g);
+    const t0 = await g.ev(() => window.__hsToasts.length);
+    for (let k = 0; k < 6 && !(await g.ev(() => battleLive())); k++) {
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "nearest" }); });
+      await g.frames(2);
+      const q = await g.reach("#startBtn");
+      if (q.why) { await g.wait(200); continue; }
+      await g.tapAt(q.x, q.y);
+      await g.wait(300);
+    }
+    if (!(await g.ev(() => battleLive()))) throw new Error("the daily did not begin from its chronicle (" + await g.ev(() => menuMode) + ")");
+    await g.ev(() => { for (let k = 0; k < 6 && trickHold(); k++) dropTrickCards(); });
+    await g.ev(() => { if (!battle.started) startWave(); });
+    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 });
+    // the player is told at once whether it counts (5.6)
+    await until(() => g.ev(t => window.__hsToasts.slice(t).find(m => /^This attempt counts|^Practice/.test(m)) || null, t0), 9000, "the attempt's word").catch(e => fail(W, e.message));
+    const said = await g.ev(t => window.__hsToasts.slice(t).find(m => /^This attempt counts|^Practice/.test(m)) || "", t0);
+    if (!o.practice) await until(() => g.ev(() => SC.why === "held" && !!SC.tok), 10000, "the daily's run token").catch(e => fail(W, e.message));
+    const uid = JSON.parse(await store(g, "hs_pf_auth") || "null");
+    const b = await g.ev(() => { const L = levelId(curLevel); return Object.assign(boundsOf(pfRules(), L, 1, dailyRun.twist, true), { lv: L, twist: dailyRun.twist }); });
+    if (!o.practice && uid) await S.control("runback", { user_id: uid.uid, seconds: b.slow + 60 });
+    const lives = Math.min(b.lives, o.lives == null ? 10 : o.lives);
+    await g.ev(([o, b, n]) => {
+      battle.sec = o.win ? b.slow : Math.max(b.min, Math.round(b.slow * 0.6)); battle.spent = 400; battle.build = 400;
+      battle.earned = Math.max(battle.earned, Math.min(2400, b.earnMax)); battle.bounty = battle.earned - battle.start;
+      spawnQueue = []; enemies = [];
+      if (o.win) { lives = n; waveIdx = totalWaves(); phase = "wave"; syncHud(); }
+      else { lastCleared = o.cleared; waveIdx = o.cleared + 1; phase = "wave"; lives = 0; syncHud(); defeat(); }
+    }, [o, b, lives]);
+    if (o.win) {
+      await g.page.waitForFunction(() => gameOver && (celebration || menuMode === "victory"), null, { timeout: 15000 });
+      if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
+    } else await g.ev(() => { if (fallen) fallen.start -= 60000; });
+    await g.page.waitForFunction(() => menuMode === "victory" && overlayEl.classList.contains("dailyEnd") && !overlayEl.classList.contains("hidden"), null, { timeout: 20000 });
+    if (up) await g.page.setViewportSize({ width: C.w, height: C.h });
+    await g.page.waitForFunction(() => !overlayEl.classList.contains("settling"), null, { timeout: 8000 }).catch(() => {});
+    await g.wait(420);
+    const ev = (await evs(g, o.win ? "victory" : "defeat")).pop();
+    return { said, b, lives, ev, uid: uid && uid.uid };
+  };
+  // "Fight again" on the daily's end page: its chronicle again
+  const f8again = async (g) => { await f7press(g, "#startBtn"); await g.page.waitForFunction(() => menuMode === "brief" && !!dailyRun, null, { timeout: 10000 }); };
+  // the Daily tab from the map's door (gameplay's "Today's challenge"): the Hall, not the battle
+  const f8door = async (g, W) => {
+    await g.ev(() => { if (hallOpen) closeHall(); openCampaignMap(); });
+    await g.frames(3);
+    await f7press(g, "#dailyBtn");
+    await dyReady(g).catch(() => {});
+    const h = await g.ev(() => ({ hall: hallOpen, tab: hallTab, mode: menuMode, daily: !!dailyRun }));
+    if (!h.hall || h.tab !== "daily" || h.daily) fail(W, "the map's daily door: " + JSON.stringify(h));
+  };
+  const f8play = async (g, W) => {
+    await dyReady(g).catch(() => {});
+    await f7press(g, "#hallBody .dyPlay");
+    await g.page.waitForFunction(() => !hallOpen && menuMode === "brief" && !!dailyRun, null, { timeout: 10000 }).catch(async () => fail(W, "Play did not open the daily's chronicle: " + JSON.stringify(await g.ev(() => ({ hall: hallOpen, mode: menuMode, d: !!dailyRun })))));
+  };
+  const flow8 = async (C) => {
+    const W = "flow 8 " + C.name;
+    await resetStack();
+    const K = C.key, more = K === "desk" || K === "ses";
+    log("  flow 8: A signs in; the ruleset published");
+    const A = await open(C, { storage: f7prog, quietCall: true });
+    await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "d8a"));
+    await signIn(A, null, "google", "name");
+    const nameA = "Eight" + K + "A";
+    await A.page.fill("#gate .gtField", nameA);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const uidA = await uidOf(A);
+    await S.control("admin", { user_id: uidA });
+    const pub = await A.ev(async () => { const r = await pfRpc("hs_admin_publish_ruleset", { p_id: PF_RULESET_ID, p_data: rulesetData() }, { auth: true, timeout: 20000 }); return r.ok ? "ok" : r.code; });
+    if (pub !== "ok") fail(W, "the ruleset was not published: " + pub);
+    // ---- the pick: the page's (gameplay's dailyPick and the platform's dailyOf) equal to the server's for 366 days
+    const today = (await S.query("select ((now() at time zone 'utc')::date - date '1970-01-01')::int as d"))[0].d;
+    const srv = await S.query(`select g, p.level_id, p.twist from highland.hs_rulesets r, generate_series($1::int, $1::int + 365) g,
+      lateral highland._daily_pick(r.data, date '1970-01-01' + g) p where r.id = '2' order by g`, [today]);
+    const pg = await A.ev(d0 => { const out = []; for (let d = d0; d < d0 + 366; d++) { const a = dailyPick(d), b = dailyOf(rulesetData().daily, d); out.push([LEVELS[a.levelIndex].id, a.twist, b.level, b.twist]); } return { out, same: JSON.stringify(rulesetData().daily) === JSON.stringify(Object.assign({}, rulesetData().daily, dailyRules())) }; }, today);
+    const skip = await A.ev(() => rulesetData().daily.skip);
+    const diff = srv.filter((x, i) => !pg.out[i] || pg.out[i][0] !== x.level_id || pg.out[i][1] !== x.twist || pg.out[i][2] !== x.level_id || pg.out[i][3] !== x.twist);
+    if (srv.length !== 366 || diff.length) fail(W, "the page's pick differs from the server's on " + diff.length + " of " + srv.length + " days: " + JSON.stringify(diff.slice(0, 3)));
+    if (srv.some(x => (skip[x.level_id] || []).includes(x.twist))) fail(W, "the server served a pair the skip lists leave out");
+    if (!pg.same) fail(W, "rulesetData().daily's pick is not dailyRules()'s");
+    notes.flows["p6 pick@" + K] = srv.length + " days equal";
+    // ---- the welcome card's door, the Daily tab, its words
+    const wtxt = await cardText(A);
+    if (!wtxt.includes("Today's challenge")) fail(W, "the welcome card has no Today's challenge: " + wtxt);
+    await audit(A, W + " welcome with the daily", cardSpec(["#gate .gtDaily"]), null);
+    await f8photo(A, "welcome");
+    await pressWelcome(A, "Today's challenge");
+    await gate(A, "");
+    await A.page.waitForFunction(() => hallOpen && hallTab === "daily", null, { timeout: 15000 }).catch(() => fail(W, "Today's challenge did not open the Daily tab"));
+    await dyReady(A).catch(() => fail(W, "the Daily tab did not settle"));
+    const ho = (await evs(A, "hall_open")).pop();
+    if (!ho || ho.tab !== "daily" || ho.from !== "welcome") fail(W, "hall_open from the welcome card: " + JSON.stringify(ho));
+    const st0 = await f8status(A), pd = await A.ev(() => Platform.daily());
+    const iA = await A.ev(id => LEVELS.findIndex(L => L.id === id), st0.level);
+    if (!pd || pd.levelIndex !== iA || pd.twist !== st0.twist || pd.day !== today || pd.attemptsLeft !== 3 || pd.server !== true) fail(W, "Platform.daily() is not the server's: " + JSON.stringify(pd) + " " + JSON.stringify(st0));
+    if (st0.level !== srv[0].level_id || st0.twist !== srv[0].twist) fail(W, "hs_daily_status is not the pick: " + JSON.stringify(st0));
+    const words = await A.ev(([i, t, d]) => ({ head: "Daily challenge · " + dailyDateWords(d), field: dailyTitle(i) + ", " + LEVELS[i].date, twist: twistName(t, i) }), [iA, st0.twist, today]);
+    let dt = await dyTab(A);
+    if (!dt || dt.head !== words.head || dt.field !== words.field || !dt.twist.startsWith(words.twist) || dt.rules !== "Normal · 12 waves · Standard loadout · The same for everyone" ||
+      dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" || !/^New challenge in (\d+ h( \d+ min)?|\d+ min|under a minute)$/.test(dt.next) ||
+      dt.sit !== "One sitting. Leaving the battle ends the attempt." || dt.empty !== "No scores yet today. Be the first to hold this field." || dt.badge !== 1 || dt.sign)
+      fail(W, "the Daily tab: " + JSON.stringify(dt));
+    if (/[\u2013\u2014]/.test(JSON.stringify(dt))) fail(W, "a long dash on the Daily tab");
+    await dyAuditTab(A, W, "Daily tab", "tab-fresh");
+    // the map's doors: the dot while today's daily is unplayed (the trophy door's, or held sideways the tally's pip)
+    await A.ev(() => closeHall());
+    await A.frames(3);
+    const dots = await A.ev(() => ({ side: phoneWide(), hall: $("hallBtn") ? $("hallBtn").classList.contains("pip") : null, tally: $("ovStars").classList.contains("pip"), title: $("dailyBtn").title }));
+    if ((!dots.side && !dots.hall) || !dots.tally) fail(W, "no dot for the unplayed daily: " + JSON.stringify(dots));
+    if (!dots.title.includes(words.field.split(", ")[0]) || !dots.title.includes(words.twist)) fail(W, "gameplay's door does not name today's battle: " + dots.title);
+    await f8photo(A, "map");
+    // gameplay's own door leads to the tab while the platform is on
+    await f8door(A, W);
+    // ---- attempt 1: won and posted
+    log("  flow 8: three attempts");
+    await f8play(A, W);
+    await f8photo(A, "chronicle");
+    let f = await f8fight(A, W, { win: true, lives: 11 });
+    if (f.said !== "This attempt counts. 2 attempts left today.") fail(W, "the first attempt's word: " + f.said);
+    await f7settled(A);
+    let st = await strip(A);
+    const rules = await A.ev(() => rulesetData());
+    const exp1 = refm.scoreOf({ won: true, lives: f.lives, sim_sec: f.b.slow, spent: 400, earned: f.ev.earned }, f.b, rules.score);
+    const row1 = await f7last(uidA);
+    if (!row1) fail(W, "the daily's post was refused: " + JSON.stringify(await A.ev(async (e) => { const r = await pfRpc("hs_score_submit", { p_run: SC.page.rid, p_stats: { won: true, lives: e.lives, waves: e.wave, sim_sec: e.sec, spent: e.spent, earned: e.earned, loadout: "std", build: "x" } }, { auth: true }); return [r.status, r.data]; }, f.ev)));
+    if (!row1 || row1.score !== exp1 || st.score !== exp1 || row1.board !== "d:" + new Date(today * 86400000).toISOString().slice(0, 10)) fail(W, "the daily's score: server " + JSON.stringify(row1) + ", page " + st.score + ", ref " + exp1);
+    if (stripSays(st) !== "Score " + exp1.toLocaleString("en-US") + " · #1 of 1 today") fail(W, "the won daily's strip: " + JSON.stringify(st));
+    if (f.ev.stars !== 0) fail(W, "a daily's event carries stars: " + f.ev.stars);
+    const shareOn = await A.ev(() => (phoneWide() ? !$("shareBtn").hidden : !!document.querySelector("#ovScore .scShare")));
+    if (!shareOn) fail(W, "no Share on the won daily's page");
+    // its card's words (5.6): "Highland Stand daily, Nov 17: Erebuni Rise, Forced march. Score 6,910, #1 today. <address>"
+    await A.page.waitForFunction(() => !!SH.blob && !SH.drawing && !!SH.key && JSON.parse(SH.key).rank === 1, null, { timeout: 20000 }).catch(() => fail(W, "the won daily's card was not made with its rank"));
+    const card = await A.ev(([i, t, d]) => ({ text: SH.text, want: "Highland Stand daily, " + shareDay(new Date(d * 86400000), false, true) + ": " + dailyTitle(i) + ", " + twistName(t, i) + ". Score " }), [iA, st0.twist, today]);
+    if (card.text !== card.want + exp1.toLocaleString("en-US") + ", #1 today. https://highland.avunjian.com") fail(W, "the daily's share text: " + card.text);
+    const dp = (await evs(A, "daily_played")).pop();
+    if (!dp || dp.won !== true || dp.attempt !== 1 || dp.ranked !== true || dp.score !== exp1 || dp.twist !== st0.twist) fail(W, "daily_played: " + JSON.stringify(dp));
+    await f7audit(A, W, "won daily's page", null);
+    await f8photo(A, "won");
+    // its Leaderboard: the Daily tab, the player on today's board
+    await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await A.page.waitForFunction(() => hallOpen && hallTab === "daily", null, { timeout: 10000 }).catch(() => fail(W, "the won daily's Leaderboard is not the Daily tab"));
+    await dyReady(A).catch(() => {});
+    dt = await dyTab(A);
+    if (!dt || dt.rows.length !== 1 || !dt.rows[0].me || dt.rows[0].cells[1] !== nameA || dt.rows[0].cells[2] !== exp1.toLocaleString("en-US") || dt.rows[0].cells[3] !== f.lives + "/" + f.b.lives ||
+      dt.mine.join("|") !== "Attempts left: 2 of 3|Your best today: " + exp1.toLocaleString("en-US") + " (#1 of 1)" || dt.badge !== 0) fail(W, "the Daily tab after a win: " + JSON.stringify(dt));
+    await dyAuditTab(A, W, "Daily tab with a score", "tab-scored");
+    await A.ev(() => closeHall());
+    // ---- attempt 2: lost, scored by the waves it held; its strip on the daily's end page, no Share, the debrief
+    await A.ev(() => { openCampaignMap(); });
+    await f8door(A, W);
+    await f8play(A, W);
+    f = await f8fight(A, W, { win: false, cleared: 5 });
+    if (f.said !== "This attempt counts. 1 attempt left today.") fail(W, "the second attempt's word: " + f.said);
+    await f7settled(A);
+    st = await strip(A);
+    const row2 = await f7last(uidA);
+    if (!row2 || row2.score !== Math.floor(4000 * 5 / 12)) fail(W, "the lost daily's score on the server: " + JSON.stringify(row2));
+    if (st.score !== Math.floor(4000 * 5 / 12) || stripSays(st) !== "Score 1,666 · #1 of 1 today") fail(W, "the lost daily's strip: " + JSON.stringify(st));
+    const lostPage = await A.ev(() => ({ share: !!document.querySelector("#ovScore .scShare") || !$("shareBtn").hidden, deb: $("ovDebrief").classList.contains("on") && getComputedStyle($("ovDebrief")).display !== "none",
+      cls: document.body.classList.contains("pfShare"), title: $("ovTitle").textContent }));
+    if (lostPage.share || lostPage.cls) fail(W, "a lost daily's page offers Share: " + JSON.stringify(lostPage));
+    await f7audit(A, W, "lost daily's page", null);
+    await f8photo(A, "lost");
+    // ---- attempt 3 (Fight again), then the fourth: practice, said at once, nothing spent
+    await f8again(A);
+    f = await f8fight(A, W, { win: true, lives: 6 });
+    if (f.said !== "This attempt counts. It is your last today.") fail(W, "the third attempt's word: " + f.said);
+    await f7settled(A);
+    st = await strip(A);
+    // (the best stands: the first attempt's; the strip names the rank of the player's best)
+    if (!/^Score [\d,]+ · #1 of 1 today$/.test(stripSays(st))) fail(W, "the third attempt's strip: " + JSON.stringify(st));
+    const runs0 = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily'", [uidA]))[0].n;
+    await f8again(A);
+    f = await f8fight(A, W, { win: true, lives: 12, practice: true });
+    if (f.said !== "Practice: no attempts left today. This battle is not ranked.") fail(W, "the fourth attempt's word: " + f.said);
+    await A.wait(400);
+    st = await strip(A);
+    if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the practice daily's strip: " + JSON.stringify(st));
+    const runs1 = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily'", [uidA]))[0].n;
+    if (runs0 !== 3 || runs1 !== 3) fail(W, "the daily's runs on the server: " + runs0 + " then " + runs1 + " (three wanted)");
+    const dp4 = (await evs(A, "daily_played")).pop();
+    if (!dp4 || dp4.ranked !== false || dp4.attempt !== 0) fail(W, "the practice's daily_played: " + JSON.stringify(dp4));
+    await f7audit(A, W, "practice daily's page", null);
+    await f8photo(A, "practice");
+    // the tab: none left, Practice
+    await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await dyReady(A).catch(() => {});
+    dt = await dyTab(A);
+    if (!dt || dt.mine[0] !== "Attempts left: 0 of 3" || dt.play !== "Practice" || !dt.note.includes("Your three attempts are used.")) fail(W, "the Daily tab with no attempt left: " + JSON.stringify(dt));
+    await dyAuditTab(A, W, "Daily tab, attempts used", "tab-spent");
+    await A.ev(() => closeHall());
+    // ---- a second player's lower score ranks second
+    let B = null;
+    if (more) {
+      log("  flow 8: B");
+      B = await open(C, { storage: f7prog, quietCall: true });
+      await B.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await S.control("provider", f7who(K, "d8b"));
+      await signIn(B, null, "google", "name");
+      const nameB = "Eight" + K + "B";
+      await B.page.fill("#gate .gtField", nameB);
+      await pressGo(B, "#gate .gtGo");
+      await gate(B, "welcome");
+      await f7map(B);
+      await f8door(B, W);
+      const dB = await dyTab(B);
+      if (!dB || dB.badge !== 1 || dB.rows.length !== 1 || dB.rows[0].me || dB.mine.join("|") !== "Attempts left: 3 of 3") fail(W, "B's Daily tab: " + JSON.stringify(dB));
+      await f8play(B, W);
+      const fb = await f8fight(B, W, { win: false, cleared: 2 });
+      await f7settled(B);
+      const sb = await strip(B);
+      if (stripSays(sb) !== "Score 666 · #2 of 2 today") fail(W, "B's strip: " + JSON.stringify(sb) + " " + fb.said);
+      await done(B, W + " (B)");
+    }
+    // ---- the day changes: the next challenge, the attempts back, yesterday's first three. The stack's clock is set
+    // to eight seconds before midnight UTC and the tab is left open: the page's own turn of the day (dyTimer, set
+    // again from the tab's answer) asks for the new day and draws it (P6 review 5)
+    log("  flow 8: the day changes");
+    const toMid = (await S.query("select extract(epoch from (date_trunc('day', now() at time zone 'utc') + interval '1 day') - (now() at time zone 'utc'))::float8 s"))[0].s;
+    await S.control("clock", { offset: Math.round((toMid - 8) * 1000) / 1000 });
+    const p2 = (await S.query(`select p.level_id, p.twist from highland.hs_rulesets r, lateral highland._daily_pick(r.data, (now() at time zone 'utc')::date + 1) p where r.id = '2'`))[0];
+    const i2 = await A.ev(id => LEVELS.findIndex(L => L.id === id), p2.level_id);
+    const w2 = await A.ev(([i, t, d]) => ({ head: "Daily challenge · " + dailyDateWords(d), field: dailyTitle(i) + ", " + LEVELS[i].date, twist: twistName(t, i) }), [i2, p2.twist, today + 1]);
+    await A.ev(() => { openCampaignMap(); });
+    await f8door(A, W);
+    const before = await dyTab(A);
+    if (!before || before.head !== words.head) fail(W, "the tab before midnight: " + JSON.stringify(before && before.head) + ", wanted " + words.head);
+    await A.page.waitForFunction(h => { const e = document.querySelector("#hallBody .dyTab .dyHead"); return hallOpen && hallTab === "daily" && !!e && e.textContent === h && !document.querySelector("#hallBody .lbLoading") && !DY.asking; }, w2.head, { timeout: 25000 })
+      .catch(async () => fail(W, "the open tab did not turn to the next day by itself: " + JSON.stringify(await dyTab(A))));
+    await A.wait(300);
+    dt = await dyTab(A);
+    const yWant = "Yesterday: 1. " + nameA + " " + exp1.toLocaleString("en-US") + (more ? " · 2. Eight" + K + "B 666" : "");
+    if (!dt || dt.head !== w2.head || dt.field !== w2.field || !dt.twist.startsWith(w2.twist) || dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" ||
+      dt.rows.length || dt.yest !== yWant || dt.badge !== 1) fail(W, "the next day's tab: " + JSON.stringify(dt) + " wanted " + JSON.stringify(w2) + " " + yWant);
+    const pd2 = await A.ev(() => Platform.daily());
+    if (!pd2 || pd2.levelIndex !== i2 || pd2.twist !== p2.twist || pd2.day !== today + 1) fail(W, "Platform.daily() the next day: " + JSON.stringify(pd2));
+    await dyAuditTab(A, W, "Daily tab, the next day", "tab-nextday");
+    await A.ev(() => closeHall());
+    const runsNext = async () => (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = (now() at time zone 'utc')::date + 1", [uidA]))[0].n;
+    if (more) {
+      // ---- the owner's daily switch off (P6 review 8): a page that has not heard it is refused at the first wave and
+      // plays practice, nothing spent; once heard, the tab offers Practice and says why, and no badge
+      log("  flow 8: the daily switched off");
+      // (switched as the stats page's switch does it: hs_admin_set_config, A being the admin)
+      const setDaily = (v) => A.ev(async v => { const r = await pfRpc("hs_admin_set_config", { p_key: "daily", p_value: v }, { auth: true, timeout: 10000 }); return r.ok ? "ok" : r.code; }, v);
+      const off = await setDaily(false);
+      if (off !== "ok") fail(W, "the daily was not switched off: " + off);
+      await f8door(A, W);
+      await f8play(A, W);
+      let fx = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fx.said !== "Practice: the daily's board is closed for now.") fail(W, "the daily switched off, its word: " + fx.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the daily switched off, its strip: " + JSON.stringify(st));
+      // (the page hears the switch as it reads hs_config at the load and the sign-in)
+      await A.ev(async () => { const r = await pfRpc("hs_config", {}, {}); if (r.ok && r.data) pfCfgSet({ daily: r.data.daily !== false }); });
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.play !== "Practice" || dt.note !== "The daily's board is closed for now. Practice plays the same battle, not ranked." || dt.badge !== 0 || dt.sit) fail(W, "the Daily tab with the daily off: " + JSON.stringify(dt));
+      await dyAuditTab(A, W, "Daily tab, the daily off", "tab-off");
+      await A.ev(() => closeHall());
+      await setDaily(true);
+      await A.ev(() => pfCfgSet({ daily: true }));
+      if (await runsNext()) fail(W, "a daily with the switch off spent an attempt");
+      // ---- a newer ruleset published while the chronicle is up (P6 review 8): the first wave's daily_mismatch makes
+      // it practice, nothing spent; the tab then says to reload and offers Practice
+      log("  flow 8: a newer ruleset");
+      await f8door(A, W);
+      await f8play(A, W);
+      const pub9 = await A.ev(async () => { const d = JSON.parse(JSON.stringify(rulesetData())); for (const k of Object.keys(d.daily.levels)) d.daily.levels[k].slow += 50;
+        for (const k of Object.keys(d.levels)) d.levels[k].rev = (d.levels[k].rev || 1) + 7;
+        const r = await pfRpc("hs_admin_publish_ruleset", { p_id: "9", p_data: d }, { auth: true, timeout: 20000 }); return r.ok ? "ok" : r.code; });
+      if (pub9 !== "ok") fail(W, "the newer ruleset was not published: " + pub9);
+      fx = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fx.said !== "Practice: a new challenge has begun. This battle is not ranked.") fail(W, "the stale daily's word: " + fx.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the stale daily's strip: " + JSON.stringify(st));
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.play !== "Practice" || dt.note !== "A newer version of the game is out. Reload the page to play for today's board." || dt.badge !== 0) fail(W, "the Daily tab with a newer ruleset: " + JSON.stringify(dt));
+      await dyAuditTab(A, W, "Daily tab, a newer ruleset", "tab-stale");
+      await A.ev(() => closeHall());
+      // (no call takes a ruleset back: the stack's superuser removes it, so ruleset 2 is the newest again)
+      { const c = await S.db.client("hs", "supabase_admin"); try { await c.query("delete from highland.hs_rulesets where id = '9'"); } finally { await c.end(); } }
+      await A.ev(() => { DY.st = null; pfDrop("hs_pf_daily"); });
+      if (await runsNext()) fail(W, "a stale daily spent an attempt");
+    }
+    // ---- the database down: Platform.daily() is still today's (the page's own lines), a daily begun is practice and spends nothing
+    if (more) {
+      log("  flow 8: offline");
+      await S.control("rest", { mode: "down" });
+      await A.ev(() => { DY.st = null; pfDrop("hs_pf_daily"); });
+      const pd3 = await A.ev(() => Platform.daily());
+      if (!pd3 || pd3.levelIndex !== i2 || pd3.twist !== p2.twist || pd3.server !== false || pd3.attemptsLeft !== null) fail(W, "Platform.daily() with the server down: " + JSON.stringify(pd3));
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.field !== w2.field || dt.play !== "Play today's challenge" || dt.empty !== "The daily's board needs a connection.") fail(W, "the Daily tab with the server down: " + JSON.stringify(dt));
+      await f8play(A, W);
+      const fo = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fo.said !== "Practice: no connection. This battle is not ranked.") fail(W, "the offline daily's word: " + fo.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the offline daily's strip: " + JSON.stringify(st));
+      await S.control("rest", { mode: "up" });
+      const n = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = (now() at time zone 'utc')::date + 1", [uidA]))[0].n;
+      if (n !== 0) fail(W, "a daily begun offline spent an attempt (" + n + ")");
+      // ---- a guest (the gate optional; P6 review 7, 8): the tab offers Practice with the sign-in buttons, said once;
+      // his daily is practice from its first wave, posts nothing, and his page turns the day too (dyTimer)
+      log("  flow 8: a guest");
+      await A.ev(() => closeHall());
+      const G = await open(C, { storage: f7prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+      await G.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await gate(G, "signin");
+      await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
+      await gate(G, "");
+      await f7toMap(G);
+      await f8door(G, W);
+      const dg = await dyTab(G);
+      if (!dg || dg.play !== "Practice" || !dg.sign || dg.note || dg.sit || dg.field !== w2.field || dg.badge !== 0) fail(W, "the guest's Daily tab: " + JSON.stringify(dg));
+      const signWords = await G.ev(() => Array.from(document.querySelectorAll("#hallBody .dyTab .lbSign p")).map(p => p.textContent));
+      if (signWords.join("|") !== "Sign in to play for today's board. Practice plays the same battle, not ranked.") fail(W, "the guest's sign-in words: " + JSON.stringify(signWords));
+      if (!(await G.ev(() => !!DY.timer))) fail(W, "a guest's page has no turn of the day");
+      await dyAuditTab(G, W, "the guest's Daily tab", "tab-guest");
+      const gRuns = (await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n;
+      await f8play(G, W);
+      const fg = await f8fight(G, W, { win: true, lives: 9, practice: true });
+      if (fg.said !== "Practice: sign in to play for today's board.") fail(W, "the guest's first wave: " + fg.said);
+      await G.wait(300);
+      const sg = await strip(G);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(sg))) fail(W, "the guest's strip: " + JSON.stringify(sg));
+      const dpg = (await evs(G, "daily_played")).pop();
+      if (!dpg || dpg.ranked !== false || dpg.attempt !== 0) fail(W, "the guest's daily_played: " + JSON.stringify(dpg));
+      if ((await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n !== gRuns) fail(W, "a guest's daily began a run");
+      await f8photo(G, "guest-practice");
+      await done(G, W + " (guest)");
+      // ---- signed in with no name (P6 review 8): the name could not be saved twice, "Later"; the tab says to choose a
+      // name and offers Practice, and the daily is practice from its first wave, nothing begun
+      log("  flow 8: signed in, no name");
+      const N = await open(C, { storage: f7prog, quietCall: true });
+      await N.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await S.control("provider", f7who(K, "d8n"));
+      await signIn(N, null, "google", "name");
+      await S.control("rest", { mode: "down" });
+      for (let k = 0; k < 2; k++) {
+        await pressGo(N, "#gate .gtGo");
+        await N.page.waitForFunction(() => { const e = document.querySelector("#gate .gtErr"); return !!e && !!e.textContent && !document.querySelector("#gate .gtGo").disabled; }, null, { timeout: 15000 }).catch(() => {});
+      }
+      await S.control("rest", { mode: "up" });
+      await pressGo(N, "#gate .pfLater");
+      await gate(N, "welcome");
+      await f7map(N);
+      await f8door(N, W);
+      const dn = await dyTab(N);
+      if (!dn || dn.play !== "Practice" || dn.note !== "Choose a name on the Account tab to play for today's board." || dn.sit || dn.badge !== 0 || dn.mine.length) fail(W, "the Daily tab with no name: " + JSON.stringify(dn));
+      const nRuns = (await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n;
+      await f8play(N, W);
+      const fn = await f8fight(N, W, { win: true, lives: 9, practice: true });
+      if (fn.said !== "Practice: choose a name to play for today's board.") fail(W, "no name, the first wave: " + fn.said);
+      if ((await S.query("select count(*)::int n from highland.hs_runs where mode = 'daily'"))[0].n !== nRuns) fail(W, "a daily with no name began a run");
+      await done(N, W + " (no name)");
+    }
+    await S.control("clock", { offset: "" });
+    await done(A, W + " (A)");
+  };
+
+  // ================================================================ flow 9: the share card (work package P7)
+  // A signed-in player with eight battlefields won wins Ani (a short name) and Sis (the longest title, "The King
+  // Yields on Terms", after its Terms card); a guest under the optional gate wins Erebuni Rise. Each picture is read
+  // back whole (a JPEG of 1200 x 630, its words as the page knows them), photographed with --photos (a folder p7),
+  // and shared: with navigator.share and canShare stubbed the tap shares that file and words carrying the score (a
+  // cancel is no error); without them the sheet's Save picture (a real download), Copy picture (a PNG to the
+  // clipboard) and Copy text each work and say so, and Share link where navigator.share takes no file. Nothing is sent
+  // for the picture: between the page opening and the tap no request but the strip's own post and the analytics
+  const f9prog = (() => {
+    const won = ["erebuni", "tushpa", "avarayr", "dvin", "tashir", "sevan", "ani", "mari"], eraOf = [0, 0, 1, 2, 2, 2, 7, 8], rec = {};
+    won.forEach((id, i) => { rec[id] = { stars: [0, 3 - (i % 2), 0], lives: [0, 20 - i, 0], endless: [0, 0, 0] }; });
+    const o = { hs_records: JSON.stringify(rec), hs_tutorial_done: "1", hs_chapters_seen: JSON.stringify(["kingdoms", "faith", "crowns", "night", "artsakh"]),
+      hs_unlocked_seen: JSON.stringify(won.concat(["sis"])), hs_open_kept: JSON.stringify(["sis"]), hs_tricks_seen: JSON.stringify(["guard", "scout", "ambush", "hunter"]) };
+    won.forEach((id, i) => { o["hs_best_" + id + "_" + eraOf[i]] = "21"; });
+    return o;
+  })();
+  const F9SHOTS = PHOTOS ? path.join(PHOTOS, "p7") : null;
+  if (F9SHOTS) fs.mkdirSync(F9SHOTS, { recursive: true });
+  const f9photo = async (g, name) => { if (F9SHOTS) await g.page.screenshot({ path: path.join(F9SHOTS, name + "-" + g.o.key + ".png") }); };
+  // a JPEG's size from its frame header
+  const jpegSize = (buf) => {
+    if (!buf || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+    for (let i = 2; i + 9 < buf.length;) {
+      if (buf[i] !== 0xff) return null;
+      const m = buf[i + 1], len = buf.readUInt16BE(i + 2);
+      if (m >= 0xc0 && m <= 0xc3) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      i += 2 + len;
+    }
+    return null;
+  };
+  // the picture the page holds, its words, and what the card says: { b64, bytes, type, name, text, info, ready }
+  const f9card = (g) => g.ev(async () => {
+    if (!SH.blob) return { ready: false };
+    const a = new Uint8Array(await SH.blob.arrayBuffer());
+    let s = "";
+    for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
+    return { ready: true, b64: btoa(s), bytes: a.length, type: SH.blob.type, name: SH.file ? SH.file.name : "", text: SH.text, info: JSON.parse(SH.key || "null"), bg: !!SH.bg };
+  });
+  // the picture ready, with the words wanted (the rank, once the server has said it)
+  const f9ready = async (g, W, what, want) => {
+    await g.page.waitForFunction(w => !!SH.blob && !SH.drawing && (!w || (SH.key && JSON.parse(SH.key).rank === w.rank)), want || null, { timeout: 20000 })
+      .catch(async () => fail(W, what + ": no picture ready: " + JSON.stringify(await g.ev(() => ({ blob: !!SH.blob, drawing: SH.drawing.slice(0, 80), key: SH.key.slice(0, 200), page: SC.page })))));
+    const c = await f9card(g);
+    if (!c.ready) return c;
+    const buf = Buffer.from(c.b64, "base64"), size = jpegSize(buf);
+    c.buf = buf;
+    if (c.type !== "image/jpeg" || !size || size.w !== 1200 || size.h !== 630) fail(W, what + ": the picture is not a JPEG of 1200 x 630: " + c.type + " " + JSON.stringify(size));
+    if (c.bytes < 40000 || c.bytes > 600000) fail(W, what + ": the picture's size " + c.bytes + " bytes is far from 150 to 250 KB");
+    if (!c.bg) fail(W, what + ": the field was not copied (the gradient stood in)");
+    // every row's words are on the picture: in each row's box, pixels of the row's own color, far more than the field
+    // alone has there (the canvas before the JPEG, so the colors are exact)
+    const ink = await g.ev(() => {
+      const card = SH.cv.getContext("2d"), field = SH.bg ? SH.bg.getContext("2d") : null, hex = (h) => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+      return shareRows(JSON.parse(SH.key)).map(r => {
+        const w = 200, h = Math.round(r.px * 0.7), x0 = Math.round(r.align === "right" ? r.x - w : r.x), y0 = Math.round(r.y - h), c = hex(r.color);
+        const count = (ctx) => {
+          if (!ctx) return 0;
+          const d = ctx.getImageData(x0, y0, w, h).data;
+          let n = 0;
+          for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - c[0]) + Math.abs(d[i + 1] - c[1]) + Math.abs(d[i + 2] - c[2]) < 36) n++;
+          return n;
+        };
+        return { y: r.y, text: r.text, card: count(card), field: count(field) };
+      });
+    });
+    for (const r of ink) if (r.card < 25 || r.card < 2 * r.field + 10) fail(W, what + ": the row \"" + r.text + "\" (y " + r.y + ") is not on the picture: " + JSON.stringify(r));
+    notes.flows["p7 " + what + "@" + g.o.key] = Math.round(c.bytes / 1024) + " KB";
+    if (F9SHOTS) fs.writeFileSync(path.join(F9SHOTS, "card-" + what + "-" + g.o.key + ".jpg"), buf);
+    return c;
+  };
+  // the share's control as the page shows it at this size: the strip's Share, or held sideways the round button
+  const f9btn = async (g) => ((await g.ev(() => phoneWide())) ? "#shareBtn" : "#ovScore .scShare");
+  // navigator.share and canShare stubbed (files: whether canShare takes the picture; mode: "ok", "abort", "refuse"),
+  // or taken away (null); and a clipboard that keeps what it was given
+  const f9stub = (g, x) => g.ev((x) => {
+    window.__shared = [];
+    if (!x) { Object.defineProperty(navigator, "share", { configurable: true, writable: true, value: undefined }); Object.defineProperty(navigator, "canShare", { configurable: true, writable: true, value: undefined }); }
+    else {
+      Object.defineProperty(navigator, "canShare", { configurable: true, writable: true, value: (d) => !!x.files && !!d && Array.isArray(d.files) && d.files.length > 0 });
+      Object.defineProperty(navigator, "share", { configurable: true, writable: true, value: (d) => {
+        const f = d && d.files && d.files[0];
+        window.__shared.push({ title: d.title, text: d.text, url: d.url, files: d.files ? d.files.length : 0, name: f && f.name, type: f && f.type, size: f && f.size, file: f || null });
+        if (x.mode === "abort") return Promise.reject(new DOMException("Share canceled", "AbortError"));
+        if (x.mode === "refuse") return Promise.reject(new DOMException("Not allowed", "NotAllowedError"));
+        return Promise.resolve();
+      } });
+    }
+    window.__clip = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      write: async (items) => { for (const it of items) for (const t of it.types) { const b = await it.getType(t); const a = new Uint8Array(await b.arrayBuffer()); window.__clip.push({ type: t, bytes: a.length, png: a[0] === 0x89 && a[1] === 0x50 && a[2] === 0x4e && a[3] === 0x47 }); } },
+      writeText: async (t) => { window.__clip.push({ type: "text", text: t }); },
+    } });
+  }, x);
+  // the share's events since n
+  const f9evs = (g, n) => g.ev(n => (window.__hsEv || []).slice(n).filter(e => /^share_/.test(e[0])).map(e => e[0] + ":" + JSON.stringify(e[1])), n);
+  const f9sheet = (g) => g.ev(() => {
+    const s = $("shareSheet"), up = !!s && !s.classList.contains("shHidden") && SH.up;
+    return { up, btns: up ? Array.from(s.querySelectorAll(".shBtns .btn")).map(b => b.textContent) : [], pic: up ? s.querySelector(".shPic").naturalWidth : 0,
+      inert: overlayEl.hasAttribute("inert"), blocking: Platform.blocking() };
+  });
+  // the victory page's way to the card held to the audit on the phones, and the share's button live
+  const f9page = async (g, W, what) => {
+    const st = await strip(g), sel = await f9btn(g);
+    const b = await g.ev(sel => { const e = document.querySelector(sel); return e ? { dis: e.disabled, hid: e.hidden || getComputedStyle(e).display === "none", vis: getComputedStyle(e).visibility } : null; }, sel);
+    if (!b || b.hid || b.dis) fail(W, what + ": the Share button is not live: " + JSON.stringify(b));
+    if (st.side) {
+      const pos = await g.ev(() => { const a = $("shareBtn").getBoundingClientRect(), c = $("boardBtn").getBoundingClientRect(), gr = $("ovGear").getBoundingClientRect(); return { right: Math.round(innerWidth - a.right), top: Math.round(a.top), gapBoard: Math.round(c.left - a.right), board: !$("boardBtn").hidden, gear: Math.round(gr.left - c.right) }; });
+      const Cz = SIZES.find(z => z.key === g.o.key) || {}, sar = Cz.insets ? Cz.insets.r || 0 : 0;
+      if (b.vis !== "hidden" && (pos.right !== 110 + sar || pos.top !== 8 || (pos.board && pos.gapBoard !== 6))) fail(W, what + ": the round Share button is not at right 110 px, top 8 px, left of Leaderboard: " + JSON.stringify(pos));
+    }
+    if (["ses", "i15h", "i15u"].includes(g.o.key)) {
+      const parts = st.side ? ["#ovRecord", "#boardBtn", "#shareBtn", "#ovGear"] : ["#ovScore", "#ovRecord"];
+      const primary = st.side ? (b.vis === "hidden" ? ["#mapBtn"] : ["#shareBtn"]) : ["#ovScore .scShare"];
+      await audit(g, W + " " + what + " victory page", { root: "#overlay", parts, primary, primaryRequired: true, scroll: upr(g.o) ? "page" : "inside" }, null);
+    }
+    const out = await g.ev(() => [...document.querySelectorAll("#overlay .bigRow .big, #ovScore button")].filter(b => b.offsetParent && b.getBoundingClientRect().bottom > innerHeight - 1).map(b => b.id || b.className));
+    if (!upr(g.o) && out.length) fail(W, what + ": past the screen's foot: " + out.join(", "));
+    return b.vis !== "hidden";
+  };
+  // the share pressed as the player presses it (held sideways under a long title its round button may hide: then by
+  // Settings' row, as the player would)
+  const f9tap = async (g, W, shown) => {
+    if (shown) { await f7press(g, await f9btn(g)); return; }
+    await pressGo(g, "#ovGear");
+    await g.frames(3);
+    const row = await g.ev(() => { const e = $("setShare"); return e && getComputedStyle(e).display !== "none"; });
+    if (!row) { fail(W, "Settings has no Share row while the round button is hidden"); return; }
+    await pressGo(g, "#setShare");
+  };
+  // one picture's whole round: its words, the file shared with stubs, a cancel, then the sheet and each of its buttons
+  // (light: the file shared once, then back, for a page whose sheet another round has already held to every check)
+  const f9share = async (g, W, what, want, light) => {
+    const c = await f9ready(g, W, what, want.rank ? { rank: want.rank } : null);
+    if (!c.ready) return;
+    const I = c.info || {};
+    for (const k of Object.keys(want)) if (JSON.stringify(I[k]) !== JSON.stringify(want[k])) fail(W, what + ": the card's " + k + " is " + JSON.stringify(I[k]) + ", not " + JSON.stringify(want[k]));
+    const textWant = "I held " + want.field + " in Highland Stand with " + I.kept + " of " + I.max + " defenders. " + (I.score == null ? "" : "Score " + Number(I.score).toLocaleString("en-US") + ". ") + "https://highland.avunjian.com";
+    if (c.text !== textWant) fail(W, what + ": the words: " + c.text);
+    const shown = await f9page(g, W, what);
+    await f9photo(g, "victory-" + what);
+    // 1. the browser can share a file: the tap shares this picture, and its words carry the score
+    await f9stub(g, { files: true, mode: "ok" });
+    let n = await g.ev(() => (window.__hsEv || []).length);
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => window.__shared.length > 0, null, { timeout: 5000 }).catch(() => {});
+    const sh = await g.ev(async () => {
+      const s = window.__shared[0];
+      if (!s) return null;
+      const bm = s.file ? await createImageBitmap(s.file) : null, same = s.file && SH.blob ? (await s.file.arrayBuffer()).byteLength === SH.blob.size : false;
+      return { title: s.title, text: s.text, url: s.url, files: s.files, name: s.name, type: s.type, w: bm && bm.width, h: bm && bm.height, same };
+    });
+    const nameWant = "highland-stand-" + want.lv + ".jpg";
+    if (!sh || sh.files !== 1 || sh.type !== "image/jpeg" || sh.w !== 1200 || sh.h !== 630 || sh.name !== nameWant || sh.title !== "Highland Stand" || sh.text !== textWant || !sh.same || sh.url !== undefined)
+      fail(W, what + ": the share: " + JSON.stringify(sh));
+    await g.wait(200);
+    let ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"files"},share_done:{"method":"files"}') fail(W, what + ": the events of a share: " + ev.join());
+    if ((await f9sheet(g)).up) fail(W, what + ": the sheet opened beside a share that worked");
+    c.shown = shown;
+    if (light) return c;
+    // a cancel is no error: no sheet, no share_done, no toast
+    await f9stub(g, { files: true, mode: "abort" });
+    await toasts(g);
+    n = await g.ev(() => (window.__hsEv || []).length);
+    const t0 = await g.ev(() => window.__hsToasts.length);
+    await f9tap(g, W, shown);
+    await g.wait(400);
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"files"}' || (await f9sheet(g)).up || (await g.ev(t => window.__hsToasts.slice(t), t0)).length) fail(W, what + ": a cancel: " + ev.join());
+    // 2. no navigator.share at all: the sheet, with Save picture, Copy picture and Copy text (no Share link)
+    await f9stub(g, null);
+    n = await g.ev(() => (window.__hsEv || []).length);
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up && $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => {});
+    let sv = await f9sheet(g);
+    if (!sv.up || sv.btns.join() !== "Save picture,Copy picture,Copy text" || sv.pic !== 1200 || !sv.inert || !sv.blocking) fail(W, what + ": the sheet: " + JSON.stringify(sv));
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_tapped:{"from":"victory","method":"sheet"}') fail(W, what + ": the sheet's event: " + ev.join());
+    if (["ses", "i15h", "i15u", "ipad"].includes(g.o.key) || what === "short") await audit(g, W + " " + what + " the sheet", { root: "#shareSheet", parts: ["#shareSheet .shCard"], primary: ["#shareSheet .shSave"], primaryRequired: true, scroll: "inside" }, null);
+    await f9photo(g, "sheet-" + what);
+    // Save picture: a real download of the picture
+    n = await g.ev(() => (window.__hsEv || []).length);
+    const tz = await g.ev(() => window.__hsToasts.length);
+    const dl = g.page.waitForEvent("download", { timeout: 8000 }).catch(() => null);
+    await pressGo(g, "#shareSheet .shSave");
+    const d = await dl;
+    if (!d) fail(W, what + ": Save picture gave no download");
+    else {
+      const p = await d.path().catch(() => null), buf = p ? fs.readFileSync(p) : null, size = jpegSize(buf);
+      if (d.suggestedFilename() !== nameWant || !size || size.w !== 1200 || size.h !== 630 || !buf.equals(c.buf)) fail(W, what + ": the download: " + d.suggestedFilename() + " " + JSON.stringify(size));
+    }
+    // Copy picture, Copy text
+    await pressGo(g, "#shareSheet .shCopyPic");
+    // (the PNG is made from the 1200 x 630 canvas as the sheet opens: a busy machine takes some seconds over it)
+    await g.page.waitForFunction(t => window.__clip.length > 0 && window.__hsToasts.length > t + 1, tz, { timeout: 30000 }).catch(() => {});
+    await pressGo(g, "#shareSheet .shCopyText");
+    await g.page.waitForFunction(() => window.__clip.length > 1, null, { timeout: 5000 }).catch(() => {});
+    const clip = await g.ev(() => window.__clip);
+    if (clip.length !== 2 || clip[0].type !== "image/png" || !clip[0].png || clip[0].bytes < 40000 || clip[1].type !== "text" || clip[1].text !== textWant) fail(W, what + ": the clipboard: " + JSON.stringify(clip).slice(0, 300));
+    await g.wait(150);
+    const said = await g.ev(t => window.__hsToasts.slice(t), tz);
+    if (said.join("|") !== "Picture saved.|Copied.|Copied.") fail(W, what + ": the toasts: " + said.join("|"));
+    ev = await f9evs(g, n);
+    if (ev.join() !== 'share_done:{"method":"save"},share_done:{"method":"copy_picture"},share_done:{"method":"copy_text"}') fail(W, what + ": the sheet's events: " + ev.join());
+    // the sheet still up, the toast over it: then it closes (Escape on the desktop, its X by touch), the page in reach
+    const tOver = await g.ev(() => { const t = $("toast"); return +getComputedStyle(t).zIndex > +getComputedStyle($("shareSheet")).zIndex; });
+    if (!tOver) fail(W, what + ": the toast is under the sheet");
+    if (g.touch) await pressGo(g, "#shareSheet .shX"); else { await g.page.keyboard.press("Escape"); }
+    await g.frames(3);
+    sv = await f9sheet(g);
+    if (sv.up || sv.inert || sv.blocking) fail(W, what + ": the sheet did not close: " + JSON.stringify(sv));
+    if ((await g.ev(() => menuMode)) !== "victory") fail(W, what + ": closing the sheet left the victory page");
+    // 3. navigator.share without files: the sheet with Share link, which shares the words
+    await f9stub(g, { files: false, mode: "ok" });
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => {});
+    sv = await f9sheet(g);
+    if (sv.btns.join() !== "Save picture,Copy picture,Copy text,Share link") fail(W, what + ": the sheet with navigator.share and no files: " + sv.btns.join());
+    n = await g.ev(() => (window.__hsEv || []).length);
+    await pressGo(g, "#shareSheet .shLink");
+    await g.page.waitForFunction(() => window.__shared.length > 0, null, { timeout: 5000 }).catch(() => {});
+    const lk = await g.ev(() => window.__shared[0] || null);
+    if (!lk || lk.files !== 0 || lk.text !== textWant || lk.title !== "Highland Stand") fail(W, what + ": Share link: " + JSON.stringify(lk));
+    await g.wait(150);
+    if ((await f9evs(g, n)).join() !== 'share_done:{"method":"link"}') fail(W, what + ": Share link's event: " + (await f9evs(g, n)).join());
+    if (g.touch) await pressGo(g, "#shareSheet .shX"); else await g.page.keyboard.press("Escape");
+    await g.frames(2);
+    // a refusal other than a cancel (the tap's permission spent): the sheet instead
+    await f9stub(g, { files: true, mode: "refuse" });
+    await f9tap(g, W, shown);
+    await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": a refused share did not open the sheet"));
+    await g.ev(() => shClose());
+    // Settings' row leads to the same card on every layout (held sideways, the way there when a title hides the button)
+    if (shown) {
+      await f9stub(g, null);
+      await f9tap(g, W, false);
+      await g.page.waitForFunction(() => SH.up, null, { timeout: 5000 }).catch(() => fail(W, what + ": Settings' Share row did not open the sheet"));
+      await g.ev(() => shClose());
+    }
+    c.shown = shown;
+    return c;
+  };
+  // the requests made since n: none but the platform's own calls to the stack's API (the strip's post, analytics)
+  const f9quiet = (g, W, n, what) => {
+    const bad = g.reqs.slice(n).filter(u => !(u.startsWith(API + "/rest/v1/rpc/hs_") || u.startsWith(API + "/auth/v1/")));
+    if (bad.length) fail(W, what + ": requests beside the platform's own: " + bad.slice(0, 4).join(", "));
+  };
+  const flow9 = async (C) => {
+    const W = "flow 9 " + C.name;
+    await resetStack();
+    const K = C.key;
+    const A = await open(C, { storage: f9prog, quietCall: true });
+    await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "s"));
+    await signIn(A, null, "google", "name");
+    const nameA = "Nine" + K;
+    await A.page.fill("#gate .gtField", nameA);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const uidA = await uidOf(A);
+    // the page's ruleset published (flow 7 does it from the stats page's button)
+    await S.control("admin", { user_id: uidA });
+    const pub = await A.ev(async () => { const r = await pfRpc("hs_admin_publish_ruleset", { p_id: PF_RULESET_ID, p_data: pfRules() }, { auth: true, timeout: 20000 }); return r.ok && r.data && r.data.ok === true; });
+    if (!pub) fail(W, "the ruleset was not published");
+    await f7map(A);
+    log("  flow 9: a short name: Ani");
+    let n0 = A.reqs.length;
+    let v = await f7win(A, W, { lv: 6, sec: 820, spent: 600, lives: 17 });
+    await f7settled(A);
+    let st = await strip(A);
+    if (st.state !== "posted" || st.score == null) fail(W, "Ani's strip: " + JSON.stringify(st));
+    const ani = await f9share(A, W, "short", { title: "Ani Stands!", hy: "Անի", field: "Ani", lv: "ani", diff: "Normal", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars,
+      rank: 1, player: nameA, open: false, daily: null, site: "highland.avunjian.com", url: "https://highland.avunjian.com" });
+    f9quiet(A, W, n0, "Ani");
+    // the rank arrives while the sheet is open (a player who taps Share before the post's answer): the sheet takes the
+    // new picture, and Save picture still saves it, the new one
+    log("  flow 9: a new picture while the sheet is open");
+    await f9stub(A, null);
+    await f9tap(A, W, ani.shown);
+    await A.page.waitForFunction(() => SH.up && $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => fail(W, "the sheet did not open for the redraw"));
+    const url0 = await A.ev(() => SH.url);
+    await A.ev(() => { SC.page.rank = 2; scRender(); });
+    const c2 = await f9ready(A, W, "redrawn", { rank: 2 });
+    await A.page.waitForFunction(() => $("shareSheet").querySelector(".shPic").complete, null, { timeout: 5000 }).catch(() => {});
+    const rs = await A.ev(async () => {
+      const s = $("shareSheet"), save = s.querySelector(".shSave");
+      let fetched = 0;
+      try { fetched = (await (await fetch(save.href)).arrayBuffer()).byteLength; } catch (e) { fetched = -1; }
+      return { up: SH.up, url: !!SH.url, pic: s.querySelector(".shPic").src === SH.url, save: save.href === SH.url, fetched, size: SH.blob.size, w: s.querySelector(".shPic").naturalWidth };
+    });
+    if (!rs.up || !rs.url || !rs.pic || !rs.save || rs.fetched !== rs.size || rs.w !== 1200 || url0 === "" ) fail(W, "the sheet after a new picture: " + JSON.stringify(rs));
+    const tr = await A.ev(() => window.__hsToasts.length);
+    const dl2 = A.page.waitForEvent("download", { timeout: 8000 }).catch(() => null);
+    await pressGo(A, "#shareSheet .shSave");
+    const d2 = await dl2;
+    const b2 = d2 ? await d2.path().then(p => fs.readFileSync(p)).catch(() => null) : null;
+    if (!b2 || !c2.buf || !b2.equals(c2.buf)) fail(W, "Save picture after a new picture did not save the new picture: " + (b2 ? b2.length : "no download") + " of " + (c2.buf ? c2.buf.length : "?"));
+    await A.wait(150);
+    if ((await A.ev(t => window.__hsToasts.slice(t), tr)).join("|") !== "Picture saved.") fail(W, "the toast after Save on a new picture");
+    await A.ev(() => shClose());
+    log("  flow 9: the longest title: Sis, after its Terms card");
+    await A.ev(() => openCampaignMap());
+    n0 = A.reqs.length;
+    v = await f7win(A, W, { lv: 8, sec: 1500, spent: 900, lives: 12 });
+    await f7settled(A);
+    await f9share(A, W, "long", { title: "The King Yields on Terms", hy: "Սիս", field: "Sis", lv: "sis", kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars, rank: 1, player: nameA });
+    f9quiet(A, W, n0, "Sis");
+    // the title shrunk to fit 640 px, no less than 40 px (read off the page's own measure in the page's face)
+    const fit = await A.ev(() => { const g = document.createElement("canvas").getContext("2d"), f = getComputedStyle(document.body).fontFamily; let px = 62; const w = (p) => { g.font = "bold " + p + "px " + f; return g.measureText("The King Yields on Terms").width; }; while (px > 40 && w(px) > 640) px--; return { px, w: Math.round(w(px)) }; });
+    if (fit.px >= 62 || fit.px < 40) fail(W, "the long title was not shrunk: " + JSON.stringify(fit));
+    notes.flows["p7 long title@" + K] = fit.px + " px, " + fit.w + " px wide";
+    // a victory no board ranks (a coached stand: its start says ranked: false): no strip, no Leaderboard, but its card,
+    // without a score or a rank (section 6 draws a card for every victory page)
+    log("  flow 9: a victory no board ranks: the card without a score");
+    await A.ev(() => openCampaignMap());
+    n0 = A.reqs.length;
+    v = await f7win(A, W, { lv: 1, ranked: false, token: false, runback: false, sec: 640, lives: 19, before: () => A.ev(() => { battle.tutorial = true; }) });
+    if (!v || v.tutorial !== true) fail(W, "the coached victory's event: " + JSON.stringify(v && { tutorial: v.tutorial }));
+    await A.wait(600);
+    st = await strip(A);
+    if (st.words || st.rec != null || st.board || st.boardRow || st.state != null) fail(W, "a victory no board ranks has a strip: " + JSON.stringify(st));
+    await f9share(A, W, "unranked", { field: "Vale of Tushpa", lv: "tushpa", score: null, rank: null, player: nameA, kept: Math.min(v.lives, v.lives_board), max: v.lives_max, stars: v.stars }, true);
+    f9quiet(A, W, n0, "the unranked victory");
+    await done(A, W + " (A)");
+    log("  flow 9: a guest (the gate optional): no name, no rank");
+    const G = await open(C, { storage: f9prog, quietCall: true, init: [[() => { window.__HS_PLATFORM_TEST = Object.assign(window.__HS_PLATFORM_TEST || {}, { gate: "optional" }); }, null]] });
+    await gate(G, "signin");
+    await pressGo(G, (0, eval)("() => Array.from(gateCardEl.querySelectorAll('button')).find(b => b.textContent === 'Play as a guest')"));
+    await gate(G, "");
+    await f7toMap(G);
+    n0 = G.reqs.length;
+    v = await f7win(G, W, { lv: 0, token: false, runback: false, sec: 700, lives: 18 });
+    await f7settled(G);
+    st = await strip(G);
+    if (!/· Sign in to post it$/.test(stripSays(st))) fail(W, "the guest's strip: " + JSON.stringify(st));
+    await f9share(G, W, "guest", { title: "Erebuni Rise Stands!", field: "Erebuni Rise", lv: "erebuni", rank: null, player: null, kept: Math.min(v.lives, v.lives_board), max: v.lives_max });
+    f9quiet(G, W, n0, "the guest");
+    if (K === "desk") {
+      // a daily's card, staged (no daily can be fought before work package P6): the strip's record made a daily's, to
+      // see its two extra lines on the picture
+      await G.ev(() => { Object.assign(SC.page, { daily: true, twist: "thin", state: "posted", rank: 12, total: 87 }); shSync(); });
+      const dc = await f9ready(G, W, "daily-staged", { rank: 12 });
+      if (dc.ready && (!dc.info.daily || dc.info.daily.twist !== "Thin purse" || !/^Highland Stand daily, [A-Z][a-z]{2} \d{1,2}: Erebuni Rise, Thin purse\. Score [\d,]+, #12 today\. https:\/\/highland\.avunjian\.com$/.test(dc.text)))
+        fail(W, "the staged daily's card: " + JSON.stringify(dc.info) + " " + dc.text);
+      // a browser that will not make the picture: tried once more, then Share is taken away, not left grey for good
+      await G.ev(() => { window.__toBlob = HTMLCanvasElement.prototype.toBlob; HTMLCanvasElement.prototype.toBlob = function (cb) { setTimeout(() => cb(null), 0); }; shPage(); scRender(); });
+      await G.page.waitForFunction(() => SH.failed, null, { timeout: 10000 }).catch(() => fail(W, "a picture that cannot be made: Share stays"));
+      const nf = await G.ev(() => ({ tries: SH.tries, strip: !!document.querySelector("#ovScore .scShare"), round: !$("shareBtn").hidden, cls: document.body.classList.contains("pfShare"), words: !!document.querySelector("#ovScore .scWords .scLine, #ovScore .scWords .scLink") && !$("ovScore").hidden }));
+      if (nf.tries !== 2 || nf.strip || nf.round || nf.cls || !nf.words) fail(W, "a picture that cannot be made: " + JSON.stringify(nf));
+      await G.ev(() => { HTMLCanvasElement.prototype.toBlob = window.__toBlob; shPage(); scRender(); });
+      await G.page.waitForFunction(() => !!SH.blob && !!document.querySelector("#ovScore .scShare"), null, { timeout: 20000 }).catch(() => fail(W, "the card did not come back once a picture could be made"));
+    }
+    // the page left: the card goes with it
+    await G.ev(() => openCampaignMap());
+    await G.frames(3);
+    const gone = await G.ev(() => ({ blob: !!SH.blob, cls: document.body.classList.contains("pfShare"), btn: !$("shareBtn").hidden }));
+    if (gone.blob || gone.cls || gone.btn) fail(W, "the card stays after the page: " + JSON.stringify(gone));
+    await done(G, W + " (a guest)");
+  };
+
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 8: flow8, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
