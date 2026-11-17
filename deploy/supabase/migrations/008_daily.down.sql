@@ -1,5 +1,5 @@
--- Highland Stand, migration 008 (down): hs_daily_status as 002 made it and hs_score_submit as 007 made it (the same
--- signatures, so 003's grants stand), and the two helpers of 008 removed. No table or row is changed.
+-- Highland Stand, migration 008 (down): hs_daily_status as 002 made it, hs_score_submit and hs_run_begin as 007 made
+-- them (the same signatures, so 003's grants stand), and the two helpers of 008 removed. No table or row is changed.
 create or replace function highland.hs_daily_status(p_ruleset text) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare v_uid uuid := highland._member_or_null(); rs highland.hs_rulesets; v_now timestamptz := highland._now();
@@ -113,6 +113,60 @@ begin
     'total_week', case when v_week is not null then rw.total end,
     'beat_all', v_prev_all is not null and v_score > v_prev_all, 'beat_week', v_prev_week is not null and v_score > v_prev_week,
     'mode', run.mode, 'level', run.level_id, 'diff', run.diff, 'loadout', v_loadout, 'day', run.day, 'now', v_now);
+end $$;
+
+create or replace function highland.hs_run_begin(p_mode text, p_level text, p_diff integer, p_ruleset text, p_twist text default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_uid uuid := highland._member(); rs highland.hs_rulesets; v_day date; v_level text; v_twist text;
+  v_used integer; v_max integer; v_id uuid; b record; v_now timestamptz := highland._now(); v_new jsonb; v_nl text; v_nt text;
+  v_chan text := highland._channel_of(p_ruleset);
+begin
+  if p_mode is null or p_mode not in ('campaign', 'daily') then raise exception 'mode_unknown' using errcode = 'P0001'; end if;
+  -- the owner's switches (7.5): with the boards off no battle is ranked, with the daily off no daily. The page reads
+  -- the same switches from hs_config and does not ask; an older page that asks is told no, and spends no attempt
+  if p_mode = 'campaign' and exists (select 1 from highland.hs_config where key = 'boards' and value = 'false'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'boards_off', 'now', v_now);
+  end if;
+  if p_mode = 'daily' and exists (select 1 from highland.hs_config where key = 'daily' and value = 'false'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'daily_off', 'now', v_now);
+  end if;
+  select * into rs from highland.hs_rulesets where id = p_ruleset and active;
+  if not found then raise exception 'ruleset_unknown' using errcode = 'P0001'; end if;
+  if not highland._rate_ok('run', v_uid::text, 3600, 60) then perform highland._limit_hit(); end if;
+  if p_mode = 'daily' then
+    v_day := (v_now at time zone 'utc')::date;
+    select d.level_id, d.twist into v_level, v_twist from highland._daily_pick(rs.data, v_day) d;
+    if v_level is distinct from p_level or v_twist is distinct from p_twist or p_diff is distinct from (rs.data -> 'daily' ->> 'diff')::integer then
+      raise exception 'daily_mismatch' using errcode = 'P0001';
+    end if;
+    -- the day's board is one for the whole channel: an older page whose ruleset would make it a different battle
+    -- (another battlefield, twist, difficulty or table) than the newest ruleset's is turned away, not let in
+    select r.data into v_new from highland.hs_rulesets r where r.active and highland._channel_of(r.id) = v_chan
+      order by r.published_at desc, r.id desc limit 1;
+    select d.level_id, d.twist into v_nl, v_nt from highland._daily_pick(v_new, v_day) d;
+    if v_nl is distinct from v_level or v_nt is distinct from v_twist
+       or (v_new -> 'daily' -> 'diff') is distinct from (rs.data -> 'daily' -> 'diff')
+       or (v_new -> 'daily' -> 'waves') is distinct from (rs.data -> 'daily' -> 'waves')
+       or (v_new -> 'daily' -> 'levels' -> v_level) is distinct from (rs.data -> 'daily' -> 'levels' -> v_level)
+       or (v_new -> 'daily' -> 't' -> v_twist) is distinct from (rs.data -> 'daily' -> 't' -> v_twist)
+       or (v_new -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') is distinct from (rs.data -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') then
+      raise exception 'daily_mismatch' using errcode = 'P0001', detail = 'an older ruleset';
+    end if;
+    v_max := (rs.data -> 'daily' ->> 'attempts')::integer;
+    -- attempts are counted per day and per channel: a try on the staging page spends none of the live game's
+    select count(*) into v_used from highland.hs_runs where user_id = v_uid and mode = 'daily' and day = v_day and channel = v_chan;
+    if v_used >= v_max then
+      return jsonb_build_object('ok', false, 'reason', 'no_attempts', 'day', v_day, 'attempts_left', 0, 'now', v_now);
+    end if;
+  else
+    v_twist := null;
+  end if;
+  select * into b from highland._bounds(rs.data, p_level, p_diff, v_twist, p_mode = 'daily');   -- raises when the ruleset has no such battle
+  if p_mode = 'campaign' and b.rev is null then raise exception 'level_unknown' using errcode = 'P0001'; end if;
+  insert into highland.hs_runs (user_id, mode, level_id, diff, ruleset, rev, channel, day, twist, started_at)
+    values (v_uid, p_mode, p_level, p_diff, p_ruleset, b.rev, v_chan, v_day, v_twist, v_now) returning id into v_id;
+  return jsonb_build_object('ok', true, 'run_id', v_id, 'day', v_day, 'now', v_now,
+    'attempts_left', case when p_mode = 'daily' then v_max - v_used - 1 end);
 end $$;
 
 drop function highland._daily_top(text, integer);

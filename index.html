@@ -80935,7 +80935,8 @@ function scoreLine(st) {
     case "posting": return head;
     case "posted": {
       if (!st.rank) return head;
-      const when = st.daily ? " today" : " this week";
+      // (a daily ended after midnight UTC is on its own day's board: "on Nov 17", not "today")
+      const when = st.daily ? (st.onDay ? " on " + st.onDay : " today") : " this week";
       return head + " · #" + scoreNum(st.rank) + (st.total != null && st.total < 10 ? " of " + scoreNum(st.total) : "") + when +
         (st.best ? " · your best" : "") + (st.open ? " · Open" : "");
     }
@@ -80988,7 +80989,7 @@ function shareRows(info) {
   if (!I.lost) row(420, scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders kept", 30);
   // (a victory no board ranks has no score: the clock alone)
   row(462, [I.lost ? "" : "Held in " + clockWords(I.sec), I.score == null ? "" : "Score " + scoreNum(I.score)].filter(Boolean).join(" · "), 30);
-  if (I.rank) row(504, "#" + scoreNum(I.rank) + (I.daily ? (I.total ? " of " + scoreNum(I.total) : "") + " today" : " this week") + (I.open ? " · Open" : ""), 30, { bold: true, color: gold });
+  if (I.rank) row(504, "#" + scoreNum(I.rank) + (I.daily ? (I.total ? " of " + scoreNum(I.total) : "") + (I.daily.past ? " that day" : " today") : " this week") + (I.open ? " · Open" : ""), 30, { bold: true, color: gold });
   if (I.player) row(566, "Held by " + I.player, 24, { color: pale, w: 640, min: 18 });
   row(556, "Free in your browser", 20, { x: 1136, align: "right", w: 300 });
   row(590, I.site || "highland.avunjian.com", 26, { bold: true, x: 1136, align: "right", w: 420, min: 20 });
@@ -81002,7 +81003,7 @@ function shareText(info) {
   // (no score: a victory no board ranks)
   const score = I.score == null ? "" : "Score " + scoreNum(I.score);
   if (I.daily) return "Highland Stand daily, " + (I.daily.date || "") + ": " + (I.field || "") + (I.daily.twist ? ", " + I.daily.twist : "") + ". " + (score ? score +
-    (I.rank ? ", #" + scoreNum(I.rank) + " today" : "") + ". " : "") + url;
+    (I.rank ? ", #" + scoreNum(I.rank) + (I.daily.past ? " that day" : " today") : "") + ". " : "") + url;
   return "I held " + (I.field || "") + " in Highland Stand with " + scoreNum(I.kept) + " of " + scoreNum(I.max) + " defenders. " + (score ? score + ". " : "") + url;
 }
 // the picture's file name: highland-stand-<battlefield id>.jpg (an id of anything but small letters and digits: none)
@@ -82212,6 +82213,7 @@ const PF = { on: PF_ON, me: null };
 function pfOff() {
   PF.on = false;
   document.body.classList.remove("pfOn");
+  try { clearTimeout(DY.timer); } catch (e) {}
   for (const id of ["account", "boards", "daily"]) {
     const i = HALL_TABS.findIndex(t => t && t.id === id);
     if (i >= 0) HALL_TABS.splice(i, 1);
@@ -82227,6 +82229,8 @@ async function pfBoot(onMap) {
   pfOnMap = onMap;
   document.body.classList.add("pfOn");
   syncHallDoors();
+  // the turn of the day for everyone, a guest too: his open Daily tab and the map door's title move to the new day
+  try { dyTimer(); } catch (e) {}
   const sp = new URLSearchParams(location.search);
   // 2. (before 1: the privacy page's visits are counted too, so a visitor who reads it from the gate is still one
   // visitor) the anonymous id (7.1) and the visit's queue, unless this is a robot or a prerender, then the first
@@ -83390,6 +83394,8 @@ function scStart(p) {
   }
   scDropTok(true);
   const gen = ++SC.gen, why = scWhyNot(p);
+  // (a daily never ranked, test mode, keeps nothing of the daily before it: its daily_played says attempt 0, not ranked)
+  if (p.mode === "daily") { DY.att = 0; DY.pr = why === "unranked" ? "unranked" : ""; }
   // a daily that cannot count is practice from its first wave, and the player is told so at once (5.6): chosen on
   // the Daily tab, no attempt left, not signed in or no name, a newer ruleset or another day, the owner's switch off
   if (p.mode === "daily" && why !== "unranked") {
@@ -83453,7 +83459,7 @@ async function scEnd(n, p) {
   const shareOnly = () => {
     if (won && p.aided !== true && p.mode !== "endless" && typeof p.lv === "string") SH.rec = { lv: p.lv, diff: p.diff, stars: Number(p.stars) || 0,
       lives: Math.max(0, Math.min(num(p.lives), Number.isFinite(p.lives_board) ? p.lives_board : num(p.lives))), livesMax: num(p.lives_max), sec: Math.round(num(p.sec)),
-      score: null, state: "", rank: null, total: null, open: false, daily, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow() };
+      score: null, state: "", rank: null, total: null, open: false, daily, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow(), dyDay: daily ? dyBattleDay(p) : null };
     scDropTok(); SC.page = null; scRender();
     if (daily) dyEnded(p, won, null);
   };
@@ -83468,7 +83474,7 @@ async function scEnd(n, p) {
   const page = { rid: "", state: "posting", score: scoreOf(stats, b, rules.score), rank: null, total: null, best: false,
     open: stats.loadout === "open", daily, lv: p.lv, diff: p.diff, loadout: stats.loadout, mode: daily ? "daily" : "campaign", lives: stats.lives, livesMax: b.lives,
     // (and what the share card says besides: the stars, the battle clock, the twist, and when the battle was won)
-    stars: Number(p.stars) || 0, sec: stats.sim_sec, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow(), won };
+    stars: Number(p.stars) || 0, sec: stats.sim_sec, twist: daily && typeof p.twist === "string" ? p.twist : null, at: pfNow(), won, dyDay: daily ? dyBattleDay(p) : null };
   SC.page = page;
   if (daily) dyEnded(p, won, page.score);
   // a start still asking for its token: the strip says "posting" while it waits (its tries end within 35 s)
@@ -83540,6 +83546,8 @@ function scPosted(page, d) {
   if (!page) return;
   Object.assign(page, { state: "posted", score, rank: Number.isFinite(rank) ? rank : null, total: Number.isFinite(total) ? total : null, best: d.beat_all === true,
     open: (d.loadout || page.loadout) === "open" });
+  // (the board the server put a daily on is its run's day: the day of its first wave)
+  if (daily && typeof d.day === "string" && dailyDayNum(d.day) >= 0) page.dyDay = dailyDayNum(d.day);
   scRender();
 }
 // The outbox goes again: at the load (once the session and the name are known), on "online", after any call that
@@ -83621,6 +83629,7 @@ function scOpenBoard() {
 function scRender() {
   if (!scStripEl) return;
   const pg = SC.page, up = !!(SC.shown && overlayEl.classList.contains("victory") && !overlayEl.classList.contains("hidden"));
+  if (pg) pg.onDay = dyPastDay(pg);
   const words = up && pg ? scoreLine(pg) : "";
   // a victory no board ranks: no words, Share alone (the card without a score)
   const lone = up && !words && !!SH.rec && !SH.failed;
@@ -83820,7 +83829,9 @@ function shInfo() {
     rank: pg.state === "posted" && pg.rank ? pg.rank : null, total: pg.state === "posted" ? pg.total : null, open: !!pg.open,
     player: pfSession() ? pfMyName() : null, site: where.site, url: where.url,
     // a daily's day is the server's UTC day the battle was won on (the daily is today's), its twist named for its field
-    daily: pg.daily ? { date: shareDay(new Date(Math.floor(pg.at / 86400000) * 86400000), false, true), twist: pg.twist && i >= 0 ? twistName(pg.twist, i) : "" } : null,
+    // (the day of the daily's board: the battle's own day, which a battle ended after midnight UTC is not "today" of)
+    daily: pg.daily ? { date: shareDay(new Date((Number.isFinite(pg.dyDay) ? pg.dyDay : Math.floor(pg.at / 86400000)) * 86400000), false, true),
+      twist: pg.twist && i >= 0 ? twistName(pg.twist, i) : "", past: !!dyPastDay(pg) } : null,
     lost: null,
   };
 }
@@ -84161,6 +84172,13 @@ if (PF_ON) {
 const DY = { st: null, seq: 0, practice: false, day: -1, pr: "", att: 0, timer: 0, asking: null, failed: false };
 // the server's day: whole days since 1 January 1970 UTC by the server's clock (the device's while none was heard)
 const dyToday = () => Math.floor(pfNow() / 86400000);
+// the day of the daily battle the event p ended (gameplay's dailyRun, else the day the platform started it)
+function dyBattleDay(p) {
+  try { if (typeof dailyRun !== "undefined" && dailyRun && dailyRun.lv === p.lv && dailyRun.day > 0) return dailyRun.day; } catch (e) {}
+  return DY.day >= 0 ? DY.day : dyToday();
+}
+// a daily's strip record whose day is not today: that day's words ("Nov 17"), else ""
+function dyPastDay(pg) { return pg && pg.daily && Number.isFinite(pg.dyDay) && pg.dyDay !== dyToday() ? shareDay(new Date(pg.dyDay * 86400000), false, true) : ""; }
 // whether the daily is open to this player: he has fought Erebuni once and the coached stand is behind him (gameplay's
 // door asks the same), and the owner has not switched it off
 function dyOpen() { return PF.on && pfDailyOn() && levelBestAnyEra(0) > 0 && !tutorialPending(); }
@@ -84213,6 +84231,8 @@ function dyAsk() {
     DY.failed = !st;
     if (st) { DY.st = st; pfWrite("hs_pf_daily", st); }
     dyDoors();
+    // (the answer moved the page's clock to the server's: the turn of the day is set again from it)
+    if (r.ok) dyTimer();
     return st;
   })().finally(() => { DY.asking = null; });
   return DY.asking;
@@ -84232,9 +84252,10 @@ function dyDoors() {
   try { if (menuMode === "map" && typeof dailyEntry === "function") dailyEntry(); } catch (e) {}
   if (hallOpen) try { syncHallTabs(); } catch (e) {}
 }
-// the tab's badge: one while today's daily is unplayed by this player (the server says no attempt is used)
+// the tab's badge: one while today's daily is unplayed by this player (the server says no attempt is used); none for
+// an account with no name yet, whose daily cannot count (a player of no board has no attempts to use)
 function dyBadge() {
-  if (!dyOpen() || !pfSession()) return 0;
+  if (!dyOpen() || !pfSession() || !pfMyName()) return 0;
   const s = dyStatus();
   return s && !s.unpub && s.used === 0 && !s.stale ? 1 : 0;
 }
@@ -84350,7 +84371,7 @@ function dyFill(ctl, main, heard) {
   const open = levelBestAnyEra(0) > 0 && !tutorialPending();
   const why = dyWhyPractice();
   const row = pfEl("div", "dyGo");
-  if (!open) ctl.appendChild(pfEl("p", "lbNote", "Hold Erebuni once to open the daily challenge."));
+  if (!open) ctl.appendChild(pfEl("p", "lbNote", "Fight Erebuni once to open the daily challenge."));
   else {
     const off = !pfDailyOn(), practice = off || why === "spent" || why === "stale" || why === "signin" || why === "noname";
     const b = pfBtn("btn dyPlay", practice ? "Practice" : "Play today's challenge", () => { hallFrom = ""; dyPlay(practice); });
@@ -84359,10 +84380,12 @@ function dyFill(ctl, main, heard) {
     const note = off ? "The daily's board is closed for now. Practice plays the same battle, not ranked." : { spent: "Your three attempts are used. Practice plays the same battle, not ranked.", stale: "A newer version of the game is out. Reload the page to play for today's board.",
       signin: "Sign in to play for today's board. Practice plays the same battle, not ranked.", noname: "Choose a name on the Account tab to play for today's board.",
       unpublished: "The boards for this version open soon. The battle is played, not ranked." }[why];
-    if (note) ctl.appendChild(pfEl("p", "lbNote", note));
+    // (a guest's note is the sign-in box itself, under the board's head: not said twice)
+    if (note && !(why === "signin" && !s && !HS_STORE_MEM)) ctl.appendChild(pfEl("p", "lbNote", note));
+    // (only an attempt that counts is ended by leaving it)
+    if (!practice) ctl.appendChild(pfEl("p", "dySit", "One sitting. Leaving the battle ends the attempt."));
   }
   ctl.appendChild(pfEl("p", "dyNext", "New challenge in " + dailyWait((T.day + 1) * 86400000 - pfNow())));
-  ctl.appendChild(pfEl("p", "dySit", "One sitting. Leaving the battle ends the attempt."));
   // the day's board
   const list = pfEl("div", "lbList dyList");
   list.setAttribute("aria-live", "polite");
@@ -84376,7 +84399,7 @@ function dyFill(ctl, main, heard) {
   }
   for (const t of [SCORE_SENTENCE, CLOCK_SENTENCE, "A lost battle scores for the waves it held. Days run midnight to midnight, UTC."]) foot.appendChild(pfEl("p", "", t));
   main.appendChild(foot);
-  if (!s && !HS_STORE_MEM) lbSignIn(list, "Sign in to play for today's board.");
+  if (!s && !HS_STORE_MEM) lbSignIn(list, "Sign in to play for today's board. Practice plays the same battle, not ranked.");
   dyBoard(list, T, heard);
 }
 // today's board: three faint rows while it is asked for, then the rows, or why there are none

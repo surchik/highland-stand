@@ -10,8 +10,9 @@
 --   the page's ruleset makes it (another battlefield, twist, difficulty, length, table or defenders). hs_run_begin
 --   turns such a page away ("daily_mismatch", "an older ruleset", 007), so the tab says to reload the page instead
 --   of offering an attempt that would be refused. _daily_same holds the comparison, the same as hs_run_begin's;
--- - yesterday: yesterday's battlefield and twist under the same ruleset and its board's first three rows (rank,
---   name, score) and how many were on it: the tab's last line, "Yesterday: 1. Bagrat 9,105 ...".
+-- - yesterday: yesterday's battlefield and twist (as its board's best was fought; with nobody on it, as the page's
+--   ruleset picks that day) and its board's first three rows (rank, name, score) and how many were on it: the tab's
+--   last line, "Yesterday: 1. Bagrat 9,105 ...".
 -- Two helpers, granted to nobody (the lockdown takes back what Supabase's default privileges grant): _daily_same and
 -- _daily_top. A hidden player is on no board here either.
 -- And hs_score_submit (007's, the same signature, so its grant stands too) keeps a week's rank in two numbers instead
@@ -19,6 +20,9 @@
 -- even inside a CASE branch not taken. A connection whose first call of the function was a daily's result failed
 -- with it ("record rw is not assigned yet"); a connection that had posted a campaign battle first did not, which is
 -- why the tests, on one connection each, never saw it. Everything else of the function is 007's.
+-- And hs_run_begin (007's, the same signature) holds the player's profile row before it counts his daily runs: two
+-- starts in flight either side of an hour's turn were ordered by nothing (_rate_ok's row is the hour's), both counted
+-- the same attempts used, and both began. Everything else of it is 007's.
 
 -- whether two rulesets make the same daily on a day (what hs_run_begin compares for "an older ruleset", 007)
 create function highland._daily_same(p_a jsonb, p_b jsonb, p_day date) returns boolean
@@ -65,8 +69,12 @@ begin
   -- the newest ruleset of the channel, as hs_run_begin reads it
   select r.data into v_new from highland.hs_rulesets r where r.active and highland._channel_of(r.id) = v_chan
     order by r.published_at desc, r.id desc limit 1;
-  select * into y from highland._daily_pick(rs.data, v_day - 1);
+  -- yesterday's battle as it was fought: its board's best score's battlefield and twist (a ruleset published since may
+  -- pick another for that day); with nobody on that board, the pick
   v_ybd := highland._daily_board(v_day - 1, v_chan);
+  select sc.level_id, sc.twist into y from highland.hs_score_best b join highland.hs_scores sc on sc.id = b.score_id
+    where b.board = v_ybd and b.period = 'all' order by b.score desc, b.achieved_at limit 1;
+  if not found then select d2.level_id, d2.twist into y from highland._daily_pick(rs.data, v_day - 1) d2; end if;
   select count(*) into ytot from highland.hs_score_best s join highland.hs_profiles p on p.user_id = s.user_id
     where s.board = v_ybd and s.period = 'all' and not p.hidden;
   return jsonb_build_object('day', v_day, 'level', d.level_id, 'twist', d.twist, 'diff', (rs.data -> 'daily' ->> 'diff')::integer,
@@ -172,6 +180,65 @@ begin
     'total_week', v_total_week,
     'beat_all', v_prev_all is not null and v_score > v_prev_all, 'beat_week', v_prev_week is not null and v_score > v_prev_week,
     'mode', run.mode, 'level', run.level_id, 'diff', run.diff, 'loadout', v_loadout, 'day', run.day, 'now', v_now);
+end $$;
+
+
+create or replace function highland.hs_run_begin(p_mode text, p_level text, p_diff integer, p_ruleset text, p_twist text default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_uid uuid := highland._member(); rs highland.hs_rulesets; v_day date; v_level text; v_twist text;
+  v_used integer; v_max integer; v_id uuid; b record; v_now timestamptz := highland._now(); v_new jsonb; v_nl text; v_nt text;
+  v_chan text := highland._channel_of(p_ruleset);
+begin
+  if p_mode is null or p_mode not in ('campaign', 'daily') then raise exception 'mode_unknown' using errcode = 'P0001'; end if;
+  -- the owner's switches (7.5): with the boards off no battle is ranked, with the daily off no daily. The page reads
+  -- the same switches from hs_config and does not ask; an older page that asks is told no, and spends no attempt
+  if p_mode = 'campaign' and exists (select 1 from highland.hs_config where key = 'boards' and value = 'false'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'boards_off', 'now', v_now);
+  end if;
+  if p_mode = 'daily' and exists (select 1 from highland.hs_config where key = 'daily' and value = 'false'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'daily_off', 'now', v_now);
+  end if;
+  select * into rs from highland.hs_rulesets where id = p_ruleset and active;
+  if not found then raise exception 'ruleset_unknown' using errcode = 'P0001'; end if;
+  if not highland._rate_ok('run', v_uid::text, 3600, 60) then perform highland._limit_hit(); end if;
+  if p_mode = 'daily' then
+    v_day := (v_now at time zone 'utc')::date;
+    select d.level_id, d.twist into v_level, v_twist from highland._daily_pick(rs.data, v_day) d;
+    if v_level is distinct from p_level or v_twist is distinct from p_twist or p_diff is distinct from (rs.data -> 'daily' ->> 'diff')::integer then
+      raise exception 'daily_mismatch' using errcode = 'P0001';
+    end if;
+    -- the day's board is one for the whole channel: an older page whose ruleset would make it a different battle
+    -- (another battlefield, twist, difficulty or table) than the newest ruleset's is turned away, not let in
+    select r.data into v_new from highland.hs_rulesets r where r.active and highland._channel_of(r.id) = v_chan
+      order by r.published_at desc, r.id desc limit 1;
+    select d.level_id, d.twist into v_nl, v_nt from highland._daily_pick(v_new, v_day) d;
+    if v_nl is distinct from v_level or v_nt is distinct from v_twist
+       or (v_new -> 'daily' -> 'diff') is distinct from (rs.data -> 'daily' -> 'diff')
+       or (v_new -> 'daily' -> 'waves') is distinct from (rs.data -> 'daily' -> 'waves')
+       or (v_new -> 'daily' -> 'levels' -> v_level) is distinct from (rs.data -> 'daily' -> 'levels' -> v_level)
+       or (v_new -> 'daily' -> 't' -> v_twist) is distinct from (rs.data -> 'daily' -> 't' -> v_twist)
+       or (v_new -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') is distinct from (rs.data -> 'levels' -> v_level -> 'd' -> p_diff -> 'lives') then
+      raise exception 'daily_mismatch' using errcode = 'P0001', detail = 'an older ruleset';
+    end if;
+    v_max := (rs.data -> 'daily' ->> 'attempts')::integer;
+    -- one player's daily starts in flight are put in order here, his profile's row held to the end of the call: the
+    -- count below then sees the run a call before it inserted. (_rate_ok's row orders them only within one hour: two
+    -- calls either side of hh:00 both counted two used and both began, a fourth ranked attempt. P6 review 1)
+    perform 1 from highland.hs_profiles where user_id = v_uid for update;
+    -- attempts are counted per day and per channel: a try on the staging page spends none of the live game's
+    select count(*) into v_used from highland.hs_runs where user_id = v_uid and mode = 'daily' and day = v_day and channel = v_chan;
+    if v_used >= v_max then
+      return jsonb_build_object('ok', false, 'reason', 'no_attempts', 'day', v_day, 'attempts_left', 0, 'now', v_now);
+    end if;
+  else
+    v_twist := null;
+  end if;
+  select * into b from highland._bounds(rs.data, p_level, p_diff, v_twist, p_mode = 'daily');   -- raises when the ruleset has no such battle
+  if p_mode = 'campaign' and b.rev is null then raise exception 'level_unknown' using errcode = 'P0001'; end if;
+  insert into highland.hs_runs (user_id, mode, level_id, diff, ruleset, rev, channel, day, twist, started_at)
+    values (v_uid, p_mode, p_level, p_diff, p_ruleset, b.rev, v_chan, v_day, v_twist, v_now) returning id into v_id;
+  return jsonb_build_object('ok', true, 'run_id', v_id, 'day', v_day, 'now', v_now,
+    'attempts_left', case when p_mode = 'daily' then v_max - v_used - 1 end);
 end $$;
 
 notify pgrst, 'reload schema';
