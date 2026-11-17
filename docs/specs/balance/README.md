@@ -861,3 +861,54 @@ fight costs that tower. The review's recommendation: read the row only where the
 margin (so not on Musa Dagh), or retune Musa Dagh's last commander, a battlefield change. Also the bot's pad and rank
 rules for the post (the Stores' pad, ranks only once every pad is built) against 5.4's "nearest the fortress", and the
 prices cut to 60, 70, 110 and 220.
+
+## G7e: the Observation Post (Stepanakert 1992, Shushi, Stepanakert 2023)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build, on the three battlefields that offer the tower):
+`g7e-normal-seeds3.txt`, `g7e-easy-seeds3.txt`, `g7e-hard-seeds3.txt`; the daily's, `DAILY=1`: `g7e-daily-seeds3.txt`; the
+endless stand of mix7, harriers, aid and minemix, `ENDLESS=20` (JSON lines): `g7e-endless-normal-seeds3.txt`; the Council,
+`KIT=par HERO=hold`: `g7e-kit-par-hold-normal-seeds3.txt`. `ruleset-2-g7e.json` is rulesetData() at the build. The "before"
+for every cell is G5's close tables (`g5-close-*-seeds3.txt`; no package between touched these three battlefields).
+
+The bot (5.4): a build's "age" is the Observation Post on these three, one on a field, on the pad by road and sky reached
+(rankAir, as the archers'), marking the Strongest (the post's own default), ranked and mastered as any tower. It has no
+build of its own: the builds with "age" put it 1st (bazaar), 3rd (greedy), 6th (aid), 8th and 13th (minemix) and 15th
+(mix7). Beside every table the report adds 5.2's row: the best build of all against the best build whose battles never
+built the post, and whether the best build has it.
+
+No number was tuned: the post is built at 3.6's numbers (90 gold; ranks 110 and 190; masteries 300; reach 230, 270, 310;
+amp 0.15, 0.2, 0.25; marks 1, 1, 2; Fire Direction 150 every 4 s, Night Sights three marks and every hidden foe in reach).
+
+5.2's rows:
+- "With it the best build keeps at most 2 more defenders": Normal +0.0, +0.0, +0.0 (Stepanakert 1992, Shushi, Stepanakert
+  2023). Easy +0.0 on all three. Hard +0.3 on Stepanakert 1992 (mix7 6.0 against the mix's 5.7), +0.0 on the others. Met.
+- "In the best build on at most two of its three battlefields": Normal 0 of 3, Easy 0 of 3, Hard 1 of 3. Met.
+- The classic five (mix and the one-recipe builds), halfpost, posts and postdrum equal G5's close tables cell for cell on
+  all three difficulties: the post moves nothing the mix measures. Easy's band for the mix is unchanged.
+- mix7 on Normal is unchanged cell for cell (14.0, 5.3, 2/3 8.0c1; it builds the post 15th), so mix7 against mix over the 17
+  stands where G5 and G7d left it: still MISSED as G5 left it (+0.82 on the mean against 1 to 3; Van +9.3 and Musa Dagh +7.0
+  against 5). Hard Stepanakert 1992 is the only mix7 cell that moved (5.7 to 6.0).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Wave time at 1x for the best build on Normal: 40.3 min against 38 (+6%), 17.7 against 20 (-11%), 15.2 against 15 (+1%).
+  Unchanged.
+
+What the tables say of the post itself, for the owner:
+- It is worth little where it is built early in a full mix: "aid" (the post 6th) keeps 10.7 on Normal Stepanakert 1992
+  against the mix's 14.3, wins 1 of 3 on Shushi where the mix wins 3, and loses 3.0 more than the mix on Normal Shushi; on
+  Stepanakert 2023 it keeps 11.7 against 8.7 (+3.0). bazaar (the post first) loses where the mix wins. So it is never an
+  automatic purchase (3.1's rule 2), and on Normal it is in no best build.
+- Fire Direction's shells: 1,700 to 16,000 damage per 100 gold over the tables (7 to 17 masteries a table), the rest of the
+  post's worth is in the other towers' cells.
+- The daily (12 waves, the whole tray): the post is in the best build on 2 of 3, Stepanakert 1992 (mix7 19.0 against the
+  mix's 18.7) and Stepanakert 2023 ("aid" 20.0 against the mix's 14.0, +6.0). 5.2's row is read on the campaign's Normal,
+  where it is met; the daily's +6.0 on Stepanakert 2023 is reported, not bound.
+- The Council (KIT=par HERO=hold): the best builds are unchanged (balldrum, ballista, balldrum: the post in none).
+- The endless stand (ENDLESS=20): every board falls by 20 waves beyond (not made endless: met). mix7 falls 4 beyond on
+  Stepanakert 1992 on every seed, under 5.2's 8; on Shushi 9, 9, 16 and on Stepanakert 2023 10 and 11 (one seed lost in the
+  chronicle). No earlier package measured these three, so whether the post moved the 4 cannot be read; mix7's chronicle cells
+  there are unchanged.
+
+Pars: LEVEL_PAR's Stepanakert 1992 Hard is now 2223 (mix7's clock, the post 15th, best by 0.3). DAILY_PAR's Stepanakert
+1992 is 1902 (mix7) and Stepanakert 2023 1242 ("aid"). Revs: the three rise to 3 (their pins moved); RULESET stays 2.
+
+G5's open cells: the post moves none of them (they lie on other battlefields).
