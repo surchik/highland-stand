@@ -830,6 +830,27 @@ protected, and Musa Dagh's historical banner stays where it is, on its drums slo
 figure from the crew painter (`unitPaintCrew`). A returning defender: a small figure walks from the post to
 the fortress (the hero figure at 0.6). Sound: `uiTick`. New: the painter, a tile portrait.
 
+(G7d build: built as written, with these differences, each in docs/specs/balance/README.md, G7d. 1. The prices: 60 gold,
+ranks of 70 and 110, masteries of 220. At this section's (110, 130, 210, 320) the balance bot's "aid" lost 6.7 more defenders
+than "mix" on Sardarapat and 3.0 more on Easy Van; the reach, the hastes, the hero's seconds and the returns are this
+section's. 2. Read where 3.5 is silent: a post is "in range" when its pad or its rally point is; the hero comes back
+`heroBack` s sooner wherever he fell (he is carried back to the walls), never sooner than 5 s (`AID_RULES.heroMin`); a
+stunned Aid Post tends no one until it recovers, as a wrecked one never does. 3. A defender comes back at a clear in which the
+walls lost none since its horn, but not at the last wave's (the battle is won there); the toast's sentence is added to the
+clear's own toast. 4. The victory page and the records count `held` (the defenders never lost), and the page adds "The aid
+post returned N defenders. Stars count those never lost." when one came back. In `battleFacts()`, `returned` is the returned
+defenders still on the walls, so a stand lost after returns keeps `held` at 0 and `lives = held + returned`. 5. The art: a
+canvas tent with a plain white cloth on a pole and a lantern at its door, stretchers (one, two, and a wall of sandbags at rank
+3; Surgeons a table, Stretcher Bearers a third stretcher and a second orderly), and an orderly from the crew painter,
+standing. 6. The card: "It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the
+hero come back sooner." and "After a wave in which you lose no defender, a lost one returns to the walls, a few in a battle at
+most. Returned defenders hold the walls. Stars count the defenders you never lost. One on a field.", then Van's sentence of
+the hospital and "The aid post as a tower is the game's invention." 7. The bot ranks and masters an Aid Post only once every
+pad is built. 5.2's rows NOT met and for the owner: "aid" loses more than 1 defender more than "mix" on Musa Dagh (Normal +4.0,
+Easy +3.0: the post takes the pad of the mix's last tower and the last commanders break through, at any price, free
+included) and on Normal Sardarapat (+2.3, one seed's commander) and Hard Sardarapat (+1.3); no seed the mix loses is won by
+"aid" on any difficulty.)
+
 ### 3.6 Observation Post (Stepanakert 1992, Shushi, Stepanakert 2023)
 
 Mechanic: it marks. It deals no damage. It keeps a mark on `marks` foes inside its `range` (the strongest

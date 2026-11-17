@@ -9844,10 +9844,10 @@ const MINE_RULES = { triggers: [0, 3, 5], trigger: 3, boss: 3, tap: 22 };
 // on a field (3.7). A wrecked Aid Post does nothing
 // (G7d tuning, gameplay 5.3's fourth knob: at 3.5's prices, 110 gold with ranks of 130 and 210 and masteries of 320, the
 // balance bot's "aid" (the mix with the post sixth) lost 6.7 more defenders than the mix on Sardarapat and 3.0 more on
-// Easy Van: the gold a post that fights nothing takes from the board. At 60, 70, 110 and 220 Easy Van and Hard keep the
-// mix's count; the reach, the hastes, the hero's seconds and the returns are 3.5's. On Musa Dagh no price meets 5.2's
+// Easy Van: the gold a post that fights nothing takes from the board. At 60, 70, 110 and 220 Van keeps the mix's count on
+// every difficulty; the reach, the hastes, the hero's seconds and the returns are 3.5's. On Musa Dagh no price meets 5.2's
 // row: the post takes the pad of the mix's last tower, and the last commanders break through (free, it still lost all
-// three seeds). docs/specs/balance/README.md, G7d)
+// three seeds); Sardarapat turns on one seed's commander. docs/specs/balance/README.md, G7d)
 TOWER_DEFS.aid = {
   name: "Aid Post", cost: 60, proj: null, aid: true, max: 1, maxSay: "One aid post serves this field.",
   // the post's own strength by rank, for hunters, drones and powers (kept here, as the Horse Lines' is: rulesetData)
@@ -13835,7 +13835,9 @@ function battleWaveEnd() {
 // the kit to come: none is in force today.
 function battleFacts() {
   const B = battle, L = LEVELS[curLevel] || LEVELS[0], max = livesMax(), n = x => Math.round(x) || 0;
-  const lost = Math.max(0, max - lives + B.returned), held = max - lost;
+  // (returned: those an Aid Post gave back that still stand. A battle lost after returns has lost them again, and its
+  // held stays 0, never below: lives = held + returned holds at every end, 3.5)
+  const ret = Math.min(B.returned, Math.max(0, lives)), lost = Math.max(0, max - lives + ret), held = max - lost;
   const won = !endless && gameOver && lives > 0 && lastCleared >= totalWaves();
   const stand = {};
   for (const t of towers || []) if (!t.wreck) stand[t.type] = (stand[t.type] || 0) + 1;
@@ -13858,7 +13860,7 @@ function battleFacts() {
     // gameplay's own
     build: BUILD_ID, kitset: KITSET, ch: CHAPTERS[chapterOf(curLevel)].id,
     script: Math.min(SCRIPT_LEN, scriptWave(lastCleared)), beyond: Math.max(0, lastCleared - totalWaves()),
-    lost, returned: B.returned, debt: B.debt,
+    lost, returned: ret, debt: B.debt,
     cmdMet: B.cmdMet, cmdFelled: B.cmdFelled,
     trickLost: { ambush: B.tAmbush, hidden: B.tHidden, hunter: B.tHunter, adapted: B.tAdapted },
     realS: n(B.realS), speedS: { x1: n(B.x1), x2: n(B.x2), x4: n(B.x4) }, idleS: n(B.idleS),
@@ -89929,6 +89931,10 @@ function runSelftestPlay() {
     A.wreck = false; towerInitHp(A);
     battle.returned = 2; lives = max - 1;
     if (victoryTally(LEVELS[curLevel], heldNow(), "Normal").indexOf(String(max - 3) + " defenders") < 0 || !/returned 2 defenders/.test(aidLine())) fail("the victory tally: " + victoryTally(LEVELS[curLevel], heldNow(), "Normal"));
+    // a stand lost after returns has lost them again: held is 0, never below, and the sums hold
+    lives = 0;
+    const fz = battleFacts();
+    if (fz.held !== 0 || fz.lives !== fz.held + fz.returned || fz.held !== fz.lives_max - fz.lost) fail("a lost stand after returns: " + JSON.stringify([fz.held, fz.returned, fz.lost]));
   }));
   check("aid: the one-time card on the chronicle; Van's line; no claim on Musa Dagh or Sardarapat", guarded(() => {
     localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));

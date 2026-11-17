@@ -881,7 +881,7 @@ function playBattle(a) {
         const rm = results.filter(r => r.diff === diff && r.lv === lv && r.build === "mix"), ra = results.filter(r => r.diff === diff && r.lv === lv && r.build === "aid");
         if (!rm.length || !ra.length) continue;
         const lost = rs => rs.reduce((n, r) => n + (r.won ? r.lost : [30, 20, 14][diff]), 0) / rs.length;
-        const ret = ra.map(r => r.returned || 0), turned = rm.filter((r, i) => !r.won && ra[i] && ra[i].won).length;
+        const ret = ra.map(r => r.returned || 0), turned = rm.filter(r => !r.won && ra.some(q => q.seed === r.seed && q.won)).length;
         console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(lost(rm).toFixed(1), 10) + pad(lost(ra).toFixed(1), 10) +
           pad((lost(ra) - lost(rm) >= 0 ? "+" : "") + (lost(ra) - lost(rm)).toFixed(1), 8) + pad((ret.reduce((x, y) => x + y, 0) / ret.length).toFixed(1) + " (" + Math.max(...ret) + ")", 12) + turned);
       }
