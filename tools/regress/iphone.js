@@ -393,23 +393,18 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
               if (await shown("#foeCard")) fail("hero card (chronicle)", "its close button did not put it away");
             }
           } else fail(label, "no hero's line");
-          // the row of the battle (#briefKit): the Standard switch for a player who owns a tier, a hero level or the Call,
-          // 44 px, turned on by a tap
+          // the row of the battle (#briefKit): no Standard switch since stage 6; a Standard battle opened from the
+          // Leaderboards tab (openBriefStandard) carries its mark in the row, which the page holds as the others
+          if (await g.ev(() => !!document.querySelector("#briefKit [role=switch], #briefTricks [role=switch]"))) fail(label, "a Standard switch is still on the chronicle");
           if (await g.ev(() => !kitEmpty(playerKit()))) {
-            const k = await g.ev(() => ({ towers: !!document.querySelector("#briefKit .bkTowers"), sw: !!$("bkStd") }));
-            if (!k.sw) fail(label, "no Standard switch for a player who owns a tier, a level or the Call");
-            else {
-              if (!C.upright && k.towers) fail(label, "held sideways #briefKit shows the tray's towers, for which the column has no room");
-              const q = await g.ev(() => { const e = $("bkStd"); e.scrollIntoView({ block: "nearest" }); return e.getBoundingClientRect().height; });
-              if (q < 43.5) fail(label, "the Standard switch is " + Math.round(q) + " px tall");
-              await tap(label, "#bkStd", "cannot tap the Standard switch", true);
-              if (await g.ev(() => !standardBattle)) fail(label, "a tap did not turn the Standard switch on");
-              // (the page as it opens: scrolled back to its top, as the other pages of this chronicle are held)
-              await g.ev(() => { overlayEl.scrollTop = 0; const L = document.querySelector("#ovPage .briefLeft"); if (L) L.scrollTop = 0; });
-              await settle(2);
-              await check(label + " switch", pageSpec(LEAF_PARTS, ["#startBtn"]));
-              await g.ev(() => { standardBattle = false; briefKitRow(); });
-            }
+            const k = await g.ev(() => ({ towers: !!document.querySelector("#briefKit .bkTowers") }));
+            if (!C.upright && k.towers) fail(label, "held sideways #briefKit shows the tray's towers, for which the column has no room");
+            await g.ev(() => openBriefStandard(curLevel));
+            await g.ev(() => { overlayEl.scrollTop = 0; const L = document.querySelector("#ovPage .briefLeft"); if (L) L.scrollTop = 0; });
+            await settle(2);
+            if (await g.ev(() => !standardBattle || !$("bkStd"))) fail(label, "the board's door did not mark the chronicle Standard");
+            else await check(label + " standard", pageSpec(LEAF_PARTS, ["#startBtn"]));
+            await g.ev(() => { standardBattle = false; briefKitRow(); const lv = $("briefHero").querySelector(".lv"); if (lv) lv.textContent = briefHeroLevel(); });
           }
           if (await shown("#briefHost .foe[data-role]")) {
             await tap(label, "#briefHost .foe[data-role]", "cannot tap a foe's medallion", true);

@@ -226,22 +226,16 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
           const s = await g.ev(() => ({ mode: menuMode, open: hallOpen, inert: overlayEl.hasAttribute("inert") }));
           if (s.mode !== "brief" || s.open || s.inert) await fail("the chronicle is not back after the Council " + JSON.stringify(s));
         }
-        // the Standard switch: a tier is owned, so it is there; a press turns it on
-        const q = await g.reach("#bkStd");
-        if (q.why) await fail("the Standard switch: " + q.why);
-        else {
-          if (C.touch && q.h < 44) await fail("the Standard switch is " + Math.round(q.h) + " px tall");
-          await g.press("#bkStd");
-          if (await g.ev(() => $("bkStd").getAttribute("aria-checked")) !== "true") await fail("the Standard switch did not turn on");
-        }
+        // no Standard switch on the chronicle since stage 6 (a Standard battle is opened from the Leaderboards tab)
+        if (await g.ev(() => !!$("bkStd") || !!document.querySelector("[role=switch]"))) await fail("a Standard switch is still on the chronicle");
       }
       await g.press("#startBtn");
       await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
       const gift = await g.ev(() => ({ key: localStorage.getItem("hs_town_bless"), toast: toastEl.classList.contains("show") ? toastEl.textContent : "" }));
       if (town && (gift.key !== null || !/gift from the town: \+40/.test(gift.toast))) await fail("?town: the waiting town gift was not paid " + JSON.stringify(gift));
       if (!town && (gift.key !== GIFT || /gift from the town/i.test(gift.toast))) await fail("a plain load paid the hidden town's gift " + JSON.stringify(gift));
-      // the Standard battle is fought with no Council tier
-      if (!town && await g.ev(() => !kitEmpty(kit) || battleLoadout() !== "std")) await fail("the Standard battle has a kit " + JSON.stringify(await g.ev(() => kit)));
+      // the campaign's battle is fought with the Council tier the player owns (the Standard battle is the boards')
+      if (!town && await g.ev(() => kitEmpty(kit) || battleLoadout() !== "open")) await fail("the campaign battle lost its Council tier " + JSON.stringify(await g.ev(() => kit)));
       // an iPad held upright: the plaque asks to turn it, and Play in portrait goes on
       if (!(await g.reach("#rotateHint button")).why) await g.press("#rotateHint button");
       await g.press("#waveBtn");

@@ -2763,6 +2763,19 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await boardOpt(B, "Standard");
     bd = await board(B);
     if (!bd || bd.rows.map(r => r.cells[1]).join() !== nameA + "," + nameB || !bd.rows[1].me || bd.rows[0].me) fail(W, "the Standard board after B: " + JSON.stringify(bd && bd.rows));
+    // (stage 6) the Standard board's door: "Fight for this board" closes the Hall and opens the board's battlefield's
+    // chronicle as a Standard battle on its difficulty (the chronicle's switch is gone)
+    const lbAt = await B.ev(() => ({ lv: LB.lv, diff: LB.diff }));
+    await B.ev(() => { const e = document.querySelector("#hallBody .lbFight"); if (e) e.scrollIntoView({ block: "nearest" }); });
+    await B.frames(2);
+    if ((await B.reach("#hallBody .lbFight")).why) fail(W, "the Standard board has no Fight for this board: " + (await B.reach("#hallBody .lbFight")).why);
+    else {
+      await pressGo(B, "#hallBody .lbFight");
+      await B.page.waitForFunction(() => !hallOpen && menuMode === "brief", null, { timeout: 5000 }).catch(() => {});
+      const fb = await B.ev(() => ({ open: hallOpen, mode: menuMode, std: standardBattle, lv: curLevel, diff: curDiff, mark: !!$("bkStd"), line: $("briefHero").textContent }));
+      if (fb.open || fb.mode !== "brief" || !fb.std || fb.lv !== lbAt.lv || fb.diff !== lbAt.diff || !fb.mark || !/Level 1 · Standard/.test(fb.line)) fail(W, "Fight for this board: " + JSON.stringify(fb));
+      await B.ev(() => { standardOff(); openCampaignMap(); });
+    }
     await B.ev(() => closeHall());
     log("  flow 7: A beats his own best: \" · your best\"");
     // ---- A beats his own best: " · your best"
