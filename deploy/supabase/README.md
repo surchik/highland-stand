@@ -188,7 +188,7 @@ Then apply them all **[tried]**:
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
-The seven migrations, each in one transaction of its own, each followed by the lockdown (the file
+The eight migrations, each in one transaction of its own, each followed by the lockdown (the file
 `migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
 `service_role`) and, once 003 is in, 003's grants again, then the grants of each later migration that has a file
 of them (`006_superadmin.grants.sql`):
