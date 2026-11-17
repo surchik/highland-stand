@@ -184,3 +184,7 @@ covered by flow 9 at every size with stubs, and they passed.
    0.3 (9) does not list; this needs a ruling. `renderBriefArt` draws a framed picture into `#briefArt`, not a field.
 6. MINOR, "Picture saved." on the tap: kept. These are section 6's words, and with finding 1 fixed the link always
    holds a live picture. Browsers that can share a file (iPhone, iPad) take the file path, not the sheet.
+7. Found in the close-out's own runs (run-all --quick, flow 7 at 1600x900 under load): two tabs posting at once,
+   the second tab's strip read "refused". The other tab's outbox had sent this tab's result while its own call was
+   out, so the server answered `run_finished`. `scPost` now takes `run_finished` as posted (the result is on the
+   board). Flow 7 posts again from tab 2 and checks the strip stays posted; the page without the fix fails it.
