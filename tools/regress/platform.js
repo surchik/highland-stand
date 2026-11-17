@@ -2504,6 +2504,10 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await state(A, "posted", "tab 1's strip");
     await win(A2, ids[3]);
     await state(A2, "posted", "tab 2's strip");
+    // the other tab's outbox may send this tab's result while its own call is out (seen under load): its own call is
+    // then answered run_finished, which is posted, not refused
+    const again = await A2.ev(async () => { const pg = SC.page; await scPost(pg.rid, {}, pg); return pg.state; });
+    if (again !== "posted") fail(W, "two tabs: a result already on the server (run_finished) leaves the strip " + again);
     if ((await rows(ids[2])).length !== 1 || (await rows(ids[3])).length !== 1) fail(W, "two tabs: the server's rows " + JSON.stringify([await rows(ids[2]), await rows(ids[3])]));
     if (await store(A, "hs_pf_run")) fail(W, "two tabs: the run token is left once both battles are posted");
     const p2 = await A2.problems().catch(() => A2.errs);

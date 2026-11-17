@@ -83416,6 +83416,9 @@ async function scPost(rid, stats, page) {
     return;
   }
   scOutDrop(rid);
+  // run_finished: the result reached the server already (another tab's outbox sent this entry while this call was
+  // out, or an earlier try's answer was lost). It is on the board, as the outbox says too, not refused
+  if (r.code === "run_finished") { page.state = "posted"; scRender(); return; }
   page.state = r.code === "ruleset_unknown" ? "unpublished" : "refused";
   track("score_rejected", { reason: scReason(r.code) });
   scRender();
