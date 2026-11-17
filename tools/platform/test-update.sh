@@ -210,5 +210,58 @@ cp "$T/log2" "$T/partC.log"
 # ------------------------------------------------------------------ part D
 if bash -n "$NEW"; then pass "D. bash -n $(basename "$NEW")"; else fail "D. bash -n"; fi
 
+# ------------------------------------------------------------------ part F: the chronicle films (stage 5)
+# master's assets/explainer/<battlefield>/*.mp4, *.vtt and *.jpg go out into the same folders under the web root, each
+# when it differs and never again when it does not, and nothing else under assets/explainer; next's go under /next/
+# the same way, read from the branch, while the live ones stay master's; a film the branch drops leaves /next/; a
+# deleted branch takes them with /next/; no temporary folder is left behind
+git init -q --bare "$T/o5.git"
+git clone -q "$T/o5.git" "$T/w5" 2>/dev/null
+cd "$T/w5"; git config user.email t@example.com; git config user.name t; git config push.negotiate false; git checkout -q -b master
+mkdir -p deploy assets/explainer/erebuni assets/explainer/tushpa; cp "$CHK" deploy/check-page.js; cp "$NEW" deploy/update.sh
+page f1 > index.html; printf 'jpgf' > og.jpg
+for c in landscape vertical; do printf 'mp4-ere-%s' $c > assets/explainer/erebuni/$c.mp4; printf 'WEBVTT ere %s' $c > assets/explainer/erebuni/$c.vtt; printf 'jpg-ere-%s' $c > assets/explainer/erebuni/$c-poster.jpg; done
+printf 'mp4-tus' > assets/explainer/tushpa/landscape.mp4; printf 'notes' > assets/explainer/tushpa/notes.txt; printf 'readme' > assets/explainer/README.md
+git add -A; git commit -q -m f1; git push -q origin master
+git clone -q "$T/o5.git" "$T/repo5"; mkdir "$T/web5" "$T/tmpd5"
+run5() { local rc=0; env HS_REPO="$T/repo5" HS_WEB="$T/web5" TMPDIR="$T/tmpd5" bash "$NEW" >> "$T/log5" 2>&1 || rc=$?; echo $rc >> "$T/rcs5"
+  if [ -n "$(ls -A "$T/tmpd5")" ]; then fail "F. a run left a temporary folder behind: $(ls -A "$T/tmpd5")"; rm -rf "${T:?}/tmpd5/"*; fi; }
+c5() { grep -c "$1" "$T/log5" || true; }
+films5() { (cd "$1" 2>/dev/null && find assets/explainer -type f | sort | tr '\n' ' ') || true; }
+# (the clone stands at master already, as setup-server.sh leaves it: the first run publishes what the web root lacks)
+run5
+if [ "$(films5 "$T/web5")" = "assets/explainer/erebuni/landscape-poster.jpg assets/explainer/erebuni/landscape.mp4 assets/explainer/erebuni/landscape.vtt assets/explainer/erebuni/vertical-poster.jpg assets/explainer/erebuni/vertical.mp4 assets/explainer/erebuni/vertical.vtt assets/explainer/tushpa/landscape.mp4 " ] \
+   && cmp -s "$T/web5/assets/explainer/erebuni/vertical.mp4" "$T/w5/assets/explainer/erebuni/vertical.mp4" && cmp -s "$T/web5/assets/explainer/erebuni/landscape.vtt" "$T/w5/assets/explainer/erebuni/landscape.vtt" \
+   && [ "$(c5 'published assets/explainer/')" = 7 ] && [ "$(stat -c %a "$T/web5/assets/explainer/erebuni/landscape.mp4")" = 644 ] && [ "$(tail -1 "$T/rcs5")" = 0 ]; then
+  pass "F1. master's films published beside the page (644): the videos, subtitles and posters, no other file of the folder"
+else fail "F1: $(films5 "$T/web5") $(cat "$T/log5")"; fi
+run5; run5
+[ "$(c5 'published assets/explainer/')" = 7 ] && pass "F2. and never again while they are the same" || fail "F2: $(cat "$T/log5")"
+printf 'mp4-ere-landscape-2' > assets/explainer/erebuni/landscape.mp4; printf 'WEBVTT tus' > assets/explainer/tushpa/landscape.vtt; page f2 > index.html; git add -A; git commit -q -m f2; git push -q origin master
+run5
+if [ "$(cat "$T/web5/assets/explainer/erebuni/landscape.mp4")" = mp4-ere-landscape-2 ] && [ "$(cat "$T/web5/assets/explainer/tushpa/landscape.vtt")" = "WEBVTT tus" ] && grep -q f2 "$T/web5/index.html" && [ "$(c5 'published assets/explainer/')" = 9 ]; then
+  pass "F3. a new commit: the changed film and the new subtitles go out with the page, the others are left alone"
+else fail "F3: $(cat "$T/log5")"; fi
+# the staging branch: its own films under /next/
+git checkout -q -b next; npage nf1 > index.html; printf 'mp4-ere-vertical-next' > assets/explainer/erebuni/vertical.mp4; mkdir assets/explainer/avarayr; printf 'mp4-ava-next' > assets/explainer/avarayr/vertical.mp4
+git rm -q assets/explainer/tushpa/landscape.mp4
+git add -A; git commit -q -m nf1; git push -q origin next
+run5
+if grep -q nf1 "$T/web5/next/index.html" && [ "$(cat "$T/web5/next/assets/explainer/erebuni/vertical.mp4")" = mp4-ere-vertical-next ] && [ "$(cat "$T/web5/next/assets/explainer/avarayr/vertical.mp4")" = mp4-ava-next ] \
+   && [ "$(cat "$T/web5/next/assets/explainer/erebuni/landscape.mp4")" = mp4-ere-landscape-2 ] && [ ! -e "$T/web5/next/assets/explainer/tushpa/landscape.mp4" ] && [ ! -e "$T/web5/next/assets/explainer/tushpa/notes.txt" ] \
+   && [ ! -e "$T/web5/next/assets/explainer/README.md" ] && [ "$(cat "$T/web5/assets/explainer/erebuni/vertical.mp4")" = mp4-ere-vertical ] && [ ! -e "$T/web5/assets/explainer/avarayr" ] \
+   && [ "$(cat "$T/web5/assets/explainer/tushpa/landscape.mp4")" = mp4-tus ] && [ "$(stat -c %a "$T/web5/next/assets/explainer/avarayr/vertical.mp4")" = 644 ]; then
+  pass "F4. next's films at /next/ (read from the branch), the live ones still master's, no other file of the folder"
+else fail "F4: $(films5 "$T/web5/next") $(cat "$T/log5")"; fi
+printf 'mp4-ava-next2' > assets/explainer/avarayr/vertical.mp4; git rm -q assets/explainer/erebuni/vertical.vtt; npage nf2 > index.html; git add -A; git commit -q -m nf2; git push -q origin next
+run5
+if [ "$(cat "$T/web5/next/assets/explainer/avarayr/vertical.mp4")" = mp4-ava-next2 ] && [ ! -e "$T/web5/next/assets/explainer/erebuni/vertical.vtt" ] && [ -e "$T/web5/assets/explainer/erebuni/vertical.vtt" ] && grep -q nf2 "$T/web5/next/index.html"; then
+  pass "F5. a changed film on next goes out with its page, one the branch dropped leaves /next/ (the live one stays)"
+else fail "F5: $(films5 "$T/web5/next")"; fi
+git checkout -q master; git push -q origin --delete next; run5
+if [ ! -e "$T/web5/next" ] && [ "$(cat "$T/web5/assets/explainer/erebuni/landscape.mp4")" = mp4-ere-landscape-2 ]; then pass "F6. the branch deleted: /next/ goes with its films, the live ones stay"; else fail "F6"; fi
+[ "$(git -C "$T/repo5" rev-parse HEAD)" = "$(git -C "$T/repo5" rev-parse origin/master)" ] && [ -z "$(git -C "$T/repo5" status --porcelain)" ] && [ "$(tail -1 "$T/rcs5")" = 0 ] && pass "F7. the clone on master with a clean tree" || fail "F7"
+cd "$T/work"
+
 if [ "${VERBOSE:-}" = 1 ]; then for f in partA partB partC; do echo "--- $f log"; cat "$T/$f.log"; done; fi
 if [ "$fails" = 0 ]; then echo "PASS: update.sh publishes master as before and next at /next/ ($cases cases)"; else echo "FAIL: $fails of $((cases + fails)) cases"; exit 1; fi

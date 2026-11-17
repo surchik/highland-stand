@@ -65896,8 +65896,164 @@ function briefPage() {
   renderBriefArt(curLevel);
   startBriefMosaic();
   $("startBtn").innerHTML = icon("swords") + (curLevel === 0 && tutorialPending() && !dailyRun ? "Begin the Stand · Tutorial" : "Begin the Stand");
-  Snd.play("horn", { era: LEVELS[curLevel].era });
+  // (its film, where it has one, opens in the text's place and the horn keeps quiet under its voice: Film, below)
+  if (!Film.brief()) Snd.play("horn", { era: LEVELS[curLevel].era });
 }
+
+// ---------- the chronicle's film (stage 5: docs/specs/explainer/integration.md) ----------
+// Erebuni, Tushpa and Avarayr have a short film of their history (assets/explainer/<id>/, beside the page, so a
+// build under /next/ plays its own files). When the campaign chronicle of one of them opens, the film plays by
+// itself over the page: the landscape cut when the window is wider than it is tall, the upright cut otherwise,
+// chosen once. It tries with sound (the tap that opened the chronicle allows it); refused, it plays muted with a
+// "Sound on" button. Its subtitles are the cut's .vtt, shown by the browser. Skip (or Escape) or the film's end
+// puts it away, and the chronicle's text and buttons stand under it as they always did.
+// The text chronicle alone, with nothing fetched, in the harness and in a browser driven by a test
+// (navigator.webdriver, unless the test sets window.__hsFilmTest); with no autoplay but a small "Watch the film"
+// button in the chronicle's row of buttons when the player asks for less data or less motion, or has seen this
+// battlefield's film (hs_film_seen_<id>; under /next/ the page's storage wrapper keeps it as next:hs_film_seen_<id>).
+// A film that fails (an error, both starts refused, nothing playing after 4 s, a stall of 5 s) goes away without a
+// word and is not marked seen. Everything of the film is in this block; briefPage() calls Film.brief() and no more.
+// window.__hsFilmTest (tools/regress/film.js): { base: another folder for the files, hold: true keeps the film up
+// through an error, so a browser that cannot decode H.264 can still be tested on the page's own logic }.
+const Film = (() => {
+  const IDS = { erebuni: 1, tushpa: 1, avarayr: 1 };
+  const DIR = "assets/explainer/", KEY = "hs_film_seen_", START_MS = 4000, STALL_MS = 5000, END_MS = 1000;
+  let el = null, v = null, id = "", btn = null, tStart = 0, tStall = 0, tEnd = 0, resume = false;
+  const test = () => window.__hsFilmTest || null;
+  const seen = k => { try { return !!localStorage.getItem(KEY + k); } catch (e) { return false; } };
+  function barred() {
+    if (HARNESS_ON) return true;
+    try { if (navigator.webdriver && !test()) return true; } catch (e) {}
+    return false;
+  }
+  // less data or less motion asked for: the film waits for the player's own press
+  function lean() {
+    try {
+      const c = navigator.connection;
+      if (c && (c.saveData || /^(slow-)?2g$/.test(c.effectiveType || ""))) return true;
+      return matchMedia("(prefers-reduced-data: reduce)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch (e) { return false; }
+  }
+  function style() {
+    if (document.getElementById("filmCss")) return;
+    const s = document.createElement("style");
+    s.id = "filmCss";
+    s.textContent =
+      "#film{position:fixed;inset:0;z-index:8990;background:#0d0804;font-family:var(--face)}" +
+      "#film video{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;background:#0d0804}" +
+      "#film video::cue{font-family:Georgia,'Times New Roman',serif;color:#f6ecd2;background:rgba(18,12,6,.78)}" +
+      "#film .fBtns{position:absolute;top:calc(10px + var(--sat,0px));right:calc(10px + var(--sar,0px));display:flex;gap:10px}" +
+      "#film button{min-height:44px;min-width:76px;padding:8px 16px;border-radius:8px;border:1px solid #b98a3e;" +
+      "background:rgba(18,12,6,.78);color:#f6ecd2;font:inherit;font-size:16px;cursor:pointer}" +
+      "#film button[hidden]{display:none}" +
+      "#film #filmSound{background:#a8322a;border-color:#f0cf85;font-weight:bold}" +
+      "#filmBtn[hidden]{display:none!important}";
+    document.head.appendChild(s);
+  }
+  // the chronicle's "Watch the film" button, made once, before Campaign Map in the page's row of buttons
+  function showBtn(on) {
+    if (on && !btn) {
+      style();
+      btn = document.createElement("button");
+      btn.type = "button"; btn.id = "filmBtn"; btn.className = "big quiet"; btn.textContent = "Watch the film";
+      btn.addEventListener("click", () => { if (menuMode === "brief" && IDS[levelId(curLevel)]) { Snd.play("uiTick"); open(levelId(curLevel)); } });
+      const map = $("mapBtn");
+      map.parentNode.insertBefore(btn, map);
+    }
+    if (btn) btn.hidden = !on;
+  }
+  function timers() { clearTimeout(tStart); clearTimeout(tStall); clearTimeout(tEnd); tStart = tStall = tEnd = 0; }
+  // put away: the video released so its download stops; mark: this battlefield's film counts as seen
+  function close(mark) {
+    if (!el) return;
+    timers();
+    try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {}
+    el.remove();
+    const was = id;
+    el = v = null; id = "";
+    if (mark) { try { localStorage.setItem(KEY + was, "1"); } catch (e) {} }
+    showBtn(menuMode === "brief" && (mark || seen(was) || lean()));
+    try { $("startBtn").focus({ preventScroll: true }); } catch (e) {}
+  }
+  function fail() { if (el && !(test() && test().hold)) close(false); }
+  function sound(on) { const b = el && el.querySelector("#filmSound"); if (b) b.hidden = !on; }
+  function open(k) {
+    close(false);
+    style();
+    const L = LEVELS[curLevel], t = test();
+    const cut = innerWidth > innerHeight ? "landscape" : "vertical", at = ((t && t.base) || DIR) + k + "/" + cut;
+    id = k;
+    el = document.createElement("div");
+    el.id = "film";
+    el.dataset.id = k; el.dataset.cut = cut;
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "Film: the history of " + L.name);
+    el.innerHTML = '<video playsinline preload="none" poster="' + at + '-poster.jpg" aria-label="' + escapeHtml("Film: the history of " + L.name) + '">' +
+      '<track kind="subtitles" srclang="en" label="English" default src="' + at + '.vtt"></video>' +
+      '<div class="fBtns"><button type="button" id="filmSound" hidden>Sound on</button><button type="button" id="filmSkip">Skip</button></div>';
+    document.body.appendChild(el);
+    const mine = v = el.querySelector("video");
+    const live = () => v === mine;
+    v.addEventListener("error", () => { if (live()) fail(); });
+    v.addEventListener("playing", () => { if (!live()) return; clearTimeout(tStart); clearTimeout(tStall); tStart = tStall = 0; });
+    v.addEventListener("waiting", () => { if (!live()) return; clearTimeout(tStall); tStall = setTimeout(() => { if (live()) fail(); }, STALL_MS); });
+    v.addEventListener("ended", () => { if (!live()) return; timers(); tEnd = setTimeout(() => { if (live()) close(true); }, END_MS); });
+    v.addEventListener("volumechange", () => { if (live()) sound(v.muted); });
+    v.addEventListener("click", () => { if (!live() || v.ended) return; if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); });
+    try { if (v.textTracks && v.textTracks[0]) v.textTracks[0].mode = "showing"; } catch (e) {}
+    el.querySelector("#filmSkip").addEventListener("click", () => close(true));
+    el.querySelector("#filmSound").addEventListener("click", () => { v.muted = false; sound(false); if (v.paused && !v.ended) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } });
+    // the file is asked for only now
+    v.preload = "auto";
+    v.src = at + ".mp4";
+    v.volume = Math.max(0, Math.min(1, Snd.sfxVol));
+    v.muted = !Snd.sfxOn;
+    sound(v.muted);
+    tStart = setTimeout(() => { if (live()) fail(); }, START_MS);
+    let p;
+    try { p = v.play(); } catch (e) { p = Promise.reject(e); }
+    if (p && p.catch) p.catch(() => { if (!live()) return; v.muted = true; sound(true); return v.play(); }).catch(() => { if (live()) fail(); });
+    try { el.querySelector("#filmSkip").focus({ preventScroll: true }); } catch (e) {}
+    return true;
+  }
+  // the film and its button belong to the chronicle alone: any road out of it (the map, the battle, the Hall's
+  // doors) takes both away, the video released
+  if (!HARNESS_ON && typeof MutationObserver !== "undefined") new MutationObserver(() => {
+    if (menuMode === "brief" && overlayEl.classList.contains("brief") && !overlayEl.classList.contains("hidden")) return;
+    if (el) close(false);
+    if (btn) btn.hidden = true;
+  }).observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+  // first in line for every key while the film is up: Escape skips, Tab stays between its buttons
+  window.addEventListener("keydown", (e) => {
+    if (!el) return;
+    e.stopImmediatePropagation();
+    if (e.key === "Escape") { e.preventDefault(); close(true); return; }
+    if (e.key === "Tab") {
+      const b = [...el.querySelectorAll("button")].filter(x => !x.hidden), i = b.indexOf(e.target);
+      e.preventDefault();
+      if (b.length) b[(i + (e.shiftKey ? b.length - 1 : 1) + b.length) % b.length].focus();
+    }
+  }, true);
+  document.addEventListener("visibilitychange", () => {
+    if (!el || !v) return;
+    if (document.hidden) { resume = !v.paused && !v.ended; clearTimeout(tStall); tStall = 0; if (resume) v.pause(); }
+    else if (resume) { resume = false; const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+  });
+  return {
+    // a chronicle has opened (briefPage): true when its film has started in its place
+    brief() {
+      close(false);
+      showBtn(false);
+      const k = levelId(curLevel);
+      if (barred() || !IDS[k] || dailyRun || (typeof standardBattle !== "undefined" && standardBattle)) return false;
+      if (seen(k) || lean()) { showBtn(true); return false; }
+      try { return open(k); } catch (e) { close(false); return false; }
+    },
+    isOpen: () => !!el,
+    close: () => close(false),
+  };
+})();
 
 // ---------- input ----------
 function toVirtual(e) {
