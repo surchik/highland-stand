@@ -3568,7 +3568,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
   };
   // the requests made since n: none but the platform's own calls to the stack's API (the strip's post, analytics)
   const f9quiet = (g, W, n, what) => {
-    const bad = g.reqs.slice(n).filter(u => !(u.startsWith(API + "/rest/v1/rpc/hs_") || u.startsWith(API + "/auth/v1/")));
+    // (a battle's or a victory's recording beside the page is the music's own request, stage 6, not the card's)
+    const bad = g.reqs.slice(n).filter(u => !(u.startsWith(API + "/rest/v1/rpc/hs_") || u.startsWith(API + "/auth/v1/") || /\/assets\/(music|victory)\/[a-z0-9-]+\.mp3(#.*)?$/.test(u)));
     if (bad.length) fail(W, what + ": requests beside the platform's own: " + bad.slice(0, 4).join(", "));
   };
   const flow9 = async (C) => {

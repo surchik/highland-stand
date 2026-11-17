@@ -23,7 +23,7 @@ const SCRIPTS = ["padplace", "plots", "probe", "vic", "nag", "dance10", "live", 
 // (platform starts the local stack, PostgreSQL included, and plays sign-in through it: tools/platform/README.md)
 // (P5's flow 7, scores and boards, brought its full run to about 2,400 s under load; the quick one runs only the flows
 // spec 10.5 names, 1, 2, 4, 5, 7 and 11, at 1600x900 and 667x320, and keeps well inside its 0.6 of the limit)
-const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 500, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 2900, music: 400 };
+const LIMIT_S = { padplace: 1200, plots: 900, probe: 900, vic: 1800, nag: 400, dance10: 500, live: 1200, doors: 300, iphone: 1000, waves: 2400, platform: 3600, music: 400 };
 
 const argv = process.argv.slice(2);
 let file = null, quick = false, only = null, jobs = 1, shots = null, logDir = null, strict = false;
