@@ -12,7 +12,8 @@
 // if it was not built on one of them, or charged on none). The Stores (G7b, on Dvin, Tashir, Sevan, Ani, Mari and Sis)
 // are built from their tile on the free pad that reaches the least road, and must pay at the clears on every one. The
 // Powder Mine (G7c, on Gyumri Road and Halidzor) is built from its tile on the free pad whose reach holds the most road,
-// and its charge must arm (or fire) on each.
+// and its charge must arm (or fire) on each. The Aid Post (G7d, on Van, Musa Dagh and Sardarapat) is built from its tile on
+// the free pad that reaches the least road, and its count must be sound on each.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/live.js [index.html] [--quick] [--levels=0,ani] [--jobs=3] [--shots=dir]
 "use strict";
 const R = require("./lib");
@@ -141,7 +142,8 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         const horse = await g.ev(() => { const t = towers.find(u => u.type === "horse"); return t ? { charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), thrown: Math.round(t.thrown || 0) } : null; });
         const stores = await g.ev(() => { const t = towers.find(u => u.type === "stores"); return t ? { paid: Math.round(t.yielded || 0), gold: battleFacts().from.stores } : null; });
         const mine = await g.ev(() => { const t = towers.find(u => u.type === "mine"); return t ? { blasts: t.blasts || 0, armed: (t.mines || []).some(mineArmed), dmg: Math.round(t.dmgDone || 0) } : null; });
-        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine };
+        const aid = await g.ev(() => { const t = towers.find(u => u.type === "aid"); return t ? { wreck: !!t.wreck, returned: battle.returned, held: battleFacts().held, lives } : null; });
+        res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine, aid };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
         await fail(e.message.split("\n")[0]);
@@ -191,5 +193,12 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
   if (mineFields.length && mined.length < mineFields.length) fails.push("no Powder Mine was built on " + mineFields.filter(id => !mined.includes(id)).join(", "));
   const idle = mined.filter(id => !(res[id].mine.blasts > 0 || res[id].mine.armed));
   if (idle.length) fails.push("the Powder Mine never armed on " + idle.join(", "));
+  // the Aid Post (G7d): built on Van, Musa Dagh and Sardarapat where they are played, and its numbers sound (the walls hold
+  // the defenders never lost and those it returned, never more than its cap)
+  const aided = Object.keys(res).filter(id => res[id] && res[id].aid);
+  const aidFields = ["van", "musadagh", "sardarapat"].filter(id => res[id]);
+  if (aidFields.length && aided.length < aidFields.length) fails.push("no Aid Post was built on " + aidFields.filter(id => !aided.includes(id)).join(", "));
+  const odd = aided.filter(id => { const a = res[id].aid; return a.lives !== a.held + a.returned || a.returned > 5; });
+  if (odd.length) fails.push("the Aid Post's count is off on " + odd.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

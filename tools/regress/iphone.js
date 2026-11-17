@@ -30,8 +30,8 @@
 // The Garrison Post (G5): the tray of six on every battlefield (seven on Erebuni, Tushpa and Avarayr with the Horse
 // Lines, G7a, and on Dvin, Tashir, Sevan, Ani, Mari and Sis with the Stores, G7b) and of seven everywhere (a stand-in for
 // the special towers still to come) with every tile 44 x 44 and its name whole or absent; the post's panel, the Horse
-// Lines' panel, the Stores' panel and the Powder Mine's panel (G7c, with its Lay the charge tapped and the road in its
-// ring taking the charge) as sheets; the armed rally's toast in the safe area
+// Lines' panel, the Stores' panel, the Powder Mine's panel (G7c, with its Lay the charge tapped and the road in its
+// ring taking the charge) and the Aid Post's panel (G7d) as sheets; the armed rally's toast in the safe area
 // and off the wave's ribbon, and a tap on the road in its ring moving the men.
 // The War Council (gameplay 4.6, 8.2, 8.4 playtest 4): on a save with stars to spend its one-time card comes up over
 // the map and its button opens the Hall on the Council; the panel lies wholly in the Hall's box (held sideways
@@ -858,6 +858,25 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
           }
           if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== sb) fail("stores panel", "the tap that opened the sheet pressed something in it");
           await check("stores panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          await g.ev(() => { hidePanel(); });
+        }
+        // the Aid Post's panel (G7d) the same way: Van staged, the post at its third rank (the Mastery to choose)
+        await stage("van", 3, { aid: 1, al: "2" });
+        const apad = await g.ev(() => { const t = towers.find(u => u.type === "aid"); gold = 99999; syncHud(); return t ? t.pad : -1; });
+        if (apad < 0) fail("aid panel", "no Aid Post was staged");
+        else {
+          const ab = await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) }));
+          const aat = await g.ev(pad => __hsAudit.towerPoint(towers.find(t => t.pad === pad)), apad);
+          await g.tapAt(aat.x, aat.y);
+          await settle(3);
+          await panelSettled();
+          if (!(await g.ev(pad => !!selected && selected.pad === pad && panelEl.style.display === "block", apad))) {
+            fail("aid panel", "a tap on the Aid Post did not open its panel");
+            await g.ev(pad => { setPlacing(null); heroSelected = false; showPanel(towers.find(t => t.pad === pad)); }, apad);
+            await settle(2);
+          }
+          if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "")) })) !== ab) fail("aid panel", "the tap that opened the sheet pressed something in it");
+          await check("aid panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
           await g.ev(() => { hidePanel(); });
         }
       });

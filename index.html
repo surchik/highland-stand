@@ -9842,19 +9842,25 @@ const MINE_RULES = { triggers: [0, 3, 5], trigger: 3, boss: 3, tap: 22 };
 // returns to the walls, up to `restore` in a battle and never above the number the difficulty began with. Stars,
 // records and the boards count the defenders never lost (held, 6.1), so a returned one changes none of them. max: one
 // on a field (3.7). A wrecked Aid Post does nothing
+// (G7d tuning, gameplay 5.3's fourth knob: at 3.5's prices, 110 gold with ranks of 130 and 210 and masteries of 320, the
+// balance bot's "aid" (the mix with the post sixth) lost 6.7 more defenders than the mix on Sardarapat and 3.0 more on
+// Easy Van: the gold a post that fights nothing takes from the board. At 60, 70, 110 and 220 Easy Van and Hard keep the
+// mix's count; the reach, the hastes, the hero's seconds and the returns are 3.5's. On Musa Dagh no price meets 5.2's
+// row: the post takes the pad of the mix's last tower, and the last commanders break through (free, it still lost all
+// three seeds). docs/specs/balance/README.md, G7d)
 TOWER_DEFS.aid = {
-  name: "Aid Post", cost: 110, proj: null, aid: true, max: 1, maxSay: "One aid post serves this field.",
+  name: "Aid Post", cost: 60, proj: null, aid: true, max: 1, maxSay: "One aid post serves this field.",
   // the post's own strength by rank, for hunters, drones and powers (kept here, as the Horse Lines' is: rulesetData)
   hp: [240, 300, 380],
   levels: [
     { range: 170, haste: 0.2, heroBack: 3, restore: 2 },
-    { range: 190, haste: 0.3, heroBack: 5, restore: 3, cost: 130 },
-    { range: 215, haste: 0.4, heroBack: 7, restore: 4, cost: 210 },
+    { range: 190, haste: 0.3, heroBack: 5, restore: 3, cost: 70 },
+    { range: 215, haste: 0.4, heroBack: 7, restore: 4, cost: 110 },
   ],
   specs: {
-    a: { name: "Surgeons", cost: 320, desc: "More defenders come back to the walls",
+    a: { name: "Surgeons", cost: 220, desc: "More defenders come back to the walls",
          stats: { range: 230, haste: 0.4, heroBack: 7, restore: 5 } },
-    b: { name: "Stretcher Bearers", cost: 320, desc: "Your men and your hero are back in half the time",
+    b: { name: "Stretcher Bearers", cost: 220, desc: "Your men and your hero are back in half the time",
          stats: { range: 260, haste: 0.6, heroBack: 12, restore: 4 } },
   },
 };
@@ -10714,7 +10720,7 @@ function droneWar() { return (LEVELS[curLevel].year || 0) >= 2020; }
 // self-test's second suite compares the two, so a change of rules without a new number fails it.
 // `node tools/ruleset.js` prints the pins to write here.
 const RULESET = 2;
-const RULESET_PIN = "206961b5";
+const RULESET_PIN = "ae12293f";
 // A battlefield's own revision. It rises when that battlefield's rules change (its length, its strength or its
 // tricks, a tower it offers, a par). The boards are kept per battlefield and revision, so a change to three
 // battlefields restarts three boards and not seventeen. A change to something every battlefield shares raises
@@ -10731,8 +10737,8 @@ const LEVEL_REV = {
 };
 const LEVEL_PIN = {
   erebuni: "0db9155d", tushpa: "95f6b0db", avarayr: "341a5fff", dvin: "8a89e1f1", tashir: "ecb42838", sevan: "31e70a42",
-  ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "b3181500",
-  musadagh: "a613b7bd", sardarapat: "20bc22de", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
+  ani: "858e7e8c", mari: "656d7c5a", sis: "de49598b", gyumri: "fcce3bd0", halidzor: "86fc00ca", van: "3cc42744",
+  musadagh: "2eb41bea", sardarapat: "28d5d2f7", stepanakert92: "8dd9c41c", shushi: "0f5b8d87", stepanakert23: "dae2911c",
 };
 // Par: the battle clock (seconds, see battleTick) of the balance bot's best build on each battlefield, which sends
 // each wave 4 s after the last is cleared. The speed share of a score is full at `fast` (six tenths of par, or the
@@ -89788,6 +89794,159 @@ function runSelftestPlay() {
     curLevel = levelIndexOf("halidzor"); showUnlockCard("mine");
     if (/Chaldiran|tunnel/i.test($("tcBody").textContent) || !/the game's invention/.test($("tcBody").textContent)) fail("Halidzor's card: " + $("tcBody").textContent);
     closeUnlockCard();
+  }));
+  // ---- G7d, the Aid Post (gameplay 3.5, 8.1) ----
+  const AID_AT = ["van", "musadagh", "sardarapat"];
+  check("aid: offered on Van, Musa Dagh and Sardarapat from Van on, nowhere else; key 7; any pad; one on a field; a run keeps it and its returns", guarded(() => {
+    const has = () => trayTypes().includes("aid");
+    // before Van is open the campaign has not reached it: the post is not unlocked
+    wonTo(levelIndexOf("halidzor"), 2);
+    if (towerUnlocked("aid")) fail("the Aid Post is unlocked before Van is open");
+    wonTo(levelIndexOf("van"), 2);
+    stage("van", 1);
+    if (trayTypes().join() !== TRAY_CLASSIC + ",post,aid" || $("shop").dataset.n !== "7" || ageTower(curEra) !== "aid") fail("Van's tray: " + trayTypes());
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit7", key: "7", bubbles: true }));
+    if (placing !== "aid") fail("key 7 did not choose the Aid Post: " + placing);
+    setPlacing(null);
+    const nm = document.querySelector('#shop .card[data-type="aid"] .nm');
+    if (!nm || nm.textContent !== "Aid Post") fail("the tile: " + (nm && nm.textContent));
+    wonTo(17, 2);
+    LEVELS.forEach((L, i) => {
+      curLevel = i; curEra = L.era;
+      const want = AID_AT.includes(L.id);
+      if (has() !== want || trayStandard(L.era).includes("aid") !== want) fail(L.id + (want ? " lacks" : " offers") + " the Aid Post");
+      if (want && towerName("aid") !== "Aid Post") fail(L.id + "'s Aid Post is named " + towerName("aid"));
+    });
+    // any pad takes it (a pad with no road in reach too); a second is refused with its sentence, and the tile dims
+    stage("sardarapat", 1); gold = 1e5;
+    const dry = PADS.findIndex((p, k) => !padTakesRoad(k, 150)), free = PADS.map((p, k) => k).filter(k => k !== dry);
+    placeTower("aid", dry >= 0 ? dry : free[0]);
+    placeTower("aid", free[1]);
+    if (towers.filter(x => x.type === "aid").length !== 1 || !/One aid post serves this field/.test($("toast").textContent)) fail("one on a field: " + towers.length + " " + $("toast").textContent);
+    syncHud();
+    if (!document.querySelector('#shop .card[data-type="aid"]').classList.contains("poor")) fail("the tile is not dimmed at the limit");
+    // the post's strength at each rank (3.5's hunters and drones)
+    const A = towers[0];
+    [240, 300, 380].forEach((hp, r) => { A.level = r; if (towerMaxHp(A) !== Math.round(hp * byDiff(TRICK_RULES.tower.hpMult) * kitNow().towerHp)) fail("its strength at rank " + (r + 1) + ": " + towerMaxHp(A)); });
+    A.level = 0;
+    // a run keeps it, the defenders it returned and the walls they man; a run whose tray lacks it refuses it, and one
+    // saved before still resumes
+    lives = livesMax() - 2; battle.returned = 1;
+    waveIdx = lastCleared = 2; saveRun();
+    const r = JSON.parse(localStorage.getItem("hs_run"));
+    gameOver = true; resumeRun();
+    if (!towers.some(x => x.type === "aid") || !trayTypes().includes("aid") || battle.returned !== 1 || lives !== livesMax() - 2 || heldNow() !== livesMax() - 3) fail("the resumed run: " + [battle.returned, lives]);
+    const old = Object.assign({}, r, { tray: TRAY_BASE.concat("post") });
+    if (validRun(old)) fail("a run whose tray has no Aid Post took one");
+    if (!validRun(Object.assign({}, old, { towers: r.towers.filter(x => x.type !== "aid") }))) fail("a run saved before the Aid Post no longer resumes");
+    const two = Object.assign({}, r, { towers: r.towers.concat([Object.assign({}, r.towers.find(x => x.type === "aid"), { pad: free.find(k => !r.towers.some(x => x.pad === k)) })]) });
+    if (validRun(two)) fail("a run with two Aid Posts resumed");
+  }));
+  check("aid: heals only out of a fight, sooner and faster in range; men and the hero return sooner; a defender returns after a clean wave, up to its cap, never past the start; held and stars unmoved", guarded(() => {
+    wonTo(17, 2);
+    stage("van", 1); quiet();
+    const P = postAt(), m = P.men[0], max = livesMax();
+    run(3);   // the men walk out to their spots
+    const k = PADS.map((p, j) => j).find(j => !towerAt(j));
+    placeTower("aid", k);
+    const A = towers.find(x => x.type === "aid"), st = getStats(A);
+    const at = () => { A.x = m.x; A.y = m.y; };   // the post's care over the man where he stands
+    at();
+    // fighting: a held foe, his strength never rises while he holds it
+    const f = foeAt(P, "spearman", null, 0); f.hp = f.maxHp = 1e9; f.speed = 0;
+    postGrab(P, m, f, 0);
+    m.hp = m.max * 0.5;
+    for (let i = 0; i < 40; i++) { const h = m.hp; postTick(0.05); at(); if (m.hp > h + 1e-9) fail("a man was healed while he fought"); }
+    // out of the fight: nothing for 1 s, then twice the post's rate
+    postDrop(m); enemies = []; m.combatT = POST_RULES.healAfter;
+    let h0 = m.hp; for (let i = 0; i < 18; i++) { postTick(0.05); at(); }
+    if (m.hp !== h0) fail("he began to heal before 1 s: " + (m.hp - h0));
+    for (let i = 0; i < 6; i++) { postTick(0.05); at(); }
+    h0 = m.hp; postTick(0.1);
+    if (Math.abs((m.hp - h0) - POST_RULES.heal * AID_RULES.heal * m.max * 0.1) > 0.01) fail("the healing in reach: " + (m.hp - h0));
+    // out of its range: 3 s, at the post's own rate
+    A.x = m.x + st.range * 3; A.y = m.y;
+    m.hp = m.max * 0.5; m.combatT = POST_RULES.healAfter; h0 = m.hp;
+    for (let i = 0; i < 50; i++) postTick(0.05);
+    if (m.hp !== h0) fail("out of range he healed before 3 s");
+    // a fallen man of a post in range comes back `haste` sooner; out of range, as before
+    A.x = P.x; A.y = P.y;
+    postManFalls(P, m); let r0 = m.respawn; postTick(0.5);
+    if (Math.abs((r0 - m.respawn) - 0.5 / (1 - st.haste)) > 1e-6) fail("a fallen man in range: " + (r0 - m.respawn));
+    A.x = P.x + 2000; A.y = P.y + 2000; if (P.rally) P.rally = Object.assign({}, P.rally);
+    r0 = m.respawn; postTick(0.5);
+    if (aidHaste(P) === 0 && Math.abs((r0 - m.respawn) - 0.5) > 1e-6) fail("a fallen man out of range: " + (r0 - m.respawn));
+    A.x = P.x; A.y = P.y;
+    // the hero: in range he heals after 1 s at twice his rate; fallen, he is back heroBack s sooner (never under heroMin)
+    if (!hero) heroSpawn();
+    hero.alive = true; hero.engaged = []; enemies = [];
+    hero.x = A.x; hero.y = A.y; hero.rally = null; hero.hp = hero.maxHp * 0.5; hero.combatT = 3;
+    h0 = hero.hp; for (let i = 0; i < 18; i++) updateHero(0.05);
+    if (hero.hp !== h0) fail("the hero healed before 1 s");
+    for (let i = 0; i < 6; i++) updateHero(0.05);
+    h0 = hero.hp; updateHero(0.1);
+    if (Math.abs((hero.hp - h0) - heroLv().heal * AID_RULES.heal * 0.1) > 0.01) fail("the hero's healing in reach: " + (hero.hp - h0));
+    heroDie();
+    if (Math.abs(hero.respawn - Math.max(AID_RULES.heroMin, heroBack() - st.heroBack)) > 1e-9) fail("the hero is away " + hero.respawn);
+    A.level = 2; A.spec = "b"; heroSpawn(); heroDie();
+    if (hero.respawn !== Math.max(AID_RULES.heroMin, heroBack() - getStats(A).heroBack)) fail("Stretcher Bearers: the hero is away " + hero.respawn);
+    A.level = 0; A.spec = null;
+    // a wrecked post tends no one and brings no hero back sooner
+    wreckTower(A); heroSpawn(); heroDie();
+    if (hero.respawn !== heroBack() || aidCovers(A.x, A.y) || aidHaste(P)) fail("a wrecked Aid Post still gives care");
+    A.wreck = false; towerInitHp(A); heroSpawn();
+    // the defenders: a clean clear returns one; a clear that cost one returns none; the cap; never past the start
+    const said = [], toast0 = toast;
+    toast = (msg, ms) => { said.push(String(msg)); toast0(msg, ms); };
+    const clear = (wv, lost) => { waveIdx = wv; phase = "wave"; spawnQueue = []; enemies = []; waveStart = { lives: lives + (lost || 0) }; endWaveIfClear(); };
+    try {
+      battle.returned = 0; lives = max - 5;
+      const f0 = battleFacts();
+      clear(1);
+      const f1 = battleFacts();
+      if (lives !== max - 4 || battle.returned !== 1 || f1.held !== f0.held || f1.lives !== f1.held + f1.returned || heldNow() !== max - 5) fail("a clean wave: " + JSON.stringify([lives, battle.returned, f0.held, f1.held]));
+      if (!said.some(s => /repelled/.test(s) && /A defender returns from the aid post\./.test(s))) fail("the clear's toast: " + said.join(" | "));
+      if (victoryStars(heldNow(), max) !== victoryStars(max - 5, max)) fail("a returned defender moved the stars");
+      clear(2, 1);
+      if (lives !== max - 4 || battle.returned !== 1) fail("a wave that cost a defender returned one");
+      clear(3);
+      if (battle.returned !== st.restore) fail("the second return: " + battle.returned);
+      clear(4);
+      if (battle.returned !== st.restore || lives !== max - 3) fail("past its cap of " + st.restore + ": " + battle.returned);
+      // a mastery's cap is the battle's, counted from what was returned already
+      A.level = 2; A.spec = "a";
+      clear(5); clear(6); clear(7);
+      if (battle.returned !== getStats(A).restore || lives !== max - 3 + getStats(A).restore - st.restore) fail("Surgeons' cap: " + battle.returned + ", lives " + lives);
+      // never past the number the battle began with
+      battle.returned = 0; lives = max;
+      clear(8);
+      if (lives !== max || battle.returned !== 0) fail("a return past the start: " + lives);
+      // a wrecked post returns no one
+      lives = max - 2; wreckTower(A); clear(9);
+      if (lives !== max - 2 || battle.returned !== 0) fail("a wrecked post returned a defender");
+    } finally { toast = toast0; }
+    // the victory page and the records count the defenders never lost
+    A.wreck = false; towerInitHp(A);
+    battle.returned = 2; lives = max - 1;
+    if (victoryTally(LEVELS[curLevel], heldNow(), "Normal").indexOf(String(max - 3) + " defenders") < 0 || !/returned 2 defenders/.test(aidLine())) fail("the victory tally: " + victoryTally(LEVELS[curLevel], heldNow(), "Normal"));
+  }));
+  check("aid: the one-time card on the chronicle; Van's line; no claim on Musa Dagh or Sardarapat", guarded(() => {
+    localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
+    wonTo(levelIndexOf("van"), 2);
+    curLevel = levelIndexOf("van"); curEra = LEVELS[curLevel].era; gameOver = true;
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    showBrief();
+    if (newTowerCardDue(true) !== "aid") fail("Van's card is not due: " + newTowerCardDue(true));
+    showUnlockCard("aid");
+    const body = $("tcBody").textContent;
+    if (unlockCardOn !== "aid" || !/the Aid Post/.test($("tcTitle").textContent) || !/game's invention/.test(body) || !/Ussher/.test(body) || !/Stars count the defenders you never lost/.test(body)) fail("Van's card: " + body);
+    $("tcBtn").click();
+    if (unlockCardOn || !towersSeen().includes("aid") || newTowerCardDue(true)) fail("the card was not put away and kept");
+    for (const id of ["musadagh", "sardarapat"]) {
+      curLevel = levelIndexOf(id); showUnlockCard("aid");
+      if (/Ussher|hospital/i.test($("tcBody").textContent) || !/game's invention/.test($("tcBody").textContent)) fail(id + "'s card: " + $("tcBody").textContent);
+      closeUnlockCard();
+    }
   }));
   // P8 review finding 8: the privacy page's deletion section stands in the page, and the gate never shows under the harness
   check("privacy: the deletion section is in the page; no gate under the harness", guarded(() => {

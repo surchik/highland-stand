@@ -156,6 +156,12 @@
 //     breadth from the first, laid again between waves only where more towers would cover it; the trigger "at 3 foes".
 //     The report adds each mine's blasts in a battle and the foes a blast caught. minemix is the mix with the mine 8th
 //     and 13th
+//   - Aid Post (G7d, gameplay 5.4): "age" on Van, Musa Dagh and Sardarapat, one on a field. The free pad nearest the
+//     fortress (aidPadGap). Like the Stores it is ranked and mastered after every fighting tower has its own (STORES_RANK
+//     names when, for both kinds; the two thirds rule is the Stores' alone). The "aid" build is the mix with the Aid Post
+//     as its sixth building (5.2). A cell's lives are the defenders never lost (battleFacts().held: a defender the post
+//     returned is not counted, as the stars do not count him); where aid is run beside mix the report adds 5.2's row:
+//     aid's defenders lost against mix's, the defenders returned (mean and most), and the seeds mix loses that aid wins
 // Math.random is seeded per battle, so a run is repeatable and two versions of the game can be compared
 // battle for battle (GAME= the old copy). A battlefield's seeds (and which mastery its first tower of a kind takes)
 // come from its slot in BOT_SLOT, by id, never from its place in the campaign: inserting a battlefield reseeds
@@ -208,6 +214,10 @@ const BUILDS = {
   // mix with the special tower in those places
   minemix:   ["archer", "ballista", "catapult", "fire", "archer", "drums", "ballista", "age", "catapult", "archer", "fire",
               "ballista", "age", "drums", "catapult", "archer"],
+  // G7d (gameplay 3.5, 5.2): aid, the mix with the battlefield's special tower as its sixth building: the Aid Post on Van,
+  // Musa Dagh and Sardarapat. Where "age" is another tower it is the mix with that tower in its place
+  aid:       ["archer", "ballista", "catapult", "fire", "archer", "age", "drums", "ballista", "catapult", "archer", "fire",
+              "ballista", "drums", "catapult", "archer"],
 };
 // a build's own masteries, before SPEC= (a kind it names takes that mastery in every battle)
 const BUILD_SPEC = { harriers: "horse=b" };
@@ -412,7 +422,10 @@ function playBattle(a) {
   reachR = mineReach0 || 170;
   const rankMine = mineReach0 ? rankOver(pts).filter(i => padTakesRoad(i, mineReach0)) : [];
   reachR = 170;
-  const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : k === "mine" ? rankMine : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
+  // Aid Post (G7d, gameplay 5.4): the free pad nearest the fortress
+  // (AID_PAD=least, for a trial: the Stores' pad, the free pad that reaches the least road)
+  const rankAid = a.aidPad === "least" ? storesRank : typeof aidPadGap === "function" ? PADS.map((p, i) => i).sort((x, y) => aidPadGap(x) - aidPadGap(y)) : [];
+  const padFor = k => (k === "horse" && horseReach ? rankHorse() : k === "stores" ? storesRank : k === "mine" ? rankMine : k === "aid" ? rankAid : (k === "post" ? rankPost : TOWER_DEFS[k].air ? rankAir : rankRoad)).find(i => !towerAt(i));
   const kindAt = j => {
     let k = plan[j % plan.length];
     if (k === "age") {
@@ -437,8 +450,11 @@ function playBattle(a) {
       // (a Stores' rank waits until every fighting tower has its own, and none is bought once two thirds of the
       // battle's waves are sent: it could not pay itself back, G7b)
       const ups = towers.filter(t => !t.spec && !t.wreck && t.level < TOWER_DEFS[t.type].levels.length - 1 &&
-        !(t.type === "stores" && (storesRank0 === "never" || waveIdx >= total() * 2 / 3))).sort((x, y) => x.level - y.level);
-      const fight = ups.filter(t => t.type !== "stores");
+        !(t.type === "stores" && (storesRank0 === "never" || waveIdx >= total() * 2 / 3)) &&
+        // (an Aid Post's ranks wait until every pad is built: it fights nothing, so the board comes first, G7d)
+        !(t.type === "aid" && PADS.some((p, i) => !towerAt(i)))).sort((x, y) => x.level - y.level);
+      // (the Aid Post waits as the Stores do: it fights nothing, G7d)
+      const fight = ups.filter(t => t.type !== "stores" && t.type !== "aid");
       const up = storesRank0 === "last" && fight.length ? fight[0] : ups[0];
       const nk = PADS.some((p, i) => !towerAt(i)) ? nextKind() : null, build = nk && nk.k;
       const nextPad = build && padFor(build);
@@ -450,7 +466,7 @@ function playBattle(a) {
         // battle's waves are sent, G7b)
         const ready = towers.filter(t => !t.spec && !t.wreck && t.level >= TOWER_DEFS[t.type].levels.length - 1 &&
           !(t.type === "stores" && waveIdx >= total() * 2 / 3));
-        const sp = ready.find(t => t.type !== "stores") || ready[0];
+        const sp = ready.find(t => t.type !== "stores" && t.type !== "aid") || ready[0];
         if (sp) {
           const key = sp.botSpec || (sp.botSpec = specFor(sp));
           if (gold >= specInfo(sp.type, key).cost) { specializeTower(sp, key); done = true; }
@@ -632,7 +648,10 @@ function playBattle(a) {
       towers.map(t => t.type[0] + (t.spec || t.level + 1)).join(""));
   };
   while (!gameOver && waveIdx < total()) oneWave();
-  const wonChronicle = lives > 0 && waveIdx >= total() && gameOver, livesChronicle = Math.max(0, lives), waveChronicle = waveIdx;
+  // (the defenders never lost: an Aid Post's returned defenders man the walls but are not counted, G7d; battle.returned
+  // is 0 on a page or a battlefield without the post, so every other cell is as before)
+  const returned = typeof battle !== "undefined" && battle.returned ? battle.returned : 0;
+  const wonChronicle = lives > 0 && waveIdx >= total() && gameOver, livesChronicle = Math.max(0, lives - returned), waveChronicle = waveIdx;
   // ENDLESS=n: a victory goes on into the endless stand (the victory page's own button), up to n waves beyond the
   // chronicle; `beyond` is the waves held there before the walls fell (n: never fell)
   let beyond = null;
@@ -669,7 +688,9 @@ function playBattle(a) {
     calls: F ? F.calls : 0, heroFalls: F ? F.heroFalls : 0, heroLevel: F ? F.heroLevel : 1,
     // the gold standing on the board at the end (every tower's invested gold), what Stores paid, the defenders kept
     // when the first commander's wave ended (G7b)
-    invested: towers.reduce((n, t) => n + towerInvested(t), 0), storesGold: F && F.from ? F.from.stores || 0 : 0, livesCmd1 };
+    invested: towers.reduce((n, t) => n + towerInvested(t), 0), storesGold: F && F.from ? F.from.stores || 0 : 0, livesCmd1,
+    // the defenders an Aid Post returned in the chronicle, and the defenders lost (G7d)
+    returned, lost: DIFFS[diff].lives - livesChronicle };
 }
 
 (async () => {
@@ -723,7 +744,7 @@ function playBattle(a) {
     // a second seed also changes how often the bot looks at its gold and spells, which moves every purchase
     queue.push({ lv, slot: slotOf(lv), diff, build: b, plan: BUILDS[b], seed: 1009 + 7919 * s + 31 * slotOf(lv), pace: 2 * [1, 0.8, 1.25, 0.9, 1.1][s % 5],
       spells, spec: BUILD_SPEC[b] ? BUILD_SPEC[b] + "," + spec : spec, dt, probe, counters, early: process.env.EARLY === "1", earlyN: +(process.env.EARLY_N || 3), kit, heroMode, wait, endlessN: Math.max(0, +(process.env.ENDLESS || 0)),
-      daily, twist, day, ageMax: BUILD_AGE_MAX[b] || 0, storesRank: process.env.STORES_RANK || "last" });
+      daily, twist, day, ageMax: BUILD_AGE_MAX[b] || 0, storesRank: process.env.STORES_RANK || "last", aidPad: process.env.AID_PAD || "near" });
   }
   const results = [];
   let done = 0;
@@ -850,6 +871,20 @@ function playBattle(a) {
           Math.round(M(lv, "greedy", r => r.storesGold) || 0) + ", " + Math.round(M(lv, "bazaar", r => r.storesGold) || 0));
       }
       if (n) console.log("bazaar ends below mix on " + below + " of " + n);
+    }
+    // the Aid Post (gameplay 5.2): aid (the mix with the post sixth) against mix: the defenders lost (a lost battle counts
+    // every defender), the defenders returned in a battle (mean, most) and the seeds mix loses that aid wins
+    if (builds.includes("mix") && builds.includes("aid")) {
+      console.log("\nAid Post (G7d): aid against mix; lost is the defenders lost (a defeat all of them), means over the seeds");
+      console.log(pad("battlefield", NW) + pad("mix lost", 10) + pad("aid lost", 10) + pad("more", 8) + pad("returned", 12) + "seeds mix lost, aid won");
+      for (const lv of levels) {
+        const rm = results.filter(r => r.diff === diff && r.lv === lv && r.build === "mix"), ra = results.filter(r => r.diff === diff && r.lv === lv && r.build === "aid");
+        if (!rm.length || !ra.length) continue;
+        const lost = rs => rs.reduce((n, r) => n + (r.won ? r.lost : [30, 20, 14][diff]), 0) / rs.length;
+        const ret = ra.map(r => r.returned || 0), turned = rm.filter((r, i) => !r.won && ra[i] && ra[i].won).length;
+        console.log(pad(lv + " " + names[lv], NW).slice(0, NW) + pad(lost(rm).toFixed(1), 10) + pad(lost(ra).toFixed(1), 10) +
+          pad((lost(ra) - lost(rm) >= 0 ? "+" : "") + (lost(ra) - lost(rm)).toFixed(1), 8) + pad((ret.reduce((x, y) => x + y, 0) / ret.length).toFixed(1) + " (" + Math.max(...ret) + ")", 12) + turned);
+      }
     }
     const throws = Object.keys(agg).filter(k => agg[k].thrown > 0).sort();
     if (throws.length) console.log("px thrown back per 100 gold: " + throws.map(k => k + " " + Math.round(agg[k].thrown / agg[k].gold * 100) + " (" + agg[k].n + ")").join(", "));

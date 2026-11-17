@@ -9,7 +9,8 @@
 // tray holds it: refused on a pad with no road in reach as the post is, and, once the field holds its limit, refused
 // with its own sentence ("Two horse lines are all this field can stable.", G7b's Stores "Two stores are all this road can
 // feed."), the pad then taking the next kind. The Stores (on Dvin, Tashir, Sevan, Ani, Mari and Sis) take any pad; the
-// Powder Mine (G7c, on Gyumri Road and Halidzor) asks for road in its reach and has no limit.
+// Powder Mine (G7c, on Gyumri Road and Halidzor) asks for road in its reach and has no limit; the Aid Post (G7d, on Van,
+// Musa Dagh and Sardarapat) takes any pad, one on a field ("One aid post serves this field.").
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/padplace.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
 const R = require("./lib");

@@ -6,8 +6,8 @@
 // then the road inside its ring where it is drawn: the men's rally point must move there, the panel go, and nothing
 // else (a panel, land, the hero) take the press. A phone pass (667x320, touch) does the same on three battlefields and
 // on the Powder Mine's two. Every mine's charges stand armed while the towers are pressed: no press may fire one.
-// Where the tray holds the battlefield's special tower (G7a: the Horse Lines; G7b: the Stores; G7c: the Powder Mine), two
-// of them stand among the rest, at ranks and masteries by turns. On the first mine of each battlefield Lay the charge is
+// Where the tray holds the battlefield's special tower (G7a: the Horse Lines; G7b: the Stores; G7c: the Powder Mine; G7d:
+// the Aid Post, one), two (or its limit) of them stand among the rest, at ranks and masteries by turns. On the first mine of each battlefield Lay the charge is
 // pressed, then the road in its ring (the charge must lie there), then its marker once armed (it must fire, no panel).
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/probe.js [index.html] [--quick] [--levels=0,ani] [--shots=dir]
 "use strict";
