@@ -7,8 +7,11 @@
 // panel is opened by a tap on its body and Upgrade raises it a rank. The shooters are raised to their third rank by script
 // (the test is about the post, and its lives say nothing about balance). Then the waves at 2x with Auto, and while foes
 // are in its reach the post is retargeted by a finger: a tap on its body, then Target, five times over the battle.
-// Watched at every look: it marks at most its marks, only foes in its reach, each with the post's amp; after each
-// retarget the mark is the first foe of the new order among those in reach; a marked hidden foe is seen.
+// Watched at every look, read as the game left it (the watch never ticks the post itself): it marks at most its marks,
+// only foes in its reach (a foe walks on a step after the post's tick in the same frame, so a step's slack), each with
+// the post's amp; a marked hidden foe is seen. A retarget is played paused, by a finger on the pause button: with the
+// battle stopped, the press alone must move the ring to the first foe of the new order among those in reach, and leave
+// no other foe marked.
 // It fails on a page error, a second post built, a panel not opened by a tap, a retarget that did not move the order or
 // the mark, no mark seen by wave 6, the stand lost before wave 6, or any watch above broken.
 // Usage:  NODE_PATH=$(npm root -g) node tools/playtest-spot.js [index.html] [--verbose]
@@ -68,13 +71,12 @@ const RETARGETS = 5, UNTIL = 6;
       let cards = 0, marksSeen = 0, retargets = 0, lastTry = 0, hiddenMarked = 0;
       for (const until = Date.now() + 1500000; Date.now() < until;) {
         const st = await g.ev(pad => {
-          // (the marks as the tick leaves them: foes walk on after the post's tick in the same frame, so the watch first
-          // lets the post settle its marks on where they stand now, as its next tick would)
+          // (the marks as the last tick left them: a foe may since have fallen, or walked a step on past the reach)
           const t = towerAt(pad);
-          spotTick(0);
-          const s = getStats(t), inR = enemies.filter(e => spotReach(t, e, s.range));
+          const s = getStats(t), inR = enemies.filter(e => spotReach(t, e, s.range)), live = t.marks.filter(e => !e.dead && e.hp > 0);
+          const slack = enemies.filter(e => spotReach(t, e, s.range + 12));
           return { over: gameOver, cleared: lastCleared, card: !!document.querySelector("#trickCard.on"), n: t.marks.length, max: s.marks, inR: inR.length,
-            bad: t.marks.filter(e => !inR.includes(e) || Math.abs(e.spotAmp - s.amp) > 1e-9).length, hid: t.marks.filter(e => e.hid).map(e => !foeUnseen(e)), prio: t.prio };
+            bad: live.filter(e => !slack.includes(e) || Math.abs(e.spotAmp - s.amp) > 1e-9).length, hid: live.filter(e => e.hid).map(e => !foeUnseen(e)), prio: t.prio };
         }, sp);
         if (st.over) break;
         if (st.card) { await g.press("#tcBtn"); cards++; continue; }
@@ -86,25 +88,30 @@ const RETARGETS = 5, UNTIL = 6;
         // retarget by finger while foes stand in its reach
         if (retargets < RETARGETS && st.inR >= 2 && Date.now() - lastTry > 6000) {
           lastTry = Date.now();
-          // the game is paused for the retarget (a player may press Target paused or not): the new mark is then taken on
-          // the foes as they stand, and the watch compares it with the order on those same foes
-          await g.ev(() => { paused = true; });
-          if (!(await open())) { fail("a tap on the post during the battle did not open its panel"); await g.ev(() => { hidePanel(); paused = false; }); continue; }
+          // a finger pauses the battle, as a player who wants to choose would; the press alone must then move the ring
+          await g.press("#hudPause");
+          await g.frames(1);
+          if (!(await g.ev(() => paused))) { fail("a tap on the pause button did not pause"); continue; }
+          if (!(await open())) { fail("a tap on the post during the battle did not open its panel"); await g.ev(() => hidePanel()); await g.press("#hudPause"); continue; }
           await g.wait(450);
           await g.press("#pTarget");
           await g.frames(1);
           const r = await g.ev(pad => {
             const t = towerAt(pad), s = getStats(t), inR = enemies.filter(e => spotReach(t, e, s.range));
-            spotTick(0);
             const want = inR.slice(); sortByPrio(want, t.prio);
-            return { prio: t.prio, ok: !inR.length || t.marks[0] === want[0], panel: panelEl.style.display === "block" };
+            const ringed = enemies.filter(e => e.spotAmp > 0);
+            return { prio: t.prio, paused, ok: !inR.length || (t.marks[0] === want[0] && want[0].spotAmp > 0 && ringed.every(e => t.marks.includes(e))), panel: panelEl.style.display === "block" };
           }, sp);
+          if (!r.paused) fail("the battle ran on through the retarget");
           const was = st.prio, next = { first: "last", last: "strong", strong: "weak", weak: "first" }[was];
           if (r.prio !== next) fail("Target moved the order from " + was + " to " + r.prio);
           else if (!r.ok) fail("after Target (" + r.prio + ") the mark is not the first of that order");
           else { retargets++; orders.push(r.prio); }
           await g.page.keyboard.press("Escape");
-          await g.ev(() => { hidePanel(); paused = false; });
+          await g.ev(() => hidePanel());
+          await g.press("#hudPause");
+          await g.frames(1);
+          if (await g.ev(() => paused)) fail("a tap on the pause button did not resume");
         }
         if (st.cleared >= UNTIL) break;
         await g.wait(150);

@@ -192,3 +192,16 @@ How it felt, from the run and the photos:
   - `hiddenMarked` is 0 at every size, because Stepanakert 1992 has no hidden foes (only Shushi does). The playtest
     never shows a marked scout being seen. Suite 2's check covers that rule.
   - The retarget is checked by the watch's own tick (finding 6).
+
+## Close
+
+- 1 fixed: a press of Target or a sale settles the marks at once (`spotTick(0, true)`: marks only, no shell, no reload);
+  suite 2 asserts a paused retarget and a paused sale.
+- 2 fixed: suite 2 asserts the mark on the fire altar's burn and on a pitch pot (both mutants now caught).
+- 3 fixed: Fire Direction shells the first marked foe on the ground and waits when only the air is marked (the 3.6 note
+  says so); suite 2 asserts it.
+- 4 fixed: README G7e writes the endless row as NOT met on Stepanakert 1992, not caused by the post.
+- 5 reported to the owner (the price is the knob), no change.
+- 6 fixed: the playtest's watch never ticks the post, pauses with a finger on the pause button, and asserts that a
+  paused retarget alone moves the ring.
+- 7 fixed: the post's record reads "N foes marked", with Fire Direction's shell damage beside it.

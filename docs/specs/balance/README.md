@@ -903,12 +903,26 @@ What the tables say of the post itself, for the owner:
   mix's 18.7) and Stepanakert 2023 ("aid" 20.0 against the mix's 14.0, +6.0). 5.2's row is read on the campaign's Normal,
   where it is met; the daily's +6.0 on Stepanakert 2023 is reported, not bound.
 - The Council (KIT=par HERO=hold): the best builds are unchanged (balldrum, ballista, balldrum: the post in none).
-- The endless stand (ENDLESS=20): every board falls by 20 waves beyond (not made endless: met). mix7 falls 4 beyond on
-  Stepanakert 1992 on every seed, under 5.2's 8; on Shushi 9, 9, 16 and on Stepanakert 2023 10 and 11 (one seed lost in the
-  chronicle). No earlier package measured these three, so whether the post moved the 4 cannot be read; mix7's chronicle cells
-  there are unchanged.
+- The endless stand (ENDLESS=20): every board falls by 20 waves beyond (not made endless: met). mix7's fall: NOT met on
+  Stepanakert 1992 (4, 4, 4 waves beyond against 5.2's 8 to 20); on Shushi 9, 9, 16 and on Stepanakert 2023 10 and 11 (one
+  seed lost in the chronicle). The post is not the cause: the review ran the same stand with the post's amp and shell set to
+  0 by PATCH and mix7 fell 4, 4, 2 beyond. It is the battlefield's, and the owner's to rule on beside G5's open cells.
 
 Pars: LEVEL_PAR's Stepanakert 1992 Hard is now 2223 (mix7's clock, the post 15th, best by 0.3). DAILY_PAR's Stepanakert
 1992 is 1902 (mix7) and Stepanakert 2023 1242 ("aid"). Revs: the three rise to 3 (their pins moved); RULESET stays 2.
 
 G5's open cells: the post moves none of them (they lie on other battlefields).
+
+### G7e close (the review's findings)
+
+- A press of Target or a sale now moves or clears the ring at once, paused or not (`spotTick(0, true)` marks and nothing
+  else: no shell, no reload).
+- Fire Direction's shell is the mortar's and lands only on a marked foe on the ground; a ready shell with only an
+  outflanker or a drone marked waits.
+- The post's panel record reads the foes it has marked, and Fire Direction's shell damage beside them, not "0 kills".
+- Suite 2 now covers the mark on the fire altar's burn and on a pitch pot, a paused retarget, a paused sale and the shell
+  over an outflanker (five mutants, each caught).
+- The six tables were rerun on the closed page (SEEDS=3, CLOCK=1). Only a few seconds of clock moved in single cells on
+  Shushi and in the damage per 100 gold line; every defenders and wins cell, 5.2's two rows, the pars (LEVEL_PAR Hard
+  Stepanakert 1992 2223, DAILY_PAR 1902 and 1242) are unchanged. The endless stands are unchanged but one seed:
+  minemix on Shushi fell 16 waves beyond, not 17 (no shell over a drone now); mix7's falls are the same.
