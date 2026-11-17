@@ -53,7 +53,7 @@ const U = {
   AD: "00000000-0000-4000-8000-0000000000ad",
 };
 
-let admin, api, api2, clock = "";
+let admin, api, api2, clock = "", DBH = null, DBN = "";
 async function setClock(interval) { clock = interval || ""; }
 // a superuser's statement, with the test clock set for its transaction
 async function su(sql, params) {
@@ -740,12 +740,18 @@ group("daily tab", async () => {
   // four players post today; the next day the status names yesterday's first three, best first, a hidden one left out
   const winOf = (lives, sec) => ({ won: true, lives, waves: 12, sim_sec: sec, spent: 1000, earned: 2000 });
   const posted = {};
-  for (const [who, lives, sec] of [[U.C, 12, 700], [U.D, 11, 650], [U.A, 9, 800], [U.B, 12, 600]]) {
-    const b = await runBegin(who, "daily", p0.level, 1, "2", p0.twist);
-    ok(b.ok === true, "a daily begins for each player");
-    await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
-    posted[who] = (await rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: winOf(lives, sec) })).score;
-  }
+  // (C's result goes on a connection of its own whose first call it is, as a pooled PostgREST connection may be:
+  // hs_score_submit before 008 failed there for a daily, reading a week's rank it had not assigned)
+  const fresh = await DBH.client(DBN, "authenticator");
+  try {
+    for (const [who, lives, sec] of [[U.C, 12, 700], [U.D, 11, 650], [U.A, 9, 800], [U.B, 12, 600]]) {
+      const b = await runBegin(who, "daily", p0.level, 1, "2", p0.twist);
+      ok(b.ok === true, "a daily begins for each player");
+      await su("update highland.hs_runs set started_at = started_at - interval '40 minutes' where id = $1", [b.run_id]);
+      const e = await err(rpc(who, "hs_score_submit", { p_run: b.run_id, p_stats: winOf(lives, sec) }, who === U.C ? { conn: fresh } : {}).then(r => { posted[who] = r.score; }));
+      ok(!e, "a daily's result is accepted" + (who === U.C ? " as a fresh connection's first call" : "") + (e ? " (" + e.msg + ")" : ""));
+    }
+  } finally { await fresh.end(); }
   st = await rpc(U.C, "hs_daily_status", { p_ruleset: "2" });
   ok(st.attempts_left === 2 && st.used === 1 && st.best === posted[U.C] && st.total === 4, "after one attempt: two left, the best and the board's size");
   await rpc(U.AD, "hs_admin_moderate", { p_user: U.B, p_hidden: true });
@@ -1565,6 +1571,7 @@ async function suite(db, name, handoff) {
   const warnings = [];
   await db.createDatabase(name, { schema: true, roundTrip: true, handoff, onNotice: m => { if (m.severity === "WARNING") warnings.push(m.message); } });
   admin = await db.client(name, "supabase_admin");
+  DBH = db; DBN = name;
   api = await db.client(name, "authenticator");
   api2 = await db.client(name, "authenticator");
   clock = "";

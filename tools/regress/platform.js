@@ -153,7 +153,7 @@ const t0 = Date.now();
 const opt = (k, d) => { const a = o.rest.find(x => x.startsWith("--" + k + "=")); return a ? a.slice(k.length + 3) : d; };
 const PHOTOS = opt("photos", null) ? path.resolve(opt("photos")) : null;
 if (PHOTOS) fs.mkdirSync(PHOTOS, { recursive: true });
-const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,9,10,11,13,14,15")).split(",");
+const FLOWS = (opt("flows", o.quick ? "1,2,4,5,7,11" : "1,2,3,4,5,6,7,8,9,10,11,13,14,15")).split(",");
 const UA = devices["iPhone 15"].userAgent;
 const SIZES = [
   { key: "desk", name: "mouse 1600x900", w: 1600, h: 900 },
@@ -2867,6 +2867,301 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(B, W + " (B)");
   };
 
+  // ================================================================ flow 8: the daily challenge (work package P6)
+  // A player with five battlefields (flow 7's) and the page's own ruleset published: the page's pick (gameplay's
+  // dailyPick, the platform's dailyOf) equal to the server's _daily_pick for 366 days from today, skip lists included,
+  // and Platform.daily() to the server's hs_daily_status; the welcome card's "Today's challenge" opens the Hall on the
+  // Daily tab (its badge, the map door's dot); the tab's words; gameplay's map door leads to it too. Three attempts,
+  // each told at its first wave: a victory posted ("#1 of 1 today", the server's score the page's and ref.js's, Share),
+  // a loss scored by the waves it held (its strip on the daily's end page, no Share, the debrief kept), a third; then
+  // the fourth is practice ("Practice: not ranked") and spends nothing. The tab: attempts 0 of 3, Practice, the board
+  // with the player's row tinted. A second player's lower score ranks second (desktop and 667x320). The day changes
+  // (the stack's clock): the next day's challenge, the attempts back, "Yesterday: 1. ..." under an empty board. With the
+  // database down a daily begun is practice and no attempt is spent (desktop and 667x320). Photos in p6 (--photos)
+  const F8SHOTS = PHOTOS ? path.join(PHOTOS, "p6") : null;
+  if (F8SHOTS) fs.mkdirSync(F8SHOTS, { recursive: true });
+  const f8photo = async (g, name) => { if (F8SHOTS) await g.page.screenshot({ path: path.join(F8SHOTS, name + "-" + g.o.key + ".png") }); };
+  // the Daily tab as the page shows it
+  const dyTab = (g) => g.ev(() => {
+    const t = document.querySelector("#hallBody .dyTab");
+    if (!t) return null;
+    const q = (c) => (t.querySelector(c) || {}).textContent || "";
+    return { tab: hallTab, head: q(".dyHead"), field: q(".dyField"), twist: q(".dyTwist"), rules: q(".dyRules"), mine: Array.from(t.querySelectorAll(".dyMine span")).map(s => s.textContent),
+      play: q(".dyPlay"), note: Array.from(t.querySelectorAll(".lbNote")).map(e => e.textContent).join("|"), next: q(".dyNext"), sit: q(".dySit"), yest: q(".dyYest"),
+      foot: q(".lbFoot"), loading: !!t.querySelector(".lbLoading"), empty: q(".lbEmpty"), sign: !!t.querySelector(".lbSign"),
+      rows: Array.from(t.querySelectorAll(".lbRow:not(.lbHead):not(.lbFaint)")).map(r => ({ me: r.classList.contains("lbMe"), cells: Array.from(r.children).map(c => c.textContent) })),
+      badge: (hallTabs().find(x => x.id === "daily") || {}).badge ? hallBadge(hallTabs().find(x => x.id === "daily")) : -1 };
+  });
+  const dyReady = (g) => g.page.waitForFunction(() => { const t = document.querySelector("#hallBody .dyTab"); return !!t && !t.querySelector(".lbLoading") && !hallEl.classList.contains("hlSettling") && !DY.asking; }, null, { timeout: 20000 });
+  const dyAuditTab = async (g, W, what, photo) => {
+    await audit(g, W + " " + what, { root: "#hall", parts: ["#hallBody", "#hallTabs", "#hallClose"], primary: ["#hallBody .dyPlay"], primaryRequired: true, scroll: "inside" }, null);
+    if (photo) await f8photo(g, photo);
+  };
+  // the server's word on today, as the stack's database holds it (the pick and the attempts)
+  const f8status = (g) => g.ev(async () => { const r = await pfRpc("hs_daily_status", { p_ruleset: PF_RULESET_ID }, { auth: true }); return r.ok ? r.data : { error: r.code }; });
+  // the daily's battle from its chronicle (gameplay's startDaily put it up): the first wave sent as the player sends it,
+  // then won or lost as vic.js stages an end: the clock and the gold set as a real battle's would stand, the run's
+  // start moved back by as long. o: { win, cleared (a loss: the waves held), lives, practice (no token wanted) }.
+  // An upright phone is turned sideways for the battle, and back for its end page
+  const f8fight = async (g, W, o) => {
+    const C = g.o, up = upr(C);
+    if (up) await g.page.setViewportSize({ width: C.h, height: C.w });
+    await g.page.waitForFunction(() => menuMode === "brief" && !!dailyRun && !overlayEl.classList.contains("hidden"), null, { timeout: 15000 });
+    await toasts(g);
+    const t0 = await g.ev(() => window.__hsToasts.length);
+    for (let k = 0; k < 6 && !(await g.ev(() => battleLive())); k++) {
+      await g.ev(() => { const e = $("startBtn"); if (e) e.scrollIntoView({ block: "nearest" }); });
+      await g.frames(2);
+      const q = await g.reach("#startBtn");
+      if (q.why) { await g.wait(200); continue; }
+      await g.tapAt(q.x, q.y);
+      await g.wait(300);
+    }
+    if (!(await g.ev(() => battleLive()))) throw new Error("the daily did not begin from its chronicle (" + await g.ev(() => menuMode) + ")");
+    await g.ev(() => { for (let k = 0; k < 6 && trickHold(); k++) dropTrickCards(); });
+    await g.ev(() => { if (!battle.started) startWave(); });
+    await g.page.waitForFunction(() => battle.started, null, { timeout: 10000 });
+    // the player is told at once whether it counts (5.6)
+    await until(() => g.ev(t => window.__hsToasts.slice(t).find(m => /^This attempt counts|^Practice/.test(m)) || null, t0), 9000, "the attempt's word").catch(e => fail(W, e.message));
+    const said = await g.ev(t => window.__hsToasts.slice(t).find(m => /^This attempt counts|^Practice/.test(m)) || "", t0);
+    if (!o.practice) await until(() => g.ev(() => SC.why === "held" && !!SC.tok), 10000, "the daily's run token").catch(e => fail(W, e.message));
+    const uid = JSON.parse(await store(g, "hs_pf_auth") || "null");
+    const b = await g.ev(() => { const L = levelId(curLevel); return Object.assign(boundsOf(pfRules(), L, 1, dailyRun.twist, true), { lv: L, twist: dailyRun.twist }); });
+    if (!o.practice && uid) await S.control("runback", { user_id: uid.uid, seconds: b.slow + 60 });
+    const lives = Math.min(b.lives, o.lives == null ? 10 : o.lives);
+    await g.ev(([o, b, n]) => {
+      battle.sec = o.win ? b.slow : Math.max(b.min, Math.round(b.slow * 0.6)); battle.spent = 400; battle.build = 400;
+      battle.earned = Math.max(battle.earned, Math.min(2400, b.earnMax)); battle.bounty = battle.earned - battle.start;
+      spawnQueue = []; enemies = [];
+      if (o.win) { lives = n; waveIdx = totalWaves(); phase = "wave"; syncHud(); }
+      else { lastCleared = o.cleared; waveIdx = o.cleared + 1; phase = "wave"; lives = 0; syncHud(); defeat(); }
+    }, [o, b, lives]);
+    if (o.win) {
+      await g.page.waitForFunction(() => gameOver && (celebration || menuMode === "victory"), null, { timeout: 15000 });
+      if (await g.ev(() => !!celebration)) await g.ev(() => { celebration.start = performance.now() - DANCE_MAX_MS - 50; });
+    } else await g.ev(() => { if (fallen) fallen.start -= 60000; });
+    await g.page.waitForFunction(() => menuMode === "victory" && overlayEl.classList.contains("dailyEnd") && !overlayEl.classList.contains("hidden"), null, { timeout: 20000 });
+    if (up) await g.page.setViewportSize({ width: C.w, height: C.h });
+    await g.page.waitForFunction(() => !overlayEl.classList.contains("settling"), null, { timeout: 8000 }).catch(() => {});
+    await g.wait(420);
+    const ev = (await evs(g, o.win ? "victory" : "defeat")).pop();
+    return { said, b, lives, ev, uid: uid && uid.uid };
+  };
+  // "Fight again" on the daily's end page: its chronicle again
+  const f8again = async (g) => { await f7press(g, "#startBtn"); await g.page.waitForFunction(() => menuMode === "brief" && !!dailyRun, null, { timeout: 10000 }); };
+  // the Daily tab from the map's door (gameplay's "Today's challenge"): the Hall, not the battle
+  const f8door = async (g, W) => {
+    await g.ev(() => { if (hallOpen) closeHall(); openCampaignMap(); });
+    await g.frames(3);
+    await f7press(g, "#dailyBtn");
+    await dyReady(g).catch(() => {});
+    const h = await g.ev(() => ({ hall: hallOpen, tab: hallTab, mode: menuMode, daily: !!dailyRun }));
+    if (!h.hall || h.tab !== "daily" || h.daily) fail(W, "the map's daily door: " + JSON.stringify(h));
+  };
+  const f8play = async (g, W) => {
+    await dyReady(g).catch(() => {});
+    await f7press(g, "#hallBody .dyPlay");
+    await g.page.waitForFunction(() => !hallOpen && menuMode === "brief" && !!dailyRun, null, { timeout: 10000 }).catch(async () => fail(W, "Play did not open the daily's chronicle: " + JSON.stringify(await g.ev(() => ({ hall: hallOpen, mode: menuMode, d: !!dailyRun })))));
+  };
+  const flow8 = async (C) => {
+    const W = "flow 8 " + C.name;
+    await resetStack();
+    const K = C.key, more = K === "desk" || K === "ses";
+    log("  flow 8: A signs in; the ruleset published");
+    const A = await open(C, { storage: f7prog, quietCall: true });
+    await A.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+    await S.control("provider", f7who(K, "d8a"));
+    await signIn(A, null, "google", "name");
+    const nameA = "Eight" + K + "A";
+    await A.page.fill("#gate .gtField", nameA);
+    await pressGo(A, "#gate .gtGo");
+    await gate(A, "welcome");
+    const uidA = await uidOf(A);
+    await S.control("admin", { user_id: uidA });
+    const pub = await A.ev(async () => { const r = await pfRpc("hs_admin_publish_ruleset", { p_id: PF_RULESET_ID, p_data: rulesetData() }, { auth: true, timeout: 20000 }); return r.ok ? "ok" : r.code; });
+    if (pub !== "ok") fail(W, "the ruleset was not published: " + pub);
+    // ---- the pick: the page's (gameplay's dailyPick and the platform's dailyOf) equal to the server's for 366 days
+    const today = (await S.query("select ((now() at time zone 'utc')::date - date '1970-01-01')::int as d"))[0].d;
+    const srv = await S.query(`select g, p.level_id, p.twist from highland.hs_rulesets r, generate_series($1::int, $1::int + 365) g,
+      lateral highland._daily_pick(r.data, date '1970-01-01' + g) p where r.id = '2' order by g`, [today]);
+    const pg = await A.ev(d0 => { const out = []; for (let d = d0; d < d0 + 366; d++) { const a = dailyPick(d), b = dailyOf(rulesetData().daily, d); out.push([LEVELS[a.levelIndex].id, a.twist, b.level, b.twist]); } return { out, same: JSON.stringify(rulesetData().daily) === JSON.stringify(Object.assign({}, rulesetData().daily, dailyRules())) }; }, today);
+    const skip = await A.ev(() => rulesetData().daily.skip);
+    const diff = srv.filter((x, i) => !pg.out[i] || pg.out[i][0] !== x.level_id || pg.out[i][1] !== x.twist || pg.out[i][2] !== x.level_id || pg.out[i][3] !== x.twist);
+    if (srv.length !== 366 || diff.length) fail(W, "the page's pick differs from the server's on " + diff.length + " of " + srv.length + " days: " + JSON.stringify(diff.slice(0, 3)));
+    if (srv.some(x => (skip[x.level_id] || []).includes(x.twist))) fail(W, "the server served a pair the skip lists leave out");
+    if (!pg.same) fail(W, "rulesetData().daily's pick is not dailyRules()'s");
+    notes.flows["p6 pick@" + K] = srv.length + " days equal";
+    // ---- the welcome card's door, the Daily tab, its words
+    const wtxt = await cardText(A);
+    if (!wtxt.includes("Today's challenge")) fail(W, "the welcome card has no Today's challenge: " + wtxt);
+    await audit(A, W + " welcome with the daily", cardSpec(["#gate .gtDaily"]), null);
+    await f8photo(A, "welcome");
+    await pressWelcome(A, "Today's challenge");
+    await gate(A, "");
+    await A.page.waitForFunction(() => hallOpen && hallTab === "daily", null, { timeout: 15000 }).catch(() => fail(W, "Today's challenge did not open the Daily tab"));
+    await dyReady(A).catch(() => fail(W, "the Daily tab did not settle"));
+    const ho = (await evs(A, "hall_open")).pop();
+    if (!ho || ho.tab !== "daily" || ho.from !== "welcome") fail(W, "hall_open from the welcome card: " + JSON.stringify(ho));
+    const st0 = await f8status(A), pd = await A.ev(() => Platform.daily());
+    const iA = await A.ev(id => LEVELS.findIndex(L => L.id === id), st0.level);
+    if (!pd || pd.levelIndex !== iA || pd.twist !== st0.twist || pd.day !== today || pd.attemptsLeft !== 3 || pd.server !== true) fail(W, "Platform.daily() is not the server's: " + JSON.stringify(pd) + " " + JSON.stringify(st0));
+    if (st0.level !== srv[0].level_id || st0.twist !== srv[0].twist) fail(W, "hs_daily_status is not the pick: " + JSON.stringify(st0));
+    const words = await A.ev(([i, t, d]) => ({ head: "Daily challenge · " + dailyDateWords(d), field: dailyTitle(i) + ", " + LEVELS[i].date, twist: twistName(t, i) }), [iA, st0.twist, today]);
+    let dt = await dyTab(A);
+    if (!dt || dt.head !== words.head || dt.field !== words.field || !dt.twist.startsWith(words.twist) || dt.rules !== "Normal · 12 waves · Standard loadout · The same for everyone" ||
+      dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" || !/^New challenge in (\d+ h( \d+ min)?|\d+ min|under a minute)$/.test(dt.next) ||
+      dt.sit !== "One sitting. Leaving the battle ends the attempt." || dt.empty !== "No scores yet today. Be the first to hold this field." || dt.badge !== 1 || dt.sign)
+      fail(W, "the Daily tab: " + JSON.stringify(dt));
+    if (/[–—]/.test(JSON.stringify(dt))) fail(W, "a long dash on the Daily tab");
+    await dyAuditTab(A, W, "Daily tab", "tab-fresh");
+    // the map's doors: the dot while today's daily is unplayed (the trophy door's, or held sideways the tally's pip)
+    await A.ev(() => closeHall());
+    await A.frames(3);
+    const dots = await A.ev(() => ({ side: phoneWide(), hall: $("hallBtn") ? $("hallBtn").classList.contains("pip") : null, tally: $("ovStars").classList.contains("pip"), title: $("dailyBtn").title }));
+    if ((!dots.side && !dots.hall) || !dots.tally) fail(W, "no dot for the unplayed daily: " + JSON.stringify(dots));
+    if (!dots.title.includes(words.field.split(", ")[0]) || !dots.title.includes(words.twist)) fail(W, "gameplay's door does not name today's battle: " + dots.title);
+    await f8photo(A, "map");
+    // gameplay's own door leads to the tab while the platform is on
+    await f8door(A, W);
+    // ---- attempt 1: won and posted
+    log("  flow 8: three attempts");
+    await f8play(A, W);
+    await f8photo(A, "chronicle");
+    let f = await f8fight(A, W, { win: true, lives: 11 });
+    if (f.said !== "This attempt counts. 2 attempts left today.") fail(W, "the first attempt's word: " + f.said);
+    await f7settled(A);
+    let st = await strip(A);
+    const rules = await A.ev(() => rulesetData());
+    const exp1 = refm.scoreOf({ won: true, lives: f.lives, sim_sec: f.b.slow, spent: 400, earned: f.ev.earned }, f.b, rules.score);
+    const row1 = await f7last(uidA);
+    if (!row1) fail(W, "the daily's post was refused: " + JSON.stringify(await A.ev(async (e) => { const r = await pfRpc("hs_score_submit", { p_run: SC.page.rid, p_stats: { won: true, lives: e.lives, waves: e.wave, sim_sec: e.sec, spent: e.spent, earned: e.earned, loadout: "std", build: "x" } }, { auth: true }); return [r.status, r.data]; }, f.ev)));
+    if (!row1 || row1.score !== exp1 || st.score !== exp1 || row1.board !== "d:" + new Date(today * 86400000).toISOString().slice(0, 10)) fail(W, "the daily's score: server " + JSON.stringify(row1) + ", page " + st.score + ", ref " + exp1);
+    if (stripSays(st) !== "Score " + exp1.toLocaleString("en-US") + " · #1 of 1 today") fail(W, "the won daily's strip: " + JSON.stringify(st));
+    if (f.ev.stars !== 0) fail(W, "a daily's event carries stars: " + f.ev.stars);
+    const shareOn = await A.ev(() => (phoneWide() ? !$("shareBtn").hidden : !!document.querySelector("#ovScore .scShare")));
+    if (!shareOn) fail(W, "no Share on the won daily's page");
+    const dp = (await evs(A, "daily_played")).pop();
+    if (!dp || dp.won !== true || dp.attempt !== 1 || dp.ranked !== true || dp.score !== exp1 || dp.twist !== st0.twist) fail(W, "daily_played: " + JSON.stringify(dp));
+    await f7audit(A, W, "won daily's page", null);
+    await f8photo(A, "won");
+    // its Leaderboard: the Daily tab, the player on today's board
+    await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await A.page.waitForFunction(() => hallOpen && hallTab === "daily", null, { timeout: 10000 }).catch(() => fail(W, "the won daily's Leaderboard is not the Daily tab"));
+    await dyReady(A).catch(() => {});
+    dt = await dyTab(A);
+    if (!dt || dt.rows.length !== 1 || !dt.rows[0].me || dt.rows[0].cells[1] !== nameA || dt.rows[0].cells[2] !== exp1.toLocaleString("en-US") || dt.rows[0].cells[3] !== f.lives + "/" + f.b.lives ||
+      dt.mine.join("|") !== "Attempts left: 2 of 3|Your best today: " + exp1.toLocaleString("en-US") + " (#1 of 1)" || dt.badge !== 0) fail(W, "the Daily tab after a win: " + JSON.stringify(dt));
+    await dyAuditTab(A, W, "Daily tab with a score", "tab-scored");
+    await A.ev(() => closeHall());
+    // ---- attempt 2: lost, scored by the waves it held; its strip on the daily's end page, no Share, the debrief
+    await A.ev(() => { openCampaignMap(); });
+    await f8door(A, W);
+    await f8play(A, W);
+    f = await f8fight(A, W, { win: false, cleared: 5 });
+    if (f.said !== "This attempt counts. 1 attempt left today.") fail(W, "the second attempt's word: " + f.said);
+    await f7settled(A);
+    st = await strip(A);
+    const row2 = await f7last(uidA);
+    if (!row2 || row2.score !== Math.floor(4000 * 5 / 12)) fail(W, "the lost daily's score on the server: " + JSON.stringify(row2));
+    if (st.score !== Math.floor(4000 * 5 / 12) || stripSays(st) !== "Score 1,666 · #1 of 1 today") fail(W, "the lost daily's strip: " + JSON.stringify(st));
+    const lostPage = await A.ev(() => ({ share: !!document.querySelector("#ovScore .scShare") || !$("shareBtn").hidden, deb: $("ovDebrief").classList.contains("on") && getComputedStyle($("ovDebrief")).display !== "none",
+      cls: document.body.classList.contains("pfShare"), title: $("ovTitle").textContent }));
+    if (lostPage.share || lostPage.cls) fail(W, "a lost daily's page offers Share: " + JSON.stringify(lostPage));
+    await f7audit(A, W, "lost daily's page", null);
+    await f8photo(A, "lost");
+    // ---- attempt 3 (Fight again), then the fourth: practice, said at once, nothing spent
+    await f8again(A);
+    f = await f8fight(A, W, { win: true, lives: 6 });
+    if (f.said !== "This attempt counts. It is your last today.") fail(W, "the third attempt's word: " + f.said);
+    await f7settled(A);
+    st = await strip(A);
+    // (the best stands: the first attempt's; the strip names the rank of the player's best)
+    if (!/^Score [\d,]+ · #1 of 1 today$/.test(stripSays(st))) fail(W, "the third attempt's strip: " + JSON.stringify(st));
+    const runs0 = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily'", [uidA]))[0].n;
+    await f8again(A);
+    f = await f8fight(A, W, { win: true, lives: 12, practice: true });
+    if (f.said !== "Practice: no attempts left today. This battle is not ranked.") fail(W, "the fourth attempt's word: " + f.said);
+    await A.wait(400);
+    st = await strip(A);
+    if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the practice daily's strip: " + JSON.stringify(st));
+    const runs1 = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily'", [uidA]))[0].n;
+    if (runs0 !== 3 || runs1 !== 3) fail(W, "the daily's runs on the server: " + runs0 + " then " + runs1 + " (three wanted)");
+    const dp4 = (await evs(A, "daily_played")).pop();
+    if (!dp4 || dp4.ranked !== false || dp4.attempt !== 0) fail(W, "the practice's daily_played: " + JSON.stringify(dp4));
+    await f7audit(A, W, "practice daily's page", null);
+    await f8photo(A, "practice");
+    // the tab: none left, Practice
+    await f7press(A, st.side ? "#boardBtn" : "#ovScore .scBoard");
+    await dyReady(A).catch(() => {});
+    dt = await dyTab(A);
+    if (!dt || dt.mine[0] !== "Attempts left: 0 of 3" || dt.play !== "Practice" || !dt.note.includes("Your three attempts are used.")) fail(W, "the Daily tab with no attempt left: " + JSON.stringify(dt));
+    await dyAuditTab(A, W, "Daily tab, attempts used", "tab-spent");
+    await A.ev(() => closeHall());
+    // ---- a second player's lower score ranks second
+    let B = null;
+    if (more) {
+      log("  flow 8: B");
+      B = await open(C, { storage: f7prog, quietCall: true });
+      await B.page.waitForFunction(() => typeof gateState !== "undefined" && document.readyState === "complete");
+      await S.control("provider", f7who(K, "d8b"));
+      await signIn(B, null, "google", "name");
+      const nameB = "Eight" + K + "B";
+      await B.page.fill("#gate .gtField", nameB);
+      await pressGo(B, "#gate .gtGo");
+      await gate(B, "welcome");
+      await f7map(B);
+      await f8door(B, W);
+      const dB = await dyTab(B);
+      if (!dB || dB.badge !== 1 || dB.rows.length !== 1 || dB.rows[0].me || dB.mine.join("|") !== "Attempts left: 3 of 3") fail(W, "B's Daily tab: " + JSON.stringify(dB));
+      await f8play(B, W);
+      const fb = await f8fight(B, W, { win: false, cleared: 2 });
+      await f7settled(B);
+      const sb = await strip(B);
+      if (stripSays(sb) !== "Score 666 · #2 of 2 today") fail(W, "B's strip: " + JSON.stringify(sb) + " " + fb.said);
+      await done(B, W + " (B)");
+    }
+    // ---- the day changes: the next challenge, the attempts back, yesterday's first three
+    log("  flow 8: the day changes");
+    await S.control("clock", { offset: "1 day" });
+    const p2 = (await S.query(`select p.level_id, p.twist from highland.hs_rulesets r, lateral highland._daily_pick(r.data, (now() at time zone 'utc')::date + 1) p where r.id = '2'`))[0];
+    await A.ev(() => { DY.st = null; });
+    await A.ev(() => pfRpc("hs_config", {}, {}));   // (any answer moves the page's clock to the server's)
+    await A.ev(() => { openCampaignMap(); });
+    await f8door(A, W);
+    dt = await dyTab(A);
+    const i2 = await A.ev(id => LEVELS.findIndex(L => L.id === id), p2.level_id);
+    const w2 = await A.ev(([i, t, d]) => ({ head: "Daily challenge · " + dailyDateWords(d), field: dailyTitle(i) + ", " + LEVELS[i].date, twist: twistName(t, i) }), [i2, p2.twist, today + 1]);
+    const yWant = "Yesterday: 1. " + nameA + " " + exp1.toLocaleString("en-US") + (more ? " · 2. Eight" + K + "B 666" : "");
+    if (!dt || dt.head !== w2.head || dt.field !== w2.field || !dt.twist.startsWith(w2.twist) || dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" ||
+      dt.rows.length || dt.yest !== yWant || dt.badge !== 1) fail(W, "the next day's tab: " + JSON.stringify(dt) + " wanted " + JSON.stringify(w2) + " " + yWant);
+    const pd2 = await A.ev(() => Platform.daily());
+    if (!pd2 || pd2.levelIndex !== i2 || pd2.twist !== p2.twist || pd2.day !== today + 1) fail(W, "Platform.daily() the next day: " + JSON.stringify(pd2));
+    await dyAuditTab(A, W, "Daily tab, the next day", "tab-nextday");
+    await A.ev(() => closeHall());
+    // ---- the database down: Platform.daily() is still today's (the page's own lines), a daily begun is practice and spends nothing
+    if (more) {
+      log("  flow 8: offline");
+      await S.control("rest", { mode: "down" });
+      await A.ev(() => { DY.st = null; pfDrop("hs_pf_daily"); });
+      const pd3 = await A.ev(() => Platform.daily());
+      if (!pd3 || pd3.levelIndex !== i2 || pd3.twist !== p2.twist || pd3.server !== false || pd3.attemptsLeft !== null) fail(W, "Platform.daily() with the server down: " + JSON.stringify(pd3));
+      await f8door(A, W);
+      dt = await dyTab(A);
+      if (!dt || dt.field !== w2.field || dt.play !== "Play today's challenge" || dt.empty !== "The daily's board needs a connection.") fail(W, "the Daily tab with the server down: " + JSON.stringify(dt));
+      await f8play(A, W);
+      const fo = await f8fight(A, W, { win: true, lives: 9, practice: true });
+      if (fo.said !== "Practice: no connection. This battle is not ranked.") fail(W, "the offline daily's word: " + fo.said);
+      await A.wait(300);
+      st = await strip(A);
+      if (!/^Score [\d,]+ · Practice: not ranked$/.test(stripSays(st))) fail(W, "the offline daily's strip: " + JSON.stringify(st));
+      await S.control("rest", { mode: "up" });
+      const n = (await S.query("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = (now() at time zone 'utc')::date + 1", [uidA]))[0].n;
+      if (n !== 0) fail(W, "a daily begun offline spent an attempt (" + n + ")");
+    }
+    await S.control("clock", { offset: "" });
+    await done(A, W + " (A)");
+  };
+
   // ================================================================ flow 9: the share card (work package P7)
   // A signed-in player with eight battlefields won wins Ani (a short name) and Sis (the longest title, "The King
   // Yields on Terms", after its Terms card); a guest under the optional gate wins Erebuni Rise. Each picture is read
@@ -3227,7 +3522,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await done(G, W + " (a guest)");
   };
 
-  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
+  const FLOW = { 1: flow1, 2: flow2, 3: flow3, 4: flow4, 5: flow5, 6: flow6, 7: flow7, 8: flow8, 9: flow9, 10: flow10, 11: flow11, 13: flow13, 14: flow14, 15: flow15, "4more": flow4more, "5more": flow5more, "13more": flow13more, "13del": flow13del, "13gone": flow13gone };
   try {
     for (const C of RUN) {
       for (const f of FLOWS) {
