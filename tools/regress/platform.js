@@ -3032,7 +3032,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
       dt.mine.join("|") !== "Attempts left: 3 of 3" || dt.play !== "Play today's challenge" || !/^New challenge in (\d+ h( \d+ min)?|\d+ min|under a minute)$/.test(dt.next) ||
       dt.sit !== "One sitting. Leaving the battle ends the attempt." || dt.empty !== "No scores yet today. Be the first to hold this field." || dt.badge !== 1 || dt.sign)
       fail(W, "the Daily tab: " + JSON.stringify(dt));
-    if (/[–—]/.test(JSON.stringify(dt))) fail(W, "a long dash on the Daily tab");
+    if (/[\u2013\u2014]/.test(JSON.stringify(dt))) fail(W, "a long dash on the Daily tab");
     await dyAuditTab(A, W, "Daily tab", "tab-fresh");
     // the map's doors: the dot while today's daily is unplayed (the trophy door's, or held sideways the tally's pip)
     await A.ev(() => closeHall());

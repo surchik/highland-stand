@@ -315,7 +315,7 @@ if (pure) {
     eq(pure.dailyYesterday({ rows: [{ rank: 1, name: "Bagrat", score: 9105 }, { rank: 2, name: "Aram", score: 8800 }, { rank: 3, name: "Nune", score: 8640 }, { rank: 4, name: "X", score: 1 }] }),
       "Yesterday: 1. Bagrat 9,105 · 2. Aram 8,800 · 3. Nune 8,640", "yesterday's first three (5.6), three at the most");
     eq([pure.dailyYesterday({ rows: [] }), pure.dailyYesterday(null), pure.dailyYesterday({ rows: [{ name: "<b>x</b>", score: "9" }] })], ["", "", ""], "no line without a score");
-    ok(!/[–—]/.test(pure.dailyYesterday({ rows: [{ rank: 1, name: "A", score: 1 }] })), "no long dash in yesterday's line");
+    ok(!/[\u2013\u2014]/.test(pure.dailyYesterday({ rows: [{ rank: 1, name: "A", score: 1 }] })), "no long dash in yesterday's line");
   }
 }
 
