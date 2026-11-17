@@ -54,7 +54,7 @@ restore() {
 cleanup() { restore; rm -rf "$work"; }
 trap cleanup EXIT
 
-[ -z "$SUDO" ] || $SUDO -v || die "sudo is needed to read and change $CADDYFILE"
+[ -z "$SUDO" ] || $SUDO -n true 2>/dev/null || $SUDO -v || die "sudo is needed to read and change $CADDYFILE"
 $SUDO cat "$CADDYFILE" > "$work/cur" || die "cannot read $CADDYFILE"
 
 nb="$(grep -c "^$BEGIN_MARK" "$work/cur" || true)"; ne="$(grep -c "^$END_MARK" "$work/cur" || true)"
