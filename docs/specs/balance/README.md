@@ -912,3 +912,16 @@ Pars: LEVEL_PAR's Stepanakert 1992 Hard is now 2223 (mix7's clock, the post 15th
 1992 is 1902 (mix7) and Stepanakert 2023 1242 ("aid"). Revs: the three rise to 3 (their pins moved); RULESET stays 2.
 
 G5's open cells: the post moves none of them (they lie on other battlefields).
+
+### G7e close (the review's findings)
+
+- A press of Target or a sale now moves or clears the ring at once, paused or not (`spotTick(0, true)` marks and nothing
+  else: no shell, no reload).
+- Fire Direction's shell is the mortar's and lands only on a marked foe on the ground; a ready shell with only an
+  outflanker or a drone marked waits.
+- The post's panel record reads the foes it has marked, and Fire Direction's shell damage beside them, not "0 kills".
+- Suite 2 now covers the mark on the fire altar's burn and on a pitch pot, a paused retarget, a paused sale and the shell
+  over an outflanker (five mutants, each caught).
+- The six tables were rerun on the closed page (SEEDS=3, CLOCK=1). Only a few seconds of clock moved in single cells on
+  Shushi and in the damage per 100 gold line; every defenders and wins cell, 5.2's two rows, the pars (LEVEL_PAR Hard
+  Stepanakert 1992 2223, DAILY_PAR 1902 and 1242) and the endless stands are unchanged.
