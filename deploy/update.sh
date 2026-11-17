@@ -40,7 +40,22 @@ fi
 # on every run, not only with a new commit: the run that pulls a commit is still the update.sh from before it (the
 # block is read whole first), so a file that older script did not know goes out on the run after. The page copes
 # with a trailer not yet there (the poster or nothing stands in), so that one run's gap does no harm
+# The chronicle films (stage 5: assets/explainer/<battlefield>/, a landscape and an upright cut, each an .mp4, its
+# .vtt subtitles and its poster .jpg) go out the same way into the same folders under the web root. The page asks
+# for one only when its chronicle opens, and shows the text chronicle while a film is not there
+publish_films() {
+  local f
+  for f in assets/explainer/*/*.mp4 assets/explainer/*/*.vtt assets/explainer/*/*.jpg; do
+    if [ -f "$f" ] && ! cmp -s "$f" "$WEB/$f"; then
+      mkdir -p "$WEB/${f%/*}"
+      install -m 644 "$f" "$WEB/$f.new"
+      mv "$WEB/$f.new" "$WEB/$f"
+      echo "$(date -Is) published $f"
+    fi
+  done
+}
 publish_og() {
+  publish_films
   for f in og.jpg trailer.mp4 trailer.webm trailer-poster.jpg; do
     if [ -f "$f" ] && ! cmp -s "$f" "$WEB/$f"; then
       install -m 644 "$f" "$WEB/$f.new"
@@ -162,6 +177,23 @@ publish_next() {
   fi
   if [ ! -d "$WEB/next" ]; then mkdir "$WEB/next"; fi
   : > .git/hs-next-dir
+  # the chronicle films (stage 5) beside the page at /next/ as at /: each read from the branch and written only
+  # when it differs; one the branch no longer has is not left behind
+  local x
+  for x in $(git ls-tree -r --name-only "$rev" -- assets/explainer 2>/dev/null); do
+    case "$x" in *..*) continue;; assets/explainer/*/*.mp4|assets/explainer/*/*.vtt|assets/explainer/*/*.jpg) ;; *) continue;; esac
+    git show "$rev:$x" > "$NEXT_TMP/film" 2>/dev/null || continue
+    if ! cmp -s "$NEXT_TMP/film" "$WEB/next/$x"; then
+      mkdir -p "$WEB/next/${x%/*}"
+      install -m 644 "$NEXT_TMP/film" "$WEB/next/$x.new"
+      mv "$WEB/next/$x.new" "$WEB/next/$x"
+    fi
+  done
+  if [ -d "$WEB/next/assets/explainer" ]; then
+    find "$WEB/next/assets/explainer" -type f | while read -r x; do
+      git cat-file -e "$rev:${x#"$WEB/next/"}" 2>/dev/null || rm -f "$x"
+    done
+  fi
   # its share picture first, as for the live page; a branch without one leaves none behind
   if git show "$rev:og.jpg" > "$NEXT_TMP/og.jpg" 2>/dev/null; then
     if ! cmp -s "$NEXT_TMP/og.jpg" "$WEB/next/og.jpg"; then
