@@ -894,8 +894,10 @@ landing. New: the nest's painter, a tile portrait.
 docs/specs/balance/README.md, G7e. 1. Read where 3.6 is silent: a mark goes to the first foe of the post's Target order
 among those in reach and not yet marked, hidden and in the air included; it moves when its foe falls or leaves the reach,
 and also at once when the Target button is pressed (the player's retarget). A stunned post drops its marks until it
-recovers, as a stunned tower holds its fire; a wrecked one marks nothing. Fire Direction shells the first marked foe every
-4 s (quickened by the drums like a reload), and a shell ready with nothing marked waits for a mark. The mark's amp is
+recovers, as a stunned tower holds its fire; a wrecked one marks nothing. A press of Target, or a sale, moves or clears the
+ring at once, paused or not (G7e close). Fire Direction shells the first marked foe on the ground every 4 s (quickened by
+the drums like a reload): the shell is the mortar's, and the mortar cannot reach the air, so a marked outflanker or drone
+is never shelled (G7e close, the review's finding 3); a shell ready with no ground foe marked waits for one. The mark's amp is
 applied after the guard and the armor, once per blow, in damageEnemy (towers, men, Horse Lines, the mine, spells), in the
 hero's blow, in the fire's burn, in a lightning's or the Call's burn and in the pitch pots. The shells are booked to the
 adaptive enemy apart (`adapt.other`), as 3.7 says. 2. The post's own strength for hunters and drones: 220, 280 and 360 by
