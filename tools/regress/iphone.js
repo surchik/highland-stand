@@ -896,7 +896,8 @@ const LONG_TOAST = "The field is clear: tap or click Send Wave for wave 7, or sw
             await settle(2);
           }
           if (await g.ev(() => JSON.stringify({ g: Math.round(gold), t: towers.map(t => t.pad + ":" + t.level + ":" + (t.spec || "") + ":" + t.prio) })) !== ob) fail("spotter panel", "the tap that opened the sheet pressed something in it");
-          await check("spotter panel", { root: "#panel", primary: ["#pTarget", "#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
+          // (the Target button keeps its 36 px class on a sheet, gameplay 3.8, as every tower's: its own height is asked below)
+          await check("spotter panel", { root: "#panel", primary: ["#pActions .spec", "#pActions .sell"], scroll: "inside", primaryRequired: true });
           const tr = await g.ev(() => { const b = $("pTarget"); if (!b) return null; b.scrollIntoView({ block: "nearest" }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
           if (!tr) fail("spotter panel", "no Target button");
           else {
