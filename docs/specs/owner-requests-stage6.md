@@ -96,3 +96,12 @@ To build:
   leaving the battle. It never plays on the map, the chronicle or the trailer unless the owner asks.
 - deploy/update.sh must publish assets/music/ beside the page, as for the victory files.
 - The test harness runs without sound: the music must not start there, and no test may wait on a file loading.
+
+Five more (17 November), the owner: "some more for the background music". Also by New Age Armenia, web copies
+in assets/music/ (mp3, 128 kbit/s): "Mardigi Yerke" (4 min 27 s), "Vartani Mor Vokhbe (Vartan's Mother's
+Lamentation)" (5 min 50 s), "Al-Ayloughs/Balkoni Dage Hov E (Red Handkerchief)" (2 min 51 s), "Alakiaz (Name of
+a Mountain)" (2 min 4 s) and "Mi Lar Mayrig (Don't Cry Mother)" (4 min 16 s); the last four are from Ancient
+Legacy. That makes ten battle tunes. Two are laments by their titles (Vartan's mother, "Don't Cry Mother"): put
+them in the rotation, but where a tune is chosen for a battlefield's opening, prefer them for the battlefields
+whose history is a loss or a siege, and do not open a battle on them where a brighter one fits. The total is
+about 46 MB; nothing loads until a battle starts, and only the one tune that plays.
