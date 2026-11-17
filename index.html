@@ -13404,7 +13404,9 @@ function spotInit(t) {
   t.marks = [];
   t.prio = "strong";
 }
-function spotTick(dt) {
+// markOnly (a Target press, a sale) settles the marks and nothing else: no shell and no reload, so a press while paused
+// moves the ring at once and fires nothing
+function spotTick(dt, markOnly) {
   if (spotOn) for (const e of enemies) e.spotAmp = 0;
   spotOn = false;
   for (const t of towers) {
@@ -13436,11 +13438,14 @@ function spotTick(dt) {
     // Night Sights: nothing in its reach stays hidden
     if (st.revealAll) for (const e of enemies) if (e.hid && spotReach(t, e, st.range)) revealFoe(e);
     // Fire Direction: the first marked foe is shelled every `every` s (quickened by the drums, slowed on a damaged or
-    // failing post, like any reload); a shell ready with no foe marked waits for one
-    if (st.shell) {
+    // failing post, like any reload); a shell ready with no foe marked waits for one. The shell is the mortar's, so
+    // it lands on the first marked foe on the ground: a marked outflanker or drone is never shelled (the mortar crew
+    // cannot reach the air either)
+    if (st.shell && !markOnly) {
       t.cd = (t.cd || 0) - dt * (1 + (t.buffHaste || 0)) * towerPace(t);
       if (t.cd <= 0) {
-        if (t.marks.length) { t.cd = st.every; spotShell(t, t.marks[0], st); }
+        const tgt = t.marks.find(e => !e.fly);
+        if (tgt) { t.cd = st.every; spotShell(t, tgt, st); }
         else t.cd = 0;
       }
     }
@@ -16157,6 +16162,7 @@ function sellTower(t) {
   postRelease(t);
   if (rallying === t) rallying = null;
   towers = towers.filter(x => x !== t);
+  if (TOWER_DEFS[t.type].mark) spotTick(0, true);   // a sold post's marks go with it, paused or not
   Snd.play("coin");
   hidePanel();
   saveRun();
@@ -58662,6 +58668,13 @@ function statText(t) {
 }
 
 function serviceRecord(t) {
+  // the Observation Post never fires: its record is the foes it has marked, and Fire Direction's shells beside them
+  if (TOWER_DEFS[t.type].mark) {
+    if (!t.markN) return "";
+    let s = '<div class="st wide rec">' + icon("spot") + "<b>" + t.markN + "</b><span>" + (t.markN === 1 ? "foe" : "foes") + " marked</span>";
+    if (t.dmgDone) s += "<i>·</i><b>" + Math.round(t.dmgDone) + "</b><span>shell damage</span>";
+    return s + "</div>";
+  }
   if (TOWER_DEFS[t.type].income || TOWER_DEFS[t.type].aid) return "";   // the Stores' record is the gold they paid, the Aid Post's the defenders it returned (statText)
   if (!t.kills && !t.dmgDone) return "";
   return '<div class="st wide rec">' + icon("swords") + "<b>" + (t.kills || 0) + "</b><span>kills</span><i>·</i><b>" +
@@ -60427,7 +60440,7 @@ function showPanel(t) {
     const tb = mkBtn(icon("target") + "Target: " + PRIO_LABEL[t.prio || "first"], null, "", () => {
       t.prio = PRIOS[(PRIOS.indexOf(t.prio || "first") + 1) % PRIOS.length];
       // the Observation Post moves its marks to the new order at once (3.6: the player retargets it)
-      if (def.mark) t.marks = [];
+      if (def.mark) { t.marks = []; spotTick(0, true); }
       showPanel(t);
     });
     if (def.mark) tb.id = "pTarget";
@@ -90357,6 +90370,22 @@ function runSelftestPlay() {
     const b0 = took(big, () => update(0.05));
     big.burnT = 0;
     if (!near(b0, 100 * 0.05 * (1 + st.amp))) fail("a burn on a marked foe: " + b0);
+    // a pot of pitch on it (a catapult's), in the same tick
+    big.pots = [{ dps: 100, t: 1, src: { type: "catapult" } }];
+    const pot = took(big, () => update(0.05));
+    big.pots = [];
+    if (!near(pot, 100 * 0.05 * (1 + st.amp))) fail("a pot of pitch on a marked foe: " + pot);
+    // the fire altar's burn: the marked foe burns 1 + amp times as hard as the unmarked one beside it
+    placeTower("fire", PADS.map((p, j) => j).find(j => !towerAt(j)));
+    const F = towers.find(x => x.type === "fire");
+    if (!F) fail("no fire altar was built");
+    const pb = enemyPos(big), ps = enemyPos(small);
+    F.x = (pb.x + ps.x) / 2; F.y = (pb.y + ps.y) / 2;
+    const hb0 = big.hp, hs0 = small.hp;
+    update(0.05);
+    const fb = hb0 - big.hp, fs = hs0 - small.hp;
+    towers = towers.filter(x => x !== F);
+    if (!(fs > 0) || !near(fb / fs, 1 + st.amp)) fail("the fire altar's burn on a marked foe: " + fb + " against " + fs + " unmarked");
     // the hero's blow
     if (!hero) heroSpawn();
     const hp0 = enemyPos(big);
@@ -90385,10 +90414,12 @@ function runSelftestPlay() {
     showPanel(S);
     const tb = $("pTarget");
     if (!tb || !/Strongest/.test(tb.textContent)) fail("the panel's Target button: " + (tb && tb.textContent));
+    // pressed while paused, the ring moves at once, with no tick of the battle
+    paused = true;
     tb.click();
     if (S.prio !== "weak" || !/Weakest/.test(($("pTarget") || {}).textContent || "")) fail("the Target button did not cycle to Weakest: " + S.prio);
-    spotTick(0);
-    if (S.marks[0] !== weak) fail("Weakest marked " + (S.marks[0] && S.marks[0].hp));
+    if (S.marks[0] !== weak || !(weak.spotAmp > 0) || strong.spotAmp || markMult(strong) !== 1) fail("a paused retarget left the old mark: " + [S.marks[0] && S.marks[0].hp, weak.spotAmp, strong.spotAmp]);
+    paused = false;
     hidePanel(); S.prio = "strong"; S.marks = [];
     enemies = []; S.marks = [];
     // a commander: the mark counts half
@@ -90422,6 +90453,12 @@ function runSelftestPlay() {
     if (!spotReach(S, fl, st.range)) fail("the outflanker 40 px off is out of the post's reach");
     spotTick(0);
     if (S.marks[0] !== fl || !near(took(fl, () => damageEnemy(fl, 100, true, arch)), 100 * (1 + st.amp))) fail("the outflanker was not marked");
+    // Fire Direction's shell is the mortar's: it waits rather than land on a marked outflanker
+    S.level = 2; S.spec = "a"; S.cd = 0;
+    const fls = took(fl, () => spotTick(0.01));
+    if (fls !== 0 || S.cd !== 0 || S.marks[0] !== fl) fail("Fire Direction shelled an outflanker: " + fls);
+    S.level = 0; S.spec = null; S.marks = [];
+    spotTick(0);
     // stunned, it marks none until it recovers; wrecked, none
     S.stunnedT = 1; spotTick(0.05);
     if (S.marks.length || fl.spotAmp || markMult(fl) !== 1) fail("a stunned post still marks");
@@ -90442,6 +90479,12 @@ function runSelftestPlay() {
     let n = 0;
     for (let i = 0; i < 85; i++) if (took(tgt, () => spotTick(0.1)) > 0) n++;
     if (n !== 2) fail("Fire Direction shelled " + n + " times in 8.5 s");
+    // sold while paused, its mark goes with it at once
+    paused = true;
+    if (!(tgt.spotAmp > 0)) fail("the shelled foe is not marked before the sale");
+    sellTower(S);
+    if (tgt.spotAmp || markMult(tgt) !== 1) fail("a sold post's mark stayed on its foe: " + tgt.spotAmp);
+    paused = false;
   }));
   check("spotter: the one-time card on the chronicle; no claim of a named unit", guarded(() => {
     localStorage.setItem("hs_towers_seen", JSON.stringify(["post"]));
