@@ -75,7 +75,7 @@ function serve(file) {
     return { hold: Rec.hold, ok: Rec.ok, last: Rec.lastBattle, mus: Snd.musGain ? +Snd.musGain.gain.value.toFixed(4) : null,
       b: c ? { want: c.want, idx: c.idx, playing: c.playing, paused: c.el.paused, t: c.el.currentTime, vol: c.el.volume, gain: c.gain ? +c.gain.gain.value.toFixed(4) : null, src: c.el.src.replace(/^.*\/assets\//, "assets/") } : null,
       v: v ? { want: v.want, idx: v.idx, playing: v.playing, paused: v.el.paused, t: v.el.currentTime, src: v.el.src.replace(/^.*\/assets\//, "assets/") } : null,
-      aim: canvas.classList.contains("aim"), cursor: getComputedStyle(canvas).cursor, cele: !!celebration, rec: celebration && celebration.rec ? celebration.rec.id : null };
+      aim: canvas.style.cursor === "crosshair", cursor: getComputedStyle(canvas).cursor, cele: !!celebration, rec: celebration && celebration.rec ? celebration.rec.id : null };
   });
   const until = async (g, fn, ms, what) => {
     const end = Date.now() + ms;
