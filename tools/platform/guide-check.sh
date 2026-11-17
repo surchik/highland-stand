@@ -22,7 +22,7 @@ ok() { oks=$((oks + 1)); echo "ok   $*"; }
 bad() { fails=$((fails + 1)); echo "FAIL $*"; }
 # the code block under a marker of the guide
 block() { awk -v m="<!-- guide-check: $1 -->" 'found && /^ *```/ { if (inside) exit; inside = 1; next } inside { sub(/^   /, ""); print } $0 ~ m { found = 1 }' "$GUIDE"; }
-BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin names cloud-off cloud-on rehearsal"
+BLOCKS="survey-sql backup migrate-status migrate-up check-config migrate-down regrant check-rest smoke admin superadmin-open superadmin superadmin-revoke names cloud-off cloud-on rulesets boards-off boards-on rehearsal"
 for b in $BLOCKS; do [ -n "$(block $b)" ] || bad "the guide has no block marked $b"; done
 # the guide never names the old layout's files or schemas
 if grep -nE 'schema\.sql|schema-handoff\.sql|hs_private|public\.hs_' "$GUIDE"; then bad "the guide still names schema.sql, hs_private or public.hs_"; else ok "the guide names no file or schema of the old layout"; fi
@@ -52,11 +52,11 @@ else bad "step 0: the survey: $(head -20 "$T/survey-sql.out")"; fi
 mkdir -p "$T/work"
 if run backup "$T/work" && ls "$T"/work/highland-*.dump > /dev/null 2>&1; then ok "step 2: the backup: $(ls "$T"/work/highland-*.dump | xargs -n1 basename) ($(stat -c %s "$T"/work/highland-*.dump) bytes)"
 else bad "step 2: the backup: $(cat "$T/backup.out")"; fi
-if run migrate-status && grep -q 'highland at 5 of 5' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 5 of 5' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
-if run migrate-up && grep -q 'done: highland at 5' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
+if run migrate-status && grep -q 'highland at 8 of 8' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 8 of 8' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
+if run migrate-up && grep -q 'done: highland at 8' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
 if runsql check-config && grep -q '"now"' "$T/check-config.out"; then ok "step 3's check: hs_config answers with now"; else bad "step 3's check: $(cat "$T/check-config.out")"; fi
-if run migrate-down && grep -q 'reverted 005_delete_game_session  (now at 4)' "$T/migrate-down.out" && grep -q 'applied  005_delete_game_session  (now at 5)' "$T/migrate-down.out" && grep -q 'done: highland at 5' "$T/migrate-down.out"; then
-  ok "step 3: down 4 then up: 005 reverted and applied again, back at 5"
+if run migrate-down && grep -q 'reverted 008_daily  (now at 7)' "$T/migrate-down.out" && grep -q 'reverted 007_scores  (now at 6)' "$T/migrate-down.out" && grep -q 'applied  008_daily  (now at 8)' "$T/migrate-down.out" && grep -q 'done: highland at 8' "$T/migrate-down.out"; then
+  ok "step 3: down 6 then up: 008 and 007 reverted and applied again, back at 8"
 else bad "step 3: down and up: $(cat "$T/migrate-down.out")"; fi
 psql "$HS_DB_URL" -X -q -c "grant select on highland.hs_saves to authenticated" > /dev/null 2>&1
 if run regrant && grep -q 'regranted' "$T/regrant.out" && [ "$(psql "$HS_DB_URL" -X -tA -c "select has_table_privilege('authenticated', 'highland.hs_saves', 'select')")" = f ]; then
@@ -77,9 +77,30 @@ if [ "$fl" = "11 " ]; then ok "step 5: the smoke test against the stand-in of th
 else bad "step 5: the smoke test failed checks [$fl] (wanted 11 alone): $(grep -E '^FAIL' "$T/smoke.out" | head -5)"; fi
 psql "postgres://supabase_admin@localhost:$PORT/hs?host=$DIR" -X -q -c "insert into auth.users (id, email) values ('0d000000-0000-4000-8000-0000000000ad', 'you@example.com') on conflict do nothing" > /dev/null
 if runsql admin && grep -q 'INSERT 0 1' "$T/admin.out"; then ok "step 6: the admin's line adds one row"; else bad "step 6: $(cat "$T/admin.out")"; fi
+# the superadmin (P10): the owner's command with a made-up address of an account that signed in with Google
+psql "postgres://supabase_admin@localhost:$PORT/hs?host=$DIR" -X -q -c "insert into auth.users (id, email) values ('0d000000-0000-4000-8000-0000000005a0', 'owner-check@example.com') on conflict do nothing;
+  insert into auth.identities (provider, provider_id, user_id, email) values ('google', 'g-owner-check', '0d000000-0000-4000-8000-0000000005a0', 'owner-check@example.com') on conflict do nothing" > /dev/null
+# (P10 review 8) psql is opened as the guide says, its history file turned off, and the address is typed at the
+# \prompt (here given on standard input, as psql reads it under -f): it is then in no file, no history and no answer
+OPEN=$(block superadmin-open)
+if [ "$OPEN" = 'PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X' ] && [ "$(echo 'select 7 as x;' | bash -c "$OPEN -tA" 2>&1)" = 7 ]; then
+  ok "step 6: the superadmin's psql opens with its history file turned off"
+else bad "step 6: the superadmin's psql line: $OPEN"; fi
+if block superadmin | grep -q '@\|THE_ADDRESS' || block superadmin-revoke | grep -q '@\|THE_ADDRESS'; then bad "step 6: the superadmin's blocks hold an address to edit (it would land in a file)"; fi
+sub() { block "$1" > "$T/$1.sql"; echo owner-check@example.com | PSQL_HISTORY="$T/hist" psql "$HS_DB_URL" -X -v ON_ERROR_STOP=1 -f "$T/$1.sql" > "$T/$1.out" 2>&1; }
+if sub superadmin && grep -q 'superadmin: account 0d000000-0000-4000-8000-0000000005a0' "$T/superadmin.out" && ! grep -q '@' "$T/superadmin.out" \
+  && [ "$(psql "$HS_DB_URL" -X -tA -c "select count(*) from highland.hs_superadmins where user_id = '0d000000-0000-4000-8000-0000000005a0'")" = 1 ]; then
+  ok "step 6: the superadmin's command, as postgres, the address typed at its prompt, makes the account superadmin and names it by id only"
+else bad "step 6: the superadmin's command: $(cat "$T/superadmin.out")"; fi
+if sub superadmin-revoke && grep -q 'taken away' "$T/superadmin-revoke.out" \
+  && [ "$(psql "$HS_DB_URL" -X -tA -c "select count(*) from highland.hs_superadmins")" = 0 ]; then ok "step 6: and its undo"; else bad "step 6: the undo: $(cat "$T/superadmin-revoke.out")"; fi
 if runsql names && grep -q 'INSERT 0 2' "$T/names.out"; then ok "step 6: two words added to the name filter"; else bad "names: $(cat "$T/names.out")"; fi
 if runsql cloud-off && [ "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'cloud'")" = false ]; then ok "the cloud switched off: hs_config says cloud false"; else bad "cloud off: $(cat "$T/cloud-off.out")"; fi
 if runsql cloud-on && [ -z "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'cloud'")" ]; then ok "and on again"; else bad "cloud on: $(cat "$T/cloud-on.out")"; fi
+# step 7 (P5): what rulesets the server has; the boards' switch off and on by hand
+if runsql rulesets && grep -q 'published_at' "$T/rulesets.out"; then ok "step 7: the rulesets the server has ($(tail -2 "$T/rulesets.out" | head -1))"; else bad "step 7: rulesets: $(cat "$T/rulesets.out")"; fi
+if runsql boards-off && [ "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'boards'")" = false ]; then ok "step 7: the boards switched off: hs_config says boards false"; else bad "boards off: $(cat "$T/boards-off.out")"; fi
+if runsql boards-on && [ -z "$(psql "$HS_DB_URL" -X -tA -c "select highland.hs_config() ->> 'boards'")" ]; then ok "and on again"; else bad "boards on: $(cat "$T/boards-on.out")"; fi
 
 # ---------------------------------------------------------------- restoring
 block rehearsal | sed -e "s#highland-THE_TIME.dump#$(ls "$T"/work/highland-*.dump | head -1)#" > "$T/rehearsal.sh"

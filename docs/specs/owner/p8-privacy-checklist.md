@@ -90,12 +90,17 @@ delete from highland.hs_scores where user_id = current_setting('hs.del')::uuid;
 delete from highland.hs_runs where user_id = current_setting('hs.del')::uuid;
 delete from highland.hs_saves where user_id = current_setting('hs.del')::uuid;
 delete from highland.hs_admins where user_id = current_setting('hs.del')::uuid;
+delete from highland.hs_superadmins where user_id = current_setting('hs.del')::uuid;
+update highland.hs_super_audit set player = null where player = current_setting('hs.del')::uuid;
+update highland.hs_super_audit set who = null where who = current_setting('hs.del')::uuid;
 update highland.hs_rulesets set published_by = null where published_by = current_setting('hs.del')::uuid;
 delete from highland.hs_profiles where user_id = current_setting('hs.del')::uuid;
 commit;
 ```
 
-If the first `select` finds no row or more than one, type `rollback;` and stop. A person may have signed in with
+The three lines on `hs_superadmins` and `hs_super_audit` are migration 006's (the superadmin's Players view): the
+person is no superadmin any more, and the record of who looked at whom keeps its rows but names him no more, as
+"Delete my account" does. If the first `select` finds no row or more than one, type `rollback;` and stop. A person may have signed in with
 two providers that gave two addresses: ask which.
 
 **"Remove my sign-in too."** First remove the game data with the block above. Do not skip it: not every game

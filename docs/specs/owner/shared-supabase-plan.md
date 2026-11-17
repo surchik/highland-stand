@@ -27,7 +27,13 @@ in a Google, Facebook or Discord account PathStream has never seen and keeps the
 | --- | --- | --- |
 | `node tools/platform/migrate.js up --dsn="$HS_DB_URL"` | `pg_dump "$HS_DB_URL" -n highland -Fc -f highland-$(date +%Y%m%d-%H%M%S).dump` (nothing to copy the very first time) | `node tools/platform/migrate.js down 0 --dsn="$HS_DB_URL" --yes` (removes the schema `highland` and all its data, nothing else) |
 
-Check: `migrate.js status` says `highland at 5 of 5`; `select highland.hs_config();` answers with `"now"`.
+Check: `migrate.js status` says `highland at 8 of 8`; `select highland.hs_config();` answers with `"now"`.
+
+Migration 006 (P10, the superadmin's Players view) adds two tables and the Players view's functions inside
+`highland` only. Its rollback: `node tools/platform/migrate.js down 5 --dsn="$HS_DB_URL" --yes` (removes 008's and 007's changes first, then the
+superadmin and the audit rows, nothing else). Migration 007 (P5, scores and boards) changes three of the game's
+functions in `highland` and nothing else; its rollback alone is `down 6` (the scores and boards stay). Migration 008 (P6, the
+daily challenge's tab) changes two of them and adds two helpers, in `highland` and nothing else; its rollback alone is `down 7`.
 
 ## 3. The shared changes: each one needs the owner's yes, alone, at the time
 
@@ -66,6 +72,14 @@ schema or grants.
 - [ ] Send the builder the public address and the anon key: the only two values that go into the page.
 - [ ] Sign in on `https://highland.avunjian.com/next/`, choose a name, then through the tunnel:
       `insert into highland.hs_admins (user_id) select id from auth.users where email = 'you@example.com';`
+- [ ] The superadmin (the Players view on `?stats`), when you want it: signed in to the game under your address
+      with Google, Facebook or Discord, then through the tunnel, as `postgres`, in `psql` opened with its history
+      off (`PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X`), the command
+      `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');` with your address typed at a prompt
+      (`\prompt 'Your address: ' addr`, then `select highland.hs_grant_superadmin_by_email(:'addr');`). It makes
+      you an admin too, so the line above is then not needed. To undo it: the same with
+      `hs_revoke_superadmin_by_email`. Type the address only at that prompt, never in a file or a shell command.
+      The whole page: `docs/specs/owner/superadmin.md`.
 - [ ] The nightly backup of `highland` alone (guide, step 2); a restore rehearsed on a computer with
       `bash deploy/supabase/restore-rehearsal.sh highland-THE_TIME.dump`.
 

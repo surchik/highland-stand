@@ -100,6 +100,16 @@ function refuseWrites() {
 
 (async () => {
   const browser = await R.launch();
+  // Gameplay's one-time Garrison Post card (G5) comes up on the chronicle half a second after it opens, and its
+  // bubble at the Rally point button: they are not this script's to try (the regression scripts hold them back with
+  // the same window flags), and a walk slowed by a busy machine would find the card over the chronicle's button.
+  // Every context of this script gets the flags.
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => {
+    const ctx = await newContext(o);
+    await ctx.addInitScript(() => { window.__hsQuietPostCard = true; window.__hsQuietRallyBubble = true; });
+    return ctx;
+  };
   const S = await serve(o.file);
   const fails = [], notes = {};
   const fail = (where, m) => { fails.push(where + ": " + m); if (o.verbose) console.log("  fail " + where + ": " + m); };

@@ -661,6 +661,28 @@ palette, three sprites that run the stretch; dust from the walking-dust particle
 a trough and one standing horse (`unitPaintHorse`) on the common footing. Sound: `ridersIn` (exists) at a
 charge. New: the building's painter, a tile portrait.
 
+(G7a build: built as written, with four changes, each in docs/specs/balance/README.md, G7a. 1. The blows are about
+three and a half times 3.2's: 140, 240 and 400, Lancers 900, Harriers 340; the cadence, the throw, the limit and the 8 s
+are 3.2's. At 3.2's blows the tower dealt 430 damage per 100 gold in the bot's battles, a tenth of an archer's. 2. The
+riders wait for the moment: three foes on their stretches, or one past the middle of its stretch (`HORSE_RULES.crowd`).
+A charge at the first foe to come in struck it alone and left the lines reloading as the column came on. 3. A pad
+with no road in reach refuses the tower, as it refuses the post. 4. The bot's mix7 puts the special tower 15th, not 12th:
+built 12th the Horse Lines took the ballista Erebuni's commander pair needs, and mix7 lost Erebuni on every seed, with a
+Horse Lines that did nothing at all as well. The card says: "A new tower: the Horse Lines. Its riders charge down the
+road in its reach and throw the foes back the way they came. A foe thrown back cannot be thrown again for 8 seconds.
+Siege engines and commanders barely move, and outflankers are untouched. Two on a field at most." Era 0's name is
+sourced: the Urartian bronze belts in `era-dossier.json` show cavalry with spears, shields and conical helmets.)
+(G7a close: an unseen scout on the stretch is struck, and so shown, as 3.4's blasts and the stones strike him; he alone
+does not send the riders out (they set out for what they can see). One difference is added: riders already out when
+their lines are wrecked finish the charge they began; a wrecked or stunned tower sets out no new one, and a sold
+tower's riders stop. The card now reads: "Its riders charge down the road in its
+reach and throw the foes back the way they came. Build it just past your strongest towers, so the foes walk past them
+again. A foe thrown back cannot be thrown again for 8 seconds. Elephants, siege engines and commanders barely move, and
+outflankers are untouched. Two on a field at most." The tile's line: "Riders who charge down the road and throw foes
+back. Best just past your strongest towers." Two rows of 5.2 are NOT met and are the owner's to rule on with G5's
+cells: the Horse Lines are in the best build on 0 of their 3 battlefields, and the endless stand of mix7 and harriers
+does not fall between waves 8 and 20 beyond the chronicle (docs/specs/balance/README.md, G7a close).)
+
 ### 3.3 Stores (Dvin, Tashir, Sevan, Ani, Mari, Sis)
 
 Mechanic: income. It never fights and holds a pad. After every cleared wave it pays `pay` gold for each
@@ -694,6 +716,20 @@ tower are the game's invention." It is not called a market: one that trades thro
 reads badly, and every fortress and army had stores.
 Art: an awning on poles, sacks and jars, a tethered pack animal (the camel or horse painter, standing), on
 the common footing; coins rising at a clear (the bounty pop's particle). Sound: `coin`.
+(G7b build: built as written, with these differences, each in docs/specs/balance/README.md, G7b. 1. The price is 160, not
+120: at 120 a board with Stores kept 18 on Sevan and 16.7 on Ani, above their bands and 4.7 above the best board without
+them (3.1's second rule), and "bazaar" ended below "mix" on only 3 of 6; the pay, the ranks and the masteries are this
+section's. 2. The pack animal is a horse (the cavalry painter's bare horse with two sacks over its back; Caravan keeps a
+second one), the awning striped in the age's banner color. 3. The card says: "Your stores pay gold after every wave you
+hold, more at every rank. They never fight, and they take a pad a fighting tower could use: gold later for a tower now.
+Hunters come for them, and wrecked stores pay nothing. Two on a field at most." and "Stores as a tower are the game's
+invention." Dvin's card adds the sourced line on its merchants (Procopius, docs/history/town-history.json); no source in
+the repository tells Ani's trade, so Ani's card makes no claim (the CHECK falls back to no sentence). 4. Field Forge's
+"mend 10 points more" is read as a tenth of a tower's strength more at each clear (the mend is a share, TRICK_RULES.tower);
+two forges over one tower give one share, and a forge does not tend itself. 5. The bot ranks and masters its Stores after
+every fighting tower has its own, and never after two thirds of the battle. 5.2's rows NOT met and for the owner: greedy's
+gold invested (2 to 6% on five of six; a full board has nothing left to buy), greedy's end on Tashir and Mari, and the
+Stores in the best build on Normal on 1 of 6 (2 of 6 on Easy and on Hard).)
 
 ### 3.4 Powder Mine (Gyumri Road, Halidzor)
 
@@ -736,6 +772,24 @@ them, else four ellipses and staves); the marker is a disturbed patch with a glo
 reuses the Great Boulder's and the firepot's landing particles and the sound `mine` (exists: a wreck's and
 the sappers'). New: the store's painter, the marker, a tile portrait.
 
+(G7c build: built as written, with these differences, each in docs/specs/balance/README.md, G7c. 1. The numbers: at
+this section's the balance bot's every build with a mine kept fewer defenders than without it; the blows are three times
+these (the masteries two and a half: 780, 1,320, 2,100; Great Charge 3,250, Twin Fuses 1,550), a charge arms in four fifths
+of the time (22, 20, 18; 19, 16), the store costs 80 with ranks of 100 and 160 and masteries of 300. Reach, blast, stagger
+and the trigger's settings are these. 2. A commander counts as three foes for the trigger (MINE_RULES.boss). 3. A charge
+still arming shows no marker and takes no press; a tile being placed takes a free pad under the press before a marker.
+4. Twin Fuses: Lay the charge lays the first charge, then the second, by turns, and its words say which. 5. The card does
+not say "Mines of powder were the siege craft of the age.": no source in the repository says it. Gyumri Road's card gives
+its own fact (Chaldiran, 1514: Ottoman cannon and muskets) and both say "A powder mine laid by the defenders here is the
+game's invention." 6. The store: a lean-to of planks over the musketeers' kegs, a coil of slow match, a spade; the marker:
+disturbed earth with an arming arc, then a glowing match end and a ring that breathes. The key X fires the chosen mine.
+G7c close (docs/specs/reviews/G7c-review.md): the masteries' blows are twice these, not two and a half (Great Charge
+2,600, Twin Fuses 1,240), so that Gyumri Road on Hard keeps at most 2 to 3 more defenders with a mine (3.1). A wrecked
+store's charge that is laid goes on arming at a failing store's pace and is fired once. Fire and X fire each armed charge
+with a seen ground foe over it and keep an empty one armed (with no foe over any, the first armed one goes off). A press
+that a tower's tap zone holds nearer than a marker's catch goes to the tower. A save made during a wave keeps each charge's
+arming as the horn left it. Rule 2 above, the commander counting three, is new behavior for the owner to rule on.)
+
 ### 3.5 Aid Post (Van, Musa Dagh, Sardarapat)
 
 Mechanic: it gives back what was lost. Three effects, none of them damage, none of them in a fight:
@@ -776,6 +830,32 @@ protected, and Musa Dagh's historical banner stays where it is, on its drums slo
 figure from the crew painter (`unitPaintCrew`). A returning defender: a small figure walks from the post to
 the fortress (the hero figure at 0.6). Sound: `uiTick`. New: the painter, a tile portrait.
 
+(G7d build: built as written, with these differences, each in docs/specs/balance/README.md, G7d. 1. The prices: 60 gold,
+ranks of 70 and 110, masteries of 220. At this section's (110, 130, 210, 320) the balance bot's "aid" lost 6.7 more defenders
+than "mix" on Sardarapat and 3.0 more on Easy Van; the reach, the hastes, the hero's seconds and the returns are this
+section's. 2. Read where 3.5 is silent: a post is "in range" when its pad or its rally point is; the hero comes back
+`heroBack` s sooner wherever he fell (he is carried back to the walls), never sooner than 5 s (`AID_RULES.heroMin`); a
+stunned Aid Post tends no one and returns no one until it recovers, as a wrecked one never does; the hero's shorter wait is
+read when he falls, from the post standing then (stunned or not: a stun lasts seconds, his wait many), and a post built or
+sold while he is away leaves it as it was (G7d close). 3. A defender comes back at a clear in which the
+walls lost none since its horn, but not at the last wave's (the battle is won there); the toast's sentence is added to the
+clear's own toast. 4. The victory page and the records count `held` (the defenders never lost), and the page adds "The aid
+post returned N defenders. Stars count those never lost." when one came back. In `battleFacts()`, `returned` is the returned
+defenders still on the walls, so a stand lost after returns keeps `held` at 0 and `lives = held + returned`. 5. The art: a
+canvas tent with a plain white cloth on a pole and a lantern at its door, stretchers (one, two, and a wall of sandbags at rank
+3; Surgeons a table, Stretcher Bearers a third stretcher and a second orderly), and an orderly from the crew painter,
+standing. 6. The card: "It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the
+hero come back sooner." and "After a wave with no defender lost, a lost one returns to the walls, a few in a battle at most.
+Stars count the defenders you never lost.", then "The aid post as a tower is the game's invention." and Van's sentence of
+the hospital (the invention line first and the paragraph shorter so a phone shows it above the fold: G7d close). 7. The bot ranks an Aid Post only once every
+pad is built and masters it after every fighting tower, and puts it on the Stores' pad (the free pad that reaches the least
+road), not 5.4's "nearest the fortress": nearest the fortress, "aid" lost 2.3 more defenders than "mix" on Normal Sardarapat
+and turned no seed (docs/specs/balance/g7d-trials/near-*). On the Stores' pad 5.2's row is met on Van and Sardarapat on all
+three difficulties (0.0 more each) and "aid" wins the Hard Sardarapat seed the mix loses (3/3 against 2/3). NOT met and for
+the owner: Musa Dagh, where "aid" loses 4.0 more on Normal and 3.0 on Easy: the mix holds the last commander there with 0.1%
+of the road to spare and fills every pad and plot, so the post takes the pad of the mix's last tower and the commander breaks
+through, at any price, free included.)
+
 ### 3.6 Observation Post (Stepanakert 1992, Shushi, Stepanakert 2023)
 
 Mechanic: it marks. It deals no damage. It keeps a mark on `marks` foes inside its `range` (the strongest
@@ -809,6 +889,29 @@ Art: a sandbagged nest with a figure holding field glasses (Silikyan's look has 
 an aerial (the `commandpost` skin's); the mark is a thin ring and a tick over the foe (the hunters' red
 ring painter in the defenders' color). Sound: `uiTick` on a new mark; Fire Direction reuses the mortar's
 landing. New: the nest's painter, a tile portrait.
+
+(G7e build: built as written, at this section's numbers, with these differences and readings, each in
+docs/specs/balance/README.md, G7e. 1. Read where 3.6 is silent: a mark goes to the first foe of the post's Target order
+among those in reach and not yet marked, hidden and in the air included; it moves when its foe falls or leaves the reach,
+and also at once when the Target button is pressed (the player's retarget). A stunned post drops its marks until it
+recovers, as a stunned tower holds its fire; a wrecked one marks nothing. A press of Target, or a sale, moves or clears the
+ring at once, paused or not (G7e close). Fire Direction shells the first marked foe on the ground every 4 s (quickened by
+the drums like a reload): the shell is the mortar's, and the mortar cannot reach the air, so a marked outflanker or drone
+is never shelled (G7e close, the review's finding 3); a shell ready with no ground foe marked waits for one. The mark's amp is
+applied after the guard and the armor, once per blow, in damageEnemy (towers, men, Horse Lines, the mine, spells), in the
+hero's blow, in the fire's burn, in a lightning's or the Call's burn and in the pitch pots. The shells are booked to the
+adaptive enemy apart (`adapt.other`), as 3.7 says. 2. The post's own strength for hunters and drones: 220, 280 and 360 by
+rank (`TOWER_DEFS.spotter.hp`). 3. The names: 1992's tile is "Lookout post", 2020's and 2023's "Observation post"
+(this section's casing); the card's title says "the lookout post" or "the observation post". The card: "It never fires.
+It marks the strongest foe in its reach, and every blow on that foe lands harder, from towers, men, hero, spells and fire. A
+mark on a commander counts half." and "It sees a marked scout, and it can mark outflankers too. Its Target button chooses
+whom it marks. One on a field." No history line: the post is generic of these wars and claims no named unit. 4. The art:
+a mound with a sandbagged pit (two courses, three from rank 3), a lookout with field glasses up (the Artsakh kit's
+`binoc` pose; Silikyan's own figure is the hero's and is not reused), a radio and its whip aerial from rank 2, the command
+post's guyed mast with its light from rank 3; Fire Direction adds a man at a field telephone and a map board, Night Sights
+a sight on a tripod under a camouflage net. The mark: a thin ring that breathes under the foe and a tick over its head, in
+a pale blue. Sound: `uiTick` on a new mark (at most one each 0.4 s), the mortar's `shell` on Fire Direction's landing.
+5. 5.2's two rows are met at these numbers on Normal (docs/specs/balance/g7e-*-seeds3.txt), so no number was tuned.)
 
 ### 3.7 What the new towers share in code
 

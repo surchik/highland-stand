@@ -32,6 +32,13 @@ const stackLib = require(ROOT + "/tools/platform/stack.js");
       await fetch(S.url + "/rest/v1/rpc/hs_track", { method: "POST", headers: { apikey: S.anonKey, Authorization: "Bearer " + S.anonKey, "Content-Type": "application/json", "Content-Profile": "highland" }, body: JSON.stringify({ p_ctx: { aid: d, sid: "pre-" + n.slice(0, 4) + "-0001" }, p_events: [{ n: "page_load", q: 1 }] }) });
       console.log(n, JSON.stringify(await call(u, "hs_track", { p_ctx: { aid: d, sid: "in-" + n.slice(0, 4) + "-00001" }, p_events: [{ n: "page_load", q: 1 }] })));
     }
+    // migration 006: A is a superadmin who looked at B's page, and B was once looked at by someone else, and A by B
+    // (made by hand here: the record's rows as the Players view writes them)
+    await q("insert into highland.hs_superadmins (user_id, note) values ($1, 'for the check')", [A]);
+    await q("insert into highland.hs_super_audit (who, what, player) values ($1, 'player', $2), ($2, 'player', $1), (null, 'grant', $1), ($2, 'players', null)", [A, B]);
+    const sup = async () => (await q(`select (select count(*) from highland.hs_superadmins where user_id = $1)::int as sa,
+      (select count(*) from highland.hs_super_audit where who = $1 or player = $1)::int as named, (select count(*) from highland.hs_super_audit)::int as rows,
+      (select count(*) from highland.hs_super_audit where who = $2)::int as b_who`, [A, B]))[0];
     const count = async (u) => (await q(`select (select count(*) from highland.hs_profiles where user_id = $1) + (select count(*) from highland.hs_saves where user_id = $1)
       + (select count(*) from highland.hs_sessions where uid = $1) + (select count(*) from highland.hs_rate where key = $1::text) as n`, [u]))[0].n;
     const pre = async (n) => (await q("select count(*)::int n from highland.hs_sessions where sid = $1", ["pre-" + n + "-0001"]))[0].n;
@@ -45,6 +52,11 @@ const stackLib = require(ROOT + "/tools/platform/stack.js");
     const a = await count(A), b = await count(B);
     console.log("after: A", a, "B", b, "A's pre visit", await pre("Anna"), "B's pre visit", await pre("Bert"));
     const au = (await q("select count(*)::int n from auth.users"))[0].n;
+    const sx = await sup();
+    console.log("after: superadmin and audit", JSON.stringify(sx));
+    if (sx.sa !== 0) fails.push("A is still a superadmin");
+    if (sx.named !== 0) fails.push("the audit still names A in " + sx.named + " rows");
+    if (sx.rows !== 4 || sx.b_who !== 2) fails.push("the audit lost rows, or B's: " + JSON.stringify(sx));
     if (a !== "0" && a !== 0) fails.push("A still has rows: " + a);
     if (Number(b) < 3) fails.push("B lost rows: " + b);
     if (au !== 2) fails.push("auth.users changed: " + au);

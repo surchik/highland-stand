@@ -1,0 +1,255 @@
+# Highland Stand's own Supabase: a slim stack of four services, beside (and apart from) the existing stack.
+#
+# Derived by hand from the official self-hosting compose, supabase/supabase docker/docker-compose.yml at commit
+# d17e66f202f95c2cb7d99b4effdba5d5d83e0131. Kept: db, auth, rest and the API gateway (Envoy), with their images,
+# healthchecks and environment as upstream has them. Left out: studio, realtime, storage, imgproxy, meta,
+# functions, supavisor (and analytics, which upstream keeps in a separate file).
+#
+# What differs from upstream, and why:
+#   - project name highland, container names hs-*, a network and two named volumes of its own: nothing is shared
+#     with the existing stack (project supabase, containers supabase-*).
+#   - the gateway is published on 127.0.0.1:8200 only; Postgres on 127.0.0.1:55632 only (upstream publishes
+#     Postgres through supavisor, which is not here). Nothing else is published.
+#   - api-gw waited for studio upstream; here it waits for auth.
+#   - the database's files are in a named volume (upstream: a folder ./volumes/db/data owned by the container's
+#     postgres user, which the user deploy could not remove without sudo).
+#   - the three sign-in providers the game uses are wired to the Auth service (upstream has such lines commented
+#     out, for Google, GitHub and Azure); each is off until providers.sh turns it on.
+#   - host, port and database of Postgres are written out (db, 5432, postgres) instead of read from .env.
+#   - container logs are capped (10 MB x 3 per container).
+# The database's init scripts are upstream's, all seven, unchanged: the database is then the same as any
+# self-hosted Supabase's, with empty places (_realtime, _supabase, supabase_functions) for services that are not
+# running. They cost nothing and let a service be added later without rebuilding the database.
+#
+# install.sh copies this file to ~/highland-supabase/docker-compose.yml. Secrets come from the .env beside it.
+
+name: highland
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  api-gw:
+    container_name: hs-gw
+    image: envoyproxy/envoy:v1.39.6
+    restart: unless-stopped
+    logging: *logging
+    networks:
+      default:
+        aliases:
+          - envoy
+          - kong
+    healthcheck:
+      # A TCP port check: this image has no curl or wget.
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/8000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8200:8000/tcp"
+    volumes:
+      - ./volumes/api/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./volumes/api/envoy/cds.yaml:/etc/envoy/cds.yaml:ro
+      - ./volumes/api/envoy/lds.template.yaml:/etc/envoy/lds.template.yaml:ro
+      - ./volumes/api/envoy/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+    environment:
+      ANON_KEY: ${ANON_KEY:?}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:?}
+      # the opaque sb_ keys and their asymmetric tokens are not used: the gateway runs in legacy API key mode
+      SUPABASE_PUBLISHABLE_KEY: ""
+      SUPABASE_SECRET_KEY: ""
+      ANON_KEY_ASYMMETRIC: ""
+      SERVICE_ROLE_KEY_ASYMMETRIC: ""
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:?}
+      # basic auth in front of the gateway's catch-all route (upstream: the dashboard, which is not here)
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:?}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:?}
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+
+  auth:
+    container_name: hs-auth
+    image: supabase/gotrue:v2.197.0
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9999/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:?}
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:?}@db:5432/postgres
+
+      GOTRUE_SITE_URL: ${SITE_URL:?}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:?}
+      GOTRUE_JWT_ISSUER: ${API_EXTERNAL_URL:?}
+
+      # the game signs in through providers only: no email, phone or anonymous sign-up
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-false}
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS:-false}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-false}
+      GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP:-false}
+      GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM:-false}
+
+      # upstream's mail lines with upstream's placeholder values: there is no mail server and none is needed
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-supabase-mail}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-2500}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-fake_mail_user}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-fake_mail_password}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-fake_sender}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+
+      # The sign-in providers (providers.sh writes the three values of each into .env).
+      # The callback each provider's console must hold is API_EXTERNAL_URL plus /callback:
+      # https://hs-db.avunjian.com/auth/v1/callback
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL:?}/callback
+
+      GOTRUE_EXTERNAL_FACEBOOK_ENABLED: ${FACEBOOK_ENABLED:-false}
+      GOTRUE_EXTERNAL_FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_FACEBOOK_SECRET: ${FACEBOOK_SECRET:-}
+      GOTRUE_EXTERNAL_FACEBOOK_REDIRECT_URI: ${API_EXTERNAL_URL:?}/callback
+      # lets in a Facebook account that has no email (deploy/supabase/README.md, step 4c)
+      GOTRUE_EXTERNAL_FACEBOOK_EMAIL_OPTIONAL: "true"
+
+      GOTRUE_EXTERNAL_DISCORD_ENABLED: ${DISCORD_ENABLED:-false}
+      GOTRUE_EXTERNAL_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_DISCORD_SECRET: ${DISCORD_SECRET:-}
+      GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI: ${API_EXTERNAL_URL:?}/callback
+      GOTRUE_EXTERNAL_DISCORD_EMAIL_OPTIONAL: "true"
+
+      # no hooks: nothing may refuse or rewrite a sign-in here
+
+  rest:
+    container_name: hs-rest
+    image: postgrest/postgrest:v14.18
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "postgrest", "--ready" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:?}@db:5432/postgres
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:?}
+      PGRST_DB_MAX_ROWS: ${PGRST_DB_MAX_ROWS:-1000}
+      PGRST_DB_EXTRA_SEARCH_PATH: ${PGRST_DB_EXTRA_SEARCH_PATH:-public}
+      PGRST_DB_ANON_ROLE: anon
+
+      PGRST_ADMIN_SERVER_PORT: 3001
+      PGRST_ADMIN_SERVER_HOST: localhost
+
+      PGRST_JWT_SECRET: ${JWT_SECRET:?}
+
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    command:
+      [
+        "postgrest"
+      ]
+
+  db:
+    container_name: hs-db
+    image: supabase/postgres:17.6.1.136
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      # for tools/platform/migrate.js on this server only; never public
+      - "127.0.0.1:55632:5432/tcp"
+    volumes:
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
+      # Must be superuser to create event trigger
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
+      # Must be superuser to alter reserved role
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      # Initialize the database settings with JWT_EXP
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      # The database _supabase, which logs.sql and pooler.sql connect to
+      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
+      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
+      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      # PGDATA, in a named volume of this project
+      - db-data:/var/lib/postgresql/data
+      # persists the pgsodium decryption key between restarts
+      - db-config:/etc/postgresql-custom
+    healthcheck:
+      test:
+        [
+        "CMD",
+        "pg_isready",
+        "-U",
+        "postgres",
+        "-h",
+        "localhost"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal"
+      ]
+
+networks:
+  default:
+    name: highland-net
+
+volumes:
+  db-data:
+    name: highland-db-data
+  db-config:
+    name: highland-db-config

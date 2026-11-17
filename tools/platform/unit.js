@@ -14,8 +14,16 @@
 //      signinLine                   which provider buttons show for what Auth's /settings answers (3.3, RULINGS D3,
 //                                   D6), and the line after a sign-in that did not finish, by the server's code (1.2)
 //      errWord                (P2)  signin_error's error: the server's kind of word kept, free text sent as "other"
-//      scoreOf                (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to
-//      dailyOf                (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included
+//      scoreOf, boundsOf      (P5)  ref.SCORE_CASES and ref.LOST_CASES, the same table the server is held to; the bounds as
+//                                   ref.boundsOf (the server's _bounds) reads them, a daily's table and its twists
+//      scoreLine, clockWords, (P5)  the victory page's strip in each state of 5.3, the battle clock in words, the outbox's
+//      outTrim                      limits (20 entries, 7 days, one a run, another account's never sent)
+//      shareRows, shareText,  (P7)  the share card's rows (section 6's table: y, size, face, the shrink to 640 px), its
+//      shareFileName,               words for a campaign battle and a daily, the file's name, the canonical address
+//      shareSite, shareDay          as the card names it, the day as it writes it; a guest's card (no name, no rank)
+//      dailyOf, dailyWait,    (P6)  ref.dailyOf for every day of a year, three pool sizes, skips included, and the game's
+//      dailyLines,                  own published daily (ruleset-2.json) for 366 days from today; the Daily tab's words:
+//      dailyYesterday               the time to the next challenge, the attempts and the best, yesterday's first three
 //      Cloud.merge            (P3)  its own cases (written with P3: a key with no rule is carried through, a
 //                                   document of a newer format is left alone, a bare removal of hs_run writes no
 //                                   mark, "flag", the per-key "newer", the run rule's six)
@@ -109,7 +117,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["dailyOf", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["dailyWait", "P6"], ["dailyLines", "P6"], ["dailyYesterday", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -183,7 +191,97 @@ if (pure) {
   }
   if (pure.scoreOf) {
     for (const c of ref.SCORE_CASES) eq(pure.scoreOf(c.stats, ref.SCORE_BOUNDS), c.score, "the page's scoreOf: " + c.what);
-    for (const c of ref.LOST_CASES) eq(pure.scoreOf({ won: false, waves: c.cleared }, { waves: 12 }), c.score, "the page's scoreOf: a lost daily, " + c.cleared + " of 12");
+    for (const c of ref.LOST_CASES) eq(pure.scoreOf({ won: false, waves: c.cleared }, { waves: 12 }), c.score, "the page's scoreOf: a lost daily, " + c.cleared + " of 12");    eq(pure.scoreOf({ won: true, lives: 20, waves: 10, sim_sec: 600, spent: 900, earned: 3000 }, { waves: 10, lives: 20, fast: 300, slow: 900 }), 8800, "the page's scoreOf: 5.1's example");
+  }
+  // (P5) the bounds the page scores by are the server's: a campaign battle, a daily on its own table, a twist's scaling
+  if (pure.boundsOf) {
+    const R = { levels: { a: { waves: 10, rev: 3, script: [1, 2, 3, 5, 8, 10, 12, 15, 18, 20], d: [{ lives: 30, min: 240, fast: 300, slow: 900, earnMax: 6000 },
+      { lives: 20, min: 250, fast: 310, slow: 910, earnMax: 5500 }, { lives: 14, fast: 320, slow: 920, earnMax: 5200 }] } },
+      daily: { waves: 12, pool: ["a"], twists: ["thin", "few"], t: { thin: { earn: 0.8 }, few: { livesSet: 12 }, swift: { fast: 0.9, slow: 0.95 } },
+        levels: { a: { min: 300, fast: 400, slow: 1000, earnMax: 7000 } } } };
+    for (const [lv, d, tw, dy] of [["a", 0, null, false], ["a", 1, null, false], ["a", 2, null, false], ["a", 1, "thin", true], ["a", 1, "few", true], ["a", 1, "swift", true], ["a", 1, null, true]])
+      eq(pure.boundsOf(R, lv, d, tw, dy), ref.boundsOf(R, lv, d, tw, dy), "the page's boundsOf agrees with the server's: " + [lv, d, tw, dy].join(" "));
+    eq(pure.boundsOf(R, "zz", 1, null, false), null, "the page's boundsOf: no such battlefield");
+    eq(pure.boundsOf(R, "a", 3, null, false), null, "the page's boundsOf: no such difficulty");
+  }
+  if (pure.scoreLine) {
+    const L = pure.scoreLine;
+    for (const [st, want] of [
+      [{ state: "posting", score: 7750 }, "Score 7,750"],
+      [{ state: "posted", score: 7750, rank: 12, total: 87 }, "Score 7,750 · #12 this week"],
+      [{ state: "posted", score: 7750, rank: 12, total: 87, best: true }, "Score 7,750 · #12 this week · your best"],
+      [{ state: "posted", score: 7750, rank: 1, total: 3 }, "Score 7,750 · #1 of 3 this week"],
+      [{ state: "posted", score: 7750, rank: 4, total: 40, open: true }, "Score 7,750 · #4 this week · Open"],
+      [{ state: "posted", score: 7420, rank: 12, total: 87, daily: true }, "Score 7,420 · #12 today"],
+      [{ state: "posted", score: 7420, rank: 3, total: 87, daily: true, onDay: "Nov 17" }, "Score 7,420 · #3 on Nov 17"],
+      [{ state: "posted", score: 7750 }, "Score 7,750"],
+      [{ state: "signin", score: 7750 }, "Score 7,750 · Sign in to post it"],
+      [{ state: "noname", score: 7750 }, "Score 7,750 · Choose a name to post it"],
+      [{ state: "waiting", score: 7750 }, "Score 7,750 · It posts when you are back online"],
+      [{ state: "offline", score: 7750 }, "Score 7,750 · Not ranked: this battle began offline"],
+      [{ state: "unpublished", score: 7750 }, "Score 7,750 · The boards for this version open soon"],
+      [{ state: "refused", score: 7750 }, "Score 7,750 · Not ranked"],
+      [{ state: "practice", score: 7750, daily: true }, "Score 7,750 · Practice: not ranked"],
+      [{ state: "none", score: 7750 }, ""], [null, ""], [{ state: "posting" }, ""]]) eq(L(st), want, "the strip's words (5.3): " + JSON.stringify(st));
+    for (const st of ["posting", "posted", "signin", "noname", "waiting", "offline", "unpublished", "refused", "practice"]) ok(!/[\u2013\u2014]/.test(L({ state: st, score: 1, rank: 1, total: 1 })), "no long dash in the strip: " + st);
+  }
+  if (pure.clockWords) for (const [s, w] of [[0, "0:00"], [59.6, "1:00"], [600, "10:00"], [3725, "1:02:05"], [-3, "0:00"], ["x", "0:00"]]) eq(pure.clockWords(s), w, "the battle clock in words: " + s);
+  if (pure.outTrim) {
+    const now = 1e12, e = (rid, uid, ago) => ({ rid, uid, stats: { won: true }, t: now - ago });
+    const many = Array.from({ length: 25 }, (_, i) => e("r" + i, "u", i * 1000));
+    eq(pure.outTrim(many, now).length, 20, "the outbox keeps 20 at the most");
+    eq(pure.outTrim(many, now)[19].rid, "r24", "the outbox keeps the newest 20 (the oldest go)");
+    eq(pure.outTrim([e("a", "u", 6.9 * 86400000), e("b", "u", 7.1 * 86400000)], now).map(x => x.rid), ["a"], "an entry older than 7 days is dropped");
+    eq(pure.outTrim([e("a", "u", 0), e("a", "u", 5), { rid: 1 }, null, "x"], now).map(x => x.rid), ["a"], "the outbox: one entry a run, junk dropped");
+    eq(pure.outSendable([e("a", "u", 0), e("b", "v", 0)], "u", now).map(x => x.rid), ["a"], "another account's entry is never sent");
+    eq(pure.outTrim("nonsense", now), [], "an outbox that is not a list is empty");
+  }
+  if (pure.shareRows && pure.shareText) {
+    const base = { title: "Erebuni Rise Stands!", hy: "Էրեբունի", field: "Erebuni Rise", lv: "erebuni", date: "Nov 16, 2026", diff: "Normal", stars: 2, kept: 17, max: 20,
+      sec: 754, score: 7750, rank: 12, total: 87, open: false, player: "Aram", site: "highland.avunjian.com", url: "https://highland.avunjian.com", daily: null, lost: null };
+    const at = (rows, y) => rows.filter(r => r.y === y).map(r => r.text);
+    let R = pure.shareRows(base);
+    eq([96, 190, 240, 290, 420, 462, 504, 566, 556, 590].map(y => at(R, y)[0] || null),
+      ["HIGHLAND STAND", "Erebuni Rise Stands!", "Էրեբունի", "Nov 16, 2026 · Normal", "17 of 20 defenders kept", "Held in 12:34 · Score 7,750", "#12 this week", "Held by Aram",
+        "Free in your browser", "highland.avunjian.com"], "the share card's rows (section 6's table)");
+    eq(at(R, 136), [], "no daily line on a campaign card");
+    const t = R.find(r => r.y === 190);
+    eq([t.px, t.min, t.w, t.bold, t.x, t.color], [62, 40, 640, true, 64, "#fff3d6"], "the title: 62 px bold, shrunk to no less than 40 px to fit 640 px");
+    eq(R.filter(r => r.align === "right").map(r => [r.x, r.px, r.bold]), [[1136, 20, false], [1136, 26, true]], "the foot: right-aligned at x = 1136, 20 px and 26 px bold");
+    eq(R.find(r => r.y === 240).face, "hy", "the Armenian name in the page's Armenian face");
+    eq(pure.shareStars(base), 2, "a campaign card has its stars");
+    eq(at(pure.shareRows(Object.assign({}, base, { open: true })), 504), ["#12 this week · Open"], "an open battle's rank: \"· Open\" added");
+    // a guest: no name line, no rank
+    R = pure.shareRows(Object.assign({}, base, { player: null, rank: null, total: null }));
+    eq([at(R, 504), at(R, 566)], [[], []], "a guest's card: no name line, no rank");
+    eq(at(pure.shareRows(Object.assign({}, base, { hy: "" })), 240), [], "no Armenian line for a place without one");
+    // a victory no board ranks (the coached stand, the boards switched off): no score, no rank, the clock alone
+    const un = Object.assign({}, base, { score: null, rank: null, total: null });
+    R = pure.shareRows(un);
+    eq([at(R, 420), at(R, 462), at(R, 504)], [["17 of 20 defenders kept"], ["Held in 12:34"], []], "an unranked victory's card: the clock, no score, no rank");
+    eq(pure.shareText(un), "I held Erebuni Rise in Highland Stand with 17 of 20 defenders. https://highland.avunjian.com", "an unranked victory's words: no score");
+    // a daily won after midnight UTC: its own day's date, and its rank "that day", not "today" (P6 review 3)
+    const past = Object.assign({}, base, { rank: 2, total: 5, daily: { date: "Nov 16", twist: "Thin purse", past: true } });
+    eq(pure.shareText(past), "Highland Stand daily, Nov 16: Erebuni Rise, Thin purse. Score 7,750, #2 that day. https://highland.avunjian.com", "a past day's daily: \"that day\"");
+    eq(at(pure.shareRows(past), 504), ["#2 of 5 that day"], "a past day's daily card: \"that day\"");
+    eq(pure.shareText(Object.assign({}, un, { daily: { date: "Nov 10", twist: "Thin purse" } })), "Highland Stand daily, Nov 10: Erebuni Rise, Thin purse. https://highland.avunjian.com", "a daily with the boards off: no score");
+    // the daily
+    const dl = Object.assign({}, base, { field: "Ani", title: "Ani Stands!", date: "Nov 10, 2026", daily: { date: "Nov 10", twist: "Thin purse" }, rank: 12, total: 87, stars: 0 });
+    R = pure.shareRows(dl);
+    eq([at(R, 136), at(R, 290), at(R, 504)], [["Daily challenge · Nov 10"], ["Nov 10, 2026 · Normal · Thin purse"], ["#12 of 87 today"]], "a daily's card");
+    eq(R.find(r => r.y === 190).px, 56, "a daily's title: 56 px, under the daily's line");
+    eq(pure.shareStars(dl), null, "a daily's card has no stars (a daily gives none)");
+    eq(at(pure.shareRows(Object.assign({}, dl, { lost: { held: 7, waves: 18 }, rank: null })), 190), ["Ani: held 7 of 18 waves"], "a lost daily's title");
+    // the words
+    eq(pure.shareText(base), "I held Erebuni Rise in Highland Stand with 17 of 20 defenders. Score 7,750. https://highland.avunjian.com", "the share text (section 6)");
+    eq(pure.shareText(Object.assign({}, dl, { score: 7420 })), "Highland Stand daily, Nov 10: Ani, Thin purse. Score 7,420, #12 today. https://highland.avunjian.com", "the daily's share text (5.6)");
+    eq(pure.shareText(Object.assign({}, dl, { score: 7420, rank: null })), "Highland Stand daily, Nov 10: Ani, Thin purse. Score 7,420. https://highland.avunjian.com", "the daily's share text with no rank yet");
+    for (const x of [pure.shareText(base), pure.shareText(dl)].concat(pure.shareRows(dl).map(r => r.text), pure.shareRows(base).map(r => r.text))) ok(!/[\u2013\u2014]/.test(x), "no long dash on the card: " + x);
+    eq([pure.shareFileName("erebuni"), pure.shareFileName("Sis"), pure.shareFileName("../x"), pure.shareFileName(null)],
+      ["highland-stand-erebuni.jpg", "highland-stand-sis.jpg", "highland-stand.jpg", "highland-stand.jpg"], "the picture's file name");
+    eq([pure.shareSite("https://highland.avunjian.com/"), pure.shareSite("https://Highland.avunjian.com"), pure.shareSite("javascript:alert(1)"), pure.shareSite(undefined)].map(x => x.url),
+      ["https://highland.avunjian.com", "https://highland.avunjian.com", "https://highland.avunjian.com", "https://highland.avunjian.com"], "the card's address is the canonical one");
+    eq([pure.shareDay(new Date(Date.UTC(2026, 10, 10, 23, 30)), false, true), pure.shareDay(new Date(Date.UTC(2026, 0, 2, 12)), true, true)], ["Nov 10", "Jan 2, 2026"], "the card's days");
   }
   if (pure.dailyOf) for (const d of [
     { pool: Array.from({ length: 17 }, (_, i) => "b" + i), twists: ["thin", "swift", "iron", "few", "quiet", "noballista"], skip: { b3: ["few"] } },
@@ -192,6 +290,41 @@ if (pure) {
     d.k = ref.kOf(d.pool.length); d.j = ref.jOf(d.twists.length);
     let bad = 0; for (let day = 20400; day < 20765; day++) { const a = pure.dailyOf(d, day), b = ref.dailyOf(d, day); if (a.level !== b.level || a.twist !== b.twist) bad++; }
     ok(bad === 0, "the page's daily equals the server's for a year (" + d.pool.length + " x " + d.twists.length + ")");
+  }
+  // the game's own daily as published (docs/specs/balance/ruleset-2.json: rulesetData().daily, the same tables the
+  // server's _daily_pick reads, and sql-tests.js holds the server to ref.dailyOf on them): 366 days from today, the
+  // skip lists walked past, never one battlefield two days running
+  if (pure.dailyOf) {
+    const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")), real = file.daily;
+    // (the file is the page's own rulesetData(): its SHA-256 is the page's RULESET_PIN. A page whose rules moved and a
+    // file left behind would hold these checks, and sql-tests.js's, to a daily the page no longer serves)
+    const pin = (src.match(/const RULESET_PIN = "([0-9a-f]{8})"/) || [])[1];
+    eq(crypto.createHash("sha256").update(JSON.stringify(file)).digest("hex").slice(0, 8), pin, "docs/specs/balance/ruleset-2.json is the page's rulesetData() (RULESET_PIN)");
+    const d0 = Math.floor(Date.now() / 86400000);
+    let bad = 0, skipped = 0, twice = 0, prev = null;
+    for (let day = d0; day < d0 + 366; day++) {
+      const a = pure.dailyOf(real, day), b = ref.dailyOf(real, day);
+      if (!a || a.level !== b.level || a.twist !== b.twist) bad++;
+      if (a && ((real.skip || {})[a.level] || []).includes(a.twist)) skipped++;
+      if (a && prev && a.level === prev.level) twice++;
+      prev = a;
+    }
+    ok(bad === 0 && skipped === 0 && twice === 0, "the game's daily: the page's pick equals the server's arithmetic for 366 days, skips walked past (" + bad + " differ, " + skipped + " skipped pairs served, " + twice + " repeats)");
+    eq([pure.dailyOf(real, -1), pure.dailyOf(real, 1.5), pure.dailyOf({ pool: [], twists: ["x"] }, 3), pure.dailyOf(null, 3)], [null, null, null, null], "no daily for a day or a daily that is not one");
+  }
+  if (pure.dailyWait) eq([0, 1, 59000, 60000, 61000, 3600000, 3660000, 18720000, 86400000].map(pure.dailyWait),
+    ["under a minute", "1 min", "1 min", "1 min", "2 min", "1 h", "1 h 1 min", "5 h 12 min", "24 h"], "the time to the next challenge in words");
+  if (pure.dailyLines) {
+    eq(pure.dailyLines({ attempts: 3, attempts_left: 2, best: 7420, rank: 12, total: 87 }), ["Attempts left: 2 of 3", "Your best today: 7,420 (#12 of 87)"], "the Daily tab's own lines (5.6)");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: 3, best: null, rank: null }), ["Attempts left: 3 of 3"], "no best before a score");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: null, best: null }), [], "a visitor: no attempts of his own");
+    eq(pure.dailyLines({ attempts: 3, attempts_left: -1 }), ["Attempts left: 0 of 3"], "never fewer than none");
+  }
+  if (pure.dailyYesterday) {
+    eq(pure.dailyYesterday({ rows: [{ rank: 1, name: "Bagrat", score: 9105 }, { rank: 2, name: "Aram", score: 8800 }, { rank: 3, name: "Nune", score: 8640 }, { rank: 4, name: "X", score: 1 }] }),
+      "Yesterday: 1. Bagrat 9,105 · 2. Aram 8,800 · 3. Nune 8,640", "yesterday's first three (5.6), three at the most");
+    eq([pure.dailyYesterday({ rows: [] }), pure.dailyYesterday(null), pure.dailyYesterday({ rows: [{ name: "<b>x</b>", score: "9" }] })], ["", "", ""], "no line without a score");
+    ok(!/[\u2013\u2014]/.test(pure.dailyYesterday({ rows: [{ rank: 1, name: "A", score: 1 }] })), "no long dash in yesterday's line");
   }
 }
 

@@ -451,3 +451,478 @@ by the page as the largest share of `earnMax` any battlefield keeps under it (0.
 are the mean ratio of the mix's clock with the twist to its clock without, over the battlefields it won both ways:
 Thin purse 1.07, Forced march 0.98, Iron ranks 1.01, No spells 1.04, No ballista 1.09, No catapult 1.07, No drums 1.06.
 The clock is mostly the foes' coming on, so a forced march is only 2% quicker; a weaker board is up to 9% slower.
+
+## G7a: the Horse Lines (Erebuni, Tushpa, Avarayr)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `agemix` and `harriers`, on the three
+battlefields that offer the tower): `g7a-normal-seeds3.txt`, `g7a-easy-seeds3.txt`, `g7a-hard-seeds3.txt`; the
+commanders, `CMD=probe` on mix, mix7, agemix, harriers and posts: `g7a-probe-normal-seeds3.txt`; the daily's table on
+the three, `DAILY=1`: `g7a-daily-normal-seeds3.txt`; the endless stand, `ENDLESS=20` on mix7 and harriers:
+`g7a-endless-normal-seeds3.txt`. The trials that led to the numbers are in `g7a-trials/` (try.sh: Normal, the three
+battlefields, SEEDS=3, CLOCK=1; the file names say the patch: spec = 3.2's numbers, x2 = blows doubled and the reload
+10/9/8, x3 = blows three times, null = a Horse Lines that deals nothing and throws nothing, heavy0 = commanders and
+engines never thrown, cheap = a price of 80/90/160, crowd = the final page's charge rule; m7aN = mix7 with the special
+tower Nth in its order, mixhN = the mix with it Nth in place of an archer). The trials before `m-crowd` ran with the riders
+charging at the first foe in reach.
+
+What was found, and the numbers chosen:
+- 3.2's blows (40, 70, 115; Lancers 260, Harriers 100) dealt 430 to 550 damage per 100 gold in the bot's battles, a tenth
+  of an archer's (4,800). The blows are now 140, 240 and 400, Lancers 900 and Harriers 340: 3,600 per 100 gold in the
+  Normal table. The cadence (18, 16, 14 s; Lancers 14, Harriers 7), the throw (40 to 70 px), the limit of two and the 8 s
+  before a foe is thrown again are 3.2's.
+- The riders charged at the first foe to come into reach, struck it alone and reloaded as the column came on. They now
+  wait for three foes on their stretches, or for one past the middle of its stretch (`HORSE_RULES.crowd`): in live.js's
+  three waves the charges dealt 414 to 834 where they had dealt 276.
+- No set of numbers moved a cell of the bot's tables. Where the tower stood, its slot did: mix7 with the special tower
+  12th (G5's order) lost Erebuni on every seed whatever the numbers, a Horse Lines that does nothing included
+  (`f-null.txt`), because the twelfth tower of that order is the ballista Erebuni's commander pair needs (CMD=probe:
+  the pair's margin is 1.05 for the mix and 0.82 for mix7 there). mix7 now puts it 15th; in the tables it is then built
+  only on Avarayr (on all three seeds, last) and changes nothing. On Tushpa no free pad with road in its reach is left by
+  the time any order reaches it, unless it comes in place of the mix's tenth tower (`mixh10`: Tushpa 16.3 against the
+  mix's 12.7, Erebuni 13.0 against 13.3, Avarayr 9.3 the same).
+- The bot's pad for it (5.4: the most road within 120 px downstream of a fire or catapult) leaves out a dormant ambush
+  road and a track not yet open: on Avarayr it had chosen the ambush road and never charged.
+
+5.2's rows on the three battlefields:
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables (the mix, mix7,
+  halfpost, posts, postdrum and the one-recipe builds). The pars are unchanged (Normal 1242, 1367, 1724; Easy 868,
+  1277, 1811; Hard 1125, 1406, 1756), and so is the daily's (1494, 1353, 1543): LEVEL_PAR and DAILY_PAR stay.
+- agemix (the horse on every second pad up to two, posts between) and harriers (two at Harriers, fires and drums) lose
+  every seed on Normal and Hard, and on Easy (met: 5.2 asks two of three on Normal).
+- mix7 against mix: unchanged from G5 on these three (Erebuni -3.6, Tushpa +4.6, Avarayr 0.0), so G5's mean of +0.8 over
+  the 17 and its cells for the owner stand as G5 left them. No battlefield gains more than 5 (met).
+- The Horse Lines in the best build on a third of their battlefields: NOT met (0 of 3). The best builds are archers on
+  Erebuni, mix7 on Tushpa (which builds no Horse Lines there) and balldrum on Avarayr. Putting the tower where it helps
+  Tushpa (mixh10, +3.6) would take Tushpa further above its band of 12 to 16 (mix7 keeps 17.3 there, G5's cell), and
+  every slot before 15 in mix7 loses Erebuni's pair. The owner's to rule on, with G5's cells.
+- The endless stand: NOT met. 5.2 asks mix7 and harriers boards to fall between waves 8 and 20 beyond the chronicle.
+  mix7 falls 0 to 3 waves beyond on Erebuni and Avarayr and holds all 20 on Tushpa; harriers never reach the stand.
+  The Tushpa stand is the same with a Horse Lines that does nothing (it is G5's board, not the horse's). The owner's to
+  rule on, with G5's cells.
+- Commanders: CMD=probe on the horse builds shows them felling no commander (agemix deals the first commander 0.29 to
+  0.47 of his strength; harriers never reach him);
+  3.1's first rule holds (a commander or an engine is thrown a quarter as far, and nothing is thrown twice in 8 s).
+
+### G7a close (review: docs/specs/reviews/G7a-review.md)
+
+Tables at the closing page (SEEDS=3, CLOCK=1, every build, the three battlefields): `g7a-close-normal-seeds3.txt`,
+`g7a-close-easy-seeds3.txt`, `g7a-close-hard-seeds3.txt`, `g7a-close-endless-normal-seeds3.txt` (ENDLESS=20, mix7 and
+harriers), `g7a-close-probe-normal-seeds3.txt` (CMD=probe) and `g7a-close-kit-par-hold-normal-seeds3.txt` (KIT=par
+HERO=hold, read by `tools/balance-kit.js` against the Normal table). The daily's table (DAILY=1) equals
+`g7a-daily-normal-seeds3.txt` cell for cell.
+- One rule moved: an unseen scout on the stretch is now struck (and so shown), as the stones and 3.4's blasts strike
+  him; alone he does not send the riders out. Every cell on Easy, Normal and Hard equals the build's tables; the
+  horse's damage per 100 gold on Normal moves from 3,597 to 3,673, and its px thrown per 100 gold from 487 to 500.
+- The two rows of 5.2 that are NOT met (the owner's to rule on, with G5's cells): the Horse Lines in the best build on
+  0 of 3 battlefields, and the endless stand above. One more tuning pass was tried for the first, as the review asked:
+  the reach at rank 1 from 150 to 180 with the riders waiting for 2 foes, not 3 (`g7a-trials/n-r180c2.txt`), and the
+  same with a price of 80 (`o-r180c2p80.txt`), each with `mixh` (two horses 2nd and 6th) and `mixh10` beside every
+  build. Neither puts a horse build first anywhere: mixh loses Erebuni and Tushpa on every seed at 180 (2 of 3 on
+  Erebuni at the price of 80) and keeps 10.7 or 11.3 on Avarayr against balldrum's 13.7; mixh10 keeps 13.0, 15.0 and
+  9.3. The page keeps the build's numbers. On Hard mixh is the best build on Avarayr (the review's run: 4.0 against
+  balldrum's 3.7), the one cell where the row is met.
+- The Captains' tiers 4 and 5 (5% off the special tower, 7.5% off its masteries) now apply to the Horse Lines. KIT=par
+  HERO=hold on the three: Erebuni +0.0, Tushpa -0.7, Avarayr +2.3, as at G5's close (+0.0, -0.6, +2.3): the discount
+  moves no cell, so G5's mean of +2.12 over the 17 and its Van cell (+6.7, over the bound of 6) stand as G5 left them.
+  Their lines now name the towers that are in the game ("the Horse Lines"), not "the special tower".
+- mix7 puts "age" 15th for every battlefield, G7b to G7e included. A later package that needs another slot for its own
+  tower changes it for its own battlefields only (a per-battlefield order), so that Erebuni's commander pair keeps its
+  ballista.
+
+## G7b: the Stores (Dvin, Tashir, Sevan, Ani, Mari, Sis)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `greedy` and `bazaar`, on the six
+battlefields that offer the tower): `g7b-normal-seeds3.txt`, `g7b-easy-seeds3.txt`, `g7b-hard-seeds3.txt`; the
+commanders, `CMD=probe` on mix, mix7, greedy, bazaar and posts: `g7b-probe-normal-seeds3.txt`; the daily's table,
+`DAILY=1`: `g7b-daily-normal-seeds3.txt`; the endless stand of mix7, `ENDLESS=20` (JSON lines): `g7b-endless-normal-seeds3.txt`.
+The trials that led to the price are in `g7b-trials/` (Normal, the six, SEEDS=3, mix, greedy and bazaar beside the full
+table at 3.3's numbers, `n3-price120.txt`; p1 = every pay about a third lower, p2 = a price of 160, p3 = 140, p4 = 140 with
+a first rank paying 26, p5 = 150).
+
+The bot (5.4): a build's "age" is the Stores on these six; they go on the free pad that reaches the least road, as the
+order says, never once two thirds of the battle's waves are sent. Its Stores are ranked and mastered after every
+fighting tower has its own (STORES_RANK=last, the default: ranked as early as any tower they took the gold the first
+waves needed, and greedy kept 4 to 10 fewer than the mix in a first trial at one seed), and never after two thirds of the
+battle. greedy is the mix with one Stores as its third building (BUILD_AGE_MAX), bazaar two Stores first, then the mix.
+The report adds 5.2's rows for the Stores: greedy's gold invested at the end against the mix's, the defenders it lost
+more than the mix by the end of the first commander's wave and at the end, and bazaar's end against the mix's.
+
+What was found, and the numbers chosen:
+- At 3.3's numbers (price 120, pay 30, 46, 64; Caravan 80, Field Forge 64) a board with Stores became the best on Sevan
+  (greedy 18.0 against mix7's 13.3) and Ani (bazaar 16.7 against 14.7): above the bands of 5.1 (12 to 16 on the first
+  six, 10 to 15 on the later eleven) and 4.7 defenders above the best board without them, against 3.1's second rule
+  (2 to 3 at most). bazaar ended below the mix on only 3 of the 6.
+- Lower pay (p1) made greedy and bazaar lose more on Dvin and Tashir and still kept 17.7 and 18.3 on Sevan and Ani.
+  The price moves the cells the most: at 160 (p2) the best boards are G5's on five of the six and bazaar's 13.7 on
+  Sevan (inside the band, 0.4 above mix7), and bazaar ends below the mix on 5 of 6. The cells jump by several defenders
+  between neighboring prices (140 and 150 kept bazaar at 17.7 and 16.7 on Ani): the bot's purchases shift wave by wave.
+- Chosen: a price of 160. Every other number is 3.3's.
+
+5.2's rows on the six battlefields (Normal unless named):
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables (mix, mix7,
+  halfpost, posts, postdrum and the one-recipe builds). mix7 builds a Stores 15th, but on these six that changes no cell:
+  mix7 against mix stays G5's (Dvin +0.3, Tashir 0.0, Sevan +2.3, Ani +2.4, Mari -10.0 with three commanders at the
+  walls, Sis -5.0), so G5's mean over the 17 (+0.8) and its cells for the owner stand.
+- bazaar ends below the mix in lives on at least four of the six: met on Normal (5 of 6: only Sevan, +2.7), Easy (4)
+  and Hard (4).
+- greedy (Normal): gold invested at the end +4.7% (Dvin), -54.5% (Tashir, where it wins 1 of 3), +15.5% (Sevan), +5.8%
+  (Ani), +2.3% (Mari), +3.5% (Sis), against 5.2's 6 to 10%: NOT met. A board that holds is full by the last waves (every
+  pad built, every tower mastered), so the Stores' gold has nothing left to buy, and the mix's own end board is the same.
+  Lost by the end of the first commander's wave against the mix: -1.0, +6.3, +1.0, +2.7, 0.0, +2.0 (1 to 2 asked: met on
+  Sevan and Sis, near on Ani). At the end: +1.7, -6.3, +2.3, +2.0, -7.3, -0.3 (within 2: met on Dvin, Ani and Sis, 2.3 on
+  Sevan; NOT met on Tashir and Mari). Mari's -7.3 is a commander at the walls on every seed (10 defenders at a stroke),
+  as mix7's own Mari cell (2.0c3) is.
+- The Stores in the best build on a third of their battlefields: NOT met on Normal (1 of 6: bazaar on Sevan). On Easy 2
+  of 6 (greedy on Ani and Sis) and on Hard 2 of 6 (greedy on Dvin, bazaar on Sevan). At 3.3's price 120 it was 3 of 6 on
+  Normal, at the cost of the two bands above. The owner's to rule on, with G5's and G7a's cells.
+- The bands of 5.1 on Normal: the best boards keep 14.3, 19.3, 13.7, 14.7, 12.0 and 11.3 (Tashir's 19.3 is G5's
+  halfpost cell, for the owner). Easy: the mix wins every seed on all six and keeps 21.3 to 29.3 (G5's cells). Hard: the
+  best build wins all six (7.7, 13.0, 6.7, 7.7, 5.3, 5.3) and the mix loses some seeds.
+- Commanders (CMD=probe): greedy and bazaar deal the commanders about what the mix does (the least margins over the
+  seeds: the mix 0.68 to 2.79 of their strength, greedy 0.69 to 2.72, bazaar 0.88 to 2.42 where it reaches them); posts
+  alone deal the first commander 0.10 to 0.39 of his strength, so he reaches the walls above 60%.
+- The endless stand (ENDLESS=20, mix7, waves held beyond the chronicle on the three seeds): Dvin 10, 12, 12; Tashir 9, 9,
+  18; Sevan 4, 4, 16; Ani 2, 2, 3; Mari 2, 2, 2; Sis 0, 2, 2. mix7 falls between waves 8 and 20 beyond on Dvin and Tashir
+  (5.2 asks it on three battlefields of the 17; G7a found none on its three). harriers (a Horse Lines board) is not built
+  here.
+- The pars moved where a board with Stores became the best: Normal Sevan 1730 to 1735; Easy Ani 1558 to 1584 and Sis
+  2311 to 2346; Hard Dvin 1115 to 1103 and Sevan 1719 to 1754; the daily's Sevan 1373 to 1328. LEVEL_PAR and DAILY_PAR
+  carry them. The revs of the six rose to 3 (the Stores in their trays). The daily's skipped pairs (G6) were not run
+  again with the Stores in the daily's tray.
+- The playtest of 8.4 (Tashir with Stores, `tools/playtest-stores.js`, by finger on the iPad at 1194 x 834 and an
+  iPhone SE at 667 x 320): PASS both, 528 s. See the G7b report for how it felt.
+- Acceptance at the package's close: check-page OK; selftest suite 1 PASS (151 checks, 114.2 s alone; 151.9 s, over
+  its budget, beside the other track's load) and suite 2 PASS (47 checks, 72.2 s alone); run-fixtures PASS (8);
+  town-isolation PASS (9); run-all --quick 10 of 11 (dance10 failed by taps at 9.7 and 10.2 s under load, PASS alone,
+  15 runs); run-all --only=padplace,probe,iphone,live in full PASS (4 of 4, all 17 battlefields, iphone at ten sizes);
+  nine mutants of the Stores' rules each caught by suite 2's three Stores checks.
+
+### G7b close (review: docs/specs/reviews/G7b-review.md)
+
+The close changes no number of the Stores and no battlefield: the price stays 160 and every other number is 3.3's.
+What it changed in the page: the undo grace ends at a clear (a tower placed before a clear sells as any other, so a
+Stores can no longer be placed, paid and taken back in full), the Council's line lists its towers with one "and",
+Dvin's tile carries the card's sourced line, and the Stores' panel rows are shorter. The bot's tables are the same
+battles as before: the rerun at the close of Normal, Easy and Hard (SEEDS=3, every build, the six) equals
+`g7b-normal-seeds3.txt`, `g7b-easy-seeds3.txt` and `g7b-hard-seeds3.txt` cell for cell.
+
+The bot's Stores rows now also give what greedy earned and spent over the whole battle against the mix (review 4): the
+gold invested counts only what stands at the end, and a full board hides the Stores' gold there.
+`g7b-close/normal-stores-earned-seeds3.txt` (Normal, the six, mix, greedy and bazaar):
+
+```
+battlefield              invested   cmd1 lost  end      bazaar end  earned   spent    stores gold (greedy, bazaar)
+3 Dvin Gates 640         +4.7%      -1.0       +1.7     -10.0       +9.4%    +8.6%    986, 445
+4 Tashir Gates 914       -54.5%     +6.3       -6.3     -8.0        -53.5%   -53.9%   461, 586
+5 Sevan Shores 921       +15.5%     +1.0       +2.3     +2.7        +9.3%    +9.9%    986, 2229
+6 Ani 1041               +5.8%      +2.7       +2.0     -0.7        +7.3%    +11.5%   1110, 2220
+7 Mari 1266              +2.3%      +0.0       -7.3     -9.7        +5.4%    +3.5%    1076, 2200
+8 Sis 1375               +3.5%      +2.0       -0.3     -10.3       +7.7%    +8.2%    1092, 2043
+```
+
+Read as earned, greedy's extra gold is 6 to 10% above the mix on Dvin, Sevan, Ani and Sis (4 of 6), 5.4% on Mari and
+lost with the battle on Tashir. Easy (`g7b-close/easy-stores-rows-seeds3.txt`): +7.1 to +11.1% on all six. Hard
+(`g7b-close/hard-stores-rows-seeds3.txt`): +5.8 to +7.5% on Sevan, Mari and Sis, +30.5% on Dvin and +55.6% on Tashir
+(the mix loses seeds there), -69.9% on Ani (greedy falls early).
+
+Tashir, where every player first meets the Stores (review 3). Trials at SEEDS=3, Normal, mix, greedy and bazaar, in
+`g7b-close/`:
+- `tashir-storesrank-never.txt` (STORES_RANK=never, the Stores never ranked or mastered): greedy wins 2 of 3 and keeps
+  3.7 against the mix's 8.0 (-4.3, against -6.3 at the default STORES_RANK=last), bazaar 3 of 3 and 2.0. Not
+  ranking them helps a little, not enough.
+- `tashir-120-then-200.txt` (PATCH: the first Stores at 120, the second at 200): greedy wins 3 of 3 and keeps 6.7
+  against 8.0 (-1.3, inside 5.2's 2), and its gold invested is +3.5%. bazaar loses all three by wave 4.
+- The playtest by finger from the battle's own purse (`node tools/playtest-stores.js --purse`, and `--purse=mix` for
+  the same order without the Stores), Auto at 2x, no spells or masteries:
+
+  | Order (iPad 1194 x 834, iPhone SE 667 x 320) | Lives at each wave's horn | End |
+  | --- | --- | --- |
+  | Stores third, iPad | 20, 20, 18, 16, 9, 6, 6 | fell on wave 7; the Stores paid 240 |
+  | Stores third, SE | 20, 19, 17, 15, 7, 3, 3 | fell on wave 7; the Stores paid 240 |
+  | Same order without the Stores, iPad | 20, 20, 20, 19, 14, 13, 13, 3 | fell on wave 8 |
+  | Same order without the Stores, SE | 20, 20, 20, 20, 15, 14, 14, 4 | fell on wave 8 |
+
+  The order is a plain one with no spell and no mastery, so both fall; the Stores' 160 gold, spent before the catapult,
+  costs about 5 defenders by wave 5 and a wave of the stand.
+
+  The Stores built third cost the early waves more than they pay back on Tashir. A first Stores at 120 and a second at
+  200 is the candidate; it is not in the page. The owner rules on it with the rows below.
+
+5.2's rows still NOT met at the close, for the owner with G5's and G7a's cells: the Stores in the best build on a third
+of their battlefields (Normal 1 of 6, Easy 2, Hard 2); greedy's gold invested 6 to 10% above the mix (none of the six; read as gold earned, 4 of 6 on Normal);
+greedy's end within 2 of the mix on Tashir (-6.3) and Mari (-7.3); and the endless stand, which 5.2 asks on three
+battlefields of the 17 and which is met on Dvin and Tashir only (Sevan 4, 4, 16; Ani 2, 2, 3; Mari 2, 2, 2; Sis 0, 2,
+2 waves beyond the chronicle): NOT met.
+
+The Council on the six (review 5), `g7b-close/kit-par-hold-normal-six-seeds3.txt` (KIT=par HERO=hold, SEEDS=3, mix,
+archdrum, mix7, halfpost, greedy and bazaar): the best boards keep Dvin 15.3, Tashir 19.3, Sevan 17.0 (bazaar), Ani
+15.7, Mari 12.0 and Sis 14.3, against the Standard battle +1.0, 0.0, +3.3, +1.0, 0.0 and +3.0. Only Sevan moved from
+G5's close (bazaar's board), and the mean over the 17 is about +2.26 against RULINGS B7's bound of 2.3: 0.04 to spare.
+A later tower that lifts a best board under the Council by a defender on one battlefield spends that margin.
+
+The daily with the Stores in its tray (review 10): the twist tables on the six (`g7b-close/daily-twists-six-normal-seeds3.txt`,
+`DAILY=1 TWIST=t DAY=20406 SEEDS=3 CLOCK=1`, the mix, every twist and none) equal G6's `g6-daily-twists-normal-seeds3.txt`
+row for row, so the skip list stands. The mix builds no Stores, and the tray's new tile changes no other tower.
+
+Acceptance at the close (gp/work, the other track testing beside it at loads of 5 to 28):
+- check-page OK. selftest suite 2 PASS (47 checks, 99.8 s). Suite 1 PASS alone (151 checks, 121.1 s of its 125: it
+  ran 144.7 and 142.7 s beside the other track's load). run-fixtures PASS (8). town-isolation PASS (9; a first run hung
+  after its first case and was stopped).
+- Seventeen mutants of the Stores' rules (the review's thirteen, the undo after a clear, the Council's line, the
+  Forge's mend, the clear's toast) each caught by suite 2's Stores checks alone.
+- run-all --quick: 9 of 11 beside the load (dance10 and platform failed). platform PASS alone (918 s). dance10 alone:
+  PASS, PASS, then FAIL at a load of 9 (an Erebuni tap at 9817 ms; Sis "a tap at -1 ms ended the horn call", which
+  means the horn call of 2.4 s had already ended by itself when the late tap came: the code of the dance and the horn
+  is untouched since G7a). The known intermittent dance10 failure.
+- run-all --only=padplace,probe,iphone,live in full: probe PASS (759 probed, 17 battlefields) and live PASS (17) beside
+  the load; padplace and iphone were stopped by their time budgets at a load of 17 to 28, then PASS alone (padplace
+  1265 placed, 734 s; iphone 757 states at ten sizes, 664 s).
+
+## G7c: the Powder Mine (Gyumri Road, Halidzor)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `minemix`, on the two battlefields that
+offer the tower): `g7c-normal-seeds3.txt`, `g7c-easy-seeds3.txt`, `g7c-hard-seeds3.txt`; the daily's table, `DAILY=1`:
+`g7c-daily-seeds3.txt` (the same table on the page before the mine: `g7c-trials/before-daily-normal-seeds3.txt`);
+the endless stand of mix7 and harriers, `ENDLESS=20` (JSON lines): `g7c-endless-normal-seeds3.txt`. The trials are in
+`g7c-trials/` (Normal, the two, SEEDS=3, WAIT 0, the numbers named by each file's PATCH below). The "before" for every
+cell is G5's close tables (`g5-close-*-seeds3.txt`): on these two battlefields the page before G7c plays them cell for
+cell (checked on Normal at HEAD 1fe5a73: mix 9.0/6.3 at WAIT 0, 8.0/4.3 with CLOCK=1, the same as G5's close).
+
+The bot (5.4): a build's "age" is the Powder Mine on these two, no limit. It goes on the free pad whose reach holds the most
+road (the post's ranking at the mine's reach). Its charge is laid at the road point in its reach that the most standing
+shooting towers reach; on a tie the one farthest from the walls (5.4 names no tie; nearest the walls, the post's rule, put
+the charge where the towers had already felled the column, and a mine waited armed some 340 s a battle with no foe in
+its blast). It is laid again between waves only, and only where more towers would cover it (a charge laid again arms
+again). The trigger is "at 3 foes", the mine's own. minemix is the mix with the mine 8th and 13th. The report adds each
+mine's blasts in a battle and the foes a blast caught.
+
+What was found, and the numbers chosen:
+- At 3.4's numbers (120 gold, 260 every 28 s) every build with a mine kept fewer defenders than the same build without:
+  the mine 4th (minemix as first tried) lost both battlefields at the first commander's wave; one mine 5th in balldrum took
+  Halidzor from 16.0 to 1.0 (WAIT 0). A free mine (every price 1) left balldrum at 15.3, so the cost was the gold, not the pad.
+  The bot's mines dealt about 2,600 damage per 100 gold (catapult 3,500, a mastered archer or catapult 10,000 to 12,000)
+  and fired 4 to 5 times a battle.
+- Twice and three times the blow, a shorter arming, a wider blast (trials tA to tD, u2 to u10) did not change that much:
+  the trigger at 3 foes fires a mine only a few times a battle, and the first commander's wave, where every board on
+  these two is decided, brings a commander and few foot. A charge with only the commander over it never fired.
+- Chosen (u10, then the commander rule): the blows three times 3.4's (780, 1,320, 2,100; Great Charge 3,250 and Twin
+  Fuses 1,550, two and a half times), the arming four fifths (22, 20, 18; 19 and 16), the store 80 gold with ranks of 100
+  and 160 and masteries of 300; the reach, the blast's breadth, the stagger and the trigger are 3.4's. And a rule: a
+  commander counts as three foes for the trigger (MINE_RULES.boss), as a player firing by hand would fire on him.
+
+5.2's rows on the two battlefields (Normal unless named):
+- The classic five and every build of G5: every cell on all three difficulties equals G5's close tables. mix7 builds its
+  mine 15th, which these two battlefields never reach (14 and 14 pads), so mix7 never builds a mine here: its row does
+  not measure the mine. mix7 against mix stays G5's (Gyumri 0.0, Halidzor +4.7), and G5's mean over the 17 (+0.8) and its
+  cells for the owner stand as G5 left them.
+- The Powder Mine in the best build on at least a third of its battlefields: met. Gyumri Road, Normal: greedy (the mix
+  with the mine third) 3/3 13.0 against the best without a mine, catapults 3/3 12.0 (+1.0; band 10 to 15). Hard: greedy
+  3/3 6.7 against the mix's 2/3 3.3 (+3.4: above 3.1's "2 to 3 more", for the owner; band 2 to 8 kept). Easy: the mix
+  keeps 30 everywhere, unchanged. Halidzor: balldrum stays best on every difficulty (10.7, 30.0, 2.7); minemix ends 0/3
+  w12 there, greedy 3/3 2.3.
+- agemix (a mine and a post by turns on every pad) and harriers lose on every seed on all three difficulties: met.
+- Easy: the mix alone meets Easy's band, unchanged (30.0, 22.3): met.
+- Wave time at 1x for the best build on Normal: Gyumri Road 28.0 min against 28 (0%), Halidzor 26.2 against 26: met.
+- The endless stand (JSON): mix7 falls 9, 10 and 9 waves beyond the chronicle on Gyumri Road (inside 8 to 20) and 2, 2
+  and 2 on Halidzor; harriers loses the chronicle on both. mix7 builds no mine here and harriers never reaches the stand,
+  so on these two the row does not measure the mine; read as the battlefield's own stand, it is met on Gyumri Road (with
+  G7b's Dvin and Tashir, three battlefields). greedy, which builds the mine third, falls 9, 9, 9 beyond on Gyumri Road and
+  0 on Halidzor (G7c close, `g7c-close/endless-normal-seeds3.txt`).
+- The daily (DAILY=1): every cell but those with the mine in their order equals the page before; the best builds (mix 17.0
+  on Gyumri Road, mix7 15.7 on Halidzor) and so DAILY_PAR are unchanged.
+- Damage per 100 gold on Normal (the whole table): mine 6,239, Great Charge 20,330, Twin Fuses 19,904 (mastered archers
+  8,145 and 5,558, catapults 9,868 and 3,871). A mastered mine is the strongest tower per gold in the bot's hands; it fires
+  15 to 19 times a battle on about 3 foes. A player firing by hand on bigger crowds can do more: for the owner to watch in
+  the stats.
+
+Pars: LEVEL_PAR's Gyumri Road is now [1440, 1727, 1893] (Normal and Hard: greedy's clock); Halidzor's is unchanged.
+Revs: Gyumri Road and Halidzor rise to 3 (their pins moved, no other did); RULESET stays 2 (no board has opened);
+`ruleset-2-g7c.json` is rulesetData() at the close.
+
+For the owner: Gyumri Road on Hard (+3.4 with a mine); the mastered mine's damage per gold; the trigger's commander rule
+(a player sets it "by hand" to save the charge for him, or leaves it at 3 and it fires on him alone).
+
+### G7c close (review: docs/specs/reviews/G7c-review.md)
+
+The close cuts one number: the masteries' blows are twice 3.4's, not two and a half (Great Charge 2,600 from 3,250, Twin
+Fuses 1,240 from 1,550). Review 3: at the build's numbers greedy kept 6.7 on Gyumri Road on Hard against the best board
+without a mine (mix, 2/3 3.3), +3.4 past 3.1's "2 to 3". Trials at SEEDS=3, CLOCK=1 on the mine's builds (greedy, bazaar,
+minemix, agemix, harriers):
+- masteries' blow twice 3.4's: Gyumri Road Normal greedy 13.0 (unchanged, still above catapults' 12.0), Hard greedy 2/3
+  5.0 (+1.7 over the mix) and bazaar 3/3 2.3. Chosen.
+- masteries' arming at 3.4's (24, 20), blows as built: Normal greedy 13.0, Hard greedy loses all three (w13): the mine no
+  longer in Hard's best board. Not chosen.
+
+The close also changes how the mine plays, not its numbers (each in the spec note under gameplay 3.4): a save made during
+a wave keeps each charge's arming as the horn left it; a press a tower's tap zone holds nearer than a marker's catch goes
+to the tower; a wrecked store's laid charge goes on arming at a failing store's pace and fires once; Fire and X fire the
+armed charges with a foe over them and keep an empty one armed. None of these moved a cell of the tables below except as
+named.
+
+Tables at the close (`g7c-close/`, SEEDS=3, CLOCK=1, every build, the two battlefields):
+- Normal (`normal-seeds3.txt`): every cell equals `g7c-normal-seeds3.txt` but bazaar on Gyumri Road (7.7 to 7.3) and
+  greedy on Halidzor (2.3 to 2.0). The mine stays in the best build on Gyumri Road: greedy 3/3 13.0 against catapults'
+  12.0 (+1.0). Halidzor: balldrum 10.7, no mine. Met on 1 of 2.
+- Hard (`hard-seeds3.txt`): Gyumri Road greedy 2/3 5.0c1 (from 3/3 6.7) and bazaar 3/3 2.3 (the bot's best, by wins),
+  against the mix's 2/3 3.3: the mine's best board keeps +1.7, inside 3.1's "2 to 3". Halidzor unchanged (balldrum 2.7).
+- Easy (`easy-seeds3.txt`): equal to `g7c-easy-seeds3.txt` but greedy on Halidzor (27.3 to 28.0).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Wave time on Normal: Gyumri Road 28.1 min against 28; Halidzor 26.2 against 26.
+- The daily (`daily-seeds3.txt`, DAILY=1): equal to `g7c-daily-seeds3.txt` cell for cell. DAILY_PAR unchanged.
+- The Council (`kit-par-hold-normal-seeds3.txt`, KIT=par HERO=hold): Gyumri Road's best 17.0 (mix7, no mine) and
+  Halidzor's 17.0 (firemix, no mine), both equal to G5's close table; the Standard best on Gyumri Road rose 12.0 to 13.0
+  with the mine, so the par-hold margin there falls by 1 and RULINGS B7's 2.3 bound is not spent by the mine.
+- Damage per 100 gold on Normal: mine 5,299, Great Charge 18,450, Twin Fuses 16,992 (mastered archers 8,177, mastered
+  catapult 9,886). A mastered mine is still the strongest tower per gold in the bot's hands, about 1.8 times the next:
+  for the owner to watch in the stats. On Hard Twin Fuses reads 33,829, on 7 stores only.
+
+Pars: LEVEL_PAR's Gyumri Road is now [1440, 1736, 1975] (Normal greedy's clock; Hard's best by wins is now bazaar).
+Pins: RULESET stays 2, its pin and Gyumri Road's and Halidzor's moved; `ruleset-2-g7c.json` is rulesetData() at the close.
+
+For the owner:
+- The commander rule (MINE_RULES.boss, a commander counts as three foes for the trigger) is new behavior, not in 3.4
+  (review 7). With it counted as one (PATCH='MINE_RULES.boss = 1', the review's runs at the build's numbers): at CLOCK=1
+  greedy 10.0 and minemix 11.0 stay below catapults' 12.0 on Gyumri Road Normal, so no mine build is the best board; at
+  WAIT 0 greedy 13.0 beats catapults' 11.0. The rule stays in the page until the owner rules.
+- The mastered mine's damage per gold (above).
+
+## G7d: the Aid Post (Van, Musa Dagh, Sardarapat)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build including the new `aid`, on the three battlefields that offer
+the tower): `g7d-normal-seeds3.txt`, `g7d-easy-seeds3.txt`, `g7d-hard-seeds3.txt`; the daily's, `DAILY=1`:
+`g7d-daily-seeds3.txt`; the endless stand of mix7, harriers and aid, `ENDLESS=20` (JSON lines):
+`g7d-endless-normal-seeds3.txt`; the Council, `KIT=par HERO=hold`: `g7d-kit-par-hold-normal-seeds3.txt`. Trials are in
+`g7d-trials/`. The "before" for every cell is G5's close tables (`g5-close-*-seeds3.txt`, `g6-daily-normal-seeds3.txt`).
+
+The bot (5.4): a build's "age" is the Aid Post on these three, one on a field. "aid" is the mix with the post as its sixth
+building (5.2). The post's ranks wait until every pad is built, and it is mastered after every fighting tower (it fights
+nothing, so the board comes first). It goes on the Stores' pad, the free pad that reaches the least road, not 5.4's "nearest
+the fortress" (the trial below). A cell's lives are the defenders never lost (`held`: a returned defender is not counted, as
+the stars do not count him). Beside mix the report adds 5.2's row: defenders lost, defenders returned, and the seeds the mix
+loses that aid wins.
+
+What was found, and the numbers chosen:
+- At 3.5's prices (110, ranks 130 and 210, masteries 320) the post cost the mix its next ranks: "aid" lost more defenders
+  than "mix" on Sardarapat and Easy Van. Free (every price 1, `free.txt`) it still lost 4.0 more on Musa Dagh. Trials
+  `c60`, `late`, `late40` to `late60`, `late60all`, `late-eh` (Easy and Hard) and `least` are the builder's steps between.
+- Chosen: 60 gold, ranks of 70 and 110, masteries of 220, and the ranks only once every pad is built (the bot's rule). The
+  reach, the hastes, the hero's seconds and the returns are 3.5's.
+- The pad: nearest the fortress (`near-*-seeds3.txt`, the full tables) "aid" lost 2.3 more than "mix" on Normal Sardarapat
+  and 1.3 more on Hard, and turned no seed. On the Stores' pad (`least60-*.txt`, then the tables above) it loses none more
+  there. A player puts a tower that fights nothing where a shooting tower would see the least road. Chosen.
+- Built in its turn before the ranks that wait (`early-normal.txt`): Van fell at wave 6. Not chosen.
+
+5.2's rows on the three battlefields:
+- The Aid Post: "aid" against "mix", defenders lost (a lost battle counts every defender):
+  - Normal: Van 19.3 and 19.3 (+0.0), Musa Dagh 16.0 and 20.0 (+4.0), Sardarapat 7.7 and 7.7 (+0.0).
+  - Hard: Van +0.0, Musa Dagh +0.0, Sardarapat +0.0.
+  - Easy: Van +0.0, Musa Dagh +3.0, Sardarapat +0.0.
+  - Returns never pass the cap: at most 5 in a battle (Surgeons), 4 on Musa Dagh (rank 3's cap).
+  - A seed the mix loses turned into a win: Hard Sardarapat, "aid" 3/3 2.3 against the mix's 2/3 2.3. Met.
+  - NOT met, for the owner: Musa Dagh on Normal (+4.0) and Easy (+3.0). The mix holds the last commander there with 0.1%
+    of the road left (walked 0.999) and fills every pad and all six plots. The post takes the pad of the mix's last tower
+    and the commander breaks through, at every price tried, free included. Only a board with a pad to spare would meet it.
+- The classic five, mix7, halfpost, posts and postdrum: every cell on all three difficulties equals G5's close tables.
+  mix7 builds its special tower 15th and never reaches it here, so its row does not measure the post. mix7 against mix
+  and the mean over the 17 stand as G5 and G7c left them (unchanged cell for cell, so still MISSED as G5 left it: +0.82 on the mean against 1 to 3, Van +9.3 and Musa Dagh +7.0 against 5; G5's open cell for the owner).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Easy: the mix alone meets Easy's band, unchanged (29.0, 25.0, 29.7): met.
+- Wave time at 1x for the best build on Normal: Van 32.1 min against 35 (-8%), Musa Dagh 23.2 against 23, Sardarapat 35.2
+  against 35. Unchanged.
+- The endless stand: mix7 falls 8, 8, 9 waves beyond on Van, 9, 9, 9 on Musa Dagh and 9, 9, 9 on Sardarapat (inside 8 to
+  20); harriers loses the chronicle on all three. "aid" falls 9 beyond on Sardarapat (three seeds) and once on Van.
+- The daily: the best builds and their clocks are unchanged, so DAILY_PAR is unchanged.
+- The Council (KIT=par HERO=hold): Van's best is now "aid" 17.0 (G5's close: mix 16.7), Musa Dagh 15.3 and Sardarapat 16.0
+  unchanged. The Standard best on Van is unchanged (mix7 10.0), so the post widens Van's par-hold margin by 0.3.
+- G5's open cells: the post moves none of them but Van's par-hold (+0.3 above). halfpost stays best on Musa Dagh.
+- 3.1's rule 2: where the post is in the best build (Easy Sardarapat greedy 30.0 against the mix's 29.7; Hard Sardarapat
+  minemix 3/3 2.3 against the mix's 2/3 2.3) it keeps 0.3 and 0.0 more defenders. Met.
+
+Pars: LEVEL_PAR's Sardarapat is now [2013, 2186, 2205] (Easy greedy's clock, the post third; Hard minemix's, the post
+eighth, best by wins). Revs: Van, Musa Dagh and Sardarapat rise to 3 (their pins moved); RULESET stays 2 (no board has
+opened); `ruleset-2-g7d.json` is rulesetData() at the build.
+
+For the owner: Musa Dagh's row (above); the bot's pad (5.4 says nearest the fortress); the Council's par-hold on Van.
+
+### G7d close (review: docs/specs/reviews/G7d-review.md)
+
+The close changes no number. It changes two rules where the post is stunned (each in the 3.5 note): a stunned post
+returns no defender at that clear (review 2), and the hero's shorter wait is read when he falls from the post standing
+then, stunned or not (review 3). The card's second paragraph is shorter and the invention line now comes before Van's
+line, so the whole card shows at 667 x 320 (review 6).
+
+Tables at the close (SEEDS=3, CLOCK=1, every build, the three battlefields): Normal, Easy and Hard equal
+`g7d-normal-seeds3.txt`, `g7d-easy-seeds3.txt` and `g7d-hard-seeds3.txt` cell for cell (only the run time differs), so
+the files are kept: the two stun rules move nothing the bot measures here. mix7 against mix is unchanged, so still MISSED as G5 left it.
+
+Still open, for the owner (review 1 and 9): 5.2's Aid Post row is NOT met on Musa Dagh on Normal (+4.0) and Easy (+3.0).
+The mix fills every pad and holds the last commander with 0.1% of the road to spare; any sixth building that does not
+fight costs that tower. The review's recommendation: read the row only where the mix holds the last commander with a
+margin (so not on Musa Dagh), or retune Musa Dagh's last commander, a battlefield change. Also the bot's pad and rank
+rules for the post (the Stores' pad, ranks only once every pad is built) against 5.4's "nearest the fortress", and the
+prices cut to 60, 70, 110 and 220.
+
+## G7e: the Observation Post (Stepanakert 1992, Shushi, Stepanakert 2023)
+
+Tables (SEEDS=3, CLOCK=1, the Standard battle, every build, on the three battlefields that offer the tower):
+`g7e-normal-seeds3.txt`, `g7e-easy-seeds3.txt`, `g7e-hard-seeds3.txt`; the daily's, `DAILY=1`: `g7e-daily-seeds3.txt`; the
+endless stand of mix7, harriers, aid and minemix, `ENDLESS=20` (JSON lines): `g7e-endless-normal-seeds3.txt`; the Council,
+`KIT=par HERO=hold`: `g7e-kit-par-hold-normal-seeds3.txt`. `ruleset-2-g7e.json` is rulesetData() at the build. The "before"
+for every cell is G5's close tables (`g5-close-*-seeds3.txt`; no package between touched these three battlefields).
+
+The bot (5.4): a build's "age" is the Observation Post on these three, one on a field, on the pad by road and sky reached
+(rankAir, as the archers'), marking the Strongest (the post's own default), ranked and mastered as any tower. It has no
+build of its own: the builds with "age" put it 1st (bazaar), 3rd (greedy), 6th (aid), 8th and 13th (minemix) and 15th
+(mix7). Beside every table the report adds 5.2's row: the best build of all against the best build whose battles never
+built the post, and whether the best build has it.
+
+No number was tuned: the post is built at 3.6's numbers (90 gold; ranks 110 and 190; masteries 300; reach 230, 270, 310;
+amp 0.15, 0.2, 0.25; marks 1, 1, 2; Fire Direction 150 every 4 s, Night Sights three marks and every hidden foe in reach).
+
+5.2's rows:
+- "With it the best build keeps at most 2 more defenders": Normal +0.0, +0.0, +0.0 (Stepanakert 1992, Shushi, Stepanakert
+  2023). Easy +0.0 on all three. Hard +0.3 on Stepanakert 1992 (mix7 6.0 against the mix's 5.7), +0.0 on the others. Met.
+- "In the best build on at most two of its three battlefields": Normal 0 of 3, Easy 0 of 3, Hard 1 of 3. Met.
+- The classic five (mix and the one-recipe builds), halfpost, posts and postdrum equal G5's close tables cell for cell on
+  all three difficulties: the post moves nothing the mix measures. Easy's band for the mix is unchanged.
+- mix7 on Normal is unchanged cell for cell (14.0, 5.3, 2/3 8.0c1; it builds the post 15th), so mix7 against mix over the 17
+  stands where G5 and G7d left it: still MISSED as G5 left it (+0.82 on the mean against 1 to 3; Van +9.3 and Musa Dagh +7.0
+  against 5). Hard Stepanakert 1992 is the only mix7 cell that moved (5.7 to 6.0).
+- agemix and harriers lose every seed on all three difficulties: met.
+- Wave time at 1x for the best build on Normal: 40.3 min against 38 (+6%), 17.7 against 20 (-11%), 15.2 against 15 (+1%).
+  Unchanged.
+
+What the tables say of the post itself, for the owner:
+- It is worth little where it is built early in a full mix: "aid" (the post 6th) keeps 10.7 on Normal Stepanakert 1992
+  against the mix's 14.3, wins 1 of 3 on Shushi where the mix wins 3, and loses 3.0 more than the mix on Normal Shushi; on
+  Stepanakert 2023 it keeps 11.7 against 8.7 (+3.0). bazaar (the post first) loses where the mix wins. So it is never an
+  automatic purchase (3.1's rule 2), and on Normal it is in no best build.
+- Fire Direction's shells: 1,700 to 16,000 damage per 100 gold over the tables (7 to 17 masteries a table), the rest of the
+  post's worth is in the other towers' cells.
+- The daily (12 waves, the whole tray): the post is in the best build on 2 of 3, Stepanakert 1992 (mix7 19.0 against the
+  mix's 18.7) and Stepanakert 2023 ("aid" 20.0 against the mix's 14.0, +6.0). 5.2's row is read on the campaign's Normal,
+  where it is met; the daily's +6.0 on Stepanakert 2023 is reported, not bound.
+- The Council (KIT=par HERO=hold): the best builds are unchanged (balldrum, ballista, balldrum: the post in none).
+- The endless stand (ENDLESS=20): every board falls by 20 waves beyond (not made endless: met). mix7's fall: NOT met on
+  Stepanakert 1992 (4, 4, 4 waves beyond against 5.2's 8 to 20); on Shushi 9, 9, 16 and on Stepanakert 2023 10 and 11 (one
+  seed lost in the chronicle). The post is not the cause: the review ran the same stand with the post's amp and shell set to
+  0 by PATCH and mix7 fell 4, 4, 2 beyond. It is the battlefield's, and the owner's to rule on beside G5's open cells.
+
+Pars: LEVEL_PAR's Stepanakert 1992 Hard is now 2223 (mix7's clock, the post 15th, best by 0.3). DAILY_PAR's Stepanakert
+1992 is 1902 (mix7) and Stepanakert 2023 1242 ("aid"). Revs: the three rise to 3 (their pins moved); RULESET stays 2.
+
+G5's open cells: the post moves none of them (they lie on other battlefields).
+
+### G7e close (the review's findings)
+
+- A press of Target or a sale now moves or clears the ring at once, paused or not (`spotTick(0, true)` marks and nothing
+  else: no shell, no reload).
+- Fire Direction's shell is the mortar's and lands only on a marked foe on the ground; a ready shell with only an
+  outflanker or a drone marked waits.
+- The post's panel record reads the foes it has marked, and Fire Direction's shell damage beside them, not "0 kills".
+- Suite 2 now covers the mark on the fire altar's burn and on a pitch pot, a paused retarget, a paused sale and the shell
+  over an outflanker (five mutants, each caught).
+- The six tables were rerun on the closed page (SEEDS=3, CLOCK=1). Only a few seconds of clock moved in single cells on
+  Shushi and in the damage per 100 gold line; every defenders and wins cell, 5.2's two rows, the pars (LEVEL_PAR Hard
+  Stepanakert 1992 2223, DAILY_PAR 1902 and 1242) are unchanged. The endless stands are unchanged but one seed:
+  minemix on Shushi fell 16 waves beyond, not 17 (no shell over a drone now); mix7's falls are the same.
