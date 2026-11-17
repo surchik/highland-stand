@@ -924,4 +924,5 @@ G5's open cells: the post moves none of them (they lie on other battlefields).
   over an outflanker (five mutants, each caught).
 - The six tables were rerun on the closed page (SEEDS=3, CLOCK=1). Only a few seconds of clock moved in single cells on
   Shushi and in the damage per 100 gold line; every defenders and wins cell, 5.2's two rows, the pars (LEVEL_PAR Hard
-  Stepanakert 1992 2223, DAILY_PAR 1902 and 1242) and the endless stands are unchanged.
+  Stepanakert 1992 2223, DAILY_PAR 1902 and 1242) are unchanged. The endless stands are unchanged but one seed:
+  minemix on Shushi fell 16 waves beyond, not 17 (no shell over a drone now); mix7's falls are the same.
