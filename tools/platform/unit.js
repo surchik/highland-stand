@@ -117,7 +117,7 @@ eq(stack.challengeOf(RFC7636.verifier), RFC7636.challenge, "RFC 7636 appendix B:
 const page = path.resolve(process.argv[2] || path.join(__dirname, "..", "..", "index.html"));
 const src = fs.readFileSync(page, "utf8");
 const B = src.indexOf("// ==== PLATFORM PURE BEGIN ===="), E = src.indexOf("// ==== PLATFORM PURE END ====");
-const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["dailyWait", "P6"], ["dailyLines", "P6"], ["dailyYesterday", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
+const SUBJECTS = [["sha256", "P2"], ["pkceChallenge", "P2"], ["nameCheck", "P2"], ["nameFromMeta", "stage 6"], ["inAppUA", "P2"], ["providersOf", "P2"], ["signinLine", "P2"], ["errWord", "P2"], ["scoreOf", "P5"], ["boundsOf", "P5"], ["scoreLine", "P5"], ["clockWords", "P5"], ["outTrim", "P5"], ["shareRows", "P7"], ["shareText", "P7"], ["dailyOf", "P6"], ["dailyWait", "P6"], ["dailyLines", "P6"], ["dailyYesterday", "P6"], ["Cloud", "P3"], ["EvQueue", "P4"]];
 let pure = null;
 if (B < 0 || E < B) {
   for (const [n, p] of SUBJECTS) waiting.push(n + " (" + p + ")");
@@ -188,6 +188,22 @@ if (pure) {
     const r = pure.nameCheck(n);
     const got = typeof r === "string" ? r : r && (r.error || r.name);
     eq(got, want, "the page's name rule agrees with the server's: " + what);
+  }
+  // (stage 6) the name card's first offer from the sign-in's own name: the first name, cleaned to the name rule
+  if (pure.nameFromMeta) {
+    for (const [meta, want, what] of [
+      [{ full_name: "Aram Avunjian", name: "Aram Avunjian", given_name: "Aram" }, "Aram", "Google's given name"],
+      [{ full_name: "Nune Hakobyan" }, "Nune", "the first word of the full name"],
+      [{ name: "Al Smith" }, "Al Smith", "a first word too short: the first two"],
+      [{ full_name: "Le\u0301na Petrova" }, "L\u00e9na", "a letter and its accent composed"],
+      [{ full_name: "<b>Vardan</b>" }, "b Vardan", "markup's brackets are not letters"],
+      [{ full_name: "Wolfeschlegelsteinhausen Bergerdorff" }, "Wolfeschlegelste", "a long first name cut to 16"],
+      [{ name: "Զորավար Անդրանիկ" }, "Զորավար", "Armenian letters kept"],
+      [{ name: "X" }, null, "nothing that fits"],
+      [{}, null, "no name at all"],
+      [null, null, "no metadata"],
+    ]) eq(pure.nameFromMeta(meta), want, "the name card's offer: " + what);
+    for (const meta of [{ full_name: "Admin" }, { name: "  ...  " }]) { const n = pure.nameFromMeta(meta); ok(n === null || !pure.nameCheck(n).error, "an offer always passes the name rule: " + JSON.stringify(meta)); }
   }
   if (pure.scoreOf) {
     for (const c of ref.SCORE_CASES) eq(pure.scoreOf(c.stats, ref.SCORE_BOUNDS), c.score, "the page's scoreOf: " + c.what);

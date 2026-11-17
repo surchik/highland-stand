@@ -83001,7 +83001,21 @@ function dailyYesterday(y) {
   if (!rows.length) return "";
   return "Yesterday: " + rows.map(r => (Number.isFinite(r.rank) ? r.rank + ". " : "") + String(r.name == null ? "" : r.name).slice(0, 40) + " " + scoreNum(r.score)).join(" · ");
 }
-const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFold, inAppUA, providersOf, signinLine, errWord, EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA, Cloud,
+// The name card's first offer from what the sign-in knows of the player (stage 6, the owner's request): the provider's
+// given name (Google's given_name), else the first word of its full_name or name, cleaned to the name rule (letters,
+// numbers, spaces, dots, dashes, underscores; 3 to 16 characters); the first two words when the first is too short
+// ("Al Smith"); null when nothing fits, and the card offers "Defender" and six digits as before
+function nameFromMeta(meta) {
+  const m = meta && typeof meta === "object" ? meta : {};
+  const clean = (v) => String(v == null ? "" : v).normalize("NFKC").replace(/\p{M}+/gu, "").replace(/[^\p{L}\p{N} ._-]+/gu, " ").replace(/\s+/g, " ").trim();
+  const cut = (v) => Array.from(v).slice(0, 16).join("").trim();
+  const full = clean(m.full_name || m.name || ""), given = clean(m.given_name || m.first_name || "");
+  const words = full ? full.split(" ") : [];
+  const tries = [given, words[0] || "", words.slice(0, 2).join(" "), full].map(cut).filter(Boolean);
+  for (const t of tries) { const r = nameCheck(t); if (!r.error) return r.name; }
+  return null;
+}
+const PF_PURE = { sha256, pkceChallenge, b64url, nameCheck, nameFromMeta, nameFold, inAppUA, providersOf, signinLine, errWord, EvQueue, EVQ, evBytes, evFlat, evShare, evDevice, EV_BOT_UA, Cloud,
   scoreOf, boundsOf, scoreNum, clockWords, scoreLine, outTrim, outSendable, shareRows, shareStars, shareText, shareFileName, shareSite, shareDay,
   dailyOf, dailyWait, dailyLines, dailyYesterday };
 // ==== PLATFORM PURE END ====
@@ -83200,6 +83214,7 @@ async function pfTakeSignIn() {
       return fail("exchange_" + r.status, pk.p, signinLine(r.data && r.data.error_code, pk.p, true));
     }
     const s = pfKeepSession(r.data, pk.p);
+    pfMetaName = nameFromMeta(r.data.user && r.data.user.user_metadata);
     pfDrop("hs_pf_pkce");
     pfGateSet({ fails: 0 });
     pfRefreshRefused = false;
@@ -84017,9 +84032,19 @@ function gateBypass(why) {
   gateLeave("bypass", () => pfOnMap && pfOnMap());
 }
 
-// The name card (3.5): "Defender" and six random digits to start with, the server's rule checked as the player
-// types, the server's own refusals under the field. then(name) goes on; name is null after "Later"
+// The name card (3.5): the player's first name as the sign-in gave it (pfMetaName: Google's, Facebook's or Discord's
+// name, or the name typed at an email sign-up; stage 6), else "Defender" and six random digits, the server's rule
+// checked as the player types, the server's own refusals under the field. then(name) goes on; name is null after "Later"
 function pfSuggest() { const b = pfRandBytes(4); return "Defender" + String(((b[0] << 16) | (b[1] << 8) | b[2]) % 1000000).padStart(6, "0"); }
+let pfMetaName = null;   // this load's sign-in's own name for the player, cleaned (nameFromMeta), or null
+// the name to try when the offer is taken already: the first name with three digits (within 16 characters), or a new
+// "Defender" and digits
+function pfSuggestAgain(was) {
+  if (!pfMetaName || !String(was).startsWith(Array.from(pfMetaName).slice(0, 13).join(""))) return pfSuggest();
+  const b = pfRandBytes(2), d = String(((b[0] << 8) | b[1]) % 900 + 100);
+  const r = nameCheck(Array.from(pfMetaName).slice(0, 13).join("").trim() + d);
+  return r.error ? pfSuggest() : r.name;
+}
 function pfNameForm(box, o) {
   const field = pfEl("input", o.fieldCls);
   field.type = "text";
@@ -84050,7 +84075,7 @@ function pfNameForm(box, o) {
       return;
     }
     // the untouched suggestion taken already: one more suggestion, tried at once (3.5)
-    if (res.code === "name_taken" && !touched && !retried) { retried = true; field.value = pfSuggest(); save.click(); return; }
+    if (res.code === "name_taken" && !touched && !retried) { retried = true; field.value = pfSuggestAgain(field.value); save.click(); return; }
     if (PF_NAME_WORDS[res.code] && res.code !== "offline") { err.textContent = PF_NAME_WORDS[res.code]; return; }
     if (res.code === "no_session") { pfSessionOver(); }
     err.textContent = PF_NAME_WORDS.offline;
@@ -84063,10 +84088,12 @@ function pfNameForm(box, o) {
 }
 function gateName(newAccount, then) {
   gateShow();
-  const lines = ["It is shown on the leaderboards. Do not use your real name."];
+  const offer = pfMetaName || pfSuggest();
+  const lines = [pfMetaName ? "It is shown on the leaderboards. It starts from your first name as your sign-in gave it: change it if you like."
+    : "It is shown on the leaderboards. Do not use your real name."];
   if (newAccount) lines.push(pfEl("p", "gtNote", "This is a new account. If you played before, you may have used another button."));
   const c = gateCard("name", { title: "Choose your player name", word: true, lines });
-  pfNameForm(c.btns, { fieldCls: "gtField", errCls: "gtErr", saveCls: "gtQuiet gtGo", laterCls: "gtQuiet", saveWords: "Save name", value: pfSuggest(),
+  pfNameForm(c.btns, { fieldCls: "gtField", errCls: "gtErr", saveCls: "gtQuiet gtGo", laterCls: "gtQuiet", saveWords: "Save name", value: offer,
     changed: false, then, onLater: () => then(null) });
   if (newAccount) c.btns.appendChild(pfBtn("gtQuiet", "Back to sign-in", () => pfSignOut()));
   gateFocus();
@@ -88885,20 +88912,36 @@ function runSelftest() {
     }
     celebration = null;
   });
-  // the small things round a battle: the dance named by its age (never "Kochari" outright before 1800, and Urartu's
-  // dance only in the manner of a later one), the repelled cue's throttle under Auto and 4x, a saved run checked
+  // the small things round a battle: the victory's plaque (no caption under it since stage 6, and its count says
+  // "enemies destroyed"), the dance's hold, the pointer, the repelled cue's throttle under Auto and 4x, a saved run checked
   // before a resume, the chapters seen read from a damaged save, the gold a tap on what the purse cannot pay asks
   // for, and the victory page of a test-mode run resumed after a reload, which stays its own battlefield's
-  check("dance caption, repelled cue, saves, purse", () => {
+  check("victory plaque, repelled cue, saves, purse", () => {
     const lvKeep = curLevel;
     const keys = ["hs_run", "hs_chapters_seen", "hs_records", "hs_mig_rec", "hs_open_kept"];
     for (let i = 0; i < LEVELS.length; i++) keys.push(bestKey(i, LEVELS[i].era));
     const saved = keys.map(k => localStorage.getItem(k));
     try {
-      for (let i = 0; i < LEVELS.length; i++) {
-        curLevel = i;
-        const c = danceCaption(), y = LEVELS[i].year;
-        if (!c || /—/.test(c) || (y < 1800 && /^Kochari/.test(c)) || (y < 0 && !/later/.test(c)) || (y >= 1800 && !/^Kochari/.test(c))) throw new Error("dance caption on " + LEVELS[i].id + ": " + c);
+      if (typeof danceCaption !== "undefined" || typeof drawDanceCaption !== "undefined") throw new Error("the dance's caption is still drawn");
+      {
+        const said = [], cv = document.createElement("canvas"), c2 = cv.getContext("2d"), ft = c2.fillText.bind(c2);
+        cv.width = 700; cv.height = 300;
+        c2.fillText = (t, x, y) => { said.push(String(t)); return ft(t, x, y); };
+        paintVictoryCard(c2, { k: 1, lives: 17, maxLives: 20, gold: 300, kills: 57, stars: 2, best: false, daily: false });
+        if (!said.includes("57 enemies destroyed") || said.some(t => /fell|fallen/i.test(t))) throw new Error("the plaque's count: " + said.join(" | "));
+      }
+      if (DANCE_MIN_MS !== 10000 || !(DANCE_MAX_MS >= 43000 && DANCE_MAX_MS <= 44000)) throw new Error("the dance's hold: " + DANCE_MIN_MS + " to " + DANCE_MAX_MS);
+      // the pointer: the cross over a battle only
+      {
+        const keep = [gameOver, celebration], hid = overlayEl.classList.contains("hidden");
+        gameOver = false; celebration = null; overlayEl.classList.add("hidden"); aimCursor();
+        const inBattle = getComputedStyle(canvas).cursor;
+        gameOver = true; celebration = { start: performance.now(), lives: 1 }; aimCursor();
+        const dancing = getComputedStyle(canvas).cursor;
+        gameOver = true; celebration = null; overlayEl.classList.remove("hidden"); aimCursor();
+        const page = getComputedStyle(canvas).cursor;
+        [gameOver, celebration] = keep; overlayEl.classList.toggle("hidden", hid); aimCursor();
+        if (inBattle !== "crosshair" || dancing !== "default" || page !== "default") throw new Error("the pointer: battle " + inBattle + ", dance " + dancing + ", page " + page);
       }
       const calls = [];
       auto = false; speedMult = 1; repelledAt = -Infinity; calls.push(waveRepelledCue(), waveRepelledCue());
@@ -90724,7 +90767,7 @@ function runSelftestPlay() {
     // (a tier out of range is none; a hero level and the Call the save did not name are not given)
     if (kit.own.bows !== 0 || kit.own.engines !== 0 || kit.own.heralds !== 5 || kit.hero !== 1 || kit.call) fail("a forged kit stood: " + JSON.stringify(kit));
   }));
-  check("council: the loadout tag, the Standard switch, the coached stand", guarded(() => {
+  check("council: the loadout tag, the Standard battle from the boards, the coached stand", guarded(() => {
     wonTo(4, 2);   // Chapter II open, 8 stars
     stage("dvin", 1);
     // no tier: from Dvin on every hero has the Call, and the battle stays std all the same (RULINGS B8)
@@ -90736,16 +90779,29 @@ function runSelftestPlay() {
     if (battleLoadout() !== "open" || kitPower(kit) !== 1) fail("one tier: " + battleLoadout());
     startWave();
     if (evLast("battle_start").loadout !== "open" || evLast("battle_start").power !== 1) fail("battle_start: " + JSON.stringify(evLast("battle_start")));
-    // the chronicle's switch: shown to a player who owns a tier, and its battle has no Council
+    // the chronicle has no Standard switch (stage 6, the owner's ruling): a campaign chronicle is the player's own battle
     curLevel = levelIndexOf("dvin"); curEra = LEVELS[curLevel].era; gameOver = true;
     showMenu("🏔️", "Highland Stand", "", "Take Command");
     showBrief();
-    if (!$("bkStd") || $("bkStd").getAttribute("aria-checked") !== "false") fail("the Standard switch is not on the chronicle");
+    if ($("bkStd") || document.querySelector("#briefKit [role=switch], #briefTricks [role=switch]")) fail("a Standard switch is still on the chronicle");
     if (!$("bkCouncil") || !/Council · 7 to spend/.test($("bkCouncil").textContent)) fail("the chip: " + ($("bkCouncil") || {}).textContent);
-    $("bkStd").click();
-    if (!standardBattle || $("bkStd").getAttribute("aria-checked") !== "true" || !evLast("standard_set") || evLast("standard_set").on !== true) fail("the switch did not turn on");
+    // the door of the Leaderboards tab (openBriefStandard): the chronicle marked Standard, on the board's difficulty,
+    // no Council chip, and its battle has no Council
+    if (!openBriefStandard(curLevel, 2) || !standardBattle || curDiff !== 2 || !evLast("standard_set") || evLast("standard_set").on !== true) fail("the board's door did not open a Standard battle");
+    if (!$("bkStd") || $("bkStd").tagName === "BUTTON" || $("bkStd").getAttribute("role") !== "note" || !/Standard battle/.test($("bkStd").textContent) || $("bkCouncil")) fail("the Standard mark: " + $("briefKit").innerHTML.slice(0, 200));
+    if ($("briefHero").querySelector(".lv").textContent !== "Level 1 · Standard") fail("the hero's line of a Standard battle: " + $("briefHero").textContent);
+    curDiff = 1;
     $("startBtn").click();
     if (!kitEmpty(kit) || battleLoadout() !== "std" || hero.maxHp !== 400 || towerCost("archer") !== 50) fail("a Standard battle has a kit: " + JSON.stringify(kit));
+    // Replay keeps it; the map's Take Command, or another battlefield's chronicle, puts it away
+    gameOver = true; showBrief();
+    if (!standardBattle || !$("bkStd")) fail("the same battlefield's chronicle lost the Standard mark");
+    curLevel = levelIndexOf("erebuni"); showBrief();
+    if (standardBattle || $("bkStd")) fail("another battlefield's chronicle kept the Standard mark");
+    openBriefStandard(levelIndexOf("dvin"));
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    curLevel = levelIndexOf("dvin"); $("startBtn").click();
+    if (menuMode !== "brief" || standardBattle || $("bkStd")) fail("the map's way to the chronicle kept the Standard mark");
     standardBattle = false;
     // the coached stand: the same battle for everyone
     localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { stewards: 1, heralds: 1 }, n: 2 }));
@@ -90770,7 +90826,7 @@ function runSelftestPlay() {
     localStorage.removeItem("hs_council"); localStorage.removeItem("hs_heroes"); localStorage.removeItem(RECORDS_KEY);
     LEVELS.forEach((L, i) => localStorage.removeItem(bestKey(i, L.era)));
     curLevel = 0; showBrief();
-    if ($("bkStd")) fail("a switch for a player with no tier");
+    if ($("bkStd")) fail("a Standard mark on a campaign chronicle");
   }));
   check("council: the standard order gives 4.8's rows; KITSET_PIN", () => {
     const T = [[0, 0, 0], [1, 2, 4], [2, 4, 5], [3, 6, 10], [4, 8, 10], [5, 10, 10], [6, 12, 20], [7, 14, 20], [8, 16, 20], [9, 18, 20],
@@ -91170,13 +91226,14 @@ function runSelftestPlay() {
         !/The Call is a game ability/.test(t) || !/learn from each other's stands/.test(t)) fail("the card: " + t);
     bh.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); bh.click();
     if (heroCardOn() || foeCardEl.style.display !== "none") fail("a second press left the card open");
-    // the Standard switch is shown to a player whose kit here holds a level or the Call; turned on, the hero's line
-    // and his card name the level the battle is fought at, and off again, his chapter's
-    if (!$("bkStd")) fail("no Standard switch for a player with a level and the Call");
-    $("bkStd").click();
-    if (!standardBattle || bh.querySelector(".lv").textContent !== "Level 1 · Standard") fail("the Standard switch on, the hero's line: " + bh.textContent);
-    $("bkStd").click();
-    if (standardBattle || bh.querySelector(".lv").textContent !== "Level 2") fail("the Standard switch off, the hero's line: " + bh.textContent);
+    // a Standard battle (the Leaderboards tab's door): the hero's line names the level the battle is fought at, and
+    // the campaign's chronicle (from the map) his chapter's again
+    if ($("bkStd")) fail("a Standard switch or mark on a campaign chronicle");
+    openBriefStandard(curLevel);
+    if (!standardBattle || $("briefHero").querySelector(".lv").textContent !== "Level 1 · Standard") fail("a Standard battle, the hero's line: " + $("briefHero").textContent);
+    showMenu("🏔️", "Highland Stand", "", "Take Command");
+    curLevel = levelIndexOf("tashir"); $("startBtn").click();
+    if (standardBattle || $("briefHero").querySelector(".lv").textContent !== "Level 2") fail("the campaign's chronicle, the hero's line: " + $("briefHero").textContent);
     // the card's strength is the one he fights with: his level's and the Heralds' first tier over it
     localStorage.setItem("hs_council", JSON.stringify({ v: 1, own: { heralds: 1 }, n: 1 }));
     openHeroCard(bh);
