@@ -51,3 +51,19 @@ autoconfirm on), no confirmation mail is sent, and Resend is not needed to launc
 is no "forgot password" either: say so on the form, and add the reset flow when mail is set up. Known cost: an
 address can be registered by someone who does not own it, and a later Google sign-in with that address would
 join the same account; the stakes are a game save, and an address that already has an account cannot be taken.
+
+## 4. The victory screen (17 November)
+
+The owner: "at the end when the win happens, leave it on kochari dance a bit longer, user can always click out,
+mouse pointer changes to a cross, should be a regular mouse, text says foes fallened change to enemies destroyed,
+also someething about the kochari dance text better to remove it".
+
+- The victory dance holds longer before the page moves on (about twice as long, unless he gives a number); a
+  click or tap still leaves at once.
+- The pointer over the victory screen is the ordinary arrow, not the cross. (`#game { cursor: crosshair }` is the
+  battle's; the victory and other non-battle pages should not show it.)
+- The victory count's label about fallen foes becomes "Enemies destroyed".
+- Remove the caption that names the dance under the plaque (danceCaption: "A circle dance in the manner of the
+  Armenian kochari" and its two siblings).
+Note for request 2: the victory tune today is an original kochari-style melody played by a generated kef band or
+zurna and dhol (Settings, "Victory band"); the code says a verified traditional kochari can replace it.
