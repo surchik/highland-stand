@@ -790,6 +790,45 @@ group("daily tab", async () => {
   ok((await su(`select highland._daily_same($1::jsonb, $1::jsonb, current_date) s`, [JSON.stringify(R2)]))[0].s === true, "_daily_same: a ruleset makes its own daily");
   await su("delete from highland.hs_runs where ruleset in ('9', '10')");
   await su("delete from highland.hs_rulesets where id in ('9', '10')");
+  // two daily starts in flight either side of an hour's turn, two attempts used: exactly one begins (P6 review 1:
+  // _rate_ok's row, the hour's, ordered nothing across hh:00, and both counted two used and began, a fourth attempt)
+  {
+    const dr = d0 + 5, pr = ref.dailyOf(R2.daily, dr), ds = dayString(dr);
+    const offTo = async (iso) => (await su("select ($1::timestamptz - now())::text o", [iso]))[0].o;
+    const c1 = await DBH.client(DBN, "authenticator"), c2 = await DBH.client(DBN, "authenticator");
+    try {
+      await setClock(await offTo(ds + "T10:20:00Z"));
+      for (let i = 0; i < 2; i++) ok((await runBegin(U.D, "daily", pr.level, 1, "2", pr.twist)).ok === true, "the race's day: attempt " + (i + 1) + " begins");
+      const begin = async (conn, at) => { await setClock(await offTo(at)); const p = rpc(U.D, "hs_run_begin", { p_mode: "daily", p_level: pr.level, p_diff: 1, p_ruleset: "2", p_twist: pr.twist }, { conn, hold: true }); return p; };
+      const x = await begin(c1, ds + "T10:59:59Z");
+      let yDone = false;
+      const yP = begin(c2, ds + "T11:00:00.6Z").then(r => { yDone = true; return r; }, e => { yDone = true; throw e; });
+      await new Promise(r => setTimeout(r, 400));
+      ok(!yDone, "the second start waits while the first is in flight (the player's row held)");
+      await x.commit();
+      const y = await yP; await y.commit();
+      const acc = [x.rows[0].r, y.rows[0].r].filter(r => r.ok === true).length;
+      const n = (await su("select count(*)::int n from highland.hs_runs where user_id = $1 and mode = 'daily' and day = $2::date", [U.D, ds]))[0].n;
+      ok(acc === 1 && n === 3 && y.rows[0].r.reason === "no_attempts", "across hh:00 exactly one of the two begins, and the day has three runs (" + acc + " began, " + n + " runs)");
+    } finally { await c1.end(); await c2.end(); }
+  }
+  // yesterday's battle as it was fought: a ruleset published since that picks another daily for that day does not
+  // rename it (its board's best names it; P6 review 6)
+  {
+    const Rx = JSON.parse(JSON.stringify(R2));
+    Rx.daily.pool.reverse(); Rx.daily.twists.reverse();
+    for (const k of Object.keys(Rx.levels)) Rx.levels[k].rev = (Rx.levels[k].rev || 1) + 9;
+    await setClock("61 days");
+    const was = ref.dailyOf(R2.daily, d0), now = ref.dailyOf(Rx.daily, d0);
+    ok(was.level !== now.level || was.twist !== now.twist, "(the newer ruleset picks another daily for that day)");
+    await rpc(U.AD, "hs_admin_publish_ruleset", { p_id: "11", p_data: Rx });
+    const y = (await rpc(null, "hs_daily_status", { p_ruleset: "11" })).yesterday;
+    ok(y.level === was.level && y.twist === was.twist && y.rows.length === 3, "yesterday's battle is the one fought on its board, not the newer ruleset's pick (" + JSON.stringify([y.level, y.twist]) + " fought, " + JSON.stringify([now.level, now.twist]) + " picked now)");
+    await setClock("90 days");
+    const e = (await rpc(null, "hs_daily_status", { p_ruleset: "11" })).yesterday, pk = ref.dailyOf(Rx.daily, d0 + 29);
+    ok(e.total === 0 && e.level === pk.level && e.twist === pk.twist, "with nobody on yesterday's board, the pick names it");
+    await su("delete from highland.hs_rulesets where id = '11'");
+  }
   await setClock("");
   // the game's own daily as published (the page's rulesetData().daily): the server's pick equals the reference's,
   // and so the page's (unit.js and flow 8 hold the page to it), for 366 days from today, never a skipped pair

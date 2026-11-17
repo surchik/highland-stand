@@ -213,6 +213,7 @@ if (pure) {
       [{ state: "posted", score: 7750, rank: 1, total: 3 }, "Score 7,750 · #1 of 3 this week"],
       [{ state: "posted", score: 7750, rank: 4, total: 40, open: true }, "Score 7,750 · #4 this week · Open"],
       [{ state: "posted", score: 7420, rank: 12, total: 87, daily: true }, "Score 7,420 · #12 today"],
+      [{ state: "posted", score: 7420, rank: 3, total: 87, daily: true, onDay: "Nov 17" }, "Score 7,420 · #3 on Nov 17"],
       [{ state: "posted", score: 7750 }, "Score 7,750"],
       [{ state: "signin", score: 7750 }, "Score 7,750 · Sign in to post it"],
       [{ state: "noname", score: 7750 }, "Score 7,750 · Choose a name to post it"],
@@ -259,6 +260,10 @@ if (pure) {
     R = pure.shareRows(un);
     eq([at(R, 420), at(R, 462), at(R, 504)], [["17 of 20 defenders kept"], ["Held in 12:34"], []], "an unranked victory's card: the clock, no score, no rank");
     eq(pure.shareText(un), "I held Erebuni Rise in Highland Stand with 17 of 20 defenders. https://highland.avunjian.com", "an unranked victory's words: no score");
+    // a daily won after midnight UTC: its own day's date, and its rank "that day", not "today" (P6 review 3)
+    const past = Object.assign({}, base, { rank: 2, total: 5, daily: { date: "Nov 16", twist: "Thin purse", past: true } });
+    eq(pure.shareText(past), "Highland Stand daily, Nov 16: Erebuni Rise, Thin purse. Score 7,750, #2 that day. https://highland.avunjian.com", "a past day's daily: \"that day\"");
+    eq(at(pure.shareRows(past), 504), ["#2 of 5 that day"], "a past day's daily card: \"that day\"");
     eq(pure.shareText(Object.assign({}, un, { daily: { date: "Nov 10", twist: "Thin purse" } })), "Highland Stand daily, Nov 10: Erebuni Rise, Thin purse. https://highland.avunjian.com", "a daily with the boards off: no score");
     // the daily
     const dl = Object.assign({}, base, { field: "Ani", title: "Ani Stands!", date: "Nov 10, 2026", daily: { date: "Nov 10", twist: "Thin purse" }, rank: 12, total: 87, stars: 0 });
@@ -290,7 +295,11 @@ if (pure) {
   // server's _daily_pick reads, and sql-tests.js holds the server to ref.dailyOf on them): 366 days from today, the
   // skip lists walked past, never one battlefield two days running
   if (pure.dailyOf) {
-    const real = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")).daily;
+    const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "docs", "specs", "balance", "ruleset-2.json"), "utf8")), real = file.daily;
+    // (the file is the page's own rulesetData(): its SHA-256 is the page's RULESET_PIN. A page whose rules moved and a
+    // file left behind would hold these checks, and sql-tests.js's, to a daily the page no longer serves)
+    const pin = (src.match(/const RULESET_PIN = "([0-9a-f]{8})"/) || [])[1];
+    eq(crypto.createHash("sha256").update(JSON.stringify(file)).digest("hex").slice(0, 8), pin, "docs/specs/balance/ruleset-2.json is the page's rulesetData() (RULESET_PIN)");
     const d0 = Math.floor(Date.now() / 86400000);
     let bad = 0, skipped = 0, twice = 0, prev = null;
     for (let day = d0; day < d0 + 366; day++) {
