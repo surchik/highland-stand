@@ -68,7 +68,11 @@ const RETARGETS = 5, UNTIL = 6;
       let cards = 0, marksSeen = 0, retargets = 0, lastTry = 0, hiddenMarked = 0;
       for (const until = Date.now() + 1500000; Date.now() < until;) {
         const st = await g.ev(pad => {
-          const t = towerAt(pad), s = getStats(t), inR = enemies.filter(e => spotReach(t, e, s.range));
+          // (the marks as the tick leaves them: foes walk on after the post's tick in the same frame, so the watch first
+          // lets the post settle its marks on where they stand now, as its next tick would)
+          const t = towerAt(pad);
+          spotTick(0);
+          const s = getStats(t), inR = enemies.filter(e => spotReach(t, e, s.range));
           return { over: gameOver, cleared: lastCleared, card: !!document.querySelector("#trickCard.on"), n: t.marks.length, max: s.marks, inR: inR.length,
             bad: t.marks.filter(e => !inR.includes(e) || Math.abs(e.spotAmp - s.amp) > 1e-9).length, hid: t.marks.filter(e => e.hid).map(e => !foeUnseen(e)), prio: t.prio };
         }, sp);
@@ -82,7 +86,10 @@ const RETARGETS = 5, UNTIL = 6;
         // retarget by finger while foes stand in its reach
         if (retargets < RETARGETS && st.inR >= 2 && Date.now() - lastTry > 6000) {
           lastTry = Date.now();
-          if (!(await open())) { fail("a tap on the post during the battle did not open its panel"); await g.ev(() => hidePanel()); continue; }
+          // the game is paused for the retarget (a player may press Target paused or not): the new mark is then taken on
+          // the foes as they stand, and the watch compares it with the order on those same foes
+          await g.ev(() => { paused = true; });
+          if (!(await open())) { fail("a tap on the post during the battle did not open its panel"); await g.ev(() => { hidePanel(); paused = false; }); continue; }
           await g.wait(450);
           await g.press("#pTarget");
           await g.frames(1);
@@ -97,7 +104,7 @@ const RETARGETS = 5, UNTIL = 6;
           else if (!r.ok) fail("after Target (" + r.prio + ") the mark is not the first of that order");
           else { retargets++; orders.push(r.prio); }
           await g.page.keyboard.press("Escape");
-          await g.ev(() => hidePanel());
+          await g.ev(() => { hidePanel(); paused = false; });
         }
         if (st.cleared >= UNTIL) break;
         await g.wait(150);
