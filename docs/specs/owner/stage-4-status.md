@@ -20,7 +20,7 @@ six towers and the Garrison Post:
 | era | tower | battlefields | what it does |
 | --- | --- | --- | --- |
 | I | Horse Lines (110 gold, two at most) | Erebuni, Tushpa, Avarayr | riders charge down the road at a crowd, strike every foe on it and throw it back |
-| II, III | Stores (160 gold, two at most) | Dvin, Tashir, Sevan, Ani, Mari, Sis | pays gold after each wave; a long wave pays more; its forge mends nearby towers |
+| II, III | Stores (160 gold, two at most) | Dvin, Tashir, Sevan, Ani, Mari, Sis | pays gold after each wave; a long wave pays more; one mastery, the Field Forge, mends towers nearby |
 | IV | Powder Mine (80 gold) | Gyumri Road, Halidzor | a charge laid on the road; the player fires it with a tap (a click with a mouse) once it is armed |
 | IV | Aid Post (60 gold, one) | Van, Musa Dagh, Sardarapat | after a wave with no defender lost, one lost defender returns to the walls, a few in a battle at most |
 | V | Observation Post (90 gold, one) | Stepanakert 1992, Shushi, Stepanakert 2023 | marks a foe so every tower hits it harder; its mastery shells the marked foe |
@@ -184,10 +184,49 @@ the page now.
 
 ## 5. What is open
 
-RESULTS_OPEN
+**The rulings of section 4**, ideally before the boards open: a change of balance after the boards open starts
+new boards for the battlefields it touches.
+
+**The page's first self-test is over its time limit.** All 151 of its checks pass, but it takes 134 to 137 seconds
+against its 125. The page from before this stage takes as long on the same machine (135 s), so this stage did not
+cause it; the build machine has grown slower since stage 3 (109 s then). It needs either a faster test or a new
+limit; nothing in the game is wrong.
+
+**Four packages carry no "done" mark** because of that test's time alone (the Daily board, the Observation Post),
+or because their close was cut short (the Horse Lines: its last checks were never run by its builder; the Aid Post:
+Musa Dagh's cell above). This merge ran the whole list on all of them together, and it passed (section 6).
+
+**Owner requests queued after this stage:** remove the Standard battle switch (and say how the boards should rank
+then); a real kef or zurna recording for the victory music, under a license you hold; the explainer videos of
+stage 5.
+
+**Not tried yet:** real Safari, a real iPhone, your real Supabase and the real sign-in providers. Your checklists
+on `/next/` are the first such test.
 
 ---
 
 ## 6. How this stage was checked
 
-RESULTS_CHECKED
+Every check below was run to its end on the merged page, on a quiet build machine (no other build running):
+
+- The page's own checks: the second self-test suite (57 checks) passed; the first (151 checks) passed every check
+  but missed its time limit, as said in section 5. The saves of today's players (8 kinds) all resume. The hidden
+  town stays hidden (9 cases).
+- The whole regression suite, 11 scripts in 92 minutes, all passed. Among them: every battlefield won by press at
+  three sizes, 797 screens at ten iPhone sizes, every wave of all 17 battlefields, every new tower placed, pressed
+  and fought, and every platform flow (sign-in, saves, deletion, the boards, the share card, the daily's board, the
+  Players view) at five sizes: 182 screens checked.
+- The bot on Normal, one seed, on Erebuni, Avarayr, Tashir, Gyumri Road, Van, Stepanakert 1992 and Sis: every one
+  is held by the mixed builds, and every cell is the same as on the gameplay track's own page.
+- The server side on the test stand-in of your server: the database rules (1,040 checks), the walls between
+  players, an outsider, visitors and an admin who is not superadmin (448 checks), the restore of a backup (22
+  checks), the eight migrations applied, rolled back to 7, to nothing, and applied again with the same result, the
+  guide's own commands (23 checks), the by-hand deletion of the privacy checklist, and `update.sh` (36 cases).
+- By hand, through the test stand-in with the two values filled, at 1600 x 900 with a mouse, 1194 x 834 by touch
+  and 667 x 320 as an iPhone: sign in with Google and choose a name, build the Horse Lines on Erebuni and fight a
+  wave with them, win and see the score posted ("Score 9,075 · #1 of 1 this week"), see the board, open the share
+  sheet and save the picture, open the Daily tab (today: Erebuni, Forced march), fight a ranked attempt and see the
+  daily's board, then grant the superadmin through the stand-in's database and open the Players tab and the
+  player's page.
+- With the two values empty: no sign-in card and no request to any server, at `/` and at `/next/`, at all three
+  sizes; at `/next/` every saved key starts with `next:`.
