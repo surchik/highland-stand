@@ -15711,7 +15711,7 @@ function showUnlockCard(what) {
         "After a wave with no defender lost, a lost one returns to the walls, a few in a battle at most. Stars count the defenders you never lost."].concat(aidHistory()) },
     spotter: { title: "A new tower: the " + towerName("spotter").toLowerCase(), icon: "spot", btn: "Got it",
       lines: ["It never fires. It marks the strongest foe in its reach, and every blow on that foe lands harder, from towers, men, hero, spells and fire. A mark on a commander counts half.",
-        "It sees a marked scout and marks the sky too, drones included. Its Target button chooses whom it marks. One on a field."] } }[what];
+        "It sees a marked scout, and it can mark outflankers too. Its Target button chooses whom it marks. One on a field."] } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -90412,10 +90412,11 @@ function runSelftestPlay() {
     // an outflanker in its reach can be marked (the post reaches the sky)
     spawnEnemy("flyer", { type: "flyer" });
     const fl = enemies[enemies.length - 1];
-    let fd = -1;
-    for (let d = 0; d <= fl.fly.len; d += 4) { fl.dist = d; if (spotReach(S, fl, st.range)) { fd = d; break; } }
-    if (fd < 0) fail("no outflanker line passes in the post's reach on pad " + k);
-    fl.speed = 0; fl.hp = fl.maxHp = 1e6;
+    // (the post stands for this beside the flyer's line, half way along it: a pad's reach need not cross that line)
+    fl.dist = fl.fly.len / 2; fl.speed = 0; fl.hp = fl.maxHp = 1e6;
+    const fp = enemyPos(fl), home = [S.x, S.y];
+    S.x = fp.x; S.y = fp.y + 40;
+    if (!spotReach(S, fl, st.range)) fail("the outflanker 40 px off is out of the post's reach");
     spotTick(0);
     if (S.marks[0] !== fl || !near(took(fl, () => damageEnemy(fl, 100, true, arch)), 100 * (1 + st.amp))) fail("the outflanker was not marked");
     // stunned, it marks none until it recovers; wrecked, none
@@ -90426,6 +90427,7 @@ function runSelftestPlay() {
     wreckTower(S); spotTick(0.05);
     if (S.marks.length || markMult(fl) !== 1) fail("a wrecked post still marks");
     S.wreck = false; towerInitHp(S);
+    S.x = home[0]; S.y = home[1];
     enemies = []; S.marks = [];
     // Fire Direction: the marked foe is shelled every 4 s, the shell piercing and marked; the enemy books it apart
     S.level = 2; S.spec = "a"; S.cd = 0; S.marks = [];

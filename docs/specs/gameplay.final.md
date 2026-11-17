@@ -890,6 +890,27 @@ an aerial (the `commandpost` skin's); the mark is a thin ring and a tick over th
 ring painter in the defenders' color). Sound: `uiTick` on a new mark; Fire Direction reuses the mortar's
 landing. New: the nest's painter, a tile portrait.
 
+(G7e build: built as written, at this section's numbers, with these differences and readings, each in
+docs/specs/balance/README.md, G7e. 1. Read where 3.6 is silent: a mark goes to the first foe of the post's Target order
+among those in reach and not yet marked, hidden and in the air included; it moves when its foe falls or leaves the reach,
+and also at once when the Target button is pressed (the player's retarget). A stunned post drops its marks until it
+recovers, as a stunned tower holds its fire; a wrecked one marks nothing. Fire Direction shells the first marked foe every
+4 s (quickened by the drums like a reload), and a shell ready with nothing marked waits for a mark. The mark's amp is
+applied after the guard and the armor, once per blow, in damageEnemy (towers, men, Horse Lines, the mine, spells), in the
+hero's blow, in the fire's burn, in a lightning's or the Call's burn and in the pitch pots. The shells are booked to the
+adaptive enemy apart (`adapt.other`), as 3.7 says. 2. The post's own strength for hunters and drones: 220, 280 and 360 by
+rank (`TOWER_DEFS.spotter.hp`). 3. The names: 1992's tile is "Lookout post", 2020's and 2023's "Observation post"
+(this section's casing); the card's title says "the lookout post" or "the observation post". The card: "It never fires.
+It marks the strongest foe in its reach, and every blow on that foe lands harder, from towers, men, hero, spells and fire. A
+mark on a commander counts half." and "It sees a marked scout, and it can mark outflankers too. Its Target button chooses
+whom it marks. One on a field." No history line: the post is generic of these wars and claims no named unit. 4. The art:
+a mound with a sandbagged pit (two courses, three from rank 3), a lookout with field glasses up (the Artsakh kit's
+`binoc` pose; Silikyan's own figure is the hero's and is not reused), a radio and its whip aerial from rank 2, the command
+post's guyed mast with its light from rank 3; Fire Direction adds a man at a field telephone and a map board, Night Sights
+a sight on a tripod under a camouflage net. The mark: a thin ring that breathes under the foe and a tick over its head, in
+a pale blue. Sound: `uiTick` on a new mark (at most one each 0.4 s), the mortar's `shell` on Fire Direction's landing.
+5. 5.2's two rows are met at these numbers on Normal (docs/specs/balance/g7e-*-seeds3.txt), so no number was tuned.)
+
 ### 3.7 What the new towers share in code
 
 - `TOWER_DEFS` gains six kinds. `def.proj` stays null for all six, so the shooting loop skips them; each
