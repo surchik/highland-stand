@@ -1,9 +1,12 @@
 # Where the build stands: stage 4
 
-This is for you, the owner. It says what is new on the staging branch `next` (and so at `/next/` once it is
-published there), what goes live when `master` takes `next`, every step on your server in order, the balance
-questions only you can settle, and what is still open. Nothing here has reached the live game: `master` and
-https://highland.avunjian.com are unchanged.
+This is for you, the owner. It says what is new on the staging branch `next`, what goes live when `master` takes
+`next`, every step on your server in order, the balance questions only you can settle, and what is still open.
+
+Where things stand today: the live game (`master`) is stage 3, and since November 17 its page carries your game's
+own Supabase (`https://hs-db.avunjian.com`), so sign-in is on at https://highland.avunjian.com. Nothing of stage 4
+has reached it. This branch `next` was built and tested with the two public values empty, as the build's rules
+ask; see section 2 for what that means once `master` takes it.
 
 Date: November 17, 2026.
 
@@ -61,54 +64,42 @@ card, no request to any server, no score strip, no Share button, no boards and n
 
 ## 2. What goes live when `master` takes `next`
 
-With the two public values left empty, the live game gets everything of the gameplay track from stages 2 to 4 and
-nothing that needs a server:
+**`master` keeps its own two values.** `next` leaves the two lines untouched, so a merge of `next` into `master`
+keeps your address and anon key, and sign-in stays on. Everything of section 1 then goes live at once: the
+five towers, the boards, the share card, the daily's board and your Players view.
 
-- the heroes and the Call, battlefields of 10 to 20 waves, the War Council and its Standard switch;
-- the Garrison Post and the five new towers of section 1;
-- the daily challenge, played on the device (no attempts counted, no board);
-- the privacy page.
+So the server must be ready **before** that merge: your game's database at migration **8 of 8** (step 1 below).
+A stage 4 page talking to a stage 3 database (5 of 5) would ask for functions that are not there yet.
 
 Players' saves keep working: the saves made by today's game (8 kinds, between waves and mid-wave) all resume on
-the merged page. Sign-in, cloud saves, scores, boards, the share card, the daily's board and the Players view
-switch on only when you hand over the two public values and they are put in the page.
+the merged page, and the cloud saves of stage 3 are read as they are (no table changed).
+
+With the two values empty (how `next` is committed and tested) the page is exactly the game: no sign-in card, no
+request to any server, no score strip, no Share button, no boards and no Players tab.
+
+**The published `next` is ahead of this one.** GitHub's `next` has 7 commits this branch does not: your staging
+page's two values (commit `1860633`), your recordings under `assets/music` and `assets/victory`, and your requests
+in `owner-requests-stage6.md`. They were left out of this merge on purpose (this build keeps the values empty);
+they must be merged in before this `next` is published, or the publish is refused.
 
 ---
 
 ## 3. Your server, in order
 
-There are two ways to give the game its database. Choose one.
+You chose a Supabase of the game's own (`deploy/hs-supabase/README.md`, `hs-db.avunjian.com`). On it:
 
-- **The shared Supabase** (the plan of stage 2): the game lives in its own schema `highland` beside the other apps.
-  Guide: `deploy/supabase/README.md`; checklist: `docs/specs/owner/shared-supabase-plan.md`.
-- **A Supabase of the game's own** (added Nov 16): a second, slim stack beside the existing one, which it never
-  touches. Guide: `deploy/hs-supabase/README.md` (`install.sh`, `migrate.sh`, `caddy.sh`, `providers.sh`,
-  `show-public.sh`, in that order). Its steps replace steps 3 to 5 below; steps 1, 2 and 6 to 9 are the same.
-
-On the shared Supabase, in this order:
-
-1. **Look first, read only** (guide step 0): nothing is changed.
-2. **The tunnel and a backup** of the schema `highland` before every change (guide steps 1 and 2).
-3. **The migrations** (guide step 3), from the game's repository on your computer:
-   `node tools/platform/migrate.js status --dsn="$HS_DB_URL"`, then
-   `node tools/platform/migrate.js up --dsn="$HS_DB_URL"`. Stage 4 brings three new ones:
-   `006_superadmin`, `007_scores` and `008_daily`. **Check:** `status` says `highland at 8 of 8`. Each has its
-   rollback (`migrate.js down 5 --dsn=... --yes` goes back to stage 3's five).
-4. **The shared changes, each with your yes, alone, one at a time** (guide step 4; a backup of the two files
-   before each; each restart blips sign-in and the REST API of every app for a few seconds):
-   - a. serve the schema `highland` (append it to `PGRST_DB_SCHEMAS`);
-   - b. add the game's two return addresses to `ADDITIONAL_REDIRECT_URLS`;
-   - c. a sign-in provider, only one that is off, one provider per yes.
-5. **Hand over the two public values** (the address and the anon key; guide step 5). Never the service key, the
-   JWT secret, a provider's secret or a password.
-6. **Make yourself the admin** (guide step 6): sign in on `/next/`, choose a name, then through the tunnel
-   `insert into highland.hs_admins (user_id) select id from auth.users where email = 'you@example.com';`
-   (or skip this and do step 7, which makes you admin too).
-7. **Make yourself the superadmin** (`docs/specs/owner/superadmin.md`). Sign in to the game with Google, Facebook
-   or Discord under your address and choose a name. Then, through the tunnel:
+1. **The migrations.** `./migrate.sh` clones branch `next` from GitHub and applies what it finds. Run it only once
+   this stage's `next` is published there (until then it finds 5 of 5), or point it at a checkout of it with
+   `HS_GAME_DIR=...`. It dumps the schema first. Stage 4 brings three: `006_superadmin`, `007_scores` and
+   `008_daily`. **Check:** `highland at 8 of 8`, and `POST /rest/v1/rpc/hs_config answers 200`. Each has its
+   rollback (the tool's `down 5 --yes` goes back to stage 3's five).
+2. **Then** merge `next` into `master` (section 2).
+3. **Make yourself the superadmin** (`docs/specs/owner/superadmin.md`). Sign in to the game with Google, Facebook
+   or Discord under your address (not by email and password: the Players view refuses such a sign-in) and choose a
+   name. Then on the server open `psql` with its history off:
 
    ```
-   PSQL_HISTORY=/dev/null psql "$HS_DB_URL" -X
+   docker exec -it -e PSQL_HISTORY=/dev/null hs-db psql -U postgres -h 127.0.0.1 -d postgres -X
    ```
 
    and in it, typing your address only when it asks:
@@ -121,13 +112,19 @@ On the shared Supabase, in this order:
    As a single line, the command is `select highland.hs_grant_superadmin_by_email('THE_ADDRESS');`, with
    `THE_ADDRESS` your address. Never type it in a file, a script or a shell command. If `show log_statement;` says
    `all`, run `set log_statement = 'none';` first in the same `psql`. **Check:** it answers
-   `superadmin: account <id> (game name ...)`, and `/next/?stats` shows the Players tab.
-8. **Open the boards** (guide step 7): on `/next/?stats` press **Publish ruleset 2** on the Rulesets card (the
-   staging page publishes its own, `2-next`, kept apart from the live game's). Do it again on `/?stats` once the
-   game is live there, and after every build whose Health card says the server does not have its ruleset.
-9. **Try the checklists on `/next/`:** `docs/specs/owner/p2-signin-checklist.md` (sign-in) and
-   `docs/specs/owner/p8-privacy-checklist.md` (section 1, the six places to fill on the privacy page; section 4,
-   the deletion; it now also removes a superadmin's row).
+   `superadmin: account <id> (game name ...)`, and `?stats` shows the Players tab. It makes you an admin too.
+4. **Open the boards** (`deploy/supabase/README.md`, step 7): on `/next/?stats` press **Publish ruleset 2** on the
+   Rulesets card (the staging page publishes its own, `2-next`, kept apart from the live game's), and on `/?stats`
+   once the live page is stage 4. Do it again after every build whose Health card says the server does not have its
+   ruleset. Until then every victory says "The boards for this version open soon".
+5. **Try it on `/next/`** before the merge of step 2 if you can: sign in, win a battle, see the score and the
+   board, the share card, the Daily tab, and the Players tab.
+
+No shared setting of the other apps' Supabase is needed: your game's own stack has its own. **If you ever move the
+game to the shared Supabase instead**, its steps are in `deploy/supabase/README.md` and
+`docs/specs/owner/shared-supabase-plan.md`: the migrations (8 of 8), then three shared changes, each with your yes,
+alone, one at a time, each a short blip of sign-in for every app: (a) serve the schema `highland`, (b) add the
+game's two return addresses, (c) a sign-in provider that is off, one provider per yes.
 
 ---
 
@@ -200,8 +197,9 @@ Musa Dagh's cell above). This merge ran the whole list on all of them together, 
 then); a real kef or zurna recording for the victory music, under a license you hold; the explainer videos of
 stage 5.
 
-**Not tried yet:** real Safari, a real iPhone, your real Supabase and the real sign-in providers. Your checklists
-on `/next/` are the first such test.
+**Not tried yet:** stage 4 on your real server (the boards, the daily's board, the share card and the Players view
+were tried only on the build's stand-in of Supabase), real Safari and a real iPhone. Step 5 of section 3 is the
+first such test.
 
 ---
 
