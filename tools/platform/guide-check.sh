@@ -52,11 +52,11 @@ else bad "step 0: the survey: $(head -20 "$T/survey-sql.out")"; fi
 mkdir -p "$T/work"
 if run backup "$T/work" && ls "$T"/work/highland-*.dump > /dev/null 2>&1; then ok "step 2: the backup: $(ls "$T"/work/highland-*.dump | xargs -n1 basename) ($(stat -c %s "$T"/work/highland-*.dump) bytes)"
 else bad "step 2: the backup: $(cat "$T/backup.out")"; fi
-if run migrate-status && grep -q 'highland at 7 of 7' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 7 of 7' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
-if run migrate-up && grep -q 'done: highland at 7' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
+if run migrate-status && grep -q 'highland at 8 of 8' "$T/migrate-status.out"; then ok "step 3: status says $(grep -o 'highland at 8 of 8' "$T/migrate-status.out")"; else bad "step 3: status: $(cat "$T/migrate-status.out")"; fi
+if run migrate-up && grep -q 'done: highland at 8' "$T/migrate-up.out"; then ok "step 3: up on a database that has them all changes nothing ($(tail -1 "$T/migrate-up.out"))"; else bad "step 3: up: $(cat "$T/migrate-up.out")"; fi
 if runsql check-config && grep -q '"now"' "$T/check-config.out"; then ok "step 3's check: hs_config answers with now"; else bad "step 3's check: $(cat "$T/check-config.out")"; fi
-if run migrate-down && grep -q 'reverted 007_scores  (now at 6)' "$T/migrate-down.out" && grep -q 'applied  007_scores  (now at 7)' "$T/migrate-down.out" && grep -q 'done: highland at 7' "$T/migrate-down.out"; then
-  ok "step 3: down 6 then up: 007 reverted and applied again, back at 7"
+if run migrate-down && grep -q 'reverted 008_daily  (now at 7)' "$T/migrate-down.out" && grep -q 'reverted 007_scores  (now at 6)' "$T/migrate-down.out" && grep -q 'applied  008_daily  (now at 8)' "$T/migrate-down.out" && grep -q 'done: highland at 8' "$T/migrate-down.out"; then
+  ok "step 3: down 6 then up: 008 and 007 reverted and applied again, back at 8"
 else bad "step 3: down and up: $(cat "$T/migrate-down.out")"; fi
 psql "$HS_DB_URL" -X -q -c "grant select on highland.hs_saves to authenticated" > /dev/null 2>&1
 if run regrant && grep -q 'regranted' "$T/regrant.out" && [ "$(psql "$HS_DB_URL" -X -tA -c "select has_table_privilege('authenticated', 'highland.hs_saves', 'select')")" = f ]; then
