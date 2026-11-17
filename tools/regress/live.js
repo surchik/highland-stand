@@ -126,6 +126,9 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         await g.clickAt(sp.x, sp.y, { shift: true });
         await g.frames(2);
         if (await g.ev(() => speedMult) !== 4) await fail("Shift+click on the speed button did not give 4x");
+        // the Aid Post's field starts its walls 2 short, so a clean wave has a defender to return (G7d review 5: from
+        // full walls it never returns one, and the check below could not see a return)
+        if (age === "aid") await g.ev(() => { lives = livesMax() - 2; syncHud(); });
         await g.press("#waveBtn");
         await g.press("#autoBtn");
         const snd = await g.ev(() => ({ ctx: !!Snd.ctx, state: Snd.ctx && Snd.ctx.state, music: Snd.musicOn, sfx: Snd.sfxOn }));
@@ -142,7 +145,7 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
         const horse = await g.ev(() => { const t = towers.find(u => u.type === "horse"); return t ? { charges: t.charges || 0, dmg: Math.round(t.dmgDone || 0), thrown: Math.round(t.thrown || 0) } : null; });
         const stores = await g.ev(() => { const t = towers.find(u => u.type === "stores"); return t ? { paid: Math.round(t.yielded || 0), gold: battleFacts().from.stores } : null; });
         const mine = await g.ev(() => { const t = towers.find(u => u.type === "mine"); return t ? { blasts: t.blasts || 0, armed: (t.mines || []).some(mineArmed), dmg: Math.round(t.dmgDone || 0) } : null; });
-        const aid = await g.ev(() => { const t = towers.find(u => u.type === "aid"); return t ? { wreck: !!t.wreck, returned: battle.returned, held: battleFacts().held, lives } : null; });
+        const aid = await g.ev(() => { const t = towers.find(u => u.type === "aid"); return t ? { wreck: !!t.wreck, returned: battle.returned, cap: getStats(t).restore || 0, held: battleFacts().held, lives } : null; });
         res[id] = { s: Math.round((Date.now() - t1) / 1000), lives: end.lives, voices: end.voices - v0, post, horse, stores, mine, aid };
         if (o.verbose) console.log(id + " " + JSON.stringify(res[id]));
       } catch (e) {
@@ -198,7 +201,9 @@ const TYPES = ["archer", "ballista", "catapult", "fire", "drums", "archer"];
   const aided = Object.keys(res).filter(id => res[id] && res[id].aid);
   const aidFields = ["van", "musadagh", "sardarapat"].filter(id => res[id]);
   if (aidFields.length && aided.length < aidFields.length) fails.push("no Aid Post was built on " + aidFields.filter(id => !aided.includes(id)).join(", "));
-  const odd = aided.filter(id => { const a = res[id].aid; return a.lives !== a.held + a.returned || a.returned > 5; });
+  const odd = aided.filter(id => { const a = res[id].aid; return a.lives !== a.held + a.returned || a.returned > a.cap || !(a.cap > 0); });
   if (odd.length) fails.push("the Aid Post's count is off on " + odd.join(", "));
+  // a board may leak on every wave after the first, so one return across the post's fields is asked, not one on each
+  if (aided.length && !aided.some(id => res[id].aid.returned > 0)) fails.push("the Aid Post returned no defender on " + aided.join(", "));
   R.finish("live", fails, { levels: levels.length, played: res }, t0);
 })().catch(e => { console.error(e); process.exit(1); });

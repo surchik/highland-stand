@@ -13288,10 +13288,12 @@ function aidHaste(t) {
   return a ? Math.min(0.9, getStats(a).haste || 0) : 0;
 }
 // the seconds a fallen hero is away: his own (heroBack), less the post's heroBack wherever he fell (he is carried back
-// to the walls), never under AID_RULES.heroMin nor above his own
+// to the walls), never under AID_RULES.heroMin nor above his own. Read once, when he falls (heroDie): the post standing
+// at that moment carries him, a stunned one too, since a stun lasts seconds and he is away for many (G7d review 3); a
+// post built or sold while he is away leaves his wait as it was
 function heroAwayS() {
   const own = heroBack(), a = aidPost();
-  if (!a || a.stunnedT > 0) return own;
+  if (!a) return own;
   return Math.min(own, Math.max(AID_RULES.heroMin, own - (getStats(a).heroBack || 0)));
 }
 // a pad's gap to the walls (ground distance to the fortress): 5.4 puts the Aid Post on the free pad nearest them. The
@@ -13306,7 +13308,8 @@ function heldNow() { return Math.max(0, lives - battle.returned); }
 let aidWalkers = [];   // [{ x, y, tx, ty, walk, face }]: returning defenders on their way (drawn only)
 function aidReturn(clean) {
   const a = aidPost();
-  if (!a || !clean || gameOver) return false;
+  // a stunned post tends no one until it recovers (3.5's note), so it returns no one at that clear either
+  if (!a || a.stunnedT > 0 || !clean || gameOver) return false;
   if (battle.returned >= (getStats(a).restore || 0) || lives >= livesMax()) return false;
   lives++;
   battle.returned++;
@@ -15580,7 +15583,7 @@ function showUnlockCard(what) {
         "Each blast must arm again before the next. Outflankers are untouched."].concat(mineHistory()) },
     aid: { title: "A new tower: the Aid Post", icon: "aid", btn: "Got it",
       lines: ["It never fights. Your men and your hero in its reach heal sooner and faster, and fallen men and the hero come back sooner.",
-        "After a wave in which you lose no defender, a lost one returns to the walls, a few in a battle at most. Returned defenders hold the walls. Stars count the defenders you never lost. One on a field."].concat(aidHistory()) } }[what];
+        "After a wave with no defender lost, a lost one returns to the walls, a few in a battle at most. Stars count the defenders you never lost."].concat(aidHistory()) } }[what];
   if (!T) return;
   $("tcBody").innerHTML = '<div class="tcText"><div class="tcSec"><div class="tcHead"><span class="disc">' + icon(T.icon || "star") + '</span><h2 id="tcTitle">' + escapeHtml(T.title) + "</h2></div>" +
     T.lines.map(l => "<p>" + escapeHtml(l) + "</p>").join("") + "</div></div>" + '<div class="tcBtns"><button type="button" class="btn big" id="tcBtn">' + escapeHtml(T.btn || "To the Council") + "</button>" +
@@ -15615,9 +15618,9 @@ function mineHistory() {
 // the player's building (the hospital was the American mission's, so the tower is neither drawn nor named after it),
 // then what is the game's. Musa Dagh and Sardarapat make no claim (G7d)
 function aidHistory() {
-  const out = [];
+  // the invention line first, so a phone's card shows it above the fold (G7d review 6); Van's own fact after it
+  const out = ["The aid post as a tower is the game's invention."];
   if (levelId(curLevel) === "van") out.push("Dr Clarence Ussher's American hospital lay inside the Armenian lines and was shelled during the siege.");
-  out.push("The aid post as a tower is the game's invention.");
   return out;
 }
 function closeUnlockCard(open) {
@@ -89877,9 +89880,18 @@ function runSelftestPlay() {
     A.x = P.x; A.y = P.y;
     postManFalls(P, m); let r0 = m.respawn; postTick(0.5);
     if (Math.abs((r0 - m.respawn) - 0.5 / (1 - st.haste)) > 1e-6) fail("a fallen man in range: " + (r0 - m.respawn));
-    A.x = P.x + 2000; A.y = P.y + 2000; if (P.rally) P.rally = Object.assign({}, P.rally);
+    // pad and rally point both out of its range: no haste, the plain rate
+    const rally0 = P.rally;
+    A.x = P.x + 2000; A.y = P.y + 2000; P.rally = { x: P.x, y: P.y, route: 0, dist: 0 };
+    if (aidHaste(P) !== 0) fail("a post 2000 px away still hastens: " + aidHaste(P));
     r0 = m.respawn; postTick(0.5);
-    if (aidHaste(P) === 0 && Math.abs((r0 - m.respawn) - 0.5) > 1e-6) fail("a fallen man out of range: " + (r0 - m.respawn));
+    if (Math.abs((r0 - m.respawn) - 0.5) > 1e-6) fail("a fallen man out of range: " + (r0 - m.respawn));
+    // the pad out of range but the rally point in range: haste, as with the pad (his men return to the rally)
+    P.rally = { x: A.x, y: A.y, route: 0, dist: 0 };
+    if (aidCovers(P.x, P.y) || aidHaste(P) !== Math.min(0.9, st.haste)) fail("the rally point alone in range: " + aidHaste(P));
+    r0 = m.respawn; postTick(0.5);
+    if (Math.abs((r0 - m.respawn) - 0.5 / (1 - st.haste)) > 1e-6) fail("a fallen man, his rally in range: " + (r0 - m.respawn));
+    P.rally = rally0;
     A.x = P.x; A.y = P.y;
     // the hero: in range he heals after 1 s at twice his rate; fallen, he is back heroBack s sooner (never under heroMin)
     if (!hero) heroSpawn();
@@ -89895,6 +89907,9 @@ function runSelftestPlay() {
     A.level = 2; A.spec = "b"; heroSpawn(); heroDie();
     if (hero.respawn !== Math.max(AID_RULES.heroMin, heroBack() - getStats(A).heroBack)) fail("Stretcher Bearers: the hero is away " + hero.respawn);
     A.level = 0; A.spec = null;
+    // a post stunned at the moment he falls still carries him back (G7d review 3), and the wait is fixed at the fall
+    A.stunnedT = 0.5; heroSpawn(); heroDie(); A.stunnedT = 0;
+    if (hero.respawn !== Math.max(AID_RULES.heroMin, heroBack() - st.heroBack)) fail("a stunned post: the hero is away " + hero.respawn);
     // a wrecked post tends no one and brings no hero back sooner
     wreckTower(A); heroSpawn(); heroDie();
     if (hero.respawn !== heroBack() || aidCovers(A.x, A.y) || aidHaste(P)) fail("a wrecked Aid Post still gives care");
@@ -89928,6 +89943,11 @@ function runSelftestPlay() {
       // a wrecked post returns no one
       lives = max - 2; wreckTower(A); clear(9);
       if (lives !== max - 2 || battle.returned !== 0) fail("a wrecked post returned a defender");
+      // a stunned post returns no one at that clear (G7d review 2), and returns again once it recovers
+      A.wreck = false; towerInitHp(A); A.stunnedT = 5; clear(10);
+      if (lives !== max - 2 || battle.returned !== 0) fail("a stunned post returned a defender: " + battle.returned);
+      A.stunnedT = 0; clear(11);
+      if (lives !== max - 1 || battle.returned !== 1) fail("a recovered post returned none: " + battle.returned);
     } finally { toast = toast0; }
     // the victory page and the records count the defenders never lost
     A.wreck = false; towerInitHp(A);

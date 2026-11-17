@@ -824,7 +824,7 @@ What was found, and the numbers chosen:
     and the commander breaks through, at every price tried, free included. Only a board with a pad to spare would meet it.
 - The classic five, mix7, halfpost, posts and postdrum: every cell on all three difficulties equals G5's close tables.
   mix7 builds its special tower 15th and never reaches it here, so its row does not measure the post. mix7 against mix
-  and the mean over the 17 stand as G5 and G7c left them (mix7 still meets its bound).
+  and the mean over the 17 stand as G5 and G7c left them (unchanged cell for cell, so still MISSED as G5 left it: +0.82 on the mean against 1 to 3, Van +9.3 and Musa Dagh +7.0 against 5; G5's open cell for the owner).
 - agemix and harriers lose every seed on all three difficulties: met.
 - Easy: the mix alone meets Easy's band, unchanged (29.0, 25.0, 29.7): met.
 - Wave time at 1x for the best build on Normal: Van 32.1 min against 35 (-8%), Musa Dagh 23.2 against 23, Sardarapat 35.2
@@ -843,3 +843,21 @@ eighth, best by wins). Revs: Van, Musa Dagh and Sardarapat rise to 3 (their pins
 opened); `ruleset-2-g7d.json` is rulesetData() at the build.
 
 For the owner: Musa Dagh's row (above); the bot's pad (5.4 says nearest the fortress); the Council's par-hold on Van.
+
+### G7d close (review: docs/specs/reviews/G7d-review.md)
+
+The close changes no number. It changes two rules where the post is stunned (each in the 3.5 note): a stunned post
+returns no defender at that clear (review 2), and the hero's shorter wait is read when he falls from the post standing
+then, stunned or not (review 3). The card's second paragraph is shorter and the invention line now comes before Van's
+line, so the whole card shows at 667 x 320 (review 6).
+
+Tables at the close (SEEDS=3, CLOCK=1, every build, the three battlefields): Normal, Easy and Hard equal
+`g7d-normal-seeds3.txt`, `g7d-easy-seeds3.txt` and `g7d-hard-seeds3.txt` cell for cell (only the run time differs), so
+the files are kept: the two stun rules move nothing the bot measures here. mix7 against mix is unchanged, so still MISSED as G5 left it.
+
+Still open, for the owner (review 1 and 9): 5.2's Aid Post row is NOT met on Musa Dagh on Normal (+4.0) and Easy (+3.0).
+The mix fills every pad and holds the last commander with 0.1% of the road to spare; any sixth building that does not
+fight costs that tower. The review's recommendation: read the row only where the mix holds the last commander with a
+margin (so not on Musa Dagh), or retune Musa Dagh's last commander, a battlefield change. Also the bot's pad and rank
+rules for the post (the Stores' pad, ranks only once every pad is built) against 5.4's "nearest the fortress", and the
+prices cut to 60, 70, 110 and 220.
