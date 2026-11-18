@@ -12,7 +12,7 @@
 // Thirteen checks, one line each, with what to do when one fails:
 //   1  the anon key is not Supabase's published demo key (and is an anon key, not the service key)
 //   2  /auth/v1/settings answers within 4 s; which of the three providers are on
-//   3  mailer_autoconfirm is false
+//   3  mailer_autoconfirm is false (or true with the email sign-up on: the game's own stack, stage 6)
 //   4  the preflight from the game's origin is answered with access-control-allow-origin (and whether it is remembered)
 //   5  /auth/v1/authorize without a key sends the browser on to the provider
 //   6  hs_config answers with "now": the schema is installed and PostgREST has seen it
@@ -22,7 +22,7 @@
 //  10  hs_board for a board that does not exist answers an empty list within 3 s
 //  11  the public name serves nothing but the Auth routes the page uses and /rest/v1/rpc/hs_: no other path, and none
 //      of Auth's routes that make accounts or send mail (signup, otp, recover, magiclink, a password sign-in, a
-//      write to the user)
+//      write to the user; with the email sign-up on, its sign-up and password sign-in are the page's own)
 //  12  the gateway's own ports do not answer from outside: 8000 (Envoy or Kong over http) and 8443 (Kong's https);
 //      5432 and 6543 (the database's pooler, behind its password) are named when they answer. When this machine
 //      cannot open a direct connection at all (its own outbound firewall, or no DNS of its own behind a proxy), a
@@ -151,7 +151,7 @@ function report(n, status, what, help) {
     }
   }
   // 2 and 3. /auth/v1/settings
-  let providers = [];
+  let providers = [], mailOn = false;
   {
     const t0 = Date.now();
     const r = await request("GET", base.origin + "/auth/v1/settings", { headers: keyHeaders(), timeout: 4000 });
@@ -163,7 +163,11 @@ function report(n, status, what, help) {
       providers = ["google", "facebook", "discord"].filter(p => j.external[p]);
       report(2, "pass", "/auth/v1/settings answered in " + (Date.now() - t0) + " ms; providers on: " + (providers.join(", ") || "none") +
         (providers.length < 3 ? " (off: " + ["google", "facebook", "discord"].filter(p => !j.external[p]).join(", ") + ")" : ""));
+      // (stage 6) the game's own stack with the email sign-up on confirms each address itself, by the owner's ruling
+      // (no mail is sent); the page then holds Discord back
+      mailOn = j.external.email === true;
       if (j.mailer_autoconfirm === false) report(3, "pass", "mailer_autoconfirm is false");
+      else if (mailOn && j.mailer_autoconfirm === true) report(3, "pass", "mailer_autoconfirm is true with the email sign-up on (./providers.sh email): the owner's ruling; the page holds Discord back while it is on");
       else report(3, "fail", "mailer_autoconfirm is " + JSON.stringify(j.mailer_autoconfirm) + ": the page holds Discord back while it is on",
         "step 3 of the guide: set ENABLE_EMAIL_AUTOCONFIRM=false (other projects' email sign-ups then need a mail server), or leave Discord off");
     }
@@ -243,7 +247,8 @@ function report(n, status, what, help) {
       ["POST", "/rest/v1/rpc/pg_sleep"], ["POST", "/rest/v1/rpc/not_the_game"],
       ["POST", "/auth/v1/signup"], ["POST", "/auth/v1/otp"], ["POST", "/auth/v1/recover"], ["POST", "/auth/v1/magiclink"],
       ["POST", "/auth/v1/token?grant_type=password"], ["POST", "/auth/v1/token?grant_type=id_token"], ["PUT", "/auth/v1/user"], ["GET", "/auth/v1/admin/users"]];
-    for (const [m, p] of PATHS) {
+    // (stage 6) with the email sign-up on, its two routes are the page's own: the sign-up and the password sign-in
+    for (const [m, p] of PATHS.filter(([m, p]) => !(mailOn && (p === "/auth/v1/signup" || p === "/auth/v1/token?grant_type=password")))) {
       const r = await request(m, base.origin + p, { headers: keyHeaders(), body: m === "GET" ? undefined : {}, timeout: 4000 });
       // a 404 from PostgREST or Auth itself (its answer names a PGRST code or an error_code) means the proxy passed
       // the path on; a write to the user may be refused 403 (nginx's limit_except)

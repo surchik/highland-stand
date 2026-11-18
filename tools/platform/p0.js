@@ -48,7 +48,11 @@ const ONLY = opt("only", null) ? opt("only").split(",") : null;
 const want = (k) => !ONLY || ONLY.includes(k);
 const UA = devices["iPhone 15"].userAgent;
 
-// ---- the server: the page at /, /next/ and /nextish/ (with or without index.html), the share picture, nothing else ----
+// ---- the server: the page at /, /next/ and /nextish/ (with or without index.html), the share picture, and (stage 6)
+// the owner's recordings beside the page (assets/music/*.mp3, assets/victory/*.mp3), which a battle and a victory
+// ask for; nothing else ----
+// (a request the page makes for one of the owner's recordings: asked by the battle or the victory, not by the platform)
+const RECORDING = /^(\/(next|nextish))?\/assets\/(music|victory)\/[a-z0-9-]+\.mp3$/;
 function serve(file) {
   const hits = [];
   const srv = http.createServer((req, res) => {
@@ -61,6 +65,10 @@ function serve(file) {
     if (/^\/((next|nextish)(\/|$))?(index\.html)?$/i.test(p)) {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       fs.createReadStream(file).pipe(res);
+    } else if (RECORDING.test(p) && fs.existsSync(path.join(path.dirname(file), p.replace(/^\/(next|nextish)/, "")))) {
+      const f = path.join(path.dirname(file), p.replace(/^\/(next|nextish)/, ""));
+      res.writeHead(200, { "content-type": "audio/mpeg", "content-length": fs.statSync(f).size });
+      fs.createReadStream(f).pipe(res);
     } else { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); }
   });
   return new Promise(ok => srv.listen(0, "127.0.0.1", () => ok({ srv, hits, base: "http://127.0.0.1:" + srv.address().port })));
@@ -740,7 +748,8 @@ function refuseWrites() {
       // ---- with the constants empty: nothing asked of the network but the page itself ----
       await g.ev(() => { for (let i = 0; i < 30; i++) track("p0_probe", { i }); });
       await g.wait(1500);
-      if (g.reqs.length !== 1 || g.reqs[0] !== S.base + "/") fail(tag, "the page asked the network for more than its own document: " + g.reqs.join(" , "));
+      const own = g.reqs.filter(u => !RECORDING.test(new URL(u).pathname));
+      if (own.length !== 1 || own[0] !== S.base + "/") fail(tag, "the page asked the network for more than its own document and the battle's recordings: " + g.reqs.join(" , "));
       await problems(g, tag, expected);
     } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); await g.shot(o.shots, tag + " stopped"); }
     finally { await g.close(); }
@@ -804,7 +813,7 @@ function refuseWrites() {
       if (r.after !== 1) fail(tag, "it did not queue again after the hostile cases");
       if (!r.net) fail(tag, "track() itself touches the network or storage");
       await g.wait(600);
-      if (g.reqs.length !== 1) fail(tag, "the page asked the network for more than its own document: " + g.reqs.join(" , "));
+      if (g.reqs.filter(u => !RECORDING.test(new URL(u).pathname)).length !== 1) fail(tag, "the page asked the network for more than its own document: " + g.reqs.join(" , "));
       await problems(g, tag);
     } catch (e) { fail(tag, "the walk stopped: " + e.message.split("\n")[0]); }
     finally { await g.close(); }
@@ -1013,7 +1022,7 @@ function refuseWrites() {
 
   await browser.close();
   S.srv.close();
-  const strange = S.hits.filter(p => !/^\/((next|nextish)(\/|$))?(index\.html)?$/i.test(p));
+  const strange = S.hits.filter(p => !/^\/((next|nextish)(\/|$))?(index\.html)?$/i.test(p) && !RECORDING.test(p));
   if (strange.length) fail("server", "the page asked the server for " + [...new Set(strange)].join(", "));
   R.finish("p0", fails, notes, t0);
 })();

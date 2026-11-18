@@ -3,14 +3,22 @@ hs-db.avunjian.com {
 	request_body {
 		max_size 512KB
 	}
-	# the Auth routes the page uses, and no other
+	# the Auth routes the page uses, and no other (no mail-sending route: otp, recover, magiclink stay out)
 	@signin path /auth/v1/settings /auth/v1/authorize /auth/v1/callback /auth/v1/logout /auth/v1/health
 	handle @signin {
 		reverse_proxy 127.0.0.1:8200
 	}
 	@token {
 		path /auth/v1/token
-		query grant_type=pkce grant_type=refresh_token
+		query grant_type=pkce grant_type=refresh_token grant_type=password
+	}
+	# the email sign-up (stage 6: ./providers.sh email); GoTrue itself refuses it while the email sign-up is off
+	@signup {
+		path /auth/v1/signup
+		method POST OPTIONS
+	}
+	handle @signup {
+		reverse_proxy 127.0.0.1:8200
 	}
 	handle @token {
 		reverse_proxy 127.0.0.1:8200

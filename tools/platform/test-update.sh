@@ -25,6 +25,8 @@
 # one. That first run is still the old script and publishes master only; the run after it is the new script and
 # publishes /next/.
 # Part D: bash -n on the new script.
+# Part E (stage 6): the trailer's files and the owner's recordings (assets/victory/*.mp3, assets/music/*.mp3) beside
+# the page, at / from master and at /next/ from the branch, each only when it differs, nothing else under assets/.
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -207,6 +209,58 @@ cron
 [ "$(grep -c 'published next' "$T/log2")" = 1 ] && pass "C3. and is quiet after that" || fail "C3"
 cp "$T/log2" "$T/partC.log"
 
+# ------------------------------------------------------------------ part E: the trailer and the owner's recordings (stage 6)
+# master's assets/victory/*.mp3 and assets/music/*.mp3 (and the trailer's three files) go out into the same folders
+# under the web root, each when it differs and never again when it does not; next's go under /next/ the same way, read
+# from the branch, while the live ones stay master's; nothing else under assets/ goes out; a deleted branch takes them
+# with /next/; no temporary folder is left behind
+git init -q --bare "$T/o3.git"
+git clone -q "$T/o3.git" "$T/w3" 2>/dev/null
+cd "$T/w3"; git config user.email t@example.com; git config user.name t; git config push.negotiate false; git checkout -q -b master
+mkdir -p deploy assets/victory assets/music; cp "$CHK" deploy/check-page.js; cp "$NEW" deploy/update.sh
+page e1 > index.html; printf 'jpge' > og.jpg
+printf 'kochari-1' > assets/victory/kochari.mp3; printf 'yarkhushta-1' > assets/victory/yarkhushta.mp3; printf 'sheyk-1' > assets/music/sheyk-sar.mp3
+printf 'notes' > assets/music/notes.txt; printf 'mp4-live' > trailer.mp4; printf 'webm-live' > trailer.webm; printf 'poster-live' > trailer-poster.jpg
+git add -A; git commit -q -m e1; git push -q origin master
+git clone -q "$T/o3.git" "$T/repo3"; mkdir "$T/web3" "$T/tmpd3"
+run3() { local rc=0; env HS_REPO="$T/repo3" HS_WEB="$T/web3" TMPDIR="$T/tmpd3" bash "$NEW" >> "$T/log3" 2>&1 || rc=$?; echo $rc >> "$T/rcs3"
+  if [ -n "$(ls -A "$T/tmpd3")" ]; then fail "E. a run left a temporary folder behind: $(ls -A "$T/tmpd3")"; rm -rf "${T:?}/tmpd3/"*; fi; }
+c3() { grep -c "$1" "$T/log3" || true; }
+same() { cmp -s "$1" "$2"; }
+git -C "$T/repo3" reset -q --hard HEAD~0
+# (the clone stands at master already, as setup-server.sh leaves it: the first run publishes what the web root lacks)
+run3
+if same "$T/web3/assets/victory/kochari.mp3" "$T/w3/assets/victory/kochari.mp3" && same "$T/web3/assets/victory/yarkhushta.mp3" "$T/w3/assets/victory/yarkhushta.mp3" \
+   && same "$T/web3/assets/music/sheyk-sar.mp3" "$T/w3/assets/music/sheyk-sar.mp3" && same "$T/web3/trailer.mp4" "$T/w3/trailer.mp4" && same "$T/web3/trailer.webm" "$T/w3/trailer.webm" \
+   && same "$T/web3/trailer-poster.jpg" "$T/w3/trailer-poster.jpg" && [ ! -e "$T/web3/assets/music/notes.txt" ] && [ "$(c3 'published assets/')" = 3 ] \
+   && [ "$(stat -c %a "$T/web3/assets/music/sheyk-sar.mp3")" = 644 ] && [ "$(tail -1 "$T/rcs3")" = 0 ]; then
+  pass "E1. master's recordings and trailer published beside the page (644), the notes file under assets/ not"
+else fail "E1: $(cat "$T/log3")"; fi
+run3; run3
+[ "$(c3 'published assets/')" = 3 ] && [ "$(c3 'published trailer')" = 3 ] && pass "E2. and never again while they are the same" || fail "E2: $(cat "$T/log3")"
+printf 'sheyk-2' > assets/music/sheyk-sar.mp3; printf 'oorakh-1' > assets/music/oorakh-ler.mp3; page e2 > index.html; git add -A; git commit -q -m e2; git push -q origin master
+run3
+if [ "$(cat "$T/web3/assets/music/sheyk-sar.mp3")" = sheyk-2 ] && [ "$(cat "$T/web3/assets/music/oorakh-ler.mp3")" = oorakh-1 ] && grep -q e2 "$T/web3/index.html" && [ "$(c3 'published assets/')" = 5 ]; then
+  pass "E3. a new commit: the changed and the new recording go out with the page, the others are left alone"
+else fail "E3: $(cat "$T/log3")"; fi
+# the staging branch: its own recordings and trailer under /next/
+git checkout -q -b next; npage ne1 > index.html; printf 'kochari-next' > assets/victory/kochari.mp3; printf 'na-mi-naz-next' > assets/music/na-mi-naz.mp3; printf 'mp4-next' > trailer.mp4
+git add -A; git commit -q -m ne1; git push -q origin next
+run3
+if grep -q ne1 "$T/web3/next/index.html" && [ "$(cat "$T/web3/next/assets/victory/kochari.mp3")" = kochari-next ] && [ "$(cat "$T/web3/next/assets/music/na-mi-naz.mp3")" = na-mi-naz-next ] \
+   && [ "$(cat "$T/web3/next/assets/music/sheyk-sar.mp3")" = sheyk-2 ] && [ "$(cat "$T/web3/next/trailer.mp4")" = mp4-next ] && [ "$(cat "$T/web3/next/trailer-poster.jpg")" = poster-live ] \
+   && [ ! -e "$T/web3/next/assets/music/notes.txt" ] && [ "$(cat "$T/web3/assets/victory/kochari.mp3")" = kochari-1 ] && [ "$(cat "$T/web3/trailer.mp4")" = mp4-live ] \
+   && [ ! -e "$T/web3/assets/music/na-mi-naz.mp3" ] && [ "$(stat -c %a "$T/web3/next/assets/music/na-mi-naz.mp3")" = 644 ]; then
+  pass "E4. next's recordings and trailer at /next/ (read from the branch), the live ones still master's, no notes file"
+else fail "E4: $(find "$T/web3" -type f | sort | tr '\n' ' ')"; fi
+printf 'na-mi-naz-next2' > assets/music/na-mi-naz.mp3; npage ne2 > index.html; git add -A; git commit -q -m ne2; git push -q origin next
+run3
+[ "$(cat "$T/web3/next/assets/music/na-mi-naz.mp3")" = na-mi-naz-next2 ] && grep -q ne2 "$T/web3/next/index.html" && pass "E5. a changed recording on next goes out with its page" || fail "E5"
+git checkout -q master; git push -q origin --delete next; run3
+if [ ! -e "$T/web3/next" ] && [ "$(cat "$T/web3/assets/music/sheyk-sar.mp3")" = sheyk-2 ]; then pass "E6. the branch deleted: /next/ goes with its recordings, the live ones stay"; else fail "E6"; fi
+[ "$(git -C "$T/repo3" rev-parse HEAD)" = "$(git -C "$T/repo3" rev-parse origin/master)" ] && [ -z "$(git -C "$T/repo3" status --porcelain)" ] && pass "E7. the clone on master with a clean tree" || fail "E7"
+cd "$T/work"
+
 # ------------------------------------------------------------------ part D
 if bash -n "$NEW"; then pass "D. bash -n $(basename "$NEW")"; else fail "D. bash -n"; fi
 
@@ -264,4 +318,4 @@ if [ ! -e "$T/web5/next" ] && [ "$(cat "$T/web5/assets/explainer/erebuni/landsca
 cd "$T/work"
 
 if [ "${VERBOSE:-}" = 1 ]; then for f in partA partB partC; do echo "--- $f log"; cat "$T/$f.log"; done; fi
-if [ "$fails" = 0 ]; then echo "PASS: update.sh publishes master as before and next at /next/ ($cases cases)"; else echo "FAIL: $fails of $((cases + fails)) cases"; exit 1; fi
+if [ "$fails" = 0 ]; then echo "PASS: update.sh publishes master as before, next at /next/, and the recordings and trailer beside each ($cases cases)"; else echo "FAIL: $fails of $((cases + fails)) cases"; exit 1; fi

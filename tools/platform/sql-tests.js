@@ -71,7 +71,8 @@ async function as(who, sql, params, o = {}) {
   await c.query(o.readOnly ? "begin isolation level read committed read only" : "begin");
   try {
     // a player's token as GoTrue makes it for a sign-in with a provider (amr: oauth); "<id>:password" is the same
-    // account signed in by password (the shared sign-in service's email sign-in)
+    // account signed in by email and password (the game's own email sign-in since migration 009); "<id>:otp" by a
+    // one-time code or magic link, which the game never offers
     const role = who === "service_role" ? "service_role" : who ? "authenticated" : "anon";
     const [sub, how] = String(who || "").split(":");
     const claims = who === "service_role" ? { role } : who ? { sub, role, aud: "authenticated", amr: [{ method: how || "oauth", timestamp: 1700000000 }] } : { role };
@@ -1039,12 +1040,14 @@ group("purge", async () => {
 });
 
 // ------------------------------------------------------------------ tenants (RULINGS S9): who reaches whose rows
-// Player A and player B (both with a profile), an outsider O who signed up through another app's open email sign-up
-// (an account in the shared auth.users with an email identity, no profile), a visitor, and the admin.
+// Player A and player B (both with a profile), an outsider O whose account another app made (in the shared auth.users,
+// by a phone's code: no identity the game's sign-in makes, no profile), a visitor, and the admin. Since migration 009
+// an account of the game's email sign-up (an email identity) is the game's own: it may become a player, in a password
+// session (E below).
 const O = "00000000-0000-4000-8000-0000000000e1", O2 = "00000000-0000-4000-8000-0000000000e2";
 group("tenants", async () => {
   await su("insert into auth.users (id, email) values ($1, 'outsider@example.com'), ($2, 'outsider2@example.com') on conflict do nothing", [O, O2]);
-  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('email', $1::text, $1::uuid, 'outsider@example.com'), ('email', $2::text, $2::uuid, 'outsider2@example.com') on conflict do nothing", [O, O2]);
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('phone', $1::text, $1::uuid, 'outsider@example.com'), ('phone', $2::text, $2::uuid, 'outsider2@example.com') on conflict do nothing", [O, O2]);
   const pa = await rpc(U.A, "hs_profile_get", {}), pb = await rpc(U.B, "hs_profile_get", {});
   ok(!!pa.name && !!pb.name, "A and B are players (each has a name: " + pa.name + ", " + pb.name + ")");
   // A's save, B's save: each reads and writes his own only, whatever he sends
@@ -1088,7 +1091,7 @@ group("tenants", async () => {
   }
   for (const fn of PLAYER_FNS.concat(ADMIN_FNS)) ok(/permission denied for function/.test(await errMsg(rpc(null, fn, SAMPLE[fn]))), "the visitor is refused " + fn);
   // the outsider cannot make himself a player by calling the name card's function by hand: his account never signed
-  // in with Google, Facebook or Discord
+  // in with Google, Facebook or Discord, nor signed up by the game's email form
   const e1 = await err(rpc(O, "hs_profile_set_name", { p_name: "Sneaky Outsider" }));
   ok(e1 && e1.msg === "not_game_account" && e1.code === "42501", "the outsider's hs_profile_set_name is refused: not_game_account (" + (e1 && e1.msg) + ")");
   eq((await su("select count(*)::int n from highland.hs_profiles where user_id = $1", [O]))[0].n, 0, "and no profile was made");
@@ -1110,21 +1113,42 @@ group("tenants", async () => {
   eq((await rpc(O2, "hs_profile_set_name", { p_name: "Linked Later" })).ok, true, "an account that also signed in with Google may become a player");
   eq((await rpc(O2, "hs_save_get", {})).version, 0, "and is one");
   await rpc(O2, "hs_delete_account", {});
-  // A's own account signed in by password (an account someone made with A's email through the open email sign-up
-  // before A first came with Google, which the sign-in service then linked to it): reaches nothing of A's
+  // (migration 009) A's own account in a password session: the game's email sign-in, so it reaches A's rows as A's
+  // provider session does (the cost the owner accepted: whoever holds the password of an account holds the account)
   const PW = U.A + ":password";
+  eq((await rpc(PW, "hs_save_get", { p_channel: "next" })).version, (await rpc(U.A, "hs_save_get", { p_channel: "next" })).version, "A's account in a password session reads A's save");
+  eq((await rpc(PW, "hs_profile_get", {})).name, pa.name, "and A's profile");
+  const bpw = await rpc(PW, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
+  eq(JSON.stringify(bpw.me), JSON.stringify((await rpc(U.A, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" })).me), "and the boards mark A's row as the session's");
+  // a one-time code or a magic link is no session of the game's: the game sends no mail
+  const OTP = U.A + ":otp";
   for (const fn of ["hs_save_get", "hs_save_put", "hs_run_begin", "hs_score_submit"]) {
-    const e = await err(rpc(PW, fn, SAMPLE[fn]));
-    ok(e && e.msg === "not_game_session" && e.code === "42501", "A's account in a password session is refused " + fn + " (" + (e && e.msg) + ")");
+    const e = await err(rpc(OTP, fn, SAMPLE[fn]));
+    ok(e && e.msg === "not_game_session" && e.code === "42501", "A's account in a one-time code's session is refused " + fn + " (" + (e && e.msg) + ")");
   }
-  const e2 = await err(rpc(PW, "hs_profile_set_name", { p_name: "Renamed By Pw" }));
+  const e2 = await err(rpc(OTP, "hs_profile_set_name", { p_name: "Renamed By Otp" }));
   ok(e2 && e2.msg === "not_game_session", "and cannot rename A (" + (e2 && e2.msg) + ")");
+  // the admin's own functions keep asking for a provider's session
   const e3 = await err(rpc(U.AD + ":password", "hs_stats", { p_days: 7 }));
   ok(e3 && e3.msg === "not_admin", "the admin's account in a password session is no admin (" + (e3 && e3.msg) + ")");
-  const bpw = await rpc(PW, "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
-  ok(bpw.me === null && bpw.rows.every(r => !r.me), "the boards mark nothing as the password session's");
+  eq((await rpc(U.AD + ":password", "hs_profile_get", {})).admin, false, "and its profile says so");
   const apw = await rpc(U.AD + ":password", "hs_board", { p_mode: "campaign", p_level: "erebuni", p_diff: 1, p_loadout: "std", p_ruleset: "2" });
   ok(apw.rows.length > 0 && apw.rows.every(r => !("uid" in r)), "and the admin's account in a password session sees no player ids on a board");
+  // an account of the game's email sign-up (an email identity, a password session): chooses a name, is a player, saves,
+  // begins a run, and deletes his account
+  const E = "00000000-0000-4000-8000-0000000000e3", EP = E + ":password";
+  await su("insert into auth.users (id, email, email_confirmed_at) values ($1, 'email-player@example.com', now()) on conflict do nothing", [E]);
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('email', $1::text, $1::uuid, 'email-player@example.com') on conflict do nothing", [E]);
+  eq((await rpc(EP, "hs_profile_set_name", { p_name: "Mail Player" })).ok, true, "an email account in a password session chooses a name");
+  eq((await rpc(EP, "hs_profile_get", {})).name, "Mail Player", "and is a player");
+  const ev = (await rpc(EP, "hs_save_get", {})).version;
+  ok((await rpc(EP, "hs_save_put", { p_expected: ev, p_data: { v: 1, keys: {} } })).version > ev, "and saves");
+  ok(!!(await rpc(EP, "hs_run_begin", SAMPLE.hs_run_begin)).run_id, "and begins a ranked battle");
+  ok(/not_game_session/.test(await errMsg(rpc(E + ":otp", "hs_save_get", {}))), "but not in a one-time code's session");
+  const eNo = await err(rpc(E, "hs_stats", { p_days: 7 }));
+  ok(eNo && eNo.msg === "not_admin", "and is no admin (" + (eNo && eNo.msg) + ")");
+  eq((await rpc(EP, "hs_delete_account", {})).ok, true, "and deletes his own account in a password session");
+  eq((await su("select count(*)::int n from highland.hs_profiles where user_id = $1", [E]))[0].n, 0, "his profile is gone");
 });
 
 // A grant given by mistake (say "grant select on highland.hs_saves to authenticated" typed in the SQL editor): the
@@ -1445,10 +1469,11 @@ group("delete", async () => {
   ok(await has(U.A) > 8, "A has rows in every table of highland before (" + await has(U.A) + ")");
   const bBefore = await has(U.B), sharedA = await shared(U.A), sharedB = await shared(U.B), users = (await su("select count(*)::int n from auth.users"))[0].n;
   ok(sharedA.users === 1 && sharedA.ids >= 1 && sharedA.log === 1, "and an account, an identity and a log line in the shared auth schema");
-  // (migration 005) A's own account signed in by password, the shared email sign-in, cannot delete A's game data
+  // (migration 005, and 009) A's own account in a session of a one-time code (no session of the game's) cannot delete
+  // A's game data; a password session is the game's own since 009 (the tenants' group deletes one)
   const aBefore = await has(U.A);
-  const pw = await err(rpc(U.A + ":password", "hs_delete_account", {}));
-  ok(pw && pw.msg === "not_game_session" && pw.code === "42501", "A's account in a password session is refused hs_delete_account (" + (pw && pw.msg) + ")");
+  const pw = await err(rpc(U.A + ":otp", "hs_delete_account", {}));
+  ok(pw && pw.msg === "not_game_session" && pw.code === "42501", "A's account in a one-time code's session is refused hs_delete_account (" + (pw && pw.msg) + ")");
   eq(await has(U.A), aBefore, "and every row of A's is still there");
   ok((await su("select count(*)::int n from highland.hs_rate where key = $1", [D1]))[0].n > 0, "his device has a visitor's rate counter before");
   const bRate = (await su("select count(*)::int n from highland.hs_rate where key in (select aid::text from highland.hs_sessions where uid = $1)", [U.B]))[0].n;
@@ -1580,6 +1605,35 @@ group("boards", async () => {
   await su("delete from highland.hs_config where key in ('boards', 'daily')");
   ok((await runBegin(P, "campaign", "erebuni", 2, "2")).ok === true, "the boards on again: a run begins");
   ok((await err(runBegin(null, "campaign", "erebuni", 2, "2"))) !== null, "a visitor still begins none");
+});
+
+// ------------------------------------------------------------------ migration 009: the game's email sign-in
+// Down to 008: a password session reaches nothing and an email account cannot become a player, as before; up to 009
+// again: both are the game's own, while the admin's functions and the owner's grant still ask for a provider.
+group("email_signin", async (ctx) => {
+  const { migrate } = require("./migrate");
+  const pgc = await ctx.db.client(ctx.name, "postgres");
+  const M = "00000000-0000-4000-8000-0000000000e4", MP = M + ":password", G = "00000000-0000-4000-8000-0000000000e5";
+  // a player of Google's (G), and an account of the email form (M)
+  await su("insert into auth.users (id, email, email_confirmed_at) values ($1, 'g-player@example.com', now()) on conflict do nothing", [G]);
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('google', 'g-e5', $1::uuid, 'g-player@example.com') on conflict do nothing", [G]);
+  eq((await rpc(G, "hs_profile_set_name", { p_name: "Google Player" })).ok, true, "a player of Google's");
+  await su("insert into auth.users (id, email, email_confirmed_at) values ($1, 'mail-only@example.com', now()) on conflict do nothing", [M]);
+  await su("insert into auth.identities (provider, provider_id, user_id, email) values ('email', $1::text, $1::uuid, 'mail-only@example.com') on conflict do nothing", [M]);
+  try {
+    eq(await migrate({ client: pgc, target: 8 }), 8, "down to 008");
+    ok(/not_game_session/.test(await errMsg(rpc(G + ":password", "hs_save_get", {}))), "at 008 a password session is refused hs_save_get");
+    ok(/not_game_session/.test(await errMsg(rpc(MP, "hs_profile_set_name", { p_name: "Mail Only" }))), "and the name card");
+    ok(/not_game_account/.test(await errMsg(rpc(M, "hs_profile_set_name", { p_name: "Mail Only" }))), "and an email account cannot become a player even in a provider's session");
+    eq(await migrate({ client: pgc }), 9, "up to 009 again");
+    eq((await rpc(G + ":password", "hs_save_get", {})).version >= 0, true, "at 009 a password session reads its save");
+    eq((await rpc(MP, "hs_profile_set_name", { p_name: "Mail Only" })).ok, true, "and an email account becomes a player");
+    ok(/not_admin/.test(await errMsg(rpc(U.AD + ":password", "hs_stats", { p_days: 7 }))), "while the admin's account in a password session is no admin");
+    eq((await rpc(U.AD, "hs_stats", { p_days: 7 })) !== null, true, "and in a provider's session is one");
+    const g = await err(pgc.query("select highland.hs_grant_superadmin_by_email('mail-only@example.com')"));
+    ok(g && /not_game_account/.test(g.msg || g.message || ""), "and the owner's grant refuses an account that never signed in with a provider (" + (g && (g.msg || g.message)) + ")");
+    eq((await rpc(MP, "hs_delete_account", {})).ok, true, "the email player deletes his account");
+  } finally { await pgc.end(); }
 });
 
 group("handoff", async (ctx) => {

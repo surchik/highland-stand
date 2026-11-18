@@ -110,3 +110,84 @@ One more (17 November): "Siroun Es, Hokiag (You're Beautiful, My Love)" by New A
 4 min 20 s), assets/music/siroun-es-hokiag.mp3. Eleven battle tunes in all (about 50 MB, still loaded one at a
 time). It is a love song by its title: in the rotation, but not a battlefield's opening tune where a martial one
 fits.
+
+## What was built (stage 6, branch s6/work)
+
+**1. The Standard battle switch is gone.** The chronicle has no switch (`bkStd` is now a mark, not a button). A
+ranked Standard battle starts from the Leaderboards tab: on the Standard board a new button, **Fight for this board**,
+closes the Hall and opens that battlefield's chronicle as a Standard battle on the board's difficulty
+(`openBriefStandard`). The chronicle then says "Standard battle" in its row and "Level 1 · Standard" on the hero's
+line; Replay keeps it, the map and any other battlefield's chronicle put it away. Before stage 6 the platform had no
+such door (`openBriefStandard` existed, nothing called it); it is there now. The Standard ruleset and the boards are
+unchanged: a battle with a Council tier still posts to the Open board, one without to the Standard board.
+
+**2 and 4. The victory screen.**
+- The victory plays the owner's two recordings in turn (Kochari, then Yarkhushta, then Kochari; the turn is kept on
+  the device, `hs_vic_rec`). A file is asked for only when a victory comes. The generated kochari plays instead when
+  the file fails or has not begun 2.5 s in, when the page is a test harness, and on a browser without sound; the
+  Settings "Victory band" still chooses the generated band and the painted musicians.
+- Tempo, measured with librosa (onset strength at 64-sample hops, its autocorrelation over the bar; the bar shows up
+  as the strongest period in both): **Kochari 102.4 beats a minute** (bar 1.172 s, 2/4) from its full-band entry at
+  45 s (the first 45 s are a slow prelude, so the dance's part begins there); **Yarkhushta 95.6 beats a minute**
+  (bar 1.255 s). Both carry a 3+3+2 accent inside the bar, which beat trackers read as 136 and 128. The dancers now
+  step at the recording's tempo, timed by the recording's own clock while it plays (`celebrationBeat`); the first
+  strong beat is estimated (45.31 s and 0.61 s), so the steps follow the tempo and may sit a little off the downbeat.
+- The dance holds about twice as long: `DANCE_MAX_MS` is 43.2 s (was 21.6 s); the generated band plays its tune
+  twice. A tap after the first 10 s still leaves at once, as before.
+- The pointer is the cross only over a battle; over the dance, the victory page and every other page it is the arrow.
+- The count reads "N enemies destroyed" (was "foes felled"). The caption under the plaque is removed.
+
+**3a. Google's name.** The name card starts from the sign-in's own first name (`nameFromMeta`: Google's given name,
+else the first word of `full_name` or `name`, cleaned to the name rule; the first two words when the first is too
+short). The generated "Defender" and six digits stay the fallback. The card's line then says the name starts from
+the sign-in's first name and can be changed. When the name is taken the card tries the first name with three digits.
+
+**3b. Email and password.** "Continue with email" stands beside the providers whenever the server's `/settings` says
+the email sign-up is on. Sign-up asks for a player name, an email and a password (8 characters or more) and nothing
+else; no mail is sent and the server confirms the address at once. The name typed there is saved as the player name
+at once. The form says that a reset of a forgotten password comes later. The Account tab and the Leaderboards tab's
+sign-in line offer it too.
+- Migration **009_email_signin**: a session begun by password (`amr` "password") is a session of the game's own;
+  an account with an email identity may become a player. The admin's and the superadmin's functions still ask for
+  a provider's session, and the owner's superadmin grant still asks for an account that signed in with a provider.
+  A one-time code (`otp`) is no session of the game's. It has a down file; it grants nothing new.
+- On the server: `./providers.sh email` (and `--off`) in `deploy/hs-supabase`. The narrow Caddy block now passes the
+  sign-up and the password sign-in. While the email sign-up is on, the page holds the Discord button back (as it
+  always did while the server confirms addresses itself).
+- The test stand-in of GoTrue (`tools/platform/stack.js`) now signs up and signs in by password when its `email`
+  setting is on, so the whole flow is tested end to end (platform flow 16).
+
+**3c. The trailer's sound.** `trailer.mp4` (AAC 128 kbit/s) and `trailer.webm` (Opus 96 kbit/s) now carry a
+soundtrack: the first half minute of the owner's "Sheyk Sar" (a quiet opening that builds to the full band as the
+title card comes), ducked under a voice-over, the whole at -16 LUFS. Files: 4.45 MB and 3.75 MB (were 3.95 and
+3.46). The page tries to play it with sound; where the browser refuses sound before a tap it plays muted, and a
+**Sound on** button beside Play now turns the sound on (and off again). The trailer's files now load from beside the
+page, so `/next/` shows its own.
+- The voice: **Kokoro** (Kokoro-82M, Apache-2.0, run locally through kokoro-onnx), voice **am_michael** (American
+  male), speed 1.0. (Piper was tried first; its better voices are under non-commercial licences, so it was dropped.)
+- The lines, and when each begins:
+  - 0.4 s: "From Erebuni to Artsakh, for twenty-eight centuries, Armenians have held these highlands."
+  - 6.4 s: "Seventeen battlefields. Five eras. Raise your towers on the mountain roads."
+  - 17.0 s: "Every wave counts. Hold the line."
+  - 26.4 s: "Highland Stand. Hold the highlands."
+- Three voices to judge, the first and last lines read by each (we cannot hear them):
+  `docs/specs/owner/voice-samples/am_michael.mp3` (the trailer's), `bm_george.mp3` (British male) and
+  `af_heart.mp3` (American female). Another voice, or other lines, is one command:
+  `PY=<python with kokoro-onnx> KOKORO=<model folder> bash tools/trailer-sound.sh --voice=bm_george`.
+
+**5. Battle music.** Eleven tunes from `assets/music/`. A battle asks for one tune as it begins, never with the page.
+Each battlefield opens on a tune of its own (`REC_OPEN`), then they turn in order through all eleven, and a battle
+never opens on the tune heard last. The two laments open only battlefields of loss: "Vartan's Mother's
+Lamentation" opens Avarayr (where Vartan Mamikonian fell) and Shushi 2020; "Don't Cry Mother" opens Sis 1375 and
+Stepanakert 2023. The love song "Siroun Es, Hokiag" opens none. All of them come round in the rotation.
+While a tune plays, the generated music is turned down; it comes back when no file plays (before one has loaded,
+after one fails). The Music switch and its volume govern it; effects stay at their own level and duck it as they
+duck the generated music. It pauses with the battle (Settings opened in battle lets it play, so its volume can be
+heard), stops while the page is hidden, fades at victory (the victory recording takes over) and at defeat, and stops
+on Abandon. It never plays on the map, the chronicle or the trailer. Each file's loudness was measured and trimmed
+to sit about 3 dB over the generated field music at the default volume. The test harness opens no sound, so nothing
+there loads or waits on a file.
+
+**6. Publishing.** `deploy/update.sh` publishes `assets/victory/*.mp3`, `assets/music/*.mp3` and the trailer's files
+beside the page at `/` from master and at `/next/` from the branch, each only when it differs
+(`tools/platform/test-update.sh` part E).

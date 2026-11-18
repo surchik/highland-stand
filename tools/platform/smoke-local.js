@@ -58,6 +58,19 @@ const failedChecks = (out) => [...out.matchAll(/^FAIL +(\d+)\./gm)].map(m => Num
     await stack.control("settings", { mailer_autoconfirm: false });
     await stack.control("narrow", { on: true });
 
+    console.log("\n== 2b. the game's own stack with the email sign-up on (stage 6): auto-confirm on by the owner's ruling, narrow");
+    await stack.control("settings", { mailer_autoconfirm: true, email: true });
+    r = await smoke(stack.url, stack.anonKey);
+    process.stdout.write(r.out.split("\n").filter(l => /^(FAIL|RESULT|PASS +3\.)/.test(l)).join("\n") + "\n");
+    if (failedChecks(r.out).length || r.code !== 0 || !/the owner's ruling/.test(r.out)) { bad++; console.log("UNEXPECTED: the email sign-up's stack failed " + JSON.stringify(failedChecks(r.out))); }
+    console.log("== 2c. the same, served whole: check 11 still names the mail-sending routes");
+    await stack.control("narrow", { on: false });
+    r = await smoke(stack.url, stack.anonKey);
+    process.stdout.write(r.out.split("\n").filter(l => /^(FAIL|RESULT)/.test(l)).join("\n") + "\n");
+    if (JSON.stringify(failedChecks(r.out)) !== "[11]" || r.out.includes("POST /auth/v1/signup ->") || !r.out.includes("POST /auth/v1/otp -> 200")) { bad++; console.log("UNEXPECTED: wanted check 11 alone, without the sign-up, got " + JSON.stringify(failedChecks(r.out))); }
+    await stack.control("settings", { mailer_autoconfirm: false, email: false });
+    await stack.control("narrow", { on: true });
+
     console.log("\n== 3. a key that says it is Supabase's demo key");
     r = await smoke(stack.url, fakeKey({ iss: "supabase-demo", role: "anon", exp: 1983812996 }));
     process.stdout.write(r.out.split("\n").filter(l => /^(FAIL +1\.|        what)/.test(l)).slice(0, 2).join("\n") + "\n");
@@ -68,6 +81,6 @@ const failedChecks = (out) => [...out.matchAll(/^FAIL +(\d+)\./gm)].map(m => Num
     process.stdout.write(r.out.split("\n").filter(l => /^(FAIL +1\.|        what)/.test(l)).slice(0, 2).join("\n") + "\n");
     if (!failedChecks(r.out).includes(1) || !/SERVICE ROLE/.test(r.out)) { bad++; console.log("UNEXPECTED: check 1 passed a service key"); }
   } finally { await stack.stop(); }
-  console.log("\nRESULT smoke-local: " + (bad ? bad + " runs did not end as expected" : "all four runs ended as expected"));
+  console.log("\nRESULT smoke-local: " + (bad ? bad + " runs did not end as expected" : "all six runs ended as expected"));
   process.exit(bad ? 1 : 0);
 })().catch(e => { console.log("FAIL " + (e.stack || e.message)); process.exit(1); });

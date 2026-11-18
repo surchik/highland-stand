@@ -188,7 +188,7 @@ Then apply them all **[tried]**:
 node tools/platform/migrate.js up --dsn="$HS_DB_URL"
 ```
 
-The eight migrations, each in one transaction of its own, each followed by the lockdown (the file
+The nine migrations, each in one transaction of its own, each followed by the lockdown (the file
 `migrations/lockdown.sql`: every object of `highland` taken away from PUBLIC, `anon`, `authenticated` and
 `service_role`) and, once 003 is in, 003's grants again, then the grants of each later migration that has a file
 of them (`006_superadmin.grants.sql`):
@@ -203,6 +203,7 @@ of them (`006_superadmin.grants.sql`):
 | `006_superadmin` | the superadmin (P10): the tables `hs_superadmins` and `hs_super_audit` (row level security and policies), the Players view's two functions (`hs_super_players`, `hs_super_player`: a superadmin only, each look written down), your two commands (`hs_grant_superadmin_by_email`, `hs_revoke_superadmin_by_email`: granted to nobody, refused through the API), 7 helpers; `hs_profile_get` also says `super`, and "Delete my account" also removes a superadmin's row. Its grants file gives EXECUTE on the two functions to `authenticated` only | drops them by name; puts back 002's `hs_profile_get` and 005's "Delete my account" |
 | `007_scores` | scores and boards (P5): `hs_run_begin` begins no run while you have the boards switched off (or the daily), `hs_score_submit` also says whether a result beat the player's best and what its run was, `hs_board`'s rows carry the defenders the battle began with. The same three functions with the same signatures, so nothing new is granted; no table changes | puts back 002's three functions; the scores and boards stay |
 | `008_daily` | the daily challenge's tab (P6): `hs_daily_status` also answers the attempts left, whether a newer ruleset makes the page's daily stale, and yesterday's battle and first three; `hs_score_submit` no longer fails on a daily's result posted as a connection's first call. The same two functions with the same signatures, 2 new helpers granted to nobody; no table changes | puts back 002's `hs_daily_status` and 007's `hs_score_submit`, drops the 2 helpers; the scores stay |
+| `009_email_signin` | email and password sign-in (stage 6): a session begun with the game's own email and password (`amr` "password") reaches every player's function, and an account of the email sign-up may choose a name and become a player; the admin's and superadmin's functions still ask for a session of Google, Facebook or Discord (`_is_admin` and `_is_super` true only there), and your grant still asks for an account that signed in with one. 4 helpers and your grant replaced with the same signatures, 2 new helpers granted to nobody; no table changes | puts back 002's `_game_session`, `_game_account` and `_is_admin`, 006's `_is_super` and grant, drops the 2 helpers; email players' rows stay |
 
 It runs as `postgres`, never a superuser (a superuser's connection is moved to `postgres`; a superuser
 `postgres` stops it), takes an advisory lock so two runs cannot overlap, waits at most 10 s for any lock another
@@ -217,7 +218,7 @@ before and after every migration and every rollback.
 select highland.hs_config();
 ```
 
-answers one small line with `"now"`, and `status` says `highland at 8 of 8`.
+answers one small line with `"now"`, and `status` says `highland at 9 of 9`.
 
 **Rolling back.** To a given migration, after a backup (step 2), with `--yes` **[tried]**:
 
