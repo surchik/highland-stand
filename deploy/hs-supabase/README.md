@@ -100,7 +100,8 @@ There are two blocks:
   `db.avunjian.com`. The gateway asks for the API key on every route but the three a browser is sent to
   (`authorize`, `callback`, `verify`).
 - `caddy-block-narrow.txt`: only the Auth routes the page uses (`settings`, `authorize`, `callback`, `logout`,
-  `health`, `token` for `pkce` and `refresh_token`, `user` to read) and `/rest/v1/rpc/hs_*`; everything else
+  `health`, `token` for `pkce`, `refresh_token` and, since stage 6, `password`, `signup` by POST, `user` to read)
+  and `/rest/v1/rpc/hs_*`; everything else
   answers 404. This is the block the game's design asks for on a Supabase of its own
   (`docs/specs/platform.final.md`), and the one with which the smoke test's check 11 passes. Put it in once a
   sign-in has worked with the plain one: `./caddy.sh --narrow` (and `./caddy.sh --plain` to go back).
@@ -112,6 +113,19 @@ First, in the provider's console, make the app with the callback address
 `https://highland.avunjian.com/?privacy`; the rest is in `deploy/supabase/README.md`, step 4c). Then run the
 script and paste the client ID and the client secret at its two hidden prompts. **Check:** it ends with
 `"google":true` and `sends the browser to: https://accounts.google.com`.
+
+### 4b. `./providers.sh email` (stage 6: email and password)
+
+Turns the email sign-up and sign-in on, each address confirmed at once with no mail sent (the owner's ruling of
+17 November: `ENABLE_EMAIL_SIGNUP=true` and `ENABLE_EMAIL_AUTOCONFIRM=true` in the `.env`, the `.env` backed up
+first, only the Auth container recreated; sign-in is away for a few seconds). It asks for nothing. Run it again and
+it says the switch is already on and changes nothing; `./providers.sh email --off` turns it off again (accounts made
+by it stay). Before it, migration 009 must be in (`./migrate.sh`, which then says `highland at 9 of 9`): without
+it a password session reaches nothing of the game. **Check:** it ends with `"email":true` and
+`"mailer_autoconfirm":true`. While it is on the page holds the Discord button back (a server that confirms
+addresses itself would take an address Discord never verified as proof of who owns it); Google and Facebook stay.
+If the narrow Caddy block is in, run `./caddy.sh --narrow` once more so the new block (with the sign-up and the
+password sign-in) takes the old one's place. Tried here against stand-ins only: `bash tools/platform/test-providers-email.sh`.
 
 ### 5. `./show-public.sh`
 

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Pull the newest commit and publish index.html (and the files beside it: og.jpg, the trailer) if it changed. Run by cron every
-# two minutes.
+# Pull the newest commit and publish index.html (and the files beside it: og.jpg, the trailer, the owner's recordings
+# under assets/victory/ and assets/music/) if it changed. Run by cron every two minutes.
 # Before publishing, deploy/check-page.js makes sure every inline script of the page parses. A page that
 # fails is not published: the failure goes to the log once, the clone goes back to the commit that is live
 # (so a re-run of setup-server.sh publishes that same page), and the next push is tried as usual. When the
@@ -11,7 +11,7 @@
 # one runs from the next run on.
 #
 # The staging channel (docs/specs/platform.final.md 9.3): when the repository has a branch named "next", its
-# index.html (and og.jpg) goes out at <web root>/next/ the same way, after the same check, without touching the
+# index.html (and og.jpg, the trailer and the recordings under assets/) goes out at <web root>/next/ the same way, after the same check, without touching the
 # clone's checkout (the files are read straight from the branch with git show; the clone stays on master). A
 # page on next that fails its check is not published and is logged once; /next/ keeps what it had. A page on
 # next that lacks the staging namespace line (const HS_CHANNEL = ) is refused the same way: it shares the live
@@ -39,7 +39,10 @@ fi
 # its poster) go out whenever the clone has one the web root lacks or holds in another version. They are checked
 # on every run, not only with a new commit: the run that pulls a commit is still the update.sh from before it (the
 # block is read whole first), so a file that older script did not know goes out on the run after. The page copes
-# with a trailer not yet there (the poster or nothing stands in), so that one run's gap does no harm
+# with a trailer not yet there (the poster or nothing stands in), so that one run's gap does no harm. The owner's
+# recordings (assets/victory/*.mp3 for the victory dance, assets/music/*.mp3 for the battles; stage 6) go the same
+# way into the same folders under the web root; the page asks for them only when a battle or a victory comes, and
+# plays its own generated music while one is missing
 # The chronicle films (stage 5: assets/explainer/<battlefield>/, a landscape and an upright cut, each an .mp4, its
 # .vtt subtitles and its poster .jpg) go out the same way into the same folders under the web root. The page asks
 # for one only when its chronicle opens, and shows the text chronicle while a film is not there
@@ -56,8 +59,9 @@ publish_films() {
 }
 publish_og() {
   publish_films
-  for f in og.jpg trailer.mp4 trailer.webm trailer-poster.jpg; do
+  for f in og.jpg trailer.mp4 trailer.webm trailer-poster.jpg assets/victory/*.mp3 assets/music/*.mp3; do
     if [ -f "$f" ] && ! cmp -s "$f" "$WEB/$f"; then
+      case "$f" in */*) mkdir -p "$WEB/${f%/*}";; esac
       install -m 644 "$f" "$WEB/$f.new"
       mv "$WEB/$f.new" "$WEB/$f"
       echo "$(date -Is) published $f"
@@ -203,6 +207,19 @@ publish_next() {
   else
     rm -f "$WEB/next/og.jpg"
   fi
+  # the trailer and the owner's recordings, beside the page at /next/ as at / (the page asks for them by paths of
+  # its own folder); each read from the branch, written only when it differs
+  local f
+  for f in $(git ls-tree -r --name-only "$rev" -- trailer.mp4 trailer.webm trailer-poster.jpg assets/victory assets/music 2>/dev/null); do
+    case "$f" in trailer.mp4|trailer.webm|trailer-poster.jpg|assets/victory/*.mp3|assets/music/*.mp3) ;; *) continue;; esac
+    case "$f" in *..*|/*) continue;; esac
+    git show "$rev:$f" > "$NEXT_TMP/asset" 2>/dev/null || continue
+    if ! cmp -s "$NEXT_TMP/asset" "$WEB/next/$f"; then
+      case "$f" in */*) mkdir -p "$WEB/next/${f%/*}";; esac
+      install -m 644 "$NEXT_TMP/asset" "$WEB/next/$f.new"
+      mv "$WEB/next/$f.new" "$WEB/next/$f"
+    fi
+  done
   install -m 644 "$NEXT_TMP/index.html" "$WEB/next/index.html.new"
   mv "$WEB/next/index.html.new" "$WEB/next/index.html"
   echo "$rev" > .git/hs-next-live

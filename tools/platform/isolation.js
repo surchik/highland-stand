@@ -9,15 +9,16 @@
 //   options: --verbose
 //
 // Who: player A and player B (each made a player by the game's own name card, hs_profile_set_name), an outsider O
-// who signed up through another app's open email sign-up (an account in the shared auth.users with an email
-// identity and no profile), a visitor (the anon key alone), the admin, and service_role's claims (the service key).
+// whose account another app made (in the shared auth.users by a phone's code, no identity the game's sign-in makes,
+// no profile), a visitor (the anon key alone), the admin, and service_role's claims (the service key).
 // What is held: B can neither read nor write A's save, profile, runs or scores through any function; the outsider
 // and the visitor are refused every player's function; everyone but the admin every admin function; every table and
 // view of highland refused to anon, authenticated and service_role by GET, POST, PATCH and DELETE on
 // /rest/v1/<table>; the helpers not callable; a call without the profile headers finds nothing (public is the
 // default schema); a schema not served answers 406; the preflight lets the page's two headers through; and
-// "Delete my account" leaves the shared auth.users alone, and is refused to the player's own account in a password
-// session (migration 005), to service_role and to the visitor, the outsider's call removing no player's rows. The
+// "Delete my account" leaves the shared auth.users alone, and is refused to the player's own account in a one-time
+// code's session (migrations 005 and 009: a password session is the game's own email sign-in since 009, and reads
+// the player's own rows), to service_role and to the visitor, the outsider's call removing no player's rows. The
 // superadmin SA (P10, migration 006; made by the owner's command, run as postgres): the Players view refused to A,
 // B, the outsider, the admin who is not super, SA's account in a password session, the visitor and service_role,
 // and allowed to SA, each read audited; no other role's answer holds an email; the owner's two commands refused
@@ -67,7 +68,8 @@ function client(S) {
   const bearer = (who) => {
     if (!who) return S.anonKey;
     if (who === "service") return S.serviceKey;
-    // as GoTrue signs a session begun with a provider (amr oauth); "A:password" is A's account signed in by password
+    // as GoTrue signs a session begun with a provider (amr oauth); "A:password" is A's account signed in by email and
+    // password (the game's own since migration 009), "A:otp" by a one-time code (never the game's)
     const [k, how] = who.split(":");
     if (!tokens[who]) tokens[who] = S.sign({ aud: "authenticated", sub: P[k], role: "authenticated", iat: now(), exp: now() + 3600, is_anonymous: false,
       amr: [{ method: how || "oauth", timestamp: now() }] });
@@ -89,17 +91,17 @@ function client(S) {
 }
 
 // the accounts in the (stand-in) shared auth schema: the game's players signed in with a provider, the outsider by
-// email. Only auth rows: anything of highland is made through the game's own functions
+// another app's phone code (no identity the game's sign-in makes; since migration 009 an email identity is the game's). Only auth rows: anything of highland is made through the game's own functions
 async function ensureAccounts(S) {
   const c = await S.db.client(S.dbName || "hs", "supabase_admin");
   try {
-    for (const [k, prov] of [["A", "google"], ["B", "discord"], ["AD", "facebook"], ["O", "email"], ["SA", "google"]]) {
+    for (const [k, prov] of [["A", "google"], ["B", "discord"], ["AD", "facebook"], ["O", "phone"], ["SA", "google"]]) {
       // (a restored copy's accounts are stand-ins with ids only, since a dump never carries the shared auth.users:
       // they get the fixture's made-up address back)
       await c.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now()) on conflict (id) do update set email = excluded.email where auth.users.email is null",
         [P[k], "iso-" + k.toLowerCase() + "@example.com"]);
       await c.query("insert into auth.identities (provider, provider_id, user_id, email, identity_data) values ($1, $2, $3, $4, $5) on conflict do nothing",
-        [prov, prov === "email" ? P[k] : "iso-" + k, P[k], "iso-" + k.toLowerCase() + "@example.com", JSON.stringify({ full_name: "Iso Person " + k })]);
+        [prov, prov === "phone" ? P[k] : "iso-" + k, P[k], "iso-" + k.toLowerCase() + "@example.com", JSON.stringify({ full_name: "Iso Person " + k })]);
     }
   } finally { await c.end(); }
 }
@@ -286,7 +288,7 @@ async function run(S) {
     const del = await api.rpc("B", "hs_admin_moderate", ADMIN.hs_admin_moderate);
     ok(del.status === 403 && del.message === "not_admin", "B cannot hide A (not_admin)");
 
-    // the outsider (an account of another app's email sign-up), the visitor, service_role: every player's function
+    // the outsider (an account another app made), the visitor, service_role: every player's function
     for (const fn of Object.keys(MEMBER)) {
       const o = await api.rpc("O", fn, MEMBER[fn]);
       ok(o.status === 403 && o.code === "42501" && o.message === "no_profile", "the outsider is refused " + fn + ": 403 no_profile (" + o.status + " " + o.message + ")");
@@ -296,9 +298,13 @@ async function run(S) {
       ok(s.status === 403 && s.code === "42501", "service_role is refused " + fn + " (" + s.status + " " + s.message + ")");
     }
     for (const fn of Object.keys(MEMBER)) {
-      const pw = await api.rpc("A:password", fn, MEMBER[fn]);
-      ok(pw.status === 403 && pw.message === "not_game_session", "A's account in a password session (the shared email sign-in) is refused " + fn + " (" + pw.status + " " + pw.message + ")");
+      const pw = await api.rpc("A:otp", fn, MEMBER[fn]);
+      ok(pw.status === 403 && pw.message === "not_game_session", "A's account in a one-time code's session is refused " + fn + " (" + pw.status + " " + pw.message + ")");
     }
+    // (migration 009) a password session is the game's email sign-in: A's own, as his provider's session is
+    const pwA = await api.rpc("A:password", "hs_profile_get", {}), pvA = await api.rpc("A", "hs_profile_get", {});
+    ok(pwA.status === 200 && pwA.body.name === pvA.body.name && !!pwA.body.name, "A's account in a password session reads A's profile (" + pwA.status + ")");
+    ok((await api.rpc("A:password", "hs_save_get", {})).status === 200, "and A's save");
     const pwa = await api.rpc("AD:password", "hs_stats", ADMIN.hs_stats);
     ok(pwa.status === 403 && pwa.message === "not_admin", "the admin's account in a password session is refused the stats");
     const on = await api.rpc("O", "hs_profile_set_name", { p_name: "Outsider Iso" });
@@ -308,12 +314,12 @@ async function run(S) {
     for (const fn of ["hs_delete_account"]) {
       const v = await api.rpc(null, fn, {});
       ok(v.status === 401, "the visitor is refused " + fn);
-      // (migration 005) the player's own account in a password session cannot delete his game data
+      // (migration 005, 009) the player's own account in a one-time code's session cannot delete his game data
       const rowsA = async () => (await q(`select (select count(*) from highland.hs_profiles where user_id = $1) + (select count(*) from highland.hs_saves where user_id = $1)
         + (select count(*) from highland.hs_scores where user_id = $1) + (select count(*) from highland.hs_sessions where uid = $1) as n`, [P.A]))[0].n;
       const before = await rowsA();
-      const pw = await api.rpc("A:password", fn, {});
-      ok(pw.status === 403 && pw.message === "not_game_session", "A's account in a password session is refused " + fn + " (" + pw.status + " " + pw.message + ")");
+      const pw = await api.rpc("A:otp", fn, {});
+      ok(pw.status === 403 && pw.message === "not_game_session", "A's account in a one-time code's session is refused " + fn + " (" + pw.status + " " + pw.message + ")");
       ok(await rowsA() === before && before > 0, "and A's rows are all still there (" + before + ")");
       const s = await api.rpc("service", fn, {});
       ok(s.status === 403 && s.code === "42501", "service_role is refused " + fn + " (" + s.status + " " + s.message + ")");
