@@ -56,4 +56,38 @@ Do step 1 before step 2: without 009 an email account can sign in but reaches no
 
 ## 3. What is not done, or not tried
 
-TESTS_PLACEHOLDER
+**Not done:**
+- A password reset, and any mail (your ruling: no verification for now). When mail is set up (Resend), the reset
+  flow and confirmation can be added.
+- The voice is not chosen by you yet: the trailer uses `am_michael` until you pick one of the samples.
+- Nothing was tried on your real server, on real Safari or on a real iPhone: GoTrue's real email sign-up, the
+  narrow Caddy block's new lines, and whether iOS lets the recordings play without a tap (the page blesses both
+  players at the first tap; if iOS still refuses, the game's own music plays instead) are known only from the
+  stand-ins and headless Chromium.
+- The dancers step at each recording's measured tempo; where the strong beat falls was estimated, so the steps may
+  sit a little off the downbeat.
+- The page's first self-test is still over its time limit (all 151 checks pass; 130 to 154 s against 125 on this
+  machine, which other builds were loading; the stage 4 page took 138 and 145 s in the same runs), as before this stage.
+
+## 4. How this stage was checked
+
+Each run to its end, on the branch's page:
+
+- `deploy/check-page.js`: the page parses.
+- The self-tests: suite 2, 57 checks, passed (97 s); suite 1, 151 checks, all passed, over its 125 s budget as
+  said above. The saves of today's players (8 fixtures) all resume; the hidden town stays hidden (9 cases).
+- The regression suite, every script: padplace (1,265 towers placed), plots (408 bought), probe (801), vic (249
+  presses, 17 battlefields, 3 sizes), nag, dance10 (15 runs, the longer dance), iphone (797 screens at ten sizes),
+  waves (all 17 battlefields) passed in one run; live (17 battlefields with sound and the recordings) and doors
+  passed when run again after another build's jobs filled the machine's memory and crashed their pages in the
+  first run; platform (every flow at five sizes, 197 screens, with the new flow 16 for email and password) passed
+  alone in 2,677 s after its run-all limit was raised; the new music.js (the recordings, the openings, the trailer's
+  sound) passed.
+- p0 (the platform's seam) passed, the battle's recordings now allowed beside the page.
+- The bot on Normal, one seed, on Erebuni, Avarayr, Tashir, Gyumri Road, Van, Stepanakert 1992 and Sis: 119
+  battles, every table the same as on the stage 4 page.
+- The server side on the stand-in: the database rules (1,069 checks, with migration 009 and its down), the walls
+  between players (450), the restore of a backup (22), the nine migrations up, down to 8, to 0, up, down to 7 and up
+  again, the guide's own commands (23), the by-hand deletion of the privacy checklist, curl's session (64 refusals,
+  none unexpected), the smoke test against six stand-ins, the page's pure code (435), `update.sh` (43 cases, 7 new),
+  and `providers.sh email` against stand-ins (9).
