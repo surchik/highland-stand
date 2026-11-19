@@ -15422,6 +15422,12 @@ const Rec = {
     const hold = Object.values(this.ch).some(c => c && (c.want ? c.playing || c.bridge || c.held : c.playing && !!c.fade));
     if (hold !== this.hold) { this.hold = hold; Snd.applyVolumes(false, hold ? 0.5 : 1.2); }
   },
+  // channel c holds the music while it loads, 4 s at most (then the generated music comes back until it plays)
+  bridge(c) {
+    clearTimeout(c.bridgeT);
+    c.bridge = true;
+    c.bridgeT = setTimeout(() => { if (c.bridge && !c.playing) { c.bridge = false; this.sync(); } }, 4000);
+  },
   // a recording is heard now (wanted and playing), other than channel k's
   // (or fading out: a channel let go with a fade plays on until its fade is done)
   heard(k) { return Object.keys(this.ch).some(j => j !== k && this.ch[j] && this.ch[j].playing && !this.ch[j].el.paused); },
@@ -15432,7 +15438,7 @@ const Rec = {
     const L = k === "victory" ? REC_VICTORY : REC_BATTLE, R = L[idx];
     if (!R) return false;
     const c = this.chan(k);
-    c.bridge = this.heard(k) || (k === "menu" && this.hold);
+    if (this.heard(k) || (k === "menu" && this.hold)) this.bridge(c); else c.bridge = false;
     c.want = true; c.idx = idx; c.fade = null; c.playing = false; c.held = false;
     c.fin = fadeIn ? { tc: fadeIn / 3, until: performance.now() + fadeIn * 1000 } : null;
     const el = c.el;
@@ -15449,7 +15455,6 @@ const Rec = {
       // needs no such watch: its generated music plays on until the file does
       clearTimeout(c.failT);
       c.failT = setTimeout(() => { if (c.want && !c.playing && k === "victory" && celebration && !celebration.band0) victoryFallback(); }, 2500);
-      if (c.bridge) setTimeout(() => { if (c.bridge && !c.playing) { c.bridge = false; this.sync(); } }, 4000);
     } catch (e) { c.want = false; return false; }
     return true;
   },
@@ -15563,7 +15568,7 @@ const Rec = {
       if (!c.el.paused) { try { c.el.pause(); } catch (e) {} }
     } else {
       // (it bridges as it comes back, so the generated music does not rise while it takes up again)
-      if (c.held) { c.held = false; c.bridge = true; setTimeout(() => { if (c.bridge && !c.playing) { c.bridge = false; this.sync(); } }, 4000); }
+      if (c.held) { c.held = false; this.bridge(c); }
       // (paused by the page's hiding, or refused: asked again, once a second at most)
       const now = performance.now();
       if (c.el.paused && !c.el.ended && now > (c.retry || 0)) { c.retry = now + 1000; const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }
