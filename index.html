@@ -15562,7 +15562,8 @@ const Rec = {
       if (!c.held) { c.held = true; this.sync(); }
       if (!c.el.paused) { try { c.el.pause(); } catch (e) {} }
     } else {
-      if (c.held) { c.held = false; this.sync(); }
+      // (it bridges as it comes back, so the generated music does not rise while it takes up again)
+      if (c.held) { c.held = false; c.bridge = true; setTimeout(() => { if (c.bridge && !c.playing) { c.bridge = false; this.sync(); } }, 4000); }
       // (paused by the page's hiding, or refused: asked again, once a second at most)
       const now = performance.now();
       if (c.el.paused && !c.el.ended && now > (c.retry || 0)) { c.retry = now + 1000; const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }

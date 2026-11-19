@@ -84,6 +84,7 @@ function serve(file) {
       aim: canvas.style.cursor === "crosshair", cursor: getComputedStyle(canvas).cursor, cele: !!celebration, rec: celebration && celebration.rec ? celebration.rec.id : null };
   });
   const menuOk = x => !!x.m;
+  let REC_MENU = [];   // the page's own list, read from the first page
   const until = async (g, fn, ms, what) => {
     const end = Date.now() + ms;
     for (;;) {
@@ -115,6 +116,7 @@ function serve(file) {
       out.files = REC_BATTLE.map(x => x.file);
       return out;
     });
+    REC_MENU = await g.ev(() => REC_MENU);
     if (r.n !== 11) fail("openings", "there are " + r.n + " battle tunes, not eleven");
     // the pages' tunes: five calm ones, no lament, each a file; the turn passes over the battle's tune just heard
     const m = await g.ev(() => {
@@ -191,13 +193,15 @@ function serve(file) {
     const want = await g.ev(() => Rec.battleFirst(2));
     const menu1 = s.m && s.m.want ? s.m.id : "";
     // (watched from inside the page, every 50 ms from the press: the generated music stays down as the tunes cross)
-    if (where === "http") await g.ev(() => { window.__musPeak = 0; window.__musWatch = setInterval(() => { window.__musPeak = Math.max(window.__musPeak, Snd.musGain.gain.value); }, 50); });
+    if (where === "http") await until(g, x => x.mus < 0.01, 4000, "the generated music is not down on the chronicle before the battle");
+    if (where === "http") await g.ev(() => { window.__musPeak = 0; window.__musLog = []; window.__musWatch = setInterval(() => { window.__musPeak = Math.max(window.__musPeak, Snd.musGain.gain.value); window.__musLog.push([Math.round(performance.now()), +Snd.musGain.gain.value.toFixed(3), Rec.hold, menuMode, Rec.ch.menu && Rec.ch.menu.want, Rec.ch.menu && Rec.ch.menu.playing, Rec.ch.battle && Rec.ch.battle.want, Rec.ch.battle && Rec.ch.battle.playing, Rec.ch.battle && Rec.ch.battle.bridge].join(" ")); }, 50); });
     await g.enterBattle(2);
     s = await until(g, x => x.b && x.b.playing && x.hold, 8000, "the battle's tune never began");
     if (where === "http") {
       const s2 = await until(g, x => !x.m.want && x.m.paused, 4000, "the battle did not take the pages' tune away");
       const peak = await g.ev(() => { clearInterval(window.__musWatch); return window.__musPeak; });
       if (peak > 0.02) fail(W, "the generated music came up between the pages' tune and the battle's: " + peak.toFixed(3));
+      if (peak > 0.02 && o.verbose) console.log((await g.ev(() => window.__musLog)).join("\n"));
       if (s2 && s && s2.m.idx === s.b.idx) fail(W, "the battle opens on the pages' tune " + s2.m.id);
     }
     if (s) { await g.wait(2500); s = await st(g); }
