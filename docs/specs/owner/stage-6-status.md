@@ -91,3 +91,5 @@ Each run to its end, on the branch's page:
   again, the guide's own commands (23), the by-hand deletion of the privacy checklist, curl's session (64 refusals,
   none unexpected), the smoke test against six stand-ins, the page's pure code (435), `update.sh` (43 cases, 7 new),
   and `providers.sh email` against stand-ins (9).
+
+Deployed: master b397f8d went live on 18 November 2026 at about 00:58 UTC, with the chronicle films (stage 5) beside it.
