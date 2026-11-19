@@ -15288,9 +15288,16 @@ $("ecBtn").addEventListener("click", () => { Snd.play("uiTick"); closeEndingCard
 // victory comes. Each plays through an <audio> element (streamed, never decoded whole), joined to the music's bus
 // after the Music volume (Snd.duckGain, so the effects still duck it) on http(s), and by the element's own volume on
 // file:// (where the browser keeps a file's samples from Web Audio). While a recording holds the music, the generated
-// music is turned down (Snd.applyVolumes reads Rec.hold); it comes back whenever no recording plays: before a tune has
-// loaded, after a file fails, on the map and the chronicle. Nothing here ever runs under the harness (HARNESS_ON:
-// Snd.init opens no audio there), and nothing in the game waits on a file.
+// music is turned down (Snd.applyVolumes reads Rec.hold); it comes back whenever no recording plays: before a battle's
+// tune has loaded, after a file fails. Nothing here ever runs under the harness (HARNESS_ON: Snd.init opens no audio
+// there), and nothing in the game waits on a file.
+// Off the field (stage 6, section 6: the owner's "when the game finishes you go back to the midi soundtrack, use the
+// soundtracks i had sent you"), the map, the chronicle, the Hall, the menus and the pages after a victory or a defeat
+// play one of the owner's calm tunes too (REC_MENU, on the "menu" channel, over http(s) only: on file:// these pages
+// keep the generated music). It is asked for at the first tap that opens the sound (Rec.bless, inside the gesture),
+// takes over from the victory's recording at the end of the dance and gives way to the battle's tune as a battle
+// begins, each a crossfade with no generated music between (a channel begun while another is heard "bridges": it
+// holds the music while it loads). It pauses under the trailer and a chronicle's film, and while the page is hidden.
 // lufs: each file's integrated loudness (ffmpeg's ebur128, over the part the game plays), from which its trim is
 // worked out: a battle's tune about 3 dB over the generated field music at the default volume (about -28 LUFS at
 // the output), a victory's level with the generated dance (about -21 LUFS). bpm and beat0: the victory recordings'
@@ -15322,13 +15329,19 @@ const REC_VICTORY = [
   { id: "kochari", file: "assets/victory/kochari.mp3", lufs: -15.8, bpm: 102.4, beat0: 45.31, at: 45 },
   { id: "yarkhushta", file: "assets/victory/yarkhushta.mp3", lufs: -10.5, bpm: 95.6, beat0: 0.61, at: 0 },
 ];
+// the tunes off the field (Rec.menuPick), in turn from one stretch of pages to the next (hs_menu_rec), never the tune
+// of the battle just fought where another will do: the five calm ones (by their ids in REC_BATTLE). The laments are kept
+// off these pages, after a defeat too: the defeat page opens on the game's own lament ("lose"), and it asks the
+// player to try again; the martial and dance tunes stay the battles'
+const REC_MENU = ["hov-arek-sarer-jan", "sev-gakavik", "alakiaz", "balkoni-dage", "siroun-es-hokiag"];
 const REC_OUT_DB = 3.6;   // the music bus's gain from Snd.duckGain to the output (measured: a tone in, the meter out)
 const Rec = {
   hold: false,          // a recording holds the music (the generated music is turned down)
   ok: true,             // false once a file has failed this visit: the generated music for the rest of it
   lastBattle: -1,       // the battle tune heard last (the next battle never opens on it)
   vicNext: -1,          // the victory recording the next victory plays (alternating; -1: by the visit's count)
-  ch: { battle: null, victory: null },   // each channel: { el, node, gain, want, idx, playing, fade }
+  menuNext: -1,         // the place in REC_MENU the next stretch of pages takes (-1: from hs_menu_rec)
+  ch: { battle: null, victory: null, menu: null },   // each channel: { el, node, gain, want, idx, playing, fade }
   // a recording may play: the page is a player's (not the harness), sound is open, and the browser plays audio
   allowed() {
     return !HARNESS_ON && !!Snd.ctx && typeof Audio === "function" && this.ok;
@@ -15341,11 +15354,11 @@ const Rec = {
     if (c) return c;
     const el = new Audio();
     el.preload = "none";
-    c = this.ch[k] = { el, node: null, gain: null, want: false, idx: -1, playing: false, fade: null, failT: 0 };
+    c = this.ch[k] = { el, node: null, gain: null, want: false, idx: -1, playing: false, fade: null, failT: 0, fin: null, bridge: false, held: false };
     // (a play that lands after its channel was let go, a slow load or a stray resume, is stopped at once)
-    el.addEventListener("playing", () => { if (!c.want && !el.src.startsWith("data:")) { el.pause(); return; } c.playing = true; clearTimeout(c.failT); this.sync(); });
+    el.addEventListener("playing", () => { if (!c.want && !el.src.startsWith("data:")) { el.pause(); return; } c.playing = true; c.bridge = false; clearTimeout(c.failT); this.sync(); });
     el.addEventListener("pause", () => { c.playing = false; });
-    el.addEventListener("ended", () => { c.playing = false; if (k === "battle" && c.want) this.battleNext(); else this.stop(k, 0); });
+    el.addEventListener("ended", () => { c.playing = false; if (k === "battle" && c.want) this.battleNext(); else if (k === "menu" && c.want) this.menuStart(0); else this.stop(k, 0); });
     el.addEventListener("error", () => { if (el.getAttribute("src") && !el.src.startsWith("data:")) this.fail(k); });
     if (this.viaGraph()) {
       try {
@@ -15360,10 +15373,13 @@ const Rec = {
   // in the game's loop, not under a finger)
   blessed: false,
   bless() {
-    if (this.blessed || !this.allowed()) return;
+    if (!this.allowed()) return;
+    // the pages' tune is begun here, inside the tap (a browser plays an element's sound only after one)
+    try { this.menuTick(); } catch (e) {}
+    if (this.blessed) return;
     this.blessed = true;
     const wav = "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
-    for (const k of ["battle", "victory"]) {
+    for (const k of ["battle", "victory", "menu"]) {
       const c = this.chan(k);
       if (c.el.getAttribute("src")) continue;
       try { c.el.src = wav; const p = c.el.play(); if (p && p.then) p.then(() => { if (c.el.src.startsWith("data:")) c.el.pause(); }, () => {}); } catch (e) {}
@@ -15374,7 +15390,7 @@ const Rec = {
     const c = this.ch[k];
     if (!c) return;
     this.ok = false;
-    c.want = false; c.playing = false;
+    c.want = false; c.playing = false; c.bridge = false;
     try { c.el.pause(); c.el.removeAttribute("src"); c.el.load(); } catch (e) {}
     this.sync();
     if (k === "victory" && celebration && !celebration.band0) victoryFallback();
@@ -15382,32 +15398,43 @@ const Rec = {
   // the level of a channel: by the Music volume (the victory's on the effects' when the music is off and the sound on,
   // as the generated dance plays), with the recording's own trim
   level(k, idx) {
-    const R = (k === "battle" ? REC_BATTLE : REC_VICTORY)[idx];
+    const R = (k === "victory" ? REC_VICTORY : REC_BATTLE)[idx];
     if (!R) return 0;
-    const target = k === "battle" ? -25 : -21, trim = Math.pow(10, (target - REC_OUT_DB - R.lufs) / 20) / Snd.gainOf(0.75);
+    // (the pages' tune a little under a battle's: about 2 dB over the generated music at the default volume)
+    const target = k === "battle" ? -25 : k === "menu" ? -26 : -21, trim = Math.pow(10, (target - REC_OUT_DB - R.lufs) / 20) / Snd.gainOf(0.75);
     const vol = Snd.musicOn ? Snd.gainOf(Snd.musVol) : k === "victory" && Snd.sfxOn ? Snd.gainOf(Snd.sfxVol) * 0.5 : 0;
     return trim * vol;
   },
   // every channel's level now (a fade in progress runs to its end); the generated music's hold follows
   sync() {
     const t = Snd.ctx ? Snd.ctx.currentTime : 0;
-    for (const k of ["battle", "victory"]) {
+    for (const k of ["battle", "victory", "menu"]) {
       const c = this.ch[k];
       if (!c) continue;
-      const v = c.want ? this.level(k, c.idx) : 0, tc = c.fade || 0.05;
+      // (a channel coming in: its fade-in's time constant, until that fade is done)
+      const fin = c.want && c.fin && performance.now() < c.fin.until ? c.fin.tc : 0;
+      const v = c.want ? this.level(k, c.idx) : 0, tc = fin || c.fade || 0.05;
       if (c.gain) { const g = c.gain.gain; g.cancelScheduledValues(t); g.setTargetAtTime(v, t, tc); }
-      else if (!c.fade) { try { c.el.volume = Math.max(0, Math.min(1, v * Math.pow(10, REC_OUT_DB / 20))); } catch (e) {} }
+      else if (c.want || !c.fade) { try { c.el.volume = Math.max(0, Math.min(1, v * Math.pow(10, REC_OUT_DB / 20))); } catch (e) {} }
     }
-    const hold = Object.values(this.ch).some(c => c && c.want && c.playing);
+    // (a channel that bridges holds the music while it loads, so no generated music sounds between two recordings)
+    // (and so does one fading out, and the pages' tune paused under a film or the trailer: no music is heard there)
+    const hold = Object.values(this.ch).some(c => c && (c.want ? c.playing || c.bridge || c.held : c.playing && !!c.fade));
     if (hold !== this.hold) { this.hold = hold; Snd.applyVolumes(false, hold ? 0.5 : 1.2); }
   },
-  // play recording idx on channel k from `at` seconds
-  play(k, idx, at) {
+  // a recording is heard now (wanted and playing), other than channel k's
+  // (or fading out: a channel let go with a fade plays on until its fade is done)
+  heard(k) { return Object.keys(this.ch).some(j => j !== k && this.ch[j] && this.ch[j].playing && !this.ch[j].el.paused); },
+  // play recording idx on channel k from `at` seconds (fadeIn: seconds to come up over; begun while another
+  // recording is heard, the channel bridges: it holds the music while it loads, 4 s at most)
+  play(k, idx, at, fadeIn) {
     if (!this.allowed()) return false;
-    const L = k === "battle" ? REC_BATTLE : REC_VICTORY, R = L[idx];
+    const L = k === "victory" ? REC_VICTORY : REC_BATTLE, R = L[idx];
     if (!R) return false;
     const c = this.chan(k);
-    c.want = true; c.idx = idx; c.fade = null; c.playing = false;
+    c.bridge = this.heard(k) || (k === "menu" && this.hold);
+    c.want = true; c.idx = idx; c.fade = null; c.playing = false; c.held = false;
+    c.fin = fadeIn ? { tc: fadeIn / 3, until: performance.now() + fadeIn * 1000 } : null;
     const el = c.el;
     try {
       el.preload = "auto";
@@ -15422,6 +15449,7 @@ const Rec = {
       // needs no such watch: its generated music plays on until the file does
       clearTimeout(c.failT);
       c.failT = setTimeout(() => { if (c.want && !c.playing && k === "victory" && celebration && !celebration.band0) victoryFallback(); }, 2500);
+      if (c.bridge) setTimeout(() => { if (c.bridge && !c.playing) { c.bridge = false; this.sync(); } }, 4000);
     } catch (e) { c.want = false; return false; }
     return true;
   },
@@ -15429,7 +15457,7 @@ const Rec = {
   stop(k, s) {
     const c = this.ch[k];
     if (!c || !c.want) return;
-    c.want = false;
+    c.want = false; c.bridge = false; c.held = false;
     clearTimeout(c.failT);
     const el = c.el, ms = Math.max(0, (s || 0) * 1000);
     if (ms && c.playing) {
@@ -15437,17 +15465,18 @@ const Rec = {
       this.sync();
       if (!c.gain) {   // file://: the element's own volume, stepped down
         const v0 = el.volume, t0 = performance.now();
-        const step = () => { if (c.want) return; const f = (performance.now() - t0) / ms; if (f >= 1) { el.pause(); return; } try { el.volume = v0 * (1 - f); } catch (e) {} setTimeout(step, 50); };
+        const step = () => { if (c.want) return; const f = (performance.now() - t0) / ms; if (f >= 1) { el.pause(); c.playing = false; this.sync(); return; } try { el.volume = v0 * (1 - f); } catch (e) {} setTimeout(step, 50); };
         step();
-      } else setTimeout(() => { if (!c.want) el.pause(); }, ms);
+      } else setTimeout(() => { if (!c.want) { el.pause(); c.playing = false; this.sync(); } }, ms);
     } else { try { el.pause(); } catch (e) {} c.playing = false; this.sync(); }
   },
   // ---- battles: a battlefield opens on its own tune (REC_OPEN), then they turn in order through all eleven; a battle
   // never opens on the tune heard last (the next martial one then, never a lament or the love song in its stead)
+  // (nor on the pages' tune it takes over from)
   battleFirst(lv) {
-    const N = REC_BATTLE.length, L = LEVELS[lv];
+    const N = REC_BATTLE.length, L = LEVELS[lv], m = this.ch.menu && (this.ch.menu.want || this.ch.menu.playing) ? this.ch.menu.idx : -1;
     let i = L && Number.isInteger(REC_OPEN[L.id]) ? REC_OPEN[L.id] : ((lv | 0) % N + N) % N;
-    if (i === this.lastBattle || REC_BATTLE[i].love) { do i = (i + 1) % N; while (REC_BATTLE[i].lament || REC_BATTLE[i].love || i === this.lastBattle); }
+    if (i === this.lastBattle || i === m || REC_BATTLE[i].love) { do i = (i + 1) % N; while (REC_BATTLE[i].lament || REC_BATTLE[i].love || i === this.lastBattle || i === m); }
     return i;
   },
   battleNext() {
@@ -15486,11 +15515,58 @@ const Rec = {
       if (!Snd.musicOn && !c.el.paused) { try { c.el.pause(); } catch (e) {} }
       else if (Snd.musicOn && c.el.paused && c.el.readyState >= 2) { const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }
     }
+    this.menuTick();
     const v = this.ch.victory;
     // the dance left by a road that skips endCelebration (Abandon, a restart): the recording goes with it
     if (v && v.want && !celebration) { this.victoryEnd(0.6); return; }
     if (v && v.want && document.hidden && !v.el.paused) { try { v.el.pause(); } catch (e) {} }
     else if (v && v.want && !document.hidden && v.el.paused && v.playing === false && v.el.currentTime > 0 && (Snd.musicOn || Snd.sfxOn)) { const p = v.el.play(); if (p && p.catch) p.catch(() => {}); }
+  },
+  // ---- off the field: the map, the chronicle, the Hall, the menus, the pages after a victory or a defeat (over
+  // http(s): from file:// they keep the generated music). Not over the dance, the defeat's beat or the Terms' horn
+  // (the page that follows takes the tune up), nor in the town, which plays its own age's music
+  menuWanted() {
+    if (!this.allowed() || !/^https?:$/.test(location.protocol)) return false;
+    if (this.battleState() !== "" || celebration || parley || fallen) return false;
+    const v = this.ch.victory;
+    if (v && v.want) return false;
+    try { if (Town.covers() || Town.isOpen()) return false; } catch (e) {}
+    return true;
+  },
+  // the tune waits (paused where it is) under the trailer and a chronicle's film, while the page is hidden, and with
+  // the Music switch off
+  menuHeld() {
+    if (document.hidden || !Snd.musicOn) return true;
+    try { if (Trailer.isOpen() || Film.isOpen()) return true; } catch (e) {}
+    return false;
+  },
+  // the next of REC_MENU, in turn (hs_menu_rec), passing over the battle's tune just heard: its index in REC_BATTLE
+  menuPick() {
+    const N = REC_MENU.length, last = this.lastBattle >= 0 && REC_BATTLE[this.lastBattle] ? REC_BATTLE[this.lastBattle].id : "";
+    let n = this.menuNext;
+    if (n < 0) { n = 0; try { n = (Number(localStorage.getItem("hs_menu_rec")) | 0) % N; } catch (e) {} }
+    if (REC_MENU[n] === last) n = (n + 1) % N;
+    this.menuNext = (n + 1) % N;
+    try { localStorage.setItem("hs_menu_rec", String(this.menuNext)); } catch (e) {}
+    return REC_BATTLE.findIndex(R => R.id === REC_MENU[n]);
+  },
+  // fadeIn 0: a tune that ended, the next at once
+  menuStart(fadeIn) { return this.play("menu", this.menuPick(), 0, fadeIn); },
+  // read every frame (and at the tap that opens the sound, Rec.bless): the pages' tune begun, held, taken up or let go
+  menuTick() {
+    const c = this.ch.menu;
+    if (!this.menuWanted()) { if (c && c.want) this.stop("menu", this.battleState() === "on" ? 1.5 : 1); return; }
+    const held = this.menuHeld();
+    if (!(c && c.want)) { if (!held) this.menuStart(this.heard("menu") ? 2.5 : 1.5); return; }
+    if (held) {
+      if (!c.held) { c.held = true; this.sync(); }
+      if (!c.el.paused) { try { c.el.pause(); } catch (e) {} }
+    } else {
+      if (c.held) { c.held = false; this.sync(); }
+      // (paused by the page's hiding, or refused: asked again, once a second at most)
+      const now = performance.now();
+      if (c.el.paused && !c.el.ended && now > (c.retry || 0)) { c.retry = now + 1000; const p = c.el.play(); if (p && p.catch) p.catch(() => {}); }
+    }
   },
   // ---- the victory: the next of the two recordings, alternating from visit to visit (hs_vic_rec)
   victoryPick() {
@@ -87266,7 +87342,7 @@ function frame(time) {
   if (crashed) { last = time; return; }
   try {
     if (photo) { draw(photo.time); return; }
-    if (Nardi.covers() || Town.covers()) { last = time; return; }
+    if (Nardi.covers() || Town.covers()) { last = time; try { Rec.tick(); } catch (e) {} return; }
     const dt = Math.min((time - last) / 1000, 0.05);
     last = time;
     if (!gameOver && !paused && !coachFreeze() && !trickHold() && overlayEl.classList.contains("hidden")) {

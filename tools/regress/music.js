@@ -2,7 +2,12 @@
 // assets/music/ and the victory dance's from assets/victory/, played as a player meets them, over http (the page and
 // the files served from the repository, the recordings joined to the Web Audio graph) and from file:// (the
 // element's own volume). It holds the page to:
-// - nothing of assets/ asked for by a plain load, the map, the chronicle, the trailer, the Hall or Settings;
+// - nothing of assets/ asked for by a plain load (before a tap) or the trailer;
+// - off the field (section 6, over http only: file:// keeps the generated music there): the first tap begins one of
+//   the calm tunes (REC_MENU) on the map, the chronicle and Settings, and only it is asked for; it pauses under the
+//   trailer and a chronicle's film and comes back after; a battle takes over from it with no generated music
+//   between; after a victory the dance's recording fades into the next calm tune (not the battle's), after a defeat
+//   and after Abandon one comes back too (never a lament); the turn passes over the battle's tune just heard;
 // - a battle begun by its button asks for its battlefield's own tune (its number among the five, the next one when
 //   that was the tune heard last), and once it plays the generated music is turned down (Snd.musGain at 0); a
 //   battle tune that ends goes on to the next one; the battle paused pauses it, Settings opened in battle does not
@@ -10,10 +15,9 @@
 // - the victory: one of the two recordings, in turn from victory to victory (hs_vic_rec), the battle's tune faded,
 //   the dancers stepping at the recording's measured tempo, the dance held DANCE_MAX_MS (twice the old 21.6 s), a
 //   tap after DANCE_MIN_MS still leaving at once, and the recording faded as the page comes;
-// - a defeat fades the battle's tune; leaving a battle by Abandon stops it; the map, the chronicle and the
-//   trailer play none;
-// - a file that cannot load (answered 404): the generated music stays, and a victory then dances to the generated
-//   band (Snd.danceBus);
+// - a defeat fades the battle's tune; leaving a battle by Abandon stops it; from file:// the map plays none;
+// - a file that cannot load (answered 404): the generated music stays (on the map too), and a victory then dances to
+//   the generated band (Snd.danceBus);
 // - the pointer: the cross over a battle only; the arrow over the dance, the victory page and the map.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/music.js [index.html] [--quick] [--verbose]
 "use strict";
@@ -71,12 +75,15 @@ function serve(file) {
     return g;
   };
   const st = (g) => g.ev(() => {
-    const c = Rec.ch.battle, v = Rec.ch.victory;
-    return { hold: Rec.hold, ok: Rec.ok, last: Rec.lastBattle, mus: Snd.musGain ? +Snd.musGain.gain.value.toFixed(4) : null,
+    const c = Rec.ch.battle, v = Rec.ch.victory, m = Rec.ch.menu;
+    return { hold: Rec.hold,
+      m: m ? { want: m.want, idx: m.idx, id: REC_BATTLE[m.idx] ? REC_BATTLE[m.idx].id : "", playing: m.playing, paused: m.el.paused, t: m.el.currentTime, gain: m.gain ? +m.gain.gain.value.toFixed(4) : null } : null,
+      menu: REC_MENU, ok: Rec.ok, last: Rec.lastBattle, mus: Snd.musGain ? +Snd.musGain.gain.value.toFixed(4) : null,
       b: c ? { want: c.want, idx: c.idx, playing: c.playing, paused: c.el.paused, t: c.el.currentTime, vol: c.el.volume, gain: c.gain ? +c.gain.gain.value.toFixed(4) : null, src: c.el.src.replace(/^.*\/assets\//, "assets/") } : null,
       v: v ? { want: v.want, idx: v.idx, playing: v.playing, paused: v.el.paused, t: v.el.currentTime, src: v.el.src.replace(/^.*\/assets\//, "assets/") } : null,
       aim: canvas.style.cursor === "crosshair", cursor: getComputedStyle(canvas).cursor, cele: !!celebration, rec: celebration && celebration.rec ? celebration.rec.id : null };
   });
+  const menuOk = x => !!x.m;
   const until = async (g, fn, ms, what) => {
     const end = Date.now() + ms;
     for (;;) {
@@ -109,6 +116,22 @@ function serve(file) {
       return out;
     });
     if (r.n !== 11) fail("openings", "there are " + r.n + " battle tunes, not eleven");
+    // the pages' tunes: five calm ones, no lament, each a file; the turn passes over the battle's tune just heard
+    const m = await g.ev(() => {
+      const out = { bad: [], seq: [] };
+      for (const id of REC_MENU) { const R = REC_BATTLE.find(x => x.id === id); if (!R) out.bad.push(id + " is not one of the eleven"); else if (R.lament) out.bad.push(id + " is a lament"); }
+      Rec.menuNext = 0;
+      for (let k = 0; k < REC_MENU.length; k++) out.seq.push(REC_BATTLE[Rec.menuPick()].id);
+      for (let k = 0; k < REC_MENU.length; k++) {
+        Rec.menuNext = k; Rec.lastBattle = REC_BATTLE.findIndex(x => x.id === REC_MENU[k]);
+        const i = Rec.menuPick();
+        if (REC_BATTLE[i].id === REC_MENU[k]) out.bad.push("after a battle to " + REC_MENU[k] + " the pages play it again");
+      }
+      Rec.lastBattle = -1; Rec.menuNext = -1;
+      return out;
+    });
+    for (const b of m.bad) fail("openings", b);
+    if (new Set(m.seq).size !== 5) fail("openings", "the pages' tunes do not turn through all five: " + m.seq.join(", "));
     for (const b of r.bad) fail("openings", b);
     if (r.avarayr !== "vartani-mor-vokhbe") fail("openings", "Avarayr opens on " + r.avarayr);
     for (const f of r.files) if (!fs.existsSync(path.join(path.dirname(o.file), f))) fail("openings", "no file " + f);
@@ -122,13 +145,61 @@ function serve(file) {
     await g.ev(() => { localStorage.setItem("hs_tutorial_done", "1"); testUnlockAll = true; openCampaignMap(2); selectMapLevel(2); showBrief(); });
     await g.frames(3);
     await g.press("#ovGear"); await g.frames(2); await g.ev(() => closeSettings());
-    if (g.asked.length) fail(W, "the map or the chronicle asked for " + g.asked.join(", "));
-    let s = await st(g);
+    const menuFiles = await g.ev(() => REC_MENU.map(id => REC_BATTLE.find(x => x.id === id).file));
+    let s;
+    if (where === "http") {
+      // the first tap began one of the calm tunes; nothing else is asked for, and the generated music goes down
+      s = await until(g, x => x.m && x.m.playing && x.hold, 8000, "the map's tune never began");
+      if (s) {
+        await g.wait(2500); s = await st(g);
+        if (!REC_MENU.includes(s.m.id)) fail(W, "the map plays " + s.m.id + ", not one of the calm tunes");
+        if (s.mus > 0.01) fail(W, "the generated music is not turned down under the map's tune: " + s.mus);
+        if (!(s.m.gain > 0)) fail(W, "the map's tune is not on the graph: " + JSON.stringify(s.m));
+      }
+      const other = g.asked.filter(u => !menuFiles.includes(u));
+      if (other.length || new Set(g.asked).size !== 1) fail(W, "the map, the chronicle and Settings asked for " + g.asked.join(", "));
+      // the trailer holds it (paused, and no generated music either), and it comes back after
+      await g.ev(() => Trailer.open()); await g.frames(4);
+      s = await until(g, x => x.m.paused && x.m.want, 3000, "the trailer did not pause the pages' tune");
+      if (s && s.mus > 0.01) fail(W, "the generated music plays under the trailer: " + s.mus);
+      await g.ev(() => Trailer.close()); await g.frames(3);
+      s = await until(g, x => !x.m.paused && x.m.playing, 4000, "the pages' tune did not come back after the trailer");
+      // a chronicle's film the same (Erebuni's, held up by the film's test switch)
+      await g.ev(() => { window.__hsFilmTest = { hold: true }; localStorage.removeItem("hs_film_seen_erebuni"); openCampaignMap(0); selectMapLevel(0); showBrief(); });
+      await g.frames(4);
+      if (!(await g.ev(() => Film.isOpen()))) fail(W, "Erebuni's chronicle opened no film (the test cannot hold the tune to it)");
+      else {
+        s = await until(g, x => x.m.paused && x.m.want, 3000, "the film did not pause the pages' tune");
+        if (s && s.mus > 0.01) fail(W, "the generated music plays under the film: " + s.mus);
+        await g.ev(() => Film.close()); await g.frames(3);
+        s = await until(g, x => !x.m.paused && x.m.playing, 4000, "the pages' tune did not come back after the film");
+      }
+      await g.ev(() => { delete window.__hsFilmTest; openCampaignMap(2); selectMapLevel(2); showBrief(); });
+      // the Music switch: off pauses it, on takes it up
+      await g.ev(() => toggleMusic()); await g.frames(3);
+      await until(g, x => x.m.paused, 3000, "the Music switch off, the pages' tune plays on");
+      await g.ev(() => toggleMusic()); await g.frames(3);
+      await until(g, x => !x.m.paused, 3000, "the Music switch on again, the pages' tune stays paused");
+    } else {
+      if (g.asked.length) fail(W, "from file:// the map or the chronicle asked for " + g.asked.join(", "));
+      s = await st(g);
+      if (s.m && s.m.want) fail(W, "from file:// the map plays a recording " + JSON.stringify(s.m));
+    }
+    s = await st(g);
     if (s.aim || s.cursor !== "default") fail(W, "the pointer over the chronicle is " + s.cursor);
     // a battle: Avarayr (index 2) opens on tune 2
     const want = await g.ev(() => Rec.battleFirst(2));
+    const menu1 = s.m && s.m.want ? s.m.id : "";
+    // (watched from inside the page, every 50 ms from the press: the generated music stays down as the tunes cross)
+    if (where === "http") await g.ev(() => { window.__musPeak = 0; window.__musWatch = setInterval(() => { window.__musPeak = Math.max(window.__musPeak, Snd.musGain.gain.value); }, 50); });
     await g.enterBattle(2);
     s = await until(g, x => x.b && x.b.playing && x.hold, 8000, "the battle's tune never began");
+    if (where === "http") {
+      const s2 = await until(g, x => !x.m.want && x.m.paused, 4000, "the battle did not take the pages' tune away");
+      const peak = await g.ev(() => { clearInterval(window.__musWatch); return window.__musPeak; });
+      if (peak > 0.02) fail(W, "the generated music came up between the pages' tune and the battle's: " + peak.toFixed(3));
+      if (s2 && s && s2.m.idx === s.b.idx) fail(W, "the battle opens on the pages' tune " + s2.m.id);
+    }
     if (s) { await g.wait(2500); s = await st(g); }
     if (s) {
       if (s.b.idx !== want || !s.b.src.startsWith(await g.ev(i => REC_BATTLE[i].file, want))) fail(W, "Avarayr's battle plays " + s.b.src + ", not its own tune " + want);
@@ -181,20 +252,36 @@ function serve(file) {
         await g.ev(() => { celebration.start -= DANCE_MIN_MS + 100; });
         await g.tapAt(800, 450);
         await g.frames(3);
+        if (where === "http") await g.ev(() => { window.__musPeak = 0; window.__musWatch = setInterval(() => { window.__musPeak = Math.max(window.__musPeak, Snd.musGain.gain.value); }, 50); });
         const after = await until(g, x => !x.cele && !x.v.want, 3000, "a tap after the first 10 s did not leave the dance, or the recording stays wanted");
         if (after && (after.aim || after.cursor !== "default")) fail(W, "the pointer over the victory page is " + after.cursor);
         await g.wait(3200);
         const quiet = await st(g);
         if (!quiet.v.paused) fail(W, "the victory's recording did not fade and stop with the page");
+        if (where === "http") {
+          // the closing page: the next calm tune, faded in under the victory's recording with no generated music between
+          const peak = await g.ev(() => { clearInterval(window.__musWatch); return window.__musPeak; });
+          if (peak > 0.02) fail(W, "the generated music came up between the victory's recording and the page's tune: " + peak.toFixed(3));
+          const pg = await until(g, x => x.m.want && x.m.playing && x.hold, 4000, "the victory page plays none of the calm tunes");
+          if (pg) {
+            const battleId = await g.ev(() => REC_BATTLE[Rec.lastBattle].id);
+            if (!REC_MENU.includes(pg.m.id)) fail(W, "the victory page plays " + pg.m.id);
+            if (pg.m.id === battleId) fail(W, "the victory page plays the battle's own tune " + battleId);
+            if (pg.m.id === menu1) fail(W, "the victory page plays the map's tune again (" + menu1 + "), not the next in turn");
+            if (pg.mus > 0.01) fail(W, "the generated music is not down under the victory page's tune: " + pg.mus);
+          }
+        } else if (quiet.m && quiet.m.want) fail(W, "from file:// the victory page plays a recording");
         const nx = await g.ev(() => Number(localStorage.getItem("hs_vic_rec")));
         if (nx !== (first + 1) % 2) fail(W, "the next victory's recording is " + nx + ", not the other one");
       }
     }
-    // the map plays none, the trailer none
+    // the map: the page's tune plays on over http (no battle's or victory's); from file:// none
     await g.ev(() => openCampaignMap());
     await g.wait(400);
     s = await st(g);
-    if (s.b.want || s.v.want || s.hold) fail(W, "the map plays a recording " + JSON.stringify(s));
+    if (s.b.want || s.v.want) fail(W, "the map plays a battle's or the victory's recording " + JSON.stringify(s));
+    if (where === "http" && !(s.m && s.m.want && s.m.playing && s.hold)) fail(W, "the map after the victory plays none of the calm tunes " + JSON.stringify(s.m));
+    if (where !== "http" && s.hold) fail(W, "from file:// the map plays a recording " + JSON.stringify(s));
     // a defeat: the tune fades
     await g.enterBattle(4);
     await until(g, x => x.b && x.b.playing, 8000, "the second battle's tune never began");
@@ -204,6 +291,15 @@ function serve(file) {
     await g.wait(2400);
     s = await st(g);
     if (!s.b.paused) fail(W, "the defeat's fade did not end in a pause");
+    if (where === "http") {
+      // the defeat page: a calm tune again (no lament, not the battle's)
+      const pg = await until(g, x => menuOk(x) && x.m.want && x.m.playing, 6000, "the defeat page plays none of the calm tunes");
+      if (pg) {
+        const battleId = await g.ev(() => REC_BATTLE[Rec.lastBattle].id);
+        if (!REC_MENU.includes(pg.m.id)) fail(W, "the defeat page plays " + pg.m.id);
+        if (pg.m.id === battleId) fail(W, "the defeat page plays the battle's own tune " + battleId);
+      }
+    } else if (s.m && s.m.want) fail(W, "from file:// the defeat page plays a recording");
     // leaving by Abandon: at once
     await g.enterBattle(6);
     await until(g, x => x.b && x.b.playing, 8000, "the third battle's tune never began");
@@ -211,6 +307,7 @@ function serve(file) {
     await g.wait(1200);
     s = await st(g);
     if (s.b.want || !s.b.paused) fail(W, "Abandon left the tune playing " + JSON.stringify(s.b));
+    if (where === "http") await until(g, x => x.m.want && x.m.playing && REC_MENU.includes(x.m.id), 4000, "after Abandon the map plays none of the calm tunes");
     const pr = await g.problems();
     if (pr.length) fail(W, "page problems: " + pr.join(" | "));
     log(W, "asked", g.asked.join(", "));
@@ -222,9 +319,12 @@ function serve(file) {
     const g = await open("http", "/missing");
     const W = g.where;
     await g.toMap();
-    await g.enterBattle(1);
     await g.wait(1500);
     let s = await st(g);
+    if (s.hold || s.ok || !(s.mus > 0) || (s.m && s.m.want)) fail(W, "a missing file: the map's generated music is not back " + JSON.stringify(s));
+    await g.enterBattle(1);
+    await g.wait(1500);
+    s = await st(g);
     if (s.hold || s.ok || !(s.mus > 0)) fail(W, "a missing file: the generated music is not back " + JSON.stringify(s));
     await g.ev(() => { lives = 17; waveIdx = totalWaves(); phase = "wave"; spawnQueue = []; enemies = []; syncHud(); });
     await until(g, x => x.cele, 8000, "no victory came");
