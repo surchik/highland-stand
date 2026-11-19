@@ -191,3 +191,33 @@ there loads or waits on a file.
 **6. Publishing.** `deploy/update.sh` publishes `assets/victory/*.mp3`, `assets/music/*.mp3` and the trailer's files
 beside the page at `/` from master and at `/next/` from the branch, each only when it differs
 (`tools/platform/test-update.sh` part E).
+
+## 6. The owner's recordings off the field too (19 November)
+
+The owner: "when the game finishes you go back to the midi soundtrack, use the soundtracks i had sent you". Until
+now the recordings played only in a battle and at the victory dance; the map, the chronicle, the Hall, the menus
+and the pages after a victory or a defeat fell back to the generated music.
+
+What was built (branch s7/work):
+
+- A third channel of the recordings (`Rec`'s "menu" channel, an `<audio>` element streamed like the battle's, on
+  the music bus after the Music volume, so the Music switch and slider govern it and the effects duck it) plays one
+  of five calm tunes (`REC_MENU`) wherever no battle is fought: the map, the chronicle, Settings, the Hall, the nardi
+  board, the victory page and the closing page, the defeat page, the end of an endless stand. It is asked for only
+  when it is to play, never with the page.
+- The tunes: "Hov Arek Sarer Jan", "Sev Gakavik", "Alakiaz", "Balkoni Dage" and "Siroun Es, Hokiag", in turn from
+  one stretch of pages to the next (`hs_menu_rec`), each going on to the next when it ends, and never the tune of
+  the battle just fought where another will do (a battle likewise never opens on the pages' tune it takes over
+  from). The two laments stay off these pages, after a defeat too: the defeat page already opens on the game's own
+  lament chime and asks the player to try again. The martial and dance tunes stay the battles'.
+- At the end of the dance the victory recording fades out (2.5 s) as the page's tune fades in; as a battle begins
+  the page's tune fades out (1.5 s) under the battle's. A tune begun while another recording is heard holds the
+  generated music down while it loads (4 s at most), so no silence and no generated music lies between them. After
+  a defeat the tune comes in under the defeat's hush; Ani's Summons and Sis's Terms hush it as they hush the music.
+- It waits, paused where it is, while the first-visit trailer or a chronicle's film plays (the generated music stays
+  down too), while the page is hidden and with the Music switch off, and takes up again after.
+- It begins at the first tap that opens the sound (inside that tap, as browsers ask), as the generated music did.
+- The generated music stays as the fallback: when a file cannot load (for the rest of the visit), under the test
+  harness (no sound opens there), and on these pages from file:// (the battles there keep their recordings, as
+  before). Tested by `tools/regress/music.js` (the map, the trailer, a film, the Music switch, the battle's
+  takeover, the closing page after a victory, the defeat page, Abandon, a missing file).
