@@ -629,6 +629,12 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.6);
   }
   #settings .tgl.on { background: linear-gradient(180deg, #4d6a36, #2f4422); border-color: #86a85a; color: #eaf6c8; box-shadow: inset 0 1px 0 rgba(230,255,190,.3); }
+  /* the battle camera: its label takes the row, its switch stands at the row's end */
+  #settings .row.cam label { flex: 1; width: auto; }
+  #settings .row.cam .tgl { font-family: inherit; touch-action: manipulation; }
+  /* the last blow (Cam): the battle's HUD stands back while the field is held, and comes back after */
+  body.camBlow #topbar, body.camBlow #shop, body.camBlow #spellbar { opacity: .28; transition: opacity .22s ease-out; }
+  body.camOut #topbar, body.camOut #shop, body.camOut #spellbar { transition: opacity .45s ease-in; }
   /* the victory band: two touch-sized choices side by side under their label */
   #settings .row.band { flex-wrap: wrap; gap: 6px 8px; }
   #settings .row.band label { width: 100%; }
@@ -2012,9 +2018,12 @@
       width: auto; top: calc(44px + var(--sat)); right: calc(6px + var(--sar)); padding: 12px 14px 13px;
       max-height: calc(100vh - 50px - var(--sat) - var(--sab)); max-height: calc(100dvh - 50px - var(--sat) - var(--sab)); overflow-y: auto;
     }
-    #settings h3 { grid-column: 1 / -1; margin-bottom: 8px; padding-bottom: 6px; font-size: 15px; }
+    #settings h3 { grid-column: 1 / -1; grid-row: 1; margin-bottom: 8px; padding-bottom: 6px; font-size: 15px; }
     #settings .row { grid-column: 1; margin-bottom: 7px; }
     #settings .row.band { margin-bottom: 0; }
+    /* the Battle camera switch rides in the title's row, over the second column and clear of the close button:
+       both columns are full, and a fifth row would put the last one under the fold */
+    #settings .row.cam { grid-column: 2; grid-row: 1; margin: -5px 46px 0 0; position: relative; z-index: 1; }
     #settings .menuBtn { grid-column: 2; margin-top: 0; margin-bottom: 7px; }
     #settings #tutBtn { grid-row: 2; }
     #settings #pauseBtn { grid-row: 3; }
@@ -3869,6 +3878,10 @@
     <div class="tgl" id="setAmbTgl">On</div>
     <input type="range" id="ambVol" min="0" max="100" value="83">
   </div>
+  <div class="row cam">
+    <label id="setCamLbl">Battle camera</label>
+    <button type="button" class="tgl" id="setCamTgl" role="switch" aria-labelledby="setCamLbl" title="The slow close view of the last blow, and the shake of heavy hits">On</button>
+  </div>
   <div class="row band">
     <label id="setBandLbl">Victory band</label>
     <div class="seg" id="setBand" role="radiogroup" aria-labelledby="setBandLbl">
@@ -4294,6 +4307,294 @@ if (window.visualViewport) window.visualViewport.addEventListener("resize", () =
 });
 resize();
 
+// ---------- the battle camera: the last blow, the fall's push-in and the weight of heavy hits ----------
+// The field's one camera, all of it here; the game calls in at a few marked places, and draw() ends on paint().
+// 1. The last blow. The kill that wins the battle (the last foe of the last wave falls to a blow) is held for
+//    BLOW_S seconds of the player's time (BLOW_BOSS_S when the foe is a commander): the game's clock runs at a
+//    fifth, the camera pushes in on the falling foe, the rest of the field darkens, the music dips and one deep
+//    drum and horn sound. Then the camera eases back while victory() runs as it always has. Nothing is settled
+//    during the hold and nothing can be done in it: endWaveIfClear waits (hold), the battle's clock stands still
+//    (blowing: update skips battleTick, so `sec`, the player's own seconds and the idle time are those of the kill,
+//    exactly as without the camera), and a tap, a click or a key only ends it at once.
+// 2. The fall. When the last defender is lost, defeat() settles the run at once as before; the beat before its
+//    page is only made PUSH_S longer by a slow push-in on the citadel (fall), which a tap ends too.
+// 3. Weight. A brief, small, decaying shake of the drawing (never of the pointer's arithmetic) for the heavy
+//    events alone: a Powder Mine's blast, a commander felled, a defender lost to a commander or a siege beast,
+//    the frost and the wrath, a catapult's stone (1.5 px). Together they never pass SHAKE_CAP px of the field.
+//    A phone answers with a short pulse (navigator.vibrate, where the browser has it).
+// Settings' "Battle camera" switch turns all three off. With the system's "reduce motion" the switch starts off,
+// and the last blow is a plain HOLD_S pause with no zoom, shake or pulse. Under the test harness, and in a browser
+// driven by a test that has not set window.__hsCamTest, there is no camera at all and every timing is as before.
+const Cam = (() => {
+  const BLOW_S = 1.6, BLOW_BOSS_S = 2.2, HOLD_S = 0.6, PUSH_S = 1.2, OUT_S = 0.7, SLOW = 0.2;
+  const BLOW_Z = 1.6, BLOW_BOSS_Z = 1.78, PUSH_Z = 1.42, SHAKE_CAP = 6;
+  let pref = null;      // the switch: true or false once the player has chosen, null until then
+  let B = null;         // the last blow: { t, dur, x, y, z, boss, over }
+  let F = null;         // the fall's push-in: { t0, dur, tolled }
+  let out = null;       // the camera easing back after a blow: { z, x, y, dark, t0, dur }
+  let S = null;         // the shake: { a, t0, dur, ph }
+  let kill = null, stepN = 0, stoneAt = 0, eatUntil = 0, staged = null, outTimer = 0;
+  // what a test reads (tools/regress/cam.js)
+  const stat = { blows: 0, skips: 0, pushes: 0, shakes: 0, maxShake: 0, maxZoom: 1, minSlow: 1, vibes: 0, lastVibe: null };
+  const test = () => { try { return window.__hsCamTest || null; } catch (e) { return null; } };
+  const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const easeOut = k => 1 - Math.pow(1 - clamp01(k), 3);
+  const easeIO = k => { k = clamp01(k); return k * k * (3 - 2 * k); };
+  function live() {
+    if (HARNESS_ON) return false;
+    try { if (navigator.webdriver && !test()) return false; } catch (e) {}
+    return true;
+  }
+  // "full": the camera, the shake and the pulse; "hold": the plain pause of reduced motion; "off": nothing
+  function mode() {
+    if (!live() || pref === false) return "off";
+    if (pref === true) return "full";
+    return reducedMotion() ? "hold" : "full";
+  }
+  function hud(on) {
+    try {
+      const c = document.body.classList;
+      clearTimeout(outTimer);
+      c.toggle("camBlow", !!on);
+      c.toggle("camOut", !on);
+      if (!on) outTimer = setTimeout(() => c.remove("camOut"), 600);
+    } catch (e) {}
+  }
+  function vibe(p) {
+    if (mode() !== "full") return;
+    stat.vibes++; stat.lastVibe = p;
+    try { if (navigator.vibrate && matchMedia("(pointer: coarse)").matches) navigator.vibrate(p); } catch (e) {}
+  }
+  // one deep stroke of the dhol with a low horn under it, from the sound set's own drum, thump and horn
+  function drum(boss, dur) {
+    try {
+      if (!Snd.ctx) return;
+      Snd.duck(Snd.ctx.currentTime, 7, dur, 0.6);
+      if (!Snd.sfxOn) return;
+      Snd.fire("camBlow", function (v, t) {
+        this.drum(v, t, true, 1);
+        this.thump(v, t, 62, 38, 0.5, 0.9, 2.5);
+        this.hornNote(v, t + 0.03, boss ? 73.42 : 110, boss ? 1.5 : 1.1, 0.2, 0.35);
+      }, {});
+    } catch (e) { /* a sound must never break the game */ }
+  }
+  // ---- the last blow ----
+  // the share of the game's time that passes p of the way through: down to SLOW at once, back up over the last fifth
+  function slowAt(p) { return p < 0.08 ? 1 - (1 - SLOW) * easeOut(p / 0.08) : p < 0.8 ? SLOW : SLOW + (1 - SLOW) * Math.pow((p - 0.8) / 0.2, 2); }
+  function blowView(b, p) {
+    const k = b.z > 1 ? 0.93 * easeOut(p / 0.6) + 0.07 * p : 0;
+    return { z: 1 + (b.z - 1) * k, x: b.x, y: b.y, k, dark: Math.min(1, p / 0.18) * (b.z > 1 ? 1 : 0.6) };
+  }
+  // a foe is felled (update's kill): remembered for this step of the game, should it be the winning blow
+  function killed(e, p) { kill = { x: p.x, y: p.y, boss: e.type === "boss", fly: !!e.fly, n: stepN }; }
+  // endWaveIfClear, the last wave cleared: true while the victory waits on the last blow
+  function hold() {
+    if (B) { if (!B.over) return true; B = null; return false; }
+    if (!kill || kill.n !== stepN) return false;
+    const m = mode();
+    if (m === "off") return false;
+    const pp = proj(kill.x, kill.y), full = m === "full";
+    B = { t: 0, dur: !full ? HOLD_S : kill.boss ? BLOW_BOSS_S : BLOW_S, x: pp.x, y: pp.y - (kill.fly ? 40 : 16) * (pp.s || 1),
+      z: !full ? 1 : kill.boss ? BLOW_BOSS_Z : BLOW_Z, boss: kill.boss, over: false };
+    out = null; stat.blows++;
+    try { hidePanel(); setPlacing(null); castingSpell = null; } catch (e) {}
+    if (full) { hud(true); vibe(kill.boss ? [30, 60, 40, 80, 70] : [25, 70, 50]); }
+    drum(kill.boss, B.dur);
+    return true;
+  }
+  function endBlow(skipped) {
+    if (!B || B.over) return;
+    const v = blowView(B, B.t / B.dur);
+    B.over = true;
+    if (v.z > 1 || v.dark > 0) out = { z: v.z, x: B.x, y: B.y, k: v.k, dark: v.dark, t0: performance.now(), dur: (skipped ? 0.3 : OUT_S) * 1000 };
+    if (skipped) stat.skips++;
+    hud(false);
+  }
+  // frame: the share of this frame's time the game lives through (1 but in the last blow, whose clock this moves)
+  function slow(dt) {
+    if (!B || B.over) return 1;
+    // (the player's own time, however slowly the frames come; a stretch with no frames at all counts a tenth of a second)
+    const now = performance.now();
+    B.t += B.at ? Math.min(0.1, (now - B.at) / 1000) : dt;
+    B.at = now;
+    if (B.t >= B.dur) { endBlow(false); return 1; }
+    const s = slowAt(B.t / B.dur);
+    if (s < stat.minSlow) stat.minSlow = s;
+    return s;
+  }
+  // ---- the fall ----
+  // defeat(): the ms the beat before the defeat page waits for the push-in on the citadel (0: none)
+  function fall() {
+    F = null;
+    if (mode() !== "full") return 0;
+    F = { t0: performance.now(), dur: PUSH_S * 1000, tolled: false };
+    stat.pushes++;
+    vibe(20);
+    return F.dur;
+  }
+  function pushView(k, back) {
+    const fp = proj(FORT.x, FORT.y);
+    const e = easeIO(k) * (1 - easeIO(back));
+    return { z: 1 + (PUSH_Z - 1) * e, x: fp.x, y: fp.y - 46, k: e, dark: 0.55 * e };
+  }
+  // frame: the bell that the push-in held back tolls as the beat begins
+  function tick(now) {
+    if (!F) return;
+    if (!fallen) { F = null; return; }
+    if (!F.tolled && now >= F.t0 + F.dur) { F.tolled = true; Snd.play("toll"); }
+  }
+  // ---- weight ----
+  function ampAt(now) {
+    if (!S) return 0;
+    const k = (now - S.t0) / S.dur;
+    if (k >= 1) { S = null; return 0; }
+    return S.a * (1 - k) * (1 - k);
+  }
+  // a heavy event: px of the field at its start, over ms; a stone's (kind "stone") never adds to another shake
+  function shake(px, ms, kind, pulse) {
+    if (mode() !== "full" || (B && !B.over)) return;
+    const now = performance.now(), stone = kind === "stone";
+    if (stone) { if (now - stoneAt < 350) return; stoneAt = now; }
+    const cur = ampAt(now), left = S ? S.t0 + S.dur - now : 0;
+    if (stone && cur >= px) return;
+    S = { a: Math.min(SHAKE_CAP, stone ? px : cur + px), t0: now, dur: Math.max(ms, left), ph: Math.random() * 6.283 };
+    stat.shakes++;
+    if (S.a > stat.maxShake) stat.maxShake = S.a;
+    if (pulse) vibe(pulse);
+  }
+  // ---- the view ----
+  // draw: null for the field as it always stood, or { z, cx, cy, dark, fx, fy }: the zoom over the field's own
+  // scale, the field point at the middle of the field's box (kept so that the box never shows past the field's
+  // edge), how dark the rest has grown and round which point
+  function view() {
+    const now = performance.now();
+    let v = null, sx = 0, sy = 0;
+    if (staged) v = staged.push != null ? pushView(staged.push, 0) : blowView(staged, staged.blow);
+    else if (B && !B.over) v = blowView(B, B.t / B.dur);
+    else if (F && fallen) {
+      const k = (now - F.t0) / F.dur, beat = (now - fallen.start) / FALL_MS;
+      v = pushView(k, (beat - 0.5) / 0.5);
+    } else if (out) {
+      const k = (now - out.t0) / out.dur, e = 1 - easeIO(k);
+      if (k >= 1) out = null;
+      else v = { z: 1 + (out.z - 1) * e, x: out.x, y: out.y, k: out.k * e, dark: out.dark * e };
+    }
+    const a = staged ? 0 : ampAt(now);
+    if (a > 0.05) {
+      const t = (now - S.t0) / 1000;
+      sx = a * Math.sin(t * 176 + S.ph); sy = a * 0.7 * Math.cos(t * 131 + S.ph * 1.7);
+    }
+    if (!v && !sx && !sy) return null;
+    if (!v) v = { z: 1, x: VW / 2, y: VH / 2, k: 0, dark: 0 };
+    const z = v.z, hw = VW / 2 / z, hh = VH / 2 / z;
+    if (z > stat.maxZoom) stat.maxZoom = z;
+    // the middle moves from the field's toward the point as the camera closes in, and never so far that the
+    // field's edge would show (a shake alone only slides the picture a few pixels: paint)
+    let cx = VW / 2 + (v.x - VW / 2) * v.k, cy = VH / 2 + (v.y - VH / 2) * v.k;
+    cx = Math.max(hw, Math.min(VW - hw, cx + (z > 1 ? sx : 0))) + (z > 1 ? 0 : sx);
+    cy = Math.max(hh, Math.min(VH - hh, cy + (z > 1 ? sy : 0))) + (z > 1 ? 0 : sy);
+    return { z, cx, cy, dark: v.dark, fx: v.x, fy: v.y };
+  }
+  // draw, last of all: the field is painted as it always is, and then the part of it the camera looks at is laid
+  // over the field's own box, enlarged (the picture copied onto itself). Nothing of the field's drawing, its
+  // sprites baked at the screen's scale or the pointer's arithmetic knows of the camera. Then the rest of the
+  // field darkens softly round the point the camera holds
+  function paint(c) {
+    const v = view();
+    if (!v) return;
+    const k = DPR * scale, sw = VW / v.z, sh = VH / v.z;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (v.z > 1.0005) {
+      c.imageSmoothingEnabled = true;
+      c.drawImage(c.canvas, DPR * offX + k * (v.cx - sw / 2), DPR * offY + k * (v.cy - sh / 2), k * sw, k * sh, DPR * offX, DPR * offY, k * VW, k * VH);
+    } else {
+      // a shake alone: the picture slid by whole pixels, as sharp as it was (the strip it leaves at one edge keeps
+      // what was there, a few pixels of the same ground)
+      const dx = Math.round(k * (v.cx - VW / 2)), dy = Math.round(k * (v.cy - VH / 2));
+      const x0 = Math.round(DPR * offX), y0 = Math.round(DPR * offY), w = Math.round(k * VW) - Math.abs(dx), h = Math.round(k * VH) - Math.abs(dy);
+      if ((dx || dy) && w > 0 && h > 0) c.drawImage(c.canvas, x0 + Math.max(0, dx), y0 + Math.max(0, dy), w, h, x0 + Math.max(0, -dx), y0 + Math.max(0, -dy), w, h);
+    }
+    if (v.dark > 0.01) {
+      c.setTransform(k, 0, 0, k, DPR * offX, DPR * offY);
+      c.beginPath(); c.rect(0, 0, VW, VH); c.clip();
+      // the point, where the camera now shows it
+      const x = VW / 2 + (v.fx - v.cx) * v.z, y = VH / 2 + (v.fy - v.cy) * v.z;
+      const g = c.createRadialGradient(x, y, 150, x, y, Math.max(VW, VH) * 0.62);
+      g.addColorStop(0, "rgba(10, 6, 3, 0)");
+      g.addColorStop(0.55, "rgba(10, 6, 3, " + (0.26 * v.dark).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(8, 5, 3, " + (0.56 * v.dark).toFixed(3) + ")");
+      c.fillStyle = g;
+      c.fillRect(0, 0, VW, VH);
+    }
+    c.restore();
+  }
+  // ---- the skip: in the last blow and the push-in, a tap, a click or a key does nothing but end it ----
+  function busy() { return !!(B && !B.over) || !!(F && fallen && !F.tolled); }
+  function skip() {
+    if (B && !B.over) { endBlow(true); return; }
+    if (F && fallen && !F.tolled) {
+      const now = performance.now();
+      F.t0 = now - F.dur; F.tolled = true; fallen.start = now; stat.skips++;
+      Snd.play("toll");
+    }
+  }
+  // (the touch listeners are passive, so no page's scrolling ever waits on them: a finger's press is kept from the
+  // game by stopping the event, and the click the browser makes of it afterwards is stopped the same way)
+  let held = false;
+  function swallow(ev) {
+    ev.stopImmediatePropagation();
+    if (ev.cancelable && !/^(key|touch)/.test(ev.type)) ev.preventDefault();
+  }
+  function onDown(ev) {
+    // (a release that never comes, a pointer cancelled or let go outside the window, must not leave the game deaf)
+    if (held && performance.now() > eatUntil + 1500) held = false;
+    if (!busy()) { if (held || performance.now() < eatUntil) swallow(ev); return; }
+    if (ev.type === "keydown" && (ev.ctrlKey || ev.metaKey || ev.altKey || /^(Shift|Control|Alt|Meta|Tab|F\d+)$/.test(ev.key || ""))) return;
+    skip();
+    // the rest of this press (its release, however late, and its click) presses nothing either
+    held = true; eatUntil = performance.now() + 500;
+    swallow(ev);
+  }
+  function onUp(ev) {
+    if (!held && performance.now() >= eatUntil) return;
+    swallow(ev);
+    if (held && ev.type !== "click") { held = false; eatUntil = performance.now() + 350; }
+  }
+  try {
+    for (const n of ["pointerdown", "mousedown", "keydown"]) window.addEventListener(n, onDown, { capture: true, passive: false });
+    for (const n of ["pointerup", "pointercancel", "mouseup", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
+    window.addEventListener("touchstart", onDown, { capture: true, passive: true });
+    window.addEventListener("touchend", onUp, { capture: true, passive: true });
+    window.addEventListener("touchcancel", onUp, { capture: true, passive: true });
+  } catch (e) {}
+  return {
+    killed, hold, slow, fall, tick, shake, view, paint, mode, stat,
+    step() { stepN++; },
+    // update: the battle's clock stands still from the winning kill until the victory is declared
+    blowing() { return !!B; },
+    // the frame governor: the camera is at work on the picture
+    active() { return !!(B || F || out || S); },
+    state() { return { blow: B ? { t: B.t, dur: B.dur, z: B.z, boss: B.boss, over: B.over } : null, push: !!(F && fallen && !F.tolled), busy: busy(), mode: mode() }; },
+    // a new battle (resetGame)
+    reset() { B = null; F = null; out = null; S = null; kill = null; staged = null; eatUntil = 0; held = false; try { document.body.classList.remove("camBlow", "camOut"); } catch (e) {} },
+    // Settings: the switch as it reads (on unless the system asks for less motion, until the player chooses)
+    on() { return pref === null ? !reducedMotion() : pref; },
+    pref() { return pref; },
+    setPref(v) { pref = v === true || v === false ? v : null; if (pref === false) { if (B && !B.over) endBlow(true); S = null; } },
+    // the photo harness: a still of the last blow p of the way through, on the field point (x, y), or of the push-in
+    stage(o) {
+      staged = o;
+      if (!o || o.blow == null) return;
+      const pp = proj(o.x, o.y);
+      staged.x = pp.x; staged.y = pp.y - 16 * (pp.s || 1); staged.z = o.boss ? BLOW_BOSS_Z : BLOW_Z;
+      document.body.classList.add("camBlow");
+    },
+    // the game seconds that have passed p of the way through a blow (the photo harness ages its fallen foe by it)
+    gameS(p, boss) { let s = 0; const d = boss ? BLOW_BOSS_S : BLOW_S; for (let i = 0; i < 100; i++) if ((i + 0.5) / 100 < p) s += slowAt((i + 0.5) / 100) * d / 100; return s; },
+  };
+})();
+
 // Frame governor: in battle, if the median frame over ~1.5 s runs slower than ~45 fps, the canvas steps
 // down a notch of pixel density (2 -> 1.5 -> 1.25 -> 1) and is laid out again. A full-screen canvas at
 // density 2 on a tablet is four times the pixels of density 1, and filling them is most of the frame.
@@ -4307,7 +4608,8 @@ resize();
     requestAnimationFrame(tick);
     const dt = t - last; last = t;
     const live = !document.hidden && typeof paused !== "undefined" && !paused && overlayEl && overlayEl.classList.contains("hidden");
-    if (retired || !live || dt > 250 || t < calmUntil) { gaps.length = 0; return; }
+    // (the battle camera's frames are not the field's own pace: they are never judged)
+    if (retired || !live || dt > 250 || t < calmUntil || Cam.active()) { gaps.length = 0; return; }
     gaps.push(dt);
     if (gaps.length < 90) return;
     const med = gaps.slice().sort((a, b) => a - b)[45];
@@ -13092,6 +13394,7 @@ function castSpell(key, x, y) {
       const a = Math.random() * Math.PI * 2, rr = Math.random() * S.radius;
       particles.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr * ELLIPSE - 10, vx: 0, vy: mote.vy, life: 0.8, color: mote.color, size: 2.5 });
     }
+    Cam.shake(2.5, 200, "", 12);
     Snd.play("spellFrost", { x, look, cans: fx.cans ? fx.cans.map(c => c.at / speedMult) : null });
   } else if (key === "wrath") {
     spellFx.push({ type: "bolt", x, y, t: 0 });
@@ -13103,6 +13406,7 @@ function castSpell(key, x, y) {
         e.burnT = Math.max(e.burnT, 2);
       }
     }
+    Cam.shake(4.5, 300, "", 25);
     Snd.play("spellWrath", { x });
   }
 }
@@ -13862,6 +14166,7 @@ function mineFire(t, m) {
   t.blastT = 0.5;
   m.fx = 0.7;
   shakeFort = Math.max(shakeFort, 0.15);
+  Cam.shake(4, 260, "", 20);
   Snd.play("mine", { x: m.x });
   // the Great Boulder's landing and the firepot's: earth and flame thrown up where the charge lay
   for (let i = 0; i < 26; i++) {
@@ -14564,7 +14869,7 @@ function resetGame() {
   applyEraLabels();
   waveIdx = 0; phase = "idle"; speedMult = 1; gameOver = false;
   waveStart = null; waveSpent = 0;
-  leaks = {}; fallen = null; heartT = 0;
+  leaks = {}; fallen = null; heartT = 0; Cam.reset();
   autoT = 0;
   towers = []; enemies = []; projectiles = []; particles = [];
   aidWalkers = [];   // (the Aid Post's returning defenders: a new battle has none on their way)
@@ -15151,6 +15456,8 @@ function orbitPos(p, o) {
 function endWaveIfClear() {
   if (gameOver) return;
   if (phase === "wave" && spawnQueue.length === 0 && enemies.length === 0) {
+    // the kill that wins the battle is held for the last blow (Cam): nothing is settled until it is over
+    if (waveIdx >= totalWaves() && !endless && Cam.hold()) return;
     phase = "idle";
     lastCleared = waveIdx;
     // a wave pays for the script waves it stands for (1.4): the clear's bonus of each, the interest and the free
@@ -16359,6 +16666,7 @@ function leakFoe(e, quiet) {
   bookTrickLeak(e, lost);
   lives -= lost;
   if (!quiet) { shakeFort = 1; Snd.play("leak", { x: FORT.x }); }
+  if (!quiet && lost > 0 && (e.type === "boss" || e.type === "ram")) Cam.shake(4, 280, "", 25);
   livesHit(lost);
   if (lives <= 0) { lives = 0; defeat(); }
   // the run remembers what this attempt of the wave has lost (saveRun's redo), should the wave be left and fought again
@@ -16556,8 +16864,11 @@ function defeat() {
   castingSpell = null; heroSelected = false;
   updateSpellBar();
   fallen = { start: performance.now(), best };   // best: the endless record this fall set, for the page's ribbon
-  Snd.hush(FALL_MS / 1000 + 0.6);
-  Snd.play("toll");
+  // the battle camera's slow push-in on the citadel comes first (Cam.fall: 0 without it), and the bell after it
+  const push = Cam.fall();
+  fallen.start += push;
+  Snd.hush((FALL_MS + push) / 1000 + 0.6);
+  if (!push) Snd.play("toll");
 }
 
 // the beat is over (a test skips it): the defeat page, with its lament and its debrief
@@ -16782,7 +17093,8 @@ function damageEnemy(e, dmg, pierce, src) {
 
 // ---------- update ----------
 function update(dt) {
-  if (battle.on) battleTick(dt);
+  Cam.step();
+  if (battle.on && !Cam.blowing()) battleTick(dt);   // (the clock stands still through the last blow)
   if (phase === "wave") {
     waveTime += dt;
     while (spawnQueue.length && spawnQueue[0].t <= waveTime) {
@@ -17014,7 +17326,8 @@ function update(dt) {
       if (share > 0) bounty += Math.ceil(e.bounty * share);
       gold += bounty;
       battleEarn(bounty, "bounty");
-      if (e.type === "boss") battle.cmdFelled++;
+      if (e.type === "boss") { battle.cmdFelled++; Cam.shake(5, 300, "", 30); }
+      Cam.killed(e, p);
       coachEvent("kill");
       Snd.play("death", { x: p.x, kind: e.type, variant: e.def.variant, mounted: !!e.def.mounted, era: curEra });
       Snd.play("coin", { x: p.x });
@@ -17066,6 +17379,7 @@ function update(dt) {
       pr.t += dt / pr.dur;
       if (pr.t >= 1) {
         pr.dead = true;
+        if (pr.src && pr.src.type === "catapult") Cam.shake(1.5, 160, "stone");
         const hitArt = pr.src && skinArt(pr.src.type);   // a skin may name its own landing (a shell, a rocket)
         Snd.play(hitArt && hitArt.hitSound ? hitArt.hitSound : pr.fiery ? "firepot" : "stoneHit", { x: pr.tx, fiery: pr.fiery, big: !!(pr.src && pr.src.type === "catapult" && pr.src.spec === "a") });
         const col = pr.fiery ? "#ff8a3c" : "#b9a687";
@@ -27953,6 +28267,8 @@ function draw(time) {
   if (paused && overlayEl.classList.contains("hidden")) drawPausedBanner();
   if (photo && photo.labels) drawPhotoLabels();
   ctx.restore();
+  // the battle camera closes in on the finished picture (the last blow, the fall, a heavy hit's shake)
+  if (!(photo && photo.zoom)) Cam.paint(ctx);
 }
 
 // ---------- lighting, particle, spell and projectile helpers ----------
@@ -66718,10 +67034,14 @@ autoBtn.addEventListener("click", () => {
 // ---- sound / settings UI ----
 // the settings remembered between visits: sound, the victory band and the difficulty last chosen on the map
 function saveSettings() {
-  localStorage.setItem("hs_settings", JSON.stringify({
+  const s = {
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
     ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2, band: Snd.band, diff: prefDiff,
-  }));
+  };
+  // the Battle camera switch is kept only once the player has pressed it: until then it follows the system's
+  // "reduce motion", as it stands on each visit
+  if (Cam.pref() !== null) s.cam = Cam.pref();
+  localStorage.setItem("hs_settings", JSON.stringify(s));
 }
 function loadSettings() {
   try {
@@ -66733,6 +67053,7 @@ function loadSettings() {
     if (typeof s.ambOn === "boolean") Snd.ambOn = s.ambOn;
     if (typeof s.ambVol === "number") Snd.ambVol = s.ambVol;
     if (s.band === "kef" || s.band === "zurna") Snd.band = s.band;
+    if (typeof s.cam === "boolean") Cam.setPref(s.cam);
     if (Number.isInteger(s.diff) && DIFFS[s.diff]) curDiff = prefDiff = s.diff;
     // settings saved before the log taper held linear gains: carry them over to slider positions
     // (taper 1 was a 50 dB curve: keep the same gain on the 36 dB one)
@@ -66758,6 +67079,9 @@ function syncSoundUi() {
   $("setSfxTgl").classList.toggle("on", Snd.sfxOn);
   $("setAmbTgl").textContent = Snd.ambOn ? "On" : "Off";
   $("setAmbTgl").classList.toggle("on", Snd.ambOn);
+  $("setCamTgl").textContent = Cam.on() ? "On" : "Off";
+  $("setCamTgl").classList.toggle("on", Cam.on());
+  $("setCamTgl").setAttribute("aria-checked", Cam.on() ? "true" : "false");
   for (const b of $("setBand").children) {
     b.classList.toggle("on", b.dataset.band === Snd.band);
     b.setAttribute("aria-checked", b.dataset.band === Snd.band ? "true" : "false");
@@ -66784,6 +67108,8 @@ $("sfxBtn").addEventListener("click", toggleSfx);
 $("setMusicTgl").addEventListener("click", toggleMusic);
 $("setSfxTgl").addEventListener("click", toggleSfx);
 $("setAmbTgl").addEventListener("click", toggleAmb);
+// the battle camera (Cam): the last blow, the fall's push-in, the shake of heavy hits and the phone's pulse
+$("setCamTgl").addEventListener("click", () => { Cam.setPref(!Cam.on()); syncSoundUi(); });
 // the victory band: a dance already under way changes band on its next bar line, music and painting alike
 function setVictoryBand(band) {
   if (band === Snd.band) return;
@@ -87352,11 +87678,15 @@ function frame(time) {
     const dt = Math.min((time - last) / 1000, 0.05);
     last = time;
     if (!gameOver && !paused && !coachFreeze() && !trickHold() && overlayEl.classList.contains("hidden")) {
-      for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
+      // (the last blow: one slow step a frame whatever the speed, which is kept as it was set)
+      const slow = Cam.slow(dt);
+      if (slow < 1) update(dt * slow);
+      else for (let k = 0; k < speedMult && !gameOver; k++) update(dt);
       if (!gameOver) { dangerTick(dt); waveCueTick(dt); }
     }
     if (celebration && time - celebration.start > DANCE_MAX_MS) endCelebration();
     if (parley && time - parley.start > PARLEY_MS) endCelebration();
+    Cam.tick(time);
     if (fallen && time - fallen.start > FALL_MS) endFall();
     draw(time);
     coachTick();
@@ -87412,6 +87742,7 @@ function recoverToMap() {
   try {
     gameOver = true;
     celebration = null; fallen = null; parley = null; paused = false;
+    Cam.reset();
     try { if (Nardi.isOpen()) Nardi.close(); } catch (e) {}
     try { if (Town.isOpen()) Town.close(); } catch (e) {}
     try { closeHall(); } catch (e) {}   // the platform's Hall, had it been open under the card (table 0.4)
@@ -88088,7 +88419,29 @@ function photoFall(lv, wave, seconds, page) {
   enemies = enemies.filter(e => !e.dead);
   photo = { time: PHOTO_TIME };
   fallen.start = PHOTO_TIME - seconds * 1000;
+  // &push=p: the battle camera's push-in on the citadel p of the way through, before the beat (docs/specs/owner/battle-camera.md)
+  if (HARNESS.has("push") && !page) { fallen.start = PHOTO_TIME; Cam.stage({ push: Math.max(0, Math.min(1, Number(HARNESS.get("push")) || 0)) }); }
   if (page) endFall();
+}
+// &blow=p: the last blow (the battle camera) p of the way through: one foe of the staged battle has just been felled,
+// a commander where the wave has one, and no other is left on the field; &blow=-1 is the moment before, that foe
+// still standing alone
+function photoBlow(p) {
+  const foe = enemies.find(e => e.type === "boss") || enemies.filter(e => !e.fly).sort((a, b) => b.dist / ROUTES[b.route || 0].len - a.dist / ROUTES[a.route || 0].len)[0];
+  if (!foe) return;
+  enemies = [foe]; spawnQueue = []; projectiles = []; particles = [];
+  if (!foe.fly) foe.dist = ROUTES[foe.route || 0].len * 0.56;   // well out on the road, where the camera has room
+  if (p < 0) { foe.hp = foe.maxHp * 0.12; return; }
+  const at = enemyPos(foe), boss = foe.type === "boss", age = Cam.gameS(p, boss);
+  enemies = [];
+  corpses.push({ x: at.x, y: at.y, k: foe.r / 11, color: foe.def.color, t: Math.max(0.05, 0.8 - age), type: foe.type, name: foe.def.name, fly: !!foe.fly });
+  particles.push({ x: at.x, y: at.y - 22 - 26 * age, vx: 0, vy: -26, life: 0.9 - age, color: "#ffd27a", size: 0, text: "+" + foe.bounty });
+  for (let i = 0; i < 8; i++) {
+    const a = i * 0.785 + 0.3, sp = 28 + (i * 37 % 45);
+    particles.push({ x: at.x + Math.cos(a) * sp * age, y: at.y - 6 + (Math.sin(a) * sp * 0.6 - 30) * age + 30 * age * age, vx: 0, vy: 0, life: 0.55 - age, color: "#e8c88a", size: 2.5 });
+  }
+  particles = particles.filter(q => q.life > 0);
+  Cam.stage({ blow: Math.min(1, p), x: at.x, y: at.y, boss });
 }
 
 // &lv= names a battlefield by its place in the campaign or by its id (lv=ani), which no insertion moves
@@ -88126,6 +88479,7 @@ function runPhoto() {
       });
       // &lives=N: the citadel as it stands with N defenders left (smoke below half, fire below a quarter)
       if (HARNESS.has("lives")) { lives = Math.max(1, num("lives", 20) | 0); syncHud(); }
+      if (HARNESS.has("blow")) photoBlow(num("blow", 0.5));
       photo = { time: PHOTO_TIME };
     } else if (scene === "units" || scene === "towers" || scene === "props") {
       photoSheet(scene);

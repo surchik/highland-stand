@@ -227,7 +227,7 @@ const GIFT = "40";   // a town gift waiting from an earlier win (the most it can
           if (s.mode !== "brief" || s.open || s.inert) await fail("the chronicle is not back after the Council " + JSON.stringify(s));
         }
         // no Standard switch on the chronicle since stage 6 (a Standard battle is opened from the Leaderboards tab)
-        if (await g.ev(() => !!$("bkStd") || !!document.querySelector("[role=switch]"))) await fail("a Standard switch is still on the chronicle");
+        if (await g.ev(() => !!$("bkStd") || !!overlayEl.querySelector("[role=switch]"))) await fail("a Standard switch is still on the chronicle");
       }
       await g.press("#startBtn");
       await g.page.waitForFunction(() => overlayEl.classList.contains("hidden") && !gameOver, null, { timeout: 10000 });
