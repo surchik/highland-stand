@@ -4539,21 +4539,32 @@ const Cam = (() => {
       Snd.play("toll");
     }
   }
+  // (the touch listeners are passive, so no page's scrolling ever waits on them: a finger's press is kept from the
+  // game by stopping the event, and the click the browser makes of it afterwards is stopped the same way)
+  let held = false;
   function swallow(ev) {
     ev.stopImmediatePropagation();
-    if (ev.cancelable && ev.type !== "keydown" && ev.type !== "keyup") ev.preventDefault();
+    if (ev.cancelable && !/^(key|touch)/.test(ev.type)) ev.preventDefault();
   }
   function onDown(ev) {
-    if (!busy()) { if (performance.now() < eatUntil) swallow(ev); return; }
+    if (!busy()) { if (held || performance.now() < eatUntil) swallow(ev); return; }
     if (ev.type === "keydown" && (ev.ctrlKey || ev.metaKey || ev.altKey || /^(Shift|Control|Alt|Meta|Tab|F\d+)$/.test(ev.key || ""))) return;
     skip();
-    eatUntil = performance.now() + 500;   // the rest of this press (its release, its click) presses nothing either
+    // the rest of this press (its release, however late, and its click) presses nothing either
+    held = true; eatUntil = performance.now() + 500;
     swallow(ev);
   }
-  function onUp(ev) { if (performance.now() < eatUntil) swallow(ev); }
+  function onUp(ev) {
+    if (!held && performance.now() >= eatUntil) return;
+    swallow(ev);
+    if (held && ev.type !== "click") { held = false; eatUntil = performance.now() + 350; }
+  }
   try {
-    for (const n of ["pointerdown", "mousedown", "touchstart", "keydown"]) window.addEventListener(n, onDown, { capture: true, passive: false });
-    for (const n of ["pointerup", "mouseup", "touchend", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
+    for (const n of ["pointerdown", "mousedown", "keydown"]) window.addEventListener(n, onDown, { capture: true, passive: false });
+    for (const n of ["pointerup", "mouseup", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
+    window.addEventListener("touchstart", onDown, { capture: true, passive: true });
+    window.addEventListener("touchend", onUp, { capture: true, passive: true });
+    window.addEventListener("touchcancel", onUp, { capture: true, passive: true });
   } catch (e) {}
   return {
     killed, hold, slow, fall, tick, shake, view, paint, mode, stat,
@@ -4564,7 +4575,7 @@ const Cam = (() => {
     active() { return !!(B || F || out || S); },
     state() { return { blow: B ? { t: B.t, dur: B.dur, z: B.z, boss: B.boss, over: B.over } : null, push: !!(F && fallen && !F.tolled), busy: busy(), mode: mode() }; },
     // a new battle (resetGame)
-    reset() { B = null; F = null; out = null; S = null; kill = null; staged = null; eatUntil = 0; try { document.body.classList.remove("camBlow", "camOut"); } catch (e) {} },
+    reset() { B = null; F = null; out = null; S = null; kill = null; staged = null; eatUntil = 0; held = false; try { document.body.classList.remove("camBlow", "camOut"); } catch (e) {} },
     // Settings: the switch as it reads (on unless the system asks for less motion, until the player chooses)
     on() { return pref === null ? !reducedMotion() : pref; },
     pref() { return pref; },
