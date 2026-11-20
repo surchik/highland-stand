@@ -4547,6 +4547,8 @@ const Cam = (() => {
     if (ev.cancelable && !/^(key|touch)/.test(ev.type)) ev.preventDefault();
   }
   function onDown(ev) {
+    // (a release that never comes, a pointer cancelled or let go outside the window, must not leave the game deaf)
+    if (held && performance.now() > eatUntil + 1500) held = false;
     if (!busy()) { if (held || performance.now() < eatUntil) swallow(ev); return; }
     if (ev.type === "keydown" && (ev.ctrlKey || ev.metaKey || ev.altKey || /^(Shift|Control|Alt|Meta|Tab|F\d+)$/.test(ev.key || ""))) return;
     skip();
@@ -4561,7 +4563,7 @@ const Cam = (() => {
   }
   try {
     for (const n of ["pointerdown", "mousedown", "keydown"]) window.addEventListener(n, onDown, { capture: true, passive: false });
-    for (const n of ["pointerup", "mouseup", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
+    for (const n of ["pointerup", "pointercancel", "mouseup", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
     window.addEventListener("touchstart", onDown, { capture: true, passive: true });
     window.addEventListener("touchend", onUp, { capture: true, passive: true });
     window.addEventListener("touchcancel", onUp, { capture: true, passive: true });
