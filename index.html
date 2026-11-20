@@ -4305,7 +4305,7 @@ if (window.visualViewport) window.visualViewport.addEventListener("resize", () =
 resize();
 
 // ---------- the battle camera: the last blow, the fall's push-in and the weight of heavy hits ----------
-// The field's one camera, all of it here; the game calls in at a few marked places and draws through view().
+// The field's one camera, all of it here; the game calls in at a few marked places, and draw() ends on paint().
 // 1. The last blow. The kill that wins the battle (the last foe of the last wave falls to a blow) is held for
 //    BLOW_S seconds of the player's time (BLOW_BOSS_S when the foe is a commander): the game's clock runs at a
 //    fifth, the camera pushes in on the falling foe, the rest of the field darkens, the music dips and one deep
@@ -4410,7 +4410,10 @@ const Cam = (() => {
   // frame: the share of this frame's time the game lives through (1 but in the last blow, whose clock this moves)
   function slow(dt) {
     if (!B || B.over) return 1;
-    B.t += dt;
+    // (the player's own time, however slowly the frames come; a stretch with no frames at all counts a tenth of a second)
+    const now = performance.now();
+    B.t += B.at ? Math.min(0.1, (now - B.at) / 1000) : dt;
+    B.at = now;
     if (B.t >= B.dur) { endBlow(false); return 1; }
     const s = slowAt(B.t / B.dur);
     if (s < stat.minSlow) stat.minSlow = s;
@@ -4480,24 +4483,48 @@ const Cam = (() => {
     }
     if (!v && !sx && !sy) return null;
     if (!v) v = { z: 1, x: VW / 2, y: VH / 2, k: 0, dark: 0 };
-    // a shaken field is drawn a hair larger, so its edge never shows
-    const z = Math.max(v.z, 1 + 2.4 * a / VH), hw = VW / 2 / z, hh = VH / 2 / z;
+    const z = v.z, hw = VW / 2 / z, hh = VH / 2 / z;
     if (z > stat.maxZoom) stat.maxZoom = z;
-    // the middle moves from the field's toward the point as the camera closes in
-    let cx = VW / 2 + (v.x - VW / 2) * v.k + sx, cy = VH / 2 + (v.y - VH / 2) * v.k + sy;
-    cx = Math.max(hw, Math.min(VW - hw, cx)); cy = Math.max(hh, Math.min(VH - hh, cy));
+    // the middle moves from the field's toward the point as the camera closes in, and never so far that the
+    // field's edge would show (a shake alone only slides the picture a few pixels: paint)
+    let cx = VW / 2 + (v.x - VW / 2) * v.k, cy = VH / 2 + (v.y - VH / 2) * v.k;
+    cx = Math.max(hw, Math.min(VW - hw, cx + (z > 1 ? sx : 0))) + (z > 1 ? 0 : sx);
+    cy = Math.max(hh, Math.min(VH - hh, cy + (z > 1 ? sy : 0))) + (z > 1 ? 0 : sy);
     return { z, cx, cy, dark: v.dark, fx: v.x, fy: v.y };
   }
-  // draw, last of all: the rest of the field darkens softly round the point (c: the field's context, v: view())
-  function shade(c, v) {
-    if (!v || !(v.dark > 0.01)) return;
-    const r0 = 150 / v.z, r1 = Math.max(VW, VH) * 0.62 / v.z;
-    const g = c.createRadialGradient(v.fx, v.fy, r0, v.fx, v.fy, r1);
-    g.addColorStop(0, "rgba(10, 6, 3, 0)");
-    g.addColorStop(0.55, "rgba(10, 6, 3, " + (0.36 * v.dark).toFixed(3) + ")");
-    g.addColorStop(1, "rgba(8, 5, 3, " + (0.7 * v.dark).toFixed(3) + ")");
-    c.fillStyle = g;
-    c.fillRect(0, 0, VW, VH);
+  // draw, last of all: the field is painted as it always is, and then the part of it the camera looks at is laid
+  // over the field's own box, enlarged (the picture copied onto itself). Nothing of the field's drawing, its
+  // sprites baked at the screen's scale or the pointer's arithmetic knows of the camera. Then the rest of the
+  // field darkens softly round the point the camera holds
+  function paint(c) {
+    const v = view();
+    if (!v) return;
+    const k = DPR * scale, sw = VW / v.z, sh = VH / v.z;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (v.z > 1.0005) {
+      c.imageSmoothingEnabled = true;
+      c.drawImage(c.canvas, DPR * offX + k * (v.cx - sw / 2), DPR * offY + k * (v.cy - sh / 2), k * sw, k * sh, DPR * offX, DPR * offY, k * VW, k * VH);
+    } else {
+      // a shake alone: the picture slid by whole pixels, as sharp as it was (the strip it leaves at one edge keeps
+      // what was there, a few pixels of the same ground)
+      const dx = Math.round(k * (v.cx - VW / 2)), dy = Math.round(k * (v.cy - VH / 2));
+      const x0 = Math.round(DPR * offX), y0 = Math.round(DPR * offY), w = Math.round(k * VW) - Math.abs(dx), h = Math.round(k * VH) - Math.abs(dy);
+      if ((dx || dy) && w > 0 && h > 0) c.drawImage(c.canvas, x0 + Math.max(0, dx), y0 + Math.max(0, dy), w, h, x0 + Math.max(0, -dx), y0 + Math.max(0, -dy), w, h);
+    }
+    if (v.dark > 0.01) {
+      c.setTransform(k, 0, 0, k, DPR * offX, DPR * offY);
+      c.beginPath(); c.rect(0, 0, VW, VH); c.clip();
+      // the point, where the camera now shows it
+      const x = VW / 2 + (v.fx - v.cx) * v.z, y = VH / 2 + (v.fy - v.cy) * v.z;
+      const g = c.createRadialGradient(x, y, 150, x, y, Math.max(VW, VH) * 0.62);
+      g.addColorStop(0, "rgba(10, 6, 3, 0)");
+      g.addColorStop(0.55, "rgba(10, 6, 3, " + (0.36 * v.dark).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(8, 5, 3, " + (0.7 * v.dark).toFixed(3) + ")");
+      c.fillStyle = g;
+      c.fillRect(0, 0, VW, VH);
+    }
+    c.restore();
   }
   // ---- the skip: in the last blow and the push-in, a tap, a click or a key does nothing but end it ----
   function busy() { return !!(B && !B.over) || !!(F && fallen && !F.tolled); }
@@ -4526,10 +4553,12 @@ const Cam = (() => {
     for (const n of ["pointerup", "mouseup", "touchend", "click", "keyup"]) window.addEventListener(n, onUp, { capture: true, passive: false });
   } catch (e) {}
   return {
-    killed, hold, slow, fall, tick, shake, view, shade, mode, stat,
+    killed, hold, slow, fall, tick, shake, view, paint, mode, stat,
     step() { stepN++; },
     // update: the battle's clock stands still from the winning kill until the victory is declared
     blowing() { return !!B; },
+    // the frame governor: the camera is at work on the picture
+    active() { return !!(B || F || out || S); },
     state() { return { blow: B ? { t: B.t, dur: B.dur, z: B.z, boss: B.boss, over: B.over } : null, push: !!(F && fallen && !F.tolled), busy: busy(), mode: mode() }; },
     // a new battle (resetGame)
     reset() { B = null; F = null; out = null; S = null; kill = null; staged = null; eatUntil = 0; try { document.body.classList.remove("camBlow", "camOut"); } catch (e) {} },
@@ -4563,7 +4592,8 @@ const Cam = (() => {
     requestAnimationFrame(tick);
     const dt = t - last; last = t;
     const live = !document.hidden && typeof paused !== "undefined" && !paused && overlayEl && overlayEl.classList.contains("hidden");
-    if (retired || !live || dt > 250 || t < calmUntil) { gaps.length = 0; return; }
+    // (the battle camera's frames are not the field's own pace: they are never judged)
+    if (retired || !live || dt > 250 || t < calmUntil || Cam.active()) { gaps.length = 0; return; }
     gaps.push(dt);
     if (gaps.length < 90) return;
     const med = gaps.slice().sort((a, b) => a - b)[45];
@@ -28126,22 +28156,16 @@ function draw(time) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = "#191410";
   ctx.fillRect(0, 0, w, h);
-  const cam = photo && photo.zoom ? null : Cam.view();
   if (photo && photo.zoom) {
     const z = scale * photo.zoom;
     ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (w / 2 - photo.cx * z), DPR * (h / 2 - photo.cy * z));
-  } else if (cam) {
-    // the battle camera: the field's own box on the screen, filled by the part of the field round (cx, cy)
-    const z = scale * cam.z;
-    ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (offX + scale * VW / 2 - cam.cx * z), DPR * (offY + scale * VH / 2 - cam.cy * z));
   } else {
     ctx.setTransform(DPR * scale, 0, 0, DPR * scale, DPR * offX, DPR * offY);
   }
   // nothing of the world may paint into the letterbox or under the HUD bars
   ctx.save();
   ctx.beginPath();
-  if (cam) ctx.rect(cam.cx - VW / 2 / cam.z, cam.cy - VH / 2 / cam.z, VW / cam.z, VH / cam.z);
-  else ctx.rect(0, 0, VW, VH);
+  ctx.rect(0, 0, VW, VH);
   ctx.clip();
 
   // first stage of the grade: the ground alone takes the darker, cooler tone of the hour
@@ -28224,10 +28248,11 @@ function draw(time) {
   if (celebration) drawCelebration(time);
   drawVignette();
   if (fallen) drawFall(time);
-  Cam.shade(ctx, cam);
   if (paused && overlayEl.classList.contains("hidden")) drawPausedBanner();
   if (photo && photo.labels) drawPhotoLabels();
   ctx.restore();
+  // the battle camera closes in on the finished picture (the last blow, the fall, a heavy hit's shake)
+  if (!(photo && photo.zoom)) Cam.paint(ctx);
 }
 
 // ---------- lighting, particle, spell and projectile helpers ----------
