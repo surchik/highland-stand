@@ -63589,8 +63589,14 @@ const MapLife = (() => {
     if (!allowed() || staged) return;
     if (!still()) { start(); return; }
     if (running) { running = false; if (march) finish(); }
-    if (mapShowing() && !isCovered() && !glow) begin();
-    redraw();
+    if (!mapShowing()) { hide(); return; }
+    if (!isCovered() && !glow) begin();
+    if (!layer || layer.style.display !== "block") redraw();
+  }
+  // the page turned (a chronicle, a story, a victory, a battle): the layer never outlasts the map on the screen
+  function turned() {
+    if (!mapShowing()) hide();
+    else if (!running) wake();
   }
 
   // ---- the hooks ----
@@ -63601,6 +63607,9 @@ const MapLife = (() => {
       beat = setInterval(wake, 1000);
       document.addEventListener("visibilitychange", () => { lastTick = performance.now(); wake(); });
       addEventListener("resize", () => { if (!running) redraw(); });
+      const mo = new MutationObserver(turned);
+      mo.observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+      mo.observe(cv(), { attributes: true, attributeFilter: ["style"] });
     }
     if (!still()) start();
   }
