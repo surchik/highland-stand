@@ -63026,7 +63026,7 @@ const MapLife = (() => {
   const MARCH_MS = 2200, LEAD_MS = 260, EMBER_MS = 1000, GLOW_MS = 400, FRAME_MS = 31, MAX_BACKING = 2880;
   const INK = "rgba(38, 24, 12, .82)", CRIMSON = "#c33a2e";
   let layer = null, g = null, raf = 0, running = false, beat = 0;
-  let clock = 0, lastTick = 0, lastDraw = 0, frames = 0, shownAt = 0, seenTicks = 0, awayTicks = 0, covered = false;
+  let clock = 0, lastTick = 0, lastDraw = 0, frames = 0, shownAt = 0, seenTicks = 0, awaySince = 0, coverAt = 0, covered = false;
   let box = { l: -1, t: -1, w: 0, h: 0, bw: 0, bh: 0 };
   let forts = {};                        // battlefield -> { top, k }: its fort as renderWorldMap last drew it
   let pend;                              // the battlefield whose march waits (-1 none); read from the save once
@@ -63547,14 +63547,18 @@ const MapLife = (() => {
     raf = 0;
     if (!allowed() || still()) { running = false; return; }
     if (!mapShowing()) {
-      // the page is turning (a menu being built, a fade): a short grace, then the loop ends and the layer is put away
-      if (++awayTicks > 24) { running = false; seenTicks = 0; hide(); if (march) finish(); return; }
+      // the map is gone from the page: the layer is put away at once (before the next paint), and the loop ends
+      // after a short grace (the page may only be turning: a menu being built)
+      hide();
+      if (!awaySince) awaySince = now;
+      if (now - awaySince > 400) { running = false; seenTicks = 0; if (march) finish(); return; }
       raf = requestAnimationFrame(tick);
       return;
     }
-    awayTicks = 0;
-    if (seenTicks++ === 0) { shownAt = clock; lastTick = now; }
-    if (seenTicks % 12 === 1) covered = isCovered();
+    awaySince = 0;
+    if (seenTicks++ === 0) { shownAt = clock; lastTick = now; coverAt = 0; }
+    if (document.hidden) covered = true;
+    else if (now - coverAt >= 150) { coverAt = now; covered = isCovered(); }
     const dt = Math.min(0.1, Math.max(0, (now - lastTick) / 1000));
     lastTick = now;
     if (!covered) {
@@ -63572,7 +63576,7 @@ const MapLife = (() => {
   }
   function start() {
     if (running || staged || !live() || menuMode !== "map") return;
-    running = true; awayTicks = 0; seenTicks = 0;
+    running = true; awaySince = 0; seenTicks = 0;
     if (!raf) raf = requestAnimationFrame(tick);
   }
   // the still frame (reduced motion): redrawn whenever the chart is
