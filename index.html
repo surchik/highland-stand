@@ -776,11 +776,59 @@
   /* the map leads the screen: it takes whatever height is left once title, seals and button are seated
      (so a long victory text shrinks the map instead of scrolling the page), up to 1180 px wide */
   #worldMap {
-    flex: 0 1 656px; min-height: 230px; max-height: min(656px, calc(92vw / 1.8)); aspect-ratio: 9 / 5; width: auto;
+    flex: 0 1 860px; min-height: 230px; max-height: min(860px, calc(92vw / 1.8)); aspect-ratio: 9 / 5; width: auto;
     border-radius: 5px; cursor: pointer;
     border: 3px solid var(--bronze-sh);
     box-shadow: 0 0 0 1px var(--bronze-hi), 0 0 0 5px var(--walnut), 0 0 0 6px var(--bronze-sh), 0 14px 40px rgba(0,0,0,.7);
     margin: 8px 0 6px;
+  }
+  /* the living map's layer (MapLife): a clear sheet laid exactly over the map's own, which takes no pointer */
+  #mapLife { position: absolute; left: 0; top: 0; pointer-events: none; display: none; border-radius: 2px; }
+  /* a wide window with room beside the map (a laptop, a desktop screen): the map takes the page from the frame's
+     left side to a column at the right, which holds the chapters as a list, the difficulty and the march. The
+     title, the page's words and a defeat's debrief keep their place over both. A window less wide than 17:10 (where
+     the one column gives the larger map), a tablet or a phone keeps the page in one column
+     (docs/specs/owner/living-map.md) */
+  @media (min-width: 1100px) and (min-height: 600px) and (min-aspect-ratio: 17/10) {
+    #overlay:not(.brief):not(.victory) {
+      --side: clamp(320px, 23vw, 400px);
+      display: grid; grid-template-columns: minmax(0, 1fr) var(--side); grid-template-rows: auto minmax(0, 1fr) auto;
+      column-gap: 18px; row-gap: 8px; align-items: center; justify-items: center; padding: 30px 62px 34px 44px; overflow: hidden;
+    }
+    #overlay:not(.brief):not(.victory) #ovPage { grid-column: 1 / -1; grid-row: 1; }
+    #overlay:not(.brief):not(.victory) #worldMap {
+      grid-column: 1; grid-row: 2 / -1; flex: none; margin: 0; min-height: 0; width: auto; height: auto;
+      max-width: min(calc(100% - 16px), 1440px); max-height: calc(100% - 16px);
+    }
+    #overlay:not(.brief):not(.victory) .chapterBar {
+      grid-column: 2; grid-row: 2; align-self: start; width: 100%; max-height: 100%; box-sizing: border-box; overflow-y: auto; margin: 0; padding: 3px 4px;
+      display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; gap: 8px 8px; align-items: center;
+    }
+    #overlay:not(.brief):not(.victory) .chTabs { grid-column: 1 / -1; grid-row: 1; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 6px; }
+    #overlay:not(.brief):not(.victory) .chTab { justify-content: flex-start; text-align: left; font-size: 14px; }
+    #overlay:not(.brief):not(.victory) .chTab .chLabel { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8px; flex: 1; margin: 0; }
+    #overlay:not(.brief):not(.victory) .chTab .chStars { font-size: 11px; }
+    #overlay:not(.brief):not(.victory) #chPrev { grid-column: 1; grid-row: 2; }
+    #overlay:not(.brief):not(.victory) .chStory { grid-column: 2; grid-row: 2; margin: 0; justify-content: center; }
+    #overlay:not(.brief):not(.victory) #chNext { grid-column: 3; grid-row: 2; }
+    #overlay:not(.brief):not(.victory) .ovFoot { grid-column: 2; grid-row: 3; width: 100%; box-sizing: border-box; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 0 4px 2px; }
+    #overlay:not(.brief):not(.victory) .diffRow { justify-content: center; gap: 6px; }
+    #overlay:not(.brief):not(.victory) .diffBtn { padding-right: 13px; }
+    #overlay:not(.brief):not(.victory) .bigRow { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    #overlay:not(.brief):not(.victory) .bigRow .big { margin: 0; padding: 11px 12px; justify-content: center; font-size: 18px; min-width: 0; }
+    #overlay:not(.brief):not(.victory) .bigRow .big.quiet, #overlay:not(.brief):not(.victory) #resumeBtn { padding: 8px 12px; font-size: 15.5px; }
+    #overlay:not(.brief):not(.victory) #startBtn { min-width: 0; }
+    #overlay:not(.brief):not(.victory) .big:hover { transform: scale(1.02); }
+  }
+  /* the same on a short window (a laptop's browser at 650 px): the column's rows a little closer */
+  @media (min-width: 1100px) and (min-height: 600px) and (max-height: 760px) and (min-aspect-ratio: 17/10) {
+    #overlay:not(.brief):not(.victory) .chTabs { gap: 4px; }
+    #overlay:not(.brief):not(.victory) .chapterBar { gap: 6px 8px; }
+    #overlay:not(.brief):not(.victory) .chTab { padding-top: 2px; padding-bottom: 2px; }
+    #overlay:not(.brief):not(.victory) .chTab .seal { height: 22px; min-width: 22px; }
+    #overlay:not(.brief):not(.victory) .ovFoot, #overlay:not(.brief):not(.victory) .bigRow { gap: 8px; }
+    #overlay:not(.brief):not(.victory) .bigRow .big { padding: 9px 12px; }
+    #overlay:not(.brief):not(.victory) .bigRow .big.quiet, #overlay:not(.brief):not(.victory) #resumeBtn { padding: 6px 12px; }
   }
   /* the chapter tabs above the map: pills like the difficulty seals, a roman numeral in the seal */
   .chapterBar { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; margin-top: 4px; flex-wrap: wrap; }
@@ -16905,6 +16953,7 @@ function endFall() {
       "Try Again");
   }
   showDebrief(debrief, lv);
+  if (!dailyRun) MapLife.lost(lv);   // the fort that fell glows like an ember on the map
   // a lost daily: its page has the daily's two doors (Fight again, the campaign map) and no map to choose from
   if (dailyRun) showVictoryScreen();
   Platform.defeatPage();    // a lost daily shows its score (nothing while the platform is off)
@@ -62698,6 +62747,7 @@ function mapRoad(i) {
 
 function renderWorldMap() {
   const cv = $("worldMap");
+  MapLife.before();
   if (cv.width !== MAP_W * MAP_BACKING) { cv.width = MAP_W * MAP_BACKING; cv.height = MAP_H * MAP_BACKING; }
   const m = cv.getContext("2d");
   const ch = CHAPTERS[mapChapter()], lv = ch.levels;
@@ -62716,7 +62766,7 @@ function renderWorldMap() {
   m.lineCap = "round";
   for (let k = 0; k < lv.length - 1; k++) {
     const i = lv[k], a = MAP_NODES[i], b = MAP_NODES[i + 1], r = mapRoad(i);
-    const open = levelUnlocked(i + 1);
+    const open = levelUnlocked(i + 1) && !MapLife.holds(i + 1);   // (a road the march has still to ink stays closed)
     m.setLineDash(open ? [7, 5.5] : [1.5, 5.5]);
     m.strokeStyle = open ? "rgba(112, 44, 24, .95)" : "rgba(96, 62, 34, .46)";
     m.lineWidth = open ? 2.3 : 1.7;
@@ -62730,7 +62780,7 @@ function renderWorldMap() {
   // nodes
   for (const i of lv) {
     const n = MAP_NODES[i];
-    const unlocked = levelUnlocked(i);
+    const unlocked = levelUnlocked(i) && !MapLife.holds(i);
     const conquered = levelConquered(i);
     const sel = i === curLevel;
     const hov = i === mapHover;
@@ -62769,7 +62819,10 @@ function renderWorldMap() {
     if (hov && unlocked) m.scale(1.12, 1.12);
     const top = drawMapFort(m, MAP_FORTS[i] || "citadel", !unlocked);
     // a won fortress flies its banner; its stars are on its nameplate
-    if (conquered) drawMapBanner(m, top);
+    // (the living map flies it in the wind on its own layer, where that layer is on: MapLife)
+    const baked = conquered && !MapLife.flies();
+    if (baked) drawMapBanner(m, top);
+    MapLife.fort(i, top, hov && unlocked ? 1.12 : 1, baked);
     if (!unlocked) drawMapPadlock(m, 0, 3);
     m.restore();
   }
@@ -62784,7 +62837,7 @@ function renderWorldMap() {
   const plateK = mapPlateK();
   for (const i of lv.filter(k => k !== curLevel).concat(lv.includes(curLevel) ? [curLevel] : [])) {
     const n = MAP_NODES[i], pl = n.plate || [0, 0];
-    const unlocked = levelUnlocked(i);
+    const unlocked = levelUnlocked(i) && !MapLife.holds(i);
     const sel = i === curLevel;
     // a stand lost before the lengths may have reached a wave past this battlefield's length: shown as its last
     const best = Math.min(levelBestAnyEra(i), levelWaves(i)), rec = levelStanding(i);
@@ -62795,6 +62848,7 @@ function renderWorldMap() {
     mapPlatesDrawn.push(Object.assign({ i }, drawMapPlate(m, n.x + pl[0], n.y + 21 + pl[1], LEVELS[i].name,
       plateK > 1 ? "" : hyName("field", LEVELS[i].name), status, Object.assign({ sel, locked: !unlocked, rec: rec.stars ? rec : null, edge: pl[2] }, plateK > 1 ? { k: plateK } : {}))));
   }
+  MapLife.after();
 }
 
 // how much larger a phone draws the map's plates (1 elsewhere): the map is drawn a little over half its size there
@@ -62812,9 +62866,10 @@ function mapNodeRadius() {
 }
 function mapNodeAt(evt) {
   const cv = $("worldMap");
-  const r = cv.getBoundingClientRect();
-  const mx = (evt.clientX - r.left) * (MAP_W / r.width);
-  const my = (evt.clientY - r.top) * (MAP_H / r.height);
+  // (the sheet is the canvas inside its bronze border: the border's width is no part of the chart)
+  const r = cv.getBoundingClientRect(), bl = cv.clientLeft, bt = cv.clientTop;
+  const mx = (evt.clientX - r.left - bl) * (MAP_W / Math.max(1, r.width - 2 * bl));
+  const my = (evt.clientY - r.top - bt) * (MAP_H / Math.max(1, r.height - 2 * bt));
   if (isPhone()) {
     let best = -1, bd = mapNodeRadius();
     for (const i of CHAPTERS[mapChapter()].levels) {
@@ -62954,6 +63009,656 @@ function turnChapter(c) {
   if (!chaptersSeen().includes(c)) showChapterIntro(c);
 }
 
+// ====================================== THE LIVING MAP ======================================
+// The campaign map is a chart on a table, and it lives (docs/specs/owner/living-map.md): a clear second canvas,
+// #mapLife, lies exactly over #worldMap and is redrawn about thirty times a second in the chart's own ink and wash.
+// Cloud shadows drift over the highlands, the rivers and lakes shimmer, a won fortress flies its banner in the wind
+// over a wisp of hearth smoke, the battlefield still to be won stands under threat (a camp, its smoke, a column on
+// the road, a slow ring), birds cross now and then and the compass needle settles. A victory that opens a road is
+// marched on the map when the player comes back to it (the march), and a lost stand leaves an ember glow.
+// The baked chart under it (renderWorldMap) is never redrawn for any of this, and nothing here takes a pointer:
+// the map's own canvas answers every tap as before.
+// Off under the photo and self-test harness (a still is staged with stage()) and under automation (navigator.webdriver)
+// unless a test sets window.__hsMapTest. With prefers-reduced-motion nothing drifts or waves: the layer holds one
+// still frame (the threat, in ink) and the march is an instant change with a short highlight.
+const MapLife = (() => {
+  const KEY = "hs_map_march";            // the id of the battlefield whose newly opened road waits to be marched
+  const MARCH_MS = 2200, LEAD_MS = 260, EMBER_MS = 1000, GLOW_MS = 400, FRAME_MS = 31, MAX_BACKING = 2880;
+  const INK = "rgba(38, 24, 12, .82)", CRIMSON = "#c33a2e";
+  let layer = null, g = null, raf = 0, running = false, beat = 0;
+  let clock = 0, lastTick = 0, lastDraw = 0, frames = 0, shownAt = 0, seenTicks = 0, awaySince = 0, coverAt = 0, covered = false;
+  let box = { l: -1, t: -1, w: 0, h: 0, bw: 0, bh: 0 };
+  let forts = {};                        // battlefield -> { top, k }: its fort as renderWorldMap last drew it
+  let pend;                              // the battlefield whose march waits (-1 none); read from the save once
+  let march = null;                      // { from, to, mode, t0, p, held, fixed }
+  let ember = null, glow = null;         // { i, t0, p }: a lost stand's ember; { i, t0 }: the still march's highlight
+  let staged = false, marches = 0, skipOn = false, soon = 0, mending = false;
+  const specs = {}, lines = {};
+
+  function testing() { return !!window.__hsMapTest; }
+  function allowed() { return staged || (!HARNESS_ON && (!navigator.webdriver || testing())); }
+  function still() { return !staged && reducedMotion(); }
+  function live() { return allowed() && !still(); }
+  function cv() { return $("worldMap"); }
+  function mapShowing() {
+    return menuMode === "map" && !overlayEl.classList.contains("hidden") && !overlayEl.classList.contains("victory") && cv().clientWidth > 0;
+  }
+  // Settings, the Hall, or anything else that lies over the middle of the map (the Town, Nardi, a card, a gate)
+  function isCovered() {
+    if (document.hidden) return true;
+    const st = $("settings"), hl = $("hall");
+    if ((st && st.style.display === "block") || (hl && !hl.classList.contains("hlHidden"))) return true;
+    const r = cv().getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return false;
+    const el = document.elementFromPoint(x, y);
+    return !!el && el !== cv() && el !== overlayEl;
+  }
+
+  // ---- the layer, laid over the map's own sheet (its content box) to the pixel ----
+  function ensure() {
+    if (layer) return;
+    layer = document.createElement("canvas");
+    layer.id = "mapLife";
+    layer.setAttribute("aria-hidden", "true");
+    cv().insertAdjacentElement("afterend", layer);
+    g = layer.getContext("2d");
+  }
+  function hide() {
+    if (layer && layer.style.display !== "none") { layer.style.display = "none"; box.l = -1; }
+  }
+  function place() {
+    const c = cv(), w = c.clientWidth, h = c.clientHeight;
+    if (!w || !h) { hide(); return false; }
+    ensure();
+    const r = c.getBoundingClientRect(), o = overlayEl.getBoundingClientRect();
+    const l = r.left - o.left + overlayEl.scrollLeft - overlayEl.clientLeft + c.clientLeft;
+    const t = r.top - o.top + overlayEl.scrollTop - overlayEl.clientTop + c.clientTop;
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const bw = Math.min(MAX_BACKING, Math.round(w * dpr)), bh = Math.round(bw * h / w);
+    if (layer.width !== bw || layer.height !== bh) { layer.width = bw; layer.height = bh; }
+    if (box.l !== l || box.t !== t || box.w !== w || box.h !== h) {
+      layer.style.left = l + "px"; layer.style.top = t + "px"; layer.style.width = w + "px"; layer.style.height = h + "px";
+    }
+    if (layer.style.display !== "block") layer.style.display = "block";
+    box = { l, t, w, h, bw, bh };
+    return true;
+  }
+
+  // ---- what the chart holds: its waters and its compass, in chart units ----
+  function spec() {
+    const ch = CHAPTERS[mapChapter()], id = MAP_CHARTS[ch.chart] ? ch.chart : "highlands";
+    if (!specs[id]) {
+      const S = MAP_CHARTS[id].geo ? mapGeoSpec(id) : MAP_HIGHLANDS;
+      const rivers = S.rivers.map(r => {
+        const pts = r.pts, line = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+          for (let s = 0; s < 8; s++) {
+            const t = s / 8, t2 = t * t, t3 = t2 * t;
+            line.push([
+              0.5 * (2 * p1[0] + (p2[0] - p0[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (3 * p1[0] - p0[0] - 3 * p2[0] + p3[0]) * t3),
+              0.5 * (2 * p1[1] + (p2[1] - p0[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (3 * p1[1] - p0[1] - 3 * p2[1] + p3[1]) * t3),
+            ]);
+          }
+        }
+        line.push(pts[pts.length - 1]);
+        const path = new Path2D();
+        line.forEach((q, i) => (i ? path.lineTo(q[0], q[1]) : path.moveTo(q[0], q[1])));
+        return { path, w: Math.max(0.5, Math.min(1.25, (r.w0 + r.w1) * 0.19)) };
+      });
+      const ring = (path, pts) => {
+        const n = pts.length;
+        path.moveTo((pts[n - 1][0] + pts[0][0]) / 2, (pts[n - 1][1] + pts[0][1]) / 2);
+        for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; path.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+        path.closePath();
+      };
+      const bounds = pts => {
+        const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+        const x0 = Math.max(16, Math.min(...xs)), y0 = Math.max(16, Math.min(...ys)), x1 = Math.min(MAP_W - 16, Math.max(...xs)), y1 = Math.min(MAP_H - 16, Math.max(...ys));
+        return [x0, y0, Math.max(0, x1 - x0), Math.max(0, y1 - y0)];
+      };
+      const waters = [];
+      for (const l of S.lakes) { const path = new Path2D(); ring(path, l.pts); waters.push({ path, b: bounds(l.pts) }); }
+      for (const s of S.seas || []) { const path = new Path2D(); ring(path, s.ring); s.islands.forEach(q => ring(path, q)); waters.push({ path, b: bounds(s.ring), sea: true }); }
+      for (const w of waters) w.n = Math.max(2, Math.min(9, Math.round(w.b[2] * w.b[3] / 900)));
+      specs[id] = { rivers, waters: waters.filter(w => w.b[2] > 14 && w.b[3] > 8), compass: S.compass || [676, 54, 23] };
+    }
+    return specs[id];
+  }
+  // a road as a line of points (the campaign road from battlefield i to the next), from its fort's foot
+  function roadLine(i) {
+    if (!lines[i]) {
+      const a = MAP_NODES[i], b = MAP_NODES[i + 1], r = mapRoad(i), L = [];
+      for (let s = 0; s <= 48; s++) {
+        const t = s / 48, u = 1 - t;
+        L.push([u * u * u * a.x + 3 * u * u * t * r[0] + 3 * u * t * t * r[2] + t * t * t * b.x,
+          u * u * u * (a.y + 5) + 3 * u * u * t * r[1] + 3 * u * t * t * r[3] + t * t * t * (b.y + 5)]);
+      }
+      lines[i] = L;
+    }
+    return lines[i];
+  }
+  function along(L, t) {
+    const f = Math.max(0, Math.min(1, t)) * (L.length - 1), i = Math.min(L.length - 2, Math.floor(f)), k = f - i;
+    return [L[i][0] + (L[i + 1][0] - L[i][0]) * k, L[i][1] + (L[i + 1][1] - L[i][1]) * k];
+  }
+  function hash(a, b) { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); }
+  function ease(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+  // the battlefield the campaign stands before on this chart: open, not yet won (none when the chart is all won)
+  function frontier() {
+    for (const i of CHAPTERS[mapChapter()].levels) if (levelUnlocked(i) && !levelConquered(i) && !holds(i)) return i;
+    return -1;
+  }
+
+  // ---- the pieces ----
+  function wisp(x, y, h, T, seed, a, lean) {
+    g.lineCap = "round"; g.lineWidth = 1.15;
+    let px = x, py = y;
+    for (let s = 1; s <= 9; s++) {
+      const v = s / 9, nx = x + Math.sin(v * 4.2 - T * 1.25 + seed) * 2.2 * v + v * v * lean, ny = y - v * h;
+      g.strokeStyle = "rgba(64, 48, 34, " + (a * (1 - v) * (v < 0.15 ? v / 0.15 : 1)).toFixed(3) + ")";
+      g.lineWidth = 1 + v * 1.5;
+      g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.stroke();
+      px = nx; py = ny;
+    }
+  }
+  // a won fortress's banner in the wind (drawMapBanner's, its cloth alive); rise 0..1 runs it up the pole
+  function banner(top, T, seed, rise) {
+    const r = rise === undefined ? 1 : rise, pole = 13 * Math.min(1, r * 1.6), y0 = top + 1 - pole;
+    g.strokeStyle = INK; g.lineWidth = 1.1; g.lineCap = "round"; g.lineJoin = "round";
+    g.beginPath(); g.moveTo(0, top + 1); g.lineTo(0, y0); g.stroke();
+    const out = Math.max(0, Math.min(1, (r - 0.35) / 0.65));
+    if (out > 0) {
+      const len = 13.2 * out, wave = u => Math.sin(u * 5.2 - T * 4.6 + seed) * 1.25 * u + Math.sin(u * 2.3 - T * 2.1 + seed * 2) * 0.7 * u;
+      g.beginPath();
+      g.moveTo(0.4, y0);
+      for (let s = 1; s <= 8; s++) { const u = s / 8; g.lineTo(0.4 + len * u, y0 + 0.5 * u + wave(u)); }
+      g.lineTo(0.4 + len * 0.8, y0 + 3.1 + wave(0.8));
+      for (let s = 8; s >= 0; s--) { const u = s / 8; g.lineTo(0.4 + len * u, y0 + 6 - 0.2 * u + wave(u * 0.96)); }
+      g.closePath();
+      g.fillStyle = CRIMSON; g.fill();
+      g.lineWidth = 0.9; g.stroke();
+    }
+    g.beginPath(); g.arc(0, y0 - 0.6, 1.3, 0, Math.PI * 2);
+    g.fillStyle = "#f0cf85"; g.fill(); g.lineWidth = 0.9; g.stroke();
+  }
+  function tent(x, y, k) {
+    g.save(); g.translate(x, y); g.scale(k, k);
+    g.lineJoin = "round"; g.lineCap = "round";
+    g.beginPath(); g.moveTo(-5.2, 0); g.lineTo(0, -6.6); g.lineTo(5.2, 0); g.closePath();
+    g.fillStyle = "#b9a076"; g.fill();
+    g.beginPath(); g.moveTo(0, -6.6); g.lineTo(5.2, 0); g.lineTo(1.4, 0); g.closePath();
+    g.fillStyle = "rgba(70, 46, 26, .5)"; g.fill();
+    g.strokeStyle = INK; g.lineWidth = 0.85;
+    g.beginPath(); g.moveTo(-5.2, 0); g.lineTo(0, -6.6); g.lineTo(5.2, 0); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(0, -6.6); g.lineTo(0, -9.6); g.stroke();
+    g.beginPath(); g.moveTo(0, -9.6); g.lineTo(3.4, -8.7); g.lineTo(0, -7.7); g.closePath();
+    g.fillStyle = "#3a2a1c"; g.fill();
+    g.restore();
+  }
+  // where a camp may stand about a fort: on the sheet, clear of every nameplate and of the other forts
+  function campSpots(f) {
+    const n = MAP_NODES[f], out = [];
+    const cand = [[-47, -1], [48, -3], [-40, -25], [42, -27], [-60, 13], [61, 11], [2, -46], [-68, -14], [69, -16]];
+    for (const c of cand) {
+      const x = n.x + c[0], y = n.y + c[1];
+      if (x < 26 || x > MAP_W - 26 || y < 30 || y > MAP_H - 22) continue;
+      if (mapPlatesDrawn.some(p => x > p.x - 9 && x < p.x + p.w + 9 && y > p.y - 4 && y < p.y + p.h + 12)) continue;
+      if (CHAPTERS[mapChapter()].levels.some(k => k !== f && Math.hypot(MAP_NODES[k].x - x, MAP_NODES[k].y - y) < 34)) continue;
+      const C = spec().compass;
+      if (Math.hypot(C[0] - x, C[1] - y) < C[2] + 14) continue;
+      out.push([x, y]);
+      if (out.length === 3) break;
+    }
+    return out;
+  }
+  function threat(f, T, mo, a) {
+    const n = MAP_NODES[f];
+    g.save();
+    g.globalAlpha = a;
+    // the slow ring
+    if (mo) {
+      for (let k = 0; k < 2; k++) {
+        const ph = (T / 2.8 + k * 0.5) % 1;
+        g.strokeStyle = "rgba(160, 42, 32, " + (0.5 * Math.sin(ph * Math.PI)).toFixed(3) + ")";
+        g.lineWidth = 1.7 - ph * 0.7;
+        g.beginPath(); g.arc(n.x, n.y - 2, 31 + ph * 15, 0, Math.PI * 2); g.stroke();
+      }
+    } else {
+      g.strokeStyle = "rgba(160, 42, 32, .5)"; g.lineWidth = 1.2; g.setLineDash([3, 3.4]);
+      g.beginPath(); g.arc(n.x, n.y - 2, 34, 0, Math.PI * 2); g.stroke();
+      g.setLineDash([]);
+    }
+    // the column on the road from the fort beyond, where that road is on this chart
+    const lv = CHAPTERS[mapChapter()].levels;
+    if (lv.includes(f + 1)) {
+      const L = roadLine(f);
+      for (let k = 0; k < 6; k++) {
+        const u = mo ? (T * 0.03 + k * 0.05) % 0.5 : k * 0.05 + 0.1, s = 0.78 - u, q = along(L, s);
+        const fade = Math.min(1, u / 0.06, (0.5 - u) / 0.08);
+        g.fillStyle = "rgba(58, 22, 16, " + (0.86 * Math.max(0, fade)).toFixed(3) + ")";
+        g.beginPath(); g.arc(q[0], q[1] + (mo ? Math.sin(T * 7 + k * 1.7) * 0.35 : 0), k === 0 ? 1.9 : 1.55, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // the camp and its fires
+    const spots = campSpots(f);
+    spots.forEach((p, k) => {
+      if (mo) wisp(p[0] + (k % 2 ? -9 : 9), p[1] - 1, 25, T, f * 3 + k * 2.1, 0.66, 8);
+      tent(p[0], p[1], 1.4);
+      if (k === 0) tent(p[0] + (p[0] < n.x ? -12 : 12), p[1] + 4.5, 1.1);
+    });
+    g.restore();
+  }
+  function ripples(S, T) {
+    g.lineCap = "round";
+    g.setLineDash([3.2, 14]);
+    for (const r of S.rivers) {
+      g.lineDashOffset = -T * 8.5;
+      g.strokeStyle = "rgba(240, 250, 248, .78)";
+      g.lineWidth = r.w;
+      g.stroke(r.path);
+    }
+    g.setLineDash([]); g.lineDashOffset = 0;
+    for (const w of S.waters) {
+      g.save();
+      g.clip(w.path, "evenodd");
+      for (let k = 0; k < w.n; k++) {
+        const c = T * 0.16 + k / w.n, ph = c % 1, gen = Math.floor(c), a = Math.sin(ph * Math.PI);
+        const len = 9 + hash(k, gen) * 9, x = w.b[0] + hash(k + 3, gen) * Math.max(1, w.b[2] - len) + ph * 5, y = w.b[1] + 4 + hash(k + 7, gen) * Math.max(1, w.b[3] - 8);
+        g.lineWidth = 0.9;
+        g.strokeStyle = (k % 2 ? "rgba(244, 252, 250, " : "rgba(30, 58, 74, ") + ((k % 2 ? 0.8 : 0.5) * a).toFixed(3) + ")";
+        g.beginPath();
+        g.moveTo(x, y);
+        g.quadraticCurveTo(x + len * 0.25, y - 1.6, x + len * 0.5, y);
+        g.quadraticCurveTo(x + len * 0.75, y + 1.6, x + len, y);
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+  function clouds(T) {
+    const C = [[40, 96, 1.05, 6.4], [330, 250, 1.3, 5.2], [610, 340, 0.9, 7.2], [520, 70, 0.8, 5.8]];
+    C.forEach((c, i) => {
+      const span = MAP_W + 420, x = ((c[0] + T * c[3]) % span + span) % span - 210, y = c[1] + Math.sin(T * 0.05 + i * 2) * 9;
+      for (const b of [[0, 0, 78], [58, 10, 60], [-52, 8, 54], [14, -16, 50]]) {
+        const R = b[2] * c[2];
+        g.save();
+        g.translate(x + b[0] * c[2], y + b[1] * c[2]);
+        g.scale(1, 0.56);
+        const gr = g.createRadialGradient(0, 0, R * 0.15, 0, 0, R);
+        gr.addColorStop(0, "rgba(58, 48, 40, .105)");
+        gr.addColorStop(0.55, "rgba(58, 48, 40, .06)");
+        gr.addColorStop(1, "rgba(58, 48, 40, 0)");
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
+        g.restore();
+      }
+    });
+  }
+  function birds(T) {
+    const period = 21, c = Math.floor(T / period), u = (T - c * period) / 12;
+    if (u >= 1) return;
+    const ltr = hash(c, 5) > 0.4, y0 = 70 + hash(c, 1) * 230, dy = -50 + hash(c, 2) * 60;
+    const x = ltr ? -30 + u * (MAP_W + 60) : MAP_W + 30 - u * (MAP_W + 60), y = y0 + dy * u + Math.sin(u * 9) * 5;
+    g.strokeStyle = "rgba(38, 24, 12, .72)"; g.lineWidth = 0.95; g.lineCap = "round"; g.lineJoin = "round";
+    const n = 3 + Math.floor(hash(c, 3) * 3);
+    for (let k = 0; k < n; k++) {
+      const row = Math.ceil(k / 2), side = k % 2 ? 1 : -1;
+      const bx = x - (ltr ? 1 : -1) * row * 8.5, by = y + side * row * 5 + Math.sin(T * 1.3 + k) * 1.2, flap = Math.sin(T * 8.5 + k * 1.9), s = 3.3;
+      g.beginPath();
+      g.moveTo(bx - s, by - 0.9 + flap * 1.5);
+      g.quadraticCurveTo(bx - s * 0.45, by - 1.5 + flap * 0.4, bx, by);
+      g.quadraticCurveTo(bx + s * 0.45, by - 1.5 + flap * 0.4, bx + s, by - 0.9 + flap * 1.5);
+      g.stroke();
+    }
+  }
+  // a loose needle over the rose: it swings as the chart is laid out and settles on north
+  function needle(S, T) {
+    const C = S.compass, x = C[0], y = C[1], r = C[2] * 0.6, tau = Math.max(0, T - shownAt);
+    const a = 0.85 * Math.exp(-tau / 1.9) * Math.cos(tau * 4.4) + 0.022 * Math.sin(T * 0.9);
+    g.save();
+    g.translate(x, y); g.rotate(a);
+    g.lineJoin = "round"; g.strokeStyle = INK; g.lineWidth = 0.6;
+    g.beginPath(); g.moveTo(0, -r); g.lineTo(1.7, 0); g.lineTo(-1.7, 0); g.closePath();
+    g.fillStyle = "#b5302a"; g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(0, r * 0.82); g.lineTo(1.7, 0); g.lineTo(-1.7, 0); g.closePath();
+    g.fillStyle = "#34261a"; g.fill(); g.stroke();
+    g.beginPath(); g.arc(0, 0, 1.5, 0, Math.PI * 2); g.fillStyle = "#e3b752"; g.fill(); g.stroke();
+    g.restore();
+  }
+  function emberGlow(i, p) {
+    const n = MAP_NODES[i], a = Math.sin(Math.min(1, p) * Math.PI) * (0.75 + 0.25 * Math.sin(p * 30));
+    const gr = g.createRadialGradient(n.x, n.y, 3, n.x, n.y, 38);
+    gr.addColorStop(0, "rgba(255, 150, 60, " + (0.6 * a).toFixed(3) + ")");
+    gr.addColorStop(0.5, "rgba(214, 70, 30, " + (0.3 * a).toFixed(3) + ")");
+    gr.addColorStop(1, "rgba(180, 40, 20, 0)");
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(n.x, n.y, 38, 0, Math.PI * 2); g.fill();
+    for (let k = 0; k < 7; k++) {
+      const q = Math.max(0, Math.min(1, p * 1.25 - hash(k, i + 1) * 0.3));
+      if (q <= 0 || q >= 1) continue;
+      g.fillStyle = "rgba(255, 176, 70, " + (0.9 * (1 - q)).toFixed(3) + ")";
+      g.beginPath(); g.arc(n.x - 13 + hash(k, 9) * 26 + Math.sin(q * 6 + k) * 2, n.y + 4 - q * (20 + hash(k, 4) * 16), 1.15, 0, Math.PI * 2); g.fill();
+    }
+  }
+  function plateGlow(i, a) {
+    const p = mapPlatesDrawn.find(q => q.i === i);
+    if (!p || a <= 0) return;
+    g.save();
+    g.shadowColor = "rgba(255, 206, 96, " + a.toFixed(3) + ")"; g.shadowBlur = 16 * (box.bw / MAP_W);
+    g.strokeStyle = "rgba(255, 214, 110, " + a.toFixed(3) + ")"; g.lineWidth = 2.6;
+    g.strokeRect(p.x - 1, p.y - 1, p.w + 2, p.h + 2);
+    g.restore();
+    g.fillStyle = "rgba(255, 226, 150, " + (0.3 * a).toFixed(3) + ")";
+    g.fillRect(p.x, p.y, p.w, p.h);
+  }
+
+  // the march on the chart, p of the way through: the won fort's banner runs up (0 to .25), the road inks itself
+  // from that fort to the one it opens with a banner-bearer at its head (.16 to .8), the seal on the new fort
+  // breaks and its plate lights (.8 to 1). The road and the new fort stay as they were on the baked chart until .8
+  function marchGround(M, T) {
+    const p = M.p, lv = CHAPTERS[mapChapter()].levels;
+    if (M.mode === "road") {
+      const L = roadLine(M.from), q = Math.max(0, Math.min(1, (p - 0.16) / 0.62));
+      if (q > 0 && p < 0.8) {
+        const N = Math.max(1, Math.round(q * (L.length - 1)));
+        g.setLineDash([7, 5.5]); g.lineCap = "round"; g.lineJoin = "round";
+        g.strokeStyle = "rgba(112, 44, 24, .95)"; g.lineWidth = 2.3;
+        g.beginPath(); g.moveTo(L[0][0], L[0][1]);
+        for (let s = 1; s < N; s++) g.lineTo(L[s][0], L[s][1]);
+        const h = along(L, q);
+        g.lineTo(h[0], h[1]); g.stroke();
+        g.setLineDash([]);
+      }
+      if (q > 0 && q < 1) bearer(along(L, q), T);
+    } else if (M.mode === "on" && lv.includes(M.from)) {
+      // the road leads off this chart: a short route toward its edge, and the words for it
+      const a = MAP_NODES[M.from], east = a.x < MAP_W * 0.62, ex = east ? Math.min(MAP_W - 30, a.x + 150) : Math.max(30, a.x - 150), ey = Math.max(46, a.y - 34);
+      const q = ease((p - 0.16) / 0.5), fade = p > 0.86 ? Math.max(0, (1 - p) / 0.14) : 1, L = [];
+      for (let s = 0; s <= 30; s++) {
+        const t = s / 30, u = 1 - t, mx = (a.x + ex) / 2, my = Math.min(a.y, ey) - 22;
+        L.push([u * u * a.x + 2 * u * t * mx + t * t * ex, u * u * (a.y + 5) + 2 * u * t * my + t * t * ey]);
+      }
+      if (q > 0) {
+        g.save(); g.globalAlpha = fade;
+        g.setLineDash([7, 5.5]); g.lineCap = "round"; g.strokeStyle = "rgba(112, 44, 24, .95)"; g.lineWidth = 2.3;
+        g.beginPath(); g.moveTo(L[0][0], L[0][1]);
+        const N = Math.max(1, Math.round(q * 30));
+        for (let s = 1; s <= N; s++) g.lineTo(L[s][0], L[s][1]);
+        g.stroke(); g.setLineDash([]);
+        const h = L[N], h0 = L[Math.max(0, N - 2)], an = Math.atan2(h[1] - h0[1], h[0] - h0[0]);
+        g.fillStyle = "rgba(112, 44, 24, .95)";
+        g.beginPath(); g.moveTo(h[0] + Math.cos(an) * 7, h[1] + Math.sin(an) * 7);
+        g.lineTo(h[0] + Math.cos(an + 2.5) * 5, h[1] + Math.sin(an + 2.5) * 5); g.lineTo(h[0] + Math.cos(an - 2.5) * 5, h[1] + Math.sin(an - 2.5) * 5);
+        g.closePath(); g.fill();
+        if (q > 0.6) {
+          g.globalAlpha = fade * Math.min(1, (q - 0.6) / 0.3);
+          g.font = "italic 600 11px " + UI_FONT; g.textAlign = "center";
+          g.lineWidth = 3; g.strokeStyle = "rgba(244, 232, 200, .9)"; g.lineJoin = "round";
+          g.strokeText("The road leads on", (a.x + ex) / 2, Math.min(a.y, ey) - 22);
+          g.fillStyle = "#5a2414";
+          g.fillText("The road leads on", (a.x + ex) / 2, Math.min(a.y, ey) - 22);
+          g.textAlign = "left";
+        }
+        g.restore();
+      }
+    }
+    // the seal breaks: its two halves fall away from the fort, and a ring of light goes out
+    if (p >= 0.8 && lv.includes(M.to)) {
+      const u = (p - 0.8) / 0.2, n = MAP_NODES[M.to];
+      for (const side of [-1, 1]) {
+        g.save();
+        g.globalAlpha = Math.max(0, 1 - u * 1.15);
+        g.translate(n.x + side * u * 15, n.y + 3 - Math.sin(u * Math.PI) * 9 + u * 12);
+        g.rotate(side * u * 1.5);
+        g.beginPath(); g.rect(side < 0 ? -10 : 0, -10, 10, 20); g.clip();
+        drawMapPadlock(g, 0, 0);
+        g.restore();
+      }
+      g.strokeStyle = "rgba(255, 200, 80, " + (0.85 * (1 - u)).toFixed(3) + ")"; g.lineWidth = 2.6 - u * 1.6;
+      g.beginPath(); g.arc(n.x, n.y - 2, 12 + u * 34, 0, Math.PI * 2); g.stroke();
+    }
+  }
+  function bearer(q, T) {
+    const bob = Math.abs(Math.sin(T * 9)) * 1.1;
+    g.save(); g.translate(q[0], q[1] - bob); g.scale(1.4, 1.4);
+    g.fillStyle = "rgba(38, 24, 12, .22)";
+    g.beginPath(); g.ellipse(0, 1 + bob, 4.2, 1.5, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = INK; g.lineCap = "round"; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, 0.5); g.lineTo(0, -5); g.stroke();
+    g.beginPath(); g.arc(0, -6.6, 1.9, 0, Math.PI * 2); g.fillStyle = "#3a2616"; g.fill();
+    g.save(); g.translate(2.6, -17); g.scale(0.8, 0.8); banner(12, T, 1.3, 1); g.restore();
+    g.restore();
+  }
+
+  // one frame of the layer, T seconds on its clock; mo: things move (false holds a still frame)
+  function frame(T, mo) {
+    if (!place()) return;
+    const k = box.bw / MAP_W, S = spec(), lv = CHAPTERS[mapChapter()].levels;
+    // the baked chart and the layer must agree on who draws the banners (the chart was last drawn on another page,
+    // or the player's motion setting changed): the chart is drawn again, once
+    if (!mending && lv.some(i => forts[i] && levelConquered(i) && forts[i].baked === flies())) {
+      mending = true;
+      try { renderWorldMap(); } catch (e) {}
+      mending = false;
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, box.bw, box.bh);
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.save();
+    g.beginPath(); g.rect(13, 13, MAP_W - 26, MAP_H - 26); g.clip();
+    // on the ground: the waters, the forts' banners and smoke, the threat, the march
+    if (mo) ripples(S, T);
+    const rising = march && march.p < 0.25 ? march.from : -1;
+    for (const i of lv) {
+      const F = forts[i], n = MAP_NODES[i];
+      if (!F || !levelConquered(i)) continue;
+      if (waits(i)) continue;                       // its banner is not up yet: the march will raise it
+      if (mo) {
+        wisp(n.x - 7 * F.k, n.y + (F.top + 5) * F.k, 15, T, i * 1.7, 0.34, 6);
+        g.save(); g.translate(n.x, n.y); g.scale(F.k, F.k);
+        banner(F.top, T, i * 2.3, i === rising ? ease(march.p / 0.25) : 1);
+        g.restore();
+      }
+    }
+    const f = frontier();
+    if (f >= 0) threat(f, T, mo, march && march.to === f ? ease((march.p - 0.86) / 0.14) : 1);
+    if (ember && ember.p > 0) emberGlow(ember.i, ember.p);
+    if (march) marchGround(march, T);
+    if (mo) needle(S, T);
+    // the nameplates stand over everything on the ground, as on the baked chart
+    for (const p of mapPlatesDrawn) g.clearRect(p.x - 1.5, p.y - 1.5, p.w + 3, p.h + 3);
+    // over them: the light on a newly opened plate, the cloud shadows, the birds
+    if (march && march.p >= 0.8 && lv.includes(march.to)) plateGlow(march.to, 1 - (march.p - 0.8) / 0.2);
+    if (glow) plateGlow(glow.i, 0.9);
+    if (mo) { clouds(T); birds(T); }
+    g.restore();
+    frames++;
+  }
+
+  // ---- the march's state ----
+  function readPend() {
+    if (pend === undefined) {
+      pend = -1;
+      try { const id = localStorage.getItem(KEY); if (id) pend = levelIndexOf(id); } catch (e) {}
+    }
+    return pend;
+  }
+  function dropPend() { pend = -1; try { localStorage.removeItem(KEY); } catch (e) {} }
+  // the march that waits, if it still tells the truth: its road newly open, its fort not yet won, one end on this chart
+  function pending() {
+    const to = readPend();
+    if (to < 1) return -1;
+    if (!levelOpen(to) || levelConquered(to) || !levelConquered(to - 1)) { dropPend(); return -1; }
+    const c = mapChapter();
+    return c === chapterOf(to) || c === chapterOf(to - 1) ? to : -1;
+  }
+  // the baked chart keeps a road and its fort closed until the march opens them
+  function holds(i) {
+    if (!live() || i < 1) return false;
+    if (march) return march.held && march.to === i;
+    return pending() === i;
+  }
+  // a won fort whose banner the march has still to raise
+  function waits(i) {
+    if (!live()) return false;
+    return march ? false : pending() === i + 1;
+  }
+  function begin() {
+    const to = pending();
+    if (to < 0) return;
+    dropPend();
+    const cf = chapterOf(to - 1), ct = chapterOf(to), c = mapChapter();
+    marches++;
+    if (still()) {
+      glow = { i: to, t0: performance.now() };
+      setTimeout(() => { glow = null; redraw(); }, GLOW_MS);
+      redraw();
+      return;
+    }
+    march = { from: to - 1, to, mode: cf === ct ? "road" : c === cf ? "on" : "in", t0: performance.now(), p: 0, held: true };
+    if (march.mode === "in") march.t0 -= MARCH_MS * 0.62;     // the new chart shows the seal break and the plate light
+    listen(true);
+  }
+  function open() {
+    if (!march || !march.held) return;
+    march.held = false;
+    Snd.play("mapSelect");
+    try { renderWorldMap(); } catch (e) {}
+  }
+  function finish() {
+    if (!march) return;
+    const held = march.held;
+    march = null;
+    listen(false);
+    if (held) { try { renderWorldMap(); } catch (e) {} }
+  }
+  function skip() { if (march && !march.fixed) { finish(); if (running) lastDraw = 0; else redraw(); } }
+  function listen(on) {
+    if (on === skipOn) return;
+    skipOn = on;
+    for (const ev of ["pointerdown", "keydown"]) (on ? addEventListener : removeEventListener)(ev, skip, true);
+  }
+
+  // ---- the loop: about thirty frames a second while the map shows, nothing at all while it does not ----
+  function tick(now) {
+    raf = 0;
+    if (!allowed() || still()) { running = false; return; }
+    if (!mapShowing()) {
+      // the map is gone from the page: the layer is put away at once (before the next paint), and the loop ends
+      // after a short grace (the page may only be turning: a menu being built)
+      hide();
+      if (!awaySince) awaySince = now;
+      if (now - awaySince > 400) { running = false; seenTicks = 0; if (march) finish(); return; }
+      raf = requestAnimationFrame(tick);
+      return;
+    }
+    awaySince = 0;
+    if (seenTicks++ === 0) { shownAt = clock; lastTick = now; coverAt = 0; }
+    if (document.hidden) covered = true;
+    else if (now - coverAt >= 150) { coverAt = now; covered = isCovered(); }
+    const dt = Math.min(0.1, Math.max(0, (now - lastTick) / 1000));
+    lastTick = now;
+    if (!covered) {
+      clock += dt;
+      if (!march && seenTicks > 6) begin();
+      if (march) {
+        march.p = Math.max(0, (now - march.t0 - LEAD_MS) / MARCH_MS);
+        if (march.p >= 0.8) open();
+        if (march.p >= 1) finish();
+      }
+      if (ember) { ember.p = (now - ember.t0) / EMBER_MS; if (ember.p >= 1) ember = null; }
+      if (now - lastDraw >= FRAME_MS) { lastDraw = now; frame(clock, true); }
+    } else if (march && now - march.t0 > LEAD_MS + MARCH_MS) finish();
+    raf = requestAnimationFrame(tick);
+  }
+  function start() {
+    if (running || staged || !live() || menuMode !== "map") return;
+    running = true; awaySince = 0; seenTicks = 0;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  // the still frame (reduced motion): redrawn whenever the chart is
+  function redraw() {
+    if (!allowed() || running || staged) return;
+    if (!mapShowing()) { hide(); return; }
+    frame(clock, false);
+  }
+  function wake() {
+    if (!allowed() || staged) return;
+    if (!still()) { start(); return; }
+    if (running) { running = false; if (march) finish(); }
+    if (!mapShowing()) { hide(); return; }
+    if (!isCovered() && !glow) begin();
+    if (!layer || layer.style.display !== "block") redraw();
+  }
+  // the page turned (a chronicle, a story, a victory, a battle): the layer never outlasts the map on the screen
+  function turned() {
+    if (!mapShowing()) hide();
+    else if (!running) wake();
+  }
+
+  // ---- the hooks ----
+  // renderWorldMap, before it paints: the loop is seen to
+  function before() {
+    if (!allowed()) { if (layer) hide(); return; }
+    if (!beat && !staged) {
+      beat = setInterval(wake, 1000);
+      document.addEventListener("visibilitychange", () => { lastTick = performance.now(); wake(); });
+      addEventListener("resize", () => { if (!running) redraw(); });
+      const mo = new MutationObserver(turned);
+      mo.observe(overlayEl, { attributes: true, attributeFilter: ["class"] });
+      mo.observe(cv(), { attributes: true, attributeFilter: ["style"] });
+    }
+    if (!still()) start();
+  }
+  // renderWorldMap, after it has painted: a still frame follows the chart at once
+  function after() {
+    if (!allowed() || running || staged) return;
+    redraw();
+    clearTimeout(soon); soon = setTimeout(wake, 140);
+  }
+  // baked: the chart itself drew this fort's banner
+  function fort(i, top, k, baked) { forts[i] = { top, k, baked }; }
+  // does the layer fly the won forts' banners (so the baked chart leaves them out)?
+  function flies() { return live() && (staged || menuMode === "map"); }
+  // checkNewUnlocks: battlefield i's road has just opened (told once, by hs_unlocked_seen): its march waits for the map
+  function opened(i) {
+    if (!allowed() || i < 1) return;
+    pend = i;
+    try { localStorage.setItem(KEY, levelId(i)); } catch (e) {}
+  }
+  // endFall: the stand at battlefield i is lost; its fort glows like an ember as the map comes back
+  function lost(i) {
+    if (!allowed()) return;
+    if (readPend() === i) dropPend();              // a road marched and fought on needs no telling
+    ember = { i, t0: performance.now() + 420, p: 0 };
+    if (still()) { ember.p = 0.5; setTimeout(() => { ember = null; redraw(); }, EMBER_MS); redraw(); }
+  }
+  // the photo harness: one frame of the living map t seconds on, of the march p of the way through (from the
+  // battlefield before the chosen one), or of the ember on the chosen one
+  function stage(o) {
+    staged = true;
+    forts = {};
+    clock = o.t || 0; shownAt = clock - 30;
+    march = null; ember = null;
+    if (o.march != null && curLevel >= 1) {
+      const p = Math.max(0, Math.min(1, o.march)), cf = chapterOf(curLevel - 1), ct = chapterOf(curLevel);
+      march = { from: curLevel - 1, to: curLevel, mode: cf === ct ? "road" : mapChapter() === cf ? "on" : "in", t0: 0, p, held: p < 0.8, fixed: true };
+    }
+    if (o.ember != null) ember = { i: curLevel, t0: 0, p: Math.max(0, Math.min(1, o.ember)) };
+    renderWorldMap();
+    frame(clock, true);
+  }
+  function state() {
+    return { allowed: allowed(), still: still(), running, covered, frames, marches, clock,
+      march: march ? { from: march.from, to: march.to, mode: march.mode, p: march.p, held: march.held } : null,
+      ember: ember ? ember.i : -1, glow: glow ? glow.i : -1, pending: readPend(), shown: !!layer && layer.style.display === "block" };
+  }
+  return { before, after, fort, flies, holds, opened, lost, stage, state, skip };
+})();
+
 // newly opened roads get a fanfare and a golden pulse on their node
 let unlockFx = null, unlockFxTimer = null;
 
@@ -62972,6 +63677,7 @@ function checkNewUnlocks() {
     // several open at once only when a save comes from before an insertion (Chapter III's three, for a player
     // who had reached Gyumri): the road told is the first of them, where the new part of the campaign begins
     const i = levelIndexOf(fresh[0]);
+    MapLife.opened(i);   // and its road is marched on the map, the next time the map is laid out
     unlockFx = { i, start: performance.now() };
     chime("unlock", "⚔ A new road opens: " + LEVELS[i].name + "!");   // held while an ending card is read
     clearInterval(unlockFxTimer);
@@ -88522,6 +89228,22 @@ function runPhoto() {
     }
     // &nohud: the field alone, without the header, the tray and the spell bar; &title: the game's name over it.
     // The share picture, og.jpg, is taken so (deploy/README.md)
+    // &life=1 (&t=seconds): a frame of the living map over the map page (menu, defeat); &march=p: the march p of the
+    // way through, from the battlefield before &lv to it; &ember=p: a lost stand's ember on the chosen battlefield
+    // (docs/specs/owner/living-map.md)
+    if ((HARNESS.has("life") || HARNESS.has("march") || HARNESS.has("ember")) && menuMode === "map" && (scene === "menu" || scene === "defeat")) {
+      if (HARNESS.has("march")) {
+        // the save as the victory left it: every battlefield before the chosen one won, the chosen one open and unfought
+        const rec = JSON.parse(localStorage.getItem(RECORDS_KEY) || "{}");
+        for (let i = 0; i < LEVELS.length; i++) {
+          if (i < curLevel) { if (!levelConquered(i)) localStorage.setItem(bestKey(i, LEVELS[i].era), "21"); continue; }
+          for (let e = 0; e < ERAS.length; e++) localStorage.removeItem(bestKey(i, e));
+          delete rec[levelId(i)];
+        }
+        localStorage.setItem(RECORDS_KEY, JSON.stringify(rec));
+      }
+      MapLife.stage({ t: num("t", 3.2), march: HARNESS.has("march") ? num("march", 0.5) : null, ember: HARNESS.has("ember") ? num("ember", 0.45) : null });
+    }
     if (HARNESS.has("nohud")) document.body.classList.add("photoNoHud");
     if (HARNESS.has("title")) {
       const tl = document.createElement("div");
