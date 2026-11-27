@@ -55,3 +55,113 @@ What the reviewers found (the points that cost marks):
 What was changed after this round (landscape):
 
 - The villages and the climb are shot low on the field, under its skyline; 'Most refused to go' is the green slope of the painting without banners or ship; the banners in two shots, the cross and then the lettered one; the ship with a longer push; the line now says 'From 12 September, five French ships' and a page carries it ('Five French ships', about 4,000 carried to Port Said); the desert label clear of the Euphrates; the foes on the upper road.
+
+## Round 3
+
+The Van cuts rebuilt with round 1's fixes. Both passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| van-landscape | a | 9 | 9 | 8 | 9 | 10 |
+| van-landscape | b | 10 | 9 | 8 | 9 | 10 |
+| van-vertical | a | 10 | 9 | 8 | 10 | 10 |
+| van-vertical | b | 10 | 9 | 8 | 10 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or 9, left as they stand or noted for later):
+
+- Picture: smoke already rises over the city in the field's skyline and the walled-city painting before the voice says the guns opened; the walled-city painting serves twice; the plaque for the mission and the hospital lies over the guns, not over a mission; the besiegers' pulling back is a quiet field with nothing moving away; in the upright cut the relief is a still map.
+- History: 'understood what was coming' follows the demand alone (the chronicle also has Ishkhan's murder and Vramian's arrest).
+- Sound: Djevdet and Aygestan still heard as 'Gevdet' and 'Agistan'; the pace with pauses 128 words a minute.
+
+## Round 4
+
+The Sardarapat cuts. The upright cut passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sardarapat-landscape | a | 8 | 9 | 7 | 8 | 9 |
+| sardarapat-landscape | b | 8 | 9 | 7 | 8 | 9 |
+| sardarapat-vertical | a | 10 | 10 | 8 | 9 | 8 |
+| sardarapat-vertical | b | 9 | 9 | 8 | 9 | 8 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- History: the plaque of the bells said they rang, where the voice and the sources say 'tradition holds'; 'drove the Ottoman troops back' on 22 May, where the chronicle says over the next days.
+- Picture (landscape): the bells were a small belfry on an empty plain, near still for six seconds; seven seconds of the same Ararat painting under 'refugees from the Genocide'; the gathering of regiments, villagers and Jangir Agha's horsemen over a field of towers; foes advancing while the voice says they were driven back; the Republic's page up 5.8 s; the map naming only Sardarapat of the three May battles.
+- Sound: Sardarapat heard as 'Sardar Pot' (its third vowel reduced), Karakilisa as 'Karakilasa'.
+- Subtitles: 'On 22 May the Armenians / counterattacked' lopsided; in the upright cut a cue of three lines (scored 8).
+
+What was changed after this round (landscape):
+
+- The line reads 'and over the next days drove the Ottoman troops back', and the map draws the push westward from Sardarapat (the chronicle: back westward); the bells' plaque says 'By tradition'; the belfry is filmed close; the refugees have a page of their own over the painting; the May battles' map writes Bash Abaran and Karakilisa where they lie; the Republic's page gives way to the last battle as its line ends; Sardarapat's full vowels restored; read at 1.1.
+
+## Round 5
+
+Musa Dagh landscape, rebuilt with round 2's fixes. It fell back.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| musadagh-landscape | a | 10 | 8 | 6 | 9 | 9 |
+| musadagh-landscape | b | 10 | 7 | 5 | 9 | 10 |
+
+Lowest score of the round: 5.
+
+What the reviewers found (the points that cost marks):
+
+- Picture and pacing: the page of the five ships stayed up for 12 s, over the mountain's last line and the closing call, and the shots meant to follow it never came: they were placed at a part of the sentence that does not exist (the sentence has three subtitle parts, the picture asked for a fourth), so the build put them after the film's end, and the '53 days' plaque with them.
+- Picture: the order for deportation, a still page for 5.2 s.
+
+What was changed after this round:
+
+- The shots and the plaque are placed at the sentence's real third part; the page's lines come with 'carried about 4,000 Armenians to Port Said'; the deportation page comes up a second into its sentence. A check now runs over every film of the group before a build: every place a scene, a plaque or a page line is pinned to must be a part its sentence has. The same check found that a mark drawn on a chart part way through a film (an arrow, a label) was timed from the film's first sentence, so it was drawn at once instead of growing with the words: every such mark is now timed from its own scene's words.
+
+## Round 6
+
+The Stepanakert (1991 to 1992) cuts.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| stepanakert92-landscape | a | 9 | 9 | 7 | 9 | 9 |
+| stepanakert92-landscape | b | 9 | 9 | 7 | 9 | 9 |
+| stepanakert92-vertical | a | 10 | 9 | 7 | 9 | 10 |
+| stepanakert92-vertical | b | 10 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture: 'attacked Shushi up the cliffs and roads' over the game's battle, in which the foe marches on Stepanakert: the staging ran the wrong way (both cuts); in the upright cut 'the town was taken' over the plateau still firing; Shushi's plate on the map in the bottom fifth, and Stepanakert's plate jumping from below its pin to above it between two shots; the 1988 page up 7.6 s; the opening plaque of the upright cut three seconds after its words; half the upright frame empty snow.
+- History: '1988' set over 'Every side lost civilians', as if the losses were of 1988 (they are of the war that grew from it); the chart's 'Lachin corridor' label on a map of 1991, before the corridor was opened.
+- Sound: Stepanakert heard as 'Stepan Akert', a break inside the name.
+- Subtitles: 'Families moved into basements, and / the city lived' (the build joined two parts too short to read and the only break left was after 'and').
+
+What was changed after this round:
+
+- The night of 8 May is the field at night and then the hero, Arkady Ter-Tadevosyan, walking out from the city; 'up the cliffs and roads' climbs the painting from the forest to the cliffs and the cathedral; 9 May is the field by day; the upright cut names Shushi on the map for 'the town was taken'; Shushi's plate stands above its pin and to the side; the map is framed close enough to leave the corridor's label out; the 1988 page carries only the movement, and 'every side lost civilians' has its own plaque over the quiet field at night; the opening plaque comes with its words; the rockets on the houses filmed close.
+- Stepanakert given with its middle vowels reduced, so the name runs as one word.
+
+## Round 7
+
+Sardarapat landscape, rebuilt with round 4's fixes.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sardarapat-landscape | a | 9 | 9 | 8 | 9 | 9 |
+| sardarapat-landscape | b | 9 | 9 | 7 | 9 | 9 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture and history: on the chart the Sardarapat pin sits on the peak of the chart's Mt. Ararat, so the field reads as on the mountain, where the sources put it on the plain beneath it; its plate covers the mountain's label.
+- Picture: the belfry shot still near still, its lower half in the bottom fifth; Yerevan, named twice, never marked.
+- Subtitles: 'beneath Ararat,' alone for 0.9 s between two longer cues.
+- Sound: 'pushed' heard as 'push', 'battles' as 'battle', at speed 1.1.
+
+What was changed after this round:
+
+- No chart after the opening: 'drove the Ottoman troops back' is the hero carrying the line west across the field, and the May battles are named on a plaque over the painting of the plain under Ararat; the belfry shot travels from the plain to the bell and sits above the subtitles; the line reads 'On 22 May the Armenians counterattacked beneath Ararat', in two cues.
