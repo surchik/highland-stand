@@ -18,6 +18,7 @@ import tts, measure
 VOICE = json.load(open(os.path.join(HERE, "voice.json")))
 # the bed of each battlefield: one of the owner's recordings, from this second of it
 MUSIC = {"erebuni": ("hov-arek-sarer-jan.mp3", 20), "tushpa": ("sheyk-sar.mp3", 30), "avarayr": ("sev-gakavik.mp3", 30), "dvin": ("na-mi-naz.mp3", 20)}
+MUSIC.update({k: tuple(v) for k, v in tts.SCRIPTS.get("music", {}).items()})   # (the battlefields of scripts-<group>.json)
 CAP = {"landscape": 6.0e6, "vertical": 3.0e6}
 
 def run(*a, **k):
@@ -134,7 +135,7 @@ def main():
     W = os.path.join(work, cut)
     # 1 narration
     v = tts.load_voice(VOICE["voice"], os.environ.get("TTS_MODELS", "models"))
-    speed = VOICE.get("speed_by_cut", {}).get(cut, VOICE["speed"])
+    speed = VOICE.get("speed_by_cut", {}).get(cut, tts.SCRIPTS.get("speed", {}).get(cut, VOICE["speed"]))   # (scripts-<group>.json may set its cuts' speeds)
     a, marks = tts.build(cut, v, speed)
     tts.write_wav(W + ".raw.wav", a)
     loudnorm2(W + ".raw.wav", W + ".narr.wav")

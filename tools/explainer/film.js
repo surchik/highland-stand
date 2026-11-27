@@ -5,6 +5,8 @@
 const path = require("path"), fs = require("fs"), { spawn } = require("child_process");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const FILMS = require("./films.js");
+// more cuts in files of their own (films-<group>.js), merged in name order
+for (const n of fs.readdirSync(__dirname).filter(n => /^films-.+\.js$/.test(n)).sort()) Object.assign(FILMS, require("./" + n));
 
 function arg(name, d) { const i = process.argv.indexOf("--" + name); return i > 0 ? process.argv[i + 1] : d; }
 
@@ -35,6 +37,8 @@ function resolve(cut, tl, cues) {
     if (s.lineAt) s.lineAt = s.lineAt.map(p => at(p, 0.1) - s.t0);
     if (s.sealAt != null) s.sealAt = at(s.sealAt, 0.1) - s.t0;
     if (s.stage && s.stage.fallAt != null) s.stage.fallAt = at(s.stage.fallAt, 0);   // (absolute: the moment he falls)
+    if (s.stage && s.stage.fleeAt != null) s.stage.fleeAt = at(s.stage.fleeAt, 0);   // (absolute: the column breaks and flees)
+    if (s.boats) for (const k of ["startAt", "arriveAt", "shootAt"]) if (s.boats[k] != null) s.boats[k] = at(s.boats[k], 0);   // (absolute)
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : dur; });
   // a scene that goes on with the battle before it counts its spawns and fall from that battle's start

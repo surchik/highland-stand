@@ -8,12 +8,18 @@ import tts
 S = tts.SCRIPTS; SRC = json.load(open(os.path.join(HERE, "sources.json"), encoding="utf-8")); V = json.load(open(os.path.join(HERE, "voice.json")))
 OUT = os.path.join(ROOT, "docs", "specs", "explainer"); os.makedirs(OUT, exist_ok=True)
 NAMES = {"erebuni": "Erebuni Rise (782 BC)", "tushpa": "Vale of Tushpa (735 BC)", "avarayr": "Avarayr Plain (451 AD)", "dvin": "Dvin Gates (640 AD)"}
+# (and the battlefields of scripts-<group>.json and sources-<group>.json)
+import glob
+KEYX = {}   # (their source keys, listed in their own docs only)
+NAMES.update(S.get("titles", {}))
+for p in sorted(glob.glob(os.path.join(HERE, "sources-*.json"))):
+    x = json.load(open(p, encoding="utf-8")); KEYX.update(x.pop("key", {})); SRC.update(x)
 for f, title in NAMES.items():
     L = ["# Explainer video: " + title, "",
          "Battlefield id `" + f + "`. Files: `assets/explainer/" + f + "/landscape.mp4`, `vertical.mp4` (and `.webm` where it is smaller), `landscape.vtt`, `vertical.vtt`, `landscape-poster.jpg`, `vertical-poster.jpg`.", "",
          "Voice: " + V["voice"] + " at speed " + str(V["speed"]) + " (" + V["engine"] + "; " + V["licence"] + "). See voice.md.", "",
          "Every line is taken from the battlefield's own texts in index.html, which were themselves checked against docs/history. Source keys:", ""]
-    for k, v in SRC["key"].items(): L.append("- `" + k + "`: " + v)
+    for k, v in list(SRC["key"].items()) + (list(KEYX.items()) if f in S.get("titles", {}) else []): L.append("- `" + k + "`: " + v)
     used = set()
     for shape in ("landscape", "vertical"):
         cut = f + "-" + shape; segs = S["cuts"][cut]
