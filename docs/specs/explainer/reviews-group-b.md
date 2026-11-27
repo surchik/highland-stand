@@ -183,3 +183,40 @@ What the reviewers found (each scored 8 or 9; left as they stand):
 - Picture: the page of the statement up 5.9 s; the cathedral is the chronicle's painting, not a likeness of Ghazanchetsots.
 - Sound: Bayraktar heard as 'Biroc tar'.
 - Subtitles: 'loitering / munitions' broken mid-phrase.
+
+## Round 9
+
+Stepanakert 2023 landscape.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| stepanakert23-landscape | a | 10 | 8 | 7 | 10 | 9 |
+| stepanakert23-landscape | b | 10 | 9 | 8 | 10 | 10 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture: the page of the International Court of Justice up 9.5 s; 'BLOCKED' written on the corridor inside the bottom fifth as the voice names it; the exodus shows cars where the plaque said 'cars, trucks and buses'; the volunteer's shot cut after 1.5 s while his plaque stayed on over the city.
+- Pacing: 121 words a minute with pauses, below the documentary pace.
+- Picture (scored 8 by the other reviewer): field shots of towers for the Red Cross and the bread queues.
+
+What was changed after this round:
+
+- The court's line opens on the painting of the city with its date, and the page comes with 'ordered Azerbaijan' (about 5 s); the corridor is framed so 'Blocked' stands clear of the subtitles; the exodus plaque reads 'The open corridor to Armenia'; the volunteer stays on screen into the last line; read at 1.08.
+
+## Round 10
+
+Musa Dagh landscape, rebuilt after round 5. It passed every score, so both Musa Dagh cuts have passed.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| musadagh-landscape | a | 10 | 9 | 9 | 9 | 10 |
+| musadagh-landscape | b | 10 | 10 | 8 | 9 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: the five ships' page up 5.9 s (its lines keep it moving until 51.6 s); a tent of the painting's camp cut by the frame's edge in the banner shots; the cruiser drawn as a liner; the villages and the climb shown on the field without people or flocks; three short shots in a row around 'Most villagers refused to go'.
+- Sound: 'refused' heard as 'refuse'; the last 'Musa Dagh' heard as 'Musa Dagg'.

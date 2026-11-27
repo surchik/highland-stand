@@ -2,7 +2,7 @@
 
 Battlefield id `musadagh`. Files: `assets/explainer/musadagh/landscape.mp4`, `vertical.mp4` (and `.webm` where it is smaller), `landscape.vtt`, `vertical.vtt`, `landscape-poster.jpg`, `vertical-poster.jpg`.
 
-Voice: kokoro:am_michael at speed 1.0 (landscape) and 1.02 (upright) (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
+Voice: kokoro:am_michael at speed 1.03 (landscape) and 1.02 (upright) (Kokoro-82M v1.0 (hexgrad), run through kokoro-onnx 0.6.1; Apache-2.0 (the model and its voices, huggingface.co/hexgrad/Kokoro-82M)). See voice.md.
 
 Every line is taken from the battlefield's own texts in index.html (its chronicle, tag, hero, date, facts, victory and defeat texts) and its chapter's story. Source keys:
 
@@ -11,7 +11,7 @@ Every line is taken from the battlefield's own texts in index.html (its chronicl
 - `hero / tag / date / facts / towers / units`: the battlefield's own fields in index.html
 - `chapter V intro`: CHAPTERS (Artsakh).intro in index.html
 
-## Landscape cut (128 words)
+## Landscape cut (131 words)
 
 ### Script (true spelling: this is the subtitle text)
 
@@ -23,7 +23,7 @@ With Movses Ter-Kalustian among their leaders, some 600 fighters blocked the pat
 
 The villagers sewed two great banners: a red cross, and the words 'Christians in distress: rescue'.
 
-On 5 September the French cruiser Guichen saw the signals. Five French ships carried about 4,000 Armenians to Port Said, and the mountain had never been taken.
+On 5 September the French cruiser Guichen saw the signals. From 12 September, five French ships carried about 4,000 Armenians to Port Said, and the mountain had never been taken.
 
 Hold Musa Dagh until the ships come.
 
@@ -55,8 +55,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 8. On 5 September the French cruiser Guichen saw the signals.
    - engine: `On 5 September the French cruiser [[ɡiʃˈɛn]] saw the signals.`
    - sources: C3 (third sentence); facts (the Guichen first saw the banners on 5 September 1915)
-9. Five French ships carried about 4,000 Armenians to Port Said, and the mountain had never been taken.
-   - engine: `Five French ships carried about four thousand Armenians to [[pˈɔːɹt sɑːˈiːd]], and the mountain had never been taken.`
+9. From 12 September, five French ships carried about 4,000 Armenians to Port Said, and the mountain had never been taken.
+   - engine: `From 12 September, five French ships carried about four thousand Armenians to [[pˈɔːɹt sɑːˈiːd]], and the mountain had never been taken.`
    - sources: C3 (from 12 September five French ships carried about 4,000 Armenians to Port Said in Egypt; the mountain had never been taken); V
 10. Hold Musa Dagh until the ships come.
    - engine: `Hold [[mˈuːsɑː dˈæɡ]] until the ships come.`
