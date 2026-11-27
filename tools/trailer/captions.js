@@ -70,7 +70,7 @@ const CAPS = {
         const band = g.createLinearGradient(0, H * 0.16, 0, H * 0.8);
         band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.72)"); band.addColorStop(1, "rgba(14,9,4,0)");
         g.fillStyle = band; g.fillRect(0, H * 0.16, W, H * 0.64);
-        cream("A tower defense of Armenian history", W / 2, H * 0.3, 48 * U, "700 ");
+        cream("A tower defense game of Armenian history", W / 2, H * 0.3, 48 * U, "700 ");
         rule(W / 2, H * 0.355, 620);
         gold("HIGHLAND STAND", W / 2, H * 0.45, 104 * U);
         cream("Free in your browser", W / 2, H * 0.565, 50 * U);
@@ -78,9 +78,12 @@ const CAPS = {
       } else {
         // a soft dark ground under the words, so they read over a bright field
         const h0 = H * cap.y - cap.lines.length * 75 * U, h1 = H * cap.y + 95 * U;
-        const band = g.createLinearGradient(0, h0, 0, h1);
-        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.66)"); band.addColorStop(1, "rgba(14,9,4,0)");
-        g.fillStyle = band; g.fillRect(0, h0, W, h1 - h0);
+        // a soft dark pool behind the words only (an ellipse, not a full-width band, so the picture keeps its lower third)
+        const yc = (h0 + h1) / 2, rx = W * 0.36, ry = (h1 - h0) * 0.62;
+        g.save(); g.translate(W / 2, yc); g.scale(1, ry / rx);
+        const pool = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+        pool.addColorStop(0, "rgba(14,9,4,.62)"); pool.addColorStop(0.6, "rgba(14,9,4,.42)"); pool.addColorStop(1, "rgba(14,9,4,0)");
+        g.fillStyle = pool; g.fillRect(-rx, -rx, rx * 2, rx * 2); g.restore();
         let y = H * cap.y - (cap.lines.length - 1) * 38 * U;
         for (const [t, px, kind] of cap.lines) { if (kind === "goldsub") gold(t, W / 2, y, px * U); else (kind === "gold" ? gold : cream)(t, W / 2, y, px * U); y += px * U * 1.25; }
       }
