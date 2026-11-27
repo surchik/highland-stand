@@ -7,9 +7,9 @@ const CAPS = {
   a2: { lines: [["from Erebuni to Artsakh,", 66, "gold"]], y: 0.8 },
   a3: { lines: [["Armenians have held these highlands.", 62, "gold"]], y: 0.8 },
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
-  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads.", 52, "cream"]], y: 0.76 },
+  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads.", 54, "goldsub"]], y: 0.76 },
   d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
-  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 52, "cream"]], y: 0.76 },
+  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 54, "goldsub"]], y: 0.76 },
   g: { lines: [["Every stand is remembered.", 62, "gold"]], y: 0.8 },
   t_erebuni: { tag: ["Erebuni", "782 BC"] },
   t_sardarapat: { tag: ["Sardarapat", "1918"] },
@@ -82,7 +82,7 @@ const CAPS = {
         band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.66)"); band.addColorStop(1, "rgba(14,9,4,0)");
         g.fillStyle = band; g.fillRect(0, h0, W, h1 - h0);
         let y = H * cap.y - (cap.lines.length - 1) * 38 * U;
-        for (const [t, px, kind] of cap.lines) { (kind === "gold" ? gold : cream)(t, W / 2, y, px * U); y += px * U * 1.25; }
+        for (const [t, px, kind] of cap.lines) { if (kind === "goldsub") gold(t, W / 2, y, px * U); else (kind === "gold" ? gold : cream)(t, W / 2, y, px * U); y += px * U * 1.25; }
       }
       return c.toDataURL("image/png");
     }, cap);

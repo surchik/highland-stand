@@ -132,8 +132,12 @@
         let best = null, bd = 1e9;
         for (const tw of towers) { const d = Math.hypot(tw.x - lp.x, tw.y - lp.y) - (tw.y > lp.y ? 60 : 0); if (d < bd) { bd = d; best = tw; } }   // (a tower below the road is preferred: it stands in front)
         if (best) { const q = proj(best.x, best.y), r = proj(lp.x, lp.y), k = sc.follow.k == null ? 0.45 : sc.follow.k; sc.towerAt = [q.x + (r.x - q.x) * k + (sc.follow.dx || 0), q.y + (r.y - q.y) * k + (sc.follow.dy || 0)]; }
+        // (the trailer's "raise your towers": that tower is taken down and goes up again on its pad, in shot)
+        if (best && sc.follow.build != null) { sc.rebuild = { type: best.type, pad: best.pad, at: sc.follow.build, x: best.x, y: best.y }; towers.splice(towers.indexOf(best), 1); }
       }
       if (sc.towerAt) { cx = sc.towerAt[0]; cy = sc.towerAt[1]; }
+      const rb = sc.rebuild;
+      if (rb && !rb.done && simT >= rb.at) { rb.done = simT; const g0 = gold; gold = 99999; placeTower(rb.type, rb.pad); gold = g0; const tw = towers[towers.length - 1]; if (tw) tw.placedAt = -1e9; }
       const f = sc.follow, e = f.type === "tower" ? null : f.type === "hero" ? hero : f.type === "spawn" ? (sc.lead && enemies.indexOf(sc.lead) >= 0 ? sc.lead : null) : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => f.type === "any" ? !x.fly && x.dist > (f.min || 0) : x.type === f.type) || null));
       if (e) {
         const w = f.type === "hero" ? { x: e.x, y: e.y } : enemyPos(e), p = proj(w.x, w.y);
