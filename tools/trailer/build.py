@@ -20,6 +20,9 @@ cur, L = None, 0.0
 for i, seg in enumerate(E["segments"]):
     clip, ss, d = seg[:3]; sp = seg[3] if len(seg) > 3 else 1.0; x = seg[4] if len(seg) > 4 else 0; pu = seg[5] if len(seg) > 5 else 0
     src = gem if clip == "gemini" else os.path.join(clips, clip + ".mkv")
+    if clip != "gemini":   # a clip shorter than its segment would shift every later cut
+        have = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+        if have < ss + d * (sp or 1) - 0.01: raise SystemExit(f"{clip}.mkv is {have:.2f} s, the edit needs {ss + d:.2f} s")
     # speed 0: the in point's frame, held (the loop's last frames land on the first one)
     inputs += ["-ss", str(ss), "-t", str(d * (sp or 0) + 0.2) if sp else "0.1", "-i", src]
     if clip == "gemini":
