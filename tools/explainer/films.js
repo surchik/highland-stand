@@ -229,7 +229,7 @@ module.exports = {
     level: "dvin",
     scenes: [
       { at: 0, kind: "art", a: [800, 820, 1.0], b: [800, 700, 1.25] },
-      { at: "0/0", kind: "map", a: [582, 262, 2.0], b: [590, 268, 2.3], markers: [{ node: "dvin", name: "Dvin", hy: HY.dvin, at: "0/0+0.1", big: true }, { xy: [575, 222], label: "Ayrarat", land: true, size: 38, at: "0/0+0.9" }] },
+      { at: "0/0", kind: "map", a: [600, 212, 1.12], b: [592, 232, 1.4], markers: [{ node: "dvin", name: "Dvin", hy: HY.dvin, at: "0/0+0.1", big: true }, { xy: [560, 205], label: "Ayrarat", land: true, size: 34, at: "0/0+0.9" }] },
       { at: "0/1", kind: "art", a: [920, 760, 1.2], b: [560, 560, 1.8] },
       { at: 1, kind: "field", stage: { mode: "march", wave: 2, live: true, head: 0.5, spread: 0.42, roles: ["raider", "cavalry", "spearman", "raider", "cavalry", "spearman", "raider", "spearman"] }, a: [330, 330, 1.2], b: [480, 340, 1.3] },
       { at: 2, kind: "field", stage: { mode: "battle", wave: 6, live: true, heroTo: [430, 380], spawn: [{ at: 0.2, role: "raider", n: 3, d: 0.47 }, { at: 0.8, role: "cavalry", n: 2, d: 0.45 }] }, follow: { type: "hero", dy: 50 }, a: [640, 330, 1.5], b: [640, 330, 1.9] },

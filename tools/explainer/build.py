@@ -178,8 +178,8 @@ def main():
     cap = CAP[shape]
     mp4 = os.path.join(outdir, shape + ".mp4"); webm = os.path.join(outdir, shape + ".webm")
     abr = 80000
-    # two passes at the bit rate that fills the size aim (and no more than 1400 kbit/s: past that nothing is gained)
-    vbr = int(min(1400e3, cap * 0.90 * 8 / dur - abr - 6000))
+    # two passes at the bit rate that fills the size aim to 94% (and no more than 1400 kbit/s: past that nothing is gained)
+    vbr = int(min(1400e3, cap * 0.94 * 8 / dur - abr - 6000))
     common = ["-c:v", "libx264", "-preset", "slow", "-b:v", str(vbr), "-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p", "-g", "72", "-x264-params", "aq-mode=3"]
     ff("-i", W + ".mkv", "-an", *common, "-pass", "1", "-passlogfile", W + ".pass", "-f", "null", "/dev/null")
     ff("-i", W + ".mkv", "-i", W + ".mix.wav", "-map", "0:v", "-map", "1:a", *common, "-pass", "2", "-passlogfile", W + ".pass",
