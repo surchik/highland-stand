@@ -114,7 +114,7 @@ def cues(meta, heard_words, script, wav):
     for i, c in enumerate(out):   # long enough to read: at least 1.6 s and at most 17 letters a second, taken from the silence after it
         need = max(1.8, len(c["text"]) / 17.0)
         room = (out[i + 1]["start"] - 0.04) if i + 1 < len(out) else meta["duration"] - 0.1
-        if i + 1 == len(out): c["end"] = round(meta["duration"] - 0.7, 3)   # the last line stays under the closing card
+        if i + 1 == len(out): c["end"] = round(min(meta["duration"] - 0.7, meta["sentences"][-1]["end"] + 1.0), 3)   # the last line stays a second after its words, into the closing card
         if c["end"] - c["start"] < need: c["end"] = round(min(room, c["start"] + need), 3)
         if c["end"] > room: c["end"] = round(room, 3)
     return out, parts

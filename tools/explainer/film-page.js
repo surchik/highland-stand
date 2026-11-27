@@ -222,7 +222,7 @@
       const a = env(t, sc.t0 + (m.at || 0), sc.t0 + (m.until || 1e9), 0.5, 0.5);
       if (a <= 0) continue;
       if (m.arrow) {   // a march drawn on the chart: an ink line that grows, with a head
-        const p0 = pr(m.arrow[0]), p1 = pr(m.arrow[1]), g = ease((t - sc.t0 - (m.at || 0)) / 1.4);
+        const p0 = pr(m.arrow[0]), p1 = pr(m.arrow[1]), g = ease((t - sc.t0 - (m.at || 0)) / (m.grow || 1.4));   // (grow: seconds, to keep pace with a pan)
         const x1 = p0[0] + (p1[0] - p0[0]) * g, y1 = p0[1] + (p1[1] - p0[1]) * g, ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
         c.save(); c.globalAlpha = a; c.lineCap = "round";
         for (const [col, lw] of [["rgba(244, 232, 196, .9)", 9], ["#a8231c", 4.5]]) {
@@ -269,12 +269,13 @@
   const arts = {};
   function drawArt(sc, t, c) {
     let plate = artPlate;
-    if (sc.level) {   // the chronicle's painting of another battlefield (Erebuni's film shows the royal seat, Tushpa)
-      const i = levelIndexOf(sc.level);
-      if (!arts[i]) { const keep = THEME; THEME = levelTheme(LEVELS[i]); arts[i] = briefScene(BRIEF_CROPS[i] || BRIEF_CROPS[0], 1600, 1600, 7001 + i * 53); THEME = keep; }
-      plate = arts[i];
+    if (sc.level || sc.hires) {   // the chronicle's painting of another battlefield (Erebuni's film shows the royal seat, Tushpa)
+      const i = sc.level ? levelIndexOf(sc.level) : lv, key = i + (sc.hires ? "h" : "");
+      // (hires: painted at twice the size, for a close look; its units stay those of the 1600 plate)
+      if (!arts[key]) { const keep = THEME; THEME = levelTheme(LEVELS[i]); arts[key] = briefScene(BRIEF_CROPS[i] || BRIEF_CROPS[0], sc.hires ? 3200 : 1600, sc.hires ? 3200 : 1600, 7001 + i * 53); THEME = keep; }
+      plate = arts[key];
     }
-    drawPlate(sc, t, c, plate, plate.width, plate.height);
+    drawPlate(sc, t, c, plate, 1600, 1600);
   }
 
   // ---- the founding inscription: an illustration (a basalt block with rows of wedge marks; no real text is copied) ----
