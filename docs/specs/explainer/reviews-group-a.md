@@ -131,7 +131,7 @@ Lowest score of the round: 8.
 
 What the reviewers found:
 
-- History (landscape): the page read 'the king promised his life', which turns round who promised what (he was promised his life, by the governor of Aleppo). This is a real error and is fixed in round 8, though the cut passed.
+- History (landscape): the page read 'the king promised his life', which turns round who promised what (he was promised his life, by the governor of Aleppo). This is a real error and was fixed (round 11), though the cut passed.
 - Picture: the plaque for Leo of Lusignan late and short; the page 'Freed, he died in Paris in 1393' over five seconds; the hero low in the last shot; 'the kingdom came to an end' over the castle still garrisoned, and 'Freed' over Sis's painting (upright).
 - Subtitles: two uneven line breaks ('So ended / the Armenian Kingdom of Cilicia').
 - Pacing: 157 words a minute counting speech only (landscape).
@@ -218,3 +218,27 @@ What the reviewers found (left as they stand, each scored 8 or more):
 - Sound: 'Lala' lost from the commander's name; Erivan heard once as 'Aravan'.
 - Pacing: 125 words a minute with pauses.
 - Subtitles: 'the highlands became' leaves its object to the next cue.
+
+What was changed after round 6 (Sis landscape, though it had passed): the page reads 'on the promise of his life'; Sis is no longer marked before it is named; the plaque for Leo of Lusignan comes with his name; the page 'Freed' is shorter; the last shot follows the king; 'So ended the Armenian / Kingdom of Cilicia.'
+
+## Round 11
+
+Sis landscape, rebuilt with the fixes after round 6. It passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sis-landscape | a | 9 | 9 | 8 | 9 | 9 |
+| sis-landscape | b | 9 | 9 | 8 | 10 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (left as they stand, each scored 8 or more):
+
+- History: 'a prince from Cyprus' for 'a prince who lived in Cyprus'; 'the crown went to' folds the offer of 1373 into 1374; 'behind the castle walls' names one castle where the chronicle says castle walls.
+- Picture: the 'Terms accepted' page still unrolling as its date is said; the painting of Sis's walls used twice; 'taken to Cairo' over the empty castle; the arrow from Cyprus through the chart's 'Cilicia'.
+- Sound: speech 157 words a minute.
+- Subtitles: 'the Mamluk armies were / in Cilicia' split over two lines.
+
+## Where it stands
+
+All fourteen cuts of group A have every score at 8 or more from two fresh reviewers in their last round: Tashir (round 1), Ani (3), Sevan upright (2) and landscape (5), Halidzor (9), Mari (8), Gyumri upright (7) and landscape (10), Sis upright (6) and landscape (11). The films are not yet in the page's `const IDS` (the owner wires them in), so tools/regress/film.js reports the seven new folders under assets/explainer as not on the page; its other checks pass.
