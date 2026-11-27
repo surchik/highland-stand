@@ -126,7 +126,7 @@ module.exports = {
       { at: "2/2", kind: "card", bg: "art", a: [800, 760, 1.0], b: [700, 700, 1.2], rubric: "1918", title: "Refugees from the Genocide", lines: ["Hundreds of thousands"], lineAt: ["2/2+0.4"] },
       { at: 3, kind: "field", stage: { mode: "garrison", wave: 1, live: true, heroTo: [980, 300] }, follow: { type: "hero", dy: 10 }, a: [1100, 330, 1.7], b: [1100, 330, 2.5] },
       { at: "3/1", kind: "field", keep: true, stage: { live: true }, a: [250, 300, 1.25], b: [800, 280, 1.35] },
-      { at: 4, kind: "art", a: [560, 1000, 1.4], b: [280, 1232, 2.2] },
+      { at: 4, kind: "art", a: [470, 1165, 1.5], b: [285, 1215, 2.25] },
       { at: 5, kind: "field", stage: { mode: "battle", wave: 6, live: true, heroTo: [430, 330], spawn: [{ at: 0.1, role: "spearman", n: 3, d: 0.42, road: 0 }, { at: 0.5, role: "cavalry", n: 2, d: 0.4, road: 0 }, { at: 1.2, role: "shield", n: 2, d: 0.45, road: 0 }] }, follow: { type: "hero", dy: 10 }, a: [700, 330, 1.7], b: [700, 330, 2.1] },
       { at: "5/1", kind: "field", keep: true, stage: { live: true, heroTo: [150, 300] }, follow: { type: "hero", dy: 10 }, a: [500, 300, 1.6], b: [500, 300, 1.9] },
       { at: 6, kind: "field", stage: { mode: "garrison", wave: 1, live: true, heroTo: [760, 300] }, a: [500, 320, 1.25], b: [900, 290, 1.5] },

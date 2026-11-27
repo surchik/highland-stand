@@ -312,3 +312,35 @@ What the reviewers found (each scored 8 or more; left as they stand):
 - Picture: the opening map near still for 5 s, its plaque coming after its words; 6.5 s of the cathedral painting in two shots; 'Shushi falls' up 1.5 s; soldiers on the road near the bottom fifth.
 - History: 'Civilians were struck on both sides' is followed by one example only, the cathedral (the chronicle also tells of the strikes on Ganja and Barda; the landscape cut has the same line).
 - Sound: Ghazanchetsots heard as 'Gazanchetzot's'.
+
+## Round 16
+
+Sardarapat landscape, with round 14's fixes. It passed every score, so both Sardarapat cuts have passed.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sardarapat-landscape | a | 10 | 9 | 8 | 9 | 9 |
+| sardarapat-landscape | b | 10 | 9 | 8 | 8 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: the muster of regiments, villagers and Jangir Agha's horsemen over one field of towers for 7 s; the belfry a flat emblem of the miniature, not of the field's look; the plain painting soft and half sky; the Republic's page leaving 0.9 s before its sentence ends.
+- Sound: Sardarapat and Bash Abaran heard split ('Sardar-a-Pat', 'Bash-a-Baran'); 'battles' as 'battle'; one pause where the music bed dips.
+- Subtitles: 'the First Republic / of Armenia was born.' splits the name.
+
+## Where it stands
+
+All twelve cuts passed, each with every score at 8 or more from two fresh reviewers, in the round named:
+
+| Battlefield | Landscape | Upright |
+|---|---|---|
+| Van | round 3 | round 3 |
+| Musa Dagh | round 10 | round 2 |
+| Sardarapat | round 16 | round 4 |
+| Stepanakert (1991 to 1992) | round 12 | round 13 |
+| Shushi | round 8 | round 15 |
+| Stepanakert 2023 | round 14 | round 11 |
+
+The films are not wired into the page: its list of films (Film's IDS in index.html) still names the first four, and tools/regress/film.js lists the six as made and waiting.
