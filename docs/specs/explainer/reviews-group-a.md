@@ -181,3 +181,22 @@ What the reviewers found (left as they stand, each scored 8 or more):
 - Pacing: speech 151 to 153 words a minute; the 1260 sentence 10 s in one breath.
 - Sound: Baybars heard as 'Baibars' (the common English spelling); Vahram once as 'Vaphram'.
 - Subtitles: 'Baybars sent / a Mamluk army against them.' unbalanced.
+
+## Round 9
+
+Halidzor, both cuts, the first build. Both cuts passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| halidzor-landscape | a | 10 | 9 | 8 | 9 | 10 |
+| halidzor-landscape | b | 10 | 9 | 8 | 9 | 10 |
+| halidzor-vertical | a | 10 | 10 | 8 | 9 | 10 |
+| halidzor-vertical | b | 10 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (left as they stand, each scored 8 or more):
+
+- Picture: 'His men drove the Ottomans from Ghapan' over the Ottoman column still marching on; 'it is said to have kept them in water' over the dim citadel, with no river or tunnel; the Voghji only a pale band in the painting; the sortie with the hero standing still (upright); the citadel's gate in the bottom fifth in some shots.
+- Pacing: the opening chart held for 11.6 s across the title and two sentences; speech 157 words a minute.
+- Sound: Syunik heard as 'Suneik', Voghji as 'Voji', Ghapan as 'Gapan', Davit Bek as 'David Bek'.
