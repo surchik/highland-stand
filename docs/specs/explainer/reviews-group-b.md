@@ -295,3 +295,20 @@ What the reviewers found (the points that cost marks):
 What was changed after this round (Sardarapat):
 
 - The belfry is filmed on the plain painting, framed so the whole tower stands above the subtitles; the May battles are the field after the fight, its defender walking the line; the Republic's page gives way sooner.
+
+## Round 15
+
+Shushi upright, rebuilt after its render had failed. It passed every score, so both Shushi cuts have passed.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| shushi-vertical | a | 10 | 9 | 8 | 9 | 10 |
+| shushi-vertical | b | 9 | 9 | 8 | 9 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: the opening map near still for 5 s, its plaque coming after its words; 6.5 s of the cathedral painting in two shots; 'Shushi falls' up 1.5 s; soldiers on the road near the bottom fifth.
+- History: 'Civilians were struck on both sides' is followed by one example only, the cathedral (the chronicle also tells of the strikes on Ganja and Barda; the landscape cut has the same line).
+- Sound: Ghazanchetsots heard as 'Gazanchetzot's'.
