@@ -240,8 +240,8 @@
         c.save(); c.globalAlpha = a; c.translate(q[0], q[1]); c.rotate(m.rot || 0);
         c.font = (m.land ? "700 " : "italic 600 ") + (m.size || 25) * U * K + "px " + FACE; c.textAlign = "center"; c.textBaseline = "middle";
         const lab = m.land ? spaced(m.label) : m.label;   // a land's name is set spaced in capitals, as the chart's own regions
-        c.strokeStyle = "rgba(240, 228, 190, .85)"; c.lineWidth = 5 * U; c.lineJoin = "round"; c.strokeText(lab, 0, 0);
-        c.fillStyle = m.land ? "#7a2a1c" : "#1f4f6e"; c.fillText(lab, 0, 0);
+        c.strokeStyle = "rgba(240, 228, 190, .9)"; c.lineWidth = (m.land ? 7 : 5) * U; c.lineJoin = "round"; c.strokeText(lab, 0, 0);
+        c.fillStyle = m.land ? "#6e1f14" : "#1f4f6e"; c.fillText(lab, 0, 0);
         c.restore();
         continue;
       }
