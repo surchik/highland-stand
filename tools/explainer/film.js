@@ -28,9 +28,10 @@ function resolve(cut, tl, cues) {
     return k ? s.start + k * (s.end - s.start) : Math.max(0, s.start - (lead == null ? 0.45 : lead));
   };
   const scenes = f.scenes.map(s => JSON.parse(JSON.stringify(s)));
+  const titleEnd = S[0].start + 0.3;   // the title has the film's first seconds to itself, and is gone as the voice begins
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
-    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : S[0].start + 1.0) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : titleEnd - 0.2) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
     if (s.lineAt) s.lineAt = s.lineAt.map(p => at(p, 0.1) - s.t0);
     if (s.sealAt != null) s.sealAt = at(s.sealAt, 0.1) - s.t0;
     if (s.stage && s.stage.fallAt != null) s.stage.fallAt = at(s.stage.fallAt, 0);   // (absolute: the moment he falls)
@@ -39,14 +40,15 @@ function resolve(cut, tl, cues) {
   // a scene that goes on with the battle before it counts its spawns and fall from that battle's start
   const overlays = [];
   // the title has the film's first seconds to itself (the voice begins as it clears)
-  const title = { kind: "title", t0: 0, t1: S[0].start + 0.9, over: "Highland Stand · Chronicle" };
+  const title = { kind: "title", t0: 0, t1: titleEnd, over: "Highland Stand · Chronicle" };
   overlays.push(title);
   const end = (p) => typeof p === "string" ? at(p, 0) : p % 1 ? at(p) : S[p].end + 0.3;
   const chips = (f.chips || []).map(c => ({ kind: "chip", t0: Math.max(at(c.from, 0.1), title.t1 - 0.25), t1: end(c.to), text: c.text, sub: c.sub }));
-  chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next
+  chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next, and to a page of the chronicle
     const next = i + 1 < chips.length ? chips[i + 1].t0 - 0.15 : dur;
     c.t1 = Math.min(Math.max(c.t1, c.t0 + 2.4), next);
-    overlays.push(c);
+    for (const s of scenes) if (s.kind === "card" && s.t0 > c.t0 && s.t0 < c.t1) c.t1 = s.t0 + 0.15;
+    if (c.t1 - c.t0 >= 1.2) overlays.push(c);   // (one that could not be read is left out, never flashed)
   });
   // the closing card comes up once the last line has been said
   const last = S[S.length - 1], endAt = last.end + 0.25;

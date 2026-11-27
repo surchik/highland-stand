@@ -528,7 +528,8 @@
     if (a <= 0) return;
     c.save();
     c.globalAlpha = a;
-    const x = 34 * U, y = (H > W ? 64 : 34) * U, p1 = 32 * U * K, p2 = 26.5 * U * K;
+    const KC = H > W ? 1.28 : 1.3;   // (a landscape film is often watched small, in an upright page: its plaques are set large)
+    const x = 34 * U, y = (H > W ? 64 : 30) * U, p1 = 32 * U * KC, p2 = 27 * U * KC;
     c.font = "700 " + p1 + "px " + FACE;
     let w = c.measureText(o.text).width;
     if (o.sub) { c.font = "italic 600 " + p2 + "px " + FACE; w = Math.max(w, c.measureText(o.sub).width); }
