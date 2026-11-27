@@ -68,7 +68,7 @@ const CAPS = {
       if (cap.title) {
         // a soft dark band behind the title, so it reads over any frame of the map
         const band = g.createLinearGradient(0, H * 0.16, 0, H * 0.8);
-        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.72)"); band.addColorStop(1, "rgba(14,9,4,0)");
+        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.84)"); band.addColorStop(1, "rgba(14,9,4,0)");
         g.fillStyle = band; g.fillRect(0, H * 0.16, W, H * 0.64);
         cream("A tower defense game of Armenian history", W / 2, H * 0.3, 48 * U, "700 ");
         rule(W / 2, H * 0.355, 620);

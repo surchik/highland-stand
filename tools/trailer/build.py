@@ -31,6 +31,8 @@ for i, seg in enumerate(E["segments"]):
     elif clip in ("map", "endmap"):
         # the chart at dusk: darker and warmer than the page's parchment, so the words on it carry
         g = "fps=30,eq=brightness=-0.13:contrast=1.12:saturation=0.85:gamma_r=1.04:gamma_b=0.92,vignette=angle=PI/3.8"
+    elif clip == "stepanakert":   # a night field: lifted to sit with the others
+        g = "fps=30,eq=brightness=0.13:contrast=1.06:saturation=1.18:gamma=1.08,vignette=angle=PI/9"
     else:
         g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
     if pu:   # a slow push in over the segment (the frame grows by pu)
