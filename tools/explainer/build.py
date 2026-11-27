@@ -191,7 +191,8 @@ def main():
     keep_webm = os.path.exists(webm) and os.path.getsize(webm) < os.path.getsize(mp4)
     if os.path.exists(webm) and not keep_webm: os.remove(webm)
     poster = os.path.join(outdir, shape + "-poster.jpg")
-    ff("-ss", "2.6", "-i", W + ".mkv", "-frames:v", "1", "-q:v", "4", poster)
+    # the poster: the title card, whole (it is up from half a second in until just before the voice begins)
+    ff("-ss", "%.2f" % max(0.8, meta["sentences"][0]["start"] - 0.8), "-i", W + ".mkv", "-frames:v", "1", "-q:v", "4", poster)
     # 6 measures
     ff("-i", mp4, "-vn", "-ar", "48000", W + ".final.wav")
     final = measure.loudness(W + ".final.wav")
