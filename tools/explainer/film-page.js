@@ -278,6 +278,76 @@
     drawPlate(sc, t, c, plate, 1600, 1600);
   }
 
+  // ---- the Rock of Van: a long, narrow limestone ridge rising steeply from the plain, its citadel walls along the
+  // crest, Lake Van to the west and the snow peaks beyond (drawn here in the chronicle's flat colours, 1600 x 1000) ----
+  let rockPlate = null;
+  function buildRock() {
+    const c = mk(1600, 1000), g = c.getContext("2d"), rnd = mulberry32(735);
+    const sky = g.createLinearGradient(0, 0, 0, 640);
+    sky.addColorStop(0, "#8fb1c6"); sky.addColorStop(1, "#e6dcc2");
+    g.fillStyle = sky; g.fillRect(0, 0, 1600, 1000);
+    const poly = (pts, fill, ink) => { g.beginPath(); pts.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); g.fillStyle = fill; g.fill(); if (ink) { g.strokeStyle = ink; g.lineWidth = 3; g.lineJoin = "round"; g.stroke(); } };
+    // the far snow peaks
+    poly([[700, 640], [930, 430], [1010, 470], [1120, 380], [1260, 470], [1420, 420], [1600, 520], [1600, 640]], "#a4a9bf");
+    poly([[1080, 420], [1120, 380], [1170, 412], [1150, 430], [1120, 420], [1100, 436]], "#f4f6f8");
+    poly([[1390, 436], [1420, 420], [1470, 448], [1440, 452]], "#f4f6f8");
+    poly([[0, 640], [120, 560], [260, 590], [420, 530], [560, 600], [700, 640]], "#b3b0bd");
+    // Lake Van, to the west
+    const lake = g.createLinearGradient(0, 600, 0, 680);
+    lake.addColorStop(0, "#7fb2cf"); lake.addColorStop(1, "#3f7fae");
+    g.fillStyle = lake; g.fillRect(0, 612, 520, 60);
+    g.strokeStyle = "rgba(255,255,255,.45)"; g.lineWidth = 2;
+    for (let i = 0; i < 14; i++) { const y = 622 + rnd() * 44, x = rnd() * 480; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 20 + rnd() * 30, y); g.stroke(); }
+    // the plain
+    const plain = g.createLinearGradient(0, 640, 0, 1000);
+    plain.addColorStop(0, "#c9b27a"); plain.addColorStop(1, "#9c8a52");
+    g.fillStyle = plain; g.fillRect(0, 660, 1600, 340);
+    for (let i = 0; i < 90; i++) { g.fillStyle = "rgba(90, 110, 50, " + (0.18 + rnd() * 0.2) + ")"; const x = rnd() * 1600, y = 690 + rnd() * 300; g.beginPath(); g.ellipse(x, y, 20 + rnd() * 50, 5 + rnd() * 8, 0, 0, 6.2832); g.fill(); }
+    // the Rock: long and narrow, sheer on its south face, the west end lit and the east in shade
+    const crest = [[300, 700], [340, 560], [400, 470], [470, 432], [620, 414], [800, 408], [980, 412], [1120, 424], [1220, 446], [1290, 500], [1330, 600], [1350, 700]];
+    const face = g.createLinearGradient(300, 0, 1350, 0);
+    face.addColorStop(0, "#e2c48c"); face.addColorStop(0.55, "#c9a36a"); face.addColorStop(1, "#8c6a4c");
+    poly(crest, face, "#3a2814");
+    g.save(); g.beginPath(); crest.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); g.clip();
+    for (let i = 0; i < 26; i++) {   // the facets and clefts of the limestone
+      const x = 340 + i * 38 + rnd() * 16, top = 420 + rnd() * 30, len = 150 + rnd() * 140;
+      poly([[x, top], [x + 14 + rnd() * 12, top + len], [x + 36 + rnd() * 20, top + len * 0.8]], "rgba(70, 46, 28, " + (0.16 + rnd() * 0.12) + ")");
+      poly([[x, top], [x - 8, top + len * 0.9], [x + 6, top + len]], "rgba(255, 244, 214, .18)");
+    }
+    for (const y of [500, 560, 620]) { g.fillStyle = "rgba(70, 46, 28, .22)"; g.fillRect(320, y, 1020, 5); g.fillStyle = "rgba(255, 244, 214, .25)"; g.fillRect(320, y - 4, 1020, 3); }
+    g.restore();
+    // the citadel's walls along the crest, with its towers
+    const crestY = x => { for (let i = 1; i < crest.length; i++) if (x <= crest[i][0]) { const a = crest[i - 1], b = crest[i]; return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); } return 700; };
+    const wallTop = x => crestY(x) - 34;
+    g.fillStyle = "#d9b77e"; g.strokeStyle = "#3a2814"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(410, crestY(410) + 4);
+    for (let x = 410; x <= 1230; x += 10) g.lineTo(x, wallTop(x));
+    for (let x = 1230; x >= 410; x -= 10) g.lineTo(x, crestY(x) + 4);
+    g.closePath(); g.fill(); g.stroke();
+    for (let x = 414; x < 1226; x += 22) { g.fillStyle = "#d9b77e"; g.fillRect(x, wallTop(x) - 12, 12, 13); g.strokeRect(x, wallTop(x) - 12, 12, 13); }
+    for (const tx of [440, 620, 790, 960, 1120, 1210]) {
+      const ty = wallTop(tx) - 46, tw = tx === 790 ? 64 : 44;
+      g.fillStyle = tx === 790 ? "#c99d62" : "#d4ad72"; g.fillRect(tx - tw / 2, ty, tw, crestY(tx) - ty + 4); g.strokeRect(tx - tw / 2, ty, tw, crestY(tx) - ty + 4);
+      for (let k = 0; k < (tx === 790 ? 4 : 3); k++) { const mx = tx - tw / 2 + 2 + k * (tw - 10) / ((tx === 790 ? 4 : 3) - 1); g.fillRect(mx - 1, ty - 12, 10, 12); g.strokeRect(mx - 1, ty - 12, 10, 12); }
+      g.fillStyle = "#3a2814"; g.fillRect(tx - 3, ty + 14, 6, 14);
+    }
+    g.fillStyle = "#a8231c"; g.beginPath(); g.moveTo(790, wallTop(790) - 58); g.lineTo(790, wallTop(790) - 100); g.lineTo(826, wallTop(790) - 90); g.lineTo(790, wallTop(790) - 80); g.fill();
+    g.strokeStyle = "#3a2814"; g.lineWidth = 3; g.beginPath(); g.moveTo(790, wallTop(790) - 58); g.lineTo(790, wallTop(790) - 102); g.stroke();
+    // a few flat-roofed houses of mud-brick at the rock's foot, and the road across the plain
+    for (let i = 0; i < 22; i++) {
+      const x = 360 + i * 44 + rnd() * 20, w = 30 + rnd() * 26, h = 18 + rnd() * 18, y = 712 + rnd() * 16;
+      g.fillStyle = rnd() < 0.5 ? "#d8bd88" : "#c7a874"; g.fillRect(x, y - h, w, h); g.strokeStyle = "rgba(58,40,20,.8)"; g.lineWidth = 2; g.strokeRect(x, y - h, w, h);
+      g.fillStyle = "rgba(58,40,20,.75)"; g.fillRect(x + w * 0.3, y - h * 0.6, 5, 7);
+    }
+    g.strokeStyle = "#e8d6a6"; g.lineWidth = 26; g.lineCap = "round";
+    g.beginPath(); g.moveTo(760, 1000); g.quadraticCurveTo(820, 850, 780, 740); g.stroke();
+    return c;
+  }
+  function drawRockOfVan(sc, t, c) {
+    if (!rockPlate) rockPlate = buildRock();
+    drawPlate(sc, t, c, rockPlate, 1600, 1000);
+  }
+
   // ---- the founding inscription: an illustration (a basalt block with rows of wedge marks; no real text is copied) ----
   const stones = {};
   function buildStone(tone) {
@@ -571,7 +641,7 @@
       if (sc.kind === "field" && sc.keep && sc.stage && sc.stage.heroTo && hero && hero.alive) { hero.rally = { x: sc.stage.heroTo[0], y: sc.stage.heroTo[1] }; hero.face = sc.stage.heroTo[0] >= hero.x ? 1 : -1; }
     }
     const b = bufs[bi], c = b.getContext("2d");
-    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else if (sc.kind === "stone") drawStone(sc, t, c); else if (sc.kind === "card") drawCard(sc, t, c); else drawArt(sc, t, c);
+    if (sc.kind === "field") drawField(sc, t, c); else if (sc.kind === "map") drawMap(sc, t, c); else if (sc.kind === "stone") drawStone(sc, t, c); else if (sc.kind === "card") drawCard(sc, t, c); else if (sc.kind === "rock") drawRockOfVan(sc, t, c); else drawArt(sc, t, c);
     if (sc.tag) {   // the place on screen named in its corner (the plaque in the top left is the voice's; this is the picture's)
       const lines = [[sc.tag, 27 * K, "700"]];
       if (sc.tagSub) lines.push([sc.tagSub, 21 * K, "italic 600", "#8a2a1c"]);
