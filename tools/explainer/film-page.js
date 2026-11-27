@@ -125,7 +125,9 @@
     const st = sc.stage || {};
     if (st.live) {
       const lives0 = lives;
+      const back = st.fleeAt != null && t >= st.fleeAt ? enemies.map(e => [e, e.dist]) : null;   // (a column that breaks and flees)
       update(1 / fps);
+      if (back) for (const [e, d0] of back) if (enemies.indexOf(e) >= 0 && !e.fly) e.dist = Math.max(0, d0 - Math.max(0, e.dist - d0) * 1.6 - 40 / fps);
       lives = Math.max(lives, lives0, 20);
       for (const c of corpses) if (c.keep) c.t = 0.8;   // the film's own dead stay where they lie
       if (st.noRespawn && hero && !hero.alive) hero.respawn = 1e9;
@@ -197,9 +199,66 @@
     draw(photo.time);
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(canvas, 0, 0, W, H);
+    if (sc.boats) drawBoats(sc, t, c, cx, cy, z);
     if (st.lift) {   // the dusk of a lost field, lifted a little so what lies on it can be seen
       c.globalCompositeOperation = "screen"; c.fillStyle = "rgba(255, 176, 110, " + st.lift + ")"; c.fillRect(0, 0, W, H); c.globalCompositeOperation = "source-over";
     }
+  }
+
+  // ---- boats on the field's lake (Sevan: the king's seventy archers): sc.boats = { at: [[x, y], ...] where each boat
+  // ends, from: [dx, dy] the way they come (world units), arriveAt (absolute s), shootAt (absolute s), target: [x, y] on
+  // the shore, spread }. Each boat is a dark hull with its archers standing in it, drawn in the field's own perspective
+  // (proj); from shootAt they loose volleys at the target, and an arrow that lands beside a foe strikes it ----
+  function drawBoats(sc, t, c, cx, cy, z) {
+    const B = sc.boats, t0 = B.startAt != null ? B.startAt : sc.t0;
+    const k = B.arriveAt != null ? ease((t - t0) / Math.max(0.1, B.arriveAt - t0)) : 1;
+    const scr = (wx, wy) => { const p = proj(wx, wy); return [W / 2 + (p.x - cx) * z, H / 2 + (p.y - cy) * z, p.s * z * (B.scale || 2.2)]; };
+    const boats = B.at.map((q, i) => [q[0] + (B.from || [0, 0])[0] * (1 - k), q[1] + (B.from || [0, 0])[1] * (1 - k) + Math.sin(t * 2.1 + i * 1.7) * 1.5]);
+    for (const [bx, by] of boats) {
+      const [x, y, s] = scr(bx, by), L = 46 * s, Hh = 9 * s;
+      c.save(); c.translate(x, y);
+      c.fillStyle = "rgba(20, 40, 60, .35)"; c.beginPath(); c.ellipse(0, Hh * 0.9, L * 0.62, Hh * 0.5, 0, 0, 6.2832); c.fill();   // its shadow on the water
+      if (k < 1) { c.strokeStyle = "rgba(255,255,255,.55)"; c.lineWidth = 1.6 * s; for (const w of [1, 2]) { c.beginPath(); c.moveTo(L * 0.5 + w * 10 * s, -w * 3 * s); c.lineTo(L * 0.5 + w * 22 * s, w * 4 * s); c.stroke(); } }   // the wake
+      for (let a = 0; a < 3; a++) {   // the archers, standing, bows raised
+        const ax = (-0.28 + a * 0.28) * L, ay = -Hh * 0.2;
+        c.fillStyle = "#8e2a1e"; c.fillRect(ax - 3.2 * s, ay - 13 * s, 6.4 * s, 12 * s);
+        c.fillStyle = "#e0b48a"; c.beginPath(); c.arc(ax, ay - 16 * s, 3.2 * s, 0, 6.2832); c.fill();
+        c.fillStyle = "#6f6a62"; c.beginPath(); c.arc(ax, ay - 17.2 * s, 3.4 * s, Math.PI, 0); c.fill();
+        c.strokeStyle = "#3a2410"; c.lineWidth = 1.4 * s; c.beginPath(); c.arc(ax - 6 * s, ay - 12 * s, 7 * s, -1.1, 1.1); c.stroke();
+      }
+      c.fillStyle = "#5a3818"; c.strokeStyle = "#2c1a0a"; c.lineWidth = 1.5 * s;   // the hull
+      c.beginPath(); c.moveTo(-L / 2, -Hh * 0.2); c.lineTo(L / 2, -Hh * 0.2); c.quadraticCurveTo(L * 0.42, Hh, L * 0.3, Hh); c.lineTo(-L * 0.3, Hh); c.quadraticCurveTo(-L * 0.42, Hh, -L / 2, -Hh * 0.2); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = "#7a5228"; c.fillRect(-L / 2, -Hh * 0.2, L, 2.2 * s);
+      c.restore();
+    }
+    if (B.shootAt == null || t < B.shootAt) return;
+    // the volleys: every boat looses together, a volley every 0.8 s; each arrow flies 0.75 s on an arc
+    sc.arrows = sc.arrows || []; sc.volley = sc.volley || 0;
+    const tgt = B.target || [880, 250], sp = B.spread || 60;
+    while (B.shootAt + sc.volley * 0.8 <= t) {
+      const v = sc.volley++;
+      boats.forEach((b, i) => { for (let j = 0; j < 3; j++) { const r = ((v * 7 + i * 3 + j) * 0.618034) % 1, r2 = ((v * 5 + i * 11 + j * 3) * 0.381966) % 1;
+        sc.arrows.push({ t0: B.shootAt + v * 0.8 + j * 0.06, from: [b[0] - 12 + j * 10, b[1] - 6], to: [tgt[0] + (r - 0.5) * 50, tgt[1] + (r2 - 0.5) * sp * 2], hit: false }); } });
+    }
+    c.save(); c.lineCap = "round";
+    for (const a of sc.arrows) {
+      const u = (t - a.t0) / 0.75;
+      if (u < 0) continue;
+      if (u >= 1) {
+        if (!a.hit) { a.hit = true;   // it lands: the nearest foe within reach is struck
+          let best = null, bd = 34;
+          for (const e of enemies) { if (e.fly) continue; const p = enemyPos(e), d = Math.hypot(p.x - a.to[0], p.y - a.to[1]); if (d < bd) { bd = d; best = e; } }
+          if (best && sc.stage && sc.stage.live) damageEnemy(best, (B.dmg || 0.45) * best.maxHp, true, null);
+        }
+        continue;
+      }
+      const wx = a.from[0] + (a.to[0] - a.from[0]) * u, wy = a.from[1] + (a.to[1] - a.from[1]) * u;
+      const [x, y, s] = scr(wx, wy), lift = Math.sin(Math.PI * u) * 70 * s;
+      const [x2, y2] = scr(wx + (a.to[0] - a.from[0]) * 0.04, wy + (a.to[1] - a.from[1]) * 0.04), lift2 = Math.sin(Math.PI * Math.min(1, u + 0.04)) * 70 * s;
+      c.strokeStyle = "rgba(40, 24, 10, .9)"; c.lineWidth = 1.8 * s;
+      c.beginPath(); c.moveTo(x, y - lift); c.lineTo(x + (x2 - x) * 3, y - lift + (y2 - lift2 - (y - lift)) * 3); c.stroke();
+    }
+    c.restore();
   }
 
   // ---- a plate under a moving camera (the chart, the painting) ----

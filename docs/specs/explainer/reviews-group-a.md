@@ -28,3 +28,48 @@ What the reviewers found (left as they stand, each scored 8 or 9):
 - Sound: Haghpat heard as 'Hog Pot', Kapuyt Berd as 'Capuit Baird', Adarnase as 'Adar Nasr', the second Ashot as 'Ashok'.
 - Pacing: 153 words a minute counting speech only; the upright cut's last long sentence is quick.
 - Subtitles: 'they had seized.' alone in a short cue; one line of 38 letters.
+
+## Round 2
+
+Sevan, both cuts, the first build.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sevan-landscape | a | 10 | 9 | 7 | 9 | 10 |
+| sevan-landscape | b | 9 | 10 | 7 | 9 | 10 |
+| sevan-vertical | a | 10 | 9 | 8 | 9 | 10 |
+| sevan-vertical | b | 9 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 7. The upright cut passed every score; the landscape cut did not (picture 7 from both reviewers).
+
+What the reviewers found (the points that cost marks):
+
+- Picture (landscape): 'The king put seventy of his best archers into boats' over an almost empty lake with two tiny sailboats; 'their arrows fell on the ranks massed at the water's edge, and Beshir's men broke and fled' over foes marching on along the inland road, unharmed; the citadel in the bottom fifth; the page on Smbat's death a little over five seconds; smoke over a tower as the voice says the king died still master of his kingdom; the hero standing idle for 'beat back attack after attack'.
+- History (landscape): the chart's arrow brought Beshir to the lake from the south, a route no source gives.
+- Sound: Beshir heard as 'Bashir' (the same name in another spelling), Sevanavank as 'Sivanavanc', 'massed' as 'masked'.
+
+What was changed after this round (landscape):
+
+- A painter of the king's boats for the film's page (film-page.js, additive: `boats` on a field scene): dark hulls with the archers standing in them, drawn in the field's own perspective, crossing the lake to the shore, then loosing volleys; an arrow that lands beside a foe strikes it. A column can break and flee (`fleeAt`): it walks back the way it came.
+- The archers cross the lake for 'into boats ... made for the shore'; the column stands on the shore road at the water's edge, the volleys fall on it and what is left of it falls back for 'broke and fled'; the citadel is out of these shots.
+- No route drawn to the lake; the page on Smbat's death shorter; the hero fights for 'attack after attack'; the last look is over the lake, clear of the smoke.
+
+## Round 3
+
+Ani, both cuts, the first build (the landscape cut's script shortened by its first two sentences and read at 0.97 to keep it near 60 s). Both cuts passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| ani-landscape | a | 10 | 10 | 8 | 9 | 9 |
+| ani-landscape | b | 9 | 9 | 8 | 9 | 9 |
+| ani-vertical | a | 9 | 9 | 8 | 10 | 10 |
+| ani-vertical | b | 8 | 9 | 8 | 10 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (left as they stand, each scored 8 or more):
+
+- History: the rout under the walls and Gagik raised to the throne are said as fact in the upright cut, where the chronicle tells them as what Armenian chroniclers tell (the landscape cut keeps the attribution).
+- Picture: the rout shown as the imperial column still advancing; the hero low in the frame in the last shot; the cathedral painting for 'King Hovhannes-Smbat had no son'; the 1045 page readable for about a second in the upright cut.
+- Sound: the first Vahram heard as 'Vafram'.
+- Subtitles: one line of 38 letters.
