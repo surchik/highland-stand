@@ -31,9 +31,9 @@ for i, seg in enumerate(E["segments"]):
     else:
         g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
     if sp:
-        f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,format=yuv420p[s{i}]")
+        f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
     else:
-        f.append(f"[{i}:v]{g},trim=end_frame=1,tpad=stop_mode=clone:stop_duration={d},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,format=yuv420p[s{i}]")
+        f.append(f"[{i}:v]{g},trim=end_frame=1,tpad=stop_mode=clone:stop_duration={d},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
     if cur is None: cur, L = f"s{i}", d; continue
     o = f"j{i}"
     if x: f.append(f"[{cur}][s{i}]xfade=transition=fade:duration={x}:offset={L - x:.3f}[{o}]"); L += d - x
