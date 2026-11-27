@@ -25,7 +25,7 @@ for f, title in NAMES.items():
         L += [" ".join(para), "", "### Line by line: what the engine is fed, and where the line comes from", "",
               "Names in double square brackets are IPA handed straight to the engine; numbers are spelled out.", ""]
         for i, s in enumerate(segs):
-            L += [str(i + 1) + ". " + s["text"], "   - engine: `" + tts.engine_text(s["text"], "") + "`", "   - sources: " + "; ".join(SRC[cut][i])]
+            L += [str(i + 1) + ". " + s["text"], "   - engine: `" + tts.engine_text(s["text"], "", s.get("lex")) + "`", "   - sources: " + "; ".join(SRC[cut][i])]
             for m in tts.NAME_RE.finditer(tts.spoken(s["text"])): used.add(m.group(1))
     L += ["", "## Names and how they are said", "", "| In the subtitles | IPA fed to the engine | Roughly |", "|---|---|---|"]
     for n in S["lexicon"]:

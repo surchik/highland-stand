@@ -27,21 +27,22 @@ def spoken(text):
 NAMES = sorted(SCRIPTS["lexicon"], key=len, reverse=True)
 NAME_RE = re.compile(r"\b(" + "|".join(re.escape(n) for n in NAMES) + r")('s)?(?![A-Za-z])")
 
-def pieces(text):
-    """[(kind, value)]: kind 'text' (plain words) or 'ipa' (a lexicon name, 's kept as z)."""
+def pieces(text, lex=None):
+    """[(kind, value)]: kind 'text' (plain words) or 'ipa' (a lexicon name, 's kept as z). lex: a sentence's own
+    IPA for a name where it sits differently (scripts.json "lex": a name that opens a sentence)."""
     out, pos = [], 0
     for m in NAME_RE.finditer(text):
         if m.start() > pos:
             out.append(("text", text[pos:m.start()]))
-        out.append(("ipa", SCRIPTS["lexicon"][m.group(1)]["ipa"] + ("z" if m.group(2) else "")))
+        out.append(("ipa", (lex or {}).get(m.group(1), SCRIPTS["lexicon"][m.group(1)]["ipa"]) + ("z" if m.group(2) else "")))
         pos = m.end()
     if pos < len(text):
         out.append(("text", text[pos:]))
     return out
 
-def engine_text(text, style):
+def engine_text(text, style, lex=None):
     """What the engine is fed, as a readable string (docs): names as [[ipa]]."""
-    return "".join(v if k == "text" else "[[" + v + "]]" for k, v in pieces(spoken(text)))
+    return "".join(v if k == "text" else "[[" + v + "]]" for k, v in pieces(spoken(text), lex))
 
 class KokoroVoice:
     def __init__(self, name, models):
@@ -49,9 +50,9 @@ class KokoroVoice:
         self.k = Kokoro(os.path.join(models, "kokoro", "kokoro-v1.0.onnx"), os.path.join(models, "kokoro", "voices-v1.0.bin"))
         self.name = name
         self.lang = "en-gb" if name[0] == "b" else "en-us"
-    def phonemes(self, text):
+    def phonemes(self, text, lex=None):
         out = ""
-        for kind, v in pieces(spoken(text)):
+        for kind, v in pieces(spoken(text), lex):
             if kind == "ipa":
                 out += v
             else:
@@ -72,8 +73,8 @@ class KokoroVoice:
                 ph = self.k.tokenizer.phonemize(core, self.lang) if core else ""
                 out += lead + pre + ph + tail
         return re.sub(r"\s+", " ", out).strip()
-    def say(self, text, speed):
-        ph = self.phonemes(text)
+    def say(self, text, speed, lex=None):
+        ph = self.phonemes(text, lex)
         vocab = self.k.tokenizer.vocab if hasattr(self.k.tokenizer, "vocab") else None
         if vocab:
             bad = sorted(set(c for c in ph if c not in vocab))
@@ -87,9 +88,9 @@ class PiperVoiceW:
         from piper import PiperVoice
         self.v = PiperVoice.load(os.path.join(models, "piper", name + ".onnx"))
         self.name = name
-    def say(self, text, speed):
+    def say(self, text, speed, lex=None):
         from piper import SynthesisConfig
-        t = engine_text(text, "piper")
+        t = engine_text(text, "piper", lex)
         cfg = SynthesisConfig(length_scale=1.0 / speed)
         chunks = list(self.v.synthesize(t, syn_config=cfg))
         audio = np.concatenate([c.audio_float_array for c in chunks])
@@ -125,7 +126,7 @@ def build(cut, voice, speed):
             gap = PAUSE_BEAT if s.get("beat") else PAUSE_SENTENCE
             gap = s.get("gap", gap)
             out.append(np.zeros(int(RATE * gap), np.float32)); t += int(RATE * gap) / RATE
-        a, sr, fed = voice.say(s["text"], speed)
+        a, sr, fed = voice.say(s["text"], speed, s.get("lex"))
         a = resample(trim(a, sr), sr, RATE)
         fade = int(RATE * 0.008)
         a[:fade] *= np.linspace(0, 1, fade); a[-fade:] *= np.linspace(1, 0, fade)

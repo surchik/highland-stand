@@ -308,6 +308,12 @@
     }
     g.restore();
     g.strokeStyle = "#2a2622"; g.lineWidth = 4; g.stroke();
+    // the slab's thickness: a lit top edge and a shadowed lower edge, so it reads as carved stone, not a sheet
+    g.save(); g.clip();
+    g.strokeStyle = "rgba(255, 248, 230, .28)"; g.lineWidth = 22; g.beginPath(); g.moveTo(x0, y0 + 8); g.lineTo(x0 + w, y0 + 8); g.stroke();
+    g.strokeStyle = "rgba(20, 14, 8, .45)"; g.lineWidth = 30; g.beginPath(); g.moveTo(x0, y0 + h - 10); g.lineTo(x0 + w, y0 + h - 10); g.moveTo(x0 + w - 10, y0); g.lineTo(x0 + w - 10, y0 + h); g.stroke();
+    for (let i = 0; i < 14; i++) { const cx = x0 + rnd() * w, cy = rnd() < 0.5 ? y0 + rnd() * 30 : y0 + h - rnd() * 30; g.fillStyle = "rgba(30, 24, 18, .35)"; g.beginPath(); g.arc(cx, cy, 6 + rnd() * 14, 0, 6.2832); g.fill(); }
+    g.restore();
     const wedge = (x, y, len, ang) => {
       g.save(); g.translate(x, y); g.rotate(ang);
       g.fillStyle = "rgba(24, 21, 18, .9)";
@@ -341,7 +347,7 @@
       stones[tone] = buildStone(tone);
       if (tone === "pale") {   // carved limestone, a little out of focus: the look of an inscription, no sign to read
         const soft = mk(1600, 1000), g = soft.getContext("2d");
-        g.filter = "blur(2.2px)"; g.drawImage(stones[tone], 0, 0); g.filter = "none";
+        g.filter = "blur(0.9px)"; g.drawImage(stones[tone], 0, 0); g.filter = "none";
         const sh = g.createLinearGradient(0, 0, 1600, 1000);
         sh.addColorStop(0, "rgba(255, 245, 220, .10)"); sh.addColorStop(1, "rgba(30, 20, 10, .28)");
         g.fillStyle = sh; g.fillRect(0, 0, 1600, 1000);
@@ -379,7 +385,7 @@
     c.fillStyle = lg; c.fillRect(0, 0, W, H);
     c.save();
     c.translate(W / 2 + (sc.drift == null ? 70 : sc.drift) * U * (k - 0.5), H * (tall ? 0.42 : 0.43) - (tall ? 30 : 18) * U * (k - 0.5)); c.scale(z, z);   // (the page drifts a little as it comes nearer)
-    const lines = sc.lines || [], gap = (tall ? 50 : 46) * U;
+    const lines = sc.lines || [], gap = (tall ? 54 : 52) * U;
     const pw = (sc.w || (tall ? 640 : 1000)) * U, ph = (sc.h || (tall ? 600 : 440)) * U;
     const open = sc.scroll ? ease(T / 0.9) : 1, vh = ph * (0.08 + 0.92 * open);
     // the page (clipped to what has unrolled)
@@ -404,7 +410,7 @@
     c.textAlign = "center"; c.textBaseline = "middle";
     const textAlpha = sc.scroll ? clamp01((T - 0.6) / 0.4) : 1;
     c.globalAlpha = textAlpha;
-    let y = -((sc.emblem ? 70 : 0) + (sc.rubric ? 62 : 0) + 58 + 44 + (lines.length - 1) * (tall ? 50 : 46)) * U / 2;
+    let y = -((sc.emblem ? 70 : 0) + (sc.rubric ? 62 : 0) + 58 + 44 + (lines.length - 1) * (tall ? 54 : 52)) * U / 2;
     if (sc.emblem) { emblem(c, sc.emblem, 0, y + 22 * U, 30 * U); y += 70 * U; }
     if (sc.rubric) { c.font = "700 " + 32 * U + "px " + FACE; c.fillStyle = "#a8231c"; c.fillText(spaced(sc.rubric), 0, y); y += 62 * U; }
     let tp = (tall ? 60 : 68) * U;
@@ -419,7 +425,7 @@
       const at = sc.lineAt ? sc.lineAt[i] : 0.5 + i * Math.min(1.1, (sc.t1 - sc.t0 - 2) / Math.max(1, lines.length));
       const a = clamp01((T - at) / 0.45);
       c.globalAlpha = textAlpha * a;
-      c.font = "italic 600 " + (tall ? 36 : 37) * U + "px " + FACE; c.fillStyle = "#3b2a16";
+      c.font = "italic 600 " + (tall ? 40 : 43) * U + "px " + FACE; c.fillStyle = "#3b2a16";
       // as if written: the line is revealed from the left
       const lw = c.measureText(l).width;
       c.save(); c.beginPath(); c.rect(-lw / 2 - 4 * U, y - gap / 2, (lw + 8 * U) * ease((T - at) / 0.7), gap); c.clip();
@@ -576,7 +582,7 @@
     fx.drawImage(b, 0, 0);
     // a dissolve between two pictures; between two looks at the same field, a quick one (a long one reads as a double exposure)
     const prev = i > 0 ? spec.scenes[i - 1] : null;
-    const fade = sc.fade != null ? sc.fade : prev && prev.kind === "field" && sc.kind === "field" ? 0.3 : 0.55;
+    const fade = sc.fade != null ? sc.fade : prev && prev.kind === "field" && sc.kind === "field" ? 0.3 : sc.kind === "card" || (prev && prev.kind === "card") ? 0.3 : 0.55;
     if (i > 0 && t - sc.t0 < fade) { fx.globalAlpha = 1 - ease((t - sc.t0) / fade); fx.drawImage(bufs[1 - bi], 0, 0); fx.globalAlpha = 1; }
     vignette(fx);
     // the lower fifth is the subtitles' ground: the picture is dimmed there, so nothing in it asks to be read
