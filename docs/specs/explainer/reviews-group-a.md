@@ -115,3 +115,23 @@ What the reviewers found (left as they stand, each scored 8 or more):
 - Picture: the archers drawn as flat red figures without faces, a little large beside the game's units; the arrows long dark strokes; Beshir's host shown on the road by the citadel with no island in sight; the citadel's base in the bottom fifth in two shots.
 - Pacing: the first sentence 10.4 s long; speech 153 words a minute.
 - Sound: 'massed' heard as 'masked', Beshir as 'Bashir'.
+
+## Round 6
+
+Sis, both cuts, the first build. Both cuts passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sis-landscape | a | 8 | 9 | 8 | 9 | 9 |
+| sis-landscape | b | 8 | 9 | 8 | 9 | 9 |
+| sis-vertical | a | 9 | 10 | 8 | 10 | 10 |
+| sis-vertical | b | 10 | 9 | 8 | 10 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found:
+
+- History (landscape): the page read 'the king promised his life', which turns round who promised what (he was promised his life, by the governor of Aleppo). This is a real error and is fixed in round 8, though the cut passed.
+- Picture: the plaque for Leo of Lusignan late and short; the page 'Freed, he died in Paris in 1393' over five seconds; the hero low in the last shot; 'the kingdom came to an end' over the castle still garrisoned, and 'Freed' over Sis's painting (upright).
+- Subtitles: two uneven line breaks ('So ended / the Armenian Kingdom of Cilicia').
+- Pacing: 157 words a minute counting speech only (landscape).
