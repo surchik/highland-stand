@@ -414,7 +414,12 @@
   function drawStone(sc, t, c) {
     const tone = sc.tone || "basalt";
     if (!stones[tone]) {
-      stones[tone] = buildStone(tone);
+      stones[tone] = tone === "soft" ? null : buildStone(tone);
+      if (tone === "soft") {   // the dark stone out of focus: an inscribed slab, its rows of wedges and no sign to read
+        const soft = mk(1600, 1000), g = soft.getContext("2d");
+        g.filter = "blur(2.6px)"; g.drawImage(buildStone("basalt"), 0, 0); g.filter = "none";
+        stones[tone] = soft;
+      }
       if (tone === "pale") {   // carved limestone, a little out of focus: the look of an inscription, no sign to read
         const soft = mk(1600, 1000), g = soft.getContext("2d");
         g.filter = "blur(0.9px)"; g.drawImage(stones[tone], 0, 0); g.filter = "none";
