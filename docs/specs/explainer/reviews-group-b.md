@@ -237,3 +237,38 @@ What the reviewers found (each scored 8 or more; left as they stand):
 - Picture: Stepanakert's plate cut by the frame's edge as the map pans to the corridor; 'Food, medicine and fuel ran short' over the citadel and its armed volunteer, nothing showing the shortage; the convoy running into the bottom fifth, and a 1.9 s look at it between two maps.
 - Pacing: 126 words a minute with pauses.
 - Subtitles: 'In September 2023, / a final offensive' | 'forced the surrender of Artsakh.' parts subject from verb.
+
+## Round 12
+
+Stepanakert (1991 to 1992) landscape, rebuilt with round 6's fixes. It passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| stepanakert92-landscape | a | 10 | 9 | 8 | 9 | 10 |
+| stepanakert92-landscape | b | 9 | 9 | 8 | 9 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: the 1988 page near still for 4.3 s, and a hard jump as it gives way to the field; 'every side lost civilians' over an empty field; the citadel's foot in the bottom fifth in the last shot.
+- History: the chart's corridor labels on a map of 1991 (the opening map still shows them at its widest).
+- Pacing: 'Keep the basements safe until the heights are won' comes after the heights are taken (the chronicle's own closing call).
+- Sound: 'basements' heard as 'basement'; Ter-Tadevosyan as 'Ter Tadevossian'.
+
+## Round 13
+
+Stepanakert (1991 to 1992) upright, rebuilt with round 6's fixes. It passed every score, so both Stepanakert (1991 to 1992) cuts have passed.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| stepanakert92-vertical | a | 10 | 9 | 8 | 8 | 10 |
+| stepanakert92-vertical | b | 9 | 9 | 8 | 8 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: the plateau painting, its rockets still falling, under 'Armenian units attacked Shushi'; Shushi's marker on the map for under a second before its word; the citadel's foot in the bottom fifth.
+- Sound: the second Stepanakert heard as 'Step in a Care'; 'basements' as 'basement'.
+- History: the upright cut leaves out 'every side lost civilians', which the landscape cut keeps.
