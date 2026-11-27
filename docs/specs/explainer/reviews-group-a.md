@@ -161,3 +161,23 @@ What was changed after this round (landscape):
 
 - Script: 'is recorded that year'; read at 0.98; the cue break moved to 'the highlands became / the battlefield of two empires'.
 - Picture: Lala Mustafa Pasha on a page of his own; Kars, Kumayri and Erivan come up on the chart one after another as they are named, with no route drawn; Kumayri's plaque set clear of Mt. Ararat; the village painting for 'No fighting at Kumayri itself is recorded that year'; Shah Abbas's deportations as an arrow on the chart pointing the way to Persia; 'the lands emptied' over the deserted snow plain below the village.
+
+## Round 8
+
+Mari, both cuts, rebuilt with round 4's fixes. Both cuts passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| mari-landscape | a | 9 | 9 | 8 | 9 | 9 |
+| mari-landscape | b | 10 | 9 | 8 | 9 | 9 |
+| mari-vertical | a | 10 | 9 | 8 | 9 | 10 |
+| mari-vertical | b | 10 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (left as they stand, each scored 8 or more):
+
+- Picture: the painting of Cilicia's mountains used twice and nearly still the second time ('it went around the guarded pass'); the arrow 'To the Mongols' ending near Lake Van; two similar shots of the Mamluk column; the upright cut's opening chart without Cilicia in frame and one hero for the two princes.
+- Pacing: speech 151 to 153 words a minute; the 1260 sentence 10 s in one breath.
+- Sound: Baybars heard as 'Baibars' (the common English spelling); Vahram once as 'Vaphram'.
+- Subtitles: 'Baybars sent / a Mamluk army against them.' unbalanced.
