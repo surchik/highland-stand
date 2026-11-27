@@ -204,7 +204,7 @@ const log = (m) => { if (o.verbose) console.log(m); };
 
   // ---------------------------------------------------------------- a page of the game from the stack
   // C: a size; x: { ua, init: [[fn, arg]], storage: {k: v} (set before the page loads), blocked: true (storage
-  // that throws), offline: true (navigator.onLine false), path }
+  // that throws), offline: true (navigator.onLine false), cut: true (the database's calls fail for the network), path }
   const open = async (C, x = {}) => {
     const ctx = await browser.newContext(Object.assign({ viewport: { width: C.w, height: C.h }, deviceScaleFactor: 1, hasTouch: !!C.touch, isMobile: !!C.touch },
       x.ua || C.ua ? { userAgent: x.ua || C.ua } : {}));
@@ -221,6 +221,8 @@ const log = (m) => { if (o.verbose) console.log(m); };
       Object.defineProperty(window, "localStorage", { configurable: true, get() { throw new DOMException("The operation is insecure.", "SecurityError"); } });
     });
     if (x.offline) await ctx.addInitScript(() => { Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => false }); });
+    // cut: the database's calls fail as a dropped network does (status 0), the page itself still served
+    if (x.cut) for (const pat of ["**/auth/v1/**", "**/rest/v1/**"]) await ctx.route(pat, r => r.abort("internetdisconnected"));
     if (x.storage) await ctx.addInitScript(st => { try { for (const k in st) localStorage.setItem(k, st[k]); } catch (e) {} }, x.storage);
     for (const [fn, arg] of x.init || []) await ctx.addInitScript(fn, arg);
     const page = await ctx.newPage();
@@ -853,8 +855,14 @@ const log = (m) => { if (o.verbose) console.log(m); };
     await plays(g, W + " Auth hanging");
     await S.control("auth", { mode: "up" });
     await done(g, W + " Auth hanging");
-    // offline
+    // the browser says offline but the server answers (some VPNs and in-app browsers read navigator.onLine false on a
+    // working connection): the sign-in card, never "You are offline"
     g = await open(C, { offline: true });
+    await gate(g, "signin");
+    if ((await cardText(g)).includes("offline")) fail(W, "onLine false with the server up said offline: " + await cardText(g));
+    await done(g, W + " onLine false, server up");
+    // offline: the browser says so and nothing answers
+    g = await open(C, { offline: true, cut: true });
     await gate(g, "down");
     if (!(await cardText(g)).includes("You are offline. You can play now.")) fail(W, "the offline card: " + await cardText(g));
     await pressGo(g, "#gate .gtGo");

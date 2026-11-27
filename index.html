@@ -3919,12 +3919,12 @@
   <div class="row">
     <label>Sound</label>
     <div class="tgl" id="setSfxTgl">On</div>
-    <input type="range" id="sfxVol" min="0" max="100" value="86">
+    <input type="range" id="sfxVol" min="0" max="100" value="74">
   </div>
   <div class="row">
     <label>Ambient</label>
     <div class="tgl" id="setAmbTgl">On</div>
-    <input type="range" id="ambVol" min="0" max="100" value="83">
+    <input type="range" id="ambVol" min="0" max="100" value="71">
   </div>
   <div class="row cam">
     <label id="setCamLbl">Battle camera</label>
@@ -4193,8 +4193,8 @@ if (HS_CHANNEL === "next") {
 // hs_ functions; what it opens of OTHER projects in the same Supabase is section 9.1). Empty: the platform is
 // off and the game is the game of before. NEVER put a service key, a JWT secret or a provider's secret in
 // this file.
-const HS_SUPABASE_URL = "https://hs-db.avunjian.com";        // e.g. "https://supabase.avunjian.com" (no slash at the end)
-const HS_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzk0ODc0MDIxLCJleHAiOjIxMTAyMzQwMjF9.usZBYGwXXM30pml8fqHPif4U5jNcn7F0bIjTu1vhwik";
+const HS_SUPABASE_URL = "";        // e.g. "https://supabase.avunjian.com" (no slash at the end)
+const HS_SUPABASE_ANON_KEY = "";
 const HS_GATE = "required";        // "required" | "optional" | "off" (docs/specs/platform.final.md, section 3)
 const HS_ANON_ID = "device";      // "device" | "visit": where the anonymous id lives before a sign-in (section 7.1)
 // Gameplay's one door to analytics, and the platform's one way to hear of a battle. It never throws and never
@@ -6264,9 +6264,10 @@ function eraAge(e) { const a = ERA_AGE[e | 0]; return a === undefined ? (e | 0) 
 const Snd = {
   ctx: null, bufs: null, sfxIn: null, sfxGain: null, musGain: null, duckGain: null, ambIn: null, ambGain: null,
   revIn: null, echoIn: null,
-  // volumes are slider positions 0..1 on a 36 dB log taper (see gainOf); the defaults sit where the
-  // old linear defaults did (0.55, 0.35, 0.5 gain)
-  sfxOn: true, musicOn: true, ambOn: true, sfxVol: 0.86, musVol: 0.75, ambVol: 0.83,
+  // volumes are slider positions 0..1 on a 36 dB log taper (see gainOf). Music sits where the old linear default
+  // did (0.35 gain); the effects and the ambience were lowered a quarter in loudness (about 4 dB, the owner's word,
+  // stage 12) from 0.86 and 0.83 (0.55 and 0.5 gain) to 0.74 and 0.71 (0.34 and 0.31 gain)
+  sfxOn: true, musicOn: true, ambOn: true, sfxVol: 0.74, musVol: 0.75, ambVol: 0.71,
   musEra: -1, droneNodes: null, pulseWave: null,
   lastPlay: {}, voices: [], dens: {}, rrN: {}, amb: null, duckSt: null, timer: null,
   sceneOf: null, sceneOverride: null, curves: {},
@@ -67742,7 +67743,7 @@ autoBtn.addEventListener("click", () => {
 function saveSettings() {
   const s = {
     sfxOn: Snd.sfxOn, musicOn: Snd.musicOn, sfxVol: Snd.sfxVol, musVol: Snd.musVol,
-    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 2, band: Snd.band, diff: prefDiff,
+    ambOn: Snd.ambOn, ambVol: Snd.ambVol, taper: 3, band: Snd.band, diff: prefDiff,
   };
   // the Battle camera switch is kept only once the player has pressed it: until then it follows the system's
   // "reduce motion", as it stands on each visit
@@ -67767,6 +67768,11 @@ function loadSettings() {
       if (typeof s[k] === "number") Snd[k] = s[k] <= 0 ? 0 : Math.max(0, Math.min(1, 1 + 20 * Math.log10(s[k]) / 36));
     } else if (s.taper === 1) for (const k of ["sfxVol", "musVol", "ambVol"]) {
       if (typeof s[k] === "number") Snd[k] = s[k] <= 0 ? 0 : Math.max(0, Math.min(1, 1 - 50 * (1 - s[k]) / 36));
+    } else if (s.taper === 2) {
+      // saved before stage 12's quieter defaults: sliders still on the old defaults move to the new ones (a slider
+      // the player moved stays where they put it)
+      if (s.sfxVol === 0.86) Snd.sfxVol = 0.74;
+      if (s.ambVol === 0.83) Snd.ambVol = 0.71;
     }
   } catch (e) {}
   $("sfxVol").value = Math.round(Snd.sfxVol * 100);
@@ -85682,11 +85688,13 @@ async function pfBoot(onMap) {
 // No session: the switch (hs_config, 2.5 s) and the providers (Auth's /settings, 4 s) asked at once (3.2)
 async function pfNoSession(line) {
   if (line !== undefined) gateLine = line || "";
-  const offline = navigator.onLine === false;
+  // the server is always asked: a browser's navigator.onLine can read false on a working connection (some VPNs,
+  // virtual network adapters, in-app browsers), so it only names the failure once both calls have failed for the network
   const [cr, sr] = await Promise.all([
-    offline ? { ok: false, status: 0 } : pfRpc("hs_config", {}, { timeout: 2500 }),
-    offline ? { ok: false, status: 0 } : pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }),
+    pfRpc("hs_config", {}, { timeout: 2500 }),
+    pfApi("GET", "/auth/v1/settings", undefined, { timeout: 4000 }),
   ]);
+  const offline = cr.status === 0 && sr.status === 0 && navigator.onLine === false;
   const cfg = cr.ok && cr.data && typeof cr.data === "object" ? cr.data : null;
   // the schema is not installed, or the owner switched the platform off: the game of before, for this load
   if (cr.status === 404 || (cfg && cfg.cloud === false)) { pfOff(); gateLeave("off", pfOnMap); return; }
@@ -88283,9 +88291,10 @@ const Platform = {
 };
 // ---------- the trailer: the first thing a new visitor sees ----------
 // A first visit over the web opens on the trailer (trailer.mp4 beside the page: update.sh publishes it beside the
-// page at / and at /next/), looping, with one button into the game. It has a soundtrack since stage 6 (the owner's
-// music under a short voice-over): it tries to start with sound, and where the browser refuses sound before a tap
-// it starts muted, and "Sound on" beside Play now turns it on (and off again). It is shown once: closing it in any way marks it seen. It never shows under the harness,
+// page at / and at /next/), played once, with one button into the game; when it ends it closes by itself and the
+// game (or the platform's gate under it) is there. It has a soundtrack since stage 6 (the owner's music under a
+// short voice-over): it starts with sound, and where the browser refuses sound before a tap it starts muted and the
+// sound comes on at the first tap or key anywhere (other than on "Sound on" itself, which turns it on and off). It is shown once: closing it in any way marks it seen. It never shows under the harness,
 // on file://, or to a browser driven by a test (navigator.webdriver), so every test meets the page as before.
 // If the video cannot load, the poster stands in; with reduced motion asked for, the video waits for a tap.
 // While it is open it takes every key, so no hotkey reaches the game behind it.
@@ -88315,7 +88324,7 @@ const Trailer = (() => {
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-modal", "true");
     el.setAttribute("aria-label", "Highland Stand trailer");
-    el.innerHTML = '<div class="tFrame"><video playsinline loop preload="auto" poster="trailer-poster.jpg"' + (still ? ' controls' : '') +
+    el.innerHTML = '<div class="tFrame"><video playsinline preload="auto" poster="trailer-poster.jpg"' + (still ? ' controls' : '') +
       ' aria-label="Trailer: 30 seconds of the game"><source src="trailer.mp4" type="video/mp4"><source src="trailer.webm" type="video/webm"></video></div>' +
       '<div class="tBtns"><button type="button" class="btn" id="trailerPlay">Play now</button>' +
       '<button type="button" class="tSound" id="trailerSound" aria-pressed="false">Sound on</button>' +
@@ -88331,7 +88340,23 @@ const Trailer = (() => {
       if (p && p.then) p.then(say, () => { if (!el) return; v.muted = true; say(); const p2 = v.play(); if (p2 && p2.catch) p2.catch(() => {}); });
       else say();
     } else say();
+    // played once: at its end, into the game
+    v.addEventListener("ended", close);
+    // started muted (the browser wanted a tap first): the first tap or key anywhere brings the sound in, unless the
+    // player has already chosen with the sound button
+    let chose = false;
+    const wake = (e) => {
+      if (!el) { off(); return; }
+      if (e && e.target && e.target.closest && e.target.closest("#trailerSound")) return;
+      off();
+      if (chose || !v.muted) return;
+      v.muted = false; say();
+      if (v.paused && !still) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+    };
+    const off = () => { for (const t of ["pointerdown", "keydown", "touchstart"]) window.removeEventListener(t, wake, true); };
+    for (const t of ["pointerdown", "keydown", "touchstart"]) window.addEventListener(t, wake, true);
     snd.addEventListener("click", () => {
+      chose = true;
       v.muted = !v.muted;
       if (v.paused && !still) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
       say();
