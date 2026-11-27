@@ -27,7 +27,9 @@ Piper voices, only for the audition, in `piper/`.
     python tools/explainer/build.py erebuni-landscape --work /some/scratch/dir
     python tools/explainer/build.py erebuni-vertical --work /some/scratch/dir      (and so on: tushpa, avarayr, dvin)
 
-Options: `--skip-film` keeps the picture already rendered in the work folder (after a change to words that does not move
+Options: `--narr-only` makes the narration, its cues and the recognizer's hearing and stops (a quick look; with
+`node film.js <cut> <work>/<cut>.narr.wav.json <dir>/look --stills <dir> --every 1 --ss 0.5` a still a second);
+`--skip-film` keeps the picture already rendered in the work folder (after a change to words that does not move
 the timings much, render again); `--no-music` leaves the music bed out; `--webm` also tries a VP9 file and keeps it if it
 is smaller. A landscape cut takes about ten minutes, most of it the picture (1,800 frames photographed from the page).
 
@@ -43,4 +45,6 @@ index.html is not changed.
 ## The rules the scripts keep
 
 History only from the battlefield's own texts in index.html and docs/history/*.json; neutral toward every people; no
-invented facts, numbers or quotes; where the game invents a battle (Erebuni) the film says so. No long dashes.
+invented facts, numbers or quotes; the film never claims a siege or battle that history does not record, and it does
+not apologise for the game: the battlefield scenes are the game's staging and carry no label (the owner's rule).
+No long dashes.

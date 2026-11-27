@@ -60,7 +60,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Then the Persian reserves surrounded [[vɑːɹdˈɑːnz]] men, and [[vɑːɹdˈɑːn]] fell there.`
    - sources: C3 (Then the Persian reserves surrounded Vardan's men. Vardan fell there); D; TA2.9
 9. The field was lost, yet the faith held: in 484 his nephew Vahan won freedom of worship by the Treaty of Nvarsak.
-   - engine: `The field was lost, yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship by the Treaty of [[nəvɑːɹsˈɑːk]].`
+   - engine: `The field was lost, yet the faith held: in four eighty-four his nephew [[vɑːhˈɑːn]] won freedom of worship by the Treaty of [[nvɑːɹsˈɑːk]].`
    - sources: C4 (The field was lost; Yet the faith held; in 484 he won freedom of worship by the Treaty of Nvarsak); V; ED1.32; TA2.10
 10. Stand where Vardan stood.
    - engine: `Stand where [[vɑːɹdˈɑːn]] stood.`
@@ -114,5 +114,5 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | Avarayr | `ˌɑːvɑːɹˈaɪɹ` | ah-vah-RYRE |
 | Tghmut | `təɣmˈuːt` | tuh-gh-MOOT (gh as in Armenian, a soft sound at the back of the throat) |
 | Vahan | `vɑːhˈɑːn` | vah-HAHN |
-| Nvarsak | `nəvɑːɹsˈɑːk` | nuh-var-SAHK |
+| Nvarsak | `nvɑːɹsˈɑːk` | nvar-SAHK. The n runs straight into the v, with no vowel between: with one, a recognizer heard 'Navar Sak'. |
 | Zoroastrianism | `zˌɔːɹoʊˈæstɹiənˌɪzəm` | zor-oh-AS-tree-an-izm (an English word the engines' dictionary gets wrong) |

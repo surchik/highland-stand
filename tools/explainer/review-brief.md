@@ -10,6 +10,12 @@ battlefield: landscape about 60 seconds, vertical about 30 seconds. History only
 battlefield's own texts in index.html; neutral toward every people; no invented facts, numbers or quotes. Small files
 (aim: landscape under 6 MB, vertical under 3 MB). No long dashes anywhere in text.
 
+The owner's rule for the game's own pictures: the film is built from the game, so its battlefield scenes (towers,
+the hero, foes on the road, the citadel, a battle in motion, the citadel burning at dusk when a stand is lost) are
+understood as the game's staging of the history. They need no label or disclaimer, and the film does not apologise for
+the game: do not penalise the absence of a note such as 'scenes from the game' or 'this battle is the game's invention'.
+Judge instead whether each scene fits what the voice is saying at that moment.
+
 You cannot hear audio or watch video. Judge from the evidence in the review pack (paths below), and you may run ffprobe,
 ffmpeg, python3 or node yourself on the files to check anything (for example extract more frames, or measure loudness).
 Read the images with the Read tool.
@@ -39,13 +45,14 @@ victory and defeat texts).
 
 Score each of these from 1 to 10 (10 is flawless, 9 is good enough to show the owner, 8 or less needs a fix):
 - history: every spoken claim and every word on screen is supported by the sources named; nothing invented, no number or
-  quote without a source, neutral toward every people; where the game invents a battle the film says so if the source
-  text does.
+  quote without a source, neutral toward every people; the film never claims that a siege or battle happened that
+  history does not record.
 - pacing: length against the target (about 60 s landscape, about 30 s vertical), words a minute (documentary pace is
   about 130 to 150), pauses, whether scenes change with the sense of the narration (check scenes.json against
   sentences.json), nothing rushed or dragging.
 - picture: built from the game's own look; readable titles and plaques at phone size; the picture fits what is being
-  said at that moment; variety and movement; no glitches, no stray interface, nothing important in the bottom fifth
+  said at that moment (and a plaque comes up with its words); motion and variety (no near-still shot over about 4 s,
+  no still card over about 5 s); variety and movement; no glitches, no stray interface, nothing important in the bottom fifth
   where subtitles go; the framing suits the shape (landscape or vertical); file size within the aim.
 - sound: judged from the transcript against the script (were the words and names said clearly enough for a recognizer
   to get them), the loudness and peak numbers, pace, the music bed's level under the voice (you may measure it), no

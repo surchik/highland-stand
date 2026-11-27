@@ -1,10 +1,10 @@
-// The chronicle's film (stage 5; the page's Film block): Erebuni, Tushpa and Avarayr open their chronicle on a short
+// The chronicle's film (stage 5; the page's Film block): Erebuni, Tushpa, Avarayr and Dvin open their chronicle on a short
 // film, every other battlefield on the text as before. Headless Chromium may not decode H.264, so this script holds
 // the page to its own logic, not to the picture: it sets window.__hsFilmTest ({ hold: true } keeps the film up
 // through a decoding error; { base } points it at a folder with no files), which also lifts the rule that a browser
 // driven by a test (navigator.webdriver) gets the text chronicle alone.
 // At each size (1600x900 by mouse; by touch an iPad upright 834x1194 and an iPhone at 667x320, 852x393 with the
-// Home Screen's insets, 393x659 and 375x553 upright), for each of the three battlefields:
+// Home Screen's insets, 393x659 and 375x553 upright), for each of the four battlefields:
 // - the chronicle opens with the film over it: one <video> with the cut the window asks for (landscape when wider
 //   than tall, vertical otherwise), its poster, its .mp4 asked for only now, its subtitles <track> on by default and
 //   showing; all three files are in the repository; Skip is in reach, out of the safe areas, 44 px to a finger;
@@ -15,7 +15,7 @@
 // - opened again, the chronicle shows its text at once with that button, which plays the film again; Escape puts it
 //   away; the film's end (the video's ended event) puts it away a second later;
 // - Campaign Map takes the button away with the chronicle; a film left by the map is released.
-// Once per size: Dvin (no film) has neither film nor button. Once, at 1600x900: a plain load driven by a test has no
+// Once per size: the Lori Gates (tashir, no film) has neither film nor button. Once, at 1600x900: a plain load driven by a test has no
 // film, no button and no <video>; a missing file falls back to the text within the page's 4 s, unmarked and with no
 // button; reduced motion and Save-Data show the text with the button and no autoplay; and under /next/ (the page
 // served over http from a folder of that name) the mark is kept as next:hs_film_seen_<id> and the film's files are
@@ -29,7 +29,7 @@ const http = require("http");
 const R = require("./lib");
 const o = R.cli();
 const t0 = Date.now();
-const IDS = ["erebuni", "tushpa", "avarayr"];
+const IDS = ["erebuni", "tushpa", "avarayr", "dvin"];
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const ALL = [
   R.SIZES.desk,
@@ -205,9 +205,9 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
         if (m.btn || m.mode !== "map") await fail(id + ": Campaign Map left the button up (" + m.mode + ")");
       }
       // a battlefield with no film
-      await openBrief(g, "dvin");
-      const d = await state(g, "dvin");
-      if (d.film || d.videos || d.btn) await fail("dvin: a film or its button on a battlefield without one");
+      await openBrief(g, "tashir");
+      const d = await state(g, "tashir");
+      if (d.film || d.videos || d.btn) await fail("tashir: a film or its button on a battlefield without one");
       const errs = (await g.problems()).filter(e => !mediaNoise(e));
       if (errs.length) await fail("errors: " + errs.slice(0, 3).join(" | "));
     } catch (e) {

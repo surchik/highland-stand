@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds one cut of an explainer video, start to end:  build.py <cut> [--work DIR] [--skip-film] [--no-music]
+"""Builds one cut of an explainer video, start to end:  build.py <cut> [--work DIR] [--skip-film] [--no-music] [--narr-only]
 
   1 narration   tts.py's build with the chosen voice (voice.json), set to -16 LUFS (two-pass loudnorm)
   2 subtitles   <id>/<cut>.vtt: the script in its true spelling, cue times from a speech recognizer's word times
@@ -87,6 +87,8 @@ def cues(meta, heard_words, script, wav):
             a = starts[j][0] - 0.1
             b = starts[j + 1][0] - 0.14 if j + 1 < n else s["end"] + 0.3
             out.append({"start": round(max(0, a), 3), "end": round(b, 3), "text": part, "how": starts[j][1], "sentence": s["i"], "speech": round(starts[j][0], 3), "heard_at": starts[j][2]})
+    # (every part as set in scripts.json, before any are joined: the picture is placed by these, film.js)
+    parts = [dict(c) for c in out]
     # a cue that would have to be read faster than 17 letters a second joins its neighbour in the sentence, when the
     # two fit two lines
     def wrap(text):
@@ -112,10 +114,10 @@ def cues(meta, heard_words, script, wav):
     for i, c in enumerate(out):   # long enough to read: at least 1.6 s and at most 17 letters a second, taken from the silence after it
         need = max(1.8, len(c["text"]) / 17.0)
         room = (out[i + 1]["start"] - 0.04) if i + 1 < len(out) else meta["duration"] - 0.1
-        if i + 1 == len(out): c["end"] = round(meta["duration"] - 0.7, 3)   # the last line stays under the closing card
+        if i + 1 == len(out): c["end"] = round(min(meta["duration"] - 0.7, meta["sentences"][-1]["end"] + 1.0), 3)   # the last line stays a second after its words, into the closing card
         if c["end"] - c["start"] < need: c["end"] = round(min(room, c["start"] + need), 3)
         if c["end"] > room: c["end"] = round(room, 3)
-    return out
+    return out, parts
 
 def main():
     cut = sys.argv[1]
@@ -141,7 +143,8 @@ def main():
     json.dump(meta, open(W + ".narr.wav.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     # 2 subtitles (and what the recognizer heard)
     q = measure.measure(W + ".narr.wav")
-    cs = cues(meta, q["heard_words"], tts.SCRIPTS["cuts"][cut], W + ".narr.wav")
+    cs, parts = cues(meta, q["heard_words"], tts.SCRIPTS["cuts"][cut], W + ".narr.wav")
+    json.dump(parts, open(W + ".parts.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     with open(os.path.join(outdir, shape + ".vtt"), "w", encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
         for i, c in enumerate(cs): f.write("%d\n%s --> %s\n%s\n\n" % (i + 1, stamp(c["start"]), stamp(c["end"]), c["text"]))
@@ -150,6 +153,9 @@ def main():
     errs = [round(abs(c["speech"] - c["heard_at"]), 3) for c in cs if c["heard_at"] is not None and c["how"] != "sentence"]
     soff = [round(abs(c["speech"] - c["heard_at"]), 3) for c in cs if c["heard_at"] is not None and c["how"] == "sentence"]
     json.dump(cs, open(W + ".cues.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    if "--narr-only" in sys.argv:   # (a quick look: the narration, its cues and what the recognizer heard, no picture)
+        json.dump({k: v for k, v in q.items() if k != "heard_words"}, open(W + ".narr-qc.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print(cut, "%.1f s" % dur, "WER", q["wer"], "names", q["name_score"], {n: v["heard"] for n, v in q["names"].items() if v["score"] < 1}); return
     # 3 picture
     if "--skip-narration" in sys.argv: pass
     if "--skip-film" not in sys.argv or not os.path.exists(W + ".mkv"):
@@ -162,9 +168,9 @@ def main():
         # the bed: set to an even level, lowered while the voice speaks, in under the title and out with the closing
         # card (it ends with the film, not before it)
         # (the bed is levelled from three seconds before its first note used, so the levelling has settled by then)
-        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-29:TP=-8:LRA=6,"
+        fc = ("[1:a]atrim=%s:%s,asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,highpass=f=80,dynaudnorm=f=400:g=31:m=6,loudnorm=I=-27.5:TP=-8:LRA=6,"
               "atrim=start=3,asetpts=PTS-STARTPTS,afade=t=in:d=0.3,afade=t=out:st=%s:d=1.9:curve=qsin[m];"
-              "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.03:ratio=3:attack=40:release=250:makeup=1[d];"
+              "[0:a]pan=stereo|c0=c0|c1=c0,asplit=2[v][k];[m][k]sidechaincompress=threshold=0.03:ratio=2.5:attack=40:release=300:makeup=1[d];"
               "[v][d]amix=inputs=2:normalize=0:duration=first[o]") % (off - 3, off + dur + 0.5, dur - 1.92)
         ff("-i", W + ".narr.wav", "-i", os.path.join(ROOT, "assets", "music", track), "-filter_complex", fc, "-map", "[o]", "-ar", "48000", W + ".mix0.wav")
     loudnorm2(W + ".mix0.wav", W + ".mix.wav")
@@ -172,8 +178,8 @@ def main():
     cap = CAP[shape]
     mp4 = os.path.join(outdir, shape + ".mp4"); webm = os.path.join(outdir, shape + ".webm")
     abr = 80000
-    # two passes at the bit rate that fills the size aim (and no more than 1400 kbit/s: past that nothing is gained)
-    vbr = int(min(1400e3, cap * 0.90 * 8 / dur - abr - 6000))
+    # two passes at the bit rate that fills the size aim to 94% (and no more than 1400 kbit/s: past that nothing is gained)
+    vbr = int(min(1400e3, cap * 0.94 * 8 / dur - abr - 6000))
     common = ["-c:v", "libx264", "-preset", "slow", "-b:v", str(vbr), "-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p", "-g", "72", "-x264-params", "aq-mode=3"]
     ff("-i", W + ".mkv", "-an", *common, "-pass", "1", "-passlogfile", W + ".pass", "-f", "null", "/dev/null")
     ff("-i", W + ".mkv", "-i", W + ".mix.wav", "-map", "0:v", "-map", "1:a", *common, "-pass", "2", "-passlogfile", W + ".pass",
@@ -185,7 +191,8 @@ def main():
     keep_webm = os.path.exists(webm) and os.path.getsize(webm) < os.path.getsize(mp4)
     if os.path.exists(webm) and not keep_webm: os.remove(webm)
     poster = os.path.join(outdir, shape + "-poster.jpg")
-    ff("-ss", "2.6", "-i", W + ".mkv", "-frames:v", "1", "-q:v", "4", poster)
+    # the poster: the title card, whole (it is up from half a second in until just before the voice begins)
+    ff("-ss", "%.2f" % max(0.8, meta["sentences"][0]["start"] - 0.8), "-i", W + ".mkv", "-frames:v", "1", "-q:v", "4", poster)
     # 6 measures
     ff("-i", mp4, "-vn", "-ar", "48000", W + ".final.wav")
     final = measure.loudness(W + ".final.wav")
