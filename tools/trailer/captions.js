@@ -7,7 +7,7 @@ const CAPS = {
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
   c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads", 52, "cream"]], y: 0.76 },
   d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
-  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 52, "cream"]], y: 0.22 },
+  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 52, "cream"]], y: 0.76 },
   g: { lines: [["Every stand is remembered.", 62, "gold"]], y: 0.8 },
   t_erebuni: { tag: ["Erebuni", "782 BC"] },
   t_sardarapat: { tag: ["Sardarapat", "1918"] },
