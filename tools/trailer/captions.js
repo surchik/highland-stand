@@ -3,8 +3,9 @@
 const path = require("path"), fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const CAPS = {
-  a: { lines: [["From Erebuni to Artsakh.", 70, "gold"]], y: 0.8 },
-  a2: { lines: [["Armenians have held these highlands", 62, "gold"], ["for twenty-eight centuries.", 52, "cream"]], y: 0.76 },
+  a: { lines: [["For twenty-eight centuries,", 66, "gold"]], y: 0.8 },
+  a2: { lines: [["from Erebuni to Artsakh,", 66, "gold"]], y: 0.8 },
+  a3: { lines: [["Armenians have held these highlands.", 62, "gold"]], y: 0.8 },
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
   c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads.", 52, "cream"]], y: 0.76 },
   d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
@@ -69,10 +70,10 @@ const CAPS = {
         const band = g.createLinearGradient(0, H * 0.16, 0, H * 0.8);
         band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.72)"); band.addColorStop(1, "rgba(14,9,4,0)");
         g.fillStyle = band; g.fillRect(0, H * 0.16, W, H * 0.64);
-        cream("A tower defense of Armenian history", W / 2, H * 0.3, 40 * U, "700 ");
+        cream("A tower defense of Armenian history", W / 2, H * 0.3, 48 * U, "700 ");
         rule(W / 2, H * 0.355, 620);
         gold("HIGHLAND STAND", W / 2, H * 0.45, 104 * U);
-        cream("Free in your browser  \u00b7  Desktop, iPad, iPhone", W / 2, H * 0.565, 40 * U);
+        cream("Free in your browser", W / 2, H * 0.565, 50 * U);
         gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
       } else {
         // a soft dark ground under the words, so they read over a bright field
