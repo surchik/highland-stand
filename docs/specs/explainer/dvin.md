@@ -51,7 +51,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `[[θˌeɪoʊdˈɔːɹoʊs]] [[ɹəʃtˈuːni]], commander of the Armenian forces, took the field against them.`
    - sources: C2 (fifth sentence: Theodoros Rshtuni ... commander of the Armenian forces, took the field against them); ED2.16
 6. But a maneuver went wrong, and the raiders reached Dvin.
-   - engine: `But a maneuver went wrong, and the raiders reached [[dvˈiːn]].`
+   - engine: `But a maneuver went wrong, and the raiders reached [[dʋˈiːn]].`
    - sources: C2 (last sentence); ED2.16
 7. They took the capital despite a stubborn defense.
    - engine: `They took the capital despite a stubborn defense.`
@@ -60,7 +60,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `The Armenian histories tell of thirty-five thousand carried into captivity.`
    - sources: C3 (The Armenian histories tell of thirty-five thousand carried into captivity); ED2.1; TA3.8
 9. It was a raid, not yet a conquest, and Dvin rose again.
-   - engine: `It was a raid, not yet a conquest, and [[dvˈiːn]] rose again.`
+   - engine: `It was a raid, not yet a conquest, and [[dʋˈiːn]] rose again.`
    - sources: C4 (first sentence); TA3.5; TA3.10
 10. Now the raiders come down both roads at once.
    - engine: `Now the raiders come down both roads at once.`
@@ -75,9 +75,9 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 
 Dvin, on the plain of Ayrarat, was the seat of the catholicos, head of the Armenian Church.
 
-In 640 the first Arab armies came north into Armenia. Theodoros Rshtuni took the field against them, but the raiders reached Dvin and took it, despite a stubborn defense.
+In 640 the first Arab armies came north into Armenia. Theodoros Rshtuni took the field against them. But the raiders reached the capital and took it, despite a stubborn defense.
 
-It was a raid, not yet a conquest, and Dvin rose again.
+It was a raid, not yet a conquest; Dvin rose again.
 
 Man the walls.
 
@@ -91,13 +91,16 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 2. In 640 the first Arab armies came north into Armenia.
    - engine: `In six forty the first Arab armies came north into Armenia.`
    - sources: C2 (second sentence); TA3.5; ED2.2
-3. Theodoros Rshtuni took the field against them, but the raiders reached Dvin and took it, despite a stubborn defense.
-   - engine: `[[θˌeɪoʊdˈɔːɹoʊs]] [[ɹəʃtˈuːni]] took the field against them, but the raiders reached [[dvˈiːn]] and took it, despite a stubborn defense.`
-   - sources: C2 (last two sentences); C3 (first sentence); ED2.16; TA3.7
-4. It was a raid, not yet a conquest, and Dvin rose again.
-   - engine: `It was a raid, not yet a conquest, and [[dvˈiːn]] rose again.`
+3. Theodoros Rshtuni took the field against them.
+   - engine: `[[θˌeɪoʊdˈɔːɹoʊs]] [[ɹəʃtˈuːni]] took the field against them.`
+   - sources: C2 (Theodoros Rshtuni, commander of the Armenian forces, took the field against them); TA3.7
+4. But the raiders reached the capital and took it, despite a stubborn defense.
+   - engine: `But the raiders reached the capital and took it, despite a stubborn defense.`
+   - sources: C2 (the raiders reached Dvin); C3 (first sentence: the raiders took the capital despite a stubborn defense); ED2.16; TA3.7
+5. It was a raid, not yet a conquest; Dvin rose again.
+   - engine: `It was a raid, not yet a conquest; [[dvˈiːn]] rose again.`
    - sources: C4 (first sentence); TA3.5; TA3.10
-5. Man the walls.
+6. Man the walls.
    - engine: `Man the walls.`
    - sources: C4
 
@@ -106,8 +109,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 | In the subtitles | IPA fed to the engine | Roughly |
 |---|---|---|
 | Yerevan | `jˌɛɹɛvˈɑːn` | yeh-reh-VAHN |
-| Dvin | `dvˈiːn` | DVEEN |
-| Ayrarat | `ˌaɪɹɐɹˈɑːt` | eye-rah-RAHT |
+| Dvin | `dʋˈiːn` | DVEEN, one syllable. Inside a phrase the v is given as the soft labiodental v (ʋ), so the d is not swallowed after 'reached' or 'and' (with a plain v a recognizer heard 'Veen'; with the stress on the d, 'Divin'); it then writes 'Dween', one syllable with its d. Where the name opens a sentence or a phrase (after a semicolon) the plain v is kept (dvˈiːn, heard as 'Dveen'): there the soft v came out as two syllables, 'Duin'. The upright cut says 'the capital' after 'reached', where no form of the name came through. |
+| Ayrarat | `ˌaɪɹɐɹˈɑːt` | eye-rah-RAHT. A recognizer spells the opening 'eye' with the English letter I ('Irarat'): the same sounds. |
 | catholicos | `kɐθˈɑːlɪkoʊs` | ka-THOL-i-kos |
 | Umar | `ˈuːmɑːɹ` | OO-mar |
 | Theodoros | `θˌeɪoʊdˈɔːɹoʊs` | theh-oh-DOR-os |

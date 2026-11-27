@@ -13,7 +13,7 @@ Every line is taken from the battlefield's own texts in index.html, which were t
 - `ED<e>.<k>`: docs/history/era-dossier.json, eras[e] (0 Urartu, 1 Avarayr, 2 the Arab raids), claims[k]
 - `TH.<k>`: docs/history/town-history.json, ages[0].core_claims[k]
 
-## Landscape cut (117 words)
+## Landscape cut (114 words)
 
 ### Script (true spelling: this is the subtitle text)
 
@@ -21,7 +21,7 @@ Urartu, Biainili to its kings, ruled these highlands from Tushpa, by Lake Van. I
 
 By the middle of the eighth century BC, Sarduri II held the throne.
 
-Then Tiglath-pileser III took the Assyrian throne. In 743 BC, by the Euphrates, he broke Sarduri and his allies.
+Then Tiglath-pileser III took the Assyrian throne. In 743 BC, by the Euphrates, he broke Sarduri.
 
 Eight years later, in 735 BC, he marched into the heart of Biainili. His inscriptions say he shut Sarduri up in Tushpa and defeated him before the city gates.
 
@@ -47,8 +47,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 4. Then Tiglath-pileser III took the Assyrian throne.
    - engine: `Then [[tˌɪɡlæθpɪlˈiːzɚ]] the Third took the Assyrian throne.`
    - sources: C2 (second sentence)
-5. In 743 BC, by the Euphrates, he broke Sarduri and his allies.
-   - engine: `In seven forty-three B C, by the Euphrates, he broke [[sɑːɹdˈuːɹi]] and his allies.`
+5. In 743 BC, by the Euphrates, he broke Sarduri.
+   - engine: `In seven forty-three B C, by the Euphrates, he broke [[sɑːɹdˈuːɹi]].`
    - sources: C2 (fourth sentence); ED0.2
 6. Eight years later, in 735 BC, he marched into the heart of Biainili.
    - engine: `Eight years later, in seven thirty-five B C, he marched into the heart of [[bjˌaɪnˈiːli]].`

@@ -66,7 +66,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
    - engine: `Defend the young city.`
    - sources: C4 (Defend the young city)
 
-## Vertical cut (53 words)
+## Vertical cut (55 words)
 
 ### Script (true spelling: this is the subtitle text)
 
@@ -74,7 +74,7 @@ In 782 BC, Argishti I, king of Urartu, raised a new fortress on the hill of Arin
 
 His founding inscription, cut in cuneiform, still tells the story.
 
-From its walls, Urartu's kings struck north toward Lake Sevan.
+From its walls, the kings of Urartu struck north toward Lake Sevan.
 
 Yet the name lives on in Yerevan.
 
@@ -93,8 +93,8 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 3. His founding inscription, cut in cuneiform, still tells the story.
    - engine: `His founding inscription, cut in [[kjuːnˈiːɪfˌɔːɹm]], still tells the story.`
    - sources: C2 (first sentence); TA0.3
-4. From its walls, Urartu's kings struck north toward Lake Sevan.
-   - engine: `From its walls, [[uːɹˈɑːɹtuːz]] kings struck north toward Lake [[sɛvˈɑːn]].`
+4. From its walls, the kings of Urartu struck north toward Lake Sevan.
+   - engine: `From its walls, the kings of [[uːɹˈɑːɹtuː]] struck north toward Lake [[sɛvˈɑːn]].`
    - sources: V (from its walls Urartu's kings struck north toward Etiuni and Lake Sevan); C3 (from Erebuni he struck north toward Etiuni and Lake Sevan); TA0.6
 5. Yet the name lives on in Yerevan.
    - engine: `Yet the name lives on in [[jˌɛɹɛvˈɑːn]].`
