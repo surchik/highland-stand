@@ -75,7 +75,7 @@ I = None
 for line in subprocess.run(["ffmpeg", "-nostats", "-i", raw, "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True).stderr.splitlines():
     if line.strip().startswith("I:"): I = float(line.split()[1])
 mix = os.path.join(out, "mix.wav")
-run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,alimiter=limit=0.76:level=false", "-ar", "48000", mix])
+run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,alimiter=limit=0.66:level=false:attack=2:release=40", "-ar", "48000", mix])
 
 # 3. the files the page loads
 m4 = os.path.join(out, "trailer.mp4")
