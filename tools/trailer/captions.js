@@ -3,12 +3,16 @@
 const path = require("path"), fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const CAPS = {
-  a: { lines: [["782 BC to 2023", 64, "gold"]], y: 0.5 },
-  b: { lines: [["17 battlefields. 5 eras.", 58, "gold"]], y: 0.8 },
-  c: { lines: [["Raise your towers.", 58, "gold"], ["Hold the road.", 40, "cream"]], y: 0.76 },
-  d: { lines: [["Lead the hero into the line.", 50, "gold"]], y: 0.8 },
-  e: { lines: [["Every wave counts.", 62, "gold"]], y: 0.8 },
-  f: { lines: [["Free in your browser", 56, "gold"], ["Desktop  ·  iPad  ·  iPhone", 36, "cream"]], y: 0.76 },
+  a: { lines: [["From Erebuni to Artsakh", 66, "gold"], ["782 BC to 2023", 42, "cream"]], y: 0.78 },
+  b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
+  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads", 44, "cream"]], y: 0.76 },
+  d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
+  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 46, "cream"]], y: 0.76 },
+  t_avarayr: { tag: ["Avarayr", "451"] },
+  t_ani: { tag: ["Ani", "1041"] },
+  t_sis: { tag: ["Sis", "1375"] },
+  t_musadagh: { tag: ["Musa Dagh", "1915"] },
+  t_stepanakert: { tag: ["Stepanakert", "2023"] },
   title: { title: true },
 };
 (async () => {
@@ -40,19 +44,39 @@ const CAPS = {
         g.fillStyle = gr; g.fillRect(x - w / 2, y - 1.6, w, 3.2);
         g.fillStyle = "#e8be60"; g.beginPath(); g.moveTo(x, y - 9); g.lineTo(x + 9, y); g.lineTo(x, y + 9); g.lineTo(x - 9, y); g.closePath(); g.fill();
       };
+      if (cap.tag) {
+        // a place and its year, on a dark plate in the top left corner, as the films' plaques
+        const [name, year] = cap.tag, x = 70, y = 64, p1 = 58, p2 = 44;
+        g.font = "700 " + p1 + "px " + FACE; let w = g.measureText(name).width;
+        g.font = "700 " + p2 + "px " + FACE; w += g.measureText(year).width + 120;
+        const h = 104;
+        g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 20; g.shadowOffsetY = 6;
+        const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, "rgba(58,40,22,.94)"); gr.addColorStop(1, "rgba(34,23,12,.94)");
+        g.fillStyle = gr; g.beginPath(); g.roundRect(x, y, w, h, 10); g.fill(); g.shadowColor = "transparent";
+        g.strokeStyle = "#c9972f"; g.lineWidth = 3.2; g.stroke();
+        g.fillStyle = "#a8231c"; g.fillRect(x, y + 12, 10, h - 24);
+        g.textAlign = "left"; g.textBaseline = "middle";
+        g.font = "700 " + p1 + "px " + FACE; g.fillStyle = "#f3dfa2"; g.fillText(name, x + 40, y + h / 2 + 2);
+        const nw = g.measureText(name).width;
+        g.font = "700 " + p2 + "px " + FACE; g.fillStyle = "#ffb199"; g.fillText(year, x + 40 + nw + 40, y + h / 2 + 3);
+        return c.toDataURL("image/png");
+      }
       if (cap.title) {
         // a soft dark band behind the title, so it reads over any frame of the map
-        const band = g.createLinearGradient(0, H * 0.2, 0, H * 0.82);
-        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.62)"); band.addColorStop(1, "rgba(14,9,4,0)");
-        g.fillStyle = band; g.fillRect(0, H * 0.2, W, H * 0.62);
-        g.font = "700 " + 30 * U + "px " + FACE; g.fillStyle = "#e9d9aa"; g.shadowColor = "rgba(0,0,0,.8)"; g.shadowBlur = 12;
-        g.fillText("A  TOWER  DEFENSE  OF  ARMENIAN  HISTORY".split("").join(""), W / 2, H * 0.33); g.shadowColor = "transparent";
-        rule(W / 2, H * 0.375, 560);
-        gold("HIGHLAND STAND", W / 2, H * 0.47, 128 * U);
-        cream("Hold the highlands across 2,800 years", W / 2, H * 0.585, 38 * U);
-        g.font = "700 " + 34 * U + "px " + FACE;
-        cream("highland.avunjian.com", W / 2, H * 0.68, 36 * U, "700 ");
+        const band = g.createLinearGradient(0, H * 0.16, 0, H * 0.8);
+        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.72)"); band.addColorStop(1, "rgba(14,9,4,0)");
+        g.fillStyle = band; g.fillRect(0, H * 0.16, W, H * 0.64);
+        cream("A tower defense of Armenian history", W / 2, H * 0.3, 40 * U, "700 ");
+        rule(W / 2, H * 0.355, 620);
+        gold("HIGHLAND STAND", W / 2, H * 0.45, 132 * U);
+        cream("Free in your browser  \u00b7  Desktop, iPad, iPhone", W / 2, H * 0.565, 40 * U);
+        gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
       } else {
+        // a soft dark ground under the words, so they read over a bright field
+        const h0 = H * cap.y - cap.lines.length * 60 * U, h1 = H * cap.y + 70 * U;
+        const band = g.createLinearGradient(0, h0, 0, h1);
+        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.5)"); band.addColorStop(1, "rgba(14,9,4,0)");
+        g.fillStyle = band; g.fillRect(0, h0, W, h1 - h0);
         let y = H * cap.y - (cap.lines.length - 1) * 38 * U;
         for (const [t, px, kind] of cap.lines) { (kind === "gold" ? gold : cream)(t, W / 2, y, px * U); y += px * U * 1.25; }
       }

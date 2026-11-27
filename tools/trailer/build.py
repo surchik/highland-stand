@@ -3,7 +3,7 @@
 
 clips: tools/trailer/shots.js's game shots; captions: tools/trailer/captions.js's PNGs; voice: l0.wav .. l4.wav
 (tools/tts-kokoro.py, am_michael at 0.95, the lines in tools/trailer/README.md); gemini: the owner's cinematic clip.
-Writes trailer.mp4 (H.264 + AAC), trailer.webm (VP9 + Opus) and trailer-poster.jpg, 1280x720 at 30 fps, 30 s.
+Writes trailer.mp4 (H.264 + AAC), trailer.webm (VP9 + Opus) and trailer-poster.jpg, 1920x1080 at 30 fps, 30 s.
 The music is the owner's Sheyk Sar (assets/music/sheyk-sar.mp3), ducked under the voice; the mix at -16 LUFS."""
 import json, os, subprocess, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -16,15 +16,19 @@ def run(a): subprocess.run(a, check=True)
 
 # 1. the picture: every segment trimmed, graded and set to 1280x720 at 30 fps, then joined
 inputs, f, labels = [], [], []
-for i, (clip, ss, d) in enumerate(E["segments"]):
+for i, seg in enumerate(E["segments"]):
+    clip, ss, d = seg[:3]; sp = seg[3] if len(seg) > 3 else 1.0
     src = gem if clip == "gemini" else os.path.join(clips, clip + ".mkv")
-    inputs += ["-ss", str(ss), "-t", str(d), "-i", src]
+    inputs += ["-ss", str(ss), "-t", str(d * sp + 0.2), "-i", src]
     if clip == "gemini":
         # the owner's clip: its burned-in words (bottom) and its wave counter (top right) cropped away
-        g = "crop=1066:600:107:20,scale=1280:720:flags=lanczos,fps=30,eq=saturation=0.92"
+        g = "crop=1024:576:128:36,scale=1920:1080:flags=lanczos,eq=saturation=0.92"
+    elif clip in ("map", "endmap"):
+        # the chart at dusk: darker and warmer than the page's parchment, so the words on it carry
+        g = "fps=30,eq=brightness=-0.13:contrast=1.12:saturation=0.85:gamma_r=1.04:gamma_b=0.92,vignette=angle=PI/4.6"
     else:
-        g = "fps=30,eq=brightness=0.03:contrast=1.06:saturation=1.1"
-    f.append(f"[{i}:v]{g},setsar=1,trim=duration={d},setpts=PTS-STARTPTS[s{i}]")
+        g = "fps=30,eq=brightness=0.03:contrast=1.06:saturation=1.1,vignette=angle=PI/5"
+    f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS[s{i}]")
     labels.append(f"[s{i}]")
 n = len(labels)
 f.append("".join(labels) + f"concat=n={n}:v=1:a=0,trim=duration={DUR},setpts=PTS-STARTPTS[base]")
@@ -32,8 +36,8 @@ last = "base"
 for k, (cid, t0, t1) in enumerate(E["captions"]):
     j = n + k
     inputs += ["-loop", "1", "-t", str(DUR), "-i", os.path.join(caps, cid + ".png")]
-    fi, fo = (0.35, 0.35) if cid != "title" else (0.9, 0.45)
-    f.append(f"[{j}:v]scale=1280:720,format=rgba,fade=t=in:st={t0}:d={fi}:alpha=1,fade=t=out:st={t1 - fo}:d={fo}:alpha=1[c{k}]")
+    fi, fo = (0.3, 0.3) if cid != "title" else (0.7, 0.4)
+    f.append(f"[{j}:v]scale=1920:1080,format=rgba,fade=t=in:st={t0}:d={fi}:alpha=1,fade=t=out:st={t1 - fo}:d={fo}:alpha=1[c{k}]")
     f.append(f"[{last}][c{k}]overlay=0:0:enable='between(t,{t0},{t1})'[v{k}]")
     last = f"v{k}"
 f.append(f"[{last}]format=yuv420p[vout]")
@@ -47,9 +51,9 @@ for k, (w, at) in enumerate(E["voice"]):
 m = len(E["voice"])
 af.append("".join(f"[v{k}]" for k in range(m)) + f"amix=inputs={m}:normalize=0,highpass=f=90,acompressor=threshold=-20dB:ratio=3:attack=5:release=120,aecho=0.8:0.5:40:0.1,apad=whole_dur={DUR},atrim=0:{DUR},asplit=2[vo][key]")
 ai += ["-i", os.path.join(ROOT, "assets/music/sheyk-sar.mp3")]
-af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,afade=t=in:d=0.4,afade=t=out:st={DUR - 1.4}:d=1.4[mus]")
-af.append("[mus][key]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=400:makeup=1[bed]")
-af.append(f"[bed][vo]amix=inputs=2:normalize=0:weights=0.6 1,atrim=0:{DUR}[out]")
+af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,acompressor=threshold=-26dB:ratio=4:attack=30:release=400:makeup=4,afade=t=in:d=0.3,afade=t=out:st={DUR - 1.5}:d=1.45[mus]")
+af.append("[mus][key]sidechaincompress=threshold=0.02:ratio=10:attack=10:release=350:makeup=1[bed]")
+af.append(f"[bed][vo]amix=inputs=2:normalize=0:weights=0.42 1.25,atrim=0:{DUR}[out]")
 raw = os.path.join(out, "raw.wav")
 run(["ffmpeg", "-v", "error", "-y", *ai, "-filter_complex", ";".join(af), "-map", "[out]", "-ac", "2", "-ar", "48000", raw])
 I = None
@@ -60,7 +64,7 @@ run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,a
 
 # 3. the files the page loads
 m4 = os.path.join(out, "trailer.mp4")
-run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-b:v", "1050k", "-maxrate", "1600k", "-bufsize", "3200k", "-pix_fmt", "yuv420p", "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-t", str(DUR), m4])
-run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libvpx-vp9", "-b:v", "850k", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-c:a", "libopus", "-b:a", "96k", "-t", str(DUR), os.path.join(out, "trailer.webm")])
-run(["ffmpeg", "-v", "error", "-y", "-ss", "27.5", "-i", os.path.join(out, "master.mkv"), "-frames:v", "1", "-q:v", "3", os.path.join(out, "trailer-poster.jpg")])
+run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-b:v", "1900k", "-maxrate", "2800k", "-bufsize", "5600k", "-pix_fmt", "yuv420p", "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-t", str(DUR), m4])
+run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libvpx-vp9", "-b:v", "1500k", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-c:a", "libopus", "-b:a", "96k", "-t", str(DUR), os.path.join(out, "trailer.webm")])
+run(["ffmpeg", "-v", "error", "-y", "-ss", "27.0", "-i", os.path.join(out, "master.mkv"), "-frames:v", "1", "-q:v", "3", os.path.join(out, "trailer-poster.jpg")])
 for x in ("trailer.mp4", "trailer.webm", "trailer-poster.jpg"): print(x, os.path.getsize(os.path.join(out, x)))
