@@ -200,3 +200,21 @@ What the reviewers found (left as they stand, each scored 8 or more):
 - Picture: 'His men drove the Ottomans from Ghapan' over the Ottoman column still marching on; 'it is said to have kept them in water' over the dim citadel, with no river or tunnel; the Voghji only a pale band in the painting; the sortie with the hero standing still (upright); the citadel's gate in the bottom fifth in some shots.
 - Pacing: the opening chart held for 11.6 s across the title and two sentences; speech 157 words a minute.
 - Sound: Syunik heard as 'Suneik', Voghji as 'Voji', Ghapan as 'Gapan', Davit Bek as 'David Bek'.
+
+## Round 10
+
+Gyumri landscape, rebuilt with round 7's fixes. It passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| gyumri-landscape | a | 9 | 9 | 8 | 8 | 9 |
+| gyumri-landscape | b | 10 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (left as they stand, each scored 8 or more):
+
+- Picture: Mount Aragats is not marked on the chart, which marks only Mt. Ararat; the plaque 'From 1604' covers the first letter of the Shirak marker; 'To Persia' set in the chart's blue hand beside Lake Urmia; foes and road in the bottom fifth in the field shots.
+- Sound: 'Lala' lost from the commander's name; Erivan heard once as 'Aravan'.
+- Pacing: 125 words a minute with pauses.
+- Subtitles: 'the highlands became' leaves its object to the next cue.
