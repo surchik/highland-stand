@@ -560,6 +560,12 @@
   function emblem(c, kind, x, y, r) {
     c.save(); c.translate(x, y);
     c.fillStyle = "#a8231c"; c.strokeStyle = "#2c1e10"; c.lineWidth = 2 * U;
+    if (kind === "tricolor") {   // a flag of three bands, red, blue and orange (the First Republic's, Armenia's today)
+      const w = r * 2.6, h = r * 1.6;
+      [["#c8102e", 0], ["#0033a0", 1], ["#f2a800", 2]].forEach(([col, k]) => { c.fillStyle = col; c.fillRect(-w / 2, -h / 2 + k * h / 3, w, h / 3 + 0.5); });
+      c.strokeRect(-w / 2, -h / 2, w, h);
+      c.restore(); return;
+    }
     if (kind === "cross") {   // an Armenian cross, its arms flaring
       c.beginPath();
       const a = r, b = r * 0.22;

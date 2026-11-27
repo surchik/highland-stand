@@ -122,6 +122,8 @@ def measure(path, model="medium.en", asr=True):
             r, h = norm(ref), norm(heard)
             out["wer"] = round(lev(r, h) / len(r), 4)
             lex = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts.json"), encoding="utf-8"))["lexicon"]
+            import glob   # (and the names of the cuts kept in scripts-<group>.json)
+            for p in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts-*.json"))): lex.update(json.load(open(p, encoding="utf-8")).get("lexicon", {}))
             nh = names_heard(ref, heard, lex)
             out["names"] = nh
             out["name_score"] = round(sum(v["score"] for v in nh.values()) / max(1, len(nh)), 3)

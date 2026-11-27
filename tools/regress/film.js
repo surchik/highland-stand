@@ -20,7 +20,8 @@
 // button; reduced motion and Save-Data show the text with the button and no autoplay; and under /next/ (the page
 // served over http from a folder of that name) the mark is kept as next:hs_film_seen_<id> and the film's files are
 // asked for under /next/assets/explainer/.
-// Also: every battlefield with a film has its six files, and assets/explainer holds no other folder.
+// Also: every battlefield with a film has its six files, and any other folder in assets/explainer (a film made and
+// not yet wired into the page) has its six files too.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/film.js [index.html] [--quick] [--shots=dir] [--verbose]
 "use strict";
 const fs = require("fs");
@@ -29,7 +30,8 @@ const http = require("http");
 const R = require("./lib");
 const o = R.cli();
 const t0 = Date.now();
-const IDS = ["erebuni", "tushpa", "avarayr", "dvin"];
+// the page's films: its own list (Film's IDS in index.html), so a battlefield wired in later is checked with the rest
+const IDS = (() => { const m = /const IDS = \{([^}]*)\}/.exec(fs.readFileSync(o.file, "utf8")); return m ? [...m[1].matchAll(/(\w+):/g)].map(x => x[1]) : ["erebuni", "tushpa", "avarayr", "dvin"]; })();
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const ALL = [
   R.SIZES.desk,
@@ -54,8 +56,12 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
 
   // ---- the files ----
   const have = fs.existsSync(path.join(dir, "assets", "explainer")) ? fs.readdirSync(path.join(dir, "assets", "explainer")).sort() : [];
-  if (have.join() !== IDS.slice().sort().join()) fails.push("files: assets/explainer holds [" + have.join(", ") + "], the page's films are [" + IDS.join(", ") + "]");
-  for (const id of IDS) for (const f of ["landscape.mp4", "landscape.vtt", "landscape-poster.jpg", "vertical.mp4", "vertical.vtt", "vertical-poster.jpg"]) {
+  // every film of the page has its folder; a folder the page does not name yet (a film made, waiting to be wired in)
+  // must be whole all the same
+  for (const id of IDS) if (have.indexOf(id) < 0) fails.push("files: assets/explainer has no folder for the page's film " + id);
+  const waiting = have.filter(id => IDS.indexOf(id) < 0);
+  if (waiting.length) console.log("films made, not yet on the page: " + waiting.join(", "));
+  for (const id of IDS.concat(waiting)) for (const f of ["landscape.mp4", "landscape.vtt", "landscape-poster.jpg", "vertical.mp4", "vertical.vtt", "vertical-poster.jpg"]) {
     const p = path.join(dir, "assets", "explainer", id, f);
     if (!fs.existsSync(p) || !fs.statSync(p).size) fails.push("files: " + id + "/" + f + " is missing or empty");
     else if (f.endsWith(".vtt") && !/^WEBVTT/.test(fs.readFileSync(p, "utf8"))) fails.push("files: " + id + "/" + f + " is not a WebVTT file");

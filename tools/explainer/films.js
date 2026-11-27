@@ -246,3 +246,5 @@ module.exports = {
     ],
   },
 };
+// more cuts in files of their own beside this one (films-<group>.js), added to these
+for (const f of require("fs").readdirSync(__dirname).filter(f => /^films-.+\.js$/.test(f)).sort()) Object.assign(module.exports, require("./" + f));

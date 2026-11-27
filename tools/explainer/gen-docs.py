@@ -8,12 +8,22 @@ import tts
 S = tts.SCRIPTS; SRC = json.load(open(os.path.join(HERE, "sources.json"), encoding="utf-8")); V = json.load(open(os.path.join(HERE, "voice.json")))
 OUT = os.path.join(ROOT, "docs", "specs", "explainer"); os.makedirs(OUT, exist_ok=True)
 NAMES = {"erebuni": "Erebuni Rise (782 BC)", "tushpa": "Vale of Tushpa (735 BC)", "avarayr": "Avarayr Plain (451 AD)", "dvin": "Dvin Gates (640 AD)"}
+# (and the cuts kept in files of their own: scripts-<group>.json beside sources-<group>.json; a battlefield is written
+# once both its cuts are there)
+import glob
+KEYS = {}
+for p in sorted(glob.glob(os.path.join(HERE, "sources-*.json"))):
+    x = json.load(open(p, encoding="utf-8")); k = x.pop("key", SRC["key"]); SRC.update(x)
+    for c in x: KEYS[c.rsplit("-", 1)[0]] = k   # (a group's own source keys, for its own battlefields)
+NAMES.update({"van": "Van (1915)", "musadagh": "Musa Dagh (1915)", "sardarapat": "Sardarapat (1918)", "stepanakert92": "Stepanakert (1991 to 1992)",
+              "shushi": "Shushi (2020)", "stepanakert23": "Stepanakert 2023 (2022 to 2023)"})
+NAMES = {f: t for f, t in NAMES.items() if f + "-landscape" in S["cuts"] and f + "-vertical" in S["cuts"]}
 for f, title in NAMES.items():
     L = ["# Explainer video: " + title, "",
          "Battlefield id `" + f + "`. Files: `assets/explainer/" + f + "/landscape.mp4`, `vertical.mp4` (and `.webm` where it is smaller), `landscape.vtt`, `vertical.vtt`, `landscape-poster.jpg`, `vertical-poster.jpg`.", "",
-         "Voice: " + V["voice"] + " at speed " + str(V["speed"]) + " (" + V["engine"] + "; " + V["licence"] + "). See voice.md.", "",
-         "Every line is taken from the battlefield's own texts in index.html, which were themselves checked against docs/history. Source keys:", ""]
-    for k, v in SRC["key"].items(): L.append("- `" + k + "`: " + v)
+         "Voice: " + V["voice"] + " at speed " + (str(V["speed"]) if f not in KEYS else "%s (landscape) and %s (upright)" % tuple(V.get("speed_by_cut", {}).get(f + "-" + k, S.get("speed_by_cut", {}).get(f + "-" + k, V["speed"])) for k in ("landscape", "vertical"))) + " (" + V["engine"] + "; " + V["licence"] + "). See voice.md.", "",
+         ("Every line is taken from the battlefield's own texts in index.html, which were themselves checked against docs/history. Source keys:" if f not in KEYS else "Every line is taken from the battlefield's own texts in index.html (its chronicle, tag, hero, date, facts, victory and defeat texts) and its chapter's story. Source keys:"), ""]
+    for k, v in KEYS.get(f, SRC["key"]).items(): L.append("- `" + k + "`: " + v)
     used = set()
     for shape in ("landscape", "vertical"):
         cut = f + "-" + shape; segs = S["cuts"][cut]

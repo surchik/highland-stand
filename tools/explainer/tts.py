@@ -15,6 +15,12 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = json.load(open(os.path.join(HERE, "scripts.json"), encoding="utf-8"))
+# more cuts in files of their own beside it (scripts-<group>.json: cuts, lexicon and spoken forms, added to these)
+import glob as _glob
+for _p in sorted(_glob.glob(os.path.join(HERE, "scripts-*.json"))):
+    _x = json.load(open(_p, encoding="utf-8"))
+    SCRIPTS["cuts"].update(_x.get("cuts", {})); SCRIPTS["lexicon"].update(_x.get("lexicon", {})); SCRIPTS["spoken"] += _x.get("spoken", [])
+    SCRIPTS.setdefault("speed_by_cut", {}).update(_x.get("speed_by_cut", {}))   # (its cuts' speeds, beside voice.json's)
 PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.44, 0.76, 2.6, 2.8
 TALL = {"PAUSE_SENTENCE": 0.38, "PAUSE_BEAT": 0.64, "LEAD_IN": 2.1, "LEAD_OUT": 2.3}   # the upright cuts are half the length: tighter   # the title has the first seconds, the closing card the last
 RATE = 48000
