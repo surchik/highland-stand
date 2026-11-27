@@ -165,3 +165,21 @@ What the reviewers found (the points that cost marks):
 What was changed after this round:
 
 - No chart after the opening: 'drove the Ottoman troops back' is the hero carrying the line west across the field, and the May battles are named on a plaque over the painting of the plain under Ararat; the belfry shot travels from the plain to the bell and sits above the subtitles; the line reads 'On 22 May the Armenians counterattacked beneath Ararat', in two cues.
+
+## Round 8
+
+Shushi landscape. It passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| shushi-landscape | a | 9 | 10 | 8 | 8 | 10 |
+| shushi-landscape | b | 9 | 9 | 8 | 9 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or 9; left as they stand):
+
+- History: the opening pin on Shushi carries the war's first date, 27 September 2020, though the offensive ran along the whole line of contact and Shushi's own fighting came in November; 'On 9 November a statement ended the fighting' (signed on 9 November, the fighting ended from 10 November).
+- Picture: the page of the statement up 5.9 s; the cathedral is the chronicle's painting, not a likeness of Ghazanchetsots.
+- Sound: Bayraktar heard as 'Biroc tar'.
+- Subtitles: 'loitering / munitions' broken mid-phrase.
