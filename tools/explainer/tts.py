@@ -15,12 +15,14 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = json.load(open(os.path.join(HERE, "scripts.json"), encoding="utf-8"))
-# more cuts in files of their own (scripts-<group>.json: cuts, lexicon, spoken, titles, music), merged in name order
+# more cuts in files of their own (scripts-<group>.json: cuts, lexicon, spoken, titles, music, and their cuts' speeds
+# as "speed" or "speed_by_cut"), merged in name order
 import glob
 for _p in sorted(glob.glob(os.path.join(HERE, "scripts-*.json"))):
     _x = json.load(open(_p, encoding="utf-8"))
     SCRIPTS["spoken"] += _x.get("spoken", []); SCRIPTS["lexicon"].update(_x.get("lexicon", {})); SCRIPTS["cuts"].update(_x.get("cuts", {}))
-    for _k in ("titles", "music", "speed"): SCRIPTS.setdefault(_k, {}).update(_x.get(_k, {}))
+    for _k in ("titles", "music"): SCRIPTS.setdefault(_k, {}).update(_x.get(_k, {}))
+    for _k in ("speed", "speed_by_cut"): SCRIPTS.setdefault("speed_by_cut", {}).update(_x.get(_k, {}))
 PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.44, 0.76, 2.6, 2.8
 TALL = {"PAUSE_SENTENCE": 0.38, "PAUSE_BEAT": 0.64, "LEAD_IN": 2.1, "LEAD_OUT": 2.3}   # the upright cuts are half the length: tighter   # the title has the first seconds, the closing card the last
 RATE = 48000

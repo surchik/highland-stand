@@ -15,12 +15,13 @@
 // - opened again, the chronicle shows its text at once with that button, which plays the film again; Escape puts it
 //   away; the film's end (the video's ended event) puts it away a second later;
 // - Campaign Map takes the button away with the chronicle; a film left by the map is released.
-// Once per size: the Lori Gates (tashir, no film) has neither film nor button. Once, at 1600x900: a plain load driven by a test has no
+// Once per size: a battlefield with no film (if one is left) has neither film nor button. Once, at 1600x900: a plain load driven by a test has no
 // film, no button and no <video>; a missing file falls back to the text within the page's 4 s, unmarked and with no
 // button; reduced motion and Save-Data show the text with the button and no autoplay; and under /next/ (the page
 // served over http from a folder of that name) the mark is kept as next:hs_film_seen_<id> and the film's files are
 // asked for under /next/assets/explainer/.
-// Also: every battlefield with a film has its six files, and assets/explainer holds no other folder.
+// Also: every battlefield with a film has its six files, and any other folder in assets/explainer (a film made and
+// not yet wired into the page) has its six files too.
 // Usage:  NODE_PATH=$(npm root -g) node tools/regress/film.js [index.html] [--quick] [--shots=dir] [--verbose]
 "use strict";
 const fs = require("fs");
@@ -29,7 +30,8 @@ const http = require("http");
 const R = require("./lib");
 const o = R.cli();
 const t0 = Date.now();
-const IDS = ["erebuni", "tushpa", "avarayr", "dvin"];
+// the page's films: its own list (Film's IDS in index.html), so a battlefield wired in later is checked with the rest
+const IDS = (() => { const m = /const IDS = \{([^}]*)\}/.exec(fs.readFileSync(o.file, "utf8")); return m ? [...m[1].matchAll(/(\w+):/g)].map(x => x[1]) : ["erebuni", "tushpa", "avarayr", "dvin"]; })();
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const ALL = [
   R.SIZES.desk,
@@ -54,8 +56,12 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
 
   // ---- the files ----
   const have = fs.existsSync(path.join(dir, "assets", "explainer")) ? fs.readdirSync(path.join(dir, "assets", "explainer")).sort() : [];
-  if (have.join() !== IDS.slice().sort().join()) fails.push("files: assets/explainer holds [" + have.join(", ") + "], the page's films are [" + IDS.join(", ") + "]");
-  for (const id of IDS) for (const f of ["landscape.mp4", "landscape.vtt", "landscape-poster.jpg", "vertical.mp4", "vertical.vtt", "vertical-poster.jpg"]) {
+  // every film of the page has its folder; a folder the page does not name yet (a film made, waiting to be wired in)
+  // must be whole all the same
+  for (const id of IDS) if (have.indexOf(id) < 0) fails.push("files: assets/explainer has no folder for the page's film " + id);
+  const waiting = have.filter(id => IDS.indexOf(id) < 0);
+  if (waiting.length) console.log("films made, not yet on the page: " + waiting.join(", "));
+  for (const id of IDS.concat(waiting)) for (const f of ["landscape.mp4", "landscape.vtt", "landscape-poster.jpg", "vertical.mp4", "vertical.vtt", "vertical-poster.jpg"]) {
     const p = path.join(dir, "assets", "explainer", id, f);
     if (!fs.existsSync(p) || !fs.statSync(p).size) fails.push("files: " + id + "/" + f + " is missing or empty");
     else if (f.endsWith(".vtt") && !/^WEBVTT/.test(fs.readFileSync(p, "utf8"))) fails.push("files: " + id + "/" + f + " is not a WebVTT file");
@@ -204,10 +210,13 @@ const SEEN_TIP = { hs_ios_tip: "1", hs_tutorial_done: "1" };
         const m = await state(g, id);
         if (m.btn || m.mode !== "map") await fail(id + ": Campaign Map left the button up (" + m.mode + ")");
       }
-      // a battlefield with no film
-      await openBrief(g, "tashir");
-      const d = await state(g, "tashir");
-      if (d.film || d.videos || d.btn) await fail("tashir: a film or its button on a battlefield without one");
+      // a battlefield with no film, while there is one (since stage 12 every battlefield has its film)
+      const bare = (await g.ev(ids => LEVELS.map(l => l.id).filter(id => !ids.includes(id)), IDS))[0];
+      if (bare) {
+        await openBrief(g, bare);
+        const d = await state(g, bare);
+        if (d.film || d.videos || d.btn) await fail(bare + ": a film or its button on a battlefield without one");
+      }
       const errs = (await g.problems()).filter(e => !mediaNoise(e));
       if (errs.length) await fail("errors: " + errs.slice(0, 3).join(" | "));
     } catch (e) {
