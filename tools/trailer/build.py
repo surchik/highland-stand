@@ -39,7 +39,9 @@ for i, seg in enumerate(E["segments"]):
         g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
     if pu:   # a slow push in over the segment (the frame grows by pu)
         g += f",scale=w='2*trunc(960*(1+{pu}*t/{d}))':h='2*trunc(540*(1+{pu}*t/{d}))':eval=frame:flags=bicubic,crop=1920:1080"
-    if sp:
+    if sp and sp < 1:   # slowed: motion-compensated frames in between, not repeated ones
+        f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
+    elif sp:
         f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
     else:
         f.append(f"[{i}:v]{g},trim=end_frame=1,tpad=stop_mode=clone:stop_duration={d},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
@@ -55,7 +57,7 @@ last = "base"
 for k, (cid, t0, t1) in enumerate(E["captions"]):
     j = n + k
     inputs += ["-loop", "1", "-t", str(DUR), "-i", os.path.join(caps, cid + ".png")]
-    fi, fo = (0.08, 0.12) if cid.startswith("t_") else (0.3, 0.3) if cid != "title" else (0.7, 0.4)
+    fi, fo = (0.08, 0.08) if cid.startswith("t_") else (0.3, 0.3) if not cid.startswith("title") else (0.7, 0.4)
     f.append(f"[{j}:v]scale=1920:1080,format=rgba,fade=t=in:st={t0}:d={fi}:alpha=1,fade=t=out:st={t1 - fo}:d={fo}:alpha=1[c{k}]")
     f.append(f"[{last}][c{k}]overlay=0:0:enable='between(t,{t0},{t1})'[v{k}]")
     last = f"v{k}"

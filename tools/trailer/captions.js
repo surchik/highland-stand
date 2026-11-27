@@ -18,6 +18,7 @@ const CAPS = {
   t_musadagh: { tag: ["Musa Dagh", "1915"] },
   t_stepanakert: { tag: ["Stepanakert", "2023"] },
   title: { title: true },
+  title2: { title: true, lower: true },
 };
 (async () => {
   const out = process.argv[2]; fs.mkdirSync(out, { recursive: true });
@@ -73,8 +74,11 @@ const CAPS = {
         cream("A tower defense game of Armenian history", W / 2, H * 0.3, 48 * U, "700 ");
         rule(W / 2, H * 0.355, 620);
         gold("HIGHLAND STAND", W / 2, H * 0.45, 104 * U);
-        cream("Free in your browser", W / 2, H * 0.565, 50 * U);
-        gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
+        if (cap.lower) {   // the second part of the card, in a beat after the name
+          g.clearRect(0, 0, W, H);
+          cream("Free in your browser", W / 2, H * 0.565, 50 * U);
+          gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
+        }
       } else {
         // a soft dark ground under the words, so they read over a bright field
         const h0 = H * cap.y - cap.lines.length * 75 * U, h1 = H * cap.y + 95 * U;
