@@ -595,7 +595,7 @@
     for (const o of spec.overlays) {
       if (o.kind === "chip") chip(fx, env(t, o.t0, o.t1, 0.45, 0.45), o);
       else if (o.kind === "title") titleCard(fx, env(t, o.t0 - 1, o.t1, 0.01, 0.8), o.dim == null ? 0.38 : o.dim, o);
-      else if (o.kind === "end") titleCard(fx, env(t, o.t0, o.t1 + 9, 0.9, 1), o.dim == null ? 0.74 : o.dim, o);
+      else if (o.kind === "end") titleCard(fx, env(t, o.t0, o.t1 + 9, 0.9, 1), o.dim == null ? 0.8 : o.dim, o);
     }
     // in from black (the last frame is the closing card, held: the page shows the chronicle's text after it)
     const k = spec.plain ? 1 : clamp01(t / 0.5);
