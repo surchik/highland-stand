@@ -220,3 +220,20 @@ What the reviewers found (each scored 8 or more; left as they stand):
 
 - Picture: the five ships' page up 5.9 s (its lines keep it moving until 51.6 s); a tent of the painting's camp cut by the frame's edge in the banner shots; the cruiser drawn as a liner; the villages and the climb shown on the field without people or flocks; three short shots in a row around 'Most villagers refused to go'.
 - Sound: 'refused' heard as 'refuse'; the last 'Musa Dagh' heard as 'Musa Dagg'.
+
+## Round 11
+
+Stepanakert 2023 upright. It passed every score. (A first attempt at this round, for Shushi upright, found no film to review: its render had failed under the machine's load and the build had gone on. The build now tries a failed render once more, and that cut was rebuilt.)
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| stepanakert23-vertical | a | 10 | 9 | 8 | 10 | 10 |
+| stepanakert23-vertical | b | 10 | 9 | 8 | 10 | 9 |
+
+Lowest score of the round: 8.
+
+What the reviewers found (each scored 8 or more; left as they stand):
+
+- Picture: Stepanakert's plate cut by the frame's edge as the map pans to the corridor; 'Food, medicine and fuel ran short' over the citadel and its armed volunteer, nothing showing the shortage; the convoy running into the bottom fifth, and a 1.9 s look at it between two maps.
+- Pacing: 126 words a minute with pauses.
+- Subtitles: 'In September 2023, / a final offensive' | 'forced the surrender of Artsakh.' parts subject from verb.
