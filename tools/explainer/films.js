@@ -96,7 +96,7 @@ module.exports = {
       { at: "2/1", kind: "field", stage: { mode: "garrison", wave: 1, live: true, heroTo: [300, 330] }, follow: { type: "hero", dy: 0 }, a: [200, 300, 1.8], b: [200, 300, 2.5] },
       { at: 3, kind: "field", stage: { mode: "march", wave: 6, live: true, head: 0.3, spread: 0, roles: ["boss"] }, follow: { type: "boss", dy: -14 }, a: [450, 430, 2.2], b: [450, 430, 3.0] },
       { at: "4/0", kind: "card", bg: "dark", rubric: "743 BC", title: "By the Euphrates", lines: ["Tiglath-pileser III breaks", "Sarduri and his allies"], lineAt: ["4/0+1.0", "4/1"] },
-      { at: 5, kind: "field", stage: { mode: "march", wave: 6, live: true, head: 0.62, spread: 0.45 }, a: [300, 250, 1.6], b: [480, 290, 1.8] },
+      { at: "4/1+1.3", kind: "field", stage: { mode: "march", wave: 6, live: true, head: 0.62, spread: 0.45 }, a: [300, 250, 1.6], b: [480, 290, 1.8] },
       { at: "5/1", kind: "field", keep: true, stage: { live: true }, a: [560, 300, 1.5], b: [580, 200, 1.9] },
       { at: 6, kind: "stone", tone: "soft", a: [980, 560, 1.15], b: [620, 440, 1.6] },
       { at: "6/1", kind: "field", stage: { mode: "battle", wave: 6, live: true, spawn: [{ at: 0.05, role: "spearman", n: 3, d: 0.95, gap: 0.01 }, { at: 0.3, role: "ram", d: 0.93 }, { at: 0.8, role: "shield", n: 2, d: 0.96 }, { at: 1.5, role: "spearman", n: 3, d: 0.94 }] }, a: [1050, 360, 1.8], b: [1060, 345, 2.0] },
