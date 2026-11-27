@@ -31,7 +31,7 @@ for i, seg in enumerate(E["segments"]):
     else:
         g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
     if pu:   # a slow push in over the segment (the frame grows by pu)
-        g += f",scale=2112:1188,crop=w='2112/(1+{pu}*t/{d})':h='1188/(1+{pu}*t/{d})':x='(2112-ow)/2':y='(1188-oh)/2',scale=1920:1080"
+        g += f",scale=w='2*trunc(960*(1+{pu}*t/{d}))':h='2*trunc(540*(1+{pu}*t/{d}))':eval=frame:flags=bicubic,crop=1920:1080"
     if sp:
         f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,settb=AVTB,format=yuv420p[s{i}]")
     else:
