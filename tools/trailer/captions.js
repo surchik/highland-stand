@@ -3,9 +3,9 @@
 const path = require("path"), fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const CAPS = {
-  a: { lines: [["From Erebuni to Artsakh", 66, "gold"], ["782 BC to 2023", 50, "cream"]], y: 0.78 },
+  a: { lines: [["From Erebuni to Artsakh.", 66, "gold"], ["782 BC to 2023", 50, "cream"]], y: 0.78 },
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
-  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads", 52, "cream"]], y: 0.76 },
+  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads.", 52, "cream"]], y: 0.76 },
   d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
   e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 52, "cream"]], y: 0.76 },
   g: { lines: [["Every stand is remembered.", 62, "gold"]], y: 0.8 },
@@ -48,10 +48,10 @@ const CAPS = {
       };
       if (cap.tag) {
         // a place and its year, on a dark plate in the top left corner, as the films' plaques
-        const [name, year] = cap.tag, x = 80, y = 72, p1 = 86, p2 = 64;
+        const [name, year] = cap.tag, x = 80, y = 72, p1 = 96, p2 = 88;
         g.font = "700 " + p1 + "px " + FACE; let w = g.measureText(name).width;
         g.font = "700 " + p2 + "px " + FACE; w += g.measureText(year).width + 150;
-        const h = 150;
+        const h = 160;
         g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 20; g.shadowOffsetY = 6;
         const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, "rgba(58,40,22,.94)"); gr.addColorStop(1, "rgba(34,23,12,.94)");
         g.fillStyle = gr; g.beginPath(); g.roundRect(x, y, w, h, 10); g.fill(); g.shadowColor = "transparent";
@@ -60,7 +60,7 @@ const CAPS = {
         g.textAlign = "left"; g.textBaseline = "middle";
         g.font = "700 " + p1 + "px " + FACE; g.fillStyle = "#f3dfa2"; g.fillText(name, x + 54, y + h / 2 + 3);
         const nw = g.measureText(name).width;
-        g.font = "700 " + p2 + "px " + FACE; g.fillStyle = "#ffb199"; g.fillText(year, x + 54 + nw + 44, y + h / 2 + 3);
+        g.font = "700 " + p2 + "px " + FACE; g.fillStyle = "#f7e3a0"; g.fillText(year, x + 54 + nw + 44, y + h / 2 + 3);
         return c.toDataURL("image/png");
       }
       if (cap.title) {

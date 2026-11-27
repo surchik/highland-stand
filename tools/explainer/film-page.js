@@ -114,12 +114,27 @@
           if (!sc.lead && !e.fly) sc.lead = e;
         }
       }
+      // (the trailer's hero: set down beside the column, then sent into it)
+      const ht = st.heroTo;
+      if (ht && hero && sc.lead && enemies.indexOf(sc.lead) >= 0) {
+        const p = enemyPos(sc.lead);
+        if (!sc.heroSet) { sc.heroSet = true; hero.alive = true; hero.x = p.x + (ht.off || [150, 30])[0]; hero.y = p.y + (ht.off || [150, 30])[1]; hero.rally = null; }
+        if (!sc.heroSent && simT >= (ht.at || 0.3)) { sc.heroSent = true; hero.rally = { x: p.x, y: p.y }; }
+      }
     }
     const cover = Math.max(W / VW, H / VH);
     let [cx, cy, z] = cam(sc, t);
     if (sc.follow) {
       // the camera keeps a walker in view: the hero, or the first foe of a kind still on the road
-      const f = sc.follow, e = f.type === "hero" ? hero : f.type === "spawn" ? (sc.lead && enemies.indexOf(sc.lead) >= 0 ? sc.lead : null) : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => f.type === "any" ? !x.fly && x.dist > (f.min || 0) : x.type === f.type) || null));
+      if (sc.follow && sc.follow.type === "tower" && !sc.towerAt && sc.lead && towers.length) {
+        // the camera on the tower nearest the column (the column walks into its reach)
+        const lp = enemyPos(sc.lead);
+        let best = null, bd = 1e9;
+        for (const tw of towers) { const d = Math.hypot(tw.x - lp.x, tw.y - lp.y) - (tw.y > lp.y ? 60 : 0); if (d < bd) { bd = d; best = tw; } }   // (a tower below the road is preferred: it stands in front)
+        if (best) { const q = proj(best.x, best.y), r = proj(lp.x, lp.y), k = sc.follow.k == null ? 0.45 : sc.follow.k; sc.towerAt = [q.x + (r.x - q.x) * k + (sc.follow.dx || 0), q.y + (r.y - q.y) * k + (sc.follow.dy || 0)]; }
+      }
+      if (sc.towerAt) { cx = sc.towerAt[0]; cy = sc.towerAt[1]; }
+      const f = sc.follow, e = f.type === "tower" ? null : f.type === "hero" ? hero : f.type === "spawn" ? (sc.lead && enemies.indexOf(sc.lead) >= 0 ? sc.lead : null) : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => f.type === "any" ? !x.fly && x.dist > (f.min || 0) : x.type === f.type) || null));
       if (e) {
         const w = f.type === "hero" ? { x: e.x, y: e.y } : enemyPos(e), p = proj(w.x, w.y);
         const tx = p.x + (f.dx || 0), ty = p.y + (f.dy || -20);
