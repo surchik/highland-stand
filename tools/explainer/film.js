@@ -31,7 +31,7 @@ function resolve(cut, tl, cues) {
   const titleEnd = S[0].start + 0.3;   // the title has the film's first seconds to itself, and is gone as the voice begins
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
-    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : titleEnd - 0.2) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : titleEnd + 0.2) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
     if (s.lineAt) s.lineAt = s.lineAt.map(p => at(p, 0.1) - s.t0);
     if (s.sealAt != null) s.sealAt = at(s.sealAt, 0.1) - s.t0;
     if (s.stage && s.stage.fallAt != null) s.stage.fallAt = at(s.stage.fallAt, 0);   // (absolute: the moment he falls)
