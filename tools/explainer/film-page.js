@@ -37,7 +37,7 @@
     const off = () => {};
     drawPlotSign = off; drawEnemyMarks = off; drawHeroBar = off; drawPostBars = off; drawRange = off; drawTowerHpBar = off;
     drawFlankLines = off; drawHuntLines = off; drawWatchReach = off; drawHoverRange = off; drawWaveBanner = off; drawPlacement = off; drawCastPreview = off;
-    padPainters = [drawPads, shadeOpenPads];
+    padPainters = [drawPads, shadeOpenPads, drawPlots];
     tall = H > W; K = tall ? 1.28 : 1.1;
     // the campaign chart at twice the page's backing, for close views
     const src = buildWorldTerrain.toString().replace(/^function\s+buildWorldTerrain/, "function").replace(/MAP_BACKING/g, "6");
@@ -57,6 +57,7 @@
     // the empty tower pads with their flags are the interface's too: they show only where towers stand on them
     const pads = st.mode === "battle" || st.mode === "garrison";
     drawPads = pads ? padPainters[0] : () => {}; shadeOpenPads = pads ? padPainters[1] : () => {};
+    drawPlots = () => {};   // the empty build plots with their corner marks and stone piles are the interface too
     // a scene may look at another battlefield of the campaign (stage.level): Erebuni's film shows Tushpa's rock
     const at = st.level ? levelIndexOf(st.level) : lv;
     if (st.mode === "fall") {
@@ -287,7 +288,7 @@
     g.save();
     g.shadowColor = "rgba(0,0,0,.7)"; g.shadowBlur = 50; g.shadowOffsetY = 24;
     const st = g.createLinearGradient(x0, y0, x0 + w, y0 + h);
-    if (tone === "pale") { st.addColorStop(0, "#b9ab8e"); st.addColorStop(0.5, "#a69777"); st.addColorStop(1, "#8a7b5e"); }   // the limestone of an Assyrian slab
+    if (tone === "pale") { st.addColorStop(0, "#a8a294"); st.addColorStop(0.5, "#8f897b"); st.addColorStop(1, "#716b5e"); }   // the grey limestone of an Assyrian slab
     else { st.addColorStop(0, "#6f6a62"); st.addColorStop(0.5, "#5a554e"); st.addColorStop(1, "#45413b"); }
     g.fillStyle = st;
     g.beginPath();
@@ -335,7 +336,17 @@
   }
   function drawStone(sc, t, c) {
     const tone = sc.tone || "basalt";
-    if (!stones[tone]) stones[tone] = buildStone(tone);
+    if (!stones[tone]) {
+      stones[tone] = buildStone(tone);
+      if (tone === "pale") {   // carved limestone, a little out of focus: the look of an inscription, no sign to read
+        const soft = mk(1600, 1000), g = soft.getContext("2d");
+        g.filter = "blur(2.2px)"; g.drawImage(stones[tone], 0, 0); g.filter = "none";
+        const sh = g.createLinearGradient(0, 0, 1600, 1000);
+        sh.addColorStop(0, "rgba(255, 245, 220, .10)"); sh.addColorStop(1, "rgba(30, 20, 10, .28)");
+        g.fillStyle = sh; g.fillRect(0, 0, 1600, 1000);
+        stones[tone] = soft;
+      }
+    }
     drawPlate(sc, t, c, stones[tone], 1600, 1000);
     const k = (t - sc.t0) / (sc.t1 - sc.t0), x = W * (-0.3 + 1.6 * k);
     const lg = c.createLinearGradient(x - W * 0.28, 0, x + W * 0.28, H * 0.3);
@@ -349,7 +360,7 @@
   // sc.scroll: the page unrolls between two rods; sc.lineAt: when each line comes in (resolved by film.js);
   // sc.seal: a wax seal pressed on the page at sc.sealAt; sc.emblem: "crown" | "cross" drawn above the rubric
   function drawCard(sc, t, c) {
-    const T = t - sc.t0, k = ease(T / (sc.t1 - sc.t0)), z = 1 + 0.07 * k;
+    const T = t - sc.t0, k = ease(T / (sc.t1 - sc.t0)), z = 1 + 0.12 * k;
     if (sc.bg === "art") {
       let plate = artPlate;
       if (sc.bgLevel) { const i = levelIndexOf(sc.bgLevel); if (!arts[i]) { const keep = THEME; THEME = levelTheme(LEVELS[i]); arts[i] = briefScene(BRIEF_CROPS[i] || BRIEF_CROPS[0], 1600, 1600, 7001 + i * 53); THEME = keep; } plate = arts[i]; }
@@ -561,7 +572,9 @@
     fx.setTransform(1, 0, 0, 1, 0, 0);
     fx.globalAlpha = 1;
     fx.drawImage(b, 0, 0);
-    const fade = sc.fade == null ? 0.55 : sc.fade;
+    // a dissolve between two pictures; between two looks at the same field, a quick one (a long one reads as a double exposure)
+    const prev = i > 0 ? spec.scenes[i - 1] : null;
+    const fade = sc.fade != null ? sc.fade : prev && prev.kind === "field" && sc.kind === "field" ? 0.3 : 0.55;
     if (i > 0 && t - sc.t0 < fade) { fx.globalAlpha = 1 - ease((t - sc.t0) / fade); fx.drawImage(bufs[1 - bi], 0, 0); fx.globalAlpha = 1; }
     vignette(fx);
     // the lower fifth is the subtitles' ground: the picture is dimmed there, so nothing in it asks to be read

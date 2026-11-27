@@ -36,7 +36,7 @@ Man the walls.
 Names in double square brackets are IPA handed straight to the engine; numbers are spelled out.
 
 1. Dvin stood on the plain of Ayrarat, about thirty-five kilometers south of modern Yerevan.
-   - engine: `[[dvˈiːn]] stood on the plain of [[ˌaɪɹɑːɹˈɑːt]], about thirty-five kilometers south of modern [[jˌɛɹɛvˈɑːn]].`
+   - engine: `[[dvˈiːn]] stood on the plain of [[ˌaɪɹɐɹˈɑːt]], about thirty-five kilometers south of modern [[jˌɛɹɛvˈɑːn]].`
    - sources: C1 (first sentence); ED2.59
 2. By the sixth century it was the seat of the catholicos, head of the Armenian Church.
    - engine: `By the sixth century it was the seat of the [[kɐθˈɑːlɪkoʊs]], head of the Armenian Church.`
@@ -86,7 +86,7 @@ Man the walls.
 Names in double square brackets are IPA handed straight to the engine; numbers are spelled out.
 
 1. Dvin, on the plain of Ayrarat, was the seat of the catholicos, head of the Armenian Church.
-   - engine: `[[dvˈiːn]], on the plain of [[ˌaɪɹɑːɹˈɑːt]], was the seat of the [[kɐθˈɑːlɪkoʊs]], head of the Armenian Church.`
+   - engine: `[[dvˈiːn]], on the plain of [[ˌaɪɹɐɹˈɑːt]], was the seat of the [[kɐθˈɑːlɪkoʊs]], head of the Armenian Church.`
    - sources: C1 (first and fourth sentences); TA3.1
 2. In 640 the first Arab armies came north into Armenia.
    - engine: `In six forty the first Arab armies came north into Armenia.`
@@ -107,7 +107,7 @@ Names in double square brackets are IPA handed straight to the engine; numbers a
 |---|---|---|
 | Yerevan | `jˌɛɹɛvˈɑːn` | yeh-reh-VAHN |
 | Dvin | `dvˈiːn` | DVEEN |
-| Ayrarat | `ˌaɪɹɑːɹˈɑːt` | eye-rah-RAHT |
+| Ayrarat | `ˌaɪɹɐɹˈɑːt` | eye-rah-RAHT |
 | catholicos | `kɐθˈɑːlɪkoʊs` | ka-THOL-i-kos |
 | Umar | `ˈuːmɑːɹ` | OO-mar |
 | Theodoros | `θˌeɪoʊdˈɔːɹoʊs` | theh-oh-DOR-os |

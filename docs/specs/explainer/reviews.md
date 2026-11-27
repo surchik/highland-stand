@@ -138,3 +138,40 @@ What was changed after this round:
 - Picture: a card now lies over the dimmed, drifting chart and its lines come in one after another; Tushpa keeps one card (743 BC) and shows the Assyrian column on the road for the sentence before it; Erebuni shows the chronicle's painting of the royal seat for Argishti and the kingdom, draws the push north as an arrow across the labelled Araxes, names the hill (Arin Berd) on the map and the fortress (Erebuni) only when the voice does; a raking light crosses the stone; an arrow marked 'To Assyria' points off the chart's southern edge (text-audit entry 0, claim 6: Assyria lay far to the south, beyond Lake Van and Tushpa); cameras keep the chart's labels whole; larger plaque lines, dates and Armenian names.
 - Sound: the bed is 3 dB lower. The recognizer now hears one sentence at a time (the sentences' own times are known), which removes its drift over a minute of audio: heard alone, the last line and both 'Biainili' come back whole at every speed tried. 'royal' is left to the engine's own dictionary again.
 - Subtitles: a cue inside a sentence starts a tenth of a second before the recognizer's time for its first word (heard sentence by sentence); the last cue stays up under the closing card.
+
+## Round 5
+
+Six cuts were reviewed (Erebuni, Tushpa and Avarayr, both shapes), built with round 4's fixes. The Dvin cuts were not reviewed in this round. History and subtitles reached 9 and 10; picture was the weak score (7 to 9), Avarayr the weakest cut.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| avarayr-landscape | a | 9 | 8 | 7 | 8 | 9 |
+| avarayr-landscape | b | 9 | 8 | 8 | 9 | 9 |
+| avarayr-vertical | a | 9 | 9 | 7 | 9 | 10 |
+| avarayr-vertical | b | 9 | 9 | 8 | 9 | 10 |
+| erebuni-landscape | a | 10 | 9 | 8 | 9 | 10 |
+| erebuni-landscape | b | 10 | 9 | 8 | 9 | 10 |
+| erebuni-vertical | a | 10 | 9 | 8 | 8 | 10 |
+| erebuni-vertical | b | 10 | 9 | 9 | 9 | 10 |
+| tushpa-landscape | a | 10 | 9 | 9 | 9 | 10 |
+| tushpa-landscape | b | 10 | 9 | 9 | 9 | 10 |
+| tushpa-vertical | a | 10 | 9 | 9 | 10 | 10 |
+| tushpa-vertical | b | 10 | 9 | 8 | 9 | 10 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture against the words (Avarayr): 'The field was lost' over a burning stone castle, though no fortress stood at Avarayr; Vardan never shown falling (he stood unharmed until the cut); five seconds of an empty mountain for Yazdegerd's command; the Tghmut river named while it lay in the bottom fifth, under the subtitles; Persian units marching through the bottom fifth of the upright cut.
+- Picture (all): near-still shots of four to eight seconds (Vardan between two towers, the citadel painting under Sarduri II, the 743 BC card); the 743 BC Euphrates card over the Lake Van chart; 23 seconds of one battlefield in a row (Tushpa); the Rock of Van shown as empty ground and a distant town (upright Tushpa); the citadel cut out of frame under 'The citadel did not fall'; Erebuni's 'To Assyria' arrow in the bottom fifth and cut by the frame; Tushpa's art shown without a name in a film about Erebuni; no plaque for Yerevan; plaques ahead of their words (Arin Berd, The field was lost).
+- Pacing: Avarayr at 128 words a minute and 61.8 s; the title readable for under two seconds before the voice (Tushpa); the closing card dissolving in over the last spoken line; the Persian reserves' plaque cut before its sentence ended.
+- Sound: the recognizer wrote Biainili as 'B.I. Neeley', Erebuni as 'Arabuni' in its short sentence, Tghmut as 'Tigmut', Nvarsak as 'Navar Sak'; reviewers again split on the music bed (some found it close to inaudible on a phone, 14 to 20 dB under the voice).
+- Subtitles: the last cue stayed 1.7 s past its speech over the closing card; two cues near 16.5 letters a second.
+
+What was changed after this round:
+
+- The owner's new direction: the film no longer apologises for the game. Every disclaimer is gone from narration, plaques and overlays ('an invention of the game', 'by the date most often given', '(an illustration)', the 'Scenes from the game' note), and the lines are replaced with storytelling from the game's own texts: Erebuni's victory text (from its walls Urartu's kings struck north toward Lake Sevan) and its chronicle (Yerevan counts its birth from Argishti's stone). The review brief now tells reviewers that the game's battle scenes are its staging and need no label.
+- Picture: positions can name a subtitle part ('4/1'), so scenes and plaques change with the words; Avarayr's lost field is the open plain at dusk with its dead on the road (no fortress), Vardan walks, then falls where he stands under the reserves; Yazdegerd's command is a page with his crown, then an unrolling decree sealed in wax; the Tghmut is filmed close so it sits mid-frame; the Treaty of Nvarsak is sealed with a cross; Armenia's faith is the church on the plain's horizon, and 'yet the faith held' the same church at dusk.
+- Picture: Tushpa splits its long shots (the ridge, then the climb from the plain; the painting, then Sarduri II on the field; Tiglath-pileser III's chariot leading the column), puts the 743 BC card on a plain dark ground, draws the 735 BC march into Biainili on the chart, shows the Assyrian inscriptions on a pale slab, and keeps the rock citadel in shot for 'the citadel did not fall'. Erebuni names Tushpa when its pictures are shown, writes BIAINILI on the chart, lifts 'To Assyria' out of the bottom fifth, draws the march north to Lake Sevan, gives Yerevan its plaque (2,800 years in 2018, counted from the stone).
+- Pacing: the title holds 2.6 s before the voice (2.1 s upright); the closing card comes up only after the last line; Avarayr is read at 1.08 to bring it near 60 s.
+- Sound: new IPA for Erebuni (the stress on the last syllable, as in Armenian), Biainili (the first vowels run together), Nvarsak (no vowel between n and v), Ayrarat; the bed is 1.5 dB louder and ducked a little more gently.
