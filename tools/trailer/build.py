@@ -27,7 +27,7 @@ for i, seg in enumerate(E["segments"]):
         # the chart at dusk: darker and warmer than the page's parchment, so the words on it carry
         g = "fps=30,eq=brightness=-0.13:contrast=1.12:saturation=0.85:gamma_r=1.04:gamma_b=0.92,vignette=angle=PI/4.6"
     else:
-        g = "fps=30,eq=brightness=0.03:contrast=1.06:saturation=1.1,vignette=angle=PI/5"
+        g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
     f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS[s{i}]")
     labels.append(f"[s{i}]")
 n = len(labels)
@@ -65,6 +65,6 @@ run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,a
 # 3. the files the page loads
 m4 = os.path.join(out, "trailer.mp4")
 run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-b:v", "1900k", "-maxrate", "2800k", "-bufsize", "5600k", "-pix_fmt", "yuv420p", "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", "-t", str(DUR), m4])
-run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libvpx-vp9", "-b:v", "1500k", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-c:a", "libopus", "-b:a", "96k", "-t", str(DUR), os.path.join(out, "trailer.webm")])
+run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out, "master.mkv"), "-i", mix, "-map", "0:v", "-map", "1:a", "-c:v", "libvpx-vp9", "-b:v", "1150k", "-row-mt", "1", "-deadline", "good", "-cpu-used", "2", "-c:a", "libopus", "-b:a", "96k", "-t", str(DUR), os.path.join(out, "trailer.webm")])
 run(["ffmpeg", "-v", "error", "-y", "-ss", "27.0", "-i", os.path.join(out, "master.mkv"), "-frames:v", "1", "-q:v", "3", os.path.join(out, "trailer-poster.jpg")])
 for x in ("trailer.mp4", "trailer.webm", "trailer-poster.jpg"): print(x, os.path.getsize(os.path.join(out, x)))

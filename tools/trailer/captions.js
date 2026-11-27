@@ -68,7 +68,7 @@ const CAPS = {
         g.fillStyle = band; g.fillRect(0, H * 0.16, W, H * 0.64);
         cream("A tower defense of Armenian history", W / 2, H * 0.3, 40 * U, "700 ");
         rule(W / 2, H * 0.355, 620);
-        gold("HIGHLAND STAND", W / 2, H * 0.45, 132 * U);
+        gold("HIGHLAND STAND", W / 2, H * 0.45, 104 * U);
         cream("Free in your browser  \u00b7  Desktop, iPad, iPhone", W / 2, H * 0.565, 40 * U);
         gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
       } else {
