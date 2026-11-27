@@ -378,7 +378,7 @@
     lg.addColorStop(0, "rgba(255, 210, 140, .16)"); lg.addColorStop(1, "rgba(255, 210, 140, 0)");
     c.fillStyle = lg; c.fillRect(0, 0, W, H);
     c.save();
-    c.translate(W / 2 + (sc.drift || 0) * U * (k - 0.5), H * (tall ? 0.42 : 0.43)); c.scale(z, z);
+    c.translate(W / 2 + (sc.drift == null ? 70 : sc.drift) * U * (k - 0.5), H * (tall ? 0.42 : 0.43) - (tall ? 30 : 18) * U * (k - 0.5)); c.scale(z, z);   // (the page drifts a little as it comes nearer)
     const lines = sc.lines || [], gap = (tall ? 50 : 46) * U;
     const pw = (sc.w || (tall ? 640 : 1000)) * U, ph = (sc.h || (tall ? 600 : 440)) * U;
     const open = sc.scroll ? ease(T / 0.9) : 1, vh = ph * (0.08 + 0.92 * open);

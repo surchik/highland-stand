@@ -200,7 +200,7 @@ module.exports = {
     scenes: [
       { at: 0, kind: "map", a: [450, 190, 1.2], b: [585, 232, 1.9], markers: [{ node: "dvin", name: "Dvin", hy: HY.dvin, sub: "The plain of Ayrarat", at: "0/0+0.2", above: true, big: true }] },
       { at: 1, kind: "art", a: [820, 640, 1.45], b: [560, 540, 1.75], tag: "Dvin" },
-      { at: 2, kind: "map", a: [520, 265, 1.5], b: [560, 240, 1.75], markers: [{ node: "dvin", name: "Dvin", at: 0 }, { arrow: [[586, 302], [589, 264]], at: 0.3 }, { xy: [648, 292], label: "From the south", at: 0.6 }] },
+      { at: 2, kind: "map", a: [520, 240, 1.6], b: [560, 236, 1.8], markers: [{ node: "dvin", name: "Dvin", above: true, at: 0 }, { arrow: [[586, 302], [589, 262]], at: 0.3 }, { xy: [648, 292], label: "From the south", at: 0.6 }] },
       { at: "3/0+0.2", kind: "card", bg: "dark", rubric: "Under the caliph Umar", title: "A new power", lines: ["Arab armies conquer", "Syria and Mesopotamia"], lineAt: ["3/1", "3/1+0.9"] },
       { at: "3/2", kind: "field", stage: { mode: "march", wave: 2, live: true, head: 0.5, spread: 0.42, roles: ["raider", "cavalry", "spearman", "raider", "cavalry", "spearman", "raider", "spearman"] }, a: [300, 300, 1.5], b: [470, 320, 1.6] },
       { at: 4, kind: "field", stage: { mode: "battle", wave: 5, live: true, heroTo: [430, 380], spawn: [{ at: 0.1, role: "raider", n: 3, d: 0.47 }, { at: 0.8, role: "cavalry", n: 2, d: 0.45 }] }, follow: { type: "hero", dy: 30 }, a: [640, 300, 1.6], b: [640, 300, 2.3] },
@@ -208,7 +208,7 @@ module.exports = {
       { at: "5/1", kind: "field", keep: true, stage: { live: true, spawn: [{ at: 0.1, role: "raider", n: 3, d: 0.86 }, { at: 0.6, role: "spearman", n: 3, d: 0.84, road: 1 }] }, a: [960, 360, 1.7], b: [1000, 340, 1.9] },
       { at: 6, kind: "field", keep: true, stage: { live: true, spawn: [{ at: 0.1, role: "cavalry", n: 2, d: 0.88 }, { at: 0.8, role: "raider", n: 3, d: 0.9, road: 1 }] }, a: [1010, 340, 2.0], b: [1000, 340, 2.3] },
       { at: 7, kind: "field", stage: { mode: "fall", wave: 8, lift: 0.08 }, a: [1000, 330, 2.4], b: [700, 300, 1.15] },
-      { at: 8, kind: "field", stage: { mode: "garrison", wave: 1 }, a: [470, 120, 2.4], b: [380, 105, 3.0] },
+      { at: 8, kind: "field", stage: { mode: "garrison", wave: 1, noHero: true }, a: [470, 120, 2.4], b: [380, 105, 3.0] },
       { at: 9, kind: "field", stage: { mode: "battle", wave: 3, live: true, spawn: [{ at: 0.1, role: "raider", n: 3, d: 0.3 }, { at: 0.4, role: "spearman", n: 3, d: 0.3, road: 1 }, { at: 1.4, role: "cavalry", n: 2, d: 0.35 }, { at: 1.8, role: "raider", n: 2, d: 0.35, road: 1 }] }, a: [380, 420, 1.3], b: [560, 400, 1.4] },
       { at: 10, kind: "field", keep: true, stage: { live: true }, a: [1000, 360, 1.6], b: [1010, 340, 1.8] },
     ],
