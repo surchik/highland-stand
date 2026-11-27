@@ -5,6 +5,8 @@
 const path = require("path"), fs = require("fs"), { spawn } = require("child_process");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const FILMS = require("./films.js");
+// more cuts in files of their own (films-<group>.js), merged in name order
+for (const n of fs.readdirSync(__dirname).filter(n => /^films-.+\.js$/.test(n)).sort()) Object.assign(FILMS, require("./" + n));
 
 function arg(name, d) { const i = process.argv.indexOf("--" + name); return i > 0 ? process.argv[i + 1] : d; }
 
