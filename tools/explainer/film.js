@@ -47,7 +47,7 @@ function resolve(cut, tl, cues) {
   chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next, and to a page of the chronicle
     const next = i + 1 < chips.length ? chips[i + 1].t0 - 0.15 : dur;
     c.t1 = Math.min(Math.max(c.t1, c.t0 + 2.4), next);
-    for (const s of scenes) if (s.kind === "card" && s.t0 > c.t0 && s.t0 < c.t1) c.t1 = s.t0 + 0.15;
+    for (const s of scenes) if (s.kind === "card" && s.t0 > c.t0 && s.t0 < c.t1) c.t1 = s.t0;
     if (c.t1 - c.t0 >= 1.2) overlays.push(c);   // (one that could not be read is left out, never flashed)
   });
   // the closing card comes up once the last line has been said
