@@ -272,3 +272,26 @@ What the reviewers found (each scored 8 or more; left as they stand):
 - Picture: the plateau painting, its rockets still falling, under 'Armenian units attacked Shushi'; Shushi's marker on the map for under a second before its word; the citadel's foot in the bottom fifth.
 - Sound: the second Stepanakert heard as 'Step in a Care'; 'basements' as 'basement'.
 - History: the upright cut leaves out 'every side lost civilians', which the landscape cut keeps.
+
+## Round 14
+
+Sardarapat landscape (with round 7's fixes) and Stepanakert 2023 landscape (with round 9's). Stepanakert 2023 landscape passed every score, so both its cuts have passed.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| sardarapat-landscape | a | 10 | 9 | 7 | 8 | 9 |
+| sardarapat-landscape | b | 10 | 9 | 8 | 9 | 10 |
+| stepanakert23-landscape | a | 9 | 9 | 8 | 10 | 10 |
+| stepanakert23-landscape | b | 10 | 9 | 8 | 10 | 10 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- Picture (Sardarapat): the belfry still low in the frame, inside the bottom fifth, under 'had the church bells rung' (the larger painting of the miniature draws it smaller and lower than the plain one); 'the May battles stopped the Ottoman drive' over a still painting of the plain seen twice before; the Republic's page 5.1 s; the gathering of the forces over 7 s of the same field.
+- Sound (Sardarapat): 'pushed' heard as 'push', 'battles' as 'battle', Sardarapat and Bash Abaran split by the recognizer.
+- Stepanakert 2023 (scored 8 or more, left as they stand): 'From mid-June' told before 'In February 2023'; the court's first words over the city painting seen before; the arrow to Armenia drawn across the labels of Stepanakert and Berdzor; map labels in the bottom fifth.
+
+What was changed after this round (Sardarapat):
+
+- The belfry is filmed on the plain painting, framed so the whole tower stands above the subtitles; the May battles are the field after the fight, its defender walking the line; the Republic's page gives way sooner.
