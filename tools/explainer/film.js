@@ -1,42 +1,57 @@
 // Renders one cut's picture: node film.js <cut> <narration.wav.json> <out.mkv> [--fps 30] [--ss 1.5] [--from s --to s] [--stills dir]
 // The page is the game itself (index.html in its photo harness) with film-page.js injected; every frame is drawn
 // there and photographed, then scaled down by ffmpeg (the frames are drawn larger than the video: --ss).
-// --stills dir writes a still every 2 s instead of a video (a quick look).
+// --stills dir writes a still every 2 s (--every s) instead of a video (a quick look).
 const path = require("path"), fs = require("fs"), { spawn } = require("child_process");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const FILMS = require("./films.js");
 
 function arg(name, d) { const i = process.argv.indexOf("--" + name); return i > 0 ? process.argv[i + 1] : d; }
 
-function resolve(cut, tl) {
+function resolve(cut, tl, cues) {
   const f = FILMS[cut], S = tl.sentences, dur = tl.duration;
-  // a position: a whole number is the moment a little before that sentence begins
-  const at = (p, lead) => { const i = Math.floor(p), k = p - i, s = S[Math.min(i, S.length - 1)]; return k ? s.start + k * (s.end - s.start) : Math.max(0, s.start - (lead == null ? 0.45 : lead)); };
-  const scenes = f.scenes.map(s => Object.assign({}, s));
+  // a position: a whole number is the moment a little before that sentence begins; "s/c" is the moment the words of
+  // part c of sentence s begin (its cues as scripts.json sets them, timed as the subtitles are: <cut>.parts.json),
+  // "s/c+0.5" half a second after it
+  const cueAt = (p, lead) => {
+    const m = /^(\d+)\/(\d+)([+-][\d.]+)?$/.exec(p);
+    if (!m) throw new Error("bad position " + p);
+    const list = (cues || []).filter(c => c.sentence === +m[1]);
+    const c = list[+m[2]];
+    let t;
+    if (c) t = c.speech; else { const s = S[+m[1]]; t = s.start + (s.end - s.start) * (+m[2]) / Math.max(1, (f.cueCount || 2)); }
+    return t + (m[3] ? +m[3] : 0) - (lead == null ? 0.25 : lead);
+  };
+  const at = (p, lead) => {
+    if (typeof p === "string") return cueAt(p, lead);
+    const i = Math.floor(p), k = p - i, s = S[Math.min(i, S.length - 1)];
+    return k ? s.start + k * (s.end - s.start) : Math.max(0, s.start - (lead == null ? 0.45 : lead));
+  };
+  const scenes = f.scenes.map(s => JSON.parse(JSON.stringify(s)));
   scenes.forEach((s, i) => {
     s.t0 = i ? at(s.at) : 0;
     for (const m of s.markers || []) { m.at = Math.max(at(m.at, 0), i ? 0 : S[0].start + 1.0) - s.t0; if (m.until != null) m.until = at(m.until, 0) - s.t0; }
+    if (s.lineAt) s.lineAt = s.lineAt.map(p => at(p, 0.1) - s.t0);
+    if (s.sealAt != null) s.sealAt = at(s.sealAt, 0.1) - s.t0;
+    if (s.stage && s.stage.fallAt != null) s.stage.fallAt = at(s.stage.fallAt, 0);   // (absolute: the moment he falls)
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : dur; });
+  // a scene that goes on with the battle before it counts its spawns and fall from that battle's start
   const overlays = [];
   // the title has the film's first seconds to itself (the voice begins as it clears)
-  const title = { kind: "title", t0: 0, t1: S[0].start + 1.25, over: "Highland Stand \u00b7 Chronicle" };
+  const title = { kind: "title", t0: 0, t1: S[0].start + 0.9, over: "Highland Stand · Chronicle" };
   overlays.push(title);
-  const chips = (f.chips || []).map(c => ({ kind: "chip", t0: Math.max(at(c.from, 0.1), title.t1 - 0.25), t1: c.to % 1 ? at(c.to) : S[c.to].end + 0.3, text: c.text, sub: c.sub }));
+  const end = (p) => typeof p === "string" ? at(p, 0) : p % 1 ? at(p) : S[p].end + 0.3;
+  const chips = (f.chips || []).map(c => ({ kind: "chip", t0: Math.max(at(c.from, 0.1), title.t1 - 0.25), t1: end(c.to), text: c.text, sub: c.sub }));
   chips.forEach((c, i) => {   // a plaque stays long enough to read, and gives way to the next
     const next = i + 1 < chips.length ? chips[i + 1].t0 - 0.15 : dur;
-    c.t1 = Math.min(Math.max(c.t1, c.t0 + 2.8), next);
+    c.t1 = Math.min(Math.max(c.t1, c.t0 + 2.4), next);
     overlays.push(c);
   });
-  // over a battle in motion: a word that this is the game's battle
-  let run = null;
-  for (const s of scenes) {
-    const live = s.kind === "field";   // every look at the battlefield is the game's picture, and says so
-    if (live && run) run.t1 = s.t1; else if (live) overlays.push(run = { kind: "note", t0: s.t0 + 0.3, t1: s.t1, text: "Scenes from the game" }); else run = null;
-  }
-  const endAt = S[Math.floor(f.end.from)].start + 0.45;   // the closing card comes up as the last line is being said
-  for (const o of overlays) if ((o.kind === "note" || o.kind === "chip") && o.t1 > endAt) o.t1 = endAt + 0.3;
-  overlays.push({ kind: "end", t0: endAt + 0.1, t1: dur, over: "Begin the Stand" });
+  // the closing card comes up once the last line has been said
+  const last = S[S.length - 1], endAt = last.end + 0.25;
+  for (const o of overlays) if (o.kind === "chip" && o.t1 > endAt) o.t1 = endAt + 0.3;
+  overlays.push({ kind: "end", t0: endAt, t1: dur, over: "Begin the Stand" });
   return { level: f.level, scenes, overlays, dur };
 }
 
@@ -45,7 +60,8 @@ function resolve(cut, tl) {
   const tall = /vertical/.test(cut), fps = +arg("fps", 24), ss = +arg("ss", 1.25);
   const OW = tall ? 720 : 1280, OH = tall ? 1280 : 720, W = Math.round(OW * ss), H = Math.round(OH * ss);
   const tl = JSON.parse(fs.readFileSync(tlPath, "utf8"));
-  const spec = resolve(cut, tl);
+  const cuesPath = tlPath.replace(/\.narr\.wav\.json$/, ".parts.json");
+  const spec = resolve(cut, tl, fs.existsSync(cuesPath) ? JSON.parse(fs.readFileSync(cuesPath, "utf8")) : null);
   const stills = arg("stills", null);
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
@@ -71,7 +87,7 @@ function resolve(cut, tl) {
     // every frame is drawn, in order, even those before --from: the battle is a simulation and has no other way there
     await page.evaluate(t => FILM.frame(t), t);
     if (i < from) continue;
-    if (stills) { if (i % (fps * 2) === 0) await page.screenshot({ path: path.join(stills, cut + "-" + String(Math.round(t)).padStart(3, "0") + ".jpg"), type: "jpeg", quality: 88, clip: { x: 0, y: 0, width: W, height: H } }); continue; }
+    if (stills) { if (i % Math.round(fps * +arg("every", 2)) === 0) await page.screenshot({ path: path.join(stills, cut + "-" + t.toFixed(1).padStart(5, "0") + ".jpg"), type: "jpeg", quality: 88, clip: { x: 0, y: 0, width: W, height: H } }); continue; }
     const buf = await page.screenshot({ type: "jpeg", quality: 96, clip: { x: 0, y: 0, width: W, height: H } });
     if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once("drain", r));
     if (i % 300 === 0) process.stderr.write(cut + " frame " + i + "/" + n + " " + ((Date.now() - t0) / 1000).toFixed(0) + " s\n");

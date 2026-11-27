@@ -15,8 +15,8 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = json.load(open(os.path.join(HERE, "scripts.json"), encoding="utf-8"))
-PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.44, 0.76, 1.9, 2.4
-TALL = {"PAUSE_SENTENCE": 0.38, "PAUSE_BEAT": 0.64, "LEAD_IN": 1.6, "LEAD_OUT": 2.0}   # the upright cuts are half the length: tighter   # the title has the first seconds, the closing card the last
+PAUSE_SENTENCE, PAUSE_BEAT, LEAD_IN, LEAD_OUT = 0.44, 0.76, 2.6, 2.8
+TALL = {"PAUSE_SENTENCE": 0.38, "PAUSE_BEAT": 0.64, "LEAD_IN": 2.1, "LEAD_OUT": 2.3}   # the upright cuts are half the length: tighter   # the title has the first seconds, the closing card the last
 RATE = 48000
 
 def spoken(text):
