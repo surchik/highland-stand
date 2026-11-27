@@ -3,14 +3,16 @@
 const path = require("path"), fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const CAPS = {
-  a: { lines: [["From Erebuni to Artsakh", 66, "gold"], ["782 BC to 2023", 42, "cream"]], y: 0.78 },
+  a: { lines: [["From Erebuni to Artsakh", 66, "gold"], ["782 BC to 2023", 50, "cream"]], y: 0.78 },
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
-  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads", 44, "cream"]], y: 0.76 },
+  c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads", 52, "cream"]], y: 0.76 },
   d: { lines: [["Lead your hero.", 62, "gold"]], y: 0.8 },
-  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 46, "cream"]], y: 0.76 },
+  e: { lines: [["Every wave counts.", 64, "gold"], ["Hold the line.", 52, "cream"]], y: 0.76 },
+  g: { lines: [["Hold the highlands.", 64, "gold"]], y: 0.8 },
+  t_erebuni: { tag: ["Erebuni", "782 BC"] },
+  t_sardarapat: { tag: ["Sardarapat", "1918"] },
   t_avarayr: { tag: ["Avarayr", "451"] },
   t_ani: { tag: ["Ani", "1041"] },
-  t_sis: { tag: ["Sis", "1375"] },
   t_musadagh: { tag: ["Musa Dagh", "1915"] },
   t_stepanakert: { tag: ["Stepanakert", "2023"] },
   title: { title: true },
@@ -46,19 +48,19 @@ const CAPS = {
       };
       if (cap.tag) {
         // a place and its year, on a dark plate in the top left corner, as the films' plaques
-        const [name, year] = cap.tag, x = 70, y = 64, p1 = 58, p2 = 44;
+        const [name, year] = cap.tag, x = 80, y = 72, p1 = 86, p2 = 64;
         g.font = "700 " + p1 + "px " + FACE; let w = g.measureText(name).width;
-        g.font = "700 " + p2 + "px " + FACE; w += g.measureText(year).width + 120;
-        const h = 104;
+        g.font = "700 " + p2 + "px " + FACE; w += g.measureText(year).width + 150;
+        const h = 150;
         g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 20; g.shadowOffsetY = 6;
         const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, "rgba(58,40,22,.94)"); gr.addColorStop(1, "rgba(34,23,12,.94)");
         g.fillStyle = gr; g.beginPath(); g.roundRect(x, y, w, h, 10); g.fill(); g.shadowColor = "transparent";
         g.strokeStyle = "#c9972f"; g.lineWidth = 3.2; g.stroke();
-        g.fillStyle = "#a8231c"; g.fillRect(x, y + 12, 10, h - 24);
+        g.fillStyle = "#a8231c"; g.fillRect(x, y + 16, 14, h - 32);
         g.textAlign = "left"; g.textBaseline = "middle";
-        g.font = "700 " + p1 + "px " + FACE; g.fillStyle = "#f3dfa2"; g.fillText(name, x + 40, y + h / 2 + 2);
+        g.font = "700 " + p1 + "px " + FACE; g.fillStyle = "#f3dfa2"; g.fillText(name, x + 54, y + h / 2 + 3);
         const nw = g.measureText(name).width;
-        g.font = "700 " + p2 + "px " + FACE; g.fillStyle = "#ffb199"; g.fillText(year, x + 40 + nw + 40, y + h / 2 + 3);
+        g.font = "700 " + p2 + "px " + FACE; g.fillStyle = "#ffb199"; g.fillText(year, x + 54 + nw + 44, y + h / 2 + 3);
         return c.toDataURL("image/png");
       }
       if (cap.title) {
@@ -73,9 +75,9 @@ const CAPS = {
         gold("highland.avunjian.com", W / 2, H * 0.665, 50 * U);
       } else {
         // a soft dark ground under the words, so they read over a bright field
-        const h0 = H * cap.y - cap.lines.length * 60 * U, h1 = H * cap.y + 70 * U;
+        const h0 = H * cap.y - cap.lines.length * 75 * U, h1 = H * cap.y + 95 * U;
         const band = g.createLinearGradient(0, h0, 0, h1);
-        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.5)"); band.addColorStop(1, "rgba(14,9,4,0)");
+        band.addColorStop(0, "rgba(14,9,4,0)"); band.addColorStop(0.5, "rgba(14,9,4,.66)"); band.addColorStop(1, "rgba(14,9,4,0)");
         g.fillStyle = band; g.fillRect(0, h0, W, h1 - h0);
         let y = H * cap.y - (cap.lines.length - 1) * 38 * U;
         for (const [t, px, kind] of cap.lines) { (kind === "gold" ? gold : cream)(t, W / 2, y, px * U); y += px * U * 1.25; }

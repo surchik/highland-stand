@@ -15,11 +15,13 @@ FPS, DUR = 30, 30.0
 def run(a): subprocess.run(a, check=True)
 
 # 1. the picture: every segment trimmed, graded and set to 1280x720 at 30 fps, then joined
-inputs, f, labels = [], [], []
+inputs, f = [], []
+cur, L = None, 0.0
 for i, seg in enumerate(E["segments"]):
-    clip, ss, d = seg[:3]; sp = seg[3] if len(seg) > 3 else 1.0
+    clip, ss, d = seg[:3]; sp = seg[3] if len(seg) > 3 else 1.0; x = seg[4] if len(seg) > 4 else 0
     src = gem if clip == "gemini" else os.path.join(clips, clip + ".mkv")
-    inputs += ["-ss", str(ss), "-t", str(d * sp + 0.2), "-i", src]
+    # speed 0: the in point's frame, held (the loop's last frames land on the first one)
+    inputs += ["-ss", str(ss), "-t", str(d * (sp or 0) + 0.2) if sp else "0.1", "-i", src]
     if clip == "gemini":
         # the owner's clip: its burned-in words (bottom) and its wave counter (top right) cropped away
         g = "crop=1024:576:128:36,scale=1920:1080:flags=lanczos,eq=saturation=0.92"
@@ -28,10 +30,18 @@ for i, seg in enumerate(E["segments"]):
         g = "fps=30,eq=brightness=-0.13:contrast=1.12:saturation=0.85:gamma_r=1.04:gamma_b=0.92,vignette=angle=PI/4.6"
     else:
         g = "fps=30,eq=brightness=0.07:contrast=1.05:saturation=1.12,vignette=angle=PI/7"
-    f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS[s{i}]")
-    labels.append(f"[s{i}]")
-n = len(labels)
-f.append("".join(labels) + f"concat=n={n}:v=1:a=0,trim=duration={DUR},setpts=PTS-STARTPTS[base]")
+    if sp:
+        f.append(f"[{i}:v]{g},setpts=(PTS-STARTPTS)/{sp},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,format=yuv420p[s{i}]")
+    else:
+        f.append(f"[{i}:v]{g},trim=end_frame=1,tpad=stop_mode=clone:stop_duration={d},fps=30,setsar=1,trim=duration={d},setpts=PTS-STARTPTS,format=yuv420p[s{i}]")
+    if cur is None: cur, L = f"s{i}", d; continue
+    o = f"j{i}"
+    if x: f.append(f"[{cur}][s{i}]xfade=transition=fade:duration={x}:offset={L - x:.3f}[{o}]"); L += d - x
+    else: f.append(f"[{cur}][s{i}]concat=n=2:v=1:a=0[{o}]"); L += d
+    cur = o
+n = len(E["segments"])
+print("picture length", round(L, 2))
+f.append(f"[{cur}]trim=duration={DUR},setpts=PTS-STARTPTS[base]")
 last = "base"
 for k, (cid, t0, t1) in enumerate(E["captions"]):
     j = n + k
@@ -51,7 +61,7 @@ for k, (w, at) in enumerate(E["voice"]):
 m = len(E["voice"])
 af.append("".join(f"[v{k}]" for k in range(m)) + f"amix=inputs={m}:normalize=0,highpass=f=90,acompressor=threshold=-20dB:ratio=3:attack=5:release=120,aecho=0.8:0.5:40:0.1,apad=whole_dur={DUR},atrim=0:{DUR},asplit=2[vo][key]")
 ai += ["-i", os.path.join(ROOT, "assets/music/sheyk-sar.mp3")]
-af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,acompressor=threshold=-26dB:ratio=4:attack=30:release=400:makeup=4,afade=t=in:d=0.3,afade=t=out:st={DUR - 1.5}:d=1.45[mus]")
+af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,acompressor=threshold=-26dB:ratio=4:attack=30:release=400:makeup=4,afade=t=in:d=0.3,afade=t=out:st={DUR - 2.2}:d=2.15[mus]")
 af.append("[mus][key]sidechaincompress=threshold=0.02:ratio=10:attack=10:release=350:makeup=1[bed]")
 af.append(f"[bed][vo]amix=inputs=2:normalize=0:weights=0.42 1.25,atrim=0:{DUR}[out]")
 raw = os.path.join(out, "raw.wav")
@@ -60,7 +70,7 @@ I = None
 for line in subprocess.run(["ffmpeg", "-nostats", "-i", raw, "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True).stderr.splitlines():
     if line.strip().startswith("I:"): I = float(line.split()[1])
 mix = os.path.join(out, "mix.wav")
-run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,alimiter=limit=0.84:level=false", "-ar", "48000", mix])
+run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-af", f"volume={-16 - I:.2f}dB,alimiter=limit=0.76:level=false", "-ar", "48000", mix])
 
 # 3. the files the page loads
 m4 = os.path.join(out, "trailer.mp4")
