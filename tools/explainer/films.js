@@ -99,9 +99,9 @@ module.exports = {
       { at: "4/1+1.3", kind: "field", stage: { mode: "march", wave: 6, live: true, head: 0.62, spread: 0.45 }, a: [300, 250, 1.6], b: [480, 290, 1.8] },
       { at: "5/1", kind: "field", keep: true, stage: { live: true }, a: [560, 300, 1.5], b: [580, 200, 1.9] },
       { at: 6, kind: "stone", tone: "soft", a: [980, 560, 1.15], b: [620, 440, 1.6] },
-      { at: "6/1", kind: "field", stage: { mode: "battle", wave: 6, live: true, spawn: [{ at: 0.05, role: "spearman", n: 3, d: 0.95, gap: 0.01 }, { at: 0.3, role: "ram", d: 0.93 }, { at: 0.8, role: "shield", n: 2, d: 0.96 }, { at: 1.5, role: "spearman", n: 3, d: 0.94 }] }, a: [1050, 360, 1.8], b: [1060, 345, 2.0] },
+      { at: "6/1", kind: "field", stage: { mode: "battle", wave: 6, live: true, spawn: [{ at: 0.05, role: "spearman", n: 3, d: 0.95, gap: 0.01 }, { at: 0.3, role: "ram", d: 0.93 }, { at: 0.8, role: "shield", n: 2, d: 0.96 }, { at: 1.5, role: "spearman", n: 3, d: 0.94 }] }, a: [1050, 420, 1.8], b: [1060, 420, 1.9] },
       { at: 7, kind: "rock", a: [800, 600, 1.05], b: [790, 500, 1.6] },
-      { at: 8, kind: "field", stage: { mode: "battle", wave: 6, live: true, spawn: [{ at: 0.1, role: "spearman", n: 3, d: 0.45 }, { at: 0.6, role: "shield", n: 2, d: 0.5 }] }, a: [560, 360, 1.1], b: [620, 330, 1.25] },
+      { at: 8, fade: 0.3, kind: "field", stage: { mode: "battle", wave: 6, live: true, spawn: [{ at: 0.1, role: "spearman", n: 3, d: 0.45 }, { at: 0.6, role: "shield", n: 2, d: 0.5 }] }, a: [560, 360, 1.1], b: [620, 330, 1.25] },
       { at: 9, kind: "field", keep: true, stage: { live: true }, a: [860, 430, 1.4], b: [940, 420, 1.6] },
     ],
     chips: [
@@ -112,7 +112,7 @@ module.exports = {
       { from: 5, to: 5, text: "735 BC", sub: "The Assyrian army in the heart of Biainili" },
       { from: 6, to: "6/1", text: "As the Assyrian inscriptions tell it", sub: "Sarduri shut up in Tushpa" },
       { from: "6/1", to: 6, text: "Before the gates of Tushpa", sub: "Sarduri defeated, by their account" },
-      { from: 7, to: 7, text: "The citadel did not fall" },
+      { from: "7/1", to: 7, text: "The citadel did not fall" },
     ],
   },
   "tushpa-vertical": {
