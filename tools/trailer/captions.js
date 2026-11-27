@@ -4,7 +4,7 @@ const path = require("path"), fs = require("fs");
 const { chromium } = require(process.env.PW_PATH || "playwright");
 const CAPS = {
   a: { lines: [["For twenty-eight centuries,", 66, "gold"]], y: 0.8 },
-  a2: { lines: [["from Erebuni to Artsakh,", 66, "gold"]], y: 0.8 },
+  a2: { lines: [["from Erebuni to Artsakh,", 66, "gold"]], y: 0.13 },
   a3: { lines: [["Armenians have held these highlands.", 62, "gold"]], y: 0.8 },
   b: { lines: [["17 battlefields. 5 eras.", 62, "gold"]], y: 0.8 },
   c: { lines: [["Raise your towers", 62, "gold"], ["on the mountain roads.", 60, "goldsub"]], y: 0.76 },
