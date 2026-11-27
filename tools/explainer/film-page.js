@@ -103,13 +103,23 @@
       lives = Math.max(lives, lives0, 20);
       if (st.mode === "march" && hero) hero.alive = false;
       simT += 1 / fps;
-      for (const s of st.spawn || []) if (!s.done && simT >= s.at) { s.done = true; for (let i = 0; i < (s.n || 1); i++) spawnEnemy(s.role); }
+      for (const s of st.spawn || []) if (!s.done && simT >= s.at) {
+        s.done = true;
+        for (let i = 0; i < (s.n || 1); i++) {
+          spawnEnemy(s.role);
+          // (the trailer's crowds: d puts the column part way down its road, hp makes it last on screen)
+          const e = enemies[enemies.length - 1];
+          if (s.d != null) { const len = e.fly ? e.fly.len : ROUTES[e.route].len; e.dist = len * Math.max(0, s.d - i * (s.gap || 0.018)); }
+          if (s.hp) { e.maxHp *= s.hp; e.hp = e.maxHp; }
+          if (!sc.lead && !e.fly) sc.lead = e;
+        }
+      }
     }
     const cover = Math.max(W / VW, H / VH);
     let [cx, cy, z] = cam(sc, t);
     if (sc.follow) {
       // the camera keeps a walker in view: the hero, or the first foe of a kind still on the road
-      const f = sc.follow, e = f.type === "hero" ? hero : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => x.type === f.type) || null));
+      const f = sc.follow, e = f.type === "hero" ? hero : f.type === "spawn" ? (sc.lead && enemies.indexOf(sc.lead) >= 0 ? sc.lead : null) : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => f.type === "any" ? !x.fly && x.dist > (f.min || 0) : x.type === f.type) || null));
       if (e) {
         const w = f.type === "hero" ? { x: e.x, y: e.y } : enemyPos(e), p = proj(w.x, w.y);
         const tx = p.x + (f.dx || 0), ty = p.y + (f.dy || -20);
@@ -428,9 +438,12 @@
     if (i > 0 && t - sc.t0 < fade) { fx.globalAlpha = 1 - ease((t - sc.t0) / fade); fx.drawImage(bufs[1 - bi], 0, 0); fx.globalAlpha = 1; }
     vignette(fx);
     // the lower fifth is the subtitles' ground: the picture is dimmed there, so nothing in it asks to be read
-    const lg = fx.createLinearGradient(0, H * 0.74, 0, H);
-    lg.addColorStop(0, "rgba(14, 9, 4, 0)"); lg.addColorStop(0.45, "rgba(14, 9, 4, .42)"); lg.addColorStop(1, "rgba(14, 9, 4, .66)");
-    fx.fillStyle = lg; fx.fillRect(0, H * 0.74, W, H * 0.26);
+    // (the trailer's shots, spec.plain, have no subtitles: no dimmed ground, no fade in from black)
+    if (!spec.plain) {
+      const lg = fx.createLinearGradient(0, H * 0.74, 0, H);
+      lg.addColorStop(0, "rgba(14, 9, 4, 0)"); lg.addColorStop(0.45, "rgba(14, 9, 4, .42)"); lg.addColorStop(1, "rgba(14, 9, 4, .66)");
+      fx.fillStyle = lg; fx.fillRect(0, H * 0.74, W, H * 0.26);
+    }
     for (const o of spec.overlays) {
       if (o.kind === "chip") chip(fx, env(t, o.t0, o.t1, 0.45, 0.45), o);
       else if (o.kind === "title") titleCard(fx, env(t, o.t0 - 1, o.t1, 0.01, 0.8), o.dim == null ? 0.38 : o.dim, o);
@@ -438,7 +451,7 @@
       else if (o.kind === "note") note(fx, env(t, o.t0, o.t1, 0.4, 0.4), o);
     }
     // in from black (the last frame is the closing card, held: the page shows the chronicle's text after it)
-    const k = clamp01(t / 0.5);
+    const k = spec.plain ? 1 : clamp01(t / 0.5);
     if (k < 1) { fx.fillStyle = "rgba(12, 8, 4, " + (1 - k) + ")"; fx.fillRect(0, 0, W, H); }
     return i;
   };
