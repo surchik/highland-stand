@@ -170,7 +170,12 @@
       }
       if (sc.towerAt) { cx = sc.towerAt[0]; cy = sc.towerAt[1]; }
       const rb = sc.rebuild;
-      if (rb && !rb.done && simT >= rb.at) { rb.done = simT; const g0 = gold; gold = 99999; placeTower(sc.follow.kind || rb.type, rb.pad); gold = g0; const tw = towers[towers.length - 1]; if (tw) tw.placedAt = -1e9;
+      // (and then ranked up twice, with the same burst each time: build, upgrade)
+      if (rb && rb.done && rb.tw && rb.ups && rb.ups.length && simT >= rb.done + rb.ups[0]) {
+        rb.ups.shift(); rb.tw.level = Math.min(rb.tw.level + 1, 2);   // (its look ranks up; the game's rank-up toast and ring are interface, so upgradeTower is not called)
+        for (let i = 0; i < 18; i++) particles.push({ x: rb.x + ((i * 0.618) % 1 - 0.5) * 40, y: rb.y - 24, vx: ((i * 0.381) % 1 - 0.5) * 36, vy: -60 - (i * 13 % 34), life: 1.0, color: "#f3cf72", size: 3.5 });
+      }
+      if (rb && !rb.done && simT >= rb.at) { rb.done = simT; const g0 = gold; gold = 99999; placeTower(sc.follow.kind || rb.type, rb.pad); gold = g0; const tw = towers[towers.length - 1]; if (tw) tw.placedAt = -1e9; rb.tw = tw; rb.ups = (sc.follow.ups || []).slice();
         // the game's own particles for the moment it goes up: a burst of dust and a rise of gold sparks
         for (let i = 0; i < 26; i++) { const a = i / 26 * 6.2832, sp = 40 + (i * 37 % 50); particles.push({ x: rb.x + Math.cos(a) * 10, y: rb.y - 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 - 20, life: 0.9, color: i % 2 ? "#a8957a" : "#5e544a", size: 5 }); }
         for (let i = 0; i < 16; i++) particles.push({ x: rb.x + ((i * 0.618) % 1 - 0.5) * 36, y: rb.y - 20, vx: ((i * 0.381) % 1 - 0.5) * 30, vy: -50 - (i * 13 % 30), life: 1.0, color: "#f3cf72", size: 3 }); }
