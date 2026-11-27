@@ -170,7 +170,10 @@
       }
       if (sc.towerAt) { cx = sc.towerAt[0]; cy = sc.towerAt[1]; }
       const rb = sc.rebuild;
-      if (rb && !rb.done && simT >= rb.at) { rb.done = simT; const g0 = gold; gold = 99999; placeTower(sc.follow.kind || rb.type, rb.pad); gold = g0; const tw = towers[towers.length - 1]; if (tw) tw.placedAt = -1e9; }
+      if (rb && !rb.done && simT >= rb.at) { rb.done = simT; const g0 = gold; gold = 99999; placeTower(sc.follow.kind || rb.type, rb.pad); gold = g0; const tw = towers[towers.length - 1]; if (tw) tw.placedAt = -1e9;
+        // the game's own particles for the moment it goes up: a burst of dust and a rise of gold sparks
+        for (let i = 0; i < 26; i++) { const a = i / 26 * 6.2832, sp = 40 + (i * 37 % 50); particles.push({ x: rb.x + Math.cos(a) * 10, y: rb.y - 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.4 - 20, life: 0.9, color: i % 2 ? "#a8957a" : "#5e544a", size: 5 }); }
+        for (let i = 0; i < 16; i++) particles.push({ x: rb.x + ((i * 0.618) % 1 - 0.5) * 36, y: rb.y - 20, vx: ((i * 0.381) % 1 - 0.5) * 30, vy: -50 - (i * 13 % 30), life: 1.0, color: "#f3cf72", size: 3 }); }
       const f = sc.follow, e = f.type === "tower" ? null : f.type === "hero" ? hero : f.type === "spawn" ? (sc.lead && enemies.indexOf(sc.lead) >= 0 ? sc.lead : null) : (sc.folE && enemies.indexOf(sc.folE) >= 0 ? sc.folE : (sc.folE = enemies.find(x => f.type === "any" ? !x.fly && x.dist > (f.min || 0) : x.type === f.type) || null));
       if (e) {
         const w = f.type === "hero" ? { x: e.x, y: e.y } : enemyPos(e), p = proj(w.x, w.y);
