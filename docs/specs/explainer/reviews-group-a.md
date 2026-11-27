@@ -135,3 +135,29 @@ What the reviewers found:
 - Picture: the plaque for Leo of Lusignan late and short; the page 'Freed, he died in Paris in 1393' over five seconds; the hero low in the last shot; 'the kingdom came to an end' over the castle still garrisoned, and 'Freed' over Sis's painting (upright).
 - Subtitles: two uneven line breaks ('So ended / the Armenian Kingdom of Cilicia').
 - Pacing: 157 words a minute counting speech only (landscape).
+
+## Round 7
+
+Gyumri, both cuts, the first build. The upright cut passed every score.
+
+| Cut | Reviewer | History | Pacing | Picture | Sound | Subtitles |
+|---|---|---|---|---|---|---|
+| gyumri-landscape | a | 8 | 9 | 8 | 9 | 10 |
+| gyumri-landscape | b | 9 | 9 | 7 | 8 | 9 |
+| gyumri-vertical | a | 10 | 9 | 8 | 8 | 9 |
+| gyumri-vertical | b | 10 | 9 | 8 | 9 | 9 |
+
+Lowest score of the round: 7.
+
+What the reviewers found (the points that cost marks):
+
+- History (landscape): an arrow drawn from Kars to Erivan for the raid of October 1579, a route no source gives; 'No fighting at Kumayri itself is recorded' without the chronicle's 'that year'.
+- Picture (landscape): the plaque for Lala Mustafa Pasha over the game's commander marching down Kumayri's road, as if he led a column there; the Kumayri plaque on top of the chart's Mt. Ararat, just before the voice says Mount Aragats; the 'Shah Abbas' page 6.4 s; the chart of Kars, Kumayri and Erivan near still for 5.5 s; 'Shirak was among the lands emptied' over the village with a lit window and chimney smoke.
+- Sound: 'Lala' lost from the commander's name; one Shirak heard as 'Chirac'.
+- Pacing (landscape): 121 words a minute with pauses.
+- Subtitles: 'the highlands became the battlefield / of two empires' split across two cues.
+
+What was changed after this round (landscape):
+
+- Script: 'is recorded that year'; read at 0.98; the cue break moved to 'the highlands became / the battlefield of two empires'.
+- Picture: Lala Mustafa Pasha on a page of his own; Kars, Kumayri and Erivan come up on the chart one after another as they are named, with no route drawn; Kumayri's plaque set clear of Mt. Ararat; the village painting for 'No fighting at Kumayri itself is recorded that year'; Shah Abbas's deportations as an arrow on the chart pointing the way to Persia; 'the lands emptied' over the deserted snow plain below the village.
