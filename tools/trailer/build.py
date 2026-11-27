@@ -28,6 +28,8 @@ for i, seg in enumerate(E["segments"]):
     if clip == "gemini":
         # the owner's clip: its burned-in words (bottom) and its wave counter (top right) cropped away
         g = "crop=1024:576:128:36,scale=1920:1080:flags=lanczos,eq=saturation=0.92,unsharp=5:5:0.6"
+    elif clip == "endfield":   # the title's ground: a battlefield at dusk, dimmed, under a slow push
+        g = "fps=30,eq=brightness=-0.16:contrast=1.0:saturation=0.75,vignette=angle=PI/4"
     elif clip in ("map", "endmap"):
         # the chart at dusk: darker and warmer than the page's parchment, so the words on it carry
         g = "fps=30,eq=brightness=-0.13:contrast=1.12:saturation=0.85:gamma_r=1.04:gamma_b=0.92,vignette=angle=PI/3.8"
@@ -53,7 +55,7 @@ last = "base"
 for k, (cid, t0, t1) in enumerate(E["captions"]):
     j = n + k
     inputs += ["-loop", "1", "-t", str(DUR), "-i", os.path.join(caps, cid + ".png")]
-    fi, fo = (0.15, 0.15) if cid.startswith("t_") else (0.3, 0.3) if cid != "title" else (0.7, 0.4)
+    fi, fo = (0.08, 0.12) if cid.startswith("t_") else (0.3, 0.3) if cid != "title" else (0.7, 0.4)
     f.append(f"[{j}:v]scale=1920:1080,format=rgba,fade=t=in:st={t0}:d={fi}:alpha=1,fade=t=out:st={t1 - fo}:d={fo}:alpha=1[c{k}]")
     f.append(f"[{last}][c{k}]overlay=0:0:enable='between(t,{t0},{t1})'[v{k}]")
     last = f"v{k}"
@@ -68,7 +70,7 @@ for k, (w, at, *gain) in enumerate(E["voice"]):
 m = len(E["voice"])
 af.append("".join(f"[v{k}]" for k in range(m)) + f"amix=inputs={m}:normalize=0,highpass=f=90,acompressor=threshold=-20dB:ratio=3:attack=5:release=120,aecho=0.8:0.5:40:0.1,apad=whole_dur={DUR},atrim=0:{DUR},asplit=2[vo][key]")
 ai += ["-i", os.path.join(ROOT, "assets/music/sheyk-sar.mp3")]
-af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,acompressor=threshold=-26dB:ratio=4:attack=30:release=400:makeup=4,equalizer=f=2200:width_type=o:width=1.6:g=-5,volume='(1-0.2*min(max((t-18)/2\\,0)\\,1))*(1-0.5*min(max((t-7.05)/0.25\\,0)\\,1)*min(max((9.6-t)/0.3\\,0)\\,1))*(1-0.72*min(max((t-25.1)/0.25\\,0)\\,1)*min(max((26.8-t)/0.3\\,0)\\,1))*(1-0.35*min(max((t-27.6)/0.8\\,0)\\,1))':eval=frame,afade=t=in:d=0.3,afade=t=out:st={DUR - 0.95}:d=0.9[mus]")
+af.append(f"[{m}:a]atrim=1:{DUR + 1},asetpts=PTS-STARTPTS,aresample=48000,acompressor=threshold=-26dB:ratio=4:attack=30:release=400:makeup=4,equalizer=f=2200:width_type=o:width=1.6:g=-5,volume='(1-0.2*min(max((t-18)/2\\,0)\\,1))*(1-0.5*min(max((t-7.05)/0.25\\,0)\\,1)*min(max((9.6-t)/0.3\\,0)\\,1))*(1-0.85*min(max((t-25.1)/0.25\\,0)\\,1)*min(max((26.8-t)/0.3\\,0)\\,1))*(1-0.35*min(max((t-27.6)/0.8\\,0)\\,1))':eval=frame,afade=t=in:d=0.3,afade=t=out:st={DUR - 0.95}:d=0.9[mus]")
 af.append("[mus][key]sidechaincompress=threshold=0.012:ratio=14:attack=8:release=300:makeup=1[bed]")
 af.append(f"[bed][vo]amix=inputs=2:normalize=0:weights=0.42 1.25,atrim=0:{DUR}[out]")
 raw = os.path.join(out, "raw.wav")
